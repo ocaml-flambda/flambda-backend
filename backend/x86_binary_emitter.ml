@@ -1651,9 +1651,15 @@ let assemble_line b loc ins =
     | Section _ -> assert false
     | Mode386 -> assert (system = S_win32)
     | Model _ -> assert (system = S_win32)
-    | Cfi_startproc -> print_endline "Cfi_startproc"
-    | Cfi_endproc -> print_endline "Cfi_endproc"
-    | Cfi_adjust_cfa_offset offset -> print_endline ("Cfi_adjust_cfa_offset " ^ Int.to_string offset)
+    | Cfi_startproc ->
+      let address = Buffer.length b.buf in
+      Emitaux.Dwarf_helpers.record_dwarf_for_cfi_startproc ~address
+    | Cfi_endproc ->
+      let address = Buffer.length b.buf in
+      Emitaux.Dwarf_helpers.record_dwarf_for_cfi_endproc ~address
+    | Cfi_adjust_cfa_offset offset ->
+      let address = Buffer.length b.buf in
+      Emitaux.Dwarf_helpers.record_dwarf_for_cfi_adjust_cfa_offset ~address ~offset
     | File (file_num, file_name) ->
         Emitaux.Dwarf_helpers.record_dwarf_for_source_file ~file_name ~file_num
     | Loc { file_num; line; col; discriminator } ->

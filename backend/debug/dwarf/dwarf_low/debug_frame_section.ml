@@ -26,9 +26,11 @@ type call_frame_instr =
   | Val_offset_sf of int * int
 
 type fde =
-  { start_offset : int;
+  { start_address : int;
     length : int;
-    instructions : call_frame_instr list
+    instructions : call_frame_instr list;
+    current_address : int;
+    current_cfa_offset : int
   }
 
 type debug_frame_state =
@@ -72,10 +74,85 @@ let data_alignment_factor = Dwarf_value.sleb128 (-8L)
 let return_address_register =
   Numbers.Uint64.of_nonnegative_int_exn 16 |> Dwarf_value.uleb128
 
-let initial_instructions = [Def_cfa (7, 8); Offset (16, 1)]
+let initial_cfa_offset = 8
+
+let initial_instructions = [Def_cfa (7, initial_cfa_offset); Offset (16, 1)]
+
+let cie_label =
+  lazy (Asm_label.create (Asm_section.DWARF Asm_section.Debug_frame))
+
+let cie_pointer () = Dwarf_value.offset_into_debug_frame (Lazy.force cie_label)
 
 let create ~code_begin =
   { state = { current_fde = None; complete_fdes = [] }; code_begin }
+
+let process_cfi_startproc t ~address =
+  t.state
+    <- (match t.state.current_fde with
+       | Some _ ->
+         failwith
+           "debug_frame section: cfi_startproc before previous function was \
+            closed"
+       | None ->
+         { t.state with
+           current_fde =
+             Some
+               { start_address = address;
+                 length = 0;
+                 instructions = [];
+                 current_address = address;
+                 current_cfa_offset = initial_cfa_offset
+               }
+         })
+
+let process_cfi_adjust_cfa_offset t ~address ~offset =
+  match t.state.current_fde with
+  | None ->
+    failwith
+      "debug_frame section: cfi_adjust_cfa_offset when no function is open"
+  | Some fde ->
+    let required_loc_advance = address - fde.current_address in
+    let new_cfa_offset = fde.current_cfa_offset + offset in
+    let instructions =
+      if required_loc_advance = 0
+      then fde.instructions
+      else if required_loc_advance < 64
+      then Advance_loc required_loc_advance :: fde.instructions
+      else if required_loc_advance < 256
+      then Advance_loc1 required_loc_advance :: fde.instructions
+      else if required_loc_advance < 65536
+      then Advance_loc2 required_loc_advance :: fde.instructions
+      else if required_loc_advance < 4294967296
+      then Advance_loc4 required_loc_advance :: fde.instructions
+      else failwith "debug_frame_section: location advance too large"
+    in
+    let instructions =
+      if offset = 0
+      then instructions
+      else Def_cfa_offset new_cfa_offset :: instructions
+    in
+    t.state
+      <- { t.state with
+           current_fde =
+             Some
+               { fde with
+                 instructions;
+                 current_address = address;
+                 current_cfa_offset = new_cfa_offset
+               }
+         }
+
+let process_cfi_endproc t ~address =
+  t.state
+    <- (match t.state.current_fde with
+       | None ->
+         failwith "debug_frame section: cfi_endproc when no function is open"
+       | Some fde ->
+         { current_fde = None;
+           complete_fdes =
+             { fde with length = address - fde.start_address }
+             :: t.state.complete_fdes
+         })
 
 let encode = function
   | Advance_loc delta ->
@@ -183,19 +260,15 @@ let cie_size_without_padding_or_first_word () =
   + Dwarf_value.size return_address_register
   + instructions_size initial_instructions
 
-let cie_padding_size () =
-  let size_without_padding_or_first_word =
-    Dwarf_int.to_int64 (cie_size_without_padding_or_first_word ())
-  in
-  let size_without_padding =
-    Int64.add size_without_padding_or_first_word
-      (Dwarf_int.to_int64 (initial_length_size ()))
-  in
-  let padding =
-    address_size_int ()
-    - (Int64.to_int size_without_padding mod address_size_int ())
-  in
+let required_padding_size length =
+  let padding = address_size_int () - (length mod address_size_int ()) in
   if padding = address_size_int () then 0 else padding
+
+let cie_padding_size () =
+  Dwarf_int.add
+    (cie_size_without_padding_or_first_word ())
+    (initial_length_size ())
+  |> Dwarf_int.to_int64 |> Int64.to_int |> required_padding_size
 
 let cie_size_without_first_word () =
   Dwarf_int.add
@@ -205,7 +278,30 @@ let cie_size_without_first_word () =
 let cie_size () =
   Dwarf_int.add (initial_length_size ()) (cie_size_without_first_word ())
 
-let size t = cie_size ()
+let fde_size_without_padding_or_first_word fde =
+  let ( + ) = Dwarf_int.add in
+  Dwarf_value.size (cie_pointer ())
+  + Dwarf_value.size (Dwarf_value.absolute_address Targetint.zero)
+  + Dwarf_value.size (Dwarf_value.absolute_address Targetint.zero)
+  + instructions_size fde.instructions
+
+let fde_padding_size fde =
+  Dwarf_int.add
+    (fde_size_without_padding_or_first_word fde)
+    (initial_length_size ())
+  |> Dwarf_int.to_int64 |> Int64.to_int |> required_padding_size
+
+let fde_size_without_first_word fde =
+  Dwarf_int.add
+    (fde_size_without_padding_or_first_word fde)
+    (Dwarf_int.of_host_int_exn (fde_padding_size fde))
+
+let fde_size fde =
+  Dwarf_int.add (initial_length_size ()) (fde_size_without_first_word fde)
+
+let size t =
+  let ( + ) = Dwarf_int.add in
+  List.fold_left ( + ) (cie_size ()) (List.map fde_size t.state.complete_fdes)
 
 let emit_cie ~asm_directives =
   let initial_length = Initial_length.create (cie_size_without_first_word ()) in
@@ -223,4 +319,24 @@ let emit_cie ~asm_directives =
   emit_instructions ~asm_directives initial_instructions;
   emit_padding ~asm_directives (cie_padding_size ())
 
-let emit ~asm_directives t = emit_cie ~asm_directives
+let emit_fde ~asm_directives ~code_begin fde =
+  let initial_length =
+    Initial_length.create (fde_size_without_first_word fde)
+  in
+  Initial_length.emit ~asm_directives initial_length;
+  Dwarf_value.emit ~asm_directives (cie_pointer ());
+  Dwarf_value.emit ~asm_directives
+    (Dwarf_value.code_address_from_symbol_plus_bytes code_begin
+       (Targetint.of_int fde.start_address));
+  Dwarf_value.emit ~asm_directives
+    (Dwarf_value.absolute_address (Targetint.of_int fde.length));
+  emit_instructions ~asm_directives (List.rev fde.instructions);
+  emit_padding ~asm_directives (fde_padding_size fde)
+
+let emit ~asm_directives t =
+  let module A = (val asm_directives : Asm_directives.S) in
+  A.define_label (Lazy.force cie_label);
+  emit_cie ~asm_directives;
+  List.iter
+    (emit_fde ~asm_directives ~code_begin:t.code_begin)
+    (List.rev t.state.complete_fdes)

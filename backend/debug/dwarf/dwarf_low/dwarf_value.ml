@@ -68,6 +68,7 @@ type value =
   | Offset_into_debug_loclists of Asm_label.t
   | Offset_into_debug_rnglists of Asm_label.t
   | Offset_into_debug_abbrev of Asm_label.t
+  | Offset_into_debug_frame of Asm_label.t
   | Distance_between_labels_16_bit of
       { upper : Asm_label.t;
         lower : Asm_label.t
@@ -134,6 +135,8 @@ let print ppf { value; comment = _ } =
     Format.fprintf ppf "%a - .debug_rnglists" Asm_label.print lbl
   | Offset_into_debug_abbrev lbl ->
     Format.fprintf ppf "%a - .debug_abbrev" Asm_label.print lbl
+  | Offset_into_debug_frame lbl ->
+    Format.fprintf ppf "%a - .debug_frame" Asm_label.print lbl
   | Distance_between_labels_16_bit { upper; lower } ->
     Format.fprintf ppf "%a - %a (16)" Asm_label.print upper Asm_label.print
       lower
@@ -224,6 +227,9 @@ let offset_into_debug_rnglists ?comment lbl =
 let offset_into_debug_abbrev ?comment lbl =
   { value = Offset_into_debug_abbrev lbl; comment }
 
+let offset_into_debug_frame ?comment lbl =
+  { value = Offset_into_debug_frame lbl; comment }
+
 let distance_between_labels_16_bit ?comment ~upper ~lower () =
   { value = Distance_between_labels_16_bit { upper; lower }; comment }
 
@@ -285,7 +291,7 @@ let size { value; comment = _ } =
   | Offset_into_debug_info_from_symbol _ | Offset_into_debug_addr _
   | Offset_into_debug_loc _ | Offset_into_debug_ranges _
   | Offset_into_debug_loclists _ | Offset_into_debug_rnglists _
-  | Offset_into_debug_abbrev _ ->
+  | Offset_into_debug_abbrev _ | Offset_into_debug_frame _ ->
     Dwarf_int.size (Dwarf_int.zero ())
   | Distance_between_labels_16_bit _ -> Dwarf_int.two ()
   | Distance_between_labels_32_bit _ -> Dwarf_int.four ()
@@ -368,6 +374,9 @@ let emit ~asm_directives { value; comment } =
       ~width:width_for_ref_addr_or_sec_offset
   | Offset_into_debug_abbrev label ->
     A.offset_into_dwarf_section_label ?comment Debug_abbrev label
+      ~width:width_for_ref_addr_or_sec_offset
+  | Offset_into_debug_frame label ->
+    A.offset_into_dwarf_section_label ?comment Debug_frame label
       ~width:width_for_ref_addr_or_sec_offset
   | Distance_between_labels_16_bit { upper; lower } ->
     (* We rely on the assembler for overflow checking here and in the 32-bit

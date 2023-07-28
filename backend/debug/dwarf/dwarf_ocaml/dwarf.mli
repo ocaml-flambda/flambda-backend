@@ -45,6 +45,12 @@ val dwarf_for_line_number_matrix_row :
   discriminator:int option ->
   unit
 
+val dwarf_for_cfi_startproc : t -> address:int -> unit
+
+val dwarf_for_cfi_adjust_cfa_offset : t -> address:int -> offset:int -> unit
+
+val dwarf_for_cfi_endproc : t -> address:int -> unit
+
 val checkpoint : t -> unit
 
 val rollback : t -> unit

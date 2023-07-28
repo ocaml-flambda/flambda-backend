@@ -514,6 +514,21 @@ module Dwarf_helpers = struct
     | Some dwarf -> Dwarf.dwarf_for_line_number_matrix_row dwarf ~instr_address
       ~file_num ~line ~col ~discriminator
 
+  let record_dwarf_for_cfi_startproc ~address =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.dwarf_for_cfi_startproc dwarf ~address
+
+  let record_dwarf_for_cfi_adjust_cfa_offset ~address ~offset =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.dwarf_for_cfi_adjust_cfa_offset dwarf ~address ~offset
+
+  let record_dwarf_for_cfi_endproc ~address =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.dwarf_for_cfi_endproc dwarf ~address
+
   let checkpoint () =
     match !dwarf with
     | None -> ()

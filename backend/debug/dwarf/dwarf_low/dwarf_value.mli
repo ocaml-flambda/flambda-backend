@@ -96,6 +96,8 @@ val offset_into_debug_rnglists : ?comment:string -> Asm_label.t -> t
 
 val offset_into_debug_abbrev : ?comment:string -> Asm_label.t -> t
 
+val offset_into_debug_frame : ?comment:string -> Asm_label.t -> t
+
 val distance_between_labels_16_bit :
   ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> t
 
