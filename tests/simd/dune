@@ -7,16 +7,7 @@
  (flags -msse4.2)
  (include_dirs "../../ocaml/runtime"))
 
-; Copy to internal
-
-(rule
- (targets basic_internal.ml)
- (deps basic.ml)
- (action
-  (progn
-   (copy basic.ml basic_internal.ml))))
-
-; Tests
+; Tests with external assembler
 
 (executables
  (names basic)
@@ -25,26 +16,16 @@
  (ocamlopt_flags
   (:standard -extension simd)))
 
-(executables
- (names basic_internal)
- (modules basic_internal)
- (foreign_archives stubs)
- (ocamlopt_flags
-  (:standard -extension simd -internal-assembler)))
-
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out basic_internal.out)
+ (targets basic.out)
  (deps basic.exe)
  (action
   (progn
    (with-outputs-to
     basic.out
-    (run ./basic.exe))
-   (with-outputs-to
-    basic_internal.out
-    (run ./basic_internal.exe)))))
+    (run ./basic.exe)))))
 
 (rule
  (alias runtest)
@@ -52,10 +33,9 @@
   (= %{context_name} "main"))
  (action
   (progn
-   (diff empty.expected basic.out)
-   (diff empty.expected basic_internal.out))))
+   (diff empty.expected basic.out))))
 
-; Probes
+; Tests with probes / internal assembler - not supported on macOS
 
 (executable
  (name probes)
@@ -67,16 +47,38 @@
   (:standard -extension simd)))
 
 (rule
+ (targets basic_internal.ml)
+ (deps basic.ml)
+ (enabled_if
+  (<> %{system} macosx))
+ (action
+  (progn
+   (copy basic.ml basic_internal.ml))))
+
+(executables
+ (names basic_internal)
+ (modules basic_internal)
+ (enabled_if
+  (<> %{system} macosx))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd -internal-assembler)))
+
+(rule
  (enabled_if
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (target probes.out)
- (deps probes.exe)
+ (targets probes.out basic_internal.out)
+ (deps probes.exe basic_internal.exe)
  (action
-  (with-outputs-to
-   probes.out
-   (run ./probes.exe))))
+  (progn
+   (with-outputs-to
+    probes.out
+    (run ./probes.exe))
+   (with-outputs-to
+    basic_internal.out
+    (run ./basic_internal.exe)))))
 
 (rule
  (alias runtest)
@@ -85,4 +87,6 @@
    (= %{context_name} "main")
    (<> %{system} macosx)))
  (action
-  (diff empty.expected probes.out)))
+  (progn
+   (diff empty.expected probes.out)
+   (diff empty.expected basic_internal.out))))
