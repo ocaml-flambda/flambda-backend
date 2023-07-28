@@ -441,8 +441,14 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
     | _ -> None)
   | _ -> None
 
+let generated_rules cell =
+  match useless_movs cell with
+  | None -> (
+    match fold_intop_imm_arith cell with
+    | None -> (
+      match fold_intop_imm_bitwise cell with None -> None | res -> res)
+    | res -> res)
+  | res -> res
+
 let generated_rule_names =
   ["useless_movs"; "fold_intop_imm_arith"; "fold_intop_imm_bitwise"]
-
-let generated_rules =
-  [useless_movs; fold_intop_imm_arith; fold_intop_imm_bitwise]

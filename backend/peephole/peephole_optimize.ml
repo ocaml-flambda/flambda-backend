@@ -7,15 +7,14 @@ open! Peephole_generated
 (* Helper function for optimize_body. Here cell is an iterator of the doubly
    linked list data structure that encapsulates the body's instructions. *)
 let rec optimize_body' cell made_optimizations =
-  match
-    List.find_map
-      (fun opt_func -> opt_func cell)
-      (generated_rules @ handbuilt_rules)
-  with
+  match generated_rules cell with
   | None -> (
-    match DLL.next cell with
-    | None -> made_optimizations
-    | Some next_cell -> optimize_body' next_cell made_optimizations)
+    match handbuilt_rules cell with
+    | None -> (
+      match DLL.next cell with
+      | None -> made_optimizations
+      | Some next_cell -> optimize_body' next_cell made_optimizations)
+    | Some continuation_cell -> optimize_body' continuation_cell true)
   | Some continuation_cell -> optimize_body' continuation_cell true
 
 let optimize_body (body : Cfg.basic_instruction_list) =
@@ -26,7 +25,9 @@ let optimize_body (body : Cfg.basic_instruction_list) =
 let set_csv () =
   if Option.is_none !csv_singleton
   then (
-    let new_csv = IntCsv.create (generated_rule_names @ handbuilt_rule_names) in
+    let new_csv =
+      IntCsv.create (generated_rule_names @ handbuilt_rule_names)
+    in
     if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
     then
       Stdlib.at_exit (fun () ->
@@ -38,6 +39,7 @@ let set_csv () =
              |> Digest.to_hex)
             ^ ".csv"));
     csv_singleton := Some new_csv)
+
 
 (* Apply peephole optimization for the body of each block of the CFG*)
 let peephole_optimize_cfg cfg_with_layout =

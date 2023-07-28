@@ -476,11 +476,36 @@ let construct_func_name_list funcs =
     @ List.map (fun func -> "\"" ^ func.name ^ "\";") funcs
     @ ["]"])
 
-let construct_func_list funcs =
-  String.concat " "
-    (["let generated_rules = ["]
-    @ List.map (fun func -> func.name ^ ";") funcs
-    @ ["]"])
+let construct_func_match_pref func =
+  [
+    String.concat " " ["match"; func.name; "cell with"];
+    "| None -> ("
+  ]
+
+let construct_func_match_suff =
+  [
+    "| res -> res)"
+  ]
+
+let rec construct_generated_func' funcs lines_pref lines_suff =
+  match funcs with
+  | [] -> lines_pref @ lines_suff
+  | hd :: tl -> 
+    construct_generated_func' 
+    tl 
+    (construct_func_match_pref hd @ lines_pref) 
+    (lines_suff @ construct_func_match_suff)
+
+let construct_generated_func funcs =
+  let rev_funcs = List.rev funcs in
+  let rev_funcs_tl = List.tl rev_funcs in
+  let rev_funcs_hd = List.hd rev_funcs in
+  let lines = [
+    String.concat " " ["match"; rev_funcs_hd.name; "cell with"];
+    "| None -> None";
+    "| res -> res)";
+  ] in
+  String.concat "\n" (["let generated_rules cell = ("] @ (construct_generated_func' rev_funcs_tl lines [] ))
 
 let useles_movs =
   { name = "useless_movs";
@@ -805,5 +830,5 @@ let () =
       generate_func slide_back func |> print_endline;
       print_endline "")
     funcs;
-  construct_func_name_list funcs |> print_endline;
-  construct_func_list funcs |> print_endline
+  construct_generated_func funcs |> print_endline;
+  construct_func_name_list funcs |> print_endline

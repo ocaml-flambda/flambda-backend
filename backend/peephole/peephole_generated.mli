@@ -2,6 +2,6 @@
 
 open! Peephole_utils
 
-val generated_rules : rule list
+val generated_rules : rule
 
 val generated_rule_names : string list
