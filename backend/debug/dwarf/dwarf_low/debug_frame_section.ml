@@ -46,14 +46,20 @@ type t =
 let null_byte = Dwarf_value.uint8 Numbers.Uint8.zero
 
 let cie_id =
-  match !Dwarf_flags.gdwarf_format with
-  | Thirty_two ->
-    Dwarf_value.uint32 (Numbers.Uint32.of_nonnegative_int64_exn 0xffffffffL)
-  | Sixty_four ->
-    Dwarf_value.uint64
-      (Numbers.Uint64.of_nonnegative_int64_exn 0xffffffffffffffffL)
+  if !Dwarf_flags.gdwarf_use_eh_frame
+  then Dwarf_value.uint32 Numbers.Uint32.zero
+  else
+    match !Dwarf_flags.gdwarf_format with
+    | Thirty_two ->
+      Dwarf_value.uint32 (Numbers.Uint32.of_nonnegative_int64_exn 0xffffffffL)
+    | Sixty_four ->
+      Dwarf_value.uint64
+        (Numbers.Uint64.of_nonnegative_int64_exn 0xffffffffffffffffL)
 
-let version = Dwarf_value.uint8 (Numbers.Uint8.of_nonnegative_int_exn 4)
+let version =
+  if !Dwarf_flags.gdwarf_use_eh_frame
+  then Dwarf_value.uint8 Numbers.Uint8.one
+  else Dwarf_value.uint8 (Numbers.Uint8.of_nonnegative_int_exn 4)
 
 let augmentation = null_byte
 
@@ -244,17 +250,20 @@ let emit_instructions ~asm_directives instructions =
   |> List.iter (List.iter (Dwarf_value.emit ~asm_directives))
 
 let emit_padding ~asm_directives size =
-  emit_instructions ~asm_directives (List.init size (fun _ -> Nop))
+  List.init size (fun _ -> Nop) |> emit_instructions ~asm_directives
 
 let initial_length_size () =
-  Dwarf_int.zero () |> Initial_length.create |> Initial_length.size
+  if !Dwarf_flags.gdwarf_use_eh_frame
+  then Dwarf_value.uint32 Numbers.Uint32.zero |> Dwarf_value.size
+  else Dwarf_int.zero () |> Initial_length.create |> Initial_length.size
 
 let cie_size_without_padding_or_first_word () =
   let ( + ) = Dwarf_int.add in
   Dwarf_value.size cie_id + Dwarf_value.size version
   + Dwarf_value.size augmentation
-  + Dwarf_value.size (address_size ())
-  + Dwarf_value.size segment_size
+  + (if !Dwarf_flags.gdwarf_use_eh_frame
+    then Dwarf_int.zero ()
+    else Dwarf_value.size (address_size ()) + Dwarf_value.size segment_size)
   + Dwarf_value.size code_alignment_factor
   + Dwarf_value.size data_alignment_factor
   + Dwarf_value.size return_address_register
@@ -280,7 +289,9 @@ let cie_size () =
 
 let fde_size_without_padding_or_first_word fde =
   let ( + ) = Dwarf_int.add in
-  Dwarf_value.size (cie_pointer ())
+  (if !Dwarf_flags.gdwarf_use_eh_frame
+  then Dwarf_value.uint32 Numbers.Uint32.zero |> Dwarf_value.size
+  else Dwarf_value.size (cie_pointer ()))
   + Dwarf_value.size (Dwarf_value.absolute_address Targetint.zero)
   + Dwarf_value.size (Dwarf_value.absolute_address Targetint.zero)
   + instructions_size fde.instructions
@@ -303,40 +314,58 @@ let size t =
   let ( + ) = Dwarf_int.add in
   List.fold_left ( + ) (cie_size ()) (List.map fde_size t.state.complete_fdes)
 
+let emit_initial_length_field ~asm_directives length =
+  if !Dwarf_flags.gdwarf_use_eh_frame
+  then
+    let length_field =
+      Dwarf_value.uint32
+        (length |> Dwarf_int.to_int64 |> Numbers.Uint32.of_nonnegative_int64_exn)
+    in
+    Dwarf_value.emit ~asm_directives length_field
+  else
+    let initial_length = Initial_length.create length in
+    Initial_length.emit ~asm_directives initial_length
+
 let emit_cie ~asm_directives =
-  let initial_length = Initial_length.create (cie_size_without_first_word ()) in
-  Initial_length.emit ~asm_directives initial_length;
+  emit_initial_length_field ~asm_directives (cie_size_without_first_word ());
   Dwarf_value.emit ~asm_directives cie_id;
   (* Dwarf_version is not used because the version field is one byte, not two
      bytes *)
   Dwarf_value.emit ~asm_directives version;
   Dwarf_value.emit ~asm_directives augmentation;
-  Dwarf_value.emit ~asm_directives (address_size ());
-  Dwarf_value.emit ~asm_directives segment_size;
+  if not !Dwarf_flags.gdwarf_use_eh_frame
+  then (
+    Dwarf_value.emit ~asm_directives (address_size ());
+    Dwarf_value.emit ~asm_directives segment_size);
   Dwarf_value.emit ~asm_directives code_alignment_factor;
   Dwarf_value.emit ~asm_directives data_alignment_factor;
   Dwarf_value.emit ~asm_directives return_address_register;
   emit_instructions ~asm_directives initial_instructions;
   emit_padding ~asm_directives (cie_padding_size ())
 
-let emit_fde ~asm_directives ~code_begin fde =
-  let initial_length =
-    Initial_length.create (fde_size_without_first_word fde)
-  in
-  Initial_length.emit ~asm_directives initial_length;
-  Dwarf_value.emit ~asm_directives (cie_pointer ());
+let emit_fde ~asm_directives ~code_begin ~cie_offset fde =
+  emit_initial_length_field ~asm_directives (fde_size_without_first_word fde);
+  if !Dwarf_flags.gdwarf_use_eh_frame
+  then
+    Dwarf_value.emit ~asm_directives
+      (Dwarf_int.add !cie_offset (initial_length_size ())
+      |> Dwarf_int.to_int64 |> Numbers.Uint32.of_nonnegative_int64_exn
+      |> Dwarf_value.uint32)
+  else Dwarf_value.emit ~asm_directives (cie_pointer ());
   Dwarf_value.emit ~asm_directives
     (Dwarf_value.code_address_from_symbol_plus_bytes code_begin
        (Targetint.of_int fde.start_address));
   Dwarf_value.emit ~asm_directives
     (Dwarf_value.absolute_address (Targetint.of_int fde.length));
   emit_instructions ~asm_directives (List.rev fde.instructions);
-  emit_padding ~asm_directives (fde_padding_size fde)
+  emit_padding ~asm_directives (fde_padding_size fde);
+  cie_offset := Dwarf_int.add !cie_offset (fde_size fde)
 
 let emit ~asm_directives t =
   let module A = (val asm_directives : Asm_directives.S) in
   A.define_label (Lazy.force cie_label);
   emit_cie ~asm_directives;
+  let cie_offset = ref (cie_size ()) in
   List.iter
-    (emit_fde ~asm_directives ~code_begin:t.code_begin)
+    (emit_fde ~asm_directives ~code_begin:t.code_begin ~cie_offset)
     (List.rev t.state.complete_fdes)

@@ -137,3 +137,7 @@ let gdwarf_format = ref default_gdwarf_format
 let default_gdwarf_self_tail_calls = true
 
 let gdwarf_self_tail_calls = ref default_gdwarf_self_tail_calls
+
+let default_gdwarf_use_eh_frame = true
+
+let gdwarf_use_eh_frame = ref default_gdwarf_use_eh_frame

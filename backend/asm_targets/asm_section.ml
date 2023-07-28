@@ -97,7 +97,10 @@ let details t ~first_occurrence =
         | Debug_rnglists -> ".debug_rnglists"
         | Debug_str -> ".debug_str"
         | Debug_line -> ".debug_line"
-        | Debug_frame -> ".debug_frame"
+        | Debug_frame ->
+          if !Dwarf_flags.gdwarf_use_eh_frame
+          then ".eh_frame"
+          else ".debug_frame"
       in
       let flags = if first_occurrence then Some "" else None in
       let args = if first_occurrence then ["%progbits"] else [] in

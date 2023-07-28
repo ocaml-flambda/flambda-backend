@@ -65,3 +65,7 @@ val default_gdwarf_format : dwarf_format
 val default_ddebug_invariants : bool
 
 val ddebug_invariants : bool ref
+
+val default_gdwarf_use_eh_frame : bool
+
+val gdwarf_use_eh_frame : bool ref
