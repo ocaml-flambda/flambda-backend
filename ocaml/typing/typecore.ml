@@ -6611,6 +6611,10 @@ and type_application env app_loc expected_mode pm
       in
       if !Clflags.principal then begin_def () ;
       let sargs = List.map
+        (* Application will never contain Position labels, so no need to pass
+           argument type here. When checking against the function type, 
+           Labelled arguments will be matched up to Position parameters
+           based on label names *)
         (fun (label, e) -> Typetexp.transl_label label None, e) sargs
       in
       let ty_ret, mode_ret, untyped_args =
