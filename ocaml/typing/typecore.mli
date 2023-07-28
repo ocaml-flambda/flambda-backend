@@ -145,7 +145,7 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some:
+val type_optional_argument:
   Env.t -> value_mode -> Parsetree.expression -> type_expr -> type_expr
   -> Typedtree.expression
 val option_none:

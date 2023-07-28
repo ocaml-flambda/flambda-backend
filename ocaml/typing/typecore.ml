@@ -288,14 +288,12 @@ type position_in_function = FTail | FNontail
 type position_in_region =
   | RNontail
   (** not the tail of a region*)
-
   | RTail of Value_mode.t * position_in_function
   (** tail of a region, together with the mode of that region, and whether it is
      also the tail of a function (for tail call escape detection) *)
 
 type expected_mode =
   { position : position_in_region;
-    (** position in the current region  *)
 
     escaping_context : Env.escaping_context option;
     (** explains why [mode] is low. Better be empty if [mode] is max *)
@@ -307,14 +305,17 @@ type expected_mode =
     (** if [true], means [mode] is exact (not just upper bound) *)
 
     tuple_modes : Value_mode.t list;
-    (** User experience improvement. For t in tuple_modes, t <=
-    regional_to_global mode. Always safe to set it to empty (and thus
-    disabling this improvement) *)
+    (** When the expected expression is a tuple, this list might contain the
+    less restrictive modes for each of the elements in the tuple. This will be
+    ignored if we are not expecting a tuple, or if the lengths mismatch.
+
+    To be precise, For t in tuple_modes, t <= regional_to_global mode.
+
+    *)
   }
 
 type position_and_mode = {
   apply_position : apply_position;
-  (** apply_position of the current application  *)
 
   region_mode : Value_mode.t option;
   (** [Some m] if [position] is [Tail], where m is the mode of the surrounding
@@ -381,9 +382,8 @@ let mode_return mode =
     escaping_context = Some Return;
   }
 
-
-(** We expect nothing for the modes, usually for subexpressions whose type must
-  cross modes. *)
+(** Maximum expected_mode: requires nothing of the mode of the expression. Used
+for subexpressions with a fixed expected type that crosses all axes. *)
 let mode_max = mode_default Value_mode.max_mode
 
 (** Same as [mode_max] but set [position] *)
@@ -391,7 +391,7 @@ let mode_max_with_position position = { mode_max with position }
 
 (** used when entering a region whose type must cross modes *)
 let mode_max_with_region =
-  { (mode_default Value_mode.regional) with
+  { (mode_default Value_mode.local) with
     position = RTail (Value_mode.local, FNontail);
   }
 
@@ -399,13 +399,12 @@ let mode_max_with_region =
 let mode_exact mode = { (mode_default mode) with exact = true }
 
 (** For the `extension.local` prefix - preserves position *)
-let mode_local expected_mode =
+let mode_strictly_local expected_mode =
   { (mode_exact Value_mode.local) with
     position = expected_mode.position
   }
 
 (* TODO: set [escaping_context] to indicate the reason for [global] *)
-(** Usually for legacy things *)
 let mode_global = mode_default Value_mode.global
 
 (** Takes the mode of the container that needs allocation, returns the expected
@@ -501,16 +500,9 @@ let register_allocation_value_mode mode =
   register_allocation_mode alloc_mode;
   alloc_mode
 
-let register_allocation_value_mode' mode =
-  let alloc_mode = register_allocation_value_mode mode in
-  alloc_mode, Value_mode.of_alloc alloc_mode
-
 let register_allocation (expected_mode : expected_mode) =
-  register_allocation_value_mode expected_mode.mode
-
-let register_allocation' (expected_mode : expected_mode) =
-  let alloc_mode, value_mode = register_allocation_value_mode' expected_mode.mode in
-  alloc_mode, mode_default value_mode
+  let alloc_mode = register_allocation_value_mode expected_mode.mode in
+  alloc_mode, mode_default (Value_mode.of_alloc alloc_mode)
 
 let optimise_allocations () =
   List.iter
@@ -4428,7 +4420,7 @@ and type_expect_
         (* if mode does not cross, expected.mode must be local *)
         submode ~loc ~env ~reason:Other Value_mode.local expected_mode;
         (* and we require the inner expr to be exact local *)
-        mode_local expected_mode
+        mode_strictly_local expected_mode
       end
       in
       let exp =
@@ -4600,7 +4592,7 @@ and type_expect_
   | Pexp_tuple sexpl ->
       let arity = List.length sexpl in
       assert (arity >= 2);
-      let alloc_mode, expected_mode' = register_allocation' expected_mode in
+      let alloc_mode, expected_mode' = register_allocation expected_mode in
       (* CR layouts v5: non-values in tuples *)
       let subtypes =
         List.map (fun _ -> newgenvar (Layout.value ~why:Tuple_element))
@@ -4648,7 +4640,7 @@ and type_expect_
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
               let alloc_mode, expected_mode' =
-                register_allocation' expected_mode
+                register_allocation expected_mode
               in
               let arg = type_argument env expected_mode' sarg ty ty0 in
               re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
@@ -4666,7 +4658,7 @@ and type_expect_
             let ty_expected =
               newvar (Layout.value ~why:Polymorphic_variant_field)
             in
-            let alloc_mode, expected_mode' = register_allocation' expected_mode in
+            let alloc_mode, expected_mode' = register_allocation expected_mode in
             let arg =
               type_expect env expected_mode' sarg (mk_expected ty_expected)
             in
@@ -4757,7 +4749,7 @@ and type_expect_
                     -> false
               | _ -> true)
             lbl_exp_list then
-          Some (register_allocation expected_mode)
+          Some (fst (register_allocation expected_mode))
         else
           None
       in
@@ -4853,7 +4845,7 @@ and type_expect_
       let alloc_mode = match label.lbl_repres with
       (* projecting out of packed-float-record needs allocation *)
         | Record_float ->
-          Some (register_allocation expected_mode)
+          Some (fst (register_allocation expected_mode))
         | _ -> None
       in
       let mode =
@@ -4962,9 +4954,8 @@ and type_expect_
         exp_env = env }
   | Pexp_while(scond, sbody) ->
       let cond_env = Env.add_region_lock env in
-      let mode = mode_max_with_region in
       let wh_cond =
-        type_expect cond_env mode scond
+        type_expect cond_env mode_max_with_region scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool)
       in
       let body_env = Env.add_region_lock env in
@@ -5218,7 +5209,7 @@ and type_expect_
       in
       rue {
         exp_desc = Texp_send(obj, meth, pm.apply_position,
-          register_allocation expected_mode
+          fst (register_allocation expected_mode)
         );
         exp_loc = loc; exp_extra = [];
         exp_type = typ;
@@ -6280,8 +6271,9 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
   in
   (lid, label, arg)
 
-and option_some env mode pexp ty ty0 =
-  let alloc_mode, mode' = register_allocation_value_mode' mode in
+and type_optional_argument env mode pexp ty ty0 =
+  let alloc_mode = register_allocation_value_mode mode in
+  let mode' = Value_mode.of_alloc alloc_mode in
   let texp = type_argument env (mode_default mode') pexp ty ty0 in
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
@@ -6391,7 +6383,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       if args = [] then texp else begin
       (* In this case, we're allocating a new closure, so [sarg] needs
          to be valid at [regional_to_global mode], not just [mode] *)
-      let alloc_mode, mode' = register_allocation' mode in
+      let alloc_mode, mode' = register_allocation mode in
       submode ~loc:sarg.pexp_loc ~env ~reason:Other exp_mode mode';
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
@@ -6496,7 +6488,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
         if vars = [] then begin
           let ty_arg0' = tpoly_get_mono ty_arg0 in
           if wrapped_in_some then begin
-            option_some env expected_mode.mode sarg
+            type_optional_argument env expected_mode.mode sarg
               (extract_option_type env ty_arg')
               (extract_option_type env ty_arg0')
           end else begin
@@ -6705,7 +6697,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     | Variant_unboxed -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
-       let alloc_mode, expected_mode' = register_allocation' expected_mode in
+       let alloc_mode, expected_mode' = register_allocation expected_mode in
        expected_mode', Some alloc_mode
   in
   let args =
@@ -7390,7 +7382,7 @@ and type_generic_array
       ~attributes
       sargl
   =
-  let alloc_mode, expected_mode' = register_allocation' expected_mode in
+  let alloc_mode, expected_mode' = register_allocation expected_mode in
   let type_, base_argument_mode = match mutability with
     | Mutable -> Predef.type_array, mode_default Value_mode.global
     | Immutable -> Predef.type_iarray, expected_mode'

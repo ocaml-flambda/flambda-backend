@@ -1285,7 +1285,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                 else
                   let ty' = extract_option_type val_env ty
                   and ty0' = extract_option_type val_env ty0 in
-                  option_some val_env Value_mode.global sarg ty' ty0',
+                  type_optional_argument val_env Value_mode.global sarg ty' ty0',
                   (* CR layouts v5: Change the sort when options can hold
                      non-values. *)
                   Sort.value
