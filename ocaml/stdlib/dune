@@ -143,6 +143,8 @@
     moreLabels.mli
     nativeint.ml
     nativeint.mli
+    nativeint_u.ml
+    nativeint_u.mli
     obj.ml
     obj.mli
     oo.ml
@@ -303,6 +305,9 @@
     .stdlib.objs/byte/stdlib__Nativeint.cmi
     .stdlib.objs/byte/stdlib__Nativeint.cmt
     .stdlib.objs/byte/stdlib__Nativeint.cmti
+    .stdlib.objs/byte/stdlib__Nativeint_u.cmi
+    .stdlib.objs/byte/stdlib__Nativeint_u.cmt
+    .stdlib.objs/byte/stdlib__Nativeint_u.cmti
     .stdlib.objs/byte/stdlib__Obj.cmi
     .stdlib.objs/byte/stdlib__Obj.cmt
     .stdlib.objs/byte/stdlib__Obj.cmti
@@ -442,6 +447,7 @@
     .stdlib.objs/native/stdlib__Ephemeron.cmx
     .stdlib.objs/native/stdlib__String.cmx
     .stdlib.objs/native/stdlib__Nativeint.cmx
+    .stdlib.objs/native/stdlib__Nativeint_u.cmx
     .stdlib.objs/native/stdlib__Set.cmx
     .stdlib.objs/native/stdlib__ListLabels.cmx
     .stdlib.objs/native/stdlib__Bool.cmx
