@@ -1,6 +1,9 @@
 (* TEST
    * expect *)
 
+(* Tests interaction of pattern guards with Jane Street internal features.
+   Remove when upstreaming. *)
+
 let pattern_guard_returns_local f x =
   let local_ one = 1 in
   match x with
