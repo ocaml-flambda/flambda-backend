@@ -3723,17 +3723,13 @@ and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
   | None ->
-      type_approx_aux_desc env sexp.pexp_desc sexp.pexp_loc in_function
-        ty_expected
-
-and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
-  match sexp_desc with
+  match sexp.pexp_desc with
   | Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp_loc l (Some p) (Psimple_rhs e)
+      type_function_approx env sexp.pexp_loc l (Some p) (Psimple_rhs e)
         in_function ty_expected
   | Pexp_function ({pc_rhs}::_) ->
-      type_function_approx env sexp_loc Nolabel None pc_rhs
+      type_function_approx env sexp.pexp_loc Nolabel None pc_rhs
         in_function ty_expected
   | Pexp_match (_, {pc_rhs}::_) ->
       type_approx_aux_case_rhs env pc_rhs None ty_expected
@@ -3744,7 +3740,7 @@ and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
       in
       let ty = newty (Ttuple tys) in
       begin try unify env ty ty_expected with Unify err ->
-        raise(Error(sexp_loc, env, Expr_type_clash (err, None, None)))
+        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
       end;
       List.iter2
         (fun e ty -> type_approx_aux env e None ty)
@@ -3754,13 +3750,13 @@ and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
   | Pexp_constraint (e, sty) ->
       let ty_expected' = approx_type env sty in
       begin try unify env ty_expected' ty_expected with Unify err ->
-        raise(Error(sexp_loc, env, Expr_type_clash (err, None, None)))
+        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
       end;
       type_approx_aux env e None ty_expected'
   | Pexp_coerce (_, _, sty) ->
       let ty = approx_type env sty in
       begin try unify env ty ty_expected with Unify trace ->
-        raise(Error(sexp_loc, env, Expr_type_clash (trace, None, None)))
+        raise(Error(sexp.pexp_loc, env, Expr_type_clash (trace, None, None)))
       end
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
@@ -3782,9 +3778,11 @@ and type_approx_aux_case_rhs env rhs in_function ty_expected =
   match rhs with
   | Psimple_rhs e | Pboolean_guarded_rhs { pbg_rhs = e; _ } ->
       type_approx_aux env e in_function ty_expected
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
-      let match_desc = Pexp_match (ppg_scrutinee, ppg_cases) in
-      type_approx_aux_desc env match_desc ppg_loc in_function ty_expected
+  | Ppattern_guarded_rhs { ppg_cases; _ } ->
+      match ppg_cases with
+      | [] -> ()
+      | { pc_rhs; _ } :: _ ->
+          type_approx_aux_case_rhs env pc_rhs in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -7016,16 +7014,16 @@ and type_cases
               in
               match cases with
               | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
-                let pattern_guard : Typedtree.guard =
-                  Pattern
-                    { pg_scrutinee = arg
-                    ; pg_scrutinee_sort = sort
-                    ; pg_pattern = pat
-                    ; pg_partial = partial
-                    ; pg_loc = loc
-                    ; pg_env = ext_env }
-                in
-                Some pattern_guard, exp
+                  let pattern_guard : Typedtree.guard =
+                    Pattern
+                      { pg_scrutinee = arg
+                      ; pg_scrutinee_sort = sort
+                      ; pg_pattern = pat
+                      ; pg_partial = partial
+                      ; pg_loc = loc
+                      ; pg_env = ext_env }
+                  in
+                  Some pattern_guard, exp
               | _ ->
                   fatal_error
                     "typechecking for multicase pattern guards unimplemented"
