@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
   * setup-ocamlopt.opt-build-env
   ** ocamlopt.opt
     ocamlopt_opt_exit_status = "2"

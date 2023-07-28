@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
    * expect *)
 
 (* CR-soon rgodse: We expect this output to change soon, but for now it shows

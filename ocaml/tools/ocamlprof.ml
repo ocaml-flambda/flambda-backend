@@ -156,16 +156,22 @@ let rec rewrite_patexp_list iflag l =
 and rewrite_cases iflag l =
   List.iter
     (fun pc ->
-       match pc.pc_rhs with
-       | Psimple_rhs e -> rewrite_exp iflag e
-       | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-           rewrite_exp iflag pbg_guard;
-           rewrite_exp iflag pbg_rhs
-       | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc = _ } ->
-           rewrite_exp iflag ppg_scrutinee;
-           rewrite_cases iflag ppg_cases
+       match Jane_syntax.Case.of_ast pc with
+       | Some (jcase, _attrs) -> rewrite_case_jane_syntax iflag jcase
+       | None ->
+       Option.iter (rewrite_exp iflag) pc.pc_guard;
+       rewrite_exp iflag pc.pc_rhs
     )
     l
+
+and rewrite_case_jane_syntax iflag : Jane_syntax.Case.t -> _ = function
+  | Jcase_pattern_guarded x -> rewrite_pattern_guarded_case iflag x
+
+and rewrite_pattern_guarded_case iflag :
+  Jane_syntax.Pattern_guarded.case -> _ = function
+  | Pg_case { pgc_scrutinee; pgc_cases } ->
+      rewrite_exp iflag pgc_scrutinee;
+      rewrite_cases iflag pgc_cases
 
 and rewrite_labelexp_list iflag l =
   rewrite_exp_list iflag (List.map snd l)
@@ -196,7 +202,7 @@ and rw_exp iflag sexp =
       rewrite_cases iflag caselist
 
   | Pexp_fun (_, _, p, e) ->
-      let l = [{pc_lhs=p; pc_rhs=(Psimple_rhs e)}] in
+      let l = [{pc_lhs=p; pc_guard=None; pc_rhs=e}] in
       if !instr_fun then
         rewrite_function iflag l
       else
@@ -358,24 +364,31 @@ and rewrite_ifbody iflag ghost sifbody =
     rewrite_exp iflag sifbody
 
 (* called only when !instr_fun *)
-and rewrite_annotate_exp_list l =
-  List.iter
-    (function
-     | {pc_rhs=Pboolean_guarded_rhs { pbg_guard; pbg_rhs }} ->
-         rewrite_exp true pbg_guard;
-         insert_profile rw_exp pbg_rhs;
-     | {pc_rhs=Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ }} ->
-         rewrite_exp true ppg_scrutinee;
-         rewrite_annotate_exp_list ppg_cases
-     | {pc_rhs=Psimple_rhs {pexp_desc = Pexp_constraint(sbody, _)}}
-       (* let f x : t = e *)
-       -> insert_profile rw_exp sbody
-     | {pc_rhs=Psimple_rhs sexp} -> insert_profile rw_exp sexp)
-    l
+and rewrite_annotate_exp_list l = List.iter rewrite_annotate_case l
+
+and rewrite_annotate_case case =
+  match Jane_syntax.Case.of_ast case with
+  | Some (jcase, _attrs) -> rewrite_annotate_case_jane_syntax jcase
+  | None ->
+  Option.iter (rewrite_exp true) case.pc_guard;
+  match case.pc_rhs.pexp_desc with
+  | Pexp_constraint (sbody, _) ->
+      (* let f x : t = e *)
+      insert_profile rw_exp sbody
+  | _ -> insert_profile rw_exp case.pc_rhs
+
+and rewrite_annotate_case_jane_syntax : Jane_syntax.Case.t -> _ = function
+  | Jcase_pattern_guarded x -> rewrite_annotate_pattern_guarded_case x
+
+and rewrite_annotate_pattern_guarded_case :
+    Jane_syntax.Pattern_guarded.case -> _ = function
+  | Pg_case { pgc_scrutinee; pgc_cases; _ } ->
+      rewrite_exp true pgc_scrutinee;
+      rewrite_annotate_exp_list pgc_cases
 
 and rewrite_function iflag = function
-  | [{pc_lhs=_;
-      pc_rhs=Psimple_rhs ({pexp_desc = (Pexp_function _ | Pexp_fun _)} as sexp)}
+  | [{pc_lhs=_; pc_guard=None;
+      pc_rhs={pexp_desc = (Pexp_function _ | Pexp_fun _)} as sexp}
     ] -> rewrite_exp iflag sexp
   | l -> rewrite_funmatching l
 

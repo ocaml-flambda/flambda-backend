@@ -658,6 +658,7 @@ module Expression0 = Make_with_attribute (struct
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
 end)
 
+(** Cases; embedded using an attribute on the rhs. *)
 module Case0 = Make_with_attribute (struct
   type ast = case
 
