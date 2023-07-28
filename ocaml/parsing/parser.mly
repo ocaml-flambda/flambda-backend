@@ -833,13 +833,14 @@ let unboxed_float sloc sign (f, m) =
 
 (* Unboxed float type *)
 
-let assert_unboxed_float_type ~loc =
+let assert_unboxed_type ~loc =
     Language_extension.(
       Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
-let unboxed_float_type sloc tys =
-  assert_unboxed_float_type ~loc:(make_loc sloc);
-  Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
+let unboxed_type sloc name tys =
+  let loc = make_loc sloc in
+  assert_unboxed_type ~loc;
+  Ptyp_constr (mkloc (Lident (name ^ "#")) loc, tys)
 %}
 
 /* Tokens */
@@ -3862,16 +3863,15 @@ atomic_type:
       tid = mkrhs(type_longident)
       HASH_SUFFIX
         { match tid.txt with
-          | Lident "float" ->
+          | Lident ("float" | "nativeint" | "int32" | "int64" as name) ->
               let ident_start = fst $loc(tid) in
               let hash_end = snd $loc($3) in
-              unboxed_float_type (ident_start, hash_end) tys
+              unboxed_type (ident_start, hash_end) name tys
           | _ ->
-            (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
-               code. When we support unboxed types other than float, we should
-               consider moving this check into the typechecker.
-            *)
-              not_expecting $sloc "Unboxed type other than float#"
+              (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
+                 code. When we support unboxed types other than the basic ones,
+                 we should consider moving this check into the typechecker. *)
+              not_expecting $sloc "Unsupported unboxed type"
         }
     | tys = actual_type_parameters
       tid = mkrhs(type_longident)

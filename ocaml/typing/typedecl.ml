@@ -72,7 +72,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
-  | Float64_in_block of type_expr
+  | Invalid_layout_in_block of Sort.const * type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -1031,7 +1031,8 @@ let check_representable ~why env loc lloc typ =
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 -> raise (Error (loc, Float64_in_block typ))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+          raise (Error (loc, Invalid_layout_in_block (const, typ)))
     end
   | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
 
@@ -1880,7 +1881,7 @@ let native_repr_of_type env kind ty =
     Some (Unboxed_integer Pint64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
-  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_vec128 -> 
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_vec128 ->
     Some (Unboxed_vector Pvec128)
   | _ ->
     None
@@ -2555,11 +2556,12 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Layout.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block typ ->
+  | Invalid_layout_in_block (sort, typ) ->
     fprintf ppf
-      "@[Type %a has layout float64.@ Types of this layout are not yet \
+      "@[Type %a has layout %a.@ Types of this layout are not yet \
        allowed in blocks (like records or variants).@]"
       Printtyp.type_expr typ
+      Sort.format_const sort
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

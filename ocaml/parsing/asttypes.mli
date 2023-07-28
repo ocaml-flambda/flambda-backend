@@ -57,6 +57,9 @@ type const_layout =
   | Immediate64
   | Immediate
   | Float64
+  | Word
+  | Bits32
+  | Bits64
 
 type label = string
 

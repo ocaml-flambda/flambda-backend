@@ -462,6 +462,9 @@ let layout ~legacy_immediate attrs =
          | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
          | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
          | "ocaml.float64"|"float64" -> Some (a, Float64)
+         | "ocaml.word"|"word" -> Some (a, Word)
+         | "ocaml.bits32"|"bits32" -> Some (a, Bits32)
+         | "ocaml.bits64"|"bits64" -> Some (a, Bits64)
          | _ -> None
         ) attrs
   in
@@ -480,7 +483,7 @@ let layout ~legacy_immediate attrs =
      | Immediate | Immediate64 ->
         check  (legacy_immediate
              || Language_extension.(is_at_least Layouts Beta))
-     | Any | Void | Float64 ->
+     | Any | Void | Float64 | Word | Bits32 | Bits64 ->
         check Language_extension.(is_at_least Layouts Alpha)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"

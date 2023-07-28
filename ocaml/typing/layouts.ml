@@ -24,6 +24,9 @@ module Sort = struct
     | Void
     | Value
     | Float64
+    | Word
+    | Bits32
+    | Bits64
 
   type t =
     | Var of var
@@ -46,6 +49,9 @@ module Sort = struct
   let void = Const Void
   let value = Const Value
   let float64 = Const Float64
+  let word = Const Word
+  let bits32 = Const Bits32
+  let bits64 = Const Bits32
 
   let some_value = Some value
 
@@ -53,6 +59,9 @@ module Sort = struct
     | Void -> void
     | Value -> value
     | Float64 -> float64
+    | Word -> word
+    | Bits32 -> bits32
+    | Bits64 -> bits64
 
   let of_var v = Var v
 
@@ -86,11 +95,17 @@ module Sort = struct
   let default_value : t option = Some (Const Value)
   let default_void : t option = Some (Const Void)
   let default_float64 : t option = Some (Const Float64)
+  let default_word : t option = Some (Const Word)
+  let default_bits32 : t option = Some (Const Bits32)
+  let default_bits64 : t option = Some (Const Bits64)
 
   let[@inline] default = function
     | Value -> default_value
     | Void -> default_void
     | Float64 -> default_float64
+    | Word -> default_word
+    | Bits32 -> default_bits32
+    | Bits64 -> default_bits64
 
   let rec get_default_value : t -> const = function
     | Const c -> c
@@ -122,8 +137,11 @@ module Sort = struct
   let equal_const_const c1 c2 = match c1, c2 with
     | Void, Void
     | Value, Value
-    | Float64, Float64 -> Equal_no_mutation
-    | (Void | Value | Float64), _ -> Unequal
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 -> Equal_no_mutation
+    | (Void | Value | Float64 | Word | Bits32 | Bits64), _ -> Unequal
 
   let rec equate_var_const v1 c2 = match !v1 with
     | Some s1 -> equate_sort_const s1 c2
@@ -160,10 +178,16 @@ module Sort = struct
     match c1, c2 with
     | Void, Void
     | Value, Value
-    | Float64, Float64 -> true
-    | Void, (Value | Float64)
-    | Value, (Void | Float64)
-    | Float64, (Value | Void) -> false
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 -> true
+    | Void, (Value | Float64 | Word | Bits32 | Bits64)
+    | Value, (Void | Float64 | Word | Bits32 | Bits64)
+    | Float64, (Value | Void | Word | Bits32 | Bits64)
+    | Word, (Value | Void | Float64 | Bits32 | Bits64)
+    | Bits32, (Value | Void | Float64 | Word | Bits64)
+    | Bits64, (Value | Void | Float64 | Word | Bits32) -> false
 
   let rec is_void_defaulting = function
     | Const Void -> true
@@ -172,8 +196,7 @@ module Sort = struct
                | None -> v := some_value; false
                | Some s -> is_void_defaulting s
                end
-    | Const Value -> false
-    | Const Float64 -> false
+    | Const (Value | Float64 | Word | Bits32 | Bits64) -> false
 
   (*** pretty printing ***)
 
@@ -181,12 +204,17 @@ module Sort = struct
     | Value -> "value"
     | Void -> "void"
     | Float64 -> "float64"
+    | Word -> "word"
+    | Bits32 -> "bits32"
+    | Bits64 -> "bits64"
 
   let to_string s = match get s with
     | Var v -> var_name v
     | Const c -> string_of_const c
 
   let format ppf t = Format.fprintf ppf "%s" (to_string t)
+
+  let format_const ppf const = Format.fprintf ppf "%s" (string_of_const const)
 
   (*** debug printing **)
 
@@ -198,7 +226,10 @@ module Sort = struct
       | Const c -> fprintf ppf (match c with
                                 | Void  -> "Void"
                                 | Value -> "Value"
-                                | Float64 -> "Float64")
+                                | Float64 -> "Float64"
+                                | Word -> "Word"
+                                | Bits32 -> "Bits32"
+                                | Bits64 -> "Bits64")
 
     and opt_t ppf = function
       | Some s -> fprintf ppf "Some %a" t s
@@ -314,6 +345,15 @@ module Layout = struct
   type float64_creation_reason =
     | Primitive of Ident.t
 
+  type word_creation_reason =
+    | Primitive of Ident.t
+
+  type bits32_creation_reason =
+    | Primitive of Ident.t
+
+  type bits64_creation_reason =
+    | Primitive of Ident.t
+
   type annotation_context =
     | Type_declaration of Path.t
     | Type_parameter of Path.t * string
@@ -328,6 +368,9 @@ module Layout = struct
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
     | Float64_creation of float64_creation_reason
+    | Word_creation of word_creation_reason
+    | Bits32_creation of bits32_creation_reason
+    | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
 
@@ -392,6 +435,12 @@ module Layout = struct
     fresh_layout Immediate ~why:(Immediate_creation why)
   let float64 ~why =
     fresh_layout (Sort Sort.float64) ~why:(Float64_creation why)
+  let word ~why =
+    fresh_layout (Sort Sort.word) ~why:(Word_creation why)
+  let bits32 ~why =
+    fresh_layout (Sort Sort.bits32) ~why:(Bits32_creation why)
+  let bits64 ~why =
+    fresh_layout (Sort Sort.bits64) ~why:(Bits64_creation why)
 
   type const = Asttypes.const_layout =
     | Any
@@ -400,6 +449,9 @@ module Layout = struct
     | Immediate64
     | Immediate
     | Float64
+    | Word
+    | Bits32
+    | Bits64
 
   let string_of_const : const -> _ = function
     | Any -> "any"
@@ -408,15 +460,22 @@ module Layout = struct
     | Immediate64 -> "immediate64"
     | Immediate -> "immediate"
     | Float64 -> "float64"
+    | Word -> "word"
+    | Bits32 -> "bits32"
+    | Bits64 -> "bits64"
 
   let equal_const (c1 : const) (c2 : const) = match c1, c2 with
-    | Any, Any -> true
-    | Immediate64, Immediate64 -> true
-    | Immediate, Immediate -> true
-    | Void, Void -> true
-    | Value, Value -> true
-    | Float64, Float64 -> true
-    | (Any | Immediate64 | Immediate | Void | Value | Float64), _ -> false
+    | Any, Any
+    | Immediate64, Immediate64
+    | Immediate, Immediate
+    | Void, Void
+    | Value, Value
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 -> true
+    | ( Any | Immediate64 | Immediate | Void | Value | Float64 | Word
+      | Bits32 | Bits64 ), _ -> false
 
   let sub_const (c1 : const) (c2 : const) = match c1, c2 with
     | Any, Any -> Equal
@@ -424,7 +483,8 @@ module Layout = struct
     | c1, c2 when equal_const c1 c2 -> Equal
     | (Immediate | Immediate64), Value -> Sub
     | Immediate, Immediate64 -> Sub
-    | (Any | Void | Value | Immediate64 | Immediate | Float64), _ -> Not_sub
+    | ( Any | Void | Value | Immediate64 | Immediate | Float64 | Word
+      | Bits32 | Bits64), _ -> Not_sub
 
  (******************************)
   (* construction *)
@@ -442,6 +502,9 @@ module Layout = struct
     | Value -> fresh_layout (Sort Sort.value) ~why
     | Void -> fresh_layout (Sort Sort.void) ~why
     | Float64 -> fresh_layout (Sort Sort.float64) ~why
+    | Word -> fresh_layout (Sort Sort.word) ~why
+    | Bits32 -> fresh_layout (Sort Sort.bits32) ~why
+    | Bits64 -> fresh_layout (Sort Sort.bits64) ~why
 
   let of_attributes ~legacy_immediate ~reason attrs =
     match Builtin_attributes.layout ~legacy_immediate attrs with
@@ -492,6 +555,9 @@ module Layout = struct
       | Const Void -> Const Void
       | Const Value -> Const Value
       | Const Float64 -> Const Float64
+      | Const Word -> Const Word
+      | Const Bits32 -> Const Bits32
+      | Const Bits64 -> Const Bits64
       | Var v -> Var v
     end
 
@@ -504,6 +570,9 @@ module Layout = struct
       | Value -> Value
       | Void -> Void
       | Float64 -> Float64
+      | Word -> Word
+      | Bits32 -> Bits32
+      | Bits64 -> Bits64
     end
 
   let default_to_value t = ignore (get_default_value t)
@@ -517,6 +586,9 @@ module Layout = struct
     | Const Void -> Sort.void
     | Const (Value | Immediate | Immediate64) -> Sort.value
     | Const Float64 -> Sort.float64
+    | Const Word -> Sort.word
+    | Const Bits32 -> Sort.bits32
+    | Const Bits64 -> Sort.bits64
     | Const Any -> Misc.fatal_error "Layout.sort_of_layout"
     | Var v -> Sort.of_var v
 
@@ -742,6 +814,19 @@ module Layout = struct
       | Primitive id ->
         fprintf ppf "it equals the primitive value type %s" (Ident.name id)
 
+    let format_word_creation_reason ppf
+      : word_creation_reason -> _ = function
+      | Primitive id ->
+        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+
+    let format_bits32_creation_reason ppf : bits32_creation_reason -> _ = function
+      | Primitive id ->
+        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+
+    let format_bits64_creation_reason ppf : bits64_creation_reason -> _ = function
+      | Primitive id ->
+        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
           fprintf ppf "of the annotation on %a" format_annotation_context ctx
@@ -757,6 +842,12 @@ module Layout = struct
          format_value_creation_reason ppf value
       | Float64_creation float ->
          format_float64_creation_reason ppf float
+      | Word_creation word ->
+         format_word_creation_reason ppf word
+      | Bits32_creation bits32 ->
+         format_bits32_creation_reason ppf bits32
+      | Bits64_creation bits64 ->
+         format_bits64_creation_reason ppf bits64
       | Concrete_creation concrete ->
          format_concrete_layout_reason ppf concrete
       | Imported ->
@@ -1149,6 +1240,15 @@ module Layout = struct
     let float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
+    let word_creation_reason ppf : word_creation_reason -> _ = function
+      | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
+    let bits32_creation_reason ppf : bits32_creation_reason -> _ = function
+      | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
+    let bits64_creation_reason ppf : bits64_creation_reason -> _ = function
+      | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
     let creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, loc) ->
         fprintf ppf "Annotated (%a,%a)"
@@ -1166,6 +1266,12 @@ module Layout = struct
          fprintf ppf "Void_creation %a" void_creation_reason void
       | Float64_creation float ->
          fprintf ppf "Float64_creation %a" float64_creation_reason float
+      | Word_creation float ->
+         fprintf ppf "Word_creation %a" word_creation_reason float
+      | Bits32_creation float ->
+         fprintf ppf "Bits32_creation %a" bits32_creation_reason float
+      | Bits64_creation float ->
+         fprintf ppf "Bits64_creation %a" bits64_creation_reason float
       | Concrete_creation concrete ->
          fprintf ppf "Concrete_creation %a" concrete_layout_reason concrete
       | Imported ->

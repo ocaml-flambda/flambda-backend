@@ -111,7 +111,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
-  | Float64_in_block of type_expr
+  | Invalid_layout_in_block of Sort.const * type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed

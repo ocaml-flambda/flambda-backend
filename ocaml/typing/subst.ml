@@ -102,6 +102,9 @@ let with_additional_action (config : additional_action_config) s =
         let immediate = Layout.of_const Immediate ~why:reason in
         let immediate64 = Layout.of_const Immediate64 ~why:reason in
         let float64 = Layout.of_const Float64 ~why:reason in
+        let word = Layout.of_const Word ~why:reason in
+        let bits32 = Layout.of_const Bits32 ~why:reason in
+        let bits64 = Layout.of_const Bits64 ~why:reason in
         let prepare_layout loc lay =
           match Layout.get lay with
           | Const Any -> any
@@ -110,11 +113,17 @@ let with_additional_action (config : additional_action_config) s =
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64
           | Const Float64 -> float64
+          | Const Word -> word
+          | Const Bits32 -> bits32
+          | Const Bits64 -> bits64
           | Var var -> begin
               match Sort.var_constraint var with
               | Some Void -> void
               | Some Value -> value
               | Some Float64 -> float64
+              | Some Word -> word
+              | Some Bits32 -> bits32
+              | Some Bits64 -> bits64
               | None -> raise(Error (loc, Unconstrained_layout_variable))
             end
         in

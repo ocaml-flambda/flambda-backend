@@ -398,12 +398,18 @@ let exttype_of_sort (s : Layouts.Sort.const) =
   match s with
   | Value -> XInt
   | Float64 -> XFloat
+  | Word -> XInt
+  | Bits32 -> XInt32
+  | Bits64 -> XInt64
   | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
 
 let machtype_of_sort (s : Layouts.Sort.const) =
   match s with
   | Value -> typ_val
   | Float64 -> typ_float
+  | Word -> typ_int
+  | Bits32 -> typ_int32
+  | Bits64 -> typ_int64
   | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
 
 let rec is_unboxed_number_cmm = function

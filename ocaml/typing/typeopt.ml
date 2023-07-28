@@ -201,7 +201,7 @@ let value_kind_of_value_layout layout =
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void | Float64 -> assert false
+  | Any | Void | Float64 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of layout restrictions, there are two reasons this invariant may
@@ -548,24 +548,25 @@ let layout env loc sort ty =
   | Value -> Lambda.Pvalue (value_kind env loc ty)
   | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
     Lambda.Punboxed_float
-  | Float64 -> raise (Error (loc, Non_value_sort (Sort.float64,ty)))
-  | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
+  | (Float64 | Void | Word | Bits32 | Bits64 as const) ->
+    raise (Error (loc, Non_value_sort (Sort.of_const const, ty)))
 
 let layout_of_sort loc sort =
   match Layouts.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue Pgenval
   | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
     Lambda.Punboxed_float
-  | Float64 -> raise (Error (loc, Non_value_sort_unknown_ty Sort.float64))
-  | Void -> raise (Error (loc, Non_value_sort_unknown_ty Sort.void))
+  | (Float64 | Void | Word | Bits32 | Bits64 as const) ->
+    raise (Error (loc, Non_value_sort_unknown_ty (Sort.of_const const)))
 
 let layout_of_const_sort (s : Layouts.Sort.const) =
   match s with
   | Value -> Lambda.Pvalue Pgenval
   | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
     Lambda.Punboxed_float
-  | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
-  | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"
+  | (Float64 | Void | Word | Bits32 | Bits64 as const) ->
+    Misc.fatal_errorf "layout_of_const_sort: %a encountered"
+      Sort.format_const const
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with
