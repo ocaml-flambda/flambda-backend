@@ -415,7 +415,10 @@ single_bar_syntax None;;
 |}];;
 
 let nested_singleway f g h ~default = function
-  | Some x when f x match Some y when g y match Some z when h z match Some a ->
+  | Some x
+      when f x match Some y
+      when g y match Some z
+      when h z match Some a ->
       a
   | _ -> default
 ;;
