@@ -513,6 +513,16 @@ module Int16 = struct
     external cmpgt : t -> t -> t = "" "int16_cmpgt"
         [@@noalloc] [@@untagged]
 
+    external shift_left : t -> int -> t = "" "int16_shift_left"
+        [@@noalloc] [@@untagged]
+    external shift_right : t -> int -> t = "" "int16_shift_right"
+        [@@noalloc] [@@untagged]
+    external shift_right_logical : t -> int -> t = "" "int16_shift_right_logical"
+        [@@noalloc] [@@untagged]
+
+    external logand : t -> t -> t = "" "int16_logand"
+        [@@noalloc] [@@untagged]
+
     external cvtsx_i32 : (t [@untagged]) -> (int32 [@unboxed]) = "" "int16_sxi32" [@@noalloc]
     external cvtzx_i32 : (t [@untagged]) -> (int32 [@unboxed]) = "" "int16_zxi32" [@@noalloc]
     external cvtsx_i64 : (t [@untagged]) -> (int64 [@unboxed]) = "" "int16_sxi64" [@@noalloc]
@@ -1585,13 +1595,86 @@ module Int16x8 = struct
         eqi i6 i7 7 8
     ;;
 
-    (* TODO
-    caml_sse2_int16x8_sll
-    caml_sse2_int16x8_srl
-    caml_sse2_int16x8_sra
-    caml_sse2_int16x8_slli
-    caml_sse2_int16x8_srli
-    caml_sse2_int16x8_srai *)
+    external sll : t -> t -> t = "" "caml_sse2_int16x8_sll"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external srl : t -> t -> t = "" "caml_sse2_int16x8_srl"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external sra : t -> t -> t = "" "caml_sse2_int16x8_sra"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external slli : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int16x8_slli"
+        [@@noalloc] [@@builtin]
+    external srli : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int16x8_srli"
+        [@@noalloc] [@@builtin]
+    external srai : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int16x8_srai"
+        [@@noalloc] [@@builtin]
+
+
+    let () =
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08x << %08x\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let shift = Int16.logand r 0xf in
+            let result = sll v (Int16.of_ints shift 0 0 0 0 0 0 0) in
+            let expectl = Int16.shift_left l shift in
+            let expectr = Int16.shift_left r shift in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08x >> %08x\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let shift = Int16.logand r 0xf in
+            let result = srl v (Int16.of_ints shift 0 0 0 0 0 0 0) in
+            let expectl = Int16.shift_right_logical l shift in
+            let expectr = Int16.shift_right_logical r shift in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08x >>a %08x\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let shift = Int16.logand r 0xf in
+            let result = sra v (Int16.of_ints shift 0 0 0 0 0 0 0) in
+            let expectl = Int16.shift_right l shift in
+            let expectr = Int16.shift_right r shift in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08x|%08x << 7\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let result = slli 7 v in
+            let expectl = Int16.shift_left l 7 in
+            let expectr = Int16.shift_left r 7 in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08x|%08x >> 7\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let result = srli 7 v in
+            let expectl = Int16.shift_right_logical l 7 in
+            let expectr = Int16.shift_right_logical r 7 in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08x|%08x >>a 7\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let result = srai 7 v in
+            let expectl = Int16.shift_right l 7 in
+            let expectr = Int16.shift_right r 7 in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        )
+    ;;
 end
 
 module Int8x16 = struct

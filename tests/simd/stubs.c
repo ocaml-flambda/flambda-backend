@@ -393,6 +393,18 @@ int64_t int16_sxi64(int64_t x) {
 int64_t int16_zxi64(int64_t x) {
   return (uint64_t)(uint16_t)x;
 }
+int64_t int16_logand(int64_t l, int64_t r) {
+  return (int16_t)l & (int16_t)r;
+}
+int64_t int16_shift_left(int64_t x, int64_t shift) {
+  return (int16_t)x << shift;
+}
+int64_t int16_shift_right(int64_t x, int64_t shift) {
+  return (int16_t)x >> shift;
+}
+int64_t int16_shift_right_logical(int64_t x, int64_t shift) {
+  return (uint16_t)(int16_t)x >> shift;
+}
 
 int32_t int32_of_float(float f) {
   return *(int32_t*)&f;
