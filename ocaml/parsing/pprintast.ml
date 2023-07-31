@@ -1810,19 +1810,14 @@ and extension_constructor_jst _ctxt _f _attrs :
 
 and case ctxt f ({pc_lhs; pc_guard; pc_rhs} as case) =
   match Jane_syntax.Case.of_ast case with
-  | Some (jcase, attrs) -> jane_syntax_case ctxt attrs f jcase
+  | Some (jcase, _attrs) -> jane_syntax_case ctxt f jcase
   | None ->
       pp f "| @[<2>%a%a@;->@;%a@]"
         (pattern ctxt) pc_lhs (option (expression ctxt) ~first:"@;when@;")
         pc_guard (expression (under_pipe ctxt)) pc_rhs
 
-and jane_syntax_case ctxt attrs f (jcase : Jane_syntax.Case.t) =
-  if attrs <> []
-  then
-    pp f "((%a)@,%a)" (jane_syntax_case ctxt []) jcase (attributes ctxt) attrs
-  else
-    match jcase with
-    | Jcase_pattern_guarded x -> pattern_guarded_case ctxt f x
+and jane_syntax_case ctxt f : Jane_syntax.Case.t -> _ = function
+  | Jcase_pattern_guarded x -> pattern_guarded_case ctxt f x
 
 and pattern_guarded_case ctxt f :
   Jane_syntax.Pattern_guarded.case -> _ = function
