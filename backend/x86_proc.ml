@@ -364,10 +364,6 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      (* let instrs = Section_name.Tbl.fold (fun name instrs acc ->
-          (name, List.rev !instrs) :: acc)
-          asm_code_by_section []
-      in *)
       binary_content := Some (f asm_code_by_section)
   | None -> binary_content := None
   end
