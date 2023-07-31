@@ -972,8 +972,6 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
 
-let save_sign_of_cmi = sign_of_cmi ~freshen:false
-
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
@@ -2670,10 +2668,8 @@ let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in
-  let pm = save_sign_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } in
   Persistent_env.save_cmi !persistent_env
-    { Persistent_env.Persistent_signature.filename; cmi } pm;
+    { Persistent_env.Persistent_signature.filename; cmi };
   cmi
 
 let save_signature ~alerts sg modname filename =
