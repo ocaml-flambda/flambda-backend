@@ -265,7 +265,7 @@ let select_operation_sse41 op args dbg =
       Some (I16_sx_i64, [arg 0 args; arg 0 args])
     | "caml_sse41_cvtsx_int32x4_int64x2" ->
       Some (I32_sx_i64, [arg 0 args; arg 0 args])
-    | "caml_sse41_cvtzx_int8x16_int16x2" ->
+    | "caml_sse41_cvtzx_int8x16_int16x8" ->
       Some (U8_zx_i16, [arg 0 args; arg 0 args])
     | "caml_sse41_cvtzx_int8x16_int32x4" ->
       Some (U8_zx_i32, [arg 0 args; arg 0 args])
