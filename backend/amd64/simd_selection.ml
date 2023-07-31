@@ -24,6 +24,7 @@ type register_behavior =
   | RM_to_R
   | R_R_to_fst
   | R_RM_to_fst
+  | R_RM_XMM0_to_fst
 
 let arg i args = List.nth args i
 
@@ -185,12 +186,12 @@ let select_operation_sse2 op args dbg =
     let i, args =
       extract_constant args 0 255 "caml_sse2_vec128_shuffle_high_16"
     in
-    Some (Shuffle_high_16 i, args)
+    Some (Shuffle_high_16 i, [arg 0 args; arg 0 args])
   | "caml_sse2_vec128_shuffle_low_16" ->
     let i, args =
       extract_constant args 0 255 "caml_sse2_vec128_shuffle_low_16"
     in
-    Some (Shuffle_low_16 i, args)
+    Some (Shuffle_low_16 i, [arg 0 args; arg 0 args])
   | "caml_sse2_vec128_interleave_high_8" -> Some (Interleave_high_8, args)
   | "caml_sse2_vec128_interleave_low_8" -> Some (Interleave_low_8, args)
   | "caml_sse2_vec128_interleave_high_16" -> Some (Interleave_high_16, args)
@@ -210,9 +211,12 @@ let select_operation_sse3 op args dbg =
     | "caml_sse3_float64x2_hadd" -> Some (Hadd_f64, args)
     | "caml_sse3_float32x4_hsub" -> Some (Hsub_f32, args)
     | "caml_sse3_float64x2_hsub" -> Some (Hsub_f64, args)
-    | "caml_sse3_vec128_dup_low_64" -> Some (Dup_low_64, args)
-    | "caml_sse3_vec128_dup_odd_32" -> Some (Dup_odd_32, args)
-    | "caml_sse3_vec128_dup_even_32" -> Some (Dup_even_32, args)
+    | "caml_sse3_vec128_dup_low_64" ->
+      Some (Dup_low_64, [arg 0 args; arg 0 args])
+    | "caml_sse3_vec128_dup_odd_32" ->
+      Some (Dup_odd_32, [arg 0 args; arg 0 args])
+    | "caml_sse3_vec128_dup_even_32" ->
+      Some (Dup_even_32, [arg 0 args; arg 0 args])
     | _ -> None
 
 let select_operation_ssse3 op args dbg =
@@ -399,13 +403,14 @@ let register_behavior_ssse3 = function
     R_RM_to_fst
 
 let register_behavior_sse41 = function
-  | Blend_16 _ | Blend_32 _ | Blend_64 _ | Blendv_8 | Blendv_32 | Blendv_64
-  | Cmpeq_i64 | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64
-  | I32_sx_i64 | U8_zx_i16 | U8_zx_i32 | U8_zx_i64 | U16_zx_i32 | U16_zx_i64
-  | U32_zx_i64 | Dp_f32 _ | Dp_f64 _ | Max_i8 | Max_i32 | Max_u16 | Max_u32
-  | Min_i8 | Min_i32 | Min_u16 | Min_u32 | Round_f64 _ | Round_f32 _
-  | Insert_i8 _ | Insert_i16 _ | Insert_i32 _ | Insert_i64 _ ->
+  | Blend_16 _ | Blend_32 _ | Blend_64 _ | Cmpeq_i64 | I8_sx_i16 | I8_sx_i32
+  | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64 | U8_zx_i16 | U8_zx_i32
+  | U8_zx_i64 | U16_zx_i32 | U16_zx_i64 | U32_zx_i64 | Dp_f32 _ | Dp_f64 _
+  | Max_i8 | Max_i32 | Max_u16 | Max_u32 | Min_i8 | Min_i32 | Min_u16 | Min_u32
+  | Round_f64 _ | Round_f32 _ | Insert_i8 _ | Insert_i16 _ | Insert_i32 _
+  | Insert_i64 _ ->
     R_RM_to_fst
+  | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_XMM0_to_fst
   | Extract_i64 _ | Extract_i32 _ -> R_to_RM
   | Extract_i8 _ | Extract_i16 _ ->
     (* CR mslater: (SIMD): replace once we have int8/int16/float32 *)

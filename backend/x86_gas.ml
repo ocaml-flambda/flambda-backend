@@ -249,7 +249,7 @@ let print_instr b = function
   | MULPD (arg1, arg2) -> i2 b "mulpd" arg1 arg2
   | DIVPD (arg1, arg2) -> i2 b "divpd" arg1 arg2
   | PAND (arg1, arg2) -> i2 b "pand" arg1 arg2
-  | PANDNOT (arg1, arg2) -> i2 b "pandnot" arg1 arg2
+  | PANDNOT (arg1, arg2) -> i2 b "pandn" arg1 arg2
   | POR (arg1, arg2) -> i2 b "por" arg1 arg2
   | PXOR (arg1, arg2) -> i2 b "pxor" arg1 arg2
   | PMOVMSKB (arg1, arg2) -> i2 b "pmovmskb" arg1 arg2

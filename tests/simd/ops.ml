@@ -1997,6 +1997,8 @@ module SSE_Util = struct
         [@@noalloc] [@@unboxed] [@@builtin]
     external shuffle_32 : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse_vec128_shuffle_32"
         [@@noalloc] [@@builtin]
+    external movemask_32 : (t [@unboxed]) -> (int [@untagged]) = "" "caml_sse_vec128_movemask_32"
+        [@@noalloc] [@@builtin]
 
     let make a b c d =
         Float32.to_float32x4 a b c d |> Vector_casts.int32x4_of_float32x4
@@ -2063,56 +2065,247 @@ module SSE_Util = struct
         eql (low _1111) (high _1111)
             (low _r1111) (high _r1111);
     ;;
-
-    (* TODO
-       caml_sse_vec128_movemask_32 *)
+    let () =
+        let v = Int32s.of_int32s 0xffffffffl 0x80000000l 0x7fffffffl 0x0l in
+        let i = movemask_32 v in
+        eqi i 0 0b0011 0
+    ;;
 end
 
 module SSE2_Util = struct
 
-    (* TODO
-    caml_sse2_vec128_and
-    caml_sse2_vec128_andnot
-    caml_sse2_vec128_or
-    caml_sse2_vec128_xor
-    caml_sse2_vec128_movemask_8
-    caml_sse2_vec128_movemask_64
-    caml_sse2_vec128_shift_left_bytes
-    caml_sse2_vec128_shift_right_bytes
-    caml_sse2_vec128_shuffle_64
-    caml_sse2_vec128_shuffle_high_16
-    caml_sse2_vec128_shuffle_low_16
-    caml_sse2_vec128_interleave_high_8
-    caml_sse2_vec128_interleave_low_8
-    caml_sse2_vec128_interleave_high_16
-    caml_sse2_vec128_interleave_low_16
-    caml_sse2_vec128_interleave_high_64
-    caml_sse2_vec128_interleave_low_64 *)
+    external _and : int64x2 -> int64x2 -> int64x2 = "" "caml_sse2_vec128_and"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external andnot : int64x2 -> int64x2 -> int64x2 = "" "caml_sse2_vec128_andnot"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external _or : int64x2 -> int64x2 -> int64x2 = "" "caml_sse2_vec128_or"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external xor : int64x2 -> int64x2 -> int64x2 = "" "caml_sse2_vec128_xor"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+
+    let check_binop scalar vector i0 i1 =
+        failmsg := (fun () -> Printf.printf "%016Lx | %016Lx\n%!" i0 i1);
+        let r0 = scalar i0 i1 in
+        let r1 = scalar i1 i0 in
+        let expect = int64x2_of_int64s r0 r1 in
+        let v1 = int64x2_of_int64s i0 i1 in
+        let v2 = int64x2_of_int64s i1 i0 in
+        let result = vector v1 v2 in
+        eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+            (int64x2_low_int64 expect) (int64x2_high_int64 expect)
+    ;;
+    let () =
+        Int64s.check_ints (check_binop Int64.logand _and);
+        Int64s.check_ints (check_binop (fun l r -> Int64.(logand (lognot l) r)) andnot);
+        Int64s.check_ints (check_binop Int64.logor _or);
+        Int64s.check_ints (check_binop Int64.logxor xor);
+    ;;
+
+    external movemask_8 : (int8x16 [@unboxed]) -> (int [@untagged]) = "" "caml_sse2_vec128_movemask_8"
+        [@@noalloc] [@@builtin]
+    external movemask_64 : (int64x2 [@unboxed]) -> (int [@untagged]) = "" "caml_sse2_vec128_movemask_64"
+        [@@noalloc] [@@builtin]
+
+    let () =
+        let v0 = int64x2_of_int64s 0xffffffffffffffffL 0x8000000000000000L in
+        let v1 = int64x2_of_int64s 0x7fffffffffffffffL 0x0L in
+        let i0 = movemask_64 v0 in
+        let i1 = movemask_64 v1 in
+        eqi i0 i1 0b11 0b00;
+        let v0 = Int8.of_ints 0xff 0x7f 0x80 0x0 0x1 0xcc 0x33 0x55 in
+        let i0 = movemask_8 v0 in
+        eqi i0 0 0b0010_0101_0010_0101 0
+    ;;
+
+    external shift_left_bytes : (int [@untagged]) -> (int8x16 [@unboxed]) -> (int8x16 [@unboxed]) = "" "caml_sse2_vec128_shift_left_bytes"
+        [@@noalloc] [@@builtin]
+    external shift_right_bytes : (int [@untagged]) -> (int8x16 [@unboxed]) -> (int8x16 [@unboxed]) = "" "caml_sse2_vec128_shift_right_bytes"
+        [@@noalloc] [@@builtin]
+
+    let () =
+        let v0 = Int8.of_ints 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 in
+        let v1 = shift_left_bytes 1 v0 in
+        let v2 = shift_right_bytes 1 v0 in
+        eq (int8x16_low_int64 v1) (int8x16_high_int64 v1)
+        0x0605040302010000L 0x0605040302010007L;
+        eq (int8x16_low_int64 v2) (int8x16_high_int64 v2)
+        0x07060504030201L 0x0007060504030201L;
+    ;;
+
+    external shuffle_64 : (int [@untagged]) -> (int64x2 [@unboxed]) -> (int64x2 [@unboxed]) -> (int64x2 [@unboxed]) = "" "caml_sse2_vec128_shuffle_64"
+        [@@noalloc] [@@builtin]
+
+    external shuffle_high_16 : (int [@untagged]) -> (int16x8 [@unboxed]) -> (int16x8 [@unboxed]) = "" "caml_sse2_vec128_shuffle_high_16"
+        [@@noalloc] [@@builtin]
+
+    external shuffle_low_16 : (int [@untagged]) -> (int16x8 [@unboxed]) -> (int16x8 [@unboxed]) = "" "caml_sse2_vec128_shuffle_low_16"
+        [@@noalloc] [@@builtin]
+
+    let () =
+        let _12 = int64x2_of_int64s 1L 2L in
+        let _34 = int64x2_of_int64s 3L 4L in
+        let v0 = shuffle_64 0b00 _12 _34 in
+        let v1 = shuffle_64 0b01 _12 _34 in
+        let v2 = shuffle_64 0b10 _12 _34 in
+        let v3 = shuffle_64 0b11 _12 _34 in
+        eq (int64x2_low_int64 v0) (int64x2_high_int64 v0) 1L 3L;
+        eq (int64x2_low_int64 v1) (int64x2_high_int64 v1) 2L 3L;
+        eq (int64x2_low_int64 v2) (int64x2_high_int64 v2) 1L 4L;
+        eq (int64x2_low_int64 v3) (int64x2_high_int64 v3) 2L 4L
+    ;;
+    let () =
+        let v0 = Int16.of_ints 1 2 3 4 5 6 7 8 in
+        let s0 = shuffle_high_16 0 v0 in
+        let s1 = shuffle_high_16 0b01010101 v0 in
+        let s2 = shuffle_high_16 0b10101010 v0 in
+        let s3 = shuffle_high_16 0b11111111 v0 in
+        eq (int16x8_low_int64 s0) (int16x8_high_int64 s0) 0x0004000300020001L 0x0005000500050005L;
+        eq (int16x8_low_int64 s1) (int16x8_high_int64 s1) 0x0004000300020001L 0x0006000600060006L;
+        eq (int16x8_low_int64 s2) (int16x8_high_int64 s2) 0x0004000300020001L 0x0007000700070007L;
+        eq (int16x8_low_int64 s3) (int16x8_high_int64 s3) 0x0004000300020001L 0x0008000800080008L;
+        let s0 = shuffle_low_16 0 v0 in
+        let s1 = shuffle_low_16 0b01010101 v0 in
+        let s2 = shuffle_low_16 0b10101010 v0 in
+        let s3 = shuffle_low_16 0b11111111 v0 in
+        eq (int16x8_low_int64 s0) (int16x8_high_int64 s0) 0x0001000100010001L 0x0008000700060005L;
+        eq (int16x8_low_int64 s1) (int16x8_high_int64 s1) 0x0002000200020002L 0x0008000700060005L;
+        eq (int16x8_low_int64 s2) (int16x8_high_int64 s2) 0x0003000300030003L 0x0008000700060005L;
+        eq (int16x8_low_int64 s3) (int16x8_high_int64 s3) 0x0004000400040004L 0x0008000700060005L;
+    ;;
+
+    external interleave_high_8 : int8x16 -> int8x16 -> int8x16 = "" "caml_sse2_vec128_interleave_high_8"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external interleave_low_8 : int8x16 -> int8x16 -> int8x16 = "" "caml_sse2_vec128_interleave_low_8"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external interleave_high_16 : int16x8 -> int16x8 -> int16x8 = "" "caml_sse2_vec128_interleave_high_16"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external interleave_low_16 : int16x8 -> int16x8 -> int16x8 = "" "caml_sse2_vec128_interleave_low_16"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external interleave_high_64 : int64x2 -> int64x2 -> int64x2 = "" "caml_sse2_vec128_interleave_high_64"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external interleave_low_64 : int64x2 -> int64x2 -> int64x2 = "" "caml_sse2_vec128_interleave_low_64"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    let () =
+        let v0 = Int8.of_ints 0 1 2 3 4 5 6 7 in
+        let v1 = Int8.of_ints 8 9 0xa 0xb 0xc 0xd 0xe 0xf in
+        let i0 = interleave_high_8 v0 v1 in
+        let i1 = interleave_low_8 v0 v1 in
+        eq (int8x16_low_int64 i0) (int8x16_high_int64 i0)
+        0x0b030a0209010800L 0x0f070e060d050c04L;
+        eq (int8x16_low_int64 i1) (int8x16_high_int64 i1)
+        0x0b030a0209010800L 0x0f070e060d050c04L;
+        let v0 = Int16.of_ints 0 1 2 3 4 5 6 7 in
+        let v1 = Int16.of_ints 8 9 0xa 0xb 0xc 0xd 0xe 0xf in
+        let i0 = interleave_high_16 v0 v1 in
+        let i1 = interleave_low_16 v0 v1 in
+        eq (int16x8_low_int64 i0) (int16x8_high_int64 i0)
+        0x000d_0005_000c_0004L 0x000f_0007_000e_0006L;
+        eq (int16x8_low_int64 i1) (int16x8_high_int64 i1)
+        0x0009_0001_0008_0000L 0x000b_0003_000a_0002L;
+        let v0 = int64x2_of_int64s 0L 1L in
+        let v1 = int64x2_of_int64s 2L 3L in
+        let i0 = interleave_high_64 v0 v1 in
+        let i1 = interleave_low_64 v0 v1 in
+        eq (int64x2_low_int64 i0) (int64x2_high_int64 i0)
+        1L 3L;
+        eq (int64x2_low_int64 i1) (int64x2_high_int64 i1)
+        0L 2L
+    ;;
 end
 
 module SSE3_Util = struct
 
-    (* TODO
-    caml_sse3_vec128_dup_low_64
-    caml_sse3_vec128_dup_odd_32
-    caml_sse3_vec128_dup_even_32 *)
+    external dup_low_64 : int64x2 -> int64x2 = "" "caml_sse3_vec128_dup_low_64"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external dup_odd_32 : int32x4 -> int32x4 = "" "caml_sse3_vec128_dup_odd_32"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external dup_even_32 : int32x4 -> int32x4 = "" "caml_sse3_vec128_dup_even_32"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    let () =
+        let v0 = int64x2_of_int64s 1L 2L in
+        let d0 = dup_low_64 v0 in
+        eq (int64x2_low_int64 d0) (int64x2_high_int64 d0) 1L 1L;
+        let v0 = Int32s.of_int32s 1l 2l 3l 4l in
+        let d0 = dup_odd_32 v0 in
+        let d1 = dup_even_32 v0 in
+        eq (int32x4_low_int64 d0) (int32x4_high_int64 d0) 0x0000000200000002L 0x0000000400000004L;
+        eq (int32x4_low_int64 d1) (int32x4_high_int64 d1) 0x0000000100000001L 0x0000000300000003L
+    ;;
 end
 
 module SSSE3_Util = struct
 
-    (* TODO
-       caml_ssse3_vec128_shuffle_8 *)
+    external shuffle_8 : int8x16 -> int8x16 -> int8x16 = "" "caml_ssse3_vec128_shuffle_8"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    let () =
+        let v0 = Int8.of_ints 0 1 2 3 4 5 6 7 in
+        let sel0 = Int8.of_ints 0 0 0 0 0 0 0 0 in
+        let sel1 = Int8.of_ints 0 1 2 3 4 5 6 7 in
+        let sel2 = Int8.of_ints 15 15 15 15 15 15 15 15  in
+        let s0 = shuffle_8 v0 sel0 in
+        let s1 = shuffle_8 v0 sel1 in
+        let s2 = shuffle_8 v0 sel2 in
+        eq (int8x16_low_int64 s0) (int8x16_high_int64 s0) 0L 0L;
+        eq (int8x16_low_int64 s1) (int8x16_high_int64 s1) 0x0706050403020100L 0x0706050403020100L;
+        eq (int8x16_low_int64 s2) (int8x16_high_int64 s2) 0x0707070707070707L 0x0707070707070707L
+    ;;
 end
 
 module SSE41_Util = struct
 
-    (* TODO
-    caml_sse41_vec128_blend_16
-    caml_sse41_vec128_blend_32
-    caml_sse41_vec128_blend_64
-    caml_sse41_vec128_blendv_8
-    caml_sse41_vec128_blendv_32
-    caml_sse41_vec128_blendv_64 *)
+    external blend_16 : (int [@untagged]) -> (int16x8 [@unboxed]) -> (int16x8 [@unboxed]) -> (int16x8 [@unboxed]) = "" "caml_sse41_vec128_blend_16"
+        [@@noalloc] [@@builtin]
+    external blend_32 : (int [@untagged]) -> (int32x4 [@unboxed]) -> (int32x4 [@unboxed]) -> (int32x4 [@unboxed]) = "" "caml_sse41_vec128_blend_32"
+        [@@noalloc] [@@builtin]
+    external blend_64 : (int [@untagged]) -> (int64x2 [@unboxed]) -> (int64x2 [@unboxed]) -> (int64x2 [@unboxed]) = "" "caml_sse41_vec128_blend_64"
+        [@@noalloc] [@@builtin]
+
+    external blendv_8 : int8x16 -> int8x16 -> int8x16 -> int8x16 = "" "caml_sse41_vec128_blendv_8"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external blendv_32 : int32x4 -> int32x4 -> int32x4 -> int32x4 = "" "caml_sse41_vec128_blendv_32"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external blendv_64 : int64x2 -> int64x2 -> int64x2 -> int64x2 = "" "caml_sse41_vec128_blendv_64"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    let () =
+        let v0 = Int16.of_ints 0 1 2 3 4 5 6 7 in
+        let v1 = Int16.of_ints 8 9 0xa 0xb 0xc 0xd 0xe 0xf in
+        let b0 = blend_16 0b01010101 v0 v1 in
+        eq (int16x8_low_int64 b0) (int16x8_high_int64 b0)
+        0x0003_000a_0001_0008L 0x0007_000e_0005_000cL;
+        let v0 = Int32s.of_int32s 0l 1l 2l 3l in
+        let v1 = Int32s.of_int32s 4l 5l 6l 7l in
+        let b0 = blend_32 0b0101 v0 v1 in
+        eq (int32x4_low_int64 b0) (int32x4_high_int64 b0)
+        0x00000001_00000004L 0x00000003_00000006L;
+        let v0 = int64x2_of_int64s 0L 1L in
+        let v1 = int64x2_of_int64s 2L 3L in
+        let b0 = blend_64 0b01 v0 v1 in
+        eq (int64x2_low_int64 b0) (int64x2_high_int64 b0)
+        2L 1L
+    ;;
+
+    let () =
+        let v0 = Int8.of_ints 0 1   2   3   4   5   6   7 in
+        let v1 = Int8.of_ints 8 9 0xa 0xb 0xc 0xd 0xe 0xf in
+        let b0 = blendv_8 v0 v1 (Int8.of_ints 0xff 0x00 0xff 0x00 0xff 0x00 0xff 0x00) in
+        eq (int8x16_low_int64 b0) (int8x16_high_int64 b0)
+        0x07_0e_05_0c_03_0a_01_08L 0x07_0e_05_0c_03_0a_01_08L;
+        let v0 = Int32s.of_int32s 0l 1l 2l 3l in
+        let v1 = Int32s.of_int32s 4l 5l 6l 7l in
+        let b0 = blendv_32 v0 v1 (Int32s.of_int32s 0xffffffffl 0x0l 0xffffffffl 0x0l) in
+        eq (int32x4_low_int64 b0) (int32x4_high_int64 b0)
+        0x00000001_00000004L 0x00000003_00000006L;
+        let v0 = int64x2_of_int64s 0L 1L in
+        let v1 = int64x2_of_int64s 2L 3L in
+        let b0 = blendv_64 v0 v1 (int64x2_of_int64s 0xffffffffffffffffL 0x0L) in
+        eq (int64x2_low_int64 b0) (int64x2_high_int64 b0)
+        2L 1L
+    ;;
 end
 
 module SSE42_String = struct

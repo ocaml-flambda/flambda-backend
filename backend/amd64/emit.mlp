@@ -926,6 +926,10 @@ let emit_simd_instr op i =
   | R_RM_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0))
+  | R_RM_XMM0_to_fst ->
+    assert (arg i 0 = res i 0);
+    assert (Reg.is_reg i.arg.(0));
+    assert (i.arg.(2) = phys_reg Vec128 100)
   | R_R_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1)));

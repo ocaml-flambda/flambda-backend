@@ -156,11 +156,13 @@ method! reload_operation op arg res =
       let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
       let arg1 = if stackp arg.(1) then self#makereg arg.(1) else arg.(1) in
       ([|arg0; arg1|], [|arg0|])
-    | R_RM_to_fst ->
+    | R_RM_to_fst | R_RM_XMM0_to_fst ->
       (* First argument must be a register; the result must be the first arg.
          Note that stack-spilled vectors are properly aligned. *)
       let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      ([|arg0; arg.(1)|], [|arg0|]))
+      let arg = Array.copy arg in
+      Array.set arg 0 arg0;
+      (arg, [|arg0|]))
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))

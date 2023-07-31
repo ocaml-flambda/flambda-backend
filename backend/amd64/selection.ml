@@ -90,6 +90,7 @@ exception Use_default
 let rax = phys_reg Int 0
 let rcx = phys_reg Int 5
 let rdx = phys_reg Int 4
+let xmm0v () = phys_reg Vec128 100
 
 let pseudoregs_for_operation op arg res =
   match op with
@@ -162,7 +163,10 @@ let pseudoregs_for_operation op arg res =
       ([|res.(0)|], res)
     | R_R_to_fst | R_RM_to_fst ->
       (* arg.(0) and res.(0) must be the same *)
-      ([|res.(0); arg.(1)|], res))
+      ([|res.(0); arg.(1)|], res)
+    | R_RM_XMM0_to_fst ->
+      (* arg.(2) must be xmm0; arg.(0) and res.(0) must be the same *)
+      ([|res.(0); arg.(1); xmm0v ()|], res))
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
