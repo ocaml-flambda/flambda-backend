@@ -151,6 +151,14 @@ let select_operation_sse2 op args dbg =
     Some (F32_to_i32, [arg 0 args; arg 0 args])
   | "caml_sse2_cvt_float32x4_float64x2" ->
     Some (F32_to_f64, [arg 0 args; arg 0 args])
+  | "caml_sse2_cvt_int16x8_int8x16_saturating" -> Some (I16_to_i8, args)
+  | "caml_sse2_cvt_int32x4_int16x8_saturating" -> Some (I32_to_i16, args)
+  | "caml_sse2_cvt_int16x8_int8x16_saturating_unsigned" -> Some (I16_to_u8, args)
+  | "caml_sse2_cvt_int32x4_int16x8_saturating_unsigned" ->
+    Some (I32_to_u16, args)
+  | "caml_sse2_int8x16_avg_unsigned" -> Some (Avg_u8, args)
+  | "caml_sse2_int16x8_avg_unsigned" -> Some (Avg_u16, args)
+  | "caml_sse2_int8x16_sad_unsigned" -> Some (SAD_u8, args)
   | "caml_sse2_int16x8_sll" -> Some (SLL_i16, args)
   | "caml_sse2_int32x4_sll" -> Some (SLL_i32, args)
   | "caml_sse2_int64x2_sll" -> Some (SLL_i64, args)
@@ -241,6 +249,11 @@ let select_operation_ssse3 op args dbg =
     | "caml_ssse3_int16x8_mulsign" -> Some (Mulsign_i16, args)
     | "caml_ssse3_int32x4_mulsign" -> Some (Mulsign_i32, args)
     | "caml_ssse3_vec128_shuffle_8" -> Some (Shuffle_8, args)
+    | "caml_ssse3_vec128_align_right_bytes" ->
+      let i, args =
+        extract_constant args 0 31 "caml_ssse3_vec128_align_right_bytes"
+      in
+      Some (Alignr_i8 i, args)
     | _ -> None
 
 let select_operation_sse41 op args dbg =
@@ -329,6 +342,12 @@ let select_operation_sse41 op args dbg =
     | "caml_sse41_int32x4_min" -> Some (Min_i32, args)
     | "caml_sse41_int16x8_min_unsigned" -> Some (Min_u16, args)
     | "caml_sse41_int32x4_min_unsigned" -> Some (Min_u32, args)
+    | "caml_sse41_int8x16_multi_sad_unsigned" ->
+      let i, args =
+        extract_constant args 0 7 "caml_sse41_int8x16_multi_sad_unsigned"
+      in
+      Some (Multi_sad_u8 i, args)
+    | "caml_sse41_int16x8_minpos_unsigned" -> Some (Minpos_u16, args)
     | _ -> None
 
 let select_operation_sse42 op args dbg =
@@ -416,10 +435,11 @@ let register_behavior_sse2 = function
   | Or_bits | Xor_bits | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16
   | Cmpgt_i32 | Cmp_f64 _ | I32_to_f64 | I32_to_f32 | F64_to_i32 | F64_to_f32
   | F32_to_i32 | F32_to_f64 | SLL_i16 | SLL_i32 | SLL_i64 | SRL_i16 | SRL_i32
-  | SRL_i64 | SRA_i16 | SRA_i32 | Shuffle_64 _ | Shuffle_high_16 _
-  | Shuffle_low_16 _ | Interleave_high_8 | Interleave_high_16
-  | Interleave_high_64 | Interleave_low_8 | Interleave_low_16
-  | Interleave_low_64 ->
+  | SRL_i64 | SRA_i16 | SRA_i32 | Avg_u8 | Avg_u16 | SAD_u8 | Shuffle_64 _
+  | Shuffle_high_16 _ | Shuffle_low_16 _ | Interleave_high_8
+  | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
+  | Interleave_low_16 | Interleave_low_64 | I16_to_i8 | I32_to_i16 | I16_to_u8
+  | I32_to_u16 ->
     R_RM_to_fst
   | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
   | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
@@ -433,7 +453,8 @@ let register_behavior_sse3 = function
 
 let register_behavior_ssse3 = function
   | Abs_i8 | Abs_i16 | Abs_i32 | Hadd_i16 | Hadd_i32 | Hadds_i16 | Hsub_i16
-  | Hsub_i32 | Hsubs_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32 | Shuffle_8 ->
+  | Hsub_i32 | Hsubs_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32 | Shuffle_8
+  | Alignr_i8 _ ->
     R_RM_to_fst
 
 let register_behavior_sse41 = function
@@ -442,8 +463,9 @@ let register_behavior_sse41 = function
   | U8_zx_i64 | U16_zx_i32 | U16_zx_i64 | U32_zx_i64 | Dp_f32 _ | Dp_f64 _
   | Max_i8 | Max_i32 | Max_u16 | Max_u32 | Min_i8 | Min_i32 | Min_u16 | Min_u32
   | Round_f64 _ | Round_f32 _ | Insert_i8 _ | Insert_i16 _ | Insert_i32 _
-  | Insert_i64 _ ->
+  | Insert_i64 _ | Multi_sad_u8 _ ->
     R_RM_to_fst
+  | Minpos_u16 -> RM_to_R
   | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_XMM0_to_fst
   | Extract_i64 _ | Extract_i32 _ -> R_to_RM
   | Extract_i8 _ | Extract_i16 _ ->

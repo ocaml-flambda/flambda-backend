@@ -291,6 +291,13 @@ module I = struct
   let movddup x y = emit (MOVDDUP (x, y))
   let movshdup x y = emit (MOVSHDUP (x, y))
   let movsldup x y = emit (MOVSLDUP (x, y))
+  let pavgb x y = emit (PAVGB (x, y))
+  let pavgw x y = emit (PAVGW (x, y))
+  let psadbw x y = emit (PSADBW (x, y))
+  let packsswb x y = emit (PACKSSWB (x, y))
+  let packssdw x y = emit (PACKSSDW (x, y))
+  let packuswb x y = emit (PACKUSWB (x, y))
+  let packusdw x y = emit (PACKUSDW (x, y))
 
   let pabsb x y = emit (PABSB (x, y))
   let pabsw x y = emit (PABSW (x, y))
@@ -305,6 +312,7 @@ module I = struct
   let psignw x y = emit (PSIGNW (x, y))
   let psignd x y = emit (PSIGND (x, y))
   let pshufb x y = emit (PSHUFB (x, y))
+  let palignr i x y = emit (PALIGNR (i, x, y))
 
   let pblendw i x y = emit (PBLENDW (i, x, y))
   let blendps i x y = emit (BLENDPS (i, x, y))
@@ -345,6 +353,8 @@ module I = struct
   let pminud x y = emit (PMINUD (x, y))
   let roundpd i x y = emit (ROUNDPD (i, x, y))
   let roundps i x y = emit (ROUNDPS (i, x, y))
+  let mpsadbw i x y = emit (MPSADBW (i, x, y))
+  let phminposuw x y = emit (PHMINPOSUW (x, y))
 
   let pcmpgtq x y = emit (PCMPGTQ (x, y))
   let pcmpestri i x y = emit (PCMPESTRI (i, x, y))

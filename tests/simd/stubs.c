@@ -226,6 +226,13 @@ BUILTIN(caml_sse2_vec128_interleave_high_16);
 BUILTIN(caml_sse2_vec128_interleave_low_16);
 BUILTIN(caml_sse2_vec128_interleave_high_64);
 BUILTIN(caml_sse2_vec128_interleave_low_64);
+BUILTIN(caml_sse2_int8x16_avg_unsigned);
+BUILTIN(caml_sse2_int16x8_avg_unsigned);
+BUILTIN(caml_sse2_int8x16_sad_unsigned);
+BUILTIN(caml_sse2_cvt_int16x8_int8x16_saturating);
+BUILTIN(caml_sse2_cvt_int32x4_int16x8_saturating);
+BUILTIN(caml_sse2_cvt_int16x8_int8x16_saturating_unsigned);
+BUILTIN(caml_sse2_cvt_int32x4_int16x8_saturating_unsigned);
 
 BUILTIN(caml_sse3_float32x4_addsub);
 BUILTIN(caml_sse3_float64x2_addsub);
@@ -250,6 +257,7 @@ BUILTIN(caml_ssse3_int8x16_mulsign);
 BUILTIN(caml_ssse3_int16x8_mulsign);
 BUILTIN(caml_ssse3_int32x4_mulsign);
 BUILTIN(caml_ssse3_vec128_shuffle_8);
+BUILTIN(caml_ssse3_vec128_align_right_bytes);
 
 BUILTIN(caml_sse41_vec128_blend_16);
 BUILTIN(caml_sse41_vec128_blend_32);
@@ -290,6 +298,8 @@ BUILTIN(caml_sse41_int8x16_min);
 BUILTIN(caml_sse41_int32x4_min);
 BUILTIN(caml_sse41_int16x8_min_unsigned);
 BUILTIN(caml_sse41_int32x4_min_unsigned);
+BUILTIN(caml_sse41_int8x16_multi_sad_unsigned);
+BUILTIN(caml_sse41_int16x8_minpos_unsigned);
 
 BUILTIN(caml_sse42_int64x2_cmpgt);
 BUILTIN(caml_sse42_vec128_cmpestrm);
@@ -321,6 +331,14 @@ int32_t uint32_min(int32_t l, int32_t r) {
   uint32_t ul = (uint32_t)l;
   uint32_t ur = (uint32_t)r;
   return ul < ur ? l : r;
+}
+int64_t int32_si16(int64_t i) {
+  int32_t x = (int32_t)i;
+  return x > INT16_MAX ? INT16_MAX : (x < INT16_MIN ? INT16_MIN : x);
+}
+int64_t int32_su16(int64_t i) {
+  int32_t x = (int32_t)i;
+  return x > UINT16_MAX ? UINT16_MAX : (x < 0 ? 0 : x);
 }
 
 // Int16
@@ -419,6 +437,19 @@ int64_t int16_shift_right(int64_t x, int64_t shift) {
 int64_t int16_shift_right_logical(int64_t x, int64_t shift) {
   return (uint16_t)(int16_t)x >> shift;
 }
+int64_t int16_avgu(int64_t l, int64_t r) {
+  uint16_t x = (uint16_t)(int16_t)l;
+  uint16_t y = (uint16_t)(int16_t)r;
+  return (x + y + 1) >> 1;
+}
+int64_t int16_si8(int64_t i) {
+  int16_t x = (int16_t)i;
+  return x > INT8_MAX ? INT8_MAX : (x < INT8_MIN ? INT8_MIN : x);
+}
+int64_t int16_su8(int64_t i) {
+  int16_t x = (int16_t)i;
+  return x > UINT8_MAX ? UINT8_MAX : (x < 0 ? 0 : x);
+}
 
 // Int8
 
@@ -509,6 +540,16 @@ int64_t int8_sxi64(int64_t x) {
 }
 int64_t int8_zxi64(int64_t x) {
   return (uint64_t)(uint8_t)x;
+}
+int64_t int8_avgu(int64_t l, int64_t r) {
+  uint8_t x = (uint8_t)(int8_t)l;
+  uint8_t y = (uint8_t)(int8_t)r;
+  return (x + y + 1) >> 1;
+}
+int64_t int8_diffu(int64_t l, int64_t r) {
+  uint8_t x = (uint8_t)(int8_t)l;
+  uint8_t y = (uint8_t)(int8_t)r;
+  return x > y ? x - y : y - x;
 }
 
 // Float32

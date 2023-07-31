@@ -336,6 +336,16 @@ type instruction =
   | PCMPISTRI of int * arg * arg
   | PCMPISTRM of int * arg * arg
   | CRC32 of arg * arg
+  | PAVGB of arg * arg
+  | PAVGW of arg * arg
+  | PSADBW of arg * arg
+  | PACKSSWB of arg * arg
+  | PACKSSDW of arg * arg
+  | PACKUSWB of arg * arg
+  | PACKUSDW of arg * arg
+  | PALIGNR of int * arg * arg
+  | MPSADBW of int * arg * arg
+  | PHMINPOSUW of arg * arg
 
 (* ELF specific *)
 type reloc_type =

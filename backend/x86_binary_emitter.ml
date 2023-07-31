@@ -1000,6 +1000,17 @@ let emit_pcmpestri = suffix emit_osize_rf_rfm_3A 0x61
 let emit_pcmpistrm = suffix emit_osize_rf_rfm_3A 0x62
 let emit_pcmpistri = suffix emit_osize_rf_rfm_3A 0x63
 
+let emit_pavgb = emit_osize_rf_rfm 0xE0
+let emit_pavgw = emit_osize_rf_rfm 0xE3
+let emit_psadbw = emit_osize_rf_rfm 0xF6
+let emit_packsswb = emit_osize_rf_rfm 0x63
+let emit_packssdw = emit_osize_rf_rfm 0x6B
+let emit_packuswb = emit_osize_rf_rfm 0x67
+let emit_packusdw = emit_osize_rf_rfm_38 0x2B
+let emit_palignr = suffix emit_osize_rf_rfm_3A 0x0F
+let emit_mpsadbw = suffix emit_osize_rf_rfm_3A 0x42
+let emit_phminposuw = emit_osize_rf_rfm_38 0x41
+
 let emit_cmppd = suffix emit_osize_rf_rfm 0xC2
 let emit_shufpd = suffix emit_osize_rf_rfm 0xC6
 let emit_pshufhw = suffix emit_rep_rf_rfm 0x70
@@ -1914,6 +1925,16 @@ let assemble_instr b loc = function
   | PCMPESTRM (n, src, dst) -> emit_pcmpestrm b n dst src
   | PCMPISTRI (n, src, dst) -> emit_pcmpistri b n dst src
   | PCMPISTRM (n, src, dst) -> emit_pcmpistrm b n dst src
+  | PAVGB (src, dst) -> emit_pavgb b dst src
+  | PAVGW (src, dst) -> emit_pavgw b dst src
+  | PSADBW (src, dst) -> emit_psadbw b dst src
+  | PACKSSWB (src, dst) -> emit_packsswb b dst src
+  | PACKSSDW (src, dst) -> emit_packssdw b dst src
+  | PACKUSWB (src, dst) -> emit_packuswb b dst src
+  | PACKUSDW (src, dst) -> emit_packusdw b dst src
+  | PALIGNR (n, src, dst) -> emit_palignr b n dst src
+  | MPSADBW (n, src, dst) -> emit_mpsadbw b n dst src
+  | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
 
 let assemble_line b loc ins =
   try

@@ -357,6 +357,16 @@ let print_instr b = function
   | PCMPESTRM (n, arg1, arg2) -> i3 b "pcmpestrm" (Imm (Int64.of_int n)) arg1 arg2
   | PCMPISTRI (n, arg1, arg2) -> i3 b "pcmpistri" (Imm (Int64.of_int n)) arg1 arg2
   | PCMPISTRM (n, arg1, arg2) -> i3 b "pcmpistrm" (Imm (Int64.of_int n)) arg1 arg2
+  | PAVGB (arg1, arg2) -> i2 b "pavgb" arg1 arg2
+  | PAVGW (arg1, arg2) -> i2 b "pavgw" arg1 arg2
+  | PSADBW (arg1, arg2) -> i2 b "psadbw" arg1 arg2
+  | PACKSSWB (arg1, arg2) -> i2 b "packsswb" arg1 arg2
+  | PACKSSDW (arg1, arg2) -> i2 b "packssdw" arg1 arg2
+  | PACKUSWB (arg1, arg2) -> i2 b "packuswb" arg1 arg2
+  | PACKUSDW (arg1, arg2) -> i2 b "packusdw" arg1 arg2
+  | PALIGNR (n, arg1, arg2) -> i3 b "palignr" (Imm (Int64.of_int n)) arg1 arg2
+  | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" (Imm (Int64.of_int n)) arg1 arg2
+  | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
 
 let print_line b = function
   | Ins instr -> print_instr b instr
