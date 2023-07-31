@@ -16,8 +16,6 @@
 
 open Format
 
-(* Omitting some of the more exotic operations. (e.g. SADs) *)
-
 type float_condition = X86_ast.float_condition =
   | EQf
   | LTf
