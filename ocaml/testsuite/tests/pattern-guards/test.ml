@@ -140,6 +140,7 @@ typing_no_value_clauses f (Some 5);;
 - : (int, exn) result = Ok 20
 |}];;
 
+(* Check typing of pattern guards with no value cases. *)
 let typing_no_value_clauses f x =
   match x with
     | Some x when f x match exception e -> Error e
@@ -314,7 +315,6 @@ module M :
     val find : int -> 'a t -> 'a
     val find_opt : int -> 'a t -> 'a option
   end
-<<<<<<< HEAD
 |}];;
 
 (* Correctness test for pattern guard matching and failure. *)
@@ -378,6 +378,87 @@ say_hello_catching_exns None name_map;;
 - : string = "Hello, Fred"
 |}]
 
+(* Ensure that Match_failure is raised when all cases, including pattern-guarded
+   ones, fail to match. *)
+let patch_to_match_failure f default x =
+  match x with
+  | None -> default
+  | Some x when f x match Some y -> y
+;;
+[%%expect{|
+Lines 2-4, characters 2-37:
+2 | ..match x with
+3 |   | None -> default
+4 |   | Some x when f x match Some y -> y
+Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+Here is an example of a case that is not matched:
+Some _
+(However, some guarded clause may match this value.)
+val patch_to_match_failure : ('a -> 'b option) -> 'b -> 'a option -> 'b =
+  <fun>
+|}];;
+
+let exact_half n = if n mod 2 = 0 then Some (n / 2) else None;;
+[%%expect{|
+val exact_half : int -> int option = <fun>
+|}];;
+
+patch_to_match_failure exact_half ~-1 None;;
+[%%expect{|
+- : int = -1
+|}];;
+patch_to_match_failure exact_half ~-1 (Some 42);;
+[%%expect{|
+- : int = 21
+|}];;
+patch_to_match_failure exact_half ~-1 (Some 41);;
+[%%expect{|
+Exception: Match_failure ("", 2, 2).
+|}];;
+
+(* Ensure that warning 8 is issued appropriately in the presence of pattern
+   guards. *)
+let warn_partial = function
+  | [] -> 0
+  | xs when List.hd xs match Some y -> y
+;;
+[%%expect{|
+Lines 1-3, characters 19-40:
+1 | ...................function
+2 |   | [] -> 0
+3 |   | xs when List.hd xs match Some y -> y
+Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+Here is an example of a case that is not matched:
+_::_
+(However, some guarded clause may match this value.)
+val warn_partial : int option list -> int = <fun>
+|}];;
+
+(* Ensure that warning 57 is appropriately issued for pattern guards. *)
+let warn_ambiguous = function
+  | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
+  | _ -> 0
+;;
+[%%expect{|
+Line 2, characters 4-27:
+2 |   | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
+        ^^^^^^^^^^^^^^^^^^^^^^^
+Warning 57 [ambiguous-var-in-pattern-guard]: Ambiguous or-pattern variables under guard;
+variable x appears in different places in different or-pattern alternatives.
+Only the first match will be used to evaluate the guard expression.
+(See manual section 11.5)
+val warn_ambiguous : int list * int list -> int = <fun>
+|}];;
+
+(* Ensure that warning 57 is not extraneously issued for pattern guards. *)
+let dont_warn_ambiguous = function
+  | ([ x ], _) | (_, [ x ]) when (let one = 1 in one + one) match 2 -> x
+  | _ -> 0
+;;
+[%%expect{|
+val dont_warn_ambiguous : int list * int list -> int = <fun>
+|}]
+
 let single_bar_syntax x =
   match x with
   | Some x when x match | Some y -> y
@@ -398,7 +479,6 @@ single_bar_syntax (Some None);;
 single_bar_syntax None;;
 [%%expect{|
 - : int = 0
->>>>>>> cf95a482 (translates single-case pattern guards successfully)
 |}];;
 
 single_bar_syntax (Some (Some 5));;
@@ -595,86 +675,6 @@ check_push_defaults g ~s:"hmm" "name";;
 - : string = "name"
 |}];;
 
-(* Ensure that Match_failure is raised when all cases, including pattern-guarded
-   ones, fail to match. *)
-   let patch_to_match_failure f default x =
-    match x with
-    | None -> default
-    | Some x when f x match Some y -> y
-  ;;
-  [%%expect{|
-  Lines 2-4, characters 2-37:
-  2 | ..match x with
-  3 |   | None -> default
-  4 |   | Some x when f x match Some y -> y
-  Warning 8 [partial-match]: this pattern-matching is not exhaustive.
-  Here is an example of a case that is not matched:
-  Some _
-  (However, some guarded clause may match this value.)
-  val patch_to_match_failure : ('a -> 'b option) -> 'b -> 'a option -> 'b =
-    <fun>
-  |}];;
-
-  let exact_half n = if n mod 2 = 0 then Some (n / 2) else None;;
-  [%%expect{|
-  val exact_half : int -> int option = <fun>
-  |}];;
-
-  patch_to_match_failure exact_half ~-1 None;;
-  [%%expect{|
-  - : int = -1
-  |}];;
-  patch_to_match_failure exact_half ~-1 (Some 42);;
-  [%%expect{|
-  - : int = 21
-  |}];;
-  patch_to_match_failure exact_half ~-1 (Some 41);;
-  [%%expect{|
-  Exception: Match_failure ("", 2, 2).
-  |}];;
-
-  (* Ensure that warning 8 is issued appropriately in the presence of pattern
-     guards. *)
-  let warn_partial = function
-    | [] -> 0
-    | xs when List.hd xs match Some y -> y
-  ;;
-  [%%expect{|
-  Lines 1-3, characters 19-40:
-  1 | ...................function
-  2 |   | [] -> 0
-  3 |   | xs when List.hd xs match Some y -> y
-  Warning 8 [partial-match]: this pattern-matching is not exhaustive.
-  Here is an example of a case that is not matched:
-  _::_
-  (However, some guarded clause may match this value.)
-  val warn_partial : int option list -> int = <fun>
-  |}];;
-
-  (* Ensure that warning 57 is appropriately issued for pattern guards. *)
-  let warn_ambiguous = function
-    | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
-    | _ -> 0
-  ;;
-  [%%expect{|
-  Line 2, characters 4-27:
-  2 |   | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
-          ^^^^^^^^^^^^^^^^^^^^^^^
-  Warning 57 [ambiguous-var-in-pattern-guard]: Ambiguous or-pattern variables under guard;
-  variable x appears in different places in different or-pattern alternatives.
-  Only the first match will be used to evaluate the guard expression.
-  (See manual section 11.5)
-  val warn_ambiguous : int list * int list -> int = <fun>
-  |}];;
-
-  (* Ensure that warning 57 is not extraneously issued for pattern guards. *)
-  let dont_warn_ambiguous = function
-    | ([ x ], _) | (_, [ x ]) when (let one = 1 in one + one) match 2 -> x
-    | _ -> 0
-  ;;
-  [%%expect{|
-  val dont_warn_ambiguous : int list * int list -> int = <fun>
-  |}];;
 
 
 check_push_defaults g "name";;
