@@ -160,7 +160,10 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Specific (Isimd op)) ->
     (match Simd_selection.register_behavior op with
     | R_to_fst | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
-    | R_RM_to_fst -> may_use_stack_operand_for_second_argument map instr
+    | R_RM_to_fst | String_no_length | String_no_length_mask ->
+      may_use_stack_operand_for_second_argument map instr
+    | String_length | String_length_mask ->
+      may_use_stack_operand_for_second_argument ~num_args:4 map instr
     | R_RM_XMM0_to_fst -> may_use_stack_operand_for_second_argument ~num_args:3 map instr
     | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)

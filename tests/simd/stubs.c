@@ -292,10 +292,20 @@ BUILTIN(caml_sse41_int16x8_min_unsigned);
 BUILTIN(caml_sse41_int32x4_min_unsigned);
 
 BUILTIN(caml_sse42_int64x2_cmpgt);
-BUILTIN(caml_sse42_vec128_cmpestri);
 BUILTIN(caml_sse42_vec128_cmpestrm);
-BUILTIN(caml_sse42_vec128_cmpistri);
+BUILTIN(caml_sse42_vec128_cmpestra);
+BUILTIN(caml_sse42_vec128_cmpestrc);
+BUILTIN(caml_sse42_vec128_cmpestri);
+BUILTIN(caml_sse42_vec128_cmpestro);
+BUILTIN(caml_sse42_vec128_cmpestrs);
+BUILTIN(caml_sse42_vec128_cmpestrz);
 BUILTIN(caml_sse42_vec128_cmpistrm);
+BUILTIN(caml_sse42_vec128_cmpistra);
+BUILTIN(caml_sse42_vec128_cmpistrc);
+BUILTIN(caml_sse42_vec128_cmpistri);
+BUILTIN(caml_sse42_vec128_cmpistro);
+BUILTIN(caml_sse42_vec128_cmpistrs);
+BUILTIN(caml_sse42_vec128_cmpistrz);
 
 #include <float.h>
 #include <math.h>

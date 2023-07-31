@@ -929,10 +929,27 @@ let emit_simd_instr op i =
   | R_RM_XMM0_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_reg Vec128 100)
+    assert (i.arg.(2) = phys_reg Vec128 100 (* xmm0 *))
   | R_R_to_fst ->
     assert (arg i 0 = res i 0);
-    assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1)));
+    assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1))
+  | String_length ->
+    assert (Reg.is_reg i.arg.(0));
+    assert (i.arg.(2) = phys_reg Int 0 (* rax *));
+    assert (i.arg.(3) = phys_reg Int 4 (* rdx *));
+    assert (i.res.(0) = phys_reg Int 5 (* rcx *))
+  | String_no_length ->
+    assert (Reg.is_reg i.arg.(0));
+    assert (i.res.(0) = phys_reg Int 5 (* rcx *))
+  | String_length_mask ->
+    assert (Reg.is_reg i.arg.(0));
+    assert (i.arg.(2) = phys_reg Int 0 (* rax *));
+    assert (i.arg.(3) = phys_reg Int 4 (* rdx *));
+    assert (i.res.(0) = phys_reg Vec128 100 (* xmm0 *))
+  | String_no_length_mask ->
+    assert (Reg.is_reg i.arg.(0));
+    assert (i.res.(0) = phys_reg Vec128 100 (* xmm0 *))
+  );
   match (op : Simd.operation) with
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
@@ -1094,11 +1111,31 @@ let emit_simd_instr op i =
   | SSE41 (Round_f64 n) -> I.roundpd n (arg i 1) (res i 0)
   | SSE41 (Round_f32 n) -> I.roundps n (arg i 1) (res i 0)
   | SSE42 Cmpgt_i64 -> I.pcmpgtq (arg i 1) (res i 0)
-  | SSE42 (Cmpestri n) -> I.pcmpestri n (arg i 1) (res i 0)
-  | SSE42 (Cmpestrm n) -> I.pcmpestrm n (arg i 1) (res i 0)
-  | SSE42 (Cmpistri n) -> I.pcmpistri n (arg i 1) (res i 0)
-  | SSE42 (Cmpistrm n) -> I.pcmpistrm n (arg i 1) (res i 0)
   | SSE42 Crc32_64 -> I.crc32 (arg i 1) (res i 0)
+  | SSE42 (Cmpestrm n) -> I.pcmpestrm n (arg i 1) (arg i 0)
+  | SSE42 (Cmpistrm n) -> I.pcmpistrm n (arg i 1) (arg i 0)
+  | SSE42 (Cmpestri n) -> I.pcmpestri n (arg i 1) (arg i 0)
+  | SSE42 (Cmpistri n) -> I.pcmpistri n (arg i 1) (arg i 0)
+  | SSE42 (Cmpestra n) ->
+    I.pcmpestri n (arg i 1) (arg i 0); I.set A (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpestrc n) ->
+    I.pcmpestri n (arg i 1) (arg i 0); I.set B (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpestro n) ->
+    I.pcmpestri n (arg i 1) (arg i 0); I.set O (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpestrs n) ->
+    I.pcmpestri n (arg i 1) (arg i 0); I.set S (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpestrz n) ->
+    I.pcmpestri n (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpistra n) ->
+    I.pcmpistri n (arg i 1) (arg i 0); I.set A (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpistrc n) ->
+    I.pcmpistri n (arg i 1) (arg i 0); I.set B (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpistro n) ->
+    I.pcmpistri n (arg i 1) (arg i 0); I.set O (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpistrs n) ->
+    I.pcmpistri n (arg i 1) (arg i 0); I.set S (res8 i 0); I.movzx (res8 i 0) (res i 0)
+  | SSE42 (Cmpistrz n) ->
+    I.pcmpistri n (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =

@@ -162,7 +162,14 @@ method! reload_operation op arg res =
       let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
       let arg = Array.copy arg in
       Array.set arg 0 arg0;
-      (arg, [|arg0|]))
+      (arg, [|arg0|])
+    | String_length | String_no_length | String_length_mask | String_no_length_mask ->
+      (* First argument must be a register. Specific register constraints
+         are enforced by selection. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+      let arg = Array.copy arg in
+      Array.set arg 0 arg0;
+      (arg, res))
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))

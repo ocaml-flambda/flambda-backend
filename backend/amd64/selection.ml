@@ -165,8 +165,15 @@ let pseudoregs_for_operation op arg res =
       (* arg.(0) and res.(0) must be the same *)
       ([|res.(0); arg.(1)|], res)
     | R_RM_XMM0_to_fst ->
-      (* arg.(2) must be xmm0; arg.(0) and res.(0) must be the same *)
-      ([|res.(0); arg.(1); xmm0v ()|], res))
+      ([|res.(0); arg.(1); xmm0v ()|], res)
+    | String_length ->
+      ([|arg.(0); arg.(1); rax; rdx|], [| rcx |])
+    | String_length_mask ->
+      ([|arg.(0); arg.(1); rax; rdx|], [| xmm0v () |])
+    | String_no_length ->
+      (arg, [| rcx |])
+    | String_no_length_mask ->
+      (arg, [| xmm0v () |]))
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in

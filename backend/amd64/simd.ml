@@ -196,10 +196,20 @@ type sse41_operation =
 
 type sse42_operation =
   | Cmpgt_i64
-  | Cmpestri of int
   | Cmpestrm of int
-  | Cmpistri of int
+  | Cmpestra of int
+  | Cmpestrc of int
+  | Cmpestri of int
+  | Cmpestro of int
+  | Cmpestrs of int
+  | Cmpestrz of int
   | Cmpistrm of int
+  | Cmpistra of int
+  | Cmpistrc of int
+  | Cmpistri of int
+  | Cmpistro of int
+  | Cmpistrs of int
+  | Cmpistrz of int
   | Crc32_64
 
 type operation =
@@ -425,13 +435,25 @@ let equal_operation_sse41 l r =
 let equal_operation_sse42 l r =
   match l, r with
   | Cmpgt_i64, Cmpgt_i64 | Crc32_64, Crc32_64 -> true
-  | Cmpestri l, Cmpestri r
   | Cmpestrm l, Cmpestrm r
-  | Cmpistri l, Cmpistri r
+  | Cmpestra l, Cmpestra r
+  | Cmpestrc l, Cmpestrc r
+  | Cmpestri l, Cmpestri r
+  | Cmpestro l, Cmpestro r
+  | Cmpestrs l, Cmpestrs r
+  | Cmpestrz l, Cmpestrz r
   | Cmpistrm l, Cmpistrm r
+  | Cmpistra l, Cmpistra r
+  | Cmpistrc l, Cmpistrc r
+  | Cmpistri l, Cmpistri r
+  | Cmpistro l, Cmpistro r
+  | Cmpistrs l, Cmpistrs r
+  | Cmpistrz l, Cmpistrz r
     when l = r ->
     true
-  | ( (Cmpgt_i64 | Crc32_64 | Cmpestri _ | Cmpestrm _ | Cmpistri _ | Cmpistrm _),
+  | ( ( Cmpgt_i64 | Crc32_64 | Cmpestrm _ | Cmpestra _ | Cmpestrc _ | Cmpestro _
+      | Cmpestrs _ | Cmpestrz _ | Cmpistrm _ | Cmpistra _ | Cmpistrc _
+      | Cmpestri _ | Cmpistri _ | Cmpistro _ | Cmpistrs _ | Cmpistrz _ ),
       _ ) ->
     false
 
@@ -676,14 +698,34 @@ let print_operation_sse41 printreg op ppf arg =
 
 let print_operation_sse42 printreg op ppf arg =
   match op with
-  | Cmpestri i ->
-    fprintf ppf "cmpestri[%d] %a %a" i printreg arg.(0) printreg arg.(1)
   | Cmpestrm i ->
     fprintf ppf "cmpestrm[%d] %a %a" i printreg arg.(0) printreg arg.(1)
-  | Cmpistri i ->
-    fprintf ppf "cmpistri[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpestra i ->
+    fprintf ppf "cmpestra[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpestrc i ->
+    fprintf ppf "cmpestrc[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpestri i ->
+    fprintf ppf "cmpestri[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpestro i ->
+    fprintf ppf "cmpestro[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpestrs i ->
+    fprintf ppf "cmpestrs[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpestrz i ->
+    fprintf ppf "cmpestrz[%d] %a %a" i printreg arg.(0) printreg arg.(1)
   | Cmpistrm i ->
     fprintf ppf "cmpistrm[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpistra i ->
+    fprintf ppf "cmpistra[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpistrc i ->
+    fprintf ppf "cmpistrc[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpistri i ->
+    fprintf ppf "cmpistri[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpistro i ->
+    fprintf ppf "cmpistro[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpistrs i ->
+    fprintf ppf "cmpistrs[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Cmpistrz i ->
+    fprintf ppf "cmpistrz[%d] %a %a" i printreg arg.(0) printreg arg.(1)
   | Cmpgt_i64 -> fprintf ppf "cmpgt_i64 %a %a" printreg arg.(0) printreg arg.(1)
   | Crc32_64 -> fprintf ppf "crc32_64 %a %a" printreg arg.(0) printreg arg.(1)
 

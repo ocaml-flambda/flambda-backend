@@ -25,6 +25,10 @@ type register_behavior =
   | R_R_to_fst
   | R_RM_to_fst
   | R_RM_XMM0_to_fst
+  | String_length
+  | String_no_length
+  | String_length_mask
+  | String_no_length_mask
 
 let arg i args = List.nth args i
 
@@ -333,19 +337,49 @@ let select_operation_sse42 op args dbg =
   else
     match op with
     | "caml_sse42_int64x2_cmpgt" -> Some (Cmpgt_i64, args)
-    | "caml_sse42_vec128_cmpestri" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestri" in
-      Some (Cmpestri i, args)
+    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" -> Some (Crc32_64, args)
     | "caml_sse42_vec128_cmpestrm" ->
       let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrm" in
       Some (Cmpestrm i, args)
-    | "caml_sse42_vec128_cmpistri" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistri" in
-      Some (Cmpistri i, args)
+    | "caml_sse42_vec128_cmpestra" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestra" in
+      Some (Cmpestra i, args)
+    | "caml_sse42_vec128_cmpestrc" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrc" in
+      Some (Cmpestrc i, args)
+    | "caml_sse42_vec128_cmpestri" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestri" in
+      Some (Cmpestri i, args)
+    | "caml_sse42_vec128_cmpestro" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestro" in
+      Some (Cmpestro i, args)
+    | "caml_sse42_vec128_cmpestrs" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrs" in
+      Some (Cmpestrs i, args)
+    | "caml_sse42_vec128_cmpestrz" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrz" in
+      Some (Cmpestrz i, args)
     | "caml_sse42_vec128_cmpistrm" ->
       let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrm" in
       Some (Cmpistrm i, args)
-    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" -> Some (Crc32_64, args)
+    | "caml_sse42_vec128_cmpistra" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistra" in
+      Some (Cmpistra i, args)
+    | "caml_sse42_vec128_cmpistrc" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrc" in
+      Some (Cmpistrc i, args)
+    | "caml_sse42_vec128_cmpistri" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistri" in
+      Some (Cmpistri i, args)
+    | "caml_sse42_vec128_cmpistro" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistro" in
+      Some (Cmpistro i, args)
+    | "caml_sse42_vec128_cmpistrs" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrs" in
+      Some (Cmpistrs i, args)
+    | "caml_sse42_vec128_cmpistrz" ->
+      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrz" in
+      Some (Cmpistrz i, args)
     | _ -> None
 
 let select_simd_instr op args dbg =
@@ -417,8 +451,15 @@ let register_behavior_sse41 = function
     R_to_R
 
 let register_behavior_sse42 = function
-  | Cmpestri _ | Cmpestrm _ | Cmpistri _ | Cmpistrm _ | Crc32_64 | Cmpgt_i64 ->
-    R_RM_to_fst
+  | Crc32_64 | Cmpgt_i64 -> R_RM_to_fst
+  | Cmpestrm _ -> String_length_mask
+  | Cmpistrm _ -> String_no_length_mask
+  | Cmpestra _ | Cmpestrc _ | Cmpestri _ | Cmpestro _ | Cmpestrs _ | Cmpestrz _
+    ->
+    String_length
+  | Cmpistra _ | Cmpistrc _ | Cmpistri _ | Cmpistro _ | Cmpistrs _ | Cmpistrz _
+    ->
+    String_no_length
 
 let register_behavior = function
   | SSE op -> register_behavior_sse op
