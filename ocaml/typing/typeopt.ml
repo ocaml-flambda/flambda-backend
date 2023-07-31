@@ -560,13 +560,26 @@ let value_kind env loc ty =
   with
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
-let layout env loc sort ty =
+let rec layout env loc sort ty =
   match Layouts.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue (value_kind env loc ty)
   | Float64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_float
   | Float64 -> raise (Error (loc, Non_value_sort (Sort.float64,ty)))
   | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
+  | Value ->
+      match get_desc (scrape_ty env ty) with
+      | Tconstr(p, args, _) when Path.same p Predef.path_unboxed_pair ->
+          let layouts = List.map (layout env loc Layouts.Sort.value) args in
+          Punboxed_product layouts
+      | Tconstr(p, args, _) when Path.same p Predef.path_unboxed_triple ->
+          let layouts = List.map (layout env loc Layouts.Sort.value) args in
+          Punboxed_product layouts
+      | Tconstr(p, _, _) when Path.same p Predef.path_void ->
+          Punboxed_product []
+      | _ ->
+          Lambda.Pvalue (value_kind env loc ty)
+
 
 let layout_of_sort loc sort =
   match Layouts.Sort.get_default_value sort with
