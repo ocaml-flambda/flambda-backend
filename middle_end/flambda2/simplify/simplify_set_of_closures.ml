@@ -31,17 +31,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     ~inlining_arguments ~absolute_history code_id ~return_continuation
     ~exn_continuation ~loopify_state code_metadata =
   let dacc = C.dacc_inside_functions context in
-  let first_complex_local_param =
-    Code_metadata.first_complex_local_param code_metadata
-  in
-  let alloc_modes =
-    List.mapi
-      (fun index _ : Alloc_mode.For_types.t ->
-        if index < first_complex_local_param
-        then Alloc_mode.For_types.heap
-        else Alloc_mode.For_types.unknown ())
-      (Bound_parameters.to_list params)
-  in
+  let alloc_modes = Code_metadata.param_modes code_metadata in
   let denv =
     DE.add_parameters_with_unknown_types ~alloc_modes (DA.denv dacc) params
     |> DE.set_inlining_arguments inlining_arguments
@@ -434,6 +424,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       (DA.are_rebuilding_terms dacc_after_body)
       code_id ~params_and_body ~free_names_of_params_and_body:free_names_of_code
       ~newer_version_of ~params_arity:(Code.params_arity code)
+      ~param_modes:(Code.param_modes code)
       ~first_complex_local_param:(Code.first_complex_local_param code)
       ~result_arity ~result_types
       ~contains_no_escaping_local_allocs:

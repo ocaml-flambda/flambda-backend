@@ -672,11 +672,18 @@ end
 
 module Function_decls = struct
   module Function_decl = struct
+    type param =
+      { name : Ident.t;
+        kind : Flambda_kind.With_subkind.t;
+        attributes : Lambda.parameter_attribute;
+        mode : Lambda.alloc_mode
+      }
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        params : param list;
         return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
@@ -807,7 +814,7 @@ module Function_decls = struct
     set_diff
       (set_diff
          (all_free_idents function_decls)
-         (List.map fst (all_params function_decls)))
+         (List.map (fun p -> p.Function_decl.name) (all_params function_decls)))
       (let_rec_idents function_decls)
 
   let create function_decls alloc_mode =

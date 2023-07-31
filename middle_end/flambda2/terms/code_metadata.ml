@@ -18,7 +18,11 @@ type t =
   { code_id : Code_id.t;
     newer_version_of : Code_id.t option;
     params_arity : Flambda_arity.t;
+    param_modes : Alloc_mode.For_types.t list;
     first_complex_local_param : int;
+    (* Note: first_complex_local_param cannot be computed from param_modes,
+       because it might be 0 if the closure itself has to be allocated locally,
+       for instance as a result of a partial application. *)
     result_arity : Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
@@ -55,6 +59,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let newer_version_of t = (metadata t).newer_version_of
 
   let params_arity t = (metadata t).params_arity
+
+  let param_modes t = (metadata t).param_modes
 
   let first_complex_local_param t = (metadata t).first_complex_local_param
 
@@ -118,6 +124,7 @@ type 'a create_type =
   Code_id.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.t ->
+  param_modes:Alloc_mode.For_types.t list ->
   first_complex_local_param:int ->
   result_arity:Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
@@ -139,12 +146,12 @@ type 'a create_type =
   loopify:Loopify_attribute.t ->
   'a
 
-let createk k code_id ~newer_version_of ~params_arity ~first_complex_local_param
-    ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
-    ~(inline : Inline_attribute.t) ~check ~poll_attribute ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history
-    ~loopify =
+let createk k code_id ~newer_version_of ~params_arity ~param_modes
+    ~first_complex_local_param ~result_arity ~result_types
+    ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
+    ~check ~poll_attribute ~is_a_functor ~recursive ~cost_metrics
+    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
+    ~absolute_history ~relative_history ~loopify =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -159,10 +166,19 @@ let createk k code_id ~newer_version_of ~params_arity ~first_complex_local_param
     Misc.fatal_errorf
       "Illegal first_complex_local_param=%d for params arity: %a"
       first_complex_local_param Flambda_arity.print params_arity;
+  if List.compare_length_with param_modes (Flambda_arity.cardinal params_arity)
+     <> 0
+  then
+    Misc.fatal_errorf "Parameter modes do not match arity: %a and (%a)"
+      Flambda_arity.print params_arity
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         Alloc_mode.For_types.print)
+      param_modes;
   k
     { code_id;
       newer_version_of;
       params_arity;
+      param_modes;
       first_complex_local_param;
       result_arity;
       result_types;
@@ -212,7 +228,8 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
 
 let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; check; poll_attribute;
-         is_a_functor; params_arity; first_complex_local_param; result_arity;
+         is_a_functor; params_arity; param_modes;
+         first_complex_local_param; result_arity;
          result_types; contains_no_escaping_local_allocs;
          recursive; cost_metrics; inlining_arguments;
          dbg; is_tupled; is_my_closure_used; inlining_decision;
@@ -226,6 +243,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(poll_attribute@ %a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
+      @[<hov 1>%t(param_modes@ %t(%a)%t)%t@]@ \
       @[<hov 1>(first_complex_local_param@ %d)@]@ \
       @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
@@ -272,6 +290,21 @@ let [@ocamlformat "disable"] print ppf
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
+    (if List.for_all
+      (fun mode -> Alloc_mode.For_types.equal mode Alloc_mode.For_types.heap)
+      param_modes
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space
+      Alloc_mode.For_types.print)
+    param_modes
+    (if List.for_all
+      (fun mode -> Alloc_mode.For_types.equal mode Alloc_mode.For_types.heap)
+      param_modes
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     first_complex_local_param
     (if Flambda_arity.is_singleton_value result_arity
     then Flambda_colours.elide
@@ -308,6 +341,7 @@ let free_names
     { code_id = _;
       newer_version_of;
       params_arity = _;
+      param_modes = _;
       first_complex_local_param = _;
       result_arity = _;
       result_types;
@@ -348,6 +382,7 @@ let apply_renaming
     ({ code_id;
        newer_version_of;
        params_arity = _;
+       param_modes = _;
        first_complex_local_param = _;
        result_arity = _;
        result_types;
@@ -399,6 +434,7 @@ let ids_for_export
     { code_id;
       newer_version_of;
       params_arity = _;
+      param_modes = _;
       first_complex_local_param = _;
       result_arity = _;
       result_types;
@@ -436,6 +472,7 @@ let approx_equal
     { code_id = code_id1;
       newer_version_of = newer_version_of1;
       params_arity = params_arity1;
+      param_modes = param_modes1;
       first_complex_local_param = first_complex_local_param1;
       result_arity = result_arity1;
       result_types = _;
@@ -459,6 +496,7 @@ let approx_equal
     { code_id = code_id2;
       newer_version_of = newer_version_of2;
       params_arity = params_arity2;
+      param_modes = param_modes2;
       first_complex_local_param = first_complex_local_param2;
       result_arity = result_arity2;
       result_types = _;
@@ -482,6 +520,7 @@ let approx_equal
   Code_id.equal code_id1 code_id2
   && (Option.equal Code_id.equal) newer_version_of1 newer_version_of2
   && Flambda_arity.equal_ignoring_subkinds params_arity1 params_arity2
+  && List.equal Alloc_mode.For_types.equal param_modes1 param_modes2
   && Int.equal first_complex_local_param1 first_complex_local_param2
   && Flambda_arity.equal_ignoring_subkinds result_arity1 result_arity2
   && Bool.equal contains_no_escaping_local_allocs1

@@ -537,6 +537,15 @@ type function_attribute = {
 
 type scoped_location = Debuginfo.Scoped_location.t
 
+type parameter_attribute = No_attributes
+
+type lparam = {
+  name : Ident.t;
+  layout : layout;
+  attributes : parameter_attribute;
+  mode : alloc_mode
+}
+
 type lambda =
     Lvar of Ident.t
   | Lmutvar of Ident.t
@@ -568,7 +577,7 @@ type lambda =
 
 and lfunction =
   { kind: function_kind;
-    params: (Ident.t * layout) list;
+    params: lparam list;
     return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
@@ -714,6 +723,8 @@ let default_function_attribute = {
 
 let default_stub_attribute =
   { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
+
+let default_param_attribute = No_attributes
 
 (* Build sharing keys *)
 (*
@@ -901,7 +912,7 @@ let rec free_variables = function
       free_variables_list (free_variables fn) args
   | Lfunction{body; params} ->
       Ident.Set.diff (free_variables body)
-        (Ident.Set.of_list (List.map fst params))
+        (Ident.Set.of_list (List.map (fun p -> p.name) params))
   | Llet(_, _k, id, arg, body)
   | Lmutlet(_k, id, arg, body) ->
       Ident.Set.union
@@ -1073,6 +1084,12 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         ((id', rhs) :: ids' , l)
       ) ids ([], l)
   in
+  let bind_params params l =
+    List.fold_right (fun p (params', l) ->
+        let name', l = bind p.name l in
+        ({ p with name = name' } :: params' , l)
+      ) params ([], l)
+  in
   let rec subst s l lam =
     match lam with
     | Lvar id as lam ->
@@ -1097,7 +1114,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         Lapply{ap with ap_func = subst s l ap.ap_func;
                       ap_args = subst_list s l ap.ap_args}
     | Lfunction lf ->
-        let params, l' = bind_many lf.params l in
+        let params, l' = bind_params lf.params l in
         Lfunction {lf with params; body = subst s l' lf.body}
     | Llet(str, k, id, arg, body) ->
         let id, l' = bind id l in

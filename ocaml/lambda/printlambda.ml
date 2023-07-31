@@ -667,7 +667,7 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
-let apply_probe ppf = function
+let apply_probe ppf : probe -> unit = function
   | None -> ()
   | Some {name} -> fprintf ppf " (probe %s)" name
 
@@ -702,16 +702,22 @@ let rec lam ppf = function
         match kind with
         | Curried {nlocal} ->
             fprintf ppf "@ {nlocal = %d}" nlocal;
-            List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param layout k) params
+            List.iter (fun (p : Lambda.lparam) ->
+                (* Make sure we change this once there are attributes *)
+                let No_attributes = p.attributes in
+                fprintf ppf "@ %a%s%a"
+                  Ident.print p.name (alloc_kind p.mode) layout p.layout) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
             List.iter
-              (fun (param, k) ->
-                if !first then first := false else fprintf ppf ",@ ";
-                Ident.print ppf param;
-                layout ppf k)
+              (fun (p : Lambda.lparam) ->
+                 (* Make sure we change this once there are attributes *)
+                 let No_attributes = p.attributes in
+                 if !first then first := false else fprintf ppf ",@ ";
+                 Ident.print ppf p.name;
+                 Format.fprintf ppf "%s" (alloc_kind p.mode);
+                 layout ppf p.layout)
               params;
             fprintf ppf ")" in
       let rmode = if region then alloc_heap else alloc_local in

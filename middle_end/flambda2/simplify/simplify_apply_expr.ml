@@ -322,7 +322,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
 
 let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
-    ~param_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
+    ~param_arity ~param_modes ~result_arity ~recursive ~down_to_up
+    ~coming_from_indirect
     ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t) ~current_region
     ~first_complex_local_param =
   (* Partial-applications are converted in full applications. Let's assume that
@@ -425,6 +426,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           Bound_parameter.create param kind)
         remaining_param_arity
       |> Bound_parameters.create
+    in
+    let _, remaining_params_alloc_modes =
+      Misc.Stdlib.List.split_at (List.length args) param_modes
     in
     let call_kind =
       Call_kind.direct_function_call callee's_code_id apply_alloc_mode
@@ -566,10 +570,11 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
           ~params_arity:(Bound_parameters.arity remaining_params)
-          ~first_complex_local_param ~result_arity ~result_types:Unknown
-          ~contains_no_escaping_local_allocs ~stub:true ~inline:Default_inline
-          ~poll_attribute:Default ~check:Check_attribute.Default_check
-          ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
+          ~param_modes:remaining_params_alloc_modes ~first_complex_local_param
+          ~result_arity ~result_types:Unknown ~contains_no_escaping_local_allocs
+          ~stub:true ~inline:Default_inline ~poll_attribute:Default
+          ~check:Check_attribute.Default_check ~is_a_functor:false ~recursive
+          ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false
           ~is_my_closure_used:
@@ -771,8 +776,10 @@ let simplify_direct_function_call ~simplify_expr dacc apply
             Apply.print apply;
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
-          ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
-          ~coming_from_indirect ~closure_alloc_mode_from_type ~current_region
+          ~param_arity:params_arity
+          ~param_modes:(Code_metadata.param_modes callee's_code_metadata)
+          ~result_arity ~recursive ~down_to_up ~coming_from_indirect
+          ~closure_alloc_mode_from_type ~current_region
           ~first_complex_local_param:
             (Code_metadata.first_complex_local_param callee's_code_metadata))
       else
