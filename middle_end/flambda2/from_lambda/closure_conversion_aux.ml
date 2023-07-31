@@ -64,7 +64,8 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return_arity : Flambda_arity.t
+      args_arity : [`Complex] Flambda_arity.t;
+      return_arity : [`Unarized] Flambda_arity.t
     }
 
   type switch =
@@ -687,7 +688,9 @@ module Function_decls = struct
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : param list;
-        return : Flambda_arity.t;
+        removed_params : Ident.Set.t;
+        params_arity : [`Complex] Flambda_arity.t;
+        return : [`Unarized] Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -701,11 +704,11 @@ module Function_decls = struct
         contains_no_escaping_local_allocs : bool
       }
 
-    let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~my_region ~body
-        ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
-        ~closure_alloc_mode ~first_complex_local_param
-        ~contains_no_escaping_local_allocs =
+    let create ~let_rec_ident ~function_slot ~kind ~params ~params_arity
+        ~removed_params ~return ~return_continuation ~exn_continuation
+        ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
+        ~free_idents_of_body recursive ~closure_alloc_mode
+        ~first_complex_local_param ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -715,6 +718,8 @@ module Function_decls = struct
         function_slot;
         kind;
         params;
+        params_arity;
+        removed_params;
         return;
         return_continuation;
         exn_continuation;
@@ -737,6 +742,8 @@ module Function_decls = struct
 
     let params t = t.params
 
+    let params_arity t = t.params_arity
+
     let return t = t.return
 
     let return_continuation t = t.return_continuation
@@ -747,7 +754,7 @@ module Function_decls = struct
 
     let body t = t.body
 
-    let free_idents t = t.free_idents_of_body
+    let free_idents t = Ident.Set.diff t.free_idents_of_body t.removed_params
 
     let inline t = t.attr.inline
 
@@ -953,7 +960,7 @@ module Let_with_acc = struct
             ~find_code_characteristics:(fun code_id ->
               let code = Code_id.Map.find code_id code_mapping in
               { cost_metrics = Code.cost_metrics code;
-                params_arity = Flambda_arity.cardinal (Code.params_arity code)
+                params_arity = Flambda_arity.num_params (Code.params_arity code)
               })
             set_of_closures
         | Rec_info _ -> Cost_metrics.zero

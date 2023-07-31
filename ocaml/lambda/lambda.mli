@@ -106,6 +106,10 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * (layout list)
+      (* the [layout list] is the layout of the whole product *)
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -261,6 +265,7 @@ and layout =
   | Punboxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
@@ -593,6 +598,8 @@ val layout_any_value : layout
 val layout_letrec : layout
 (* The probe hack: Free vars in probes must have layout value. *)
 val layout_probe_arg : layout
+
+val layout_unboxed_product : layout list -> layout
 
 val layout_top : layout
 val layout_bottom : layout

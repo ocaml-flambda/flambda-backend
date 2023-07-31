@@ -134,6 +134,8 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * (layout list)
   | Pget_header of alloc_mode
 
 and integer_comparison = Lambda.integer_comparison =
@@ -173,6 +175,7 @@ and layout = Lambda.layout =
   | Punboxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape = Lambda.block_shape

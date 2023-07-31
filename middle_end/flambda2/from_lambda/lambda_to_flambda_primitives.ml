@@ -645,9 +645,23 @@ let bbswap bi si mode arg ~current_region : H.expr_primitive =
            ( Int_arith (si, Swap_byte_endianness),
              Prim (Unary (Unbox_number bi, arg)) )) )
 
+let opaque layout arg middle_end_only : H.expr_primitive list =
+  let kinds = Flambda_arity.unarize (Flambda_arity.from_lambda_list [layout]) in
+  if List.compare_lengths kinds arg <> 0
+  then
+    Misc.fatal_error
+      "Popaque/Pobj_magic layout does not have the same length as unarized \
+       argument";
+  List.map2
+    (fun arg_component kind : H.expr_primitive ->
+      let kind = K.With_subkind.kind kind in
+      Unary (Opaque_identity { middle_end_only; kind }, arg_component))
+    arg kinds
+
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (dbg : Debuginfo.t) ~current_region : H.expr_primitive list =
+  let orig_args = args in
   let args =
     List.map (List.map (fun arg : H.simple_or_prim -> Simple arg)) args
   in
@@ -663,6 +677,36 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let shape = convert_block_shape shape ~num_fields:(List.length args) in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Values (tag, shape), mutability, mode), args)]
+  | Pmake_unboxed_product layouts, _ ->
+    if List.compare_lengths layouts args <> 0
+    then
+      Misc.fatal_errorf "Pmake_unboxed_product: expected %d arguments, got %d"
+        (List.length layouts) (List.length args);
+    List.map (fun arg : H.expr_primitive -> Simple arg) (List.flatten orig_args)
+  | Punboxed_product_field (n, layouts), [_] ->
+    let layouts_array = Array.of_list layouts in
+    if n < 0 || n >= Array.length layouts_array
+    then Misc.fatal_errorf "Invalid field index %d for Punboxed_product_field" n;
+    let field_arity_component =
+      (* N.B. The arity of the field being projected, bound to [id], may in
+         itself be an unboxed product. *)
+      layouts_array.(n) |> Flambda_arity.Component_for_creation.from_lambda
+    in
+    let field_arity = Flambda_arity.create [field_arity_component] in
+    let num_fields_prior_to_projected_fields =
+      Misc.Stdlib.List.split_at n layouts
+      |> fst
+      |> List.map Flambda_arity.Component_for_creation.from_lambda
+      |> Flambda_arity.create |> Flambda_arity.cardinal_unarized
+    in
+    let num_projected_fields = Flambda_arity.cardinal_unarized field_arity in
+    let projected_args =
+      List.hd orig_args |> Array.of_list
+      |> (fun a ->
+           Array.sub a num_fields_prior_to_projected_fields num_projected_fields)
+      |> Array.to_list
+    in
+    List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -705,12 +749,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                 ( Make_array (Naked_floats, mutability, mode),
                   List.map unbox_float args ),
               Variadic (Make_array (Values, mutability, mode), args) ) ]))
-  | Popaque layout, [[arg]] ->
-    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
-    [Unary (Opaque_identity { middle_end_only = false; kind }, arg)]
-  | Pobj_magic layout, [[arg]] ->
-    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
-    [Unary (Opaque_identity { middle_end_only = true; kind }, arg)]
+  | Popaque layout, [arg] -> opaque layout arg false
+  | Pobj_magic layout, [arg] -> opaque layout arg true
   | Pduprecord (repr, num_fields), [[arg]] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
@@ -1309,7 +1349,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pget_header _ | Pufloatfield _ ),
+      | Punboxed_product_field _ | Pget_header _ | Pufloatfield _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                        Pierre Chambart, OCamlPro                       *)
 (*                                                                        *)
-(*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2023 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,21 +12,32 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+type atom =
+  | Value
+  | Value_int
+  | Unboxed_float
+  | Unboxed_int of Lambda.boxed_integer
+  | Unboxed_vector of Lambda.boxed_vector
 
-(** Assign numerical offsets, within closure blocks, for code pointers and
-    environment entries. *)
+val fold_left_layout :
+  ('acc -> Clambda.ulambda -> atom -> 'acc) ->
+  'acc ->
+  Clambda.ulambda ->
+  Clambda_primitives.layout ->
+  'acc
 
-type layout_atom = Clambda_layout.atom
+type decomposition =
+  | Atom of
+      { offset : int;
+        layout : atom
+      }
+  | Product of decomposition array
 
-type parts = Clambda_layout.decomposition
+val equal_decomposition : decomposition -> decomposition -> bool
 
-val equal_parts : parts -> parts -> bool
-val print_parts : Format.formatter -> parts -> unit
+val print_decomposition : Format.formatter -> decomposition -> unit
 
-type result = private {
-  function_offsets : int Closure_id.Map.t;
-  free_variable_offsets : parts Var_within_closure.Map.t;
-}
-
-val compute : Flambda.program -> result
+val decompose_free_vars :
+  base_offset:int ->
+  free_vars:('a * Clambda_primitives.layout) list ->
+  ('a * decomposition) list
