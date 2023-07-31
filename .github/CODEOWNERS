@@ -22,6 +22,8 @@ build_ocaml_compiler.sexp       @poechsel
 backend/                        @gretay-js @xclerc
 backend/debug/                  @mshinwell @poechsel
 
+chamelon/                       @Ekdohibs
+
 driver/                         @mshinwell @xclerc
 
 external/memtrace/              @stedolan
