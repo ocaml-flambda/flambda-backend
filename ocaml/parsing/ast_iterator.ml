@@ -540,19 +540,18 @@ module CS = struct
   module PG = Jane_syntax.Pattern_guarded
 
   let iter_pattern_guarded_case sub : PG.case -> _ = function
-    | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
-        sub.pat sub pgc_lhs;
-        sub.expr sub pgc_scrutinee;
-        sub.cases sub pgc_cases
+    | Pg_case { lhs; scrutinee; cases } ->
+        sub.pat sub lhs;
+        sub.expr sub scrutinee;
+        sub.cases sub cases
 
   let iter_jst sub : Jane_syntax.Case.t -> _ = function
     | Jcase_pattern_guarded x -> iter_pattern_guarded_case sub x
 
   let iter sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
     match Jane_syntax.Case.of_ast case with
-    | Some (jcase, attrs) ->
+    | Some (jcase, _attrs) ->
         iter_jst sub jcase;
-        sub.attributes sub attrs;
         sub.location sub pc_rhs.pexp_loc
     | None ->
     sub.pat sub pc_lhs;

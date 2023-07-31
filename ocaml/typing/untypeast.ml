@@ -413,7 +413,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
   let pc_lhs = sub.pat sub c_lhs in
-  match c_rhs with 
+  match c_rhs with
     | Simple_rhs rhs -> { pc_lhs; pc_guard = None; pc_rhs = sub.expr sub rhs }
     | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
         { pc_lhs
@@ -421,11 +421,11 @@ let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
         ; pc_rhs = sub.expr sub bg_rhs
         }
     | Pattern_guarded_rhs { pg_scrutinee; pg_cases; pg_loc; _ } ->
-        Jane_syntax.Pattern_guarded.case_of ~loc:pg_loc ~attrs:[]
+        Jane_syntax.Pattern_guarded.case_of ~loc:pg_loc
           (Pg_case
-             { pgc_lhs = pc_lhs
-             ; pgc_scrutinee = sub.expr sub pg_scrutinee
-             ; pgc_cases = List.map (sub.case sub) pg_cases })
+             { lhs = pc_lhs
+             ; scrutinee = sub.expr sub pg_scrutinee
+             ; cases = List.map (sub.case sub) pg_cases })
 
 let value_binding sub vb =
   let loc = sub.location sub vb.vb_loc in
@@ -598,7 +598,7 @@ let expression sub exp =
         let let_ = sub.binding_op sub let_ pat in
         let ands = List.map2 (sub.binding_op sub) ands and_pats in
         let body =
-          match body.c_rhs with 
+          match body.c_rhs with
           | Simple_rhs rhs -> sub.expr sub rhs
           | _ -> Misc.fatal_error "Untypeast.expression: guarded letop body"
         in

@@ -7462,20 +7462,3 @@ let f g h j x = function
       a
   | _ -> x
 ;;
-
-let f g = function
-  | A x when g x match (
-    | A y when g y match (
-      | A z -> z
-      | B z -> z
-      )
-    | B y when g y match (
-      | A z -> z
-      | B z -> z
-      )
-    )
-  | B x when g x match (
-    | A y when g y match A z -> z
-    | B y when g y match A z -> z
-    )
-  | C x -> x

@@ -104,14 +104,13 @@ end
 module Pattern_guarded : sig
   type case =
     | Pg_case of
-        { pgc_lhs: Parsetree.pattern
-        ; pgc_scrutinee: Parsetree.expression
-        ; pgc_cases: Parsetree.case list
+        { lhs: Parsetree.pattern
+        ; scrutinee: Parsetree.expression
+        ; cases: Parsetree.case list
         }
     (** [| P when E match (| C1 | ... | Cn)] *)
-  
-  val case_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> case -> Parsetree.case
+
+  val case_of : loc:Location.t -> case -> Parsetree.case
 end
 
 (** The ASTs for module type strengthening. *)
@@ -261,8 +260,7 @@ module Case : sig
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.case
 
-  val case_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.case
+  val case_of : loc:Location.t -> t -> Parsetree.case
 end
 
 (** Novel syntax in patterns *)

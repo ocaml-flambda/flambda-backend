@@ -356,10 +356,10 @@ and add_case_jane_syntax bv : Jane_syntax.Case.t -> _ = function
 
 and add_pattern_guarded_case bv :
   Jane_syntax.Pattern_guarded.case -> _ = function
-  | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
-      let bv = add_pattern bv pgc_lhs in
-      add_expr bv pgc_scrutinee;
-      add_cases bv pgc_cases
+  | Pg_case { lhs; scrutinee; cases } ->
+      let bv = add_pattern bv lhs in
+      add_expr bv scrutinee;
+      add_cases bv cases
 
 and add_bindings recf bv pel =
   let bv' = List.fold_left (fun bv x -> add_pattern bv x.pvb_pat) bv pel in

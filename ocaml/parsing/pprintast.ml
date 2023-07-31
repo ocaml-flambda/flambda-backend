@@ -1824,11 +1824,11 @@ and jane_syntax_case ctxt attrs f (jcase : Jane_syntax.Case.t) =
     match jcase with
     | Jcase_pattern_guarded x -> pattern_guarded_case ctxt f x
 
-and pattern_guarded_case ctxt f : 
+and pattern_guarded_case ctxt f :
   Jane_syntax.Pattern_guarded.case -> _ = function
-  | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
+  | Pg_case { lhs; scrutinee; cases } ->
       let singleton_case =
-        match pgc_cases with
+        match cases with
         | [ _ ] -> true
         | _ -> false
       in
@@ -1836,8 +1836,8 @@ and pattern_guarded_case ctxt f :
         list (case (under_pipe ctxt)) ~sep:"@;" ~first:"@," ~last:"@,"
       in
       pp f "| @[<2>%a@;@[<hv0>@[<hv0>@[<2>when %a@]@ match@] %a@]@]"
-        (pattern ctxt) pgc_lhs (expression reset_ctxt) pgc_scrutinee
-        (paren (not singleton_case) case_list) pgc_cases
+        (pattern ctxt) lhs (expression reset_ctxt) scrutinee
+        (paren (not singleton_case) case_list) cases
 
 and case_list ctxt f l : unit = list (case ctxt) f l ~sep:"@;" ~first:"@;"
 
