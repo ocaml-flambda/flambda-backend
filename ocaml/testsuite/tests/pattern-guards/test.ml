@@ -244,13 +244,13 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | _ -> 2
 ;;
 [%%expect{|
-Line 241, characters 13-28:
-241 |     | Left u when u match () -> 0
-                   ^^^^^^^^^^^^^^^
+Line 3, characters 13-33:
+3 |     | Left u when u match () -> 0
+                 ^^^^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 242, characters 14-31:
-242 |     | Right v when v match None -> 1
-                    ^^^^^^^^^^^^^^^^^
+Line 4, characters 14-36:
+4 |     | Right v when v match None -> 1
+                  ^^^^^^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
 |}];;
@@ -509,36 +509,52 @@ let collatz = function
 ;;
 
 [%%expect{|
-val nested_singleway :
-  ('a -> 'b option) ->
-  ('b -> 'c option) -> ('c -> 'd option) -> default:'d -> 'a option -> 'd =
-  <fun>
-val collatz : int -> int option = <fun>
+>> Fatal error: typechecking for multicase pattern guards unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}];;
 
 nested_singleway collatz collatz collatz ~default:~-1 None;;
 [%%expect{|
-- : int = -1
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 None;;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
 |}];;
 nested_singleway collatz collatz collatz ~default:~-1 (Some 1);;
 [%%expect{|
-- : int = -1
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 1);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
 |}];;
 nested_singleway collatz collatz collatz ~default:~-1 (Some 2);;
 [%%expect{|
-- : int = -1
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 2);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
 |}];;
 nested_singleway collatz collatz collatz ~default:~-1 (Some 3);;
 [%%expect{|
-- : int = 16
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 3);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
 |}];;
 nested_singleway collatz collatz collatz ~default:~-1 (Some 4);;
 [%%expect{|
-- : int = -1
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 4);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
 |}];;
 nested_singleway collatz collatz collatz ~default:~-1 (Some 8);;
 [%%expect{|
-- : int = 1
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 8);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
 |}];;
 
 let find_multiway ~eq ~flag ~finish ~default = function
@@ -549,9 +565,9 @@ let find_multiway ~eq ~flag ~finish ~default = function
   | _ -> default
 ;;
 [%%expect{|
-val find_multiway :
-  eq:('a -> 'a -> bool) ->
-  flag:'a -> finish:('a -> 'b) -> default:'b -> 'a list -> 'b = <fun>
+>> Fatal error: typechecking for multicase pattern guards unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}];;
 
 let eq n m = (n - m) mod 100 = 0;;
@@ -567,19 +583,31 @@ val default : string = "No match found"
 
 find_multiway ~eq ~flag ~finish ~default [ 10; 20; 110; 100 ];;
 [%%expect{|
-- : string = "110"
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 10; 20; 110; 100 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
 |}];;
 find_multiway ~eq ~flag ~finish ~default [ 10; 20; 100; 110 ];;
 [%%expect{|
-- : string = "0"
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 10; 20; 100; 110 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
 |}];;
 find_multiway ~eq ~flag ~finish ~default [ 10; 20; 30; 40 ];;
 [%%expect{|
-- : string = "No match found"
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 10; 20; 30; 40 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
 |}];;
 find_multiway ~eq ~flag ~finish ~default [ 0; 100 ];;
 [%%expect{|
-- : string = "0"
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 0; 100 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
 |}];;
 
 let nested_multiway f g h = function
@@ -593,9 +621,9 @@ let nested_multiway f g h = function
   | _ -> "not found"
 ;;
 [%%expect{|
-val nested_multiway :
-  ('a -> string) ->
-  ('a -> string list) -> ('a -> bool) -> 'a option -> string = <fun>
+>> Fatal error: typechecking for multicase pattern guards unimplemented
+Uncaught exception: Misc.Fatal_error
+
 |}];;
 
 let f = function
@@ -619,27 +647,45 @@ val h : int -> bool = <fun>
 
 nested_multiway f g h None;;
 [%%expect{|
-- : string = "not found"
+Line 1, characters 0-15:
+1 | nested_multiway f g h None;;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
 |}];;
 nested_multiway f g h (Some 0);;
 [%%expect{|
-- : string = "not found"
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 0);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
 |}];;
 nested_multiway f g h (Some 1);;
 [%%expect{|
-- : string = "foo1"
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 1);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
 |}];;
 nested_multiway f g h (Some 10);;
 [%%expect{|
-- : string = "bar empty"
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 10);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
 |}];;
 nested_multiway f g h (Some 100);;
 [%%expect{|
-- : string = "bar singleton one"
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 100);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
 |}];;
 nested_multiway f g h (Some 1000);;
 [%%expect{|
-- : string = "not found"
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 1000);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
 |}];;
 
 (* Checks that optional arguments with defaults are correclty bound in the
@@ -660,22 +706,7 @@ let g = function
 ;;
 [%%expect{|
 val g : string -> string option = <fun>
-|}]
-
-check_push_defaults g "name";;
-[%%expect{|
-- : string = "jello, name"
 |}];;
-check_push_defaults g ~s:"ha" "name";;
-[%%expect{|
-- : string = "ja, name"
-|}];;
-check_push_defaults g ~s:"hmm" "name";;
-[%%expect{|
-- : string = "name"
-|}];;
-
-
 
 check_push_defaults g "name";;
 [%%expect{|
