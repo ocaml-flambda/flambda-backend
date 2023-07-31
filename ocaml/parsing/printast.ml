@@ -914,7 +914,7 @@ and longident_x_pattern i ppf (li, p) =
 and case i ppf { pc_lhs; pc_guard; pc_rhs } =
   line i ppf "<case>\n";
   pattern (i+1) ppf pc_lhs;
-  option (i+1) guard ppf pc_guard;
+  Option.iter (guard (i + 1) ppf) pc_guard;
   expression (i+1) ppf pc_rhs;
 
 and guard i ppf g =
