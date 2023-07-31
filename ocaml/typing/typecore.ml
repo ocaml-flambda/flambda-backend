@@ -3731,8 +3731,8 @@ and type_approx_aux env sexp in_function ty_expected =
   | Pexp_function ({pc_rhs}::_) ->
       type_function_approx env sexp.pexp_loc Nolabel None pc_rhs
         in_function ty_expected
-  | Pexp_match (_, {pc_rhs}::_) ->
-      type_approx_aux_case_rhs env pc_rhs None ty_expected
+  | Pexp_match (_, cases) ->
+      type_approx_aux_cases env cases None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
@@ -3779,10 +3779,13 @@ and type_approx_aux_case_rhs env rhs in_function ty_expected =
   | Psimple_rhs e | Pboolean_guarded_rhs { pbg_rhs = e; _ } ->
       type_approx_aux env e in_function ty_expected
   | Ppattern_guarded_rhs { ppg_cases; _ } ->
-      match ppg_cases with
-      | [] -> ()
-      | { pc_rhs; _ } :: _ ->
-          type_approx_aux_case_rhs env pc_rhs in_function ty_expected
+      type_approx_aux_cases env ppg_cases in_function ty_expected
+
+and type_approx_aux_cases env cases in_function ty_expected =
+  match cases with
+  | [] -> ()
+  | { pc_rhs; _ } :: _ ->
+      type_approx_aux_case_rhs env pc_rhs in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
