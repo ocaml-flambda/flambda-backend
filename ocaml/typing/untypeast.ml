@@ -414,6 +414,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
   let pc_lhs = sub.pat sub c_lhs in
   match c_rhs with
+  match c_rhs with
     | Simple_rhs rhs -> { pc_lhs; pc_guard = None; pc_rhs = sub.expr sub rhs }
     | Boolean_guarded_rhs { guard; rhs } ->
         { pc_lhs
@@ -421,11 +422,11 @@ let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
         ; pc_rhs = sub.expr sub rhs
         }
     | Pattern_guarded_rhs { scrutinee; cases; loc; _ } ->
-        Jane_syntax.Pattern_guarded.case_of ~loc:loc ~attrs:[]
-          (case
-             { pgc_lhs = pc_lhs
-             ; pgc_scrutinee = sub.expr sub scrutinee
-             ; pgc_cases = List.map (sub.case sub) cases })
+        Jane_syntax.Pattern_guarded.case_of ~loc
+          (Pg_case
+             { lhs = pc_lhs
+             ; scrutinee = sub.expr sub scrutinee
+             ; cases = List.map (sub.case sub) cases })
 
 let value_binding sub vb =
   let loc = sub.location sub vb.vb_loc in

@@ -633,11 +633,11 @@ module CS = struct
   module PG = Jane_syntax.Pattern_guarded
 
   let map_pattern_guarded_case sub : PG.case -> PG.case = function
-    | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
-        let pgc_lhs = sub.pat sub pgc_lhs in
-        let pgc_scrutinee = sub.expr sub pgc_scrutinee in
-        let pgc_cases = sub.cases sub pgc_cases in
-        Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases }
+    | Pg_case { lhs; scrutinee; cases } ->
+        let lhs = sub.pat sub lhs in
+        let scrutinee = sub.expr sub scrutinee in
+        let cases = sub.cases sub cases in
+        Pg_case { lhs; scrutinee; cases }
 
   let map_jst sub : Jane_syntax.Case.t -> Jane_syntax.Case.t = function
     | Jcase_pattern_guarded x ->
@@ -645,11 +645,10 @@ module CS = struct
 
   let map sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
     match Jane_syntax.Case.of_ast case with
-    | Some (jcase, attrs) ->
+    | Some (jcase, _attrs) ->
         let jcase = map_jst sub jcase in
-        let attrs = sub.attributes sub attrs in
         let loc = sub.location sub pc_rhs.pexp_loc in
-        Jane_syntax.Case.case_of ~loc ~attrs jcase
+        Jane_syntax.Case.case_of ~loc jcase
     | None ->
     let pc_lhs = sub.pat sub pc_lhs in
     let pc_guard = Option.map (sub.expr sub) pc_guard in

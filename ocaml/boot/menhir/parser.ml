@@ -576,9 +576,9 @@ let ppat_iarray loc elts =
     ~loc:(make_loc loc) ~attrs:[]
     (Iapat_immutable_array elts)
 
-let pcase_pattern_guarded ~loc pgc_lhs pgc_scrutinee pgc_cases =
+let pcase_pattern_guarded ~loc lhs scrutinee cases =
   Jane_syntax.Pattern_guarded.case_of
-    ~loc ~attrs:[] (Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases })
+    ~loc (Pg_case { lhs; scrutinee; cases })
 
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))

@@ -343,9 +343,9 @@ module Pattern_guarded = struct
 
   type case =
     | Pg_case of
-        { pgc_lhs: Parsetree.pattern
-        ; pgc_scrutinee: Parsetree.expression
-        ; pgc_cases: Parsetree.case list
+        { lhs: Parsetree.pattern
+        ; scrutinee: Parsetree.expression
+        ; cases: Parsetree.case list
         }
 
     let fail_malformed ~loc =
@@ -354,21 +354,18 @@ module Pattern_guarded = struct
   let of_case { pc_lhs; pc_rhs } =
     match pc_rhs.pexp_desc with
     | Pexp_match (scrutinee, cases) ->
-        let case =
-          Pg_case
-            { pgc_lhs = pc_lhs; pgc_scrutinee = scrutinee; pgc_cases = cases }
-        in
-        case, pc_rhs.pexp_attributes
+        let case = Pg_case { lhs = pc_lhs; scrutinee; cases } in
+        case, []
     | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
 
-  let case_of ~loc ~attrs = function
-    | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
+  let case_of ~loc = function
+    | Pg_case { lhs; scrutinee; cases } ->
         Case.make_entire_jane_syntax ~loc feature
           (fun () ->
              let pc_rhs =
-               Ast_helper.Exp.match_ ~loc ~attrs pgc_scrutinee pgc_cases
+               Ast_helper.Exp.match_ ~loc ~attrs:[] scrutinee cases
              in
-             { pc_lhs = pgc_lhs; pc_guard = None; pc_rhs })
+             { pc_lhs = lhs; pc_guard = None; pc_rhs })
 end
 
 (** Module strengthening *)
@@ -519,8 +516,8 @@ module Case = struct
   let of_ast =
     Case.make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category:false
 
-  let case_of ~loc ~attrs = function
-    | Jcase_pattern_guarded x -> Pattern_guarded.case_of ~loc ~attrs x
+  let case_of ~loc = function
+    | Jcase_pattern_guarded x -> Pattern_guarded.case_of ~loc x
 end
 
 module Pattern = struct

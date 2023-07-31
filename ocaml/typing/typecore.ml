@@ -3573,9 +3573,9 @@ let is_local_returning_expr, is_local_returning_case =
     match Jane_syntax.Case.of_ast case with
     | Some (jcase, _attrs) -> begin
         match jcase with
-        | Jcase_pattern_guarded (case { pgc_scrutinee; pgc_cases }) ->
+        | Jcase_pattern_guarded (Pg_case { scrutinee; cases }) ->
             let loc = case.pc_rhs.pexp_loc in
-            loop_desc loc (Pexp_match (pgc_scrutinee, pgc_cases))
+            loop_desc loc (Pexp_match (scrutinee, cases))
       end
     | None ->
     loop case.pc_rhs
@@ -3784,12 +3784,15 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array _
   | Jexp_unboxed_constant _ -> ()
 
-and type_approx_aux_case_rhs env rhs in_function ty_expected =
-  match rhs with
-  | Psimple_rhs e | Pboolean_guarded_rhs { rhs = e; _ } ->
-      type_approx_aux env e in_function ty_expected
-  | Ppattern_guarded_rhs { cases; _ } ->
-      type_approx_aux_cases env cases in_function ty_expected
+and type_approx_aux_case env case in_function ty_expected =
+  match Jane_syntax.Case.of_ast case with
+  | Some (jcase, _attrs) ->
+      (match jcase with
+       | Jcase_pattern_guarded pg ->
+           (match pg with
+            | Pg_case { cases; _ } ->
+                type_approx_aux_cases env cases in_function ty_expected))
+  | None -> type_approx_aux env case.pc_rhs in_function ty_expected
 
 and type_approx_aux_cases env cases in_function ty_expected =
   match cases with
@@ -6998,7 +7001,7 @@ and type_cases
           match Jane_syntax.Case.of_ast untyped_case with
           | Some (jcase, _attrs) ->
               (match jcase with
-               | Jcase_pattern_guarded (case { pgc_scrutinee; pgc_cases }) ->
+               | Jcase_pattern_guarded (Pg_case { scrutinee; cases }) ->
                    let loc = untyped_case.pc_rhs.pexp_loc in
                    let { arg; sort; cases; partial; } =
                      type_match
@@ -7007,8 +7010,8 @@ and type_cases
                           the case where no cases match, so we can successfully
                           typecheck such guards. Accordingly,
                           [require_value_case] is set to [false] below. *)
-                       ~require_value_case:false pgc_scrutinee pgc_cases ext_env
-                       loc Check_and_warn_if_total
+                       ~require_value_case:false scrutinee cases ext_env loc
+                       Check_and_warn_if_total
                        (mk_expected ?explanation ty_res') emode
                    in
                    Pattern_guarded_rhs
