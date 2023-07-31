@@ -243,13 +243,12 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | _ -> 2
 ;;
 [%%expect{|
-type void = |
-Line 192, characters 13-28:
-192 |     | Left u when u match () -> 0
+Line 241, characters 13-28:
+241 |     | Left u when u match () -> 0
                    ^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 193, characters 14-31:
-193 |     | Right v when v match None -> 1
+Line 242, characters 14-31:
+242 |     | Right v when v match None -> 1
                     ^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>

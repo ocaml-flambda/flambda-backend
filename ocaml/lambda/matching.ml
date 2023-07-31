@@ -1206,23 +1206,23 @@ let what_is_first_case = what_is_cases ~skip_any:false
 let what_is_cases = what_is_cases ~skip_any:true
 
 type pm_free_variables =
-  | Pmfv_known of Ident.Set.t
+  | Known of Ident.Set.t
   (* Pattern match free variables are known: optimization can be applied *)
-  | Pmfv_unknown
+  | Unknown
   (* Pattern match free variables are unknown: optimization cannot be applied *)
 
 let pm_free_variables { cases } =
   List.fold_right
     (fun (_, act) -> function
-       | Pmfv_unknown -> Pmfv_unknown
-       | Pmfv_known free ->
+       | Unknown -> Unknown
+       | Known free ->
           match act with
           | Unguarded lam ->
-              Pmfv_known (Ident.Set.union free (free_variables lam))
+              Known (Ident.Set.union free (free_variables lam))
           | Guarded { free_variables = Precomputed free_variables } ->
-              Pmfv_known (Ident.Set.union free free_variables)
-          | Guarded { free_variables = Uncomputed } -> Pmfv_unknown)
-    cases (Pmfv_known Ident.Set.empty)
+              Known (Ident.Set.union free free_variables)
+          | Guarded { free_variables = Uncomputed } -> Known)
+    cases (Known Ident.Set.empty)
 
 (* Basic grouping predicates *)
 
@@ -1663,15 +1663,20 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
             let patbound_idents =
               Typedtree.pat_bound_idents_full arg_sort orp
             in
+            (* CR-soon rgodse: Investigate if our initial thoughts about the
+               optimization below are true. We know that we're not affecting
+               existing code, but we should find a case where the optimization
+               fires and determine if the resulting change in code is important.
+            *)
             (* Optimization: discard pattern vars not bound in orpm actions *)
             let patbound_idents =
               match pm_free_variables orpm with
               (* Give up on the optimization: there is some action not tracking
                  free variables, so the free variable set is not known. *)
-              | Pmfv_unknown -> patbound_idents
+              | Unknown -> patbound_idents
               (* The free variables set is known: apply the optimization by
                  filtering out pattern-bound variables unused by the actions. *)
-              | Pmfv_known pm_fv ->
+              | Known pm_fv ->
                   List.filter
                     (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
                     patbound_idents
