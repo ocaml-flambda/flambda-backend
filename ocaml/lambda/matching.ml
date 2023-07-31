@@ -1221,7 +1221,7 @@ let pm_free_variables { cases } =
               Known (Ident.Set.union free (free_variables lam))
           | Guarded { free_variables = Precomputed free_variables } ->
               Known (Ident.Set.union free free_variables)
-          | Guarded { free_variables = Uncomputed } -> Known)
+          | Guarded { free_variables = Uncomputed } -> Unknown)
     cases (Known Ident.Set.empty)
 
 (* Basic grouping predicates *)
