@@ -229,3 +229,40 @@ List.iter
      in
      if not (Language_extension.equal x x') then failwith str)
   Language_extension.Exist.all;
+
+(* Test the memoize function *)
+module Int_set = Set.Make (Int)
+
+let memoized =
+  let language_extension_as_int : _ Language_extension.t -> int =
+    fun ext ->
+      let obj = Obj.repr ext in
+      assert (Obj.is_int obj);
+      (Obj.obj obj : int)
+  in
+  let seen = ref Int_set.empty in
+  let memoized =
+    Language_extension_kernel.memoize
+      { computation = fun (ext : _ Language_extension.t) ->
+            let i = language_extension_as_int ext in
+            if Int_set.mem i !seen
+            then
+              failwith
+                (Printf.sprintf
+                  "Invalid: computation called multiple times for %s"
+                  (Language_extension.to_string ext));
+            seen := Int_set.add i !seen;
+            i
+      }
+ in
+ List.iter
+   (fun (Language_extension.Exist.Pack ext) ->
+      let i = language_extension_as_int ext in
+      if memoized.computation ext <> i
+      then
+        failwith
+          (Printf.sprintf
+             "Invalid: computation returned wrong value for %s"
+             (Language_extension.to_string ext)))
+   Language_extension.Exist.all;
+;;
