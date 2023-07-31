@@ -414,9 +414,10 @@ let report_error ~loc = function
   | Wrong_syntactic_category(feat, cat) ->
       Location.errorf
         ~loc
-        "%s cannot appear in %s"
+        "%s cannot appear in %s (backtrace %s)"
         (Feature.describe_uppercase feat)
         cat
+        (Printexc.get_backtrace ())
   | Misnamed_embedding (err, name, what) ->
       Location.errorf
         ~loc
@@ -790,7 +791,9 @@ module type AST = sig
   val make_entire_jane_syntax :
     loc:Location.t -> Feature.t -> (unit -> ast) -> ast
   val make_of_ast :
-    of_ast_internal:(Feature.t -> ast -> 'a option) -> (ast -> 'a option)
+    of_ast_internal:(Feature.t -> ast -> 'a option) ->
+    fail_if_wrong_syntactic_category:bool ->
+    (ast -> 'a option)
 end
 
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
@@ -808,7 +811,7 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
       loc
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
-  let make_of_ast ~of_ast_internal =
+  let make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category =
     let of_ast ast =
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in
@@ -819,7 +822,9 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
               match of_ast_internal feat ast with
               | Some ext_ast -> Some ext_ast
               | None ->
-                  raise_error (Wrong_syntactic_category(feat, AST.plural))
+                if fail_if_wrong_syntactic_category
+                then raise_error (Wrong_syntactic_category(feat, AST.plural));
+                None
             end
           | Error err -> raise_error begin match err with
             | Disabled_extension ext ->

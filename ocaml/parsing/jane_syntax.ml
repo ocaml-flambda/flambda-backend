@@ -345,12 +345,12 @@ module Pattern_guarded = struct
     | Pg_case of
         { pgc_lhs: Parsetree.pattern
         ; pgc_scrutinee: Parsetree.expression
-        ; pgc_cases: Parsetree.case list 
+        ; pgc_cases: Parsetree.case list
         }
-  
+
     let fail_malformed ~loc =
       Location.raise_errorf ~loc "Malformed pattern guarded case rhs"
-  
+
   let of_case { pc_lhs; pc_rhs } =
     match pc_rhs.pexp_desc with
     | Pexp_match (scrutinee, cases) ->
@@ -360,7 +360,7 @@ module Pattern_guarded = struct
         in
         case, pc_rhs.pexp_attributes
     | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
-  
+
   let case_of ~loc ~attrs = function
     | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
         Case.make_entire_jane_syntax ~loc feature
@@ -462,7 +462,9 @@ module Core_type = struct
   let of_ast_internal (feat : Feature.t) _typ = match feat with
     | _ -> None
 
-  let of_ast = Core_type.make_of_ast ~of_ast_internal
+  let of_ast =
+    Core_type.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 end
 
 module Constructor_argument = struct
@@ -471,7 +473,9 @@ module Constructor_argument = struct
   let of_ast_internal (feat : Feature.t) _carg = match feat with
     | _ -> None
 
-  let of_ast = Constructor_argument.make_of_ast ~of_ast_internal
+  let of_ast =
+    Constructor_argument.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 end
 
 module Expression = struct
@@ -492,7 +496,9 @@ module Expression = struct
       Some (Jexp_unboxed_constant expr, attrs)
     | _ -> None
 
-  let of_ast = Expression.make_of_ast ~of_ast_internal
+  let of_ast =
+    Expression.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 
   let expr_of ~loc ~attrs = function
     | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc ~attrs x
@@ -503,14 +509,15 @@ end
 module Case = struct
   type t =
     | Jcase_pattern_guarded of Pattern_guarded.case
-  
+
   let of_ast_internal (feat : Feature.t) case = match feat with
     | Language_extension Pattern_guards ->
       let case, attrs = Pattern_guarded.of_case case in
       Some (Jcase_pattern_guarded case, attrs)
     | _ -> None
-  
-  let of_ast = Case.make_of_ast ~of_ast_internal
+
+  let of_ast =
+    Case.make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category:false
 
   let case_of ~loc ~attrs = function
     | Jcase_pattern_guarded x -> Pattern_guarded.case_of ~loc ~attrs x
@@ -530,7 +537,8 @@ module Pattern = struct
       Some (Jpat_unboxed_constant pat, attrs)
     | _ -> None
 
-  let of_ast = Pattern.make_of_ast ~of_ast_internal
+  let of_ast =
+    Pattern.make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 
   let pat_of ~loc ~attrs = function
     | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc ~attrs x
@@ -547,7 +555,9 @@ module Module_type = struct
       Some (Jmty_strengthen mty, attrs)
     | _ -> None
 
-  let of_ast = Module_type.make_of_ast ~of_ast_internal
+  let of_ast =
+    Module_type.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 end
 
 module Signature_item = struct
@@ -560,7 +570,9 @@ module Signature_item = struct
       Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
     | _ -> None
 
-  let of_ast = Signature_item.make_of_ast ~of_ast_internal
+  let of_ast =
+    Signature_item.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 end
 
 module Structure_item = struct
@@ -573,7 +585,9 @@ module Structure_item = struct
       Some (Jstr_include_functor (Include_functor.of_str_item stri))
     | _ -> None
 
-  let of_ast = Structure_item.make_of_ast ~of_ast_internal
+  let of_ast =
+    Structure_item.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 end
 
 module Extension_constructor = struct
@@ -582,5 +596,7 @@ module Extension_constructor = struct
   let of_ast_internal (feat : Feature.t) _ext = match feat with
     | _ -> None
 
-  let of_ast = Extension_constructor.make_of_ast ~of_ast_internal
+  let of_ast =
+    Extension_constructor.make_of_ast
+      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
 end
