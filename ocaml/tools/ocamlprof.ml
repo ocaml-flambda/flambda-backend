@@ -169,9 +169,9 @@ and rewrite_case_jane_syntax iflag : Jane_syntax.Case.t -> _ = function
 
 and rewrite_pattern_guarded_case iflag :
   Jane_syntax.Pattern_guarded.case -> _ = function
-  | Pg_case { pgc_scrutinee; pgc_cases } ->
-      rewrite_exp iflag pgc_scrutinee;
-      rewrite_cases iflag pgc_cases
+  | Pg_case { scrutinee; cases } ->
+      rewrite_exp iflag scrutinee;
+      rewrite_cases iflag cases
 
 and rewrite_labelexp_list iflag l =
   rewrite_exp_list iflag (List.map snd l)
@@ -382,9 +382,9 @@ and rewrite_annotate_case_jane_syntax : Jane_syntax.Case.t -> _ = function
 
 and rewrite_annotate_pattern_guarded_case :
     Jane_syntax.Pattern_guarded.case -> _ = function
-  | Pg_case { pgc_scrutinee; pgc_cases; _ } ->
-      rewrite_exp true pgc_scrutinee;
-      rewrite_annotate_exp_list pgc_cases
+  | Pg_case { scrutinee; cases; _ } ->
+      rewrite_exp true scrutinee;
+      rewrite_annotate_exp_list cases
 
 and rewrite_function iflag = function
   | [{pc_lhs=_; pc_guard=None;
