@@ -1421,7 +1421,7 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
-  | Lop(Iintofvalue | Ivalueofint | Ivectorcast _) ->
+  | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
