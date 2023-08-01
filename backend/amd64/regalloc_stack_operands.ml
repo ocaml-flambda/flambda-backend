@@ -162,8 +162,11 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
     | R_RM_to_fst -> may_use_stack_operand_for_second_argument map instr
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
-  | Op (Scalarcast (V128_to_scalar (Float64x2 | Float32x4)))
-  | Op (Scalarcast (V128_of_scalar (Float64x2 | Float32x4)))
+  | Op (Scalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2))) ->
+    binary_operation map instr Result_can_be_on_stack
+  | Op (Scalarcast (V128_to_scalar (Float32x4) | V128_of_scalar (Float32x4))) ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Scalarcast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16))) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Scalarcast (V128_to_scalar (Int64x2 | Int32x4))) ->
