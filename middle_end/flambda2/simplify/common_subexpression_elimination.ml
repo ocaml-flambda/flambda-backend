@@ -132,7 +132,9 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
         match (extra_bindings : EPA.t) with
         | Empty -> fun arg -> find_param arg params
         | Non_empty { extra_args; extra_params } -> (
-          let extra_args = RI.Map.find id extra_args in
+          match RI.Map.find id extra_args with
+            | Invalid -> fun _arg -> None
+            | Ok extra_args ->
           let rec find_name simple params args =
             match args, params with
             | [], [] -> None
@@ -248,7 +250,10 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
       let extra_args =
         RI.Map.map (fun simple : EA.t -> Already_in_scope simple) bound_to
       in
-      let extra_bindings = EPA.add extra_bindings ~extra_param ~extra_args in
+      let extra_bindings =
+        EPA.add extra_bindings ~extra_param ~extra_args
+          ~invalids:Apply_cont_rewrite_id.Set.empty
+      in
       let extra_equations =
         (* For the primitives Is_int and Get_tag, they're strongly linked to
            their argument: additional information on the cse parameter should

@@ -86,7 +86,8 @@ and decision =
 
 type decisions =
   { decisions : (BP.t * decision) list;
-    rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
+    rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
+    rewrite_ids_invalid : Apply_cont_rewrite_id.Set.t
   }
 
 type pass =
@@ -151,7 +152,7 @@ and print_const_ctor_num ppf = function
       "@[<hov 1>(const_ctors@ @[<hov 1>(is_int@ %a)@]@ @[<hov 1>(ctor@ %a)@])@]"
       Extra_param_and_args.print is_int print_decision ctor
 
-let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
+let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; rewrite_ids_invalid; } =
   let pp_sep = Format.pp_print_space in
   let aux ppf (param, decision) =
     Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
@@ -159,15 +160,18 @@ let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
   in
   Format.fprintf ppf "@[<hov 1>(\
     @[<hov 1>(decisions@ %a)@]@ \
-    @[<hov 1>(rewrite_ids_seen@ %a)@]\
+    @[<hov 1>(rewrite_ids_seen@ %a)@]@ \
+    @[<hov 1>(rewrite_ids_invalid@ %a)@]\
     )@]"
     (Format.pp_print_list ~pp_sep aux) decisions
     Apply_cont_rewrite_id.Set.print rewrite_ids_seen
+    Apply_cont_rewrite_id.Set.print rewrite_ids_invalid
 
 module Decisions = struct
   type t = decisions =
     { decisions : (BP.t * decision) list;
-      rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
+      rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
+      rewrite_ids_invalid : Apply_cont_rewrite_id.Set.t
     }
 
   let print = print
