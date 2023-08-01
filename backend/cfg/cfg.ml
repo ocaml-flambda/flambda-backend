@@ -510,16 +510,13 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
   Reg.same_loc r1 r2
   &&
   match r1.loc with
-  | Unknown -> false
+  | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
   | Reg _ -> Proc.register_class r1 = Proc.register_class r2
   | Stack _ -> Proc.stack_slot_class r1.typ = Proc.stack_slot_class r2.typ
 
 let is_noop_move instr =
   match instr.desc with
-  | Op
-      ( Move | Spill | Reload
-      | Scalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)
-      | Vectorcast _ ) ->
+  | Op (Move | Spill | Reload | Vectorcast _) ->
     same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
@@ -534,12 +531,8 @@ let is_noop_move instr =
       | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
       | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
-      | Scalarcast
-          (V128_of_scalar (Float32x4 | Int8x16 | Int16x8 | Int32x4 | Int64x2))
-      | Scalarcast
-          (V128_to_scalar (Float32x4 | Int8x16 | Int16x8 | Int32x4 | Int64x2))
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
-      | End_region )
+      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

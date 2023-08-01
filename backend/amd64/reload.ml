@@ -240,7 +240,7 @@ method! reload_operation op arg res =
   | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _
   | Ibeginregion | Iendregion | Ipoll _
     -> (* Other operations: all args and results in registers,
-          except moves and probes. *)
+          except moves, probes, and vector casts. *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =

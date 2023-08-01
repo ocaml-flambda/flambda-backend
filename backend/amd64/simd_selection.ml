@@ -73,9 +73,9 @@ let select_operation_sse op args dbg =
   | "caml_sse_float32x4_div" -> Some (Div_f32, args)
   | "caml_sse_float32x4_max" -> Some (Max_f32, args)
   | "caml_sse_float32x4_min" -> Some (Min_f32, args)
-  | "caml_sse_float32x4_rcp" -> Some (Rcp_f32, [arg 0 args; arg 0 args])
-  | "caml_sse_float32x4_rsqrt" -> Some (Rsqrt_f32, [arg 0 args; arg 0 args])
-  | "caml_sse_float32x4_sqrt" -> Some (Sqrt_f32, [arg 0 args; arg 0 args])
+  | "caml_sse_float32x4_rcp" -> Some (Rcp_f32, args)
+  | "caml_sse_float32x4_rsqrt" -> Some (Rsqrt_f32, args)
+  | "caml_sse_float32x4_sqrt" -> Some (Sqrt_f32, args)
   | "caml_sse_vec128_high_64_to_low_64" -> Some (High_64_to_low_64, args)
   | "caml_sse_vec128_low_64_to_high_64" -> Some (Low_64_to_high_64, args)
   | "caml_sse_vec128_interleave_high_32" -> Some (Interleave_high_32, args)
@@ -421,9 +421,9 @@ let select_operation op args dbg =
 
 let register_behavior_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
-  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 | Interleave_low_32 | Interleave_high_32
-  | Shuffle_32 _ ->
+  | Interleave_low_32 | Interleave_high_32 | Shuffle_32 _ ->
     R_RM_to_fst
+  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 -> RM_to_R
   | High_64_to_low_64 | Low_64_to_high_64 -> R_R_to_fst
   | Movemask_32 -> R_to_R
 

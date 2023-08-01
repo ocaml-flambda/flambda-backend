@@ -237,6 +237,24 @@ let int64_of_float32 f =
   (* CR mslater: (SIMD) replace once we have unboxed float32 *)
   Int32.bits_of_float f |> Int64.of_int32 |> Int64.logand 0xffffffffL
 
+let pack_int32s i0 i1 = Int64.(logor (shift_left i1 32) i0)
+
+let pack_int16s i0 i1 i2 i3 =
+  Int64.(
+    logor
+      (logor (shift_left i3 48) (shift_left i2 32))
+      (logor (shift_left i1 16) i0))
+
+let pack_int8s i0 i1 i2 i3 i4 i5 i6 i7 =
+  Int64.(
+    logor
+      (logor
+         (logor (shift_left i7 56) (shift_left i6 48))
+         (logor (shift_left i5 40) (shift_left i4 32)))
+      (logor
+         (logor (shift_left i3 24) (shift_left i2 16))
+         (logor (shift_left i1 8) i0)))
+
 let transl_vec128_builtin name args dbg typ_res =
   match name with
   (* Vector casts (no-ops) *)
@@ -291,7 +309,7 @@ let transl_vec128_builtin name args dbg typ_res =
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
     let f = const_float_args 1 args name |> List.hd in
     let i = int64_of_float32 f in
-    let i = Int64.(logor (shift_left i 32) i) in
+    let i = pack_int32s i i in
     Some (Cconst_vec128 ({ low = i; high = i }, dbg))
   | "caml_float32x4_const4" ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
@@ -300,8 +318,8 @@ let transl_vec128_builtin name args dbg typ_res =
       | [i0; i1; i2; i3] -> i0, i1, i2, i3
       | _ -> assert false
     in
-    let low = Int64.(logor (shift_left i1 32) i0) in
-    let high = Int64.(logor (shift_left i3 32) i2) in
+    let low = pack_int32s i0 i1 in
+    let high = pack_int32s i2 i3 in
     Some (Cconst_vec128 ({ low; high }, dbg))
   | "caml_float64x2_const1" ->
     let f = const_float_args 1 args name |> List.hd in
@@ -326,7 +344,7 @@ let transl_vec128_builtin name args dbg typ_res =
     Some (Cconst_vec128 ({ low; high }, dbg))
   | "caml_int32x4_const1" ->
     let i = const_int_args 1 args name |> List.hd |> int64_of_int32 in
-    let i = Int64.(logor (shift_left i 32) i) in
+    let i = pack_int32s i i in
     Some (Cconst_vec128 ({ low = i; high = i }, dbg))
   | "caml_int32x4_const4" ->
     let i0, i1, i2, i3 =
@@ -334,14 +352,13 @@ let transl_vec128_builtin name args dbg typ_res =
       | [i0; i1; i2; i3] -> i0, i1, i2, i3
       | _ -> assert false
     in
-    let low = Int64.(logor (shift_left i1 32) i0) in
-    let high = Int64.(logor (shift_left i3 32) i2) in
+    let low = pack_int32s i0 i1 in
+    let high = pack_int32s i2 i3 in
     Some (Cconst_vec128 ({ low; high }, dbg))
   | "caml_int16x8_const1" ->
     (* CR mslater: (SIMD) replace once we have unboxed int16 *)
     let i = const_int_args 1 args name |> List.hd |> int64_of_int16 in
-    let i = Int64.(logor (shift_left i 16) i) in
-    let i = Int64.(logor (shift_left i 32) i) in
+    let i = pack_int16s i i i i in
     Some (Cconst_vec128 ({ low = i; high = i }, dbg))
   | "caml_int16x8_const8" ->
     (* CR mslater: (SIMD) replace once we have unboxed int16 *)
@@ -350,25 +367,13 @@ let transl_vec128_builtin name args dbg typ_res =
       | [i0; i1; i2; i3; i4; i5; i6; i7] -> i0, i1, i2, i3, i4, i5, i6, i7
       | _ -> assert false
     in
-    let low =
-      Int64.(
-        logor
-          (logor (shift_left i3 48) (shift_left i2 32))
-          (logor (shift_left i1 16) i0))
-    in
-    let high =
-      Int64.(
-        logor
-          (logor (shift_left i7 48) (shift_left i6 32))
-          (logor (shift_left i5 16) i4))
-    in
+    let low = pack_int16s i0 i1 i2 i3 in
+    let high = pack_int16s i4 i5 i6 i7 in
     Some (Cconst_vec128 ({ low; high }, dbg))
   | "caml_int8x16_const1" ->
     (* CR mslater: (SIMD) replace once we have unboxed int8 *)
     let i = const_int_args 1 args name |> List.hd |> int64_of_int8 in
-    let i = Int64.(logor (shift_left i 8) i) in
-    let i = Int64.(logor (shift_left i 16) i) in
-    let i = Int64.(logor (shift_left i 32) i) in
+    let i = pack_int8s i i i i i i i i in
     Some (Cconst_vec128 ({ low = i; high = i }, dbg))
   | "caml_int8x16_const16" ->
     (* CR mslater: (SIMD) replace once we have unboxed int8 *)
@@ -379,32 +384,8 @@ let transl_vec128_builtin name args dbg typ_res =
         i0, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15
       | _ -> assert false
     in
-    let ll =
-      Int64.(
-        logor
-          (logor (shift_left i3 24) (shift_left i2 16))
-          (logor (shift_left i1 8) i0))
-    in
-    let lh =
-      Int64.(
-        logor
-          (logor (shift_left i7 24) (shift_left i6 16))
-          (logor (shift_left i5 8) i4))
-    in
-    let low = Int64.(logor (shift_left lh 32) ll) in
-    let hl =
-      Int64.(
-        logor
-          (logor (shift_left i11 24) (shift_left i10 16))
-          (logor (shift_left i9 8) i8))
-    in
-    let hh =
-      Int64.(
-        logor
-          (logor (shift_left i15 24) (shift_left i14 16))
-          (logor (shift_left i13 8) i12))
-    in
-    let high = Int64.(logor (shift_left hh 32) hl) in
+    let low = pack_int8s i0 i1 i2 i3 i4 i5 i6 i7 in
+    let high = pack_int8s i8 i9 i10 i11 i12 i13 i14 i15 in
     Some (Cconst_vec128 ({ low; high }, dbg))
   | _ -> None
 
