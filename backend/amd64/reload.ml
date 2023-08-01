@@ -134,6 +134,10 @@ method! reload_operation op arg res =
       else (arg, res)
   | Ispecific(Isimd op) ->
     (match Simd_selection.register_behavior op with
+    | RM_to_R ->
+      (* Result must be in a register. *)
+      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
+      (arg, [|res0|])
     | R_to_R ->
       (* Argument and result must be in registers. *)
       let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
@@ -219,7 +223,7 @@ method! reload_operation op arg res =
   | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _
   | Ibeginregion | Iendregion | Ipoll _
     -> (* Other operations: all args and results in registers,
-          except moves and probes. *)
+          except moves, probes, and vector casts. *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =
