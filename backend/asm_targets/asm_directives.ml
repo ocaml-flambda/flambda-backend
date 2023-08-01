@@ -141,13 +141,14 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
        avoid errors, emit the beginning of all dwarf sections in advance. *)
     if is_gas () || is_macos ()
     then List.iter switch_to_section (Asm_section.dwarf_sections_in_order ());
-    (* Stop dsymutil complaining about empty __debug_line sections (produces
-       bogus error "line table parameters mismatch") by making sure such
-       sections are never empty. *)
     (* The following line is commented out because it adds a loc directive in a
        section which is not the .text section, which causes issues when the
        debug_line section is being created. *)
-    (* let file_num = A.get_file_num "none" in loc ~file_num ~line:1 ~col:1; *)
+    (* Stop dsymutil complaining about empty __debug_line sections (produces
+       bogus error "line table parameters mismatch") by making sure such
+       sections are never empty.
+
+       let file_num = A.get_file_num "none" in loc ~file_num ~line:1 ~col:1; *)
     D.text ()
 
   let with_comment f ?comment x =
