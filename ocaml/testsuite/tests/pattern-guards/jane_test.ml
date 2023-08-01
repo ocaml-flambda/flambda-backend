@@ -11,7 +11,7 @@ let pattern_guard_returns_local f x =
     | [] -> 0
     | [ _ ] -> one
     | [ _; _ ] -> 2
-  )
+    )
   | _ -> 3
 ;;
 [%%expect{|
@@ -26,10 +26,10 @@ let pattern_guard_doesnt_return_local f x =
   let local_ one = 1 in
   match x with
   | Some x when one match (
-    | 0 -> 0
-    | 1 -> 1
-    | 2 -> 2
-  )
+      | 0 -> 0
+      | 1 -> 1
+      | 2 -> 2
+    )
   | _ -> 3
 ;;
 [%%expect{|
