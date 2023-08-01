@@ -2491,35 +2491,34 @@ let cache_public_method meths tag cache dbg =
                       Cvar tagged ) ) ) ) )
 
 let has_local_allocs e =
-  let rec loop = function
-    | Cregion e ->
-      (* Local allocations within a nested region do not affect this region,
-         except inside a Ctail block *)
-      loop_until_tail e
-    | Cop (Calloc Alloc_local, _, _) | Cop ((Cextcall _ | Capply _), _, _) ->
+  let rec loop ~depth = function
+    | Cregion e -> loop ~depth:(depth + 1) e
+    | Ctail e -> if depth = 0 then () else loop ~depth:(depth - 1) e
+    | Cop ((Calloc Alloc_local | Cextcall _ | Capply _), _, _) when depth = 0 ->
       raise Exit
-    | e -> iter_shallow loop e
-  and loop_until_tail = function
-    | Ctail e -> loop e
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail loop_until_tail e)
+    | e -> iter_shallow (loop ~depth) e
   in
-  match loop e with () -> false | exception Exit -> true
+  match loop e ~depth:0 with () -> false | exception Exit -> true
 
 let remove_region_tail e =
-  let rec has_tail = function
-    | Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail has_tail e)
+  let rec has_tail ~depth = function
+    | (Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _)) when depth = 0 ->
+      raise Exit
+    | Ctail e -> has_tail ~depth:(depth - 1) e
+    | Cregion e -> has_tail ~depth:(depth + 1) e
+    | e -> ignore (iter_shallow_tail (has_tail ~depth) e : bool)
   in
-  let rec remove_tail = function
-    | Ctail e -> e
-    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) ->
+  let rec remove_tail ~depth = function
+    | Ctail e ->
+      if depth = 0 then e else Ctail (remove_tail ~depth:(depth - 1) e)
+    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) when depth = 0 ->
       Cop (Capply (mach, Rc_normal), args, dbg)
-    | Cregion _ as e -> e
-    | e -> map_shallow_tail remove_tail e
+    | Cregion e -> Cregion (remove_tail ~depth:(depth + 1) e)
+    | e -> map_shallow_tail (remove_tail ~depth) e
   in
-  match has_tail e with () -> e | exception Exit -> remove_tail e
+  match has_tail e ~depth:0 with
+  | () -> e
+  | exception Exit -> remove_tail e ~depth:0
 
 let region e =
   (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
