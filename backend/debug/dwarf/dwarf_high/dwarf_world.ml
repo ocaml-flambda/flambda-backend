@@ -31,11 +31,12 @@ let emit ~asm_directives ~compilation_unit_proto_die
       ();
   if not !Dwarf_flags.restrict_to_upstream_dwarf
   then
-    (* CR-soon mshinwell: the [compilation_unit_die] member of the record returned
-       from [Assign_abbrevs.run] is now unused *)
+    (* CR-soon mshinwell: the [compilation_unit_die] member of the record
+       returned from [Assign_abbrevs.run] is now unused *)
     let assigned_abbrevs =
       Profile.record "assign_abbrevs"
-        (fun () -> Assign_abbrevs.run ~proto_die_root:compilation_unit_proto_die)
+        (fun () ->
+          Assign_abbrevs.run ~proto_die_root:compilation_unit_proto_die)
         ()
     in
     let debug_abbrev_label = Asm_label.for_section (DWARF Debug_abbrev) in
