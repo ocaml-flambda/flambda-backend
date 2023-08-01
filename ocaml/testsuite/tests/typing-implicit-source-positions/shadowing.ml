@@ -4,7 +4,7 @@
 
 (* Shadowing *)
 
-type lexing_position = int 
+type lexing_position = int
 [%%expect{|
 type lexing_position = int
 |}]
