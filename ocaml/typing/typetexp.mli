@@ -47,15 +47,26 @@ end
 
 val valid_tyvar_name : string -> bool
 
-(** [transl_label lbl ty] produces a Typetree argument label for an argument
+(** [transl_label lbl ty] produces a Typedtree argument label for an argument
     with label [lbl] and type [ty].
-    
-    Position arguments ([lbl:[%src_pos] -> ...]) are parsed as 
+
+    Position arguments ([lbl:[%src_pos] -> ...]) are parsed as
     {{!Parsetree.arg_label.Labelled}[Labelled l]}. This function converts them
     to {{!Types.arg_label.Position}[Position l]} when the type is of the form
     [[%src_pos]]. *)
 val transl_label :
         Parsetree.arg_label -> Parsetree.core_type option -> Types.arg_label
+
+(** Produces a Typedtree argument label, as well as the pattern corresponding
+    to the argument. [transl_label lbl pat] is equal to:
+
+    - [Position l, P] when [lbl] is {{!Parsetree.arg_label.Labelled}[Labelled l]}
+      and [pat] represents [(P : [%src_pos])]
+    - [transl_label lbl None, pat] otherwise.
+  *)
+val transl_label_from_pat :
+        Parsetree.arg_label -> Parsetree.pattern
+        -> Types.arg_label * Parsetree.pattern
 
 val transl_simple_type:
         Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> alloc_mode_const

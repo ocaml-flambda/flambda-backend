@@ -3697,19 +3697,7 @@ and type_approx_aux env sexp in_function ty_expected =
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      let l, inner_pat = match p with
-      | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
-          (* If the argument is a constraint, translate the label using the
-             type information. Otherwise, it can't be a Position argument, so
-             we don't care about the argument type *)
-          Typetexp.transl_label l (Some ty), inner_pat
-      | _ -> Typetexp.transl_label l None, p
-      in
-      let p = if is_position l then inner_pat else p in
-      (* TODO vding: This code is still kind of ugly because now, [inner_pat]
-         is sometimes something inside the pattern, sometimes the pattern 
-         itself, and sometimes we want to use it, sometimes we don't. Maybe
-         it's not that bad? *)
+      let l, p = Typetexp.transl_label_from_pat l p in
       type_function_approx env sexp.pexp_loc l (Some p) e
         in_function ty_expected
   | Pexp_function ({pc_rhs=e}::_) ->
@@ -4422,16 +4410,7 @@ and type_expect_
          && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
-      let l, inner_pat = match spat with
-      | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
-          (* If the argument is a constraint, translate the label using the
-              type information. Otherwise, it can't be a Position argument, so
-              we don't care about the argument type *)
-          Typetexp.transl_label l (Some ty), inner_pat
-      | _ -> Typetexp.transl_label l None, spat
-      in
-      let spat = if is_position l then inner_pat else spat in
-      (* TODO vding: Same comment as above *)
+      let l, spat = Typetexp.transl_label_from_pat l spat in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
                     ~has_poly [Ast_helper.Exp.case spat sbody]
@@ -6619,7 +6598,7 @@ and type_application env app_loc expected_mode pm
       if !Clflags.principal then begin_def () ;
       let sargs = List.map
         (* Application will never contain Position labels, so no need to pass
-           argument type here. When checking against the function type, 
+           argument type here. When checking against the function type,
            Labelled arguments will be matched up to Position parameters
            based on label names *)
         (fun (label, e) -> Typetexp.transl_label label None, e) sargs
@@ -8023,10 +8002,11 @@ let report_error ~loc env = function
   | Apply_wrong_label (l, ty, extra_info) ->
       let print_label ppf = function
         | Nolabel -> fprintf ppf "without label"
-        | Position _ as l -> fprintf ppf "with label %s:[%%src_pos]"
-                             (prefixed_label_name l)
-        |(Labelled _ | Optional _) as l -> fprintf ppf "with label %s" 
+        |(Labelled _ | Optional _) as l -> fprintf ppf "with label %s"
                                            (prefixed_label_name l)
+        | Position _ -> assert false
+          (* Since Position labels never occur in function applications,
+             this case is never run *)
       in
       let extra_info =
         if not extra_info then

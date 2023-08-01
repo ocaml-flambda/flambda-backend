@@ -438,6 +438,18 @@ let transl_label (label : Parsetree.arg_label)
   | Optional l, _ -> Optional l
   | Nolabel, _ -> Nolabel
 
+let transl_label_from_pat (label : Parsetree.arg_label)
+    (pat : Parsetree.pattern) =
+  let label, inner_pat = match pat with
+  | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
+      (* If the argument is a constraint, translate the label using the
+          type information. Otherwise, it can't be a Position argument, so
+          we don't care about the argument type *)
+      transl_label label (Some ty), inner_pat
+  | _ -> transl_label label None, pat
+  in
+  label, if Btype.is_position label then inner_pat else pat
+
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env policy mode styp)
@@ -478,7 +490,7 @@ and transl_type_aux env policy mode styp =
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
           let l = transl_label l (Some arg) in
-          let arg_cty = 
+          let arg_cty =
             if Btype.is_position l then
               (* CR src_pos: Consider bundling argument types into arg_labels, so there
                  is no need to create this redundant type *)
