@@ -14,21 +14,21 @@ open! Peephole_utils
 let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
   match get_cells cell 2 with
   | [fst; snd] -> (
-      let fst_val = DLL.value fst in
-      let snd_val = DLL.value snd in
-      match fst_val.desc with
-      | Op (Move | Spill | Reload) -> (
-          let fst_src, fst_dst = fst_val.arg.(0), fst_val.res.(0) in
-          match snd_val.desc with
-          | Op (Move | Spill | Reload) ->
-            let snd_src, snd_dst = snd_val.arg.(0), snd_val.res.(0) in
-            if are_equal_regs fst_src snd_dst && are_equal_regs fst_dst snd_src
-            then (
-              DLL.delete_curr snd;
-              Some (prev_at_most go_back_const fst))
-            else None
-          | _ -> None)
+    let fst_val = DLL.value fst in
+    let snd_val = DLL.value snd in
+    match fst_val.desc with
+    | Op (Move | Spill | Reload) -> (
+      let fst_src, fst_dst = fst_val.arg.(0), fst_val.res.(0) in
+      match snd_val.desc with
+      | Op (Move | Spill | Reload) ->
+        let snd_src, snd_dst = snd_val.arg.(0), snd_val.res.(0) in
+        if are_equal_regs fst_src snd_dst && are_equal_regs fst_dst snd_src
+        then (
+          DLL.delete_curr snd;
+          Some (prev_at_most go_back_const fst))
+        else None
       | _ -> None)
+    | _ -> None)
   | _ -> None
 
 (** Logical condition for simplifying the following case:
@@ -120,20 +120,18 @@ let are_compatible op1 op2 imm1 imm2 =
     if Misc.no_overflow_mul imm1 imm2 && no_32_bit_overflow imm1 imm2 ( * )
     then Some (Mach.Imul, imm1 * imm2)
     else None
-  (* CR-soon gtulba-lecu for gtulba-lecu: check this last case
-  | Imod, Imod -> if imm1 mod imm2 = 0 then Some
-     (Mach.Imod, imm2) else None 
-  
-    The integer modulo imm2 group is a subgroup of the integer modulo imm1 iff
-    imm2 divides imm1
+  (* CR-soon gtulba-lecu for gtulba-lecu: check this last case | Imod, Imod ->
+     if imm1 mod imm2 = 0 then Some (Mach.Imod, imm2) else None
+
+     The integer modulo imm2 group is a subgroup of the integer modulo imm1 iff
+     imm2 divides imm1
 
      This is because the operations in the groups are addition modulo n and m
      respectively. If n divides m, then every result of the operation (addition)
      in the n group will also be a legal result in the m group, which is
      essentially the definition of a subgroup. If n does not divide m, there
      will be some results in the n group that are not acceptable in the m
-     group.
-  *)
+     group. *)
   | _ -> None
 
 let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
@@ -149,9 +147,15 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
        && Array.length snd_val.arg = 1
        && Array.length fst_val.res = 1
        && Array.length snd_val.res = 1
-       && are_equal_regs (Array.unsafe_get fst_val.arg 0) (Array.unsafe_get snd_val.arg 0)
-       && are_equal_regs (Array.unsafe_get fst_val.arg 0) (Array.unsafe_get fst_val.res 0)
-       && are_equal_regs (Array.unsafe_get snd_val.arg 0) (Array.unsafe_get snd_val.res 0)
+       && are_equal_regs
+            (Array.unsafe_get fst_val.arg 0)
+            (Array.unsafe_get snd_val.arg 0)
+       && are_equal_regs
+            (Array.unsafe_get fst_val.arg 0)
+            (Array.unsafe_get fst_val.res 0)
+       && are_equal_regs
+            (Array.unsafe_get snd_val.arg 0)
+            (Array.unsafe_get snd_val.res 0)
     then
       match fst_val.desc, snd_val.desc with
       | Op (Intop_imm (op1, imm1)), Op (Intop_imm (op2, imm2)) -> (
@@ -171,8 +175,8 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
 
 let handbuilt_rules cell =
   match remove_useless_mov cell with
-  | None -> (
-      match fold_intop_imm cell with None -> None | res -> res)
+  | None -> ( match fold_intop_imm cell with None -> None | res -> res)
   | res -> res
 
-let handbuilt_rule_names = [ "remove_useless_mov"; "fold_intop_imm_bitwise"; "fold_intop_imm_arith" ]
+let handbuilt_rule_names =
+  ["remove_useless_mov"; "fold_intop_imm_bitwise"; "fold_intop_imm_arith"]
