@@ -455,11 +455,30 @@ let define_code t ~code_id ~code =
   let all_code = Code_id.Map.add code_id code t.all_code in
   { t with typing_env; all_code }
 
-let set_inlined_debuginfo t dbg = { t with inlined_debuginfo = dbg }
+let inlining_counter = ref 0
+
+let set_inlined_debuginfo t dbg =
+  incr inlining_counter;
+  { t with inlined_debuginfo = dbg }
 
 let get_inlined_debuginfo t = t.inlined_debuginfo
 
-let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
+let add_inlined_debuginfo t dbg =
+  if Debuginfo.is_none t.inlined_debuginfo
+  then dbg
+  else
+    let dbg =
+      (* uids of the function being inlined get freshened *)
+      List.map
+        (fun ({ Debuginfo.dinfo_uid = _; _ } as item) ->
+          let dinfo_uid =
+            Hashtbl.hash (t.inlined_debuginfo, dbg, !inlining_counter)
+            |> string_of_int
+          in
+          { item with dinfo_uid = Some dinfo_uid })
+        dbg
+    in
+    Debuginfo.inline t.inlined_debuginfo dbg
 
 let cse t = t.cse
 

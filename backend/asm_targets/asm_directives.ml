@@ -245,13 +245,17 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         let lab = D.const_label (Asm_symbol.encode sym) in
         const_machine_width lab)
 
-  let label ?comment:_ _lab =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "label"
+  let label ?comment:comment' lab =
+    Option.iter D.comment comment';
+    let lab = D.const_label (Asm_label.encode lab) in
+    const_machine_width lab
 
-  let symbol_plus_offset _sym ~offset_in_bytes:_ =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "symbol_plus_offset"
+  let symbol_plus_offset symbol ~offset_in_bytes =
+    let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+    const_machine_width
+      (D.const_add
+         (D.const_label (Asm_symbol.encode symbol))
+         (D.const_int64 offset_in_bytes))
 
   let new_temp_var () =
     let id = !temp_var_counter in
@@ -356,7 +360,59 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     in
     const ~width expr
 
-  let offset_into_dwarf_section_symbol ?comment:_ ~width:_ _section _symbol =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "offset_into_dwarf_section_symbol"
+  let offset_into_dwarf_section_symbol ?comment
+      ~(width : Dwarf_flags.dwarf_format) section upper =
+    (* XXX let upper_section = Asm_symbol.section upper in if not
+       (Asm_section.equal upper_section (DWARF section)) then Misc.fatal_errorf
+       "Symbol %a (in section %a) not in section %a" Asm_symbol.print upper
+       Asm_section.print upper_section Asm_section.print (Asm_section.DWARF
+       section); *)
+    (* The macOS assembler doesn't seem to allow "distance to undefined symbol
+       from start of given section". As such we do not allow this function to be
+       used for undefined symbols on macOS at the moment. Relevant link:
+       <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82005>. *)
+    let comment =
+      if not !Clflags.keep_asm_file
+      then None
+      else
+        match comment with
+        | None ->
+          Some
+            (Format.asprintf "offset into %s"
+               (Asm_section.to_string (DWARF section)))
+        | Some comment ->
+          Some
+            (Format.asprintf "%s (offset into %s)" comment
+               (Asm_section.to_string (DWARF section)))
+    in
+    Option.iter D.comment comment;
+    let expr =
+      if is_macos ()
+      then
+        let in_current_unit =
+          true
+          (* XXX Compilation_unit.equal (Compilation_unit.get_current_exn ())
+             (Asm_symbol.compilation_unit upper) *)
+        in
+        if in_current_unit
+        then
+          let lower = Asm_label.for_dwarf_section section in
+          (* Same note as in [offset_into_dwarf_section_label] applies here. *)
+          force_assembly_time_constant
+            (D.const_sub
+               (D.const_label (Asm_symbol.encode upper))
+               (D.const_label (Asm_label.encode lower)))
+        else
+          Misc.fatal_errorf
+            "Don't know how to encode offset from start of section XXX to \
+             undefined symbol %a on macOS (current compilation unit %a, symbol \
+             in compilation unit XXX)"
+            (* Asm_section.print upper_section *) Asm_symbol.print upper
+            Compilation_unit.print
+            (Compilation_unit.get_current_exn ())
+            Compilation_unit.print
+        (* (Asm_symbol.compilation_unit upper) *)
+      else D.const_label (Asm_symbol.encode upper)
+    in
+    match width with Thirty_two -> D.long expr | Sixty_four -> D.qword expr
 end

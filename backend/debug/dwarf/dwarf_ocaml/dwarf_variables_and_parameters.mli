@@ -28,4 +28,6 @@ val dwarf :
   Dwarf_state.t ->
   function_proto_die:Proto_die.t ->
   Available_ranges_vars.t ->
+  inlined_frame_proto_dies:
+    Dwarf_high.Proto_die.t Inlined_frame_ranges.Inlined_frames.Key.Map.t ->
   unit

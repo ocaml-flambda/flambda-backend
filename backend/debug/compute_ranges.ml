@@ -270,6 +270,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
          keeping things fast---but we still populate ranges for all parent
          blocks, thus avoiding any post-processing, by using [K.all_parents]
          here. *)
+      (* XXX this seems to be broken (e.g. removing parents when it shouldn't
+         be) *)
       KS.fold
         (fun key result ->
           List.fold_left

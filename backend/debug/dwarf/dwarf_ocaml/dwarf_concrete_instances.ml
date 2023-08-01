@@ -41,7 +41,7 @@ let remove_double_underscores s =
   Buffer.contents buf
 
 let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
-    available_ranges_vars =
+    available_ranges_vars inlined_frame_ranges =
   let parent = Dwarf_state.compilation_unit_proto_die state in
   let fun_name = fundecl.fun_name in
   let linkage_name =
@@ -86,10 +86,18 @@ let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
   let concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent) ~tag:Subprogram ~attribute_values ()
   in
+  let inlined_frame_proto_dies =
+    Profile.record "dwarf_inlined_frames"
+      (fun () ->
+        Dwarf_inlined_frames.dwarf state fundecl
+          ~function_proto_die:concrete_instance_proto_die inlined_frame_ranges)
+      ~accumulate:true ()
+  in
   Profile.record "dwarf_variables_and_parameters"
     (fun () ->
       Dwarf_variables_and_parameters.dwarf state
-        ~function_proto_die:concrete_instance_proto_die available_ranges_vars)
+        ~function_proto_die:concrete_instance_proto_die available_ranges_vars
+        ~inlined_frame_proto_dies)
     ~accumulate:true ();
   (* CR mshinwell: When cross-referencing of DIEs across files is necessary we
      need to be careful about symbol table size. let name = Printf.sprintf
