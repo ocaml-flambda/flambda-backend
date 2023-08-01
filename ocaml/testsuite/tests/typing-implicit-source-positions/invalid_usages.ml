@@ -74,5 +74,5 @@ Line 2, characters 3-24:
        ^^^^^^^^^^^^^^^^^^^^^
 Error: This function should have type src_pos:[%src_pos] -> unit -> unit
        but its first argument is labeled ~src_pos
-       instead of ~src_pos:[%src_pos]
+       instead of ~(src_pos:[%src_pos])
 |}]
