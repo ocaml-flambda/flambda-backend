@@ -95,10 +95,10 @@ let equal_operation_sse42 l r = match l, r with Crc32_64, Crc32_64 -> true
 let equal_operation l r =
   match l, r with
   | SSE l, SSE r -> equal_operation_sse l r
-  | SSE2 l, SSE2 r -> .
-  | SSE3 l, SSE3 r -> .
-  | SSSE3 l, SSSE3 r -> .
-  | SSE41 l, SSE41 r -> .
+  | SSE2 _, SSE2 _ -> .
+  | SSE3 _, SSE3 _ -> .
+  | SSSE3 _, SSSE3 _ -> .
+  | SSE41 _, SSE41 _ -> .
   | SSE42 l, SSE42 r -> equal_operation_sse42 l r
   | (SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _), _ -> false
 
