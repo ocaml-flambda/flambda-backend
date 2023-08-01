@@ -191,13 +191,12 @@ let delete_after cell =
   | Empty ->
     (* internal invariant: cell's nodes are not empty *)
     assert false
-  | Node cell_node ->
-      match cell_node.next with
-      | Empty ->
-        (* convention: cannot delete_after the first element in the list *)
-        assert false
-      | Node next_cell_node ->
-        delete_curr {node=cell_node.next; t=cell.t}
+  | Node cell_node -> (
+    match cell_node.next with
+    | Empty ->
+      (* convention: cannot delete_after the first element in the list *)
+      assert false
+    | Node next_cell_node -> delete_curr { node = cell_node.next; t = cell.t })
 
 let remove_first : 'a t -> f:('a -> bool) -> unit =
  fun t ~f ->
