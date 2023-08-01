@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-4-30-40-41-42"]
+
 (* SIMD instruction selection for ARM64 *)
 
 let select_operation _ = None

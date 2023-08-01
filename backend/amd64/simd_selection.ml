@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-4-30-40-41-42"]
+
 open Arch
 open Simd
 
@@ -47,7 +49,7 @@ let float_condition_of_int = function
   | 7 -> ORDf
   | i -> Misc.fatal_errorf "Invalid float condition immediate: %d" i
 
-let select_operation_sse op args dbg =
+let select_operation_sse op args =
   match op with
   | "caml_sse_float32x4_cmp" ->
     let i, args = extract_constant args 0 7 "caml_sse_float32x4_cmp" in
@@ -71,18 +73,18 @@ let select_operation_sse op args dbg =
     Some (Shuffle_32 i, args)
   | _ -> None
 
-let select_operation_sse2 op args dbg = None
+let select_operation_sse2 _op _args = None
 
-let select_operation_sse3 op args dbg =
+let select_operation_sse3 op _args =
   if not !Arch.sse3_support then None else match op with _ -> None
 
-let select_operation_ssse3 op args dbg =
+let select_operation_ssse3 op _args =
   if not !Arch.ssse3_support then None else match op with _ -> None
 
-let select_operation_sse41 op args dbg =
+let select_operation_sse41 op _args =
   if not !Arch.sse41_support then None else match op with _ -> None
 
-let select_operation_sse42 op args dbg =
+let select_operation_sse42 op args =
   if not !Arch.sse42_support
   then None
   else
@@ -90,11 +92,9 @@ let select_operation_sse42 op args dbg =
     | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" -> Some (Crc32_64, args)
     | _ -> None
 
-let select_simd_instr op args dbg =
-  let or_else _try ctr opt =
-    match opt with
-    | Some x -> Some x
-    | None -> Option.map ctr (_try op args dbg)
+let select_simd_instr op args =
+  let or_else try_ ctr opt =
+    match opt with Some x -> Some x | None -> Option.map ctr (try_ op args)
   in
   None
   |> or_else select_operation_sse (fun (op, args) -> SSE op, args)
@@ -104,8 +104,8 @@ let select_simd_instr op args dbg =
   |> or_else select_operation_sse41 (fun (op, args) -> SSE41 op, args)
   |> or_else select_operation_sse42 (fun (op, args) -> SSE42 op, args)
 
-let select_operation op args dbg =
-  select_simd_instr op args dbg
+let select_operation op args =
+  select_simd_instr op args
   |> Option.map (fun (op, args) -> Mach.(Ispecific (Isimd op), args))
 
 let register_behavior op =

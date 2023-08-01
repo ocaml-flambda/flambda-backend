@@ -353,7 +353,7 @@ method! select_operation op args dbg =
       | "caml_memory_fence", ([|Val|] | [| |]) ->
          Ispecific Imfence, args
       | _ ->
-        (match Simd_selection.select_operation func args dbg with
+        (match Simd_selection.select_operation func args with
          | Some (op, args) -> op, args
          | None -> super#select_operation op args dbg)
       end
