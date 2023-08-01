@@ -1011,16 +1011,25 @@ and transl_list_with_shape ~scopes expr_list =
 
 and transl_guard ~scopes guard rhs_sort rhs =
   let layout = layout_exp rhs_sort rhs in
-  let expr = event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs) in
   match guard with
-  | None -> Matching.mk_unguarded_rhs expr
+  | None ->
+      Matching.mk_unguarded_rhs
+        (event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs))
   | Some (Predicate cond) ->
-      let patch_guarded ~patch =
-        event_before ~scopes cond
-          (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
-                       expr, patch, layout))
-      in
-      Matching.mk_guarded_rhs ~patch_guarded
+    let translated_cond = transl_exp ~scopes Sort.for_predef_value cond in
+    let translated_rhs =
+      event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs)
+    in
+    let patch_guarded ~patch =
+      event_before ~scopes cond
+        (Lifthenelse (translated_cond, translated_rhs, patch, layout))
+    in
+    let free_variables =
+      Ident.Set.union
+        (free_variables translated_cond)
+        (free_variables translated_rhs)
+    in
+    Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
   | Some (Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial;
                     pg_loc; pg_env }) ->
       let guard_case : _ case =
@@ -1047,11 +1056,11 @@ and transl_guard ~scopes guard rhs_sort rhs =
             let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
             event_before ~scopes pg_scrutinee
               (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                  ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-                  ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
-                  pg_partial)
+                 ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+                 ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
+                 pg_partial)
           in
-          Matching.mk_guarded_rhs ~patch_guarded
+          Matching.mk_pattern_guarded_rhs ~patch_guarded
       | Total ->
           (* Total pattern guards are equivalent to nested matches. *)
           let nested_match =
