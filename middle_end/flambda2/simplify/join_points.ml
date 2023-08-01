@@ -40,10 +40,15 @@ let introduce_extra_params_for_join typing_env use_envs_with_ids
             TE.add_definitions_of_params env_at_use ~params:extra_params
           in
           let extra_args =
-            try
+            match
               Apply_cont_rewrite_id.Map.find use_id
                 (EPA.extra_args extra_params_and_args)
-            with Not_found ->
+            with
+            | Ok extra_args -> extra_args
+            | Invalid ->
+              (* CR gbury: ask @vlaviron what to do here *)
+              assert false
+            | exception Not_found ->
               Misc.fatal_errorf
                 "No extra args for rewrite Id %a@.Extra params and args: %a"
                 Apply_cont_rewrite_id.print use_id EPA.print
