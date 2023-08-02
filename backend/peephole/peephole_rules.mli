@@ -2,4 +2,6 @@
 
 open! Peephole_utils
 
-val handbuilt_rules : rule
+val apply :
+  Cfg.basic Cfg.instruction DLL.cell ->
+  Cfg.basic Cfg.instruction DLL.cell option

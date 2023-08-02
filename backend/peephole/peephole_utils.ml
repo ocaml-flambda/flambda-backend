@@ -49,7 +49,3 @@ let no_32_bit_overflow imm1 imm2 op =
   let imm = op imm1 imm2 in
   Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int
   [@@inline]
-
-type rule =
-  Cfg.basic Cfg.instruction DLL.cell ->
-  Cfg.basic Cfg.instruction DLL.cell option

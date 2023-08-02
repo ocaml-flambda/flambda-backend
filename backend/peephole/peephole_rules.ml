@@ -1,7 +1,8 @@
 (* CR-someday: see whether the `-4` can be dropped. *)
 [@@@ocaml.warning "+a-29-40-41-42-4"]
 
-open! Peephole_utils
+module DLL = Peephole_utils.DLL
+module U = Peephole_utils
 
 (** Logical condition for simplifying the following case:
     {|
@@ -12,7 +13,7 @@ open! Peephole_utils
     In this case, the second instruction should be removed *)
 
 let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
-  match get_cells cell 2 with
+  match U.get_cells cell 2 with
   | [fst; snd] -> (
     let fst_val = DLL.value fst in
     let snd_val = DLL.value snd in
@@ -22,10 +23,10 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
       match snd_val.desc with
       | Op (Move | Spill | Reload) ->
         let snd_src, snd_dst = snd_val.arg.(0), snd_val.res.(0) in
-        if are_equal_regs fst_src snd_dst && are_equal_regs fst_dst snd_src
+        if U.are_equal_regs fst_src snd_dst && U.are_equal_regs fst_dst snd_src
         then (
           DLL.delete_curr snd;
-          Some (prev_at_most go_back_const fst))
+          Some (U.prev_at_most U.go_back_const fst))
         else None
       | _ -> None)
     | _ -> None)
@@ -42,7 +43,7 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
     <op 1> (const1 <op 2> const2), r
   |}
 
-   Where <op 1> and <op 2> can be any two binary operators that are associative
+   Where <op 1> and <op 2> can be any two binary operators that are associative and commutative
    and const1 and const2 are immediate values. *)
 
 let are_compatible op1 op2 imm1 imm2 =
@@ -50,13 +51,13 @@ let are_compatible op1 op2 imm1 imm2 =
   (* Folding two bitwise operations such as (AND, OR, XOR) should never produce
      an overflow. *)
   | Mach.Iand, Mach.Iand ->
-    bitwise_overflow_assert imm1 imm2 ( land );
+    U.bitwise_overflow_assert imm1 imm2 ( land );
     Some (Mach.Iand, imm1 land imm2)
   | Ior, Ior ->
-    bitwise_overflow_assert imm1 imm2 ( lor );
+    U.bitwise_overflow_assert imm1 imm2 ( lor );
     Some (Mach.Ior, imm1 lor imm2)
   | Ixor, Ixor ->
-    bitwise_overflow_assert imm1 imm2 ( lxor );
+    U.bitwise_overflow_assert imm1 imm2 ( lxor );
     Some (Mach.Ixor, imm1 lxor imm2)
   (* For the following three cases we have the issue that in some situations,
      one or both immediate values could be out of bounds, but the result might
@@ -66,64 +67,66 @@ let are_compatible op1 op2 imm1 imm2 =
   | Ilsl, Ilsl ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then (
-      bitwise_shift_assert imm1 imm2;
+      U.bitwise_shift_assert imm1 imm2;
       Some (Mach.Ilsl, imm1 + imm2))
     else None
   | Ilsr, Ilsr ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then (
-      bitwise_shift_assert imm1 imm2;
+      U.bitwise_shift_assert imm1 imm2;
       Some (Mach.Ilsr, imm1 + imm2))
     else None
   | Iasr, Iasr ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then (
-      bitwise_shift_assert imm1 imm2;
+      U.bitwise_shift_assert imm1 imm2;
       Some (Mach.Iasr, imm1 + imm2))
     else None
   (* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at
      most an imm32 as the second argument, so we need to check for overflows on
      32-bit signed ints. *)
   | Iadd, Iadd ->
-    if Misc.no_overflow_add imm1 imm2 && no_32_bit_overflow imm1 imm2 ( + )
+    if Misc.no_overflow_add imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( + )
     then Some (Mach.Iadd, imm1 + imm2)
     else None
   | Iadd, Isub ->
     if imm1 >= imm2
     then
-      if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm1 imm2 ( - )
+      if Misc.no_overflow_sub imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( - )
       then Some (Mach.Iadd, imm1 - imm2)
       else None
-    else if Misc.no_overflow_sub imm2 imm1 && no_32_bit_overflow imm2 imm1 ( - )
+    else if Misc.no_overflow_sub imm2 imm1
+            && U.no_32_bit_overflow imm2 imm1 ( - )
     then Some (Mach.Isub, imm2 - imm1)
     else None
   | Isub, Isub ->
-    if Misc.no_overflow_add imm1 imm2 && no_32_bit_overflow imm1 imm2 ( + )
+    if Misc.no_overflow_add imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( + )
     then Some (Mach.Isub, imm1 + imm2)
     else None
   | Isub, Iadd ->
     if imm1 >= imm2
     then
-      if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm1 imm2 ( - )
+      if Misc.no_overflow_sub imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( - )
       then Some (Mach.Isub, imm1 - imm2)
       else None
-    else if Misc.no_overflow_sub imm2 imm1 && no_32_bit_overflow imm2 imm1 ( - )
+    else if Misc.no_overflow_sub imm2 imm1
+            && U.no_32_bit_overflow imm2 imm1 ( - )
     then Some (Mach.Iadd, imm2 - imm1)
     else None
   | Ilsl, Imul ->
     if imm1 >= 0 && imm1 < 31
        && Misc.no_overflow_mul (1 lsl imm1) imm2
-       && no_32_bit_overflow (1 lsl imm1) imm2 ( * )
+       && U.no_32_bit_overflow (1 lsl imm1) imm2 ( * )
     then Some (Mach.Imul, (1 lsl imm1) * imm2)
     else None
   | Imul, Ilsl ->
     if imm2 >= 0 && imm2 < 31
        && Misc.no_overflow_mul imm1 (1 lsl imm2)
-       && no_32_bit_overflow imm1 (1 lsl imm2) ( * )
+       && U.no_32_bit_overflow imm1 (1 lsl imm2) ( * )
     then Some (Mach.Imul, imm1 * (1 lsl imm2))
     else None
   | Imul, Imul ->
-    if Misc.no_overflow_mul imm1 imm2 && no_32_bit_overflow imm1 imm2 ( * )
+    if Misc.no_overflow_mul imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( * )
     then Some (Mach.Imul, imm1 * imm2)
     else None
   (* CR-soon gtulba-lecu for gtulba-lecu: check this last case | Imod, Imod ->
@@ -141,7 +144,7 @@ let are_compatible op1 op2 imm1 imm2 =
   | _ -> None
 
 let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
-  match get_cells cell 2 with
+  match U.get_cells cell 2 with
   | [fst; snd] ->
     let fst_val = DLL.value fst in
     let snd_val = DLL.value snd in
@@ -153,13 +156,13 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
        && Array.length snd_val.arg = 1
        && Array.length fst_val.res = 1
        && Array.length snd_val.res = 1
-       && are_equal_regs
+       && U.are_equal_regs
             (Array.unsafe_get fst_val.arg 0)
             (Array.unsafe_get snd_val.arg 0)
-       && are_equal_regs
+       && U.are_equal_regs
             (Array.unsafe_get fst_val.arg 0)
             (Array.unsafe_get fst_val.res 0)
-       && are_equal_regs
+       && U.are_equal_regs
             (Array.unsafe_get snd_val.arg 0)
             (Array.unsafe_get snd_val.res 0)
     then
@@ -173,13 +176,13 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
           in
           DLL.delete_curr fst;
           DLL.delete_curr snd;
-          Some ((prev_at_most go_back_const) new_cell)
+          Some ((U.prev_at_most U.go_back_const) new_cell)
         | _ -> None)
       | _ -> None
     else None
   | _ -> None
 
-let handbuilt_rules cell =
+let apply cell =
   match remove_useless_mov cell with
   | None -> ( match fold_intop_imm cell with None -> None | res -> res)
   | res -> res
