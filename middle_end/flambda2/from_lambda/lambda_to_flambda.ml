@@ -1025,13 +1025,15 @@ let name_if_not_var acc ccenv name simple kind body =
       [id, kind]
       Not_user_visible (IR.Simple simple) ~body:(body id)
 
-let is_user_visible env id ~(default : IR.user_visible) : IR.user_visible =
+let is_user_visible env id : IR.user_visible =
   if Ident.stamp id >= Env.ident_stamp_upon_starting env
   then Not_user_visible
   else
     let name = Ident.name id in
     let len = String.length name in
-    if len > 0 && Char.equal name.[0] '*' then Not_user_visible else default
+    if len > 0 && Char.equal name.[0] '*'
+    then Not_user_visible
+    else User_visible
 
 let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     (k_exn : Continuation.t) : Expr_with_acc.t =
@@ -1101,8 +1103,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let body acc ccenv = cps acc env ccenv body k k_exn in
     CC.close_let acc ccenv
       [id, Flambda_kind.With_subkind.from_lambda layout]
-      (is_user_visible env id ~default:User_visible)
-      (Simple (Const const)) ~body
+      (is_user_visible env id) (Simple (Const const)) ~body
   | Llet
       ( ((Strict | Alias | StrictOpt) as let_kind),
         layout,
@@ -1128,7 +1129,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           let region = Env.current_region env in
           CC.close_let acc ccenv
             [id, Flambda_kind.With_subkind.from_lambda layout]
-            (is_user_visible env id ~default:User_visible)
+            (is_user_visible env id)
             (Prim { prim; args; loc; exn_continuation; region })
             ~body)
         k_exn
