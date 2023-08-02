@@ -170,8 +170,8 @@ and core_type_desc =
 
 and arg_label = Asttypes.arg_label =
     Nolabel
-  | Labelled of string (** [label:T -> ...] *)
-  | Optional of string (** [?label:T -> ...] *)
+  | Labelled of string
+  | Optional of string
 
 and package_type = Longident.t loc * (Longident.t loc * core_type) list
 (** As {!package_type} typed values:
@@ -338,6 +338,9 @@ and expression_desc =
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
            - [let f P = E] is represented using
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
+           - While Position arguments ([lbl:[%src_pos] -> ...]) are parsed as
+             {{!Asttypes.arg_label.Labelled}[Labelled l]}, they are converted to
+             {{!Types.arg_label.Position}[Position l]} arguments for type-checking.
          *)
   | Pexp_apply of expression * (arg_label * expression) list
       (** [Pexp_apply(E0, [(l1, E1) ; ... ; (ln, En)])]

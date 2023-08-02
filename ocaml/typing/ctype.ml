@@ -3811,6 +3811,8 @@ let filter_arrow env t l ~force_tpoly =
               (Tconstr(Predef.path_option,
                        [newvar2 level (Layout.value ~why:Type_argument)],
                        ref Mnil))
+          else if is_position l then
+            newty2 ~level (Tconstr (Predef.path_lexing_position, [], ref Mnil))
           else
             newvar2 level l_arg
         in

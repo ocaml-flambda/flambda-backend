@@ -153,6 +153,7 @@ let arg_label i ppf = function
   | Nolabel -> line i ppf "Nolabel\n"
   | Optional s -> line i ppf "Optional \"%s\"\n" s
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
+  | Position s -> line i ppf "Position \"%s\"\n" s
 ;;
 
 let typevars ppf vs =
@@ -244,6 +245,7 @@ let rec core_type i ppf x =
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
       list i package_with ppf l;
+  | Ttyp_src_pos -> line i ppf "Ttyp_src_pos\n";
 
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident s;

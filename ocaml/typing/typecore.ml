@@ -3588,7 +3588,7 @@ let rec approx_type env sty =
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
-      let p = Typetexp.transl_label p in
+      let p = Typetexp.transl_label p (Some arg_sty) in
       if is_optional p then newvar (Layout.value ~why:Type_argument)
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
@@ -3605,7 +3605,7 @@ let rec approx_type env sty =
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
-      let p = Typetexp.transl_label p in
+      let p = Typetexp.transl_label p (Some arg_sty) in
       let arg =
         if is_optional p
         then type_option (newvar (Layout.value ~why:Type_argument))
@@ -3657,7 +3657,6 @@ let type_pattern_approx env spat ty_expected =
   | _ -> ()
 
 let rec type_function_approx env loc label spato sexp in_function ty_expected =
-  let label = Typetexp.transl_label label in
   let has_local, has_poly =
     match spato with
     | None -> false, false
@@ -3698,10 +3697,11 @@ and type_approx_aux env sexp in_function ty_expected =
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
+      let l, p = Typetexp.transl_label_from_pat l p in
       type_function_approx env sexp.pexp_loc l (Some p) e
         in_function ty_expected
   | Pexp_function ({pc_rhs=e}::_) ->
-      type_function_approx env sexp.pexp_loc Parsetree.Nolabel None e
+      type_function_approx env sexp.pexp_loc Nolabel None e
         in_function ty_expected
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
@@ -4354,7 +4354,10 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
-      assert(is_optional_parsetree l); (* default allowed only with optional argument *)
+      (* Default allowed only with optional argument. Since optional labels
+         always ignore type, no need to pass type to translate the label *)
+      let l = Typetexp.transl_label l None in
+      assert(is_optional l);
       let open Ast_helper in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
@@ -4407,13 +4410,14 @@ and type_expect_
          && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
+      let l, spat = Typetexp.transl_label_from_pat l spat in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
                     ~has_poly [Ast_helper.Exp.case spat sbody]
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
-        ty_expected_explained Parsetree.Nolabel ~has_local:false ~has_poly:false caselist
+        ty_expected_explained Nolabel ~has_local:false ~has_poly:false caselist
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
        [Nolabel, sbody]) ->
@@ -5772,7 +5776,6 @@ and type_binding_op_ident env s =
 
 and type_function ?in_function loc attrs env (expected_mode : expected_mode)
       ty_expected_explained arg_label ~has_local ~has_poly caselist =
-  let arg_label = Typetexp.transl_label arg_label in
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
   let alloc_mode =
@@ -6593,8 +6596,12 @@ and type_application env app_loc expected_mode pm
         end
       in
       if !Clflags.principal then begin_def () ;
-      let sargs = List.map 
-        (fun (label, e) -> Typetexp.transl_label label, e) sargs 
+      let sargs = List.map
+        (* Application will never contain Position labels, so no need to pass
+           argument type here. When checking against the function type,
+           Labelled arguments will be matched up to Position parameters
+           based on label names *)
+        (fun (label, e) -> Typetexp.transl_label label None, e) sargs
       in
       let ty_ret, mode_ret, untyped_args =
         collect_apply_args env funct ignore_labels ty (instance ty)
@@ -7995,7 +8002,11 @@ let report_error ~loc env = function
   | Apply_wrong_label (l, ty, extra_info) ->
       let print_label ppf = function
         | Nolabel -> fprintf ppf "without label"
-        | l -> fprintf ppf "with label %s" (prefixed_label_name l)
+        |(Labelled _ | Optional _) as l -> fprintf ppf "with label %s"
+                                           (prefixed_label_name l)
+        | Position _ -> assert false
+          (* Since Position labels never occur in function applications,
+             this case is never run *)
       in
       let extra_info =
         if not extra_info then
@@ -8137,9 +8148,12 @@ let report_error ~loc env = function
         Printtyp.type_expr ty
         (report_type_expected_explanation_opt explanation)
   | Abstract_wrong_label {got; expected; expected_type; explanation} ->
-      let label ~long = function
+      let label ~long l =
+        match l with
         | Nolabel -> "unlabeled"
-        | l       -> (if long then "labeled " else "") ^ prefixed_label_name l
+        | Position l -> sprintf "~(%s:[%%src_pos])" l
+        | Labelled _ | Optional _ ->
+            (if long then "labeled " else "") ^ prefixed_label_name l
       in
       let second_long = match got, expected with
         | Nolabel, _ | _, Nolabel -> true
@@ -8370,7 +8384,7 @@ let report_error ~loc env = function
           let lbl =
             match lbl with
             | Nolabel -> "_"
-            | Labelled s | Optional s -> s
+            | Labelled s | Optional s | Position s -> s
           in
           [Location.msg
              "@[Hint: Try splitting the application in two. The arguments that come@ \

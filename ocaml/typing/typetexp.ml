@@ -60,6 +60,7 @@ type error =
       {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+  | Invalid_label_for_src_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -426,11 +427,28 @@ let check_arg_type styp =
     | _ -> ()
   end
 
-(* TODO vding: Modify this to consider src_pos. *)
-let transl_label : Parsetree.arg_label -> Types.arg_label = function
-  | Labelled l -> Labelled l
-  | Optional l -> Optional l
-  | Nolabel -> Nolabel
+let transl_label (label : Parsetree.arg_label)
+    (arg_opt : Parsetree.core_type option) =
+  match label, arg_opt with
+  | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _}
+      -> Position l
+  | _, Some ({ ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _} as arg)
+      -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_src_pos label))
+  | Labelled l, _ -> Labelled l
+  | Optional l, _ -> Optional l
+  | Nolabel, _ -> Nolabel
+
+let transl_label_from_pat (label : Parsetree.arg_label)
+    (pat : Parsetree.pattern) =
+  let label, inner_pat = match pat with
+  | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
+      (* If the argument is a constraint, translate the label using the
+          type information. Otherwise, it can't be a Position argument, so
+          we don't care about the argument type *)
+      transl_label label (Some ty), inner_pat
+  | _ -> transl_label label None, pat
+  in
+  label, if Btype.is_position label then inner_pat else pat
 
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
@@ -470,9 +488,15 @@ and transl_type_aux env policy mode styp =
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
-          let l = transl_label l in
           check_arg_type arg;
-          let arg_cty = transl_type env policy arg_mode arg in
+          let l = transl_label l (Some arg) in
+          let arg_cty =
+            if Btype.is_position l then
+              (* CR src_pos: Consider bundling argument types into arg_labels, so there
+                 is no need to create this redundant type *)
+              ctyp Ttyp_src_pos (newconstr Predef.path_lexing_position [])
+            else transl_type env policy arg_mode arg
+          in
           let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
           let ret_mode =
             match rest with
@@ -840,12 +864,6 @@ and transl_type_aux env policy mode styp =
             pack_fields = ptys;
             pack_txt = p;
            }) ty
-  | Ptyp_extension  ({txt="src_pos"; _}, _payload) -> 
-      (* CR src_pos: This won't work correctly in Untypeast *)
-      let path = Predef.path_lexing_position in
-      let lid = Longident.Lident "lexing_position" in
-      let constr = newconstr path [] in
-      ctyp (Ttyp_constr (path, {txt=lid; loc=Location.none}, [])) constr
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -1152,6 +1170,12 @@ let report_error env ppf = function
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+  | Invalid_label_for_src_pos arg_label ->
+      fprintf ppf "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ -> assert false )
 
 let () =
   Location.register_error_of_exn

@@ -453,9 +453,15 @@ let comprehension sub comp_type comp =
   Jane_syntax.Comprehensions.expr_of ~attrs:[] (comp_type (comprehension comp))
 
 let label : Types.arg_label -> Parsetree.arg_label = function
-  | Labelled l -> Labelled l
+  (* There is no Position label in the Parsetree, since we parse [%src_pos]
+     arguments as Labelled. The correctness of this translation depends on
+     also re-inserting the constraint pattern (P : [%src_pos]) to the generated
+     tree. *)
+  | Labelled l | Position l -> Labelled l
   | Optional l -> Optional l
   | Nolabel -> Nolabel
+
+let src_pos_extension = Location.mknoloc "src_pos", PStr []
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -478,8 +484,18 @@ let expression sub exp =
           List.map (sub.value_binding sub) list,
           sub.expr sub exp)
 
-    (* Pexp_function can't have a label, so we split in 3 cases. *)
+    (* Pexp_function can't have a label, so we split in cases.
+       Since typing Position arguments discards the constraint, we case
+       on them to reconstruct the constraints. *)
     (* One case, no guard: It's a fun. *)
+    | Texp_function { arg_label = Position s;
+                      cases = [{c_lhs=p; c_guard=None; c_rhs=e}]; _ } ->
+        (* First, the special case for a Position argument *)
+        let pat =
+          Pat.constraint_ (sub.pat sub p)
+            (Typ.extension src_pos_extension)
+        in
+        Pexp_fun (Labelled s, None, pat, sub.expr sub e)
     | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
           _ } ->
         Pexp_fun (label arg_label, None, sub.pat sub p, sub.expr sub e)
@@ -487,6 +503,17 @@ let expression sub exp =
     | Texp_function { arg_label = Nolabel; cases; _; } ->
         Pexp_function (List.map (sub.case sub) cases)
     (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
+    | Texp_function { arg_label = Position s; cases;
+          _ } ->
+        (* The special case for a Position argument *)
+        let name = fresh_name s exp.exp_env in
+        let pat =
+          Pat.constraint_ (Pat.var ~loc {loc;txt = name })
+            (Typ.extension src_pos_extension)
+        in
+        Pexp_fun (Labelled s, None, pat,
+          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
+                          (List.map (sub.case sub) cases))
     | Texp_function { arg_label = Labelled s | Optional s as arg_label; cases;
           _ } ->
         let name = fresh_name s exp.exp_env in
@@ -921,6 +948,8 @@ let core_type sub ct =
         let list = List.map (fun v -> mkloc v loc) list in
         Ptyp_poly (list, sub.typ sub ct)
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
+    | Ttyp_src_pos ->
+        Ptyp_extension src_pos_extension
   in
   Typ.mk ~loc ~attrs desc
 

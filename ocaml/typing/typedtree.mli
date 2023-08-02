@@ -188,6 +188,7 @@ and arg_label = Types.arg_label =
   | Nolabel
   | Labelled of string
   | Optional of string
+  | Position of string
 
 (** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
     requires layout information.  Our approach is to propagate layout
@@ -731,6 +732,9 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of string list * core_type
   | Ttyp_package of package_type
+  | Ttyp_src_pos
+      (** [Ttyp_src_pos] represents the type of the value of a Position
+          argument ([lbl:[%src_pos] -> ...]). *)
 
 and package_type = {
   pack_path : Path.t;
