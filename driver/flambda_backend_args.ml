@@ -121,6 +121,9 @@ let mk_caml_apply_inline_fast_path f =
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
+let mk_davail f =
+  "-davail", Arg.Unit f, " Dump register availability information"
+
 let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
 
@@ -522,6 +525,7 @@ module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
+  val davail : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
@@ -616,6 +620,7 @@ module Make_flambda_backend_options (F : Flambda_backend_options) =
 struct
   let list2 = [
     mk_dump_inlining_paths F.dump_inlining_paths;
+    mk_davail F.davail;
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
@@ -764,6 +769,8 @@ module Flambda_backend_options_impl = struct
     clear' Flambda_backend_flags.dasm_comments
 
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
+
+  let davail = set' Flambda_backend_flags.davail
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
@@ -1003,6 +1010,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
+    | "davail" -> set' Flambda_backend_flags.davail
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
