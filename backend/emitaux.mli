@@ -133,9 +133,9 @@ module Dwarf_helpers : sig
     -> discriminator : int option
     -> unit
 
-  val debug_line_checkpoint : unit -> unit
+  val checkpoint : unit -> unit
   
-  val debug_line_rollback : unit -> unit
+  val rollback : unit -> unit
 end
 
 exception Error of error

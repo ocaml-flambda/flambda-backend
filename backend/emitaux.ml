@@ -513,15 +513,15 @@ module Dwarf_helpers = struct
     | Some dwarf -> Dwarf.dwarf_for_line_number_matrix_row dwarf ~instr_address
       ~file_num ~line ~col ~discriminator
 
-  let debug_line_checkpoint () =
+  let checkpoint () =
     match !dwarf with
     | None -> ()
-    | Some dwarf -> Dwarf.debug_line_checkpoint dwarf
+    | Some dwarf -> Dwarf.checkpoint dwarf
 
-  let debug_line_rollback () =
+  let rollback () =
     match !dwarf with
     | None -> ()
-    | Some dwarf -> Dwarf.debug_line_rollback dwarf
+    | Some dwarf -> Dwarf.rollback dwarf
 end
 
 let report_error ppf = function

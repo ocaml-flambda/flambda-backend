@@ -45,9 +45,9 @@ val dwarf_for_line_number_matrix_row :
   discriminator:int option ->
   unit
 
-val debug_line_checkpoint : t -> unit
+val checkpoint : t -> unit
 
-val debug_line_rollback : t -> unit
+val rollback : t -> unit
 
 (** Write the DWARF information to the assembly file. This should only be called
     once all (in)constants and function declarations have been passed to the
