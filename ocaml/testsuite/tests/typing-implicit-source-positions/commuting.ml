@@ -91,6 +91,5 @@ Line 1, characters 55-99:
                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This function should have type
          a:[%src_pos] -> b:[%src_pos] -> unit -> unit
-       but its first argument is labeled ~b:[%src_pos]
-       instead of ~a:[%src_pos]
+       but its first argument is ~(b:[%src_pos]) instead of ~(a:[%src_pos])
 |}]
