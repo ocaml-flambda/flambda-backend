@@ -94,13 +94,13 @@ val subst_inside : t -> subst -> t
     appear in the list. *)
 val check : subst -> t list -> bool
 
-(** Returns [true] if [params] is empty and all argument values (if any) are
-    also complete. This is a stronger condition than full application, and
+(** Returns [true] if [hidden_args] is empty and all argument values (if any)
+    are also complete. This is a stronger condition than full application, and
     (unless the whole global is itself a parameter) it's equivalent to the
     global being a static constant, since any parameters being used would have
-    to show up in a [params] somewhere. (Importantly, it's not possible that a
-    parameter is being used as an argument to a different parameter, since a
-    module can be declared to be an argument for up to one parameter.)
+    to show up in a [hidden_args] somewhere. (Importantly, it's not possible
+    that a parameter is being used as an argument to a different parameter,
+    since a module can be declared to be an argument for up to one parameter.)
 
     CR lmaurer: Make sure we're checking for the user redundantly passing an
     parameter as an argument. This should be accepted and ignored, lest we
