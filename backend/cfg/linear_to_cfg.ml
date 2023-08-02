@@ -114,7 +114,9 @@ let create_instruction t desc ~stack_offset (i : Linear.instruction) :
     stack_offset;
     id = get_new_linear_id t;
     irc_work_list = Unknown_list;
-    ls_order = -1
+    ls_order = -1;
+    available_before = i.available_before;
+    available_across = i.available_across
   }
 
 let record_traps t label traps =
@@ -166,7 +168,9 @@ let create_empty_block t start ~stack_offset ~traps =
       stack_offset;
       id = get_new_linear_id t;
       irc_work_list = Unknown_list;
-      ls_order = -1
+      ls_order = -1;
+      available_before = Some Unreachable;
+      available_across = Some Unreachable
     }
   in
   let block : C.basic_block =
@@ -317,7 +321,10 @@ let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
     let label = Cmm.new_label () in
     t.new_labels <- Label.Set.add label t.new_labels;
     let insn =
-      Linear.instr_cons (Llabel { label; section_name = None }) [||] [||] insn
+      Linear.instr_cons
+        (Llabel { label; section_name = None })
+        [||] [||] insn ~available_before:insn.available_before
+        ~available_across:insn.available_across
     in
     { label; insn }
 

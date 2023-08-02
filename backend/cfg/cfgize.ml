@@ -313,7 +313,9 @@ let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
     id;
     fdo;
     irc_work_list = Unknown_list;
-    ls_order = -1
+    ls_order = -1;
+    available_before = None;
+    available_across = None
   }
 
 let copy_instruction :
@@ -325,8 +327,8 @@ let copy_instruction :
         live;
         desc = _;
         next = _;
-        available_before = _;
-        available_across = _
+        available_before;
+        available_across
       } =
     instr
   in
@@ -342,7 +344,9 @@ let copy_instruction :
     id;
     fdo;
     irc_work_list = Unknown_list;
-    ls_order = -1
+    ls_order = -1;
+    available_before = Some available_before;
+    available_across
   }
 
 let copy_instruction_no_reg :
@@ -354,8 +358,8 @@ let copy_instruction_no_reg :
         live;
         desc = _;
         next = _;
-        available_before = _;
-        available_across = _
+        available_before;
+        available_across
       } =
     instr
   in
@@ -373,7 +377,9 @@ let copy_instruction_no_reg :
     id;
     fdo;
     irc_work_list = Unknown_list;
-    ls_order = -1
+    ls_order = -1;
+    available_before = Some available_before;
+    available_across
   }
 
 let rec get_end : Mach.instruction -> Mach.instruction =

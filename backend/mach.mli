@@ -102,6 +102,7 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     mutable live: Reg.Set.t;
+    (* CR mshinwell: maybe this should be [option]: *)
     mutable available_before: Reg_availability_set.t;
     mutable available_across: Reg_availability_set.t option;
   }

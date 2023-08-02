@@ -20,15 +20,20 @@ open Linear
 
 let cons_instr d n =
   { desc = d; next = n; arg = [||]; res = [||];
-    dbg = Debuginfo.none; fdo = Fdo_info.none; live = Reg.Set.empty }
+    dbg = Debuginfo.none; fdo = Fdo_info.none; live = Reg.Set.empty;
+    (* CR mshinwell: this isn't good, but will suffice for now, since we're
+       targetting Cfg anyway *)
+    available_before = None; available_across = None }
 
-(* Build an instruction with arg, res, dbg, live taken from
+(* Build an instruction with arg, res, dbg, live and availability taken from
    the given Mach.instruction *)
 
 let copy_instr d i n =
   { desc = d; next = n;
     arg = i.Mach.arg; res = i.Mach.res;
-    dbg = i.Mach.dbg; fdo = Fdo_info.none; live = i.Mach.live }
+    dbg = i.Mach.dbg; fdo = Fdo_info.none; live = i.Mach.live;
+    available_before = Some i.Mach.available_before;
+    available_across = i.Mach.available_across }
 
 (*
    Label the beginning of the given instruction sequence.
@@ -355,6 +360,8 @@ let add_prologue first_insn prologue_required =
           dbg = insn.dbg;
           fdo = insn.fdo;
           live = insn.live;
+          available_before = None;
+          available_across = None;
         }
       in
       (* We expect [Lprologue] to expand to at least one instruction---as such,
@@ -389,6 +396,8 @@ let add_prologue first_insn prologue_required =
             dbg = tailrec_entry_point.dbg;
             fdo = tailrec_entry_point.fdo;
             live = Reg.Set.empty;  (* will not be used *)
+            available_before = None;
+            available_across = None;
           }
         in
         tailrec_entry_point_label, prologue
