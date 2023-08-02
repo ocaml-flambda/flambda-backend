@@ -30,6 +30,7 @@ type iterator = {
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
+  case_rhs: iterator -> case_rhs -> unit;
   class_declaration: iterator -> class_declaration -> unit;
   class_description: iterator -> class_description -> unit;
   class_expr: iterator -> class_expr -> unit;
@@ -44,7 +45,6 @@ type iterator = {
   expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
-  guard: iterator -> guard -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
   label_declaration: iterator -> label_declaration -> unit;
@@ -588,14 +588,6 @@ module P = struct
 
 end
 
-module GP = struct
-  (* Guards *)
-  let iter sub { pgp_scrutinee; pgp_pattern; pgp_loc } =
-    sub.location sub pgp_loc;
-    sub.expr sub pgp_scrutinee;
-    sub.pat sub pgp_pattern
-end
-
 module CE = struct
   (* Value expressions for the class language *)
 
@@ -797,15 +789,21 @@ let default_iterator =
 
     cases = (fun this l -> List.iter (this.case this) l);
     case =
-      (fun this {pc_lhs; pc_guard; pc_rhs} ->
+      (fun this {pc_lhs; pc_rhs} ->
          this.pat this pc_lhs;
-         iter_opt (this.guard this) pc_guard;
-         this.expr this pc_rhs
+         this.case_rhs this pc_rhs;
       );
-
-    guard = (fun this -> function
-      | Guard_predicate e -> this.expr this e
-      | Guard_pattern gp -> GP.iter this gp);
+    case_rhs =
+      (fun this -> function
+         | Psimple_rhs e -> this.expr this e
+         | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
+             this.expr this pbg_guard;
+             this.expr this pbg_rhs
+         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
+             this.expr this ppg_scrutinee;
+             this.cases this ppg_cases;
+             this.location this ppg_loc
+      );
 
     location = (fun _this _l -> ());
 

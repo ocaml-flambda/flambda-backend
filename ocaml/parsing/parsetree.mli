@@ -434,21 +434,21 @@ and expression_desc =
 and case =
     {
      pc_lhs: pattern;
-     pc_guard: guard option;
-     pc_rhs: expression;
+     pc_rhs: case_rhs;
    }
-(** Values of type {!case} represents [(P -> E)] or [(P when E0 -> E)] *)
+(** Values of type {!case} represent [(P R)] for [P] a pattern and [R] a rhs. *)
 
-and guard =
-  | Guard_predicate of expression
-  | Guard_pattern of guard_pattern
-
-and guard_pattern =
-  {
-    pgp_scrutinee : expression;
-    pgp_pattern : pattern;
-    pgp_loc : Location.t;
-  }
+and case_rhs =
+  | Psimple_rhs of expression
+  (** [-> e] *)
+  | Pboolean_guarded_rhs of { pbg_guard : expression; pbg_rhs : expression }
+  (** [when g -> e] *)
+  | Ppattern_guarded_rhs of
+      { ppg_scrutinee : expression
+      ; ppg_cases : case list
+      ; ppg_loc : Location.t
+      }
+  (** [when e match (cases) ] *)
 
 and letop =
   {

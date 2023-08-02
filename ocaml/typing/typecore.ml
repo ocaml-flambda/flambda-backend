@@ -3511,8 +3511,9 @@ let check_recursive_class_bindings env ids exprs =
          raise(Error(expr.cl_loc, env, Illegal_class_expr)))
     exprs
 
+
 (* Is the return value annotated with "local_" *)
-let is_local_returning_expr e =
+let is_local_returning_expr, is_local_returning_case_rhs =
   let combine (local1, loc1) (local2, loc2) =
     match local1, local2 with
     | true, true -> true, loc1
@@ -3530,20 +3531,20 @@ let is_local_returning_expr e =
         | Jexp_immutable_array _ -> false, e.pexp_loc
         | Jexp_unboxed_constant _ -> false, e.pexp_loc
       end
-    | None      ->
-    match e.pexp_desc with
+    | None      -> loop_desc e.pexp_loc e.pexp_desc
+  and loop_desc pexp_loc = function
     | Pexp_apply
         ({ pexp_desc = Pexp_extension(
            {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
          [Nolabel, _]) ->
-        true, e.pexp_loc
+        true, pexp_loc
     | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
     | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
     | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
     | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
     | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _ | Pexp_fun _
     | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
-        false, e.pexp_loc
+        false, pexp_loc
     | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
     | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
     | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
@@ -3552,19 +3553,23 @@ let is_local_returning_expr e =
     | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
     | Pexp_match(_, cases) -> begin
         match cases with
-        | [] -> false, e.pexp_loc
+        | [] -> false, pexp_loc
         | first :: rest ->
             List.fold_left
-              (fun acc pc -> combine acc (loop pc.pc_rhs))
-              (loop first.pc_rhs) rest
+              (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
+              (loop_case_rhs first.pc_rhs) rest
       end
     | Pexp_try(e, cases) ->
         List.fold_left
-          (fun acc pc -> combine acc (loop pc.pc_rhs))
+          (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
           (loop e) cases
+  and loop_case_rhs = function
+    | Psimple_rhs e -> loop e
+    | Pboolean_guarded_rhs { pbg_rhs; _ } -> loop pbg_rhs
+    | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
+        loop_desc ppg_loc (Pexp_match (ppg_scrutinee, ppg_cases))
   in
-  let local, _ = loop e in
-  local
+  (fun e -> fst (loop e)), (fun rhs -> fst (loop_case_rhs rhs))
 
 let rec is_an_uncurried_function e =
   if Builtin_attributes.has_curry e.pexp_attributes then false
@@ -3585,10 +3590,10 @@ let is_local_returning_function cases =
   let rec loop_cases cases =
     match cases with
     | [] -> false
-    | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
+    | [{pc_lhs = _; pc_rhs = Psimple_rhs e}] ->
         loop_body e
     | cases ->
-        List.for_all (fun case -> is_local_returning_expr case.pc_rhs) cases
+        List.for_all (fun case -> is_local_returning_case_rhs case.pc_rhs) cases
   and loop_body e =
     if Builtin_attributes.has_curry e.pexp_attributes then
       is_local_returning_expr e
@@ -3679,7 +3684,7 @@ let type_pattern_approx env spat ty_expected =
       end;
   | _ -> ()
 
-let rec type_function_approx env loc label spato sexp in_function ty_expected =
+let rec type_function_approx env loc label spato rhs in_function ty_expected =
   let has_local, has_poly =
     match spato with
     | None -> false, false
@@ -3712,20 +3717,22 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
     | Some spat -> type_pattern_approx env spat ty_arg
   end;
   let in_function = Some (loc_fun, ty_fun) in
-  type_approx_aux env sexp in_function ty_ret
+  type_approx_aux_case_rhs env rhs in_function ty_ret
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
-  | None      -> match sexp.pexp_desc with
-    Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
+  | None ->
+  match sexp.pexp_desc with
+  | Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp.pexp_loc l (Some p) e
+      type_function_approx env sexp.pexp_loc l (Some p) (Psimple_rhs e)
         in_function ty_expected
-  | Pexp_function ({pc_rhs=e}::_) ->
-      type_function_approx env sexp.pexp_loc Nolabel None e
+  | Pexp_function ({pc_rhs}::_) ->
+      type_function_approx env sexp.pexp_loc Nolabel None pc_rhs
         in_function ty_expected
-  | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
+  | Pexp_match (_, cases) ->
+      type_approx_aux_cases env cases None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
@@ -3766,6 +3773,19 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
   | Jexp_immutable_array _
   | Jexp_unboxed_constant _ -> ()
+
+and type_approx_aux_case_rhs env rhs in_function ty_expected =
+  match rhs with
+  | Psimple_rhs e | Pboolean_guarded_rhs { pbg_rhs = e; _ } ->
+      type_approx_aux env e in_function ty_expected
+  | Ppattern_guarded_rhs { ppg_cases; _ } ->
+      type_approx_aux_cases env ppg_cases in_function ty_expected
+
+and type_approx_aux_cases env cases in_function ty_expected =
+  match cases with
+  | [] -> ()
+  | { pc_rhs; _ } :: _ ->
+      type_approx_aux_case_rhs env pc_rhs in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -4297,7 +4317,8 @@ and type_expect_
     (* TODO: allow non-empty attributes? *)
       type_expect ?in_function env expected_mode
         {sexp with
-         pexp_desc = Pexp_match (sval, [Ast_helper.Exp.case spat sbody])}
+         pexp_desc =
+           Pexp_match (sval, [Ast_helper.Exp.case spat (Psimple_rhs sbody)])}
         ty_expected_explained
   | Pexp_let(rec_flag, spat_sexp_list, sbody) ->
       let existential_context =
@@ -4389,15 +4410,17 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "Some"))))
              (Some ([], Pat.var ~loc:default_loc (mknoloc "*sth*"))))
-          (Exp.ident ~loc:default_loc (mknoloc (Longident.Lident "*sth*")));
+          (Psimple_rhs
+            (Exp.ident ~loc:default_loc (mknoloc (Longident.Lident "*sth*"))));
 
         Exp.case
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          (Exp.apply ~loc:default_loc
-             (Exp.extension (mknoloc "extension.escape", PStr []))
-             [Nolabel, default]);
+          (Psimple_rhs
+             (Exp.apply ~loc:default_loc
+                (Exp.extension (mknoloc "extension.escape", PStr []))
+                [Nolabel, default]));
        ]
       in
       let sloc =
@@ -4419,7 +4442,8 @@ and type_expect_
       let has_local = has_local_attr_pat spat in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
-                    l ~has_local ~has_poly:false [Exp.case pat body]
+                    l ~has_local ~has_poly:false
+                    [Exp.case pat (Psimple_rhs body)]
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
@@ -4431,7 +4455,7 @@ and type_expect_
           Unsupported_extension Polymorphic_parameters));
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
-                    ~has_poly [Ast_helper.Exp.case spat sbody]
+                    ~has_poly [Ast_helper.Exp.case spat (Psimple_rhs sbody)]
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
@@ -5594,7 +5618,7 @@ and type_expect_
         type_andops env slet.pbop_exp sands ty_andops
       in
       let body_env = Env.add_lock Alloc_mode.global env in
-      let scase = Ast_helper.Exp.case spat_params sbody in
+      let scase = Ast_helper.Exp.case spat_params (Psimple_rhs sbody) in
       let cases, partial =
         type_cases Value ~require_value_case:true body_env
           (simple_pat_mode Value_mode.global)
@@ -5843,7 +5867,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   if separate then begin_def ();
   let uncurried_function =
     match caselist with
-    | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
+    | [{pc_lhs = _; pc_rhs = Psimple_rhs e}] ->
         is_an_uncurried_function e
     | _ -> false
   in
@@ -6834,7 +6858,7 @@ and type_cases
     | _ -> false in
   let needs_exhaust_check =
     match caselist with
-      [{pc_rhs = {pexp_desc = Pexp_unreachable}}] -> true
+      [{pc_rhs = Psimple_rhs {pexp_desc = Pexp_unreachable}}] -> true
     | [{pc_lhs}] when is_var pc_lhs -> false
     | _ -> true
   in
@@ -6858,7 +6882,7 @@ and type_cases
     Printtyp.raw_type_expr ty_arg; *)
   let half_typed_cases =
     List.map
-      (fun ({pc_lhs; pc_guard = _; pc_rhs = _} as case) ->
+      (fun ({pc_lhs; pc_rhs = _} as case) ->
         if !Clflags.principal then begin_def (); (* propagation of pattern *)
         begin_def ();
         let ty_arg = instance ?partial:take_partial_instance ty_arg in
@@ -6930,7 +6954,7 @@ and type_cases
     List.map
       (fun { typed_pat = pat; branch_env = ext_env;
              pat_vars = pvs; module_vars = mvs;
-             untyped_case = {pc_lhs = _; pc_guard; pc_rhs};
+             untyped_case = {pc_lhs = _; pc_rhs};
              contains_gadt; _ }  ->
         let ext_env =
           if contains_gadt then
@@ -6956,58 +6980,56 @@ and type_cases
             correct_levels ty_res
           else ty_res in
         let guard, exp =
-          match pc_guard with
-            | None | Some (Guard_predicate _) ->
-                let guard =
-                  match pc_guard with
-                  (* This case is unreachable, as [pc_guard] cannot match the
-                     outer pattern while also matching [Some (Guard_pattern _)]
-                   *)
-                  | Some (Guard_pattern _) -> assert false
-                  | None -> None
-                  | Some (Guard_predicate pred) ->
-                      let expected_bool =
-                        mk_expected ~explanation:When_guard Predef.type_bool
-                      in
-                      Some
-                        (Predicate
-                          (type_expect ext_env mode_local pred expected_bool))
-                in
-                let exp =
-                  type_expect
-                    ?in_function ext_env emode pc_rhs
-                    (mk_expected ?explanation ty_res')
-                in
-                guard, exp
-            | Some
-                (Guard_pattern
-                  { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
-                let { arg; sort; cases; partial; } =
-                  type_match
-                    (* Pattern guards containing no value cases will have an
-                       "Any" [_] case inserted during translation to handle the
-                       case where no cases match, so we can successfully
-                       typecheck such guards. Accordingly, [require_value_case]
-                       is set to [false] below. *)
-                    ~require_value_case:false e
-                    [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
-                    Check_and_warn_if_total (mk_expected ?explanation ty_res')
-                    emode
-                in
-                (match cases with
-                  | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
-                      let pattern_guard : Typedtree.guard =
-                        Pattern
-                           { pg_scrutinee = arg
-                           ; pg_scrutinee_sort = sort
-                           ; pg_pattern = pat
-                           ; pg_partial = partial
-                           ; pg_loc = loc
-                           ; pg_env = ext_env }
-                      in
-                      Some pattern_guard, exp
-                  | _ ->
-                      Misc.fatal_error "type_cases invariant violated")
+          match pc_rhs with
+          | Psimple_rhs rhs | Pboolean_guarded_rhs { pbg_rhs = rhs; _ } ->
+              let guard =
+                match pc_rhs with
+                (* This case is unreachable, as [pc_rhs] cannot match the
+                   outer pattern while also matching [Ppattern_guarded_rhs _]
+                 *)
+                | Ppattern_guarded_rhs _ -> assert false
+                | Psimple_rhs _ -> None
+                | Pboolean_guarded_rhs { pbg_guard; _ } ->
+                    let expected_bool =
+                      mk_expected ~explanation:When_guard Predef.type_bool
+                    in
+                    let typed_guard =
+                      type_expect ext_env mode_local pbg_guard expected_bool
+                    in
+                    Some (Predicate typed_guard)
+              in
+              let exp =
+                type_expect ?in_function ext_env emode rhs
+                  (mk_expected ?explanation ty_res')
+              in
+              guard, exp
+          | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc = loc } ->
+              let { arg; sort; cases; partial; } =
+                type_match
+                  (* Pattern guards containing no value cases will have an
+                     "Any" [_] case inserted during translation to handle the
+                     case where no cases match, so we can successfully
+                     typecheck such guards. Accordingly, [require_value_case]
+                     is set to [false] below. *)
+                  ~require_value_case:false ppg_scrutinee ppg_cases ext_env loc
+                  Check_and_warn_if_total (mk_expected ?explanation ty_res')
+                  emode
+              in
+              match cases with
+              | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
+                  let pattern_guard : Typedtree.guard =
+                    Pattern
+                      { pg_scrutinee = arg
+                      ; pg_scrutinee_sort = sort
+                      ; pg_pattern = pat
+                      ; pg_partial = partial
+                      ; pg_loc = loc
+                      ; pg_env = ext_env }
+                  in
+                  Some pattern_guard, exp
+              | _ ->
+                  fatal_error
+                    "typechecking for multicase pattern guards unimplemented"
         in
         {
          c_lhs = pat;

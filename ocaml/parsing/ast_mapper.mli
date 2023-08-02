@@ -61,6 +61,7 @@ type mapper = {
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;
+  case_rhs: mapper -> case_rhs -> case_rhs;
   class_declaration: mapper -> class_declaration -> class_declaration;
   class_description: mapper -> class_description -> class_description;
   class_expr: mapper -> class_expr -> class_expr;
@@ -78,7 +79,6 @@ type mapper = {
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
-  guard: mapper -> guard -> guard;
 
   include_declaration: mapper -> include_declaration -> include_declaration;
   (** In Jane Street's OCaml, this may be called for [include functor]s, and

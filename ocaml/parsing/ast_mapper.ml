@@ -32,6 +32,7 @@ type mapper = {
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;
+  case_rhs: mapper -> case_rhs -> case_rhs;
   class_declaration: mapper -> class_declaration -> class_declaration;
   class_description: mapper -> class_description -> class_description;
   class_expr: mapper -> class_expr -> class_expr;
@@ -49,7 +50,6 @@ type mapper = {
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
-  guard: mapper -> guard -> guard;
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
   label_declaration: mapper -> label_declaration -> label_declaration;
@@ -627,13 +627,6 @@ module E = struct
 
 end
 
-module GP = struct
-  let map sub ({ pgp_scrutinee; pgp_pattern; pgp_loc }) =
-    let pgp_scrutinee = sub.expr sub pgp_scrutinee in
-    let pgp_pattern = sub.pat sub pgp_pattern in
-    { pgp_scrutinee; pgp_pattern; pgp_loc }
-end
-
 module P = struct
   (* Patterns *)
 
@@ -909,17 +902,27 @@ let default_mapper =
 
     cases = (fun this l -> List.map (this.case this) l);
     case =
-      (fun this {pc_lhs; pc_guard; pc_rhs} ->
+      (fun this {pc_lhs; pc_rhs} ->
          {
            pc_lhs = this.pat this pc_lhs;
-           pc_guard = map_opt (this.guard this) pc_guard;
-           pc_rhs = this.expr this pc_rhs;
+           pc_rhs = this.case_rhs this pc_rhs;
          }
       );
-
-    guard = (fun this -> function
-      | Guard_predicate e -> Guard_predicate (this.expr this e)
-      | Guard_pattern gp -> Guard_pattern (GP.map this gp));
+    case_rhs =
+      (fun this -> function
+         | Psimple_rhs e -> Psimple_rhs (this.expr this e)
+         | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
+             Pboolean_guarded_rhs
+               { pbg_guard = this.expr this pbg_guard
+               ; pbg_rhs = this.expr this pbg_rhs
+               }
+         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
+             Ppattern_guarded_rhs
+               { ppg_scrutinee = this.expr this ppg_scrutinee
+               ; ppg_cases = this.cases this ppg_cases
+               ; ppg_loc = this.location this ppg_loc
+               }
+      );
 
     location = (fun _this l -> l);
 

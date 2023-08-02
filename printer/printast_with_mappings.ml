@@ -948,21 +948,21 @@ and longident_x_pattern i ppf (li, p) =
   line i ppf "%a\n" fmt_longident_loc li;
   pattern (i+1) ppf p;
 
-and case i ppf {pc_lhs; pc_guard; pc_rhs} =
+and case i ppf {pc_lhs; pc_rhs} =
   line i ppf "<case>\n";
   pattern (i+1) ppf pc_lhs;
-  begin match pc_guard with
-  | None -> ()
-  | Some g -> line (i+1) ppf "<when>\n"; guard (i + 2) ppf g
-  end;
-  expression (i+1) ppf pc_rhs;
+  case_rhs (i + 1) ppf pc_rhs;
 
-and guard i ppf = function
-  | Guard_predicate e -> expression i ppf e
-  | Guard_pattern { pgp_scrutinee = e; pgp_pattern = pat; _ } ->
-      expression i ppf e;
-      line i ppf "<match>\n";
-      pattern (i + 1) ppf pat
+and case_rhs i ppf = function
+  | Psimple_rhs e -> expression i ppf e
+  | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
+      line i ppf "<when>\n";
+      expression (i + 1) ppf pbg_guard
+  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ } ->
+      line i ppf "<when>\n";
+      expression (i + 1) ppf ppg_scrutinee;
+      line (i + 1) ppf "<match>\n";
+      list (i + 1) case ppf ppg_cases
 
 and value_binding i ppf x =
   line i ppf "<def>\n";

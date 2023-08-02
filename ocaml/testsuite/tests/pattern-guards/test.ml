@@ -2,7 +2,7 @@
    * expect *)
 
 (* CR-soon rgodse: We expect this output to change soon, but for now it shows
-   that parsing and typechecking work (as the compiler fails at translation). *)
+   that parsing works for multicase patterns. *)
 
 (* Test basic usage of pattern guards. *)
 let basic_usage ~f ~default x =
@@ -140,6 +140,7 @@ typing_no_value_clauses f (Some 5);;
 - : (int, exn) result = Ok 20
 |}];;
 
+(* Check typing of pattern guards with no value cases. *)
 let typing_no_value_clauses f x =
   match x with
     | Some x when f x match exception e -> Error e
@@ -243,13 +244,13 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | _ -> 2
 ;;
 [%%expect{|
-Line 241, characters 13-28:
-241 |     | Left u when u match () -> 0
-                   ^^^^^^^^^^^^^^^
+Line 3, characters 13-33:
+3 |     | Left u when u match () -> 0
+                 ^^^^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 242, characters 14-31:
-242 |     | Right v when v match None -> 1
-                    ^^^^^^^^^^^^^^^^^
+Line 4, characters 14-36:
+4 |     | Right v when v match None -> 1
+                  ^^^^^^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
 |}];;
@@ -282,6 +283,19 @@ guard_matching_empty_variant None;;
 guard_matching_empty_variant (Some "foo");;
 [%%expect{|
 - : string = "foo"
+|}]
+
+(* Test rejection of pattern guards on mixed exception/value or-patterns *)
+let reject_guarded_val_exn_orp k =
+  match k () with
+  | Some s | exception Failure s when s match "foo" -> s
+  | _ -> "Not foo"
+;;
+[%%expect{|
+Line 3, characters 4-32:
+3 |   | Some s | exception Failure s when s match "foo" -> s
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Mixing value and exception patterns under when-guards is not supported.
 |}];;
 
 module M : sig
@@ -443,5 +457,266 @@ let dont_warn_ambiguous = function
 ;;
 [%%expect{|
 val dont_warn_ambiguous : int list * int list -> int = <fun>
+|}]
+
+let single_bar_syntax x =
+  match x with
+  | Some x when x match | Some y -> y
+  | _ -> 0
+;;
+[%%expect{|
+val single_bar_syntax : int option option -> int = <fun>
 |}];;
 
+single_bar_syntax (Some (Some 5));;
+[%%expect{|
+- : int = 5
+|}];;
+single_bar_syntax (Some None);;
+[%%expect{|
+- : int = 0
+|}];;
+single_bar_syntax None;;
+[%%expect{|
+- : int = 0
+|}];;
+
+single_bar_syntax (Some (Some 5));;
+[%%expect{|
+- : int = 5
+|}];;
+single_bar_syntax (Some None);;
+[%%expect{|
+- : int = 0
+|}];;
+single_bar_syntax None;;
+[%%expect{|
+- : int = 0
+|}];;
+
+let nested_singleway f g h ~default = function
+  | Some x
+      when f x match Some y
+      when g y match Some z
+      when h z match Some a ->
+      a
+  | _ -> default
+;;
+
+let collatz = function
+  | 1 -> None
+  | n -> if n mod 2 = 0 then Some (n / 2) else Some (3 * n + 1)
+;;
+
+[%%expect{|
+>> Fatal error: typechecking for multicase pattern guards unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}];;
+
+nested_singleway collatz collatz collatz ~default:~-1 None;;
+[%%expect{|
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 None;;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 1);;
+[%%expect{|
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 1);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 2);;
+[%%expect{|
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 2);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 3);;
+[%%expect{|
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 3);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 4);;
+[%%expect{|
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 4);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 8);;
+[%%expect{|
+Line 1, characters 0-16:
+1 | nested_singleway collatz collatz collatz ~default:~-1 (Some 8);;
+    ^^^^^^^^^^^^^^^^
+Error: Unbound value nested_singleway
+|}];;
+
+let find_multiway ~eq ~flag ~finish ~default = function
+  | x :: xs when List.find_opt (fun y -> eq flag y || eq x y) xs match (
+      | Some y when eq flag y -> finish flag
+      | Some y -> finish y
+    )
+  | _ -> default
+;;
+[%%expect{|
+>> Fatal error: typechecking for multicase pattern guards unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}];;
+
+let eq n m = (n - m) mod 100 = 0;;
+let flag = 0;;
+let finish n = Int.to_string n;;
+let default = "No match found";;
+[%%expect{|
+val eq : int -> int -> bool = <fun>
+val flag : int = 0
+val finish : int -> string = <fun>
+val default : string = "No match found"
+|}];;
+
+find_multiway ~eq ~flag ~finish ~default [ 10; 20; 110; 100 ];;
+[%%expect{|
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 10; 20; 110; 100 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
+|}];;
+find_multiway ~eq ~flag ~finish ~default [ 10; 20; 100; 110 ];;
+[%%expect{|
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 10; 20; 100; 110 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
+|}];;
+find_multiway ~eq ~flag ~finish ~default [ 10; 20; 30; 40 ];;
+[%%expect{|
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 10; 20; 30; 40 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
+|}];;
+find_multiway ~eq ~flag ~finish ~default [ 0; 100 ];;
+[%%expect{|
+Line 1, characters 0-13:
+1 | find_multiway ~eq ~flag ~finish ~default [ 0; 100 ];;
+    ^^^^^^^^^^^^^
+Error: Unbound value find_multiway
+|}];;
+
+let nested_multiway f g h = function
+  | Some x when f x match (
+      | "foo" when h x -> "foo1"
+      | "bar" when g x match (
+          | [] -> "bar empty"
+          | [ y ] -> "bar singleton " ^ y
+        )
+    )
+  | _ -> "not found"
+;;
+[%%expect{|
+>> Fatal error: typechecking for multicase pattern guards unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}];;
+
+let f = function
+  | 0 | 1 -> "foo"
+  | 10 | 100 | 1000 -> "bar"
+  | _ -> "neither"
+;;
+
+let g = function
+  | 10 -> []
+  | 100 -> [ "one" ]
+  | _ -> [ "more"; "than"; "one" ]
+;;
+
+let h x = x = 1;;
+[%%expect{|
+val f : int -> string = <fun>
+val g : int -> string list = <fun>
+val h : int -> bool = <fun>
+|}];;
+
+nested_multiway f g h None;;
+[%%expect{|
+Line 1, characters 0-15:
+1 | nested_multiway f g h None;;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
+|}];;
+nested_multiway f g h (Some 0);;
+[%%expect{|
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 0);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
+|}];;
+nested_multiway f g h (Some 1);;
+[%%expect{|
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 1);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
+|}];;
+nested_multiway f g h (Some 10);;
+[%%expect{|
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 10);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
+|}];;
+nested_multiway f g h (Some 100);;
+[%%expect{|
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 100);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
+|}];;
+nested_multiway f g h (Some 1000);;
+[%%expect{|
+Line 1, characters 0-15:
+1 | nested_multiway f g h (Some 1000);;
+    ^^^^^^^^^^^^^^^
+Error: Unbound value nested_multiway
+|}];;
+
+(* Checks that optional arguments with defaults are correclty bound in the
+   presence of pattern guards. *)
+let check_push_defaults g ?(s="hello") = function
+  | x when g s match Some t -> t ^ ", " ^ x
+  | x -> x
+;;
+[%%expect{|
+val check_push_defaults :
+  (string -> string option) -> ?s:string -> string -> string = <fun>
+|}];;
+
+let g = function
+  | "hello" -> Some "jello"
+  | "ha" -> Some "ja"
+  | _ -> None
+;;
+[%%expect{|
+val g : string -> string option = <fun>
+|}];;
+
+check_push_defaults g "name";;
+[%%expect{|
+- : string = "jello, name"
+|}];;
+check_push_defaults g ~s:"ha" "name";;
+[%%expect{|
+- : string = "ja, name"
+|}];;
+check_push_defaults g ~s:"hmm" "name";;
+[%%expect{|
+- : string = "name"
+|}];;
