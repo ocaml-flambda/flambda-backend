@@ -986,44 +986,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     if Config.stack_allocation then Lexclave l
     else l
   | Texp_src_pos ->
-    let fields =
-      Datarepr.labels_of_type
-        Predef.path_lexing_position
-        Predef.lexing_position_decl
-      |> Array.of_list
-      |> Array.map (fun (_, lbl) ->
-          let pos = e.exp_loc.loc_start in
-          let value, typ =
-            let mk_int value =
-              Texp_constant (Const_int value), Predef.type_int
-            in
-            match lbl.lbl_name with
-              | "pos_fname" ->
-                (* TODO vding question: Is this correct for string representation?
-                  (no delimiter) *)
-                Texp_constant (Const_string (pos.pos_fname, e.exp_loc, None)),
-                Predef.type_string
-              | "pos_lnum" -> mk_int pos.pos_lnum
-              | "pos_bol" -> mk_int pos.pos_bol
-              | "pos_cnum" -> mk_int pos.pos_cnum
-              | _ -> assert false
-          in
-          let field =
-            { exp_desc = value;
-              exp_loc = e.exp_loc;
-              exp_extra = [];
-              exp_type = typ;
-              exp_env = e.exp_env;
-              exp_attributes = [] }
-          in
-          lbl,
-          Overridden
-            ({txt = (Longident.Lident lbl.lbl_name); loc = e.exp_loc}, field)
-        )
-    in
-    transl_record ~scopes e.exp_loc e.exp_env
-      None (* TODO vding should this alloc_mode be something different? *)
-      fields Predef.lexing_position_representation None
+      let pos = e.exp_loc.loc_start in
+      let cl =
+        [ Const_base (Const_string (pos.pos_fname, e.exp_loc, None))
+        ; Const_base (Const_int pos.pos_lnum)
+        ; Const_base (Const_int pos.pos_bol)
+        ; Const_base (Const_int pos.pos_cnum)
+        ]
+      in
+      Lconst(Const_block(0, cl))
 
 and pure_module m =
   match m.mod_desc with

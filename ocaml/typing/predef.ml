@@ -148,10 +148,9 @@ and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
 let mk_decl
-      ?manifest type_ident
-      ?(kind=Type_abstract)
-      ?(layout=Layout.value ~why:(Primitive type_ident))
-      () =
+      ~manifest type_ident
+      ~kind
+      ~layout =
   { type_params = [];
     type_arity = 0;
     type_kind = kind;
@@ -169,13 +168,13 @@ let mk_decl
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?kind
-      ?layout
+      ?(kind=Type_abstract)
+      ?(layout=Layout.value ~why:(Primitive type_ident))
       env =
-  let decl = mk_decl type_ident ?manifest ?kind ?layout () in
+  let decl = mk_decl type_ident ~manifest ~kind ~layout in
   add_type type_ident decl env
 
-let immediate_layout = Layout.value ~why:(Primitive ident_int)
+let immediate_layout = Layout.immediate ~why:(Primitive ident_int)
 
 let lexing_position_representation =
   Record_boxed [| Layout.value ~why:(Primitive ident_string); immediate_layout; immediate_layout; immediate_layout |]
@@ -203,7 +202,7 @@ let lexing_position_decl =
       in
       Type_record (labels, lexing_position_representation))
     ~layout:(Layout.value ~why:Boxed_record)
-    ()
+    ~manifest:None
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
