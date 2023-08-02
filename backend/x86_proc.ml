@@ -49,12 +49,8 @@ module Section_name = struct
         | hd :: tl -> align tl
       in align t.args
 
-    let isprefix s1 s2 =
-      String.length s1 <= String.length s2
-      && String.equal (String.sub s2 0 (String.length s1)) s1
-
-    let is_text_like t = isprefix ".text" t.name_str
-    let is_data_like t = isprefix ".data" t.name_str
+    let is_text_like t = String.starts_with ~prefix:".text" t.name_str
+    let is_data_like t = String.starts_with ~prefix:".data" t.name_str
   end
   include S
   module Map = Map.Make (S)

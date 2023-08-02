@@ -1956,4 +1956,7 @@ let end_assembly () =
   in
   if not !Flambda_backend_flags.internal_assembler then
     Emitaux.Dwarf_helpers.emit_dwarf ();
-  X86_proc.generate_code asm
+  X86_proc.generate_code asm;
+  (* The internal assembler does not work if reset_all is called here *)
+  if not !Flambda_backend_flags.internal_assembler then
+    reset_all ()
