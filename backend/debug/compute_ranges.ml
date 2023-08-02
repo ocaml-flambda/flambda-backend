@@ -286,29 +286,19 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
             (key :: S.Key.all_parents key))
         case result
     in
-    let actions =
-      (* Ranges must be closed before they are opened---otherwise, when a
-         variable moves between registers at a range boundary, we might end up
-         with no open range for that variable. Note that the pipeline below
-         constructs the [actions] list in reverse order---later functions in the
-         pipeline produce actions nearer the head of the list. *)
-      []
-      |> handle case_1b Open_subrange_one_byte_after
-      |> handle case_1c Open_one_byte_subrange
-      |> handle case_1d Open_subrange
-      |> handle case_2a Close_subrange
-      |> handle case_2b Open_subrange_one_byte_after
-      |> handle case_2b Close_subrange
-      |> handle case_2c Close_subrange_one_byte_after
-    in
-    let must_restart =
-      KS.of_list []
-      (* CR mshinwell: it's unclear that we need this for lldb any more *)
-      (* if S.must_restart_ranges_upon_any_change () && match actions with [] ->
-         false | _ :: _ -> true then KS.inter opt_available_across_prev_insn
-         available_before else KS.of_list [] *)
-    in
-    actions, must_restart
+    (* Ranges must be closed before they are opened---otherwise, when a variable
+       moves between registers at a range boundary, we might end up with no open
+       range for that variable. Note that the pipeline below constructs the
+       [actions] list in reverse order---later functions in the pipeline produce
+       actions nearer the head of the list. *)
+    []
+    |> handle case_1b Open_subrange_one_byte_after
+    |> handle case_1c Open_one_byte_subrange
+    |> handle case_1d Open_subrange
+    |> handle case_2a Close_subrange
+    |> handle case_2b Open_subrange_one_byte_after
+    |> handle case_2b Close_subrange
+    |> handle case_2c Close_subrange_one_byte_after
 
   let actions_at_instruction ~(insn : L.instruction)
       ~(prev_insn : L.instruction option) ~known_available_after_prev_insn =
@@ -324,19 +314,16 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
       Format.eprintf "canonicalised available_across:@ %a\n"
         (Misc.Stdlib.Option.print KS.print)
         available_across;
-    match available_before with
-    | None ->
+    match available_before, available_across with
+    | None, None | None, Some _ | Some _, None ->
       (* If availability information isn't known for the current instruction,
          just skip to the next instruction. *)
-      [], KS.of_list []
-    | Some available_before -> (
       (* CR mshinwell: maybe we could try to compute [available_across]? In what
          circumstances is this missing anyway? *)
-      match available_across with
-      | None -> [], KS.of_list []
-      | Some available_across ->
-        actions_at_instruction0 ~insn ~prev_insn
-          ~known_available_after_prev_insn ~available_before ~available_across)
+      []
+    | Some available_before, Some available_across ->
+      actions_at_instruction0 ~insn ~prev_insn ~known_available_after_prev_insn
+        ~available_before ~available_across
 
   let rec process_instruction t (fundecl : L.fundecl) ~fun_contains_calls
       ~fun_num_stack_slots ~(first_insn : L.instruction) ~(insn : L.instruction)
@@ -375,11 +362,21 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
       KM.add key (label, start_pos_offset, label_insn) currently_open_subranges
     in
     let close_subrange key ~end_pos_offset ~currently_open_subranges =
-      if debug then Format.eprintf "close_subrange for key %a\n" S.Key.print key;
+      if debug
+      then Format.eprintf "closing subrange for key %a\n" S.Key.print key;
       match KM.find key currently_open_subranges with
       | exception Not_found ->
-        Misc.fatal_errorf "No subrange is open for key %a" S.Key.print key
-          currently_open_subranges
+        Misc.fatal_errorf
+          "No subrange is open for key %a, currently_open_subranges:@ (%a)"
+          S.Key.print key
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space
+             (fun ppf (key, (label, start_pos_offset, label_insn)) ->
+               Format.fprintf ppf
+                 "@[<hov 1>((key@ %a)@ (label@ L%d)@ (start_pos_offset@ %d)@ \
+                  (insn@ %a))@]"
+                 S.Key.print key label start_pos_offset Printlinear.instr
+                 label_insn))
+          (KM.bindings currently_open_subranges)
       | start_pos, start_pos_offset, start_insn -> (
         let currently_open_subranges = KM.remove key currently_open_subranges in
         match Range_info.create fundecl key ~start_insn with
@@ -405,26 +402,16 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
           Range.add_subrange range ~subrange;
           currently_open_subranges)
     in
-    let actions, must_restart =
+    let actions =
       match[@ocaml.warning "-4"] insn.desc with
       | Lend ->
         (* This has special handling below *)
-        [], KS.of_list []
+        []
       | _ ->
         let known_available_after_prev_insn =
           KM.bindings currently_open_subranges |> List.map fst |> KS.of_list
         in
         actions_at_instruction ~insn ~prev_insn ~known_available_after_prev_insn
-    in
-    (* Restart ranges if needed *)
-    let currently_open_subranges =
-      KS.fold
-        (fun key currently_open_subranges ->
-          let currently_open_subranges =
-            close_subrange key ~end_pos_offset:0 ~currently_open_subranges
-          in
-          open_subrange key ~start_pos_offset:0 ~currently_open_subranges)
-        must_restart currently_open_subranges
     in
     (* Apply actions *)
     let no_actions = List.compare_length_with actions 0 = 0 in
