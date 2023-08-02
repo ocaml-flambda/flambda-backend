@@ -93,8 +93,9 @@ module S = struct
     | Name_for_debugger of
         { ident : Ident.t;
           which_parameter : int option;
-          provenance : unit option;
-          is_assignment : bool
+          provenance : Backend_var.Provenance.t option;
+          is_assignment : bool;
+          regs : Reg.t array
         }
 
   type bool_test =

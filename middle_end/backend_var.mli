@@ -35,6 +35,8 @@ module Provenance : sig
   val original_ident : t -> Ident.t
 
   val print : Format.formatter -> t -> unit
+
+  val equal : t -> t -> bool
 end
 
 module With_provenance : sig

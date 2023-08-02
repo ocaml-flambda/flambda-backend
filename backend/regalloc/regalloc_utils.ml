@@ -316,6 +316,7 @@ module Substitution = struct
   let apply_set : t -> Reg.Set.t -> Reg.Set.t =
    fun subst set -> Reg.Set.map (fun reg -> apply_reg subst reg) set
 
+  (* CR mshinwell: Apply substitution to [Iname_for_debugger] registers. *)
   let apply_instruction_in_place : t -> _ Cfg.instruction -> unit =
    fun subst instr ->
     apply_array_in_place subst instr.arg;

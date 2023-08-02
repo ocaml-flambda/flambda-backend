@@ -482,8 +482,15 @@ end = struct
            allocation): %d."
           id old_successor_id successor_id;
       (* CR-someday azewierzejew: Avoid using polymrphic compare. *)
-      if instr.desc <> old_instr.desc
-      then Regalloc_utils.fatal "The desc of instruction with id %d changed" id;
+      (match instr.desc, old_instr.desc with
+      | Op (Name_for_debugger _), Op (Name_for_debugger _) ->
+        (* IRC uses `Reg.interf` to represent the adjacency lists for the
+           interference graph, which can lead to cycles. *)
+        ()
+      | _ ->
+        if instr.desc <> old_instr.desc
+        then
+          Regalloc_utils.fatal "The desc of instruction with id %d changed" id);
       verify_reg_arrays ~id instr old_instr;
       (* Return new successor id which is the id of the current instruction. *)
       id

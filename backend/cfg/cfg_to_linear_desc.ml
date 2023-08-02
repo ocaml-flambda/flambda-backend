@@ -39,8 +39,9 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Specific op -> Ispecific op
       | Begin_region -> Ibeginregion
       | End_region -> Iendregion
-      | Name_for_debugger { ident; which_parameter; provenance; is_assignment }
-        ->
-        Iname_for_debugger { ident; which_parameter; provenance; is_assignment }
+      | Name_for_debugger
+          { ident; which_parameter; provenance; is_assignment; regs } ->
+        Iname_for_debugger
+          { ident; which_parameter; provenance; is_assignment; regs }
     in
     Lop op

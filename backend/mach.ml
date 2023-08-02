@@ -79,7 +79,8 @@ type operation =
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
+      provenance : Backend_var.Provenance.t option; is_assignment : bool;
+      regs : Reg.t array }
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
@@ -208,8 +209,8 @@ let operation_is_pure = function
   | Icsel _
   | Ifloatofint | Iintoffloat
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Iload (_, _, _) | Iname_for_debugger _
-    -> true
+  | Iload (_, _, _) -> true
+  | Iname_for_debugger _ -> false
 
 
 let operation_can_raise op =

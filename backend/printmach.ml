@@ -226,13 +226,13 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
-  | Iname_for_debugger { ident; which_parameter; } ->
-    fprintf ppf "name_for_debugger %a%s=%a"
+  | Iname_for_debugger { ident; which_parameter; regs = r } ->
+    fprintf ppf "%a holds the value of %a%s"
+      regs r
       V.print ident
       (match which_parameter with
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
-      reg arg.(0)
   | Ibeginregion -> fprintf ppf "beginregion"
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
