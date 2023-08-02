@@ -254,8 +254,7 @@ let rec instr ppf i =
     fprintf ppf "@[<1>{%a" regsetaddr i.live;
     if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
     fprintf ppf "}@]@,";
-    (* CR-someday mshinwell: to use for gdb work
-    if !Clflags.dump_avail then begin
+    if !Flambda_backend_flags.davail then begin
       let module RAS = Reg_availability_set in
       fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg) i.available_before;
       begin match i.available_across with
@@ -264,7 +263,7 @@ let rec instr ppf i =
         fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
       end;
       fprintf ppf "@]@,"
-    end *)
+    end
   end;
   begin match i.desc with
   | Iend -> ()

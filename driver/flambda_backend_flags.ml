@@ -54,6 +54,7 @@ type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
 let dump_inlining_paths = ref false
+let davail = ref false
 
 let opt_level = ref Default
 
