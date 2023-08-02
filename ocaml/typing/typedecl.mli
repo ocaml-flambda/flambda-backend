@@ -50,8 +50,7 @@ val transl_with_constraint:
 val abstract_type_decl:
     injective:bool -> layout -> layout list -> type_declaration
 val approx_type_decl:
-    Parsetree.type_declaration list ->
-                                  (Ident.t * type_declaration) list
+    Parsetree.type_declaration list -> (Ident.t * type_declaration) list
 val check_recmod_typedecl:
     Env.t -> Location.t -> Ident.t list -> Path.t -> type_declaration -> unit
 
@@ -102,8 +101,8 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout_coherence_check of type_expr * Layout.Violation.t
-  | Layout_update_check of Path.t * Layout.Violation.t
+  | Layout_mismatch_of_type of type_expr * Layout.Violation.t
+  | Layout_mismatch_of_path of Path.t * Layout.Violation.t
   | Layout_sort of
       { lloc : layout_sort_loc
       ; typ : type_expr

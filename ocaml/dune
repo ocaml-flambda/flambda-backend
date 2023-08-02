@@ -62,11 +62,10 @@
    language_extension_kernel language_extension
 
    ;; PARSING
-   location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
-   ast_iterator parser lexer parse printast pprintast ast_mapper attr_helper
-   builtin_attributes ast_invariants depend jane_syntax_parsing jane_syntax
-   ; manual update: mli only files
-   asttypes parsetree
+   location longident docstrings printast syntaxerr ast_helper
+   camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
+   attr_helper builtin_attributes ast_invariants depend jane_syntax_parsing
+   jane_syntax ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
    ident path layouts primitive shape types btype oprint subst predef datarepr
@@ -246,13 +245,13 @@
     (location.mli as compiler-libs/location.mli)
     (longident.mli as compiler-libs/longident.mli)
     (docstrings.mli as compiler-libs/docstrings.mli)
+    (printast.mli as compiler-libs/printast.mli)
     (syntaxerr.mli as compiler-libs/syntaxerr.mli)
     (ast_helper.mli as compiler-libs/ast_helper.mli)
     (camlinternalMenhirLib.mli as compiler-libs/camlinternalMenhirLib.mli)
     (parser.mli as compiler-libs/parser.mli)
     (lexer.mli as compiler-libs/lexer.mli)
     (parse.mli as compiler-libs/parse.mli)
-    (printast.mli as compiler-libs/printast.mli)
     (pprintast.mli as compiler-libs/pprintast.mli)
     (ast_mapper.mli as compiler-libs/ast_mapper.mli)
     (ast_iterator.mli as compiler-libs/ast_iterator.mli)

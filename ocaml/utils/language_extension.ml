@@ -58,6 +58,10 @@ type exist = Exist.t = Pack : _ t -> exist
 (**********************************)
 (* string conversions *)
 
+let to_command_line_string : type a. a t -> a -> string = fun extn level ->
+  let (module Ops) = get_level_ops extn in
+  to_string extn ^ Ops.to_command_line_suffix level
+
 let pair_of_string_exn extn_name = match pair_of_string extn_name with
   | Some pair -> pair
   | None ->
@@ -265,15 +269,23 @@ let is_enabled extn =
   in
   check !extensions
 
+let get_command_line_string_if_enabled extn =
+  let rec find = function
+    | [] -> None
+    | (Pair (e, v) :: _) when equal e extn -> Some (to_command_line_string e v)
+    | (_ :: es) -> find es
+  in
+  find !extensions
+
+(********************************************)
+(* existentially packed extension *)
 
 module Exist = struct
   include Exist
 
   let to_command_line_strings (Pack extn) =
     let (module Ops) = get_level_ops extn in
-    List.map
-      (fun level -> to_string extn ^ Ops.to_command_line_suffix level)
-      Ops.all
+    List.map (to_command_line_string extn) Ops.all
 
   let to_string : t -> string = function
     | Pack extn -> to_string extn

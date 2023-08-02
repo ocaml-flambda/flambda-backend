@@ -294,6 +294,10 @@ and type_transparence =
   | Type_new         (* "new" type *)
   | Type_private     (* private type *)
 
+let tys_of_constr_args = function
+  | Cstr_tuple tl -> List.map fst tl
+  | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
+
 (* Type expressions for the class language *)
 
 type class_type =

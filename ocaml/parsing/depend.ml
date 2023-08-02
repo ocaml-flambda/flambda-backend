@@ -95,6 +95,14 @@ let handle_extension ext =
   | _ ->
     ()
 
+(* CR layouts: Remember to add this when layouts can have module
+   prefixes. *)
+let add_layout _bv (_layout : Asttypes.layout_annotation) = ()
+
+let add_vars_layouts bv vars_layouts =
+  let add_one (_, layout) = Option.iter (add_layout bv) layout in
+  List.iter add_one vars_layouts
+
 let rec add_type bv ty =
   match Jane_syntax.Core_type.of_ast ty with
   | Some (jty, _attrs) -> add_type_jst bv jty
@@ -122,8 +130,18 @@ let rec add_type bv ty =
   | Ptyp_package pt -> add_package_type bv pt
   | Ptyp_extension e -> handle_extension e
 
-and add_type_jst _bv : Jane_syntax.Core_type.t -> _ = function
-  | _ -> .
+and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
+  | Jtyp_layout typ -> add_type_jst_layouts bv typ
+
+and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
+  | Ltyp_var { name = _; layout } ->
+    add_layout bv layout
+  | Ltyp_poly { bound_vars; inner_type } ->
+    add_vars_layouts bv bound_vars;
+    add_type bv inner_type
+  | Ltyp_alias { aliased_type; name = _; layout } ->
+    add_type bv aliased_type;
+    add_layout bv layout
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -155,13 +173,16 @@ let add_type_declaration bv td =
   | Ptype_open -> () in
   add_tkind td.ptype_kind
 
-let add_extension_constructor_jst _bv _attrs :
+let add_extension_constructor_jst bv :
   Jane_syntax.Extension_constructor.t -> _ = function
-  | _ -> .
+  | Jext_layout (Lext_decl (vars_layouts, args, res)) ->
+    add_vars_layouts bv vars_layouts;
+    add_constructor_arguments bv args;
+    Option.iter (add_type bv) res
 
 let add_extension_constructor bv ext =
   match Jane_syntax.Extension_constructor.of_ast ext with
-  | Some (jext, attrs) -> add_extension_constructor_jst bv attrs jext
+  | Some (jext, _attrs) -> add_extension_constructor_jst bv jext
   | None ->
   match ext.pext_kind with
     Pext_decl(_, args, rty) ->
@@ -215,7 +236,7 @@ let rec add_pattern bv pat =
 and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
-  | Jpat_unboxed_constant _ -> add_constant
+  | Jpat_layout (Lpat_constant _) -> add_constant
 
 let add_pattern bv pat =
   pattern_bv := bv;
@@ -301,7 +322,7 @@ let rec add_expr bv exp =
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
-  | Jexp_unboxed_constant _ -> add_constant
+  | Jexp_layout x -> add_layout_expr bv x
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -339,6 +360,12 @@ and add_comprehension_iterator bv : Jane_syntax.Comprehensions.iterator -> _ =
 and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
   function
   | Iaexp_immutable_array exprs -> List.iter (add_expr bv) exprs
+
+and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
+  | Lexp_constant _ -> add_constant
+  | Lexp_newtype (_, layout, inner_expr) ->
+    add_layout bv layout;
+    add_expr bv inner_expr
 
 and add_cases bv cases =
   List.iter (add_case bv) cases

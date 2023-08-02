@@ -48,6 +48,11 @@ type global_flag =
   | Global
   | Nothing
 
+type 'a loc = 'a Location.loc = {
+  txt : 'a;
+  loc : Location.t;
+}
+
 (* constant layouts are parsed as layout annotations, and also used
    in the type checker as already-inferred (i.e. non-variable) layouts *)
 type const_layout =
@@ -58,18 +63,14 @@ type const_layout =
   | Immediate
   | Float64
 
+type layout_annotation = const_layout loc
+
 type label = string
 
 type arg_label =
     Nolabel
   | Labelled of string (** [label:T -> ...] *)
   | Optional of string (** [?label:T -> ...] *)
-
-type 'a loc = 'a Location.loc = {
-  txt : 'a;
-  loc : Location.t;
-}
-
 
 type variance =
   | Covariant
@@ -79,3 +80,4 @@ type variance =
 type injectivity =
   | Injective
   | NoInjectivity
+

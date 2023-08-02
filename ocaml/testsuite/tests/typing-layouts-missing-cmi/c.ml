@@ -20,9 +20,9 @@ script = "rm -f a.cmi"
 
 open B
 
-type 'a [@immediate] imm_arg
-type 'b [@value] value_arg
-(* type 'c [@void] void_arg *)
+type ('a : immediate) imm_arg
+type ('b : value) value_arg
+(* type ('c : @void) void_arg *)
 
 (* These should work *)
 type foo = b_imm imm_arg
