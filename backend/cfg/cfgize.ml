@@ -772,7 +772,7 @@ let fundecl :
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls
       cfg.blocks
   in
-  (* XXX run [add_blocks] here but only for Iname_for_debugger instructions *)
+  (* CR run [add_blocks] here but only for Iname_for_debugger instructions *)
   State.add_block state ~label:(Cfg.entry_label cfg)
     ~block:
       { start = Cfg.entry_label cfg;

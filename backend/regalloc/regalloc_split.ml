@@ -99,6 +99,8 @@ let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
   Substitution.apply_cfg_in_place substs (Cfg_with_infos.cfg cfg_with_infos)
 
 (* Inserts spills at the end of blocks, before destruction points. *)
+(* CR mshinwell: Add special handling for [Iname_for_debugger] (see
+   [Spill.add_spills]). *)
 let insert_spills :
     State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t =
  fun state cfg_with_infos substs ->
