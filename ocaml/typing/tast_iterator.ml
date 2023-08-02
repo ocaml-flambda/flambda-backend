@@ -296,6 +296,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_probe {handler;_} -> sub.expr sub handler
   | Texp_probe_is_enabled _ -> ()
   | Texp_exclave exp -> sub.expr sub exp
+  | Texp_src_pos -> ()
 
 
 let package_type sub {pack_fields; _} =

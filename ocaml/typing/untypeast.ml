@@ -677,6 +677,7 @@ let expression sub exp =
         pexp_loc_stack = [];
         pexp_attributes = [];
       }, [Nolabel, sub.expr sub exp])
+    | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs:!attrs desc)

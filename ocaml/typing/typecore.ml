@@ -193,6 +193,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
+  | Invalid_label_for_src_pos of arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3329,6 +3330,7 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
+  | Texp_src_pos
   | Texp_array (_, [], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
@@ -3891,7 +3893,7 @@ let check_partial_application ~statement exp =
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
-            | Texp_probe _ | Texp_probe_is_enabled _
+            | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos (* TODO vding: not sure *)
             | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, _, cases, _) ->
@@ -5715,6 +5717,13 @@ and type_expect_
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
+  | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
+      rue {
+        exp_desc = Texp_src_pos;
+        exp_loc = loc; exp_extra = [];
+        exp_type = instance Predef.type_lexing_position;
+        exp_attributes = sexp.pexp_attributes;
+        exp_env = env }
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -8440,6 +8449,13 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Invalid_label_for_src_pos arg_label ->
+      Location.errorf ~loc
+        "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ | Position _ -> assert false )
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
