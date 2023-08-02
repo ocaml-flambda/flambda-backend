@@ -4,15 +4,13 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2014--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** This file defines types that are used to specify the interface of
     [Compute_ranges]. The description of [Compute_ranges] is:
@@ -47,7 +45,14 @@ module type S_subrange_info = sig
 
   type subrange_state
 
-  val create : key -> subrange_state -> t
+  val create :
+    key ->
+    subrange_state ->
+    fun_contains_calls:bool ->
+    fun_num_stack_slots:int array ->
+    t
+
+  val print : Format.formatter -> t -> unit
 end
 
 (** The type of caller-defined information associated with ranges. *)
@@ -60,6 +65,8 @@ module type S_range_info = sig
 
   val create :
     L.fundecl -> key -> start_insn:L.instruction -> (index * t) option
+
+  val print : Format.formatter -> t -> unit
 end
 
 (** This module type specifies what the caller has to provide in order to
@@ -90,8 +97,25 @@ module type S_functor = sig
     (** The type of identifiers that define ranges. *)
     type t
 
+    type key = t
+
+    module Raw_set : Set.S with type elt = t
+
     module Set : sig
-      include Set.S with type elt = t
+      type t =
+        | Ok of Raw_set.t
+        | Unreachable
+
+      val of_list : key list -> t
+
+      val union : t -> t -> t
+
+      val inter : t -> t -> t
+
+      val diff : t -> t -> t
+
+      (** This should return the initial value in the [Unreachable] case *)
+      val fold : (key -> 'a -> 'a) -> t -> 'a -> 'a
 
       val print : Format.formatter -> t -> unit
     end
@@ -141,12 +165,12 @@ module type S_functor = sig
 
   (** How to retrieve from an instruction those keys that are available
       immediately before the instruction starts executing. *)
-  val available_before : L.instruction -> Key.Set.t
+  val available_before : L.instruction -> Key.Set.t option
 
   (** How to retrieve from an instruction those keys that are available between
       the points at which the instruction reads its arguments and writes its
       results. *)
-  val available_across : L.instruction -> Key.Set.t
+  val available_across : L.instruction -> Key.Set.t option
 
   (** This [must_restart_ranges_upon_any_change] boolean exists because some
       consumers of the range information may require that two subranges are
@@ -175,9 +199,32 @@ module type S = sig
   module Key : sig
     type t
 
-    module Set : Set.S with type elt = t
+    type key = t
+
+    module Raw_set : Set.S with type elt = t
+
+    module Set : sig
+      type t =
+        | Ok of Raw_set.t
+        | Unreachable
+
+      val of_list : key list -> t
+
+      val union : t -> t -> t
+
+      val inter : t -> t -> t
+
+      val diff : t -> t -> t
+
+      (** This should return the initial value in the [Unreachable] case *)
+      val fold : (key -> 'a -> 'a) -> t -> 'a -> 'a
+
+      val print : Format.formatter -> t -> unit
+    end
 
     module Map : Map.S with type key = t
+
+    val print : Format.formatter -> t -> unit
   end
 
   (** Corresponds to [Subrange_state] in the [S_functor] module type. *)
@@ -243,6 +290,8 @@ module type S = sig
 
   (** The type holding information on computed ranges. *)
   type t
+
+  val print : Format.formatter -> t -> unit
 
   (** A value of type [t] that holds no range information. *)
   val empty : t

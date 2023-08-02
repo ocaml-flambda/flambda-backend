@@ -72,7 +72,7 @@ let use_g () =
   then use_g1 ()
   else current_debug_settings := bytecode_g
 
-let restrict_to_upstream_dwarf = ref true
+let restrict_to_upstream_dwarf = ref false
 
 let dwarf_for_startup_file = ref false
 
