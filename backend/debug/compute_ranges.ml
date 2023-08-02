@@ -318,8 +318,6 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
     | None, None | None, Some _ | Some _, None ->
       (* If availability information isn't known for the current instruction,
          just skip to the next instruction. *)
-      (* CR mshinwell: maybe we could try to compute [available_across]? In what
-         circumstances is this missing anyway? *)
       []
     | Some available_before, Some available_across ->
       actions_at_instruction0 ~insn ~prev_insn ~known_available_after_prev_insn

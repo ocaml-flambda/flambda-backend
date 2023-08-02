@@ -171,13 +171,6 @@ module type S_functor = sig
       the points at which the instruction reads its arguments and writes its
       results. *)
   val available_across : L.instruction -> Key.Set.t option
-
-  (** This [must_restart_ranges_upon_any_change] boolean exists because some
-      consumers of the range information may require that two subranges are
-      disjoint rather than including one in another. When this function returns
-      [true], whenever a subrange is opened or closed, all other overlapping
-      subranges will be split in two at the same point. *)
-  val must_restart_ranges_upon_any_change : unit -> bool
 end
 
 (** This module type is the result type of the [Compute_ranges.Make] functor.
