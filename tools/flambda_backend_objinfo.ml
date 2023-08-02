@@ -147,6 +147,14 @@ let print_cmi_infos name crcs kind params global_name_bindings =
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   print_string "Parameters:\n";
   List.iter print_global_line params;
+  begin
+    match kind with
+    | Normal { cmi_arg_for = Some arg_for; _ } ->
+      printf "Argument for parameter:\n";
+      print_global_line arg_for
+    | Normal _ | Parameter ->
+      ()
+  end;
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs;
   printf "Globals in scope:\n";
