@@ -15,10 +15,14 @@ val get_cells :
 
 val is_bitwise_op : Mach.integer_operation -> bool
 
+val bitwise_shift_assert : int -> int -> unit
+
 val bitwise_overflow_assert : int -> int -> (int -> int -> int) -> unit
 
 val no_32_bit_overflow : int -> int -> (int -> int -> int) -> bool
 
+(** a rule is a function that takes an iterator and returns the 
+    value that the search should continue from.  *)
 type rule =
   Cfg.basic Cfg.instruction DLL.cell ->
   Cfg.basic Cfg.instruction DLL.cell option

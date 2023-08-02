@@ -1,6 +1,3 @@
-(* CR-soon gtulba-lecu for gtulba-lecu: drop the -4 flag *)
-[@@@ocaml.warning "+a-29-40-41-42-4"]
-
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 (* CR-soon gtulba-lecu for gtulba-lecu: make sure that this comparison is
@@ -36,14 +33,22 @@ let is_bitwise_op (op : Mach.integer_operation) =
   match op with
   | Mach.Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true
   | _ -> false
+  [@@ocaml.warning "-4"]
+
+let bitwise_shift_assert (imm1 : int) (imm2 : int) =
+  if imm1 < 0 || imm1 > Sys.int_size || imm2 < 0 || imm2 > Sys.int_size
+  then assert false
+  [@@inline]
 
 let bitwise_overflow_assert (imm1 : int) (imm2 : int) (op : int -> int -> int) =
   let imm = op imm1 imm2 in
-  assert (imm <= 2147483647 && imm >= -2147483648)
+  assert (Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int)
+  [@@inline]
 
 let no_32_bit_overflow imm1 imm2 op =
   let imm = op imm1 imm2 in
-  -2147483648 <= imm && imm <= 2147483647
+  Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int
+  [@@inline]
 
 type rule =
   Cfg.basic Cfg.instruction DLL.cell ->

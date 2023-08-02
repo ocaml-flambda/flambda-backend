@@ -6,8 +6,6 @@ checks.ml
 checks.mli
 checkmach.ml
 checkmach.mli
-csv_data.ml
-csv_data.ml
 cfg/**/*.ml
 cfg/**/*.mli
 asm_targets/**/*.ml

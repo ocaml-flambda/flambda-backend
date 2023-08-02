@@ -3,5 +3,3 @@
 open! Peephole_utils
 
 val handbuilt_rules : rule
-
-val handbuilt_rule_names : string list

@@ -52,10 +52,10 @@ let mk_no_regalloc_validate f =
   "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
 let mk_cfg_peephole_optimize f = 
-  "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG representation block bodies"
+  "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG"
 
 let mk_no_cfg_peephole_optimize f = 
-  "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG representation block bodies"
+  "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG"
 
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",

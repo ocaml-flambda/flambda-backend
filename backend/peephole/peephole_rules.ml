@@ -60,20 +60,26 @@ let are_compatible op1 op2 imm1 imm2 =
     Some (Mach.Ixor, imm1 lxor imm2)
   (* For the following three cases we have the issue that in some situations,
      one or both immediate values could be out of bounds, but the result might
-     be within bounds (e.g. imm1 = -4 and imm2 = 65, their sum being 61), in
-     that case we still do the folding. This should not happen at all since the
-     immediate values should always be within the bounds [0, Sys.int_size]. *)
+     be within bounds (e.g. imm1 = -4 and imm2 = 65, their sum being 61). This
+     should not happen at all since the immediate values should always be within
+     the bounds [0, Sys.int_size]. *)
   | Ilsl, Ilsl ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
-    then Some (Mach.Ilsl, imm1 + imm2)
+    then (
+      bitwise_shift_assert imm1 imm2;
+      Some (Mach.Ilsl, imm1 + imm2))
     else None
   | Ilsr, Ilsr ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
-    then Some (Mach.Ilsr, imm1 + imm2)
+    then (
+      bitwise_shift_assert imm1 imm2;
+      Some (Mach.Ilsr, imm1 + imm2))
     else None
   | Iasr, Iasr ->
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
-    then Some (Mach.Iasr, imm1 + imm2)
+    then (
+      bitwise_shift_assert imm1 imm2;
+      Some (Mach.Iasr, imm1 + imm2))
     else None
   (* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at
      most an imm32 as the second argument, so we need to check for overflows on
@@ -88,7 +94,7 @@ let are_compatible op1 op2 imm1 imm2 =
       if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm1 imm2 ( - )
       then Some (Mach.Iadd, imm1 - imm2)
       else None
-    else if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm2 imm1 ( - )
+    else if Misc.no_overflow_sub imm2 imm1 && no_32_bit_overflow imm2 imm1 ( - )
     then Some (Mach.Isub, imm2 - imm1)
     else None
   | Isub, Isub ->
@@ -101,7 +107,7 @@ let are_compatible op1 op2 imm1 imm2 =
       if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm1 imm2 ( - )
       then Some (Mach.Isub, imm1 - imm2)
       else None
-    else if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm2 imm1 ( - )
+    else if Misc.no_overflow_sub imm2 imm1 && no_32_bit_overflow imm2 imm1 ( - )
     then Some (Mach.Iadd, imm2 - imm1)
     else None
   | Ilsl, Imul ->
@@ -177,6 +183,3 @@ let handbuilt_rules cell =
   match remove_useless_mov cell with
   | None -> ( match fold_intop_imm cell with None -> None | res -> res)
   | res -> res
-
-let handbuilt_rule_names =
-  ["remove_useless_mov"; "fold_intop_imm_bitwise"; "fold_intop_imm_arith"]
