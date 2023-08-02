@@ -51,7 +51,7 @@ type summary =
   | Env_value_unbound of summary * string * value_unbound_reason
   | Env_module_unbound of summary * string * module_unbound_reason
 
-type address =
+type address = Address.t =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
@@ -410,9 +410,11 @@ val reset_cache_toplevel: unit -> unit
 val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
-(* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.Name.t -> filepath -> signature
-        (* Arguments: module name, file name. Results: signature. *)
+(* Read, save a signature to/from a file. *)
+val read_signature: Global.Name.t -> filepath -> add_binding:bool -> signature
+        (* Arguments: module name, file name, [add_binding] flag.
+           Results: signature. If [add_binding] is true, creates an entry for
+           the module in the environment. *)
 val save_signature:
   alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
   -> filepath -> Cmi_format.cmi_infos_lazy

@@ -63,7 +63,7 @@ let typecheck_intf info ast =
   Profile.(record_call typing) @@ fun () ->
   let tsg =
     ast
-    |> Typemod.type_interface info.env
+    |> Typemod.type_interface info.source_file info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
   let sg = tsg.Typedtree.sig_type in
@@ -78,21 +78,6 @@ let typecheck_intf info ast =
   Warnings.check_fatal ();
   tsg
 
-let typecheck_against_secondary_intf info sg =
-  match !Clflags.as_argument_for with
-  | None -> None
-  | Some arg_type ->
-      let arg_type_name = arg_type |> Compilation_unit.Name.of_string in
-      (* Accessing the argument type's module (which is of course a parameter
-         unit) has the side effect of importing it, so we need to be sure it's
-         understood to be _a_ parameter. However, it's not a parameter of
-         _this_ module, so we set [exported] to false. *)
-      Env.register_parameter_import arg_type_name;
-      let arg_type = Global.Name.create arg_type [] in
-      let arg_sg, _filepath = Env.find_global_name arg_type in
-      ignore (Includemod.signatures info.env ~mark:Mark_both sg arg_sg);
-      Some arg_sg
-
 let emit_signature info ast tsg =
   let sg =
     let name = Compilation_unit.name info.module_name in
@@ -101,8 +86,6 @@ let emit_signature info ast tsg =
         Parameter
       else
         let cmi_arg_for =
-          (* Don't like that this is accessed separately from
-             [typecheck_against_secondary_intf] above *)
           match !Clflags.as_argument_for with
           | Some arg_type -> Some (Global.Name.create arg_type [])
           | None -> None
@@ -122,9 +105,6 @@ let interface ~hook_parse_tree ~hook_typed_tree info =
   hook_parse_tree ast;
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tsg = typecheck_intf info ast in
-    let _ : Types.signature option =
-      typecheck_against_secondary_intf info tsg.sig_type
-    in
     hook_typed_tree tsg;
     if not !Clflags.print_types then begin
       emit_signature info ast tsg

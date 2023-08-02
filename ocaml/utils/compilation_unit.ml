@@ -48,6 +48,8 @@ module Name : sig
 
   val of_head_of_global_name : Global.Name.t -> t
 
+  val to_global_name : t -> Global.Name.t
+
   val check_as_path_component : t -> unit
 end = struct
   (* Be VERY careful changing this. Anything not equivalent to [string] will
@@ -79,6 +81,8 @@ end = struct
     else str
 
   let of_head_of_global_name (name : Global.Name.t) = of_string name.head
+
+  let to_global_name t = Global.Name.create t []
 
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module

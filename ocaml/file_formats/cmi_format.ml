@@ -64,17 +64,17 @@ type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
-    header_globals : (Global.Name.t * Global.t) array;
+    header_globals : Global.t array;
     header_sign : Serialized.signature;
-    header_params : Global.Name.t list;
+    header_params : Global.t list;
 }
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
-    cmi_globals : (Global.Name.t * Global.t) array;
+    cmi_globals : Global.t array;
     cmi_sign : 'sg;
-    cmi_params : Global.Name.t list;
+    cmi_params : Global.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }

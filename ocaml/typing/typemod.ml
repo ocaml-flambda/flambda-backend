@@ -90,6 +90,7 @@ type error =
   | Cannot_pack_parameter of filepath
   | Cannot_compile_implementation_as_parameter
   | Argument_for_non_parameter of Global.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global.Name.t
   | Inconsistent_argument_types of {
       new_arg_type : Global.Name.t option;
       old_arg_type : Global.Name.t option;
@@ -3253,8 +3254,7 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
-let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
-    shape =
+let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
   match arg_module_opt with
   | None -> None
   | Some arg_module ->
@@ -3262,13 +3262,23 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
         Compilation_unit.Name.of_head_of_global_name arg_module
       in
       Env.register_parameter_import arg_import;
-      let arg_sig, arg_filename = Env.find_global_name arg_module in
+      (* CR lmaurer: This "look for known name in path" code is duplicated
+         all over the place. *)
+      let basename = arg_import |> Compilation_unit.Name.to_string in
+      let arg_filename =
+        try
+          Load_path.find_uncap (basename ^ ".cmi")
+        with Not_found ->
+          raise(Error(Location.none, Env.empty,
+                      Cannot_find_argument_type arg_module)) in
+      let arg_sig =
+        Env.read_signature arg_module arg_filename ~add_binding:false in
       if not (Env.is_parameter_unit arg_import) then
         raise (Error (Location.none, env,
                       Argument_for_non_parameter (arg_module, arg_filename)));
       let coercion, _shape =
         Includemod.compunit env ~mark:Mark_positive sourcefile actual_sig
-          arg_filename arg_sig shape
+          arg_filename arg_sig Shape.dummy_mod
       in
       Some { si_signature = arg_sig;
              si_coercion_from_primary = coercion;
@@ -3328,9 +3338,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let import = Compilation_unit.Name.of_string basename in
-          let dclsig = Env.read_signature import intf_file in
-          if Env.is_parameter_unit import then
+          let import = Global.Name.create basename [] in
+          let dclsig = Env.read_signature import intf_file ~add_binding:false in
+          if Env.is_parameter_unit
+               (Compilation_unit.Name.of_head_of_global_name import) then
             error (Cannot_implement_parameter intf_file);
           let global_name =
             Compilation_unit.to_global_name_without_prefix modulename
@@ -3348,9 +3359,15 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           in
           (* Check the _mli_ against the argument type, since the mli determines
              the visible type of the module and that's what needs to conform to
-             the argument type. *)
+             the argument type.
+
+             This is somewhat redundant with the checking that was done when
+             compiling the .mli. However, this isn't just a boolean check - we
+             need to get the coercion out. An alternative would be to store the
+             coercion in the .cmi if we can sort out the dependency issues
+             ([Tcoerce_primitive] is a pain in particular). *)
           let secondary_iface =
-            check_argument_type_if_given initial_env intf_file dclsig arg_type shape
+            check_argument_type_if_given initial_env intf_file dclsig arg_type
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
@@ -3385,7 +3402,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           normalize_signature simple_sg;
           let secondary_iface =
             check_argument_type_if_given initial_env sourcefile simple_sg arg_type
-              shape
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
@@ -3441,9 +3457,16 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
 
-let type_interface env ast =
+let type_interface sourcefile env ast =
   type_params !Clflags.parameters ~exported:true;
-  transl_signature env ast
+  let sg = transl_signature env ast in
+  let arg_type =
+    !Clflags.as_argument_for
+    |> Option.map (fun name -> Global.Name.create name [])
+  in
+  ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
+          : Typedtree.secondary_interface option);
+  sg
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
@@ -3485,20 +3508,23 @@ let package_units initial_env objfiles cmifile modulename =
     List.map
       (fun f ->
          let pref = chop_extensions f in
-         let unit =
+         let basename =
            pref
            |> Filename.basename
            |> String.capitalize_ascii
-           |> Compilation_unit.Name.of_string
          in
+         let unit = Compilation_unit.Name.of_string basename in
+         let global_name = Global.Name.create basename [] in
          let modname = Compilation_unit.create_child modulename unit in
-         let sg = Env.read_signature unit (pref ^ ".cmi") in
+         let sg =
+           Env.read_signature global_name (pref ^ ".cmi") ~add_binding:false
+         in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
-         Env.read_signature unit (pref ^ ".cmi"))
+         Env.read_signature global_name (pref ^ ".cmi") ~add_binding:false)
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -3521,8 +3547,10 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let name = Compilation_unit.name modulename in
-    let dclsig = Env.read_signature name cmifile in
+    let name =
+      Compilation_unit.name modulename |> Compilation_unit.Name.to_global_name
+    in
+    let dclsig = Env.read_signature name cmifile ~add_binding:false in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
@@ -3771,6 +3799,10 @@ let report_error ~loc _env = function
         old_source_file
         pp_arg_type old_arg_type
         pp_arg_type new_arg_type
+  | Cannot_find_argument_type arg_type ->
+      Location.errorf ~loc
+        "Parameter module %a@ specified by -as-argument-for cannot be found."
+        Global.Name.print arg_type
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

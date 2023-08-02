@@ -11,8 +11,6 @@ module Name : sig
   val create : string -> (t * t) list -> t
 
   val to_string : t -> string
-
-  val predef_exn : t
 end
 
 (** An elaborated form of name in which all arguments are expressed, including

@@ -44,6 +44,8 @@ module Name : sig
 
   val of_head_of_global_name : Global.Name.t -> t
 
+  val to_global_name : t -> Global.Name.t
+
   (** The name of the distinguished compilation unit for predefined exceptions. *)
   val predef_exn : t
 end

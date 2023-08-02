@@ -94,12 +94,19 @@ type binding =
   | Static of Compilation_unit.t
 
 type 'a sig_reader =
-  Persistent_signature.t
-  -> global:Global.t
-  -> binding:binding
-  -> 'a * (Global.Name.t * Global.t) array
+  Subst.Lazy.signature
+  -> Global.Name.t
+  -> filename:string
+  -> address:Address.t
+  -> flags:Cmi_format.pers_flags list
+  -> 'a
 
-val read : 'a t -> 'a sig_reader -> Global.Name.t -> filepath -> 'a
+val read : 'a t
+  -> 'a sig_reader
+  -> Global.Name.t
+  -> filepath
+  -> add_binding:bool
+  -> 'a
 
 val find : 'a t -> 'a sig_reader -> Global.Name.t -> 'a
 
@@ -144,7 +151,6 @@ val local_ident : 'a t -> Global.Name.t -> Ident.t option
 val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
 
 val global_of_global_name : 'a t
-  -> 'a sig_reader
   -> check:bool
   -> param:bool
   -> Global.Name.t
@@ -180,7 +186,7 @@ val locally_bound_imports : 'a t -> (Global.Name.t * Ident.t) list
 val exported_parameters : 'a t -> Global.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> Digest.t
+val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref

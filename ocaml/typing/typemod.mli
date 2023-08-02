@@ -43,7 +43,7 @@ val type_implementation:
   string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
-        Env.t -> Parsetree.signature -> Typedtree.signature
+        string -> Env.t -> Parsetree.signature -> Typedtree.signature
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_signature:
@@ -149,6 +149,7 @@ type error =
   | Cannot_pack_parameter of Misc.filepath
   | Cannot_compile_implementation_as_parameter
   | Argument_for_non_parameter of Global.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global.Name.t
   | Inconsistent_argument_types of {
       new_arg_type: Global.Name.t option;
       old_arg_type: Global.Name.t option;

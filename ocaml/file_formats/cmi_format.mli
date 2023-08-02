@@ -24,6 +24,8 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
+        (* If this module takes parameters, [cmi_impl] will be the functor that
+           generates instances *)
       cmi_arg_for : Global.Name.t option;
     }
   | Parameter
@@ -31,9 +33,9 @@ type kind =
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
-    cmi_globals : (Global.Name.t * Global.t) array;
+    cmi_globals : Global.t array;
     cmi_sign : 'sg;
-    cmi_params : Global.Name.t list;
+    cmi_params : Global.t list;
     cmi_crcs : Import_info.Intf.t array;
     cmi_flags : pers_flags list;
 }

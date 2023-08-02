@@ -78,7 +78,7 @@ let print_impl_import import =
   let crco = Import_info.Impl.crc import in
   print_name_crc name crco
 
-let print_global_name_binding (_name, global) =
+let print_global_name_binding global =
   printf "\t%a\n" Global.output global
 
 let print_line name = printf "\t%s\n" name
@@ -88,6 +88,9 @@ let print_unit_line name =
 
 let print_global_line glob =
   printf "\t%a\n" Global.Name.output glob
+
+let print_global_as_name_line glob =
+  printf "\t%a\n" Global.Name.output (Global.to_name glob)
 
 let print_name_line cu =
   (* Drop the pack prefix for backward compatibility, but keep the instance
@@ -146,7 +149,7 @@ let print_cmi_infos name crcs kind params global_name_bindings =
   in
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   print_string "Parameters:\n";
-  List.iter print_global_line params;
+  List.iter print_global_as_name_line params;
   begin
     match kind with
     | Normal { cmi_arg_for = Some arg_for; _ } ->

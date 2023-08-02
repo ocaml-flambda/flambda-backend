@@ -15,8 +15,6 @@ module Name : sig
 
   val to_string : t -> string
 
-  val predef_exn : t
-
   include Identifiable.S with type t := t
 end = struct
   type t = {
@@ -67,8 +65,6 @@ end = struct
   let unsafe_create_unchecked head args = { head; args }
 
   let to_string = print |> Misc.to_string_of_print
-
-  let predef_exn = { head = "*predef*"; args = [] }
 end
 
 let compare_arg_name (name1, _) (name2, _) = Name.compare name1 name2
