@@ -21,7 +21,7 @@ type line_number_state =
     line_reg : int;
     column_reg : int;
     discriminator_reg : int;
-    source_files : Dwarf_value.t IntMap.t
+    source_files : string IntMap.t
   }
 
 type t = line_number_state ref
@@ -86,11 +86,7 @@ let create ~code_begin =
     }
 
 let add_source_file t ~file_name ~file_num =
-  t
-    := { !t with
-         source_files =
-           IntMap.add file_num (Dwarf_value.string file_name) !t.source_files
-       }
+  t := { !t with source_files = IntMap.add file_num file_name !t.source_files }
 
 let maybe_add_set_column_instr col_int state =
   if col_int != state.column_reg
@@ -236,8 +232,16 @@ let add_copy_instr_or_special_opcode_instr ~instr_address ~line state =
 let add_line_number_matrix_row t ~instr_address ~file_num ~line ~col
     ~discriminator =
   let desired_discriminator = Option.value discriminator ~default:0 in
+  let col_num =
+    if col < 0
+    then
+      match IntMap.find_opt file_num !t.source_files with
+      | Some name -> if Location.is_dummy_filename name then 0 else col
+      | None -> col
+    else col
+  in
   if instr_address = !t.address_reg
-     && file_num = !t.file_reg && line = !t.line_reg && col = !t.column_reg
+     && file_num = !t.file_reg && line = !t.line_reg && col_num = !t.column_reg
      && desired_discriminator = !t.discriminator_reg
   then ()
   else if instr_address < !t.address_reg
@@ -248,7 +252,7 @@ let add_line_number_matrix_row t ~instr_address ~file_num ~line ~col
   else
     t
       := maybe_add_set_file_instr file_num !t
-         |> maybe_add_set_column_instr col
+         |> maybe_add_set_column_instr col_num
          |> maybe_add_set_discriminator_instr desired_discriminator
          |> maybe_add_advance_line_instr line
          |> maybe_add_const_add_pc_instr ~instr_address ~line
@@ -266,7 +270,7 @@ let file_names_size t =
         size
         + (match IntMap.find_opt index !t.source_files with
           | None -> Dwarf_value.size default_file_name
-          | Some file_name -> Dwarf_value.size file_name)
+          | Some file_name -> Dwarf_value.size (Dwarf_value.string file_name))
         + Dwarf_value.size uleb128_zero
         + Dwarf_value.size uleb128_zero
         + Dwarf_value.size uleb128_zero)
@@ -282,7 +286,8 @@ let emit_file_names ~asm_directives t =
     (fun index ->
       (match IntMap.find_opt index !t.source_files with
       | None -> Dwarf_value.emit ~asm_directives default_file_name
-      | Some file_name -> Dwarf_value.emit ~asm_directives file_name);
+      | Some file_name ->
+        Dwarf_value.emit ~asm_directives (Dwarf_value.string file_name));
       (* Null terminate string *)
       Dwarf_value.emit ~asm_directives null_byte;
       Dwarf_value.emit ~asm_directives uleb128_zero;

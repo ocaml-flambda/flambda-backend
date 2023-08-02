@@ -58,6 +58,8 @@ val none : t
 val is_none : t -> bool
 (** True for [Location.none], false any other location *)
 
+val is_dummy_filename : string -> bool
+
 val in_file : string -> t
 (** Return an empty ghost range located in a given file. *)
 
