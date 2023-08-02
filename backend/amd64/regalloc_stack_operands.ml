@@ -155,6 +155,7 @@ let binary_operation
 let unary_operation_argument_or_result_on_stack
   : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun map instr ->
+  if debug then check_lengths instr ~of_arg:1 ~of_res:1;
   if is_stack_operand instr.arg.(0) || is_stack_operand instr.res.(0)
   then May_still_have_spilled_registers
   else match is_spilled map instr.arg.(0), is_spilled map instr.res.(0) with
