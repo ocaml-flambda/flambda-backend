@@ -168,10 +168,9 @@ let fold {persistent_structures; _} f x =
 
 (* Reading persistent structures from .cmi files *)
 
-let save_pers_struct penv crc ps pm =
-  let {persistent_structures; crc_units; _} = penv in
+let save_pers_struct penv crc ps =
+  let {crc_units; _} = penv in
   let modname = CU.name ps.ps_name in
-  Hashtbl.add persistent_structures modname (Found (ps, pm));
   List.iter
     (function
         | Rectypes -> ()
@@ -334,13 +333,16 @@ module Array = struct
 end
 
 let crc_of_unit penv f name =
-  let (ps, _pm) = find_pers_struct penv f true name in
-  match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
-  | None -> assert false
-  | Some import_info ->
-    match Import_info.crc import_info with
+  match Consistbl.find penv.crc_units name with
+  | Some (_, crc) -> crc
+  | None ->
+    let (ps, _pm) = find_pers_struct penv f true name in
+    match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
     | None -> assert false
-    | Some crc -> crc
+    | Some import_info ->
+      match Import_info.crc import_info with
+      | None -> assert false
+      | Some crc -> crc
 
 let imports {imported_units; crc_units; _} =
   let imports =
@@ -377,7 +379,7 @@ let make_cmi penv modname sign alerts =
     cmi_flags = flags
   }
 
-let save_cmi penv psig pm =
+let save_cmi penv psig =
   let { Persistent_signature.filename; cmi } = psig in
   Misc.try_finally (fun () ->
       let {
@@ -390,7 +392,7 @@ let save_cmi penv psig pm =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
           ~mode: [Open_binary] filename
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
-      (* Enter signature in persistent table so that imports()
+      (* Enter signature in consistbl so that imports()
          will also return its crc *)
       let ps =
         { ps_name = modname;
@@ -401,7 +403,7 @@ let save_cmi penv psig pm =
           ps_filename = filename;
           ps_flags = flags;
         } in
-      save_pers_struct penv crc ps pm
+      save_pers_struct penv crc ps
     )
     ~exceptionally:(fun () -> remove_file filename)
 

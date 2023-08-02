@@ -89,7 +89,7 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 val make_cmi : 'a t -> Compilation_unit.t -> Subst.Lazy.signature -> alerts
   -> Cmi_format.cmi_infos_lazy
 
-val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit
+val save_cmi : 'a t -> Persistent_signature.t -> unit
 
 val can_load_cmis : 'a t -> can_load_cmis
 val set_can_load_cmis : 'a t -> can_load_cmis -> unit
