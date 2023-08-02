@@ -40,8 +40,19 @@ type debug_frame_state =
 
 type t =
   { mutable state : debug_frame_state;
+    mutable checkpoint_state : debug_frame_state option;
     code_begin : Asm_symbol.t
   }
+
+let checkpoint t = t.checkpoint_state <- Some t.state
+
+let rollback t =
+  match t.checkpoint_state with
+  | None ->
+    failwith "debug_frame section: attempting to rollback without a checkpoint"
+  | Some s ->
+    t.state <- s;
+    t.checkpoint_state <- None
 
 let null_byte = Dwarf_value.uint8 Numbers.Uint8.zero
 
@@ -90,7 +101,10 @@ let cie_label =
 let cie_pointer () = Dwarf_value.offset_into_debug_frame (Lazy.force cie_label)
 
 let create ~code_begin =
-  { state = { current_fde = None; complete_fdes = [] }; code_begin }
+  { state = { current_fde = None; complete_fdes = [] };
+    checkpoint_state = None;
+    code_begin
+  }
 
 let process_cfi_startproc t ~address =
   t.state

@@ -74,9 +74,13 @@ let dwarf_for_cfi_endproc t ~address =
   let debug_frame_section = DS.debug_frame_section t.state in
   Debug_frame_section.process_cfi_endproc debug_frame_section ~address
 
-let checkpoint t = Debug_line_section.checkpoint (DS.debug_line_section t.state)
+let checkpoint t =
+  Debug_line_section.checkpoint (DS.debug_line_section t.state);
+  Debug_frame_section.checkpoint (DS.debug_frame_section t.state)
 
-let rollback t = Debug_line_section.rollback (DS.debug_line_section t.state)
+let rollback t =
+  Debug_line_section.rollback (DS.debug_line_section t.state);
+  Debug_frame_section.rollback (DS.debug_frame_section t.state)
 
 let emit t =
   if t.emitted
