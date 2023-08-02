@@ -27,6 +27,50 @@
 
 module L = Linear
 
+module type S_key = sig
+  type t
+
+  type key = t
+
+  module Raw_set : Set.S with type elt = t
+
+  module Set : sig
+    type t =
+      | Ok of Raw_set.t
+      | Unreachable
+
+    val of_list : key list -> t
+
+    val union : t -> t -> t
+
+    val inter : t -> t -> t
+
+    val diff : t -> t -> t
+
+    (** This should return the initial value in the [Unreachable] case *)
+    val fold : (key -> 'a -> 'a) -> t -> 'a -> 'a
+
+    val print : Format.formatter -> t -> unit
+  end
+
+  module Map : Map.S with type key = t
+
+  (** Print a representation (typically sexp) of the given key to the given
+        formatter. *)
+  val print : Format.formatter -> t -> unit
+
+  (** In some situations, for performance reasons, an "available" set may only
+        contain a subset of all keys that need to be tracked. For example, when
+        using a notion of availability that describes which lexical block a
+        given instruction lies in, using a standard notion of nested lexical
+        blocks, the innermost lexical block uniquely determines the chain of its
+        parents. (This is exploited in [Lexical_block_ranges].) The
+        [all_parents] function must return, given an "available" [key], all
+        those other keys that are also available and uniquely determined by
+        [key]. *)
+  val all_parents : t -> t list
+end
+
 (** The type of caller-defined contextual state associated with subranges. This
     may be used to track information throughout the range-computing process. *)
 module type S_subrange_state = sig
@@ -93,50 +137,7 @@ module type S_functor = sig
       these names being provided to retrieve them. The notion of "availability"
       is not prescribed. The availability sets are used to compute subranges
       associated to each key. *)
-  module Key : sig
-    (** The type of identifiers that define ranges. *)
-    type t
-
-    type key = t
-
-    module Raw_set : Set.S with type elt = t
-
-    module Set : sig
-      type t =
-        | Ok of Raw_set.t
-        | Unreachable
-
-      val of_list : key list -> t
-
-      val union : t -> t -> t
-
-      val inter : t -> t -> t
-
-      val diff : t -> t -> t
-
-      (** This should return the initial value in the [Unreachable] case *)
-      val fold : (key -> 'a -> 'a) -> t -> 'a -> 'a
-
-      val print : Format.formatter -> t -> unit
-    end
-
-    module Map : Map.S with type key = t
-
-    (** Print a representation (typically sexp) of the given key to the given
-        formatter. *)
-    val print : Format.formatter -> t -> unit
-
-    (** In some situations, for performance reasons, an "available" set may only
-        contain a subset of all keys that need to be tracked. For example, when
-        using a notion of availability that describes which lexical block a
-        given instruction lies in, using a standard notion of nested lexical
-        blocks, the innermost lexical block uniquely determines the chain of its
-        parents. (This is exploited in [Lexical_block_ranges].) The
-        [all_parents] function must return, given an "available" [key], all
-        those other keys that are also available and uniquely determined by
-        [key]. *)
-    val all_parents : t -> t list
-  end
+  module Key : S_key
 
   (** The module [Range_info] is used to store additional information on a range
       that is associated to a range at its creation and can be retrieved from
@@ -189,36 +190,7 @@ module type S = sig
   module Index : Identifiable.S
 
   (** Corresponds to [Key] in the [S_functor] module type. *)
-  module Key : sig
-    type t
-
-    type key = t
-
-    module Raw_set : Set.S with type elt = t
-
-    module Set : sig
-      type t =
-        | Ok of Raw_set.t
-        | Unreachable
-
-      val of_list : key list -> t
-
-      val union : t -> t -> t
-
-      val inter : t -> t -> t
-
-      val diff : t -> t -> t
-
-      (** This should return the initial value in the [Unreachable] case *)
-      val fold : (key -> 'a -> 'a) -> t -> 'a -> 'a
-
-      val print : Format.formatter -> t -> unit
-    end
-
-    module Map : Map.S with type key = t
-
-    val print : Format.formatter -> t -> unit
-  end
+  module Key : S_key
 
   (** Corresponds to [Subrange_state] in the [S_functor] module type. *)
   module Subrange_state : S_subrange_state
