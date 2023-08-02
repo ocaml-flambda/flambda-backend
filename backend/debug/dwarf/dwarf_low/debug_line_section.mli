@@ -17,4 +17,8 @@ val add_line_number_matrix_row :
   discriminator:int option ->
   unit
 
+val checkpoint : t -> unit
+
+val rollback : t -> unit
+
 include Dwarf_emittable.S with type t := t

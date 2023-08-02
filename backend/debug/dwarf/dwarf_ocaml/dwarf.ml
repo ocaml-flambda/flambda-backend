@@ -60,6 +60,12 @@ let dwarf_for_line_number_matrix_row t ~instr_address ~file_num ~line ~col
   Debug_line_section.add_line_number_matrix_row debug_line_section
     ~instr_address ~file_num ~line ~col ~discriminator
 
+let debug_line_checkpoint t =
+  Debug_line_section.checkpoint (DS.debug_line_section t.state)
+
+let debug_line_rollback t =
+  Debug_line_section.rollback (DS.debug_line_section t.state)
+
 let emit t =
   if t.emitted
   then

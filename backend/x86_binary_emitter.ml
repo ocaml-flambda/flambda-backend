@@ -1745,6 +1745,7 @@ let assemble_section arch section =
     (*     if !passes >= 2 then Printf.eprintf "[binary backend] pass %i\n%!" !passes; *)
     let b = new_buffer section in
     local_relocs := [];
+    Emitaux.Dwarf_helpers.debug_line_checkpoint ();
 
     let loc = ref 0 in
     ArrayLabels.iter ~f:(assemble_line b loc) section.sec_instrs;
@@ -1796,7 +1797,9 @@ let assemble_section arch section =
     ListLabels.iter !local_relocs ~f:(fun (pos, local_reloc) ->
         do_local_reloc pos local_reloc);
 
-    if !retry then iter_assemble () else b
+    if !retry 
+    then let _ = Emitaux.Dwarf_helpers.debug_line_rollback () in iter_assemble () 
+    else b
   in
   iter_assemble ()
 
