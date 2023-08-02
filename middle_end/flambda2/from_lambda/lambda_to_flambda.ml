@@ -42,6 +42,8 @@ module Env : sig
 
   val current_unit : t -> Compilation_unit.t
 
+  val ident_stamp_upon_starting : t -> int
+
   val is_mutable : t -> Ident.t -> bool
 
   val register_mutable_variable : t -> Ident.t -> Lambda.layout -> t * Ident.t
@@ -195,7 +197,8 @@ end = struct
       my_region : Ident.t;
       region_stack : region_stack_element list;
       region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
-      region_closure_continuations : region_closure_continuation Ident.Map.t
+      region_closure_continuations : region_closure_continuation Ident.Map.t;
+      ident_stamp_upon_starting : int
     }
 
   let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
@@ -203,6 +206,8 @@ end = struct
       Continuation.Map.of_list
         [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
     in
+    let id = Ident.create_local "unused" in
+    let ident_stamp_upon_starting = Ident.stamp id in
     { current_unit;
       current_values_of_mutables_in_scope = Ident.Map.empty;
       mutables_needed_by_continuations;
@@ -214,10 +219,13 @@ end = struct
       region_stack = [];
       region_stack_in_cont_scope =
         Continuation.Map.singleton return_continuation [];
-      region_closure_continuations = Ident.Map.empty
+      region_closure_continuations = Ident.Map.empty;
+      ident_stamp_upon_starting
     }
 
   let current_unit t = t.current_unit
+
+  let ident_stamp_upon_starting t = t.ident_stamp_upon_starting
 
   let is_mutable t id = Ident.Map.mem id t.current_values_of_mutables_in_scope
 
@@ -1017,6 +1025,14 @@ let name_if_not_var acc ccenv name simple kind body =
       [id, kind]
       Not_user_visible (IR.Simple simple) ~body:(body id)
 
+let is_user_visible env id ~(default : IR.user_visible) : IR.user_visible =
+  if Ident.stamp id >= Env.ident_stamp_upon_starting env
+  then Not_user_visible
+  else
+    let name = Ident.name id in
+    let len = String.length name in
+    if len > 0 && Char.equal name.[0] '*' then Not_user_visible else default
+
 let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
@@ -1055,6 +1071,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
       ~current_region:(Env.current_region env)
   | Lmutlet (value_kind, id, defining_expr, body) ->
+    (* CR mshinwell: user-visibleness needs thinking about here *)
     let temp_id = Ident.create_local "let_mutable" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[temp_id, IR.Not_user_visible, value_kind]
@@ -1084,7 +1101,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let body acc ccenv = cps acc env ccenv body k k_exn in
     CC.close_let acc ccenv
       [id, Flambda_kind.With_subkind.from_lambda layout]
-      User_visible (Simple (Const const)) ~body
+      (is_user_visible env id ~default:User_visible)
+      (Simple (Const const)) ~body
   | Llet
       ( ((Strict | Alias | StrictOpt) as let_kind),
         layout,
@@ -1110,7 +1128,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           let region = Env.current_region env in
           CC.close_let acc ccenv
             [id, Flambda_kind.With_subkind.from_lambda layout]
-            User_visible
+            (is_user_visible env id ~default:User_visible)
             (Prim { prim; args; loc; exn_continuation; region })
             ~body)
         k_exn
@@ -1201,7 +1219,6 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       | Ptop | Pbottom ->
         Misc.fatal_errorf "Invalid result layout %a for primitive %a"
           Printlambda.layout result_layout Printlambda.primitive prim);
-      (* CR mshinwell: find a way of making these lets non-user-visible *)
       cps acc env ccenv
         (L.Llet (Strict, result_layout, id, lam, L.Lvar id))
         k k_exn)
