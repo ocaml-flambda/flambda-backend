@@ -23,6 +23,7 @@ type mapper =
   {
     binding_op: mapper -> binding_op -> binding_op;
     case: 'k . mapper -> 'k case -> 'k case;
+    case_rhs: mapper -> case_rhs -> case_rhs;
     class_declaration: mapper -> class_declaration -> class_declaration;
     class_description: mapper -> class_description -> class_description;
     class_expr: mapper -> class_expr -> class_expr;
@@ -37,7 +38,6 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
-    guard: mapper -> guard -> guard;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;
@@ -766,24 +766,28 @@ let value_bindings sub (rec_flag, list) =
 
 let case
   : type k . mapper -> k case -> k case
-  = fun sub {c_lhs; c_guard; c_rhs} ->
+  = fun sub {c_lhs; c_rhs} ->
   {
     c_lhs = sub.pat sub c_lhs;
-    c_guard = Option.map (sub.guard sub) c_guard;
-    c_rhs = sub.expr sub c_rhs;
+    c_rhs = sub.case_rhs sub c_rhs;
   }
 
-let guard sub = function
-  | Predicate p -> Predicate (sub.expr sub p)
-  | Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial; pg_env;
-              pg_loc; } ->
-      Pattern
+let case_rhs sub = function
+  | Simple_rhs e -> Simple_rhs (sub.expr sub e)
+  | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+      Boolean_guarded_rhs
+        { bg_guard = sub.expr sub bg_guard; bg_rhs = sub.expr sub bg_rhs }
+  | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases; pg_partial;
+                          pg_loc; pg_env; pg_type } ->
+      Pattern_guarded_rhs
         { pg_scrutinee = sub.expr sub pg_scrutinee
         ; pg_scrutinee_sort
-        ; pg_pattern = sub.pat sub pg_pattern
+        ; pg_cases = List.map (sub.case sub) pg_cases
         ; pg_partial
-        ; pg_env
-        ; pg_loc }
+        ; pg_loc
+        ; pg_env = sub.env sub pg_env
+        ; pg_type
+        }
 
 let value_binding sub x =
   let vb_pat = sub.pat sub x.vb_pat in
@@ -796,6 +800,7 @@ let default =
   {
     binding_op;
     case;
+    case_rhs;
     class_declaration;
     class_description;
     class_expr;
@@ -807,7 +812,6 @@ let default =
     class_type_field;
     env;
     expr;
-    guard;
     extension_constructor;
     module_binding;
     module_coercion;

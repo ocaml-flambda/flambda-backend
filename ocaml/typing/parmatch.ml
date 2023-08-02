@@ -1841,8 +1841,9 @@ let pressure_variants_in_computation_pattern tdefs patl =
 
 let rec initial_matrix = function
     [] -> []
-  | {c_guard=Some _} :: rem -> initial_matrix rem
-  | {c_guard=None; c_lhs=p} :: rem -> [p] :: initial_matrix rem
+  | { c_rhs = Simple_rhs _; c_lhs = p } :: rem -> [p] :: initial_matrix rem
+  | { c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _; _ } :: rem ->
+      initial_matrix rem
 
 (*
    Build up a working pattern matrix by keeping
@@ -1850,10 +1851,10 @@ let rec initial_matrix = function
 *)
 let rec initial_only_guarded = function
   | [] -> []
-  | { c_guard = None; _} :: rem ->
+  | { c_rhs = Simple_rhs _; _ } :: rem ->
       initial_only_guarded rem
-  | { c_lhs = pat; _ } :: rem ->
-      [pat] :: initial_only_guarded rem
+  | { c_lhs = pat; c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _ }
+    :: rem -> [pat] :: initial_only_guarded rem
 
 
 (************************)
@@ -2101,11 +2102,15 @@ let do_check_fragile loc casel pss =
 (********************************)
 
 let check_unused pred casel =
+  let is_refutation_case = function
+    | Simple_rhs { exp_desc = Texp_unreachable; _ } -> true
+    | Simple_rhs _ | Boolean_guarded_rhs _ | Pattern_guarded_rhs _ -> false
+  in
   if Warnings.is_active Warnings.Redundant_case
-  || List.exists (fun c -> c.c_rhs.exp_desc = Texp_unreachable) casel then
+  || List.exists (fun case -> is_refutation_case case.c_rhs) casel then
     let rec do_rec pref = function
       | [] -> ()
-      | {c_lhs=q; c_guard; c_rhs} :: rem ->
+      | {c_lhs=q; c_rhs} :: rem ->
           let qs = [q] in
             begin try
               let pss =
@@ -2116,7 +2121,7 @@ let check_unused pred casel =
                 |> get_mins le_pats in
               (* First look for redundant or partially redundant patterns *)
               let r = every_satisfiables (make_rows pss) (make_row qs) in
-              let refute = (c_rhs.exp_desc = Texp_unreachable) in
+              let refute = is_refutation_case c_rhs in
               (* Do not warn for unused [pat -> .] *)
               if r = Unused && refute then () else
               let r =
@@ -2163,11 +2168,11 @@ let check_unused pred casel =
             with Empty | Not_found -> assert false
             end ;
 
-          if c_guard <> None then
+          if is_guarded_rhs c_rhs then
             do_rec pref rem
           else
-            do_rec ([q]::pref) rem in
-
+            do_rec ([q]::pref) rem
+    in
     do_rec [] casel
 
 (*********************************)
@@ -2442,15 +2447,9 @@ let pattern_stable_vars ns p =
     (List.fold_left (fun m n -> Negative n :: m)
        [Positive {varsets = []; row = [p]}] ns)
 
-(* All identifier paths that appear in an expression that occurs
-   as a clause right hand side or guard.
-*)
+(* All identifier paths that appear in a case rhs's guard. *)
 
-let all_rhs_idents guard =
-  let exp = match guard with
-    | Predicate p -> p
-    | Pattern { pg_scrutinee; _ } -> pg_scrutinee
-  in
+let all_guard_idents c_rhs =
   let ids = ref Ident.Set.empty in
   let open Tast_iterator in
   let expr_iter iter exp =
@@ -2461,7 +2460,14 @@ let all_rhs_idents guard =
     | _ -> Tast_iterator.default_iterator.expr iter exp
   in
   let iterator = {Tast_iterator.default_iterator with expr = expr_iter} in
-  iterator.expr iterator exp;
+  let rec rhs_iter = function
+    | Simple_rhs _ -> ()
+    | Boolean_guarded_rhs { bg_guard; _ } -> iterator.expr iterator bg_guard
+    | Pattern_guarded_rhs { pg_scrutinee; pg_cases; _ } ->
+        iterator.expr iterator pg_scrutinee;
+        List.iter (fun case -> rhs_iter case.c_rhs) pg_cases
+  in
+  rhs_iter c_rhs;
   !ids
 
 let check_ambiguous_bindings =
@@ -2470,10 +2476,13 @@ let check_ambiguous_bindings =
   fun cases ->
     if is_active warn0 then
       let check_case ns case = match case with
-        | { c_lhs = p; c_guard=None ; _} -> [p]::ns
-        | { c_lhs=p; c_guard=Some g; _} ->
+        | { c_lhs = p; c_rhs = Simple_rhs _ } -> [p]::ns
+        | { c_lhs = p
+          ; c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _ as c_rhs
+          ; _
+          } ->
             let all =
-              Ident.Set.inter (pattern_vars p) (all_rhs_idents g) in
+              Ident.Set.inter (pattern_vars p) (all_guard_idents c_rhs) in
             if not (Ident.Set.is_empty all) then begin
               match pattern_stable_vars ns p with
               | All -> ()

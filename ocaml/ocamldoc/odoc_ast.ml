@@ -301,31 +301,35 @@ module Analyser =
          (* we look if the name of the parameter we just add is "*opt*", which means
             that there is a let param_name = ... in ... just right now *)
           let (p, next_exp) =
-            match parameter with
-              Simple_name { sn_name = "*opt*" } ->
-                (
-                 (
-                  match func_body.exp_desc with
-                    Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _) };
-                                            vb_expr=exp} :: _, func_body2) ->
-                      let name = Name.from_ident id in
-                      let new_param = Simple_name
-                          { sn_name = name ;
-                            sn_text = Odoc_parameter.desc_from_info_opt current_comment_opt name ;
-                            sn_type = Odoc_env.subst_type env exp.exp_type
-                          }
-                      in
-                      (new_param, func_body2)
-                  | _ ->
-                      (parameter, func_body)
-                 )
-                )
-            | _ ->
-                (parameter, func_body)
+            match func_body with
+            | Pattern_guarded_rhs _ -> parameter, None
+            | Simple_rhs func_body
+            | Boolean_guarded_rhs { bg_rhs = func_body; _ } ->
+                match parameter with
+                  Simple_name { sn_name = "*opt*" } ->
+                    (
+                     (
+                      match func_body.exp_desc with
+                        Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _) };
+                                                vb_expr=exp} :: _, func_body2) ->
+                          let name = Name.from_ident id in
+                          let new_param = Simple_name
+                              { sn_name = name ;
+                                sn_text = Odoc_parameter.desc_from_info_opt current_comment_opt name ;
+                                sn_type = Odoc_env.subst_type env exp.exp_type
+                              }
+                          in
+                          (new_param, Some func_body2)
+                      | _ ->
+                          (parameter, Some func_body)
+                      )
+                     )
+                | _ ->
+                    parameter, Some func_body
           in
          (* continue if the body is still a function *)
-          match next_exp.exp_desc with
-            Texp_function { cases = pat_exp_list ; _ } ->
+          match next_exp with
+          | Some { exp_desc = Texp_function { cases = pat_exp_list ; _ } } ->
               p :: (tt_analyse_function_parameters env current_comment_opt pat_exp_list)
           | _ ->
               (* something else ; no more parameter *)
@@ -445,8 +449,8 @@ module Analyser =
                          sn_type = Odoc_env.subst_type env pattern_param.Typedtree.pat_type }
                    in
                    [ new_param ]
-
-               | {c_lhs=pattern_param; c_rhs=body} :: [] ->
+               | {c_rhs=Pattern_guarded_rhs _} :: [] -> []
+               | {c_lhs=pattern_param; c_rhs=Simple_rhs body | Boolean_guarded_rhs {bg_rhs = body}} :: [] ->
                    (* if this is the first call to the function, this is the first parameter and we skip it *)
                    if not first then
                      (

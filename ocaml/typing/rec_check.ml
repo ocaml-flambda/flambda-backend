@@ -1189,22 +1189,22 @@ and value_bindings : rec_flag -> Typedtree.value_binding list -> bind_judg =
 *)
 and case
     : 'k . 'k Typedtree.case -> mode -> Env.t * mode
-  = fun { Typedtree.c_lhs; c_guard; c_rhs } ->
-      let judg = match c_guard with
+  = fun { Typedtree.c_lhs; c_rhs } ->
+      let judg = match c_rhs with
         (*
            p : mp -| G    G |- e : m
            ----------------------------
            G - p; m[mp] |- (p -> e) : m
         *)
-        | None -> expression c_rhs
+        | Simple_rhs rhs -> expression rhs
         (*
            Ge |- e : m    Gg |- g : m[Dereference]
            G := Ge+Gg     p : mp -| G
            ---------------------------------------
            G - p; m[mp] |- (p when g -> e) : m
         *)
-        | Some (Predicate p) ->
-            join [ expression p << Dereference; expression c_rhs ]
+        | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+            join [ expression bg_guard << Dereference; expression bg_rhs ]
         (*
            G |- (match e1 with p2 -> e2) : m
            p1 : mp -| G
@@ -1214,9 +1214,8 @@ and case
            This judgement uses uses the one in [match_expression] as a
            "subroutine."
         *)
-        | Some (Pattern { pg_scrutinee = e; pg_pattern = pat; _ }) ->
-          let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
-          match_expression e cases
+        | Pattern_guarded_rhs { pg_scrutinee; pg_cases; _ } ->
+          match_expression pg_scrutinee pg_cases
       in
       (fun m ->
         let env = judg m in

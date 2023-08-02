@@ -43,20 +43,13 @@ let bind_bindings scope bindings =
 
 let bind_cases l =
   List.iter
-    (fun {c_lhs; c_guard; c_rhs} ->
+    (fun {c_lhs; c_rhs} ->
       let loc =
-        let open Location in
-        match c_guard with
-        | None -> c_rhs.exp_loc
-        | Some g ->
-          let gexp =
-            match g with
-            | Predicate pred -> pred
-            | Pattern { pg_scrutinee; pg_pattern; _ } ->
-                bind_variables c_rhs.exp_loc pg_pattern;
-                pg_scrutinee
-              in
-          {c_rhs.exp_loc with loc_start=gexp.exp_loc.loc_start}
+        match c_rhs with
+        | Simple_rhs rhs -> rhs.exp_loc
+        | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+            { bg_rhs.exp_loc with loc_start = bg_guard.exp_loc.loc_start }
+        | Pattern_guarded_rhs { pg_loc; _ } -> pg_loc
       in
       bind_variables loc c_lhs
     )
