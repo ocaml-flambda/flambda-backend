@@ -52,5 +52,5 @@ let write t section_table buf =
         (* 24 is the size of each relocation entry *)
         let idx = (i * 24) + Int64.to_int table.sh_offset in
         Relocation_entry.write relocation (cursor buf ~at:idx))
-      t.relocations
+      (List.rev t.relocations)
   | None -> ()
