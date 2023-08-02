@@ -26,51 +26,40 @@ module = "category.mli"
 flags = "-parameter Semigroup -as-argument-for Monoid"
 module = "monoid_of_semigroup.mli"
 ****** ocamlc.byte
+(* Invoke the compiler separately on .mli and .ml just this once to make sure
+   things work this way as well *)
 module = "monoid_of_semigroup.ml"
 ******* ocamlc.byte
 flags = "-as-parameter"
 module = "list_element.mli"
 ******** ocamlc.byte
 flags = "-parameter List_element -as-argument-for Monoid"
-module = "list_monoid.mli"
+module = "list_monoid.mli list_monoid.ml"
 ********* ocamlc.byte
-module = "list_monoid.ml"
-********** ocamlc.byte
 flags = "-parameter Monoid"
-module = "monoid_utils.mli"
+module = "monoid_utils.mli monoid_utils.ml"
+flags = "-parameter Category"
+module = "chain.mli chain.ml"
 *********** ocamlc.byte
-module = "monoid_utils.ml"
+flags = "-parameter Category"
+module = "category_utils.mli category_utils.ml"
 ************ ocamlc.byte
-flags = "-parameter Category"
-module = "chain.mli"
-************* ocamlc.byte
-module = "chain.ml"
-************** ocamlc.byte
-flags = "-parameter Category"
-module = "category_utils.mli"
-*************** ocamlc.byte
-module = "category_utils.ml"
-**************** ocamlc.byte
 flags = "-parameter Monoid -as-argument-for Category"
-module = "category_of_monoid.mli"
-***************** ocamlc.byte
-module = "category_of_monoid.ml"
-****************** ocamlc.byte
+module = "category_of_monoid.mli category_of_monoid.ml"
+************* ocamlc.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "import.ml"
-******************* ocamlc.byte
+************** ocamlc.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
-******************** ocamlc.byte
+*************** ocamlc.byte
 flags += " -i"
 module = "main.ml"
-********************* check-ocamlc.byte-output
+**************** check-ocamlc.byte-output
 compiler_reference = "main.reference"
-******************** ocamlc.byte
+*************** ocamlc.byte
 module = "main.ml"
-********************* ocamlobjinfo
-program = "main.cmo"
-********************** ocamlobjinfo
-program = "main.cmi"
-*********************** check-program-output
+**************** ocamlobjinfo
+program = "main.cmo main.cmi"
+***************** check-program-output
 *)
