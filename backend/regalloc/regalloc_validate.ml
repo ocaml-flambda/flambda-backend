@@ -483,7 +483,10 @@ end = struct
           id old_successor_id successor_id;
       (* CR-someday azewierzejew: Avoid using polymrphic compare. *)
       (match instr.desc, old_instr.desc with
-      | Op (Name_for_debugger _), Op (Name_for_debugger _) -> ()
+      | Op (Name_for_debugger _), Op (Name_for_debugger _) ->
+        (* IRC uses `Reg.interf` to represent the adjacency lists for the
+           interference graph, which can lead to cycles. *)
+        ()
       | _ ->
         if instr.desc <> old_instr.desc
         then
