@@ -99,7 +99,6 @@ module Section_name : sig
   val to_string : t -> string
   val flags : t -> string option
   val alignment : t -> int64
-
   val is_text_like : t -> bool
   val is_data_like : t -> bool
   val is_note_like : t -> bool
