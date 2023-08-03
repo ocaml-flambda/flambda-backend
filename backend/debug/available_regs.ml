@@ -261,16 +261,19 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
                   | Iendregion -> true
                   | _ -> false
                 in
+                let reg_is_of_type_addr =
+                  match (RD.reg reg).typ with
+                  | Addr -> true
+                  | Val | Int | Float | Vec128 -> false
+                in
                 if remains_available
                    || (not (extend_live ()))
                    || is_end_region
                    || (not (Reg.is_local_stack_slot (RD.reg reg)))
                    || RD.Set.mem reg made_unavailable_1
-                   || !disable_extend_live
+                   || reg_is_of_type_addr || !disable_extend_live
                 then not remains_available
                 else (
-                  (* Format.eprintf "adding %a\n%!" (RD.print
-                     ~print_reg:Printmach.reg) reg;*)
                   instr.live <- Reg.Set.add (RD.reg reg) instr.live;
                   false))
               avail_before
