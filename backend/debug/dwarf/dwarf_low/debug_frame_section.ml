@@ -1,4 +1,16 @@
-(* CR mshinwell: add headers (also to mli) *)
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*                    Oscar Hill, Jane Street Europe                      *)
+(*                                                                        *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
 
 open Asm_targets
 
@@ -71,8 +83,7 @@ let int_to_uleb128 n =
 
 let null_byte = int_to_uint8 0
 
-(* CR mshinwell: "let cie_id () = ..." *)
-let cie_id =
+let cie_id () =
   if !Dwarf_flags.gdwarf_use_eh_frame
   then int_to_uint32 0
   else
@@ -83,8 +94,7 @@ let cie_id =
       Dwarf_value.uint64
         (Numbers.Uint64.of_nonnegative_int64_exn 0xffffffffffffffffL)
 
-(* CR mshinwell: same here *)
-let version =
+let version () =
   if !Dwarf_flags.gdwarf_use_eh_frame then int_to_uint8 1 else int_to_uint8 4
 
 let augmentation = null_byte
@@ -251,7 +261,8 @@ let initial_length_size () =
 
 let cie_size_without_padding_or_first_word () =
   let ( + ) = Dwarf_int.add in
-  Dwarf_value.size cie_id + Dwarf_value.size version
+  Dwarf_value.size (cie_id ())
+  + Dwarf_value.size (version ())
   + Dwarf_value.size augmentation
   + (if !Dwarf_flags.gdwarf_use_eh_frame
     then Dwarf_int.zero ()
@@ -320,10 +331,10 @@ let emit_initial_length_field ~asm_directives length =
 
 let emit_cie ~asm_directives =
   emit_initial_length_field ~asm_directives (cie_size_without_first_word ());
-  Dwarf_value.emit ~asm_directives cie_id;
+  Dwarf_value.emit ~asm_directives (cie_id ());
   (* Dwarf_version is not used because the version field is one byte, not two
      bytes *)
-  Dwarf_value.emit ~asm_directives version;
+  Dwarf_value.emit ~asm_directives (version ());
   Dwarf_value.emit ~asm_directives augmentation;
   if not !Dwarf_flags.gdwarf_use_eh_frame
   then (
