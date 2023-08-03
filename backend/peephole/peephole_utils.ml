@@ -33,15 +33,13 @@ let update_csv str =
   | rows_hd :: rows_tl ->
     IntCsv.set_rows csv (IntCsv.update_row rows_hd str IntCell.update :: rows_tl)
 
-(* CR gtulba-lecu for gtulba-lecu: make sure that this comparison is correct and
-   sufficent. *)
+(* CR-someday gtulba-lecu: make sure that this comparison is correct and
+   sufficent. Take into consideration using Proc.regs_are_volatile in the
+   future. As we only support amd64 and Proc.regs_are_volatile is always false
+   in amd64 this is not necessary for now. See backend/cfg/cfg_deadcode.ml for
+   more details.*)
 let are_equal_regs (reg1 : Reg.t) (reg2 : Reg.t) =
   Reg.same_loc reg1 reg2 && reg1.typ = reg2.typ
-
-(* CR gtulba-lecu for gtulba-lecu: It would be nice to compute this based on the
-   rules, but since the layout of this code will probably change it's fine for
-   now. *)
-let go_back_const = 1
 
 (* convenient Doubly_linked_list manipulation functions *)
 let rec prev_at_most steps cell =
@@ -64,14 +62,19 @@ let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
-let bitwise_overflow_assert (imm1 : int) (imm2 : int) (op : int -> int -> int) =
-  let imm = op imm1 imm2 in
-  if imm <= 2147483647 && imm >= -2147483648 then true else assert false
+let bitwise_shift_assert (imm1 : int) (imm2 : int) =
+  if imm1 < 0 || imm1 > Sys.int_size || imm2 < 0 || imm2 > Sys.int_size
+  then assert false
+  [@@inline]
 
-let no_32_bit_overflow imm1 imm2 op =
+(* CR-someday gtulba-lecu: This is architecture specific and should be moved in
+   a different part of the compiler that is specific to the amd64 architecture.
+   This is fine for now as we only support amd64. *)
+let amd64_imm32_within_bounds imm1 imm2 op =
   let imm = op imm1 imm2 in
-  -2147483648 <= imm && imm <= 2147483647
+  Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int
+  [@@inline]
 
-type rule =
-  Cfg.basic Cfg.instruction DLL.cell ->
-  Cfg.basic Cfg.instruction DLL.cell option
+let amd64_imm32_within_bounds_assert_if_false imm1 imm2 op =
+  if amd64_imm32_within_bounds imm1 imm2 op then true else assert false
+  [@@inline]

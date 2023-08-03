@@ -1,7 +1,9 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Peephole_utils
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
-val generated_rules : rule
+val apply :
+  Cfg.basic Cfg.instruction DLL.cell ->
+  Cfg.basic Cfg.instruction DLL.cell option
 
 val generated_rule_names : string list

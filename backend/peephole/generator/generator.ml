@@ -174,7 +174,7 @@ module Condition : sig
 
   val make_no_shift_overflow : fst:string -> snd:string -> t
 
-  val make_no_bitwise_overflow_assert :
+  val make_no_amd64_imm32_within_bounds_assert_if_false :
     fst:string -> snd:string -> op:Operator.t -> t
 
   val make_is_lsl_imm32 : fst:string -> t
@@ -206,7 +206,7 @@ end = struct
         { fst : string;
           snd : string
         }
-    | No_bitwise_overflow_assert of
+    | No_amd64_imm32_within_bounds_assert_if_false of
         { fst : string;
           snd : string;
           op : Operator.t
@@ -225,8 +225,8 @@ end = struct
 
   let make_no_shift_overflow ~fst ~snd = No_shift_overflow { fst; snd }
 
-  let make_no_bitwise_overflow_assert ~fst ~snd ~op =
-    No_bitwise_overflow_assert { fst; snd; op }
+  let make_no_amd64_imm32_within_bounds_assert_if_false ~fst ~snd ~op =
+    No_amd64_imm32_within_bounds_assert_if_false { fst; snd; op }
 
   let make_is_lsl_imm32 ~fst = Is_lsl_imm32 fst
 
@@ -235,13 +235,13 @@ end = struct
   let combine_any t_lst = Or t_lst
 
   let rec to_string = function
-    | Are_equal { fst; snd } -> String.concat " " ["are_equal_regs"; fst; snd]
+    | Are_equal { fst; snd } -> String.concat " " ["U.are_equal_regs"; fst; snd]
     | No_add_overflow { fst; snd } ->
       String.concat " "
         [ "Misc.no_overflow_add";
           fst;
           snd;
-          "&& no_32_bit_overflow";
+          "&& U.amd64_imm32_within_bounds";
           fst;
           snd;
           "( + )" ]
@@ -250,7 +250,7 @@ end = struct
         [ "Misc.no_overflow_sub";
           fst;
           snd;
-          "&& no_32_bit_overflow";
+          "&& U.amd64_imm32_within_bounds";
           fst;
           snd;
           "( - )" ]
@@ -259,7 +259,7 @@ end = struct
         [ "Misc.no_overflow_mul";
           fst;
           snd;
-          "&& no_32_bit_overflow";
+          "&& U.amd64_imm32_within_bounds";
           fst;
           snd;
           "( * )" ]
@@ -273,9 +273,12 @@ end = struct
           "+";
           snd;
           "<= Sys.int_size" ]
-    | No_bitwise_overflow_assert { fst; snd; op } ->
+    | No_amd64_imm32_within_bounds_assert_if_false { fst; snd; op } ->
       String.concat " "
-        ["bitwise_overflow_assert"; fst; snd; Operator.to_ocaml_op op]
+        [ "U.amd64_imm32_within_bounds_assert_if_false";
+          fst;
+          snd;
+          Operator.to_ocaml_op op ]
     | Is_lsl_imm32 fst -> String.concat " " [fst; ">= 0 &&"; fst; "< 31"]
     | And lst -> "(" ^ String.concat "&&" (List.map to_string lst) ^ ")"
     | Or lst -> "(" ^ String.concat "||" (List.map to_string lst) ^ ")"
@@ -385,7 +388,7 @@ let get_cell_list slide_back name instr_names =
       ["let"; name; "(cell : Cfg.basic Cfg.instruction DLL.cell) ="];
     String.concat " " ["let slide_back ="; Int.to_string slide_back; "in"];
     String.concat " "
-      [ "  match get_cells cell";
+      [ "  match U.get_cells cell";
         List.length instr_names |> Int.to_string;
         "with" ];
     "  | None -> None";
@@ -445,11 +448,11 @@ let generate_case name instr_names
   @ check_condition condition @ apply_actions actions
   @ [ String.concat ""
         [ "if Option.is_some \
-           !Flambda_backend_flags.cfg_peephole_optimize_track then update_csv \
+           !Flambda_backend_flags.cfg_peephole_optimize_track then U.update_csv \
            \"";
           name;
           "\";" ];
-      String.concat "" ["Some ((prev_at_most slide_back) "; return_cell; ")"];
+      String.concat "" ["Some ((U.prev_at_most slide_back) "; return_cell; ")"];
       "))"
       (* closing `(` from check_condition and closing `(` from
          define_registers)*) ]
@@ -477,36 +480,36 @@ let construct_func_name_list funcs =
     @ ["]"])
 
 let construct_func_match_pref func =
-  [
-    String.concat " " ["match"; func.name; "cell with"];
-    "| None -> ("
-  ]
+  [String.concat " " ["match"; func.name; "cell with"]; "| None -> ("]
 
-let construct_func_match_suff =
-  [
-    "| res -> res)"
-  ]
+let construct_func_match_suff = ["| res -> res)"]
 
 let rec construct_generated_func' funcs lines_pref lines_suff =
   match funcs with
   | [] -> lines_pref @ lines_suff
-  | hd :: tl -> 
-    construct_generated_func' 
-    tl 
-    (construct_func_match_pref hd @ lines_pref) 
-    (lines_suff @ construct_func_match_suff)
+  | hd :: tl ->
+    construct_generated_func' tl
+      (construct_func_match_pref hd @ lines_pref)
+      (lines_suff @ construct_func_match_suff)
 
 let construct_generated_func funcs =
   let rev_funcs = List.rev funcs in
   let rev_funcs_tl = List.tl rev_funcs in
   let rev_funcs_hd = List.hd rev_funcs in
-  let lines = [
-    String.concat " " ["match"; rev_funcs_hd.name; "cell with"];
-    "| None -> None";
-    "| res -> res)";
-  ] in
-  String.concat "\n" (["let generated_rules cell = ("] @ (construct_generated_func' rev_funcs_tl lines [] ))
+  let lines =
+    [ String.concat " " ["match"; rev_funcs_hd.name; "cell with"];
+      "| None -> None";
+      "| res -> res)" ]
+  in
+  String.concat "\n"
+    (["let apply cell = ("] @ construct_generated_func' rev_funcs_tl lines [])
 
+(** Logical condition for simplifying the following case:
+    {|
+    mov x, y
+    mov y, x
+    |}
+    In this case, the second instruction should be removed *)
 let useles_movs =
   { name = "useless_movs";
     instr_names = ["mov1"; "mov2"];
@@ -523,10 +526,37 @@ let useles_movs =
         } ]
   }
 
+(** Logical condition for simplifying the following case:
+  {|
+    <op 1> const1, r
+    <op 2> const2, r
+  |}
+  to:
+  {|
+    <op 1> (const1 <op 2> const2), r
+  |}
+   Where <op 1> and <op 2> can be any two binary operators that are associative and commutative
+   and const1 and const2 are immediate values. *)
+
+(* The following checks regarding Condition.make_are_equal in the condition part
+   of each case do the following: 1. Ensure that both instructions use the same
+   source register; 2. Ensure that both instructions output the result to the
+   source register, this is redundant for amd64 since there are no instructions
+   that invalidate this condition. *)
+
+(* CR-someday gtulba-lecu: This conditions are architecture specific and should
+   either live in amd64 specific code or this module should contain information
+   about the architecture target. *)
+
 let fold_intop_imm_bitwise =
   { name = "fold_intop_imm_bitwise";
     instr_names = ["op1"; "op2"];
     cases =
+      (* For the following three cases we have the issue that in some
+         situations, one or both immediate values could be out of bounds, but
+         the result might be within bounds (e.g. imm1 = -4 and imm2 = 65, their
+         sum being 61). This should not happen at all since the immediate values
+         should always be within the bounds [0, Sys.int_size]. *)
       [ { instrs =
             [ Instruction.make_int_operation ~fst:"reg1" ~snd:"reg2" ~imm:"imm1"
                 ~op:Operator.Shl;
@@ -590,6 +620,8 @@ let fold_intop_imm_bitwise =
               Action.make_delete ~instr:"op2" ];
           return_cell = "op3"
         };
+        (* Folding two bitwise operations such as (AND, OR, XOR) should never
+           produce an overflow so we assert this conditon. *)
         { instrs =
             [ Instruction.make_int_operation ~fst:"reg1" ~snd:"reg2" ~imm:"imm1"
                 ~op:Operator.And;
@@ -600,8 +632,8 @@ let fold_intop_imm_bitwise =
               [ Condition.make_are_equal ~fst:"reg1" ~snd:"reg2";
                 Condition.make_are_equal ~fst:"reg3" ~snd:"reg4";
                 Condition.make_are_equal ~fst:"reg1" ~snd:"reg3";
-                Condition.make_no_bitwise_overflow_assert ~fst:"imm1"
-                  ~snd:"imm2" ~op:Operator.And ];
+                Condition.make_no_amd64_imm32_within_bounds_assert_if_false
+                  ~fst:"imm1" ~snd:"imm2" ~op:Operator.And ];
           actions =
             [ Action.make_add_before_return ~curr_instr:"op1"
                 ~new_instr_name:"op3"
@@ -622,8 +654,8 @@ let fold_intop_imm_bitwise =
               [ Condition.make_are_equal ~fst:"reg1" ~snd:"reg2";
                 Condition.make_are_equal ~fst:"reg3" ~snd:"reg4";
                 Condition.make_are_equal ~fst:"reg1" ~snd:"reg3";
-                Condition.make_no_bitwise_overflow_assert ~fst:"imm1"
-                  ~snd:"imm2" ~op:Operator.Or ];
+                Condition.make_no_amd64_imm32_within_bounds_assert_if_false
+                  ~fst:"imm1" ~snd:"imm2" ~op:Operator.Or ];
           actions =
             [ Action.make_add_before_return ~curr_instr:"op1"
                 ~new_instr_name:"op3"
@@ -644,8 +676,8 @@ let fold_intop_imm_bitwise =
               [ Condition.make_are_equal ~fst:"reg1" ~snd:"reg2";
                 Condition.make_are_equal ~fst:"reg3" ~snd:"reg4";
                 Condition.make_are_equal ~fst:"reg1" ~snd:"reg3";
-                Condition.make_no_bitwise_overflow_assert ~fst:"imm1"
-                  ~snd:"imm2" ~op:Operator.Xor ];
+                Condition.make_no_amd64_imm32_within_bounds_assert_if_false
+                  ~fst:"imm1" ~snd:"imm2" ~op:Operator.Xor ];
           actions =
             [ Action.make_add_before_return ~curr_instr:"op1"
                 ~new_instr_name:"op3"
@@ -658,6 +690,13 @@ let fold_intop_imm_bitwise =
         } ]
   }
 
+(* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at most
+   an imm32 as the second argument, so we need to check for overflows on 32-bit
+   signed ints. *)
+
+(* CR-someday gtulba-lecu: This condition is architecture specific and should
+   either live in amd64 specific code or this module should contain information
+   about the architecture target. *)
 let fold_intop_imm_arith =
   { name = "fold_intop_imm_arith";
     instr_names = ["op1"; "op2"];
@@ -813,6 +852,15 @@ let fold_intop_imm_arith =
               Action.make_delete ~instr:"op2" ];
           return_cell = "op3"
         } ]
+      (* CR-soon gtulba-lecu: check this last case | Imod, Imod -> if imm1 mod
+         imm2 = 0 then Some (Mach.Imod, imm2) else None The integer modulo imm2
+         group is a subgroup of the integer modulo imm1 iff imm2 divides imm1
+         This is because the operations in the groups are addition modulo n and
+         m respectively. If n divides m, then every result of the operation
+         (addition) in the n group will also be a legal result in the m group,
+         which is essentially the definition of a subgroup. If n does not divide
+         m, there will be some results in the n group that are not acceptable in
+         the m group. *)
   }
 
 let funcs = [useles_movs; fold_intop_imm_arith; fold_intop_imm_bitwise]
@@ -824,7 +872,8 @@ let () =
     - 1
   in
   "[@@@ocaml.warning \"+a-30-40-41-42-4\"]" |> print_endline;
-  "open! Peephole_utils" |> print_endline;
+  "module DLL = Flambda_backend_utils.Doubly_linked_list" |> print_endline;
+  "module U = Peephole_utils" |> print_endline;
   List.iter
     (fun func ->
       generate_func slide_back func |> print_endline;
