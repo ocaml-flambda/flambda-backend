@@ -71,9 +71,6 @@ val ident_cons : Ident.t
 val ident_none : Ident.t
 val ident_some : Ident.t
 
-val lexing_position_representation : record_representation
-val lexing_position_decl : type_declaration
-
 (* To build the initial environment. Since there is a nasty mutual
    recursion between predef and env, we break it by parameterizing
    over Env.t, Env.add_type and Env.add_extension. *)
