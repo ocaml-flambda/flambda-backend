@@ -54,11 +54,24 @@ let rollback t =
     t.state <- s;
     t.checkpoint_state <- None
 
-let null_byte = Dwarf_value.uint8 Numbers.Uint8.zero
+let int_to_uint8 n = Numbers.Uint8.of_nonnegative_int_exn n |> Dwarf_value.uint8
+
+let int_to_uint16 n =
+  Numbers.Uint16.of_nonnegative_int_exn n |> Dwarf_value.uint16
+
+let int_to_uint32 n =
+  Numbers.Uint32.of_nonnegative_int_exn n |> Dwarf_value.uint32
+
+let int_to_sleb128 n = Int64.of_int n |> Dwarf_value.sleb128
+
+let int_to_uleb128 n =
+  Numbers.Uint64.of_nonnegative_int_exn n |> Dwarf_value.uleb128
+
+let null_byte = int_to_uint8 0
 
 let cie_id =
   if !Dwarf_flags.gdwarf_use_eh_frame
-  then Dwarf_value.uint32 Numbers.Uint32.zero
+  then int_to_uint32 0
   else
     match !Dwarf_flags.gdwarf_format with
     | Thirty_two ->
@@ -68,9 +81,7 @@ let cie_id =
         (Numbers.Uint64.of_nonnegative_int64_exn 0xffffffffffffffffL)
 
 let version =
-  if !Dwarf_flags.gdwarf_use_eh_frame
-  then Dwarf_value.uint8 Numbers.Uint8.one
-  else Dwarf_value.uint8 (Numbers.Uint8.of_nonnegative_int_exn 4)
+  if !Dwarf_flags.gdwarf_use_eh_frame then int_to_uint8 1 else int_to_uint8 4
 
 let augmentation = null_byte
 
@@ -78,18 +89,15 @@ let address_size_int () =
   Dwarf_value.absolute_address Targetint.zero
   |> Dwarf_value.size |> Dwarf_int.to_int64 |> Int64.to_int
 
-let address_size () =
-  Dwarf_value.uint8 (Numbers.Uint8.of_nonnegative_int_exn (address_size_int ()))
+let address_size () = int_to_uint8 (address_size_int ())
 
 let segment_size = null_byte
 
-let code_alignment_factor =
-  Numbers.Uint64.of_nonnegative_int_exn 1 |> Dwarf_value.uleb128
+let code_alignment_factor = int_to_uleb128 1
 
 let data_alignment_factor = Dwarf_value.sleb128 (-8L)
 
-let return_address_register =
-  Numbers.Uint64.of_nonnegative_int_exn 16 |> Dwarf_value.uleb128
+let return_address_register = int_to_uleb128 16
 
 let initial_cfa_offset = 8
 
@@ -176,76 +184,38 @@ let process_cfi_endproc t ~address =
 
 let encode = function
   | Advance_loc delta ->
-    [ (0b01 lsl 6) lor (delta land 0b00111111)
-      |> Numbers.Uint8.of_nonnegative_int_exn |> Dwarf_value.uint8 ]
+    [(0b01 lsl 6) lor (delta land 0b00111111) |> int_to_uint8]
   | Offset (register, offset) ->
-    [ (0b10 lsl 6) lor (register land 0b00111111)
-      |> Numbers.Uint8.of_nonnegative_int_exn |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn offset |> Dwarf_value.uleb128 ]
+    [ (0b10 lsl 6) lor (register land 0b00111111) |> int_to_uint8;
+      int_to_uleb128 offset ]
   | Restore register ->
-    [ (0b11 lsl 6) lor (register land 0b00111111)
-      |> Numbers.Uint8.of_nonnegative_int_exn |> Dwarf_value.uint8 ]
+    [(0b11 lsl 6) lor (register land 0b00111111) |> int_to_uint8]
   | Nop -> [null_byte]
-  | Advance_loc1 delta ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x02 |> Dwarf_value.uint8;
-      Numbers.Uint8.of_nonnegative_int_exn delta |> Dwarf_value.uint8 ]
-  | Advance_loc2 delta ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x03 |> Dwarf_value.uint8;
-      Numbers.Uint16.of_nonnegative_int_exn delta |> Dwarf_value.uint16 ]
-  | Advance_loc4 delta ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x04 |> Dwarf_value.uint8;
-      Numbers.Uint32.of_nonnegative_int_exn delta |> Dwarf_value.uint32 ]
+  | Advance_loc1 delta -> [int_to_uint8 0x02; int_to_uint8 delta]
+  | Advance_loc2 delta -> [int_to_uint8 0x03; int_to_uint16 delta]
+  | Advance_loc4 delta -> [int_to_uint8 0x04; int_to_uint32 delta]
   | Offset_extended (register, offset) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x05 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128;
-      Numbers.Uint64.of_nonnegative_int_exn offset |> Dwarf_value.uleb128 ]
-  | Restore_extended register ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x06 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128 ]
-  | Undefined register ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x07 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128 ]
-  | Same_value register ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x08 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128 ]
+    [int_to_uint8 0x05; int_to_uleb128 register; int_to_uleb128 offset]
+  | Restore_extended register -> [int_to_uint8 0x06; int_to_uleb128 register]
+  | Undefined register -> [int_to_uint8 0x07; int_to_uleb128 register]
+  | Same_value register -> [int_to_uint8 0x08; int_to_uleb128 register]
   | Register (register1, register2) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x09 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register1 |> Dwarf_value.uleb128;
-      Numbers.Uint64.of_nonnegative_int_exn register2 |> Dwarf_value.uleb128 ]
-  | Remember_state ->
-    [Numbers.Uint8.of_nonnegative_int_exn 0x0a |> Dwarf_value.uint8]
-  | Restore_state ->
-    [Numbers.Uint8.of_nonnegative_int_exn 0x0b |> Dwarf_value.uint8]
+    [int_to_uint8 0x09; int_to_uleb128 register1; int_to_uleb128 register2]
+  | Remember_state -> [int_to_uint8 0x0a]
+  | Restore_state -> [int_to_uint8 0x0b]
   | Def_cfa (register, offset) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x0c |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128;
-      Numbers.Uint64.of_nonnegative_int_exn offset |> Dwarf_value.uleb128 ]
-  | Def_cfa_register register ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x0d |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128 ]
-  | Def_cfa_offset offset ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x0e |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn offset |> Dwarf_value.uleb128 ]
+    [int_to_uint8 0x0c; int_to_uleb128 register; int_to_uleb128 offset]
+  | Def_cfa_register register -> [int_to_uint8 0x0d; int_to_uleb128 register]
+  | Def_cfa_offset offset -> [int_to_uint8 0x0e; int_to_uleb128 offset]
   | Offset_extended_sf (register, offset) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x11 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128;
-      Numbers.Uint64.of_nonnegative_int_exn offset |> Dwarf_value.uleb128 ]
+    [int_to_uint8 0x11; int_to_uleb128 register; int_to_uleb128 offset]
   | Def_cfa_sf (register, offset) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x12 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128;
-      Int64.of_int offset |> Dwarf_value.sleb128 ]
-  | Def_cfa_offset_sf offset ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x13 |> Dwarf_value.uint8;
-      Int64.of_int offset |> Dwarf_value.sleb128 ]
+    [int_to_uint8 0x12; int_to_uleb128 register; int_to_sleb128 offset]
+  | Def_cfa_offset_sf offset -> [int_to_uint8 0x13; int_to_sleb128 offset]
   | Val_offset (register, factored_offset) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x14 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128;
-      Numbers.Uint64.of_nonnegative_int_exn factored_offset
-      |> Dwarf_value.uleb128 ]
+    [int_to_uint8 0x14; int_to_uleb128 register; int_to_uleb128 factored_offset]
   | Val_offset_sf (register, factored_offset) ->
-    [ Numbers.Uint8.of_nonnegative_int_exn 0x15 |> Dwarf_value.uint8;
-      Numbers.Uint64.of_nonnegative_int_exn register |> Dwarf_value.uleb128;
-      Int64.of_int factored_offset |> Dwarf_value.sleb128 ]
+    [int_to_uint8 0x15; int_to_uleb128 register; int_to_sleb128 factored_offset]
 
 let instr_size instr =
   let ( + ) = Dwarf_int.add in
@@ -260,15 +230,16 @@ let instructions_size instructions =
     (Dwarf_int.zero ()) instructions
 
 let emit_instructions ~asm_directives instructions =
-  List.map encode instructions
-  |> List.iter (List.iter (Dwarf_value.emit ~asm_directives))
+  List.iter
+    (fun instr -> List.iter (Dwarf_value.emit ~asm_directives) (encode instr))
+    instructions
 
 let emit_padding ~asm_directives size =
   List.init size (fun _ -> Nop) |> emit_instructions ~asm_directives
 
 let initial_length_size () =
   if !Dwarf_flags.gdwarf_use_eh_frame
-  then Dwarf_value.uint32 Numbers.Uint32.zero |> Dwarf_value.size
+  then int_to_uint32 0 |> Dwarf_value.size
   else Dwarf_int.zero () |> Initial_length.create |> Initial_length.size
 
 let cie_size_without_padding_or_first_word () =
@@ -304,7 +275,7 @@ let cie_size () =
 let fde_size_without_padding_or_first_word fde =
   let ( + ) = Dwarf_int.add in
   (if !Dwarf_flags.gdwarf_use_eh_frame
-  then Dwarf_value.uint32 Numbers.Uint32.zero |> Dwarf_value.size
+  then int_to_uint32 0 |> Dwarf_value.size
   else Dwarf_value.size (cie_pointer ()))
   + Dwarf_value.size (Dwarf_value.absolute_address Targetint.zero)
   + Dwarf_value.size (Dwarf_value.absolute_address Targetint.zero)
