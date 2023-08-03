@@ -33,7 +33,5 @@ let pattern_guard_doesnt_return_local f x =
   | _ -> 3
 ;;
 [%%expect{|
->> Fatal error: typechecking for multicase pattern guards unimplemented
-Uncaught exception: Misc.Fatal_error
-
+val pattern_guard_doesnt_return_local : 'a -> 'b option -> int = <fun>
 |}]

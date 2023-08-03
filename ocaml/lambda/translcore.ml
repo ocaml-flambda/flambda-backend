@@ -58,6 +58,12 @@ let sort_must_not_be_void loc ty sort =
 
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 
+let layout_rhs sort = function
+  | Simple_rhs rhs | Boolean_guarded_rhs { bg_rhs = rhs; _ } ->
+      layout_exp sort rhs
+  | Pattern_guarded_rhs { pg_env; pg_loc; pg_type; _ } ->
+      layout pg_env pg_loc sort pg_type
+
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
   ref((fun ~scopes:_ _cc _rootpath _modl -> assert false) :
@@ -216,32 +222,47 @@ let rec trivial_pat pat =
 let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
           partial warnings =
   match cases with
-    [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial;
+    [{c_lhs=pat;
+      c_rhs=
+        Simple_rhs
+          ({ exp_desc = Texp_function { arg_label; param; cases; partial;
                                         region; curry; warnings; arg_mode;
                                         arg_sort; ret_sort; alloc_mode } }
-        as exp}] when bindings = [] || trivial_pat pat ->
+           as exp)}]
+    when bindings = [] || trivial_pat pat ->
       let cases =
         push_defaults exp.exp_loc bindings false arg_mode arg_sort cases partial
           warnings
       in
-      [{c_lhs=pat; c_guard=None;
-        c_rhs={exp with exp_desc =
-                          Texp_function { arg_label; param; cases; partial;
-                                          region; curry; warnings; arg_mode;
-                                          arg_sort; ret_sort; alloc_mode }}}]
-  | [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
-             exp_desc = Texp_let
-               (Nonrecursive, binds,
-                ({exp_desc = Texp_function _} as e2))}}] ->
+      let exp_desc =
+        Texp_function
+          { arg_label; param; cases; partial; region; curry; warnings; arg_mode;
+            arg_sort; ret_sort; alloc_mode }
+      in
+      [ { c_lhs = pat; c_rhs = Simple_rhs { exp with exp_desc } } ]
+  | [{c_lhs=pat;
+      c_rhs=
+        Simple_rhs
+          { exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}]
+          ; exp_desc =
+              Texp_let
+                (Nonrecursive, binds, ({exp_desc = Texp_function _} as e2))}}
+    ] ->
       push_defaults loc (binds :: bindings) true
-                   arg_mode arg_sort [{c_lhs=pat;c_guard=None;c_rhs=e2}]
+                   arg_mode arg_sort [{c_lhs=pat;c_rhs=Simple_rhs e2}]
                    partial warnings
-  | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
+  | [{c_lhs=pat; c_rhs=Simple_rhs exp} as case]
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
-      [{case with c_rhs = wrap_bindings bindings exp}]
-  | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
+      [{case with c_rhs = Simple_rhs (wrap_bindings bindings exp)}]
+  | {c_lhs=pat; c_rhs=rhs } :: _
+    when bindings <> [] ->
+      let exp_loc, exp_extra, exp_type, exp_env, exp_attributes =
+        match rhs with
+        | Simple_rhs e | Boolean_guarded_rhs { bg_rhs = e; _ } ->
+            e.exp_loc, e.exp_extra, e.exp_type, e.exp_env, e.exp_attributes
+        | Pattern_guarded_rhs { pg_loc; pg_env; pg_type; _ } ->
+            pg_loc, [], pg_type, pg_env, []
+      in
       let mode = Value_mode.of_alloc arg_mode in
       let param = Typecore.name_cases "param" cases in
       let desc =
@@ -249,24 +270,28 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
          val_attributes = []; Types.val_loc = Location.none;
          val_uid = Types.Uid.internal_not_actually_unique; }
       in
-      let env = Env.add_value ~mode param desc exp.exp_env in
+      let env = Env.add_value ~mode param desc exp_env in
       let name = Ident.name param in
       let exp =
         let cases =
           let pure_case ({c_lhs; _} as case) =
             {case with c_lhs = as_computation_pattern c_lhs} in
           List.map pure_case cases in
-        { exp with exp_loc = loc; exp_env = env; exp_desc =
-          Texp_match
-            ({exp with exp_type = pat.pat_type; exp_env = env; exp_desc =
-              Texp_ident
+        (* [exp_attributes] and [exp_extra] are shared by the outer match
+           expression and its scrutinee. This is a faithful translation of the
+           earlier code, which we won't interrogate too carefully as it is
+           deleted as part of syntactic arity changes. *)
+        { exp_loc = loc; exp_env = env; exp_extra; exp_type; exp_attributes;
+          exp_desc = Texp_match
+            ({ exp_type = pat.pat_type; exp_env = env; exp_loc; exp_extra;
+               exp_attributes; exp_desc = Texp_ident
                 (Path.Pident param, mknoloc (Longident.Lident name),
                  desc, Id_value)},
              arg_sort,
              cases, partial) }
       in
       [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name, mode)};
-        c_guard = None; c_rhs= wrap_bindings bindings exp}]
+        c_rhs = Simple_rhs (wrap_bindings bindings exp)}]
   | _ ->
       cases
 
@@ -280,17 +305,27 @@ let event_before ~scopes exp lam =
 let event_after ~scopes exp lam =
   Translprim.event_after (of_location ~scopes exp.exp_loc) exp lam
 
-let event_function ~scopes exp lam =
+let event_function ~scopes loc env lam =
   if !Clflags.debug && not !Clflags.native_code then
     let repr = Some (ref 0) in
     let (info, body) = lam repr in
     (info,
-     Levent(body, {lev_loc = of_location ~scopes exp.exp_loc;
+     Levent(body, {lev_loc = of_location ~scopes loc;
                    lev_kind = Lev_function;
                    lev_repr = repr;
-                   lev_env = exp.exp_env}))
+                   lev_env = env}))
   else
     lam None
+
+let event_function_expr ~scopes exp lam =
+  event_function ~scopes exp.exp_loc exp.exp_env lam
+
+let event_function_rhs ~scopes rhs lam =
+  match rhs with
+  | Simple_rhs rhs_exp | Boolean_guarded_rhs { bg_rhs = rhs_exp; _ } ->
+      event_function_expr ~scopes rhs_exp lam
+  | Pattern_guarded_rhs { pg_loc; pg_env; _ } ->
+      event_function ~scopes pg_loc pg_env lam
 
 (* Assertions *)
 
@@ -349,6 +384,10 @@ let can_apply_primitive p pmode pos args =
       is_heap_mode (transl_alloc_mode return_mode)
     end
   end
+
+let is_rhs_unreachable = function
+  | Simple_rhs { exp_desc = Texp_unreachable; _ } -> true
+  | _ -> false
 
 let rec transl_exp ~scopes sort e =
   transl_exp1 ~scopes ~in_new_scope:false sort e
@@ -1009,39 +1048,31 @@ and transl_list_with_shape ~scopes expr_list =
   in
   List.split (List.map transl_with_shape expr_list)
 
-and transl_guard ~scopes guard rhs_sort rhs =
-  let layout = layout_exp rhs_sort rhs in
-  match guard with
-  | None ->
+and transl_rhs ~scopes rhs_sort rhs =
+  let layout = layout_rhs rhs_sort rhs in
+  match rhs with
+  | Simple_rhs rhs ->
       Matching.mk_unguarded_rhs
         (event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs))
-  | Some (Predicate cond) ->
-    let translated_cond = transl_exp ~scopes Sort.for_predef_value cond in
-    let translated_rhs =
-      event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs)
-    in
-    let patch_guarded ~patch =
-      event_before ~scopes cond
-        (Lifthenelse (translated_cond, translated_rhs, patch, layout))
-    in
-    let free_variables =
-      Ident.Set.union
-        (free_variables translated_cond)
-        (free_variables translated_rhs)
-    in
-    Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
-  | Some (Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial;
-                    pg_loc; pg_env }) ->
-      let guard_case : _ case =
-        { c_lhs = pg_pattern
-        ; c_guard = None
-        ; c_rhs = rhs }
+  | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+      let guard = transl_exp ~scopes Sort.for_predef_value bg_guard in
+      let body =
+        event_before ~scopes bg_rhs (transl_exp ~scopes rhs_sort bg_rhs)
       in
+      let patch_guarded ~patch =
+        event_before ~scopes bg_guard (Lifthenelse (guard, body, patch, layout))
+      in
+      let free_variables =
+        Ident.Set.union (free_variables guard) (free_variables body)
+      in
+      Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
+  | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases; pg_partial;
+                          pg_loc; pg_env; pg_type } ->
       match pg_partial with
-      | Partial -> 
-          (* Partial pattern guards may fail to match, so we must construct a 
-             guarded rhs from a continuation that patches in the code to execute
-             on match failure.
+      | Partial ->
+          (* Partial pattern guards may fail to match, so we must construct a
+             guarded rhs from a continuation that later "patches" in the code to
+             execute on match failure.
           *)
           let patch_guarded ~patch =
             let any_pat : pattern =
@@ -1049,56 +1080,56 @@ and transl_guard ~scopes guard rhs_sort rhs =
               ; pat_loc = Location.none
               ; pat_extra = []
               ; pat_type = pg_scrutinee.exp_type
-              ; pat_env = Env.empty
+              ; pat_env = pg_env
               ; pat_attributes = []
               }
             in
             let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
             event_before ~scopes pg_scrutinee
               (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                 ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-                 ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
-                 pg_partial)
+                  ~return_sort:rhs_sort ~return_type:pg_type ~loc:pg_loc
+                  ~env:pg_env ~extra_cases pg_scrutinee pg_cases pg_partial)
           in
           Matching.mk_pattern_guarded_rhs ~patch_guarded
       | Total ->
           (* Total pattern guards are equivalent to nested matches. *)
           let nested_match =
             transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-              ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
+              ~return_sort:rhs_sort ~return_type:pg_type ~loc:pg_loc
+              ~env:pg_env ~extra_cases:[] pg_scrutinee pg_cases pg_partial
           in
           Matching.mk_unguarded_rhs
             (event_before ~scopes pg_scrutinee nested_match)
 
-and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
-  c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs
+and transl_case ~scopes rhs_sort {c_lhs; c_rhs} =
+  c_lhs, transl_rhs ~scopes rhs_sort c_rhs
 
 and transl_cases ~scopes rhs_sort cases =
   let cases =
-    List.filter (fun c -> c.c_rhs.exp_desc <> Texp_unreachable) cases in
+    List.filter (fun case -> not (is_rhs_unreachable case.c_rhs)) cases
+  in
   List.map (transl_case ~scopes rhs_sort) cases
 
-and transl_case_try ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
+and transl_case_try ~scopes rhs_sort {c_lhs; c_rhs} =
   iter_exn_names Translprim.add_exception_ident c_lhs;
   Misc.try_finally
-    (fun () -> c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs)
+    (fun () -> c_lhs, transl_rhs ~scopes rhs_sort c_rhs)
     ~always:(fun () ->
         iter_exn_names Translprim.remove_exception_ident c_lhs)
 
 and transl_cases_try ~scopes rhs_sort cases =
   let cases =
-    List.filter (fun c -> c.c_rhs.exp_desc <> Texp_unreachable) cases in
+    List.filter (fun case -> not (is_rhs_unreachable case.c_rhs)) cases
+  in
   List.map (transl_case_try ~scopes rhs_sort) cases
 
-and transl_tupled_cases ~scopes rhs_sort patl_expr_list =
-  let patl_expr_list =
-    List.filter (fun (_,_,e) -> e.exp_desc <> Texp_unreachable)
-      patl_expr_list in
+and transl_tupled_cases ~scopes rhs_sort patl_rhs_list =
+  let patl_rhs_list =
+    List.filter (fun (_, rhs) -> not (is_rhs_unreachable rhs)) patl_rhs_list
+  in
   List.map
-    (fun (patl, guard, expr) ->
-       (patl, transl_guard ~scopes guard rhs_sort expr))
-    patl_expr_list
+    (fun (patl, rhs) -> (patl, transl_rhs ~scopes rhs_sort rhs))
+    patl_rhs_list
 
 and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
@@ -1221,14 +1252,15 @@ and transl_curried_function
             ~arity ~region ~curry partial warnings (param:Ident.t) cases =
     match curry, cases with
       More_args {partial_mode},
-      [{c_lhs=pat; c_guard=None;
-        c_rhs={exp_desc =
-                 Texp_function
-                   { arg_label = _; param = param'; cases = cases';
-                     partial = partial'; region = region';
-                     curry = curry';
-                     warnings = warnings'; arg_sort; ret_sort };
-               exp_env; exp_type; exp_loc }}]
+      [{c_lhs=pat;
+        c_rhs=Simple_rhs
+                {exp_desc =
+                   Texp_function
+                     { arg_label = _; param = param'; cases = cases';
+                       partial = partial'; region = region';
+                       curry = curry';
+                       warnings = warnings'; arg_sort; ret_sort };
+                 exp_env; exp_type; exp_loc }}]
       when arity < max_arity ->
       (* Lfunctions must have local returns after the first local arg/ret *)
       if Parmatch.inactive ~partial pat
@@ -1295,10 +1327,10 @@ and transl_tupled_function
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let size = List.length pl in
-        let pats_expr_list =
+        let pats_rhs_list =
           List.map
-            (fun {c_lhs; c_guard; c_rhs} ->
-              (Matching.flatten_pattern size c_lhs, c_guard, c_rhs))
+            (fun {c_lhs; c_rhs} ->
+              (Matching.flatten_pattern size c_lhs, c_rhs))
             cases in
         let kinds =
           match arg_layout with
@@ -1317,7 +1349,7 @@ and transl_tupled_function
         let params = List.map fst tparams in
         let body =
           Matching.for_tupled_function ~scopes ~return_layout loc params
-            (transl_tupled_cases ~scopes return_sort pats_expr_list) partial
+            (transl_tupled_cases ~scopes return_sort pats_rhs_list) partial
         in
         let region = region || not (may_allocate_in_region body) in
         ((Tupled, tparams, return_layout, region), body)
@@ -1351,7 +1383,7 @@ and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
     function_arg_layout e.exp_env e.exp_loc arg_sort e.exp_type
   in
   let ((kind, params, return, region), body) =
-    event_function ~scopes e
+    event_function_expr ~scopes e
       (function repr ->
          let pl =
            push_defaults e.exp_loc arg_mode arg_sort cases partial warnings
@@ -1592,8 +1624,8 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
       ~extra_cases arg pat_expr_list partial =
   let return_layout = layout env loc arg_sort return_type in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
-        ({ c_lhs; c_guard; c_rhs } as case) =
-    if c_rhs.exp_desc = Texp_unreachable then acc else
+        ({ c_lhs; c_rhs } as case) =
+    if is_rhs_unreachable c_rhs then acc else
     let val_pat, exn_pat = split_pattern c_lhs in
     match val_pat, exn_pat with
     | None, None -> assert false
@@ -1608,7 +1640,11 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         in
         val_cases, exn_case :: exn_cases, static_handlers
     | Some pv, Some pe ->
-        assert (c_guard = None);
+        let rhs_exp =
+          match c_rhs with
+          | Simple_rhs rhs -> rhs
+          | Boolean_guarded_rhs _ | Pattern_guarded_rhs _ -> assert false
+        in
         let lbl  = next_raise_count () in
         let static_raise ids =
           Lstaticraise (lbl, List.map (fun id -> Lvar id) ids)
@@ -1628,8 +1664,8 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         iter_exn_names Translprim.add_exception_ident pe;
         let rhs =
           Misc.try_finally
-            (fun () -> event_before ~scopes c_rhs
-                         (transl_exp ~scopes return_sort c_rhs))
+            (fun () -> event_before ~scopes rhs_exp
+                         (transl_exp ~scopes return_sort rhs_exp))
             ~always:(fun () ->
                 iter_exn_names Translprim.remove_exception_ident pe)
         in
@@ -1764,17 +1800,22 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
                 "Translcore.transl_letop: letop should have at least two arguments"
           | Some (lhs, _) -> Typeopt.function_arg_layout env loc param_sort lhs
     in
-    let return_layout = layout_exp case_sort case.c_rhs in
+    let return_layout = layout_rhs case_sort case.c_rhs in
     let curry = More_args { partial_mode = Alloc_mode.global } in
+    let rhs_loc =
+      match case.c_rhs with
+      | Simple_rhs e | Boolean_guarded_rhs { bg_rhs = e; _ } -> e.exp_loc
+      | Pattern_guarded_rhs { pg_loc; _ } -> pg_loc
+    in
     let (kind, params, return, _region), body =
-      event_function ~scopes case.c_rhs
+      event_function_rhs ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
-             ~return_sort:case_sort ~return_layout case.c_rhs.exp_loc repr
-             ~region:true ~curry partial warnings param [case])
+             ~return_sort:case_sort ~return_layout rhs_loc repr ~region:true
+             ~curry partial warnings param [case])
     in
     let attr = default_function_attribute in
-    let loc = of_location ~scopes case.c_rhs.exp_loc in
+    let loc = of_location ~scopes rhs_loc in
     let body = maybe_region_layout return body in
     lfunction ~kind ~params ~return ~body ~attr ~loc
               ~mode:alloc_heap ~region:true

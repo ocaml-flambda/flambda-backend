@@ -217,24 +217,23 @@ and comprehension_iterator =
       ; sequence : expression }
 
 and 'k case =
-  {
-    c_lhs: 'k general_pattern;
-    c_guard: guard option;
-    c_rhs: expression;
-  }
+{
+  c_lhs: 'k general_pattern;
+  c_rhs: case_rhs;
+}
   
-and guard =
-  | Predicate of expression
-  | Pattern of pattern_guard
-
-and pattern_guard =
-  { pg_scrutinee      : expression
-  ; pg_scrutinee_sort : Layouts.sort
-  ; pg_pattern        : computation general_pattern
-  ; pg_partial        : partial
-  ; pg_loc            : Location.t
-  ; pg_env            : Env.t
-  }
+and case_rhs =
+  | Simple_rhs of expression
+  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : expression }
+  | Pattern_guarded_rhs of
+      { pg_scrutinee : expression
+      ; pg_scrutinee_sort : Layouts.sort
+      ; pg_cases : computation case list
+      ; pg_partial : partial
+      ; pg_loc : Location.t
+      ; pg_env : Env.t
+      ; pg_type : Types.type_expr
+      }
 
 and record_label_definition =
   | Kept of Types.type_expr
@@ -1021,3 +1020,7 @@ let split_pattern pat =
         combine_opts (into cpat) exns1 exns2
   in
   split_pattern pat
+
+let is_guarded_rhs = function
+  | Simple_rhs _ -> false
+  | Boolean_guarded_rhs _ | Pattern_guarded_rhs _ -> true
