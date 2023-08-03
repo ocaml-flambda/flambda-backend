@@ -18,6 +18,7 @@
 open Asttypes
 open Primitive
 open Types
+open Layouts
 open Typedtree
 open Typeopt
 open Lambda
@@ -121,7 +122,7 @@ let gen_array_set_kind mode =
   if Config.flat_float_array then Pgenarray_set mode else Paddrarray_set mode
 
 let prim_sys_argv =
-  Primitive.simple ~name:"caml_sys_argv" ~arity:1 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
 let to_alloc_mode ~poly = function
   | Prim_global, _ -> alloc_heap
@@ -415,6 +416,8 @@ let lookup_primitive loc poly pos p =
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    | "%unbox_float" -> Primitive(Punbox_float, 1)
+    | "%box_float" -> Primitive(Pbox_float mode, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -512,7 +515,7 @@ let glb_array_set_type t1 t2 =
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
 
 (* Specialize a primitive from available type information. *)
-(* CR layouts v2: This function had a loc argument added just to support the void
+(* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
 let specialize_primitive env loc ty ~has_constant_constructor prim =
   let param_tys =
@@ -572,7 +575,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
       let shape =
         List.map (fun typ ->
-          Lambda.must_be_value (Typeopt.layout env (to_location loc) typ))
+          Lambda.must_be_value (Typeopt.layout env (to_location loc)
+                                  Sort.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
@@ -606,47 +610,51 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | _ -> None
 
 let caml_equal =
-  Primitive.simple ~name:"caml_equal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_equal" ~arity:2 ~alloc:true
 let caml_string_equal =
-  Primitive.simple ~name:"caml_string_equal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_equal" ~arity:2 ~alloc:false
 let caml_bytes_equal =
-  Primitive.simple ~name:"caml_bytes_equal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_equal" ~arity:2 ~alloc:false
 let caml_notequal =
-  Primitive.simple ~name:"caml_notequal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_notequal" ~arity:2 ~alloc:true
 let caml_string_notequal =
-  Primitive.simple ~name:"caml_string_notequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2 ~alloc:false
 let caml_bytes_notequal =
-  Primitive.simple ~name:"caml_bytes_notequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_notequal" ~arity:2 ~alloc:false
 let caml_lessequal =
-  Primitive.simple ~name:"caml_lessequal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_lessequal" ~arity:2 ~alloc:true
 let caml_string_lessequal =
-  Primitive.simple ~name:"caml_string_lessequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_lessequal" ~arity:2 ~alloc:false
 let caml_bytes_lessequal =
-  Primitive.simple ~name:"caml_bytes_lessequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_lessequal" ~arity:2 ~alloc:false
 let caml_lessthan =
-  Primitive.simple ~name:"caml_lessthan" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_lessthan" ~arity:2 ~alloc:true
 let caml_string_lessthan =
-  Primitive.simple ~name:"caml_string_lessthan" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_lessthan" ~arity:2 ~alloc:false
 let caml_bytes_lessthan =
-  Primitive.simple ~name:"caml_bytes_lessthan" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_lessthan" ~arity:2 ~alloc:false
 let caml_greaterequal =
-  Primitive.simple ~name:"caml_greaterequal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_greaterequal" ~arity:2 ~alloc:true
 let caml_string_greaterequal =
-  Primitive.simple ~name:"caml_string_greaterequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_greaterequal" ~arity:2
+    ~alloc:false
 let caml_bytes_greaterequal =
-  Primitive.simple ~name:"caml_bytes_greaterequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_greaterequal" ~arity:2
+    ~alloc:false
 let caml_greaterthan =
-  Primitive.simple ~name:"caml_greaterthan" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_greaterthan" ~arity:2 ~alloc:true
 let caml_string_greaterthan =
-  Primitive.simple ~name:"caml_string_greaterthan" ~arity:2 ~alloc: false
+  Primitive.simple_on_values ~name:"caml_string_greaterthan" ~arity:2
+    ~alloc:false
 let caml_bytes_greaterthan =
-  Primitive.simple ~name:"caml_bytes_greaterthan" ~arity:2 ~alloc: false
+  Primitive.simple_on_values ~name:"caml_bytes_greaterthan" ~arity:2
+    ~alloc:false
 let caml_compare =
-  Primitive.simple ~name:"caml_compare" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_compare" ~arity:2 ~alloc:true
 let caml_string_compare =
-  Primitive.simple ~name:"caml_string_compare" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2 ~alloc:false
 let caml_bytes_compare =
-  Primitive.simple ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
 
 let comparison_primitive comparison comparison_kind =
   match comparison, comparison_kind with
@@ -747,7 +755,8 @@ let lambda_of_loc kind sloc =
     Lconst (Const_immstring scope_name)
 
 let caml_restore_raw_backtrace =
-  Primitive.simple ~name:"caml_restore_raw_backtrace" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_restore_raw_backtrace" ~arity:2
+    ~alloc:false
 
 let try_ids = Hashtbl.create 8
 
@@ -880,20 +889,34 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
-  let rec make_params ty n =
-    if n <= 0 then [], Typeopt.layout env (to_location loc) ty
-    else
+  let to_alloc_mode = to_alloc_mode ~poly:poly_mode in
+  let rec make_params ty repr_args repr_res =
+    match repr_args, repr_res with
+    | [], (_, res_repr) ->
+      let res_sort = sort_of_native_repr res_repr in
+      [], Typeopt.layout env (to_location loc) (Sort.of_const res_sort) ty
+    | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
-          let arg_layout = Typeopt.layout env (to_location loc) arg_ty in
-          let params, return = make_params ret_ty (n-1) in
-          (Ident.create_local "prim", arg_layout) :: params, return
+          let arg_sort = sort_of_native_repr arg_repr in
+          let arg_layout =
+            Typeopt.layout env (to_location loc) (Sort.of_const arg_sort) arg_ty
+          in
+          let arg_mode = to_alloc_mode arg in
+          let params, return = make_params ret_ty repr_args repr_res in
+          { name = Ident.create_local "prim";
+            layout = arg_layout;
+            attributes = Lambda.default_param_attribute;
+            mode = arg_mode }
+          :: params, return
   in
-  let params, return = make_params ty p.prim_arity in
-  let args = List.map (fun (id, _) -> Lvar id) params in
+  let params, return =
+    make_params ty p.prim_native_repr_args p.prim_native_repr_res
+  in
+  let args = List.map (fun p -> Lvar p.name) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
   | _ ->
@@ -903,8 +926,6 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
-     let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
      let region =
        match to_alloc_mode p.prim_native_repr_res with
        | Alloc_heap -> true
@@ -916,7 +937,7 @@ let transl_primitive loc p env ty ~poly_mode path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal arg_modes in
+     let nlocal = count_nlocal (List.map to_alloc_mode p.prim_native_repr_args) in
      lfunction
        ~kind:(Curried {nlocal})
        ~params

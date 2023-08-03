@@ -46,6 +46,7 @@ module type Arg = sig
       | NONE
       | DWORD
       | QWORD
+      | VEC128
 
     val file : file_num:int -> file_name:string -> unit
 

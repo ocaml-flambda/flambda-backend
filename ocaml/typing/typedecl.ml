@@ -27,7 +27,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type layout_sort_loc = Cstr_tuple | Record
+type layout_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -72,6 +72,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
+  | Float64_in_block of type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -219,7 +220,7 @@ let enter_type rec_flag env sdecl (id, uid) =
            Case 1 is accepted and case 2 is rejected, which isn't the end of the
            world, but could perhaps be improved.
         *)
-        (* CR layouts v2: Actually, RAE thinks this is just wrong now, because
+        (* CR layouts v1.5: Actually, RAE thinks this is just wrong now, because
            make_params defaults to a sort variable and this defaults to value.
            I'm worried that the value here will propagate somewhere and then
            conflict with an inferred e.g. float64 somewhere. *)
@@ -280,6 +281,14 @@ let update_type temp_env env id loc =
         raise (Error(loc, Type_clash (env, err)))
 
 (* Determine if a type's values are represented by floats at run-time. *)
+(* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
+   unboxed floats the same as a float record?
+
+   reisenberg: Yes. And actually a record mixing floats and unboxed floats is
+   also a float-record, and should be made to work. We'll have to make sure to
+   add the boxing operations in the right spot at projections, but that should
+   be possible.
+*)
 let is_float env ty =
   match get_desc (Ctype.get_unboxed_type_approximation env ty) with
     Tconstr(p, _, _) -> Path.same p Predef.path_float
@@ -1010,11 +1019,20 @@ let check_abbrev env sdecl (id, decl) =
    same issue as with arrows. *)
 let check_representable ~why env loc lloc typ =
   match Ctype.type_sort ~why env typ with
-  (* CR layouts: This is not the right place to default to value.  Some callers
-     of this do need defaulting, because they, for example, immediately check
-     if the sort is immediate or void.  But we should do that in those places,
-     or as part of our higher-level defaulting story. *)
-  | Ok s -> Sort.default_to_value s
+  (* CR layouts v3: This is a convenient place to rule out [float#] in
+     structures for now, as it is called on all the types in declared blocks in
+     kinds, and only them.  But when we have a real mixed block restriction, it
+     can't be done here because we're just looking at one type.  *)
+  (* CR layouts v2.5: This rules out float# in [@@unboxed] types.  No real need
+     to rule that out - I just haven't had time to write tests for it yet. *)
+  | Ok s -> begin
+      match Sort.get_default_value s with
+      (* All calls to this are part of [update_decl_layout], which happens after
+         all the defaulting, so we don't expect this actually defaults the
+         sort - we just want the [const]. *)
+      | Void | Value -> ()
+      | Float64 -> raise (Error (loc, Float64_in_block typ))
+    end
   | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
 
 (* The [update_x_layouts] functions infer more precise layouts in the type kind,
@@ -1086,7 +1104,7 @@ let update_decl_layout env dpath decl =
       let layout = Layout.for_boxed_record ~all_void in
       lbls, rep, layout
     | _, Record_float ->
-      (* CR layouts v2: When we have an unboxed float layout, does it make
+      (* CR layouts v2.5: When we have an unboxed float layout, does it make
          sense to use that here?  The use of value feels inaccurate, but I think
          the code that would look at first looks at the rep. *)
       let lbls =
@@ -1105,7 +1123,6 @@ let update_decl_layout env dpath decl =
     | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
-            (* CR layouts: check_representable should return the sort *)
             check_representable ~why:(Constructor_declaration 0)
               env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
@@ -1863,6 +1880,18 @@ let native_repr_of_type env kind ty =
     Some (Unboxed_integer Pint64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
+    Some (Unboxed_vector (Pvec128 Int8x16))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
+    Some (Unboxed_vector (Pvec128 Int16x8))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
+    Some (Unboxed_vector (Pvec128 Int32x4))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
+    Some (Unboxed_vector (Pvec128 Int64x2))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
+    Some (Unboxed_vector (Pvec128 Float32x4))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
+    Some (Unboxed_vector (Pvec128 Float64x2))
   | _ ->
     None
 
@@ -1885,11 +1914,11 @@ let error_if_has_deep_native_repr_attributes core_type =
   in
   default_iterator.typ this_iterator core_type
 
-let make_native_repr env core_type ty ~global_repr =
+let make_native_repr env core_type sort ty ~global_repr =
   error_if_has_deep_native_repr_attributes core_type;
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
-    Same_as_ocaml_repr
+    Same_as_ocaml_repr sort
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
     | None ->
@@ -1903,6 +1932,19 @@ let prim_const_mode m =
   | Some Local -> Prim_local
   | None -> assert false
 
+(* Note that [ty] is guaranteed not to contain sort variables because it was
+   produced by [type_scheme], which defaults them.  Further, if ty is an arrow
+   we know its bits are representable, so [type_sort_external] can only fail
+   on externals with non-arrow types. *)
+(* CR layouts v3: When we allow non-representable function args/returns, the
+   representability argument above isn't quite right. Decide whether we want to
+   allow non-representable types in external args/returns then. *)
+let type_sort_external ~why env loc typ =
+  match Ctype.type_sort ~why env typ with
+  | Ok s -> Sort.get_default_value s
+  | Error err ->
+    raise (Error (loc,Layout_sort {lloc = External; typ; err}))
+
 let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   match core_type.ptyp_desc, get_desc ty,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
@@ -1912,7 +1954,10 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
-    let repr_arg = make_native_repr env ct1 t1 ~global_repr in
+    let sort_arg =
+      type_sort_external ~why:External_argument env ct1.ptyp_loc t1
+    in
+    let repr_arg = make_native_repr env ct1 sort_arg t1 ~global_repr in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
@@ -1921,7 +1966,7 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
     in
-    ((mode,repr_arg) :: repr_args, repr_res)
+    ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
      parse_native_repr_attributes env t ty rmode ~global_repr
   | _ ->
@@ -1930,8 +1975,10 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
        then Prim_poly
        else rmode
      in
-     ([], (rmode, make_native_repr env core_type ty ~global_repr))
-
+     let sort_res =
+       type_sort_external ~why:External_result env core_type.ptyp_loc ty
+     in
+     ([], (rmode, make_native_repr env core_type sort_res ty ~global_repr))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -2102,7 +2149,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     if arity_ok && man <> None then
       sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_layout
     else
-      (* CR layouts v2: this is a gross hack.  See the comments in the
+      (* CR layouts: this is a gross hack.  See the comments in the
          [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
       let layout = Layout.value ~why:Package_hack in
         (* Layout.(of_attributes ~default:value sdecl.ptype_attributes) *)
@@ -2485,7 +2532,7 @@ let report_error ppf = function
       fprintf ppf "Too many [@@unboxed]/[@@untagged] attributes"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-                   Only float, int32, int64 and nativeint can be unboxed.@]"
+                   Only float, int32, int64, nativeint, and vector primitives can be unboxed.@]"
   | Cannot_unbox_or_untag_type Untagged ->
       fprintf ppf "@[Don't know how to untag this type.@ \
                    Only int can be untagged.@]"
@@ -2508,6 +2555,7 @@ let report_error ppf = function
       match lloc with
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
+      | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
       (Layout.Violation.report_with_offender
@@ -2517,6 +2565,11 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Layout.Violation.report_with_name ~name:val_name) err
+  | Float64_in_block typ ->
+    fprintf ppf
+      "@[Type %a has layout float64.@ Types of this layout are not yet \
+       allowed in blocks (like records or variants).@]"
+      Printtyp.type_expr typ
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

@@ -55,6 +55,7 @@ type operation =
   | Ireload
   | Iconst_int of nativeint
   | Iconst_float of int64
+  | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
   | Icall_ind
   | Icall_imm of { func : Cmm.symbol; }
@@ -82,7 +83,8 @@ type operation =
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
+      provenance : Backend_var.Provenance.t option; is_assignment : bool;
+      regs : Reg.t array }
     (** [Iname_for_debugger] has the following semantics:
         (a) The argument register(s) is/are deemed to contain the value of the
             given identifier.
@@ -100,6 +102,7 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     mutable live: Reg.Set.t;
+    (* CR mshinwell: maybe this should be [option]: *)
     mutable available_before: Reg_availability_set.t;
     mutable available_across: Reg_availability_set.t option;
   }

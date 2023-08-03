@@ -168,18 +168,17 @@ let fold {persistent_structures; _} f x =
 
 (* Reading persistent structures from .cmi files *)
 
-let save_pers_struct penv crc ps pm =
-  let {persistent_structures; crc_units; _} = penv in
-  let modname = CU.name ps.ps_name in
-  Hashtbl.add persistent_structures modname (Found (ps, pm));
+let save_pers_struct penv crc comp_unit flags filename =
+  let {crc_units; _} = penv in
+  let modname = CU.name comp_unit in
   List.iter
     (function
         | Rectypes -> ()
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Opaque -> register_import_as_opaque penv modname)
-    ps.ps_flags;
-  Consistbl.set crc_units modname ps.ps_name crc ps.ps_filename;
+    flags;
+  Consistbl.set crc_units modname comp_unit crc filename;
   add_import penv modname
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
@@ -334,13 +333,16 @@ module Array = struct
 end
 
 let crc_of_unit penv f name =
-  let (ps, _pm) = find_pers_struct penv f true name in
-  match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
-  | None -> assert false
-  | Some import_info ->
-    match Import_info.crc import_info with
+  match Consistbl.find penv.crc_units name with
+  | Some (_, crc) -> crc
+  | None ->
+    let (ps, _pm) = find_pers_struct penv f true name in
+    match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
     | None -> assert false
-    | Some crc -> crc
+    | Some import_info ->
+      match Import_info.crc import_info with
+      | None -> assert false
+      | Some crc -> crc
 
 let imports {imported_units; crc_units; _} =
   let imports =
@@ -377,31 +379,22 @@ let make_cmi penv modname sign alerts =
     cmi_flags = flags
   }
 
-let save_cmi penv psig pm =
+let save_cmi penv psig =
   let { Persistent_signature.filename; cmi } = psig in
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
         cmi_sign = _;
-        cmi_crcs = imports;
+        cmi_crcs = _;
         cmi_flags = flags;
       } = cmi in
       let crc =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
           ~mode: [Open_binary] filename
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
-      (* Enter signature in persistent table so that imports()
+      (* Enter signature in consistbl so that imports()
          will also return its crc *)
-      let ps =
-        { ps_name = modname;
-          ps_crcs =
-            Array.append
-              [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-              imports;
-          ps_filename = filename;
-          ps_flags = flags;
-        } in
-      save_pers_struct penv crc ps pm
+      save_pers_struct penv crc modname flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 

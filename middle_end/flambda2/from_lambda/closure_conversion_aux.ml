@@ -468,9 +468,9 @@ module Acc = struct
           Block_approximation (fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
       | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
-      | Immutable_string _ ->
+      | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
+      | Immutable_float_array _ | Immutable_value_array _ | Empty_array
+      | Mutable_string _ | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =
@@ -672,11 +672,18 @@ end
 
 module Function_decls = struct
   module Function_decl = struct
+    type param =
+      { name : Ident.t;
+        kind : Flambda_kind.With_subkind.t;
+        attributes : Lambda.parameter_attribute;
+        mode : Lambda.alloc_mode
+      }
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        params : param list;
         return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
@@ -687,14 +694,14 @@ module Function_decls = struct
         loc : Lambda.scoped_location;
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
-        num_trailing_local_params : int;
+        first_complex_local_param : int;
         contains_no_escaping_local_allocs : bool
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
         ~return_continuation ~exn_continuation ~my_region ~body
         ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
-        ~closure_alloc_mode ~num_trailing_local_params
+        ~closure_alloc_mode ~first_complex_local_param
         ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
@@ -715,7 +722,7 @@ module Function_decls = struct
         loc;
         recursive;
         closure_alloc_mode;
-        num_trailing_local_params;
+        first_complex_local_param;
         contains_no_escaping_local_allocs
       }
 
@@ -759,7 +766,7 @@ module Function_decls = struct
 
     let closure_alloc_mode t = t.closure_alloc_mode
 
-    let num_trailing_local_params t = t.num_trailing_local_params
+    let first_complex_local_param t = t.first_complex_local_param
 
     let contains_no_escaping_local_allocs t =
       t.contains_no_escaping_local_allocs
@@ -807,7 +814,7 @@ module Function_decls = struct
     set_diff
       (set_diff
          (all_free_idents function_decls)
-         (List.map fst (all_params function_decls)))
+         (List.map (fun p -> p.Function_decl.name) (all_params function_decls)))
       (let_rec_idents function_decls)
 
   let create function_decls alloc_mode =

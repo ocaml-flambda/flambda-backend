@@ -200,3 +200,15 @@ val f : unit -> local_ unit = <fun>
 - : unit = ()
 |}]
 
+(* exclave means the inner body must be exactly at local; cannot be global *)
+let f () =
+  exclave_ (
+    (fun x y -> ()) : (string -> string -> unit)
+  )
+[%%expect{|
+Line 3, characters 4-19:
+3 |     (fun x y -> ()) : (string -> string -> unit)
+        ^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied
+|}]

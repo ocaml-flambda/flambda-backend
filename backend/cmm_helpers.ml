@@ -81,6 +81,11 @@ let float_header = block_header Obj.double_tag (size_float / size_addr)
 let float_local_header =
   local_block_header Obj.double_tag (size_float / size_addr)
 
+let boxedvec128_header = block_header Obj.abstract_tag (size_vec128 / size_addr)
+
+let boxedvec128_local_header =
+  local_block_header Obj.abstract_tag (size_vec128 / size_addr)
+
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with
      [caml_alloc_float_array]. *)
@@ -143,6 +148,11 @@ let alloc_float_header mode dbg =
   match mode with
   | Lambda.Alloc_heap -> Cconst_natint (float_header, dbg)
   | Lambda.Alloc_local -> Cconst_natint (float_local_header, dbg)
+
+let alloc_boxedvec128_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedvec128_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedvec128_local_header, dbg)
 
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 
@@ -699,6 +709,37 @@ let rec unbox_float dbg =
     | Ctail e -> Ctail (unbox_float dbg e)
     | cmm -> Cop (Cload (Double, Immutable), [cmm], dbg))
 
+(* Vectors *)
+
+let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg)
+
+let rec unbox_vec128 dbg =
+  map_tail ~kind:Any (function
+    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
+      when Nativeint.equal hdr boxedvec128_header
+           || Nativeint.equal hdr boxedvec128_local_header ->
+      c
+    | Cconst_symbol (s, _dbg) as cmm -> (
+      match Cmmgen_state.structured_constant_of_sym s.sym_name with
+      | Some (Uconst_vec128 { low; high }) ->
+        Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
+      | _ -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
+    | Cregion e as cmm -> (
+      (* It is valid to push unboxing inside a Cregion except when the extra
+         unboxing logic pushes a tail call out of tail position *)
+      match
+        map_tail ~kind:Any
+          (function
+            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
+            | Ctail e -> Ctail (unbox_vec128 dbg e)
+            | e -> unbox_vec128 dbg e)
+          e
+      with
+      | e -> Cregion e
+      | exception Exit -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
+    | Ctail e -> Ctail (unbox_vec128 dbg e)
+    | cmm -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
+
 (* Complex *)
 
 let box_complex dbg c_re c_im =
@@ -1019,6 +1060,7 @@ module Extended_machtype_component = struct
     | Tagged_int
     | Any_int
     | Float
+    | Vec128
 
   let of_machtype_component (component : machtype_component) =
     match component with
@@ -1026,6 +1068,7 @@ module Extended_machtype_component = struct
     | Addr -> Addr
     | Int -> Any_int
     | Float -> Float
+    | Vec128 -> Vec128
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1033,6 +1076,7 @@ module Extended_machtype_component = struct
     | Addr -> Addr
     | Tagged_int | Any_int -> Int
     | Float -> Float
+    | Vec128 -> Vec128
 
   let change_tagged_int_to_val t : machtype_component =
     match t with
@@ -1041,6 +1085,7 @@ module Extended_machtype_component = struct
     | Tagged_int -> Val
     | Any_int -> Int
     | Float -> Float
+    | Vec128 -> Vec128
 end
 
 module Extended_machtype = struct
@@ -1055,6 +1100,8 @@ module Extended_machtype = struct
   let typ_int64 = [| Extended_machtype_component.Any_int |]
 
   let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_vec128 = [| Extended_machtype_component.Vec128 |]
 
   let typ_void = [||]
 
@@ -1073,6 +1120,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float -> typ_float
+    | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
@@ -1093,6 +1141,7 @@ let machtype_identifier t =
     | Val -> 'V'
     | Int -> 'I'
     | Float -> 'F'
+    | Vec128 -> 'X'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
   in
@@ -1930,7 +1979,8 @@ let box_sized size mode dbg exp =
 
 (* Simplification of some primitives into C calls *)
 
-let default_prim name = Primitive.simple ~name ~arity:0 (*ignored*) ~alloc:true
+let default_prim name =
+  Primitive.simple_on_values ~name ~arity:0 (*ignored*) ~alloc:true
 
 let int64_native_prim name arity ~alloc =
   let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in
@@ -2441,35 +2491,34 @@ let cache_public_method meths tag cache dbg =
                       Cvar tagged ) ) ) ) )
 
 let has_local_allocs e =
-  let rec loop = function
-    | Cregion e ->
-      (* Local allocations within a nested region do not affect this region,
-         except inside a Ctail block *)
-      loop_until_tail e
-    | Cop (Calloc Alloc_local, _, _) | Cop ((Cextcall _ | Capply _), _, _) ->
+  let rec loop ~depth = function
+    | Cregion e -> loop ~depth:(depth + 1) e
+    | Ctail e -> if depth = 0 then () else loop ~depth:(depth - 1) e
+    | Cop ((Calloc Alloc_local | Cextcall _ | Capply _), _, _) when depth = 0 ->
       raise Exit
-    | e -> iter_shallow loop e
-  and loop_until_tail = function
-    | Ctail e -> loop e
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail loop_until_tail e)
+    | e -> iter_shallow (loop ~depth) e
   in
-  match loop e with () -> false | exception Exit -> true
+  match loop e ~depth:0 with () -> false | exception Exit -> true
 
 let remove_region_tail e =
-  let rec has_tail = function
-    | Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail has_tail e)
+  let rec has_tail ~depth = function
+    | (Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _)) when depth = 0 ->
+      raise Exit
+    | Ctail e -> has_tail ~depth:(depth - 1) e
+    | Cregion e -> has_tail ~depth:(depth + 1) e
+    | e -> ignore (iter_shallow_tail (has_tail ~depth) e : bool)
   in
-  let rec remove_tail = function
-    | Ctail e -> e
-    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) ->
+  let rec remove_tail ~depth = function
+    | Ctail e ->
+      if depth = 0 then e else Ctail (remove_tail ~depth:(depth - 1) e)
+    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) when depth = 0 ->
       Cop (Capply (mach, Rc_normal), args, dbg)
-    | Cregion _ as e -> e
-    | e -> map_shallow_tail remove_tail e
+    | Cregion e -> Cregion (remove_tail ~depth:(depth + 1) e)
+    | e -> map_shallow_tail (remove_tail ~depth) e
   in
-  match has_tail e with () -> e | exception Exit -> remove_tail e
+  match has_tail e ~depth:0 with
+  | () -> e
+  | exception Exit -> remove_tail e ~depth:0
 
 let region e =
   (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
@@ -2737,17 +2786,19 @@ let tuplify_function arity return =
 
 let max_arity_optimized = 15
 
+let ints_per_float = size_float / Arch.size_int
+
+let ints_per_vec128 = size_vec128 / Arch.size_int
+
 let machtype_stored_size t =
-  if Arch.size_int = 4
-  then
-    Array.fold_left
-      (fun cur c ->
-        match c with
-        | Addr -> Misc.fatal_error "[Addr] cannot be stored"
-        | Val | Int -> cur + 1
-        | Float -> cur + 2)
-      0 t
-  else Array.length t
+  Array.fold_left
+    (fun cur c ->
+      match c with
+      | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Val | Int -> cur + 1
+      | Float -> cur + ints_per_float
+      | Vec128 -> cur + ints_per_vec128)
+    0 t
 
 let machtype_non_scanned_size t =
   Array.fold_left
@@ -2756,7 +2807,8 @@ let machtype_non_scanned_size t =
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val -> cur
       | Int -> cur + 1
-      | Float -> cur + if Arch.size_int = 4 then 2 else 1)
+      | Float -> cur + ints_per_float
+      | Vec128 -> cur + ints_per_vec128)
     0 t
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
@@ -2765,7 +2817,10 @@ let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition
       (fun (_, c) ->
-        match c with Int | Float -> true | Val -> false | Addr -> assert false)
+        match c with
+        | Int | Float | Vec128 -> true
+        | Val -> false
+        | Addr -> assert false)
       vs
   in
   List.map (fun (v, _) -> Cvar v) (non_scanned @ scanned)
@@ -2781,8 +2836,11 @@ let read_from_closure_given_machtype t clos base_offset dbg =
         | Int ->
           (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
         | Float ->
-          ( ((non_scanned_pos + if Arch.size_int = 4 then 2 else 1), scanned_pos),
+          ( (non_scanned_pos + ints_per_float, scanned_pos),
             load Double non_scanned_pos )
+        | Vec128 ->
+          ( (non_scanned_pos + ints_per_vec128, scanned_pos),
+            load Onetwentyeight non_scanned_pos )
         | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
         | Addr -> Misc.fatal_error "[Addr] cannot be read")
       (base_offset, base_offset + machtype_non_scanned_size t)
@@ -3697,6 +3755,9 @@ let emit_nativeint_constant symb n cont =
   emit_block symb boxedintnat_header
     (emit_boxed_nativeint_constant_fields n cont)
 
+let emit_vec128_constant symb bits cont =
+  emit_block symb boxedvec128_header (Cvec128 bits :: cont)
+
 let emit_float_array_constant symb fields cont =
   emit_block symb
     (floatarray_header (List.length fields))
@@ -4055,6 +4116,8 @@ let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
    cross-compiling for 64-bit on a 32-bit host *)
 let int64 ~dbg i = natint_const_untagged dbg (Int64.to_nativeint i)
 
+let vec128 ~dbg bits = Cconst_vec128 (bits, dbg)
+
 let nativeint ~dbg i = natint_const_untagged dbg i
 
 let letin v ~defining_expr ~body =
@@ -4062,9 +4125,9 @@ let letin v ~defining_expr ~body =
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
     defining_expr
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
+  | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
+  | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
+  | Cexit _ | Ctrywith _ | Cregion _ | Ctail _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -4318,6 +4381,8 @@ let cint i = Cmm.Cint i
 
 let cfloat f = Cmm.Cdouble f
 
+let cvec128 bits = Cmm.Cvec128 bits
+
 let symbol_address s = Cmm.Csymbol_address s
 
 let define_symbol symbol = [Cdefine_symbol symbol]
@@ -4353,7 +4418,7 @@ let cmm_arith_size (e : Cmm.expression) =
   in
   match e with
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-    ->
+  | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
@@ -4374,6 +4439,7 @@ let kind_of_layout (layout : Lambda.layout) =
   match layout with
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
+  | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _ ->
     Any

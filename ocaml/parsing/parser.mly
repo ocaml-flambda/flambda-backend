@@ -48,7 +48,7 @@ let ghost_loc (startpos, endpos) = {
 
 let mktyp ~loc ?attrs d = Typ.mk ~loc:(make_loc loc) ?attrs d
 let mkpat ~loc d = Pat.mk ~loc:(make_loc loc) d
-let mkexp ~loc d = Exp.mk ~loc:(make_loc loc) d
+let mkexp ~loc ?attrs d = Exp.mk ~loc:(make_loc loc) ?attrs d
 let mkmty ~loc ?attrs d = Mty.mk ~loc:(make_loc loc) ?attrs d
 let mksig ~loc d = Sig.mk ~loc:(make_loc loc) d
 let mkmod ~loc ?attrs d = Mod.mk ~loc:(make_loc loc) ?attrs d
@@ -130,19 +130,19 @@ let neg_string f =
 let mkuminus ~oploc name arg =
   match name, arg.pexp_desc with
   | "-", Pexp_constant(Pconst_integer (n,m)) ->
-      Pexp_constant(Pconst_integer(neg_string n,m))
+      Pexp_constant(Pconst_integer(neg_string n,m)), arg.pexp_attributes
   | ("-" | "-."), Pexp_constant(Pconst_float (f, m)) ->
-      Pexp_constant(Pconst_float(neg_string f, m))
+      Pexp_constant(Pconst_float(neg_string f, m)), arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
   match name, desc with
   | "+", Pexp_constant(Pconst_integer _)
-  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc
+  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc, arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 
 let local_ext_loc loc = mkloc "extension.local" loc
@@ -757,7 +757,7 @@ let mk_directive ~loc name arg =
 let check_layout loc id =
   begin
     match id with
-    | ("any" | "value" | "void" | "immediate64" | "immediate") -> ()
+    | ("any" | "value" | "void" | "immediate64" | "immediate" | "float64") -> ()
     | _ -> expecting loc "layout"
   end;
   let loc = make_loc loc in
@@ -765,7 +765,7 @@ let check_layout loc id =
 
 (* Unboxed literals *)
 
-(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+(* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts
@@ -781,7 +781,6 @@ module Constant : sig
   val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
   val to_expression : loc:loc -> t -> expression
   val to_pattern : loc:loc -> t -> pattern
-  val assert_is_value : loc:loc -> where:string -> t -> constant
 end = struct
   type t =
     | Value of constant
@@ -810,11 +809,6 @@ end = struct
     | Unboxed const_unboxed ->
       Jane_syntax.Unboxed_constants.pat_of
         ~loc:(make_loc loc) ~attrs:[] const_unboxed
-
-  let assert_is_value ~loc ~where : t -> Parsetree.constant = function
-    | Value x -> x
-    | Unboxed _ ->
-        not_expecting loc (Printf.sprintf "unboxed literal %s" where)
 end
 
 type sign = Positive | Negative
@@ -2617,6 +2611,12 @@ expr:
       { Pexp_assert $3, $2 }
   | LAZY ext_attributes simple_expr %prec below_HASH
       { Pexp_lazy $3, $2 }
+  | subtractive expr %prec prec_unary_minus
+      { let desc, attrs = mkuminus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
+  | additive expr %prec prec_unary_plus
+      { let desc, attrs = mkuplus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
 ;
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
@@ -2629,10 +2629,6 @@ expr:
       { Pexp_variant($1, Some $2) }
   | e1 = expr op = op(infix_operator) e2 = expr
       { mkinfix e1 op e2 }
-  | subtractive expr %prec prec_unary_minus
-      { mkuminus ~oploc:$loc($1) $1 $2 }
-  | additive expr %prec prec_unary_plus
-      { mkuplus ~oploc:$loc($1) $1 $2 }
 ;
 
 simple_expr:
@@ -3193,11 +3189,8 @@ simple_pattern_not_ident:
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant DOTDOT signed_constant
-      { let where = "in a pattern interval" in
-        Ppat_interval
-          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
-           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
+  | signed_value_constant DOTDOT signed_value_constant
+      { Ppat_interval ($1, $3) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag
@@ -3874,6 +3867,10 @@ atomic_type:
               let hash_end = snd $loc($3) in
               unboxed_float_type (ident_start, hash_end) tys
           | _ ->
+            (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
+               code. When we support unboxed types other than float, we should
+               consider moving this check into the typechecker.
+            *)
               not_expecting $sloc "Unboxed type other than float#"
         }
     | tys = actual_type_parameters
@@ -4007,31 +4004,35 @@ meth_list:
 
 /* Constants */
 
-constant:
-  | INT               { let (n, m) = $1 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | CHAR              { Constant.value (Pconst_char $1) }
+value_constant:
+  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
+  | CHAR              { Pconst_char $1 }
   | STRING            { let (s, strloc, d) = $1 in
-                        Constant.value (Pconst_string (s, strloc, d)) }
-  | FLOAT             { let (f, m) = $1 in
-                        Constant.value (Pconst_float (f, m)) }
+                        Pconst_string (s, strloc, d) }
+  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+;
+unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
   | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
+constant:
+    value_constant    { Constant.value $1 }
+  | unboxed_constant  { $1 }
+;
+signed_value_constant:
+    value_constant    { $1 }
+  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
+  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
+  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
+  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+;
 signed_constant:
-    constant          { $1 }
-  | MINUS INT         { let (n, m) = $2 in
-                        Constant.value (Pconst_integer("-" ^ n, m)) }
-  | MINUS FLOAT       { let (f, m) = $2 in
-                        Constant.value (Pconst_float("-" ^ f, m)) }
-  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
-  | PLUS INT          { let (n, m) = $2 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | PLUS FLOAT        { let (f, m) = $2 in
-                        Constant.value (Pconst_float(f, m)) }
-  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT   { unboxed_float $sloc Negative $2 }
+    signed_value_constant { Constant.value $1 }
+  | unboxed_constant      { $1 }
+  | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT      { unboxed_float $sloc Negative $2 }
+  | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT       { unboxed_float $sloc Positive $2 }
 ;
 
 /* Identifiers and long identifiers */

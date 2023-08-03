@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*            Mark Shinwell and Thomas Refis, Jane Street Europe          *)
 (*                                                                        *)
-(*   Copyright 2013--2017 Jane Street Group LLC                           *)
+(*   Copyright 2013--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,7 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+4"]
+
+(* CR mshinwell: We need a Cfg version of this pass. *)
 
 module M = Mach
 module R = Reg
@@ -111,7 +113,7 @@ let check_invariants (instr : M.instruction) ~(avail_before : RAS.t) =
    Recall that some of these may expand into multiple machine instructions
    including clobbers, e.g. for [Ialloc].)
 
-   The [available_before] and [available_across] fields of each instruction is
+   The [available_before] and [available_across] fields of each instruction are
    updated by this function. *)
 let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
   check_invariants instr ~avail_before;
@@ -129,7 +131,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         Some (ok Reg_with_debug_info.Set.empty), unreachable
       | Iop
           (Iname_for_debugger
-            { ident; which_parameter; provenance; is_assignment }) ->
+            { ident; which_parameter; provenance; is_assignment; regs }) ->
         (* First forget about any existing debug info to do with [ident] if the
            naming corresponds to an assignment operation. *)
         let forgetting_ident =
@@ -147,11 +149,11 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
               avail_before
         in
         let avail_after = ref forgetting_ident in
-        let num_parts_of_value = Array.length instr.arg in
+        let num_parts_of_value = Array.length regs in
         (* Add debug info about [ident], but only for registers that are known
            to be available. *)
         for part_of_value = 0 to num_parts_of_value - 1 do
-          let reg = instr.arg.(part_of_value) in
+          let reg = regs.(part_of_value) in
           if RD.Set.mem_reg forgetting_ident reg
           then
             let regd =
@@ -184,6 +186,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           else
             RD.Set.made_unavailable_by_clobber avail_before
               ~regs_clobbered:instr.res ~register_class:Proc.register_class
+              ~stack_class:(fun r -> Proc.stack_slot_class r.typ)
         in
         let results =
           Array.map2
@@ -199,7 +202,14 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         let avail_across = RD.Set.diff avail_before made_unavailable in
         let avail_after = RD.Set.union avail_across (RD.Set.of_array results) in
         Some (ok avail_across), ok avail_after
-      | Iop op ->
+      | Iop
+          (( Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _
+           | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _
+           | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
+           | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
+           | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
+           | Ivalueofint | Iintofvalue | Iopaque | Ispecific _
+           | Iprobe_is_enabled _ | Ibeginregion | Iendregion ) as op) ->
         (* We split the calculation of registers that become unavailable after a
            call into two parts. First: anything that the target marks as
            destroyed by the operation, combined with any registers that will be
@@ -209,7 +219,8 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
             Array.append (Proc.destroyed_at_oper instr.desc) instr.res
           in
           RD.Set.made_unavailable_by_clobber avail_before ~regs_clobbered
-            ~register_class:Proc.register_class
+            ~register_class:Proc.register_class ~stack_class:(fun r ->
+              Proc.stack_slot_class r.typ)
         in
         (* Second: the cases of (a) allocations and (b) OCaml to OCaml function
            calls. In these cases, since the GC may run, registers always become
@@ -221,7 +232,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
            [Available_ranges.Make_ranges.end_pos_offset]. *)
         let made_unavailable_2 =
           match op with
-          | Icall_ind | Icall_imm _ | Ialloc _ ->
+          | Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _ ->
             RD.Set.filter
               (fun reg ->
                 let holds_immediate = RD.holds_non_pointer reg in
@@ -232,7 +243,15 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
                 in
                 not remains_available)
               avail_before
-          | _ -> RD.Set.empty
+          | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
+          | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind | Itailcall_imm _
+          | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
+          | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
+          | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
+          | Ivalueofint | Iintofvalue | Iopaque | Ispecific _
+          | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion
+          | Iendregion ->
+            RD.Set.empty
         in
         let made_unavailable =
           RD.Set.union made_unavailable_1 made_unavailable_2
@@ -316,6 +335,9 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         augment_availability_at_exit nfail avail_before;
         None, unreachable
       | Itrywith (body, kind, (ts, handler)) ->
+        (match kind with
+        | Regular -> ()
+        | Delayed nfail -> Hashtbl.add avail_at_exit nfail unreachable);
         let saved_avail_at_raise = setup_avail_at_raise kind in
         let avail_before = ok avail_before in
         let after_body = available_regs body ~avail_before in
@@ -346,6 +368,9 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
             (available_regs handler ~avail_before:avail_before_handler)
         in
         current_trap_stack := saved_trap_stack;
+        (match kind with
+        | Regular -> ()
+        | Delayed nfail -> Hashtbl.remove avail_at_exit nfail);
         None, avail_after
       | Iraise _ ->
         let avail_before = ok avail_before in
@@ -353,7 +378,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         None, unreachable)
   in
   instr.available_across <- avail_across;
-  match instr.desc with
+  match[@ocaml.warning "-4"] instr.desc with
   | Iend -> avail_after
   | _ -> available_regs instr.next ~avail_before:avail_after
 
@@ -368,7 +393,7 @@ and join branches ~avail_before =
   None, avail_after
 
 let fundecl (f : M.fundecl) =
-  if false (* !Clflags.debug && !Clflags.debug_runavail *)
+  if !Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf
   then (
     assert (Hashtbl.length avail_at_exit = 0);
     avail_at_raise := RAS.Unreachable;

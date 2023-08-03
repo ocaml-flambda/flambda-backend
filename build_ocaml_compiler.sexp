@@ -9,6 +9,7 @@
   is_flambda_backend
   build_m32_from_upstream
   stack_allocation_by_default
+  supports_cached_generated_functions
   ))
  (features (
    normal

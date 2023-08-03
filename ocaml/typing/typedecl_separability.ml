@@ -471,7 +471,7 @@ let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
 
     Note: this differs from {!Types.Separability.default_signature},
     which does not have access to the declaration and its immediacy. *)
-(* CR layouts v2: At the moment things that are not value are certainly
+(* CR layouts v2.8: At the moment things that are not value are certainly
    separable: they must be any or void, and there are no runtime values
    of either of those things.  So, we put the same exception here for them
    as is described above for immediate.  But check whether we still believe

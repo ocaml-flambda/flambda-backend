@@ -724,3 +724,15 @@ val compare_move_within_set_of_closures
   -> int
 
 val compare_project_closure : project_closure -> project_closure -> int
+
+module Layouts : sig
+  type t
+  val empty : t
+  val add : t -> Variable.t -> Lambda.layout -> t
+  val add_mut : t -> Mutable_variable.t -> Lambda.layout -> t
+  val find : t -> Variable.t -> Lambda.layout
+  val find_mut : t -> Mutable_variable.t -> Lambda.layout
+end
+
+val result_layout : layouts:Layouts.t -> expr -> Lambda.layout
+val result_layout_named : layouts:Layouts.t -> named -> Lambda.layout

@@ -150,12 +150,8 @@ val all_sets_of_closures_map
    : Flambda.program
   -> Flambda.set_of_closures Set_of_closures_id.Map.t
 
-
-(* CR-someday pchambart: A more general version of this function might
-   take a [named] instead of a symbol and be called with
-   [Read_symbol_field (symbol, 0)]. *)
-val substitute_read_symbol_field_for_variables
-   : (Symbol.t * int list) Variable.Map.t
+val substitute_named_for_variables
+   : Flambda.named Variable.Map.t
   -> Flambda.t
   -> Flambda.t
 

@@ -66,12 +66,23 @@ let register_class r =
   match r.typ with
   | Val | Int | Addr  -> 0
   | Float -> 1
+  (* CR mslater: (SIMD) arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
 
-let register_class_tag c =
+let num_stack_slot_classes = 2
+
+let stack_slot_class typ =
+  match typ with
+  | Val | Int | Addr  -> 0
+  | Float -> 1
+  (* CR mslater: (SIMD) arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
+
+let stack_class_tag c =
   match c with
   | 0 -> "i"
   | 1 -> "f"
-  | c -> Misc.fatal_errorf "Unspecified register class %d" c
+  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers =
   [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
@@ -79,8 +90,14 @@ let num_available_registers =
 let first_available_register =
   [| 0; 100 |]
 
-let register_name r =
-  if r < 100 then int_reg_name.(r) else float_reg_name.(r - 100)
+let register_name ty r =
+  match ty with
+  | Val | Int | Addr ->
+    int_reg_name.(r - first_available_register.(0))
+  | Float ->
+    float_reg_name.(r - first_available_register.(1))
+  (* CR mslater: (SIMD) arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
 
 let rotate_registers = true
 
@@ -103,11 +120,19 @@ let hard_float_reg =
 let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
 
-let phys_reg n =
-  if n < 100 then hard_int_reg.(n) else hard_float_reg.(n - 100)
+let precolored_regs =
+  let phys_regs = Reg.set_of_array all_phys_regs in
+  fun () -> phys_regs
 
-let reg_x8 = phys_reg 8
-let reg_d7 = phys_reg 107
+let phys_reg ty n =
+  match ty with
+  | Int | Addr | Val -> hard_int_reg.(n)
+  | Float -> hard_float_reg.(n - 100)
+  (* CR mslater: (SIMD) arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
+
+let reg_x8 = phys_reg Int 8
+let reg_d7 = phys_reg Float 107
 
 let stack_slot slot ty =
   Reg.at_location ty (Stack slot)
@@ -118,7 +143,7 @@ let size_domainstate_args = 64 * size_int
 
 let loc_int last_int make_stack int ofs =
   if !int <= last_int then begin
-    let l = phys_reg !int in
+    let l = phys_reg Int !int in
     incr int; l
   end else begin
     ofs := Misc.align !ofs size_int;
@@ -128,7 +153,7 @@ let loc_int last_int make_stack int ofs =
 
 let loc_float last_float make_stack float ofs =
   if !float <= last_float then begin
-    let l = phys_reg !float in
+    let l = phys_reg Float !float in
     incr float; l
   end else begin
     ofs := Misc.align !ofs size_float;
@@ -138,7 +163,7 @@ let loc_float last_float make_stack float ofs =
 
 let loc_int32 last_int make_stack int ofs =
   if !int <= last_int then begin
-    let l = phys_reg !int in
+    let l = phys_reg Int !int in
     incr int; l
   end else begin
     let l = stack_slot (make_stack !ofs) Int in
@@ -158,6 +183,8 @@ let calling_conventions
         loc.(i) <- loc_int last_int make_stack int ofs
     | Float ->
         loc.(i) <- loc_float last_float make_stack float ofs
+    (* CR mslater: (SIMD) arm64 *)
+    | Vec128 -> fatal_error "arm64: got vec128 register"
   done;
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
@@ -220,6 +247,8 @@ let external_calling_conventions
         loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
+    (* CR mslater: (SIMD) arm64 *)
+    | XVec128 -> fatal_error "arm64: got vec128 register"
     end)
     ty_args;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
@@ -230,7 +259,7 @@ let loc_external_arguments ty_args =
 let loc_external_results res =
   let (loc, _) = calling_conventions 0 1 100 100 not_supported 0 res in loc
 
-let loc_exn_bucket = phys_reg 0
+let loc_exn_bucket = phys_reg Int 0
 
 (* See "DWARF for the ARM 64-bit architecture (AArch64)" available from
    developer.arm.com. *)
@@ -257,6 +286,8 @@ let dwarf_register_numbers ~reg_class =
 
 let stack_ptr_dwarf_register_number = 31
 
+let domainstate_ptr_dwarf_register_number = 28
+
 (* Volatile registers: none *)
 
 let regs_are_volatile _rs = false
@@ -265,11 +296,13 @@ let regs_are_volatile _rs = false
 
 let destroyed_at_c_call =
   (* x19-x28, d8-d15 preserved *)
-  Array.of_list (List.map phys_reg
-    [0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;
-     100;101;102;103;104;105;106;107;
+  Array.append
+  (Array.of_list (List.map (phys_reg Int)
+    [0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15]))
+  (Array.of_list (List.map (phys_reg Float)
+    [100;101;102;103;104;105;106;107;
      116;117;118;119;120;121;122;123;
-     124;125;126;127;128;129;130;131])
+     124;125;126;127;128;129;130;131]))
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
@@ -284,7 +317,7 @@ let destroyed_at_oper = function
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
-let destroyed_at_raise = all_phys_regs
+let destroyed_at_raise () = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
 
@@ -363,6 +396,10 @@ let max_register_pressure = function
   | _ -> [| 23; 32 |]
 
 (* Layout of the stack *)
+
+let initial_stack_offset = 0
+let trap_frame_size_in_bytes = 16
+
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fun_contains_calls
     || fun_num_stack_slots.(0) > 0
@@ -370,6 +407,17 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
+
+let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
+  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
+
+type slot_offset =
+  | Bytes_relative_to_stack_pointer of int
+  | Bytes_relative_to_domainstate_pointer of int
+
+let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
+      ~fun_num_stack_slots:_ =
+  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
 
 (* Calling the assembler *)
 

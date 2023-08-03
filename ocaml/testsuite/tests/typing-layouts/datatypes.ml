@@ -4,7 +4,7 @@
 
 (* Tests for layouts in algebraic datatypes *)
 
-(* CR layouts v2: add mixed block restriction tests. *)
+(* CR layouts v5: add mixed block restriction tests. *)
 
 type t_value [@@value]
 type t_immediate [@@immediate];;

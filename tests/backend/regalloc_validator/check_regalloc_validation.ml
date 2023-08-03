@@ -30,7 +30,9 @@ module Instruction = struct
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
       stack_offset = 0;
-      ls_order = -1
+      ls_order = -1;
+      available_before = None;
+      available_across = None;
     }
 end
 
@@ -90,7 +92,7 @@ module Cfg_desc = struct
     let cfg =
       Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:[]
         ~fun_fast:false ~fun_contains_calls
-        ~fun_num_stack_slots:(Array.make Proc.num_register_classes 0)
+        ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
     in
     List.iter
       (fun (block : Block.t) ->
@@ -120,10 +122,10 @@ module Cfg_desc = struct
          count. *)
       let update_stack_slots i =
         let update_slot (r : Reg.t) =
-          match r.loc, Proc.register_class r with
-          | Stack (Local idx), reg_class ->
-            cfg.fun_num_stack_slots.(reg_class)
-              <- max cfg.fun_num_stack_slots.(reg_class) (idx + 1)
+          match r.loc, Proc.stack_slot_class r.typ with
+          | Stack (Local idx), stack_class ->
+            cfg.fun_num_stack_slots.(stack_class)
+              <- max cfg.fun_num_stack_slots.(stack_class) (idx + 1)
           | _ -> ()
         in
         Array.iter update_slot i.arg;
@@ -168,7 +170,7 @@ let entry_label =
          Cfg.create ~fun_name:"foo"
            ~fun_args:[| Proc.phys_reg 0 |]
            ~fun_dbg:[] ~fun_fast:false ~fun_contains_calls:false
-           ~fun_num_stack_slots:(Array.make Proc.num_register_classes 0)
+           ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
        in
        Label.Tbl.add cfg.Cfg.blocks (Cfg.entry_label cfg)
          { start = Cfg.entry_label cfg;
@@ -559,7 +561,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (V/37) with an unknown \
+      ">> Fatal error: instruction 20 has a register (V/53) with an unknown \
        location"
 
 let () =
@@ -1024,7 +1026,7 @@ let test_loop ~loop_loc_first n =
     ~exp_std:
       "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
        equations when removing result equations.\n\
-       Existing equation has to agree one 0 or 2 sides (cannot on exactly 1) \
+       Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
        with the removed equation.\n\
        Existing equation R[%rdi]=%rbx.\n\
        Removed equation: R[%rbx]=%rbx.\n\

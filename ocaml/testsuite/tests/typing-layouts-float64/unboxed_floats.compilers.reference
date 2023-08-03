@@ -1,0 +1,4 @@
+File "unboxed_floats.ml", line 74, characters 11-18:
+74 | type ('a : float64) t_float64 = 'a
+                ^^^^^^^
+Error: Layout float64 is used here, but the appropriate layouts extension is not enabled

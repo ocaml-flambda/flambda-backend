@@ -1,0 +1,90 @@
+; Stubs
+
+(foreign_library
+ (archive_name stubs)
+ (language c)
+ (names stubs)
+ (flags -msse4.2)
+ (include_dirs "../../ocaml/runtime"))
+
+; Tests with external assembler
+
+(executables
+ (names basic)
+ (modules basic)
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets basic.out)
+ (deps basic.exe)
+ (action
+  (progn
+   (with-outputs-to
+    basic.out
+    (run ./basic.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (action
+  (progn
+   (diff empty.expected basic.out))))
+
+; Tests with probes / internal assembler - not supported on macOS
+
+(executable
+ (name probes)
+ (modules probes)
+ (enabled_if
+  (<> %{system} macosx))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd)))
+
+(rule
+ (targets basic_internal.ml)
+ (deps basic.ml)
+ (action
+  (progn
+   (copy basic.ml basic_internal.ml))))
+
+(executables
+ (names basic_internal)
+ (modules basic_internal)
+ (enabled_if
+  (<> %{system} macosx))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd -internal-assembler)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets probes.out basic_internal.out)
+ (deps probes.exe basic_internal.exe)
+ (action
+  (progn
+   (with-outputs-to
+    probes.out
+    (run ./probes.exe))
+   (with-outputs-to
+    basic_internal.out
+    (run ./basic_internal.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff empty.expected probes.out)
+   (diff empty.expected basic_internal.out))))

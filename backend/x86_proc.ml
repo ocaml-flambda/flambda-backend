@@ -49,6 +49,8 @@ module Section_name = struct
         | hd :: tl -> align tl
       in align t.args
 
+    let is_text_like t = String.starts_with ~prefix:".text" t.name_str
+    let is_data_like t = String.starts_with ~prefix:".data" t.name_str
     (* An error was being thrown because the .note.stapsdt section
        had the wrong sh_type. It may be appropriate to change this to
        isprefix ".note" t.name_str, but not sure *)
@@ -243,10 +245,8 @@ let string_of_reg32 = function
   | R14 -> "r14d"
   | R15 -> "r15d"
 
-let string_of_registerf = function
+let string_of_regf = function
   | XMM n -> Printf.sprintf "xmm%d" n
-  | TOS -> Printf.sprintf "tos"
-  | ST n -> Printf.sprintf "st(%d)" n
 
 let string_of_condition = function
   | E -> "e"
@@ -362,10 +362,6 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      let instrs = Section_name.Tbl.fold (fun name instrs acc ->
-          (name, List.rev !instrs) :: acc)
-          asm_code_by_section []
-      in
-      binary_content := Some (f instrs)
+      binary_content := Some (f asm_code_by_section)
   | None -> binary_content := None
   end

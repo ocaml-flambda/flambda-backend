@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
 open! Int_replace_polymorphic_compare
+module Layouts = Flambda.Layouts
 
 type ('a, 'b) kind =
   | Initialisation of (Symbol.t * Tag.t * Flambda.t list)
@@ -26,9 +27,19 @@ let should_copy (named:Flambda.named) =
   | Symbol _ | Read_symbol_field _ | Const _ -> true
   | _ -> false
 
+type access =
+  | Field of int
+  | Project_var of {
+      closure_id : Closure_id.t;
+      var : Var_within_closure.t;
+      kind : Lambda.layout;
+    }
+
+type projection = access list
+
 type extracted =
-  | Expr of Variable.t * Flambda.t
-  | Exprs of Variable.t list * Flambda.t
+  | Expr of Variable.t * projection * Flambda.t
+  | Exprs of (Variable.t * projection) list * Flambda.t
   | Block of Variable.t * Tag.t * Variable.t list
 
 type accumulated = {
@@ -37,7 +48,84 @@ type accumulated = {
   terminator : Flambda.expr;
 }
 
-let rec accumulate ~substitution ~copied_lets ~extracted_lets
+(* Values of layout not letrec cannot be stored in any kind of symbol bound
+   values. Currently the only kind of values that can store any layout are
+   the closures.
+
+   To box a value, we create a dummy closure (with no code) and store the value
+   as a free var. Unboxing is done with a projection of the free var.
+
+   The Var_within_closure id is fresh.
+*)
+let boxing_closure var kind : Flambda.t * access =
+  let inner_var = Variable.rename var in
+  let closure_id_var =
+    Variable.create Internal_variable_names.boxing_set_of_closures
+      ~debug_info:Debuginfo.none
+  in
+  let closure_id = Closure_id.wrap closure_id_var in
+  let closure_origin = Closure_origin.create closure_id in
+  let function_decl =
+    Flambda.create_function_declaration ~params:[]
+      ~alloc_mode:Lambda.alloc_heap
+      ~region:false
+      ~stub:false
+      ~return_layout:Lambda.layout_bottom
+      ~specialise:Default_specialise
+      ~check:Default_check
+      ~is_a_functor:false
+      ~poll:Default_poll
+      ~inline:Default_inline
+      ~closure_origin
+      ~body:Proved_unreachable
+  in
+  let function_decls =
+    Flambda.create_function_declarations ~is_classic_mode:true
+      ~funs:(Variable.Map.singleton closure_id_var function_decl)
+  in
+  let free_var : Flambda.specialised_to =
+    { var; projection = None; kind }
+  in
+  let set_of_closures =
+    Flambda.create_set_of_closures ~function_decls
+      ~specialised_args:Variable.Map.empty
+      ~direct_call_surrogates:Variable.Map.empty
+      ~free_vars:(Variable.Map.singleton inner_var free_var)
+  in
+  let project_var : access =
+    Project_var { closure_id; var = Var_within_closure.wrap inner_var; kind }
+  in
+  let closure =
+    let name = Internal_variable_names.boxing_closure in
+    let set_var = Variable.create name in
+    let closure_var = Variable.create name in
+    Flambda.create_let set_var (Set_of_closures set_of_closures)
+      (Flambda.create_let closure_var
+        (Project_closure { set_of_closures = set_var; closure_id })
+        (Var closure_var))
+  in
+  closure, project_var
+
+let pack_expr ~layouts (expr : Flambda.t) =
+  let layout = Flambda.result_layout ~layouts expr in
+  match layout with
+  | Ptop -> assert false
+  | Pbottom
+  | Pvalue _ -> expr, []
+  | Punboxed_float
+  | Punboxed_int _
+  | Punboxed_vector _ ->
+    (* Unboxed float/int/vector could be boxed in simpler constructions.
+       This can be changed when all the unboxed types and have been
+       introduced *)
+    let var = Variable.create Internal_variable_names.boxed_in_closure in
+    let closure_var = Variable.create Internal_variable_names.boxing_closure in
+    let closure, access = boxing_closure var layout in
+    Flambda.create_let var (Expr expr)
+     (Flambda.create_let closure_var (Expr closure) (Var closure_var)),
+     [access]
+
+let rec accumulate ~(layouts : Layouts.t) ~substitution ~copied_lets ~extracted_lets
       (expr : Flambda.t) =
   match expr with
   | Let { var; body = Var var'; _ } | Let_rec ([var, _], Var var')
@@ -60,12 +148,16 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
     }
   | Let { var; defining_expr = Expr (Var alias); body; _ }
   | Let_rec ([var, Expr (Var alias)], body) ->
+    let layouts =
+      Layouts.add layouts var (Layouts.find layouts alias)
+    in
     let alias =
       match Variable.Map.find alias substitution with
       | exception Not_found -> alias
       | original_alias -> original_alias
     in
     accumulate
+      ~layouts
       ~substitution:(Variable.Map.add var alias substitution)
       ~copied_lets
       ~extracted_lets
@@ -73,11 +165,16 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
   | Let { var; defining_expr = named; body; _ }
   | Let_rec ([var, named], body)
     when should_copy named ->
+      let layout = Flambda.result_layout_named ~layouts named in
+      let layouts = Layouts.add layouts var layout in
       accumulate body
+        ~layouts
         ~substitution
         ~copied_lets:((var, named)::copied_lets)
         ~extracted_lets
   | Let { var; defining_expr = named; body; _ } ->
+    let layout = Flambda.result_layout_named ~layouts named in
+    let layouts = Layouts.add layouts var layout in
     let extracted =
       let renamed = Variable.rename var in
       match named with
@@ -97,21 +194,27 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
           Flambda_utils.toplevel_substitution substitution
             (Flambda.create_let renamed named (Var renamed))
         in
-        Expr (var, expr)
+        let expr, additionnal_path = pack_expr ~layouts expr in
+        Expr (var, additionnal_path @ [Field 0], expr)
     in
     accumulate body
+      ~layouts
       ~substitution
       ~copied_lets
       ~extracted_lets:(extracted::extracted_lets)
   | Let_rec ([var, named], body) ->
     let renamed = Variable.rename var in
     let def_substitution = Variable.Map.add var renamed substitution in
+    let layout = Lambda.layout_letrec in
+    let layouts = Layouts.add layouts var layout in
+    let layouts = Layouts.add layouts renamed layout in
     let expr =
       Flambda_utils.toplevel_substitution def_substitution
         (Let_rec ([renamed, named], Var renamed))
     in
-    let extracted = Expr (var, expr) in
+    let extracted = Expr (var, [Field 0], expr) in
     accumulate body
+      ~layouts
       ~substitution
       ~copied_lets
       ~extracted_lets:(extracted::extracted_lets)
@@ -123,6 +226,16 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
           Variable.Map.add var new_var substitution)
         defs ([], substitution)
     in
+    let layouts =
+      List.fold_left (fun layouts (var, _) ->
+          Layouts.add layouts var Lambda.layout_letrec)
+        layouts defs
+    in
+    let layouts =
+      List.fold_left (fun layouts (var, _) ->
+          Layouts.add layouts var Lambda.layout_letrec)
+        layouts renamed_defs
+    in
     let extracted =
       let expr =
         let name = Internal_variable_names.lifted_let_rec_block in
@@ -133,9 +246,15 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
                              List.map fst renamed_defs,
                              Debuginfo.none))))
       in
-      Exprs (List.map fst defs, expr)
+      let vars =
+        List.mapi (fun i (field, _) ->
+            field, [Field i; Field 0])
+          defs
+      in
+      Exprs (vars, expr)
     in
     accumulate body
+      ~layouts
       ~substitution
       ~copied_lets
       ~extracted_lets:(extracted::extracted_lets)
@@ -145,14 +264,40 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
     terminator = Flambda_utils.toplevel_substitution substitution expr;
   }
 
+let rec make_named (symbol, (path:access list)) : Flambda.named =
+  match path with
+  | [] -> Symbol symbol
+  | [Field i] -> Read_symbol_field (symbol, i)
+  | Field h :: t ->
+    let block_name = Internal_variable_names.symbol_field_block in
+    let block = Variable.create block_name in
+    let field_name = Internal_variable_names.get_symbol_field in
+    let field = Variable.create field_name in
+    Expr (
+      Flambda.create_let block (make_named (symbol, t))
+        (Flambda.create_let field
+           (Prim (Pfield (h, Pvalue Pgenval), [block], Debuginfo.none))
+           (Var field)))
+  | Project_var { var; kind; closure_id } :: t ->
+    let closure_name = Internal_variable_names.symbol_field_closure in
+    let closure = Variable.create closure_name in
+    let field_name = Internal_variable_names.get_symbol_field in
+    let field = Variable.create field_name in
+    Expr (
+      Flambda.create_let closure (make_named (symbol, t))
+        (Flambda.create_let field
+           (Project_var ({ closure; var; kind; closure_id}))
+           (Var field)))
+
 let rebuild_expr
-      ~(extracted_definitions : (Symbol.t * int list) Variable.Map.t)
+      ~(extracted_definitions : (Symbol.t * projection) Variable.Map.t)
       ~(copied_definitions : Flambda.named Variable.Map.t)
       ~(substitute : bool)
       (expr : Flambda.t) =
   let expr_with_read_symbols =
-    Flambda_utils.substitute_read_symbol_field_for_variables
-      extracted_definitions expr
+    let named = Variable.Map.map make_named extracted_definitions in
+    Flambda_utils.substitute_named_for_variables
+      named expr
   in
   let free_variables = Flambda.free_variables expr_with_read_symbols in
   let substitution =
@@ -175,7 +320,7 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
   let accumulated_extracted_lets =
     List.map (fun decl ->
         match decl with
-        | Block (var, _, _) | Expr (var, _) ->
+        | Block (var, _, _) | Expr (var, _, _) ->
           Symbol_utils.Flambda.for_variable (Variable.rename var), decl
         | Exprs _ ->
           let name = Internal_variable_names.lifted_let_rec_block in
@@ -199,14 +344,13 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
         match decl with
         | Block (var, _tag, _fields) ->
           Variable.Map.add var (symbol, []) map
-        | Expr (var, _expr) ->
-          Variable.Map.add var (symbol, [0]) map
+        | Expr (var, projection, _expr) ->
+          Variable.Map.add var (symbol, projection) map
         | Exprs (vars, _expr) ->
-          let map, _ =
-            List.fold_left (fun (map, field) var ->
-                Variable.Map.add var (symbol, [field; 0]) map,
-                field + 1)
-              (map, 0) vars
+          let map =
+            List.fold_left (fun map (var, projection) ->
+                Variable.Map.add var (symbol, projection) map)
+              map vars
           in
           map)
       Variable.Map.empty accumulated_extracted_lets
@@ -214,7 +358,7 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
   let extracted =
     List.map (fun (symbol, decl) ->
         match decl with
-        | Expr (var, decl) ->
+        | Expr (var, _, decl) ->
           let expr =
             rebuild_expr ~extracted_definitions ~copied_definitions
               ~substitute:true decl
@@ -254,6 +398,7 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
 let introduce_symbols expr =
   let accumulated =
     accumulate expr
+      ~layouts:Layouts.empty
       ~substitution:Variable.Map.empty
       ~copied_lets:[] ~extracted_lets:[]
   in

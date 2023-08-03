@@ -38,7 +38,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (*****************************************************)
 (* Test 2: Permit representable function arg/returns *)
 
-(* CR layouts v2: much of this test moved to basics_alpha.  Add #float versions
+(* CR layouts v2.5: much of this test moved to basics_alpha.  Add float# versions
    and bring them here. *)
 module type S = sig
   val f1 : t_value -> t_value
@@ -149,7 +149,7 @@ Line 3, characters 0-15:
 Error:
        s5 has layout value, which is not a sublayout of immediate.
 |}]
-(* CR layouts v2: improve error, which requires layout histories *)
+(* CR layouts v2.9: improve error, which requires layout histories *)
 
 (* CR layouts: bring [@any] and [@void] bits back here from [basics_alpha.ml] when we allow
    them in beta. *)
@@ -335,7 +335,7 @@ Error: Signature mismatch:
 (**************************************************************)
 (* Test 11: objects are values and methods take/return values *)
 
-(* CR layouts v2: These tests moved to [basics_alpha.ml] as they need a
+(* CR layouts v2.5: These tests moved to [basics_alpha.ml] as they need a
    non-value sort.  Bring back here when we have one (and update to use that
    sort instead of void). *)
 module M11_1 = struct
@@ -354,14 +354,14 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (*******************************************************************)
 (* Test 12: class parameters and bound vars must have layout value *)
 
-(* CR layouts v2: These tests moved to [basics_alpha.ml] as they need a
+(* CR layouts v2.5: These tests moved to [basics_alpha.ml] as they need a
    non-value sort.  Bring back here when we have one (and update to use that
    sort instead of void). *)
 
 (***********************************************************)
 (* Test 13: built-in type constructors work only on values *)
 
-(* CR layouts v2: These tests moved to [basics_alpha.ml] as they need a
+(* CR layouts v2.5: These tests moved to [basics_alpha.ml] as they need a
    non-value sort.  Bring back here when we have one (and update to use that
    sort instead of void). *)
 
@@ -374,19 +374,19 @@ type t14 = foo14 list
 and foo14 = string
 |}];;
 
-(* CR layouts v2: Part of this test moved to [basics_alpha.ml] as it needs a
+(* CR layouts v2.5: Part of this test moved to [basics_alpha.ml] as it needs a
    non-value sort.  Bring back here when we have one. *)
 
 (****************************************************)
 (* Test 15: Type aliases need not have layout value *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (********************************************************)
 (* Test 16: seperability: [msig_of_external_type] logic *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 type 'a t_void_16 [@@void];;
@@ -429,19 +429,19 @@ val f18 : 'a -> 'a = <fun>
 (********************************)
 (* Test 19: non-value coercions *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (********************************************)
 (* Test 20: Non-value bodies for let module *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**********************************)
 (* Test 21: Non-value unpack body *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (***************************************************************)
@@ -461,49 +461,49 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (********************************************************************)
 (* Test 23: checking the error message from impossible GADT matches *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (*****************************************************)
 (* Test 24: Polymorphic parameter with exotic layout *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**************************************************)
 (* Test 25: Optional parameter with exotic layout *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (*********************************************************)
 (* Test 26: Inferring an application to an exotic layout *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (******************************************)
 (* Test 27: Exotic layouts in approx_type *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (************************************)
 (* Test 28: Exotic layouts in letop *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (*******************************************)
 (* Test 29: [external]s default to [value] *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**************************************)
 (* Test 30: [val]s default to [value] *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**************************************************)
@@ -517,3 +517,10 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
+
+(******************************************************)
+(* Test 33: Externals must have representable types *)
+
+(* CR layouts v5: This test moved to [basics_alpha.ml] as it needs a
+   non-representable layout.  Bring it back here when we can mention [t_any] in
+   [-extension layouts_beta]. *)

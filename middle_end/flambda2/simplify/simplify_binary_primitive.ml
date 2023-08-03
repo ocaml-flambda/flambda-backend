@@ -923,7 +923,7 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
             ~projection_bound_to:result_var
             ~kind:Flambda_kind.With_subkind.tagged_immediate
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ ->
+        | Naked_nativeint _ | Naked_vec128 _ ->
           Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
             Simple.print arg1 Simple.print arg2)
       ~name:(fun _ ~coercion:_ -> dacc)

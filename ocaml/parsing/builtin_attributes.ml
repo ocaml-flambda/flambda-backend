@@ -80,6 +80,7 @@ let builtin_attrs =
   ; "ppwarning"; "ocaml.ppwarning"
   ; "explicit_arity"; "ocaml.explicit_arity"
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
+  ; "float64"; "ocaml.float64"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
   ; "void"; "ocaml.void"
@@ -460,6 +461,7 @@ let layout ~legacy_immediate attrs =
          | "ocaml.any"|"any" -> Some (a, Any)
          | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
          | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
+         | "ocaml.float64"|"float64" -> Some (a, Float64)
          | _ -> None
         ) attrs
   in
@@ -478,7 +480,7 @@ let layout ~legacy_immediate attrs =
      | Immediate | Immediate64 ->
         check  (legacy_immediate
              || Language_extension.(is_at_least Layouts Beta))
-     | Any | Void ->
+     | Any | Void | Float64 ->
         check Language_extension.(is_at_least Layouts Alpha)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
