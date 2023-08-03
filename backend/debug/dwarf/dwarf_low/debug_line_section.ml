@@ -1,4 +1,16 @@
-(* CR mshinwell: add file headers here & elsewhere *)
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*                    Oscar Hill, Jane Street Europe                      *)
+(*                                                                        *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
 
 open Asm_targets
 
@@ -14,8 +26,7 @@ type line_number_program_instr =
   | Set_address of Dwarf_value.t
   | Set_discriminator of Dwarf_value.t
 
-(* CR mshinwell: Use: module Int = Numbers.Int *)
-module IntMap = Map.Make (Int)
+module Int = Numbers.Int
 
 type line_number_state =
   { line_number_program : line_number_program_instr list;
@@ -24,7 +35,7 @@ type line_number_state =
     line_reg : int;
     column_reg : int;
     discriminator_reg : int;
-    source_files : Dwarf_value.t IntMap.t
+    source_files : Dwarf_value.t Int.Map.t
   }
 
 type t =
@@ -98,19 +109,19 @@ let create ~code_begin =
         line_reg = 1;
         column_reg = 0;
         discriminator_reg = 0;
-        source_files = IntMap.empty
+        source_files = Int.Map.empty
       };
     checkpoint = None
   }
 
 let add_source_file t ~file_name ~file_num =
-  (match IntMap.find_opt file_num t.current.source_files with
+  (match Int.Map.find_opt file_num t.current.source_files with
   | Some v -> failwith "debug_line section: multiple files with same number"
   | None -> ());
   t.current
     <- { t.current with
          source_files =
-           IntMap.add file_num
+           Int.Map.add file_num
              (Dwarf_value.string file_name)
              t.current.source_files
        }
@@ -283,14 +294,14 @@ let add_line_number_matrix_row t ~instr_address ~file_num ~line ~col
 
 let file_names_size t =
   let ( + ) = Dwarf_int.add in
-  let max_binding = IntMap.max_binding_opt t.current.source_files in
+  let max_binding = Int.Map.max_binding_opt t.current.source_files in
   let max_index_opt = Option.map fst max_binding in
   let max_index = Option.value max_index_opt ~default:0 in
   let size =
     List.fold_left
       (fun size index ->
         size
-        + (match IntMap.find_opt index t.current.source_files with
+        + (match Int.Map.find_opt index t.current.source_files with
           | None -> Dwarf_value.size default_file_name
           | Some file_name -> Dwarf_value.size file_name)
         + Dwarf_value.size uleb128_zero
@@ -301,12 +312,12 @@ let file_names_size t =
   size + Dwarf_value.size null_byte
 
 let emit_file_names ~asm_directives t =
-  let max_binding = IntMap.max_binding_opt t.current.source_files in
+  let max_binding = Int.Map.max_binding_opt t.current.source_files in
   let max_index_opt = Option.map fst max_binding in
   let max_index = Option.value max_index_opt ~default:0 in
   List.iter
     (fun index ->
-      (match IntMap.find_opt index t.current.source_files with
+      (match Int.Map.find_opt index t.current.source_files with
       | None -> Dwarf_value.emit ~asm_directives default_file_name
       | Some file_name -> Dwarf_value.emit ~asm_directives file_name);
       (* Null terminate string *)

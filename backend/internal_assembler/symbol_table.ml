@@ -106,18 +106,15 @@ let make_symbol t symbol sections string_table =
   in
   add_symbol t symbol_entry
 
-(* CR mshinwell: use "let open", or "let module B = Compiler_owee.Owee_buf" *)
-
-open Compiler_owee.Owee_buf
-
 let write t sh_offset buf =
+  let module B = Compiler_owee.Owee_buf in
   let cursor = Compiler_owee.Owee_buf.cursor buf ~at:(Int64.to_int sh_offset) in
-  Write.u32 cursor 0;
-  Write.u8 cursor 0;
-  Write.u8 cursor 0;
-  Write.u16 cursor 0;
-  Write.u64 cursor 0L;
-  Write.u64 cursor 0L;
+  B.Write.u32 cursor 0;
+  B.Write.u8 cursor 0;
+  B.Write.u8 cursor 0;
+  B.Write.u16 cursor 0;
+  B.Write.u64 cursor 0L;
+  B.Write.u64 cursor 0L;
   List.iteri
     (fun i symbol ->
       let idx = ((i + 1) * 24) + Int64.to_int sh_offset in

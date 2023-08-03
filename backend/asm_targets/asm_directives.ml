@@ -86,6 +86,14 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     | MASM | MacOS -> false
     | GAS_like -> true
 
+  let is_masm () =
+    match Target_system.assembler () with
+    | MASM -> true
+    | GAS_like | MacOS -> false
+
+  let loc ~file_num ~line ~col =
+    if not (is_masm ()) then D.loc ~file_num ~line ~col ()
+
   let new_line () = D.new_line ()
 
   let not_initialized () =
@@ -141,15 +149,16 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
        avoid errors, emit the beginning of all dwarf sections in advance. *)
     if is_gas () || is_macos ()
     then List.iter switch_to_section (Asm_section.dwarf_sections_in_order ());
-    (* The following line is commented out because it adds a loc directive in a
-       section which is not the .text section, which causes issues when the
-       debug_line section is being created. *)
-    (* CR mshinwell: put this behind a flag *)
     (* Stop dsymutil complaining about empty __debug_line sections (produces
        bogus error "line table parameters mismatch") by making sure such
-       sections are never empty.
-
-       let file_num = A.get_file_num "none" in loc ~file_num ~line:1 ~col:1; *)
+       sections are never empty. The following line is behind a flag because it
+       adds a loc directive in a section which is not the .text section, which
+       causes issues when the debug_line section is being created by the
+       internal assembler. *)
+    (if not (Dwarf_flags.debug_thing Dwarf_flags.Debug_source_lines)
+    then
+      let file_num = A.get_file_num "none" in
+      loc ~file_num ~line:1 ~col:1);
     D.text ()
 
   let with_comment f ?comment x =
