@@ -24,18 +24,6 @@ let parameter ~index =
   if index < 0 then Misc.fatal_errorf "Bad parameter index %d" index;
   Parameter { index }
 
-let join t1 t2 =
-  match t1, t2 with
-  | Local, Local -> Local
-  | Parameter { index }, Local | Local, Parameter { index } ->
-    Parameter { index }
-  | Parameter { index = index1 }, Parameter { index = index2 } ->
-    if index1 <> index2
-    then
-      Misc.fatal_error
-        "Cannot join [Is_parameter.t] values that disagree on parameter indexes"
-    else Parameter { index = index1 }
-
 include Identifiable.Make (struct
   type nonrec t = t
 

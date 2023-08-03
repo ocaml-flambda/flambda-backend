@@ -24,6 +24,4 @@ val local : t
 
 val parameter : index:int -> t
 
-val join : t -> t -> t
-
 include Identifiable.S with type t := t

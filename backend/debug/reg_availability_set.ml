@@ -23,6 +23,9 @@ type t =
 
 let of_list rds = Ok (RD.Set.of_list rds)
 
+(* CR mshinwell: The implementations below probably aren't really adequate, but
+   will suffice for now. We should aim to improve them soon *)
+
 let union t1 t2 =
   (* Since [RD.Set]'s comparison function just looks at the [Reg.t] values, this
      will arbitrarily pick between debug info values in the case where [t1] and
