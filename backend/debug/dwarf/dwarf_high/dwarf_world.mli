@@ -24,4 +24,5 @@ val emit :
   asm_directives:(module Asm_directives.S) ->
   compilation_unit_proto_die:Proto_die.t ->
   compilation_unit_header_label:Asm_label.t ->
+  debug_line:Debug_line_section.t ->
   unit

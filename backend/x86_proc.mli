@@ -99,6 +99,8 @@ module Section_name : sig
   val to_string : t -> string
   val flags : t -> string option
   val alignment : t -> int64
+  val is_text_like : t -> bool
+  val is_data_like : t -> bool
 
   module Map : Map.S with type key = t
   module Tbl : Hashtbl.S with type key = t
@@ -107,7 +109,7 @@ end
 (** Support for plumbing a binary code emitter *)
 
 val internal_assembler :
-  ((Section_name.t * X86_ast.asm_program) list -> string -> unit) option ref
+  (X86_ast.asm_program ref Section_name.Tbl.t -> string -> unit) option ref
 
 val register_internal_assembler :
-  ((Section_name.t * X86_ast.asm_program) list -> string -> unit) -> unit
+  (X86_ast.asm_program ref Section_name.Tbl.t -> string -> unit) -> unit

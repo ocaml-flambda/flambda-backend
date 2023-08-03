@@ -469,9 +469,10 @@ module Dwarf_helpers = struct
     reset_dwarf ();
     let can_emit_dwarf =
       !Clflags.debug
-      && not !Dwarf_flags.restrict_to_upstream_dwarf
       && not disable_dwarf
     in
+    if !Flambda_backend_flags.internal_assembler then
+      Dwarf_flags.set_debug_thing Dwarf_flags.Debug_source_lines;
     match can_emit_dwarf,
           Target_system.architecture (),
           Target_system.derived_system () with
@@ -497,6 +498,28 @@ module Dwarf_helpers = struct
       in
       Dwarf.dwarf_for_fundecl dwarf fundecl;
       Some label
+
+  let record_dwarf_for_source_file ~file_name ~file_num =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.dwarf_for_source_file dwarf ~file_name ~file_num
+
+  let record_dwarf_for_line_number_matrix_row ~instr_address ~file_num ~line ~col
+      ~discriminator =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.dwarf_for_line_number_matrix_row dwarf ~instr_address
+      ~file_num ~line ~col ~discriminator
+
+  let checkpoint () =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.checkpoint dwarf
+
+  let rollback () =
+    match !dwarf with
+    | None -> ()
+    | Some dwarf -> Dwarf.rollback dwarf
 end
 
 let report_error ppf = function
