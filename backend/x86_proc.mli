@@ -99,6 +99,7 @@ module Section_name : sig
   val to_string : t -> string
   val flags : t -> string option
   val alignment : t -> int64
+  val is_note_like : t -> bool
 
   module Map : Map.S with type key = t
   module Tbl : Hashtbl.S with type key = t

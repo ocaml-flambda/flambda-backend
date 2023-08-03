@@ -48,6 +48,11 @@ module Section_name = struct
         | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
         | hd :: tl -> align tl
       in align t.args
+
+    (* An error was being thrown because the .note.stapsdt section
+       had the wrong sh_type. It may be appropriate to change this to
+       isprefix ".note" t.name_str, but not sure *)
+    let is_note_like t = t.name_str = ".note.stapsdt"
   end
   include S
   module Map = Map.Make (S)
