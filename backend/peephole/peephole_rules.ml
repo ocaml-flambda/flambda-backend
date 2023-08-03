@@ -1,7 +1,7 @@
 (* CR-someday: see whether the `-4` can be dropped. *)
 [@@@ocaml.warning "+a-29-40-41-42-4"]
 
-module DLL = Peephole_utils.DLL
+module DLL = Flambda_backend_utils.Doubly_linked_list
 module U = Peephole_utils
 
 (** Logical condition for simplifying the following case:
