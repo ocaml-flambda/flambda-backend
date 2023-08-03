@@ -471,6 +471,8 @@ module Dwarf_helpers = struct
     reset_dwarf ();
     let can_emit_dwarf =
       !Clflags.debug
+      && (!Flambda_backend_flags.internal_assembler
+          || not !Dwarf_flags.restrict_to_upstream_dwarf)
       && not disable_dwarf
     in
     if !Flambda_backend_flags.internal_assembler then

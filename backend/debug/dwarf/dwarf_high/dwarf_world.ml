@@ -20,6 +20,8 @@ open Dwarf_low
 let emit ~asm_directives ~compilation_unit_proto_die
     ~compilation_unit_header_label ~debug_line =
   let module A = (val asm_directives : Asm_directives.S) in
+  (* CR mshinwell: double-check that Debug_source_lines is only set when the
+     internal assembler is being used *)
   if Dwarf_flags.debug_thing Dwarf_flags.Debug_source_lines
   then
     Profile.record "dwarf_world_emit"

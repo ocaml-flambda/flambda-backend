@@ -106,6 +106,8 @@ let make_symbol t symbol sections string_table =
   in
   add_symbol t symbol_entry
 
+(* CR mshinwell: use "let open", or "let module B = Compiler_owee.Owee_buf" *)
+
 open Compiler_owee.Owee_buf
 
 let write t sh_offset buf =

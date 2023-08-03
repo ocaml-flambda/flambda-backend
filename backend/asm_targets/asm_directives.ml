@@ -144,6 +144,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* The following line is commented out because it adds a loc directive in a
        section which is not the .text section, which causes issues when the
        debug_line section is being created. *)
+    (* CR mshinwell: put this behind a flag *)
     (* Stop dsymutil complaining about empty __debug_line sections (produces
        bogus error "line table parameters mismatch") by making sure such
        sections are never empty.

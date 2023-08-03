@@ -1,3 +1,5 @@
+(* CR mshinwell: add file headers here & elsewhere *)
+
 open Asm_targets
 
 type line_number_program_instr =
@@ -12,6 +14,7 @@ type line_number_program_instr =
   | Set_address of Dwarf_value.t
   | Set_discriminator of Dwarf_value.t
 
+(* CR mshinwell: Use: module Int = Numbers.Int *)
 module IntMap = Map.Make (Int)
 
 type line_number_state =
