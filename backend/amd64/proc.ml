@@ -366,6 +366,7 @@ let dwarf_register_numbers ~reg_class =
   | _ -> Misc.fatal_errorf "Bad register class %d" reg_class
 
 let stack_ptr_dwarf_register_number = 7
+let domainstate_ptr_dwarf_register_number = 14
 
 (* Volatile registers: none *)
 
@@ -637,6 +638,9 @@ let max_register_pressure =
 
 (* Layout of the stack frame *)
 
+let initial_stack_offset = 0
+let trap_frame_size_in_bytes = 16
+
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
   fun_num_stack_slots.(0) > 0 ||
@@ -645,6 +649,38 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
+
+(* returned size includes return address *)
+let frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots =
+  if frame_required ~fun_contains_calls ~fun_num_stack_slots then begin
+    let sz =
+      (stack_offset + 8 * (fun_num_stack_slots.(0) + fun_num_stack_slots.(1))
+      + 8
+      + (if fp then 8 else 0))
+    in Misc.align sz 16
+  end else
+    stack_offset + 8
+
+type slot_offset =
+  | Bytes_relative_to_stack_pointer of int
+  | Bytes_relative_to_domainstate_pointer of int
+
+let slot_offset loc ~reg_class ~stack_offset ~fun_contains_calls
+      ~fun_num_stack_slots =
+  match loc with
+  | Incoming n ->
+      Bytes_relative_to_stack_pointer (
+        frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots
+        + n)
+  | Local n ->
+      Bytes_relative_to_stack_pointer (
+        if reg_class = 0
+        then stack_offset + n * 8
+        else stack_offset + (fun_num_stack_slots.(0) + n) * 8)
+  | Outgoing n -> Bytes_relative_to_stack_pointer n
+  | Domainstate n ->
+      Bytes_relative_to_domainstate_pointer (
+        n + Domainstate.(idx_of_field Domain_extra_params) * 8)
 
 (* Calling the assembler *)
 
