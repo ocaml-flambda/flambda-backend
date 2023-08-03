@@ -93,7 +93,7 @@ type slot_offset = private
 
 val slot_offset :
   Reg.stack_location ->
-  reg_class:int ->
+  stack_class:int ->
   stack_offset:int ->
   fun_contains_calls:bool ->
   fun_num_stack_slots:int array ->

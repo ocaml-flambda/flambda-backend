@@ -668,7 +668,7 @@ type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
 
-let slot_offset loc ~reg_class ~stack_offset ~fun_contains_calls
+let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
       ~fun_num_stack_slots =
   match loc with
   | Incoming n ->
@@ -678,7 +678,7 @@ let slot_offset loc ~reg_class ~stack_offset ~fun_contains_calls
   | Local n ->
       Bytes_relative_to_stack_pointer (
         (stack_offset +
-          match reg_class with
+          match stack_class with
           | 2 -> n * 16
           | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
           | 1 ->
