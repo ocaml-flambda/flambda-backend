@@ -6,7 +6,7 @@ module R = Peephole_rules
 (* Here cell is an iterator of the doubly linked list data structure that
    encapsulates the body's instructions. *)
 let rec optimize_body cell =
-  match R.handbuilt_rules cell with
+  match R.apply cell with
   | None -> (
     match DLL.next cell with
     | None -> ()

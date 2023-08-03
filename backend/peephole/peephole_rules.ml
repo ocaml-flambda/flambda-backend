@@ -49,15 +49,15 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
 let are_compatible op1 op2 imm1 imm2 =
   match (op1 : Mach.integer_operation), (op2 : Mach.integer_operation) with
   (* Folding two bitwise operations such as (AND, OR, XOR) should never produce
-     an overflow. *)
+     an overflow so we assert this conditon. *)
   | Mach.Iand, Mach.Iand ->
-    U.bitwise_overflow_assert imm1 imm2 ( land );
+    assert (U.amd64_imm32_within_bounds imm1 imm2 ( land ));
     Some (Mach.Iand, imm1 land imm2)
   | Ior, Ior ->
-    U.bitwise_overflow_assert imm1 imm2 ( lor );
+    assert (U.amd64_imm32_within_bounds imm1 imm2 ( lor ));
     Some (Mach.Ior, imm1 lor imm2)
   | Ixor, Ixor ->
-    U.bitwise_overflow_assert imm1 imm2 ( lxor );
+    assert (U.amd64_imm32_within_bounds imm1 imm2 ( lxor ));
     Some (Mach.Ixor, imm1 lxor imm2)
   (* For the following three cases we have the issue that in some situations,
      one or both immediate values could be out of bounds, but the result might
@@ -85,52 +85,60 @@ let are_compatible op1 op2 imm1 imm2 =
   (* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at
      most an imm32 as the second argument, so we need to check for overflows on
      32-bit signed ints. *)
+  (* CR-someday gtulba-lecu: This condition is architecture specific and should
+     either live in amd64 specific code or this module should contain
+     information about the architecture target. *)
   | Iadd, Iadd ->
-    if Misc.no_overflow_add imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( + )
+    if Misc.no_overflow_add imm1 imm2
+       && U.amd64_imm32_within_bounds imm1 imm2 ( + )
     then Some (Mach.Iadd, imm1 + imm2)
     else None
   | Iadd, Isub ->
     if imm1 >= imm2
     then
-      if Misc.no_overflow_sub imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( - )
+      if Misc.no_overflow_sub imm1 imm2
+         && U.amd64_imm32_within_bounds imm1 imm2 ( - )
       then Some (Mach.Iadd, imm1 - imm2)
       else None
     else if Misc.no_overflow_sub imm2 imm1
-            && U.no_32_bit_overflow imm2 imm1 ( - )
+            && U.amd64_imm32_within_bounds imm2 imm1 ( - )
     then Some (Mach.Isub, imm2 - imm1)
     else None
   | Isub, Isub ->
-    if Misc.no_overflow_add imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( + )
+    if Misc.no_overflow_add imm1 imm2
+       && U.amd64_imm32_within_bounds imm1 imm2 ( + )
     then Some (Mach.Isub, imm1 + imm2)
     else None
   | Isub, Iadd ->
     if imm1 >= imm2
     then
-      if Misc.no_overflow_sub imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( - )
+      if Misc.no_overflow_sub imm1 imm2
+         && U.amd64_imm32_within_bounds imm1 imm2 ( - )
       then Some (Mach.Isub, imm1 - imm2)
       else None
     else if Misc.no_overflow_sub imm2 imm1
-            && U.no_32_bit_overflow imm2 imm1 ( - )
+            && U.amd64_imm32_within_bounds imm2 imm1 ( - )
     then Some (Mach.Iadd, imm2 - imm1)
     else None
   | Ilsl, Imul ->
     if imm1 >= 0 && imm1 < 31
        && Misc.no_overflow_mul (1 lsl imm1) imm2
-       && U.no_32_bit_overflow (1 lsl imm1) imm2 ( * )
+       && U.amd64_imm32_within_bounds (1 lsl imm1) imm2 ( * )
     then Some (Mach.Imul, (1 lsl imm1) * imm2)
     else None
   | Imul, Ilsl ->
     if imm2 >= 0 && imm2 < 31
        && Misc.no_overflow_mul imm1 (1 lsl imm2)
-       && U.no_32_bit_overflow imm1 (1 lsl imm2) ( * )
+       && U.amd64_imm32_within_bounds imm1 (1 lsl imm2) ( * )
     then Some (Mach.Imul, imm1 * (1 lsl imm2))
     else None
   | Imul, Imul ->
-    if Misc.no_overflow_mul imm1 imm2 && U.no_32_bit_overflow imm1 imm2 ( * )
+    if Misc.no_overflow_mul imm1 imm2
+       && U.amd64_imm32_within_bounds imm1 imm2 ( * )
     then Some (Mach.Imul, imm1 * imm2)
     else None
-  (* CR-soon gtulba-lecu for gtulba-lecu: check this last case | Imod, Imod ->
-     if imm1 mod imm2 = 0 then Some (Mach.Imod, imm2) else None
+  (* CR-soon gtulba-lecu: check this last case | Imod, Imod -> if imm1 mod imm2
+     = 0 then Some (Mach.Imod, imm2) else None
 
      The integer modulo imm2 group is a subgroup of the integer modulo imm1 iff
      imm2 divides imm1
@@ -152,6 +160,9 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
        use the same source register; 2. Ensures that both instructions output
        the result to the source register, this is redundant for amd64 since
        there are no instructions that invalidate this condition. *)
+    (* CR-someday gtulba-lecu: This condition is architecture specific and
+       should either live in amd64 specific code or this module should contain
+       information about the architecture target. *)
     if Array.length fst_val.arg = 1
        && Array.length snd_val.arg = 1
        && Array.length fst_val.res = 1

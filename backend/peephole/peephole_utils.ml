@@ -1,12 +1,14 @@
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-(* CR-soon gtulba-lecu for gtulba-lecu: make sure that this comparison is
-   correct and sufficent. *)
+(* CR-someday gtulba-lecu: make sure that this comparison is correct and
+   sufficent. Take into consideration using Proc.regs_are_volatile in the
+   future. As we only support amd64 and Proc.regs_are_volatile is always false
+   in amd64 this is not necessary for now. See backend/cfg/cfg_deadcode.ml for
+   more details.*)
 let are_equal_regs (reg1 : Reg.t) (reg2 : Reg.t) =
   Reg.same_loc reg1 reg2 && reg1.typ = reg2.typ
 
-(* CR-soon gtulba-lecu for gtulba-lecu: Delete this when imeplementing
-   auto-generated rules. *)
+(* CR-soon gtulba-lecu: Delete this when imeplementing auto-generated rules. *)
 let go_back_const = 1
 
 let rec prev_at_most steps cell =
@@ -40,12 +42,10 @@ let bitwise_shift_assert (imm1 : int) (imm2 : int) =
   then assert false
   [@@inline]
 
-let bitwise_overflow_assert (imm1 : int) (imm2 : int) (op : int -> int -> int) =
-  let imm = op imm1 imm2 in
-  assert (Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int)
-  [@@inline]
-
-let no_32_bit_overflow imm1 imm2 op =
+(* CR-someday gtulba-lecu: This is architecture specific and should be moved in
+   a different part of the compiler that is specific to the amd64 architecture.
+   This is fine for now as we only support amd64. *)
+let amd64_imm32_within_bounds imm1 imm2 op =
   let imm = op imm1 imm2 in
   Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int
   [@@inline]
