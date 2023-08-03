@@ -1072,6 +1072,7 @@ module Extra_params = struct
       set' Flambda_backend_flags.caml_apply_inline_fast_path
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
+    | "gdwarf-may-alter-codegen" -> set' Debugging.gdwarf_may_alter_codegen
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
     | "flambda2-debug" -> set' Flambda_backend_flags.Flambda2.debug
     | "flambda2-join-points" -> set Flambda2.join_points

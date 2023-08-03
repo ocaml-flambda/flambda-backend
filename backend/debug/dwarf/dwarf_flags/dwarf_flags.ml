@@ -137,4 +137,4 @@ let default_gdwarf_self_tail_calls = true
 
 let gdwarf_self_tail_calls = ref default_gdwarf_self_tail_calls
 
-let gdwarf_may_alter_codegen = ref true
+let gdwarf_may_alter_codegen = ref false
