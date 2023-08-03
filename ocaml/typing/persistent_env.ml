@@ -73,6 +73,10 @@ type error =
       first_mentioned_by : Global.Name.t;
       now_mentioned_by : Global.Name.t;
     }
+  | Unbound_module_as_argument_value of
+      { instance: Global.Name.t;
+        value: Global.Name.t;
+      }
 
 exception Error of error
 let error err = raise (Error err)
@@ -470,7 +474,11 @@ and compute_global penv modname ~params ~check =
   let arg_global_by_param_name =
     List.map
       (fun (name, value) ->
-         name, global_of_global_name penv ~check value ~param:false)
+         match global_of_global_name penv ~check value ~param:false with
+         | value -> name, value
+         | exception Not_found ->
+             error
+               (Unbound_module_as_argument_value { instance = modname; value }))
       modname.Global.Name.args
   in
   let subst : Global.subst = Global.Name.Map.of_list arg_global_by_param_name in
@@ -787,6 +795,7 @@ let check_pers_struct penv f ~loc name =
         | Not_compiled_as_argument _ -> assert false
         | Argument_type_mismatch _ -> assert false
         | Inconsistent_global_name_resolution _ -> assert false
+        | Unbound_module_as_argument_value _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -1049,6 +1058,11 @@ let report_error ppf =
         Global.Name.print first_mentioned_by
         Global.print new_global
         Global.Name.print now_mentioned_by
+  | Unbound_module_as_argument_value { instance; value } ->
+      fprintf ppf
+        "@[<hov>Unbound module %a@ in instance %a@]"
+        Global.Name.print value
+        Global.Name.print instance
 
 let () =
   Location.register_error_of_exn

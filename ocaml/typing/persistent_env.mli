@@ -60,6 +60,9 @@ type error = private
         first_mentioned_by : Global.Name.t;
         now_mentioned_by : Global.Name.t;
   }
+  | Unbound_module_as_argument_value of
+       { instance : Global.Name.t; value : Global.Name.t; }
+
 
 exception Error of error
 
