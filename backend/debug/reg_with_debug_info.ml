@@ -21,6 +21,7 @@ module Debug_info = struct
     { holds_value_of : V.t;
       part_of_value : int;
       num_parts_of_value : int;
+      (* CR mshinwell: use [Is_parameter] *)
       which_parameter : int option;
       provenance : Backend_var.Provenance.t option
     }
@@ -51,6 +52,11 @@ module Debug_info = struct
     match t.which_parameter with
     | None -> ()
     | Some index -> Format.fprintf ppf "[P%d]" index
+
+  let is_parameter t =
+    match t.which_parameter with
+    | None -> Is_parameter.local
+    | Some index -> Is_parameter.parameter ~index
 end
 
 module T = struct
