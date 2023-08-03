@@ -222,17 +222,18 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
             ~register_class:Proc.register_class ~stack_class:(fun r ->
               Proc.stack_slot_class r.typ)
         in
-        (* Second: the cases of (a) allocations and (b) OCaml to OCaml function
-           calls. In these cases, since the GC may run, registers always become
-           unavailable unless: (a) they are "live across" the instruction;
-           and/or (b) they hold immediates and are assigned to the stack. For
-           the moment we assume that [Ispecific] instructions do not run the
-           GC. *)
+        (* Second: the cases of (a) allocations, (b) other polling points, (c)
+           OCaml to OCaml function calls and (d) end-region operations. In these
+           cases, since the GC may run, registers always become unavailable
+           unless: (a) they are "live across" the instruction; and/or (b) they
+           hold immediates and are assigned to the stack. For the moment we
+           assume that [Ispecific] instructions do not run the GC. *)
         (* CR-someday mshinwell: Consider factoring this out from here and
            [Available_ranges.Make_ranges.end_pos_offset]. *)
         let made_unavailable_2 =
           match op with
-          | Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _ ->
+          | Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _ | Iendregion
+            ->
             RD.Set.filter
               (fun reg ->
                 let holds_immediate = RD.holds_non_pointer reg in
@@ -249,8 +250,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
           | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
           | Ivalueofint | Iintofvalue | Iopaque | Ispecific _
-          | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion
-          | Iendregion ->
+          | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion ->
             RD.Set.empty
         in
         let made_unavailable =
