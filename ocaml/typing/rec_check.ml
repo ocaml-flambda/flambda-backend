@@ -196,7 +196,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_extension_constructor _
     | Texp_probe _
     | Texp_probe_is_enabled _
-    | Texp_src_pos -> (* TODO vding question: Would like a check on this *)
+    | Texp_src_pos ->
         Static
 
     | Texp_match _
