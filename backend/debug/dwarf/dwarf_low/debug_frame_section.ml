@@ -1,3 +1,5 @@
+(* CR mshinwell: add headers (also to mli) *)
+
 open Asm_targets
 
 (* Some instructions omitted *)
@@ -69,6 +71,7 @@ let int_to_uleb128 n =
 
 let null_byte = int_to_uint8 0
 
+(* CR mshinwell: "let cie_id () = ..." *)
 let cie_id =
   if !Dwarf_flags.gdwarf_use_eh_frame
   then int_to_uint32 0
@@ -80,6 +83,7 @@ let cie_id =
       Dwarf_value.uint64
         (Numbers.Uint64.of_nonnegative_int64_exn 0xffffffffffffffffL)
 
+(* CR mshinwell: same here *)
 let version =
   if !Dwarf_flags.gdwarf_use_eh_frame then int_to_uint8 1 else int_to_uint8 4
 
@@ -115,23 +119,24 @@ let create ~code_begin =
   }
 
 let process_cfi_startproc t ~address =
-  t.state
-    <- (match t.state.current_fde with
-       | Some _ ->
-         failwith
-           "debug_frame section: cfi_startproc before previous function was \
-            closed"
-       | None ->
-         { t.state with
-           current_fde =
-             Some
-               { start_address = address;
-                 length = 0;
-                 instructions = [];
-                 current_address = address;
-                 current_cfa_offset = initial_cfa_offset
-               }
-         })
+  let state =
+    match t.state.current_fde with
+    | Some _ ->
+      failwith
+        "debug_frame section: cfi_startproc before previous function was closed"
+    | None ->
+      { t.state with
+        current_fde =
+          Some
+            { start_address = address;
+              length = 0;
+              instructions = [];
+              current_address = address;
+              current_cfa_offset = initial_cfa_offset
+            }
+      }
+  in
+  t.state <- state
 
 let process_cfi_adjust_cfa_offset t ~address ~offset =
   match t.state.current_fde with
@@ -152,7 +157,9 @@ let process_cfi_adjust_cfa_offset t ~address ~offset =
       then Advance_loc2 required_loc_advance :: fde.instructions
       else if required_loc_advance < 4294967296
       then Advance_loc4 required_loc_advance :: fde.instructions
-      else failwith "debug_frame_section: location advance too large"
+      else
+        (* CR mshinwell: maybe this will need implementing one day *)
+        failwith "debug_frame_section: location advance too large"
     in
     let instructions =
       if offset = 0

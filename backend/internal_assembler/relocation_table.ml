@@ -52,6 +52,7 @@ let write t section_table buf =
         (* 24 is the size of each relocation entry *)
         let idx = (i * 24) + Int64.to_int table.sh_offset in
         Relocation_entry.write relocation (cursor buf ~at:idx))
+      (* CR mshinwell: enhance this comment to identify the ordering constraint *)
       (* When reading .eh_frame sections, ld expects the relocations to be in a
          particular order. We reverse the list of relocations before emitting
          them so that they are emitted in the order expected by ld. *)
