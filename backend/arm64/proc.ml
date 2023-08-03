@@ -286,6 +286,8 @@ let dwarf_register_numbers ~reg_class =
 
 let stack_ptr_dwarf_register_number = 31
 
+let domainstate_ptr_dwarf_register_number = 28
+
 (* Volatile registers: none *)
 
 let regs_are_volatile _rs = false
@@ -394,6 +396,10 @@ let max_register_pressure = function
   | _ -> [| 23; 32 |]
 
 (* Layout of the stack *)
+
+let initial_stack_offset = 0
+let trap_frame_size_in_bytes = 16
+
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fun_contains_calls
     || fun_num_stack_slots.(0) > 0
@@ -401,6 +407,17 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
+
+let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
+  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
+
+type slot_offset =
+  | Bytes_relative_to_stack_pointer of int
+  | Bytes_relative_to_domainstate_pointer of int
+
+let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
+      ~fun_num_stack_slots:_ =
+  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
 
 (* Calling the assembler *)
 
