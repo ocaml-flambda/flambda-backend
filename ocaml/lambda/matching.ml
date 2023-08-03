@@ -129,21 +129,10 @@ let may_compat = MayCompat.compat
 
 and may_compats = MayCompat.compats
 
-(* The free variables in a guarded rhs can be precomputed to be used in an
-   optimization, or uncomputed, in which case the optimization is not applied.
-*)
-type guarded_free_variables =
-  | Precomputed of Ident.Set.t
-  | Uncomputed
-
-let map_guarded_free_variables ~f = function
-  | Precomputed free_variables -> Precomputed (f free_variables)
-  | Uncomputed -> Uncomputed
-
 type rhs =
   | Guarded of
       { patch_guarded: patch:lambda -> lambda
-      ; free_variables: guarded_free_variables }
+      ; free_variables: Ident.Set.t }
   (* Guarded rhs's must allow for fallthrough if the guard fails.
 
      When translating a guarded rhs, the code to execute on fallthrough must
@@ -158,13 +147,18 @@ type rhs =
   *)
   | Unguarded of lambda
 
-let mk_boolean_guarded_rhs ~patch_guarded ~free_variables =
-  Guarded { patch_guarded; free_variables = Precomputed free_variables }
-
-let mk_pattern_guarded_rhs ~patch_guarded =
-  Guarded { patch_guarded; free_variables = Uncomputed }
+let mk_guarded_rhs ~patch_guarded ~free_variables =
+  Guarded { patch_guarded; free_variables }
 
 let mk_unguarded_rhs action = Unguarded action
+
+let free_variables_of_rhs = function
+  | Guarded { free_variables; _ } -> free_variables
+  | Unguarded lam -> free_variables lam
+
+let unguarded_exn = function
+  | Unguarded lam -> lam
+  | Guarded _ -> fatal_error "Matching.unguarded_exn"
 
 let is_guarded = function
   | Guarded _ -> true
@@ -180,11 +174,7 @@ let bind_rhs_with_layout str (var, layout) exp body =
           let patch_guarded ~patch =
             Llet (str, layout, var, exp, patch_guarded ~patch) in
           let free_variables =
-            map_guarded_free_variables
-              ~f:(fun free ->
-                    Ident.Set.union
-                      (free_variables exp) (Ident.Set.remove var free))
-              free
+            Ident.Set.union (free_variables exp) (Ident.Set.remove var free)
           in
           Guarded { patch_guarded; free_variables }
 
@@ -1205,24 +1195,10 @@ let what_is_first_case = what_is_cases ~skip_any:false
 
 let what_is_cases = what_is_cases ~skip_any:true
 
-type pm_free_variables =
-  | Known of Ident.Set.t
-  (* Pattern match free variables are known: optimization can be applied *)
-  | Unknown
-  (* Pattern match free variables are unknown: optimization cannot be applied *)
-
 let pm_free_variables { cases } =
   List.fold_right
-    (fun (_, act) -> function
-       | Unknown -> Unknown
-       | Known free ->
-          match act with
-          | Unguarded lam ->
-              Known (Ident.Set.union free (free_variables lam))
-          | Guarded { free_variables = Precomputed free_variables } ->
-              Known (Ident.Set.union free free_variables)
-          | Guarded { free_variables = Uncomputed } -> Unknown)
-    cases (Known Ident.Set.empty)
+    (fun (_, rhs) free -> Ident.Set.union free (free_variables_of_rhs rhs))
+    cases Ident.Set.empty
 
 (* Basic grouping predicates *)
 
@@ -1669,17 +1645,11 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
                fires and determine if the resulting change in code is important.
             *)
             (* Optimization: discard pattern vars not bound in orpm actions *)
+            let pm_fv = pm_free_variables orpm in
             let patbound_idents =
-              match pm_free_variables orpm with
-              (* Give up on the optimization: there is some action not tracking
-                 free variables, so the free variable set is not known. *)
-              | Unknown -> patbound_idents
-              (* The free variables set is known: apply the optimization by
-                 filtering out pattern-bound variables unused by the actions. *)
-              | Known pm_fv ->
-                  List.filter
-                    (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
-                    patbound_idents
+              List.filter
+                (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+                patbound_idents
             in
             let patbound_action_vars =
               List.map
@@ -3756,7 +3726,8 @@ let simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body =
     Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
   in
   compile_matching ~scopes ~arg_sort ~arg_layout ~return_layout loc
-    ~failer:Raise_match_failure None param [ (pat, Unguarded body) ] Partial
+    ~failer:Raise_match_failure None param
+    [ (pat, Unguarded body) ] Partial
 
 (* Optimize binding of immediate tuples
 
