@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2016--2017 Jane Street Group LLC                           *)
+(*   Copyright 2014--2018 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,33 +12,38 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Register availability sets. *)
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  | Ok of Reg_with_debug_info.Set.t
-  | Unreachable
+  | Local
+  | Parameter of { index : int }
 
-(** See comments in the .ml file about these functions. *)
+let local = Local
 
-val of_list : Reg_with_debug_info.t list -> t
+let parameter ~index =
+  if index < 0 then Misc.fatal_errorf "Bad parameter index %d" index;
+  Parameter { index }
 
-val union : t -> t -> t
+include Identifiable.Make (struct
+  type nonrec t = t
 
-val inter : t -> t -> t
+  let compare t1 t2 =
+    match t1, t2 with
+    | Local, Local -> 0
+    | Parameter { index = index1 }, Parameter { index = index2 } ->
+      Stdlib.compare index1 index2
+    | Local, Parameter _ -> -1
+    | Parameter _, Local -> 1
 
-val diff : t -> t -> t
+  let equal t1 t2 = compare t1 t2 = 0
 
-(** This returns the initial value in the [Unreachable] case *)
-val fold : (Reg_with_debug_info.t -> 'a -> 'a) -> t -> 'a -> 'a
+  let hash t = Hashtbl.hash t
 
-(** Return a subset of the given availability set which contains no registers
-    that are not associated with debug info (and holding values of
-    non-persistent identifiers); and where no two registers share the same
-    location. *)
-val canonicalise : t -> t
+  let print ppf t =
+    match t with
+    | Local -> Format.pp_print_string ppf "local"
+    | Parameter { index } ->
+      Format.fprintf ppf "@[(parameter@ (index %d))@]" index
 
-val equal : t -> t -> bool
-
-(** For debugging purposes only. *)
-val print :
-  print_reg:(Format.formatter -> Reg.t -> unit) -> Format.formatter -> t -> unit
+  let output _ _ = Misc.fatal_error "Not yet implemented"
+end)

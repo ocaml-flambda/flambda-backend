@@ -278,6 +278,7 @@
   available_regs
   reg_with_debug_info
   compute_ranges
+  is_parameter
   ;; asmcomp/debug/dwarf/dwarf_ocaml
   ;; This code has a lot of dependencies into ocamloptcomp, so we just
   ;; build it as part of that library.
