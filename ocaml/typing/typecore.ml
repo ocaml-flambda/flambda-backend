@@ -7024,18 +7024,22 @@ and type_cases
                      ; rhs_type = instance ty_res'
                      })
           | None ->
+          let typed_guard =
+            match untyped_case.pc_guard with
+            | None -> None
+            | Some guard ->
+                Some
+                  (type_expect ext_env mode_local guard
+                     (mk_expected ~explanation:When_guard Predef.type_bool))
+          in
           let typed_rhs =
             { (type_expect ?in_function ext_env emode untyped_case.pc_rhs
                  (mk_expected ?explanation ty_res'))
               with exp_type = instance ty_res' }
           in
-          match untyped_case.pc_guard with
+          match typed_guard with
           | None -> Simple_rhs typed_rhs
-          | Some guard ->
-              let typed_guard =
-                type_expect ext_env mode_local guard
-                  (mk_expected ~explanation:When_guard Predef.type_bool)
-              in
+          | Some typed_guard ->
               Boolean_guarded_rhs { guard = typed_guard; rhs = typed_rhs }
         in
         { c_lhs = pat
