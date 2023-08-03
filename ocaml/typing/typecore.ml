@@ -611,6 +611,14 @@ let extract_option_type env ty =
     Tconstr(path, [ty], _) when Path.same path Predef.path_option -> ty
   | _ -> assert false
 
+let src_pos loc attrs env =
+  { exp_desc = Texp_src_pos
+  ; exp_loc = loc
+  ; exp_extra = []
+  ; exp_type = instance Predef.type_lexing_position
+  ; exp_attributes = attrs
+  ; exp_env = env }
+
 type record_extraction_result =
   | Record_type of Path.t * Path.t * Types.label_declaration list * record_representation
   | Not_a_record_type
@@ -5720,12 +5728,7 @@ and type_expect_
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
   | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
-      rue {
-        exp_desc = Texp_src_pos;
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance Predef.type_lexing_position;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+      rue (src_pos loc sexp.pexp_attributes env)
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -6353,7 +6356,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
   in
   match may_coerce with
     Some (safe_expect, lv) ->
-      (* apply optional arguments when expected type is "" *)
+      (* apply omittable arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
       if !Clflags.principal then begin_def ();
       let exp_mode = Value_mode.newvar_below mode.mode in
@@ -6372,7 +6375,9 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             (* CR layouts v5: change value assumption below when we allow
                non-values in structures. *)
             make_args ((l, Arg (ty, Sort.value)) :: args) ty_fun
-        (* TODO vding: Add a case for Position arguments? *)
+        | Tarrow ((l,_marg,_mret),_,ty_fun,_) when is_position l ->
+            let arg = src_pos (Location.ghostify sarg.pexp_loc) [] env in
+            make_args ((l, Arg (arg, Sort.value)) :: args) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
         | Tvar _ ->  List.rev args, ty_fun, false
@@ -6558,15 +6563,9 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
           let arg = option_none env (instance ty_arg) Location.none in
           (lbl, Arg (arg, Value_mode.global, sort_arg))
       | Position _ ->
-          let arg = {
-            exp_desc = Texp_src_pos;
-            exp_loc = Location.ghostify app_loc;
-            exp_extra = [];
-            exp_type = instance Predef.type_lexing_position;
-            exp_attributes = [];
-            exp_env = env }
-            (* CR src_pos: Confirm that global value mode is correct *)
-          in (lbl, Arg (arg, Value_mode.global, sort_arg))
+          let arg = src_pos (Location.ghostify app_loc) [] env in
+          (* CR src_pos: Confirm that global value mode is correct *)
+          (lbl, Arg (arg, Value_mode.global, sort_arg))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
 
