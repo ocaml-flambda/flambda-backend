@@ -926,7 +926,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
@@ -954,10 +954,8 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let mda_components =
     let mty = Subst.Lazy.Mty_signature sign in
     let mty =
-      if freshen then
-        Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
-          Subst.identity mty
-      else mty
+      Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
+        Subst.identity mty
     in
     components_of_module ~alerts ~uid:md.md_uid
       empty Subst.identity
@@ -969,8 +967,6 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_address;
     mda_shape;
   }
-
-let read_sign_of_cmi = sign_of_cmi ~freshen:true
 
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
