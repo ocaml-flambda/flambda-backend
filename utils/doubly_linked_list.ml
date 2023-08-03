@@ -40,7 +40,7 @@ let insert_and_return_before cell value =
       { node = value_node; t = cell.t })
 
 let insert_before cell value =
-  let _new_cell = insert_and_return_before cell value in
+  let _new_cell : _ cell = insert_and_return_before cell value in
   ()
 
 let insert_and_return_after cell value =
@@ -62,7 +62,7 @@ let insert_and_return_after cell value =
       { node = value_node; t = cell.t })
 
 let insert_after cell value =
-  let _new_cell = insert_and_return_after cell value in
+  let _new_cell : _ cell = insert_and_return_after cell value in
   ()
 
 let value cell =
