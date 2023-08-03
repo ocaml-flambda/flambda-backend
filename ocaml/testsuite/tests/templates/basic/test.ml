@@ -89,14 +89,12 @@ compiler_output = "bad_instance_arg_value_not_arg.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_not_arg.reference"
-********** skip
-reason = "broken: exception thrown instead of nice error"
-*********** ocamlc.byte
+********** ocamlc.byte
 flags = "-parameter List_element"
 module = "bad_instance_arg_value_not_found.ml"
 compiler_output = "bad_instance_arg_value_not_found.output"
 ocamlc_byte_exit_status = "2"
-************ check-ocamlc.byte-output
+*********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_not_found.reference"
 ********** ocamlc.byte
 flags = "-parameter Semigroup"

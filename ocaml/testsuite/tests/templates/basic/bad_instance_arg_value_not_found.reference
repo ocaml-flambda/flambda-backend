@@ -1,1 +1,4 @@
-* currently broken *
+File "bad_instance_arg_value_not_found.ml", line 4, characters 2-30:
+4 |   Monoid_utils(Monoid)(Banana) [@jane.non_erasable.instances]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unbound module Monoid_utils[Monoid:Banana]

@@ -2389,9 +2389,10 @@ and type_module_extension_aux ~alias sttn env smod
       : Jane_syntax.Module_expr.t -> _ =
   function
   | Emod_instance (Imod_instance glob) ->
-      (* Assume the name we have is truly a global. Someday we'll allow
-         local aliases in instance names and at that point this won't work. *)
-      let path = Pident (glob |> Ident.create_global) in
+      let path =
+        Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
+          glob env
+      in
       let lid =
         (* Only used by [untypeast] *)
         let name =
