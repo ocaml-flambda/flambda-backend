@@ -650,6 +650,8 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
 
+(* CR mshinwell: use [frame_size] and [slot_offset] in [Emit] *)
+
 (* returned size includes return address *)
 let frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots =
   if frame_required ~fun_contains_calls ~fun_num_stack_slots then begin
