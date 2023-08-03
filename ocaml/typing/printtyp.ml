@@ -1123,7 +1123,8 @@ let rec tree_of_typexp mode ty =
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-          if !print_labels || is_optional l then outcome_label l
+          if !print_labels || is_omittable l then outcome_label l
+            (* TODO vding: I think we want to print if something might be omitted? *)
           else Nolabel
         in
         let t1 =
@@ -1763,7 +1764,8 @@ let rec tree_of_class_type mode params =
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
       let lab =
-        if !print_labels || is_optional l then outcome_label l
+        if !print_labels || is_omittable l then outcome_label l
+          (* TODO vding: omittable? (same as above) *)
         else Nolabel
       in
       let tr =

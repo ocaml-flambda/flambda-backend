@@ -50,7 +50,7 @@ type t =
   | Instance_variable_override of string list (* 13 *)
   | Illegal_backslash                       (* 14 *)
   | Implicit_public_methods of string list  (* 15 *)
-  | Unerasable_optional_argument            (* 16 *)
+  | Unerasable_omittable_argument           (* 16 *)
   | Undeclared_virtual_method of string     (* 17 *)
   | Not_principal of string                 (* 18 *)
   | Non_principal_labels of string          (* 19 *)
@@ -135,7 +135,7 @@ let number = function
   | Instance_variable_override _ -> 13
   | Illegal_backslash -> 14
   | Implicit_public_methods _ -> 15
-  | Unerasable_optional_argument -> 16
+  | Unerasable_omittable_argument -> 16
   | Undeclared_virtual_method _ -> 17
   | Not_principal _ -> 18
   | Non_principal_labels _ -> 19
@@ -263,7 +263,7 @@ let descriptions = [
     names = ["implicit-public-methods"];
     description = "Private method made public implicitly." };
   { number = 16;
-    names = ["unerasable-optional-argument"];
+    names = ["unerasable-omittable-argument"];
     description = "Unerasable optional argument." };
   { number = 17;
     names = ["undeclared-virtual-method"];
@@ -853,7 +853,7 @@ let message = function
   | Implicit_public_methods l ->
       "the following private methods were made public implicitly:\n "
       ^ String.concat " " l ^ "."
-  | Unerasable_optional_argument -> "this optional argument cannot be erased."
+  | Unerasable_omittable_argument -> "this omittable argument cannot be erased."
   | Undeclared_virtual_method m -> "the virtual method "^m^" is not declared."
   | Not_principal s -> s^" is not principal."
   | Non_principal_labels s -> s^" without principality."

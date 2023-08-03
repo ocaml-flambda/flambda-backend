@@ -1237,9 +1237,11 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       Ctype.raise_nongen_level ();
       let cl = class_expr cl_num val_env' met_env virt self_scope scl' in
       Ctype.end_def ();
+      (* CR src_pos: The below should probably become is_omittable once
+         classes involve Position arguments *)
       if Btype.is_optional l && not_nolabel_function cl.cl_type then
         Location.prerr_warning pat.pat_loc
-          Warnings.Unerasable_optional_argument;
+          Warnings.Unerasable_omittable_argument;
       rc {cl_desc = Tcl_fun (l, pat, pv, cl, partial);
           cl_loc = scl.pcl_loc;
           cl_type = Cty_arrow
