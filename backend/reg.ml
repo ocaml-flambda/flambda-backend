@@ -188,6 +188,13 @@ let is_stack t =
   | Stack _ -> true
   | _ -> false
 
+let is_local_stack_slot t =
+  match t.loc with
+  | Stack (Local _) -> true
+  | Unknown
+  | Reg _
+  | Stack (Incoming _ | Outgoing _ | Domainstate _) -> false
+
 let is_reg t =
   match t.loc with
   | Reg _ -> true

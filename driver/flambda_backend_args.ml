@@ -507,6 +507,15 @@ let mk_no_dwarf_for_startup_file f =
   "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
     \     startup file as the upstream compiler"
 
+let mk_gdwarf_may_alter_codegen f =
+  "-gdwarf-may-alter-codegen", Arg.Unit f, " Allow code generation (and\n\
+    \     when finalizers may run, etc) to be altered\n\
+    \     in order to produce a better debugging experience"
+
+let mk_no_gdwarf_may_alter_codegen f =
+  "-gno-dwarf-may-alter-codegen", Arg.Unit f, " Do not alter code\n\
+    \     generation when emitting debugging information"
+
 let mk_use_cached_generic_functions f =
   "-use-cached-generic-functions", Arg.Unit f, " Use the cached generated functions"
 ;;
@@ -950,6 +959,8 @@ module type Debugging_options = sig
   val no_restrict_to_upstream_dwarf : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
+  val gdwarf_may_alter_codegen : unit -> unit
+  val no_gdwarf_may_alter_codegen : unit -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
@@ -958,6 +969,8 @@ module Make_debugging_options (F : Debugging_options) = struct
     mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
     mk_dwarf_for_startup_file F.dwarf_for_startup_file;
     mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
+    mk_gdwarf_may_alter_codegen F.gdwarf_may_alter_codegen;
+    mk_no_gdwarf_may_alter_codegen F.no_gdwarf_may_alter_codegen;
    ]
 end
 
@@ -970,6 +983,10 @@ module Debugging_options_impl = struct
     Debugging.dwarf_for_startup_file := true
   let no_dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := false
+  let gdwarf_may_alter_codegen () =
+    Debugging.gdwarf_may_alter_codegen := true
+  let no_gdwarf_may_alter_codegen () =
+    Debugging.gdwarf_may_alter_codegen := false
 end
 
 module Extra_params = struct

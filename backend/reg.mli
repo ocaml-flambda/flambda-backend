@@ -101,6 +101,7 @@ val name : t -> string
 (* Check [t]'s location *)
 val is_reg : t -> bool
 val is_stack :  t -> bool
+val is_local_stack_slot : t -> bool
 
 val size_of_contents_in_bytes : t -> int
 

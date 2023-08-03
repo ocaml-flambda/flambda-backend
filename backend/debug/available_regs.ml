@@ -22,6 +22,16 @@ module RAS = Reg_availability_set
 module RD = Reg_with_debug_info
 module V = Backend_var
 
+(* If permitted to do so by the command line flags, this pass will extend live
+   ranges for otherwise dead but available registers across allocations, polls
+   and calls when it is safe to do so. This allows the values of more variables
+   to be seen in the debugger, for example when the last use of some variable is
+   just before a call, and the debugger is standing in the callee. It may
+   however affect the semantics of e.g. finalizers. *)
+let extend_live () = !Dwarf_flags.gdwarf_may_alter_codegen
+
+let disable_extend_live = ref false
+
 (* This pass treats [avail_at_exit] like a "result" structure whereas the
    equivalent in [Liveness] is like an "environment". (Which means we need to be
    careful not to throw away information about further-out catch handlers
@@ -69,12 +79,14 @@ let check_invariants (instr : M.instruction) ~(avail_before : RAS.t) =
   | Unreachable -> ()
   | Ok avail_before ->
     (* Every register that is live across an instruction should also be
-       available before the instruction. *)
-    if not (R.Set.subset instr.live (RD.Set.forget_debug_info avail_before))
+       available before the instruction. We can't check this in extend-live mode
+       at present. *)
+    if (not (extend_live ()))
+       && not (R.Set.subset instr.live (RD.Set.forget_debug_info avail_before))
     then
       Misc.fatal_errorf
-        "Live registers not a subset of available registers: live={%a} \
-         avail_before=%a missing={%a} insn=%a"
+        "Live registers not a subset of available\n\
+        \       registers: live={%a}  avail_before=%a missing={%a} insn=%a"
         Printmach.regset instr.live
         (RAS.print ~print_reg:Printmach.reg)
         (RAS.Ok avail_before) Printmach.regset
@@ -242,7 +254,25 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
                 let remains_available =
                   live_across || (holds_immediate && on_stack)
                 in
-                not remains_available)
+                let is_end_region =
+                  (* The live range extension can't be done for end-region, as
+                     the relevant range of the stack could be reused. *)
+                  match[@ocaml.warning "-4"] op with
+                  | Iendregion -> true
+                  | _ -> false
+                in
+                if remains_available
+                   || (not (extend_live ()))
+                   || is_end_region
+                   || (not (Reg.is_local_stack_slot (RD.reg reg)))
+                   || RD.Set.mem reg made_unavailable_1
+                   || !disable_extend_live
+                then not remains_available
+                else (
+                  (* Format.eprintf "adding %a\n%!" (RD.print
+                     ~print_reg:Printmach.reg) reg;*)
+                  instr.live <- Reg.Set.add (RD.reg reg) instr.live;
+                  false))
               avail_before
           | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
           | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind | Itailcall_imm _
@@ -268,6 +298,13 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
       | Iifthenelse (_, ifso, ifnot) -> join [ifso; ifnot] ~avail_before
       | Iswitch (_, cases) -> join (Array.to_list cases) ~avail_before
       | Icatch (recursive, ts, handlers, body) ->
+        let old_disable_extend_live = !disable_extend_live in
+        (match recursive with
+        | Nonrecursive -> ()
+        | Recursive ->
+          (* In extend-live mode, we disable extension of any live ranges until
+             the fixed point has been reached. *)
+          disable_extend_live := true);
         List.iter
           (fun (nfail, _ts, _handler) ->
             (* In case there are nested [Icatch] expressions with the same
@@ -307,7 +344,14 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           | Recursive ->
             if List.for_all2 aux_equal avail_at_top_of_handlers
                  avail_at_top_of_handlers'
-            then avail_after_handlers
+            then
+              if not (extend_live ())
+              then avail_after_handlers
+              else (
+                (* In extend-live mode, do one more round, during which the
+                   availability sets on the instructions will be updated. *)
+                disable_extend_live := old_disable_extend_live;
+                List.map2 aux handlers avail_at_top_of_handlers)
             else fixpoint avail_at_top_of_handlers'
         in
         let init_avail_at_top_of_handlers =
@@ -398,6 +442,7 @@ let fundecl (f : M.fundecl) =
     assert (Hashtbl.length avail_at_exit = 0);
     avail_at_raise := RAS.Unreachable;
     current_trap_stack := M.Uncaught;
+    disable_extend_live := false;
     let fun_args = R.set_of_array f.fun_args in
     let avail_before = RAS.Ok (RD.Set.without_debug_info fun_args) in
     ignore (available_regs f.fun_body ~avail_before : RAS.t));
