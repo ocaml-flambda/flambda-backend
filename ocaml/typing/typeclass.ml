@@ -1615,7 +1615,7 @@ let class_infos define_class kind
   let ci_params =
     let make_param (sty, v) =
       try
-        let param = transl_type_param ~generic:false env (Pident ty_id) sty in
+        let param = transl_type_param env (Pident ty_id) sty in
         (* CR layouts: we require class type parameters to be values, but
            we should lift this restriction. Doing so causes bad error messages
            today, so we wait for tomorrow. *)

@@ -107,11 +107,11 @@ let get_unboxed_from_attributes sdecl =
 (* [make_params] creates sort variables - these can be defaulted away (as in
    transl_type_decl) or unified with existing sort-variable-free types (as in
    transl_with_constraint). *)
-let make_params ~generic env path params =
+let make_params env path params =
   TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
   let make_param (sty, v) =
     try
-      (transl_type_param ~generic env path sty, v)
+      (transl_type_param env path sty, v)
     with Already_bound ->
       raise(Error(sty.ptyp_loc, Repeated_parameter))
   in
@@ -194,7 +194,7 @@ let enter_type rec_flag env sdecl (id, uid) =
      layout of the variable put in manifests here is updated when constraints
      are checked and then unified with the real manifest and checked against the
      kind. *)
-  let layout =
+  let type_layout =
     (* We set ~legacy_immediate to true because we're looking at a declaration
        that was already allowed to be [@@immediate] *)
     layout_of_attributes_default
@@ -202,14 +202,20 @@ let enter_type rec_flag env sdecl (id, uid) =
       ~default:(Layout.any ~why:Initial_typedecl_env)
       sdecl.ptype_attributes
   in
+  let type_params =
+    List.map (fun (param, _) ->
+        let name = get_type_param_name param in
+        let layout = get_type_param_layout path param in
+        Btype.newgenvar ?name layout)
+      sdecl.ptype_params
+  in
   let decl =
-    { type_params = List.map (fun (ctyp, _) -> ctyp.ctyp_type)
-                      (make_params ~generic:true env path sdecl.ptype_params);
+    { type_params;
       type_arity = arity;
       type_kind = Type_abstract;
-      type_layout = layout;
+      type_layout;
       type_private = sdecl.ptype_private;
-      type_manifest = Some (Ctype.newvar layout);
+      type_manifest = Some (Ctype.newvar type_layout);
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -590,7 +596,7 @@ let transl_declaration env sdecl (id, uid) =
   TyVarEnv.reset ();
   Ctype.begin_def ();
   let path = Path.Pident id in
-  let tparams = make_params ~generic:false env path sdecl.ptype_params in
+  let tparams = make_params env path sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->
@@ -1743,7 +1749,7 @@ let transl_type_extension extend env loc styext =
   | Some err -> raise (Error(loc, Extension_mismatch (type_path, env, err)))
   end;
   let ttype_params =
-    make_params ~generic:false env type_path styext.ptyext_params
+    make_params env type_path styext.ptyext_params
   in
   let type_params = List.map (fun (cty, _) -> cty.ctyp_type) ttype_params in
   List.iter2 (Ctype.unify_var env)
@@ -2083,7 +2089,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
      declaration [sdecl] in the outer environment [outer_env]. *)
   let env = outer_env in
   let loc = sdecl.ptype_loc in
-  let tparams = make_params ~generic:false env (Pident id) sdecl.ptype_params in
+  let tparams = make_params env (Pident id) sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let arity = List.length params in
   let constraints =

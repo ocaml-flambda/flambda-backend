@@ -425,7 +425,7 @@ let newvar ?name layout =
 let valid_tyvar_name name =
   name <> "" && name.[0] <> '_'
 
-let transl_type_param_var ~generic env loc attrs name_opt
+let transl_type_param_var env loc attrs name_opt
       (layout : layout) (layout_annot : const_layout option) =
   let tvar = Ttyp_var (name_opt, layout_annot) in
   let name =
@@ -438,35 +438,26 @@ let transl_type_param_var ~generic env loc attrs name_opt
         raise Already_bound;
       name
   in
-  let ty = if generic
-    then
-      (* this case is used in [Typedecl.enter_type], when we're creating
-         a temporary env just for layout checking; no need to actually
-         add the variable to the env *)
-      Btype.newgenvar ~name layout
-    else
-      let ty = new_global_var ~name layout in
-      Option.iter (fun name -> TyVarEnv.add name ty) name_opt;
-      ty
-  in
+  let ty = new_global_var ~name layout in
+  Option.iter (fun name -> TyVarEnv.add name ty) name_opt;
   { ctyp_desc = tvar; ctyp_type = ty; ctyp_env = env;
     ctyp_loc = loc; ctyp_attributes = attrs }
 
-let transl_type_param_jst ~generic env loc attrs path :
+let transl_type_param_jst env loc attrs path :
   Jane_syntax.Core_type.t -> _ =
   function
   | Jtyp_layout (Ltyp_var { name; layout = annot }) ->
      let layout =
        Layout.of_annotation ~context:(Type_parameter (path, name)) annot
      in
-     transl_type_param_var ~generic env loc attrs name layout (Some annot.txt)
+     transl_type_param_var env loc attrs name layout (Some annot.txt)
   | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _) ->
     Misc.fatal_error "non-type-variable in transl_type_param_jst"
 
-let transl_type_param ~generic env path styp =
+let transl_type_param env path styp =
   let loc = styp.ptyp_loc in
   match Jane_syntax.Core_type.of_ast styp with
-  | Some (etyp, attrs) -> transl_type_param_jst ~generic env loc attrs path etyp
+  | Some (etyp, attrs) -> transl_type_param_jst env loc attrs path etyp
   | None ->
   (* Our choice for now is that if you want a parameter of layout any, you have
    to ask for it with an annotation.  Some restriction here seems necessary
@@ -475,24 +466,31 @@ let transl_type_param ~generic env path styp =
   let layout = Layout.of_new_sort_var ~why:Unannotated_type_parameter in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
-    Ptyp_any -> transl_type_param_var ~generic env loc attrs None layout None
+    Ptyp_any -> transl_type_param_var env loc attrs None layout None
   | Ptyp_var name ->
-    transl_type_param_var ~generic env loc attrs (Some name) layout None
+    transl_type_param_var env loc attrs (Some name) layout None
   | _ -> assert false
 
-let transl_type_param ~generic env path styp =
+let transl_type_param env path styp =
   (* Currently useless, since type parameters cannot hold attributes
      (but this could easily be lifted in the future). *)
   Builtin_attributes.warning_scope styp.ptyp_attributes
-    (fun () -> transl_type_param ~generic env path styp)
+    (fun () -> transl_type_param env path styp)
 
-(* returns just the layout of the param *)
 let get_type_param_layout path styp =
   match Jane_syntax.Core_type.of_ast styp with
   | None -> Layout.of_new_sort_var ~why:Unannotated_type_parameter
   | Some (Jtyp_layout (Ltyp_var { name; layout }), _attrs) ->
     Layout.of_annotation ~context:(Type_parameter (path, name)) layout
   | Some _ -> Misc.fatal_error "non-type-variable in get_type_param_layout"
+
+let get_type_param_name styp =
+  (* We don't need to check for jane-syntax here, just to get the
+     name. *)
+  match styp.ptyp_desc with
+  | Ptyp_any -> None
+  | Ptyp_var name -> Some name
+  | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
 let get_alloc_mode styp =
   match Builtin_attributes.has_local styp.ptyp_attributes with

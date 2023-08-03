@@ -69,10 +69,12 @@ val transl_simple_type_delayed
 val transl_type_scheme:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
 val transl_type_param:
-  generic:bool -> Env.t -> Path.t -> Parsetree.core_type -> Typedtree.core_type
+  Env.t -> Path.t -> Parsetree.core_type -> Typedtree.core_type
 (* the Path.t above is of the type/class whose param we are processing;
    the level defaults to the current level *)
+
 val get_type_param_layout: Path.t -> Parsetree.core_type -> layout
+val get_type_param_name: Parsetree.core_type -> string option
 
 val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
 
