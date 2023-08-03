@@ -43,11 +43,17 @@ open! Simplify_import
 
 (* For each stage, the information received by this stage is of type
    stage_data. *)
+
+type one_recursive_handler =
+  { params : Bound_parameters.t;
+    handler : Expr.t;
+    is_cold : bool
+  }
+
 type original_handlers =
   | Recursive of
       { invariant_params : Bound_parameters.t;
-        continuation_handlers :
-          (Bound_parameters.t * Expr.t * bool) Continuation.Map.t
+        continuation_handlers : one_recursive_handler Continuation.Map.t
       }
   | Non_recursive of
       { cont : Continuation.t;
@@ -689,7 +695,7 @@ let rebuild_single_recursive_handler cont
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
           variant_params ~handler ~free_names_of_handler:free_names
-          ~is_exn_handler:false ~is_cold:false
+          ~is_exn_handler:false ~is_cold:handler_to_rebuild.is_cold
       in
       let free_names =
         remove_params invariant_params (remove_params variant_params free_names)
@@ -1047,7 +1053,7 @@ let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler
 
 let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
     ~invariant_params consts_lifted_during_body all_handlers_set denv_to_reset
-    dacc cont (params, handler, is_cold) k =
+    dacc cont { params; handler; is_cold } k =
   (* Here we perform the downwards traversal on a single handler.
 
      We also make unboxing decisions at this step, which are necessary to
@@ -1330,7 +1336,7 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
           (fun handler ->
             let is_cold = CH.is_cold handler in
             CH.pattern_match handler ~f:(fun params ~handler ->
-                params, handler, is_cold))
+                { params; handler; is_cold }))
           handlers
       in
       { body; handlers = Recursive { invariant_params; continuation_handlers } }
@@ -1348,7 +1354,7 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
       (fun handler ->
         let is_cold = CH.is_cold handler in
         CH.pattern_match handler ~f:(fun params ~handler ->
-            params, handler, is_cold))
+            { params; handler; is_cold }))
       handlers
   in
   let data : simplify_let_cont_data =
