@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-29-40-41-42"]
 
-module DLL = Peephole_utils.DLL
+module DLL = Flambda_backend_utils.Doubly_linked_list
 module R = Peephole_rules
 
 (* We currently don't check that the peephole optimizer terminates. In the case
