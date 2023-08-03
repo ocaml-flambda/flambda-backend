@@ -654,9 +654,12 @@ let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
 let frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots =
   if frame_required ~fun_contains_calls ~fun_num_stack_slots then begin
     let sz =
-      (stack_offset + 8 * (fun_num_stack_slots.(0) + fun_num_stack_slots.(1))
-      + 8
-      + (if fp then 8 else 0))
+      (stack_offset
+       + 8
+       + 8 * fun_num_stack_slots.(0)
+       + 8 * fun_num_stack_slots.(1)
+       + 16 * fun_num_stack_slots.(2)
+       + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
     stack_offset + 8
@@ -674,9 +677,13 @@ let slot_offset loc ~reg_class ~stack_offset ~fun_contains_calls
         + n)
   | Local n ->
       Bytes_relative_to_stack_pointer (
-        if reg_class = 0
-        then stack_offset + n * 8
-        else stack_offset + (fun_num_stack_slots.(0) + n) * 8)
+        (stack_offset +
+          match reg_class with
+          | 2 -> n * 16
+          | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
+          | 1 ->
+              fun_num_stack_slots.(2) * 16 + fun_num_stack_slots.(0) * 8 + n * 8
+          | n -> Misc.fatal_errorf "Invalid register class %d" n))
   | Outgoing n -> Bytes_relative_to_stack_pointer n
   | Domainstate n ->
       Bytes_relative_to_domainstate_pointer (
