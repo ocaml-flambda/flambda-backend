@@ -39,14 +39,48 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
       ~code_begin ~code_end
   in
   let compilation_unit_header_label = Asm_label.create (DWARF Debug_info) in
+  let debug_line_section = Debug_line_section.create ~code_begin in
+  let debug_frame_section = Debug_frame_section.create ~code_begin in
   let state =
     DS.create ~compilation_unit_header_label ~compilation_unit_proto_die
+      ~debug_line_section ~debug_frame_section
   in
   { state; asm_directives; emitted = false; get_file_id }
 
 let dwarf_for_fundecl t fundecl =
   Dwarf_concrete_instances.for_fundecl ~get_file_id:t.get_file_id t.state
     fundecl
+
+let dwarf_for_source_file t ~file_name ~file_num =
+  let debug_line_section = DS.debug_line_section t.state in
+  Debug_line_section.add_source_file debug_line_section ~file_name ~file_num
+
+let dwarf_for_line_number_matrix_row t ~instr_address ~file_num ~line ~col
+    ~discriminator =
+  let debug_line_section = DS.debug_line_section t.state in
+  Debug_line_section.add_line_number_matrix_row debug_line_section
+    ~instr_address ~file_num ~line ~col ~discriminator
+
+let dwarf_for_cfi_startproc t ~address =
+  let debug_frame_section = DS.debug_frame_section t.state in
+  Debug_frame_section.process_cfi_startproc debug_frame_section ~address
+
+let dwarf_for_cfi_adjust_cfa_offset t ~address ~offset =
+  let debug_frame_section = DS.debug_frame_section t.state in
+  Debug_frame_section.process_cfi_adjust_cfa_offset debug_frame_section ~address
+    ~offset
+
+let dwarf_for_cfi_endproc t ~address =
+  let debug_frame_section = DS.debug_frame_section t.state in
+  Debug_frame_section.process_cfi_endproc debug_frame_section ~address
+
+let checkpoint t =
+  Debug_line_section.checkpoint (DS.debug_line_section t.state);
+  Debug_frame_section.checkpoint (DS.debug_frame_section t.state)
+
+let rollback t =
+  Debug_line_section.rollback (DS.debug_line_section t.state);
+  Debug_frame_section.rollback (DS.debug_frame_section t.state)
 
 let emit t =
   if t.emitted
@@ -58,5 +92,7 @@ let emit t =
   Dwarf_world.emit ~asm_directives:t.asm_directives
     ~compilation_unit_proto_die:(DS.compilation_unit_proto_die t.state)
     ~compilation_unit_header_label:(DS.compilation_unit_header_label t.state)
+    ~debug_line:(DS.debug_line_section t.state)
+    ~debug_frame:(DS.debug_frame_section t.state)
 
 let emit t = Profile.record "emit_dwarf" emit t

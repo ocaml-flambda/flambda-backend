@@ -12,6 +12,7 @@ type debug_thing =
   | Debug_dwarf_vars
   | Debug_dwarf_call_sites
   | Debug_dwarf_cmm
+  | Debug_source_lines
 
 val debug_thing : debug_thing -> bool
 
@@ -64,3 +65,7 @@ val default_gdwarf_format : dwarf_format
 val default_ddebug_invariants : bool
 
 val ddebug_invariants : bool ref
+
+val default_gdwarf_use_eh_frame : bool
+
+val gdwarf_use_eh_frame : bool ref

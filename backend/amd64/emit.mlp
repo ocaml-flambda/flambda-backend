@@ -2052,6 +2052,6 @@ let end_assembly () =
     else
       None
   in
-  Emitaux.Dwarf_helpers.emit_dwarf ();
-  X86_proc.generate_code asm;
-  reset_all ()
+  if not !Flambda_backend_flags.internal_assembler then
+    Emitaux.Dwarf_helpers.emit_dwarf ();
+  X86_proc.generate_code asm

@@ -121,8 +121,28 @@ module Dwarf_helpers : sig
   val emit_dwarf : unit -> unit
 
   val record_dwarf_for_fundecl : fun_name:string -> Debuginfo.t -> Cmm.label option
+
+  val record_dwarf_for_source_file :
+    file_name:string -> file_num:int -> unit
+
+  val record_dwarf_for_line_number_matrix_row
+    : instr_address : int
+    -> file_num : int
+    -> line : int
+    -> col : int
+    -> discriminator : int option
+    -> unit
+
+  val record_dwarf_for_cfi_startproc : address:int -> unit
+
+  val record_dwarf_for_cfi_adjust_cfa_offset : address:int -> offset:int -> unit
+
+  val record_dwarf_for_cfi_endproc : address:int -> unit
+
+  val checkpoint : unit -> unit
+  
+  val rollback : unit -> unit
 end
 
 exception Error of error
 val report_error: Format.formatter -> error -> unit
-

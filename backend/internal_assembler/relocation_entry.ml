@@ -57,7 +57,10 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
       (get_reloc_info ~relocation_type:1 (* R_X86_64_64 *) ~addend name
          symbol_table)
         string_table
-    | DIR32 (_, _) -> failwith "cannot generate dir32"
+    | DIR32 (name, addend) ->
+      (get_reloc_info ~relocation_type:10 (* R_X86_64_32 *) ~addend name
+         symbol_table)
+        string_table
     | REL32 (name, addend) -> (
       match String.split_on_char '@' name with
       | [name; "GOTPCREL"] ->

@@ -34,6 +34,27 @@ val create :
 
 val dwarf_for_fundecl : t -> Dwarf_concrete_instances.fundecl -> unit
 
+val dwarf_for_source_file : t -> file_name:string -> file_num:int -> unit
+
+val dwarf_for_line_number_matrix_row :
+  t ->
+  instr_address:int ->
+  file_num:int ->
+  line:int ->
+  col:int ->
+  discriminator:int option ->
+  unit
+
+val dwarf_for_cfi_startproc : t -> address:int -> unit
+
+val dwarf_for_cfi_adjust_cfa_offset : t -> address:int -> offset:int -> unit
+
+val dwarf_for_cfi_endproc : t -> address:int -> unit
+
+val checkpoint : t -> unit
+
+val rollback : t -> unit
+
 (** Write the DWARF information to the assembly file. This should only be called
     once all (in)constants and function declarations have been passed to the
     above functions. *)

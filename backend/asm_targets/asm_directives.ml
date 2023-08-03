@@ -86,14 +86,6 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     | MASM | MacOS -> false
     | GAS_like -> true
 
-  let is_masm () =
-    match Target_system.assembler () with
-    | MASM -> true
-    | GAS_like | MacOS -> false
-
-  let loc ~file_num ~line ~col =
-    if not (is_masm ()) then D.loc ~file_num ~line ~col ()
-
   let new_line () = D.new_line ()
 
   let not_initialized () =
@@ -149,11 +141,14 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
        avoid errors, emit the beginning of all dwarf sections in advance. *)
     if is_gas () || is_macos ()
     then List.iter switch_to_section (Asm_section.dwarf_sections_in_order ());
+    (* The following line is commented out because it adds a loc directive in a
+       section which is not the .text section, which causes issues when the
+       debug_line section is being created. *)
     (* Stop dsymutil complaining about empty __debug_line sections (produces
        bogus error "line table parameters mismatch") by making sure such
-       sections are never empty. *)
-    let file_num = A.get_file_num "none" in
-    loc ~file_num ~line:1 ~col:1;
+       sections are never empty.
+
+       let file_num = A.get_file_num "none" in loc ~file_num ~line:1 ~col:1; *)
     D.text ()
 
   let with_comment f ?comment x =
@@ -249,9 +244,10 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "label"
 
-  let symbol_plus_offset _sym ~offset_in_bytes:_ =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "symbol_plus_offset"
+  let symbol_plus_offset sym ~offset_in_bytes =
+    let lab = D.const_label (Asm_symbol.encode sym) in
+    let offset = D.const_int64 (Targetint.to_int64 offset_in_bytes) in
+    const_machine_width (D.const_add lab offset)
 
   let new_temp_var () =
     let id = !temp_var_counter in

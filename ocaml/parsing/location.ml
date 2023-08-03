@@ -25,6 +25,7 @@ let in_file name =
 
 let none = in_file "_none_";;
 let is_none l = (l = none);;
+let is_dummy_filename name = name = "_none_";;
 
 let curr lexbuf = {
   loc_start = lexbuf.lex_start_p;
