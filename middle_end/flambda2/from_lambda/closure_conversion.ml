@@ -2440,7 +2440,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     Code_id.Lmap.fold
       (fun code_id code (acc, g2c, s2g) ->
         let id = fresh_group_id () in
-        let acc = Acc.add_code_offsets acc code_id in
+        let acc = Acc.add_offsets_from_code acc code_id in
         let bound = Bound_static.Pattern.code code_id in
         let const = Static_const_or_code.create_code code in
         ( acc,

@@ -284,7 +284,7 @@ module Acc : sig
 
   val code_slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 
-  val add_code_offsets : t -> Code_id.t -> t
+  val add_offsets_from_code : t -> Code_id.t -> t
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t

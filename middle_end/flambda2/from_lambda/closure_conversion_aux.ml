@@ -660,7 +660,7 @@ module Acc = struct
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
 
-  let add_code_offsets t code_id =
+  let add_offsets_from_code t code_id =
     match Code_id.Map.find code_id t.code_slot_offsets with
     | exception Not_found ->
       Misc.fatal_errorf "No slot offsets constraints found for code id %a"
