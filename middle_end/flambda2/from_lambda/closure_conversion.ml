@@ -41,7 +41,11 @@ type 'a close_program_metadata =
       * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
-type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
+type 'a close_program_result =
+  { unit : Flambda_unit.t;
+    metadata : 'a close_program_metadata;
+    code_slot_offsets : Slot_offsets.t Code_id.Map.t
+  }
 
 type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
@@ -1391,7 +1395,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   in
   let acc =
     Acc.push_closure_info acc ~return_continuation ~exn_continuation ~my_closure
-      ~is_purely_tailrec:is_single_recursive_function
+      ~is_purely_tailrec:is_single_recursive_function ~code_id
   in
   let my_region = Function_decl.my_region decl in
   let function_slot = Function_decl.function_slot decl in
@@ -2428,16 +2432,21 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       incr i;
       n
   in
-  let group_to_bound_consts, symbol_to_groups =
+  (* CR gbury: We assume that no code_ids are deleted later, but even if that
+     were to happen, we would onyl get an over-approximation of the slot offsets
+     constraints. *)
+  let acc, group_to_bound_consts, symbol_to_groups =
     Code_id.Lmap.fold
-      (fun code_id code (g2c, s2g) ->
+      (fun code_id code (acc, g2c, s2g) ->
         let id = fresh_group_id () in
+        let acc = Acc.add_code_offsets acc code_id in
         let bound = Bound_static.Pattern.code code_id in
         let const = Static_const_or_code.create_code code in
-        ( GroupMap.add id (bound, const) g2c,
+        ( acc,
+          GroupMap.add id (bound, const) g2c,
           CIS.Map.add (CIS.create_code_id code_id) id s2g ))
       all_code
-      (GroupMap.empty, CIS.Map.empty)
+      (acc, GroupMap.empty, CIS.Map.empty)
   in
   let group_to_bound_consts, symbol_to_groups =
     List.fold_left
@@ -2679,6 +2688,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code_map acc) |> Code.code_metadata
   in
+  let code_slot_offsets = Acc.code_slot_offsets acc in
   match mode with
   | Normal ->
     (* CR chambart/gbury: we could probably get away with not computing some of
@@ -2688,7 +2698,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       Flambda_unit.create ~return_continuation:return_cont ~exn_continuation
         ~toplevel_my_region ~body ~module_symbol ~used_value_slots:Unknown
     in
-    unit, Normal
+    { unit; code_slot_offsets; metadata = Normal }
   | Classic ->
     let all_code =
       Exported_code.add_code (Acc.code_map acc)
@@ -2720,4 +2730,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         ~toplevel_my_region ~body ~module_symbol
         ~used_value_slots:(Known used_value_slots)
     in
-    unit, Classic (all_code, reachable_names, cmx, exported_offsets)
+    { unit;
+      code_slot_offsets;
+      metadata = Classic (all_code, reachable_names, cmx, exported_offsets)
+    }

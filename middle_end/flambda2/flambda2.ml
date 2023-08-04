@@ -128,7 +128,11 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
   let run () =
     let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
     let (Mode mode) = Flambda_features.mode () in
-    let raw_flambda, close_program_metadata =
+    let Closure_conversion.
+          { unit = raw_flambda;
+            code_slot_offsets;
+            metadata = close_program_metadata
+          } =
       Profile.record_call "lambda_to_flambda" (fun () ->
           Lambda_to_flambda.lambda_to_flambda ~mode ~big_endian:Arch.big_endian
             ~cmx_loader ~compilation_unit ~module_block_size_in_words
@@ -156,7 +160,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
               reachable_names
             } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
-              Simplify.run ~cmx_loader ~round raw_flambda)
+              Simplify.run ~cmx_loader ~round ~code_slot_offsets raw_flambda)
         in
         (if Flambda_features.inlining_report ()
         then

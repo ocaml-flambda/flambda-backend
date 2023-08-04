@@ -332,7 +332,8 @@ module Acc = struct
     | Untrackable
 
   type closure_info =
-    { return_continuation : Continuation.t;
+    { code_id : Code_id.t;
+      return_continuation : Continuation.t;
       exn_continuation : Exn_continuation.t;
       my_closure : Variable.t;
       is_purely_tailrec : bool
@@ -352,6 +353,7 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
+      code_slot_offsets : Slot_offsets.t Code_id.Map.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list;
       symbol_short_name_counter : int
@@ -448,6 +450,7 @@ module Acc = struct
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
       slot_offsets;
+      code_slot_offsets = Code_id.Map.empty;
       regions_closed_early = Ident.Set.empty;
       closure_infos = [];
       symbol_short_name_counter = 0
@@ -470,6 +473,8 @@ module Acc = struct
   let free_names t = t.free_names
 
   let slot_offsets t = t.slot_offsets
+
+  let code_slot_offsets t = t.code_slot_offsets
 
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
@@ -653,6 +658,17 @@ module Acc = struct
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
 
+  let add_code_offsets t code_id =
+    match Code_id.Map.find code_id t.code_slot_offsets with
+    | exception Not_found ->
+      Misc.fatal_errorf "No slot offsets constraints found for code id %a"
+        Code_id.print code_id
+    | from_function ->
+      let slot_offsets =
+        Slot_offsets.add_offsets_from_function t.slot_offsets ~from_function
+      in
+      { t with slot_offsets }
+
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
     let slot_offsets =
       Slot_offsets.add_set_of_closures t.slot_offsets ~is_phantom
@@ -666,10 +682,15 @@ module Acc = struct
     | closure_info :: _ -> Some closure_info
 
   let push_closure_info t ~return_continuation ~exn_continuation ~my_closure
-      ~is_purely_tailrec =
+      ~is_purely_tailrec ~code_id =
     { t with
       closure_infos =
-        { return_continuation; exn_continuation; my_closure; is_purely_tailrec }
+        { code_id;
+          return_continuation;
+          exn_continuation;
+          my_closure;
+          is_purely_tailrec
+        }
         :: t.closure_infos
     }
 
@@ -678,6 +699,9 @@ module Acc = struct
       match t.closure_infos with
       | [] -> Misc.fatal_error "pop_closure_info called on empty stack"
       | closure_info :: closure_infos -> closure_info, closure_infos
+    in
+    let code_slot_offsets =
+      Code_id.Map.add closure_info.code_id t.slot_offsets t.code_slot_offsets
     in
     let closure_infos =
       match closure_infos with
@@ -688,7 +712,12 @@ module Acc = struct
         then { closure_info2 with is_purely_tailrec = false } :: closure_infos2
         else closure_infos
     in
-    closure_info, { t with closure_infos }
+    ( closure_info,
+      { t with
+        closure_infos;
+        code_slot_offsets;
+        slot_offsets = Slot_offsets.empty
+      } )
 end
 
 module Function_decls = struct

@@ -62,10 +62,10 @@ let [@ocamlformat "disable"] print ppf
     (Code_id.Map.print Slot_offsets.print) slot_offsets
     (Simple.Map.print Debuginfo.print_compact) debuginfo_rewrites
 
-let create denv continuation_uses_env =
+let create denv slot_offsets continuation_uses_env =
   { denv;
     continuation_uses_env;
-    slot_offsets = Code_id.Map.empty;
+    slot_offsets;
     shareable_constants = Static_const.Map.empty;
     used_value_slots = Name_occurrences.empty;
     lifted_constants = LCS.empty;

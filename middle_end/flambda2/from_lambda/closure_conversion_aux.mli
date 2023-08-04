@@ -206,7 +206,8 @@ end
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
   type closure_info = private
-    { return_continuation : Continuation.t;
+    { code_id : Code_id.t;
+      return_continuation : Continuation.t;
       exn_continuation : Exn_continuation.t;
       my_closure : Variable.t;
       is_purely_tailrec : bool
@@ -281,6 +282,10 @@ module Acc : sig
 
   val slot_offsets : t -> Slot_offsets.t
 
+  val code_slot_offsets : t -> Slot_offsets.t Code_id.Map.t
+
+  val add_code_offsets : t -> Code_id.t -> t
+
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
 
@@ -292,6 +297,7 @@ module Acc : sig
     exn_continuation:Exn_continuation.t ->
     my_closure:Variable.t ->
     is_purely_tailrec:bool ->
+    code_id:Code_id.t ->
     t
 
   val pop_closure_info : t -> closure_info * t
