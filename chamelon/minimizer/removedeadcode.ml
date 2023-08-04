@@ -40,11 +40,7 @@ let is_used_typ str typ_name =
       Tast_mapper.default with
       typ =
         (fun mapper ct ->
-          (match ct.ctyp_desc with
-          | Ttyp_alias (_, s) -> if s = typ_name then is_used := true
-          | Ttyp_constr (_, li, _) ->
-              if Longident.last li.txt = typ_name then is_used := true
-          | _ -> ());
+          (if is_type_name_used ct.ctyp_desc typ_name then is_used := true);
           if not !is_used then Tast_mapper.default.typ mapper ct else ct);
       expr =
         (fun mapper e ->
