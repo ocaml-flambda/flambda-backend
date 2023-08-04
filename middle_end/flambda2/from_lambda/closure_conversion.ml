@@ -2433,7 +2433,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       n
   in
   (* CR gbury: We assume that no code_ids are deleted later, but even if that
-     were to happen, we would onyl get an over-approximation of the slot offsets
+     were to happen, we would only get an over-approximation of the slot offsets
      constraints. *)
   let acc, group_to_bound_consts, symbol_to_groups =
     Code_id.Lmap.fold
