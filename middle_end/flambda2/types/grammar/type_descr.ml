@@ -153,7 +153,13 @@ end = struct
       | Equals simple ->
         Simple.pattern_match' simple
           ~const:(fun _ -> Not_expanded t)
-          ~symbol:(fun _ ~coercion:_ -> Not_expanded t)
+          ~symbol:(fun symbol ~coercion ->
+            if Coercion.is_id coercion
+            then Not_expanded t
+            else
+              (* Coercions might contain variables. Removing any coercion
+                 happens to fix all potential problems. *)
+              Not_expanded (Equals (Simple.symbol symbol)))
           ~var:(fun var ~coercion ->
             if Variable.Set.mem var to_project
             then Expanded (expand var ~coercion)
