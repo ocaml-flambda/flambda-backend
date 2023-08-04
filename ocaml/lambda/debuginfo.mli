@@ -99,3 +99,6 @@ val to_list : t -> item list
 val length : t -> int
 
 val merge : into:t -> t -> t
+
+val assume_zero_alloc : t -> bool
+

@@ -273,5 +273,9 @@ let to_list { dbg; } = dbg
 
 let length { dbg; } = List.length dbg
 
+
 let merge ~into:{ dbg = dbg1 } { dbg = _dbg2; } =
   { dbg = dbg1 }
+
+let assume_zero_alloc t = t.assume_zero_alloc
+
