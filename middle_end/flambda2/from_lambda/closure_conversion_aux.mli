@@ -210,7 +210,8 @@ module Acc : sig
       return_continuation : Continuation.t;
       exn_continuation : Exn_continuation.t;
       my_closure : Variable.t;
-      is_purely_tailrec : bool
+      is_purely_tailrec : bool;
+      slot_offsets_at_definition : Slot_offsets.t
     }
 
   type t

@@ -336,7 +336,12 @@ module Acc = struct
       return_continuation : Continuation.t;
       exn_continuation : Exn_continuation.t;
       my_closure : Variable.t;
-      is_purely_tailrec : bool
+      is_purely_tailrec : bool;
+      slot_offsets_at_definition : Slot_offsets.t
+          (* note: this last field is not a property of the current closure, but
+             rather a property of its point of definition (i.e. the state of the
+             slot_offsets right before we entered the current closure). It's
+             mainly stored here for eficiency reasons. *)
     }
 
   type t =
@@ -353,7 +358,6 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
-      slot_offsets_stack : Slot_offsets.t list;
       code_slot_offsets : Slot_offsets.t Code_id.Map.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list;
@@ -451,7 +455,6 @@ module Acc = struct
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
       slot_offsets = Slot_offsets.empty;
-      slot_offsets_stack = [];
       code_slot_offsets = Code_id.Map.empty;
       regions_closed_early = Ident.Set.empty;
       closure_infos = [];
@@ -686,13 +689,13 @@ module Acc = struct
   let push_closure_info t ~return_continuation ~exn_continuation ~my_closure
       ~is_purely_tailrec ~code_id =
     { t with
-      slot_offsets_stack = Slot_offsets.empty :: t.slot_offsets_stack;
       closure_infos =
         { code_id;
           return_continuation;
           exn_continuation;
           my_closure;
-          is_purely_tailrec
+          is_purely_tailrec;
+          slot_offsets_at_definition = Slot_offsets.empty
         }
         :: t.closure_infos
     }
@@ -706,14 +709,6 @@ module Acc = struct
     let code_slot_offsets =
       Code_id.Map.add closure_info.code_id t.slot_offsets t.code_slot_offsets
     in
-    let slot_offsets, slot_offsets_stack =
-      match t.slot_offsets_stack with
-      | [] ->
-        (* We should ensure that [slot_offsets_stack] and [closure_infos] have
-           the same langth and thus that we never reach this case *)
-        Misc.fatal_errorf "empty stack of slot offsets"
-      | slot_offsets :: slot_offsets_stack -> slot_offsets, slot_offsets_stack
-    in
     let closure_infos =
       match closure_infos with
       | [] -> []
@@ -726,9 +721,8 @@ module Acc = struct
     ( closure_info,
       { t with
         closure_infos;
-        slot_offsets;
-        slot_offsets_stack;
-        code_slot_offsets
+        code_slot_offsets;
+        slot_offsets = closure_info.slot_offsets_at_definition
       } )
 end
 
