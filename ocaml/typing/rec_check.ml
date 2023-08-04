@@ -195,7 +195,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_unreachable
     | Texp_extension_constructor _
     | Texp_probe _
-    | Texp_probe_is_enabled _ ->
+    | Texp_probe_is_enabled _
+    | Texp_src_pos ->
         Static
 
     | Texp_match _
@@ -837,6 +838,7 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
+    | Texp_src_pos -> empty
 
 and comprehension_clauses clauses =
   List.concat_map

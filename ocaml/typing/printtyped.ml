@@ -531,6 +531,8 @@ and expression i ppf x =
   | Texp_exclave (e) ->
       line i ppf "Texp_exclave";
       expression i ppf e;
+  | Texp_src_pos ->
+    line i ppf "Texp_src_pos"
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_ident x.val_id fmt_location
