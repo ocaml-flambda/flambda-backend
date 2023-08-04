@@ -7,26 +7,26 @@
 
 (* CR layouts v5: add mixed block restriction tests. *)
 
-type t_value [@@value]
-type t_immediate [@@immediate];;
+type t_value : value
+type t_immediate : immediate;;
 [%%expect {|
-type t_value [@@value]
-type t_immediate [@@immediate]
+type t_value : value
+type t_immediate : immediate
 |}];;
 
-type t_any [@@any];;
+type t_any : any;;
 [%%expect{|
-Line 1, characters 11-18:
-1 | type t_any [@@any];;
-               ^^^^^^^
+Line 1, characters 13-16:
+1 | type t_any : any;;
+                 ^^^
 Error: Layout any is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-type t_void [@@void];;
+type t_void : void;;
 [%%expect{|
-Line 1, characters 12-20:
-1 | type t_void [@@void];;
-                ^^^^^^^^
+Line 1, characters 14-18:
+1 | type t_void : void;;
+                  ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
@@ -81,3 +81,13 @@ Error: This expression has type float but an expression was expected of type
          ('a : immediate)
        float has layout value, which is not a sublayout of immediate.
 |}];;
+
+(*****************************************************)
+(* Test 7: Recursive propagation of immediacy checks *)
+
+(* CR layouts: copy test from datatypes_alpha with float64 when available *)
+
+(***********************************************************************)
+(* Test 8: Type parameters in the presence of recursive concrete usage *)
+
+(* CR layouts: copy test from datatypes_alpha with float64 when available *)

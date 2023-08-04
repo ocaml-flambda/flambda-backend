@@ -234,7 +234,6 @@ type sort = Sort.t
 
 module Layout = struct
   (*** reasons for layouts **)
-
   type concrete_layout_reason =
     | Match
     | Constructor_declaration of int
@@ -316,9 +315,13 @@ module Layout = struct
 
   type annotation_context =
     | Type_declaration of Path.t
-    | Type_parameter of Path.t * string
+    | Type_parameter of Path.t * string option
     | With_constraint of string
     | Newtype_declaration of string
+    | Constructor_type_parameter of Path.t * string
+    | Univar of string
+    | Type_variable of string
+    | Type_wildcard of Location.t
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
@@ -426,7 +429,25 @@ module Layout = struct
     | Immediate, Immediate64 -> Sub
     | (Any | Void | Value | Immediate64 | Immediate | Float64), _ -> Not_sub
 
- (******************************)
+  (******************************)
+  (*** user errors ***)
+  type error =
+    | Insufficient_level of annotation_context * Asttypes.const_layout
+
+  exception User_error of Location.t * error
+
+  let raise ~loc err = raise (User_error(loc, err))
+
+  (*** extension requirements ***)
+  let get_required_layouts_level
+        (context : annotation_context) (layout : const) :
+        Language_extension.maturity =
+    match context, layout with
+    | _, Value -> Stable
+    | _, (Immediate | Immediate64 | Any) -> Beta
+    | _, (Void | Float64) -> Alpha
+
+  (******************************)
   (* construction *)
 
   let of_new_sort_var ~why =
@@ -443,18 +464,30 @@ module Layout = struct
     | Void -> fresh_layout (Sort Sort.void) ~why
     | Float64 -> fresh_layout (Sort Sort.float64) ~why
 
-  let of_attributes ~legacy_immediate ~reason attrs =
-    match Builtin_attributes.layout ~legacy_immediate attrs with
-    | Ok None as a -> a
-    | Ok (Some l) -> Ok (Some (of_const ~why:(Annotated (reason, l.loc))
-                                 l.txt))
-    | Error _ as e -> e
+  (* CR layouts v1.5: remove legacy_immediate *)
+  let of_annotation ?(legacy_immediate=false) ~context Location.{ loc; txt = const } =
+    begin match const with
+    | Immediate | Immediate64 | Value when legacy_immediate -> ()
+    | _ ->
+      let required_layouts_level = get_required_layouts_level context const in
+      if not (Language_extension.is_at_least Layouts required_layouts_level)
+      then raise ~loc (Insufficient_level (context, const))
+    end;
+    of_const ~why:(Annotated (context, loc)) const
 
-  let of_attributes_default ~legacy_immediate ~reason ~default attrs =
-    match of_attributes ~legacy_immediate ~reason attrs with
-    | Ok None -> Ok default
-    | Ok (Some l) -> Ok l
-    | Error _ as e -> e
+  let of_annotation_option ?legacy_immediate ~context =
+    Option.map (of_annotation ?legacy_immediate ~context)
+
+  let of_annotation_option_default ?legacy_immediate ~default ~context =
+    Option.fold ~none:default ~some:(of_annotation ?legacy_immediate ~context)
+
+  let of_attributes ~legacy_immediate ~context attrs =
+    Builtin_attributes.layout ~legacy_immediate attrs |>
+    Result.map (of_annotation_option ~legacy_immediate ~context)
+
+  let of_attributes_default ~legacy_immediate ~context ~default attrs =
+    Builtin_attributes.layout ~legacy_immediate attrs |>
+    Result.map (of_annotation_option_default ~legacy_immediate ~default ~context)
 
   let for_boxed_record ~all_void =
     if all_void then immediate ~why:Empty_record else value ~why:Boxed_record
@@ -636,14 +669,26 @@ module Layout = struct
           fprintf ppf "the declaration of the type %a"
             !printtyp_path p
       | Type_parameter (path, var) ->
+          let var_string = match var with None -> "_" | Some v -> "'" ^ v in
           fprintf ppf "@[%s@ in the declaration of the type@ %a@]"
-            var
+            var_string
             !printtyp_path path
       | With_constraint s ->
           fprintf ppf "the `with` constraint for %s" s
       | Newtype_declaration name ->
           fprintf ppf "the abstract type declaration for %s"
             name
+      | Constructor_type_parameter (cstr, name) ->
+          fprintf ppf "@[%s@ in the declaration of constructor@ %a@]"
+            name
+            !printtyp_path cstr
+      | Univar name ->
+          fprintf ppf "the universal variable %s"
+            name
+      | Type_variable name ->
+          fprintf ppf "the type variable %s" name
+      | Type_wildcard loc ->
+          fprintf ppf "the wildcard _ at %a" Location.print_loc loc
 
     let format_any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p ->
@@ -1078,11 +1123,21 @@ module Layout = struct
       | Type_declaration p ->
           fprintf ppf "Type_declaration %a" Path.print p
       | Type_parameter (p, var) ->
-          fprintf ppf "Type_parameter (%a, %S)" Path.print p var
+          fprintf ppf "Type_parameter (%a, %a)"
+            Path.print p
+            (Misc.Stdlib.Option.print Misc.Stdlib.String.print) var
       | With_constraint s ->
           fprintf ppf "With_constraint %S" s
       | Newtype_declaration name ->
           fprintf ppf "Newtype_declaration %s" name
+      | Constructor_type_parameter (cstr, name) ->
+          fprintf ppf "Constructor_type_parameter (%a, %S)" Path.print cstr name
+      | Univar name ->
+          fprintf ppf "Univar %S" name
+      | Type_variable name ->
+          fprintf ppf "Type_variable %S" name
+      | Type_wildcard loc ->
+          fprintf ppf "Type_wildcard (%a)" Location.print_loc loc
 
     let any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
@@ -1202,6 +1257,37 @@ module Layout = struct
         internal layout
         history h
   end
+
+  (*** formatting user errors ***)
+  let report_error ~loc = function
+  | Insufficient_level (context, layout) ->
+    let required_layouts_level = get_required_layouts_level context layout in
+    let hint ppf =
+      Format.fprintf ppf "You must enable -extension %s to use this feature."
+        (Language_extension.to_command_line_string
+           Layouts required_layouts_level)
+    in
+    match Language_extension.get_command_line_string_if_enabled Layouts with
+    | None ->
+      Location.errorf ~loc
+        "@[<v>The appropriate layouts extension is not enabled.@;%t@]"
+        hint
+    | Some cmd_line_string ->
+      Location.errorf ~loc
+        (* CR layouts errors: use the context to produce a better error message.
+           When RAE tried this, some types got printed like [t/2], but the
+           [/2] shouldn't be there. Investigate and fix. *)
+        "@[<v>Layout %s is more experimental than allowed by -extension %s.@;%t@]"
+        (string_of_const layout)
+        cmd_line_string
+        hint
+
+  let () =
+    Location.register_error_of_exn
+      (function
+        | User_error(loc, err) ->
+          Some (report_error ~loc err)
+        | _ -> None)
 end
 
 type layout = Layout.t

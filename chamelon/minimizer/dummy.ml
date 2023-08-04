@@ -10,7 +10,7 @@ let dummy_type_expr = newty2 ~level:0 (mkTvar (Some "a"))
 
 let dummy_core_type =
   {
-    ctyp_desc = Ttyp_any;
+    ctyp_desc = mkTtyp_any;
     ctyp_type = dummy_type_expr;
     ctyp_env = Env.empty;
     ctyp_loc = Location.none;
@@ -19,7 +19,7 @@ let dummy_core_type =
 
 let a_typ =
   {
-    ctyp_desc = Ttyp_var "a";
+    ctyp_desc = mkTtyp_var "a";
     ctyp_type = newty2 ~level:0 (mkTvar (Some "a"));
     ctyp_env = Env.empty;
     ctyp_loc = Location.none;

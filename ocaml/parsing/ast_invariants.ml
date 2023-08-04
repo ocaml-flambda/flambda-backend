@@ -80,7 +80,7 @@ let iterator =
         empty_comprehension loc
     | Jexp_comprehension _
     | Jexp_immutable_array _
-    | Jexp_unboxed_constant _
+    | Jexp_layout _
       -> ()
   in
   let expr self exp =

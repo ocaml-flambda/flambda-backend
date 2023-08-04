@@ -51,6 +51,10 @@ val mkTexp_match :
   expression * computation case list * partial ->
   expression_desc
 
+val mkTtyp_any : core_type_desc
+val mkTtyp_var : string -> core_type_desc
+val is_type_name_used : core_type_desc -> string -> bool
+
 type matched_expression_desc =
   | Texp_ident of
       Path.t

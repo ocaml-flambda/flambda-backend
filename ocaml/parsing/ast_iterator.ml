@@ -47,6 +47,7 @@ type iterator = {
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
   label_declaration: iterator -> label_declaration -> unit;
+  layout_annotation:iterator -> Asttypes.const_layout -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
   module_declaration: iterator -> module_declaration -> unit;
@@ -90,6 +91,9 @@ let iter_tuple3 f1 f2 f3 (x, y, z) = f1 x; f2 y; f3 z
 let iter_opt f = function None -> () | Some x -> f x
 
 let iter_loc sub {loc; txt = _} = sub.location sub loc
+let iter_loc_txt sub f { loc; txt } =
+  sub.location sub loc;
+  f sub txt
 
 module T = struct
   (* Type expressions for the core language *)
@@ -116,8 +120,25 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let iter_jst _sub : Jane_syntax.Core_type.t -> _ = function
-    | _ -> .
+  let layout_annotation sub =
+    iter_loc_txt sub sub.layout_annotation
+
+  let bound_var sub (_, layout) = match layout with
+    | None -> ()
+    | Some annot -> layout_annotation sub annot
+
+  let iter_jst_layout sub : Jane_syntax.Layouts.core_type -> _ = function
+    | Ltyp_var { name = _; layout } ->
+      iter_loc_txt sub sub.layout_annotation layout
+    | Ltyp_poly { bound_vars; inner_type } ->
+      List.iter (bound_var sub) bound_vars;
+      sub.typ sub inner_type
+    | Ltyp_alias { aliased_type; name = _; layout } ->
+      sub.typ sub aliased_type;
+      iter_loc_txt sub sub.layout_annotation layout
+
+  let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
+    | Jtyp_layout typ -> iter_jst_layout sub typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
@@ -143,7 +164,8 @@ module T = struct
     | Ptyp_alias (t, _) -> sub.typ sub t
     | Ptyp_variant (rl, _b, _ll) ->
         List.iter (row_field sub) rl
-    | Ptyp_poly (_, t) -> sub.typ sub t
+    | Ptyp_poly (_, t) ->
+        sub.typ sub t;
     | Ptyp_package (lid, l) ->
         iter_loc sub lid;
         List.iter (iter_tuple (iter_loc sub) (sub.typ sub)) l
@@ -197,16 +219,19 @@ module T = struct
     sub.attributes sub ptyexn_attributes
 
   let iter_extension_constructor_kind sub = function
-      Pext_decl(vars, ctl, cto) ->
+      Pext_decl(vars, ctl, cto )->
         List.iter (iter_loc sub) vars;
         iter_constructor_arguments sub ctl;
         iter_opt (sub.typ sub) cto
     | Pext_rebind li ->
         iter_loc sub li
 
-  let iter_extension_constructor_jst _sub :
+  let iter_extension_constructor_jst sub :
     Jane_syntax.Extension_constructor.t -> _ = function
-    | _ -> .
+    | Jext_layout (Lext_decl (vls, ctl, cto)) ->
+      List.iter (bound_var sub) vls;
+      iter_constructor_arguments sub ctl;
+      iter_opt (sub.typ sub) cto
 
   let iter_extension_constructor sub
      ({pext_name;
@@ -408,6 +433,7 @@ module E = struct
 
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
+  module L = Jane_syntax.Layouts
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -439,10 +465,16 @@ module E = struct
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
 
+  let iter_layout_exp sub : L.expression -> _ = function
+    | Lexp_constant _ -> iter_constant
+    | Lexp_newtype (_str, layout, inner_expr) ->
+      iter_loc_txt sub sub.layout_annotation layout;
+      sub.expr sub inner_expr
+
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
-    | Jexp_unboxed_constant _ -> iter_constant
+    | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
@@ -545,7 +577,7 @@ module P = struct
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
-    | Jpat_unboxed_constant _ -> iter_constant
+    | Jpat_layout (Lpat_constant _) -> iter_constant
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -768,14 +800,22 @@ let default_iterator =
 
 
     constructor_declaration =
-      (fun this {pcd_name; pcd_vars; pcd_args;
-                 pcd_res; pcd_loc; pcd_attributes} ->
+      (fun this ({pcd_name; pcd_vars; pcd_args;
+                  pcd_res; pcd_loc; pcd_attributes} as pcd) ->
          iter_loc this pcd_name;
-         List.iter (iter_loc this) pcd_vars;
+         let attrs =
+           match Jane_syntax.Layouts.of_constructor_declaration pcd with
+           | None ->
+             List.iter (iter_loc this) pcd_vars;
+             pcd_attributes
+           | Some (vars_layouts, attrs) ->
+             List.iter (T.bound_var this) vars_layouts;
+             attrs
+         in
          T.iter_constructor_arguments this pcd_args;
          iter_opt (this.typ this) pcd_res;
          this.location this pcd_loc;
-         this.attributes this pcd_attributes
+         this.attributes this attrs
       );
 
     label_declaration =
@@ -810,4 +850,6 @@ let default_iterator =
          | PTyp x -> this.typ this x
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
+
+    layout_annotation = (fun _this _l -> ());
   }

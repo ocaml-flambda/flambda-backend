@@ -234,3 +234,12 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_loc = Location.none;
     vb_sort = Layouts.Sort.value;
   }
+
+let mkTtyp_any = Ttyp_var (None, None)
+let mkTtyp_var s = Ttyp_var (Some s, None)
+
+let is_type_name_used desc typ_name =
+  match desc with
+  | Ttyp_alias (_, Some s, _) -> s = typ_name
+  | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
+  | _ -> false

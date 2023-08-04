@@ -189,7 +189,6 @@ type error =
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
   | Exclave_in_nontail_position
-  | Layout_not_enabled of Layout.const
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
@@ -525,7 +524,7 @@ let type_constant = function
   | Const_nativeint _ -> instance Predef.type_nativeint
 
 let type_constant_unboxed env loc
-    : Jane_syntax.Unboxed_constants.expression -> _ = function
+    : Jane_syntax.Layouts.constant -> _ = function
   | Float _ -> raise (Error (loc, env, Unboxed_float_literals_not_supported))
     (* CR layouts v2.5: This should be [instance Predef.type_unboxed_float] *)
   | Integer _ -> raise (Error (loc, env, Unboxed_int_literals_not_supported))
@@ -568,7 +567,7 @@ let constant_or_raise env loc cst =
   | Error err -> raise (Error (loc, env, err))
 
 let unboxed_constant :
-    type a. Jane_syntax.Unboxed_constants.expression -> (a, error) result
+    type a. Jane_syntax.Layouts.constant -> (a, error) result
   = function
   | Float (_, None) -> Error Unboxed_float_literals_not_supported
   | Float (x, Some c) -> Error (Unknown_literal ("#" ^ x, c))
@@ -1981,7 +1980,7 @@ let rec has_literal_pattern p =
 and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
-  | Jpat_unboxed_constant _ -> true
+  | Jpat_layout (Lpat_constant _) -> true
 
 let check_scope_escape loc env level ty =
   try Ctype.check_scope_escape env level ty
@@ -2301,7 +2300,7 @@ and type_pat_aux
       match jpat with
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
           type_pat_array Immutable spl attrs
-      | Jpat_unboxed_constant cst ->
+      | Jpat_layout (Lpat_constant cst) ->
           let desc = unboxed_constant_or_raise !env loc cst in
           rvp k @@ solve_expected {
             pat_desc = desc;
@@ -2956,7 +2955,7 @@ let rec pat_tuple_arity spat =
   | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
-  | Jpat_unboxed_constant _ -> Not_local_tuple
+  | Jpat_layout (Lpat_constant _) -> Not_local_tuple
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -3511,7 +3510,8 @@ let is_local_returning_expr e =
         match jexp with
         | Jexp_comprehension   _ -> false, e.pexp_loc
         | Jexp_immutable_array _ -> false, e.pexp_loc
-        | Jexp_unboxed_constant _ -> false, e.pexp_loc
+        | Jexp_layout (Lexp_constant _) -> false, e.pexp_loc
+        | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
       end
     | None      ->
     match e.pexp_desc with
@@ -3555,7 +3555,7 @@ let rec is_an_uncurried_function e =
     match e.pexp_desc, e.pexp_attributes with
     | (Pexp_fun _ | Pexp_function _), _ -> true
     | Pexp_poly (e, _), _
-    | Pexp_newtype (_, e), _
+    | Pexp_newtype (_, e), _  (* also works correctly for Lexp_newtype *)
     | Pexp_coerce (e, _, _), _
     | Pexp_constraint (e, _), _ -> is_an_uncurried_function e
     | Pexp_let (Nonrecursive, _, e),
@@ -3588,6 +3588,14 @@ let is_local_returning_function cases =
   loop_cases cases
 
 (* Approximate the type of an expression, for better recursion *)
+
+(* CR layouts v5: This any is fine because we don't allow you to make types
+   that could be matched on and have anys in them.  But once we do, this
+   should probably be sort variable.  See Test 22 in typing-layouts/basics.ml
+   (which mentions approx_type) for why it can't be value.  *)
+(* CR layouts v2: RAE thinks this any is fine in perpetuity. Before changing
+   this, let's talk. *)
+let approx_type_default () = newvar (Layout.any ~why:Dummy_layout)
 
 let rec approx_type env sty =
   match Jane_syntax.Core_type.of_ast sty with
@@ -3631,18 +3639,16 @@ let rec approx_type env sty =
         let tyl = List.map (approx_type env) ctl in
         newconstr path tyl
       end
-  (* CR layouts v5: This any is fine because we don't allow you to make types
-     that could be matched on and have anys in them.  But once we do, this
-     should probably be sort variable.  See Test 22 in typing-layouts/basics.ml
-     (which mentions approx_type) for why it can't be value.  *)
-  | _ -> newvar (Layout.any ~why:Dummy_layout)
+  | _ -> approx_type_default ()
 
 and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
-  | _ -> .
+  | Jtyp_layout (Ltyp_var _) -> approx_type_default ()
+  | Jtyp_layout (Ltyp_poly _) -> approx_type_default ()
+  | Jtyp_layout (Ltyp_alias _) -> approx_type_default ()
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _
-  | Jpat_unboxed_constant _ -> ()
+  | Jpat_layout (Lpat_constant _) -> ()
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
@@ -3748,7 +3754,8 @@ and type_approx_aux env sexp in_function ty_expected =
 and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
   | Jexp_immutable_array _
-  | Jexp_unboxed_constant _ -> ()
+  | Jexp_layout (Lexp_constant _)
+  | Jexp_layout (Lexp_newtype _) -> ()
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -3963,7 +3970,7 @@ let contains_variant_either ty =
 
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
-  | Jpat_unboxed_constant _ -> ()
+  | Jpat_layout (Lpat_constant _) -> ()
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -4115,7 +4122,7 @@ let rec is_inferred sexp =
 and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
   | Jexp_immutable_array _
-  | Jexp_unboxed_constant _ -> false
+  | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -4208,9 +4215,10 @@ and type_expect_
         ~expected_mode
         ~ty_expected
         ~explanation
+        ~rue
         ~attributes
         jexp
-  | None      -> match sexp.pexp_desc with
+  | None -> match sexp.pexp_desc with
   | Pexp_ident lid ->
       let path, mode, desc, kind = type_ident env ~recarg lid in
       let exp_desc =
@@ -5448,53 +5456,8 @@ and type_expect_
       re { exp with exp_extra =
              (Texp_poly cty, loc, sexp.pexp_attributes) :: exp.exp_extra }
   | Pexp_newtype({txt=name}, sbody) ->
-      let layout =
-        match Layout.of_attributes_default ~legacy_immediate:false
-                ~reason:(Newtype_declaration name)
-                ~default:(Layout.value ~why:Univar) sexp.pexp_attributes
-        with
-        | Ok l -> l
-        | Error { loc; txt } ->
-          raise (Error (loc, env, Layout_not_enabled txt))
-      in
-      let ty =
-        if Typetexp.valid_tyvar_name name then
-          newvar ~name layout
-        else
-          newvar layout
-      in
-      (* remember original level *)
-      begin_def ();
-      (* Create a fake abstract type declaration for name. *)
-      let decl = new_local_type ~loc layout in
-      let scope = create_scope () in
-      let (id, new_env) = Env.enter_type ~scope name decl env in
-
-      let body = type_exp new_env expected_mode sbody in
-      (* Replace every instance of this type constructor in the resulting
-         type. *)
-      let seen = Hashtbl.create 8 in
-      let rec replace t =
-        if Hashtbl.mem seen (get_id t) then ()
-        else begin
-          Hashtbl.add seen (get_id t) ();
-          match get_desc t with
-          | Tconstr (Path.Pident id', _, _) when id == id' -> link_type t ty
-          | _ -> Btype.iter_type_expr replace t
-        end
-      in
-      let ety = Subst.type_expr Subst.identity body.exp_type in
-      replace ety;
-      (* back to original level *)
-      end_def ();
-      (* lower the levels of the result type *)
-      (* unify_var env ty ety; *)
-
-      (* non-expansive if the body is non-expansive, so we don't introduce
-         any new extra node in the typed AST. *)
-      rue { body with exp_loc = loc; exp_type = ety;
-            exp_extra =
-            (Texp_newtype name, loc, sexp.pexp_attributes) :: body.exp_extra }
+    type_newtype ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
+      name None sbody
   | Pexp_pack m ->
       let (p, fl) =
         match get_desc (Ctype.expand_head env (instance ty_expected)) with
@@ -6983,6 +6946,52 @@ and type_cases
   end;
   cases, partial
 
+and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
+      name layout_annot_opt sbody =
+  let layout =
+    Layout.of_annotation_option_default ~context:(Newtype_declaration name)
+      ~default:(Layout.value ~why:Univar) layout_annot_opt
+  in
+  let ty =
+    if Typetexp.valid_tyvar_name name then
+      newvar ~name layout
+    else
+      newvar layout
+  in
+  (* remember original level *)
+  begin_def ();
+  (* Create a fake abstract type declaration for name. *)
+  let decl = new_local_type ~loc layout in
+  let scope = create_scope () in
+  let (id, new_env) = Env.enter_type ~scope name decl env in
+
+  let body = type_exp new_env expected_mode sbody in
+  (* Replace every instance of this type constructor in the resulting
+     type. *)
+  let seen = Hashtbl.create 8 in
+  let rec replace t =
+    if Hashtbl.mem seen (get_id t) then ()
+    else begin
+      Hashtbl.add seen (get_id t) ();
+      match get_desc t with
+      | Tconstr (Path.Pident id', _, _) when id == id' -> link_type t ty
+      | _ -> Btype.iter_type_expr replace t
+    end
+  in
+  let ety = Subst.type_expr Subst.identity body.exp_type in
+  replace ety;
+  (* back to original level *)
+  end_def ();
+  (* lower the levels of the result type *)
+  (* unify_var env ty ety; *)
+
+  (* non-expansive if the body is non-expansive, so we don't introduce
+     any new extra node in the typed AST. *)
+  rue { body with exp_loc = loc; exp_type = ety;
+        exp_extra =
+        (Texp_newtype (name, Option.map Location.get_txt layout_annot_opt),
+         loc, attributes) :: body.exp_extra }
+
 (* Typing of let bindings *)
 
 and type_let
@@ -7018,7 +7027,8 @@ and type_let
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension _
     | Jexp_immutable_array _
-    | Jexp_unboxed_constant _ -> false
+    | Jexp_layout (Lexp_constant _) -> false
+    | Jexp_layout (Lexp_newtype (_, _, e)) -> sexp_is_fun e
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -7413,17 +7423,17 @@ and type_generic_array
     exp_env = env }
 
 and type_expect_jane_syntax
-      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
+      ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes
   : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x ->
       type_comprehension_expr
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
   | Jexp_immutable_array x ->
       type_immutable_array
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
-  | Jexp_unboxed_constant x ->
-      type_unboxed_constant
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
+  | Jexp_layout x ->
+      type_layout_expr
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
 
 (* What modes should comprehensions use?  Let us be generic over the sequence
    type we use for comprehensions, calling it [sequence] (standing for either
@@ -7501,7 +7511,8 @@ and type_expect_jane_syntax
    this comment by its incipit (the initial question, right at the start). *)
 
 and type_comprehension_expr
-      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation:_ ~attributes cexpr =
+      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation:_ ~rue:_~attributes
+      cexpr =
   let open Jane_syntax.Comprehensions in
   (* - [comprehension_type]:
          For printing nicer error messages.
@@ -7672,7 +7683,7 @@ and type_comprehension_iterator
       Texp_comp_in { pattern; sequence }
 
 and type_immutable_array
-      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
+      ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue:_ ~attributes
     : Jane_syntax.Immutable_arrays.expression -> _ = function
   | Iaexp_immutable_array elts ->
       type_generic_array
@@ -7685,14 +7696,15 @@ and type_immutable_array
         ~attributes
         elts
 
-and type_unboxed_constant
-      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation ~attributes cst
-  =
-  let rue exp =
-    with_explanation explanation (fun () ->
-      unify_exp env (re exp) (instance ty_expected));
-    exp
-  in
+and type_layout_expr
+      ~loc ~env ~expected_mode ~ty_expected:_ ~explanation:_ ~rue ~attributes
+  : Jane_syntax.Layouts.expression -> _ = function
+  | Lexp_constant x -> type_unboxed_constant ~loc ~env ~rue ~attributes x
+  | Lexp_newtype ({txt=name}, layout_annot, sbody) ->
+    type_newtype ~loc ~env ~expected_mode ~rue ~attributes
+      name (Some layout_annot) sbody
+
+and type_unboxed_constant ~loc ~env ~rue ~attributes cst =
   rue {
     exp_desc = unboxed_constant_or_raise env loc cst;
     exp_loc = loc;
@@ -8415,11 +8427,6 @@ let report_error ~loc env = function
       Location.errorf ~loc
         "@[This application is local-returning, but is at the tail @ \
           position of a function that is not local-returning@]"
-  | Layout_not_enabled c ->
-      Location.errorf ~loc
-        "@[Layout %s is used here, but the appropriate layouts extension is \
-         not enabled@]"
-        (Layout.string_of_const c)
   | Unboxed_int_literals_not_supported ->
       Location.errorf ~loc
         "@[Unboxed int literals aren't supported yet.@]"

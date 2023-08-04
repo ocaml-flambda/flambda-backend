@@ -147,6 +147,10 @@ let attribute sub a = {
 
 let attributes sub l = List.map (sub.attribute sub) l
 
+let var_layout ~loc (var, layout) =
+  let add_loc x = mkloc x loc in
+  add_loc var, Option.map add_loc layout
+
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
 
@@ -261,10 +265,12 @@ let constructor_arguments sub = function
 let constructor_declaration sub cd =
   let loc = sub.location sub cd.cd_loc in
   let attrs = sub.attributes sub cd.cd_attributes in
-  Type.constructor ~loc ~attrs
-    ~vars:cd.cd_vars
+  let vars_layouts = List.map (var_layout ~loc) cd.cd_vars in
+  Jane_syntax.Layouts.constructor_declaration_of ~loc ~attrs
+    ~vars_layouts
     ~args:(constructor_arguments sub cd.cd_args)
-    ?res:(Option.map (sub.typ sub) cd.cd_res)
+    ~res:(Option.map (sub.typ sub) cd.cd_res)
+    ~info:Docstrings.empty_info
     (map_loc sub cd.cd_name)
 
 let label_declaration sub ld =
@@ -291,14 +297,16 @@ let type_exception sub tyexn =
 let extension_constructor sub ext =
   let loc = sub.location sub ext.ext_loc in
   let attrs = sub.attributes sub ext.ext_attributes in
-  Te.constructor ~loc ~attrs
-    (map_loc sub ext.ext_name)
-    (match ext.ext_kind with
-      | Text_decl (vs, args, ret) ->
-          Pext_decl (vs, constructor_arguments sub args,
-                     Option.map (sub.typ sub) ret)
-      | Text_rebind (_p, lid) -> Pext_rebind (map_loc sub lid)
-    )
+  let name = map_loc sub ext.ext_name in
+  match ext.ext_kind with
+  | Text_decl (vs, args, ret) ->
+    let vs = List.map (var_layout ~loc) vs in
+    let args = constructor_arguments sub args in
+    let ret = Option.map (sub.typ sub) ret in
+    Jane_syntax.Layouts.extension_constructor_of
+      ~loc ~name ~attrs (Lext_decl (vs, args, ret))
+  | Text_rebind (_p, lid) ->
+    Te.constructor ~loc ~attrs name (Pext_rebind (map_loc sub lid))
 
 let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   let loc = sub.location sub pat.pat_loc in
@@ -397,6 +405,16 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
 let exp_extra sub (extra, loc, attrs) sexp =
   let loc = sub.location sub loc in
   let attrs = sub.attributes sub attrs in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes { pexp_attributes; pexp_desc; _ } =
+    attrs := pexp_attributes @ !attrs;
+    pexp_desc
+  in
+  let add_loc x = mkloc x loc in
   let desc =
     match extra with
       Texp_coerce (cty1, cty2) ->
@@ -406,9 +424,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_constraint cty ->
         Pexp_constraint (sexp, sub.typ sub cty)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
-    | Texp_newtype s -> Pexp_newtype (mkloc s loc, sexp)
+    | Texp_newtype (s, None) ->
+        Pexp_newtype (add_loc s, sexp)
+    | Texp_newtype (s, Some layout) ->
+        Jane_syntax.Layouts.expr_of ~loc ~attrs:[]
+          (Lexp_newtype(add_loc s, add_loc layout, sexp))
+        |> add_jane_syntax_attributes
   in
-  Exp.mk ~loc ~attrs desc
+  Exp.mk ~loc ~attrs:!attrs desc
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
   {
@@ -892,9 +915,22 @@ let class_type_field sub ctf =
 let core_type sub ct =
   let loc = sub.location sub ct.ctyp_loc in
   let attrs = sub.attributes sub ct.ctyp_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes { ptyp_attributes; ptyp_desc; _ } =
+    attrs := ptyp_attributes @ !attrs;
+    ptyp_desc
+  in
   let desc = match ct.ctyp_desc with
-      Ttyp_any -> Ptyp_any
-    | Ttyp_var s -> Ptyp_var s
+    | Ttyp_var (None, None) -> Ptyp_any
+    | Ttyp_var (Some s, None) -> Ptyp_var s
+    | Ttyp_var (name, Some layout) ->
+        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+          (Ltyp_var { name; layout = mkloc layout loc }) |>
+        add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list -> Ptyp_tuple (List.map (sub.typ sub) list)
@@ -906,16 +942,25 @@ let core_type sub ct =
           (List.map (sub.object_field sub) list, o)
     | Ttyp_class (_path, lid, list) ->
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
-    | Ttyp_alias (ct, s) ->
+    | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
+    | Ttyp_alias (ct, s, Some layout) ->
+        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+          (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
+                        layout = mkloc layout loc }) |>
+        add_jane_syntax_attributes
+    | Ttyp_alias (_, None, None) ->
+      Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
     | Ttyp_variant (list, bool, labels) ->
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
-        let list = List.map (fun v -> mkloc v loc) list in
-        Ptyp_poly (list, sub.typ sub ct)
+        let bound_vars = List.map (var_layout ~loc) list in
+        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+          (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
+        add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
   in
-  Typ.mk ~loc ~attrs desc
+  Typ.mk ~loc ~attrs:!attrs desc
 
 let class_structure sub cs =
   let rec remove_self = function
