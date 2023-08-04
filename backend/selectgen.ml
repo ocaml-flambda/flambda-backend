@@ -1157,12 +1157,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
                 seq#insert_debug env (Iop naming_op) Debuginfo.none [| |] [| |])
               ids_and_rs)
         in
-<<<<<<< HEAD
-        ((nfail, trap_stack), (r, s))
-=======
-        let (r, s) = self#emit_sequence new_env e2 in
         ((nfail, trap_stack, is_cold), (r, s))
->>>>>>> c4926ad7f (is_cold in Cmm & Mach)
       in
       let rec build_all_reachable_handlers ~already_built ~not_built =
         let not_built, to_build =
@@ -1184,13 +1179,8 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         (* Note: we're dropping unreachable handlers here *)
       in
       let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
-<<<<<<< HEAD
       let r = join_array env a ~bound_name in
-      let aux ((nfail, ts), (_r, s)) = (nfail, ts, s#extract) in
-=======
-      let r = join_array env a in
       let aux ((nfail, ts, is_cold), (_r, s)) = (nfail, ts, s#extract, is_cold) in
->>>>>>> c4926ad7f (is_cold in Cmm & Mach)
       let final_trap_stack =
         match r_body with
         | Some _ -> env.trap_stack
@@ -1688,7 +1678,6 @@ method emit_tail (env:environment) exp =
             (fun env ((id, _typ),r) -> env_add id r env)
             (env_set_trap_stack env trap_stack) ids_and_rs
         in
-<<<<<<< HEAD
         let seq =
           self#emit_tail_sequence new_env e2 ~at_start:(fun seq ->
             List.iter (fun ((var, _typ), r) ->
@@ -1707,10 +1696,7 @@ method emit_tail (env:environment) exp =
                  [| |] [| |])
                ids_and_rs)
         in
-        nfail, trap_stack, seq
-=======
-        nfail, trap_stack, self#emit_tail_sequence new_env e2, is_cold
->>>>>>> c4926ad7f (is_cold in Cmm & Mach)
+        nfail, trap_stack, seq, is_cold
       in
       let rec build_all_reachable_handlers ~already_built ~not_built =
         let not_built, to_build =
