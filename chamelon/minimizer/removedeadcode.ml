@@ -40,7 +40,7 @@ let is_used_typ str typ_name =
       Tast_mapper.default with
       typ =
         (fun mapper ct ->
-          (if is_type_name_used ct.ctyp_desc typ_name then is_used := true);
+          if is_type_name_used ct.ctyp_desc typ_name then is_used := true;
           if not !is_used then Tast_mapper.default.typ mapper ct else ct);
       expr =
         (fun mapper e ->

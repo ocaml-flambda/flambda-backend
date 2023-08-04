@@ -158,8 +158,8 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
 let mkTtyp_any = Ttyp_any
 let mkTtyp_var s = Ttyp_var s
 
-let is_type_name_used desc typ_name = match desc with
+let is_type_name_used desc typ_name =
+  match desc with
   | Ttyp_alias (_, s) -> s = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
-
