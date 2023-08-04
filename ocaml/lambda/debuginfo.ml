@@ -143,21 +143,22 @@ type item = {
   dinfo_scopes: Scoped_location.scopes;
 }
 
-type t = { dbg : item list; }
+type t = { dbg : item list; assume_zero_alloc : bool }
 
 type alloc_dbginfo_item =
   { alloc_words : int;
     alloc_dbg : t }
 type alloc_dbginfo = alloc_dbginfo_item list
 
-let none = { dbg = []; }
+let none = { dbg = []; assume_zero_alloc = false }
 
-let is_none { dbg } =
+let is_none { dbg; assume_zero_alloc } =
+  if assume_zero_alloc then false else
   match dbg with
   | [] -> true
   | _ :: _ -> false
 
-let to_string { dbg } =
+let to_string dbg =
   match dbg with
   | [] -> ""
   | ds ->
@@ -169,6 +170,10 @@ let to_string { dbg } =
         ds
     in
     "{" ^ String.concat ";" items ^ "}"
+
+let to_string { dbg; assume_zero_alloc; } =
+  let s = to_string dbg in
+  if assume_zero_alloc then s^"(assume zero_alloc)" else s
 
 let item_from_location ~scopes loc =
   let valid_endpos =
@@ -191,12 +196,12 @@ let item_from_location ~scopes loc =
   }
 
 let from_location = function
-  | Scoped_location.Loc_unknown -> { dbg = []; }
+  | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc = false; }
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
-    { dbg = [item_from_location ~scopes loc]; }
+    { dbg = [item_from_location ~scopes loc]; assume_zero_alloc = false; }
 
-let to_location { dbg } =
+let to_location { dbg; assume_zero_alloc=_ } =
   match dbg with
   | [] -> Location.none
   | d :: _ ->
@@ -214,15 +219,16 @@ let to_location { dbg } =
       } in
     { loc_ghost = false; loc_start; loc_end; }
 
-let inline { dbg = dbg1;  } { dbg = dbg2; } =
-  { dbg = dbg1 @ dbg2;  }
+let inline { dbg = dbg1; assume_zero_alloc = a1; }
+      { dbg = dbg2; assume_zero_alloc = a2; } =
+  { dbg = dbg1 @ dbg2; assume_zero_alloc = a1 || a2; }
 
 (* CR-someday afrisch: FWIW, the current compare function does not seem very
    good, since it reverses the two lists. I don't know how long the lists are,
    nor if the specific currently implemented ordering is useful in other
    contexts, but if one wants to use Map, a more efficient comparison should
    be considered. *)
-let compare { dbg = dbg1; } { dbg = dbg2; } =
+let compare_dbg dbg1 dbg2 =
   let rec loop ds1 ds2 =
     match ds1, ds2 with
     | [], [] -> 0
@@ -247,8 +253,14 @@ let compare { dbg = dbg1; } { dbg = dbg2; } =
   in
   loop (List.rev dbg1) (List.rev dbg2)
 
-let hash { dbg; } =
-  List.fold_left (fun hash item -> Hashtbl.hash (hash, item)) 0 dbg
+let compare { dbg = dbg1; assume_zero_alloc = a1; }
+      { dbg = dbg2; assume_zero_alloc = a2; } =
+  let res = compare_dbg dbg1 dbg2 in
+  if res <> 0 then res else Bool.compare a1 a2
+
+let hash { dbg; assume_zero_alloc } =
+  let init = Bool.to_int assume_zero_alloc in
+  List.fold_left (fun hash item -> Hashtbl.hash (hash, item)) init dbg
 
 let rec print_compact ppf t =
   let print_item item =
