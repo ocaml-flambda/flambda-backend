@@ -21,6 +21,7 @@ module MTC = More_type_creators
 module TG = Type_grammar
 module TE = Typing_env
 module TEE = Typing_env_extension
+module Vec128 = Vector_types.Vec128.Bit_pattern
 open Or_unknown.Let_syntax
 
 let all_aliases_of env simple_opt ~in_env =
@@ -651,10 +652,9 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
       ~left_b:alloc_mode1 ~right_b:alloc_mode2
   | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
-    combine_results2 env ~meet_env_extension
-      ~rebuild:TG.Head_of_kind_value.create_boxed_vec128 ~meet_a:meet
-      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
-      ~right_b:alloc_mode2
+    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_vec128
+      ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
+      ~left_b:alloc_mode1 ~right_b:alloc_mode2
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -880,7 +880,7 @@ and meet_head_of_kind_naked_nativeint env t1 t2 =
     (t2 : TG.head_of_kind_naked_nativeint :> Targetint_32_64.Set.t)
     ~of_set:TG.Head_of_kind_naked_nativeint.create_non_empty_set
 
-and meet_head_of_kind_naked_vec128 env t1 t2 : _ Or_bottom.t =
+and meet_head_of_kind_naked_vec128 env t1 t2 =
   set_meet
     (module Vec128.Set)
     env
