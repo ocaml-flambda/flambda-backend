@@ -182,7 +182,8 @@ let create_empty_block t start ~stack_offset ~traps =
       stack_offset;
       is_trap_handler = false;
       can_raise = false;
-      dead = false
+      dead = false;
+      cold = false
     }
   in
   record_traps t start traps;
