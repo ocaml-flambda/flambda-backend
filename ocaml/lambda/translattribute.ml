@@ -297,7 +297,7 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
-let get_property_attribute l p ~fun_attr =
+let get_property_attribute l p ~fun_attr:_ =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
   (match attr, res with
@@ -310,29 +310,7 @@ let get_property_attribute l p ~fun_attr =
        (* The warning for unchecked functions will not trigger if the check is requested
           through the [@@@zero_alloc all] top-level annotation rather than through the
           function annotation [@zero_alloc]. *)
-       if assume then begin
-         (* [attr.inline] and [attr.specialise] must be set before the
-            check for [Warnings.Misplaced_assume_attribute].
-            For attributes from the same list, it's fine because
-            [add_check_attribute] is called after
-            [add_inline_attribute] and [add_specialise_attribute].
-            The warning will spuriously fire in the following case:
-            let[@inline never][@specialise never] f =
-              fun[@zero_alloc assume] x -> ..
-         *)
-         let never_specialise =
-           if Config.flambda then
-              fun_attr.specialise = Never_specialise
-           else
-              (* closure drops [@specialise never] and never specialises *)
-              (* flambda2 does not have specialisation support yet *)
-              true
-         in
-         if not ((fun_attr.inline = Never_inline) && never_specialise) then
-          Location.prerr_warning attr.attr_name.loc
-            (Warnings.Misplaced_assume_attribute attr.attr_name.txt)
-       end
-       else
+       if not assume then
          Builtin_attributes.register_property attr.attr_name);
    res
 
