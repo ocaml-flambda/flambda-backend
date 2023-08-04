@@ -3240,10 +3240,11 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         in
         let eliminate_omittable_arg expected_label =
           may_warn funct.exp_loc
-            (Warnings.Non_principal_labels
-              ("eliminated omittable argument"));
-              Arg (Eliminated_optional_arg
-              { mode_fun; ty_arg; mode_arg; sort_arg; level = lv ; expected_label})
+            (Warnings.Non_principal_labels "eliminated omittable argument");
+          Arg
+            (Eliminated_optional_arg
+               { mode_fun; ty_arg; mode_arg
+               ; sort_arg; level = lv; expected_label})
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -5933,9 +5934,13 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
   in
-  if is_omittable arg_label && not_nolabel_function ty_ret then
-    Location.prerr_warning (List.hd cases).c_lhs.pat_loc
-      Warnings.Unerasable_omittable_argument;
+  if not_nolabel_function ty_ret then
+    if is_optional arg_label then
+      Location.prerr_warning (List.hd cases).c_lhs.pat_loc
+        Warnings.Unerasable_optional_argument
+    else if is_position arg_label then
+      Location.prerr_warning (List.hd cases).c_lhs.pat_loc
+        Warnings.Unerasable_position_argument;
   let param = name_cases "param" cases in
   let region = region_locked && not uncurried_function in
   let warnings = Warnings.backup () in
@@ -6466,7 +6471,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         (Warnings.Eliminated_optional_arguments
            (List.map (fun (l, _) -> Printtyp.string_of_label l) args));
       if warn then Location.prerr_warning texp.exp_loc
-          (Warnings.Non_principal_labels "eliminated optional argument");
+          (Warnings.Non_principal_labels "eliminated omittable argument");
       (* let-expand to have side effects *)
       let let_pat, let_var = var_pair ~mode:exp_mode "arg" texp.exp_type in
       re { texp with exp_type = ty_fun;

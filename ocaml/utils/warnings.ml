@@ -50,7 +50,7 @@ type t =
   | Instance_variable_override of string list (* 13 *)
   | Illegal_backslash                       (* 14 *)
   | Implicit_public_methods of string list  (* 15 *)
-  | Unerasable_omittable_argument           (* 16 *)
+  | Unerasable_optional_argument            (* 16 *)
   | Undeclared_virtual_method of string     (* 17 *)
   | Not_principal of string                 (* 18 *)
   | Non_principal_labels of string          (* 19 *)
@@ -107,6 +107,7 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
+  | Unerasable_position_argument            (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
   | Misplaced_assume_attribute of string    (* 198 *)
   | Unchecked_property_attribute of string  (* 199 *)
@@ -135,7 +136,7 @@ let number = function
   | Instance_variable_override _ -> 13
   | Illegal_backslash -> 14
   | Implicit_public_methods _ -> 15
-  | Unerasable_omittable_argument -> 16
+  | Unerasable_optional_argument -> 16
   | Undeclared_virtual_method _ -> 17
   | Not_principal _ -> 18
   | Non_principal_labels _ -> 19
@@ -192,6 +193,7 @@ let number = function
   | Missing_mli -> 70
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
+  | Unerasable_position_argument -> 189
   | Probe_name_too_long _ -> 190
   | Misplaced_assume_attribute _  -> 198
   | Unchecked_property_attribute _ -> 199
@@ -263,7 +265,7 @@ let descriptions = [
     names = ["implicit-public-methods"];
     description = "Private method made public implicitly." };
   { number = 16;
-    names = ["unerasable-omittable-argument"];
+    names = ["unerasable-optional-argument"];
     description = "Unerasable optional argument." };
   { number = 17;
     names = ["undeclared-virtual-method"];
@@ -452,6 +454,9 @@ let descriptions = [
     names = ["tmc-breaks-tailcall"];
     description = "A tail call is turned into a non-tail call \
                    by the @tail_mod_cons transformation." };
+  { number = 189;
+    names = ["unerasable-position-argument"];
+    description = "Unerasable position argument." };
   { number = 190;
     names = ["probe-name-too-long"];
     description = "Probe name must be at most 100 characters long." };
@@ -853,7 +858,7 @@ let message = function
   | Implicit_public_methods l ->
       "the following private methods were made public implicitly:\n "
       ^ String.concat " " l ^ "."
-  | Unerasable_omittable_argument -> "this omittable argument cannot be erased."
+  | Unerasable_optional_argument -> "this optional argument cannot be erased."
   | Undeclared_virtual_method m -> "the virtual method "^m^" is not declared."
   | Not_principal s -> s^" is not principal."
   | Non_principal_labels s -> s^" without principality."
@@ -1062,6 +1067,7 @@ let message = function
        Please either mark the called function with the [@tail_mod_cons]\n\
        attribute, or mark this call with the [@tailcall false] attribute\n\
        to make its non-tailness explicit."
+  | Unerasable_position_argument -> "this position argument cannot be erased."
   | Probe_name_too_long name ->
       Printf.sprintf
         "This probe name is too long: `%s'. \

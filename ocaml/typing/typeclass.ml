@@ -1241,7 +1241,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
          classes involve Position arguments *)
       if Btype.is_optional l && not_nolabel_function cl.cl_type then
         Location.prerr_warning pat.pat_loc
-          Warnings.Unerasable_omittable_argument;
+          Warnings.Unerasable_optional_argument;
       rc {cl_desc = Tcl_fun (l, pat, pv, cl, partial);
           cl_loc = scl.pcl_loc;
           cl_type = Cty_arrow

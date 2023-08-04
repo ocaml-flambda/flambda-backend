@@ -82,7 +82,7 @@ let m ~(src_pos:[%src_pos]) = ()
 Line 1, characters 8-15:
 1 | let m ~(src_pos:[%src_pos]) = ()
             ^^^^^^^
-Warning 16 [unerasable-omittable-argument]: this omittable argument cannot be erased.
+Warning 189 [unerasable-position-argument]: this position argument cannot be erased.
 val m : src_pos:[%src_pos] -> unit = <fun>
 |}]
 
