@@ -79,10 +79,8 @@ let check_invariants (instr : M.instruction) ~(avail_before : RAS.t) =
   | Unreachable -> ()
   | Ok avail_before ->
     (* Every register that is live across an instruction should also be
-       available before the instruction. We can't check this in extend-live mode
-       at present. *)
-    if (not (extend_live ()))
-       && not (R.Set.subset instr.live (RD.Set.forget_debug_info avail_before))
+       available before the instruction. *)
+    if not (R.Set.subset instr.live (RD.Set.forget_debug_info avail_before))
     then
       Misc.fatal_errorf
         "Live registers not a subset of available\n\
@@ -348,11 +346,14 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
             if List.for_all2 aux_equal avail_at_top_of_handlers
                  avail_at_top_of_handlers'
             then
-              if not (extend_live ())
+              (* In extend-live mode, do one more round, during which the
+                 availability sets on the instructions will be updated. We can
+                 skip this if we're in a nested loop and live range extension is
+                 currently disabled; when it becomes enabled again at the outer
+                 loop the live sets will be updated. *)
+              if (not (extend_live ())) || old_disable_extend_live
               then avail_after_handlers
               else (
-                (* In extend-live mode, do one more round, during which the
-                   availability sets on the instructions will be updated. *)
                 disable_extend_live := old_disable_extend_live;
                 List.map2 aux handlers avail_at_top_of_handlers)
             else fixpoint avail_at_top_of_handlers'
