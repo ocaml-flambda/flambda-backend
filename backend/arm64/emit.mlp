@@ -1170,7 +1170,7 @@ let fundecl fundecl =
   assert (List.length !bound_error_sites = num_check_bound);
   (match fun_end_label with
    | None -> ()
-   | Some { fun_end_label; _ } -> `{emit_label fun_end_label}:\n`);
+   | Some fun_end_label -> `{emit_label fun_end_label}:\n`);
   cfi_endproc();
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;
