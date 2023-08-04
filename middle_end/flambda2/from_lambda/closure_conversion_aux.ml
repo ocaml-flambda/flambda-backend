@@ -341,7 +341,7 @@ module Acc = struct
           (* note: this last field is not a property of the current closure, but
              rather a property of its point of definition (i.e. the state of the
              slot_offsets right before we entered the current closure). It's
-             mainly stored here for eficiency reasons. *)
+             mainly stored here for efficiency reasons. *)
     }
 
   type t =
