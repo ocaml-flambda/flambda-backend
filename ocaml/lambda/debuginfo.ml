@@ -87,7 +87,7 @@ module Scoped_location = struct
     cons scopes Sc_method_definition str s
 
   let enter_lazy ~scopes = cons scopes Sc_lazy (str scopes) ""
-  
+
   let enter_partial_or_eta_wrapper ~scopes =
     cons scopes Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)") ""
 
@@ -264,3 +264,7 @@ let rec print_compact ppf t =
     print_item item;
     Format.fprintf ppf ";";
     print_compact ppf t
+
+let to_list t = t
+
+let length t = List.length t
