@@ -94,7 +94,7 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
           in
           match fields with
           | Some fields -> Unbox (Unique_tag_and_size { tag; fields })
-          | None -> Do_not_unbox Not_beneficial)
+          | None -> Do_not_unbox All_fields_invalid)
         | Proved _ | Unknown -> (
           match T.prove_variant_like tenv param_type with
           | Proved { const_ctors; non_const_ctors_with_sizes }
@@ -114,7 +114,7 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
                 non_const_ctors_with_sizes
             in
             if Tag.Scannable.Map.is_empty fields_by_tag
-            then Do_not_unbox Not_beneficial
+            then Do_not_unbox All_fields_invalid
             else
               match
                 const_ctors, Tag.Scannable.Map.get_singleton fields_by_tag
