@@ -269,10 +269,24 @@ let rec print_list pr sep ppf =
 let pr_present =
   print_list (fun ppf s -> fprintf ppf "`%s" s) (fun ppf -> fprintf ppf "@ ")
 
-let pr_var = Pprintast.tyvar
+let pr_var = Printast.tyvar
 
-let pr_vars =
-  print_list pr_var (fun ppf -> fprintf ppf "@ ")
+let print_out_layout ppf = function
+  | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
+  | Olay_var v     -> fprintf ppf "%s" v
+
+let print_out_layout_annot ppf = function
+  | None -> ()
+  | Some lay -> fprintf ppf "@ : %a" print_out_layout lay
+
+let pr_var_layout ppf (v, l) = match l with
+    | None -> pr_var ppf v
+    | Some lay -> fprintf ppf "(%a : %a)"
+                    pr_var v
+                    print_out_layout lay
+
+let pr_var_layouts =
+  print_list pr_var_layout (fun ppf -> fprintf ppf "@ ")
 
 let join_modes rm1 am2 =
   match rm1, am2 with
@@ -282,21 +296,15 @@ let join_modes rm1 am2 =
   | _, Oam_unknown -> Oam_unknown
   | Oam_global, Oam_global -> Oam_global
 
-let print_out_layout ppf = function
-  | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
-  | Olay_var v     -> fprintf ppf "%s" v
-
-let print_out_layout_option ppf = function
-  | None -> ()
-  | Some lay -> fprintf ppf "@ : %a" print_out_layout lay
-
 let rec print_out_type_0 mode ppf =
   function
   | Otyp_alias (ty, s) ->
       fprintf ppf "@[%a@ as %a@]" (print_out_type_0 mode) ty pr_var s
+  | Otyp_poly ([], ty) ->
+      print_out_type_0 mode ppf ty  (* no "." if there are no vars *)
   | Otyp_poly (sl, ty) ->
       fprintf ppf "@[<hov 2>%a.@ %a@]"
-        pr_vars sl
+        pr_var_layouts sl
         (print_out_type_0 mode) ty
   | ty ->
       print_out_type_1 mode ppf ty
@@ -490,7 +498,7 @@ let type_parameter ~in_parens ppf
     (match var with Covariant -> "+" | Contravariant -> "-" | NoVariance ->  "")
     (match inj with Injective -> "!" | NoInjectivity -> "")
     print_type_parameter ty
-    print_out_layout_option lay
+    print_out_layout_annot lay
 
 let print_out_class_params ppf =
   function
@@ -709,8 +717,9 @@ and print_out_sig_item ppf =
            | Orec_first -> "type"
            | Orec_next  -> "and")
           ppf td
-  | Osig_value vd ->
-      let kwd = if vd.oval_prims = [] then "val" else "external" in
+  | Osig_value { oval_name; oval_type;
+                 oval_prims; oval_attributes } ->
+      let kwd = if oval_prims = [] then "val" else "external" in
       let pr_prims ppf =
         function
           [] -> ()
@@ -718,10 +727,11 @@ and print_out_sig_item ppf =
             fprintf ppf "@ = \"%s\"" s;
             List.iter (fun s -> fprintf ppf "@ \"%s\"" s) sl
       in
-      fprintf ppf "@[<2>%s %a :@ %a%a%a@]" kwd value_ident vd.oval_name
-        !out_type vd.oval_type pr_prims vd.oval_prims
+      fprintf ppf "@[<2>%s %a :@ %a%a%a@]" kwd value_ident oval_name
+        !out_type oval_type
+        pr_prims oval_prims
         (fun ppf -> List.iter (fun a -> fprintf ppf "@ [@@@@%s]" a.oattr_name))
-        vd.oval_attributes
+        oval_attributes
   | Osig_ellipsis ->
       fprintf ppf "..."
 
@@ -762,11 +772,6 @@ and print_out_type_decl kwd ppf td =
     Asttypes.Private -> fprintf ppf " private"
   | Asttypes.Public -> ()
   in
-  let print_layout ppf =
-    match td.otype_layout with
-    | None -> ()
-    | Some lay -> fprintf ppf " [%@%@%s]" (Layouts.Layout.string_of_const lay)
-  in
   let print_unboxed ppf =
     if td.otype_unboxed then fprintf ppf " [%@%@unboxed]" else ()
   in
@@ -791,11 +796,11 @@ and print_out_type_decl kwd ppf td =
         print_private td.otype_private
         !out_type ty
   in
-  fprintf ppf "@[<2>@[<hv 2>%t%a@]%t%t%t@]"
+  fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t@]"
     print_name_params
+    print_out_layout_annot td.otype_layout
     print_out_tkind ty
     print_constraints
-    print_layout
     print_unboxed
 
 and print_simple_out_gf_type ppf (ty, gf) =
@@ -835,12 +840,17 @@ and print_out_constr ppf constr =
           fprintf ppf "@[<2>%s of@ %a@]" name
             print_out_constr_args tyl
       end
-  | Some ret_type ->
+  | Some (vars_layouts, ret_type) ->
+      fprintf ppf "@[<2>%s :@ " name;
+      begin match vars_layouts with
+      | [] -> ()
+      | _ -> fprintf ppf "@[<hov>%a.@]@ " pr_var_layouts vars_layouts
+      end;
       begin match tyl with
       | [] ->
-          fprintf ppf "@[<2>%s :@ %a@]" name print_simple_out_type ret_type
+          fprintf ppf "%a@]" print_simple_out_type ret_type
       | _ ->
-          fprintf ppf "@[<2>%s :@ %a -> %a@]" name
+          fprintf ppf "%a -> %a@]"
             print_out_constr_args tyl print_simple_out_type ret_type
       end
 

@@ -47,11 +47,7 @@ let free_vars ?(param=false) ty =
 let newgenconstr path tyl = newgenty (Tconstr (path, tyl, ref Mnil))
 
 let constructor_existentials cd_args cd_res =
-  let tyl =
-    match cd_args with
-    | Cstr_tuple l -> List.map (fun (ty, _) -> ty) l
-    | Cstr_record l -> List.map (fun l -> l.ld_type) l
-  in
+  let tyl = tys_of_constr_args cd_args in
   let existentials =
     match cd_res with
     | None -> []

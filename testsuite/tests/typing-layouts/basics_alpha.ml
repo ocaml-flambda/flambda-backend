@@ -3,22 +3,22 @@
    * expect
 *)
 
-type t_any   [@@any]
-type t_value [@@value]
-type t_imm   [@@immediate]
-type t_imm64 [@@immediate64]
-type t_void  [@@void]
+type t_any   : any
+type t_value : value
+type t_imm   : immediate
+type t_imm64 : immediate64
+type t_void  : void
 
 type void_variant = VV of t_void
 type void_record = {vr_void : t_void; vr_int : int}
 type void_unboxed_record = { vur_void : t_void } [@@unboxed];;
 
 [%%expect{|
-type t_any [@@any]
-type t_value [@@value]
-type t_imm [@@immediate]
-type t_imm64 [@@immediate64]
-type t_void [@@void]
+type t_any : any
+type t_value : value
+type t_imm : immediate
+type t_imm64 : immediate64
+type t_void : void
 type void_variant = VV of t_void
 type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
@@ -49,7 +49,7 @@ Error: Function argument types must have a representable layout.
 |}];;
 
 module type S1 = sig
-  type t [@@any]
+  type t : any
 
   type 'a s = 'a -> int constraint 'a = t
 end;;
@@ -63,7 +63,7 @@ Error: The type constraints are not consistent.
 |}]
 
 module type S1 = sig
-  type t [@@any]
+  type t : any
 
   type 'a s = int -> 'a constraint 'a = t
 end;;
@@ -139,13 +139,13 @@ module type S2 = sig val f : int -> void_unboxed_record end
 |}];;
 
 module type S2 = sig
-  type t [@@void]
+  type t : void
 
   type s = r -> int
   and r = t
 end;;
 [%%expect{|
-module type S2 = sig type t [@@void] type s = r -> int and r = t end
+module type S2 = sig type t : void type s = r -> int and r = t end
 |}]
 
 module type S2 = sig
@@ -156,13 +156,12 @@ module type S2 = sig val f : int -> t_void end
 |}];;
 
 module type S = sig
-  type t [@@void]
+  type t : void
 
   type 'a s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
-module type S =
-  sig type t [@@void] type 'a s = 'a -> int constraint 'a = t end
+module type S = sig type t : void type 'a s = 'a -> int constraint 'a = t end
 |}]
 
 module F2 (X : sig val x : t_void end) = struct
@@ -190,7 +189,7 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 
 (**************************************)
 (* Test 3: basic annotated parameters *)
-type 'a [@immediate] imm_id = 'a
+type ('a : immediate) imm_id = 'a
 
 [%%expect{|
 type ('a : immediate) imm_id = 'a
@@ -220,7 +219,7 @@ let id_for_imms (x : 'a imm_id) = x
 let three = id_for_imms 3
 let true_ = id_for_imms true;;
 [%%expect{|
-val id_for_imms : 'a imm_id -> 'a imm_id = <fun>
+val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id = <fun>
 val three : int imm_id = 3
 val true_ : bool imm_id = true
 |}]
@@ -237,7 +236,7 @@ Error: This expression has type string but an expression was expected of type
 
 (************************************)
 (* Test 4: parameters and recursion *)
-type 'a [@immediate] t4
+type ('a : immediate) t4
 and s4 = string t4;;
 
 [%%expect{|
@@ -249,7 +248,7 @@ Error: This type string should be an instance of type ('a : immediate)
 |}];;
 
 type s4 = string t4
-and 'a [@immediate] t4;;
+and ('a : immediate) t4;;
 
 [%%expect{|
 Line 1, characters 10-16:
@@ -260,7 +259,7 @@ Error: This type string should be an instance of type ('a : immediate)
 |}]
 
 type s4 = int t4
-and 'a [@immediate] t4;;
+and ('a : immediate) t4;;
 
 [%%expect{|
 type s4 = int t4
@@ -268,7 +267,7 @@ and ('a : immediate) t4
 |}]
 
 type s4 = s5 t4
-and 'a [@immediate] t4
+and ('a : immediate) t4
 and s5 = int;;
 
 [%%expect{|
@@ -278,7 +277,7 @@ and s5 = int
 |}]
 
 type s4 = s5 t4
-and 'a [@immediate] t4
+and ('a : immediate) t4
 and s5 = string;;
 
 [%%expect{|
@@ -290,7 +289,7 @@ Error:
 |}]
 (* CR layouts v2.9: improve error, which will require layout histories *)
 
-type 'a [@any] t4 = 'a
+type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
 type ('a : any) t4 = 'a
@@ -298,7 +297,7 @@ and s4 = string t4
 |}];;
 
 type s4 = string t4
-and 'a [@any] t4;;
+and ('a : any) t4;;
 [%%expect{|
 type s4 = string t4
 and ('a : any) t4
@@ -310,8 +309,8 @@ and ('a : any) t4
 (* CR layouts v5: these tests should be updated to allow returning void, and
    moved to [basics_beta.ml]. *)
 
-type 'a [@void] void5 = Void5  of 'a
-type 'a [@any] any5 = Any5 of 'a
+type ('a : void) void5 = Void5  of 'a
+type ('a : any) any5 = Any5 of 'a
 
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
@@ -422,7 +421,7 @@ Error: This method has type 'b -> unit which is less general than
 (*****************************************)
 (* Test 7: the layout check in unify_var *)
 
-type 'a [@immediate] t7 = Foo7 of 'a
+type ('a : immediate) t7 = Foo7 of 'a
 
 type t7' = (int * int) t7;;
 [%%expect{|
@@ -649,10 +648,17 @@ Lines 3-9, characters 6-3:
 9 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('a : immediate) t = 'a val f : 'a t -> 'a val x : 'a end
+         sig
+           type ('a : immediate) t = 'a
+           val f : ('a : immediate). 'a t -> 'a
+           val x : ('a : immediate). 'a
+         end
        is not included in
          sig val x : string end
-       Values do not match: val x : 'a is not included in val x : string
+       Values do not match:
+         val x : ('a : immediate). 'a
+       is not included in
+         val x : string
        The type string is not compatible with the type string
        string has layout value, which is not a sublayout of immediate.
 |}];;
@@ -681,12 +687,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a : immediate) t = 'a
-           val f : 'a t -> 'a t
-           val x : 'a t
+           val f : ('a : immediate). 'a t -> 'a t
+           val x : ('a : immediate). 'a t
          end
        is not included in
          sig val x : string end
-       Values do not match: val x : 'a t is not included in val x : string
+       Values do not match:
+         val x : ('a : immediate). 'a t
+       is not included in
+         val x : string
        The type string t = string is not compatible with the type string
        string has layout value, which is not a sublayout of immediate.
 |}]
@@ -1049,11 +1058,11 @@ type ('a : void, 'b) foo15 = 'a t15 -> 'a t15 constraint 'b = 'a
 
 (********************************************************)
 (* Test 16: seperability: [msig_of_external_type] logic *)
-type 'a t_void_16 [@@void]
+type 'a t_void_16 : void
 
 type t_16 = T_16 : 'a t_void_16 -> t_16 [@@unboxed];;
 [%%expect{|
-type 'a t_void_16 [@@void]
+type 'a t_void_16 : void
 type t_16 = T_16 : 'a t_void_16 -> t_16 [@@unboxed]
 |}];;
 
@@ -1139,15 +1148,15 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 
 (***************************************************************)
 (* Test 22: approx_type catch-all can't be restricted to value *)
-type t_void [@@void]
+type t_void : void
 
-type ('a [@void]) r = { x : int; y : 'a }
+type ('a : void) r = { x : int; y : 'a }
 
 let f () =
   let rec g { x = x ; y = y } : _ r = g { x; y } in
   g (failwith "foo");;
 [%%expect{|
-type t_void [@@void]
+type t_void : void
 type ('a : void) r = { x : int; y : 'a; }
 Lines 5-7, characters 6-20:
 5 | ......() =
@@ -1161,14 +1170,14 @@ Error: Non-value detected in [value_kind].
 (********************************************************************)
 (* Test 23: checking the error message from impossible GADT matches *)
 
-type (_ [@any], _ [@any]) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
 
 module M : sig
-  type t_void [@@void]
-  type t_imm [@@immediate]
+  type t_void : void
+  type t_imm : immediate
 end = struct
-  type t_void [@@void]
-  type t_imm [@@immediate]
+  type t_void : void
+  type t_imm : immediate
 end
 (* these are abstract, so the only trouble with unifying them in a GADT
    match is around their layouts *)
@@ -1178,8 +1187,8 @@ let f (x : (M.t_void, M.t_imm) eq) =
   | Refl -> ()
 
 [%%expect{|
-type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
-module M : sig type t_void [@@void] type t_imm [@@immediate] end
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
+module M : sig type t_void : void type t_imm : immediate end
 Line 15, characters 4-8:
 15 |   | Refl -> ()
          ^^^^
@@ -1195,12 +1204,12 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
 (*****************************************************)
 (* Test 24: Polymorphic parameter with exotic layout *)
 
-type 'a t2_void [@@void]
+type 'a t2_void : void
 
 let f (x : 'a. 'a t2_void) = x
 
 [%%expect{|
-type 'a t2_void [@@void]
+type 'a t2_void : void
 Line 3, characters 6-30:
 3 | let f (x : 'a. 'a t2_void) = x
           ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1476,3 +1485,8 @@ Error: This type signature for foo33 is not a value type.
        foo33 has layout any, which is not a sublayout of value.
 |}]
 
+
+(****************************************************)
+(* Test 34: Layout clash in polymorphic record type *)
+
+(* tested elsewhere *)

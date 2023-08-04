@@ -53,9 +53,14 @@ val is_erasable : 'a t -> bool
 
 (** Print and parse language extensions; parsing is case-insensitive *)
 val to_string : 'a t -> string
+val to_command_line_string : 'a t -> 'a -> string
 val of_string : string -> Exist.t option
 
 val maturity_to_string : maturity -> string
+
+(** Get the command line string enabling the given extension, if it's
+    enabled; otherwise None *)
+val get_command_line_string_if_enabled : 'a t -> string option
 
 (** Enable and disable according to command-line strings; these raise
     an exception if the input string is invalid. *)

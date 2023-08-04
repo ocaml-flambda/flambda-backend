@@ -576,6 +576,8 @@ and constructor_arguments =
   | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
 
+val tys_of_constr_args : constructor_arguments -> type_expr list
+
 val decl_is_abstract : type_declaration -> bool
 
 (* Returns the inner type, if unboxed. *)
