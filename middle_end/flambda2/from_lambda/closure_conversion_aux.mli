@@ -215,7 +215,7 @@ module Acc : sig
 
   type t
 
-  val create : slot_offsets:Slot_offsets.t -> cmx_loader:Flambda_cmx.loader -> t
+  val create : cmx_loader:Flambda_cmx.loader -> t
 
   val manufacture_symbol_short_name : t -> t * Linkage_name.t
 

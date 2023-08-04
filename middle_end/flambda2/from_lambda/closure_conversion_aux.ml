@@ -353,6 +353,7 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
+      slot_offsets_stack : Slot_offsets.t list;
       code_slot_offsets : Slot_offsets.t Code_id.Map.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list;
@@ -434,7 +435,7 @@ module Acc = struct
         externals := Symbol.Map.add symbol approx !externals;
         approx
 
-  let create ~slot_offsets ~cmx_loader =
+  let create ~cmx_loader =
     { declared_symbols = [];
       lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
@@ -449,7 +450,8 @@ module Acc = struct
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
-      slot_offsets;
+      slot_offsets = Slot_offsets.empty;
+      slot_offsets_stack = [];
       code_slot_offsets = Code_id.Map.empty;
       regions_closed_early = Ident.Set.empty;
       closure_infos = [];
@@ -684,6 +686,7 @@ module Acc = struct
   let push_closure_info t ~return_continuation ~exn_continuation ~my_closure
       ~is_purely_tailrec ~code_id =
     { t with
+      slot_offsets_stack = Slot_offsets.empty :: t.slot_offsets_stack;
       closure_infos =
         { code_id;
           return_continuation;
@@ -703,6 +706,14 @@ module Acc = struct
     let code_slot_offsets =
       Code_id.Map.add closure_info.code_id t.slot_offsets t.code_slot_offsets
     in
+    let slot_offsets, slot_offsets_stack =
+      match t.slot_offsets_stack with
+      | [] ->
+        (* We should ensure that [slot_offsets_stack] and [closure_infos] have
+           the same langth and thus that we never reach this case *)
+        Misc.fatal_errorf "empty stack of slot offsets"
+      | slot_offsets :: slot_offsets_stack -> slot_offsets, slot_offsets_stack
+    in
     let closure_infos =
       match closure_infos with
       | [] -> []
@@ -715,8 +726,9 @@ module Acc = struct
     ( closure_info,
       { t with
         closure_infos;
-        code_slot_offsets;
-        slot_offsets = Slot_offsets.empty
+        slot_offsets;
+        slot_offsets_stack;
+        code_slot_offsets
       } )
 end
 

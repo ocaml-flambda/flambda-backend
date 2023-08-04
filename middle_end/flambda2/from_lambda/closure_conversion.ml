@@ -2626,8 +2626,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     Env.add_var_like env toplevel_my_region Not_user_visible
       Flambda_kind.With_subkind.region
   in
-  let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~slot_offsets ~cmx_loader in
+  let acc = Acc.create ~cmx_loader in
   let acc, body =
     wrap_final_module_block acc env ~program ~prog_return_cont
       ~module_block_size_in_words ~return_cont ~module_symbol
