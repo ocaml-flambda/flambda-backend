@@ -8,7 +8,6 @@ Attributes and their locations:
 		jane.non_erasable.comprehensions.for.in
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.list
-	At location File "_none_", line 1:
 		jane.non_erasable.comprehensions
 ---
 Test: multiple Jane Syntax constructs
@@ -26,36 +25,35 @@ Attributes and their locations:
 		jane.non_erasable.comprehensions.for.in
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
 	At location File "<no filename in test>", line 2, characters 9-31:
 		jane.non_erasable.comprehensions.body
 		jane.non_erasable.comprehensions.for.range.upto
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
 	At location File "<no filename in test>", line 3, characters 9-31:
 		jane.non_erasable.comprehensions.body
 		jane.non_erasable.comprehensions.for.range.upto
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
 	At location File "<no filename in test>", line 4, characters 9-35:
 		jane.non_erasable.comprehensions.body
 		jane.non_erasable.comprehensions.for.range.downto
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
 	At location File "<no filename in test>", line 5, characters 9-37:
 		jane.non_erasable.comprehensions.body
 		jane.non_erasable.comprehensions.for.range.downto
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.array.mutable
+		jane.non_erasable.comprehensions
 	At location File "<no filename in test>", line 6, characters 9-43:
 		jane.non_erasable.comprehensions.body
 		jane.non_erasable.comprehensions.when
 		jane.non_erasable.comprehensions.for.range.upto
 		jane.non_erasable.comprehensions.for
 		jane.non_erasable.comprehensions.list
-	At location File "_none_", line 1:
-		jane.non_erasable.comprehensions
-		jane.non_erasable.comprehensions
-		jane.non_erasable.comprehensions
-		jane.non_erasable.comprehensions
-		jane.non_erasable.comprehensions
 		jane.non_erasable.comprehensions
