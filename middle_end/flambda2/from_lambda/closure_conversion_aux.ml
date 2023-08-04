@@ -689,13 +689,14 @@ module Acc = struct
   let push_closure_info t ~return_continuation ~exn_continuation ~my_closure
       ~is_purely_tailrec ~code_id =
     { t with
+      slot_offsets = Slot_offsets.empty;
       closure_infos =
         { code_id;
           return_continuation;
           exn_continuation;
           my_closure;
           is_purely_tailrec;
-          slot_offsets_at_definition = Slot_offsets.empty
+          slot_offsets_at_definition = t.slot_offsets
         }
         :: t.closure_infos
     }
