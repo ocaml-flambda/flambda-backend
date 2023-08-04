@@ -110,7 +110,9 @@ let holds_pointer t =
 let holds_non_pointer t = not (holds_pointer t)
 
 let assigned_to_stack t =
-  match t.reg.loc with Stack _ -> true | Reg _ | Unknown -> false
+  match t.reg.loc with
+  | Stack (Local _ | Incoming _ | Outgoing _) -> true
+  | Stack (Domainstate _) | Reg _ | Unknown -> false
 
 let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
     ~stack_class =

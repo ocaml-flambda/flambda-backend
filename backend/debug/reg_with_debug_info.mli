@@ -76,7 +76,8 @@ val holds_pointer : t -> bool
 
 val holds_non_pointer : t -> bool
 
-(** [assigned_to_stack t] holds iff the location of [t] is a hard stack slot. *)
+(** [assigned_to_stack t] holds iff the location of [t] is a hard stack slot.
+    (This returns false for Domainstate slots.) *)
 val assigned_to_stack : t -> bool
 
 val clear_debug_info : t -> t
