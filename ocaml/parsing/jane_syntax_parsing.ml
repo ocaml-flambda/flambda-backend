@@ -800,8 +800,8 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
 
   let make_entire_jane_syntax ~loc feature ast =
     AST.with_location
-      (make_jane_syntax feature []
-         (Ast_helper.with_default_loc { loc with loc_ghost = true } ast))
+      (Ast_helper.with_default_loc { loc with loc_ghost = true } (fun () ->
+        make_jane_syntax feature [] (ast ())))
       loc
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
