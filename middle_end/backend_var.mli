@@ -21,6 +21,9 @@ include module type of struct include Ident end
 
 type backend_var = t
 
+val name_for_debugger : t -> string
+val unique_name_for_debugger : t -> string
+
 module Provenance : sig
   type t
 

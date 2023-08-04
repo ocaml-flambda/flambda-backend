@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2013--2023 Jane Street Group LLC                           *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,37 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** State that is shared amongst the various dwarf_* modules. *)
+type t =
+  | Bytes_relative_to_cfa of int
+  | Bytes_relative_to_domainstate_pointer of int
 
-open Asm_targets
-open Dwarf_low
-open Dwarf_high
-
-type t
-
-val create :
-  compilation_unit_header_label:Asm_label.t ->
-  compilation_unit_proto_die:Proto_die.t ->
-  value_type_proto_die:Proto_die.t ->
-  start_of_code_symbol:Asm_symbol.t ->
-  Debug_loc_table.t ->
-  Debug_ranges_table.t ->
-  Address_table.t ->
-  Location_list_table.t ->
-  t
-
-val compilation_unit_header_label : t -> Asm_label.t
-
-val compilation_unit_proto_die : t -> Proto_die.t
-
-val value_type_proto_die : t -> Proto_die.t
-
-val start_of_code_symbol : t -> Asm_symbol.t
-
-val debug_loc_table : t -> Debug_loc_table.t
-
-val debug_ranges_table : t -> Debug_ranges_table.t
-
-val address_table : t -> Address_table.t
-
-val location_list_table : t -> Location_list_table.t
+val print : Format.formatter -> t -> unit

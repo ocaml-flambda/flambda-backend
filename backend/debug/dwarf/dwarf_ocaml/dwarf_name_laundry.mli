@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                  Mark Shinwell, Jane Street Europe                     *)
+(*            Mark Shinwell and Thomas Refis, Jane Street Europe          *)
 (*                                                                        *)
 (*   Copyright 2013--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
@@ -12,37 +12,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** State that is shared amongst the various dwarf_* modules. *)
+open! Asm_targets
 
-open Asm_targets
-open Dwarf_low
-open Dwarf_high
+(** The name laundry: where names get (de)mangled.
+    (This functionality is used by the debugger support library as well as
+    the compiler.) *)
 
-type t
-
-val create :
-  compilation_unit_header_label:Asm_label.t ->
-  compilation_unit_proto_die:Proto_die.t ->
-  value_type_proto_die:Proto_die.t ->
-  start_of_code_symbol:Asm_symbol.t ->
-  Debug_loc_table.t ->
-  Debug_ranges_table.t ->
-  Address_table.t ->
-  Location_list_table.t ->
-  t
-
-val compilation_unit_header_label : t -> Asm_label.t
-
-val compilation_unit_proto_die : t -> Proto_die.t
-
-val value_type_proto_die : t -> Proto_die.t
-
-val start_of_code_symbol : t -> Asm_symbol.t
-
-val debug_loc_table : t -> Debug_loc_table.t
-
-val debug_ranges_table : t -> Debug_ranges_table.t
-
-val address_table : t -> Address_table.t
-
-val location_list_table : t -> Location_list_table.t
+(** The name of the DWARF debugging information entry corresponding to the
+    type of some identifier. *)
+val base_type_die_name_for_var :
+  Compilation_unit.t -> Backend_var.t -> Is_parameter.t -> string

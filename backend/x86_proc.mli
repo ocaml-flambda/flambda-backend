@@ -41,6 +41,8 @@ val buf_bytes_directive:
 
 (** Buffer of assembly code *)
 
+val create_asm_file: bool ref
+
 val emit: instruction -> unit
 val directive: asm_line -> unit
 val reset_asm_code: unit -> unit
