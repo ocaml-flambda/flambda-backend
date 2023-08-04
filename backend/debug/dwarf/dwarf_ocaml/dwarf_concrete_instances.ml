@@ -16,14 +16,8 @@
 
 open Asm_targets
 open Dwarf_high
-
-type fundecl =
-  { fun_name : string;
-    fun_dbg : Debuginfo.t;
-    fun_end_label : Asm_label.t
-  }
-
 module DAH = Dwarf_attribute_helpers
+module L = Linear
 
 let remove_double_underscores s =
   let len = String.length s in
@@ -46,7 +40,8 @@ let remove_double_underscores s =
   loop 0;
   Buffer.contents buf
 
-let for_fundecl ~get_file_id state fundecl available_ranges_vars =
+let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
+    available_ranges_vars =
   let parent = Dwarf_state.compilation_unit_proto_die state in
   let fun_name = fundecl.fun_name in
   let linkage_name =
@@ -80,7 +75,7 @@ let for_fundecl ~get_file_id state fundecl available_ranges_vars =
     @ [ DAH.create_name fun_name;
         DAH.create_linkage_name ~linkage_name;
         DAH.create_low_pc_from_symbol start_sym;
-        DAH.create_high_pc ~low_pc:start_sym fundecl.fun_end_label;
+        DAH.create_high_pc ~low_pc:start_sym fun_end_label;
         (* CR mshinwell: Probably no need to set this at the moment since the
            low PC value should be assumed, which is correct. *)
         DAH.create_entry_pc_from_symbol start_sym;

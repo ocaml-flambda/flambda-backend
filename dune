@@ -277,7 +277,6 @@
   available_regs
   compute_ranges
   compute_ranges_intf
-  debug_passes
   is_parameter
   reg_availability_set
   reg_with_debug_info

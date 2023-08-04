@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2013--2018 Jane Street Group LLC                           *)
+(*   Copyright 2013--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -19,6 +19,7 @@ open Dwarf_high
 open Dwarf_low
 module DAH = Dwarf_attribute_helpers
 module DS = Dwarf_state
+module L = Linear
 
 type t =
   { state : DS.t;
@@ -50,9 +51,6 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
   in
   let start_of_code_symbol =
     Cmm_helpers.make_symbol "code_begin" |> Asm_symbol.create
-    (* Dwarf_name_laundry.mangle_symbol Text (Symbol.of_global_linkage
-       (Compilation_unit.get_current_exn ()) (Linkage_name.create
-       "code_begin")) *)
   in
   let debug_loc_table = Debug_loc_table.create () in
   let debug_ranges_table = Debug_ranges_table.create () in
@@ -65,9 +63,25 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
   in
   { state; asm_directives; emitted = false; get_file_id }
 
-let dwarf_for_fundecl t (result : Debug_passes.result) =
-  Dwarf_concrete_instances.for_fundecl ~get_file_id:t.get_file_id t.state
-    result.fundecl result.available_ranges_vars
+type fundecl =
+  { fun_end_label : Cmm.label;
+    fundecl : L.fundecl
+  }
+
+let dwarf_for_fundecl t fundecl ~fun_end_label =
+  if not (!Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf)
+  then { fun_end_label; fundecl }
+  else
+    let available_ranges_vars, fundecl =
+      Profile.record "debug_available_ranges_vars"
+        (fun fundecl -> Available_ranges_vars.create fundecl)
+        ~accumulate:true fundecl
+    in
+    Dwarf_concrete_instances.for_fundecl ~get_file_id:t.get_file_id t.state
+      fundecl
+      ~fun_end_label:(Asm_label.create_int Text fun_end_label)
+      available_ranges_vars;
+    { fun_end_label; fundecl }
 
 let emit t ~basic_block_sections ~binary_backend_available =
   if t.emitted

@@ -117,8 +117,7 @@ module Dwarf_helpers : sig
 
   val emit_dwarf : unit -> unit
 
-  val record_dwarf_for_fundecl :
-    Linear.fundecl -> (Cmm.label * Linear.fundecl) option
+  val record_dwarf_for_fundecl : Linear.fundecl -> Dwarf.fundecl option
 end
 
 exception Error of error

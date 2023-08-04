@@ -488,16 +488,8 @@ module Dwarf_helpers = struct
     match !dwarf with
     | None -> None
     | Some dwarf ->
-      let label = Cmm.new_label () in
-      let fun_end_label =
-        Asm_targets.Asm_label.create_int Text label
-      in
-      let result, fundecl =
-        Debug_passes.passes_for_fundecl fundecl ~fun_end_label
-      in
-      Dwarf.dwarf_for_fundecl dwarf result;
-      Some (label, fundecl)
-
+      let fun_end_label = Cmm.new_label () in
+      Some (Dwarf.dwarf_for_fundecl dwarf fundecl ~fun_end_label)
 end
 
 let report_error ppf = function

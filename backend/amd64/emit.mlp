@@ -1466,10 +1466,10 @@ let emit_function_type_and_size fun_name =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
-  let end_of_fun_label, fundecl =
+  let fun_end_label, fundecl =
     match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl fundecl with
     | None -> None, fundecl
-    | Some (label, fundecl) -> Some label, fundecl
+    | Some { fun_end_label; fundecl } -> Some fun_end_label, fundecl
   in
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
@@ -1515,7 +1515,7 @@ let fundecl fundecl =
       cfi_adjust_cfa_offset (-n);
     end;
   end;
-  Option.iter def_label end_of_fun_label;
+  Option.iter def_label fun_end_label;
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
