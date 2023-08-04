@@ -1124,7 +1124,6 @@ let rec tree_of_typexp mode ty =
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
           if !print_labels || is_omittable l then outcome_label l
-            (* TODO vding: I think we want to print if something might be omitted? *)
           else Nolabel
         in
         let t1 =
@@ -1765,7 +1764,6 @@ let rec tree_of_class_type mode params =
   | Cty_arrow (l, ty, cty) ->
       let lab =
         if !print_labels || is_omittable l then outcome_label l
-          (* TODO vding: omittable? (same as above) *)
         else Nolabel
       in
       let tr =
