@@ -79,7 +79,7 @@ let default_iteration =
     "simplify-application";
     "simplify-match";
     "flatten-modules";
-    "remove-attributes";
+    (* "remove-attributes"; *)
     "simplify-types";
     "remove-cons-fields";
   ]
