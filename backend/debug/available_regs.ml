@@ -269,7 +269,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
                 if remains_available
                    || (not (extend_live ()))
                    || is_end_region
-                   || (not (Reg.is_local_stack_slot (RD.reg reg)))
+                   || (not (RD.assigned_to_stack reg))
                    || RD.Set.mem reg made_unavailable_1
                    || reg_is_of_type_addr || !disable_extend_live
                 then not remains_available
