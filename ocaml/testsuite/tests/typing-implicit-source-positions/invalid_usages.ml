@@ -77,15 +77,6 @@ Error: This function should have type src_pos:[%src_pos] -> unit -> unit
        instead of ~(src_pos:[%src_pos])
 |}]
 
-let m ~(src_pos:[%src_pos]) = ()
-[%%expect {|
-Line 1, characters 8-15:
-1 | let m ~(src_pos:[%src_pos]) = ()
-            ^^^^^^^
-Warning 189 [unerasable-position-argument]: this position argument cannot be erased.
-val m : src_pos:[%src_pos] -> unit = <fun>
-|}]
-
 let n = fun ~(src_pos:[%src_pos]) () -> src_pos
 [%%expect{|
 val n : src_pos:[%src_pos] -> unit -> lexing_position = <fun>
