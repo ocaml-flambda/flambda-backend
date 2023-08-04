@@ -2677,7 +2677,7 @@ let rec expands_to_datatype env ty =
       end
   | _ -> false
 
-let equivalent_in_classic_mode l1 l2 =
+let equivalent_with_nolabels l1 l2 =
   l1 = l2 || (match l1, l2 with
   | (Nolabel | Labelled _), (Nolabel | Labelled _) -> true
   | _ -> false)
@@ -2716,7 +2716,7 @@ let rec mcomp type_pairs env t1 t2 =
         | (_, Tvar _)  ->
             ()
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
-          when equivalent_in_classic_mode l1 l2 ->
+          when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
         | (Ttuple tl1, Ttuple tl2) ->
@@ -3277,7 +3277,7 @@ and unify3 env t1 t1' t2 t2' =
            when
              (l1 = l2 ||
               (!Clflags.classic || in_pattern_mode ()) &&
-               equivalent_in_classic_mode l1 l2) ->
+               equivalent_with_nolabels l1 l2) ->
           unify_alloc_mode_for Unify a1 a2;
           unify_alloc_mode_for Unify r1 r2;
           unify  env t1 t2; unify env  u1 u2;
@@ -3849,7 +3849,8 @@ let filter_arrow env t l ~force_tpoly =
       constrain_type_layout_exn env Unify t' layout;
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
-      if l = l' || !Clflags.classic && l = Nolabel && not (is_omittable l')
+      if l = l' || !Clflags.classic && l = Nolabel &&
+        equivalent_with_nolabels l l'
       then
         (* CR layouts v2.5: When we move the restrictions on argument from
            arrows to functions, this function doesn't need to return a sort and
@@ -4372,7 +4373,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
-                || !Clflags.classic && equivalent_in_classic_mode l1 l2) ->
+                || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
@@ -4743,7 +4744,7 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
-                || !Clflags.classic && equivalent_in_classic_mode l1 l2) ->
+                || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               eqtype rename type_pairs subst env t1 t2;
               eqtype rename type_pairs subst env u1 u2;
               eqtype_alloc_mode a1 a2;
@@ -5500,7 +5501,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         (trace, t1, t2, !univar_pairs)::cstrs
     | (Tarrow((l1,a1,r1), t1, u1, _),
        Tarrow((l2,a2,r2), t2, u2, _)) when l1 = l2
-      || !Clflags.classic && equivalent_in_classic_mode l1 l2 ->
+      || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
         let cstrs =
           subtype_rec
             env
