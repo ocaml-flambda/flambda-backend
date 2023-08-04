@@ -640,7 +640,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let handler =
       Flambda.Continuation_handler.create
         (Bound_parameters.create params)
-        ~handler ~free_names_of_handler:Unknown ~is_exn_handler
+        ~handler ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold:false
     in
     match recursive with
     | Nonrecursive ->

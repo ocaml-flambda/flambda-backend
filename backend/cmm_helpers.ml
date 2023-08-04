@@ -424,7 +424,7 @@ let create_loop body dbg =
   let cont = Lambda.next_raise_count () in
   let call_cont = Cexit (Lbl cont, [], []) in
   let body = Csequence (body, call_cont) in
-  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Any)
+  Ccatch (Recursive, [cont, [], body, dbg, false], call_cont, Any)
 
 (* Turning integer divisions into multiply-high then shift. The
    [division_parameters] function is used in module Emit for those target
@@ -773,7 +773,9 @@ let rec remove_unit = function
         dbg,
         kind )
   | Ccatch (rec_flag, handlers, body, kind) ->
-    let map_h (n, ids, handler, dbg) = n, ids, remove_unit handler, dbg in
+    let map_h (n, ids, handler, dbg, is_cold) =
+      n, ids, remove_unit handler, dbg, is_cold
+    in
     Ccatch (rec_flag, List.map map_h handlers, remove_unit body, kind)
   | Ctrywith (body, kind, exn, handler, dbg, value_kind) ->
     Ctrywith (remove_unit body, kind, exn, remove_unit handler, dbg, value_kind)
@@ -2191,7 +2193,7 @@ module SArgBlocks = struct
         fun body ->
           match body with
           | Cexit (j, _, _) -> if Lbl i = j then handler else body
-          | _ -> ccatch (i, [], body, handler, dbg, kind) ))
+          | _ -> ccatch (i, [], body, handler, dbg, kind, false) ))
 
   let make_exit i = Cexit (Lbl i, [], [])
 end
@@ -2475,7 +2477,8 @@ let cache_public_method meths tag cache dbg =
                     dbg,
                   Ctuple [],
                   dbg,
-                  Any ),
+                  Any,
+                  false ),
               Clet
                 ( VP.create tagged,
                   Cop
@@ -3862,7 +3865,8 @@ let entry_point namelist =
               dbg,
             Ctuple [],
             dbg,
-            Any ) )
+            Any,
+            false ) )
   in
   let fun_name = global_symbol "caml_program" in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
@@ -4151,8 +4155,9 @@ type static_handler =
   * (Backend_var.With_provenance.t * Cmm.machtype) list
   * Cmm.expression
   * Debuginfo.t
+  * bool
 
-let handler ~dbg id vars body = id, vars, body, dbg
+let handler ~dbg id vars body is_cold = id, vars, body, dbg, is_cold
 
 let cexit id args trap_actions = Cmm.Cexit (Cmm.Lbl id, args, trap_actions)
 

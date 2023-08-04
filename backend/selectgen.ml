@@ -1109,26 +1109,26 @@ method emit_expr_aux (env:environment) exp ~bound_name :
       self#emit_expr_aux env e1 ~bound_name
   | Ccatch(rec_flag, handlers, body, _) ->
       let handlers =
-        List.map (fun (nfail, ids, e2, dbg) ->
+        List.map (fun (nfail, ids, e2, dbg, is_cold) ->
             let rs =
               List.map
                 (fun (id, typ) ->
                   let r = self#regs_for typ in name_regs id r; r)
                 ids in
-            (nfail, ids, rs, e2, dbg))
+            (nfail, ids, rs, e2, dbg, is_cold))
           handlers
       in
       let env, handlers_map =
         (* Since the handlers may be recursive, and called from the body,
            the same environment is used for translating both the handlers and
            the body. *)
-        List.fold_left (fun (env, map) (nfail, ids, rs, e2, dbg) ->
+        List.fold_left (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
             let env, r = env_add_static_exception nfail rs env in
-            env, Int.Map.add nfail (r, (ids, rs, e2, dbg)) map)
+            env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
           (env, Int.Map.empty) handlers
       in
       let (r_body, s_body) = self#emit_sequence env body ~bound_name in
-      let translate_one_handler nfail (traps_info, (ids, rs, e2, _dbg)) =
+      let translate_one_handler nfail (traps_info, (ids, rs, e2, _dbg, is_cold)) =
         assert(List.length ids = List.length rs);
         let trap_stack =
           match !traps_info with
@@ -1157,7 +1157,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
                 seq#insert_debug env (Iop naming_op) Debuginfo.none [| |] [| |])
               ids_and_rs)
         in
-        ((nfail, trap_stack), (r, s))
+        ((nfail, trap_stack, is_cold), (r, s))
       in
       let rec build_all_reachable_handlers ~already_built ~not_built =
         let not_built, to_build =
@@ -1180,7 +1180,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
       in
       let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
       let r = join_array env a ~bound_name in
-      let aux ((nfail, ts), (_r, s)) = (nfail, ts, s#extract) in
+      let aux ((nfail, ts, is_cold), (_r, s)) = (nfail, ts, s#extract, is_cold) in
       let final_trap_stack =
         match r_body with
         | Some _ -> env.trap_stack
@@ -1190,8 +1190,8 @@ method emit_expr_aux (env:environment) exp ~bound_name :
           begin match l with
           | [] -> (* This whole catch never returns *)
             env.trap_stack
-          | ((_, ts), (_, _)) :: tl ->
-            assert (List.for_all (fun ((_, ts'), (_, _)) -> ts = ts') tl);
+          | ((_, ts, _), (_, _)) :: tl ->
+            assert (List.for_all (fun ((_, ts', _), (_, _)) -> ts = ts') tl);
             ts
           end
       in
@@ -1651,21 +1651,21 @@ method emit_tail (env:environment) exp =
       self#emit_tail env e1
   | Ccatch(rec_flag, handlers, e1, _) ->
       let handlers =
-        List.map (fun (nfail, ids, e2, dbg) ->
+        List.map (fun (nfail, ids, e2, dbg, is_cold) ->
             let rs =
               List.map
                 (fun (id, typ) ->
                   let r = self#regs_for typ in name_regs id r; r)
                 ids in
-            (nfail, ids, rs, e2, dbg))
+            (nfail, ids, rs, e2, dbg, is_cold))
           handlers in
       let env, handlers_map =
-        List.fold_left (fun (env, map) (nfail, ids, rs, e2, dbg) ->
+        List.fold_left (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
             let env, r = env_add_static_exception nfail rs env in
-            env, Int.Map.add nfail (r, (ids, rs, e2, dbg)) map)
+            env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
           (env, Int.Map.empty) handlers in
       let s_body = self#emit_tail_sequence env e1 in
-      let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg)) =
+      let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg, is_cold)) =
         assert(List.length ids = List.length rs);
         let trap_stack =
           match !trap_info with
@@ -1696,7 +1696,7 @@ method emit_tail (env:environment) exp =
                  [| |] [| |])
                ids_and_rs)
         in
-        nfail, trap_stack, seq
+        nfail, trap_stack, seq, is_cold
       in
       let rec build_all_reachable_handlers ~already_built ~not_built =
         let not_built, to_build =

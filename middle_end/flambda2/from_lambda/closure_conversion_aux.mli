@@ -415,7 +415,7 @@ module Let_cont_with_acc : sig
     Acc.t ->
     invariant_params:Bound_parameters.t ->
     handlers:
-      ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool)
+      ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool * bool)
       Continuation.Map.t ->
     body:(Acc.t -> Expr_with_acc.t) ->
     Expr_with_acc.t
@@ -427,5 +427,6 @@ module Let_cont_with_acc : sig
     handler:(Acc.t -> Expr_with_acc.t) ->
     body:(Acc.t -> Expr_with_acc.t) ->
     is_exn_handler:bool ->
+    is_cold:bool ->
     Expr_with_acc.t
 end

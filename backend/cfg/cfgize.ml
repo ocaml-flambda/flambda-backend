@@ -565,7 +565,7 @@ let rec add_blocks :
     | Icatch (_rec, _trap_stack, handlers, body) ->
       let handlers =
         List.map
-          (fun (handler_id, _trap_stack, handler) ->
+          (fun (handler_id, _trap_stack, handler, _is_cold) ->
             let handler_label = State.add_catch_handler state ~handler_id in
             handler_label, handler)
           handlers

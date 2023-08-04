@@ -84,7 +84,8 @@ and instrument = function
   | Csequence (e1, e2) -> Csequence (instrument e1, instrument e2)
   | Ccatch (isrec, cases, body, kind) ->
      let cases =
-       List.map (fun (nfail, ids, e, dbg) -> nfail, ids, instrument e, dbg)
+       List.map (fun (nfail, ids, e, dbg, is_cold) ->
+           nfail, ids, instrument e, dbg, is_cold)
          cases
      in
      Ccatch (isrec, cases, instrument body, kind)

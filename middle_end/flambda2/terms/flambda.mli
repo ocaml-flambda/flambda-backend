@@ -273,6 +273,7 @@ module Continuation_handler : sig
     handler:expr ->
     free_names_of_handler:Name_occurrences.t Or_unknown.t ->
     is_exn_handler:bool ->
+    is_cold:bool ->
     t
 
   (** Choose a member of the alpha-equivalence class to enable examination of
@@ -316,6 +317,8 @@ module Continuation_handler : sig
       simultaneously-defined continuations when one or more of them is an
       exception handler.) *)
   val is_exn_handler : t -> bool
+
+  val is_cold : t -> bool
 end
 
 module Continuation_handlers : sig

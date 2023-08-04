@@ -307,7 +307,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
              the fixed point has been reached. *)
           disable_extend_live := true);
         List.iter
-          (fun (nfail, _ts, _handler) ->
+          (fun (nfail, _ts, _handler, _) ->
             (* In case there are nested [Icatch] expressions with the same
                handler numbers, we rely on the [Hashtbl] shadowing semantics. *)
             Hashtbl.add avail_at_exit nfail unreachable)
@@ -317,7 +317,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         in
         (* CR-someday mshinwell: Consider potential efficiency speedups (see
            suggestions from @chambart on GPR#856). *)
-        let aux (nfail, ts, handler) (nfail', avail_at_top_of_handler) =
+        let aux (nfail, ts, handler, _) (nfail', avail_at_top_of_handler) =
           assert (nfail = nfail');
           current_trap_stack := ts;
           available_regs handler ~avail_before:avail_at_top_of_handler
@@ -334,7 +334,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           in
           let avail_at_top_of_handlers' =
             List.map
-              (fun (nfail, _ts, _handler) ->
+              (fun (nfail, _ts, _handler, _) ->
                 match Hashtbl.find avail_at_exit nfail with
                 | exception Not_found -> assert false (* see above *)
                 | avail_at_top_of_handler -> nfail, avail_at_top_of_handler)
@@ -360,7 +360,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         in
         let init_avail_at_top_of_handlers =
           List.map
-            (fun (nfail, _ts, _handler) ->
+            (fun (nfail, _ts, _handler, _) ->
               match Hashtbl.find avail_at_exit nfail with
               | exception Not_found -> assert false (* see above *)
               | avail_at_top_of_handler -> nfail, avail_at_top_of_handler)
@@ -368,7 +368,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
         in
         let avail_after_handlers = fixpoint init_avail_at_top_of_handlers in
         List.iter
-          (fun (nfail, _ts, _handler) -> Hashtbl.remove avail_at_exit nfail)
+          (fun (nfail, _ts, _handler, _) -> Hashtbl.remove avail_at_exit nfail)
           handlers;
         current_trap_stack := ts;
         let avail_after =

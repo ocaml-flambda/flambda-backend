@@ -113,7 +113,7 @@ let rec combine i allocstate =
       let (newbody, s') = combine body allocstate in
       let newhandlers =
         List.map
-          (fun (io, ts, handler) -> io, ts, combine_restart handler)
+          (fun (io, ts, handler, is_cold) -> io, ts, combine_restart handler, is_cold)
           handlers
       in
       let newnext = combine_restart i.next in
