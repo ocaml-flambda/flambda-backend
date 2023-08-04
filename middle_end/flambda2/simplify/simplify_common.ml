@@ -219,7 +219,7 @@ let split_direct_over_application apply
       (Bound_parameters.create [func_param])
       ~handler:perform_over_application
       ~free_names_of_handler:(Known perform_over_application_free_names)
-      ~is_exn_handler:false ~is_cold:false (* CR ncourant: check *)
+      ~is_exn_handler:false ~is_cold:false
   in
   let full_apply =
     let alloc_mode =
