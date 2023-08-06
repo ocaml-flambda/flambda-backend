@@ -1,4 +1,5 @@
 (* TEST
+   modules = "cstubs.c"
    include ocamlcommon
    * native *)
 
@@ -33,13 +34,16 @@ let allocate_in_current_region x = local_
 
 let leak_in_current_region : 'a -> unit = Obj.magic allocate_in_current_region
 
+external make_dumb_external_block : unit -> int = "make_dumb_external_block"
 external follow : int -> ('a [@local_opt]) = "%int_as_pointer"
+
+let ext : int = make_dumb_external_block ()
 
 let[@inline never] int_as_pointer_local x =
   leak_in_current_region x;
   (* The region should be preserved by the following call; hence no stack space
      leaking *)
-  let _ = opaque_identity (follow 0) in
+  let _ = opaque_identity (follow ext) in
   ()
 
 let[@inline never] int_as_pointer_global x =
@@ -47,7 +51,7 @@ let[@inline never] int_as_pointer_global x =
      function calls don't allocate on the region (superficially). The first call
      secretly does, hence stack space leaking. *)
   leak_in_current_region x;
-  let _ = Sys.opaque_identity (follow 0) in
+  let _ = Sys.opaque_identity (follow ext) in
   ()
 
 let () =
