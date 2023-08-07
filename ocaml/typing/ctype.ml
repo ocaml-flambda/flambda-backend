@@ -2114,6 +2114,9 @@ let unification_layout_check env ty layout =
   | Delay_checks r -> r := (ty,layout) :: !r
   | Skip_checks -> ()
 
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
+
 let is_always_global env ty =
   let perform_check () =
     Result.is_ok (check_type_layout env ty
@@ -2128,6 +2131,9 @@ let is_always_global env ty =
     result
   else
     perform_check ()
+
+let mode_cross env (ty : type_expr) =
+  is_principal ty && is_always_global env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
@@ -5557,7 +5563,10 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        subtype_alloc_mode env trace a2 a1;
+        if not (is_always_global env t2) then
+          subtype_alloc_mode env trace a2 a1;
+        (* RHS mode of arrow types indicates allocation in the parent region
+           and is not subject to mode crossing *)
         subtype_alloc_mode env trace r1 r2;
         subtype_rec
           env

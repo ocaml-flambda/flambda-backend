@@ -358,3 +358,60 @@ type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a; }
 val f : 'a t_gadt -> 'a -> 'a = <fun>
 |}]
+
+(* Mode crossing in coercing arrow types *)
+let foo : int -> int = fun x -> x
+[%%expect{|
+val foo : int -> int = <fun>
+|}]
+
+let foo' : int -> local_ int = fun x -> local_ x
+[%%expect{|
+val foo' : int -> local_ int = <fun>
+|}]
+
+
+
+let bar (f : local_ int -> int) = f 42
+[%%expect{|
+val bar : (local_ int -> int) -> int = <fun>
+|}]
+
+(* Implicit mode crossing is not good enough *)
+let _ = bar foo
+[%%expect{|
+Line 1, characters 12-15:
+1 | let _ = bar foo
+                ^^^
+Error: This expression has type int -> int
+       but an expression was expected of type local_ int -> int
+|}]
+
+let _ = bar (foo :> local_ int -> int)
+[%%expect{|
+- : int = 42
+|}]
+
+let _ = bar (foo : int -> int :> local_ int -> int)
+[%%expect{|
+- : int = 42
+|}]
+
+
+(* Only the RHS type of :> is looked at for mode crossing *)
+let _ = bar (foo : int -> int :> local_ _ -> _)
+[%%expect{|
+Line 1, characters 12-47:
+1 | let _ = bar (foo : int -> int :> local_ _ -> _)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type int -> int is not a subtype of local_ 'a -> 'b
+|}]
+
+(* You can't erase the info that a function might allocate in parent region *)
+let _ = bar (foo' :> local_ int -> int)
+[%%expect{|
+Line 1, characters 12-39:
+1 | let _ = bar (foo' :> local_ int -> int)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type int -> local_ int is not a subtype of local_ int -> int
+|}]
