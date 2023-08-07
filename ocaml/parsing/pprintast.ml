@@ -1816,7 +1816,7 @@ and case_list ctxt f l : unit = list (case ctxt) f l ~sep:"@;" ~first:"@;"
 and case_rhs ctxt f = function
   | Psimple_rhs e -> pp f "->@;%a" (expression (under_pipe ctxt)) e
   | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-      pp f "when@;%a@;->@;%a" (expression ctxt) pbg_guard
+      pp f "when@;%a@;%a" (expression ctxt) pbg_guard
         (case_rhs (under_pipe ctxt)) pbg_rhs
   | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ } ->
       let singleton_case =

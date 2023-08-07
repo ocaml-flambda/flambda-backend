@@ -687,3 +687,74 @@ check_push_defaults g ~s:"hmm" "name";;
 [%%expect{|
 - : string = "name"
 |}];;
+
+let nested_boolean_guards = function
+  | Some x
+      when x > 0
+      when x < 10
+      when x mod 2 = 0 ->
+      "single digit even"
+  | _ -> "not single digit even"
+;;
+[%%expect{|
+val nested_boolean_guards : int option -> string = <fun>
+|}];;
+nested_boolean_guards None;;
+[%%expect{|
+- : string = "not single digit even"
+|}];;
+nested_boolean_guards (Some 0);;
+[%%expect{|
+- : string = "not single digit even"
+|}];;
+nested_boolean_guards (Some 2);;
+[%%expect{|
+- : string = "single digit even"
+|}];;
+nested_boolean_guards (Some 3);;
+[%%expect{|
+- : string = "not single digit even"
+|}];;
+nested_boolean_guards (Some 10);;
+[%%expect{|
+- : string = "not single digit even"
+|}];;
+
+
+let nested_boolean_and_pattern_guards x =
+  let flag = ref false in
+  match x with
+  | Some x
+      when x > ~-10
+      when x < 10
+      when flag := true; true
+      when 100 / x match (
+      | exception e
+          when true
+          when e match Division_by_zero -> "Divided by zero"
+      | 50 -> "Divided by two")
+  | _ -> if !flag then "Divided by single digit" else "Hard to say"
+;;
+[%%expect{|
+val nested_boolean_and_pattern_guards : int option -> string = <fun>
+|}];;
+nested_boolean_and_pattern_guards None;;
+[%%expect{|
+- : string = "Hard to say"
+|}];;
+nested_boolean_and_pattern_guards (Some 0);;
+[%%expect{|
+- : string = "Divided by zero"
+|}];;
+nested_boolean_and_pattern_guards (Some 2);;
+[%%expect{|
+- : string = "Divided by two"
+|}];;
+nested_boolean_and_pattern_guards (Some 5);;
+[%%expect{|
+- : string = "Divided by single digit"
+|}];;
+nested_boolean_and_pattern_guards (Some 100);;
+[%%expect{|
+- : string = "Hard to say"
+|}];;
