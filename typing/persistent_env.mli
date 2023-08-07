@@ -59,8 +59,10 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
+(* If [add_binding] is false, reads the signature from the .cmi but does not
+   bind the module name in the environment. *)
 val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> filepath -> 'a
+  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> 'a
 val find : 'a t -> (Persistent_signature.t -> 'a)
   -> Compilation_unit.Name.t -> 'a
 
