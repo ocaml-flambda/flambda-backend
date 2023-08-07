@@ -274,6 +274,7 @@ Caml_inline int extern_lookup_position(value obj,
       return 0;
     }
     if (pos_table.entries[h].obj == obj) {
+      *h_out = h;
       *pos_out = pos_table.entries[h].pos;
       return 1;
     }
@@ -293,6 +294,27 @@ static void extern_record_location(value obj, uintnat h)
   pos_table.entries[h].pos = obj_counter;
   obj_counter++;
   if (obj_counter >= pos_table.threshold) extern_resize_position_table();
+}
+
+/* Record the output position for the given object [obj]. */
+/* The [h] parameter is the index in the hash table where the object
+   must be inserted.  It was determined during lookup. */
+
+static void extern_record_location_with_data(value obj, uintnat h, uintnat data)
+{
+  if (extern_flags & NO_SHARING) return;
+  bitvect_set(pos_table.present, h);
+  pos_table.entries[h].obj = obj;
+  pos_table.entries[h].pos = data;
+  obj_counter++;
+  if (obj_counter >= pos_table.threshold) extern_resize_position_table();
+}
+
+static void extern_update_location_with_data(value obj, uintnat h, uintnat data)
+{
+  if (extern_flags & NO_SHARING) return;
+  pos_table.entries[h].obj = obj;
+  pos_table.entries[h].pos = data;
 }
 
 /* To buffer the output */
@@ -1136,18 +1158,54 @@ CAMLexport void caml_serialize_block_float_8(void * data, intnat len)
 #endif
 }
 
-CAMLprim value caml_obj_reachable_words(value v)
-{
-  intnat size;
-  struct extern_item * sp;
-  uintnat h = 0;
-  uintnat pos;
+/* Performs traversal through the OCaml object reachability graph to deterime
+   how much memory an object has access to.
 
-  obj_counter = 0;
-  extern_flags = 0;
-  extern_init_position_table();
+   Assumes that the position_table has already been initialized using
+   [caml_obj_reachable_words_init].  We can run this function multiple times
+   without clearing the position table to share data between runs starting
+   from different roots. The mode must be an integer between 1 and 3 inclusive
+   and the identifier must be a positive integer.
+
+   For each value node visited, we record its traversal status in the [pos] field
+   of its entry in [position_table.entries]. The statuses are:
+   * >0: node has been visited exactly once, from root with identifier equal to
+         this integer.
+   * -1: node has been visited at least two times. It will be ignored in future
+         traversals. Also used by mode 3 to show that this node has already been
+	 counted.
+   * -2: node is a root that hasn't been processed yet.
+   * -3: node is a root that has been visited by mode 2.
+
+   The expected usage is:
+   - Iterate through list of roots, running in mode 1 for each. This initializes
+     information about which nodes are roots. Returns 0.
+   - Iterate through list of roots, running in mode 2 for each. This performs
+     the main traversal, for each descendant recording that it is reachable from
+     the current root. Returns the total size of elements marked, that is ones
+     that are reachable from the current root and can be reached from at most
+     one root from the ones that already ran.
+   - Iterate through list of roots, running in mode 3 for each. This uses the
+     information computed in the previous step to return the sum of sizes of
+     elements that are reachable from this root but no other root. */
+CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value identifier_v) {
+  intnat mode = Int_val(mode_v), identifier = Int_val(identifier_v);
+
+  struct extern_item * sp;
+  intnat size;
+  uintnat mark, new_mark;
+  value v = root;
+  uintnat h;
+  int previously_marked, should_traverse;
   sp = extern_stack;
   size = 0;
+
+  if (mode == 1) {
+    h = Hash(v);
+    extern_record_location_with_data(v, h, -2);
+    return Long_val(0);
+  }
+
   while (1) {
     if (Is_long(v)) {
       /* Tagged integers contribute 0 to the size, nothing to do */
@@ -1157,36 +1215,62 @@ CAMLprim value caml_obj_reachable_words(value v)
          between major heap blocks and out-of-heap blocks,
          and the test above is always false,
          so we end up counting out-of-heap blocks too. */
-    } else if (extern_lookup_position(v, &pos, &h)) {
-      /* Already seen and counted, nothing to do */
     } else {
-      header_t hd = Hd_val(v);
-      tag_t tag = Tag_hd(hd);
-      mlsize_t sz = Wosize_hd(hd);
-      /* Infix pointer: go back to containing closure */
-      if (tag == Infix_tag) {
-        v = v - Infix_offset_hd(hd);
-        continue;
+      if ((previously_marked = extern_lookup_position(v, &mark, &h))) {
+        if (mark == -2 && v == root) {
+          /* mode == 2 */
+          should_traverse = 1;
+	  new_mark = -3;
+	} else if (mark == -3 && v == root) {
+	  /* mode == 3 || mode == 2 */
+          should_traverse = (mode == 3);
+	  new_mark = -1;
+	} else if (mark == -1 || mark == -2 || mark == -3) {
+          /* ignore (-1) or root but not ours (-2/-3) */
+	  should_traverse = 0;
+	} else {
+          /* mark is identifier (ours or not) */
+          should_traverse = !(mark == identifier && mode == 2);
+          new_mark = -1;
+	}
+      } else {
+        /* mode == 2 && not root */
+        should_traverse = 1;
+	new_mark = identifier;
       }
-      /* Remember that we've visited this block */
-      extern_record_location(v, h);
-      /* The block contributes to the total size */
-      size += 1 + sz;           /* header word included */
-      if (tag < No_scan_tag) {
-        /* i is the position of the first field to traverse recursively */
-        uintnat i =
-          tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
-        if (i < sz) {
-          if (i < sz - 1) {
-            /* Remember that we need to count fields i + 1 ... sz - 1 */
-            sp++;
-            if (sp >= extern_stack_limit) sp = extern_resize_stack(sp);
-            sp->v = &Field(v, i + 1);
-            sp->count = sz - i - 1;
-          }
-          /* Continue with field i */
-          v = Field(v, i);
+
+      if (should_traverse) {
+        header_t hd = Hd_val(v);
+        tag_t tag = Tag_hd(hd);
+        mlsize_t sz = Wosize_hd(hd);
+        /* Infix pointer: go back to containing closure */
+        if (tag == Infix_tag) {
+          v = v - Infix_offset_hd(hd);
           continue;
+        }
+        if (!previously_marked) {
+          extern_record_location_with_data(v, h, new_mark);
+        } else {
+          extern_update_location_with_data(v, h, new_mark);
+        }
+        /* The block contributes to the total size */
+        size += 1 + sz;           /* header word included */
+        if (tag < No_scan_tag) {
+          /* i is the position of the first field to traverse recursively */
+          uintnat i =
+            tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
+          if (i < sz) {
+            if (i < sz - 1) {
+              /* Remember that we need to count fields i + 1 ... sz - 1 */
+              sp++;
+              if (sp >= extern_stack_limit) sp = extern_resize_stack(sp);
+              sp->v = &Field(v, i + 1);
+              sp->count = sz - i - 1;
+            }
+            /* Continue with field i */
+            v = Field(v, i);
+            continue;
+          }
         }
       }
     }
@@ -1195,7 +1279,21 @@ CAMLprim value caml_obj_reachable_words(value v)
     v = *((sp->v)++);
     if (--(sp->count) == 0) sp--;
   }
+
+  return Val_long(size);
+}
+
+CAMLprim value caml_obj_reachable_words_init(value v)
+{
+  obj_counter = 0;
+  extern_flags = 0;
+  extern_init_position_table();
+  return Val_unit;
+}
+
+CAMLprim value caml_obj_reachable_words_cleanup(value v)
+{
   extern_free_stack();
   extern_free_position_table();
-  return Val_long(size);
+  return Val_unit;
 }

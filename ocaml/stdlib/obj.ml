@@ -36,7 +36,27 @@ external tag : t -> int = "caml_obj_tag" [@@noalloc]
    restriction is likely not respected by callees of this module. *)
 external size : t -> int = "%obj_size"
 let [@inline always] size t = size (Sys.opaque_identity t)
-external reachable_words : t -> int = "caml_obj_reachable_words"
+external reachable_words_init : unit -> unit = "caml_obj_reachable_words_init"
+external reachable_words_once : t -> mode:int -> identifier:int -> int = "caml_obj_reachable_words_once"
+external reachable_words_cleanup : unit -> unit = "caml_obj_reachable_words_cleanup"
+let reachable_words (t : t) : int =
+  reachable_words_init ();
+  let ret = reachable_words_once t ~mode:1 ~identifier:1 in
+  reachable_words_cleanup ();
+  ret
+let uniquely_reachable_words (ts : t list) : int list =
+  reachable_words_init ();
+  let rec traverse ~mode i = function
+    | [] -> ()
+    | hd :: tl -> (let _ = reachable_words_once hd ~mode ~identifier:i in traverse ~mode (i+1) tl) in
+  let rec accumulate ~mode i = function
+    | [] -> []
+    | hd :: tl -> (let v = reachable_words_once hd ~mode ~identifier:i in v :: accumulate ~mode (i+1) tl) in
+  let () = traverse ~mode:1 1 ts in
+  let () = traverse ~mode:2 1 ts in
+  let ret = accumulate ~mode:3 1 ts in
+  reachable_words_cleanup ();
+  ret
 external field : t -> int -> t = "%obj_field"
 let [@inline always] field t index = field (Sys.opaque_identity t) index
 external set_field : t -> int -> t -> unit = "%obj_set_field"
