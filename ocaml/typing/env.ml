@@ -937,6 +937,7 @@ let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
       Misc.Stdlib.String.Map.empty
       flags
   in
+  let sign = Subst.Lazy.signature Make_local Subst.identity sign in
   let md =
     { Subst.Lazy.md_type = Mty_signature sign;
       md_loc = Location.none;
@@ -945,18 +946,12 @@ let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
     }
   in
   let mda_address = Lazy_backtrack.create_forced (Aunit name) in
-  let mda_declaration =
-    Subst.(Lazy.module_decl Make_local identity md)
-  in
+  let mda_declaration = md in
   let mda_shape =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
   in
   let mda_components =
-    let mty = Subst.Lazy.Mty_signature sign in
-    let mty =
-      Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
-        Subst.identity mty
-    in
+    let mty = md.md_type in
     components_of_module ~alerts ~uid:md.md_uid
       empty Subst.identity
       path mda_address mty mda_shape
