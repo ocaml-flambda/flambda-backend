@@ -70,7 +70,7 @@ warn_ambiguous ([], []);;
 - : int = 0
 |}];;
 
-(* Ensure that warning 57 is not extraneously issued for pattern guards. *)
+(* Ensure that warning 57 is not spuriously issued for pattern guards. *)
 
 let dont_warn_ambiguous = function
   | ([ x ], _) | (_, [ x ]) when (let one = 1 in one + one) match 2 -> x
