@@ -254,14 +254,8 @@ type register_allocator =
 
 let default_allocator = Upstream
 
-let register_allocator fd : register_allocator =
-  match String.lowercase_ascii !Flambda_backend_flags.regalloc with
-  | "cfg" -> if should_use_linscan fd then LS else IRC
-  | "irc" -> IRC
-  | "ls" -> LS
-  | "upstream" -> Upstream
-  | "" -> default_allocator
-  | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
+let register_allocator _fd : register_allocator =
+  ignore (default_allocator, LS); IRC
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
