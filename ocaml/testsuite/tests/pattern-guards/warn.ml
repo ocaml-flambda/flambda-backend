@@ -35,6 +35,33 @@ warn_partial [ None; Some 1 ];;
 Exception: Match_failure ("", 1, 19).
 |}];;
 
+(* Ensure that cases guarded by total pattern guards count towards exhaustivity
+   for warning 8. *)
+let rec f = function
+  | [] -> []
+  | [ x ] when x match (
+    | None -> []
+    | Some y -> [ y ])
+  | x :: xs when x match (
+    | Some 0 -> [ 0 ]
+    | _ -> f xs
+    )
+;;
+[%%expect{|
+Lines 3-5, characters 10-22:
+3 | ..........when x match (
+4 |     | None -> []
+5 |     | Some y -> [ y ])
+Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
+Lines 6-9, characters 12-5:
+6 | ............when x match (
+7 |     | Some 0 -> [ 0 ]
+8 |     | _ -> f xs
+9 |     )
+Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
+val f : int option list -> int list = <fun>
+|}];;
+
 (* Ensure that warning 57 is issued when a pattern guard uses an ambiguously
    bound variable. *)
 
@@ -143,7 +170,6 @@ let warn_total_guards (x : (unit, int option) Either.t) : int =
         | None -> 1
         | Some n -> ~-n
         )
-    | _ -> 2
 ;;
 [%%expect{|
 Line 3, characters 13-33:

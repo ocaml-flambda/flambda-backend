@@ -1834,27 +1834,29 @@ let pressure_variants_in_computation_pattern tdefs patl =
 (* Utilities for diagnostics *)
 (*****************************)
 
+let is_guarded_rhs = function
+  (* Total pattern-guarded rhs's should be treated as unguarded, as they will
+     never fail to match. *)
+  | Simple_rhs _ | Pattern_guarded_rhs { pg_partial = Total; _ } -> false
+  | Boolean_guarded_rhs _ | Pattern_guarded_rhs { pg_partial = Partial; _ } ->
+      true
+
 (*
   Build up a working pattern matrix by forgetting
   about guarded patterns
 *)
 
-let rec initial_matrix = function
-    [] -> []
-  | { c_rhs = Simple_rhs _; c_lhs = p } :: rem -> [p] :: initial_matrix rem
-  | { c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _; _ } :: rem ->
-      initial_matrix rem
+let initial_matrix cases =
+  List.filter (fun case -> not (is_guarded_rhs case.c_rhs)) cases
+  |> List.map (fun case -> [ case.c_lhs ])
 
 (*
    Build up a working pattern matrix by keeping
    only the patterns which are guarded
 *)
-let rec initial_only_guarded = function
-  | [] -> []
-  | { c_rhs = Simple_rhs _; _ } :: rem ->
-      initial_only_guarded rem
-  | { c_lhs = pat; c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _ }
-    :: rem -> [pat] :: initial_only_guarded rem
+let initial_only_guarded cases =
+  List.filter (fun case -> is_guarded_rhs case.c_rhs) cases
+  |> List.map (fun case -> [ case.c_lhs ])
 
 
 (************************)
