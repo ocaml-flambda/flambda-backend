@@ -173,7 +173,7 @@ _install: compiler
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
-	rm '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
+	rm -f '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
         # rm `ocaml_compiler_internal_params`, which is used to compile the
         # stdlib `Float_u` module with `-extension layouts_alpha`, because we
         # don't want user programs that happened to be named
