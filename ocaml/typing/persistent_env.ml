@@ -181,7 +181,7 @@ let save_pers_struct penv crc comp_unit flags filename =
   Consistbl.set crc_units modname comp_unit crc filename;
   add_import penv modname
 
-let acknowledge_pers_struct penv check modname pers_sig pm =
+let process_pers_struct penv check modname pers_sig =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
   let crcs = cmi.cmi_crcs in
@@ -216,16 +216,24 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
         error (Direct_reference_from_wrong_package (name, filename, prefix));
   | None -> ()
   end;
-  let {persistent_structures; _} = penv in
-  Hashtbl.add persistent_structures modname (Found (ps, pm));
   ps
 
-let read_pers_struct penv val_of_pers_sig check modname filename =
+let bind_pers_struct penv modname ps pm =
+  let {persistent_structures; _} = penv in
+  Hashtbl.add persistent_structures modname (Found (ps, pm))
+
+let acknowledge_pers_struct penv check modname pers_sig pm =
+  let ps = process_pers_struct penv check modname pers_sig in
+  bind_pers_struct penv modname ps pm;
+  ps
+
+let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   add_import penv modname;
   let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   let pm = val_of_pers_sig pers_sig in
-  let ps = acknowledge_pers_struct penv check modname pers_sig pm in
+  let ps = process_pers_struct penv check modname pers_sig in
+  if add_binding then bind_pers_struct penv modname ps pm;
   (ps, pm)
 
 let find_pers_struct penv val_of_pers_sig check name =
@@ -297,8 +305,8 @@ let check_pers_struct penv f ~loc name =
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
 
-let read penv f modname filename =
-  snd (read_pers_struct penv f true modname filename)
+let read penv f modname filename ~add_binding =
+  snd (read_pers_struct penv f true modname filename ~add_binding)
 
 let find penv f name =
   snd (find_pers_struct penv f true name)

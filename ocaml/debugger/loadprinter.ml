@@ -99,7 +99,7 @@ let init () =
   let topdirs =
     Filename.concat !Parameters.topdirs_path "topdirs.cmi" in
   let topdirs_unit = "Topdirs" |> Compilation_unit.of_string in
-  ignore (Env.read_signature topdirs_unit topdirs)
+  ignore (Env.read_signature topdirs_unit topdirs ~add_binding:true)
 
 let match_printer_type desc typename =
   let printer_type =
