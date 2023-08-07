@@ -86,7 +86,7 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
   in
   let pos = ref 0 in
   (* Equivalent to [walk_instruction] in "backend/interval.ml".*)
-  iter_instructions_order cfg_with_layout (Lazy.force Order.value)
+  iter_instructions_dfs cfg_with_layout
     ~instruction:(fun ~trap_handler instr ->
       incr pos;
       update_instr !pos instr ~trap_handler
@@ -105,7 +105,7 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
     past_ranges;
   if ls_debug && Lazy.force ls_verbose
   then
-    iter_cfg_order cfg_with_layout (Lazy.force Order.value) ~f:(fun block ->
+    iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
         log ~indent:2 "(block %d)" block.start;
         log_body_and_terminator ~indent:2 block.body block.terminator liveness);
   State.update_intervals state past_ranges
@@ -279,7 +279,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
       if ls_debug && Lazy.force ls_verbose
       then
         let liveness = Cfg_with_infos.liveness cfg_with_infos in
-        iter_cfg_order cfg_with_layout (Lazy.force Order.value) ~f:(fun block ->
+        iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
             log ~indent:2 "(block %d)" block.start;
             log_body_and_terminator ~indent:2 block.body block.terminator
               liveness))
