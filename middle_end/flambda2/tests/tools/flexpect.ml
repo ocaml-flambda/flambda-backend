@@ -41,6 +41,7 @@ let run_expect_test ~get_module_info ~extension ~filename
   let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
+      ~code_slot_offsets:Code_id.Map.empty
   in
   let expected_fl = Fexpr_to_flambda.conv comp_unit expected in
   match Compare.flambda_units actual_fl expected_fl with
