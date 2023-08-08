@@ -95,7 +95,7 @@ val rem : nativeint# -> nativeint# -> nativeint#
    [Nativeint_u.zero <= Nativeint_u.rem x y < Nativeint_u.abs y] and
    [x = Nativeint_u.add (Nativeint_u.mul (Nativeint_u.div x y) y)
                         (Nativeint_u.rem x y)].
-   If [y = #0], [Nativeint_u.rem x y] raises [Division_by_zero]. *)
+   If [y = 0], [Nativeint_u.rem x y] raises [Division_by_zero]. *)
 
 val unsigned_rem : nativeint# -> nativeint# -> nativeint#
 (** Same as {!rem}, except that arguments and result are interpreted as {e
@@ -140,7 +140,7 @@ val lognot : nativeint# -> nativeint#
 
 val shift_left : nativeint# -> int -> nativeint#
 (** [Nativeint_u.shift_left x y] shifts [x] to the left by [y] bits.
-   The result is unspecified if [y < #0] or [y >= bitsize],
+   The result is unspecified if [y < 0] or [y >= bitsize],
    where [bitsize] is [#32] on a 32-bit platform and
    [#64] on a 64-bit platform. *)
 
@@ -148,14 +148,14 @@ val shift_right : nativeint# -> int -> nativeint#
 (** [Nativeint_u.shift_right x y] shifts [x] to the right by [y] bits.
    This is an arithmetic shift: the sign bit of [x] is replicated
    and inserted in the vacated bits.
-   The result is unspecified if [y < #0] or [y >= bitsize]. *)
+   The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 val shift_right_logical : nativeint# -> int -> nativeint#
 (** [Nativeint_u.shift_right_logical x y] shifts [x] to the right
    by [y] bits.
    This is a logical shift: zeroes are inserted in the vacated bits
    regardless of the sign of [x].
-   The result is unspecified if [y < #0] or [y >= bitsize]. *)
+   The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 
 val of_int : int -> nativeint#
@@ -209,8 +209,7 @@ val of_string : string -> nativeint#
    exceeds the range of integers representable in type [nativeint]. *)
 
 (* val of_string_opt: string -> nativeint# option
- * (** Same as [of_string], but return [None] instead of raising.
- *     @since 4.05 *) *)
+ * (** Same as [of_string], but return [None] instead of raising. *) *)
 
 val to_string : nativeint# -> string
 (** Return the string representation of its argument, in decimal. *)

@@ -125,8 +125,12 @@
     int.mli
     int32.ml
     int32.mli
+    int32_u.ml
+    int32_u.mli
     int64.ml
     int64.mli
+    int64_u.ml
+    int64_u.mli
     lazy.ml
     lazy.mli
     lexing.ml
