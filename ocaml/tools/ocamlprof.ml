@@ -157,7 +157,7 @@ and rewrite_cases iflag l =
   List.iter
     (fun pc ->
        match Jane_syntax.Case.of_ast pc with
-       | Some (jcase, _attrs) -> rewrite_case_jane_syntax iflag jcase
+       | Some jcase -> rewrite_case_jane_syntax iflag jcase
        | None ->
        Option.iter (rewrite_exp iflag) pc.pc_guard;
        rewrite_exp iflag pc.pc_rhs
@@ -368,7 +368,7 @@ and rewrite_annotate_exp_list l = List.iter rewrite_annotate_case l
 
 and rewrite_annotate_case case =
   match Jane_syntax.Case.of_ast case with
-  | Some (jcase, _attrs) -> rewrite_annotate_case_jane_syntax jcase
+  | Some jcase -> rewrite_annotate_case_jane_syntax jcase
   | None ->
   Option.iter (rewrite_exp true) case.pc_guard;
   match case.pc_rhs.pexp_desc with
