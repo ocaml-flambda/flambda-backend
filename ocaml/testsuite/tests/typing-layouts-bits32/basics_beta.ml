@@ -17,8 +17,8 @@
 type t_bits32 [@@bits32]
 type ('a : bits32) t_bits32_id = 'a;;
 [%%expect{|
-Line 1, characters 12-20:
-1 | type t_word [@@bits32]
-                ^^^^^^^^
+Line 1, characters 14-24:
+1 | type t_bits32 [@@bits32]
+                  ^^^^^^^^^^
 Error: Layout bits32 is used here, but the appropriate layouts extension is not enabled
 |}]

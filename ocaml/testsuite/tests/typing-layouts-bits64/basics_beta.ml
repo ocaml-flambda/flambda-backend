@@ -17,8 +17,8 @@
 type t_bits64 [@@bits64]
 type ('a : bits64) t_bits64_id = 'a;;
 [%%expect{|
-Line 1, characters 12-20:
-1 | type t_word [@@bits64]
-                ^^^^^^^^
+Line 1, characters 14-24:
+1 | type t_bits64 [@@bits64]
+                  ^^^^^^^^^^
 Error: Layout bits64 is used here, but the appropriate layouts extension is not enabled
 |}]
