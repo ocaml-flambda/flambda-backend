@@ -654,7 +654,7 @@ module Expression0 = Make_with_attribute (struct
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
 end)
 
-(** Cases; embedded using an extension node. *)
+(** Cases; embedded as [lhs guard -> [%%extension.EXTNAME] rhs] *)
 module Case0 = Make_with_extension_node (struct
   type ast = case
 
