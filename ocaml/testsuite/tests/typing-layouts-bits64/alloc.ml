@@ -62,7 +62,7 @@ module Collatz_unboxed = struct
       count
     else
       collatz_count'
-        (count + of_int64 1L)
+        (succ count)
         (if n %% of_int64 2L = of_int64 0L then
            n // of_int64 2L
          else
@@ -83,7 +83,7 @@ module Collatz_boxed = struct
       count
     else
       collatz_count'
-        (count + 1L)
+        (succ count)
         (if n %% 2L = 0L then
            n // 2L
          else

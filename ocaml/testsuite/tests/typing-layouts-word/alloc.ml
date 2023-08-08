@@ -62,7 +62,7 @@ module Collatz_unboxed = struct
       count
     else
       collatz_count'
-        (count + of_nativeint 1n)
+        (succ count)
         (if n %% of_nativeint 2n = of_nativeint 0n then
            n // of_nativeint 2n
          else
@@ -83,7 +83,7 @@ module Collatz_boxed = struct
       count
     else
       collatz_count'
-        (count + 1n)
+        (succ count)
         (if n %% 2n = 0n then
            n // 2n
          else
