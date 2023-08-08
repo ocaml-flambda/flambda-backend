@@ -432,8 +432,8 @@ and expression_desc =
   | Pexp_unreachable  (** [.] *)
 
 (** (Jane Street specific; delete when upstreaming.)
-    Consider using [Jane_syntax.Case.of_ast] before matching on this type
-    directly, as the former will detect extension nodes correctly.
+    Use [Jane_syntax.Case.of_ast] before using these fields directly, as the
+    former will detect language extensions correctly.
  *)
 and case =
     {
