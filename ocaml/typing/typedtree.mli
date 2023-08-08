@@ -403,7 +403,7 @@ and 'k case =
 
 and case_rhs =
   | Simple_rhs of expression
-  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : expression }
+  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : case_rhs }
   | Pattern_guarded_rhs of
       { pg_scrutinee : expression
       ; pg_scrutinee_sort : Layouts.sort
@@ -429,7 +429,7 @@ and case_rhs =
      Like the [Texp_match] constructor, [pg_scrutinee_sort] is the sort of the
      scrutinee, and [pg_partial] denotes whether the case matches the scrutinee
      partially or totally.
-     
+
      [pg_loc] contains the source location of the guarded rhs, and [pg_type] is
      the type returned by all cases of the pattern guard. *)
 

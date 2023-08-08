@@ -441,7 +441,7 @@ and case =
 and case_rhs =
   | Psimple_rhs of expression
   (** [-> e] *)
-  | Pboolean_guarded_rhs of { pbg_guard : expression; pbg_rhs : expression }
+  | Pboolean_guarded_rhs of { pbg_guard : expression; pbg_rhs : case_rhs }
   (** [when g -> e] *)
   | Ppattern_guarded_rhs of
       { ppg_scrutinee : expression

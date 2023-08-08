@@ -221,10 +221,10 @@ and 'k case =
   c_lhs: 'k general_pattern;
   c_rhs: case_rhs;
 }
-  
+
 and case_rhs =
   | Simple_rhs of expression
-  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : expression }
+  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : case_rhs }
   | Pattern_guarded_rhs of
       { pg_scrutinee : expression
       ; pg_scrutinee_sort : Layouts.sort

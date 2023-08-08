@@ -23,16 +23,20 @@ open Debuginfo.Scoped_location
 type rhs
 
 (* Creates a guarded rhs.
-   
+
    If a guard fails, a guarded rhs must fallthrough to the remaining cases.
    To facilitate this, guarded rhs's are constructed using a continuation.
 
    [mk_pattern_guarded_rhs ~patch_guarded] produces a guarded rhs with a
    lambda representation given by [patch_guarded ~patch], where [patch] contains
    an expression that falls through to the remaining cases.
-   
+
    [mk_boolean_guarded_rhs ~patch_guarded ~free_variables] produces a similar
    rhs where [free_variables] contains the free variables of the rhs.
+*)
+(* CR-soon rgodse: This function is unused for now. Let's remove it after we
+   implement the free variable optimization for pattern guards, merging the two
+   functions below.
 *)
 val mk_boolean_guarded_rhs:
         patch_guarded:(patch:lambda -> lambda) ->
@@ -42,6 +46,18 @@ val mk_boolean_guarded_rhs:
 val mk_pattern_guarded_rhs:
         patch_guarded:(patch:lambda -> lambda) ->
         rhs
+
+(* [add_guard_to_rhs ~patch_guarded ~guard_free_variables rhs0] produces an rhs
+   with lambda representation [patch_guarded ~patch ~rhs], where [patch]
+   contains an expression that falls through to the remaining cases, and [rhs]
+   is the translation of [rhs0], and [guard_free_variables] are the free
+   variables of the new guard. *)
+val add_guard_to_rhs:
+        patch_guarded:(patch:lambda -> rhs:lambda -> lambda) ->
+        guard_free_variables:Ident.Set.t ->
+        rhs ->
+        rhs
+
 
 (* Creates an unguarded rhs from its lambda representation. *)
 val mk_unguarded_rhs: lambda -> rhs

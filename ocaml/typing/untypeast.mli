@@ -24,6 +24,7 @@ type mapper = {
     mapper ->
     Typedtree.binding_op -> Typedtree.pattern -> binding_op;
   case: 'k . mapper -> 'k Typedtree.case -> case;
+  case_rhs: mapper -> Typedtree.case_rhs -> case_rhs;
   class_declaration: mapper -> Typedtree.class_declaration -> class_declaration;
   class_description: mapper -> Typedtree.class_description -> class_description;
   class_expr: mapper -> Typedtree.class_expr -> class_expr;

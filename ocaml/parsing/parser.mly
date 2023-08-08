@@ -3026,28 +3026,21 @@ local_strict_binding:
     { xs }
 ;
 match_case:
-    pattern MINUSGREATER seq_expr
-      { Exp.case $1 (Case_rhs.simple $3) }
-  | pattern WHEN seq_expr MINUSGREATER seq_expr
-      { Exp.case $1 (Case_rhs.boolean_guarded ~guard:$3 $5) }
-  /* CR-soon rgodse: We should consider whether to also allow seq_expr, as this
-     also parses without conflict.
-
-     nroberts prefers expr, so that e1; e2 match p parses as e1; (e2 match p),
-     if and when `e match p` is introduced as an expression
-  */
-  | pattern WHEN expr MATCH ioption(BAR) match_case
-      { Exp.case $1
-          (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
-             $3 [ $6 ]) }
-  | pattern WHEN expr MATCH LPAREN match_cases RPAREN
-      { Exp.case $1
-          (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
-             $3 $6) }
+    pattern match_rhs
+      { Exp.case $1 $2 }
   | pattern MINUSGREATER DOT
       { Exp.case $1
           (Case_rhs.simple (Exp.unreachable ~loc:(make_loc $loc($3)) ())) }
 ;
+match_rhs:
+  | MINUSGREATER seq_expr
+      { Case_rhs.simple $2 }
+  | WHEN seq_expr match_rhs
+      { Case_rhs.boolean_guarded ~guard:$2 $3 }
+  | WHEN expr MATCH ioption(BAR) match_case
+      { Case_rhs.pattern_guarded ~loc:(make_loc $loc) $2 [ $5 ] }
+  | WHEN expr MATCH LPAREN match_cases RPAREN
+      { Case_rhs.pattern_guarded ~loc:(make_loc $loc) $2 $5 }
 fun_def:
     MINUSGREATER seq_expr
       { $2 }

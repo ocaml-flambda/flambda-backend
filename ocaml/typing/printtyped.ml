@@ -1042,7 +1042,7 @@ and case_rhs i ppf = function
   | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
       line i ppf "<when>\n";
       expression (i + 1) ppf bg_guard;
-      expression i ppf bg_rhs
+      case_rhs i ppf bg_rhs
   | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases } ->
       line i ppf "<when-pattern>\n";
       expression (i + 1) ppf pg_scrutinee;
