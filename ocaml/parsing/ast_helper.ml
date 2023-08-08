@@ -237,10 +237,9 @@ end
 
 module Case_rhs = struct
   let simple e = Psimple_rhs e
-  let boolean_guarded ~guard pbg_rhs =
-    Pboolean_guarded_rhs { pbg_guard = guard; pbg_rhs }
-  let pattern_guarded ~loc ppg_scrutinee ppg_cases =
-    Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc = loc }
+  let boolean_guarded ~guard rhs = Pboolean_guarded_rhs { guard; rhs }
+  let pattern_guarded ~loc scrutinee cases =
+    Ppattern_guarded_rhs { scrutinee; cases; loc }
 end
 
 module Mty = struct

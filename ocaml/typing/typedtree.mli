@@ -403,34 +403,34 @@ and 'k case =
 
 and case_rhs =
   | Simple_rhs of expression
-  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : expression }
+  | Boolean_guarded_rhs of { guard : expression; rhs : expression }
   | Pattern_guarded_rhs of
-      { pg_scrutinee : expression
-      ; pg_scrutinee_sort : Layouts.sort
-      ; pg_cases : computation case list
-      ; pg_partial : partial
-      ; pg_loc : Location.t
-      ; pg_env : Env.t
-      ; pg_type : Types.type_expr
+      { scrutinee : expression
+      ; scrutinee_sort : Layouts.sort
+      ; cases : computation case list
+      ; partial : partial
+      ; loc : Location.t
+      ; env : Env.t
+      ; rhs_type : Types.type_expr
       }
-  (* [Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases;
-                            pg_partial; pg_partial; pg_loc; pg_env; pg_type } ]
+  (* [Pattern_guarded_rhs { scrutinee; scrutinee_sort; cases; partial; loc; env;
+                            rhs_type } ]
      represents a pattern guard case right-hand side.
 
-     [pg_env] contains the bindings available prior to the evaluation of the
+     [env] contains the bindings available prior to the evaluation of the
      pattern guard scrutinee, as in a match expression. These bindings are
      available in all pattern guard cases.
 
-     The cases in [pg_cases] are checked in order: a given case will be taken if
-     [pg_scrutinee] evaluates to a value matching the pattern of that case. Each
-     case's rhs has access to the bindings in [pg_env], together with the
+     The cases in [cases] are checked in order: a given case will be taken if
+     [scrutinee] evaluates to a value matching the pattern of that case. Each
+     case's rhs has access to the bindings in [env], together with the
      bindings in its own pattern.
 
-     Like the [Texp_match] constructor, [pg_scrutinee_sort] is the sort of the
-     scrutinee, and [pg_partial] denotes whether the case matches the scrutinee
+     Like the [Texp_match] constructor, [scrutinee_sort] is the sort of the
+     scrutinee, and [partial] denotes whether the case matches the scrutinee
      partially or totally.
-     
-     [pg_loc] contains the source location of the guarded rhs, and [pg_type] is
+
+     [loc] contains the source location of the guarded rhs, and [rhs_type] is
      the type returned by all cases of the pattern guard. *)
 
 and record_label_definition =

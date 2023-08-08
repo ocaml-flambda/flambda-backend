@@ -796,13 +796,13 @@ let default_iterator =
     case_rhs =
       (fun this -> function
          | Psimple_rhs e -> this.expr this e
-         | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-             this.expr this pbg_guard;
-             this.expr this pbg_rhs
-         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
-             this.expr this ppg_scrutinee;
-             this.cases this ppg_cases;
-             this.location this ppg_loc
+         | Pboolean_guarded_rhs { guard; rhs } ->
+             this.expr this guard;
+             this.expr this rhs
+         | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
+             this.expr this scrutinee;
+             this.cases this cases;
+             this.location this loc
       );
 
     location = (fun _this _l -> ());

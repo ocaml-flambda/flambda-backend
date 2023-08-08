@@ -221,18 +221,18 @@ and 'k case =
   c_lhs: 'k general_pattern;
   c_rhs: case_rhs;
 }
-  
+
 and case_rhs =
   | Simple_rhs of expression
-  | Boolean_guarded_rhs of { bg_guard : expression; bg_rhs : expression }
+  | Boolean_guarded_rhs of { guard : expression; rhs : expression }
   | Pattern_guarded_rhs of
-      { pg_scrutinee : expression
-      ; pg_scrutinee_sort : Layouts.sort
-      ; pg_cases : computation case list
-      ; pg_partial : partial
-      ; pg_loc : Location.t
-      ; pg_env : Env.t
-      ; pg_type : Types.type_expr
+      { scrutinee : expression
+      ; scrutinee_sort : Layouts.sort
+      ; cases : computation case list
+      ; partial : partial
+      ; loc : Location.t
+      ; env : Env.t
+      ; rhs_type : Types.type_expr
       }
 
 and record_label_definition =

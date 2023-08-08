@@ -955,14 +955,14 @@ and case i ppf {pc_lhs; pc_rhs} =
 
 and case_rhs i ppf = function
   | Psimple_rhs e -> expression i ppf e
-  | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
+  | Pboolean_guarded_rhs { guard; rhs } ->
       line i ppf "<when>\n";
-      expression (i + 1) ppf pbg_guard
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ } ->
+      expression (i + 1) ppf guard
+  | Ppattern_guarded_rhs { scrutinee; cases; _ } ->
       line i ppf "<when>\n";
-      expression (i + 1) ppf ppg_scrutinee;
+      expression (i + 1) ppf scrutinee;
       line (i + 1) ppf "<match>\n";
-      list (i + 1) case ppf ppg_cases
+      list (i + 1) case ppf cases
 
 and value_binding i ppf x =
   line i ppf "<def>\n";

@@ -415,16 +415,16 @@ let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
   {
    pc_lhs = sub.pat sub c_lhs;
    pc_rhs =
-     match c_rhs with 
+     match c_rhs with
      | Simple_rhs rhs -> Psimple_rhs (sub.expr sub rhs)
-     | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+     | Boolean_guarded_rhs { guard; rhs } ->
          Pboolean_guarded_rhs
-           { pbg_guard = sub.expr sub bg_guard; pbg_rhs = sub.expr sub bg_rhs }
-     | Pattern_guarded_rhs { pg_scrutinee; pg_cases; pg_loc; _ } ->
+           { guard = sub.expr sub guard; rhs = sub.expr sub rhs }
+     | Pattern_guarded_rhs { scrutinee; cases; loc; _ } ->
          Ppattern_guarded_rhs
-           { ppg_scrutinee = sub.expr sub pg_scrutinee
-           ; ppg_cases = List.map (sub.case sub) pg_cases
-           ; ppg_loc = sub.location sub pg_loc
+           { scrutinee = sub.expr sub scrutinee
+           ; cases = List.map (sub.case sub) cases
+           ; loc = sub.location sub loc
            }
   }
 
@@ -599,7 +599,7 @@ let expression sub exp =
         let let_ = sub.binding_op sub let_ pat in
         let ands = List.map2 (sub.binding_op sub) ands and_pats in
         let body =
-          match body.c_rhs with 
+          match body.c_rhs with
           | Simple_rhs rhs -> sub.expr sub rhs
           | _ -> Misc.fatal_error "Untypeast.expression: guarded letop body"
         in

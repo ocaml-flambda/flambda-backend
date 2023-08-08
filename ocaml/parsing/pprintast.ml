@@ -1815,19 +1815,19 @@ and case_list ctxt f l : unit = list (case ctxt) f l ~sep:"@;" ~first:"@;"
 
 and case_rhs ctxt f = function
   | Psimple_rhs e -> pp f "->@;%a" (expression (under_pipe ctxt)) e
-  | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-      pp f "when@;%a@;->@;%a" (expression ctxt) pbg_guard
-        (expression (under_pipe ctxt)) pbg_rhs
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ } ->
+  | Pboolean_guarded_rhs { guard; rhs } ->
+      pp f "when@;%a@;->@;%a" (expression ctxt) guard
+        (expression (under_pipe ctxt)) rhs
+  | Ppattern_guarded_rhs { scrutinee; cases; _ } ->
       let singleton_case =
-        match ppg_cases with
+        match cases with
         | [ _ ] -> true
         | _ -> false
       in
       let case_list = list (case ctxt) ~sep:"@;" ~first:"@," ~last:"@," in
       pp f "@[<hv0>@[<hv0>@[<2>when %a@]@ match@] %a@]"
-        (expression reset_ctxt) ppg_scrutinee
-        (paren (not singleton_case) case_list) ppg_cases
+        (expression reset_ctxt) scrutinee
+        (paren (not singleton_case) case_list) cases
 
 and label_x_expression_param ctxt f (l,e) =
   let simple_name = match e with

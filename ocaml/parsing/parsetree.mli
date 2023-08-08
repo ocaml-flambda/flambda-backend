@@ -441,12 +441,12 @@ and case =
 and case_rhs =
   | Psimple_rhs of expression
   (** [-> e] *)
-  | Pboolean_guarded_rhs of { pbg_guard : expression; pbg_rhs : expression }
+  | Pboolean_guarded_rhs of { guard : expression; rhs : expression }
   (** [when g -> e] *)
   | Ppattern_guarded_rhs of
-      { ppg_scrutinee : expression
-      ; ppg_cases : case list
-      ; ppg_loc : Location.t
+      { scrutinee : expression
+      ; cases : case list
+      ; loc : Location.t
       }
   (** [when e match (cases) ] *)
 

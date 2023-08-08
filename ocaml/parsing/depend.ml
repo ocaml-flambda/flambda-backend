@@ -349,12 +349,12 @@ and add_case bv {pc_lhs; pc_rhs} =
 
 and add_case_rhs bv = function
   | Psimple_rhs e -> add_expr bv e
-  | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-      add_expr bv pbg_guard;
-      add_expr bv pbg_rhs
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases } ->
-      add_expr bv ppg_scrutinee;
-      add_cases bv ppg_cases
+  | Pboolean_guarded_rhs { guard; rhs } ->
+      add_expr bv guard;
+      add_expr bv rhs
+  | Ppattern_guarded_rhs { scrutinee; cases } ->
+      add_expr bv scrutinee;
+      add_cases bv cases
 
 and add_bindings recf bv pel =
   let bv' = List.fold_left (fun bv x -> add_pattern bv x.pvb_pat) bv pel in

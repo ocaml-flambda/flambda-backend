@@ -508,14 +508,14 @@ let case sub {c_lhs; c_rhs} =
 
 let case_rhs sub = function
   | Simple_rhs e -> sub.expr sub e
-  | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
-      sub.expr sub bg_guard;
-      sub.expr sub bg_rhs
-  | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort=_; pg_cases;
-                          pg_partial=_; pg_loc=_; pg_env } ->
-      sub.env sub pg_env;
-      sub.expr sub pg_scrutinee;
-      List.iter (sub.case sub) pg_cases
+  | Boolean_guarded_rhs { guard; rhs } ->
+      sub.expr sub guard;
+      sub.expr sub rhs
+  | Pattern_guarded_rhs { scrutinee; scrutinee_sort=_; cases;
+                          partial=_; loc=_; env } ->
+      sub.env sub env;
+      sub.expr sub scrutinee;
+      List.iter (sub.case sub) cases
 
 let value_binding sub {vb_pat; vb_expr; _} =
   sub.pat sub vb_pat;

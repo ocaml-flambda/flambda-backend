@@ -47,9 +47,9 @@ let bind_cases l =
       let loc =
         match c_rhs with
         | Simple_rhs rhs -> rhs.exp_loc
-        | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
-            { bg_rhs.exp_loc with loc_start = bg_guard.exp_loc.loc_start }
-        | Pattern_guarded_rhs { pg_loc; _ } -> pg_loc
+        | Boolean_guarded_rhs { guard; rhs } ->
+            { rhs.exp_loc with loc_start = guard.exp_loc.loc_start }
+        | Pattern_guarded_rhs { loc; _ } -> loc
       in
       bind_variables loc c_lhs
     )
