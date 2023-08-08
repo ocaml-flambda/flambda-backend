@@ -97,10 +97,6 @@ type can_load_cmis =
   | Can_load_cmis
   | Cannot_load_cmis of Lazy_backtrack.log
 
-type binding =
-  | Local of Ident.t (* Bound to a runtime parameter *)
-  | Static of Compilation_unit.t (* Bound to a static constant *)
-
 type global_name_info = {
   gn_global : Global.t;
   gn_mentioned_by : Global.Name.t; (* For error reporting *)
@@ -138,6 +134,10 @@ type pers_name = {
        don't have parameters *)
   pn_sign : Subst.Lazy.signature;
 }
+
+type binding =
+  | Local of Ident.t (* Bound to a runtime parameter *)
+  | Static of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
@@ -217,7 +217,7 @@ let find_import_info_in_cache {imports; _} import =
   match Hashtbl.find imports import with
   | exception Not_found -> None
   | Missing -> None
-  | Found a -> Some a
+  | Found imp -> Some imp
 
 let find_name_info_in_cache {persistent_names; _} name =
   match Hashtbl.find persistent_names name with
@@ -309,66 +309,17 @@ let fold {persistent_structures; _} f x =
 
 (* Reading persistent structures from .cmi files *)
 
-let remember_crc penv impl crc import filename =
+let save_import penv crc modname impl flags filename =
   let {crc_units; _} = penv in
-  Consistbl.set crc_units import impl crc filename;
-  add_import penv import
-
-let remember_global { globals; _ } global ~mentioned_by =
-  if Global.has_arguments global then
-    let global_name = Global.to_name global in
-    match Hashtbl.find globals global_name with
-    | exception Not_found ->
-        Hashtbl.add globals global_name
-          { gn_global = global; gn_mentioned_by = mentioned_by }
-    | { gn_global = old_global; gn_mentioned_by = first_mentioned_by } ->
-        if not (Global.equal old_global global) then
-          error (Inconsistent_global_name_resolution {
-              name = global_name;
-              old_global;
-              new_global = global;
-              first_mentioned_by;
-              now_mentioned_by = mentioned_by;
-            })
-
-let current_unit_is0 name ~allow_args =
-  match CU.get_current () with
-  | None -> false
-  | Some current ->
-      match CU.to_global_name current with
-      | Some { head; args } ->
-          (args = [] || allow_args)
-          && CU.Name.equal name (head |> CU.Name.of_string)
-      | None -> false
-
-let current_unit_is name =
-  current_unit_is0 name ~allow_args:false
-
-let current_unit_is_instance_of name =
-  current_unit_is0 name ~allow_args:true
-
-(* Enforce the subset rule: we can only refer to a module if that module's
-   parameters are also our parameters. *)
-let check_for_unset_parameters penv global =
-  (* A hidden argument specifies that the importing module should forward a
-     parameter to the imported module. Therefore it's the hidden arguments that
-     we need to check. *)
   List.iter
-    (fun (arg_name, arg_value) ->
-       (* The _value_ is what we care about - the name lives in the imported
-          module's namespace, not ours *)
-       ignore arg_name;
-       let value_name = Global.to_name arg_value in
-       if not (is_exported_parameter penv value_name) then
-         error (Imported_module_has_unset_parameter {
-             imported = Global.to_name global;
-             parameter = value_name;
-           }))
-    global.Global.hidden_args;
-  (* The visible arguments in [global] must also satisfy the subset rule.
-     However, these will already have been checked since [compute_global] loads
-     all argument names and values. *)
-  ()
+    (function
+        | Rectypes -> ()
+        | Alerts _ -> ()
+        | Unsafe_string -> ()
+        | Opaque -> register_import_as_opaque penv modname)
+    flags;
+  Consistbl.set crc_units modname impl crc filename;
+  add_import penv modname
 
 let acknowledge_import penv ~check modname pers_sig =
   let { Persistent_signature.filename; cmi } = pers_sig in
@@ -435,6 +386,12 @@ let acknowledge_import penv ~check modname pers_sig =
   Hashtbl.add imports modname (Found import);
   import
 
+let read_import penv ~check modname filename =
+  add_import penv modname;
+  let cmi = read_cmi_lazy filename in
+  let pers_sig = { Persistent_signature.filename; cmi } in
+  acknowledge_import penv ~check modname pers_sig
+
 let find_import penv ~check modname =
   let {imports; _} = penv in
   if CU.Name.equal modname CU.Name.predef_exn then raise Not_found;
@@ -455,11 +412,61 @@ let find_import penv ~check modname =
         add_import penv modname;
         acknowledge_import penv ~check modname psig
 
-let read_import penv ~check modname filename =
-  add_import penv modname;
-  let cmi = read_cmi_lazy filename in
-  let pers_sig = { Persistent_signature.filename; cmi } in
-  acknowledge_import penv ~check modname pers_sig
+let remember_global { globals; _ } global ~mentioned_by =
+  if Global.has_arguments global then
+    let global_name = Global.to_name global in
+    match Hashtbl.find globals global_name with
+    | exception Not_found ->
+        Hashtbl.add globals global_name
+          { gn_global = global; gn_mentioned_by = mentioned_by }
+    | { gn_global = old_global; gn_mentioned_by = first_mentioned_by } ->
+        if not (Global.equal old_global global) then
+          error (Inconsistent_global_name_resolution {
+              name = global_name;
+              old_global;
+              new_global = global;
+              first_mentioned_by;
+              now_mentioned_by = mentioned_by;
+            })
+
+let current_unit_is0 name ~allow_args =
+  match CU.get_current () with
+  | None -> false
+  | Some current ->
+      match CU.to_global_name current with
+      | Some { head; args } ->
+          (args = [] || allow_args)
+          && CU.Name.equal name (head |> CU.Name.of_string)
+      | None -> false
+
+let current_unit_is name =
+  current_unit_is0 name ~allow_args:false
+
+let current_unit_is_instance_of name =
+  current_unit_is0 name ~allow_args:true
+
+(* Enforce the subset rule: we can only refer to a module if that module's
+   parameters are also our parameters. *)
+let check_for_unset_parameters penv global =
+  (* A hidden argument specifies that the importing module should forward a
+     parameter to the imported module. Therefore it's the hidden arguments that
+     we need to check. *)
+  List.iter
+    (fun (arg_name, arg_value) ->
+       (* The _value_ is what we care about - the name lives in the imported
+          module's namespace, not ours *)
+       ignore arg_name;
+       let value_name = Global.to_name arg_value in
+       if not (is_exported_parameter penv value_name) then
+         error (Imported_module_has_unset_parameter {
+             imported = Global.to_name global;
+             parameter = value_name;
+           }))
+    global.Global.hidden_args;
+  (* The visible arguments in [global] must also satisfy the subset rule.
+     However, these will already have been checked since [compute_global] loads
+     all argument names and values. *)
+  ()
 
 let rec global_of_global_name penv ~check ~param name =
   match Hashtbl.find penv.globals name with
@@ -936,6 +943,7 @@ let save_cmi penv psig =
       let {
         cmi_name = modname;
         cmi_kind = kind;
+        cmi_flags = flags;
       } = cmi in
       let crc =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
@@ -948,7 +956,7 @@ let save_cmi penv psig =
         | Normal { cmi_impl } -> Known cmi_impl
         | Parameter -> Unknown_argument
       in
-      remember_crc penv impl crc modname filename
+      save_import penv crc modname impl flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 
