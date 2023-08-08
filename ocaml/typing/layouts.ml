@@ -51,7 +51,7 @@ module Sort = struct
   let float64 = Const Float64
   let word = Const Word
   let bits32 = Const Bits32
-  let bits64 = Const Bits32
+  let bits64 = Const Bits64
 
   let some_value = Some value
 
