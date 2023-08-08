@@ -810,6 +810,27 @@ type partiality_constraint =
   | Check_and_warn_if_partial
   | Check_and_warn_if_total
 
+(* Parsed case rhs's, encoded using Jane_syntax instead of in Parsetree proper.
+   Prefixed by "P" to distinguish from [Typedtree.case_rhs] *)
+type parsed_case_rhs =
+  | Psimple_rhs of Parsetree.expression
+  | Pboolean_guarded_rhs of
+      { guard : Parsetree.expression; rhs: Parsetree.expression }
+  | Ppattern_guarded_rhs of
+      { scrutinee : Parsetree.expression
+      ; cases: Parsetree.case list
+      ; loc: Location.t }
+
+let pc_rhs_of_case case =
+  match Jane_syntax.Case.of_ast case with
+  | Some (Jcase_pattern_guarded (Pg_case { scrutinee; cases })) ->
+      let loc = case.pc_rhs.pexp_loc in
+      Ppattern_guarded_rhs { scrutinee; cases; loc }
+  | None ->
+      match case.pc_guard with
+      | None -> Psimple_rhs case.pc_rhs
+      | Some guard -> Pboolean_guarded_rhs { guard; rhs = case.pc_rhs }
+
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
    allowed, the caller should take care to check that the introduced module
@@ -3519,7 +3540,7 @@ let check_recursive_class_bindings env ids exprs =
 
 
 (* Is the return value annotated with "local_" *)
-let is_local_returning_expr, is_local_returning_case =
+let is_local_returning_expr, is_local_returning_case_rhs =
   let combine (local1, loc1) (local2, loc2) =
     match local1, local2 with
     | true, true -> true, loc1
@@ -3569,18 +3590,14 @@ let is_local_returning_expr, is_local_returning_case =
         List.fold_left
           (fun acc pc -> combine acc (loop_case pc))
           (loop e) cases
-  and loop_case case =
-    match Jane_syntax.Case.of_ast case with
-    | Some jcase -> begin
-        match jcase with
-        | Jcase_pattern_guarded (Pg_case { scrutinee; cases }) ->
-            let loc = case.pc_rhs.pexp_loc in
-            loop_desc loc (Pexp_match (scrutinee, cases))
-      end
-    | None ->
-    loop case.pc_rhs
+  and loop_case case = loop_case_rhs (pc_rhs_of_case case)
+  and loop_case_rhs = function
+    | Psimple_rhs e -> loop e
+    | Pboolean_guarded_rhs { rhs; _ } -> loop rhs
+    | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
+        loop_desc loc (Pexp_match (scrutinee, cases))
   in
-  (fun e -> fst (loop e)), (fun rhs -> fst (loop_case rhs))
+  (fun e -> fst (loop e)), (fun rhs -> fst (loop_case_rhs rhs))
 
 let rec is_an_uncurried_function e =
   if Builtin_attributes.has_curry e.pexp_attributes then false
@@ -3604,7 +3621,9 @@ let is_local_returning_function cases =
     | [{pc_lhs = _; pc_guard = None; pc_rhs = e} as case]
       when Jane_syntax.Case.of_ast case = None ->
         loop_body e
-    | cases -> List.for_all is_local_returning_case cases
+    | cases ->
+        List.for_all
+          (fun case -> is_local_returning_case_rhs (pc_rhs_of_case case)) cases
   and loop_body e =
     if Builtin_attributes.has_curry e.pexp_attributes then
       is_local_returning_expr e
@@ -3784,20 +3803,19 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array _
   | Jexp_unboxed_constant _ -> ()
 
-and type_approx_aux_case env case in_function ty_expected =
-  match Jane_syntax.Case.of_ast case with
-  | Some jcase ->
-      (match jcase with
-       | Jcase_pattern_guarded pg ->
-           (match pg with
-            | Pg_case { cases; _ } ->
-                type_approx_aux_cases env cases in_function ty_expected))
-  | None -> type_approx_aux env case.pc_rhs in_function ty_expected
+and type_approx_aux_case_rhs env rhs in_function ty_expected =
+  match rhs with
+  | Psimple_rhs e | Pboolean_guarded_rhs { rhs = e; _ } ->
+      type_approx_aux env e in_function ty_expected
+  | Ppattern_guarded_rhs { cases; _ } ->
+      type_approx_aux_cases env cases in_function ty_expected
 
 and type_approx_aux_cases env cases in_function ty_expected =
   match cases with
   | [] -> ()
-  | case :: _ -> type_approx_aux_case env case in_function ty_expected
+  | case :: _ ->
+    let rhs = pc_rhs_of_case case in
+    type_approx_aux_case_rhs env rhs in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -6995,52 +7013,46 @@ and type_cases
           else if contains_gadt then
             (* allow propagation from preceding branches *)
             correct_levels ty_res
-          else ty_res
+          else ty_res in
+        let type_rhs rhs =
+          let rhs =
+            type_expect ?in_function ext_env emode rhs
+              (mk_expected ?explanation ty_res')
+          in
+          { rhs with exp_type = instance ty_res' }
         in
+        let pc_rhs = pc_rhs_of_case untyped_case in
         let c_rhs =
-          match Jane_syntax.Case.of_ast untyped_case with
-          | Some jcase ->
-              (match jcase with
-               | Jcase_pattern_guarded (Pg_case { scrutinee; cases }) ->
-                   let loc = untyped_case.pc_rhs.pexp_loc in
-                   let { arg; sort; cases; partial; } =
-                     type_match
-                       (* Pattern guards containing no value cases will have an
-                          "Any" [_] case inserted during translation to handle
-                          the case where no cases match, so we can successfully
-                          typecheck such guards. Accordingly,
-                          [require_value_case] is set to [false] below. *)
-                       ~require_value_case:false scrutinee cases ext_env loc
-                       Check_and_warn_if_total
-                       (mk_expected ?explanation ty_res') emode
-                   in
-                   Pattern_guarded_rhs
-                     { scrutinee = arg
-                     ; scrutinee_sort = sort
-                     ; cases
-                     ; partial
-                     ; loc
-                     ; env = ext_env
-                     ; rhs_type = instance ty_res'
-                     })
-          | None ->
-          let typed_guard =
-            match untyped_case.pc_guard with
-            | None -> None
-            | Some guard ->
-                Some
-                  (type_expect ext_env mode_local guard
-                     (mk_expected ~explanation:When_guard Predef.type_bool))
-          in
-          let typed_rhs =
-            { (type_expect ?in_function ext_env emode untyped_case.pc_rhs
-                 (mk_expected ?explanation ty_res'))
-              with exp_type = instance ty_res' }
-          in
-          match typed_guard with
-          | None -> Simple_rhs typed_rhs
-          | Some typed_guard ->
-              Boolean_guarded_rhs { guard = typed_guard; rhs = typed_rhs }
+          match pc_rhs with
+          | Psimple_rhs rhs -> Simple_rhs (type_rhs rhs)
+          | Pboolean_guarded_rhs { guard; rhs } ->
+              let guard =
+                type_expect ext_env mode_local guard
+                  (mk_expected ~explanation:When_guard Predef.type_bool)
+              in
+              let rhs = type_rhs rhs in
+              Boolean_guarded_rhs { guard; rhs }
+          | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
+              let { arg; sort; cases; partial; } =
+                type_match
+                  (* Pattern guards containing no value cases will have an
+                     "Any" [_] case inserted during translation to handle the
+                     case where no cases match, so we can successfully typecheck
+                     such guards. Accordingly, [require_value_case] is set to
+                     [false] below. *)
+                  ~require_value_case:false scrutinee cases ext_env loc
+                  Check_and_warn_if_total (mk_expected ?explanation ty_res')
+                  emode
+              in
+              Pattern_guarded_rhs
+                { scrutinee = arg
+                ; scrutinee_sort = sort
+                ; cases
+                ; partial
+                ; loc
+                ; env = ext_env
+                ; rhs_type = instance ty_res'
+                }
         in
         { c_lhs = pat
         ; c_rhs
