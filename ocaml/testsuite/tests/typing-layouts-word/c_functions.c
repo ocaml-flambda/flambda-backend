@@ -36,6 +36,7 @@ CAMLprim double sum_7_UBUBUBUtoU(intnat u1, value b2, intnat u3, value b4,
 CAMLprim value sum_7_bytecode(value* argv, int argn) {
   CAMLparam0();
   CAMLassert(argn == 7);
+  if (argn != 7) CAMLreturn(caml_copy_nativeint(-1));
   intnat u1 = Nativeint_val(argv[0]);
   intnat u2 = Nativeint_val(argv[1]);
   intnat u3 = Nativeint_val(argv[2]);
