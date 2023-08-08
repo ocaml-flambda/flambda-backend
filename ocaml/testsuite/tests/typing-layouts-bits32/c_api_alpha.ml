@@ -26,23 +26,23 @@ external lognot_UtoBU : int32# -> (int32[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
 
 let () =
-  let i = lognot_UtoU (of_int32 42n) in
+  let i = lognot_UtoU (of_int32 42l) in
   print_int32u "int32# -> int32#, ~42" i
 
 let () =
-  let i = lognot_BtoU (-100n) in
+  let i = lognot_BtoU (-100l) in
   print_int32u "int32 -> int32#, ~(-100)" i
 
 let () =
-  let f = lognot_UtoB (of_int32 255n) in
+  let f = lognot_UtoB (of_int32 255l) in
   print_int32 "int32# -> int32, ~255" f
 
 let () =
-  let f = lognot_BUtoU 1024n in
+  let f = lognot_BUtoU 1024l in
   print_int32u "(int32[@unboxed]) -> int32#, ~1024" f
 
 let () =
-  let f = lognot_UtoBU (of_int32 (-1726n)) in
+  let f = lognot_UtoBU (of_int32 (-1726l)) in
   print_int32 "int32# -> (int32[@unboxed]), ~(-1726)" f
 
 (* If there are more than 5 args, you get an array in bytecode *)
@@ -54,8 +54,8 @@ external sum_7 :
 let _ =
   let f =
     sum_7
-      (of_int32 1n) 2n (of_int32 3n) 4n
-      (of_int32 5n) 6n (of_int32 7n)
+      (of_int32 1l) 2l (of_int32 3l) 4l
+      (of_int32 5l) 6l (of_int32 7l)
   in
   print_int32u "Function of 7 args, 1+2+3+4+5+6+7" f
 

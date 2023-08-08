@@ -16,5 +16,5 @@
 
 (* No [int32#]s allowed *)
 let () =
-  let _not_allowed = Stdlib__Int32_u.of_int32 42n in
+  let _not_allowed = Stdlib__Int32_u.of_int32 42l in
   ()

@@ -58,42 +58,42 @@ module Collatz_unboxed = struct
   open Int32_u
 
   let[@inline never] rec collatz_count' count n =
-    if n = of_int32 1n then
+    if n = of_int32 1l then
       count
     else
       collatz_count'
-        (count + of_int32 1n)
-        (if n %% of_int32 2n = of_int32 0n then
-           n // of_int32 2n
+        (count + of_int32 1l)
+        (if n %% of_int32 2l = of_int32 0l then
+           n // of_int32 2l
          else
-           of_int32 3n * n + of_int32 1n)
+           of_int32 3l * n + of_int32 1l)
 
-  let collatz_count n = collatz_count' (of_int32 0n) n
+  let collatz_count n = collatz_count' (of_int32 0l) n
 
   let go () =
     measure_alloc "Unboxed: Collatz took %nd steps to reach 1"
-      (fun () -> collatz_count (of_int32 27n))
+      (fun () -> collatz_count (of_int32 27l))
 end
 
 module Collatz_boxed = struct
   open Int32
 
   let[@inline never] rec collatz_count' count n =
-    if n = 1n then
+    if n = 1l then
       count
     else
       collatz_count'
-        (count + 1n)
-        (if n %% 2n = 0n then
-           n // 2n
+        (count + 1l)
+        (if n %% 2l = 0l then
+           n // 2l
          else
-           3n*n + 1n)
+           3l*n + 1l)
 
-  let collatz_count n = Int32_u.of_int32 (collatz_count' 0n n)
+  let collatz_count n = Int32_u.of_int32 (collatz_count' 0l n)
 
   let go () =
     measure_alloc "Boxed: Collatz took %nd steps to reach 1"
-      (fun () -> collatz_count 27n)
+      (fun () -> collatz_count 27l)
 end
 
 let () = Collatz_unboxed.go ()
