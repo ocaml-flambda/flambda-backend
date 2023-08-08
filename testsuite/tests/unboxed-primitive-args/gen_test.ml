@@ -183,32 +183,49 @@ let iter_protos ~f =
   List.iter manual_protos ~f;
   iter_arities 1
 
-let pr fmt = Printf.ksprintf (fun s -> print_string s; print_char '\n') fmt
-
 let generate_ml () =
-  pr "open Common";
-  pr "";
+  let close, print_test =
+    let n = 2048 in
+    let i = ref 0 in
+    let file = ref None in
+    let close () =
+      match !file with
+      | Some file ->
+        Printf.fprintf file "\nlet () = run_tests (List.rev tests)\n%!";
+        Out_channel.close file
+      | None -> ()
+    in
+    let new_file () =
+      close ();
+      let next = open_out (Printf.sprintf "test%d.ml" (!i / n)) in
+      file := Some next;
+      Printf.fprintf next "open Common\n";
+      Printf.fprintf next "let tests = []\n\n";
+    in
+    close, fun ext test ->
+      if !i mod n = 0 then new_file ();
+      Printf.fprintf (Option.get !file) "%s\n%s\n" ext test;
+      incr i
+  in
   iter_protos ~f:(fun proto ->
     let name = function_name_of_proto proto in
-    pr "external %s : %s = \"\" %S [@@noalloc]"
-      name (ocaml_type_of_proto proto) name;
-  );
-  pr "";
-  pr "let tests = []";
-  iter_protos ~f:(fun proto ->
+    let ext = Format.sprintf "external %s : %s = \"\" %S [@@@@noalloc]"
+              name (ocaml_type_of_proto proto) name in
     let name = function_name_of_proto proto in
     let arity = List.length proto.params in
-    if arity <= 6 then
-      pr "let tests = T%d (%S, %s, %s, %s) :: tests"
-        arity name name
-        (List.map proto.params ~f:ocaml_type_gadt_of_repr
-         |> String.concat ~sep:", ")
-        (ocaml_type_gadt_of_repr proto.return)
+    let test = if arity <= 6 then
+      Format.sprintf "let tests = T%d (%S, %s, %s, %s) :: tests"
+      arity name name
+      (List.map proto.params ~f:ocaml_type_gadt_of_repr
+      |> String.concat ~sep:", ")
+      (ocaml_type_gadt_of_repr proto.return)
     else
-      pr "let tests = T (%S, %s, %s) :: tests"
-        name name (ocaml_type_gadt_of_proto proto));
-  pr "";
-  pr "let () = run_tests (List.rev tests)"
+      Format.sprintf "let tests = T (%S, %s, %s) :: tests"
+      name name (ocaml_type_gadt_of_proto proto) in
+    print_test ext test);
+  close ()
+
+let pr fmt = Printf.ksprintf (fun s -> print_string s; print_char '\n') fmt
 
 let generate_stubs () =
   pr "#include <stdio.h>";
