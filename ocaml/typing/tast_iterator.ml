@@ -510,7 +510,7 @@ let case_rhs sub = function
   | Simple_rhs e -> sub.expr sub e
   | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
       sub.expr sub bg_guard;
-      sub.expr sub bg_rhs
+      sub.case_rhs sub bg_rhs
   | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort=_; pg_cases;
                           pg_partial=_; pg_loc=_; pg_env } ->
       sub.env sub pg_env;

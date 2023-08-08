@@ -300,11 +300,10 @@ module Analyser =
          (* For optional parameters with a default value, a special treatment is required *)
          (* we look if the name of the parameter we just add is "*opt*", which means
             that there is a let param_name = ... in ... just right now *)
-          let (p, next_exp) =
-            match func_body with
+          let rec pat_next_exp_of_rhs = function
             | Pattern_guarded_rhs _ -> parameter, None
-            | Simple_rhs func_body
-            | Boolean_guarded_rhs { bg_rhs = func_body; _ } ->
+            | Boolean_guarded_rhs { bg_rhs; _ } -> pat_next_exp_of_rhs bg_rhs
+            | Simple_rhs func_body ->
                 match parameter with
                   Simple_name { sn_name = "*opt*" } ->
                     (
@@ -327,6 +326,7 @@ module Analyser =
                 | _ ->
                     parameter, Some func_body
           in
+          let p, next_exp = pat_next_exp_of_rhs func_body in
          (* continue if the body is still a function *)
           match next_exp with
           | Some { exp_desc = Texp_function { cases = pat_exp_list ; _ } } ->
@@ -429,7 +429,7 @@ module Analyser =
     *)
     let rec tt_analyse_method_expression env current_method_name comment_opt ?(first=true) exp =
       match exp.Typedtree.exp_desc with
-        Typedtree.Texp_function { cases = pat_exp_list; _ } ->
+        Typedtree.Texp_function ({ cases = pat_exp_list; _ } as function_desc) ->
           (
            match pat_exp_list with
              [] ->
@@ -450,7 +450,15 @@ module Analyser =
                    in
                    [ new_param ]
                | {c_rhs=Pattern_guarded_rhs _} :: [] -> []
-               | {c_lhs=pattern_param; c_rhs=Simple_rhs body | Boolean_guarded_rhs {bg_rhs = body}} :: [] ->
+               | {c_lhs; c_rhs=Boolean_guarded_rhs { bg_rhs; _ }} :: [] ->
+                    let exp_desc =
+                      Typedtree.Texp_function
+                        { function_desc with
+                          cases = [ { c_lhs; c_rhs=bg_rhs } ]}
+                    in
+                    tt_analyse_method_expression env current_method_name
+                      comment_opt ~first { exp with exp_desc }
+               | {c_lhs=pattern_param; c_rhs=Simple_rhs body} :: [] ->
                    (* if this is the first call to the function, this is the first parameter and we skip it *)
                    if not first then
                      (

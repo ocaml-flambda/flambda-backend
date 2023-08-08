@@ -798,7 +798,7 @@ let default_iterator =
          | Psimple_rhs e -> this.expr this e
          | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
              this.expr this pbg_guard;
-             this.expr this pbg_rhs
+             this.case_rhs this pbg_rhs
          | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
              this.expr this ppg_scrutinee;
              this.cases this ppg_cases;

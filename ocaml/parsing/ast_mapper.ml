@@ -914,7 +914,7 @@ let default_mapper =
          | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
              Pboolean_guarded_rhs
                { pbg_guard = this.expr this pbg_guard
-               ; pbg_rhs = this.expr this pbg_rhs
+               ; pbg_rhs = this.case_rhs this pbg_rhs
                }
          | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
              Ppattern_guarded_rhs

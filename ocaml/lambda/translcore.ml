@@ -58,9 +58,9 @@ let sort_must_not_be_void loc ty sort =
 
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 
-let layout_rhs sort = function
-  | Simple_rhs rhs | Boolean_guarded_rhs { bg_rhs = rhs; _ } ->
-      layout_exp sort rhs
+let rec layout_rhs sort = function
+  | Simple_rhs rhs -> layout_exp sort rhs
+  | Boolean_guarded_rhs { bg_rhs; _ }  -> layout_rhs sort bg_rhs
   | Pattern_guarded_rhs { pg_env; pg_loc; pg_type; _ } ->
       layout pg_env pg_loc sort pg_type
 
@@ -256,12 +256,15 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
       [{case with c_rhs = Simple_rhs (wrap_bindings bindings exp)}]
   | {c_lhs=pat; c_rhs=rhs } :: _
     when bindings <> [] ->
-      let exp_loc, exp_extra, exp_type, exp_env, exp_attributes =
-        match rhs with
-        | Simple_rhs e | Boolean_guarded_rhs { bg_rhs = e; _ } ->
+      let rec rhs_data = function
+        | Simple_rhs e ->
             e.exp_loc, e.exp_extra, e.exp_type, e.exp_env, e.exp_attributes
+        | Boolean_guarded_rhs { bg_rhs; _ } -> rhs_data bg_rhs
         | Pattern_guarded_rhs { pg_loc; pg_env; pg_type; _ } ->
             pg_loc, [], pg_type, pg_env, []
+      in
+      let exp_loc, exp_extra, exp_type, exp_env, exp_attributes =
+        rhs_data rhs
       in
       let mode = Value_mode.of_alloc arg_mode in
       let param = Typecore.name_cases "param" cases in
@@ -320,10 +323,10 @@ let event_function ~scopes loc env lam =
 let event_function_expr ~scopes exp lam =
   event_function ~scopes exp.exp_loc exp.exp_env lam
 
-let event_function_rhs ~scopes rhs lam =
+let rec event_function_rhs ~scopes rhs lam =
   match rhs with
-  | Simple_rhs rhs_exp | Boolean_guarded_rhs { bg_rhs = rhs_exp; _ } ->
-      event_function_expr ~scopes rhs_exp lam
+  | Simple_rhs rhs_exp -> event_function_expr ~scopes rhs_exp lam
+  | Boolean_guarded_rhs { bg_rhs; _ }  -> event_function_rhs ~scopes bg_rhs lam
   | Pattern_guarded_rhs { pg_loc; pg_env; _ } ->
       event_function ~scopes pg_loc pg_env lam
 
@@ -1056,16 +1059,12 @@ and transl_rhs ~scopes rhs_sort rhs =
         (event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs))
   | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
       let guard = transl_exp ~scopes Sort.for_predef_value bg_guard in
-      let body =
-        event_before ~scopes bg_rhs (transl_exp ~scopes rhs_sort bg_rhs)
+      let body = transl_rhs ~scopes rhs_sort bg_rhs in
+      let patch_guarded ~patch ~rhs =
+        event_before ~scopes bg_guard (Lifthenelse (guard, rhs, patch, layout))
       in
-      let patch_guarded ~patch =
-        event_before ~scopes bg_guard (Lifthenelse (guard, body, patch, layout))
-      in
-      let free_variables =
-        Ident.Set.union (free_variables guard) (free_variables body)
-      in
-      Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
+      let guard_free_variables = free_variables guard in
+      Matching.add_guard_to_rhs ~patch_guarded ~guard_free_variables body
   | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases; pg_partial;
                           pg_loc; pg_env; pg_type } ->
       match pg_partial with
@@ -1087,8 +1086,8 @@ and transl_rhs ~scopes rhs_sort rhs =
             let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
             event_before ~scopes pg_scrutinee
               (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                  ~return_sort:rhs_sort ~return_type:pg_type ~loc:pg_loc
-                  ~env:pg_env ~extra_cases pg_scrutinee pg_cases pg_partial)
+                 ~return_sort:rhs_sort ~return_type:pg_type ~loc:pg_loc
+                 ~env:pg_env ~extra_cases pg_scrutinee pg_cases pg_partial)
           in
           Matching.mk_pattern_guarded_rhs ~patch_guarded
       | Total ->
@@ -1802,11 +1801,12 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
     in
     let return_layout = layout_rhs case_sort case.c_rhs in
     let curry = More_args { partial_mode = Alloc_mode.global } in
-    let rhs_loc =
-      match case.c_rhs with
-      | Simple_rhs e | Boolean_guarded_rhs { bg_rhs = e; _ } -> e.exp_loc
+    let rec rhs_loc = function
+      | Simple_rhs e -> e.exp_loc
+      | Boolean_guarded_rhs { bg_rhs; _ } -> rhs_loc bg_rhs
       | Pattern_guarded_rhs { pg_loc; _ } -> pg_loc
     in
+    let rhs_loc = rhs_loc case.c_rhs in
     let (kind, params, return, _region), body =
       event_function_rhs ~scopes case.c_rhs
         (function repr ->

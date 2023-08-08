@@ -25,6 +25,7 @@ type mapper = {
   attributes: mapper -> T.attribute list -> attribute list;
   binding_op: mapper -> T.binding_op -> T.pattern -> binding_op;
   case: 'k . mapper -> 'k T.case -> case;
+  case_rhs: mapper -> T.case_rhs -> case_rhs;
   class_declaration: mapper -> T.class_declaration -> class_declaration;
   class_description: mapper -> T.class_description -> class_description;
   class_expr: mapper -> T.class_expr -> class_expr;
@@ -414,19 +415,20 @@ let exp_extra sub (extra, loc, attrs) sexp =
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
   {
    pc_lhs = sub.pat sub c_lhs;
-   pc_rhs =
-     match c_rhs with 
-     | Simple_rhs rhs -> Psimple_rhs (sub.expr sub rhs)
-     | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
-         Pboolean_guarded_rhs
-           { pbg_guard = sub.expr sub bg_guard; pbg_rhs = sub.expr sub bg_rhs }
-     | Pattern_guarded_rhs { pg_scrutinee; pg_cases; pg_loc; _ } ->
-         Ppattern_guarded_rhs
-           { ppg_scrutinee = sub.expr sub pg_scrutinee
-           ; ppg_cases = List.map (sub.case sub) pg_cases
-           ; ppg_loc = sub.location sub pg_loc
-           }
+   pc_rhs = sub.case_rhs sub c_rhs
   }
+
+and case_rhs sub = function
+  | Simple_rhs rhs -> Psimple_rhs (sub.expr sub rhs)
+  | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+      Pboolean_guarded_rhs
+        { pbg_guard = sub.expr sub bg_guard; pbg_rhs = sub.case_rhs sub bg_rhs }
+  | Pattern_guarded_rhs { pg_scrutinee; pg_cases; pg_loc; _ } ->
+      Ppattern_guarded_rhs
+        { ppg_scrutinee = sub.expr sub pg_scrutinee
+        ; ppg_cases = List.map (sub.case sub) pg_cases
+        ; ppg_loc = sub.location sub pg_loc
+        }
 
 let value_binding sub vb =
   let loc = sub.location sub vb.vb_loc in
@@ -599,7 +601,7 @@ let expression sub exp =
         let let_ = sub.binding_op sub let_ pat in
         let ands = List.map2 (sub.binding_op sub) ands and_pats in
         let body =
-          match body.c_rhs with 
+          match body.c_rhs with
           | Simple_rhs rhs -> sub.expr sub rhs
           | _ -> Misc.fatal_error "Untypeast.expression: guarded letop body"
         in
@@ -1056,6 +1058,7 @@ let default_mapper =
     constructor_declaration = constructor_declaration;
     label_declaration = label_declaration;
     case = case;
+    case_rhs = case_rhs;
     location = location;
     row_field = row_field ;
     object_field = object_field ;

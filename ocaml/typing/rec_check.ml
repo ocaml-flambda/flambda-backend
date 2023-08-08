@@ -1190,7 +1190,7 @@ and value_bindings : rec_flag -> Typedtree.value_binding list -> bind_judg =
 and case
     : 'k . 'k Typedtree.case -> mode -> Env.t * mode
   = fun { Typedtree.c_lhs; c_rhs } ->
-      let judg = match c_rhs with
+      let rec judg_rhs = function
         (*
            p : mp -| G    G |- e : m
            ----------------------------
@@ -1198,13 +1198,15 @@ and case
         *)
         | Simple_rhs rhs -> expression rhs
         (*
-           Ge |- e : m    Gg |- g : m[Dereference]
-           G := Ge+Gg     p : mp -| G
+           Gr |- r : m    Gg |- g : m[Dereference]
+           G := Gr+Gg     p : mp -| G
            ---------------------------------------
-           G - p; m[mp] |- (p when g -> e) : m
+           G - p; m[mp] |- (p when g r) : m
+
+           This judgement recurs to judge the body of a boolean guarded rhs.
         *)
         | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
-            join [ expression bg_guard << Dereference; expression bg_rhs ]
+            join [ expression bg_guard << Dereference; judg_rhs bg_rhs ]
         (*
            G |- (match e1 with p2 -> e2) : m
            p1 : mp -| G
@@ -1218,7 +1220,7 @@ and case
           match_expression pg_scrutinee pg_cases
       in
       (fun m ->
-        let env = judg m in
+        let env = judg_rhs c_rhs m in
         (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
 
 (* p : m -| G

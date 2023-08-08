@@ -164,6 +164,21 @@ let mk_boolean_guarded_rhs ~patch_guarded ~free_variables =
 let mk_pattern_guarded_rhs ~patch_guarded =
   Guarded { patch_guarded; free_variables = Uncomputed }
 
+let add_guard_to_rhs ~patch_guarded ~guard_free_variables rhs =
+  let patch_guarded, free_variables =
+    match rhs with
+    | Unguarded rhs ->
+        ( (fun ~patch -> patch_guarded ~patch ~rhs)
+        , Precomputed
+            (Ident.Set.union (free_variables rhs) guard_free_variables)
+        )
+    | Guarded { patch_guarded = patch_guarded0; free_variables } ->
+        ( (fun ~patch -> patch_guarded ~patch ~rhs:(patch_guarded0 ~patch))
+        , map_guarded_free_variables
+            ~f:(Ident.Set.union (guard_free_variables)) free_variables)
+    in
+    Guarded { patch_guarded; free_variables }
+
 let mk_unguarded_rhs action = Unguarded action
 
 let is_guarded = function

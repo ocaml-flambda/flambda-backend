@@ -44,14 +44,13 @@ let bind_bindings scope bindings =
 let bind_cases l =
   List.iter
     (fun {c_lhs; c_rhs} ->
-      let loc =
-        match c_rhs with
+      let rec loc : _ -> Location.t = function
         | Simple_rhs rhs -> rhs.exp_loc
         | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
-            { bg_rhs.exp_loc with loc_start = bg_guard.exp_loc.loc_start }
+            { (loc bg_rhs) with loc_start = bg_guard.exp_loc.loc_start }
         | Pattern_guarded_rhs { pg_loc; _ } -> pg_loc
       in
-      bind_variables loc c_lhs
+      bind_variables (loc c_rhs) c_lhs
     )
     l
 
