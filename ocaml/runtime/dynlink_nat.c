@@ -122,7 +122,7 @@ CAMLprim value caml_natdynlink_run(value handle_v, value symbol) {
 
   sym = getsym_exn(handle, unit, "__data_begin");
   sym2 = getsym_exn(handle, unit, "__data_end");
-  caml_page_table_add(In_static_data, sym, sym2);
+  // caml_page_table_add(In_static_data, sym, sym2);
 
   sym = getsym_exn(handle, unit, "__code_begin");
   sym2 = getsym_exn(handle, unit, "__code_end");

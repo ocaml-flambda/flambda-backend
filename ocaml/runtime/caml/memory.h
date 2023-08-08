@@ -58,9 +58,7 @@ CAMLextern void caml_modify (value *, value);
 CAMLextern void caml_modify_local (value obj, intnat i, value val);
 CAMLextern void caml_initialize (value *, value);
 CAMLextern value caml_check_urgent_gc (value);
-CAMLextern color_t caml_allocation_color (void *hp);
 #ifdef CAML_INTERNALS
-CAMLextern char *caml_alloc_for_heap (asize_t request);   /* Size in bytes. */
 CAMLextern void caml_free_for_heap (char *mem);
 CAMLextern int caml_add_to_heap (char *mem);
 #endif /* CAML_INTERNALS */
@@ -195,10 +193,6 @@ extern uintnat caml_use_huge_pages;
     (((x) + (Heap_page_size - 1)) & ~ (Heap_page_size - 1))
 #endif
 
-
-int caml_page_table_add(int kind, void * start, void * end);
-int caml_page_table_remove(int kind, void * start, void * end);
-int caml_page_table_initialize(mlsize_t bytesize);
 
 #ifdef DEBUG
 #define DEBUG_clear(result, wosize) do{ \

@@ -102,5 +102,9 @@ DOMAIN_STATE(void*, checking_pointer_pc)
 /* See major_gc.c */
 #endif
 
+DOMAIN_STATE(struct caml_heap_state*, shared_heap)
+DOMAIN_STATE(intnat, major_work_todo)
+DOMAIN_STATE(uintnat, swept_words)
+
 DOMAIN_STATE(extra_params_area, extra_params)
 /* This member must occur last, because it is an array, not a scalar */

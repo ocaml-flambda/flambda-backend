@@ -35,7 +35,6 @@ extern uintnat caml_init_major_window;
 extern uintnat caml_init_custom_major_ratio;
 extern uintnat caml_init_custom_minor_ratio;
 extern uintnat caml_init_custom_minor_max_bsz;
-extern uintnat caml_init_policy;
 extern uintnat caml_trace_level;
 extern int caml_cleanup_on_exit;
 

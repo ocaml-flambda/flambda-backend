@@ -22,15 +22,6 @@
 #include "misc.h"
 #include "mlvalues.h"
 
-/* [caml_compact_heap] compacts the heap and optionally changes the
-   allocation policy.
-   if [new_allocation_policy] is -1, the policy is not changed.
-*/
-void caml_compact_heap (intnat new_allocation_policy);
-
-void caml_compact_heap_maybe (double previous_overhead);
-void caml_invert_root (value v, value *p);
-
 #endif /* CAML_INTERNALS */
 
 #endif /* CAML_COMPACT_H */

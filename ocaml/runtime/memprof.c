@@ -735,19 +735,6 @@ void caml_memprof_update_clean_phase(void)
   check_action_pending();
 }
 
-static void entry_array_invert(struct entry_array *ea, void *data)
-{
-  uintnat i;
-  (void)data;
-  for (i = 0; i < ea->len; i++)
-    caml_invert_root(ea->t[i].block, &ea->t[i].block);
-}
-
-void caml_memprof_invert_tracked(void)
-{
-  entry_arrays_iter(entry_array_invert, NULL);
-}
-
 /**** Sampling procedures ****/
 
 static void maybe_track_block(value block, uintnat n_samples,

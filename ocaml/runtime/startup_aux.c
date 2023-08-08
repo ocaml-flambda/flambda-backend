@@ -61,10 +61,6 @@ void caml_init_atom_table(void)
   for(i = 0; i < 256; i++) {
     caml_atom_table[i] = Make_header(0, i, Caml_black);
   }
-  if (caml_page_table_add(In_static_data,
-                          caml_atom_table, caml_atom_table + 256 + 1) != 0) {
-    caml_fatal_error("not enough memory for initial page table");
-  }
 }
 
 
@@ -80,7 +76,6 @@ uintnat caml_init_major_window = Major_window_def;
 uintnat caml_init_custom_major_ratio = Custom_major_ratio_def;
 uintnat caml_init_custom_minor_ratio = Custom_minor_ratio_def;
 uintnat caml_init_custom_minor_max_bsz = Custom_minor_max_bsz_def;
-uintnat caml_init_policy = Allocation_policy_def;
 extern int caml_parser_trace;
 uintnat caml_trace_level = 0;
 int caml_cleanup_on_exit = 0;
@@ -110,7 +105,6 @@ void caml_parse_ocamlrunparam(void)
   if (opt != NULL){
     while (*opt != '\0'){
       switch (*opt++){
-      case 'a': scanmult (opt, &caml_init_policy); break;
       case 'b': scanmult (opt, &p); caml_record_backtraces(p); break;
       case 'c': scanmult (opt, &p); caml_cleanup_on_exit = (p != 0); break;
       case 'h': scanmult (opt, &caml_init_heap_wsz); break;

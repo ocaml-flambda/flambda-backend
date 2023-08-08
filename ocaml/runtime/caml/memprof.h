@@ -39,7 +39,6 @@ extern void caml_memprof_oldify_young_roots(void);
 extern void caml_memprof_minor_update(void);
 extern void caml_memprof_do_roots(scanning_action f);
 extern void caml_memprof_update_clean_phase(void);
-extern void caml_memprof_invert_tracked(void);
 
 CAMLextern struct caml_memprof_th_ctx caml_memprof_main_ctx;
 

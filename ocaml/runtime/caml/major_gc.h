@@ -18,7 +18,6 @@
 
 #ifdef CAML_INTERNALS
 
-#include "freelist.h"
 #include "misc.h"
 
 /* An interval of a single object to be scanned.
@@ -28,21 +27,6 @@ typedef struct {
   value* start;
   value* end;
 } mark_entry;
-
-typedef struct {
-  void *block;           /* address of the malloced block this chunk lives in */
-  asize_t allocated;     /* in bytes, used for compaction */
-  asize_t size;          /* in bytes */
-  char *next;
-  mark_entry redarken_first;  /* first block in chunk to redarken */
-  value* redarken_end;     /* one-past-end of last block for redarkening */
-} heap_chunk_head;
-
-#define Chunk_head(c) (((heap_chunk_head *) (c)) - 1)
-#define Chunk_size(c) Chunk_head(c)->size
-#define Chunk_alloc(c) Chunk_head(c)->allocated
-#define Chunk_next(c) Chunk_head(c)->next
-#define Chunk_block(c) Chunk_head(c)->block
 
 extern int caml_gc_phase;
 extern int caml_gc_subphase;
@@ -71,9 +55,7 @@ extern int caml_ephe_list_pure;
    since they must be available for their finalizer.
   */
 
-CAMLextern char *caml_heap_start;
 extern uintnat total_heap_size;
-extern char *caml_gc_sweep_hp;
 
 extern int caml_major_window;
 extern double caml_major_ring[Max_major_window];

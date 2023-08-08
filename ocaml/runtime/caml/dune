@@ -57,7 +57,6 @@
     (fail.h as caml/fail.h)
     (finalise.h as caml/finalise.h)
     (fix_code.h as caml/fix_code.h)
-    (freelist.h as caml/freelist.h)
     (gc.h as caml/gc.h)
     (gc_ctrl.h as caml/gc_ctrl.h)
     (globroots.h as caml/globroots.h)

@@ -214,7 +214,6 @@
 
 /* **** major_gc.c */
 #define heap_start CAML_DEPRECATED("heap_start", "caml_heap_start") caml_heap_start
-#define page_table CAML_DEPRECATED("page_table", "caml_page_table") caml_page_table
 
 /* **** md5.c */
 #define md5_string CAML_DEPRECATED("md5_string", "caml_md5_string") caml_md5_string

@@ -21,7 +21,6 @@
 #include "caml/custom.h"
 #include "caml/fail.h"
 #include "caml/finalise.h"
-#include "caml/freelist.h"
 #include "caml/gc.h"
 #include "caml/gc_ctrl.h"
 #include "caml/major_gc.h"
@@ -44,89 +43,11 @@ extern uintnat caml_max_stack_size;    /* defined in stacks.c */
 
 extern uintnat caml_major_heap_increment; /* percent or words; see major_gc.c */
 extern uintnat caml_percent_free;         /*        see major_gc.c */
-extern uintnat caml_percent_max;          /*        see compact.c */
-extern uintnat caml_allocation_policy;    /*        see freelist.c */
 extern uintnat caml_custom_major_ratio;   /* see custom.c */
 extern uintnat caml_custom_minor_ratio;   /* see custom.c */
 extern uintnat caml_custom_minor_max_bsz; /* see custom.c */
 
 #define Next(hp) ((header_t *)(hp) + Whsize_hp (hp))
-
-#ifdef DEBUG
-
-/* Check that [v]'s header looks good.  [v] must be a block in the heap. */
-static void check_head (value v)
-{
-  CAMLassert (Is_block (v));
-  CAMLassert (Is_in_heap (v));
-
-#ifndef NO_NAKED_POINTERS
-  /* This cannot be checked in no-naked-pointers mode: [v] might be a
-     statically-allocated empty array. */
-  CAMLassert (Wosize_val (v) != 0);
-#endif
-  CAMLassert (Color_hd (Hd_val (v)) != Caml_blue);
-  CAMLassert (Is_in_heap (v));
-  if (Tag_val (v) == Infix_tag){
-    int offset = Wsize_bsize (Infix_offset_val (v));
-    value trueval = Val_op (&Field (v, -offset));
-    CAMLassert (Tag_val (trueval) == Closure_tag);
-    CAMLassert (Wosize_val (trueval) > offset);
-    CAMLassert (Is_in_heap (&Field (trueval, Wosize_val (trueval) - 1)));
-  }else{
-    CAMLassert (Is_in_heap (&Field (v, Wosize_val (v) - 1)));
-  }
-  if (Tag_val (v) ==  Double_tag){
-    CAMLassert (Wosize_val (v) == Double_wosize);
-  }else if (Tag_val (v) == Double_array_tag){
-    CAMLassert (Wosize_val (v) % Double_wosize == 0);
-  }
-}
-
-static void check_block (header_t *hp)
-{
-  mlsize_t i, start;
-  tag_t tag = Tag_hp (hp);
-  value v = Val_hp (hp);
-  value f;
-
-  check_head (v);
-  switch (tag){
-  case Abstract_tag: break;
-  case String_tag:
-    break;
-  case Double_tag:
-    CAMLassert (Wosize_val (v) == Double_wosize);
-    break;
-  case Double_array_tag:
-    CAMLassert (Wosize_val (v) % Double_wosize == 0);
-    break;
-  case Custom_tag:
-#ifndef NO_NAKED_POINTERS
-    CAMLassert (!Is_in_heap (Custom_ops_val (v)));
-#endif
-    break;
-
-  case Infix_tag:
-    CAMLassert (0);
-    break;
-
-  default:
-    CAMLassert (Tag_hp (hp) < No_scan_tag);
-    /* For closures, skip to the start of the scannable environment */
-    if (tag == Closure_tag) start = Start_env_closinfo(Closinfo_val(v));
-    else start = 0;
-    for (i = start; i < Wosize_hp (hp); i++){
-      f = Field (v, i);
-      if (Is_block (f) && Is_in_heap (f)){
-        check_head (f);
-        CAMLassert (Color_val (f) != Caml_blue);
-      }
-    }
-  }
-}
-
-#endif /* DEBUG */
 
 /* Check the heap structure (if compiled in debug mode) and
    gather statistics; return the stats if [returnstats] is true,
@@ -138,97 +59,14 @@ static value heap_stats (int returnstats)
   intnat live_words = 0, live_blocks = 0,
          free_words = 0, free_blocks = 0, largest_free = 0,
          fragments = 0, heap_chunks = 0;
-  char *chunk = caml_heap_start, *chunk_end;
-  header_t *cur_hp;
-#ifdef DEBUG
-  header_t *prev_hp;
-#endif
-  header_t cur_hd;
 
 #ifdef DEBUG
   caml_gc_message (-1, "### OCaml runtime: heap check ###\n");
 #endif
 
-  while (chunk != NULL){
-    ++ heap_chunks;
-    chunk_end = chunk + Chunk_size (chunk);
-#ifdef DEBUG
-    prev_hp = NULL;
-#endif
-    cur_hp = (header_t *) chunk;
-    while (cur_hp < (header_t *) chunk_end){
-      cur_hd = Hd_hp (cur_hp);
-      CAMLassert (Next (cur_hp) <= (header_t *) chunk_end);
-      switch (Color_hd (cur_hd)){
-      case Caml_white:
-        if (Wosize_hd (cur_hd) == 0){
-          ++ fragments;
-          CAMLassert (prev_hp == NULL
-                      || Color_hp (prev_hp) != Caml_blue
-                      || cur_hp == (header_t *) caml_gc_sweep_hp
-                      || Wosize_hp (prev_hp) == Max_wosize);
-        }else{
-          if (caml_gc_phase == Phase_sweep
-              && cur_hp >= (header_t *) caml_gc_sweep_hp){
-            ++ free_blocks;
-            free_words += Whsize_hd (cur_hd);
-            if (Whsize_hd (cur_hd) > largest_free){
-              largest_free = Whsize_hd (cur_hd);
-            }
-          }else{
-            ++ live_blocks;
-            live_words += Whsize_hd (cur_hd);
-#ifdef DEBUG
-            check_block (cur_hp);
-#endif
-          }
-        }
-        break;
-      case Caml_black:
-        CAMLassert (Wosize_hd (cur_hd) > 0);
-        ++ live_blocks;
-        live_words += Whsize_hd (cur_hd);
-#ifdef DEBUG
-        check_block (cur_hp);
-#endif
-        break;
-      case Caml_blue:
-        CAMLassert (Wosize_hd (cur_hd) > 0);
-        ++ free_blocks;
-        free_words += Whsize_hd (cur_hd);
-        if (Whsize_hd (cur_hd) > largest_free){
-          largest_free = Whsize_hd (cur_hd);
-        }
-        /* not true any more with big heap chunks
-        CAMLassert (prev_hp == NULL
-                    || (Color_hp (prev_hp) != Caml_blue
-                        && Wosize_hp (prev_hp) > 0)
-                    || cur_hp == caml_gc_sweep_hp);
-        CAMLassert (Next (cur_hp) == chunk_end
-                    || (Color_hp (Next (cur_hp)) != Caml_blue
-                       && Wosize_hp (Next (cur_hp)) > 0)
-                    || (Whsize_hd (cur_hd) + Wosize_hp (Next (cur_hp))
-                       > Max_wosize)
-                    || Next (cur_hp) == caml_gc_sweep_hp);
-        */
-        break;
-      }
-#ifdef DEBUG
-      prev_hp = cur_hp;
-#endif
-      cur_hp = Next (cur_hp);
-    }
-    CAMLassert (cur_hp == (header_t *) chunk_end);
-    chunk = Chunk_next (chunk);
-  }
-
 #ifdef DEBUG
   caml_final_invariant_check();
-  caml_fl_check ();
 #endif
-
-  CAMLassert (heap_chunks == Caml_state->stat_heap_chunks);
-  CAMLassert (live_words + free_words + fragments == Caml_state->stat_heap_wsz);
 
   if (returnstats){
     CAMLlocal1 (res);
@@ -376,13 +214,13 @@ CAMLprim value caml_gc_get(value v)
   Store_field (res, 1, Val_long (caml_major_heap_increment));           /* i */
   Store_field (res, 2, Val_long (caml_percent_free));                   /* o */
   Store_field (res, 3, Val_long (caml_verb_gc));                        /* v */
-  Store_field (res, 4, Val_long (caml_percent_max));                    /* O */
+  Store_field (res, 4, Val_long (0));                    /* O */
 #ifndef NATIVE_CODE
   Store_field (res, 5, Val_long (caml_max_stack_size));                 /* l */
 #else
   Store_field (res, 5, Val_long (0));
 #endif
-  Store_field (res, 6, Val_long (caml_allocation_policy));              /* a */
+  Store_field (res, 6, Val_long (0));              /* a */
   Store_field (res, 7, Val_long (caml_major_window));                   /* w */
   Store_field (res, 8, Val_long (caml_custom_major_ratio));             /* M */
   Store_field (res, 9, Val_long (caml_custom_minor_ratio));             /* m */
@@ -395,11 +233,6 @@ CAMLprim value caml_gc_get(value v)
 static uintnat norm_pfree (uintnat p)
 {
   return Max (p, 1);
-}
-
-static uintnat norm_pmax (uintnat p)
-{
-  return p;
 }
 
 static intnat norm_minsize (intnat s)
@@ -433,10 +266,9 @@ static uintnat norm_custom_min (uintnat p)
 
 CAMLprim value caml_gc_set(value v)
 {
-  uintnat newpf, newpm;
+  uintnat newpf;
   asize_t newheapincr;
   asize_t newminwsz;
-  uintnat newpolicy;
   uintnat new_custom_maj, new_custom_min, new_custom_sz;
   CAML_EV_BEGIN(EV_EXPLICIT_GC_SET);
 
@@ -451,13 +283,6 @@ CAMLprim value caml_gc_set(value v)
     caml_percent_free = newpf;
     caml_gc_message (0x20, "New space overhead: %"
                      ARCH_INTNAT_PRINTF_FORMAT "u%%\n", caml_percent_free);
-  }
-
-  newpm = norm_pmax (Long_val (Field (v, 4)));
-  if (newpm != caml_percent_max){
-    caml_percent_max = newpm;
-    caml_gc_message (0x20, "New max overhead: %"
-                     ARCH_INTNAT_PRINTF_FORMAT "u%%\n", caml_percent_max);
   }
 
   newheapincr = Long_val (Field (v, 1));
@@ -512,19 +337,7 @@ CAMLprim value caml_gc_set(value v)
   /* Save field 0 before [v] is invalidated. */
   newminwsz = norm_minsize (Long_val (Field (v, 0)));
 
-  /* Switching allocation policies must trigger a compaction, so it
-     invalidates [v]. */
-  newpolicy = Long_val (Field (v, 6));
-  if (newpolicy != caml_allocation_policy){
-    caml_empty_minor_heap ();
-    caml_gc_message (0x1, "Full major GC cycle (changing allocation policy)\n");
-    caml_finish_major_cycle ();
-    caml_finish_major_cycle ();
-    ++ Caml_state->stat_forced_major_collections;
-    caml_compact_heap (newpolicy);
-    caml_gc_message (0x20, "New allocation policy: %"
-                     ARCH_INTNAT_PRINTF_FORMAT "u\n", newpolicy);
-  }
+  /* ignore switching policies */
 
   /* Minor heap size comes last because it can raise [Out_of_memory]. */
   if (newminwsz != Caml_state->minor_heap_wsz){
@@ -556,17 +369,7 @@ CAMLprim value caml_gc_minor(value v)
 
 static void test_and_compact (void)
 {
-  double fp;
-
-  fp = 100.0 * caml_fl_cur_wsz / (Caml_state->stat_heap_wsz - caml_fl_cur_wsz);
-  if (fp > 999999.0) fp = 999999.0;
-  caml_gc_message (0x200, "Estimated overhead (lower bound) = %"
-                          ARCH_INTNAT_PRINTF_FORMAT "u%%\n",
-                   (uintnat) fp);
-  if (fp >= caml_percent_max){
-    caml_gc_message (0x200, "Automatic compaction triggered.\n");
-    caml_compact_heap (-1);
-  }
+  // No compaction
 }
 
 CAMLprim value caml_gc_major(value v)
@@ -648,7 +451,7 @@ CAMLprim value caml_gc_compaction(value v)
   caml_empty_minor_heap ();
   caml_finish_major_cycle ();
   ++ Caml_state->stat_forced_major_collections;
-  caml_compact_heap (-1);
+  // caml_compact_heap (-1); (no compaction)
   // call finalisers
   exn = caml_process_pending_actions_exn();
 
@@ -692,18 +495,14 @@ void caml_init_gc (uintnat minor_size, uintnat major_size,
                    uintnat custom_bsz, uintnat policy)
 {
   uintnat major_bsize;
-  if (major_size < Heap_chunk_min) major_size = Heap_chunk_min;
+
   major_bsize = Bsize_wsize(major_size);
   major_bsize = ((major_bsize + Page_size - 1) >> Page_log) << Page_log;
 
-  if (caml_page_table_initialize(Bsize_wsize(minor_size) + major_bsize)){
-    caml_fatal_error ("cannot initialize page table");
-  }
   caml_set_minor_heap_size (Bsize_wsize (norm_minsize (minor_size)));
   caml_major_heap_increment = major_incr;
   caml_percent_free = norm_pfree (percent_fr);
-  caml_percent_max = norm_pmax (percent_m);
-  caml_set_allocation_policy (policy);
+  // caml_set_allocation_policy (policy);
   caml_init_major_heap (major_bsize);
   caml_major_window = norm_window (window);
   caml_custom_major_ratio = norm_custom_maj (custom_maj);
@@ -717,8 +516,6 @@ void caml_init_gc (uintnat minor_size, uintnat major_size,
                    major_bsize / 1024);
   caml_gc_message (0x20, "Initial space overhead: %"
                    ARCH_INTNAT_PRINTF_FORMAT "u%%\n", caml_percent_free);
-  caml_gc_message (0x20, "Initial max overhead: %"
-                   ARCH_INTNAT_PRINTF_FORMAT "u%%\n", caml_percent_max);
   if (caml_major_heap_increment > 1000){
     caml_gc_message (0x20, "Initial heap increment: %"
                      ARCH_INTNAT_PRINTF_FORMAT "uk words\n",
@@ -728,8 +525,6 @@ void caml_init_gc (uintnat minor_size, uintnat major_size,
                      ARCH_INTNAT_PRINTF_FORMAT "u%%\n",
                      caml_major_heap_increment);
   }
-  caml_gc_message (0x20, "Initial allocation policy: %"
-                   ARCH_INTNAT_PRINTF_FORMAT "u\n", caml_allocation_policy);
   caml_gc_message (0x20, "Initial smoothing window: %d\n",
                    caml_major_window);
 }
@@ -758,9 +553,8 @@ CAMLprim value caml_runtime_parameters (value unit)
 
   CAMLassert (unit == Val_unit);
   return caml_alloc_sprintf
-    ("a=%d,b=%d,H=%"F_Z"u,i=%"F_Z"u,l=%"F_Z"u,o=%"F_Z"u,O=%"F_Z"u,p=%d,"
+    ("b=%d,H=%"F_Z"u,i=%"F_Z"u,l=%"F_Z"u,o=%"F_Z"u,p=%d,"
      "s=%"F_S"u,t=%"F_Z"u,v=%"F_Z"u,w=%d,W=%"F_Z"u",
-     /* a */ (int) caml_allocation_policy,
      /* b */ (int) Caml_state->backtrace_active,
      /* h */ /* missing */ /* FIXME add when changed to min_heap_size */
      /* H */ caml_use_huge_pages,
@@ -771,7 +565,6 @@ CAMLprim value caml_runtime_parameters (value unit)
      /* l */ caml_max_stack_size,
 #endif
      /* o */ caml_percent_free,
-     /* O */ caml_percent_max,
      /* p */ caml_parser_trace,
      /* R */ /* missing */
      /* s */ Caml_state->minor_heap_wsz,
