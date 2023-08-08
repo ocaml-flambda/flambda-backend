@@ -353,10 +353,6 @@ let ppat_iarray loc elts =
     ~loc:(make_loc loc) ~attrs:[]
     (Iapat_immutable_array elts)
 
-let pcase_pattern_guarded ~loc lhs scrutinee cases =
-  Jane_syntax.Pattern_guarded.case_of
-    ~loc (Pg_case { lhs; scrutinee; cases })
-
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
 
@@ -3041,11 +3037,13 @@ match_case:
      if and when `e match p` is introduced as an expression
   */
   | pattern WHEN expr MATCH ioption(BAR) match_case
-      { pcase_pattern_guarded
-          ~loc:(make_loc ($startpos($2), $endpos)) $1 $3 [ $6 ] }
+      { Jane_syntax.Pattern_guarded.case_of
+          ~loc:(make_loc ($startpos($2), $endpos))
+          (Pg_case { lhs = $1; scrutinee = $3; cases = [ $6 ] }) }
   | pattern WHEN expr MATCH LPAREN match_cases RPAREN
-      { pcase_pattern_guarded
-          ~loc:(make_loc ($startpos($2), $endpos)) $1 $3 $6 }
+      { Jane_syntax.Pattern_guarded.case_of
+          ~loc:(make_loc ($startpos($2), $endpos))
+          (Pg_case { lhs = $1; scrutinee = $3; cases = $6 }) }
   | pattern MINUSGREATER DOT
       { Exp.case $1 ~guard:None (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
 ;
