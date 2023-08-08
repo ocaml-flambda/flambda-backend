@@ -47,7 +47,7 @@ let measure_alloc fmt f =
   let alloc = (after -. before) -. baseline_allocation in
   Printf.printf (fmt ^^ "; %s\n")
     (Int32_u.to_int32 result)
-    (if alloc > 0.0 then "allocated (" ^ Float.to_string alloc ^  ")" else "did not allocate")
+    (if alloc > 0.0 then "allocated" else "did not allocate")
 
 (* We mark key functions [[@inline never]].  Without this, flambda2 might be
    able to eliminate all allocations in the boxed case, and it's important to
