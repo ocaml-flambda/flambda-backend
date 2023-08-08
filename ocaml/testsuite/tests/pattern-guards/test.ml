@@ -200,22 +200,22 @@ Error: Unbound constructor A
 
 let disambiguation_from_guard = function
   | None -> "None"
-  | Some y when Foo.is_a y -> "A"
-  | Some y ->
-      match y with
-      | A -> assert false
-      | B -> "B"
+  | Some y when Foo.is_a y ->
+      (match y with
+       | A -> "A"
+       | B -> "B")
+  | _ -> "Not A"
 ;;
 [%%expect{|
 val disambiguation_from_guard : Foo.t option -> string = <fun>
 |}, Principal{|
-Line 6, characters 8-9:
-6 |       | A -> assert false
-            ^
+Line 5, characters 9-10:
+5 |        | A -> "A"
+             ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
-Line 7, characters 8-9:
-7 |       | B -> "B"
-            ^
+Line 6, characters 9-10:
+6 |        | B -> "B")
+             ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 val disambiguation_from_guard : Foo.t option -> string = <fun>
 |}];;
