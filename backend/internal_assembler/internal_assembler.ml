@@ -170,28 +170,30 @@ let assemble_one_section ~name instructions =
       sec_instrs = Array.of_list instructions
     }
 
-let get_sections sections =
-  let sections = Section_name.Tbl.to_seq sections |> List.of_seq in
-  let text_data, others =
-    List.partition
-      (fun (name, _) -> Section_name.is_text_like name || Section_name.is_data_like name)
-      sections
-  in
-  let aux sections acc =
-    List.fold_left (fun acc (name, instructions) ->
-      let instructions = List.rev !instructions in
-      Section_name.Map.add name (assemble_one_section ~name instructions) acc)
-      acc sections
-  in
-  (* DWARF sections must be emitted after .text and .data because they
-     contain information that is produced when .text and .data are emitted.
-     For example, DWARF sections need to know the offset of some instructions
-     from the start of the .text section.
-     Additionally, DWARF sections may add relocations to the object file's
-     relocation table. *)
-  let acc = aux text_data Section_name.Map.empty in
-  Emitaux.Dwarf_helpers.emit_dwarf ();
-  aux others acc
+
+let get_sections ~delayed sections =
+  let get acc sections =
+    List.fold_left
+      (fun acc (name, instructions) ->
+        let align =
+          List.fold_left
+            (fun acc i ->
+              match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
+            0 instructions
+        in
+        Section_name.Map.add name
+          ( align,
+            X86_binary_emitter.assemble_section X64
+              { X86_binary_emitter.sec_name = X86_proc.Section_name.to_string name;
+                sec_instrs = Array.of_list instructions
+              } )
+          acc)
+          acc sections
+      in
+      let acc = Section_name.Map.empty in
+      let acc = get acc sections in
+      Emitaux.Dwarf_helpers.emit_delayed_dwarf ();
+      get acc (delayed ())
 
 let make_compiler_sections section_table compiler_sections symbol_table
     sh_string_table =
@@ -264,8 +266,8 @@ let write buf header section_table symbol_table relocation_tables string_table =
     relocation_tables;
   String_table.write string_table strtab.sh_offset buf
 
-let assemble unix asm output_file =
-  let compiler_sections = get_sections asm in
+let assemble unix ~delayed asm output_file =
+  let compiler_sections = get_sections ~delayed asm in
   let string_table = String_table.create () in
   let sh_string_table = String_table.create () in
   let sections = Section_table.create () in

@@ -111,7 +111,10 @@ end
 (** Support for plumbing a binary code emitter *)
 
 val internal_assembler :
-  (X86_ast.asm_program ref Section_name.Tbl.t -> string -> unit) option ref
+  (delayed:(unit -> (Section_name.t * X86_ast.asm_program) list)
+    -> (Section_name.t * X86_ast.asm_program) list
+    -> string -> unit) option ref
 
 val register_internal_assembler :
-  (X86_ast.asm_program ref Section_name.Tbl.t -> string -> unit) -> unit
+  (delayed:(unit -> (Section_name.t * X86_ast.asm_program) list)
+   -> (Section_name.t * X86_ast.asm_program) list -> string -> unit) -> unit
