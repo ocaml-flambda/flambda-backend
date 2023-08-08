@@ -25,8 +25,8 @@ CAMLprim value lognot_bytecode(value u) {
   CAMLreturn(result);
 }
 
-CAMLprim double sum_7_UBUBUBUtoU(int32_t u1, value b2, int32_t u3, value b4,
-                                 int32_t u5, value b6, int32_t u7) {
+CAMLprim int32_t sum_7_UBUBUBUtoU(int32_t u1, value b2, int32_t u3, value b4,
+                                  int32_t u5, value b6, int32_t u7) {
   int32_t u2 = Int32_val(b2);
   int32_t u4 = Int32_val(b4);
   int32_t u6 = Int32_val(b6);

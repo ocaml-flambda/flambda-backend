@@ -25,7 +25,7 @@ CAMLprim value lognot_bytecode(value u) {
   CAMLreturn(result);
 }
 
-CAMLprim double sum_7_UBUBUBUtoU(intnat u1, value b2, intnat u3, value b4,
+CAMLprim intnat sum_7_UBUBUBUtoU(intnat u1, value b2, intnat u3, value b4,
                                  intnat u5, value b6, intnat u7) {
   intnat u2 = Nativeint_val(b2);
   intnat u4 = Nativeint_val(b4);
