@@ -222,7 +222,7 @@ let rec trivial_pat pat =
   match pat.pat_desc with
     Tpat_var _
   | Tpat_any -> true
-  | Tpat_alias (p, _, _, _) ->
+  | Tpat_alias (p, _, _, _, _) ->
       trivial_pat p
   | Tpat_construct (_, cd, [], _) ->
       not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
@@ -283,7 +283,8 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
              arg_sort,
              cases, partial) }
       in
-      [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name, mode)};
+      [{c_lhs = {pat with
+          pat_desc = Tpat_var (param, mknoloc name, desc.val_uid, mode)};
         c_guard = None; c_rhs= wrap_bindings bindings exp}]
   | _ ->
       cases
@@ -335,8 +336,8 @@ let assert_failed ~scopes exp =
 
 let rec iter_exn_names f pat =
   match pat.pat_desc with
-  | Tpat_var (id, _, _) -> f id
-  | Tpat_alias (p, id, _, _) ->
+  | Tpat_var (id, _, _, _) -> f id
+  | Tpat_alias (p, id, _, _, _) ->
       f id;
       iter_exn_names f p
   | _ -> ()
@@ -1443,7 +1444,7 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       let idlist =
         List.map
           (fun {vb_pat=pat} -> match pat.pat_desc with
-              Tpat_var (id,_,_) -> id
+              Tpat_var (id,_,_,_) -> id
             | _ -> assert false)
         pat_expr_list in
       let transl_case
