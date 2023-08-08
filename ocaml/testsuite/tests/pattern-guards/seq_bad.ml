@@ -4,12 +4,13 @@
     ocamlopt_opt_exit_status = "2"
   *** check-ocamlopt.opt-output*)
 
-(* One might innocuously write the below code hoping that it parses as
-   [(f x; g x) match ...]. This test demonstrates that this intentionally results in
-   a type error. *)
+(* Demonstrate that [when e1; e2 match P -> e3] is a parse error.
+   One might believe that it parses as [when (e1; e2) match P -> e3], but this
+   is the wrong precedence. *)
 
 let seq_bad x ~f ~g ~default =
   match x with
-  | Some x when f x; g x match Some y -> y 
+  | Some x when f x; g x match Some y -> y
   | _ -> y
+;;
 
