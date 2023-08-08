@@ -345,7 +345,7 @@ and add_cases bv cases =
 
 and add_case bv ({pc_lhs; pc_guard; pc_rhs} as case) =
   match Jane_syntax.Case.of_ast case with
-  | Some (jcase, _attrs) -> add_case_jane_syntax bv jcase
+  | Some jcase -> add_case_jane_syntax bv jcase
   | None ->
   let bv = add_pattern bv pc_lhs in
   Option.iter (add_expr bv) pc_guard;

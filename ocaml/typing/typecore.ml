@@ -3571,7 +3571,7 @@ let is_local_returning_expr, is_local_returning_case =
           (loop e) cases
   and loop_case case =
     match Jane_syntax.Case.of_ast case with
-    | Some (jcase, _attrs) -> begin
+    | Some jcase -> begin
         match jcase with
         | Jcase_pattern_guarded (Pg_case { scrutinee; cases }) ->
             let loc = case.pc_rhs.pexp_loc in
@@ -3786,7 +3786,7 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
 
 and type_approx_aux_case env case in_function ty_expected =
   match Jane_syntax.Case.of_ast case with
-  | Some (jcase, _attrs) ->
+  | Some jcase ->
       (match jcase with
        | Jcase_pattern_guarded pg ->
            (match pg with
@@ -6999,7 +6999,7 @@ and type_cases
         in
         let c_rhs =
           match Jane_syntax.Case.of_ast untyped_case with
-          | Some (jcase, _attrs) ->
+          | Some jcase ->
               (match jcase with
                | Jcase_pattern_guarded (Pg_case { scrutinee; cases }) ->
                    let loc = untyped_case.pc_rhs.pexp_loc in

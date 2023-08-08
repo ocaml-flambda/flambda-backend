@@ -550,7 +550,7 @@ module CS = struct
 
   let iter sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
     match Jane_syntax.Case.of_ast case with
-    | Some (jcase, _attrs) ->
+    | Some jcase ->
         iter_jst sub jcase;
         sub.location sub pc_rhs.pexp_loc
     | None ->

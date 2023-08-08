@@ -645,7 +645,7 @@ module CS = struct
 
   let map sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
     match Jane_syntax.Case.of_ast case with
-    | Some (jcase, _attrs) ->
+    | Some jcase ->
         let jcase = map_jst sub jcase in
         let loc = sub.location sub pc_rhs.pexp_loc in
         Jane_syntax.Case.case_of ~loc jcase

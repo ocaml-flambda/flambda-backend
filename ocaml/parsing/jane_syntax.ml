@@ -355,7 +355,7 @@ module Pattern_guarded = struct
     match pc_rhs.pexp_desc with
     | Pexp_match (scrutinee, cases) ->
         let case = Pg_case { lhs = pc_lhs; scrutinee; cases } in
-        case, []
+        case
     | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
 
   let case_of ~loc = function
@@ -509,8 +509,8 @@ module Case = struct
 
   let of_ast_internal (feat : Feature.t) case = match feat with
     | Language_extension Pattern_guards ->
-      let case, attrs = Pattern_guarded.of_case case in
-      Some (Jcase_pattern_guarded case, attrs)
+      let case = Pattern_guarded.of_case case in
+      Some (Jcase_pattern_guarded case)
     | _ -> None
 
   let of_ast =

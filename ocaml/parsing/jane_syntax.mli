@@ -257,7 +257,7 @@ module Case : sig
     | Jcase_pattern_guarded of Pattern_guarded.case
 
   include AST
-    with type t := t * Parsetree.attributes
+    with type t := t
      and type ast := Parsetree.case
 
   val case_of : loc:Location.t -> t -> Parsetree.case

@@ -1810,7 +1810,7 @@ and extension_constructor_jst _ctxt _f _attrs :
 
 and case ctxt f ({pc_lhs; pc_guard; pc_rhs} as case) =
   match Jane_syntax.Case.of_ast case with
-  | Some (jcase, _attrs) -> jane_syntax_case ctxt f jcase
+  | Some jcase -> jane_syntax_case ctxt f jcase
   | None ->
       pp f "| @[<2>%a%a@;->@;%a@]"
         (pattern ctxt) pc_lhs (option (expression ctxt) ~first:"@;when@;")
