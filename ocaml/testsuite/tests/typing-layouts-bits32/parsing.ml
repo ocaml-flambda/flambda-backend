@@ -17,18 +17,18 @@ val f : int32# -> unit = <fun>
 
 type t = C of int32#;;
 [%%expect {|
-Line 1, characters 9-24:
+Line 1, characters 9-20:
 1 | type t = C of int32#;;
-             ^^^^^^^^^^^^^^^
+             ^^^^^^^^^^^
 Error: Type int32# has layout bits32.
        Types of this layout are not yet allowed in blocks (like records or variants).
 |}];;
 
 type t = C : int32# -> t;;
 [%%expect {|
-Line 1, characters 9-28:
+Line 1, characters 9-24:
 1 | type t = C : int32# -> t;;
-             ^^^^^^^^^^^^^^^^^^^
+             ^^^^^^^^^^^^^^^
 Error: Type int32# has layout bits32.
        Types of this layout are not yet allowed in blocks (like records or variants).
 |}];;
@@ -39,36 +39,36 @@ Error: Type int32# has layout bits32.
 *)
 type t = int32# list;;
 [%%expect {|
-Line 1, characters 9-19:
+Line 1, characters 9-15:
 1 | type t = int32# list;;
-             ^^^^^^^^^^
+             ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 let f (_ : int32# list) = ();;
 [%%expect {|
-Line 1, characters 11-21:
+Line 1, characters 11-17:
 1 | let f (_ : int32# list) = ();;
-               ^^^^^^^^^^
+               ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 type t = C of int32# list;;
 [%%expect {|
-Line 1, characters 14-24:
+Line 1, characters 14-20:
 1 | type t = C of int32# list;;
-                  ^^^^^^^^^^
+                  ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 type t = C : int32# list -> t;;
 [%%expect {|
-Line 1, characters 13-23:
+Line 1, characters 13-19:
 1 | type t = C : int32# list -> t;;
-                 ^^^^^^^^^^
+                 ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
@@ -85,36 +85,36 @@ class ['a] c : object method x : 'a end
 
 type t = int32#c;;
 [%%expect {|
-Line 1, characters 9-19:
+Line 1, characters 9-15:
 1 | type t = int32#c;;
-             ^^^^^^^^^^
+             ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 let f (_ : int32#c) = ();;
 [%%expect {|
-Line 1, characters 11-21:
+Line 1, characters 11-17:
 1 | let f (_ : int32#c) = ();;
-               ^^^^^^^^^^
+               ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 type t = C of int32#c;;
 [%%expect {|
-Line 1, characters 14-24:
+Line 1, characters 14-20:
 1 | type t = C of int32#c;;
-                  ^^^^^^^^^^
+                  ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 type t = C : int32#c -> t;;
 [%%expect {|
-Line 1, characters 13-23:
+Line 1, characters 13-19:
 1 | type t = C : int32#c -> t;;
-                 ^^^^^^^^^^
+                 ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
@@ -124,36 +124,36 @@ Error: This type int32# should be an instance of type ('a : value)
 *)
 type t = int32# c;;
 [%%expect {|
-Line 1, characters 9-19:
+Line 1, characters 9-15:
 1 | type t = int32# c;;
-             ^^^^^^^^^^
+             ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 let f (_ : int32# c) = ();;
 [%%expect {|
-Line 1, characters 11-21:
+Line 1, characters 11-17:
 1 | let f (_ : int32# c) = ();;
-               ^^^^^^^^^^
+               ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 type t = C of int32# c;;
 [%%expect {|
-Line 1, characters 14-24:
+Line 1, characters 14-20:
 1 | type t = C of int32# c;;
-                  ^^^^^^^^^^
+                  ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
 
 type t = C : int32# c -> t;;
 [%%expect {|
-Line 1, characters 13-23:
+Line 1, characters 13-19:
 1 | type t = C : int32# c -> t;;
-                 ^^^^^^^^^^
+                 ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
        int32# has layout bits32, which is not a sublayout of value.
 |}];;
@@ -167,17 +167,17 @@ Error: This type int32# should be an instance of type ('a : value)
 *)
 type t = int32 #c;;
 [%%expect {|
-Line 1, characters 0-21:
+Line 1, characters 0-17:
 1 | type t = int32 #c;;
-    ^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
        In type int32 #c as 'a the variable 'a is unbound
 |}];;
 type t = C of int32 #c;;
 [%%expect {|
-Line 1, characters 0-26:
+Line 1, characters 0-22:
 1 | type t = C of int32 #c;;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
        In case C of (int32 #c as 'a) the variable 'a is unbound
 |}];;
@@ -202,17 +202,17 @@ type t = C : int32 #c -> t
 
 type t = int32 # c;;
 [%%expect {|
-Line 1, characters 0-22:
+Line 1, characters 0-18:
 1 | type t = int32 # c;;
-    ^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
        In type int32 #c as 'a the variable 'a is unbound
 |}];;
 type t = C of int32 # c;;
 [%%expect {|
-Line 1, characters 0-27:
+Line 1, characters 0-23:
 1 | type t = C of int32 # c;;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
        In case C of (int32 #c as 'a) the variable 'a is unbound
 |}];;
@@ -233,18 +233,18 @@ type t = C : int32 #c -> t
 
 type t = int int32#;;
 [%%expect {|
-Line 1, characters 9-23:
+Line 1, characters 9-19:
 1 | type t = int int32#;;
-             ^^^^^^^^^^^^^^
+             ^^^^^^^^^^
 Error: The type constructor int32# expects 0 argument(s),
        but is here applied to 1 argument(s)
 |}];;
 
 type t = (int, int) int32#;;
 [%%expect {|
-Line 1, characters 9-30:
+Line 1, characters 9-26:
 1 | type t = (int, int) int32#;;
-             ^^^^^^^^^^^^^^^^^^^^^
+             ^^^^^^^^^^^^^^^^^
 Error: The type constructor int32# expects 0 argument(s),
        but is here applied to 2 argument(s)
 |}];;
