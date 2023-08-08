@@ -35,6 +35,10 @@ val map_subexpressions
   -> Flambda.t
   -> Flambda.t
 
+(** Apply the given function to the immediate subexpressions in tail position of
+    the given Flambda expression.  In this case, we consider the body of a [try]
+    expression to be in tail position, though it's worth noting that a function
+    call in such a place is not a tail call. *)
 val map_tail_subexpressions : (Flambda.t -> Flambda.t) -> Flambda.t -> Flambda.t
 
 (* CR-soon lwhite: add comment to clarify that these recurse unlike the
