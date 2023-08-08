@@ -414,10 +414,9 @@ let report_error ~loc = function
   | Wrong_syntactic_category(feat, cat) ->
       Location.errorf
         ~loc
-        "%s cannot appear in %s (backtrace %s)"
+        "%s cannot appear in %s"
         (Feature.describe_uppercase feat)
         cat
-        (Printexc.get_backtrace ())
   | Misnamed_embedding (err, name, what) ->
       Location.errorf
         ~loc
