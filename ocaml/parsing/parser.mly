@@ -758,7 +758,7 @@ let check_layout loc id =
   begin
     match id with
     | "any" | "value" | "void" | "immediate64" | "immediate" | "float64"
-    | "word" | "int32" | "int64" ->
+    | "word" | "bits32" | "bits64" ->
       ()
     | _ ->
       expecting loc "layout"
