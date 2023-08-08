@@ -39,7 +39,8 @@ let float_result     = mk_result (module Float)
 let bool_result      = mk_result (module Bool)
 let int_result       = mk_result (module Int)
 let int32_result     = mk_result (module Int32)
-let int64_result = mk_result (module Int64)
+let int64_result     = mk_result (module Int64)
+let nativeint_result = mk_result (module Nativeint)
 let string_result    = mk_result' String.equal to_ocaml_string
 
 let option_result (type a) (module M : Result with type t = a)  =
@@ -159,13 +160,14 @@ let nonzero_integer_input
 
 let int_input = integer_input (module Int) Random.int Random.bits
 let int32_input = integer_input (module Int32) Random.int32 Random.bits32
-let int64_input =
-  integer_input (module Int64) Random.int64 Random.nativebits
+let int64_input = integer_input (module Int64) Random.int64 Random.bits64
+let nativeint_input =
+  integer_input (module Nativeint) Random.nativeint Random.nativebits
 let nonzero_int64_input =
-  nonzero_integer_input (module Int64) Random.int64 Random.nativebits
+  nonzero_integer_input (module Int64) Random.int64 Random.bits64
 
 let int64_shift_amount_input =
-  { generators = List.init Int64.size (fun c -> Const c)
+  { generators = List.init 64 (fun c -> Const c)
   ; to_string  = Int.to_string
   }
 
@@ -295,7 +297,6 @@ let () =
   test_unary     "succ"                Int64.succ                Int64_u.succ;
   test_unary     "pred"                Int64.pred                Int64_u.pred;
   test_unary     "abs"                 Int64.abs                 Int64_u.abs;
-  test_constant  "size"                Int64.size                Int64_u.size                 int_result;
   test_binary    "logand"              Int64.logand              Int64_u.logand;
   test_binary    "logor"               Int64.logor               Int64_u.logor;
   test_binary    "logxor"              Int64.logxor              Int64_u.logxor;
@@ -310,8 +311,12 @@ let () =
   test_unary_of  "to_float"            Int64.to_float            Int64_u.to_float             float_result;
   test_unary_to  "of_int32"            Int64.of_int32            Int64_u.of_int32             int32_input;
   test_unary_of  "to_int32"            Int64.to_int32            Int64_u.to_int32             int32_result;
+  test_unary_to  "of_nativeint"        Int64.of_nativeint        Int64_u.of_nativeint         nativeint_input;
+  test_unary_of  "to_nativeint"        Int64.to_nativeint        Int64_u.to_nativeint         nativeint_result;
   test_unary_to  "of_string"           Int64.of_string           Int64_u.of_string            int64_string_input;
   test_unary_of  "to_string"           Int64.to_string           Int64_u.to_string            string_result;
+  test_unary_to  "bits_of_float"       Int64.bits_of_float       Int64_u.bits_of_float        float_input;
+  test_unary_of  "float_of_bits"       Int64.float_of_bits       Int64_u.float_of_bits        float_result;
   test_binary_of "compare"             Int64.compare             Int64_u.compare              int_result;
   test_binary_of "unsigned_compare"    Int64.unsigned_compare    Int64_u.unsigned_compare     int_result;
   test_binary_of "equal"               Int64.equal               Int64_u.equal                bool_result;

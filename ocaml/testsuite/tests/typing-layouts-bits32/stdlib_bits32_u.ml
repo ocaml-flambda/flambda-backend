@@ -35,12 +35,11 @@ let mk_result' equal to_string = fun ~expected ~actual ->
 let mk_result (type a) (module M : Result with type t = a) =
   mk_result' M.equal M.to_string
 
-let float_result     = mk_result (module Float)
-let bool_result      = mk_result (module Bool)
-let int_result       = mk_result (module Int)
-let int32_result     = mk_result (module Int32)
-let int32_result = mk_result (module Int32)
-let string_result    = mk_result' String.equal to_ocaml_string
+let float_result  = mk_result (module Float)
+let bool_result   = mk_result (module Bool)
+let int_result    = mk_result (module Int)
+let int32_result  = mk_result (module Int32)
+let string_result = mk_result' String.equal to_ocaml_string
 
 let option_result (type a) (module M : Result with type t = a)  =
   mk_result'
@@ -110,7 +109,7 @@ let float_input =
                  ; Const Float.infinity
                  ; Const Float.neg_infinity
                  ; Rand (fun () -> Random.float 2000. -. 1000.)
-                 ; Rand (fun () -> Int32.float_of_bits (Random.bits32 ()))
+                 ; Rand (fun () -> Int64.float_of_bits (Random.bits64 ()))
                  ]
   ; to_string = Float.to_string
   }
@@ -159,13 +158,11 @@ let nonzero_integer_input
 
 let int_input = integer_input (module Int) Random.int Random.bits
 let int32_input = integer_input (module Int32) Random.int32 Random.bits32
-let int32_input =
-  integer_input (module Int32) Random.int32 Random.nativebits
 let nonzero_int32_input =
-  nonzero_integer_input (module Int32) Random.int32 Random.nativebits
+  nonzero_integer_input (module Int32) Random.int32 Random.bits32
 
 let int32_shift_amount_input =
-  { generators = List.init Int32.size (fun c -> Const c)
+  { generators = List.init 32 (fun c -> Const c)
   ; to_string  = Int.to_string
   }
 
@@ -295,7 +292,6 @@ let () =
   test_unary     "succ"                Int32.succ                Int32_u.succ;
   test_unary     "pred"                Int32.pred                Int32_u.pred;
   test_unary     "abs"                 Int32.abs                 Int32_u.abs;
-  test_constant  "size"                Int32.size                Int32_u.size                 int_result;
   test_binary    "logand"              Int32.logand              Int32_u.logand;
   test_binary    "logor"               Int32.logor               Int32_u.logor;
   test_binary    "logxor"              Int32.logxor              Int32_u.logxor;
@@ -308,10 +304,10 @@ let () =
   test_unary_of  "unsigned_to_int"     Int32.unsigned_to_int     Int32_u.unsigned_to_int      (option_result (module Int));
   test_unary_to  "of_float"            Int32.of_float            Int32_u.of_float             float_input;
   test_unary_of  "to_float"            Int32.to_float            Int32_u.to_float             float_result;
-  test_unary_to  "of_int32"            Int32.of_int32            Int32_u.of_int32             int32_input;
-  test_unary_of  "to_int32"            Int32.to_int32            Int32_u.to_int32             int32_result;
   test_unary_to  "of_string"           Int32.of_string           Int32_u.of_string            int32_string_input;
   test_unary_of  "to_string"           Int32.to_string           Int32_u.to_string            string_result;
+  test_unary_to  "bits_of_float"       Int32.bits_of_float       Int32_u.bits_of_float        float_input;
+  test_unary_of  "float_of_bits"       Int32.float_of_bits       Int32_u.float_of_bits        float_result;
   test_binary_of "compare"             Int32.compare             Int32_u.compare              int_result;
   test_binary_of "unsigned_compare"    Int32.unsigned_compare    Int32_u.unsigned_compare     int_result;
   test_binary_of "equal"               Int32.equal               Int32_u.equal                bool_result;

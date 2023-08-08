@@ -25,8 +25,8 @@ module Int32_u = struct
 end
 
 let to_binary_string x =
-  String.init Int32.size (fun i ->
-    if Int32.(equal (logand x (shift_left 1l (Int32.size - i - 1))) 0l)
+  String.init 32 (fun i ->
+    if Int32.(equal (logand x (shift_left 1l (32 - i - 1))) 0l)
     then '0'
     else '1')
 
@@ -34,11 +34,11 @@ let print_int prefix x =
   Printf.printf "%s: %d\n" prefix x
 
 let print_int32u prefix x =
-  Printf.printf "%s: %nd\n" prefix (Int32_u.to_int32 x)
+  Printf.printf "%s: %ld\n" prefix (Int32_u.to_int32 x)
 
 let print_int32u_bin prefix x =
   let bx = Int32_u.to_int32 x in
-  Printf.printf "%s: %nd = 0b%s\n" prefix bx (to_binary_string bx)
+  Printf.printf "%s: %ld = 0b%s\n" prefix bx (to_binary_string bx)
 
 (*********************************)
 (* Test 1: some basic arithmetic *)
@@ -157,11 +157,7 @@ let test1 () =
   print_int32u_bin "Test1, minus_five_shr_one (0b1...1011 >> 1)" minus_five_shr_one;
 
   let minus_five_shrl_one = shift_right_logical minus_five 1 in
-  print_int32u_bin "Test1, minus_five_shr_one (0b1...1011 >>> 1)" minus_five_shrl_one;
-
-  (* Constants *)
-
-  print_int "Test 1, size" size
+  print_int32u_bin "Test1, minus_five_shr_one (0b1...1011 >>> 1)" minus_five_shrl_one
 
   (* CR layouts: Restore these when the appropriate constants exist *)
   (* print_int32u "Test 1, max_int" max_int;
@@ -249,7 +245,7 @@ let test3 () =
   let steps = Array.init 10 (fun _ -> 0l) in
   let five_times_three = f3 5 (Int32_u.of_int32 3l) steps in
   print_int32u "Test 3, 5 * 3: " (five_times_three ());
-  Array.iteri (Printf.printf "  Test 3, step %d: %nd\n") steps;
+  Array.iteri (Printf.printf "  Test 3, step %d: %ld\n") steps;
 
   (* Test f3_manyargs
 
@@ -273,7 +269,7 @@ let test3 () =
 
   let f3_manyargs = f3_manyargs (4,8) x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
   print_int32u "Test 3, 171: " (f3_manyargs ());
-  Array.iteri (Printf.printf "  Test 3, step %d: %nd\n") steps
+  Array.iteri (Printf.printf "  Test 3, step %d: %ld\n") steps
 
 let _ = test3 ()
 
@@ -294,14 +290,14 @@ let[@inline never] test4 () =
   let f = Sys.opaque_identity (f3 5 (Int32_u.of_int32 3l)) in
   let five_times_three = f steps in
   print_int32u "Test 4, 5 * 3: " (five_times_three ());
-  Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps;
+  Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps;
 
   (* partial application with int32# remaining *)
   let steps = Array.init 10 (fun _ -> 0l) in
   let f = Sys.opaque_identity (f3 6) in
   let six_times_three = f (Int32_u.of_int32 3l) steps in
   print_int32u "Test 4, 6 * 3: " (six_times_three ());
-  Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps;
+  Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps;
 
   (* Those two tests again, but making f3 also opaque to prevent expansion of
      the partial application. *)
@@ -311,13 +307,13 @@ let[@inline never] test4 () =
   let f = Sys.opaque_identity (f3 5 (Int32_u.of_int32 3l)) in
   let five_times_three = f steps in
   print_int32u "Test 4, 5 * 3: " (five_times_three ());
-  Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps;
+  Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps;
 
   let steps = Array.init 10 (fun _ -> 0l) in
   let f = Sys.opaque_identity (f3 6) in
   let six_times_three = f (Int32_u.of_int32 3l) steps in
   print_int32u "Test 4, 6 * 3: " (six_times_three ());
-  Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps
+  Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps
 
 let _ = test4 ()
 

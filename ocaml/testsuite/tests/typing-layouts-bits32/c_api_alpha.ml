@@ -9,8 +9,8 @@ external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 external of_int32 : (int32[@local_opt]) -> int32# =
   "%unbox_int32"
 
-let print_int32u s f = Printf.printf "%s: %nd\n" s (to_int32 f)
-let print_int32 s f = Printf.printf "%s: %nd\n" s f
+let print_int32u s f = Printf.printf "%s: %ld\n" s (to_int32 f)
+let print_int32 s f = Printf.printf "%s: %ld\n" s f
 
 (* Various combinations of arguments int32, int32 [@unboxed], and
    int32# *)

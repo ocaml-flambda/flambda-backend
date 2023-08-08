@@ -9,8 +9,8 @@ external to_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
 external of_int64 : (int64[@local_opt]) -> int64# =
   "%unbox_int64"
 
-let print_int64u s f = Printf.printf "%s: %nd\n" s (to_int64 f)
-let print_int64 s f = Printf.printf "%s: %nd\n" s f
+let print_int64u s f = Printf.printf "%s: %Ld\n" s (to_int64 f)
+let print_int64 s f = Printf.printf "%s: %Ld\n" s f
 
 (* Various combinations of arguments int64, int64 [@unboxed], and
    int64# *)

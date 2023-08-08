@@ -71,7 +71,7 @@ module Collatz_unboxed = struct
   let collatz_count n = collatz_count' (of_int32 0l) n
 
   let go () =
-    measure_alloc "Unboxed: Collatz took %nd steps to reach 1"
+    measure_alloc "Unboxed: Collatz took %ld steps to reach 1"
       (fun () -> collatz_count (of_int32 27l))
 end
 
@@ -92,7 +92,7 @@ module Collatz_boxed = struct
   let collatz_count n = Int32_u.of_int32 (collatz_count' 0l n)
 
   let go () =
-    measure_alloc "Boxed: Collatz took %nd steps to reach 1"
+    measure_alloc "Boxed: Collatz took %ld steps to reach 1"
       (fun () -> collatz_count 27l)
 end
 
