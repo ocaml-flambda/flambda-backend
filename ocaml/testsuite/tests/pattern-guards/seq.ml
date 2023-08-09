@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
    * expect *)
 
 (* Demonstrate interaction of sequences [(e1; e2; ..; en)] with pattern

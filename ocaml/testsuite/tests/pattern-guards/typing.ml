@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
    * expect *)
 
 (* Test pattern guard typechecking. *)

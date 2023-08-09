@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
    * expect *)
 
 (* Tests that warnings related to pattern guards are appropriately issued. *)

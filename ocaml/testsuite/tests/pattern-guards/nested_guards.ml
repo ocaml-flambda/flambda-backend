@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
    * expect *)
 
 (* Tests behavior of nested pattern guards, i.e. pattern guards whose cases have
