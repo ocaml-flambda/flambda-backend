@@ -3031,9 +3031,9 @@ local_strict_binding:
 ;
 match_case:
     pattern MINUSGREATER seq_expr
-      { Exp.case $1 ~guard:None $3 }
+      { Exp.case $1 $3 }
   | pattern WHEN seq_expr MINUSGREATER seq_expr
-      { Exp.case $1 ~guard:(Some $3) $5 }
+      { Exp.case $1 ~guard:$3 $5 }
   /* CR-soon rgodse: We should consider whether to also allow seq_expr, as this
      also parses without conflict.
 
@@ -3047,7 +3047,7 @@ match_case:
       { pcase_pattern_guarded
           ~loc:(make_loc ($startpos($2), $endpos)) $1 $3 $6 }
   | pattern MINUSGREATER DOT
-      { Exp.case $1 ~guard:None (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
+      { Exp.case $1 (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
 ;
 fun_def:
     MINUSGREATER seq_expr
