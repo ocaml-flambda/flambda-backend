@@ -195,7 +195,7 @@ let item_from_location ~scopes loc =
     dinfo_scopes = scopes
   }
 
-let from_location ~assume_zero_alloc = function
+let from_location ?(assume_zero_alloc=false) = function
   | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc; }
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
