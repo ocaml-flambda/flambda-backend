@@ -465,6 +465,16 @@ module type AST_syntactic_category = sig
 
   (** Set the location of an AST node. *)
   val with_location : ast -> Location.t -> ast
+
+  (** A boolean flag indicating whether the presence of a syntax feature that
+      doesn't extend the given syntactic category should be reported as an
+      error.
+
+      (For example: There are no pattern comprehensions, so when building the
+      extended pattern AST, an error will be raised if an embedding from
+      [Language_extension Comprehensions] is encountered when this flag is set.)
+   *)
+  val fail_if_wrong_syntactic_category : bool
 end
 
 module type AST_internal = sig
@@ -622,6 +632,8 @@ module Type_AST_syntactic_category = struct
   let location typ = typ.ptyp_loc
   let with_location typ l = { typ with ptyp_loc = l }
 
+  let fail_if_wrong_syntactic_category = true
+
   let attributes typ = typ.ptyp_attributes
   let with_attributes typ ptyp_attributes = { typ with ptyp_attributes }
 end
@@ -648,6 +660,8 @@ module Expression0 = Make_with_attribute (struct
   let location expr = expr.pexp_loc
   let with_location expr l = { expr with pexp_loc = l }
 
+  let fail_if_wrong_syntactic_category = true
+
   let attributes expr = expr.pexp_attributes
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
 end)
@@ -661,6 +675,8 @@ module Case0 = Make_with_extension_node (struct
   let with_location case l =
     let pc_rhs = { case.pc_rhs with pexp_loc = l } in
     { case with pc_rhs  }
+
+  let fail_if_wrong_syntactic_category = false
 
   let make_extension_use extension ast =
     let ext = Ast_helper.Exp.extension extension in
@@ -681,6 +697,8 @@ module Pattern0 = Make_with_attribute (struct
   let location pat = pat.ppat_loc
   let with_location pat l = { pat with ppat_loc = l }
 
+  let fail_if_wrong_syntactic_category = true
+
   let attributes pat = pat.ppat_attributes
   let with_attributes pat ppat_attributes = { pat with ppat_attributes }
 end)
@@ -693,6 +711,8 @@ module Module_type0 = Make_with_attribute (struct
     let location mty = mty.pmty_loc
     let with_location mty l = { mty with pmty_loc = l }
 
+    let fail_if_wrong_syntactic_category = true
+
     let attributes mty = mty.pmty_attributes
     let with_attributes mty pmty_attributes = { mty with pmty_attributes }
 end)
@@ -704,6 +724,8 @@ module Extension_constructor0 = Make_with_attribute (struct
     let plural = "extension constructors"
     let location ext = ext.pext_loc
     let with_location ext l = { ext with pext_loc = l }
+
+    let fail_if_wrong_syntactic_category = true
 
     let attributes ext = ext.pext_attributes
     let with_attributes ext pext_attributes = { ext with pext_attributes }
@@ -720,6 +742,8 @@ module Signature_item0 = Make_with_extension_node (struct
 
     let location sigi = sigi.psig_loc
     let with_location sigi l = { sigi with psig_loc = l }
+
+    let fail_if_wrong_syntactic_category = true
 
     let make_extension_use extension sigi =
       let extension_node = Ast_helper.Sig.extension extension in
@@ -755,6 +779,8 @@ module Structure_item0 = Make_with_extension_node (struct
     let location stri = stri.pstr_loc
     let with_location stri l = { stri with pstr_loc = l }
 
+    let fail_if_wrong_syntactic_category = true
+
     let make_extension_use extension stri =
       let extension_node = Ast_helper.Str.extension extension in
       Ast_helper.Str.include_
@@ -787,9 +813,7 @@ module type AST = sig
   val make_entire_jane_syntax :
     loc:Location.t -> Feature.t -> (unit -> ast) -> ast
   val make_of_ast :
-    of_ast_internal:(Feature.t -> ast -> 'a option) ->
-    fail_if_wrong_syntactic_category:bool ->
-    (ast -> 'a option)
+    of_ast_internal:(Feature.t -> ast -> 'a option) -> ast -> 'a option
 end
 
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
@@ -807,7 +831,7 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
       loc
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
-  let make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category =
+  let make_of_ast ~of_ast_internal =
     let of_ast ast =
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in

@@ -187,15 +187,6 @@ module type AST = sig
         If the given syntax feature does not actually extend the given syntactic
         category, returns [None].
     *)
-    -> fail_if_wrong_syntactic_category:bool
-    (** A boolean flag indicating whether the presence of a syntax feature that
-        doesn't extend the given syntactic category should be reported as an
-        error.
-
-        (For example: There are no pattern comprehensions, so when building the
-        extended pattern AST, an error will be raised if an embedding from
-        [Language_extension Comprehensions] if this flag is set.)
-      *)
     -> (ast -> 'a option)
 end
 

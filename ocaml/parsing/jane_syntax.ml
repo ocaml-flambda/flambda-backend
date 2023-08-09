@@ -458,9 +458,7 @@ module Core_type = struct
   let of_ast_internal (feat : Feature.t) _typ = match feat with
     | _ -> None
 
-  let of_ast =
-    Core_type.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Core_type.make_of_ast ~of_ast_internal
 end
 
 module Constructor_argument = struct
@@ -469,9 +467,7 @@ module Constructor_argument = struct
   let of_ast_internal (feat : Feature.t) _carg = match feat with
     | _ -> None
 
-  let of_ast =
-    Constructor_argument.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Constructor_argument.make_of_ast ~of_ast_internal
 end
 
 module Expression = struct
@@ -492,9 +488,7 @@ module Expression = struct
       Some (Jexp_unboxed_constant expr, attrs)
     | _ -> None
 
-  let of_ast =
-    Expression.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Expression.make_of_ast ~of_ast_internal
 
   let expr_of ~loc ~attrs = function
     | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc ~attrs x
@@ -512,8 +506,7 @@ module Case = struct
       Some (Jcase_pattern_guarded case)
     | _ -> None
 
-  let of_ast =
-    Case.make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category:false
+  let of_ast = Case.make_of_ast ~of_ast_internal
 
   let case_of ~loc = function
     | Jcase_pattern_guarded x -> Pattern_guarded.case_of ~loc x
@@ -533,8 +526,7 @@ module Pattern = struct
       Some (Jpat_unboxed_constant pat, attrs)
     | _ -> None
 
-  let of_ast =
-    Pattern.make_of_ast ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Pattern.make_of_ast ~of_ast_internal
 
   let pat_of ~loc ~attrs = function
     | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc ~attrs x
@@ -551,9 +543,7 @@ module Module_type = struct
       Some (Jmty_strengthen mty, attrs)
     | _ -> None
 
-  let of_ast =
-    Module_type.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Module_type.make_of_ast ~of_ast_internal
 end
 
 module Signature_item = struct
@@ -567,8 +557,7 @@ module Signature_item = struct
     | _ -> None
 
   let of_ast =
-    Signature_item.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+    Signature_item.make_of_ast ~of_ast_internal
 end
 
 module Structure_item = struct
@@ -581,9 +570,7 @@ module Structure_item = struct
       Some (Jstr_include_functor (Include_functor.of_str_item stri))
     | _ -> None
 
-  let of_ast =
-    Structure_item.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Structure_item.make_of_ast ~of_ast_internal
 end
 
 module Extension_constructor = struct
@@ -592,7 +579,5 @@ module Extension_constructor = struct
   let of_ast_internal (feat : Feature.t) _ext = match feat with
     | _ -> None
 
-  let of_ast =
-    Extension_constructor.make_of_ast
-      ~of_ast_internal ~fail_if_wrong_syntactic_category:true
+  let of_ast = Extension_constructor.make_of_ast ~of_ast_internal
 end
