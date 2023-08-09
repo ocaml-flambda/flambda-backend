@@ -410,6 +410,9 @@ let rec is_unboxed_number_cmm = function
     | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
       when Nativeint.equal hdr float_header ->
       Boxed (Boxed_float (mode, dbg), false)
+    | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
+      when Nativeint.equal hdr boxedvec128_header ->
+      Boxed (Boxed_vector (Pvec128 Unknown128, mode, dbg), false)
     | Cop(Calloc mode, [Cconst_natint (hdr, _); Cconst_symbol (ops, _); _], dbg) ->
       if Nativeint.equal hdr boxedintnat_header
       && String.equal ops.sym_name caml_nativeint_ops

@@ -52,6 +52,9 @@ val infix_header : int -> nativeint
 (** Header for a boxed float value *)
 val float_header : nativeint
 
+(** Header for a boxed vec128 value *)
+val boxedvec128_header : nativeint
+
 (** Boxed integer headers *)
 val boxedint32_header : nativeint
 
