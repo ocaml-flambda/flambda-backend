@@ -50,14 +50,14 @@ val black_closure_header : int -> nativeint
 val infix_header : int -> nativeint
 
 (** Header for a boxed float value *)
-val float_header : nativeint
+val is_float_header : nativeint -> bool
 
 (** Boxed integer headers *)
-val boxedint32_header : nativeint
+val is_boxedint32_header : nativeint -> bool
 
-val boxedint64_header : nativeint
+val is_boxedint64_header : nativeint -> bool
 
-val boxedintnat_header : nativeint
+val is_boxedintnat_header : nativeint -> bool
 
 (** Closure info for a closure of given arity and distance to environment *)
 val closure_info :

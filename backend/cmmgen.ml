@@ -408,20 +408,20 @@ let machtype_of_sort (s : Layouts.Sort.const) =
 
 let rec is_unboxed_number_cmm = function
     | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
-      when Nativeint.equal hdr float_header ->
+      when is_float_header hdr ->
       Boxed (Boxed_float (mode, dbg), false)
     | Cop(Calloc mode, [Cconst_natint (hdr, _); Cconst_symbol (ops, _); _], dbg) ->
-      if Nativeint.equal hdr boxedintnat_header
+      if is_boxedintnat_header hdr
       && String.equal ops.sym_name caml_nativeint_ops
       then
         Boxed (Boxed_integer (Pnativeint, mode, dbg), false)
       else
-      if Nativeint.equal hdr boxedint32_header
+      if is_boxedint32_header hdr
       && String.equal ops.sym_name caml_int32_ops
       then
         Boxed (Boxed_integer (Pint32, mode, dbg), false)
       else
-      if Nativeint.equal hdr boxedint64_header
+      if is_boxedint64_header hdr
       && String.equal ops.sym_name caml_int64_ops
       then
         Boxed (Boxed_integer (Pint64, mode, dbg), false)

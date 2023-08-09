@@ -81,10 +81,17 @@ let float_header = block_header Obj.double_tag (size_float / size_addr)
 let float_local_header =
   local_block_header Obj.double_tag (size_float / size_addr)
 
+let is_float_header hdr =
+  Nativeint.equal hdr float_header || Nativeint.equal hdr float_local_header
+
 let boxedvec128_header = block_header Obj.abstract_tag (size_vec128 / size_addr)
 
 let boxedvec128_local_header =
   local_block_header Obj.abstract_tag (size_vec128 / size_addr)
+
+let is_boxedvec128_header hdr =
+  Nativeint.equal hdr boxedvec128_header
+  || Nativeint.equal hdr boxedvec128_local_header
 
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with
@@ -109,6 +116,18 @@ let boxedint64_local_header =
   local_block_header Obj.custom_tag (1 + (8 / size_addr))
 
 let boxedintnat_local_header = local_block_header Obj.custom_tag 2
+
+let is_boxedint32_header hdr =
+  Nativeint.equal hdr boxedint32_header
+  || Nativeint.equal hdr boxedint32_local_header
+
+let is_boxedint64_header hdr =
+  Nativeint.equal hdr boxedint64_header
+  || Nativeint.equal hdr boxedint64_local_header
+
+let is_boxedintnat_header hdr =
+  Nativeint.equal hdr boxedintnat_header
+  || Nativeint.equal hdr boxedintnat_local_header
 
 let caml_nativeint_ops = "caml_nativeint_ops"
 
@@ -685,9 +704,7 @@ let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let rec unbox_float dbg =
   map_tail ~kind:Any (function
-    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
-      when Nativeint.equal hdr float_header
-           || Nativeint.equal hdr float_local_header ->
+    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _) when is_float_header hdr ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
@@ -716,8 +733,7 @@ let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg
 let rec unbox_vec128 dbg =
   map_tail ~kind:Any (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
-      when Nativeint.equal hdr boxedvec128_header
-           || Nativeint.equal hdr boxedvec128_local_header ->
+      when is_boxedvec128_header hdr ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
@@ -1565,17 +1581,11 @@ let split_int64_for_32bit_target arg dbg =
 let alloc_matches_boxed_int bi ~hdr ~ops =
   match (bi : Primitive.boxed_integer), hdr, ops with
   | Pnativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-    (Nativeint.equal hdr boxedintnat_header
-    || Nativeint.equal hdr boxedintnat_local_header)
-    && String.equal sym.sym_name caml_nativeint_ops
+    is_boxedintnat_header hdr && String.equal sym.sym_name caml_nativeint_ops
   | Pint32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-    (Nativeint.equal hdr boxedint32_header
-    || Nativeint.equal hdr boxedint32_local_header)
-    && String.equal sym.sym_name caml_int32_ops
+    is_boxedint32_header hdr && String.equal sym.sym_name caml_int32_ops
   | Pint64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-    (Nativeint.equal hdr boxedint64_header
-    || Nativeint.equal hdr boxedint64_local_header)
-    && String.equal sym.sym_name caml_int64_ops
+    is_boxedint64_header hdr && String.equal sym.sym_name caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
 let rec unbox_int dbg bi =

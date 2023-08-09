@@ -59,6 +59,10 @@ let local_closure_header sz = local_block_header Obj.closure_tag sz
 let infix_header ofs = block_header Obj.infix_tag ofs
 let float_header = block_header Obj.double_tag (size_float / size_addr)
 let float_local_header = local_block_header Obj.double_tag (size_float / size_addr)
+let is_float_header hdr =
+  Nativeint.equal hdr float_header
+  || Nativeint.equal hdr float_local_header
+
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with
      [caml_alloc_float_array]. *)
@@ -73,6 +77,15 @@ let boxedintnat_header = block_header Obj.custom_tag 2
 let boxedint32_local_header = local_block_header Obj.custom_tag 2
 let boxedint64_local_header = local_block_header Obj.custom_tag (1 + 8 / size_addr)
 let boxedintnat_local_header = local_block_header Obj.custom_tag 2
+let is_boxedint32_header hdr =
+  Nativeint.equal hdr boxedint32_header
+  || Nativeint.equal hdr boxedint32_local_header
+let is_boxedint64_header hdr =
+  Nativeint.equal hdr boxedint64_header
+  || Nativeint.equal hdr boxedint64_local_header
+let is_boxedintnat_header hdr =
+  Nativeint.equal hdr boxedintnat_header
+  || Nativeint.equal hdr boxedintnat_local_header
 let caml_nativeint_ops = "caml_nativeint_ops"
 let caml_int32_ops = "caml_int32_ops"
 let caml_int64_ops = "caml_int64_ops"
@@ -603,7 +616,7 @@ let rec unbox_float dbg =
     ~kind:Any
     (function
       | Cop(Calloc _, [Cconst_natint (hdr, _); c], _)
-        when Nativeint.equal hdr float_header ->
+        when is_float_header hdr ->
           c
       | Cconst_symbol (s, _dbg) as cmm ->
           begin match Cmmgen_state.structured_constant_of_sym s with
@@ -1246,13 +1259,13 @@ let split_int64_for_32bit_target arg dbg =
 let alloc_matches_boxed_int bi ~hdr ~ops =
   match (bi : Primitive.boxed_integer), hdr, ops with
   | Pnativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-      Nativeint.equal hdr boxedintnat_header
+      is_boxedintnat_header hdr
         && String.equal sym caml_nativeint_ops
   | Pint32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-      Nativeint.equal hdr boxedint32_header
+      is_boxedint32_header hdr
         && String.equal sym caml_int32_ops
   | Pint64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-      Nativeint.equal hdr boxedint64_header
+      is_boxedint64_header hdr
         && String.equal sym caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
