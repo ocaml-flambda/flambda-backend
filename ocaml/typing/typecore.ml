@@ -821,7 +821,7 @@ type parsed_case_rhs =
       ; cases: Parsetree.case list
       ; loc: Location.t }
 
-let pc_rhs_of_case case =
+let parsed_case_rhs_of_case case =
   match Jane_syntax.Case.of_ast case with
   | Some (Jcase_pattern_guarded (Pg_case { scrutinee; cases })) ->
       let loc = case.pc_rhs.pexp_loc in
@@ -3590,7 +3590,7 @@ let is_local_returning_expr, is_local_returning_case_rhs =
         List.fold_left
           (fun acc pc -> combine acc (loop_case pc))
           (loop e) cases
-  and loop_case case = loop_case_rhs (pc_rhs_of_case case)
+  and loop_case case = loop_case_rhs (parsed_case_rhs_of_case case)
   and loop_case_rhs = function
     | Psimple_rhs e -> loop e
     | Pboolean_guarded_rhs { rhs; _ } -> loop rhs
@@ -3623,7 +3623,7 @@ let is_local_returning_function cases =
         loop_body e
     | cases ->
         List.for_all
-          (fun case -> is_local_returning_case_rhs (pc_rhs_of_case case)) cases
+          (fun case -> is_local_returning_case_rhs (parsed_case_rhs_of_case case)) cases
   and loop_body e =
     if Builtin_attributes.has_curry e.pexp_attributes then
       is_local_returning_expr e
@@ -3814,7 +3814,7 @@ and type_approx_aux_cases env cases in_function ty_expected =
   match cases with
   | [] -> ()
   | case :: _ ->
-    let rhs = pc_rhs_of_case case in
+    let rhs = parsed_case_rhs_of_case case in
     type_approx_aux_case_rhs env rhs in_function ty_expected
 
 let type_approx env sexp ty =
@@ -7018,7 +7018,7 @@ and type_cases
           in
           { rhs with exp_type = instance ty_res' }
         in
-        let pc_rhs = pc_rhs_of_case untyped_case in
+        let pc_rhs = parsed_case_rhs_of_case untyped_case in
         let c_rhs =
           match pc_rhs with
           | Psimple_rhs rhs -> Simple_rhs (type_rhs rhs)
