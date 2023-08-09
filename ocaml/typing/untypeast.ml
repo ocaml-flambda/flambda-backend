@@ -414,7 +414,6 @@ let exp_extra sub (extra, loc, attrs) sexp =
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_rhs} ->
   let pc_lhs = sub.pat sub c_lhs in
   match c_rhs with
-  match c_rhs with
     | Simple_rhs rhs -> { pc_lhs; pc_guard = None; pc_rhs = sub.expr sub rhs }
     | Boolean_guarded_rhs { guard; rhs } ->
         { pc_lhs
