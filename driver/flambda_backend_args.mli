@@ -24,6 +24,7 @@ module type Flambda_backend_options = sig
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
   val davail : unit -> unit
+  val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit

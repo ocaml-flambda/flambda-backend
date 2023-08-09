@@ -51,10 +51,10 @@ let mk_regalloc_validate f =
 let mk_no_regalloc_validate f =
   "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
-let mk_cfg_peephole_optimize f = 
+let mk_cfg_peephole_optimize f =
   "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG"
 
-let mk_no_cfg_peephole_optimize f = 
+let mk_no_cfg_peephole_optimize f =
   "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG"
 
 let mk_reorder_blocks_random f =
@@ -129,6 +129,9 @@ let mk_dump_inlining_paths f =
 
 let mk_davail f =
   "-davail", Arg.Unit f, " Dump register availability information"
+
+let mk_ddebug_invariants f =
+  "-ddebug-invariants", Arg.Unit f, " Run invariant checks during generation of debugging information"
 
 let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
@@ -541,6 +544,7 @@ module type Flambda_backend_options = sig
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
   val davail : unit -> unit
+  val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
@@ -639,6 +643,7 @@ struct
   let list2 = [
     mk_dump_inlining_paths F.dump_inlining_paths;
     mk_davail F.davail;
+    mk_ddebug_invariants F.ddebug_invariants;
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
@@ -795,6 +800,8 @@ module Flambda_backend_options_impl = struct
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
   let davail = set' Flambda_backend_flags.davail
+
+  let ddebug_invariants = set' Dwarf_flags.ddebug_invariants
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
@@ -1044,6 +1051,7 @@ module Extra_params = struct
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
+    | "ddebug-invariants" -> set' Dwarf_flags.ddebug_invariants
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
