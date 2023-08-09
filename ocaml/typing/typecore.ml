@@ -3747,7 +3747,7 @@ let rec type_function_approx env loc label spato rhs in_function ty_expected =
     | Some spat -> type_pattern_approx env spat ty_arg
   end;
   let in_function = Some (loc_fun, ty_fun) in
-  type_approx_aux env rhs in_function ty_ret
+  type_approx_aux_case_rhs env rhs in_function ty_ret
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
@@ -3756,11 +3756,12 @@ and type_approx_aux env sexp in_function ty_expected =
   match sexp.pexp_desc with
   | Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp.pexp_loc l (Some p) e in_function
-        ty_expected
-  | Pexp_function ({pc_rhs}::_) ->
-      type_function_approx env sexp.pexp_loc Nolabel None pc_rhs
+      type_function_approx env sexp.pexp_loc l (Some p) (Psimple_rhs e)
         in_function ty_expected
+  | Pexp_function (case::_) ->
+      let rhs = parsed_case_rhs_of_case case in
+      type_function_approx env sexp.pexp_loc Nolabel None rhs in_function
+        ty_expected
   | Pexp_match (_, cases) -> type_approx_aux_cases env cases None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
