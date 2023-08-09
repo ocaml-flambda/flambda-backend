@@ -21579,7 +21579,7 @@ module Tables = struct
         let _endpos = _endpos__3_ in
         let _v : (Parsetree.case) = 
 # 3030 "parsing/parser.mly"
-      ( Exp.case _1 ~guard:None _3 )
+      ( Exp.case _1 _3 )
 # 21584 "parsing/parser.ml"
          in
         {
@@ -21632,7 +21632,7 @@ module Tables = struct
         let _endpos = _endpos__5_ in
         let _v : (Parsetree.case) = 
 # 3032 "parsing/parser.mly"
-      ( Exp.case _1 ~guard:(Some _3) _5 )
+      ( Exp.case _1 ~guard:_3 _5 )
 # 21637 "parsing/parser.ml"
          in
         {
@@ -21890,7 +21890,7 @@ module Tables = struct
         let _v : (Parsetree.case) = let _loc__3_ = (_startpos__3_, _endpos__3_) in
         
 # 3048 "parsing/parser.mly"
-      ( Exp.case _1 ~guard:None (Exp.unreachable ~loc:(make_loc _loc__3_) ()) )
+      ( Exp.case _1 (Exp.unreachable ~loc:(make_loc _loc__3_) ()) )
 # 21895 "parsing/parser.ml"
          in
         {

@@ -4353,8 +4353,7 @@ and type_expect_
     (* TODO: allow non-empty attributes? *)
       type_expect ?in_function env expected_mode
         {sexp with
-         pexp_desc =
-           Pexp_match (sval, [Ast_helper.Exp.case spat ~guard:None sbody])}
+         pexp_desc = Pexp_match (sval, [Ast_helper.Exp.case spat sbody])}
         ty_expected_explained
   | Pexp_let(rec_flag, spat_sexp_list, sbody) ->
       let existential_context =
@@ -4446,14 +4445,12 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "Some"))))
              (Some ([], Pat.var ~loc:default_loc (mknoloc "*sth*"))))
-          ~guard:None
           (Exp.ident ~loc:default_loc (mknoloc (Longident.Lident "*sth*")));
 
         Exp.case
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          ~guard:None
           (Exp.apply ~loc:default_loc
             (Exp.extension (mknoloc "extension.escape", PStr []))
             [Nolabel, default]);
@@ -4479,7 +4476,7 @@ and type_expect_
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
                     l ~has_local ~has_poly:false
-                    [Exp.case pat ~guard:None body]
+                    [Exp.case pat body]
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
@@ -4491,7 +4488,7 @@ and type_expect_
           Unsupported_extension Polymorphic_parameters));
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
-                    ~has_poly [Ast_helper.Exp.case spat ~guard:None sbody]
+                    ~has_poly [Ast_helper.Exp.case spat sbody]
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
@@ -5654,7 +5651,7 @@ and type_expect_
         type_andops env slet.pbop_exp sands ty_andops
       in
       let body_env = Env.add_lock Alloc_mode.global env in
-      let scase = Ast_helper.Exp.case spat_params ~guard:None sbody in
+      let scase = Ast_helper.Exp.case spat_params sbody in
       let cases, partial =
         type_cases Value ~require_value_case:true body_env
           (simple_pat_mode Value_mode.global)

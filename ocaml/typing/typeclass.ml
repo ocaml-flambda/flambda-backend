@@ -1164,14 +1164,12 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           (Pat.construct ~loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "Some"))))
              (Some ([], Pat.var ~loc (mknoloc "*sth*"))))
-          ~guard:None
           (Exp.ident ~loc (mknoloc (Longident.Lident "*sth*")));
 
         Exp.case
           (Pat.construct ~loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          ~guard:None
           default;
        ]
       in
