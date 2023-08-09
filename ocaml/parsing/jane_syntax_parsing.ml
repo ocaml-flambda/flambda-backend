@@ -572,11 +572,10 @@ module Make_with_extension_node
           we use for novel syntactic features in this syntactic category. The
           form should contain an extension_node of the shape [[%name]],
           constructed by [Ast_helper.CAT.extension] for the appropriate
-          syntactic category [CAT], so that [?loc] defaults to
+          syntactic category [CAT], so that its location defaults to
           [!Ast_helper.default_loc].
           Partial inverse of [match_extension_use]. *)
-      val make_extension_use :
-        ?loc:Location.t -> ?attrs:attributes -> extension -> ast -> ast
+      val make_extension_use : extension -> ast -> ast
 
       (** Given an AST node, check if it's of the special syntactic form
           indicating that this is one of our novel syntactic features (as
@@ -663,8 +662,8 @@ module Case0 = Make_with_extension_node (struct
     let pc_rhs = { case.pc_rhs with pexp_loc = l } in
     { case with pc_rhs  }
 
-  let make_extension_use ?loc ?attrs extension ast =
-    let ext = Ast_helper.Exp.extension ?loc ?attrs extension in
+  let make_extension_use extension ast =
+    let ext = Ast_helper.Exp.extension extension in
     { ast with pc_rhs = Ast_helper.Exp.apply ext [ Nolabel, ast.pc_rhs ] }
 
   let match_extension_use case =
@@ -722,8 +721,8 @@ module Signature_item0 = Make_with_extension_node (struct
     let location sigi = sigi.psig_loc
     let with_location sigi l = { sigi with psig_loc = l }
 
-    let make_extension_use ?loc ?attrs extension sigi =
-      let extension_node = Ast_helper.Sig.extension ?loc ?attrs extension in
+    let make_extension_use extension sigi =
+      let extension_node = Ast_helper.Sig.extension extension in
       Ast_helper.Sig.include_
         { pincl_mod = Ast_helper.Mty.signature [extension_node; sigi]
         ; pincl_loc = !Ast_helper.default_loc
@@ -756,8 +755,8 @@ module Structure_item0 = Make_with_extension_node (struct
     let location stri = stri.pstr_loc
     let with_location stri l = { stri with pstr_loc = l }
 
-    let make_extension_use ?loc ?attrs extension stri =
-      let extension_node = Ast_helper.Str.extension ?loc ?attrs extension in
+    let make_extension_use extension stri =
+      let extension_node = Ast_helper.Str.extension extension in
       Ast_helper.Str.include_
         { pincl_mod = Ast_helper.Mod.structure [extension_node; stri]
         ; pincl_loc = !Ast_helper.default_loc
