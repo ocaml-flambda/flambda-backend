@@ -41,7 +41,8 @@ external reachable_words_once : t -> mode:int -> identifier:int -> int = "caml_o
 external reachable_words_cleanup : unit -> unit = "caml_obj_reachable_words_cleanup"
 let reachable_words (t : t) : int =
   reachable_words_init ();
-  let ret = reachable_words_once t ~mode:1 ~identifier:1 in
+  let _ = reachable_words_once t ~mode:1 ~identifier:1 in
+  let ret = reachable_words_once t ~mode:2 ~identifier:1 in
   reachable_words_cleanup ();
   ret
 let uniquely_reachable_words (ts : t list) : int list =
