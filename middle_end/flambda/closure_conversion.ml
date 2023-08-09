@@ -219,8 +219,10 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            contents_kind = block_kind })
   | Lfunction { kind; params; body; attr; loc; mode; region; return } ->
     let name = Names.anon_fn_with_loc loc in
+    let assume_zero_alloc = Lambda.assume_zero_alloc attr.check in
+    let env = (Env.set_assume_zero_alloc env assume_zero_alloc) in
     let closure_bound_var =
-      let debug_info = Debuginfo.from_location loc in
+      let debug_info = Debuginfo.from_location ~assume_zero_alloc loc in
       Variable.create ~debug_info name
     in
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
@@ -249,13 +251,14 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       ~create_body:(fun args ->
         let func = close t env ap_func in
         let func_var = Variable.create Names.apply_funct in
+        let assume_zero_alloc = Env.assume_zero_alloc env in
         Flambda.create_let func_var (Expr func)
           (Apply ({
               func = func_var;
               args;
               result_layout = ap_result_layout;
               kind = Indirect;
-              dbg = Debuginfo.from_location ap_loc;
+              dbg = Debuginfo.from_location ~assume_zero_alloc ap_loc;
               reg_close = ap_region_close;
               mode = ap_mode;
               inlined = ap_inlined;
@@ -277,7 +280,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
           | (let_rec_ident,
              Lambda.Lfunction { kind; params; return; body; attr; loc; mode; region }) ->
             let closure_bound_var =
-              let debug_info = Debuginfo.from_location loc in
+              let assume_zero_alloc = Lambda.assume_zero_alloc attr.check in
+              let debug_info = Debuginfo.from_location ~assume_zero_alloc loc in
               Variable.create_with_same_name_as_ident ~debug_info let_rec_ident
             in
             let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
@@ -337,7 +341,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
   | Lsend (kind, meth, obj, args, reg_close, mode, loc, result_layout) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
-    let dbg = Debuginfo.from_location loc in
+    let assume_zero_alloc = Env.assume_zero_alloc env in
+    let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
     Flambda.create_let meth_var (Expr (close t env meth))
       (Flambda.create_let obj_var (Expr (close t env obj))
         (Lift_code.lifting_helper (close_list t env args)
@@ -358,7 +363,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let is_zero = Variable.create Names.is_zero in
     let exn = Variable.create Names.division_by_zero in
     let exn_symbol = Symbol.for_predef_ident Predef.ident_division_by_zero in
-    let dbg = Debuginfo.from_location loc in
+    let assume_zero_alloc = Env.assume_zero_alloc env in
+    let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
     let zero_const : Flambda.named =
       match prim with
       | Pdivint _ | Pmodint _ ->
@@ -440,7 +446,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       (name_expr (Const (Int 0)) ~name:Names.unit)
   | Lprim (Praise kind, [arg], loc) ->
     let arg_var = Variable.create Names.raise_arg in
-    let dbg = Debuginfo.from_location loc in
+    let assume_zero_alloc = Env.assume_zero_alloc env in
+    let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
     Flambda.create_let arg_var (Expr (close t env arg))
       (name_expr
         (Prim (Praise kind, [arg_var], dbg))
@@ -488,7 +495,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
        by the simplification pass to increase the likelihood of eliminating
        the allocation, since some field accesses can be tracked back to known
        field values. *)
-    let dbg = Debuginfo.from_location loc in
+    let assume_zero_alloc = Env.assume_zero_alloc env in
+    let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
     let p = Convert_primitives.convert lambda_p in
     Lift_code.lifting_helper (close_list t env args)
       ~evaluation_order:`Right_to_left
@@ -633,6 +641,9 @@ and close_functions t external_env function_declarations : Flambda.named =
     in
     let closure_bound_var = Function_decl.closure_bound_var decl in
     let unboxed_version = Variable.rename closure_bound_var in
+    let check = Function_decl.check decl in
+    let assume_zero_alloc = Lambda.assume_zero_alloc check in
+    let closure_env = Env.set_assume_zero_alloc closure_env assume_zero_alloc in
     let body = close t closure_env body in
     let closure_origin =
       Closure_origin.create (Closure_id.wrap unboxed_version)
@@ -643,7 +654,7 @@ and close_functions t external_env function_declarations : Flambda.named =
         ~body ~stub ~return_layout
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
-        ~check:(Function_decl.check decl)
+        ~check
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
         ~poll:(Function_decl.poll_attribute decl)
@@ -698,8 +709,10 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
   | Lfunction { kind; params; return; body; attr; loc; mode; region } ->
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
+    let assume_zero_alloc = Lambda.assume_zero_alloc attr.check in
+    let env = Env.set_assume_zero_alloc env assume_zero_alloc in
     let closure_bound_var =
-      let debug_info = Debuginfo.from_location loc in
+      let debug_info = Debuginfo.from_location ~assume_zero_alloc loc in
       Variable.rename ~debug_info let_bound_var
     in
     let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in

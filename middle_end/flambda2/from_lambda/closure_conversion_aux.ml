@@ -145,7 +145,8 @@ module Env = struct
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
       inlining_history_tracker : Inlining_history.Tracker.t;
-      at_toplevel : bool
+      at_toplevel : bool;
+      assume_zero_alloc : bool
     }
 
   let current_unit t = t.current_unit
@@ -165,12 +166,17 @@ module Env = struct
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
       inlining_history_tracker = Inlining_history.Tracker.empty current_unit;
-      at_toplevel = true
+      at_toplevel = true;
+      assume_zero_alloc = false
     }
 
   let set_not_at_toplevel t = { t with at_toplevel = false }
 
   let at_toplevel t = t.at_toplevel
+
+  let set_assume_zero_alloc t b = { t with assume_zero_alloc = b }
+
+  let assume_zero_alloc t = t.assume_zero_alloc
 
   let clear_local_bindings
       { variables = _;
@@ -182,7 +188,8 @@ module Env = struct
         big_endian;
         path_to_root;
         inlining_history_tracker;
-        at_toplevel
+        at_toplevel;
+        assume_zero_alloc
       } =
     let simples_to_substitute =
       Ident.Map.filter
@@ -198,7 +205,8 @@ module Env = struct
       big_endian;
       path_to_root;
       inlining_history_tracker;
-      at_toplevel
+      at_toplevel;
+      assume_zero_alloc
     }
 
   let with_depth t depth_var = { t with current_depth = Some depth_var }

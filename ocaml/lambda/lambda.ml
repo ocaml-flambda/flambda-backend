@@ -1626,3 +1626,8 @@ let array_set_kind mode = function
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+
+let assume_zero_alloc = function
+  | Default_check
+  | Ignore_assert_all _ -> false
+  | Check { property = Zero_alloc; assume; strict = _; } -> assume

@@ -108,6 +108,10 @@ module Env : sig
 
   val at_toplevel : t -> bool
 
+  val set_assume_zero_alloc : t -> bool -> t
+
+  val assume_zero_alloc : t -> bool
+
   val clear_local_bindings : t -> t
 
   val add_var : t -> Ident.t -> Variable.t -> Flambda_kind.With_subkind.t -> t

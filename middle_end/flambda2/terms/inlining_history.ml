@@ -264,6 +264,6 @@ module Tracker = struct
         Relative.between_scoped_locations ~parent:path_to_root ~child:loc
       in
       fundecl ~function_relative_history:relative
-        ~dbg:(Debuginfo.from_location loc)
+        ~dbg:(Debuginfo.from_location ~assume_zero_alloc:false loc)
         ~name t
 end

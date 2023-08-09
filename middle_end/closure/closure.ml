@@ -782,6 +782,7 @@ type env = {
   mutable_vars : V.Set.t;
   kinds: layout V.Map.t;
   catch_env : int Int.Map.t;
+  assume_zero_alloc : bool;
 }
 
 (* Perform an inline expansion:
@@ -817,11 +818,11 @@ let is_erasable = function
   | Uclosure _ -> true
   | u -> is_pure u
 
-let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
+let bind_params { backend; mutable_vars; _ } dbg fdesc params args funct body =
   let fpc = fdesc.fun_float_const_prop in
   let rec aux subst pl al body =
     match (pl, al) with
-      ([], []) -> substitute (Debuginfo.from_location loc) (backend, fpc)
+      ([], []) -> substitute dbg (backend, fpc)
                     subst (Some Int.Map.empty) body
     | (p1 :: pl, (layout1, a1) :: al) ->
         if is_substituable ~mutable_vars a1 then
@@ -877,10 +878,11 @@ let fail_if_probe ~(probe : Lambda.probe) msg =
 (* Generate a direct application *)
 
 let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~attribute =
+  let assume_zero_alloc = env.assume_zero_alloc in
+  let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
   match fundesc.fun_inline, attribute with
   | _, Never_inlined
   | None, _ ->
-     let dbg = Debuginfo.from_location loc in
      let kind = (pos, mode) in
      warning_if_forced_inlined ~loc ~attribute
        "Function information unavailable";
@@ -927,7 +929,7 @@ let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~at
        | Rc_normal | Rc_nontail -> body
        | Rc_close_at_apply -> exclave body
      in
-     bind_params env loc fundesc params uargs ufunct body
+     bind_params env dbg fundesc params uargs ufunct body
 
 (* Add [Value_integer] info to the approximation of an application *)
 
@@ -1119,8 +1121,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         let fenv = V.Map.add funct_var fapprox fenv in
         let kinds = V.Map.add funct_var Lambda.layout_function kinds in
         let ret_mode = if fundesc.fun_region then alloc_heap else alloc_local in
+        let assume_zero_alloc = env.assume_zero_alloc in
         let (new_fun, approx) =
-          close { backend; fenv; cenv; mutable_vars; kinds; catch_env }
+          close { backend; fenv; cenv; mutable_vars; kinds; catch_env; assume_zero_alloc }
           (lfunction
                ~kind
                ~return:ap_result_layout
@@ -1166,7 +1169,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           let (first_args, rem_args) = split_list nparams args in
           let first_args = List.map (fun (id, _) -> Uvar id) first_args in
           let rem_args = List.map (fun (id, _) -> Uvar id) rem_args in
-          let dbg = Debuginfo.from_location loc in
+          let assume_zero_alloc = env.assume_zero_alloc in
+          let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
           warning_if_forced_inlined ~loc ~attribute "Over-application";
           fail_if_probe ~probe "Over-application";
           let mode' = if fundesc.fun_region then alloc_heap else alloc_local in
@@ -1198,7 +1202,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           in
           result, Value_unknown
       | ((ufunct, _), uargs) ->
-          let dbg = Debuginfo.from_location loc in
+          let assume_zero_alloc = env.assume_zero_alloc in
+          let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs,
@@ -1208,13 +1213,15 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
-      let dbg = Debuginfo.from_location loc in
+      let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       let args_layout = List.map (compute_expr_layout kinds) args in
       (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
       let (ulam, alam) = close_named env id lam in
       let kinds = V.Map.add id kind kinds in
+      let assume_zero_alloc = env.assume_zero_alloc in
       begin match alam with
       | Value_const _
         when str = Alias || is_pure ulam ->
@@ -1224,7 +1231,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               cenv;
               mutable_vars;
               kinds;
-              catch_env
+              catch_env;
+              assume_zero_alloc;
             }
             body
       | _ ->
@@ -1235,7 +1243,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                 cenv;
                 mutable_vars;
                 kinds;
-                catch_env
+                catch_env;
+                assume_zero_alloc;
               }
               body
           in
@@ -1248,6 +1257,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
      let (ubody, abody) = close { env with kinds } body in
      (Ulet(Mutable, kind, VP.create id, ulam, ubody), abody)
   | Lletrec(defs, body) ->
+      let assume_zero_alloc = env.assume_zero_alloc in
       if List.for_all
            (function (_id, Lfunction _) -> true | _ -> false)
            defs
@@ -1271,7 +1281,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               cenv;
               mutable_vars;
               kinds = kinds_body;
-              catch_env
+              catch_env;
+              assume_zero_alloc;
             }
             body
         in
@@ -1298,7 +1309,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             ((VP.create id, ulam) :: udefs, V.Map.add id approx fenv_body) in
         let (udefs, fenv_body) = clos_defs defs in
         let (ubody, approx) =
-          close { backend; fenv = fenv_body; cenv; mutable_vars; kinds; catch_env } body in
+          close { backend; fenv = fenv_body; cenv; mutable_vars; kinds; catch_env;
+                  assume_zero_alloc } body in
         (Uletrec(udefs, ubody), approx)
       end
   (* Compile-time constants *)
@@ -1326,15 +1338,18 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           [arg], _loc) ->
       close env arg
   | Lprim(Pgetglobal cu, [], loc) ->
-      let dbg = Debuginfo.from_location loc in
+      let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       check_constant_result (getglobal dbg cu)
                             (Compilenv.global_approx cu)
   | Lprim(Pgetpredef id, [], loc) ->
-      let dbg = Debuginfo.from_location loc in
+      let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       getpredef dbg id, Value_unknown
   | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
-      let dbg = Debuginfo.from_location loc in
+      let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       check_constant_result (Uprim(P.Pfield (n, Lambda.layout_any_value), [ulam], dbg))
                             (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
@@ -1342,27 +1357,31 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       let (ulam, approx) = close env lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
-      let dbg = Debuginfo.from_location loc in
+      let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg cu; ulam], dbg),
        Value_unknown)
   | Lprim(Praise k, [arg], loc) ->
-      let (ulam, _approx) = close env arg in
-      let dbg = Debuginfo.from_location loc in
+    let (ulam, _approx) = close env arg in
+    let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       (Uprim(P.Praise k, [ulam], dbg),
        Value_unknown)
   | Lprim (Pmakearray _, [], _loc) -> make_const_ref (Uconst_block (0, []))
   | Lprim(p, args, loc) ->
       let p = Convert_primitives.convert p in
-      let dbg = Debuginfo.from_location loc in
+      let assume_zero_alloc = env.assume_zero_alloc in
+      let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
       simplif_prim ~backend !Clflags.float_const_prop
                    p (close_list_approx env args) dbg
-  | Lswitch(arg, sw, dbg, kind) ->
+  | Lswitch(arg, sw, loc, kind) ->
       let fn env fail =
         let (uarg, _) = close env arg in
         let const_index, const_actions, fconst =
           close_switch env sw.sw_consts sw.sw_numconsts fail
         and block_index, block_actions, fblock =
           close_switch env sw.sw_blocks sw.sw_numblocks fail in
+        let assume_zero_alloc = env.assume_zero_alloc in
         let ulam =
           Uswitch
             (uarg,
@@ -1370,7 +1389,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               us_actions_consts = const_actions;
               us_index_blocks = block_index;
               us_actions_blocks = block_actions},
-             Debuginfo.from_location dbg,
+             Debuginfo.from_location ~assume_zero_alloc loc,
             kind)
         in
         (fconst kind (fblock kind ulam),Value_unknown) in
@@ -1540,7 +1559,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_float_const_prop = !Clflags.float_const_prop;
                fun_poll = attr.poll;
                fun_region = region} in
-            let dbg = Debuginfo.from_location loc in
+            let assume_zero_alloc = Lambda.assume_zero_alloc attrib in
+            let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
             (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
              return, body, mode, attrib, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
@@ -1595,6 +1615,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
         (fun (id, kind, _) kinds -> V.Map.add id kind kinds)
         params (V.Map.add env_param Lambda.layout_function kinds_rec)
     in
+    let assume_zero_alloc = Lambda.assume_zero_alloc check in
     let (ubody, approx) =
       close
         { backend;
@@ -1602,7 +1623,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
           cenv = cenv_body;
           mutable_vars;
           kinds = kinds_body;
-          catch_env
+          catch_env;
+          assume_zero_alloc;
         }
         body
     in
@@ -1679,7 +1701,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
   let (clos, infos) = List.split clos_info_list in
   let not_scanned_fv, scanned_fv =
     if !useless_env then [], [] else not_scanned_fv, scanned_fv in
-  let env = { backend; fenv; cenv; mutable_vars; kinds; catch_env } in
+  let assume_zero_alloc = false in
+  let env = { backend; fenv; cenv; mutable_vars; kinds; catch_env; assume_zero_alloc } in
   (Uclosure {
       functions = clos;
       not_scanned_slots = List.map (fun (id, _kind) -> close_var env id) not_scanned_fv;
@@ -1825,7 +1848,9 @@ let intro ~backend ~size lam =
   let (ulam, _approx) =
     close { backend; fenv = V.Map.empty;
             cenv = V.Map.empty; mutable_vars = V.Set.empty;
-            kinds = V.Map.empty; catch_env = Int.Map.empty } lam
+            kinds = V.Map.empty; catch_env = Int.Map.empty;
+            assume_zero_alloc = false;
+          } lam
   in
   let opaque =
     !Clflags.opaque

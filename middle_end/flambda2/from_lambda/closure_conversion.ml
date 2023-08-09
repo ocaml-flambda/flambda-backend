@@ -676,7 +676,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
   let acc, args =
     List.fold_left_map (fun acc arg -> find_simples acc env arg) acc args
   in
-  let dbg = Debuginfo.from_location loc in
+  let assume_zero_alloc = Env.assume_zero_alloc env in
+  let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
   match prim, args with
   | Pccall prim, args ->
     let exn_continuation =
@@ -1173,12 +1174,13 @@ let close_exact_or_unknown_apply acc env
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
     | Rc_nontail -> Apply.Position.Nontail
   in
+  let assume_zero_alloc = Env.assume_zero_alloc env in
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
       apply_exn_continuation ~args
       ~args_arity:(Flambda_arity.create args_arity)
       ~return_arity ~call_kind
-      (Debuginfo.from_location loc)
+      (Debuginfo.from_location ~assume_zero_alloc loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe ~position
@@ -1335,7 +1337,11 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   let body = Function_decl.body decl in
   let loc = Function_decl.loc decl in
-  let dbg = Debuginfo.from_location loc in
+  let check =
+    Check_attribute.from_lambda (Function_decl.check_attribute decl)
+  in
+  let assume_zero_alloc = Check_attribute.assume_zero_alloc check in
+  let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
   let params = Function_decl.params decl in
   let param_modes =
     List.map
@@ -1409,6 +1415,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
        [Closure_conversion]."
       Ident.print our_let_rec_ident;
   let closure_env = Env.clear_local_bindings external_env in
+  let closure_env = Env.set_assume_zero_alloc closure_env assume_zero_alloc in
   (* Add the variables for function projections *)
   let closure_vars_to_bind, closure_env =
     if has_lifted_closure
@@ -1620,7 +1627,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~check
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -1738,8 +1745,11 @@ let close_functions acc external_env ~current_region function_declarations =
         let check =
           Check_attribute.from_lambda (Function_decl.check_attribute decl)
         in
+        let assume_zero_alloc = Check_attribute.assume_zero_alloc check in
         let cost_metrics = Cost_metrics.zero in
-        let dbg = Debuginfo.from_location (Function_decl.loc decl) in
+        let dbg =
+          Debuginfo.from_location ~assume_zero_alloc (Function_decl.loc decl)
+        in
         let is_tupled =
           match Function_decl.kind decl with
           | Curried _ -> false
@@ -2143,7 +2153,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     Apply.Result_continuation.Return apply.continuation
   in
   let acc, remaining = find_simples acc env remaining in
-  let apply_dbg = Debuginfo.from_location apply.loc in
+  let assume_zero_alloc = Env.assume_zero_alloc env in
+  let apply_dbg = Debuginfo.from_location ~assume_zero_alloc apply.loc in
   let needs_region =
     match apply.mode, contains_no_escaping_local_allocs with
     | Alloc_heap, false ->

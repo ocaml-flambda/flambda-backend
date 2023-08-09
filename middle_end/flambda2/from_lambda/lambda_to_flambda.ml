@@ -1065,7 +1065,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           ap_loc ap_inlined ap_probe ap_result_layout k k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
-    let dbg = Debuginfo.from_location func.loc in
+    let assume_zero_alloc = Lambda.assume_zero_alloc func.attr.check in
+    let ccenv = CCenv.set_assume_zero_alloc ccenv assume_zero_alloc in
+    let dbg = Debuginfo.from_location ~assume_zero_alloc func.loc in
     let func =
       cps_function env ~fid:id ~recursive:(Non_recursive : Recursive.t) func
     in
@@ -1204,7 +1206,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                 extra_args = extra_args_for_exn_continuation env k_exn
               }
             in
-            let dbg = Debuginfo.from_location loc in
+            let assume_zero_alloc = CCenv.assume_zero_alloc ccenv in
+            let dbg = Debuginfo.from_location ~assume_zero_alloc loc in
             CC.close_raise acc ccenv ~raise_kind ~arg:(List.hd args) ~dbg
               exn_continuation)
           k_exn
@@ -1226,9 +1229,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lswitch (scrutinee, switch, loc, kind) ->
     maybe_insert_let_cont "switch_result" kind k acc env ccenv
       (fun acc env ccenv k ->
-        cps_switch acc env ccenv switch
-          ~condition_dbg:(Debuginfo.from_location loc)
-          ~scrutinee k k_exn)
+        let assume_zero_alloc = CCenv.assume_zero_alloc ccenv in
+        let condition_dbg = Debuginfo.from_location ~assume_zero_alloc loc in
+        cps_switch acc env ccenv switch ~condition_dbg ~scrutinee k k_exn)
   | Lstringswitch (scrutinee, cases, default, loc, kind) ->
     cps acc env ccenv
       (Matching.expand_stringswitch loc kind scrutinee cases default)

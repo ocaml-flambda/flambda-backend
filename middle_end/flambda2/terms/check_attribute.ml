@@ -59,3 +59,8 @@ let equal x y =
 let is_default : t -> bool = function
   | Default_check -> true
   | Ignore_assert_all _ | Check _ -> false
+
+let assume_zero_alloc t =
+  match t with
+  | Default_check | Ignore_assert_all _ -> false
+  | Check { property = Zero_alloc; strict = _; assume; loc = _ } -> assume

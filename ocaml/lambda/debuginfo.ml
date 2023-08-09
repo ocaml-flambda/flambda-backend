@@ -195,11 +195,11 @@ let item_from_location ~scopes loc =
     dinfo_scopes = scopes
   }
 
-let from_location = function
-  | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc = false; }
+let from_location ~assume_zero_alloc = function
+  | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc; }
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
-    { dbg = [item_from_location ~scopes loc]; assume_zero_alloc = false; }
+    { dbg = [item_from_location ~scopes loc]; assume_zero_alloc; }
 
 let to_location { dbg; assume_zero_alloc=_ } =
   match dbg with

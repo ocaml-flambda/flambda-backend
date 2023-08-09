@@ -82,7 +82,7 @@ val is_none : t -> bool
 
 val to_string : t -> string
 
-val from_location : Scoped_location.t -> t
+val from_location : assume_zero_alloc:bool -> Scoped_location.t -> t
 
 val to_location : t -> Location.t
 

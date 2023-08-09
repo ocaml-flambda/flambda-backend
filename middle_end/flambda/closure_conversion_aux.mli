@@ -45,6 +45,9 @@ module Env : sig
 
   val at_toplevel : t -> bool
   val not_at_toplevel : t -> t
+
+  val assume_zero_alloc : t -> bool
+  val set_assume_zero_alloc : t -> bool -> t
 end
 
 (** Used to represent information about a set of function declarations
