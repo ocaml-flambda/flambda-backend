@@ -42,7 +42,9 @@ type boxed_number =
   | Boxed_vector of boxed_vector * alloc_mode * Debuginfo.t
 
 type env = {
-  unboxed_ids : (V.t * boxed_number) V.tbl;
+  unboxed_ids : (V.t * boxed_number) V.Map.t;
+  local_unboxed_ids : (V.t * boxed_number) V.Map.t;
+  aliased_ids : (V.t * bool ref) V.Map.t;
   notify_catch : (Cmm.expression list -> unit) IntMap.t;
   environment_param : V.t option;
   trywith_depth : int;
@@ -66,7 +68,9 @@ type env = {
 
 let empty_env =
   {
-    unboxed_ids = V.empty;
+    unboxed_ids = V.Map.empty;
+    local_unboxed_ids = V.Map.empty;
+    aliased_ids = V.Map.empty;
     notify_catch = IntMap.empty;
     environment_param = None;
     trywith_depth = 0;
@@ -79,13 +83,44 @@ let create_env ~environment_param =
   }
 
 let is_unboxed_id id env =
-  try Some (V.find_same id env.unboxed_ids)
-  with Not_found -> None
+  match V.Map.find_opt id env.unboxed_ids with
+  | Some _ as res -> res
+  | None -> V.Map.find_opt id env.local_unboxed_ids
+
+let is_aliased_id id env =
+  V.Map.find_opt id env.aliased_ids
+
+let boxed_number_mode = function
+  | Boxed_float(m, _) -> m
+  | Boxed_integer(_, m, _) -> m
+  | Boxed_vector(_, m, _) -> m
+
+let is_local_boxed_number bn =
+  match boxed_number_mode bn with
+  | Alloc_heap -> false
+  | Alloc_local -> true
 
 let add_unboxed_id id unboxed_id bn env =
+  if is_local_boxed_number bn then begin
+    let local_unboxed_ids =
+      V.Map.add id (unboxed_id, bn) env.local_unboxed_ids
+    in
+    { env with local_unboxed_ids }
+  end else begin
+    let unboxed_ids = V.Map.add id (unboxed_id, bn) env.unboxed_ids in
+    { env with unboxed_ids }
+  end
+
+let add_alias_id id alias used env =
   { env with
-    unboxed_ids = V.add id (unboxed_id, bn) env.unboxed_ids;
+    aliased_ids = V.Map.add id (alias, used) env.aliased_ids;
   }
+
+let fold_local_unboxed_ids f env acc =
+  V.Map.fold f env.local_unboxed_ids acc
+
+let reset_local_unboxed_ids env =
+  { env with local_unboxed_ids = V.Map.empty }
 
 let add_notify_catch n f env =
   { env with
@@ -473,13 +508,41 @@ let rec is_unboxed_number_cmm = function
         (is_unboxed_number_cmm body)
         (List.map (fun (_, _, e, _, _) -> is_unboxed_number_cmm e) handlers)
 
+let with_forced_local_boxing env f =
+  let local_entries =
+    fold_local_unboxed_ids
+      (fun id (unboxed_id, bn) acc ->
+         let new_id = V.create_local (V.name id) in
+         (id, new_id, unboxed_id, bn, ref false) :: acc)
+      env []
+  in
+  let new_env = reset_local_unboxed_ids env in
+  let new_env =
+    List.fold_left
+      (fun new_env (id, new_id, _, _, used) ->
+         add_alias_id id new_id used new_env)
+      new_env local_entries
+  in
+  let e = f new_env in
+  List.fold_left
+    (fun body (_, new_id, unboxed_id, bn, used) ->
+       if !used then
+         Clet (VP.create new_id, box_number bn (Cvar unboxed_id), body)
+       else
+         body)
+    e local_entries
+
 (* Translate an expression *)
 
 let rec transl env e =
   match e with
     Uvar id ->
       begin match is_unboxed_id id env with
-      | None -> Cvar id
+      | None -> begin
+          match is_aliased_id id env with
+          | Some (other_id, used) -> used := true; Cvar other_id
+          | None -> Cvar id
+        end
       | Some (unboxed_id, bn) -> box_number bn (Cvar unboxed_id)
       end
   | Uconst sc ->
@@ -845,7 +908,8 @@ let rec transl env e =
       let dbg = Debuginfo.none in
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
-      region (transl env e)
+    with_forced_local_boxing env
+      (fun new_env -> region (transl new_env e))
   | Uexclave e ->
       Ctail (transl env e)
 
