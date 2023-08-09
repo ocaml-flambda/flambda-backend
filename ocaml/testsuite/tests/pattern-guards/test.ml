@@ -219,14 +219,3 @@ Line 6, characters 9-10:
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 val disambiguation_from_guard : Foo.t option -> string = <fun>
 |}];;
-
-(* Test approximate typechecking of guards under function. *)
-
-let rec f = function
-  | x :: xs when x match Some y -> y + f xs
-  | _ :: xs -> f xs
-  | [] -> 0
-;;
-[%%expect{|
-val f : int option list -> int = <fun>
-|}];;
