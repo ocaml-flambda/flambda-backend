@@ -7,7 +7,8 @@ let native =
   | Sys.Bytecode -> false
   | Sys.Other s -> print_endline s; assert false
 
-let sizes xs = Obj.uniquely_reachable_words (List.map Obj.repr xs)
+let sizes xs = Obj.uniquely_reachable_words (List.map Obj.repr xs |> Array.of_list)
+  |> Array.to_list
 
 let expect_sizes xs exp_bytecode exp_native =
   let actual = sizes xs in
@@ -20,6 +21,9 @@ let expect_sizes xs exp_bytecode exp_native =
 type node = { id: int; used_memory: int list; mutable children: node list }
 let make id ch = { id; used_memory = List.init (Int.shift_left 1 id) (fun _ -> id); children = ch }
 
+(* Note that this all needs to be in a function to ensure our nodes actually get
+   allocated on the heap and are not static values in the binary (whose size we
+   would not count) *)
 let f () =
   let n10 = make 10 [] in
   let n9 = make 9 [] in
@@ -75,6 +79,6 @@ let f () =
 
   expect_sizes [n8; n9; n10] [772; 1540; 3076] [772; 1540; 3076]; (* Leaves *)
 
-  print_endline "OK"
+  ()
 
 let () = f ()

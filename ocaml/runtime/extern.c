@@ -261,9 +261,9 @@ static void extern_resize_position_table(void)
 
 /* Determine whether the given object [obj] is in the hash table.
    If so, set [*pos_out] to its position in the output and return 1.
-   If not, set [*h_out] to the hash value appropriate for
-   [extern_record_location] and return 0. */
-
+   If not, return 0.
+   Either way, set [*h_out] to the hash value appropriate for
+   [extern_record_location]. */
 Caml_inline int extern_lookup_position(value obj,
                                        uintnat * pos_out, uintnat * h_out)
 {
@@ -282,24 +282,9 @@ Caml_inline int extern_lookup_position(value obj,
   }
 }
 
-/* Record the output position for the given object [obj]. */
+/* Record the given object [obj] in the hashmap, associated to the specified data [data]. */
 /* The [h] parameter is the index in the hash table where the object
    must be inserted.  It was determined during lookup. */
-
-static void extern_record_location(value obj, uintnat h)
-{
-  if (extern_flags & NO_SHARING) return;
-  bitvect_set(pos_table.present, h);
-  pos_table.entries[h].obj = obj;
-  pos_table.entries[h].pos = obj_counter;
-  obj_counter++;
-  if (obj_counter >= pos_table.threshold) extern_resize_position_table();
-}
-
-/* Record the output position for the given object [obj]. */
-/* The [h] parameter is the index in the hash table where the object
-   must be inserted.  It was determined during lookup. */
-
 static void extern_record_location_with_data(value obj, uintnat h, uintnat data)
 {
   if (extern_flags & NO_SHARING) return;
@@ -310,10 +295,18 @@ static void extern_record_location_with_data(value obj, uintnat h, uintnat data)
   if (obj_counter >= pos_table.threshold) extern_resize_position_table();
 }
 
-static void extern_update_location_with_data(value obj, uintnat h, uintnat data)
+/* Record the output position for the given object [obj]. */
+/* The [h] parameter is the index in the hash table where the object
+   must be inserted.  It was determined during lookup. */
+static void extern_record_location(value obj, uintnat h)
+{
+  extern_record_location_with_data(obj, h, obj_counter);
+}
+
+/* Update the data associated with the given object [obj]. */
+static void extern_update_location_with_data(uintnat h, uintnat data)
 {
   if (extern_flags & NO_SHARING) return;
-  pos_table.entries[h].obj = obj;
   pos_table.entries[h].pos = data;
 }
 
@@ -1158,39 +1151,58 @@ CAMLexport void caml_serialize_block_float_8(void * data, intnat len)
 #endif
 }
 
+enum reachable_words_node_state {
+  /* This node will be ignored in all traversals. This can happen for two reasons:
+   * - it is reachable from at least two distinct roots, so doesn't have a unique owner
+   * - we are in mode ComputeUnique and this node has already been counted */
+  Ignored = -1,
+  /* This node is one of the roots and has not been visited yet (i.e. the computation
+   * starting at that root still hasn't ran */
+  RootUnprocessed = -2,
+  /* This node is one of the roots and the computation for that root has already ran */
+  RootProcessed = -3,
+  /* States that are positive integers indicate that a node has only been visited
+   * starting from a single root. The state is then equal to the identifier of the
+   * root that we reached it from */
+};
+
+enum reachable_words_traversal_mode {
+  /* Performs the main traversal, for each descendant recording that it is
+   * reachable from the current root.
+   *
+   * Upon encountering a node that hasn't been visited yet, we mark it as visited,
+   * recording our identifier to ensure we avoid double counting it. If it has already
+   * been visited, this means it does not uniquely belong to any owner, so we mark
+   * it as Ignored.
+   *
+   * Returns the total size of elements marked, that is ones that are reachable
+   * from the current root and can be reached by at most one root from the ones
+   * that already ran. */
+  IncrementReachedCount,
+  /* Performs the final traversal, summing up the sizes of descandants that are
+   * only reachable from the current root.
+   *
+   * Assumes that we have previously ran [IncrementReachedCount] to completion,
+   * i.e. our root is in state [RootProcessed] and every other reachable node either
+   * has our identifier or is [Ignored]. While running, we mark all visited nodes
+   * as [Ignored].
+   *
+   * Returns the total size of elements that are marked with our identifier. */
+  ComputeUnique,
+};
+
 /* Performs traversal through the OCaml object reachability graph to deterime
    how much memory an object has access to.
 
    Assumes that the position_table has already been initialized using
-   [caml_obj_reachable_words_init].  We can run this function multiple times
+   [reachable_words_init].  We can run this function multiple times
    without clearing the position table to share data between runs starting
-   from different roots. The mode must be an integer between 1 and 3 inclusive
-   and the identifier must be a positive integer.
+   from different roots. Identifiers must be positive integers.
 
    For each value node visited, we record its traversal status in the [pos] field
-   of its entry in [position_table.entries]. The statuses are:
-   * >0: node has been visited exactly once, from root with identifier equal to
-         this integer.
-   * -1: node has been visited at least two times. It will be ignored in future
-         traversals. Also used by mode 3 to show that this node has already been
-	 counted.
-   * -2: node is a root that hasn't been processed yet.
-   * -3: node is a root that has been visited by mode 2.
-
-   The expected usage is:
-   - Iterate through list of roots, running in mode 1 for each. This initializes
-     information about which nodes are roots. Returns 0.
-   - Iterate through list of roots, running in mode 2 for each. This performs
-     the main traversal, for each descendant recording that it is reachable from
-     the current root. Returns the total size of elements marked, that is ones
-     that are reachable from the current root and can be reached from at most
-     one root from the ones that already ran.
-   - Iterate through list of roots, running in mode 3 for each. This uses the
-     information computed in the previous step to return the sum of sizes of
-     elements that are reachable from this root but no other root. */
-CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value identifier_v) {
-  intnat mode = Int_val(mode_v), identifier = Int_val(identifier_v);
-
+   of its entry in [position_table.entries]. The statuses are described in detail
+   in the [reachable_words_node_state] enum. */
+intnat reachable_words_once(value root, enum reachable_words_traversal_mode mode, intnat identifier) {
   struct extern_item * sp;
   intnat size;
   uintnat mark, new_mark;
@@ -1199,12 +1211,6 @@ CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value ide
   int previously_marked, should_traverse;
   sp = extern_stack;
   size = 0;
-
-  if (mode == 1) {
-    extern_lookup_position(v, &mark, &h);
-    extern_record_location_with_data(v, h, -2);
-    return Long_val(0);
-  }
 
   while (1) {
     if (Is_long(v)) {
@@ -1216,27 +1222,47 @@ CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value ide
          and the test above is always false,
          so we end up counting out-of-heap blocks too. */
     } else {
-      if ((previously_marked = extern_lookup_position(v, &mark, &h))) {
-        if (mark == -2 && v == root) {
-          /* mode == 2 */
+      previously_marked = extern_lookup_position(v, &mark, &h);
+      if (mode == IncrementReachedCount) {
+        if (!previously_marked) {
+          /* Invariant: v != root as we have marked roots before running this function.
+           * So we can safely assign new_mark to identifier */
           should_traverse = 1;
-	  new_mark = -3;
-	} else if (mark == -3 && v == root) {
-	  /* mode == 3 || mode == 2 */
-          should_traverse = (mode == 3);
-	  new_mark = -1;
-	} else if (mark == -1 || mark == -2 || mark == -3) {
-          /* ignore (-1) or root but not ours (-2/-3) */
-	  should_traverse = 0;
-	} else {
-          /* mark is identifier (ours or not) */
-          should_traverse = !(mark == identifier && mode == 2);
-          new_mark = -1;
-	}
+          new_mark = identifier;
+        } else if (mark == RootUnprocessed && v == root) {
+          should_traverse = 1;
+          new_mark = RootProcessed;
+        } else if (mark == Ignored || mark == RootUnprocessed || mark == RootProcessed) {
+          should_traverse = 0;
+        } else if (mark == identifier) {
+          should_traverse = 0;
+        } else {
+          /* mark is some other root's identifier */
+          should_traverse = 1;
+          new_mark = Ignored;
+        }
+      } else if (mode == ComputeUnique) {
+        if (!previously_marked) {
+          caml_failwith("reachable_words_once in ComputeUnique mode encountered an unvisited node. "
+              "This is a bug in the standard library implementation.");
+        } else if (mark == RootUnprocessed) {
+          caml_failwith("reachable_words_once in ComputeUnique mode encountered an unprocessed root. "
+              "This is a bug in the standard library implementation.");
+        } else if (mark == RootProcessed && v == root) {
+          should_traverse = 1;
+          new_mark = Ignored;
+        } else if (mark == Ignored || mark == RootProcessed) {
+          should_traverse = 0;
+        } else if (mark == identifier) {
+          should_traverse = 1;
+          new_mark = Ignored;
+        } else {
+          caml_failwith("reachable_words_once in ComputeUnique mode node with identifier of different root. "
+              "This is a bug in the standard library implementation.");
+        }
       } else {
-        /* mode == 2 && not root */
-        should_traverse = 1;
-	new_mark = identifier;
+        caml_failwith("reachable_words_once encountered unknown mode. "
+            "This is a bug in the standard library implementation.");
       }
 
       if (should_traverse) {
@@ -1251,7 +1277,7 @@ CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value ide
         if (!previously_marked) {
           extern_record_location_with_data(v, h, new_mark);
         } else {
-          extern_update_location_with_data(v, h, new_mark);
+          extern_update_location_with_data(h, new_mark);
         }
         /* The block contributes to the total size */
         size += 1 + sz;           /* header word included */
@@ -1280,20 +1306,64 @@ CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value ide
     if (--(sp->count) == 0) sp--;
   }
 
-  return Val_long(size);
+  return size;
 }
 
-CAMLprim value caml_obj_reachable_words_init(value v)
+void reachable_words_init()
 {
   obj_counter = 0;
   extern_flags = 0;
   extern_init_position_table();
-  return Val_unit;
 }
 
-CAMLprim value caml_obj_reachable_words_cleanup(value v)
+void reachable_words_mark_root(value v)
+{
+  uintnat h, mark;
+  extern_lookup_position(v, &mark, &h);
+  extern_record_location_with_data(v, h, -2);
+}
+
+void reachable_words_cleanup()
 {
   extern_free_stack();
   extern_free_position_table();
-  return Val_unit;
+}
+
+CAMLprim value caml_obj_reachable_words(value v)
+{
+  CAMLparam1(v);
+  CAMLlocal1(size);
+
+  reachable_words_init();
+  reachable_words_mark_root(v);
+  size = Val_long(reachable_words_once(v, IncrementReachedCount, 1));
+  reachable_words_cleanup();
+
+  CAMLreturn(size);
+}
+
+CAMLprim value caml_obj_uniquely_reachable_words(value v)
+{
+  CAMLparam1(v);
+  CAMLlocal1(ret);
+
+  intnat length;
+
+  length = Wosize_val(v);
+  ret = caml_alloc(length, 0);
+
+  reachable_words_init();
+  for (intnat i = 0; i < length; i++) {
+    reachable_words_mark_root(Field(v, i));
+  }
+  for (intnat i = 0; i < length; i++) {
+    reachable_words_once(Field(v, i), IncrementReachedCount, i + 1);
+  }
+  for (intnat i = 0; i < length; i++) {
+    intnat size = reachable_words_once(Field(v, i), ComputeUnique, i + 1);
+    Store_field(ret, i, Val_int(size));
+  }
+  reachable_words_cleanup();
+
+  CAMLreturn(ret);
 }

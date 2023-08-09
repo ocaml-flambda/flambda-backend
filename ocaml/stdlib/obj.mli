@@ -42,10 +42,10 @@ val reachable_words : t -> int
      @since 4.04
   *)
 
-val uniquely_reachable_words : t list -> int list
-(** For each element of the list, computes the total size (as defined
+val uniquely_reachable_words : t array -> int array
+(** For each element of the array, computes the total size (as defined
     above by [reachable_words]) of all heap blocks accessible from the
-    argument but excluding all blocks accessible from previous arguments.
+    argument but excluding all blocks accessible from any other arguments.
 
     @since 4.15
   *)
