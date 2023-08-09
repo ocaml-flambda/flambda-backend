@@ -97,6 +97,7 @@ let () =
      on optimization level. *)
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "dep19.ml") ~exit_code:2 "fail19";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail20";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail21";
 
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None
     ~exit_code:2 "test_attribute_error_duplicate";
