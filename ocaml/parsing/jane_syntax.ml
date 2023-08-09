@@ -354,8 +354,7 @@ module Pattern_guarded = struct
   let of_case { pc_lhs; pc_rhs } =
     match pc_rhs.pexp_desc with
     | Pexp_match (scrutinee, cases) ->
-        let case = Pg_case { lhs = pc_lhs; scrutinee; cases } in
-        case
+        Pg_case { lhs = pc_lhs; scrutinee; cases }
     | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
 
   let case_of ~loc = function
