@@ -1201,7 +1201,7 @@ CAMLprim value caml_obj_reachable_words_once(value root, value mode_v, value ide
   size = 0;
 
   if (mode == 1) {
-    h = Hash(v);
+    extern_lookup_position(v, &mark, &h);
     extern_record_location_with_data(v, h, -2);
     return Long_val(0);
   }
