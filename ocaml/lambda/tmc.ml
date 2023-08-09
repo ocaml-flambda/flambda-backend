@@ -924,7 +924,7 @@ let rec choice ctx t =
     | Pctconst _
     | Pbswap16
     | Pbbswap _
-    | Pint_as_pointer
+    | Pint_as_pointer _
       ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))

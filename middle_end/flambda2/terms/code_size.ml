@@ -318,7 +318,7 @@ let unary_prim_size prim =
   | Array_length -> array_length_size
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
-  | Int_as_pointer -> 1
+  | Int_as_pointer _ -> 1
   | Opaque_identity _ -> 0
   | Int_arith (kind, op) -> unary_int_prim_size kind op
   | Float_arith _ -> 2

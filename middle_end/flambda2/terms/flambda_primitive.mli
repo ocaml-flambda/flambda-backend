@@ -270,7 +270,7 @@ type unary_primitive =
   (* CR mshinwell/xclerc: Invariant check: dimension >= 0 *)
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
-  | Int_as_pointer
+  | Int_as_pointer of Alloc_mode.For_allocations.t
   | Opaque_identity of
       { middle_end_only : bool;
         kind : Flambda_kind.t
