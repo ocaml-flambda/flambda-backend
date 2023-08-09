@@ -5901,8 +5901,10 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   if separate then begin_def ();
   let uncurried_function =
     match caselist with
-    | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
-        is_an_uncurried_function e
+    | [ case ] ->
+        (match parsed_case_rhs_of_case case with
+         | Psimple_rhs e -> is_an_uncurried_function e
+         | _ -> false)
     | _ -> false
   in
   let ty_expected' = instance ty_expected in
