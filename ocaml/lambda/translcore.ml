@@ -227,8 +227,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
           ({ exp_desc = Texp_function { arg_label; param; cases; partial;
                                         region; curry; warnings; arg_mode;
                                         arg_sort; ret_sort; alloc_mode } }
-           as exp)}]
-    when bindings = [] || trivial_pat pat ->
+           as exp)}] when bindings = [] || trivial_pat pat ->
       let cases =
         push_defaults exp.exp_loc bindings false arg_mode arg_sort cases partial
           warnings
@@ -253,8 +252,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
   | [{c_lhs=pat; c_rhs=Simple_rhs exp} as case]
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = Simple_rhs (wrap_bindings bindings exp)}]
-  | {c_lhs=pat; c_rhs=rhs } :: _
-    when bindings <> [] ->
+  | {c_lhs=pat; c_rhs=rhs} :: _ when bindings <> [] ->
       let exp_loc, exp_extra, exp_type, exp_env, exp_attributes =
         match rhs with
         | Simple_rhs e | Boolean_guarded_rhs { rhs = e; _ } ->

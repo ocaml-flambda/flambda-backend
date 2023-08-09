@@ -370,12 +370,13 @@ and rewrite_annotate_case case =
   match Jane_syntax.Case.of_ast case with
   | Some jcase -> rewrite_annotate_case_jane_syntax jcase
   | None ->
-  Option.iter (rewrite_exp true) case.pc_guard;
-  match case.pc_rhs.pexp_desc with
-  | Pexp_constraint (sbody, _) ->
-      (* let f x : t = e *)
-      insert_profile rw_exp sbody
-  | _ -> insert_profile rw_exp case.pc_rhs
+  match case with
+  | {pc_guard=Some scond; pc_rhs=sbody} ->
+      insert_profile rw_exp scond;
+      insert_profile rw_exp sbody;
+  | {pc_rhs={pexp_desc = Pexp_constraint(sbody, _)}} (* let f x : t = e *)
+     -> insert_profile rw_exp sbody
+  | {pc_rhs=sexp} -> insert_profile rw_exp sexp
 
 and rewrite_annotate_case_jane_syntax : Jane_syntax.Case.t -> _ = function
   | Jcase_pattern_guarded x -> rewrite_annotate_pattern_guarded_case x
