@@ -126,7 +126,7 @@ let check_invariants (instr : M.instruction) ~(avail_before : RAS.t) =
    The [available_before] and [available_across] fields of each instruction are
    updated by this function. *)
 let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
-  check_invariants instr ~avail_before;
+  if !Dwarf_flags.ddebug_invariants then check_invariants instr ~avail_before;
   instr.available_before <- avail_before;
   let avail_across, avail_after =
     let ok set = RAS.Ok set in

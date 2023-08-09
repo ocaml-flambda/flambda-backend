@@ -237,9 +237,6 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
     | Close_subrange_one_byte_after ->
       Format.fprintf ppf "Close_subrange_one_byte_after"
 
-  (* CR mshinwell: Move to [Clflags] *)
-  let check_invariants = ref true
-
   let actions_at_instruction0 ~(insn : L.instruction)
       ~(prev_insn : L.instruction option) ~known_available_after_prev_insn
       ~available_before ~available_across =
@@ -473,7 +470,7 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
           prev_insn.next <- label_insn;
           first_insn)
     in
-    (if !check_invariants
+    (if !Dwarf_flags.ddebug_invariants
     then
       let currently_open_subranges =
         KS.of_list
