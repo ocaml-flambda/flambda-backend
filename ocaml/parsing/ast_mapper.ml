@@ -911,16 +911,16 @@ let default_mapper =
     case_rhs =
       (fun this -> function
          | Psimple_rhs e -> Psimple_rhs (this.expr this e)
-         | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
+         | Pboolean_guarded_rhs { guard; rhs } ->
              Pboolean_guarded_rhs
-               { pbg_guard = this.expr this pbg_guard
-               ; pbg_rhs = this.expr this pbg_rhs
+               { guard = this.expr this guard
+               ; rhs = this.expr this rhs
                }
-         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
+         | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
              Ppattern_guarded_rhs
-               { ppg_scrutinee = this.expr this ppg_scrutinee
-               ; ppg_cases = this.cases this ppg_cases
-               ; ppg_loc = this.location this ppg_loc
+               { scrutinee = this.expr this scrutinee
+               ; cases = this.cases this cases
+               ; loc = this.location this loc
                }
       );
 

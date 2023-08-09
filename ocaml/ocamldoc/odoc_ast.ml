@@ -304,7 +304,7 @@ module Analyser =
             match func_body with
             | Pattern_guarded_rhs _ -> parameter, None
             | Simple_rhs func_body
-            | Boolean_guarded_rhs { bg_rhs = func_body; _ } ->
+            | Boolean_guarded_rhs { rhs = func_body; _ } ->
                 match parameter with
                   Simple_name { sn_name = "*opt*" } ->
                     (
@@ -450,7 +450,7 @@ module Analyser =
                    in
                    [ new_param ]
                | {c_rhs=Pattern_guarded_rhs _} :: [] -> []
-               | {c_lhs=pattern_param; c_rhs=Simple_rhs body | Boolean_guarded_rhs {bg_rhs = body}} :: [] ->
+               | {c_lhs=pattern_param; c_rhs=Simple_rhs body | Boolean_guarded_rhs {rhs = body}} :: [] ->
                    (* if this is the first call to the function, this is the first parameter and we skip it *)
                    if not first then
                      (

@@ -774,19 +774,19 @@ let case
 
 let case_rhs sub = function
   | Simple_rhs e -> Simple_rhs (sub.expr sub e)
-  | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+  | Boolean_guarded_rhs { guard; rhs } ->
       Boolean_guarded_rhs
-        { bg_guard = sub.expr sub bg_guard; bg_rhs = sub.expr sub bg_rhs }
-  | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases; pg_partial;
-                          pg_loc; pg_env; pg_type } ->
+        { guard = sub.expr sub guard; rhs = sub.expr sub rhs }
+  | Pattern_guarded_rhs { scrutinee; scrutinee_sort; cases; partial;
+                          loc; env; rhs_type } ->
       Pattern_guarded_rhs
-        { pg_scrutinee = sub.expr sub pg_scrutinee
-        ; pg_scrutinee_sort
-        ; pg_cases = List.map (sub.case sub) pg_cases
-        ; pg_partial
-        ; pg_loc
-        ; pg_env = sub.env sub pg_env
-        ; pg_type
+        { scrutinee = sub.expr sub scrutinee
+        ; scrutinee_sort
+        ; cases = List.map (sub.case sub) cases
+        ; partial
+        ; loc
+        ; env = sub.env sub env
+        ; rhs_type
         }
 
 let value_binding sub x =

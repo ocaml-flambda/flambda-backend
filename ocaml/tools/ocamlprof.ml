@@ -158,12 +158,12 @@ and rewrite_cases iflag l =
     (fun pc ->
        match pc.pc_rhs with
        | Psimple_rhs e -> rewrite_exp iflag e
-       | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-           rewrite_exp iflag pbg_guard;
-           rewrite_exp iflag pbg_rhs
-       | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc = _ } ->
-           rewrite_exp iflag ppg_scrutinee;
-           rewrite_cases iflag ppg_cases
+       | Pboolean_guarded_rhs { guard; rhs } ->
+           rewrite_exp iflag guard;
+           rewrite_exp iflag rhs
+       | Ppattern_guarded_rhs { scrutinee; cases; loc = _ } ->
+           rewrite_exp iflag scrutinee;
+           rewrite_cases iflag cases
     )
     l
 
@@ -361,12 +361,12 @@ and rewrite_ifbody iflag ghost sifbody =
 and rewrite_annotate_exp_list l =
   List.iter
     (function
-     | {pc_rhs=Pboolean_guarded_rhs { pbg_guard; pbg_rhs }} ->
-         rewrite_exp true pbg_guard;
-         insert_profile rw_exp pbg_rhs;
-     | {pc_rhs=Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ }} ->
-         rewrite_exp true ppg_scrutinee;
-         rewrite_annotate_exp_list ppg_cases
+     | {pc_rhs=Pboolean_guarded_rhs { guard; rhs }} ->
+         rewrite_exp true guard;
+         insert_profile rw_exp rhs;
+     | {pc_rhs=Ppattern_guarded_rhs { scrutinee; cases; _ }} ->
+         rewrite_exp true scrutinee;
+         rewrite_annotate_exp_list cases
      | {pc_rhs=Psimple_rhs {pexp_desc = Pexp_constraint(sbody, _)}}
        (* let f x : t = e *)
        -> insert_profile rw_exp sbody

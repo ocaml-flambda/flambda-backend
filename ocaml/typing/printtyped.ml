@@ -1039,15 +1039,15 @@ and case
 
 and case_rhs i ppf = function
   | Simple_rhs rhs -> expression i ppf rhs
-  | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
+  | Boolean_guarded_rhs { guard; rhs } ->
       line i ppf "<when>\n";
-      expression (i + 1) ppf bg_guard;
-      expression i ppf bg_rhs
-  | Pattern_guarded_rhs { pg_scrutinee; pg_scrutinee_sort; pg_cases } ->
+      expression (i + 1) ppf guard;
+      expression i ppf rhs
+  | Pattern_guarded_rhs { scrutinee; scrutinee_sort; cases } ->
       line i ppf "<when-pattern>\n";
-      expression (i + 1) ppf pg_scrutinee;
-      line (i + 1) ppf "%a\n" Layouts.Sort.format pg_scrutinee_sort;
-      list (i + 1) case ppf pg_cases
+      expression (i + 1) ppf scrutinee;
+      line (i + 1) ppf "%a\n" Layouts.Sort.format scrutinee_sort;
+      list (i + 1) case ppf cases
 
 and value_binding i ppf x =
   line i ppf "<def>\n";

@@ -2462,10 +2462,10 @@ let all_guard_idents c_rhs =
   let iterator = {Tast_iterator.default_iterator with expr = expr_iter} in
   let rec rhs_iter = function
     | Simple_rhs _ -> ()
-    | Boolean_guarded_rhs { bg_guard; _ } -> iterator.expr iterator bg_guard
-    | Pattern_guarded_rhs { pg_scrutinee; pg_cases; _ } ->
-        iterator.expr iterator pg_scrutinee;
-        List.iter (fun case -> rhs_iter case.c_rhs) pg_cases
+    | Boolean_guarded_rhs { guard; _ } -> iterator.expr iterator guard
+    | Pattern_guarded_rhs { scrutinee; cases; _ } ->
+        iterator.expr iterator scrutinee;
+        List.iter (fun case -> rhs_iter case.c_rhs) cases
   in
   rhs_iter c_rhs;
   !ids

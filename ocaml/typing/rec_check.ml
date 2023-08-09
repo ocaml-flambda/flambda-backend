@@ -1203,8 +1203,8 @@ and case
            ---------------------------------------
            G - p; m[mp] |- (p when g -> e) : m
         *)
-        | Boolean_guarded_rhs { bg_guard; bg_rhs } ->
-            join [ expression bg_guard << Dereference; expression bg_rhs ]
+        | Boolean_guarded_rhs { guard; rhs } ->
+            join [ expression guard << Dereference; expression rhs ]
         (*
            G |- (match e1 with p2 -> e2) : m
            p1 : mp -| G
@@ -1214,8 +1214,8 @@ and case
            This judgement uses uses the one in [match_expression] as a
            "subroutine."
         *)
-        | Pattern_guarded_rhs { pg_scrutinee; pg_cases; _ } ->
-          match_expression pg_scrutinee pg_cases
+        | Pattern_guarded_rhs { scrutinee; cases; _ } ->
+            match_expression scrutinee cases
       in
       (fun m ->
         let env = judg m in
