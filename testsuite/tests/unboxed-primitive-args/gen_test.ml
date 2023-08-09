@@ -183,6 +183,8 @@ let iter_protos ~f =
   List.iter manual_protos ~f;
   iter_arities 1
 
+let pr fmt = Printf.ksprintf (fun s -> print_string s; print_char '\n') fmt
+
 let generate_ml () =
   let close, print_test =
     let n = 2048 in
@@ -191,13 +193,14 @@ let generate_ml () =
     let close () =
       match !file with
       | Some file ->
-        Printf.fprintf file "\nlet () = run_tests (List.rev tests)\n%!";
+        Printf.fprintf file "\nlet run () = run_tests (List.rev tests)\n%!";
         Out_channel.close file
       | None -> ()
     in
     let new_file () =
       close ();
       let next = open_out (Printf.sprintf "test%d.ml" (!i / n)) in
+      pr "let () = Test%d.run ()" (!i / n);
       file := Some next;
       Printf.fprintf next "open Common\n";
       Printf.fprintf next "let tests = []\n\n";
@@ -224,8 +227,6 @@ let generate_ml () =
       name name (ocaml_type_gadt_of_proto proto) in
     print_test ext test);
   close ()
-
-let pr fmt = Printf.ksprintf (fun s -> print_string s; print_char '\n') fmt
 
 let generate_stubs () =
   pr "#include <stdio.h>";
