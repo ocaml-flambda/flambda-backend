@@ -1522,6 +1522,7 @@ let assemble_line b loc ins =
     | Model _ -> assert (system = S_win32)
     | Cfi_startproc -> ()
     | Cfi_endproc -> ()
+    | Cfi_def_cfa_offset _ -> ()
     | Cfi_adjust_cfa_offset _ -> ()
     | File _ -> ()
     | Loc _ -> ()

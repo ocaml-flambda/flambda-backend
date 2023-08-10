@@ -66,8 +66,11 @@ let cfi_startproc () =
 let cfi_endproc () =
   if Config.asm_cfi_supported then D.cfi_endproc ()
 
-let cfi_adjust_cfa_offset n =
-  if Config.asm_cfi_supported then D.cfi_adjust_cfa_offset n
+let cfi_adjust_cfa_offset ~bytes =
+  if Config.asm_cfi_supported && bytes <> 0 then D.cfi_adjust_cfa_offset bytes
+
+let cfi_def_cfa_offset ~bytes =
+  if Config.asm_cfi_supported then D.cfi_def_cfa_offset bytes
 
 let emit_debug_info ?discriminator dbg =
   emit_debug_info_gen ?discriminator dbg D.file D.loc
@@ -122,24 +125,33 @@ let slot_offset loc cl =
   | Outgoing n -> n
   | Domainstate _ -> assert false (* not a stack slot *)
 
-let emit_stack_offset n =
-  if n < 0
-  then I.add (int (-n)) rsp
-  else if n > 0
-  then I.sub (int n) rsp;
-  if n <> 0
-  then cfi_adjust_cfa_offset n;
-  stack_offset := !stack_offset + n
-
 let push r =
   I.push r;
-  cfi_adjust_cfa_offset 8;
+  cfi_adjust_cfa_offset ~bytes:8;
   stack_offset := !stack_offset + 8
 
 let pop r =
   I.pop r;
-  cfi_adjust_cfa_offset (-8);
+  cfi_adjust_cfa_offset ~bytes:(-8);
   stack_offset := !stack_offset - 8
+
+let push reg =
+  I.push reg;
+  cfi_adjust_cfa_offset ~bytes:8
+
+let pop reg =
+  I.pop reg;
+  cfi_adjust_cfa_offset ~bytes:(-8)
+
+let add_to_rsp n =
+  if n <> 0 then begin
+    if n > 0 then begin
+      I.add (int n) rsp
+    end else begin
+      I.sub (int (-n)) rsp
+    end;
+    cfi_adjust_cfa_offset ~bytes:(-n)
+  end
 
 (* Symbols *)
 
@@ -653,16 +665,12 @@ let emit_test i ~(taken:X86_ast.condition -> unit) = function
 let output_epilogue f =
   if !frame_required then begin
     let n = frame_size() - 8 - (if fp then 8 else 0) in
-    if n <> 0
-    then begin
-      I.add (int n) rsp;
-      cfi_adjust_cfa_offset (-n);
-    end;
-    if fp then I.pop rbp;
+    add_to_rsp n;
+    if fp then pop rbp;
     f ();
     (* reset CFA back cause function body may continue *)
-    if n <> 0
-    then cfi_adjust_cfa_offset n
+    cfi_adjust_cfa_offset ~bytes:n;
+    if fp then cfi_adjust_cfa_offset ~bytes:8
   end
   else
     f ()
@@ -914,17 +922,12 @@ let emit_instr fallthrough i =
   | Lprologue ->
     assert (!prologue_required);
     if fp then begin
-      I.push rbp;
-      cfi_adjust_cfa_offset 8;
+      push rbp;
       I.mov rsp rbp;
     end;
     if !frame_required then begin
       let n = frame_size() - 8 - (if fp then 8 else 0) in
-      if n <> 0
-      then begin
-        I.sub (int n) rsp;
-        cfi_adjust_cfa_offset n;
-      end;
+      add_to_rsp (-n)
     end
   | Lop(Imove | Ispill | Ireload) ->
       move i.arg.(0) i.res.(0)
@@ -1008,7 +1011,8 @@ let emit_instr fallthrough i =
         emit_call (Cmm.global_symbol func)
       end
   | Lop(Istackoffset n) ->
-      emit_stack_offset n
+      add_to_rsp (-n);
+      stack_offset := !stack_offset + n
   | Lop(Iload(chunk, addr, _mut)) ->
       let dest = res i 0 in
       begin match chunk with
@@ -1403,7 +1407,7 @@ let emit_instr fallthrough i =
         I.lea (mem64 NONE delta RSP) rbp
       end
   | Ladjust_stack_offset { delta_bytes; } ->
-      cfi_adjust_cfa_offset delta_bytes;
+      cfi_adjust_cfa_offset ~bytes:delta_bytes;
       stack_offset := !stack_offset + delta_bytes
   | Lpushtrap { lbl_handler; } ->
       emit_push_trap_label lbl_handler;
@@ -1414,18 +1418,14 @@ let emit_instr fallthrough i =
           I.mov (sym (emit_label s)) arg
       in
       load_label_addr lbl_handler r11;
-      I.push r11;
-      cfi_adjust_cfa_offset 8;
-      I.push (domain_field Domainstate.Domain_exception_pointer);
-      cfi_adjust_cfa_offset 8;
+      push r11;
+      push (domain_field Domainstate.Domain_exception_pointer);
       I.mov rsp (domain_field Domainstate.Domain_exception_pointer);
       stack_offset := !stack_offset + 16;
   | Lpoptrap ->
       emit_pop_trap_label ();
-      I.pop (domain_field Domainstate.Domain_exception_pointer);
-      cfi_adjust_cfa_offset (-8);
-      I.add (int 8) rsp;
-      cfi_adjust_cfa_offset (-8);
+      pop (domain_field Domainstate.Domain_exception_pointer);
+      add_to_rsp 8;
       stack_offset := !stack_offset - 16
   | Lraise k ->
       begin match k with
@@ -1438,8 +1438,12 @@ let emit_instr fallthrough i =
           record_frame Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_notrace ->
           I.mov (domain_field Domainstate.Domain_exception_pointer) rsp;
-          I.pop (domain_field Domainstate.Domain_exception_pointer);
-          I.pop r11;
+          (* CR-someday mshinwell: At this point we should mark the CFA
+             as unavailable, to avoid garbage variable values being seen when
+             stopped at exactly this point in the debugger, but it isn't clear
+             how to do that (using CFI directives at least). *)
+          pop (domain_field Domainstate.Domain_exception_pointer);
+          pop r11;
           I.jmp r11
       end
 
@@ -1504,17 +1508,14 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
+  (* Set the initial CFA offset so as to cope with the CPU having pushed the
+     return address. (The CFA points at the first address above the return
+     address slot.) *)
+  cfi_def_cfa_offset ~bytes:8;
   emit_all true fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_bound_errors ();
-  if !frame_required then begin
-    let n = frame_size() - 8 - (if fp then 8 else 0) in
-    if n <> 0
-    then begin
-      cfi_adjust_cfa_offset (-n);
-    end;
-  end;
   Option.iter def_label fun_end_label;
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
@@ -1753,7 +1754,7 @@ let emit_probe_handler_wrapper p =
   let padding = if ((wrapper_frame_size k) mod 16) = 0 then 0 else 8 in
   let n = k + padding in
   (* Allocate stack space *)
-  emit_stack_offset n;
+  add_to_rsp (-n);
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in
   let saved_live = stack_locations ~offset live in
@@ -1795,7 +1796,7 @@ let emit_probe_handler_wrapper p =
   (* After the probe handler has finished executing, restore all live registers
      and free stack space. *)
   Array.iteri (fun i reg -> move saved_live.(i) reg) live;
-  emit_stack_offset (-n);
+  add_to_rsp n;
   if fp then begin
     pop rbp
   end;
