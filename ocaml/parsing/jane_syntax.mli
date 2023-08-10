@@ -95,7 +95,7 @@ module N_ary_functions : sig
         e.g. enabling or disabling a warning.
     *)
 
-  type function_param =
+  type function_param_desc =
     | Pparam_val of
         Asttypes.arg_label * Parsetree.expression option * Parsetree.pattern
     (** [Pparam_val (lbl, exp0, P)] represents the parameter:
@@ -115,10 +115,9 @@ module N_ary_functions : sig
         Note: If [E0] is provided, only
         {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
     *)
-    | Pparam_newtype of
-        string Asttypes.loc * Asttypes.layout_annotation option * Location.t
-    (** [Pparam_newtype (x, layout, loc)] represents the parameter [(type x)].
-        [x] carries the location of the identifier, whereas [loc] is
+    | Pparam_newtype of string Asttypes.loc * Asttypes.layout_annotation option
+    (** [Pparam_newtype (x, layout)] represents the parameter [(type x)].
+        [x] carries the location of the identifier, whereas [pparam_loc] is
         the location of the [(type x)] as a whole.
 
         [layout] is the same as [Lexp_newtype]'s layout.
@@ -126,17 +125,21 @@ module N_ary_functions : sig
         Multiple parameters [(type a b c)] are represented as multiple
         [Pparam_newtype] nodes, let's say:
 
-        {[ [ Pparam_newtype (a, loc1);
-             Pparam_newtype (b, loc2);
-             Pparam_newtype (c, loc3);
+        {[ [ { pparam_desc = Pparam_newtype (a, _); pparam_loc = loc };
+             { pparam_desc = Pparam_newtype (b, _); pparam_loc = loc };
+             { pparam_desc = Pparam_newtype (c, _); pparam_loc = loc };
            ]
         ]}
 
-        Here, the first loc [loc1] is the location of [(type a b c)], and the
-        subsequent locs [loc2] and [loc3] are the same as [loc1], except marked
-        as ghost locations. The locations on [a], [b], [c], correspond to the
+        Here, [loc] gives the location of [(type a b c)], but is marked as a
+        ghost location. The locations on [a], [b], [c], correspond to the
         variables [a], [b], and [c] in the source code.
     *)
+
+  type function_param =
+    { pparam_desc : function_param_desc
+    ; pparam_loc : Location.t
+    }
 
   type type_constraint =
     | Pconstraint of Parsetree.core_type
@@ -272,7 +275,7 @@ module Layouts : sig
   (** See also [Ast_helper.Type.constructor], which is a direct inspiration for
       the interface here. It's meant to be able to be a drop-in replacement.  *)
   val constructor_declaration_of :
-    loc:Location.t -> info:Docstrings.info -> attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes -> info:Docstrings.info ->
     vars_layouts:(string Location.loc *
                   Asttypes.layout_annotation option) list ->
     args:Parsetree.constructor_arguments -> res:Parsetree.core_type option ->

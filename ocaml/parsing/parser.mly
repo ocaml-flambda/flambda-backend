@@ -809,12 +809,14 @@ let class_of_let_bindings ~loc lbs body =
 *)
 let all_params_as_newtypes =
   let open N_ary in
-  let is_newtype = function
+  let is_newtype { pparam_desc; _ } =
+    match pparam_desc with
     | Pparam_newtype _ -> true
     | Pparam_val _ -> false
   in
-  let as_newtype = function
-    | Pparam_newtype (x, layout, _) -> Some (x, layout)
+  let as_newtype { pparam_desc; _ } =
+    match pparam_desc with
+    | Pparam_newtype (x, layout) -> Some (x, layout)
     | Pparam_val _ -> None
   in
   fun params ->
@@ -3264,14 +3266,25 @@ fun_param_as_list:
           | _ :: _ :: _ -> ghost_loc $sloc
         in
         List.map
-          (fun (newtype, annot) -> N_ary.Pparam_newtype (newtype, annot, loc))
+          (fun (newtype, layout) ->
+             { N_ary.pparam_loc = loc;
+               pparam_desc = Pparam_newtype (newtype, layout)
+             })
           ty_params
       }
   | LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN
-      { [ N_ary.Pparam_newtype ($3, Some $5, make_loc $sloc) ] }
+      { [ { N_ary.pparam_loc = make_loc $sloc;
+            pparam_desc = Pparam_newtype ($3, Some $5)
+          }
+        ]
+      }
   | labeled_simple_pattern
       { let a, b, c = $1 in
-        [ N_ary.Pparam_val (a, b, c) ] }
+        [ { N_ary.pparam_loc = make_loc $sloc;
+            pparam_desc = Pparam_val (a, b, c)
+          }
+        ]
+      }
 ;
 fun_params:
   | nonempty_concat(fun_param_as_list) { $1 }

@@ -375,11 +375,12 @@ and add_n_ary_function bv : Jane_syntax.N_ary_functions.expression -> _ =
     add_function_body bv body
 
 and add_function_param bv : Jane_syntax.N_ary_functions.function_param -> _ =
-  function
-  | Pparam_val (_, opte, pat) ->
-    add_opt add_expr bv opte;
-    add_pattern bv pat
-  | Pparam_newtype _ -> bv
+  fun { pparam_desc } ->
+    match pparam_desc with
+    | Pparam_val (_, opte, pat) ->
+      add_opt add_expr bv opte;
+      add_pattern bv pat
+    | Pparam_newtype _ -> bv
 
 and add_function_body bv : Jane_syntax.N_ary_functions.function_body -> _ =
   function

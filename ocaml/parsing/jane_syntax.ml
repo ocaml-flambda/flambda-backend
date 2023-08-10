@@ -339,35 +339,6 @@ end = struct
         | "float64" -> Some Float64
         | _ -> None
     end)
-
-  module Desugaring_error = struct
-    type error =
-      | Wrong_number_of_layouts of int * layout_annotation option list
-
-    let report_error ~loc = function
-      | Wrong_number_of_layouts (n, layouts) ->
-          Location.errorf ~loc
-            "Wrong number of layouts in an layout attribute;@;\
-             expecting %i but got this list:@;%a"
-            n
-            (Format.pp_print_list
-               (Format.pp_print_option
-                  ~none:(fun ppf () -> Format.fprintf ppf "None")
-                  (Printast.layout_annotation 0)))
-            layouts
-
-    exception Error of Location.t * error
-
-    let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) ->
-              Some (report_error ~loc err)
-          | _ -> None)
-
-    let raise ~loc err =
-      raise (Error(loc, err))
-  end
   (*******************************************************)
   (* Conversions with a payload *)
 
@@ -375,6 +346,35 @@ end = struct
 
   module Decode = struct
     include Protocol.Decode
+
+    module Desugaring_error = struct
+      type error =
+        | Wrong_number_of_layouts of int * layout_annotation option list
+
+      let report_error ~loc = function
+        | Wrong_number_of_layouts (n, layouts) ->
+            Location.errorf ~loc
+              "Wrong number of layouts in an layout attribute;@;\
+              expecting %i but got this list:@;%a"
+              n
+              (Format.pp_print_list
+                (Format.pp_print_option
+                    ~none:(fun ppf () -> Format.fprintf ppf "None")
+                    (Printast.layout_annotation 0)))
+              layouts
+
+      exception Error of Location.t * error
+
+      let () =
+        Location.register_error_of_exn
+          (function
+            | Error(loc, err) ->
+                Some (report_error ~loc err)
+            | _ -> None)
+
+      let raise ~loc err =
+        raise (Error(loc, err))
+    end
 
     let bound_vars_from_vars_and_payload ~loc var_names payload =
       let layouts = option_list_from_payload ~loc payload in
@@ -683,9 +683,14 @@ module N_ary_functions = struct
     | Pfunction_body of expression
     | Pfunction_cases of case list * Location.t * attributes
 
-  type function_param =
+  type function_param_desc =
     | Pparam_val of arg_label * expression option * pattern
-    | Pparam_newtype of string loc * layout_annotation option * Location.t
+    | Pparam_newtype of string loc * layout_annotation option
+
+  type function_param =
+    { pparam_desc : function_param_desc
+    ; pparam_loc : Location.t
+    }
 
   type mode_annotation = Mode_annotation.t =
     | Local
@@ -923,13 +928,31 @@ module N_ary_functions = struct
     | Some constraint_ -> constraint_
     | None -> Desugaring_error.raise expr Expected_constraint_or_coerce
 
-  let check_param pexp_desc pexp_loc ~layout =
+  let check_param pexp_desc (pexp_loc : Location.t) ~layout =
     match pexp_desc, layout with
     | Pexp_fun (lbl, def, pat, body), None ->
-        Some (Pparam_val (lbl, def, pat), body)
+        let pparam_loc : Location.t =
+          { loc_ghost = true;
+            loc_start = pexp_loc.loc_start;
+            loc_end = pat.ppat_loc.loc_end;
+          }
+        in
+        let pparam_desc = Pparam_val (lbl, def, pat) in
+        Some ({ pparam_desc; pparam_loc }, body)
     | Pexp_newtype (newtype, body), layout ->
-        let loc = { newtype.loc with loc_ghost = true } in
-        Some (Pparam_newtype (newtype, layout, loc), body)
+        (* This imperfectly estimates where a newtype parameter ends: it uses
+           the end of the type name rather than the closing paren. The closing
+           paren location is not tracked anywhere in the parsetree. We don't
+           think merlin is affected.
+        *)
+        let pparam_loc : Location.t =
+          { loc_ghost = true;
+            loc_start = pexp_loc.loc_start;
+            loc_end = newtype.loc.loc_end;
+          }
+        in
+        let pparam_desc = Pparam_newtype (newtype, layout) in
+        Some ({ pparam_desc; pparam_loc }, body)
     | _, None -> None
     | _, Some layout ->
         Desugaring_error.raise_with_loc pexp_loc
@@ -1082,14 +1105,16 @@ module N_ary_functions = struct
     Ast_of.wrap_jane_syntax ?payload suffix x
 
   let expr_of =
-    let add_param ?after_fun_attribute param body =
+    let add_param ?after_fun_attribute { pparam_desc; pparam_loc } body =
       let fun_ =
-        match param with
+        let loc =
+          { !Ast_helper.default_loc with loc_start = pparam_loc.loc_start }
+        in
+        match pparam_desc with
         | Pparam_val (label, default, pat) ->
-            (Ast_helper.Exp.fun_ label default pat body
+            (Ast_helper.Exp.fun_ label default pat body ~loc
               [@alert "-prefer_jane_syntax"])
-        | Pparam_newtype (newtype, layout, loc) ->
-            let loc = Location.ghostify loc in
+        | Pparam_newtype (newtype, layout) ->
             match layout with
             | None -> Ast_helper.Exp.newtype newtype body ~loc
             | Some layout ->
@@ -1523,7 +1548,7 @@ module Layouts = struct
 
   module Ctor_decl_of = Ast_of (Constructor_declaration) (Ext)
 
-  let constructor_declaration_of ~loc ~info ~attrs ~vars_layouts ~args
+  let constructor_declaration_of ~loc ~attrs ~info ~vars_layouts ~args
         ~res name =
     let vars, layouts = List.split vars_layouts in
     let ctor_decl =
@@ -1539,8 +1564,12 @@ module Layouts = struct
             Ctor_decl_of.wrap_jane_syntax ["vars"] ~payload ctor_decl
           end
     in
-    (* See Note [Outer attributes at end] *)
-    { ctor_decl with pcd_attributes = ctor_decl.pcd_attributes @ attrs }
+    (* Performance hack: save an allocation if [attrs] is empty. *)
+    match attrs with
+    | [] -> ctor_decl
+    | _ :: _ as attrs ->
+        (* See Note [Outer attributes at end] *)
+        { ctor_decl with pcd_attributes = ctor_decl.pcd_attributes @ attrs }
 
   let of_constructor_declaration_internal (feat : Feature.t) ctor_decl =
     match feat with
@@ -1590,8 +1619,12 @@ module Core_type = struct
       match t with
       | Jtyp_layout x -> Layouts.type_of ~loc x
     in
-    (* See Note [Outer attributes at end] *)
-    { core_type with ptyp_attributes = core_type.ptyp_attributes @ attrs }
+    (* Performance hack: save an allocation if [attrs] is empty. *)
+    match attrs with
+    | [] -> core_type
+    | _ :: _ as attrs ->
+        (* See Note [Outer attributes at end] *)
+        { core_type with ptyp_attributes = core_type.ptyp_attributes @ attrs }
 end
 
 module Constructor_argument = struct
@@ -1744,6 +1777,10 @@ module Extension_constructor = struct
       | Jext_layout lext ->
           Layouts.extension_constructor_of ~loc ~name ?info ?docs lext
     in
-    (* See Note [Outer attributes at end] *)
-    { ext_ctor with pext_attributes = ext_ctor.pext_attributes @ attrs }
+    (* Performance hack: save an allocation if [attrs] is empty. *)
+    match attrs with
+    | [] -> ext_ctor
+    | _ :: _ as attrs ->
+        (* See Note [Outer attributes at end] *)
+        { ext_ctor with pext_attributes = ext_ctor.pext_attributes @ attrs }
 end

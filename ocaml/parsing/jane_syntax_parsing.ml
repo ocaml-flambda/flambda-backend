@@ -536,15 +536,7 @@ module Make_with_attribute
     let embedding_syntax = Embedding_syntax.Attribute
 
     let make_jane_syntax name ?(payload = PStr []) ast =
-      let attr =
-        { attr_name =
-            { txt = Embedded_name.to_string name
-            ; loc = !Ast_helper.default_loc
-            }
-        ; attr_loc = !Ast_helper.default_loc
-        ; attr_payload = payload
-        }
-      in
+      let attr = make_jane_syntax_attribute name payload in
       (* See Note [Outer attributes at end] in jane_syntax.ml *)
       with_attributes ast (attributes ast @ [ attr ])
 

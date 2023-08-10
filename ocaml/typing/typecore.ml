@@ -3768,12 +3768,8 @@ let loc_rest_of_function
   =
   let open Jane_syntax.N_ary_functions in
   match params_suffix, body with
-  | param :: _, _ ->
-      let loc_start =
-        match param with
-        | Pparam_newtype (_, _, loc_param) -> loc_param.loc_start
-        | Pparam_val (_, _, pat) -> pat.ppat_loc.loc_start
-      in
+  | { pparam_loc } :: _, _ ->
+      let loc_start = pparam_loc.loc_start in
       { loc_start; loc_end = loc_function.loc_end; loc_ghost = true }
   | [], Pfunction_body pexp -> pexp.pexp_loc
   | [], Pfunction_cases (_, loc_cases, _) -> loc_cases
@@ -3921,10 +3917,18 @@ let rec type_approx env sexp ty_expected =
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax ~loc env jexp ty_expected
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx env e ty_expected
-  | Pexp_fun _ ->
-      Misc.fatal_error "[type_approx] didn't expect [Pexp_fun]"
-  | Pexp_function _ ->
-      Misc.fatal_error "[type_approx] didn't expect [Pexp_function]"
+  | Pexp_fun (lbl, def, pat, body) ->
+      let open Jane_syntax.N_ary_functions in
+      type_approx_function ~loc env
+        [ { pparam_desc = Pparam_val (lbl, def, pat);
+            pparam_loc = pat.ppat_loc
+          }
+        ]
+        None (Pfunction_body body) ty_expected
+  | Pexp_function cases ->
+      let open Jane_syntax.N_ary_functions in
+      type_approx_function ~loc
+        env [] None (Pfunction_cases (cases, sexp.pexp_loc, [])) ty_expected
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx env e ty_expected
   | Pexp_try (e, _) -> type_approx env e ty_expected
   | Pexp_tuple l ->
@@ -3993,8 +3997,8 @@ and type_approx_function =
       we give up.
     *)
     match params with
-    | Pparam_newtype _ :: _ -> ()
-    | Pparam_val (label, _, pat) :: params ->
+    | { pparam_desc = Pparam_newtype _ } :: _ -> ()
+    | { pparam_desc = Pparam_val (label, _, pat) } :: params ->
         let ty_res =
           type_approx_fun_one_param env loc label (Some pat) ty_expected
             ~first ~in_function
@@ -4496,6 +4500,7 @@ and type_expect_
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
         ~loc
+        ~loc_stack:sexp.pexp_loc_stack
         ~env
         ~expected_mode
         ~ty_expected
@@ -7775,6 +7780,7 @@ and type_generic_array
 
 and type_expect_jane_syntax
       ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes
+        ~loc_stack
   : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x ->
       type_comprehension_expr
@@ -7788,9 +7794,10 @@ and type_expect_jane_syntax
   | Jexp_n_ary_function x ->
       type_n_ary_function
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+          ~loc_stack
 
 and type_n_ary_function
-      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
+      ~loc ~loc_stack ~env ~expected_mode ~ty_expected ~explanation ~attributes
       ((params, constraint_, body) : Jane_syntax.N_ary_functions.expression)
     =
     (* TODO nroberts: in later commit, actually typecheck this. *)
@@ -7833,15 +7840,30 @@ and type_n_ary_function
             mode_annotations
     in
     let ast =
-      let loc : Location.t = { loc with loc_ghost = true } in
+      (* Extract the least-parenthesized location for forging the fake
+         location for the nested Pexp_fun nodes.
+      *)
+      let make_loc =
+        let rec last loc_stack =
+          match loc_stack with
+          | [] -> loc
+          | [ loc ] -> loc
+          | _ :: tl -> last tl
+        in
+        let loc_function = last loc_stack in
+        fun ~pparam_loc ->
+          { loc_function with
+              Location.loc_start = pparam_loc.Location.loc_start;
+              loc_ghost = true;
+          }
+      in
       List.fold_right
-        (fun param body ->
-           match param with
+        (fun { pparam_loc; pparam_desc } body ->
+           let loc = make_loc ~pparam_loc in
+           match pparam_desc with
            | Pparam_val (l, o, p) ->
-               let loc = { loc with loc_start = p.ppat_loc.loc_start } in
                (Exp.fun_ l o p body ~loc [@alert "-prefer_jane_syntax"])
-           | Pparam_newtype (newtype, layout, newtype_loc) ->
-               let loc = { loc with loc_start = newtype_loc.loc_start } in
+           | Pparam_newtype (newtype, layout) ->
                match layout with
                | None -> Exp.newtype newtype body ~loc
                | Some layout ->

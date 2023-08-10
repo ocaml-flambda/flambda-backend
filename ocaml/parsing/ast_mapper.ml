@@ -562,14 +562,19 @@ module E = struct
       Lexp_newtype (str, layout, inner_expr)
 
   let map_function_param sub : N_ary.function_param -> N_ary.function_param =
-    function
-    | Pparam_newtype (newtype, annot, loc) ->
-      Pparam_newtype
-        ( map_loc sub newtype
-        , map_opt (map_loc_txt sub sub.layout_annotation) annot
-        , sub.location sub loc )
-    | Pparam_val (label, def, pat) ->
-      Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
+    fun { pparam_loc = loc; pparam_desc = desc } ->
+      let loc = sub.location sub loc in
+      let desc : N_ary.function_param_desc =
+        match desc with
+        | Pparam_val (label, def, pat) ->
+            Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
+        | Pparam_newtype (newtype, layout) ->
+            Pparam_newtype
+              ( map_loc sub newtype
+              , map_opt (map_loc_txt sub sub.layout_annotation) layout
+              )
+      in
+      { pparam_loc = loc; pparam_desc = desc }
 
   let map_type_constraint sub : N_ary.type_constraint -> N_ary.type_constraint =
     function

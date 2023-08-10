@@ -676,7 +676,7 @@ Ptop_def
             None
             pattern (//toplevel//[6,56+13]..[6,56+14])
               Ppat_var "x" (//toplevel//[6,56+13]..[6,56+14])
-            expression (//toplevel//[6,56+13]..[6,56+24]) ghost
+            expression (//toplevel//[6,56+15]..[6,56+24]) ghost
               Pexp_fun
               Nolabel
               None
@@ -711,13 +711,13 @@ Ptop_def
             None
             pattern (//toplevel//[7,81+15]..[7,81+16])
               Ppat_var "x" (//toplevel//[7,81+15]..[7,81+16])
-            expression (//toplevel//[7,81+15]..[7,81+32]) ghost
+            expression (//toplevel//[7,81+17]..[7,81+32]) ghost
               Pexp_fun
               Nolabel
               None
               pattern (//toplevel//[7,81+17]..[7,81+18])
                 Ppat_var "y" (//toplevel//[7,81+17]..[7,81+18])
-              expression (//toplevel//[7,81+15]..[7,81+32]) ghost
+              expression (//toplevel//[7,81+19]..[7,81+32]) ghost
                 Pexp_fun
                 Nolabel
                 None
@@ -764,7 +764,7 @@ Ptop_def
             None
             pattern (//toplevel//[8,114+14]..[8,114+15])
               Ppat_var "x" (//toplevel//[8,114+14]..[8,114+15])
-            expression (//toplevel//[8,114+14]..[8,114+25]) ghost
+            expression (//toplevel//[8,114+16]..[8,114+25]) ghost
               Pexp_fun
               Nolabel
               None
@@ -799,13 +799,13 @@ Ptop_def
             None
             pattern (//toplevel//[9,140+16]..[9,140+17])
               Ppat_var "x" (//toplevel//[9,140+16]..[9,140+17])
-            expression (//toplevel//[9,140+16]..[9,140+33]) ghost
+            expression (//toplevel//[9,140+18]..[9,140+33]) ghost
               Pexp_fun
               Nolabel
               None
               pattern (//toplevel//[9,140+18]..[9,140+19])
                 Ppat_var "y" (//toplevel//[9,140+18]..[9,140+19])
-              expression (//toplevel//[9,140+16]..[9,140+33]) ghost
+              expression (//toplevel//[9,140+20]..[9,140+33]) ghost
                 Pexp_fun
                 Nolabel
                 None
@@ -852,7 +852,7 @@ Ptop_def
             None
             pattern (//toplevel//[10,174+14]..[10,174+15])
               Ppat_var "x" (//toplevel//[10,174+14]..[10,174+15])
-            expression (//toplevel//[10,174+14]..[10,174+25]) ghost
+            expression (//toplevel//[10,174+16]..[10,174+25]) ghost
               Pexp_fun
               Nolabel
               None
@@ -887,13 +887,13 @@ Ptop_def
             None
             pattern (//toplevel//[11,200+16]..[11,200+17])
               Ppat_var "x" (//toplevel//[11,200+16]..[11,200+17])
-            expression (//toplevel//[11,200+16]..[11,200+33]) ghost
+            expression (//toplevel//[11,200+18]..[11,200+33]) ghost
               Pexp_fun
               Nolabel
               None
               pattern (//toplevel//[11,200+18]..[11,200+19])
                 Ppat_var "y" (//toplevel//[11,200+18]..[11,200+19])
-              expression (//toplevel//[11,200+16]..[11,200+33]) ghost
+              expression (//toplevel//[11,200+20]..[11,200+33]) ghost
                 Pexp_fun
                 Nolabel
                 None
@@ -1315,13 +1315,13 @@ Ptop_def
               None
               pattern (//toplevel//[2,1+6]..[2,1+7])
                 Ppat_var "x" (//toplevel//[2,1+6]..[2,1+7])
-              expression (//toplevel//[2,1+6]..[2,1+15]) ghost
+              expression (//toplevel//[2,1+8]..[2,1+15]) ghost
                 Pexp_fun
                 Nolabel
                 None
                 pattern (//toplevel//[2,1+8]..[2,1+9])
                   Ppat_var "y" (//toplevel//[2,1+8]..[2,1+9])
-                expression (//toplevel//[2,1+6]..[2,1+15]) ghost
+                expression (//toplevel//[2,1+10]..[2,1+15]) ghost
                   Pexp_fun
                   Nolabel
                   None

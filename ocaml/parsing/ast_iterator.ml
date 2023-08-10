@@ -472,14 +472,16 @@ module E = struct
       iter_loc_txt sub sub.layout_annotation layout;
       sub.expr sub inner_expr
 
-  let iter_function_param sub : N_ary.function_param -> _ = function
-    | Pparam_newtype (newtype, annot, loc) ->
-        iter_loc sub newtype;
-        iter_opt (iter_loc_txt sub sub.layout_annotation) annot;
-        sub.location sub loc
-    | Pparam_val (_label, def, pat) ->
-        Option.iter (sub.expr sub) def;
-        sub.pat sub pat
+  let iter_function_param sub : N_ary.function_param -> _ =
+    fun { pparam_loc = loc; pparam_desc = desc } ->
+      sub.location sub loc;
+      match desc with
+      | Pparam_val (_label, def, pat) ->
+          iter_opt (sub.expr sub) def;
+          sub.pat sub pat
+      | Pparam_newtype (newtype, layout) ->
+          iter_loc sub newtype;
+          iter_opt (iter_loc_txt sub sub.layout_annotation) layout
 
   let iter_function_constraint sub : N_ary.function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any

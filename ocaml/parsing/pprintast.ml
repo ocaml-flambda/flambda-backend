@@ -1418,9 +1418,13 @@ and pp_print_pexp_function ctxt sep f x =
   (* do not print [@extension.local] on expressions *)
   let attrs, _ = check_local_attr x.pexp_attributes in
   let x = { x with pexp_attributes = attrs } in
+  (* We go to some trouble to print nested [Pexp_newtype]/[Lexp_newtype] as
+     newtype parameters of the same "fun" (rather than printing several nested
+     "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
+     makes the pretty-printing a bit prettier. *)
   match Jane_syntax.Expression.of_ast x with
   | Some (Jexp_n_ary_function (params, c, body), []) ->
-      function_params_then_body ctxt f params c body ~delimiter:"="
+      function_params_then_body ctxt f params c body ~delimiter:sep
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
@@ -1433,7 +1437,11 @@ and pp_print_pexp_function ctxt sep f x =
   else
     match x.pexp_desc with
     | Pexp_newtype (str,e) ->
-        pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
+      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
+    | Pexp_fun (a, b, c, body) ->
+      pp f "%a@;%a"
+        (label_exp ctxt) (a, b, c)
+        (pp_print_pexp_function ctxt sep) body
     | _ ->
        pp f "%s@;%a" sep (expression ctxt) x
 
@@ -1984,12 +1992,15 @@ and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
   | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
 
-and function_param ctxt f (x : Jane_syntax.N_ary_functions.function_param) =
-  match x with
+and function_param ctxt f
+    ({ pparam_desc; pparam_loc = _ } :
+       Jane_syntax.N_ary_functions.function_param)
+  =
+  match pparam_desc with
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
-  | Pparam_newtype (ty, None, _) -> pp f "(type %s)@;" ty.txt
-  | Pparam_newtype (ty, Some annot, _) ->
-      pp f "(type %s : %a)@;" ty.txt layout_annotation annot
+  | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
+  | Pparam_newtype (ty, Some annot) ->
+      pp f "(type %s : %a)" ty.txt layout_annotation annot
 
 and function_body ctxt f (x : Jane_syntax.N_ary_functions.function_body) =
   match x with
@@ -2016,13 +2027,13 @@ and function_constraint
       (core_type ctxt) ty2
 
 and function_params_then_body ctxt f params constraint_ body ~delimiter =
-  let pp_params f () =
+  let pp_params f =
     match params with
     | [] -> ()
     | _ :: _ -> pp f "%a@;" (list (function_param ctxt) ~sep:"@ ") params
   in
-  pp f "%a%a%s@;%a"
-    pp_params ()
+  pp f "%t%a%s@;%a"
+    pp_params
     (option (function_constraint ctxt) ~first:"@;") constraint_
     delimiter
     (function_body (under_functionrhs ctxt)) body
@@ -2050,11 +2061,10 @@ and n_ary_function_expr
         (function_body ctxt) body
         (function_constraint ctxt) constraint_
     | _ :: _, _ ->
-      pp f "@[<2>fun@;%a@]"
-        (fun f () ->
+      pp f "@[<2>fun@;%t@]"
+        (fun f ->
           function_params_then_body
             ctxt f params constraint_ body ~delimiter:"->")
-        ()
 
 let toplevel_phrase f x =
   match x with
