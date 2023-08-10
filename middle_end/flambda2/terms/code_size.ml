@@ -355,6 +355,8 @@ let binary_prim_size prim =
   | Float_arith op -> binary_float_arith_primitive op
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Get_alignment (String | Bytes) -> 2 (* add index + tzcnt *)
+  | Get_alignment Bigstring -> 3 (* load data + add index + tzcnt *)
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with

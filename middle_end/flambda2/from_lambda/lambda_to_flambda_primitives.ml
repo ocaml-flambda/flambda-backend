@@ -249,6 +249,14 @@ let checked_access ~dbg ~primitive ~conditions : H.expr_primitive =
       dbg
     }
 
+let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
+  Checked
+    { primitive;
+      validity_conditions = conditions;
+      failure = Address_was_misaligned;
+      dbg
+    }
+
 let check_bound_tagged tagged_index bound : H.expr_primitive =
   Binary
     ( Int_comp (I.Naked_immediate, Yielding_bool (Lt Unsigned)),
@@ -341,14 +349,31 @@ let bigstring_access_validity_condition ~size_int big_str access_size index :
   string_like_access_validity_condition index ~size_int ~access_size
     ~length:(bigarray_dim_bound big_str 1)
 
+let string_like_alignment_validity_condition str kind alignment tagged_index :
+    H.expr_primitive =
+  Binary
+    ( Int_comp (I.Naked_immediate, Yielding_bool (Ge Unsigned)),
+      Prim (Binary (Get_alignment kind, str, untag_int tagged_index)),
+      Simple (Simple.untagged_const_int alignment) )
+
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
     string index =
+  (* TODO(mslater): check alignment based on access size *)
+  (* let string_like_value_kind : P.string_like_value = match (kind :
+     P.string_or_bytes) with String -> String | Bytes -> Bytes in let primitive
+     = checked_alignment ~dbg ~primitive ~conditions: [
+     string_like_alignment_validity_condition string string_like_value_kind
+     alignment index ] in *)
   checked_access ~dbg ~primitive
     ~conditions:
       [ string_or_bytes_access_validity_condition ~size_int string kind
           access_size index ]
 
 let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
+  (* TODO(mslater): check alignment based on access size *)
+  (* let primitive = checked_alignment ~dbg ~primitive ~conditions:
+     [string_like_alignment_validity_condition arg1 Bigstring alignment arg2]
+     in *)
   checked_access ~dbg ~primitive
     ~conditions:
       [bigstring_access_validity_condition ~size_int arg1 access_size arg2]
