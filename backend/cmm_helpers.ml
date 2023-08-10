@@ -3127,14 +3127,14 @@ module Generic_fns_tbl = struct
       in
       let send =
         Seq.init max_send (fun n ->
-          Seq.cons
+            Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
       in
       let apply =
         Seq.init max_apply (fun n ->
-           Seq.cons
+            Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
@@ -3142,7 +3142,8 @@ module Generic_fns_tbl = struct
       let t = make () in
       add_uncached t
         Cmx_format.
-          { curry_fun = Seq.filter is_curry (Seq.append tuplify curry) |> List.of_seq;
+          { curry_fun =
+              Seq.filter is_curry (Seq.append tuplify curry) |> List.of_seq;
             send_fun = Seq.filter is_send send |> List.of_seq;
             apply_fun = Seq.filter is_apply apply |> List.of_seq
           };
