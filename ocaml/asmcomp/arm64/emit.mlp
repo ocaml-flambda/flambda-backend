@@ -160,6 +160,12 @@ let emit_call_gc gc =
   `{emit_label gc.gc_lbl}:	bl	{emit_symbol "caml_call_gc"}\n`;
   `{emit_label gc.gc_frame_lbl}:	b	{emit_label gc.gc_return_lbl}\n`
 
+let emit_local_realloc lr =
+  `{emit_label lr.lr_lbl}:\n`;
+  `	{emit_debug_info lr.lr_dbg}\n`;
+  `	bl	{emit_symbol "caml_call_local_realloc"}\n`;
+  `	b	{emit_label lr.lr_return_lbl}\n`
+
 let bound_error_label env dbg =
   if !Clflags.debug || env.bound_error_sites = [] then begin
     let lbl_bound_error = new_label() in
@@ -357,7 +363,7 @@ let num_call_gc_and_check_bound_points env =
   let rec loop instr ((call_gc, check_bound) as totals) =
     match instr.desc with
     | Lend -> totals
-    | Lop (Ialloc _) when env.f.fun_fast ->
+    | Lop (Ialloc { mode = Alloc_heap }) when env.f.fun_fast ->
       loop instr.next (call_gc + 1, check_bound)
     | Lop (Ipoll _) ->
       loop instr.next (call_gc + 1, check_bound)
@@ -552,43 +558,66 @@ end)
 (* Output the assembly code for allocation. *)
 
 let assembly_code_for_allocation env i ~local ~n ~far ~dbginfo =
-  let lbl_frame =
-    record_frame_label env i.live (Dbg_alloc dbginfo)
-  in
-  if env.f.fun_fast then begin
-    let lbl_after_alloc = new_label() in
-    let lbl_call_gc = new_label() in
-    (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
-       so it is reasonable to assume n < 0x1_000.  This makes
-       the generated code simpler. *)
-    assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
-    let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-    `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
-    `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
-    if not far then begin
-      `	b.lo	{emit_label lbl_call_gc}\n`
-    end else begin
-      let lbl = new_label () in
-      `	b.cs	{emit_label lbl}\n`;
-      `	b	{emit_label lbl_call_gc}\n`;
-      `{emit_label lbl}:\n`
-    end;
-    `{emit_label lbl_after_alloc}:`;
-    `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
-    env.call_gc_sites <-
-      { gc_lbl = lbl_call_gc;
-        gc_return_lbl = lbl_after_alloc;
-        gc_frame_lbl = lbl_frame; } :: env.call_gc_sites
+  if local then begin
+    let r = i.res.(0) in
+    let domain_local_sp_offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+    let domain_local_limit_offset = Domainstate.(idx_of_field Domain_local_limit) * 8 in
+    let domain_local_top_offset = Domainstate.(idx_of_field Domain_local_top) * 8 in
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
+    `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
+    `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
+    let lbl_call = new_label () in
+    `	b.le	{emit_label lbl_call}\n`;
+    let lbl_after_alloc = new_label () in
+    `{emit_label lbl_after_alloc}:\n`;
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_top_offset}]\n`;
+    `	add	{emit_reg r}, {emit_reg r}, {emit_reg reg_tmp1}\n`;
+    `	add	{emit_reg r}, {emit_reg r}, #{emit_int 8}\n`;
+    env.local_realloc_sites <-
+      { lr_lbl = lbl_call;
+        lr_dbg = i.dbg;
+        lr_return_lbl = lbl_after_alloc } :: env.local_realloc_sites
   end else begin
-    begin match n with
-    | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
-    | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
-    | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
-    | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
-            `	bl	{emit_symbol "caml_allocN"}\n`
-    end;
-    `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+    let lbl_frame =
+      record_frame_label env i.live (Dbg_alloc dbginfo)
+    in
+    if env.f.fun_fast then begin
+      let lbl_after_alloc = new_label() in
+      let lbl_call_gc = new_label() in
+      (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
+         so it is reasonable to assume n < 0x1_000.  This makes
+         the generated code simpler. *)
+      assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
+      let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
+      `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
+      if not far then begin
+        `	b.lo	{emit_label lbl_call_gc}\n`
+      end else begin
+        let lbl = new_label () in
+        `	b.cs	{emit_label lbl}\n`;
+        `	b	{emit_label lbl_call_gc}\n`;
+        `{emit_label lbl}:\n`
+      end;
+      `{emit_label lbl_after_alloc}:`;
+      `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
+      env.call_gc_sites <-
+        { gc_lbl = lbl_call_gc;
+          gc_return_lbl = lbl_after_alloc;
+          gc_frame_lbl = lbl_frame; } :: env.call_gc_sites
+    end else begin
+      begin match n with
+      | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
+      | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
+      | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
+      | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
+              `	bl	{emit_symbol "caml_allocN"}\n`
+      end;
+      `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+    end
   end
 
 let assembly_code_for_poll env i ~far ~return_label =
@@ -779,13 +808,13 @@ let emit_instr env i =
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
         assembly_code_for_allocation env i ~n ~local:false ~far:true ~dbginfo
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_local }) ->
-        assembly_code_for_allocation env i ~n ~local:false ~far:false ~dbginfo
+        assembly_code_for_allocation env i ~n ~local:true ~far:false ~dbginfo
     | Lop(Ibeginregion) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
         `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
     | Lop(Iendregion) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-        `	str	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
+        `	str	{emit_reg i.arg.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
     | Lop(Ipoll { return_label }) ->
         assembly_code_for_poll env i ~far:false ~return_label
     | Lop(Ispecific (Ifar_poll { return_label })) ->
@@ -1041,6 +1070,7 @@ let fundecl fundecl =
   BR.relax fundecl ~max_out_of_line_code_offset;
   emit_all env fundecl.fun_body;
   List.iter emit_call_gc env.call_gc_sites;
+  List.iter emit_local_realloc env.local_realloc_sites;
   List.iter emit_call_bound_error env.bound_error_sites;
   assert (List.length env.call_gc_sites = num_call_gc);
   assert (List.length env.bound_error_sites = num_check_bound);
