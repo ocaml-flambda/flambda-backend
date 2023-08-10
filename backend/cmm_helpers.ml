@@ -1035,13 +1035,14 @@ let bigstring_length ba dbg =
 let bigstring_data ba dbg =
   Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg)
 
-let string_alignment str idx dbg =
-  Cop (Cctz { arg_is_non_zero = true }, [Cop (Caddi, [str; idx], dbg)], dbg)
+let string_alignment str idx align dbg =
+  Cop (Cand, [Cconst_int (align - 1, dbg); Cop (Caddi, [str; idx], dbg)], dbg)
 
-let bigstring_alignment ba idx dbg =
+let bigstring_alignment ba idx align dbg =
   Cop
-    ( Cctz { arg_is_non_zero = true },
-      [Cop (Caddi, [bigstring_data ba dbg; idx], dbg)],
+    ( Cand,
+      [ Cconst_int (align - 1, dbg);
+        Cop (Caddi, [bigstring_data ba dbg; idx], dbg) ],
       dbg )
 
 (* Message sending *)

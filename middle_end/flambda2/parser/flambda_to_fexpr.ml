@@ -580,7 +580,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
-  | Get_alignment slv -> Get_alignment slv
+  | Check_alignment (slv, align) -> Check_alignment (slv, align)
   | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print

@@ -365,9 +365,11 @@ val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
 
-val string_alignment : expression -> expression -> Debuginfo.t -> expression
+val string_alignment :
+  expression -> expression -> int -> Debuginfo.t -> expression
 
-val bigstring_alignment : expression -> expression -> Debuginfo.t -> expression
+val bigstring_alignment :
+  expression -> expression -> int -> Debuginfo.t -> expression
 
 module Extended_machtype_component : sig
   (** Like [Cmm.machtype_component] but has a case explicitly for tagged
