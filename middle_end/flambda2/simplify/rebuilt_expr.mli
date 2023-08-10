@@ -93,6 +93,7 @@ module Continuation_handler : sig
     handler:rebuilt_expr ->
     free_names_of_handler:Name_occurrences.t ->
     is_exn_handler:bool ->
+    is_cold:bool ->
     t
 
   val create' :
@@ -100,6 +101,7 @@ module Continuation_handler : sig
     Bound_parameters.t ->
     handler:rebuilt_expr ->
     is_exn_handler:bool ->
+    is_cold:bool ->
     t
 end
 

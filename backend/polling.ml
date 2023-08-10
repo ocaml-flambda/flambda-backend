@@ -179,7 +179,7 @@ let add_poll i =
   Mach.instr_cons_debug (Iop (Ipoll { return_label = None })) [||] [||] i.dbg i
 
 let instr_body handler_safe i =
-  let add_unsafe_handler ube (k, _trap_stack, _) =
+  let add_unsafe_handler ube (k, _trap_stack, _, _) =
     match handler_safe k with
     | Safe -> ube
     | Unsafe -> Int.Set.add k ube
@@ -201,9 +201,9 @@ let instr_body handler_safe i =
         match rc with
         | Cmm.Recursive -> List.fold_left add_unsafe_handler ube hdl
         | Cmm.Nonrecursive -> ube in
-      let instr_handler (k, trap_stack, i0) =
+      let instr_handler (k, trap_stack, i0, is_cold) =
         let i1 = instr ube' i0 in
-        (k, trap_stack, i1) in
+        (k, trap_stack, i1, is_cold) in
       (* Since we are only interested in unguarded _back_ edges, we don't
          use [ube'] for instrumenting [body], but just [ube] instead. *)
       let body = instr ube body in

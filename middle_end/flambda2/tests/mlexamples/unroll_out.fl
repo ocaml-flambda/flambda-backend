@@ -1,0 +1,36 @@
+let code fact_0 deleted in
+let $camlUnroll__fact_1 =
+  closure fact_0_1 @fact
+and code rec loopify(never) size(23) newer_version_of(fact_0)
+      fact_0_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %phys_eq (n, 0) in
+  switch prim
+    | 0 -> k2
+    | 1 -> k (1)
+    where k2 =
+      ((let Psubint = n - 1 in
+        apply direct(fact_0_1)
+          ($camlUnroll__fact_1 ~ depth my_depth -> succ my_depth
+           : _ -> imm tagged)
+            (Psubint)
+            &my_region
+            -> k2 * k1)
+         where k2 (apply_result : imm tagged) =
+           let Pmulint = n * apply_result in
+           cont k (Pmulint))
+in
+apply direct(fact_0_1) inlining_state(depth(40))
+  ($camlUnroll__fact_1 ~ depth unroll 1 3 -> unroll 0 4 : _ -> imm tagged)
+    (2)
+    &toplevel
+    -> k * error
+  where k (apply_result : imm tagged) =
+    let Pmulint = 3 * apply_result in
+    let Pmulint_1 = 4 * Pmulint in
+    let Pmulint_2 = 5 * Pmulint_1 in
+    let Pmulint_3 = 6 * Pmulint_2 in
+    let $camlUnroll = Block 0 ($camlUnroll__fact_1, Pmulint_3, 720) in
+    cont done ($camlUnroll)

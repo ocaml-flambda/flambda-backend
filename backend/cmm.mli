@@ -298,7 +298,7 @@ type expression =
   | Ccatch of
       rec_flag
         * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
-          * expression * Debuginfo.t) list
+          * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression
         * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
@@ -349,6 +349,7 @@ type phrase =
 val ccatch :
      label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t * kind_for_unboxing
+       * bool
   -> expression
 
 val reset : unit -> unit

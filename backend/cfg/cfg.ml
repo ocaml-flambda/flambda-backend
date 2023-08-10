@@ -41,7 +41,8 @@ type basic_block =
     mutable exn : Label.t option;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
-    mutable dead : bool
+    mutable dead : bool;
+    mutable cold : bool
   }
 
 type t =
@@ -395,7 +396,9 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
       res = instruction.res;
       dbg = [];
       fdo = None;
-      live = Reg.Set.empty
+      live = Reg.Set.empty;
+      available_before = None;
+      available_across = None
     }
   in
   Printlinear.instr' ?print_reg ppf instruction
@@ -486,7 +489,7 @@ let is_pure_operation : operation -> bool = function
   | Specific s ->
     assert (not (Arch.operation_can_raise s));
     Arch.operation_is_pure s
-  | Name_for_debugger _ -> true
+  | Name_for_debugger _ -> false
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op

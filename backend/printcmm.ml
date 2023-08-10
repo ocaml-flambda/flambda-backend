@@ -340,9 +340,9 @@ let rec expr ppf = function
        done in
       fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases)
   | Ccatch(flag, handlers, e1, _kind) ->
-      let print_handler ppf (i, ids, e2, dbg) =
+      let print_handler ppf (i, ids, e2, dbg, is_cold) =
         with_location_mapping ~label:"Ccatch-handler" ~dbg ppf (fun () ->
-        fprintf ppf "(%d%a)@ %a"
+        fprintf ppf "(%d%a)%s@ %a"
           i
           (fun ppf ids ->
              List.iter
@@ -350,6 +350,7 @@ let rec expr ppf = function
                  fprintf ppf "@ %a: %a"
                    VP.print id machtype ty)
                ids) ids
+          (if is_cold then "(cold)" else "")
           sequence e2)
       in
       let print_handlers ppf l =

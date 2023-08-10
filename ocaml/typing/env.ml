@@ -926,7 +926,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
@@ -937,6 +937,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
       Misc.Stdlib.String.Map.empty
       flags
   in
+  let sign = Subst.Lazy.signature Make_local Subst.identity sign in
   let md =
     { Subst.Lazy.md_type = Mty_signature sign;
       md_loc = Location.none;
@@ -945,20 +946,12 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     }
   in
   let mda_address = Lazy_backtrack.create_forced (Aunit name) in
-  let mda_declaration =
-    Subst.(Lazy.module_decl Make_local identity md)
-  in
+  let mda_declaration = md in
   let mda_shape =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
   in
   let mda_components =
-    let mty = Subst.Lazy.Mty_signature sign in
-    let mty =
-      if freshen then
-        Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
-          Subst.identity mty
-      else mty
-    in
+    let mty = md.md_type in
     components_of_module ~alerts ~uid:md.md_uid
       empty Subst.identity
       path mda_address mty mda_shape
@@ -969,10 +962,6 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_address;
     mda_shape;
   }
-
-let read_sign_of_cmi = sign_of_cmi ~freshen:true
-
-let save_sign_of_cmi = sign_of_cmi ~freshen:false
 
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
@@ -985,8 +974,9 @@ let imports () = Persistent_env.imports !persistent_env
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
-let read_pers_mod modname filename =
+let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
+    ~add_binding
 
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
@@ -2628,8 +2618,10 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
-let read_signature modname filename =
-  let mda = read_pers_mod (Compilation_unit.name modname) filename in
+let read_signature modname filename ~add_binding =
+  let mda =
+    read_pers_mod (Compilation_unit.name modname) filename ~add_binding
+  in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
   | Mty_signature sg -> sg
@@ -2670,10 +2662,8 @@ let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in
-  let pm = save_sign_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } in
   Persistent_env.save_cmi !persistent_env
-    { Persistent_env.Persistent_signature.filename; cmi } pm;
+    { Persistent_env.Persistent_signature.filename; cmi };
   cmi
 
 let save_signature ~alerts sg modname filename =

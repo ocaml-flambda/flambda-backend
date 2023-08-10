@@ -22,6 +22,8 @@ val regalloc : string ref
 val regalloc_params : string list ref
 val regalloc_validate : bool ref
 
+val cfg_peephole_optimize: bool ref
+
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
 
@@ -30,6 +32,8 @@ val dasm_comments : bool ref
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 val dump_checkmach : bool ref
+
+val davail : bool ref
 
 type checkmach_details_cutoff =
   | Keep_all

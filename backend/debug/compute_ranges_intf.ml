@@ -4,15 +4,13 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2014--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** This file defines types that are used to specify the interface of
     [Compute_ranges]. The description of [Compute_ranges] is:
@@ -28,6 +26,50 @@
     documentation on module type [S], below. *)
 
 module L = Linear
+
+module type S_key = sig
+  type t
+
+  type key = t
+
+  module Raw_set : Set.S with type elt = t
+
+  module Set : sig
+    type t =
+      | Ok of Raw_set.t
+      | Unreachable
+
+    val of_list : key list -> t
+
+    val union : t -> t -> t
+
+    val inter : t -> t -> t
+
+    val diff : t -> t -> t
+
+    (** This should return the initial value in the [Unreachable] case *)
+    val fold : (key -> 'a -> 'a) -> t -> 'a -> 'a
+
+    val print : Format.formatter -> t -> unit
+  end
+
+  module Map : Map.S with type key = t
+
+  (** Print a representation (typically sexp) of the given key to the given
+        formatter. *)
+  val print : Format.formatter -> t -> unit
+
+  (** In some situations, for performance reasons, an "available" set may only
+        contain a subset of all keys that need to be tracked. For example, when
+        using a notion of availability that describes which lexical block a
+        given instruction lies in, using a standard notion of nested lexical
+        blocks, the innermost lexical block uniquely determines the chain of its
+        parents. (This is exploited in [Lexical_block_ranges].) The
+        [all_parents] function must return, given an "available" [key], all
+        those other keys that are also available and uniquely determined by
+        [key]. *)
+  val all_parents : t -> t list
+end
 
 (** The type of caller-defined contextual state associated with subranges. This
     may be used to track information throughout the range-computing process. *)
@@ -47,7 +89,14 @@ module type S_subrange_info = sig
 
   type subrange_state
 
-  val create : key -> subrange_state -> t
+  val create :
+    key ->
+    subrange_state ->
+    fun_contains_calls:bool ->
+    fun_num_stack_slots:int array ->
+    t
+
+  val print : Format.formatter -> t -> unit
 end
 
 (** The type of caller-defined information associated with ranges. *)
@@ -60,6 +109,8 @@ module type S_range_info = sig
 
   val create :
     L.fundecl -> key -> start_insn:L.instruction -> (index * t) option
+
+  val print : Format.formatter -> t -> unit
 end
 
 (** This module type specifies what the caller has to provide in order to
@@ -86,33 +137,7 @@ module type S_functor = sig
       these names being provided to retrieve them. The notion of "availability"
       is not prescribed. The availability sets are used to compute subranges
       associated to each key. *)
-  module Key : sig
-    (** The type of identifiers that define ranges. *)
-    type t
-
-    module Set : sig
-      include Set.S with type elt = t
-
-      val print : Format.formatter -> t -> unit
-    end
-
-    module Map : Map.S with type key = t
-
-    (** Print a representation (typically sexp) of the given key to the given
-        formatter. *)
-    val print : Format.formatter -> t -> unit
-
-    (** In some situations, for performance reasons, an "available" set may only
-        contain a subset of all keys that need to be tracked. For example, when
-        using a notion of availability that describes which lexical block a
-        given instruction lies in, using a standard notion of nested lexical
-        blocks, the innermost lexical block uniquely determines the chain of its
-        parents. (This is exploited in [Lexical_block_ranges].) The
-        [all_parents] function must return, given an "available" [key], all
-        those other keys that are also available and uniquely determined by
-        [key]. *)
-    val all_parents : t -> t list
-  end
+  module Key : S_key
 
   (** The module [Range_info] is used to store additional information on a range
       that is associated to a range at its creation and can be retrieved from
@@ -141,19 +166,12 @@ module type S_functor = sig
 
   (** How to retrieve from an instruction those keys that are available
       immediately before the instruction starts executing. *)
-  val available_before : L.instruction -> Key.Set.t
+  val available_before : L.instruction -> Key.Set.t option
 
   (** How to retrieve from an instruction those keys that are available between
       the points at which the instruction reads its arguments and writes its
       results. *)
-  val available_across : L.instruction -> Key.Set.t
-
-  (** This [must_restart_ranges_upon_any_change] boolean exists because some
-      consumers of the range information may require that two subranges are
-      disjoint rather than including one in another. When this function returns
-      [true], whenever a subrange is opened or closed, all other overlapping
-      subranges will be split in two at the same point. *)
-  val must_restart_ranges_upon_any_change : unit -> bool
+  val available_across : L.instruction -> Key.Set.t option
 end
 
 (** This module type is the result type of the [Compute_ranges.Make] functor.
@@ -172,13 +190,7 @@ module type S = sig
   module Index : Identifiable.S
 
   (** Corresponds to [Key] in the [S_functor] module type. *)
-  module Key : sig
-    type t
-
-    module Set : Set.S with type elt = t
-
-    module Map : Map.S with type key = t
-  end
+  module Key : S_key
 
   (** Corresponds to [Subrange_state] in the [S_functor] module type. *)
   module Subrange_state : S_subrange_state
@@ -243,6 +255,8 @@ module type S = sig
 
   (** The type holding information on computed ranges. *)
   type t
+
+  val print : Format.formatter -> t -> unit
 
   (** A value of type [t] that holds no range information. *)
   val empty : t

@@ -48,6 +48,9 @@ module Section_name = struct
         | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
         | hd :: tl -> align tl
       in align t.args
+
+    let is_text_like t = String.starts_with ~prefix:".text" t.name_str
+    let is_data_like t = String.starts_with ~prefix:".data" t.name_str
   end
   include S
   module Map = Map.Make (S)
@@ -328,8 +331,11 @@ let asm_code = ref []
 let asm_code_current_section = ref (ref [])
 let asm_code_by_section = Section_name.Tbl.create 100
 
+(* Cannot use Emitaux directly here or there would be a circular dep *)
+let create_asm_file = ref true
+
 let directive dir =
-  (if !Emitaux.create_asm_file then
+  (if !create_asm_file then
      asm_code := dir :: !asm_code);
   match dir with
   | Section (name, flags, args) -> (
@@ -355,10 +361,6 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      let instrs = Section_name.Tbl.fold (fun name instrs acc ->
-          (name, List.rev !instrs) :: acc)
-          asm_code_by_section []
-      in
-      binary_content := Some (f instrs)
+      binary_content := Some (f asm_code_by_section)
   | None -> binary_content := None
   end

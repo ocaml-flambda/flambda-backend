@@ -76,13 +76,15 @@ let map_snd_sharing f ((a, b) as cpl) =
   else
     (a, new_b)
 
-let map_subexpressions f f_named (tree:Flambda.t) : Flambda.t =
+let map_subexpressions_with_tail f f_named (tree:Flambda.t) : Flambda.t =
+  let f_tail v = f v ~tail:true in
+  let f_nontail v = f v ~tail:false in
   match tree with
   | Var _ | Apply _ | Assign _ | Send _ | Proved_unreachable
   | Static_raise _ -> tree
   | Let { var; defining_expr; body; _ } ->
     let new_named = f_named var defining_expr in
-    let new_body = f body in
+    let new_body = f_tail body in
     if new_named == defining_expr && new_body == body then
       tree
     else
@@ -91,22 +93,23 @@ let map_subexpressions f f_named (tree:Flambda.t) : Flambda.t =
     let new_defs =
       list_map_sharing (map_snd_sharing f_named) defs
     in
-    let new_body = f body in
+    let new_body = f_tail body in
     if new_defs == defs && new_body == body then
       tree
     else
       Let_rec (new_defs, new_body)
   | Let_mutable mutable_let ->
-    let new_body = f mutable_let.body in
+    let new_body = f_tail mutable_let.body in
     if new_body == mutable_let.body then
       tree
     else
       Let_mutable { mutable_let with body = new_body }
   | Switch (arg, sw) ->
-    let aux = map_snd_sharing (fun _ v -> f v) in
+    let aux = map_snd_sharing (fun _ v -> f_tail v) in
     let new_consts = list_map_sharing aux sw.consts in
     let new_blocks = list_map_sharing aux sw.blocks in
-    let new_failaction = may_map_sharing f sw.failaction in
+    let new_failaction = may_map_sharing f_tail sw.failaction
+    in
     if sw.failaction == new_failaction &&
        new_consts == sw.consts &&
        new_blocks == sw.blocks then
@@ -121,58 +124,65 @@ let map_subexpressions f f_named (tree:Flambda.t) : Flambda.t =
       in
       Switch (arg, sw)
   | String_switch (arg, sw, def, kind) ->
-    let new_sw = list_map_sharing (map_snd_sharing (fun _ v -> f v)) sw in
-    let new_def = may_map_sharing f def in
+    let new_sw = list_map_sharing (map_snd_sharing (fun _ v -> f_tail v)) sw in
+    let new_def = may_map_sharing f_tail def in
     if sw == new_sw && def == new_def then
       tree
     else
       String_switch(arg, new_sw, new_def, kind)
   | Static_catch (i, vars, body, handler, kind) ->
-    let new_body = f body in
-    let new_handler = f handler in
+    let new_body = f_tail body in
+    let new_handler = f_tail handler in
     if new_body == body && new_handler == handler then
       tree
     else
       Static_catch (i, vars, new_body, new_handler, kind)
   | Try_with(body, id, handler, kind) ->
-    let new_body = f body in
-    let new_handler = f handler in
+    let new_body = f_tail body in
+    let new_handler = f_tail handler in
     if body == new_body && handler == new_handler then
       tree
     else
       Try_with(new_body, id, new_handler, kind)
   | If_then_else(arg, ifso, ifnot, kind) ->
-    let new_ifso = f ifso in
-    let new_ifnot = f ifnot in
+    let new_ifso = f_tail ifso in
+    let new_ifnot = f_tail ifnot in
     if new_ifso == ifso && new_ifnot == ifnot then
       tree
     else
       If_then_else(arg, new_ifso, new_ifnot, kind)
   | While(cond, body) ->
-    let new_cond = f cond in
-    let new_body = f body in
+    let new_cond = f_nontail cond in
+    let new_body = f_nontail body in
     if new_cond == cond && new_body == body then
       tree
     else
       While(new_cond, new_body)
   | For { bound_var; from_value; to_value; direction; body; } ->
-    let new_body = f body in
+    let new_body = f_nontail body in
     if new_body == body then
       tree
     else
       For { bound_var; from_value; to_value; direction; body = new_body; }
   | Region body ->
-    let new_body = f body in
+    let new_body = f_tail body in
     if new_body == body then
       tree
     else
       Region new_body
   | Exclave body ->
-    let new_body = f body in
+    let new_body = f_tail body in
     if new_body == body then
       tree
     else
       Exclave new_body
+
+let map_subexpressions f f_named tree =
+  map_subexpressions_with_tail (fun v ~tail:_ -> f v) f_named tree
+
+let map_tail_subexpressions f tree =
+  let f v ~tail = if tail then f v else v in
+  map_subexpressions_with_tail f (fun _ named -> named) tree
 
 let iter_general = Flambda.iter_general
 

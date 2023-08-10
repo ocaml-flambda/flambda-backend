@@ -424,7 +424,7 @@ let create_loop body dbg =
   let cont = Lambda.next_raise_count () in
   let call_cont = Cexit (Lbl cont, [], []) in
   let body = Csequence (body, call_cont) in
-  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Any)
+  Ccatch (Recursive, [cont, [], body, dbg, false], call_cont, Any)
 
 (* Turning integer divisions into multiply-high then shift. The
    [division_parameters] function is used in module Emit for those target
@@ -773,7 +773,9 @@ let rec remove_unit = function
         dbg,
         kind )
   | Ccatch (rec_flag, handlers, body, kind) ->
-    let map_h (n, ids, handler, dbg) = n, ids, remove_unit handler, dbg in
+    let map_h (n, ids, handler, dbg, is_cold) =
+      n, ids, remove_unit handler, dbg, is_cold
+    in
     Ccatch (rec_flag, List.map map_h handlers, remove_unit body, kind)
   | Ctrywith (body, kind, exn, handler, dbg, value_kind) ->
     Ctrywith (remove_unit body, kind, exn, remove_unit handler, dbg, value_kind)
@@ -2191,7 +2193,7 @@ module SArgBlocks = struct
         fun body ->
           match body with
           | Cexit (j, _, _) -> if Lbl i = j then handler else body
-          | _ -> ccatch (i, [], body, handler, dbg, kind) ))
+          | _ -> ccatch (i, [], body, handler, dbg, kind, false) ))
 
   let make_exit i = Cexit (Lbl i, [], [])
 end
@@ -2475,7 +2477,8 @@ let cache_public_method meths tag cache dbg =
                     dbg,
                   Ctuple [],
                   dbg,
-                  Any ),
+                  Any,
+                  false ),
               Clet
                 ( VP.create tagged,
                   Cop
@@ -2491,35 +2494,34 @@ let cache_public_method meths tag cache dbg =
                       Cvar tagged ) ) ) ) )
 
 let has_local_allocs e =
-  let rec loop = function
-    | Cregion e ->
-      (* Local allocations within a nested region do not affect this region,
-         except inside a Ctail block *)
-      loop_until_tail e
-    | Cop (Calloc Alloc_local, _, _) | Cop ((Cextcall _ | Capply _), _, _) ->
+  let rec loop ~depth = function
+    | Cregion e -> loop ~depth:(depth + 1) e
+    | Ctail e -> if depth = 0 then () else loop ~depth:(depth - 1) e
+    | Cop ((Calloc Alloc_local | Cextcall _ | Capply _), _, _) when depth = 0 ->
       raise Exit
-    | e -> iter_shallow loop e
-  and loop_until_tail = function
-    | Ctail e -> loop e
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail loop_until_tail e)
+    | e -> iter_shallow (loop ~depth) e
   in
-  match loop e with () -> false | exception Exit -> true
+  match loop e ~depth:0 with () -> false | exception Exit -> true
 
 let remove_region_tail e =
-  let rec has_tail = function
-    | Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail has_tail e)
+  let rec has_tail ~depth = function
+    | (Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _)) when depth = 0 ->
+      raise Exit
+    | Ctail e -> has_tail ~depth:(depth - 1) e
+    | Cregion e -> has_tail ~depth:(depth + 1) e
+    | e -> ignore (iter_shallow_tail (has_tail ~depth) e : bool)
   in
-  let rec remove_tail = function
-    | Ctail e -> e
-    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) ->
+  let rec remove_tail ~depth = function
+    | Ctail e ->
+      if depth = 0 then e else Ctail (remove_tail ~depth:(depth - 1) e)
+    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) when depth = 0 ->
       Cop (Capply (mach, Rc_normal), args, dbg)
-    | Cregion _ as e -> e
-    | e -> map_shallow_tail remove_tail e
+    | Cregion e -> Cregion (remove_tail ~depth:(depth + 1) e)
+    | e -> map_shallow_tail (remove_tail ~depth) e
   in
-  match has_tail e with () -> e | exception Exit -> remove_tail e
+  match has_tail e ~depth:0 with
+  | () -> e
+  | exception Exit -> remove_tail e ~depth:0
 
 let region e =
   (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
@@ -3863,7 +3865,8 @@ let entry_point namelist =
               dbg,
             Ctuple [],
             dbg,
-            Any ) )
+            Any,
+            false ) )
   in
   let fun_name = global_symbol "caml_program" in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
@@ -4152,8 +4155,9 @@ type static_handler =
   * (Backend_var.With_provenance.t * Cmm.machtype) list
   * Cmm.expression
   * Debuginfo.t
+  * bool
 
-let handler ~dbg id vars body = id, vars, body, dbg
+let handler ~dbg id vars body is_cold = id, vars, body, dbg, is_cold
 
 let cexit id args trap_actions = Cmm.Cexit (Cmm.Lbl id, args, trap_actions)
 

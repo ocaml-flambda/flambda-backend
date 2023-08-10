@@ -182,7 +182,7 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer
+  | Pint_as_pointer of alloc_mode
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -414,6 +414,14 @@ type function_attribute = {
   tmc_candidate: bool;
 }
 
+type parameter_attribute = No_attributes
+
+type lparam = {
+  name : Ident.t;
+  layout : layout;
+  attributes : parameter_attribute;
+  mode : alloc_mode
+}
 
 type scoped_location = Debuginfo.Scoped_location.t
 
@@ -451,7 +459,7 @@ type lambda =
 
 and lfunction = private
   { kind: function_kind;
-    params: (Ident.t * layout) list;
+    params: lparam list;
     return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
@@ -568,7 +576,7 @@ val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambd
 
 val lfunction :
   kind:function_kind ->
-  params:(Ident.t * layout) list ->
+  params:lparam list ->
   return:layout ->
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
@@ -653,6 +661,7 @@ val swap_float_comparison : float_comparison -> float_comparison
 
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
+val default_param_attribute : parameter_attribute
 
 val find_exact_application :
   function_kind -> arity:int -> lambda list -> lambda list option

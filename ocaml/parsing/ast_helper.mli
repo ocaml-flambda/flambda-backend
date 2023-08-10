@@ -92,7 +92,8 @@ module Typ :
         any of nullary type constructor [tc] is replaced by type variable of
         the same name, if [tc]'s name appears in [newtypes].
         Raise [Syntaxerr.Variable_in_scope] if any type variable inside [te]
-        appears in [newtypes].
+        appears in [newtypes]. Used to translate [type a. a -> a] to
+        ['a. 'a -> 'a] during parsing.
         @since 4.05
      *)
   end
@@ -206,6 +207,7 @@ module Type:
   sig
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
+      ?layout:attribute ->
       ?cstrs:(core_type * core_type * loc) list ->
       ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
       type_declaration

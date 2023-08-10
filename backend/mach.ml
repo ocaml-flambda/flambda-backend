@@ -81,7 +81,8 @@ type operation =
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
+      provenance : Backend_var.Provenance.t option; is_assignment : bool;
+      regs : Reg.t array }
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
@@ -103,7 +104,7 @@ and instruction_desc =
   | Ireturn of Cmm.trap_action list
   | Iifthenelse of test * instruction * instruction
   | Iswitch of int array * instruction array
-  | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction) list * instruction
+  | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction * bool) list * instruction
   | Iexit of int * Cmm.trap_action list
   | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
@@ -171,7 +172,7 @@ let rec instr_iter f i =
           instr_iter f i.next
       | Icatch(_, _ts, handlers, body) ->
           instr_iter f body;
-          List.iter (fun (_n, _ts, handler) -> instr_iter f handler) handlers;
+          List.iter (fun (_n, _ts, handler, _is_cold) -> instr_iter f handler) handlers;
           instr_iter f i.next
       | Iexit _ -> ()
       | Itrywith(body, _kind, (_ts, handler)) ->
@@ -210,8 +211,8 @@ let operation_is_pure = function
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Iload (_, _, _) | Iname_for_debugger _
-    -> true
+  | Iload (_, _, _) -> true
+  | Iname_for_debugger _ -> false
 
 
 let operation_can_raise op =
@@ -257,7 +258,7 @@ let free_conts_for_handlers fundecl =
       | Icatch (_rec_flag, _ts, handlers, body) ->
         let conts = S.union next_conts (free_conts body) in
         let conts =
-          List.fold_left (fun conts (nfail, ts, i) ->
+          List.fold_left (fun conts (nfail, ts, i, _is_cold) ->
             let rec add_exn_conts conts = function
               | Uncaught -> conts
               | Generic_trap ts -> add_exn_conts conts ts
@@ -268,7 +269,7 @@ let free_conts_for_handlers fundecl =
             S.union conts free)
             conts handlers
         in
-        List.fold_left (fun conts (nfail, _ts, _i) ->
+        List.fold_left (fun conts (nfail, _ts, _i, _is_cold) ->
           S.remove nfail conts)
           conts handlers
       | Iexit (nfail, _) -> S.add nfail next_conts

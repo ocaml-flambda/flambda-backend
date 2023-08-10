@@ -286,7 +286,7 @@ type expression =
   | Ccatch of
       rec_flag
         * (static_label * (Backend_var.With_provenance.t * machtype) list
-          * expression * Debuginfo.t) list
+          * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
@@ -332,8 +332,8 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-let ccatch (i, ids, e1, e2, dbg, kind) =
-  Ccatch(Nonrecursive, [i, ids, e2, dbg], e1, kind)
+let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
+  Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
 
 let reset () =
   label_counter := init_label
@@ -353,7 +353,7 @@ let iter_shallow_tail f = function
       Array.iter (fun (e, _dbg) -> f e) el;
       true
   | Ccatch(_rec_flag, handlers, body, _value_kind) ->
-      List.iter (fun (_, _, h, _dbg) -> f h) handlers;
+      List.iter (fun (_, _, h, _dbg, _) -> f h) handlers;
       f body;
       true
   | Ctrywith(e1, _kind, _id, e2, _dbg, _value_kind) ->
@@ -397,7 +397,9 @@ let map_shallow_tail ?kind f = function
       Cswitch(e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg',
               Option.value kind ~default:kind_before)
   | Ccatch(rec_flag, handlers, body, kind_before) ->
-      let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
+      let map_h (n, ids, handler, dbg, is_cold) =
+        (n, ids, f handler, dbg, is_cold)
+      in
       Ccatch(rec_flag, List.map map_h handlers, f body,
              Option.value kind ~default:kind_before)
   | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
@@ -454,7 +456,7 @@ let iter_shallow f = function
   | Cswitch (_e, _ia, ea, _dbg, _value_kind) ->
       Array.iter (fun (e, _) -> f e) ea
   | Ccatch (_rf, hl, body, _value_kind) ->
-      let iter_h (_n, _ids, handler, _dbg) = f handler in
+      let iter_h (_n, _ids, handler, _dbg, _is_cold) = f handler in
       List.iter iter_h hl; f body
   | Cexit (_n, el, _traps) ->
       List.iter f el
@@ -492,7 +494,9 @@ let map_shallow f = function
   | Cswitch (e, ia, ea, dbg, kind) ->
       Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg, kind)
   | Ccatch (rf, hl, body, kind) ->
-      let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
+      let map_h (n, ids, handler, dbg, is_cold) =
+        (n, ids, f handler, dbg, is_cold)
+      in
       Ccatch (rf, List.map map_h hl, f body, kind)
   | Cexit (n, el, traps) ->
       Cexit (n, List.map f el, traps)

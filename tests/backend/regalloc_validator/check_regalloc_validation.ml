@@ -30,7 +30,9 @@ module Instruction = struct
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
       stack_offset = 0;
-      ls_order = -1
+      ls_order = -1;
+      available_before = None;
+      available_across = None;
     }
 end
 
@@ -74,7 +76,8 @@ module Block = struct
       exn;
       can_raise;
       is_trap_handler = false;
-      dead = false
+      dead = false;
+      cold = false
     }
 end
 
@@ -179,6 +182,7 @@ let entry_label =
            predecessors = Label.Set.empty;
            stack_offset = 0;
            dead = false;
+           cold = false;
            terminator =
              { desc = Return;
                arg = [| Proc.phys_reg 0 |];

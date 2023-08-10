@@ -39,7 +39,8 @@ type t =
         threshold : float
       }
   | Attribute_always
-  | Attribute_unroll of int
+  | Begin_unrolling of int
+  | Continue_unrolling
   | Definition_says_inline of { was_inline_always : bool }
   | Speculatively_inline of
       { cost_metrics : Cost_metrics.t;
@@ -72,12 +73,14 @@ let [@ocamlformat "disable"] print ppf t =
         @[<hov 1>(was_inline_always@ %b)@])\
         @]"
       was_inline_always
-  | Attribute_unroll unroll_to ->
+  | Begin_unrolling unroll_to ->
     Format.fprintf ppf
-      "@[<hov 1>(Attribute_unroll@ \
+      "@[<hov 1>(Begin_unrolling@ \
         @[<hov 1>(unroll_to@ %d)@]\
         )@]"
       unroll_to
+  | Continue_unrolling ->
+    Format.fprintf ppf "Continue_unrolling"
   | Speculatively_not_inline { cost_metrics; threshold; evaluated_to; } ->
     Format.fprintf ppf
       "@[<hov 1>(Speculatively_not_inline@ \
@@ -120,8 +123,17 @@ let can_inline (t : t) : can_inline =
     (* If there's an [@unrolled] attribute on this, then we'll ignore the
        attribute when we stop unrolling, which is fine *)
     Do_not_inline { erase_attribute_if_ignored = true }
-  | Attribute_unroll unroll_to ->
+  | Begin_unrolling unroll_to ->
     Inline { unroll_to = Some unroll_to; was_inline_always = false }
+  | Continue_unrolling ->
+    let was_inline_always =
+      (* This could be [true] since the user asked to unroll this far, but the
+         warning would be confusing. We should use something more informative
+         than a [bool] here to describe what warning should be raised if we
+         don't inline. *)
+      false
+    in
+    Inline { unroll_to = None; was_inline_always }
   | Definition_says_inline { was_inline_always } ->
     Inline { unroll_to = None; was_inline_always }
   | Speculatively_inline _ ->
@@ -152,8 +164,10 @@ let report_reason fmt t =
     Format.fprintf fmt "the@ call@ has@ an@ attribute@ forbidding@ inlining"
   | Attribute_always ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
-  | Attribute_unroll n ->
+  | Begin_unrolling n ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@unroll %d]@ attribute" n
+  | Continue_unrolling ->
+    Format.fprintf fmt "this@ function@ is@ being@ unrolled"
   | Definition_says_inline { was_inline_always = _ } ->
     Format.fprintf fmt
       "this@ function@ was@ decided@ to@ be@ always@ inlined@ at@ its@ \

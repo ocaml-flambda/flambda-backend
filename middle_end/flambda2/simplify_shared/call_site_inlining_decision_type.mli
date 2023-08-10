@@ -32,7 +32,8 @@ type t =
         threshold : float
       }
   | Attribute_always
-  | Attribute_unroll of int
+  | Begin_unrolling of int
+  | Continue_unrolling
   | Definition_says_inline of { was_inline_always : bool }
   | Speculatively_inline of
       { cost_metrics : Cost_metrics.t;

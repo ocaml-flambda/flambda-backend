@@ -672,11 +672,18 @@ end
 
 module Function_decls = struct
   module Function_decl = struct
+    type param =
+      { name : Ident.t;
+        kind : Flambda_kind.With_subkind.t;
+        attributes : Lambda.parameter_attribute;
+        mode : Lambda.alloc_mode
+      }
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        params : param list;
         return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
@@ -807,7 +814,7 @@ module Function_decls = struct
     set_diff
       (set_diff
          (all_free_idents function_decls)
-         (List.map fst (all_params function_decls)))
+         (List.map (fun p -> p.Function_decl.name) (all_params function_decls)))
       (let_rec_idents function_decls)
 
   let create function_decls alloc_mode =
@@ -979,7 +986,7 @@ module Let_with_acc = struct
 end
 
 module Continuation_handler_with_acc = struct
-  let create acc parameters ~handler ~is_exn_handler =
+  let create acc parameters ~handler ~is_exn_handler ~is_cold =
     let free_names_of_handler = Or_unknown.Known (Acc.free_names acc) in
     let acc =
       List.fold_left
@@ -990,7 +997,7 @@ module Continuation_handler_with_acc = struct
     in
     ( acc,
       Continuation_handler.create parameters ~handler ~free_names_of_handler
-        ~is_exn_handler )
+        ~is_exn_handler ~is_cold )
 end
 
 module Let_cont_with_acc = struct
@@ -1029,13 +1036,13 @@ module Let_cont_with_acc = struct
   let build_recursive acc ~invariant_params ~handlers ~body =
     let handlers_free_names, cost_metrics_of_handlers, acc, handlers =
       Continuation.Map.fold
-        (fun cont (handler, params, is_exn_handler)
+        (fun cont (handler, params, is_exn_handler, is_cold)
              (free_names, costs, acc, handlers) ->
           let cost_metrics_of_handler, handler_free_names, acc, handler =
             Acc.measure_cost_metrics acc ~f:(fun acc ->
                 let acc, handler = handler acc in
                 Continuation_handler_with_acc.create acc params ~handler
-                  ~is_exn_handler)
+                  ~is_exn_handler ~is_cold)
           in
           ( Name_occurrences.union free_names handler_free_names,
             Cost_metrics.( + ) costs cost_metrics_of_handler,
@@ -1055,7 +1062,7 @@ module Let_cont_with_acc = struct
       ~cost_metrics_of_handlers
 
   let build_non_recursive acc cont ~handler_params ~handler ~body
-      ~is_exn_handler =
+      ~is_exn_handler ~is_cold =
     (* We need to evaluate the body before the handler to pass along information
        on the argument for inlining *)
     let free_names_of_body, acc, body =
@@ -1066,7 +1073,7 @@ module Let_cont_with_acc = struct
       Acc.measure_cost_metrics acc ~f:(fun acc ->
           let acc, handler = handler acc in
           Continuation_handler_with_acc.create acc handler_params ~handler
-            ~is_exn_handler)
+            ~is_exn_handler ~is_cold)
     in
     match Name_occurrences.count_continuation free_names_of_body cont with
     | Zero when not (Continuation_handler.is_exn_handler handler) ->

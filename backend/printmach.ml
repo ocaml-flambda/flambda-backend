@@ -235,13 +235,13 @@ let operation' ?(print_reg = reg) op arg ppf res =
     fprintf ppf "%s->scalar %a"
       (Primitive.vec128_name ty) reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
-  | Iname_for_debugger { ident; which_parameter; } ->
-    fprintf ppf "name_for_debugger %a%s=%a"
+  | Iname_for_debugger { ident; which_parameter; regs = r } ->
+    fprintf ppf "%a holds the value of %a%s"
+      regs r
       V.print ident
       (match which_parameter with
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
-      reg arg.(0)
   | Ibeginregion -> fprintf ppf "beginregion"
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
@@ -263,8 +263,7 @@ let rec instr ppf i =
     fprintf ppf "@[<1>{%a" regsetaddr i.live;
     if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
     fprintf ppf "}@]@,";
-    (* CR-someday mshinwell: to use for gdb work
-    if !Clflags.dump_avail then begin
+    if !Flambda_backend_flags.davail then begin
       let module RAS = Reg_availability_set in
       fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg) i.available_before;
       begin match i.available_across with
@@ -273,7 +272,7 @@ let rec instr ppf i =
         fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
       end;
       fprintf ppf "@]@,"
-    end *)
+    end
   end;
   begin match i.desc with
   | Iend -> ()
@@ -301,8 +300,8 @@ let rec instr ppf i =
   | Icatch(flag, ts, handlers, body) ->
       fprintf ppf "@[<v 2>catch%a%a@,%a@;<0 -2>with"
         Printcmm.rec_flag flag trap_stack ts instr body;
-      let h (nfail, ts, handler) =
-        fprintf ppf "(%d)%a@,%a@;" nfail trap_stack ts instr handler in
+      let h (nfail, ts, handler, is_cold) =
+        fprintf ppf "(%d)%s%a@,%a@;" nfail (if is_cold then "(cold)" else "") trap_stack ts instr handler in
       let rec aux = function
         | [] -> ()
         | [v] -> h v

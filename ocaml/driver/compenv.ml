@@ -273,6 +273,7 @@ let read_one_param ppf position name v =
   | "unboxed-types" -> set "unboxed-types" [ unboxed_types ] v
   | "unsafe" -> set "unsafe" [ unsafe ] v
   | "verbose" -> set "verbose" [ verbose ] v
+  | "verbose-types" -> set "verbose_types" [ verbose_types ] v
   | "nopervasives" -> set "nopervasives" [ nopervasives ] v
   | "slash" -> set "slash" [ force_slash ] v (* for ocamldep *)
   | "keep-docs" -> set "keep-docs" [ Clflags.keep_docs ] v
