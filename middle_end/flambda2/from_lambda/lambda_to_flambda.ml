@@ -794,10 +794,13 @@ let is_user_visible env id : IR.user_visible =
   then Not_user_visible
   else
     let name = Ident.name id in
-    let len = String.length name in
-    if len > 0 && Char.equal name.[0] '*'
-    then Not_user_visible
-    else User_visible
+    if String.starts_with ~prefix:"*opt*" name
+    then User_visible
+    else
+      let len = String.length name in
+      if len > 0 && Char.equal name.[0] '*'
+      then Not_user_visible
+      else User_visible
 
 let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     ~params

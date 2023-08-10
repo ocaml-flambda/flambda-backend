@@ -1175,14 +1175,20 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           default;
        ]
       in
+      let param_suffix =
+        match l with
+        | Nolabel -> ""
+        | Labelled name | Optional name -> name
+      in
+      let param_name = "*opt*" ^ param_suffix in
       let smatch =
-        Exp.match_ ~loc (Exp.ident ~loc (mknoloc (Longident.Lident "*opt*")))
+        Exp.match_ ~loc (Exp.ident ~loc (mknoloc (Longident.Lident param_name)))
           scases
       in
       let sfun =
         Cl.fun_ ~loc:scl.pcl_loc
           l None
-          (Pat.var ~loc (mknoloc "*opt*"))
+          (Pat.var ~loc (mknoloc param_name))
           (Cl.let_ ~loc:scl.pcl_loc Nonrecursive [Vb.mk spat smatch] sbody)
           (* Note: we don't put the '#default' attribute, as it
              is not detected for class-level let bindings.  See #5975.*)
