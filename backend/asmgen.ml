@@ -333,7 +333,17 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ pass_dump_if ppf_dump dump_split "After live range splitting"
         ++ Profile.record ~accumulate:true "liveness" liveness
         ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-        ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        ++ Profile.record ~accumulate:true "available_regs"
+          (fun (fundecl : Mach.fundecl) ->
+            (* Skip DWARF variable range generation for complicated functions
+               to avoid high compilation speed penalties *)
+            let total_num_stack_slots =
+              Array.fold_left (+) 0 fundecl.fun_num_stack_slots
+            in
+            if total_num_stack_slots
+               > !Dwarf_flags.dwarf_max_function_complexity
+            then fundecl
+            else Available_regs.fundecl fundecl)
         ++ pass_dump_if ppf_dump Flambda_backend_flags.davail
              "Register availability analysis"
         ++ Profile.record ~accumulate:true "mach to linear" (fun (fd : Mach.fundecl) ->
