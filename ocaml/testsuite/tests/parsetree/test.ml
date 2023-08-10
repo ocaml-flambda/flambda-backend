@@ -1,6 +1,6 @@
 (* TEST
    include ocamlcommon
-   readonly_files = "source.ml"
+   readonly_files = "source.ml source_jane_street.ml"
 *)
 
 (* (c) Alain Frisch / Lexifi *)
@@ -103,4 +103,7 @@ let rec process path =
       path
 
 let () =
-  process "source.ml"
+  process "source.ml";
+  Language_extension.enable_maximal ();
+  process "source_jane_street.ml";
+;;
