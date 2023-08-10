@@ -65,8 +65,11 @@ let dwarf_sections_in_order () =
 
 let is_delayed = function
   | DWARF Debug_line -> true
-  | DWARF (Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges)
-  | Text -> false
+  | DWARF
+      ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists
+      | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges )
+  | Text ->
+    false
 
 let details t ~first_occurrence =
   let names, flags, args =

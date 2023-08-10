@@ -17,7 +17,6 @@ open Dwarf_low
 
 let emit0_delayed ~asm_directives:_ = ()
 
-
 let emit0 ~asm_directives ~compilation_unit_proto_die
     ~compilation_unit_header_label ~debug_loc_table ~debug_ranges_table
     ~address_table ~location_list_table =
@@ -86,11 +85,11 @@ let emit ~asm_directives ~compilation_unit_proto_die
       ~compilation_unit_header_label ~debug_loc_table ~debug_ranges_table
       ~address_table ~location_list_table
 
-let emit_delayed ~asm_directives ~basic_block_sections ~binary_backend_available =
+let emit_delayed ~asm_directives ~basic_block_sections ~binary_backend_available
+    =
   if (* CR mshinwell: support function sections *)
      !Clflags.function_sections || basic_block_sections
      (* CR mshinwell: support the internal assembler *)
      || binary_backend_available
   then ()
-  else
-    emit0_delayed ~asm_directives
+  else emit0_delayed ~asm_directives

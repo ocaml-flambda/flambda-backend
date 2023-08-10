@@ -57,7 +57,8 @@ module type Arg = sig
 
     val label : ?data_type:data_type -> string -> unit
 
-    val section : ?delayed:bool -> string list -> string option -> string list -> unit
+    val section :
+      ?delayed:bool -> string list -> string option -> string list -> unit
 
     val text : unit -> unit
 

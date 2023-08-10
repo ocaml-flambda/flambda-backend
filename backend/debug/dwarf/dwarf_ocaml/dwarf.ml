@@ -26,7 +26,7 @@ type t =
     asm_directives : (module Asm_directives.S);
     get_file_id : string -> int;
     mutable emitted : bool;
-    mutable emitted_delayed : bool;
+    mutable emitted_delayed : bool
   }
 
 (* CR mshinwell: On OS X 10.11 (El Capitan), dwarfdump doesn't seem to be able
@@ -62,7 +62,12 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
       ~value_type_proto_die ~start_of_code_symbol debug_loc_table
       debug_ranges_table address_table location_list_table
   in
-  { state; asm_directives; emitted = false; emitted_delayed = false; get_file_id }
+  { state;
+    asm_directives;
+    emitted = false;
+    emitted_delayed = false;
+    get_file_id
+  }
 
 type fundecl =
   { fun_end_label : Cmm.label;
