@@ -334,6 +334,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "liveness" liveness
         ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
         ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        ++ pass_dump_if ppf_dump Flambda_backend_flags.davail
+             "Register availability analysis"
         ++ Profile.record ~accumulate:true "mach to linear" (fun (fd : Mach.fundecl) ->
           if !Flambda_backend_flags.use_ocamlcfg then begin
             fd
