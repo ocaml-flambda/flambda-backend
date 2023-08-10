@@ -4,7 +4,7 @@ module Test_data = struct
   open struct
     let n ?(args = []) head : Name.t = Name.create head args
 
-    let g ?(args = []) ?(params = []) head = create head args ~params
+    let g ?(vis = []) ?(hid = []) head = create head vis ~hidden_args:hid
   end
 
   let [@ocamlformat "disable"] () =
@@ -40,13 +40,13 @@ module Test_data = struct
 
   let y = n "Y"
 
-  let y_g = g "Y" ~params:[x, x_g]
+  let y_g = g "Y" ~hid:[x, x_g]
 
   let a_g = g "A"
 
   let b_g = g "B"
 
-  let m_g = g "M" ~params:[x, x_g; y, y_g]
+  let m_g = g "M" ~hid:[x, x_g; y, y_g]
 
   let i = n "I"
 
@@ -58,7 +58,7 @@ module Test_data = struct
 
   let conv = n "Conv"
 
-  let conv_g = g "Conv" ~params:[i, i_g; o, o_g]
+  let conv_g = g "Conv" ~hid:[i, i_g; o, o_g]
 
   let unit_g = g "Unit"
 
@@ -68,11 +68,11 @@ module Test_data = struct
 
   let conv_to_string = n "Conv" ~args:[o, string]
 
-  let conv_to_string_g = g "Conv" ~args:[o, string_g] ~params:[i, i_g]
+  let conv_to_string_g = g "Conv" ~vis:[o, string_g] ~hid:[i, i_g]
 
-  let opaque_g = g "Opaque" ~params:[i, i_g]
+  let opaque_g = g "Opaque" ~hid:[i, i_g]
 
-  let print_g = g "Print" ~params:[i, i_g; conv_to_string, conv_to_string_g]
+  let print_g = g "Print" ~hid:[i, i_g; conv_to_string, conv_to_string_g]
 end
 
 module Subst_tests = struct

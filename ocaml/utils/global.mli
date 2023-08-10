@@ -11,50 +11,90 @@ module Name : sig
   val create : string -> (t * t) list -> t
 end
 
-(** A name, with both the arguments it's being passed and the parameters it's
-    still waiting for. Note that each remaining parameter has _two_ names
-    associated with it. The first is the parameter from the perspective of the
-    original module (i.e., the head of [name]), and the second is the
-    perspective of someone passing in additional parameters. Normally these
-    are the same: if [M] takes parameters [X] and [Y], neither of which is
-    itself parameterised, we might have (abbreviating nested records):
+(** An elaborated form of name in which all arguments are expressed, including
+    those being passed implicitly from one module to another by the subset rule
+    for parameterised modules. Normally, these "hidden" arguments simply say to
+    pass [X] as [X] for some module [X], but if there are parameterised
+    parameters, the hidden arguments can get more complex.
+
+    Suppose [M] takes parameters [X] and [Y], neither of which is itself
+    parameterised. If someone is passing [Foo] as the value of [X], then, we
+    will have (abbreviating nested records):
 
     {v
-      { head: M; args: [ X, Foo ]; params: [ Y, Y ] }
+      { head: M; visible_args: [ X, Foo ]; hidden_args: [ Y, Y ] }
     v}
 
-    This says we've so far passed [M] the parameter [Foo] as [X] and it still
-    awaits a parameter [Y].
+    This represents that [X] is explicitly being given the value [Foo] and [Y]
+    (the parameter) is implicitly getting the value [Y] (the argument currently
+    in scope).
 
     However, suppose instead [Y] is parameterised by [X]. Then [M] still takes
-    two parameters [X] and [Y], but now once [X] is set to [Foo], [Y] needs to
-    become [Y[X\Foo]] and we have:
+    two parameters [X] and [Y], but now once [X] has the value [Foo], [Y]
+    requires _that particular_ [X]:
 
     {v
-      { head: M; args: [ X, Foo ]; params: [ Y, Y[X\Foo] ] }
+      { head: M; visible_args: [ X, Foo ]; hidden_args: [ Y, Y[X:Foo] ] }
     v}
 
-    This reflects the fact that further specialisation requires passing an
-    argument for [Y[X\Foo]] rather than [Y]. (Here, [Y[X\Foo]] stands for the
-    record [{ head = Y; args = [ X, Foo ] }] of type [t].)
+    Importantly, the _parameters_ [X] and [Y] never change: they are names that
+    appear in [m.ml] and [m.cmi]. But further specialisation requires passing
+    specifically a [Y[X:Foo]] rather than a [Y]. (Here, [Y[X:Foo]] stands for
+    the record [{ head = Y; visible_args = [ X, Foo ]; hidden_args = [] }] of
+    type [t].)
 *)
 type t = private {
   head : string;
-  args : (Name.t * t) list;
-  params : (Name.t * t) list;
+  visible_args : (Name.t * t) list;
+  hidden_args : (Name.t * t) list;
 }
 
 include Identifiable.S with type t := t
 
-val create : string -> (Name.t * t) list -> params:(Name.t * t) list -> t
+val create : string -> (Name.t * t) list -> hidden_args:(Name.t * t) list -> t
 
 val to_name : t -> Name.t
 
+val all_args : t -> (Name.t * t) list
+
+(** A map from parameter names to their values. Hidden arguments aren't relevant
+    in the parameter names, so they're represented by [Name.t]s here. *)
 type subst = t Name.Map.t
 
+(** Apply a substitution to the given global. If it appears in the substitution
+    directly (that is, its [Name.t] form is a key in the map), this simply
+    performs a lookup. Otherwise, we perform a _revealing substitution_: if the
+    value of a hidden argument is a key in the substitution, the argument becomes
+    visible. Otherwise, substitution recurses into arguments (both hidden and
+    visible) as usual. See [global_test.ml] for examples. *)
 val subst : t -> subst -> t
+
+(** Apply a substitution to the arguments and parameters in [t] but not to [t]
+    itself. Useful if [subst] is constructed from some parameter-argument pairs
+    and [t] is one of the parameters, since we want to handle any
+    interdependencies but the substitution applied to [t] itself is
+    uninterestingly just the corresponding value. *)
+val subst_inside : t -> subst -> t
 
 (** Check that a substitution is a valid (possibly partial) instantiation of
     a module with the given parameter list. Each name being substituted must
     appear in the list. *)
 val check : subst -> t list -> bool
+
+(** Returns [true] if [hidden_args] is empty and all argument values (if any)
+    are also complete. This is a stronger condition than full application, and
+    (unless the whole global is itself a parameter) it's equivalent to the
+    global being a static constant, since any parameters being used would have
+    to show up in a [hidden_args] somewhere. (Importantly, it's not possible
+    that a parameter is being used as an argument to a different parameter,
+    since a module can be declared to be an argument for up to one parameter.)
+
+    CR lmaurer: Make sure we're checking for the user redundantly passing an
+    parameter as an argument. This should be accepted and ignored, lest we
+    count the parameter as filled and consider something completely
+    instantiated. *)
+val is_complete : t -> bool
+
+(** Returns [true] if this name has at least one argument (either hidden or
+    visible). *)
+val has_arguments : t -> bool
