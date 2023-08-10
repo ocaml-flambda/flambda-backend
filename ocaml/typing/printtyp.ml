@@ -2130,7 +2130,7 @@ let rec tree_of_modtype ?abbrev = function
       Omty_functor (param, res)
   | Mty_alias p ->
       Omty_alias (tree_of_path Module p)
-  | Mty_strengthen _ as mty ->
+  | Mty_strengthen _ | Mty_with _ as mty ->
       begin match !expand_module_type !printing_env mty with
       | Mty_strengthen (mty,p,a) ->
           let unaliasable =
@@ -2139,8 +2139,20 @@ let rec tree_of_modtype ?abbrev = function
           in
           Omty_strengthen
             (tree_of_modtype ?abbrev mty, tree_of_path Module p, unaliasable)
+      | Mty_with _ as mty ->
+          let rec collect cs = function
+            | Mty_with (mty,ns,mc) ->
+                collect ((ns,mc) :: cs) mty
+            | mty -> mty, cs
+          in
+          let base, cs = collect [] mty in
+          let cs = List.map (tree_of_module_with ?abbrev) cs in
+          Omty_with (tree_of_modtype ?abbrev base, cs)
       | mty -> tree_of_modtype ?abbrev mty
       end
+
+and tree_of_module_with ?abbrev = function
+  | ns, Modc_module mty -> ns, Omodc_module (tree_of_modtype ?abbrev mty)
 
 and tree_of_functor_parameter ?abbrev = function
   | Unit ->

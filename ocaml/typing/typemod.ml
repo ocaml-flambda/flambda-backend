@@ -634,7 +634,7 @@ let merge_constraint initial_env loc sg lid constr =
         in
         return ~ghosts
           ~replace_by:(Some (Sig_type(id, newdecl, rs, priv)))
-          (Pident id, lid, Twith_type tdecl)
+          ((Pident id, lid, Twith_type tdecl), None)
     | Sig_type(id, sig_decl, rs, priv) , [s],
        (With_type sdecl | With_typesubst sdecl as constr)
       when Ident.name id = s ->
@@ -651,11 +651,11 @@ let merge_constraint initial_env loc sg lid constr =
           With_type _ ->
             return ~ghosts
               ~replace_by:(Some(Sig_type(id, newdecl, rs, priv)))
-              (Pident id, lid, Twith_type tdecl)
+              ((Pident id, lid, Twith_type tdecl), None)
         | (* With_typesubst *) _ ->
             real_ids := [Pident id];
             return ~ghosts ~replace_by:None
-              (Pident id, lid, Twith_typesubst tdecl)
+              ((Pident id, lid, Twith_typesubst tdecl), None)
         end
     | Sig_modtype(id, mtd, priv), [s],
       (With_modtype mty | With_modtypesubst mty)
@@ -678,7 +678,7 @@ let merge_constraint initial_env loc sg lid constr =
           in
           return
             ~replace_by:(Some(Sig_modtype(id, mtd', priv)))
-            (Pident id, lid, Twith_modtype mty)
+            ((Pident id, lid, Twith_modtype mty), None)
         else begin
           let path = Pident id in
           real_ids := [path];
@@ -686,7 +686,9 @@ let merge_constraint initial_env loc sg lid constr =
           | Mty_ident _ -> ()
           | mty -> unpackable_modtype := Some mty
           end;
-          return ~replace_by:None (Pident id, lid, Twith_modtypesubst mty)
+          return
+            ~replace_by:None
+            ((Pident id, lid, Twith_modtypesubst mty), None)
         end
     | Sig_module(id, pres, md, rs, priv), [s],
       With_module {lid=lid'; md=md'; path; remove_aliases}
@@ -696,11 +698,17 @@ let merge_constraint initial_env loc sg lid constr =
         let mty = Mtype.scrape_for_type_of ~remove_aliases sig_env mty in
         let md'' = { md' with md_type = mty } in
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
-        ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
-                 newmd.md_type md.md_type);
+        let coercion = Includemod.modtypes  ~mark:Mark_both ~loc sig_env
+                 newmd.md_type md.md_type
+        in
+        let modc = match coercion with
+          | Tcoerce_none when not remove_aliases ->
+              Some ([s], Modc_module newmd.md_type)
+          | _ -> None
+        in
         return
           ~replace_by:(Some(Sig_module(id, pres, newmd, rs, priv)))
-          (Pident id, lid, Twith_module (path, lid'))
+          ((Pident id, lid, Twith_module (path, lid')), modc)
     | Sig_module(id, _, md, _rs, _), [s], With_modsubst (lid',path,md')
       when Ident.name id = s ->
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
@@ -709,25 +717,33 @@ let merge_constraint initial_env loc sg lid constr =
           (Includemod.strengthened_module_decl ~loc ~mark:Mark_both
              ~aliasable sig_env md' path md);
         real_ids := [Pident id];
-        return ~replace_by:None (Pident id, lid, Twith_modsubst (path, lid'))
+        return
+          ~replace_by:None
+          ((Pident id, lid, Twith_modsubst (path, lid')), None)
     | Sig_module(id, _, md, rs, priv) as item, s :: namelist, constr
       when Ident.name id = s ->
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let sg = extract_sig sig_env loc md.md_type in
-        let ((path, _, tcstr), newsg) = merge_signature sig_env sg namelist in
+        let (((path, _, tcstr), wc), newsg) =
+          merge_signature sig_env sg namelist
+        in
         let path = path_concat id path in
         real_ids := path :: !real_ids;
-        let item =
-          match md.md_type, constr with
-            Mty_alias _, (With_module _ | With_type _) ->
+        let item, wc =
+          match md.md_type, constr, wc with
+            Mty_alias _, (With_module _ | With_type _), _ ->
               (* A module alias cannot be refined, so keep it
                  and just check that the constraint is correct *)
-              item
+              item, None
+          | _, _, Some (ns,mc) ->
+              let mty = Mtype.apply_with ns mc md.md_type in
+              let newmd = {md with md_type = mty} in
+              Sig_module(id, Mp_present, newmd, rs, priv), Some (s::ns, mc)
           | _ ->
               let newmd = {md with md_type = Mty_signature newsg} in
-              Sig_module(id, Mp_present, newmd, rs, priv)
+              Sig_module(id, Mp_present, newmd, rs, priv), None
         in
-        return ~replace_by:(Some item) (path, lid, tcstr)
+        return ~replace_by:(Some item) ((path, lid, tcstr), wc)
     | _ -> None
   and merge_signature env sg namelist =
     match
@@ -738,7 +754,7 @@ let merge_constraint initial_env loc sg lid constr =
   in
   try
     let names = Longident.flatten lid.txt in
-    let (tcstr, sg) = merge_signature initial_env sg names in
+    let ((tcstr, wc), sg) = merge_signature initial_env sg names in
     if destructive_substitution then
       check_usage_after_substitution ~loc ~lid initial_env !real_ids
         !unpackable_modtype sg;
@@ -801,7 +817,7 @@ let merge_constraint initial_env loc sg lid constr =
     in
     check_well_formed_module initial_env loc "this instantiated signature"
       (Mty_signature sg);
-    (tcstr, sg)
+    ((tcstr, wc), sg)
   with Includemod.Error explanation ->
     raise(Error(loc, initial_env, With_mismatch(lid.txt, explanation)))
 
@@ -1456,12 +1472,20 @@ and transl_modtype_aux env smty =
       let body = transl_modtype env sbody in
       let init_sg = extract_sig env sbody.pmty_loc body.mty_type in
       let remove_aliases = has_remove_aliases_attribute smty.pmty_attributes in
-      let (rev_tcstrs, final_sg) =
+      let (rev_tcstrs, rev_withs, final_sg) =
         List.fold_left (transl_with ~loc:smty.pmty_loc env remove_aliases)
-        ([],init_sg) constraints in
+        ([], Some [], init_sg) constraints in
       let scope = Ctype.create_scope () in
+      let mty = match body.mty_type, rev_withs with
+        | (Mty_ident _ | Mty_with _) as mty, Some rev_withs  ->
+            List.fold_right
+              (fun (ns,mc) mty -> Mty_with (mty,ns,mc))
+              rev_withs
+              mty
+        | _ -> Mty_signature final_sg
+      in
       mkmty (Tmty_with ( body, List.rev rev_tcstrs))
-        (Mtype.freshen ~scope (Mty_signature final_sg)) env loc
+        (Mtype.freshen ~scope mty) env loc
         smty.pmty_attributes
   | Pmty_typeof smod ->
       let env = Env.in_signature false env in
@@ -1492,7 +1516,7 @@ and transl_modtype_jane_syntax_aux ~loc env = function
         raise(Error(loc, env, Strengthening_mismatch(mod_id.txt, explanation)))
       ;
 
-and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
+and transl_with ~loc env remove_aliases (rev_tcstrs,rev_withs,sg) constr =
   let lid, with_info = match constr with
     | Pwith_type (l,decl) ->l , With_type decl
     | Pwith_typesubst (l,decl) ->l , With_typesubst decl
@@ -1509,8 +1533,12 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
         let mty = transl_modtype env smty in
         l, With_modtypesubst mty
   in
-  let (tcstr, sg) = merge_constraint env loc sg lid with_info in
-  (tcstr :: rev_tcstrs, sg)
+  let ((tcstr,wc), sg) = merge_constraint env loc sg lid with_info in
+  let rev_withs = match wc, rev_withs with
+    | Some w, Some rev_withs -> Some (w :: rev_withs)
+    | _ -> None
+  in  
+  (tcstr :: rev_tcstrs, rev_withs, sg)
 
 
 
@@ -2022,6 +2050,15 @@ let rec nongen_modtype env f = function
       in
       nongen_modtype env f body
   | Mty_strengthen (mty,_ ,_) -> nongen_modtype env f mty
+  | Mty_with (mty,_,mc) ->
+      let nongen_constraint = function
+      (* RL FIXME: It's possible that the expansion of a type with constraints
+         doesn't contain non-gen tyvars even if the individual components do.
+         Do we need to return a module_type option here which expands as much
+         as necessary to get rid of non-gen tyvars? *)
+        | Modc_module mty -> nongen_modtype env f mty
+      in
+      nongen_modtype env f mty || nongen_constraint mc
 
 and nongen_signature_item env f = function
     Sig_value(_id, desc, _) -> f env desc.val_type
@@ -2221,7 +2258,8 @@ and package_constraints env loc mty constrs =
       let rec ident = function
           Mty_ident p -> p
         | Mty_strengthen (mty,_,_) -> ident mty
-        | Mty_functor _ | Mty_alias _ | Mty_signature _ -> assert false
+        | Mty_functor _ | Mty_alias _ | Mty_signature _ | Mty_with _ ->
+            assert false
       in
       raise(Error(loc, env, Cannot_scrape_package_type (ident mty)))
   end
@@ -3087,7 +3125,13 @@ let rec normalize_modtype = function
   | Mty_signature sg -> normalize_signature sg
   | Mty_functor(_param, body) -> normalize_modtype body
   | Mty_strengthen (mty,_,_) -> normalize_modtype mty
-
+  | Mty_with (mty,_,mc) ->
+      let normalize_module_constraint = function
+       | Modc_module mty -> normalize_modtype mty
+      in
+      normalize_modtype mty ;
+      normalize_module_constraint mc
+     
 and normalize_signature sg = List.iter normalize_signature_item sg
 
 and normalize_signature_item = function

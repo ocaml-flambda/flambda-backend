@@ -124,6 +124,7 @@ module Lazy : sig
   val of_signature_item : Types.signature_item -> signature_item
   val of_functor_parameter : Types.functor_parameter -> functor_parameter
   val of_value_description : Types.value_description -> value_description
+  val of_module_constraint : Types.module_constraint -> module_constraint
 
   val module_decl : scoping -> t -> module_declaration -> module_declaration
   val modtype : scoping -> t -> module_type -> module_type

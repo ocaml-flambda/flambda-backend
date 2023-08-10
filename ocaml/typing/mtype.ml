@@ -68,7 +68,7 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
       (* Strengthening aliases, generative functors and already strengthened
         types is a no-op. *)
       Some mty
-  | Mty_ident _ -> None
+  | Mty_ident _ | Mty_with _ -> None
 
 (* Strengthen a type by pushing strengthening inward and/or constructing
     appropriate Mty_strengthen nodes. *)
@@ -148,6 +148,53 @@ let strengthen_decl ~aliasable md p =
   let md = strengthen_lazy_decl ~aliasable (Subst.Lazy.of_module_decl md) p in
   Subst.Lazy.force_module_decl md
 
+
+let rec reduce_with ns mc mty =
+  let open Subst.Lazy in
+  match mty with
+  | Mty_signature sg ->
+      let sg = Subst.Lazy.force_signature_once sg
+        |> List.map (apply_with_to_sig_item ns mc)
+        |> of_value
+      in
+      Some (Mty_signature sg)
+  | Mty_functor _ -> assert false
+  | Mty_alias _ -> Some mty
+  | Mty_strengthen _ | Mty_ident _ | Mty_with _ -> None
+
+and apply_with_to_sig_item ns mc item =
+  let open Subst.Lazy in
+  let name = Ident.name (Subst.Lazy.signature_item_id item) in
+  match ns, item with
+  | [s], _ when name = s ->
+      begin match mc, item with
+      | Modc_module mty, Sig_module(id, pres, md, rs, vis) ->
+          let md_type = match md.md_type with
+            | Mty_alias _ -> md.md_type
+            | _ -> mty
+          in
+          let md = {md with md_type} in
+          Sig_module (id, pres, md, rs, vis)
+
+      | _, sigelt -> sigelt
+      end
+  | s :: ns, Sig_module(id, pres, md, rs, vis) when name = s ->
+      let md = { md with md_type = apply_with_lazy ns mc md.md_type }
+      in
+      Sig_module(id, pres, md, rs, vis)
+  | _ -> item
+
+and apply_with_lazy ns mc mty =
+  match reduce_with ns mc mty with
+  | Some mty -> mty
+  | None -> Subst.Lazy.Mty_with (mty,ns,mc)
+
+let apply_with ns mc mty =
+  let open Subst.Lazy in
+  let mc = of_module_constraint mc in
+  let mty = of_modtype mty in
+  force_modtype (apply_with_lazy ns mc mty)
+
 (* Perform one reduction on a module type, returning None is it couldn't be
   reduced. Possible reductions are unfolding type abbreviations, pushing
   strengthening inwards and, if aliases is true, resolving module aliases. *)
@@ -180,6 +227,19 @@ let rec reduce_lazy ~aliases env mty =
         | None -> None
         end
       end
+  | Mty_with (base, ns, mc) ->
+      begin match reduce_with ns mc base with
+      | Some mty -> Some mty
+      | None ->
+        begin match reduce_lazy ~aliases env base with
+        | Some mty ->
+          (* We need to freshen here *)
+          let scope = Ctype.create_scope () in
+          let mty = modtype (Rescope scope) Subst.identity mty in
+          Some (apply_with_lazy ns mc mty)
+        | None -> None
+        end
+      end
   | Mty_signature _ | Mty_functor _ | Mty_alias _ -> None
 
 let rec scrape_lazy ~aliases env mty =
@@ -199,7 +259,7 @@ let reduce env mty =
 let rec expand_lazy env mty =
   let open Subst.Lazy in
   match mty with
-  | Mty_strengthen _ ->
+  | Mty_strengthen _ | Mty_with _ ->
     begin match reduce_lazy env mty with
     | Some mty -> expand_lazy env mty
     | None -> mty
@@ -249,6 +309,16 @@ let rec expand_paths_lazy paths env =
           node. *)
       let mty = expand_paths_lazy paths env mty in
       Mty_strengthen (mty,p,a)
+  | Mty_with (base,ns,mc) as mty ->
+      begin match reduce_lazy env mty with
+      | Some mty -> expand_paths_lazy paths env mty
+      | None ->
+        let base = expand_paths_lazy paths env base in
+        let mc = match mc with
+        | Modc_module mty -> Modc_module (expand_paths_lazy paths env mty)
+        in
+        Mty_with (base,ns,mc)
+      end
   | Mty_ident _ | Mty_alias _ as mty ->
       mty
 
@@ -361,6 +431,13 @@ let rec make_aliases_absent ~aliased pres mty =
       let aliased = aliased || Aliasability.is_aliasable a in
       let pres, res = make_aliases_absent ~aliased pres mty in
       pres, Mty_strengthen (res,p,a)
+  | Mty_with (mty, ns, mc) ->
+      let mc = match mc with
+        | Modc_module mty ->
+            let _, mty = make_aliases_absent ~aliased pres mty in Modc_module mty
+      in
+      let pres, mty = make_aliases_absent ~aliased pres mty in
+      pres, Mty_with (mty, ns, mc)
 
 let scrape_for_type_of env pres mty =
   let rec loop env outer = function
@@ -372,7 +449,7 @@ let scrape_for_type_of env pres mty =
         with Not_found -> outer
       end
     | Mty_strengthen (inner,_,_) -> loop env outer inner
-    | Mty_ident _ | Mty_signature _ | Mty_functor _ -> outer
+    | Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_with _ -> outer
   in
   make_aliases_absent ~aliased:false pres (loop env mty mty)
 
@@ -390,7 +467,7 @@ let scrape_lazy env mty = scrape_lazy ~aliases:false env mty
 
 let scrape env mty =
   match mty with
-    Mty_ident _ | Mty_strengthen _ ->
+    Mty_ident _ | Mty_strengthen _ | Mty_with _ ->
       Subst.Lazy.force_modtype (scrape_lazy env (Subst.Lazy.of_modtype mty))
   | _ -> mty
 
@@ -465,6 +542,7 @@ let rec nondep_mty_with_presence env va ids pres mty =
           else strengthen ~aliasable:(Aliasability.is_aliasable a) mty p
       in
       pres,mty
+  | Mty_with _ -> assert false (* RL FIXME *)
 
 and nondep_mty env va ids mty =
   snd (nondep_mty_with_presence env va ids Mp_present mty)
@@ -568,6 +646,7 @@ let rec type_paths env p mty =
   | Mty_signature sg -> type_paths_sig env p sg
   | Mty_functor _ -> []
   | Mty_strengthen _ -> []
+  | Mty_with _ -> [] (* RL FIXME: Do we need to grab paths from constraints? *)
 
 and type_paths_sig env p sg =
   match sg with
@@ -594,6 +673,7 @@ let rec no_code_needed_mod env pres mty =
       | Mty_functor _ -> false
       | Mty_alias _ -> false
       | Mty_strengthen _ -> false
+      | Mty_with _ -> false (* RL FIXME *)
     end
 
 and no_code_needed_sig env sg =
@@ -626,7 +706,7 @@ let rec contains_type env mty =
       contains_type env body
   | Mty_alias _ ->
       ()
-  | Mty_strengthen _ -> raise Exit
+  | Mty_strengthen _ | Mty_with _ -> raise Exit
 
 and contains_type_sig env = List.iter (contains_type_item env)
 

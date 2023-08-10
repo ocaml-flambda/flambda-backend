@@ -213,6 +213,12 @@ let subst_module_type env t =
         Mty_ident new_p
     | Mty_strengthen (mt,p,a) ->
         Mty_strengthen (iter mt,p,a)
+    | Mty_with (mt,ns,mc) ->
+        let mt = iter mt in
+        let mc = match mc with
+            | Modc_module mty -> Modc_module (iter mty)
+        in
+        Mty_with (mt,ns,mc)
     | Mty_alias _
     | Mty_signature _ ->
         t

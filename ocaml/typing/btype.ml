@@ -389,6 +389,10 @@ let type_iterators =
     | Mty_strengthen (mty, p, _) ->
         it.it_module_type it mty;
         it.it_path p
+    | Mty_with (mty, _, constr) ->
+        it.it_module_type it mty;
+        match constr with
+        | Modc_module mt -> it.it_module_type it mt
   and it_class_type it = function
       Cty_constr (p, tyl, cty) ->
         it.it_path p;

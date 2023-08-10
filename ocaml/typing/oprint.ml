@@ -769,6 +769,26 @@ and print_simple_out_module_type ppf =
        print_simple_out_module_type mty
        print_ident id
        (if unaliasable then " [@unaliasable]" else "")
+  | Omty_with (mty, cs) ->
+     let rec print_constrs sep ppf = function
+       | [] -> ()
+       | c :: cs ->
+         fprintf ppf "@ %s %a%a"
+           sep
+           print_out_module_with c
+           (print_constrs "and") cs
+     in
+       fprintf ppf "@[<hv 2>(%a%a)@;<1 -2>@]"
+         print_simple_out_module_type mty
+         (print_constrs "with") cs
+and print_out_module_with ppf =
+  let dotted ns = String.concat "." ns in
+  function
+  | ns, Omodc_module mty ->
+    fprintf ppf "module %s : %a"
+      (dotted ns)
+      print_out_module_type mty
+        
 and print_out_signature ppf =
   function
     [] -> ()
