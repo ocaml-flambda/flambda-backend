@@ -1136,6 +1136,11 @@ let rec emit_all i =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
+  let fun_end_label, fundecl =
+    match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl fundecl with
+    | None -> None, fundecl
+    | Some { fun_end_label; fundecl } -> Some fun_end_label, fundecl
+  in
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
@@ -1168,10 +1173,9 @@ let fundecl fundecl =
   List.iter emit_call_bound_error !bound_error_sites;
   assert (List.length !call_gc_sites = num_call_gc);
   assert (List.length !bound_error_sites = num_check_bound);
-  (match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl
-           ~fun_name:fundecl.fun_name fundecl.fun_dbg with
+  (match fun_end_label with
    | None -> ()
-   | Some label -> `{emit_label label}:\n`);
+   | Some fun_end_label -> `{emit_label fun_end_label}:\n`);
   cfi_endproc();
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;

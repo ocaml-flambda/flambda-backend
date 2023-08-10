@@ -51,6 +51,12 @@ let mk_regalloc_validate f =
 let mk_no_regalloc_validate f =
   "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
+let mk_cfg_peephole_optimize f =
+  "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG"
+
+let mk_no_cfg_peephole_optimize f =
+  "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -120,6 +126,12 @@ let mk_caml_apply_inline_fast_path f =
 
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
+
+let mk_davail f =
+  "-davail", Arg.Unit f, " Dump register availability information"
+
+let mk_ddebug_invariants f =
+  "-ddebug-invariants", Arg.Unit f, " Run invariant checks during generation of debugging information"
 
 let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
@@ -498,6 +510,15 @@ let mk_no_dwarf_for_startup_file f =
   "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
     \     startup file as the upstream compiler"
 
+let mk_gdwarf_may_alter_codegen f =
+  "-gdwarf-may-alter-codegen", Arg.Unit f, " Allow code generation (and\n\
+    \     when finalizers may run, etc) to be altered\n\
+    \     in order to produce a better debugging experience"
+
+let mk_no_gdwarf_may_alter_codegen f =
+  "-gno-dwarf-may-alter-codegen", Arg.Unit f, " Do not alter code\n\
+    \     generation when emitting debugging information"
+
 let mk_use_cached_generic_functions f =
   "-use-cached-generic-functions", Arg.Unit f, " Use the cached generated functions"
 ;;
@@ -522,6 +543,8 @@ module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
+  val davail : unit -> unit
+  val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
@@ -529,6 +552,9 @@ module type Flambda_backend_options = sig
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
+
+  val cfg_peephole_optimize : unit -> unit
+  val no_cfg_peephole_optimize : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -616,6 +642,8 @@ module Make_flambda_backend_options (F : Flambda_backend_options) =
 struct
   let list2 = [
     mk_dump_inlining_paths F.dump_inlining_paths;
+    mk_davail F.davail;
+    mk_ddebug_invariants F.ddebug_invariants;
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
@@ -625,6 +653,9 @@ struct
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
     mk_no_regalloc_validate F.no_regalloc_validate;
+
+    mk_cfg_peephole_optimize F.cfg_peephole_optimize;
+    mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -752,6 +783,9 @@ module Flambda_backend_options_impl = struct
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
   let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
 
+  let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
+  let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
+
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
@@ -764,6 +798,10 @@ module Flambda_backend_options_impl = struct
     clear' Flambda_backend_flags.dasm_comments
 
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
+
+  let davail = set' Flambda_backend_flags.davail
+
+  let ddebug_invariants = set' Dwarf_flags.ddebug_invariants
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
@@ -928,6 +966,8 @@ module type Debugging_options = sig
   val no_restrict_to_upstream_dwarf : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
+  val gdwarf_may_alter_codegen : unit -> unit
+  val no_gdwarf_may_alter_codegen : unit -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
@@ -936,6 +976,8 @@ module Make_debugging_options (F : Debugging_options) = struct
     mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
     mk_dwarf_for_startup_file F.dwarf_for_startup_file;
     mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
+    mk_gdwarf_may_alter_codegen F.gdwarf_may_alter_codegen;
+    mk_no_gdwarf_may_alter_codegen F.no_gdwarf_may_alter_codegen;
    ]
 end
 
@@ -948,6 +990,10 @@ module Debugging_options_impl = struct
     Debugging.dwarf_for_startup_file := true
   let no_dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := false
+  let gdwarf_may_alter_codegen () =
+    Debugging.gdwarf_may_alter_codegen := true
+  let no_gdwarf_may_alter_codegen () =
+    Debugging.gdwarf_may_alter_codegen := false
 end
 
 module Extra_params = struct
@@ -1002,7 +1048,10 @@ module Extra_params = struct
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
+    | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
+    | "davail" -> set' Flambda_backend_flags.davail
+    | "ddebug-invariants" -> set' Dwarf_flags.ddebug_invariants
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
@@ -1031,6 +1080,7 @@ module Extra_params = struct
       set' Flambda_backend_flags.caml_apply_inline_fast_path
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
+    | "gdwarf-may-alter-codegen" -> set' Debugging.gdwarf_may_alter_codegen
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
     | "flambda2-debug" -> set' Flambda_backend_flags.Flambda2.debug
     | "flambda2-join-points" -> set Flambda2.join_points

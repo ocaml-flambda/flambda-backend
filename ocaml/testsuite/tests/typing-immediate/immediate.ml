@@ -5,7 +5,7 @@
 module type S = sig type t [@@immediate] end;;
 module F (M : S) : S = M;;
 [%%expect{|
-module type S = sig type t [@@immediate] end
+module type S = sig type t : immediate end
 module F : functor (M : S) -> S
 |}];;
 
@@ -37,14 +37,14 @@ end;;
 [%%expect{|
 module A :
   sig
-    type t [@@immediate]
-    type s = t [@@immediate]
+    type t : immediate
+    type s = t
     type r = s
-    type p = q [@@immediate]
+    type p = q
     and q = int
-    type o = Foo | Bar | Baz [@@immediate]
-    type m = int [@@immediate64]
-    type n = m [@@immediate]
+    type o = Foo | Bar | Baz
+    type m = int
+    type n = m
   end
 |}];;
 
@@ -55,7 +55,7 @@ module Z = ((Y : X with type t = int) : sig type t [@@immediate] end);;
 [%%expect{|
 module type X = sig type t end
 module Y : sig type t = int end
-module Z : sig type t [@@immediate] end
+module Z : sig type t : immediate end
 |}];;
 
 (* Valid using an explicit signature *)
@@ -82,8 +82,8 @@ end;;
 [%%expect{|
 module Unboxed_valid :
   sig
-    type t = { x : int; } [@@immediate] [@@unboxed]
-    type u = { x : s; } [@@immediate] [@@unboxed]
+    type t : immediate = { x : int; } [@@unboxed]
+    type u : immediate = { x : s; } [@@unboxed]
     and s = int
   end
 |}];;
@@ -102,7 +102,7 @@ module Bar : sig type t [@@immediate] val x : t ref end = struct
   let x = ref 0
 end;;
 [%%expect{|
-module Bar : sig type t [@@immediate] val x : t ref end
+module Bar : sig type t : immediate val x : t ref end
 |}];;
 
 let test f =
@@ -193,11 +193,11 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t = string end
        is not included in
-         sig type t [@@immediate] end
+         sig type t : immediate end
        Type declarations do not match:
          type t = string
        is not included in
-         type t [@@immediate]
+         type t : immediate
        the first has layout value, which is not a sublayout of immediate.
 |}];;
 
@@ -213,7 +213,7 @@ Error: Signature mismatch:
        Type declarations do not match:
          type t = string
        is not included in
-         type t [@@immediate]
+         type t : immediate
        the first has layout value, which is not a sublayout of immediate.
 |}];;
 
@@ -235,7 +235,7 @@ type 'a id = 'a
 type s = int id [@@immediate]
 [%%expect{|
 type 'a id = 'a
-type s = int id [@@immediate]
+type s = int id
 |}];;
 module F (X : sig type t end) = X
 module I = struct type t = int end
@@ -243,7 +243,7 @@ type t = F(I).t [@@immediate]
 [%%expect{|
 module F : functor (X : sig type t end) -> sig type t = X.t end
 module I : sig type t = int end
-type t = F(I).t [@@immediate]
+type t = F(I).t
 |}];;
 module F (X : sig type t end) = X
 module I : sig type t = private int end = struct type t = int end
@@ -251,7 +251,7 @@ type t = F(I).t [@@immediate]
 [%%expect{|
 module F : functor (X : sig type t end) -> sig type t = X.t end
 module I : sig type t = private int end
-type t = F(I).t [@@immediate]
+type t = F(I).t
 |}];;
 module type T = sig type t type s = t end
 module F (X : T with type t = int) = struct
@@ -260,8 +260,7 @@ end
 [%%expect{|
 module type T = sig type t type s = t end
 module F :
-  functor (X : sig type t = int type s = t end) ->
-    sig type t = X.s [@@immediate] end
+  functor (X : sig type t = int type s = t end) -> sig type t = X.s end
 |}];;
 module type T = sig type t type s = t end
 module F (X : T with type t = private int) = struct
@@ -271,10 +270,10 @@ end
 module type T = sig type t type s = t end
 module F :
   functor (X : sig type t = private int type s = t end) ->
-    sig type t = X.s [@@immediate] end
+    sig type t = X.s end
 |}];;
 type t = int s [@@immediate] and 'a s = 'a
 [%%expect{|
-type t = int s [@@immediate]
+type t = int s
 and 'a s = 'a
 |}];;

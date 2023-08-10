@@ -149,9 +149,13 @@ module Layout : sig
 
   type annotation_context =
     | Type_declaration of Path.t
-    | Type_parameter of Path.t * string
+    | Type_parameter of Path.t * string option
     | With_constraint of string
     | Newtype_declaration of string
+    | Constructor_type_parameter of Path.t * string
+    | Univar of string
+    | Type_variable of string
+    | Type_wildcard of Location.t
 
    type value_creation_reason =
     | Class_let_binding
@@ -322,18 +326,28 @@ module Layout : sig
   val of_sort : why:concrete_layout_reason -> sort -> t
   val of_const : why:creation_reason -> const -> t
 
+  (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
+     is rerouted away from the new annotations mechanism *)
+  val of_annotation :
+    ?legacy_immediate:bool -> context:annotation_context -> Asttypes.layout_annotation -> t
+
+  val of_annotation_option_default :
+    ?legacy_immediate:bool ->
+    default:t -> context:annotation_context ->
+    Asttypes.layout_annotation option -> t
+
   (** Find a layout in attributes.  Returns error if a disallowed layout is
       present, but always allows immediate attributes if ~legacy_immediate is
       true.  See comment on [Builtin_attributes.layout].  *)
   val of_attributes :
-    legacy_immediate:bool -> reason:annotation_context -> Parsetree.attributes ->
+    legacy_immediate:bool -> context:annotation_context -> Parsetree.attributes ->
     (t option, const Location.loc) result
 
   (** Find a layout in attributes, defaulting to ~default.  Returns error if a
       disallowed layout is present, but always allows immediate if
       ~legacy_immediate is true.  See comment on [Builtin_attributes.layout]. *)
   val of_attributes_default :
-    legacy_immediate:bool -> reason:annotation_context ->
+    legacy_immediate:bool -> context:annotation_context ->
     default:t -> Parsetree.attributes ->
     (t, const Location.loc) result
 

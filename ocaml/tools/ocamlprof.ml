@@ -312,7 +312,8 @@ and rw_exp iflag sexp =
 and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> rewrite_comprehension_exp iflag x
   | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x
-  | Jexp_unboxed_constant _ -> rewrite_constant
+  | Jexp_layout (Lexp_constant _) -> rewrite_constant
+  | Jexp_layout (Lexp_newtype (_, _, sexp)) -> rewrite_exp iflag sexp
 
 and rewrite_comprehension_exp iflag :
   Jane_syntax.Comprehensions.expression -> _ = function

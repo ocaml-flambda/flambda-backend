@@ -31,7 +31,9 @@ module Debug_info : sig
       the zero-based index of said parameter; otherwise it is [None]. *)
   val which_parameter : t -> int option
 
-  val provenance : t -> unit option
+  val provenance : t -> Backend_var.Provenance.t option
+
+  val is_parameter : t -> Is_parameter.t
 end
 
 type t
@@ -44,7 +46,7 @@ val create :
   part_of_value:int ->
   num_parts_of_value:int ->
   which_parameter:int option ->
-  provenance:unit option ->
+  provenance:Backend_var.Provenance.t option ->
   t
 
 val create_with_debug_info : reg:Reg.t -> debug_info:Debug_info.t option -> t
@@ -74,7 +76,8 @@ val holds_pointer : t -> bool
 
 val holds_non_pointer : t -> bool
 
-(** [assigned_to_stack t] holds iff the location of [t] is a hard stack slot. *)
+(** [assigned_to_stack t] holds iff the location of [t] is a hard stack slot.
+    (This returns false for Domainstate slots.) *)
 val assigned_to_stack : t -> bool
 
 val clear_debug_info : t -> t
@@ -112,3 +115,5 @@ end
 
 val print :
   print_reg:(Format.formatter -> Reg.t -> unit) -> Format.formatter -> t -> unit
+
+val compare : t -> t -> int

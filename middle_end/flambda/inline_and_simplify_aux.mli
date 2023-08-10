@@ -321,6 +321,13 @@ module Result : sig
   (** Whether [set_region_used _] has been called *)
   val may_use_region : t -> bool
 
+  (** Mark that the nearest enclosing region has an exclave (either an actual
+      [exclave] expression or a close-on-apply tail call). *)
+  val set_region_has_exclave : t -> t
+
+  (** Whether [enter_exclave _] or [set_region_has_exclave] has been called. *)
+  val region_has_exclave : t -> bool
+
   (** Mark that we are moving up out of the scope of a static-catch block
       that catches the given static exception identifier.  This has the effect
       of removing the identifier from the [used_staticfail] set. *)

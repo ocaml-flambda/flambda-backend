@@ -130,7 +130,7 @@ method private reload i k =
              (instr_cons (Iswitch(index, cases)) newarg [||] next)))
   | Icatch(rec_flag, ts, handlers, body) ->
       let new_handlers = List.map
-          (fun (nfail, ts, handler) -> nfail, ts, self#reload handler Fun.id)
+          (fun (nfail, ts, handler, is_cold) -> nfail, ts, self#reload handler Fun.id, is_cold)
           handlers in
       self#reload body (fun body ->
         self#reload i.next (fun next ->

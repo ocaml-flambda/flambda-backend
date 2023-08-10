@@ -60,6 +60,7 @@ PARSING = \
   parsing/location.cmo \
   parsing/longident.cmo \
   parsing/docstrings.cmo \
+  parsing/printast.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
   parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
@@ -70,7 +71,6 @@ PARSING = \
   parsing/parser.cmo \
   parsing/lexer.cmo \
   parsing/parse.cmo \
-  parsing/printast.cmo \
   parsing/ast_mapper.cmo \
   parsing/attr_helper.cmo \
   parsing/ast_invariants.cmo \

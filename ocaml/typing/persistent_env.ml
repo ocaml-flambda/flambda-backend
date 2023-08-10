@@ -168,21 +168,20 @@ let fold {persistent_structures; _} f x =
 
 (* Reading persistent structures from .cmi files *)
 
-let save_pers_struct penv crc ps pm =
-  let {persistent_structures; crc_units; _} = penv in
-  let modname = CU.name ps.ps_name in
-  Hashtbl.add persistent_structures modname (Found (ps, pm));
+let save_pers_struct penv crc comp_unit flags filename =
+  let {crc_units; _} = penv in
+  let modname = CU.name comp_unit in
   List.iter
     (function
         | Rectypes -> ()
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Opaque -> register_import_as_opaque penv modname)
-    ps.ps_flags;
-  Consistbl.set crc_units modname ps.ps_name crc ps.ps_filename;
+    flags;
+  Consistbl.set crc_units modname comp_unit crc filename;
   add_import penv modname
 
-let acknowledge_pers_struct penv check modname pers_sig pm =
+let process_pers_struct penv check modname pers_sig =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
   let crcs = cmi.cmi_crcs in
@@ -217,16 +216,24 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
         error (Direct_reference_from_wrong_package (name, filename, prefix));
   | None -> ()
   end;
-  let {persistent_structures; _} = penv in
-  Hashtbl.add persistent_structures modname (Found (ps, pm));
   ps
 
-let read_pers_struct penv val_of_pers_sig check modname filename =
+let bind_pers_struct penv modname ps pm =
+  let {persistent_structures; _} = penv in
+  Hashtbl.add persistent_structures modname (Found (ps, pm))
+
+let acknowledge_pers_struct penv check modname pers_sig pm =
+  let ps = process_pers_struct penv check modname pers_sig in
+  bind_pers_struct penv modname ps pm;
+  ps
+
+let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   add_import penv modname;
   let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   let pm = val_of_pers_sig pers_sig in
-  let ps = acknowledge_pers_struct penv check modname pers_sig pm in
+  let ps = process_pers_struct penv check modname pers_sig in
+  if add_binding then bind_pers_struct penv modname ps pm;
   (ps, pm)
 
 let find_pers_struct penv val_of_pers_sig check name =
@@ -298,8 +305,8 @@ let check_pers_struct penv f ~loc name =
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
 
-let read penv f modname filename =
-  snd (read_pers_struct penv f true modname filename)
+let read penv f modname filename ~add_binding =
+  snd (read_pers_struct penv f true modname filename ~add_binding)
 
 let find penv f name =
   snd (find_pers_struct penv f true name)
@@ -334,13 +341,16 @@ module Array = struct
 end
 
 let crc_of_unit penv f name =
-  let (ps, _pm) = find_pers_struct penv f true name in
-  match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
-  | None -> assert false
-  | Some import_info ->
-    match Import_info.crc import_info with
+  match Consistbl.find penv.crc_units name with
+  | Some (_, crc) -> crc
+  | None ->
+    let (ps, _pm) = find_pers_struct penv f true name in
+    match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
     | None -> assert false
-    | Some crc -> crc
+    | Some import_info ->
+      match Import_info.crc import_info with
+      | None -> assert false
+      | Some crc -> crc
 
 let imports {imported_units; crc_units; _} =
   let imports =
@@ -377,31 +387,22 @@ let make_cmi penv modname sign alerts =
     cmi_flags = flags
   }
 
-let save_cmi penv psig pm =
+let save_cmi penv psig =
   let { Persistent_signature.filename; cmi } = psig in
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
         cmi_sign = _;
-        cmi_crcs = imports;
+        cmi_crcs = _;
         cmi_flags = flags;
       } = cmi in
       let crc =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
           ~mode: [Open_binary] filename
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
-      (* Enter signature in persistent table so that imports()
+      (* Enter signature in consistbl so that imports()
          will also return its crc *)
-      let ps =
-        { ps_name = modname;
-          ps_crcs =
-            Array.append
-              [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-              imports;
-          ps_filename = filename;
-          ps_flags = flags;
-        } in
-      save_pers_struct penv crc ps pm
+      save_pers_struct penv crc modname flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 

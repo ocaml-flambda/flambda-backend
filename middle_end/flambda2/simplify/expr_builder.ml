@@ -739,7 +739,10 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
           params ~handler:expr ~free_names_of_handler:free_names
-          ~is_exn_handler:false
+          ~is_exn_handler:false ~is_cold:false
+        (* This is only a wrapper that will immediately call the continuation,
+           so we set [is_cold] to false so that this wrapper can be inlined by
+           [to_cmm]. *)
       in
       let free_names_of_handler =
         ListLabels.fold_left (Bound_parameters.to_list params) ~init:free_names

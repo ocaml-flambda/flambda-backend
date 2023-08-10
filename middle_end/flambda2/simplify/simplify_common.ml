@@ -206,7 +206,7 @@ let split_direct_over_application apply
           (Bound_parameters.create over_application_results)
           ~handler:handler_expr
           ~free_names_of_handler:(Known handler_expr_free_names)
-          ~is_exn_handler:false
+          ~is_exn_handler:false ~is_cold:false
       in
       Let_cont.create_non_recursive after_over_application handler
         ~body:(Expr.create_apply perform_over_application)
@@ -219,7 +219,7 @@ let split_direct_over_application apply
       (Bound_parameters.create [func_param])
       ~handler:perform_over_application
       ~free_names_of_handler:(Known perform_over_application_free_names)
-      ~is_exn_handler:false
+      ~is_exn_handler:false ~is_cold:false
   in
   let full_apply =
     let alloc_mode =

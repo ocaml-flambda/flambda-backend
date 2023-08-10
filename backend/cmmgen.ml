@@ -471,7 +471,7 @@ let rec is_unboxed_number_cmm = function
       List.fold_left
         (join_unboxed_number_kind ~strict)
         (is_unboxed_number_cmm body)
-        (List.map (fun (_, _, e, _) -> is_unboxed_number_cmm e) handlers)
+        (List.map (fun (_, _, e, _, _) -> is_unboxed_number_cmm e) handlers)
 
 (* Translate an expression *)
 
@@ -709,7 +709,7 @@ let rec transl env e =
          | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu
          | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
          | Pbytesrefs | Pbytessets | Pisint | Pisout
-         | Pbswap16 | Pint_as_pointer | Popaque | Pfield _
+         | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
@@ -796,7 +796,7 @@ let rec transl env e =
                     )
               dbg,
             Ctuple [],
-            dbg, Any))
+            dbg, Any, false))
   | Ufor(id, low, high, dir, body) ->
       let dbg = Debuginfo.none in
       let tst = match dir with Upto -> Cgt   | Downto -> Clt in
@@ -831,7 +831,7 @@ let rec transl env e =
                       dbg,
                    dbg, Any),
                  Ctuple [],
-                 dbg, Any))))
+                 dbg, Any, false))))
   | Uassign(id, exp) ->
       let dbg = Debuginfo.none in
       let cexp = transl env exp in
@@ -882,7 +882,7 @@ and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   in
   if env == new_env then
     (* No unboxing *)
-    ccatch (nfail, ids, body, transl env handler, dbg, kind)
+    ccatch (nfail, ids, body, transl env handler, dbg, kind, false)
   else
     (* allocate new "nfail" to catch errors more easily *)
     let new_nfail = next_raise_count () in
@@ -896,7 +896,7 @@ and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
       in
       aux body
     in
-    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind)
+    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind, false)
 
 and transl_make_array dbg env kind mode args =
   match kind with
@@ -976,7 +976,7 @@ and transl_prim_1 env p arg dbg =
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
-  | Pint_as_pointer ->
+  | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
   | Praise rkind ->
@@ -1222,7 +1222,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
-  | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pfloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
@@ -1279,7 +1279,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
-  | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
@@ -1385,7 +1385,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
 and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg =
   match body with
   | Cexit (Lbl nexit,[],[]) when nexit=ncatch -> handler
-  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind)
+  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind, false)
 
 and is_shareable_cont exp =
   match exp with

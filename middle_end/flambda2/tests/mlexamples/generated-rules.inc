@@ -518,3 +518,218 @@
 (rule
  (alias regen)
  (action (diff tests15.flt tests15.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe unroll.flt)
+   (diff? unroll.flt unroll.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll_in.fl)
+   (diff? unroll_in.fl unroll_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll_out.fl)
+   (diff? unroll_out.fl unroll_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets unroll.flt.new unroll_in.fl.new unroll_out.fl.new)
+ (deps unroll.ml)
+ (action
+   (run ocamlopt -c unroll.ml -nopervasives -nostdlib
+        -drawfexpr-to unroll_in.fl.new
+        -dfexpr-to unroll_out.fl.new
+        -dflexpect-to unroll.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll_in.fl unroll_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll_out.fl unroll_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll.flt unroll.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe unroll2.flt)
+   (diff? unroll2.flt unroll2.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll2_in.fl)
+   (diff? unroll2_in.fl unroll2_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll2_out.fl)
+   (diff? unroll2_out.fl unroll2_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets unroll2.flt.new unroll2_in.fl.new unroll2_out.fl.new)
+ (deps unroll2.ml)
+ (action
+   (run ocamlopt -c unroll2.ml -nopervasives -nostdlib
+        -drawfexpr-to unroll2_in.fl.new
+        -dfexpr-to unroll2_out.fl.new
+        -dflexpect-to unroll2.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll2_in.fl unroll2_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll2_out.fl unroll2_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll2.flt unroll2.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe unroll3.flt)
+   (diff? unroll3.flt unroll3.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll3_in.fl)
+   (diff? unroll3_in.fl unroll3_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll3_out.fl)
+   (diff? unroll3_out.fl unroll3_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets unroll3.flt.new unroll3_in.fl.new unroll3_out.fl.new)
+ (deps unroll3.ml)
+ (action
+   (run ocamlopt -c unroll3.ml -nopervasives -nostdlib
+        -drawfexpr-to unroll3_in.fl.new
+        -dfexpr-to unroll3_out.fl.new
+        -dflexpect-to unroll3.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll3_in.fl unroll3_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll3_out.fl unroll3_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll3.flt unroll3.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe unroll4.flt)
+   (diff? unroll4.flt unroll4.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll4_in.fl)
+   (diff? unroll4_in.fl unroll4_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll4_out.fl)
+   (diff? unroll4_out.fl unroll4_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets unroll4.flt.new unroll4_in.fl.new unroll4_out.fl.new)
+ (deps unroll4.ml)
+ (action
+   (run ocamlopt -c unroll4.ml -nopervasives -nostdlib
+        -drawfexpr-to unroll4_in.fl.new
+        -dfexpr-to unroll4_out.fl.new
+        -dflexpect-to unroll4.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll4_in.fl unroll4_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll4_out.fl unroll4_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll4.flt unroll4.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe unroll5.flt)
+   (diff? unroll5.flt unroll5.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll5_in.fl)
+   (diff? unroll5_in.fl unroll5_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe unroll5_out.fl)
+   (diff? unroll5_out.fl unroll5_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets unroll5.flt.new unroll5_in.fl.new unroll5_out.fl.new)
+ (deps unroll5.ml)
+ (action
+   (run ocamlopt -c unroll5.ml -nopervasives -nostdlib
+        -drawfexpr-to unroll5_in.fl.new
+        -dfexpr-to unroll5_out.fl.new
+        -dflexpect-to unroll5.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll5_in.fl unroll5_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll5_out.fl unroll5_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff unroll5.flt unroll5.flt.new)))

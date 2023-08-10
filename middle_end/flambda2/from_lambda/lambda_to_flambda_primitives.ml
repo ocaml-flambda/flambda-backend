@@ -1102,7 +1102,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [bbswap Naked_int64 Naked_int64 mode arg ~current_region]
   | Pbbswap (Pnativeint, mode), [[arg]] ->
     [bbswap Naked_nativeint Naked_nativeint mode arg ~current_region]
-  | Pint_as_pointer, [[arg]] -> [Unary (Int_as_pointer, arg)]
+  | Pint_as_pointer mode, [[arg]] ->
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    [Unary (Int_as_pointer mode, arg)]
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> (
     let args =
       List.map
@@ -1256,7 +1258,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
       | Pintofbint _ | Pnegbint _ | Popaque _ | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
-      | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup
+      | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
         ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->

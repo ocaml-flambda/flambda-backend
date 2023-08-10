@@ -1,4 +1,5 @@
 (* TEST
+   modules = "cstubs.c"
    include ocamlcommon
    * native *)
 
@@ -16,7 +17,50 @@ let check_empty name =
   end;
   last_offset := offs
 
+let check_not_empty name =
+  let offs = local_stack_offset ()in
+  if offs <> !last_offset then begin
+    Printf.printf "%25s: OK\n%!" name
+  end else begin
+    Printf.printf "%25s: not leaking while expected so\n%!" name
+  end;
+  last_offset := offs
+
 let () = check_empty "startup"
+
+let allocate_in_current_region x = local_
+  ignore_local (Some x);
+  ()
+
+let leak_in_current_region : 'a -> unit = Obj.magic allocate_in_current_region
+
+external make_dumb_external_block : unit -> int = "make_dumb_external_block"
+external follow : int -> ('a [@local_opt]) = "%int_as_pointer"
+
+let ext : int = make_dumb_external_block ()
+
+let[@inline never] int_as_pointer_local x =
+  leak_in_current_region x;
+  (* The region should be preserved by the following call; hence no stack space
+     leaking *)
+  let _ = opaque_identity (follow ext) in
+  ()
+
+let[@inline never] int_as_pointer_global x =
+  (* The current function region will be eliminated, because the following two
+     function calls don't allocate on the region (superficially). The first call
+     secretly does, hence stack space leaking. *)
+  leak_in_current_region x;
+  let _ = Sys.opaque_identity (follow ext) in
+  ()
+
+let () =
+  int_as_pointer_global 42;
+  check_not_empty "int_as_pointer (global)"
+
+let () =
+  int_as_pointer_local 42;
+  check_empty "int_as_pointer (local)"
 
 let[@inline never] uses_local x =
   let local_ r = ref x in

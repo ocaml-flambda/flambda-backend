@@ -139,6 +139,14 @@ let rec rename i sub =
           (instr_cons i.desc i.arg [|newr|] new_next,
            sub_next)
       end
+  | Iop (Iname_for_debugger {
+        ident; which_parameter; provenance; is_assignment; regs }) ->
+      let (new_next, sub_next) = rename i.next sub in
+      let regs = subst_regs regs sub in
+      (instr_cons_debug (Iop (Iname_for_debugger {
+          ident; which_parameter; provenance; is_assignment; regs }))
+         [| |] [||] i.dbg new_next,
+       sub_next)
   | Iop _ ->
       let (new_next, sub_next) = rename i.next sub in
       (instr_cons_debug i.desc (subst_regs i.arg sub) (subst_regs i.res sub)
@@ -162,14 +170,14 @@ let rec rename i sub =
        sub_next)
   | Icatch(rec_flag, ts, handlers, body) ->
       let new_subst =
-        List.map (fun (nfail, _, _) -> nfail, ref None) handlers
+        List.map (fun (nfail, _, _, _) -> nfail, ref None) handlers
       in
       let previous_exit_subst = !exit_subst in
       exit_subst := new_subst @ !exit_subst;
       let (new_body, sub_body) = rename body sub in
       let res =
         List.map2
-          (fun (_, _, handler) (_, new_subst) -> rename handler !new_subst)
+          (fun (_, _, handler, _) (_, new_subst) -> rename handler !new_subst)
           handlers new_subst
       in
       exit_subst := previous_exit_subst;
@@ -178,8 +186,8 @@ let rec rename i sub =
             merge_substs acc sub_handler i.next)
           sub_body res in
       let (new_next, sub_next) = rename i.next merged_subst in
-      let new_handlers = List.map2 (fun (nfail, ts, _) (handler, _) ->
-          (nfail, ts, handler)) handlers res in
+      let new_handlers = List.map2 (fun (nfail, ts, _, is_cold) (handler, _) ->
+          (nfail, ts, handler, is_cold)) handlers res in
       (instr_cons
          (Icatch(rec_flag, ts, new_handlers, new_body)) [||] [||] new_next,
        sub_next)

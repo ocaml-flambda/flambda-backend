@@ -8,11 +8,11 @@
 (* CR layouts v5: eliminate various restructions about how void is used from
    this file. *)
 
-type t_void [@@void]
+type t_void : void
 
 type void_rec = { v : t_void } [@@unboxed];;
 [%%expect{|
-type t_void [@@void]
+type t_void : void
 type void_rec = { v : t_void; } [@@unboxed]
 |}]
 

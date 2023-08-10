@@ -20,10 +20,10 @@ let f1_1 (x : t_float64) = x;;
 let f1_2 (x : 'a t_float64_id) = x;;
 let f1_3 (x : float#) = x;;
 [%%expect{|
-type t_float64 [@@float64]
+type t_float64 : float64
 type ('a : float64) t_float64_id = 'a
 val f1_1 : t_float64 -> t_float64 = <fun>
-val f1_2 : 'a t_float64_id -> 'a t_float64_id = <fun>
+val f1_2 : ('a : float64). 'a t_float64_id -> 'a t_float64_id = <fun>
 val f1_3 : float# -> float# = <fun>
 |}];;
 
@@ -42,7 +42,7 @@ let f2_3 (x : float#) =
   y;;
 [%%expect{|
 val f2_1 : t_float64 -> t_float64 = <fun>
-val f2_2 : 'a t_float64_id -> 'a t_float64_id = <fun>
+val f2_2 : ('a : float64). 'a t_float64_id -> 'a t_float64_id = <fun>
 val f2_3 : float# -> float# = <fun>
 |}];;
 
@@ -344,7 +344,7 @@ let make_floatu () : float# = assert false
 let id_value x = x;;
 [%%expect{|
 val make_t_float64 : unit -> t_float64 = <fun>
-val make_t_float64_id : unit -> 'a t_float64_id = <fun>
+val make_t_float64_id : ('a : float64). unit -> 'a t_float64_id = <fun>
 val make_floatu : unit -> float# = <fun>
 val id_value : 'a -> 'a = <fun>
 |}];;
@@ -389,10 +389,12 @@ let f9_2 () = twice f1_2 (make_t_float64_id ())
 let f9_3 () = twice f1_3 (make_floatu ());;
 [%%expect{|
 val twice :
-  ('a t_float64_id -> 'a t_float64_id) -> 'a t_float64_id -> 'a t_float64_id =
+  ('a : float64).
+    ('a t_float64_id -> 'a t_float64_id) ->
+    'a t_float64_id -> 'a t_float64_id =
   <fun>
 val f9_1 : unit -> t_float64 t_float64_id = <fun>
-val f9_2 : unit -> 'a t_float64_id = <fun>
+val f9_2 : ('a : float64). unit -> 'a t_float64_id = <fun>
 val f9_3 : unit -> float# t_float64_id = <fun>
 |}];;
 

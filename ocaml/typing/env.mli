@@ -419,8 +419,11 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.t -> filepath -> signature
-        (* Arguments: module name, file name. Results: signature. *)
+val read_signature:
+  Compilation_unit.t -> filepath -> add_binding:bool -> signature
+        (* Arguments: module name, file name, [add_binding] flag.
+           Results: signature. If [add_binding] is true, creates an entry for
+           the module in the environment. *)
 val save_signature:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
   -> Cmi_format.cmi_infos_lazy

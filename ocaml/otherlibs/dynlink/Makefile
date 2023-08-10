@@ -98,6 +98,7 @@ COMPILERLIBS_SOURCES=\
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
+  parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
   parsing/jane_syntax_parsing.ml \

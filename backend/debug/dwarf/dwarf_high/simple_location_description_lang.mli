@@ -72,6 +72,12 @@ module Lvalue : sig
   (** The address of V will be that of the given stack slot at time T. *)
   val in_stack_slot : offset_in_words:Targetint.t -> t
 
+  (** The address of V will be that of the given domainstate slot at time T. *)
+  val in_domainstate_slot :
+    offset_in_words:Targetint.t ->
+    domainstate_ptr_dwarf_register_number:int ->
+    t
+
   (** The address of V will be the address of the given field of the block whose
       address (expressed as an rvalue) is given by the provided simple location
       description at time T. *)
@@ -126,6 +132,12 @@ module Rvalue : sig
 
   (** V will be the contents of the given stack slot at time T. *)
   val in_stack_slot : offset_in_words:Targetint.t -> normal t
+
+  (** V will be the contents of the given domainstate slot at time T. *)
+  val in_domainstate_slot :
+    offset_in_words:Targetint.t ->
+    domainstate_ptr_dwarf_register_number:int ->
+    normal t
 
   (** V will be the contents of the given field of the block whose location is
       given by the provided simple location description at time T. *)
