@@ -787,22 +787,81 @@ let fundecl :
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls
       cfg.blocks
   in
-  (* CR run [add_blocks] here but only for Iname_for_debugger instructions *)
-  State.add_block state ~label:(Cfg.entry_label cfg)
+  (* Ensure any name-for-debugger operations come at the very start, even before
+     the prologue. Otherwise, when the debugger is standing at the start of a
+     function, parameters may be unavailable. *)
+  let rev_name_for_debugger_ops_before_prologue, fun_body =
+    let rec collect (instr : Mach.instruction) ops =
+      match[@ocaml.warning "-4"] instr.desc with
+      | Iop
+          (Iname_for_debugger
+            { ident; which_parameter; provenance; is_assignment; regs }) ->
+        let cfg_op : Cfg.operation =
+          Name_for_debugger
+            { ident; which_parameter; provenance; is_assignment; regs }
+        in
+        (* We use the ordering of the collected instructions to identify the
+           last name-for-debugger operation, whose availability set we will use
+           for the inserted Cfg block, and crucially also to copy over to the
+           prologue. The last step is important so that the parameters' ranges
+           start at the very beginning of the function's code. *)
+        collect instr.next ((instr, cfg_op) :: ops)
+      | _ -> ops, instr
+    in
+    if !Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf
+    then collect fun_body []
+    else [], fun_body
+  in
+  let next_label, instr_to_copy =
+    match rev_name_for_debugger_ops_before_prologue with
+    | [] -> Cfg.entry_label cfg, fun_body
+    | _ :: _ ->
+      let instrs =
+        List.map
+          (fun ((naming_op_instr : Mach.instruction), naming_cfg_op) ->
+            let instr = make_instruction state ~desc:(Cfg.Op naming_cfg_op) in
+            instr.dbg <- naming_op_instr.dbg;
+            instr.fdo <- Fdo_info.none;
+            instr)
+          (List.rev rev_name_for_debugger_ops_before_prologue)
+      in
+      let next_label = Cmm.new_label () in
+      let last_naming_op_instr =
+        fst (List.hd rev_name_for_debugger_ops_before_prologue)
+      in
+      State.add_block state ~label:(Cfg.entry_label cfg)
+        ~block:
+          { start = Cfg.entry_label cfg;
+            body = DLL.of_list instrs;
+            terminator =
+              copy_instruction_no_reg state last_naming_op_instr
+                ~desc:(Cfg.Always next_label);
+            (* See [Cfg.register_predecessors_for_all_blocks] *)
+            predecessors = Label.Set.empty;
+            stack_offset = invalid_stack_offset;
+            exn = None;
+            can_raise = false;
+            is_trap_handler = false;
+            dead = false;
+            cold = false
+          };
+      next_label, last_naming_op_instr
+  in
+  State.add_block state ~label:next_label
     ~block:
-      { start = Cfg.entry_label cfg;
+      { start = next_label;
         body =
           (match prologue_required with
           | false -> DLL.make_empty ()
           | true ->
-            (* Note: the prologue must come after all `Iname_for_debugger`
-               instructions *)
-            let instr = make_instruction state ~desc:Cfg.Prologue in
-            instr.dbg <- fun_body.dbg;
+            let instr =
+              copy_instruction_no_reg state instr_to_copy ~desc:Cfg.Prologue
+            in
+            instr.dbg <- instr_to_copy.dbg;
             instr.fdo <- Fdo_info.none;
             DLL.make_single instr);
         terminator =
-          copy_instruction_no_reg state fun_body
+          copy_instruction_no_reg state instr_to_copy
             ~desc:(Cfg.Always tailrec_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)
         predecessors = Label.Set.empty;
@@ -818,7 +877,8 @@ let fundecl :
       { start = tailrec_label;
         body = DLL.make_empty ();
         terminator =
-          copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label);
+          copy_instruction_no_reg state instr_to_copy
+            ~desc:(Cfg.Always start_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)
         predecessors = Label.Set.empty;
         stack_offset = invalid_stack_offset;
