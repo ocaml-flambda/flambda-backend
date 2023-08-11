@@ -354,7 +354,6 @@ let emit ins = directive (Ins ins)
 let reset_asm_code () =
   asm_code := [];
   asm_code_current_section := ref [];
-  (* Section_name.Tbl.clear delayed_sections; *)
   Section_name.Tbl.clear asm_code_by_section
 
 let generate_code asm =

@@ -114,8 +114,8 @@ let emit_delayed t ~basic_block_sections ~binary_backend_available =
   if t.emitted_delayed
   then
     Misc.fatal_error
-      "Cannot call [Dwarf.emit] more than once on a given value of type \
-       [Dwarf.t]";
+      "Cannot call [Dwarf.emit_delayed] more than once on a given value of \
+       type [Dwarf.t]";
   t.emitted_delayed <- true;
   Dwarf_world.emit_delayed ~asm_directives:t.asm_directives
     ~basic_block_sections ~binary_backend_available

@@ -54,7 +54,7 @@ type section_details = private
 
 val dwarf_sections_in_order : unit -> t list
 
-(* If [is_delayed] = true the corresponding function will be emitted after
+(* If [is_delayed] = true the corresponding section will be emitted after
    text *)
 val is_delayed : t -> bool
 
