@@ -188,18 +188,19 @@ let get_sections ~delayed sections =
                 sec_instrs = Array.of_list instructions
               } )
           acc)
-          acc sections
-      in
-      (* DWARF sections must be emitted after .text and .data because they
-         contain information that is produced when .text and .data are emitted.
-         For example, DWARF sections need to know the offset of some instructions
-         from the start of the .text section.
-         Additionally, DWARF sections may add relocations to the object file's
-         relocation table. *)
-      let acc = Section_name.Map.empty in
-      let acc = get acc sections in
-      Emitaux.Dwarf_helpers.emit_delayed_dwarf ();
-      get acc (delayed ())
+      acc
+      sections
+  in
+  (* DWARF sections must be emitted after .text and .data because they
+     contain information that is produced when .text and .data are emitted.
+     For example, DWARF sections need to know the offset of some instructions
+     from the start of the .text section.
+     Additionally, DWARF sections may add relocations to the object file's
+     relocation table. *)
+  let acc = Section_name.Map.empty in
+  let acc = get acc sections in
+  Emitaux.Dwarf_helpers.emit_delayed_dwarf ();
+  get acc (delayed ())
 
 let make_compiler_sections section_table compiler_sections symbol_table
     sh_string_table =
