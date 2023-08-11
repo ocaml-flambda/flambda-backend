@@ -178,6 +178,9 @@ let linearize_terminator cfg_with_layout (func : string) start
             { func = func_symbol; alloc; ty_args; ty_res; returns = true }
         | Checkbound { immediate = None } -> Iintop Icheckbound
         | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
+        | Checkalign { align; immediate = None } -> Iintop (Icheckalign align)
+        | Checkalign { align; immediate = Some i } ->
+          Iintop_imm (Icheckalign align, i)
         | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Iprobe { name; handler_code_sym; enabled_at_init }

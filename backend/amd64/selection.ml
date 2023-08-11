@@ -181,8 +181,8 @@ let pseudoregs_for_operation op arg res =
     arg.(len-1) <- res.(0);
     (arg, res)
   (* Other instructions are regular *)
-  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
-  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound
+  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound|Icheckalign _)
+  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound|Icheckalign _
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ifloat_iround|Ifloat_round _

@@ -108,9 +108,9 @@ method! reload_operation op arg res =
         if stackp res.(0) then [| self#makereg res.(0) |] else res
       in
       arg, res
-  | Iintop(Imulh _ | Idiv | Imod | Ilsl | Ilsr | Iasr)
+  | Iintop(Imulh _ | Idiv | Imod | Ilsl | Ilsr | Iasr | Icheckalign _)
   | Iintop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-               | Imulh _ | Idiv | Imod | Icheckbound), _) ->
+               | Imulh _ | Idiv | Imod | Icheckbound | Icheckalign _), _) ->
       (* The argument(s) and results can be either in register or on stack *)
       (* Note: Imulh, Idiv, Imod: arg(0) and res(0) already forced in regs
                Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)

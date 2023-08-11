@@ -448,7 +448,9 @@ let string_accessor_width ppf saw =
     | Eight -> "8"
     | Sixteen -> "16"
     | Thirty_two -> "32"
-    | Sixty_four -> "64")
+    | Sixty_four -> "64"
+    | One_twenty_eight { aligned = false } -> "u128"
+    | One_twenty_eight { aligned = true } -> "a128")
 
 let binop ppf binop a b =
   match binop with
@@ -488,6 +490,9 @@ let binop ppf binop a b =
     Format.fprintf ppf "@[<2>%%int_shift %a%a@ %a@ %a@]"
       (standard_int ~space:After)
       i simple a int_shift_op s simple b
+  | Bigarray_check_alignment align ->
+    Format.fprintf ppf "@[<2>%%bigarray_check_alignment[%d] %a@ %a@]" align
+      simple a simple b
 
 let unary_int_arith_op ppf (o : unary_int_arith_op) =
   Format.pp_print_string ppf

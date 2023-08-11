@@ -433,6 +433,14 @@ let primitive ppf = function
   | Pstring_load_64(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "string.get64%s" (alloc_kind m)
+  | Pstring_load_128 {unsafe = true; aligned = false; mode} ->
+     fprintf ppf "string.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pstring_load_128 {unsafe = false; aligned = false; mode} ->
+     fprintf ppf "string.unaligned_get128%s" (alloc_kind mode)
+  | Pstring_load_128 {unsafe = true; aligned = true; mode} ->
+     fprintf ppf "string.unsafe_aligned_get128%s" (alloc_kind mode)
+  | Pstring_load_128 {unsafe = false; aligned = true; mode} ->
+     fprintf ppf "string.aligned_get128%s" (alloc_kind mode)
   | Pbytes_load_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_get16"
      else fprintf ppf "bytes.get16"
@@ -442,6 +450,14 @@ let primitive ppf = function
   | Pbytes_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bytes.get64%s" (alloc_kind m)
+  | Pbytes_load_128 {unsafe = true; aligned = false; mode} ->
+     fprintf ppf "bytes.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pbytes_load_128 {unsafe = false; aligned = false; mode} ->
+     fprintf ppf "bytes.unaligned_get128%s" (alloc_kind mode)
+  | Pbytes_load_128 {unsafe = true; aligned = true; mode} ->
+     fprintf ppf "bytes.unsafe_aligned_get128%s" (alloc_kind mode)
+  | Pbytes_load_128 {unsafe = false; aligned = true; mode} ->
+     fprintf ppf "bytes.aligned_get128%s" (alloc_kind mode)
   | Pbytes_set_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set16"
      else fprintf ppf "bytes.set16"
@@ -451,6 +467,14 @@ let primitive ppf = function
   | Pbytes_set_64(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set64"
      else fprintf ppf "bytes.set64"
+  | Pbytes_set_128 {unsafe = true; aligned = false} ->
+     fprintf ppf "bytes.unsafe_unaligned_set128"
+  | Pbytes_set_128 {unsafe = true; aligned = true} ->
+     fprintf ppf "bytes.unsafe_aligned_set128"
+  | Pbytes_set_128 {unsafe = false; aligned = false} ->
+     fprintf ppf "bytes.unaligned_set128"
+  | Pbytes_set_128 {unsafe = false; aligned = true} ->
+     fprintf ppf "bytes.aligned_set128"
   | Pbigstring_load_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
      else fprintf ppf "bigarray.array1.get16"
@@ -460,6 +484,14 @@ let primitive ppf = function
   | Pbigstring_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
+  | Pbigstring_load_128 {unsafe = true; aligned = false; mode} ->
+     fprintf ppf "bigarray.array1.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = false; aligned = false; mode} ->
+     fprintf ppf "bigarray.array1.unaligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = true; aligned = true; mode} ->
+     fprintf ppf "bigarray.array1.unsafe_aligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = false; aligned = true; mode} ->
+     fprintf ppf "bigarray.array1.aligned_get128%s" (alloc_kind mode)
   | Pbigstring_set_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set16"
      else fprintf ppf "bigarray.array1.set16"
@@ -469,6 +501,14 @@ let primitive ppf = function
   | Pbigstring_set_64(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
+  | Pbigstring_set_128 {unsafe = true; aligned = false} ->
+     fprintf ppf "bigarray.array1.unsafe_unaligned_set128"
+  | Pbigstring_set_128 {unsafe = true; aligned = true} ->
+     fprintf ppf "bigarray.array1.unsafe_aligned_set128"
+  | Pbigstring_set_128 {unsafe = false; aligned = false} ->
+     fprintf ppf "bigarray.array1.unaligned_set128"
+  | Pbigstring_set_128 {unsafe = false; aligned = true} ->
+     fprintf ppf "bigarray.array1.aligned_set128"
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
@@ -573,18 +613,23 @@ let name_of_primitive = function
   | Pstring_load_16 _ -> "Pstring_load_16"
   | Pstring_load_32 _ -> "Pstring_load_32"
   | Pstring_load_64 _ -> "Pstring_load_64"
+  | Pstring_load_128 _ -> "Pstring_load_128"
   | Pbytes_load_16 _ -> "Pbytes_load_16"
   | Pbytes_load_32 _ -> "Pbytes_load_32"
   | Pbytes_load_64 _ -> "Pbytes_load_64"
+  | Pbytes_load_128 _ -> "Pbytes_load_128"
   | Pbytes_set_16 _ -> "Pbytes_set_16"
   | Pbytes_set_32 _ -> "Pbytes_set_32"
   | Pbytes_set_64 _ -> "Pbytes_set_64"
+  | Pbytes_set_128 _ -> "Pbytes_set_128"
   | Pbigstring_load_16 _ -> "Pbigstring_load_16"
   | Pbigstring_load_32 _ -> "Pbigstring_load_32"
   | Pbigstring_load_64 _ -> "Pbigstring_load_64"
+  | Pbigstring_load_128 _ -> "Pbigstring_load_128"
   | Pbigstring_set_16 _ -> "Pbigstring_set_16"
   | Pbigstring_set_32 _ -> "Pbigstring_set_32"
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
+  | Pbigstring_set_128 _ -> "Pbigstring_set_128"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer _ -> "Pint_as_pointer"

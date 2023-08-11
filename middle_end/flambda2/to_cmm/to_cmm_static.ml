@@ -168,7 +168,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     in
     let structured { Cmm.high; low } = Clambda.Uconst_vec128 { high; low } in
     let res, env, updates =
-      static_boxed_number ~kind:Onetwentyeight ~env ~symbol ~default
+      static_boxed_number ~kind:Onetwentyeight_aligned ~env ~symbol ~default
         ~emit:C.emit_vec128_constant ~transl ~structured v res updates
     in
     env, res, updates

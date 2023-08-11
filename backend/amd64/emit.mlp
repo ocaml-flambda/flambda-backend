@@ -428,8 +428,18 @@ type bound_error_call =
     (* As for [gc_call]. *)
   }
 
+type align_error_call =
+  { al_lbl: label;                      (* Entry label *)
+    al_frame: label;                    (* Label of frame descriptor *)
+    al_dbg: Debuginfo.t;
+    (* As for [gc_call]. *)
+  }
+
 let bound_error_sites = ref ([] : bound_error_call list)
 let bound_error_call = ref 0
+
+let align_error_sites = ref ([] : align_error_call list)
+let align_error_call = ref 0
 
 let bound_error_label fdo dbg =
   if !Clflags.debug then begin
@@ -457,6 +467,34 @@ let emit_call_bound_errors () =
   if !bound_error_call > 0 then begin
     def_label !bound_error_call;
     emit_call (Cmm.global_symbol "caml_ml_array_bound_error")
+  end
+
+let align_error_label fdo dbg =
+  if !Clflags.debug then begin
+    let lbl_align_error = new_label() in
+    let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
+    align_error_sites :=
+      { al_lbl = lbl_align_error;
+        al_frame = lbl_frame;
+        al_dbg = dbg;
+      } :: !align_error_sites;
+    lbl_align_error
+  end else begin
+    if !align_error_call = 0 then align_error_call := new_label();
+    !align_error_call
+  end
+
+let emit_call_align_error al =
+  def_label al.al_lbl;
+  emit_debug_info al.al_dbg;
+  emit_call (Cmm.global_symbol "caml_ml_array_align_error");
+  def_label al.al_frame
+
+let emit_call_align_errors () =
+  List.iter emit_call_align_error !align_error_sites;
+  if !align_error_call > 0 then begin
+    def_label !align_error_call;
+    emit_call (Cmm.global_symbol "caml_ml_array_align_error")
   end
 
 (* Record jump tables *)
@@ -1261,8 +1299,10 @@ let emit_instr fallthrough i =
           I.mov (addressing addr DWORD i 0) (res32 i 0)
       | Thirtytwo_signed ->
           I.movsxd (addressing addr DWORD i 0) dest
-      | Onetwentyeight ->
+      | Onetwentyeight_unaligned ->
           I.movupd (addressing addr VEC128 i 0) dest
+      | Onetwentyeight_aligned ->
+          I.movapd (addressing addr VEC128 i 0) dest
       | Single ->
           I.cvtss2sd (addressing addr REAL4 i 0) dest
       | Double ->
@@ -1278,8 +1318,10 @@ let emit_instr fallthrough i =
           I.mov (arg16 i 0) (addressing addr WORD i 1)
       | Thirtytwo_signed | Thirtytwo_unsigned ->
           I.mov (arg32 i 0) (addressing addr DWORD i 1)
-      | Onetwentyeight ->
+      | Onetwentyeight_unaligned ->
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
+      | Onetwentyeight_aligned ->
+          I.movapd (arg i 0) (addressing addr VEC128 i 1)
       | Single ->
           I.cvtsd2ss (arg i 0) xmm15;
           I.movss xmm15 (addressing addr REAL4 i 1)
@@ -1363,6 +1405,14 @@ let emit_instr fallthrough i =
       I.cmp (int n) (arg i 0);
       I.set (cond cmp) al;
       I.movzx al (res i 0)
+  | Lop(Iintop (Icheckalign align)) ->
+      let lbl = align_error_label i.fdo i.dbg in
+      let mask = align - 1 in
+      I.test (Imm (Int64.of_int mask)) (arg i 0);
+      I.jne (label lbl)
+  | Lop(Iintop_imm(Icheckalign align, n)) ->
+      let mask = align - 1 in
+      if (n land mask) <> 0 then Misc.fatal_errorf "Alignment check on known int failed."
   | Lop(Iintop (Icheckbound)) ->
       let lbl = bound_error_label i.fdo i.dbg in
       I.cmp (arg i 1) (arg i 0);
@@ -1745,6 +1795,8 @@ let fundecl fundecl =
   local_realloc_sites := [];
   bound_error_sites := [];
   bound_error_call := 0;
+  align_error_sites := [];
+  align_error_call := 0;
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1774,6 +1826,7 @@ let fundecl fundecl =
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_bound_errors ();
+  emit_call_align_errors ();
   if !frame_required then begin
     let n = frame_size() - 8 - (if fp then 8 else 0) in
     if n <> 0

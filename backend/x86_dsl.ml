@@ -186,10 +186,10 @@ module I = struct
   let sqrtsd x y = emit (SQRTSD (x, y))
   let sub x y = emit (SUB (x, y))
   let subsd  x y = emit (SUBSD (x, y))
-  let test x y= emit (TEST (x, y))
+  let test x y = emit (TEST (x, y))
   let ucomisd x y = emit (UCOMISD (x, y))
   let xchg x y = emit (XCHG (x, y))
-  let xor x y= emit (XOR (x, y))
+  let xor x y = emit (XOR (x, y))
   let xorpd x y = emit (XORPD (x, y))
 
   let cmpps i x y = emit (CMPPS (i, x, y))

@@ -10,8 +10,8 @@
 ; Tests with external assembler
 
 (executables
- (names basic ops)
- (modules basic ops)
+ (names basic ops arrays)
+ (modules basic ops arrays)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
@@ -19,8 +19,8 @@
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out ops.out)
- (deps basic.exe ops.exe)
+ (targets basic.out ops.out arrays.out)
+ (deps basic.exe ops.exe arrays.exe)
  (action
   (progn
    (with-outputs-to
@@ -28,7 +28,10 @@
     (run ./basic.exe))
    (with-outputs-to
     ops.out
-    (run ./ops.exe)))))
+    (run ./ops.exe))
+   (with-outputs-to
+    arrays.out
+    (run ./arrays.exe)))))
 
 (rule
  (alias runtest)
@@ -37,7 +40,8 @@
  (action
   (progn
    (diff empty.expected basic.out)
-   (diff empty.expected ops.out))))
+   (diff empty.expected ops.out)
+   (diff empty.expected arrays.out))))
 
 ; Constants - proper inlining not supported on closure
 ; CR mslater: these should run on flambda1 and 2, but dune doesn't know about 2
@@ -82,17 +86,22 @@
   (:standard -extension simd)))
 
 (rule
- (targets basic_internal.ml ops_internal.ml consts_internal.ml)
+ (targets
+  basic_internal.ml
+  ops_internal.ml
+  consts_internal.ml
+  arrays_internal.ml)
  (deps basic.ml ops.ml consts.ml)
  (action
   (progn
    (copy basic.ml basic_internal.ml)
    (copy ops.ml ops_internal.ml)
-   (copy consts.ml consts_internal.ml))))
+   (copy consts.ml consts_internal.ml)
+   (copy arrays.ml arrays_internal.ml))))
 
 (executables
- (names basic_internal ops_internal consts_internal)
- (modules basic_internal ops_internal consts_internal)
+ (names basic_internal ops_internal consts_internal arrays_internal)
+ (modules basic_internal ops_internal consts_internal arrays_internal)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
@@ -104,8 +113,8 @@
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets probes.out basic_internal.out ops_internal.out)
- (deps probes.exe basic_internal.exe ops_internal.exe)
+ (targets probes.out basic_internal.out ops_internal.out arrays_internal.out)
+ (deps probes.exe basic_internal.exe ops_internal.exe arrays_internal.exe)
  (action
   (progn
    (with-outputs-to
@@ -116,7 +125,10 @@
     (run ./basic_internal.exe))
    (with-outputs-to
     ops_internal.out
-    (run ./ops_internal.exe)))))
+    (run ./ops_internal.exe))
+   (with-outputs-to
+    arrays_internal.out
+    (run ./arrays_internal.exe)))))
 
 (rule
  (enabled_if
@@ -142,7 +154,8 @@
   (progn
    (diff empty.expected probes.out)
    (diff empty.expected basic_internal.out)
-   (diff empty.expected ops_internal.out))))
+   (diff empty.expected ops_internal.out)
+   (diff empty.expected arrays_internal.out))))
 
 (rule
  (alias runtest)

@@ -29,6 +29,7 @@ type memory_access_size =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 type alloc_mode = Lambda.alloc_mode
 

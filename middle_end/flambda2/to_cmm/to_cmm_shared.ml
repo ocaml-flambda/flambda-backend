@@ -86,7 +86,7 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     ->
     Word_int
   | Naked_number Naked_float -> Double
-  | Naked_number Naked_vec128 -> Onetwentyeight
+  | Naked_number Naked_vec128 -> Onetwentyeight_unaligned
   | Region | Rec_info ->
     Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
       Flambda_kind.With_subkind.print kind

@@ -192,6 +192,7 @@ type string_accessor_width =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
@@ -369,6 +370,7 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
+  | Bigarray_check_alignment of int
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

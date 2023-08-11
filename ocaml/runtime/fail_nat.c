@@ -214,6 +214,7 @@ void caml_raise_sys_blocked_io(void)
    for the ccall to [caml_array_bound_error]).  */
 
 static const value * caml_array_bound_error_exn = NULL;
+static const value * caml_array_align_error_exn = NULL;
 
 void caml_array_bound_error(void)
 {
@@ -230,6 +231,23 @@ void caml_array_bound_error(void)
      so we should not do the C-specific processing in caml_raise.
      (In particular, we must not invoke GC, even if signals are pending) */
   caml_raise_exception(Caml_state, *caml_array_bound_error_exn);
+}
+
+void caml_array_align_error(void)
+{
+  if (caml_array_align_error_exn == NULL) {
+    caml_array_align_error_exn =
+      caml_named_value("Pervasives.array_align_error");
+    if (caml_array_align_error_exn == NULL) {
+      fprintf(stderr, "Fatal error: exception "
+                      "Invalid_argument(\"address was misaligned\")\n");
+      exit(2);
+    }
+  }
+  /* This exception is raised directly from OCaml, not C,
+     so we should not do the C-specific processing in caml_raise.
+     (In particular, we must not invoke GC, even if signals are pending) */
+  caml_raise_exception(Caml_state, *caml_array_align_error_exn);
 }
 
 int caml_is_special_exception(value exn) {

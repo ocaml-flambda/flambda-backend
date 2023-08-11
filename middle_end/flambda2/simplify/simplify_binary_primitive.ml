@@ -979,6 +979,12 @@ let simplify_bigarray_load _num_dimensions _bigarray_kind _bigarray_layout
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_bigarray_check_alignment _align ~original_prim dacc ~original_term
+    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -1021,5 +1027,7 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     | Bigarray_load (num_dimensions, bigarray_kind, bigarray_layout) ->
       simplify_bigarray_load num_dimensions bigarray_kind bigarray_layout
         ~original_prim
+    | Bigarray_check_alignment align ->
+      simplify_bigarray_check_alignment align ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var

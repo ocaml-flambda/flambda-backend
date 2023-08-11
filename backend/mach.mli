@@ -35,6 +35,7 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
   | Icheckbound
+  | Icheckalign of int
 
 type float_comparison = Cmm.float_comparison
 

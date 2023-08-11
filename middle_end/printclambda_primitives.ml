@@ -71,6 +71,8 @@ let access_size size =
   | Sixteen -> "16"
   | Thirty_two -> "32"
   | Sixty_four -> "64"
+  | One_twenty_eight { aligned = false } -> "u128"
+  | One_twenty_eight { aligned = true } -> "a128"
 
 let access_safety safety =
   let open Lambda in

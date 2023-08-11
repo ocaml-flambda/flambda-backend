@@ -365,6 +365,11 @@ val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
 
+val bigstring_data : expression -> Debuginfo.t -> expression
+
+val bigstring_alignment_test :
+  expression -> expression -> int -> Debuginfo.t -> expression
+
 module Extended_machtype_component : sig
   (** Like [Cmm.machtype_component] but has a case explicitly for tagged
       integers.  This enables caml_apply functions to be insensitive to whether
@@ -475,6 +480,7 @@ val check_bound :
   Lambda.is_safe ->
   Clambda_primitives.memory_access_size ->
   Debuginfo.t ->
+  expression ->
   expression ->
   expression ->
   expression ->
@@ -601,6 +607,16 @@ val unaligned_set_32 :
 val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_set_128 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
+val aligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+
+val aligned_set_128 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
 (** Raw memory accesses *)

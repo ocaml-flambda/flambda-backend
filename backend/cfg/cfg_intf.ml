@@ -49,6 +49,10 @@ module S = struct
           mode : Lambda.alloc_mode
         }
     | Checkbound of { immediate : int option }
+    | Checkalign of
+        { align : int;
+          immediate : int option
+        }
     | Probe of
         { name : string;
           handler_code_sym : string;

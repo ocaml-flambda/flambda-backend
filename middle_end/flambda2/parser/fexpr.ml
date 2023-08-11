@@ -319,6 +319,7 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 type string_like_value = Flambda_primitive.string_like_value =
   | String
@@ -345,6 +346,7 @@ type binop =
   | Int_shift of standard_int * int_shift_op
   | Infix of infix_binop
   | String_or_bigstring_load of string_like_value * string_accessor_width
+  | Bigarray_check_alignment of int
 
 type ternop =
   | Array_set of array_kind * init_or_assign
