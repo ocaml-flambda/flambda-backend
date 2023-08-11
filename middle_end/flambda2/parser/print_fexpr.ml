@@ -488,14 +488,8 @@ let binop ppf binop a b =
     Format.fprintf ppf "@[<2>%%int_shift %a%a@ %a@ %a@]"
       (standard_int ~space:After)
       i simple a int_shift_op s simple b
-  | Check_alignment (slv, align) ->
-    let prim =
-      match slv with
-      | String -> "string"
-      | Bytes -> "bytes"
-      | Bigstring -> "bigstring"
-    in
-    Format.fprintf ppf "@[<2>%%check_alignment[%d] %s@ %a@ %a@]" align prim
+  | Bigarray_check_alignment align ->
+    Format.fprintf ppf "@[<2>%%bigarray_check_alignment[%d] %a@ %a@]" align
       simple a simple b
 
 let unary_int_arith_op ppf (o : unary_int_arith_op) =

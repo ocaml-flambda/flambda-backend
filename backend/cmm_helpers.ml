@@ -1035,10 +1035,7 @@ let bigstring_length ba dbg =
 let bigstring_data ba dbg =
   Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg)
 
-let string_alignment str idx align dbg =
-  Cop (Cand, [Cconst_int (align - 1, dbg); Cop (Caddi, [str; idx], dbg)], dbg)
-
-let bigstring_alignment ba idx align dbg =
+let bigstring_alignment_test ba idx align dbg =
   Cop
     ( Cand,
       [ Cconst_int (align - 1, dbg);

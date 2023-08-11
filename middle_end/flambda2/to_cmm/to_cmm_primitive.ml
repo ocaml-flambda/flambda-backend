@@ -653,9 +653,7 @@ let binary_primitive env dbg f x y =
     binary_float_comp_primitive env dbg cmp x y
   | Float_comp (Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg x y
-  | Check_alignment ((String | Bytes), align) ->
-    C.string_alignment x y align dbg
-  | Check_alignment (Bigstring, align) -> C.bigstring_alignment x y align dbg
+  | Bigarray_check_alignment align -> C.bigstring_alignment_test x y align dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with

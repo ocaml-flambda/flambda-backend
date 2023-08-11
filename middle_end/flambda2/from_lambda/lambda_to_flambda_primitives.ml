@@ -349,19 +349,17 @@ let bigstring_access_validity_condition ~size_int big_str access_size index :
   string_like_access_validity_condition index ~size_int ~access_size
     ~length:(bigarray_dim_bound big_str 1)
 
-let string_like_alignment_validity_condition str kind alignment tagged_index :
+let bigstring_alignment_validity_condition bstr alignment tagged_index :
     H.expr_primitive =
   Binary
     ( Int_comp (I.Naked_immediate, Yielding_bool Eq),
       Prim
-        (Binary (Check_alignment (kind, alignment), str, untag_int tagged_index)),
+        (Binary
+           (Bigarray_check_alignment alignment, bstr, untag_int tagged_index)),
       Simple Simple.untagged_const_zero )
 
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
     string index =
-  (* TODO(mslater): check alignment based on access size *)
-  ignore checked_alignment;
-  ignore string_like_alignment_validity_condition;
   checked_access ~dbg ~primitive
     ~conditions:
       [ string_or_bytes_access_validity_condition ~size_int string kind
@@ -370,7 +368,7 @@ let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
 let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
   (* TODO(mslater): check alignment based on access size *)
   ignore checked_alignment;
-  ignore string_like_alignment_validity_condition;
+  ignore bigstring_alignment_validity_condition;
   checked_access ~dbg ~primitive
     ~conditions:
       [bigstring_access_validity_condition ~size_int arg1 access_size arg2]
