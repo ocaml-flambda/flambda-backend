@@ -1,4 +1,7 @@
-(* Confirm that pprintast round-trips with Jane Street experimental syntax. *)
+(* Confirm that Pprintast round-trips with Jane Street experimental syntax.
+   test.ml is the driver that runs this test. test.ml also checks that
+   Pprintast doesn't print the attribute encoding.
+*)
 
 (***********)
 (* Layouts *)
@@ -52,7 +55,7 @@ let f (type a : immediate) (type b : immediate)
 
 
 (* User-written attributes *)
-([(x[@attr1]) for (x[@attr2]) in ([][@attr3])] [@attr4]);;
+([(x[@test.attr1]) for (x[@test.attr2]) in ([][@test.attr3])] [@test.attr4]);;
 
 (*********)
 (* Local *)
@@ -77,11 +80,6 @@ let g () = local_
   let f = local_ () in
   let f x y = local_ (x + y) in
   local_ ();;
-
-let g () = exclave_
-  let f = local_ () in
-  let f x y = local_ (x + y) in
-  ();;
 
 (* types *)
 type record =
@@ -115,5 +113,6 @@ end;;
 let f x =
   match x with
   | [::] -> [::]
-  | (([:x:])[@attr1 ]) -> (([:x:])[@attr1 ])
-  | (([:x;y:])[@attr2 ][@attr3 ]) -> (([:x;y:])[@attr2 ][@attr3 ]);;
+  | ([:x:] [@test.attr1]) -> (([:x:])[@test.attr1])
+  | ([:x;y:] [@test.attr2][@test.attr3]) ->
+      ([:x;y:] [@test.attr2][@test.attr3]);;

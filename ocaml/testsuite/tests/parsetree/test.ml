@@ -52,7 +52,7 @@ let to_tmp_file print_fun ast =
   close_out oc;
   fn
 
-let test parse_fun pprint print map filename =
+let test parse_fun pprint print map filename ~extra_checks =
   match from_file parse_fun filename with
   | exception exn ->
       Printf.printf "%s: FAIL, CANNOT PARSE\n" filename;
@@ -60,6 +60,14 @@ let test parse_fun pprint print map filename =
       print_endline "====================================================="
   | ast ->
       let str = to_string pprint ast in
+      begin
+        match extra_checks str with
+        | Ok () -> ()
+        | Error reason ->
+            Printf.printf "%s: FAIL, %s\n" filename reason;
+            print_endline str;
+            print_endline"====================================================="
+      end;
       match from_string parse_fun str with
       | exception exn ->
           Printf.printf "%s: FAIL, CANNOT REPARSE\n" filename;
@@ -79,14 +87,14 @@ let test parse_fun pprint print map filename =
             print_endline"====================================================="
           end
 
-let test parse_fun pprint print map filename =
-  try test parse_fun pprint print map filename
+let test parse_fun pprint print map filename ~extra_checks =
+  try test parse_fun pprint print map filename ~extra_checks
   with exn -> report_err exn
 
-let rec process path =
+let rec process path ~extra_checks =
   if Sys.is_directory path then
     let files = Sys.readdir path in
-    Array.iter (fun s -> process (Filename.concat path s)) files
+    Array.iter (fun s -> process (Filename.concat path s) ~extra_checks) files
   else if Filename.check_suffix path ".ml" then
     test
       Parse.implementation
@@ -94,6 +102,7 @@ let rec process path =
       Printast.implementation
       (fun mapper -> mapper.Ast_mapper.structure)
       path
+      ~extra_checks
   else if Filename.check_suffix path ".mli" then
     test
       Parse.interface
@@ -101,9 +110,38 @@ let rec process path =
       Printast.interface
       (fun mapper -> mapper.Ast_mapper.signature)
       path
+      ~extra_checks
+
+let process ?(extra_checks = fun _ -> Ok ()) text = process text ~extra_checks
+
+let check_all_extension_points_start_with text ~prefix =
+  let exception Unexpected_extension_point of string in
+  let check ~extension_point_prefix =
+    String.split_on_char '[' text
+    |> List.for_all (fun s ->
+        not (String.starts_with s ~prefix:extension_point_prefix)
+        ||   String.starts_with s ~prefix:(extension_point_prefix ^ prefix))
+  in
+  match
+    check ~extension_point_prefix:"%", check ~extension_point_prefix:"@"
+  with
+  | true, true -> Ok ()
+  | _ ->
+      Error
+        (Printf.sprintf
+          "Pprintast produced an extension node or attribute that doesn't \
+           begin with `%s'"
+           prefix)
+;;
 
 let () =
   process "source.ml";
   Language_extension.enable_maximal ();
-  process "source_jane_street.ml";
+  process "source_jane_street.ml" ~extra_checks:(fun text ->
+  (* Check that printing Jane Street language extensions produces no more
+     attributes or extension nodes than the input program, all of whose
+     attributes begin with "test". This ensures that Jane Syntax attributes
+     aren't printed.
+   *)
+    check_all_extension_points_start_with text ~prefix:"test");
 ;;
