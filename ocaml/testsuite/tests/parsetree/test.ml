@@ -114,19 +114,17 @@ let rec process path ~extra_checks =
 
 let process ?(extra_checks = fun _ -> Ok ()) text = process text ~extra_checks
 
-let check_all_extension_points_start_with text ~prefix =
-  let exception Unexpected_extension_point of string in
-  let check ~extension_point_prefix =
+let check_all_attributes_and_extensions_start_with text ~prefix =
+  let check introduction_string =
     String.split_on_char '[' text
     |> List.for_all (fun s ->
-        not (String.starts_with s ~prefix:extension_point_prefix)
-        ||   String.starts_with s ~prefix:(extension_point_prefix ^ prefix))
+        if String.starts_with s ~prefix:introduction_string
+        then String.starts_with s ~prefix:(introduction_string ^ prefix)
+        else true)
   in
-  match
-    check ~extension_point_prefix:"%", check ~extension_point_prefix:"@"
-  with
-  | true, true -> Ok ()
-  | _ ->
+  if check "%" && check "@"
+  then Ok ()
+  else
       Error
         (Printf.sprintf
           "Pprintast produced an extension node or attribute that doesn't \
@@ -143,5 +141,5 @@ let () =
      attributes begin with "test". This ensures that Jane Syntax attributes
      aren't printed.
    *)
-    check_all_extension_points_start_with text ~prefix:"test");
+    check_all_attributes_and_extensions_start_with text ~prefix:"test");
 ;;
