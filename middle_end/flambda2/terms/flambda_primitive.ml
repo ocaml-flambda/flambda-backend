@@ -1347,8 +1347,7 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     if Flambda_features.float_const_prop ()
     then No_effects, No_coeffects, Strict
     else No_effects, Has_coeffects, Strict
-  | Bigarray_check_alignment _ ->
-    Only_generative_effects Mutable, Has_coeffects, Strict
+  | Bigarray_check_alignment _ -> No_effects, Has_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
