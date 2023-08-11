@@ -492,18 +492,7 @@ let all_regs_that_might_be_named instr =
     (fun (instr : Mach.instruction) ->
       match[@ocaml.warning "-4"] instr.desc with
       | Iop (Iname_for_debugger { regs; _ }) ->
-        (* We exclude preassigned registers: the only such registers that should
-           end up in the availability sets are those corresponding to function
-           parameters. However those are added explicitly in [fundecl] below. We
-           should not re-add them here, or else subsequent uses of the same hard
-           registers for different, non-user-visible values might end up in the
-           sets. *)
-        let regs =
-          Reg.Set.filter
-            (fun (reg : Reg.t) -> not (Reg.is_preassigned reg))
-            (Reg.set_of_array regs)
-        in
-        all_regs := Reg.Set.union regs !all_regs
+        all_regs := Reg.Set.union (Reg.set_of_array regs) !all_regs
       | _ -> ())
     instr;
   !all_regs
