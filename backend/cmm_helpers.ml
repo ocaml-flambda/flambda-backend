@@ -3117,32 +3117,35 @@ module Generic_fns_tbl = struct
       let arity n = List.init n (fun _ -> [| Val |]) in
       let result = [| Val |] in
       let tuplify =
-        List.init max_tuplify (fun n -> Lambda.Tupled, arity n, result)
+        Seq.init max_tuplify (fun n -> Lambda.Tupled, arity n, result)
       in
       let curry =
-        List.init (Lambda.max_arity ()) (fun n ->
-            List.init (Lambda.max_arity ()) (fun nlocal ->
+        Seq.init (Lambda.max_arity ()) (fun n ->
+            Seq.init (Lambda.max_arity ()) (fun nlocal ->
                 Lambda.Curried { nlocal }, arity n, result))
-        |> List.concat
+        |> Seq.concat
       in
       let send =
-        List.init max_send (fun n ->
-            [ arity n, result, Lambda.alloc_local;
-              arity n, result, Lambda.alloc_heap ])
-        |> List.concat
+        Seq.init max_send (fun n ->
+            Seq.cons
+              (arity n, result, Lambda.alloc_local)
+              (Seq.return (arity n, result, Lambda.alloc_heap)))
+        |> Seq.concat
       in
       let apply =
-        List.init max_apply (fun n ->
-            [ arity n, result, Lambda.alloc_local;
-              arity n, result, Lambda.alloc_heap ])
-        |> List.concat
+        Seq.init max_apply (fun n ->
+            Seq.cons
+              (arity n, result, Lambda.alloc_local)
+              (Seq.return (arity n, result, Lambda.alloc_heap)))
+        |> Seq.concat
       in
       let t = make () in
       add_uncached t
         Cmx_format.
-          { curry_fun = List.filter is_curry (tuplify @ curry);
-            send_fun = List.filter is_send send;
-            apply_fun = List.filter is_apply apply
+          { curry_fun =
+              Seq.filter is_curry (Seq.append tuplify curry) |> List.of_seq;
+            send_fun = Seq.filter is_send send |> List.of_seq;
+            apply_fun = Seq.filter is_apply apply |> List.of_seq
           };
       t
   end
