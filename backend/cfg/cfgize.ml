@@ -808,7 +808,9 @@ let fundecl :
         collect instr.next ((instr, cfg_op) :: ops)
       | _ -> ops, instr
     in
-    collect fun_body []
+    if !Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf
+    then collect fun_body []
+    else [], fun_body
   in
   let next_label, instr_to_copy =
     match rev_name_for_debugger_ops_before_prologue with
