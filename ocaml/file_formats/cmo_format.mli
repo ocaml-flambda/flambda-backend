@@ -31,8 +31,7 @@ type compilation_unit_descr =
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
-    cu_runtime_params : Global.Name.t array;
-                                        (* Parameters and imports which must be
+    cu_runtime_params : Global.t array; (* Parameters and imports which must be
                                            passed as parameters to the module
                                            functor *)
     cu_required_globals: Compilation_unit.t list;

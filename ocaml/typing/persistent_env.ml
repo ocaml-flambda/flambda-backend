@@ -887,11 +887,14 @@ let local_ident penv modname =
   | Some ({ ps_binding = Static _; _ }, _)
   | None -> None
 
-let locally_bound_imports ({persistent_structures; _} as penv) =
+let locally_bound_imports {persistent_structures; _} =
   persistent_structures
-  |> Hashtbl.to_seq_keys
+  |> Hashtbl.to_seq_values
   |> Seq.filter_map
-       (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
+        (fun (ps, _) ->
+           match ps.ps_binding with
+           | Local local_ident -> Some (ps.ps_name_info.pn_global, local_ident)
+           | Static _ -> None)
   |> List.of_seq
 
 let exported_parameters {exported_params; _} =

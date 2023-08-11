@@ -108,7 +108,7 @@ let print_cmo_infos cu =
    | [||] -> ()
    | params ->
      print_string "Runtime parameters:\n";
-     Array.iter print_global_line params
+     Array.iter print_global_as_name_line params
   in
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;

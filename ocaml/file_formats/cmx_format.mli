@@ -52,7 +52,7 @@ type unit_infos =
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t array;
                                           (* Infos imported *)
-    mutable ui_runtime_params: Global.Name.t list;
+    mutable ui_runtime_params: Global.t list;
                                           (* Implementation imports which are
                                              bound as parameters at runtime,
                                              including source-level parameters

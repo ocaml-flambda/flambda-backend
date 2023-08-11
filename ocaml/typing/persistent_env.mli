@@ -177,7 +177,7 @@ val imports : 'a t -> Import_info.Intf.t list
 
 (* Return the list of imported modules (including parameters) that must be bound
    as parameters in a toplevel functor *)
-val locally_bound_imports : 'a t -> (Global.Name.t * Ident.t) list
+val locally_bound_imports : 'a t -> (Global.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)

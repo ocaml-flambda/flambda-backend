@@ -455,7 +455,7 @@ val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as parameters, along with the
    local variable representing each *)
-val locally_bound_imports: unit -> (Global.Name.t * Ident.t) list
+val locally_bound_imports: unit -> (Global.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
