@@ -4367,7 +4367,12 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
-      assert(is_optional l); (* default allowed only with optional argument *)
+      let param_suffix =
+        match l with
+        | Optional name -> name
+        | Nolabel | Labelled _ ->
+          Misc.fatal_error "[default] allowed only with optional argument"
+      in
       let open Ast_helper in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
@@ -4395,11 +4400,6 @@ and type_expect_
         { Location.loc_start = spat.ppat_loc.Location.loc_start;
           loc_end = default_loc.Location.loc_end;
           loc_ghost = true }
-      in
-      let param_suffix =
-        match l with
-        | Nolabel -> ""
-        | Labelled name | Optional name -> name
       in
       let param_name = "*opt*" ^ param_suffix in
       let smatch =

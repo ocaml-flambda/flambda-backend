@@ -1177,8 +1177,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let param_suffix =
         match l with
-        | Nolabel -> ""
-        | Labelled name | Optional name -> name
+        | Optional name -> name
+        | Nolabel | Labelled _ ->
+          Misc.fatal_error "[default] allowed only with optional argument"
       in
       let param_name = "*opt*" ^ param_suffix in
       let smatch =
