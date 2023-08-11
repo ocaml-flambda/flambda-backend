@@ -1188,7 +1188,8 @@ let binary_primitive_eligible_for_cse p =
   match p with
   | Array_load _ | Block_load _ -> false
   | String_or_bigstring_load _ -> false (* CR mshinwell: review *)
-  | Bigarray_load _ | Bigarray_check_alignment _ -> false
+  | Bigarray_load _ -> false
+  | Bigarray_check_alignment _ -> true
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ -> true
   | Float_arith _ | Float_comp _ ->
     (* We believe that under the IEEE standard it is correct to CSE
@@ -1347,7 +1348,7 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     if Flambda_features.float_const_prop ()
     then No_effects, No_coeffects, Strict
     else No_effects, Has_coeffects, Strict
-  | Bigarray_check_alignment _ -> No_effects, Has_coeffects, Strict
+  | Bigarray_check_alignment _ -> No_effects, No_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
