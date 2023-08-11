@@ -779,7 +779,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     | Llet(Strict, k, id,
            (Lifthenelse(Lprim (Pisint _, [Lvar optparam], _), _, _, _) as def),
            rest) when
-        Ident.name optparam = "*opt*" &&
+        String.starts_with (Ident.name optparam) ~prefix:"*opt*" &&
         List.exists (fun p -> Ident.same p.name optparam) params
           && not (List.mem_assoc optparam map)
       ->
