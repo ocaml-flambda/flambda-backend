@@ -116,6 +116,7 @@ module Dwarf_helpers : sig
     -> unit
 
   val emit_dwarf : unit -> unit
+  val emit_delayed_dwarf : unit -> unit
 
   val record_dwarf_for_fundecl : Linear.fundecl -> Dwarf.fundecl option
 end
