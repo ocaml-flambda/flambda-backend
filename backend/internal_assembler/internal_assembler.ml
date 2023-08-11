@@ -170,26 +170,11 @@ let assemble_one_section ~name instructions =
       sec_instrs = Array.of_list instructions
     }
 
-
 let get_sections ~delayed sections =
   let get acc sections =
-    List.fold_left
-      (fun acc (name, instructions) ->
-        let align =
-          List.fold_left
-            (fun acc i ->
-              match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
-            0 instructions
-        in
-        Section_name.Map.add name
-          ( align,
-            X86_binary_emitter.assemble_section X64
-              { X86_binary_emitter.sec_name = X86_proc.Section_name.to_string name;
-                sec_instrs = Array.of_list instructions
-              } )
-          acc)
-      acc
-      sections
+    List.fold_left (fun acc (name, instructions) ->
+      Section_name.Map.add name (assemble_one_section ~name instructions) acc)
+      acc sections
   in
   (* DWARF sections must be emitted after .text and .data because they
      contain information that is produced when .text and .data are emitted.
