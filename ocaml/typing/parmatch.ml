@@ -1834,27 +1834,32 @@ let pressure_variants_in_computation_pattern tdefs patl =
 (* Utilities for diagnostics *)
 (*****************************)
 
+let is_fallthrough_possible = function
+  (* Total pattern-guarded rhs's can never fallthrough, as they always match. *)
+  | Simple_rhs _ | Pattern_guarded_rhs { pg_partial = Total; _ } -> false
+  | Boolean_guarded_rhs _ | Pattern_guarded_rhs { pg_partial = Partial; _ } ->
+      true
+
 (*
   Build up a working pattern matrix by forgetting
   about guarded patterns
 *)
 
-let rec initial_matrix = function
-    [] -> []
-  | { c_rhs = Simple_rhs _; c_lhs = p } :: rem -> [p] :: initial_matrix rem
-  | { c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _; _ } :: rem ->
-      initial_matrix rem
+let initial_matrix cases =
+  List.filter_map
+    (fun case ->
+       if is_fallthrough_possible case.c_rhs then None else Some [ case.c_lhs ])
+    cases
 
 (*
    Build up a working pattern matrix by keeping
    only the patterns which are guarded
 *)
-let rec initial_only_guarded = function
-  | [] -> []
-  | { c_rhs = Simple_rhs _; _ } :: rem ->
-      initial_only_guarded rem
-  | { c_lhs = pat; c_rhs = Boolean_guarded_rhs _ | Pattern_guarded_rhs _ }
-    :: rem -> [pat] :: initial_only_guarded rem
+let initial_only_guarded cases =
+  List.filter_map
+    (fun case ->
+       if is_fallthrough_possible case.c_rhs then Some [ case.c_lhs ] else None)
+    cases
 
 
 (************************)
