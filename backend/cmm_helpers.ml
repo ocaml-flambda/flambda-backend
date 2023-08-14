@@ -1032,6 +1032,16 @@ let string_length exp dbg =
 let bigstring_length ba dbg =
   Cop (Cload (Word_int, Mutable), [field_address ba 5 dbg], dbg)
 
+let bigstring_data ba dbg =
+  Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg)
+
+let bigstring_get_alignment ba idx align dbg =
+  Cop
+    ( Cand,
+      [ Cconst_int (align - 1, dbg);
+        Cop (Caddi, [bigstring_data ba dbg; idx], dbg) ],
+      dbg )
+
 (* Message sending *)
 
 let lookup_tag obj tag dbg =

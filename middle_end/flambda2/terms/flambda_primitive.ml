@@ -1182,12 +1182,14 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
+  | Bigarray_get_alignment of int
 
 let binary_primitive_eligible_for_cse p =
   match p with
   | Array_load _ | Block_load _ -> false
   | String_or_bigstring_load _ -> false (* CR mshinwell: review *)
   | Bigarray_load _ -> false
+  | Bigarray_get_alignment _ -> true
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ -> true
   | Float_arith _ | Float_comp _ ->
     (* We believe that under the IEEE standard it is correct to CSE
@@ -1212,6 +1214,7 @@ let compare_binary_primitive p1 p2 =
     | Int_comp _ -> 7
     | Float_arith _ -> 8
     | Float_comp _ -> 9
+    | Bigarray_get_alignment _ -> 10
   in
   match p1, p2 with
   | Block_load (kind1, mut1), Block_load (kind2, mut2) ->
@@ -1244,9 +1247,11 @@ let compare_binary_primitive p1 p2 =
     if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
   | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
+  | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
+    Int.compare align1 align2
   | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
-      | Float_arith _ | Float_comp _ ),
+      | Float_arith _ | Float_comp _ | Bigarray_get_alignment _ ),
       _ ) ->
     Stdlib.compare
       (binary_primitive_numbering p1)
@@ -1280,6 +1285,8 @@ let print_binary_primitive ppf p =
   | Float_comp comp_behaviour ->
     print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;
     fprintf ppf "."
+  | Bigarray_get_alignment align ->
+    fprintf ppf "@[(Bigarray_get_alignment[%d])@]" align
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1299,6 +1306,7 @@ let args_kind_of_binary_primitive p =
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float
+  | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
 
 let result_kind_of_binary_primitive p : result_kind =
   match p with
@@ -1314,6 +1322,7 @@ let result_kind_of_binary_primitive p : result_kind =
     Singleton (K.Standard_int.to_kind kind)
   | Float_arith _ -> Singleton K.naked_float
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
+  | Bigarray_get_alignment _ -> Singleton K.naked_immediate
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1339,33 +1348,35 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     if Flambda_features.float_const_prop ()
     then No_effects, No_coeffects, Strict
     else No_effects, Has_coeffects, Strict
+  | Bigarray_get_alignment _ -> No_effects, No_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
   | Block_load _ | Array_load _ -> Destructive
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _ ->
+  | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _
+  | Bigarray_get_alignment _ ->
     Neither
 
 let free_names_binary_primitive p =
   match p with
   | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ ->
+  | Float_comp _ | Bigarray_get_alignment _ ->
     Name_occurrences.empty
 
 let apply_renaming_binary_primitive p _renaming =
   match p with
   | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ ->
+  | Float_comp _ | Bigarray_get_alignment _ ->
     p
 
 let ids_for_export_binary_primitive p =
   match p with
   | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ ->
+  | Float_comp _ | Bigarray_get_alignment _ ->
     Ids_for_export.empty
 
 type ternary_primitive =

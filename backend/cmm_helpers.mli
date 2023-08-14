@@ -365,6 +365,11 @@ val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
 
+val bigstring_data : expression -> Debuginfo.t -> expression
+
+val bigstring_get_alignment :
+  expression -> expression -> int -> Debuginfo.t -> expression
+
 module Extended_machtype_component : sig
   (** Like [Cmm.machtype_component] but has a case explicitly for tagged
       integers.  This enables caml_apply functions to be insensitive to whether

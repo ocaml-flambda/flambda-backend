@@ -17,6 +17,7 @@
 type failure =
   | Division_by_zero
   | Index_out_of_bounds
+  | Address_was_misaligned
 
 type expr_primitive =
   | Simple of Simple.t

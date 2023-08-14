@@ -443,6 +443,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_get_alignment align -> Bigarray_get_alignment align
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
