@@ -369,7 +369,7 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
-  | Bigarray_check_alignment of int
+  | Bigarray_get_alignment of int
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
