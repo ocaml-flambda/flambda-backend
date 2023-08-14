@@ -262,17 +262,35 @@ let rec instr ppf i =
   if !Clflags.dump_live then begin
     fprintf ppf "@[<1>{%a" regsetaddr i.live;
     if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
-    fprintf ppf "}@]@,";
-    if !Flambda_backend_flags.davail then begin
-      let module RAS = Reg_availability_set in
-      fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg) i.available_before;
-      begin match i.available_across with
-      | None -> ()
-      | Some available_across ->
-        fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
-      end;
-      fprintf ppf "@]@,"
-    end
+    fprintf ppf "}@]@,"
+  end;
+  if !Flambda_backend_flags.davail then begin
+    let module RAS = Reg_availability_set in
+    let ras_is_nonempty (set : RAS.t) =
+      match set with
+      | Ok set -> not (Reg_with_debug_info.Set.is_empty set)
+      | Unreachable -> true
+    in
+    if ras_is_nonempty i.available_before
+       || match i.available_across with
+          | None -> false
+          | Some available_across -> ras_is_nonempty available_across
+    then (
+      if Option.equal RAS.equal (Some i.available_before) i.available_across
+      then
+        fprintf ppf "@[<1>AB=AA={%a}@]@," (RAS.print ~print_reg:reg)
+          i.available_before
+      else (
+        fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg)
+          i.available_before;
+        begin match i.available_across with
+        | None -> ()
+        | Some available_across ->
+          fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
+        end;
+        fprintf ppf "@]@,"
+      )
+    )
   end;
   begin match i.desc with
   | Iend -> ()

@@ -330,6 +330,7 @@ let assemble_file infile outfile =
 let asm_code = ref []
 let asm_code_current_section = ref (ref [])
 let asm_code_by_section = Section_name.Tbl.create 100
+let delayed_sections = Section_name.Tbl.create 100
 
 (* Cannot use Emitaux directly here or there would be a circular dep *)
 let create_asm_file = ref true
@@ -338,13 +339,14 @@ let directive dir =
   (if !create_asm_file then
      asm_code := dir :: !asm_code);
   match dir with
-  | Section (name, flags, args) -> (
+  | Section (name, flags, args, is_delayed) -> (
       let name = Section_name.make name flags args in
-      match Section_name.Tbl.find_opt asm_code_by_section name with
+      let where = if is_delayed then delayed_sections else asm_code_by_section in
+      match Section_name.Tbl.find_opt where name with
       | Some x -> asm_code_current_section := x
       | None ->
         asm_code_current_section := ref [];
-        Section_name.Tbl.add asm_code_by_section name !asm_code_current_section)
+        Section_name.Tbl.add where name !asm_code_current_section)
   | dir -> !asm_code_current_section := dir :: !(!asm_code_current_section)
 
 let emit ins = directive (Ins ins)
@@ -361,6 +363,13 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      binary_content := Some (f asm_code_by_section)
+      let get sections =
+         Section_name.Tbl.fold (fun name instrs acc ->
+            (name, List.rev !instrs) :: acc)
+          sections []
+      in
+      let instrs = get asm_code_by_section in
+      let delayed () = get delayed_sections in
+      binary_content := Some (f ~delayed instrs)
   | None -> binary_content := None
   end

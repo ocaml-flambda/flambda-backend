@@ -829,8 +829,10 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
         else begin
           let p1' = VP.rename p1 in
           let u1, u2, layout =
-            match VP.name p1, a1 with
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg) ->
+            let p1_name = VP.name p1 in
+            match a1 with
+            | Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg)
+              when String.starts_with ~prefix:"*opt*" p1_name ->
                 (* This parameter corresponds to an optional parameter,
                    and although it is used twice pushing the expression down
                    actually allows us to remove the allocation as it will
@@ -1618,7 +1620,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
        their wrapper functions) to be inlined *)
     let n =
       List.fold_left
-        (fun n (id, _, _) -> n + if V.name id = "*opt*" then 8 else 1)
+        (fun n (id, _, _) ->
+          n + if String.starts_with (V.name id) ~prefix:"*opt*" then 8 else 1)
         0
         fun_params
     in
