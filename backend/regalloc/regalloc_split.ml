@@ -132,7 +132,50 @@ let make_spill :
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:new_reg ~to_:stack_reg
 
-(* Inserts spills at the end of blocks, before destruction points. *)
+(* Inserts the spills in a block, as early as possible (i.e. immediately after
+   the register is last set), to reduce live ranges. *)
+let rec insert_spills_in_block :
+    State.t ->
+    block_subst:Substitution.t ->
+    stack_subst:Substitution.t ->
+    Cfg.basic_block ->
+    Instruction.t DLL.cell option ->
+    Reg.Set.t ->
+    unit =
+ fun state ~block_subst ~stack_subst block cell live_at_destruction_point ->
+  match Reg.Set.is_empty live_at_destruction_point with
+  | true -> ()
+  | false -> (
+    match cell with
+    | None ->
+      Reg.Set.iter
+        (fun old_reg ->
+          let new_reg = Substitution.apply_reg block_subst old_reg in
+          let copy = block.terminator in
+          let spill = make_spill state ~stack_subst ~old_reg ~new_reg ~copy in
+          DLL.add_begin block.body spill)
+        live_at_destruction_point
+    | Some cell ->
+      let live_at_destruction_point =
+        Reg.Set.filter
+          (fun old_reg ->
+            let new_reg = Substitution.apply_reg block_subst old_reg in
+            let instr = DLL.value cell in
+            if occurs_array instr.res new_reg
+            then (
+              let spill =
+                make_spill state ~stack_subst ~old_reg ~new_reg ~copy:instr
+              in
+              DLL.insert_after cell spill;
+              false)
+            else true)
+          live_at_destruction_point
+      in
+      let cell = DLL.prev cell in
+      insert_spills_in_block state ~block_subst ~stack_subst block cell
+        live_at_destruction_point)
+
+(* Inserts spills in all blocks. *)
 (* CR mshinwell: Add special handling for [Iname_for_debugger] (see
    [Spill.add_spills]). *)
 let insert_spills :
@@ -145,17 +188,9 @@ let insert_spills :
     (fun label (_, live_at_destruction_point) ->
       if split_debug then log ~indent:1 "block %d" label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      let subst = Substitution.for_label substs label in
-      Reg.Set.iter
-        (fun old_reg ->
-          if split_debug then log ~indent:2 "register %a" Printmach.reg old_reg;
-          let new_reg = Substitution.apply_reg subst old_reg in
-          let spill =
-            make_spill state ~stack_subst ~old_reg ~new_reg
-              ~copy:block.terminator
-          in
-          DLL.add_end block.body spill)
-        live_at_destruction_point)
+      let block_subst = Substitution.for_label substs label in
+      insert_spills_in_block state ~block_subst ~stack_subst block
+        (DLL.last_cell block.body) live_at_destruction_point)
     destructions_at_end;
   stack_subst
 
@@ -194,7 +229,50 @@ let make_reload :
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:stack_reg ~to_:new_reg
 
-(* Inserts reloads at the start of blocks, after destruction points. *)
+(* Inserts the relaods in a block, as late as possible (i.e. immediately before
+   the register is first read), to reduce live ranges. *)
+let rec insert_reloads_in_block :
+    State.t ->
+    block_subst:Substitution.t ->
+    stack_subst:Substitution.t ->
+    Cfg.basic_block ->
+    Instruction.t DLL.cell option ->
+    Reg.Set.t ->
+    unit =
+ fun state ~block_subst ~stack_subst block cell live_at_definition_point ->
+  match Reg.Set.is_empty live_at_definition_point with
+  | true -> ()
+  | false -> (
+    match cell with
+    | None ->
+      Reg.Set.iter
+        (fun old_reg ->
+          let new_reg = Substitution.apply_reg block_subst old_reg in
+          let copy = block.terminator in
+          let reload = make_reload state ~stack_subst ~old_reg ~new_reg ~copy in
+          DLL.add_end block.body reload)
+        live_at_definition_point
+    | Some cell ->
+      let live_at_definition_point =
+        Reg.Set.filter
+          (fun old_reg ->
+            let new_reg = Substitution.apply_reg block_subst old_reg in
+            let instr = DLL.value cell in
+            if occurs_array instr.arg new_reg
+            then (
+              let reload =
+                make_reload state ~stack_subst ~old_reg ~new_reg ~copy:instr
+              in
+              DLL.insert_before cell reload;
+              false)
+            else true)
+          live_at_definition_point
+      in
+      let cell = DLL.next cell in
+      insert_reloads_in_block state ~block_subst ~stack_subst block cell
+        live_at_definition_point)
+
+(* Inserts reloads in all blocks. *)
 let insert_reloads :
     State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t -> unit =
  fun state cfg_with_infos substs stack_subst ->
@@ -203,25 +281,9 @@ let insert_reloads :
     (fun label live_at_definition_point ->
       if split_debug then log ~indent:1 "block %d" label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      let subst = Substitution.for_label substs label in
-      Reg.Set.iter
-        (fun old_reg ->
-          if split_debug then log ~indent:2 "register %a" Printmach.reg old_reg;
-          let new_reg = Substitution.apply_reg subst old_reg in
-          let copy =
-            match DLL.hd block.body with
-            | Some (basic : Cfg.basic Cfg.instruction) -> basic
-            | None ->
-              { Instruction.dummy with
-                dbg = block.terminator.dbg;
-                fdo = block.terminator.fdo;
-                live = block.terminator.live;
-                stack_offset = block.terminator.stack_offset
-              }
-          in
-          let reload = make_reload state ~stack_subst ~old_reg ~new_reg ~copy in
-          DLL.add_begin block.body reload)
-        live_at_definition_point)
+      let block_subst = Substitution.for_label substs label in
+      insert_reloads_in_block state ~block_subst ~stack_subst block
+        (DLL.hd_cell block.body) live_at_definition_point)
     (State.definitions_at_beginning state)
 
 let add_phi_moves_to_instr_list :
