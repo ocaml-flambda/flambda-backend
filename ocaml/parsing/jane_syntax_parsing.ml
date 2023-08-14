@@ -477,8 +477,8 @@ module type AST_syntactic_category = sig
       There are rare cases where you want this to be [false]. For example, match
       cases are embedded via their expression rhs. If a non-Jane Syntax match
       case has an expression rhs that *is* Jane Syntax, then [Case.of_ast] will
-      see an embedding for the "wrong" syntactic category --- expression, not
-      case. We don't want to produce an error here.
+      see an embedding for the "wrong" syntactic category --- expression, when
+      case was expected. We don't want to produce an error here.
    *)
   val fail_if_wrong_syntactic_category : bool
 end
