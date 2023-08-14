@@ -466,13 +466,19 @@ module type AST_syntactic_category = sig
   (** Set the location of an AST node. *)
   val with_location : ast -> Location.t -> ast
 
-  (** A boolean flag indicating whether the presence of a syntax feature that
-      doesn't extend the given syntactic category should be reported as an
-      error.
+  (** Whether calling [of_ast] should report an error if the syntactic category
+      doesn't know how to interpret the topmost Jane Syntax embedding.
 
-      (For example: There are no pattern comprehensions, so when building the
-      extended pattern AST, an error will be raised if an embedding from
-      [Language_extension Comprehensions] is encountered when this flag is set.)
+      You usually want this to be [true]. For example, there are no pattern
+      comprehensions, so [Pattern.of_ast] should produce an error if it sees a
+      pattern that starts with an embedding from [Language_extension
+      Comprehensions].
+
+      There are rare cases where you want this to be [false]. For example, match
+      cases are embedded via their expression rhs. If a non-Jane Syntax match
+      case has an expression rhs that *is* Jane Syntax, then [Case.of_ast] will
+      see an embedding for the "wrong" syntactic category --- expression, not
+      case. We don't want to produce an error here.
    *)
   val fail_if_wrong_syntactic_category : bool
 end
