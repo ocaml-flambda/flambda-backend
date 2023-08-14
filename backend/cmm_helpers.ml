@@ -2003,7 +2003,7 @@ let check_bound safety access_size dbg base length a2 k =
     match check_align with
     | 0 -> check_bound
     | align ->
-      Csequence (check_bound, make_checkalign dbg align [add_int base a2 dbg]))
+      Csequence (make_checkalign dbg align [add_int base a2 dbg], check_bound))
 
 let opaque e dbg = Cop (Copaque, [e], dbg)
 
