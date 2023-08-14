@@ -372,6 +372,13 @@ let bigstring_alignment_validity_condition bstr alignment tagged_index :
 
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
     string index =
+  (match (access_size : P.string_accessor_width) with
+  | One_twenty_eight { aligned = true } ->
+    Misc.fatal_error
+      "flambda2 cannot yet check string/bytes aligned access safety"
+  | Eight | Sixteen | Thirty_two | Sixty_four
+  | One_twenty_eight { aligned = false } ->
+    ());
   checked_access ~dbg ~primitive
     ~conditions:
       [ string_or_bytes_access_validity_condition ~size_int string kind

@@ -554,8 +554,8 @@ let print_string_accessor_width ppf w =
   | Sixteen -> fprintf ppf "16"
   | Thirty_two -> fprintf ppf "32"
   | Sixty_four -> fprintf ppf "64"
-  | One_twenty_eight { aligned = false } -> fprintf ppf "u128"
-  | One_twenty_eight { aligned = true } -> fprintf ppf "a128"
+  | One_twenty_eight { aligned = false } -> fprintf ppf "128u"
+  | One_twenty_eight { aligned = true } -> fprintf ppf "128a"
 
 let byte_width_of_string_accessor_width width =
   match width with
