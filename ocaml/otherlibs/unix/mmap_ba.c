@@ -24,20 +24,28 @@
 /* Allocation of bigarrays for memory-mapped files.
    This is the OS-independent part of [mmap.c]. */
 
-extern void caml_ba_unmap_file(void *, uintnat);
+extern int caml_ba_unmap_file(void *, uintnat);
 
-static void caml_ba_mapped_finalize(value v)
+CAMLexport int caml_ba_mapped_finalize_with_errno(value v)
 {
   struct caml_ba_array * b = Caml_ba_array_val(v);
   CAMLassert((b->flags & CAML_BA_MANAGED_MASK) == CAML_BA_MAPPED_FILE);
   if (b->proxy == NULL) {
-    caml_ba_unmap_file(b->data, caml_ba_byte_size(b));
+    return caml_ba_unmap_file(b->data, caml_ba_byte_size(b));
   } else {
     if (-- b->proxy->refcount == 0) {
-      caml_ba_unmap_file(b->proxy->data, b->proxy->size);
+      int errno = caml_ba_unmap_file(b->proxy->data, b->proxy->size);
       free(b->proxy);
+      return errno;
     }
   }
+  return 0;
+}
+
+static void caml_ba_mapped_finalize(value v)
+{
+  /* Unmapping errors are ignored during finalization. */
+  return (void) caml_ba_mapped_finalize_with_errno(v);
 }
 
 /* Operation table for bigarrays representing memory-mapped files.

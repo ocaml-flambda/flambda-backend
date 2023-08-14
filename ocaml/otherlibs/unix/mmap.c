@@ -190,17 +190,18 @@ CAMLprim value caml_unix_map_file_bytecode(value * argv, int argn)
                             argv[3], argv[4], argv[5]);
 }
 
-void caml_ba_unmap_file(void * addr, uintnat len)
+int caml_ba_unmap_file(void * addr, uintnat len)
 {
 #if defined(HAS_MMAP)
   uintnat page = sysconf(_SC_PAGESIZE);
   uintnat delta = (uintnat) addr % page;
-  if (len == 0) return;         /* PR#5463 */
+  if (len == 0) return 0;        /* PR#5463 */
   addr = (void *)((uintnat)addr - delta);
   len  = len + delta;
 #if defined(_POSIX_SYNCHRONIZED_IO)
   msync(addr, len, MS_ASYNC);   /* PR#3571 */
 #endif
-  munmap(addr, len);
+  if (munmap(addr, len) != 0) return errno;
 #endif
+  return 0;
 }
