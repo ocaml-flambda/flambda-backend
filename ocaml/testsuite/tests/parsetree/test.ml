@@ -6,6 +6,9 @@
 (* (c) Alain Frisch / Lexifi *)
 (* cf. PR#7200 *)
 
+(* CR-soon rgodse: Move into [source_jane_syntax.ml] post-rebase. *)
+Language_extension.enable_maximal ();;
+
 let diff =
   match Array.to_list Sys.argv with
   | [_; diff] -> diff
