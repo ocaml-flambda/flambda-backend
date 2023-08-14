@@ -74,6 +74,9 @@ let use_g () =
 
 let restrict_to_upstream_dwarf = ref true
 
+(* Currently the maximum number of stack slots, see asmgen.ml *)
+let dwarf_max_function_complexity = ref 50
+
 let dwarf_for_startup_file = ref false
 
 let debug_thing thing = List.mem thing !current_debug_settings

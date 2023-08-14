@@ -223,7 +223,7 @@ type asm_line =
   | NewLabel of string * data_type
   | NewLine
   | Quad of constant
-  | Section of string list * string option * string list
+  | Section of string list * string option * string list * bool
   | Sleb128 of constant
   | Space of int
   | Uleb128 of constant

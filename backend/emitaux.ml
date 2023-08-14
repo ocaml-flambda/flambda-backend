@@ -484,6 +484,12 @@ module Dwarf_helpers = struct
         ~binary_backend_available:!binary_backend_available)
       !dwarf
 
+  let emit_delayed_dwarf () =
+    Option.iter (Dwarf.emit_delayed
+        ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
+        ~binary_backend_available:!binary_backend_available)
+      !dwarf
+
   let record_dwarf_for_fundecl fundecl =
     match !dwarf with
     | None -> None

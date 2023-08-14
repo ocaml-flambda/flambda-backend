@@ -355,6 +355,7 @@ let binary_prim_size prim =
   | Float_arith op -> binary_float_arith_primitive op
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with

@@ -137,7 +137,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         Asm_section.details section ~first_occurrence
       in
       if not first_occurrence then new_line ();
-      D.section names flags args;
+      D.section ~delayed:(Asm_section.is_delayed section) names flags args;
       if first_occurrence then define_label (Asm_label.for_section section)
 
   let initialize () =

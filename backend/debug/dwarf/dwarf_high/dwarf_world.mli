@@ -29,3 +29,9 @@ val emit :
   basic_block_sections:bool ->
   binary_backend_available:bool ->
   unit
+
+val emit_delayed :
+  asm_directives:(module Asm_directives.S) ->
+  basic_block_sections:bool ->
+  binary_backend_available:bool ->
+  unit

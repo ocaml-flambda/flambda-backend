@@ -233,8 +233,8 @@ let print_line b = function
   | NewLabel (s, ptr) -> bprintf b "%s LABEL %s" s (string_of_datatype ptr)
   | NewLine -> ()
   | Quad n -> bprintf b "\tQWORD\t%a" cst n
-  | Section ([".data"], None, []) -> bprintf b "\t.DATA"
-  | Section ([".text"], None, []) -> bprintf b "\t.CODE"
+  | Section ([".data"], None, [], _) -> bprintf b "\t.DATA"
+  | Section ([".text"], None, [], _) -> bprintf b "\t.CODE"
   | Section _ -> assert false
   | Space n -> bprintf b "\tBYTE\t%d DUP (?)" n
   | Word n -> bprintf b "\tWORD\t%a" cst n
