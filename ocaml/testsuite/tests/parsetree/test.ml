@@ -114,6 +114,20 @@ let rec process path ~extra_checks =
 
 let process ?(extra_checks = fun _ -> Ok ()) text = process text ~extra_checks
 
+(* Produce an error if any attribute/extension node does not start with the
+   text prefix.
+
+   This over-conservatively produces an error for attributes/extension nodes
+   that don't appear literally as '[@' or '[%' followed immediately by an
+   identifier.  Some things that aren't handled:
+      - [@ blah]
+      - [% blah]
+      - [@@blah]
+      - [%%blah]
+
+  We've chosen to keep those constructs out of the test file in preference
+  to updating this logic to properly handle them (which is hard).
+*)
 let check_all_attributes_and_extensions_start_with text ~prefix =
   let check introduction_string =
     String.split_on_char '[' text
