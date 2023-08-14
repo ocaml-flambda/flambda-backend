@@ -130,6 +130,9 @@ let mk_dump_inlining_paths f =
 let mk_davail f =
   "-davail", Arg.Unit f, " Dump register availability information"
 
+let mk_dranges f =
+  "-dranges", Arg.Unit f, " Dump results of Compute_ranges"
+
 let mk_ddebug_invariants f =
   "-ddebug-invariants", Arg.Unit f, " Run invariant checks during generation of debugging information"
 
@@ -551,6 +554,7 @@ module type Flambda_backend_options = sig
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
   val davail : unit -> unit
+  val dranges : unit -> unit
   val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
@@ -650,6 +654,7 @@ struct
   let list2 = [
     mk_dump_inlining_paths F.dump_inlining_paths;
     mk_davail F.davail;
+    mk_dranges F.dranges;
     mk_ddebug_invariants F.ddebug_invariants;
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
@@ -807,6 +812,7 @@ module Flambda_backend_options_impl = struct
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
   let davail = set' Flambda_backend_flags.davail
+  let dranges = set' Flambda_backend_flags.dranges
 
   let ddebug_invariants = set' Dwarf_flags.ddebug_invariants
 
@@ -1062,6 +1068,7 @@ module Extra_params = struct
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
+    | "dranges" -> set' Flambda_backend_flags.dranges
     | "ddebug-invariants" -> set' Dwarf_flags.ddebug_invariants
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
