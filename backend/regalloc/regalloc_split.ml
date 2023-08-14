@@ -98,18 +98,19 @@ let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
  fun cfg_with_infos substs ->
   Substitution.apply_cfg_in_place substs (Cfg_with_infos.cfg cfg_with_infos)
 
+type 'a make_operation =
+  State.t ->
+  stack_subst:Substitution.t ->
+  old_reg:Reg.t ->
+  new_reg:Reg.t ->
+  copy:'a Cfg.instruction ->
+  Instruction.t
+
 (* Creates a spill instruction for the register named `old_reg` before
    substitution and `new_reg` after substitution, copying debug and FDO
    information from `copy`, and populating `stack_subst` with a mapping from
    `old_reg` to its stack slot. *)
-let make_spill :
-    type a.
-    State.t ->
-    stack_subst:Substitution.t ->
-    old_reg:Reg.t ->
-    new_reg:Reg.t ->
-    copy:a Cfg.instruction ->
-    Instruction.t =
+let make_spill : type a. a make_operation =
  fun state ~stack_subst ~old_reg ~new_reg ~copy ->
   let stack_reg =
     match Reg.Tbl.find_opt stack_subst old_reg with
@@ -132,9 +133,67 @@ let make_spill :
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:new_reg ~to_:stack_reg
 
+let rec insert_splills_or_reloads_in_block :
+    State.t ->
+    make_spill_or_reload:'a make_operation ->
+    array_of_interest:(Instruction.t -> Reg.t array) ->
+    insert:(Instruction.t DLL.cell -> Instruction.t -> unit) ->
+    add_default:(Instruction.t DLL.t -> Instruction.t -> unit) ->
+    move_cell:(Instruction.t DLL.cell -> Instruction.t DLL.cell option) ->
+    block_subst:Substitution.t ->
+    stack_subst:Substitution.t ->
+    Cfg.basic_block ->
+    Instruction.t DLL.cell option ->
+    Reg.Set.t ->
+    unit =
+ fun state ~make_spill_or_reload ~array_of_interest ~insert ~add_default
+     ~move_cell ~block_subst ~stack_subst block cell live_at_interesting_point ->
+  match Reg.Set.is_empty live_at_interesting_point with
+  | true -> ()
+  | false -> (
+    match cell with
+    | None ->
+      Reg.Set.iter
+        (fun old_reg ->
+          let new_reg = Substitution.apply_reg block_subst old_reg in
+          let copy =
+            { Instruction.dummy with
+              dbg = block.terminator.dbg;
+              fdo = block.terminator.fdo;
+              live = block.terminator.live;
+              stack_offset = block.terminator.stack_offset
+            }
+          in
+          let spill_or_reload =
+            make_spill_or_reload state ~stack_subst ~old_reg ~new_reg ~copy
+          in
+          add_default block.body spill_or_reload)
+        live_at_interesting_point
+    | Some cell ->
+      let live_at_interesting_point =
+        Reg.Set.filter
+          (fun old_reg ->
+            let new_reg = Substitution.apply_reg block_subst old_reg in
+            let instr = DLL.value cell in
+            if occurs_array (array_of_interest instr) new_reg
+            then (
+              let spill_or_reload =
+                make_spill_or_reload state ~stack_subst ~old_reg ~new_reg
+                  ~copy:instr
+              in
+              insert cell spill_or_reload;
+              false)
+            else true)
+          live_at_interesting_point
+      in
+      let cell = move_cell cell in
+      insert_splills_or_reloads_in_block state ~make_spill_or_reload
+        ~array_of_interest ~insert ~add_default ~move_cell ~block_subst
+        ~stack_subst block cell live_at_interesting_point)
+
 (* Inserts the spills in a block, as early as possible (i.e. immediately after
    the register is last set), to reduce live ranges. *)
-let rec insert_spills_in_block :
+let insert_spills_in_block :
     State.t ->
     block_subst:Substitution.t ->
     stack_subst:Substitution.t ->
@@ -143,42 +202,10 @@ let rec insert_spills_in_block :
     Reg.Set.t ->
     unit =
  fun state ~block_subst ~stack_subst block cell live_at_destruction_point ->
-  match Reg.Set.is_empty live_at_destruction_point with
-  | true -> ()
-  | false -> (
-    match cell with
-    | None ->
-      Reg.Set.iter
-        (fun old_reg ->
-          let new_reg = Substitution.apply_reg block_subst old_reg in
-          let copy = block.terminator in
-          let spill = make_spill state ~stack_subst ~old_reg ~new_reg ~copy in
-          DLL.add_begin block.body spill)
-        live_at_destruction_point
-    | Some cell ->
-      let live_at_destruction_point =
-        Reg.Set.filter
-          (fun old_reg ->
-            let new_reg = Substitution.apply_reg block_subst old_reg in
-            let instr = DLL.value cell in
-            (* We assume `new_reg` has no location yet (we are before register
-               allocation, but selection uses fixed registers in various
-               places). If the assertion does not hold, we need to look at the
-               registers destroyed by the instruction. *)
-            assert (Reg.is_unknown new_reg);
-            if occurs_array instr.res new_reg
-            then (
-              let spill =
-                make_spill state ~stack_subst ~old_reg ~new_reg ~copy:instr
-              in
-              DLL.insert_after cell spill;
-              false)
-            else true)
-          live_at_destruction_point
-      in
-      let cell = DLL.prev cell in
-      insert_spills_in_block state ~block_subst ~stack_subst block cell
-        live_at_destruction_point)
+  insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_spill
+    ~array_of_interest:(fun instr -> instr.res)
+    ~insert:DLL.insert_after ~add_default:DLL.add_begin ~move_cell:DLL.prev
+    ~block_subst ~stack_subst block cell live_at_destruction_point
 
 (* Inserts spills in all blocks. *)
 (* CR mshinwell: Add special handling for [Iname_for_debugger] (see
@@ -203,14 +230,7 @@ let insert_spills :
    substitution and `new_reg` after substitution, copying debug and FDO
    information from `copy`, and getting the stack slot from `stack_subst` if
    `old_reg` is mapped. *)
-let make_reload :
-    type a.
-    State.t ->
-    stack_subst:Substitution.t ->
-    old_reg:Reg.t ->
-    new_reg:Reg.t ->
-    copy:a Cfg.instruction ->
-    Instruction.t =
+let make_reload : type a. a make_operation =
  fun state ~stack_subst ~old_reg ~new_reg ~copy ->
   let stack_reg : Reg.t =
     match Reg.Tbl.find_opt stack_subst old_reg with
@@ -236,7 +256,7 @@ let make_reload :
 
 (* Inserts the relaods in a block, as late as possible (i.e. immediately before
    the register is first read), to reduce live ranges. *)
-let rec insert_reloads_in_block :
+let insert_reloads_in_block :
     State.t ->
     block_subst:Substitution.t ->
     stack_subst:Substitution.t ->
@@ -245,37 +265,10 @@ let rec insert_reloads_in_block :
     Reg.Set.t ->
     unit =
  fun state ~block_subst ~stack_subst block cell live_at_definition_point ->
-  match Reg.Set.is_empty live_at_definition_point with
-  | true -> ()
-  | false -> (
-    match cell with
-    | None ->
-      Reg.Set.iter
-        (fun old_reg ->
-          let new_reg = Substitution.apply_reg block_subst old_reg in
-          let copy = block.terminator in
-          let reload = make_reload state ~stack_subst ~old_reg ~new_reg ~copy in
-          DLL.add_end block.body reload)
-        live_at_definition_point
-    | Some cell ->
-      let live_at_definition_point =
-        Reg.Set.filter
-          (fun old_reg ->
-            let new_reg = Substitution.apply_reg block_subst old_reg in
-            let instr = DLL.value cell in
-            if occurs_array instr.arg new_reg
-            then (
-              let reload =
-                make_reload state ~stack_subst ~old_reg ~new_reg ~copy:instr
-              in
-              DLL.insert_before cell reload;
-              false)
-            else true)
-          live_at_definition_point
-      in
-      let cell = DLL.next cell in
-      insert_reloads_in_block state ~block_subst ~stack_subst block cell
-        live_at_definition_point)
+  insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_reload
+    ~array_of_interest:(fun instr -> instr.arg)
+    ~insert:DLL.insert_before ~add_default:DLL.add_end ~move_cell:DLL.next
+    ~block_subst ~stack_subst block cell live_at_definition_point
 
 (* Inserts reloads in all blocks. *)
 let insert_reloads :
