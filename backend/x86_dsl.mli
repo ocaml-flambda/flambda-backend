@@ -92,7 +92,7 @@ module D : sig
   val private_extern: string -> unit
   val qword: constant -> unit
   val reloc: offset:constant -> name:reloc_type -> expr:constant -> unit
-  val section: string list -> string option -> string list -> unit
+  val section: ?delayed:bool -> string list -> string option -> string list -> unit
   val setvar: string * constant -> unit
   val size: string -> constant -> unit
   val sleb128 : constant -> unit

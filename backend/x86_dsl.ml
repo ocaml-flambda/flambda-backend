@@ -75,7 +75,7 @@ let mem64_rip typ ?(ofs = 0) s =
   Mem64_RIP (typ, s, ofs)
 
 module D = struct
-  let section segment flags args = directive (Section (segment, flags, args))
+  let section ?(delayed=false) segment flags args = directive (Section (segment, flags, args, delayed))
   let align ~data n = directive (Align (data, n))
   let byte n = directive (Byte n)
   let bytes s = directive (Bytes s)

@@ -430,9 +430,9 @@ let print_line b = function
   | NewLabel (s, _) -> bprintf b "%s:" s
   | NewLine -> ()
   | Quad n -> bprintf b "\t.quad\t%a" cst n
-  | Section ([".data" ], _, _) -> bprintf b "\t.data"
-  | Section ([".text" ], _, _) -> bprintf b "\t.text"
-  | Section (name, flags, args) ->
+  | Section ([".data" ], _, _, _) -> bprintf b "\t.data"
+  | Section ([".text" ], _, _, _) -> bprintf b "\t.text"
+  | Section (name, flags, args, _delayed) ->
       bprintf b "\t.section %s" (String.concat "," name);
       begin match flags with
       | None -> ()

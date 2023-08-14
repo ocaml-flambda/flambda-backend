@@ -490,9 +490,9 @@ let binop ppf binop a b =
     Format.fprintf ppf "@[<2>%%int_shift %a%a@ %a@ %a@]"
       (standard_int ~space:After)
       i simple a int_shift_op s simple b
-  | Bigarray_check_alignment align ->
-    Format.fprintf ppf "@[<2>%%bigarray_check_alignment[%d] %a@ %a@]" align
-      simple a simple b
+  | Bigarray_get_alignment align ->
+    Format.fprintf ppf "@[<2>%%bigarray_get_alignment[%d] %a@ %a@]" align simple
+      a simple b
 
 let unary_int_arith_op ppf (o : unary_int_arith_op) =
   Format.pp_print_string ppf

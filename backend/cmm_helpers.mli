@@ -367,7 +367,7 @@ val bigstring_length : expression -> Debuginfo.t -> expression
 
 val bigstring_data : expression -> Debuginfo.t -> expression
 
-val bigstring_alignment_test :
+val bigstring_get_alignment :
   expression -> expression -> int -> Debuginfo.t -> expression
 
 module Extended_machtype_component : sig

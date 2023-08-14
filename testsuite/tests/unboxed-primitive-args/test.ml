@@ -13,7 +13,7 @@ arguments = "ml"
 compiler_output = "main.ml"
 **** ocamlopt.opt
 ocamlopt_flags = "-extension simd -cc '${cc} -msse4.2'"
-all_modules = "test_common.c stubs.c common.mli common.ml main.ml"
+all_modules = "test_common.c stubs.c common.mli common.ml test0.ml test1.ml main.ml"
 ***** run
 ****** check-program-output
 

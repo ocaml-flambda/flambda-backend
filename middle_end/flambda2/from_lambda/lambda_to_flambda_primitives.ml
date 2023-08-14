@@ -367,8 +367,7 @@ let bigstring_alignment_validity_condition bstr alignment tagged_index :
   Binary
     ( Int_comp (I.Naked_immediate, Yielding_bool Eq),
       Prim
-        (Binary
-           (Bigarray_check_alignment alignment, bstr, untag_int tagged_index)),
+        (Binary (Bigarray_get_alignment alignment, bstr, untag_int tagged_index)),
       Simple Simple.untagged_const_zero )
 
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
