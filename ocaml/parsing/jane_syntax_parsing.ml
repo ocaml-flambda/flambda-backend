@@ -682,6 +682,11 @@ module Case0 = Make_with_extension_node (struct
     let pc_rhs = { case.pc_rhs with pexp_loc = l } in
     { case with pc_rhs  }
 
+  (** See [AST_syntactic_category] documentation about the rare cases in which
+      *not* to fail if the "wrong" syntactic category is encountered. For cases,
+      we don't want to fail if the case rhs carries a Jane Syntax expression
+      embedding, as the rhs may itself be a Jane Syntax expression.
+   *)
   let fail_if_wrong_syntactic_category = false
 
   let make_extension_use extension ast =
