@@ -909,8 +909,8 @@ and approx_modtype_jane_syntax env = function
       Env.lookup_module_path ~use:false ~load:false
         ~loc:smty.pmty_loc mod_id.txt env
     in
-    let aliasable = not (Env.is_functor_arg path env) in
-    Mty_strengthen (mty, path, aliasable)
+    let aliasable = (not (Env.is_functor_arg path env)) in
+    Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
 
 and approx_module_declaration env pmd =
   {
@@ -1476,7 +1476,7 @@ and transl_modtype_jane_syntax_aux ~loc env = function
           ~mark:Includemod.Mark_neither tmty.mty_type md.md_type);
       mkmty
         (Tmty_strengthen (tmty, path, mod_id))
-        (Mty_strengthen (tmty.mty_type, path, aliasable))
+        (Mty_strengthen (tmty.mty_type, path, Aliasability.aliasable aliasable))
         env
         loc
         []

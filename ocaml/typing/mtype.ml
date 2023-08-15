@@ -25,7 +25,21 @@ let freshen ~scope mty =
 (* Strengthen a type as far as possible without unfolding abbreviations,
   pushing strengthening into signatures and functors. Return None if we
   couldn't push it inwards (or eliminate it) and an Mty_strengthen node
-  needs to be constructed instead. *)
+  needs to be constructed instead.
+
+  Generally, strengthening with a module M is *aliasable* M is guaranteed
+  to be a "real" module (and thus can appear in Mty_alias) and is not
+  aliasable if M can be a functor argument. Aliasable strengthening is
+  shallow in the sense that we simply replace the types of any submodule
+  N by `Mty_alias M.N`. Non-aliasable strengthening is deep since we can't
+  form aliases to M or its submodules. Instead, we have to unfold the entire
+  module type and strengthen all type definition which is expensive.
+
+  The decision whether a particular strengthening operation is aliasable is
+  made when we first introduce it (in Typemod). Strengthening with a functor
+  argument remains non-aliasable even if we later substitute a "real" module
+  for it. This ensures that strengthening commutes with substitution and
+  that it is irrelevant when exactly a strengthening node is expanded.  *)
 let rec reduce_strengthen_lazy ~aliasable mty p =
   let open Subst.Lazy in
   match mty with
@@ -42,7 +56,7 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
       Some (Mty_functor(Named (Some param, arg),
         strengthen_lazy ~aliasable:false res (Papply(p, Pident param))))
 
-  | Mty_strengthen (mty,q,a) when aliasable && not a ->
+  | Mty_strengthen (mty,q,Not_aliasable) when aliasable ->
       (* Normally, we have S/M/N = S/M. However, if the inner strengthening is
         not aliasable and the outer is, we strengthen types in S with M and
         modules with N. We might consider changing this in the future. *)
@@ -60,7 +74,8 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
 and strengthen_lazy ~aliasable mty p =
   match reduce_strengthen_lazy ~aliasable mty p with
   | Some mty -> mty
-  | None -> Subst.Lazy.Mty_strengthen (mty,p,aliasable)
+  | None ->
+      Subst.Lazy.Mty_strengthen (mty, p, Aliasability.aliasable aliasable)
 
 and strengthen_lazy_sig' ~aliasable sg p =
   let open Subst.Lazy in
@@ -154,7 +169,8 @@ let rec reduce_lazy ~aliases env mty =
             (Warnings.No_cmi_file (Path.name path));*)
           None
         end
-  | Mty_strengthen (mty, p, aliasable) ->
+  | Mty_strengthen (mty,p,a) ->
+      let aliasable = Aliasability.is_aliasable a in
       begin match reduce_strengthen_lazy ~aliasable mty p with
       | Some mty -> Some mty
       | None ->
@@ -323,7 +339,7 @@ let rec make_aliases_absent ?(aliased=false) pres mty =
   | Mty_ident _ ->
       pres, mty
   | Mty_strengthen (mty,p,a) ->
-      let aliased = aliased || a in
+      let aliased = aliased || Aliasability.is_aliasable a in
       let pres, res = make_aliases_absent ~aliased pres mty in
       pres, Mty_strengthen (res,p,a)
 
@@ -419,13 +435,15 @@ let rec nondep_mty_with_presence env va ids pres mty =
                     nondep_mty res_env va ids res)
       in
       pres, mty
-  | Mty_strengthen (mty,p,aliasable) ->
+  | Mty_strengthen (mty,p,a) ->
       (* If we end up strengthening an abstract type with a dependent module,
         just drop the strengthening. *)
       let pres,mty = nondep_mty_with_presence env va ids pres mty
       in
       let mty =
-        if Path.exists_free ids p then mty else strengthen ~aliasable mty p
+        if Path.exists_free ids p
+          then mty
+          else strengthen ~aliasable:(Aliasability.is_aliasable a) mty p
       in
       pres,mty
 

@@ -2082,9 +2082,10 @@ let rec tree_of_modtype ?(ellipsis=false) = function
       Omty_alias (tree_of_path Module p)
   | Mty_strengthen _ as mty ->
       begin match !expand_module_type !printing_env mty with
-      | Mty_strengthen (mty, p, aliasable) ->
+      | Mty_strengthen (mty,p,a) ->
           let unaliasable =
-                not aliasable && not (Env.is_functor_arg p !printing_env)
+            not (Aliasability.is_aliasable a)
+            && not (Env.is_functor_arg p !printing_env)
           in
           Omty_strengthen
             (tree_of_modtype ~ellipsis mty, tree_of_path Module p, unaliasable)
