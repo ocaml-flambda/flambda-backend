@@ -297,7 +297,7 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
-let get_property_attribute l p ~fun_attr:_ =
+let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
   (match attr, res with
@@ -408,6 +408,21 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
+let assume_zero_alloc attributes =
+  let p = Zero_alloc in
+  let attr = find_attribute (is_property_attribute p) attributes in
+  match parse_property_attribute attr p with
+  | Default_check -> false
+  | Ignore_assert_all _ -> false
+  | Check { property = Zero_alloc; assume } -> assume
+
+let assume_zero_alloc attributes =
+  (* This function is used for "look-ahead" to find attributes
+     that affect [Scoped_location] settings before translation
+     of expressions in that scope.
+     Warnings will be produced by [add_check_attribute]. *)
+  Warnings.without_warnings (fun () -> assume_zero_alloc attributes)
+
 let add_check_attribute expr loc attributes =
   let to_string = function
     | Zero_alloc -> "zero_alloc"
@@ -424,7 +439,7 @@ let add_check_attribute expr loc attributes =
   in
   match expr with
   | Lfunction({ attr = { stub = false } as attr; } as funct) ->
-    begin match get_property_attribute attributes Zero_alloc ~fun_attr:attr with
+    begin match get_property_attribute attributes Zero_alloc with
     | Default_check -> expr
     | (Ignore_assert_all p | Check { property = p; _ }) as check ->
       begin match attr.check with
