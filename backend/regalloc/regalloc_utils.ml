@@ -347,6 +347,17 @@ module Substitution = struct
         | Some subst -> apply_block_in_place subst block)
 end
 
+let remove_prologue : Cfg.basic_block -> bool =
+ fun block ->
+  let removed = ref false in
+  DLL.filter_left block.body ~f:(fun instr ->
+      match instr.Cfg.desc with
+      | Cfg.Prologue ->
+        removed := true;
+        false
+      | _ -> true);
+  !removed
+
 let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -358,16 +369,19 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   then
     (* note: `Cfgize` has put the prologue in the block after the entry block *)
     let entry_block = Cfg.get_block_exn cfg cfg.entry_label in
-    match entry_block.terminator.desc with
-    | Always label ->
-      let block = Cfg.get_block_exn cfg label in
-      DLL.filter_left block.body ~f:(fun instr ->
-          match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
-    | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-    | Poll_and_jump _ ->
-      assert false
+    let removed = remove_prologue entry_block in
+    if not removed
+    then
+      match entry_block.terminator.desc with
+      | Always label ->
+        let block = Cfg.get_block_exn cfg label in
+        let removed = remove_prologue block in
+        assert removed
+      | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+      | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
+      | Poll_and_jump _ ->
+        assert false
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->
