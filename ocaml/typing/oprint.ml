@@ -337,12 +337,11 @@ and print_out_arg am ppf ty =
 and print_out_ret mode rm ppf ty =
   match mode, rm with
   | Oam_local, Oam_local
-  | Oam_global, Oam_global
-  | Oam_unknown, _
-  | _, Oam_unknown -> print_out_type_1 rm ppf ty
+  | Oam_global, Oam_global -> print_out_type_1 rm ppf ty
   | _, Oam_local ->
-      print_out_type_local rm ppf ty
+    print_out_type_local rm ppf ty
   | _, Oam_global -> print_out_type_2 rm ppf ty
+  | _, Oam_unknown -> print_out_type_1 rm ppf ty
 
 and print_out_type_local m ppf ty =
   if Language_extension.is_enabled Local then begin
