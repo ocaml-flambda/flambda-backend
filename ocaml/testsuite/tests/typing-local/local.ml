@@ -2630,3 +2630,33 @@ Error: This local value escapes its region
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
+
+(* Reported internal to Jane Street as COMPILERS-1504 *)
+
+module M : sig
+  val f : string -> string -> local_ string
+end = struct
+  let g x y = local_ "foo"
+  let f x = local_ g x
+end;;
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   let g x y = local_ "foo"
+5 |   let f x = local_ g x
+6 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           val g : 'a -> 'b -> local_ string
+           val f : 'a -> local_ ('b -> local_ string)
+         end
+       is not included in
+         sig val f : string -> string -> local_ string end
+       Values do not match:
+         val f : 'a -> local_ ('b -> local_ string)
+       is not included in
+         val f : string -> string -> local_ string
+       The type string -> local_ (string -> local_ string)
+       is not compatible with the type string -> string -> local_ string
+|}]
