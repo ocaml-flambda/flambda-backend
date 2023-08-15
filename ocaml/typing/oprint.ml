@@ -339,7 +339,7 @@ and print_out_ret mode rm ppf ty =
   | Oam_local, Oam_local
   | Oam_global, Oam_global -> print_out_type_1 rm ppf ty
   | _, Oam_local ->
-    print_out_type_local rm ppf ty
+      print_out_type_local rm ppf ty
   | _, Oam_global -> print_out_type_2 rm ppf ty
   | _, Oam_unknown -> print_out_type_1 rm ppf ty
 
