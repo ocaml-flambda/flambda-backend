@@ -1836,9 +1836,8 @@ let pressure_variants_in_computation_pattern tdefs patl =
 
 let is_fallthrough_possible = function
   (* Total pattern-guarded rhs's can never fallthrough, as they always match. *)
-  | Simple_rhs _ | Pattern_guarded_rhs { pg_partial = Total; _ } -> false
-  | Boolean_guarded_rhs _ | Pattern_guarded_rhs { pg_partial = Partial; _ } ->
-      true
+  | Simple_rhs _ | Pattern_guarded_rhs { partial = Total; _ } -> false
+  | Boolean_guarded_rhs _ | Pattern_guarded_rhs { partial = Partial; _ } -> true
 
 (*
   Build up a working pattern matrix by forgetting
