@@ -367,7 +367,7 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   in
   if not prologue_required
   then
-    (* note: `Cfgize` has put the prologue in the block after the entry block *)
+    (* note: `Cfgize` has put the prologue in the entry block or its successor. *)
     let entry_block = Cfg.get_block_exn cfg cfg.entry_label in
     let removed = remove_prologue entry_block in
     if not removed
