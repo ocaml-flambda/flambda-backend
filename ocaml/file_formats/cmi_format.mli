@@ -24,7 +24,7 @@ type pers_flags =
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.t;
     cmi_sign : 'sg;
-    cmi_crcs : Import_info.t array;
+    cmi_crcs : Import_info.Intf.t array;
     cmi_flags : pers_flags list;
 }
 

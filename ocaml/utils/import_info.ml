@@ -14,53 +14,65 @@
 
 module CU = Compilation_unit
 
-type t =
-  | Normal of CU.t * Digest.t
-  | Normal_no_crc of CU.t
-  | Other of CU.Name.t * (CU.t * Digest.t) option
+module Intf = struct
+  type t =
+    | Normal of CU.Name.t * Digest.t (* Unpacked, so compilation unit = name *)
+    | Name_only of CU.Name.t
+    | Other of CU.Name.t * (CU.t * Digest.t) option
 
-(* CR xclerc: Maybe introduce Other_no_crc to flatten the option *)
+  let create cu_name ~crc_with_unit =
+    match crc_with_unit with
+    | None -> Other (cu_name, None)
+    | Some (cu, crc) ->
+      (* For the moment be conservative and only use the [Normal] constructor
+         when there is no pack prefix at all. *)
+      if CU.Prefix.is_empty (CU.for_pack_prefix cu)
+         && CU.Name.equal (CU.name cu) cu_name
+      then Normal (cu_name, crc)
+      else Other (cu_name, Some (cu, crc))
 
-let create cu_name ~crc_with_unit =
-  match crc_with_unit with
-  | None -> Other (cu_name, None)
-  | Some (cu, crc) ->
-    (* For the moment be conservative and only use the [Normal] constructor when
-       there is no pack prefix at all. *)
-    if CU.Prefix.is_empty (CU.for_pack_prefix cu)
-       && CU.Name.equal (CU.name cu) cu_name
-    then Normal (cu, crc)
-    else Other (cu_name, Some (cu, crc))
+  let name t =
+    match t with Normal (name, _) | Name_only name | Other (name, _) -> name
 
-let create_normal cu ~crc =
-  match crc with Some crc -> Normal (cu, crc) | None -> Normal_no_crc cu
+  let impl t =
+    match t with
+    | Normal (name, _) ->
+      let cu = CU.create CU.Prefix.empty name in
+      Some cu
+    | Name_only _ -> None
+    | Other (_, Some (cu, _)) -> Some cu
+    | Other (_, None) -> None
 
-let name t =
-  match t with
-  | Normal (cu, _) | Normal_no_crc cu -> CU.name cu
-  | Other (name, _) -> name
+  let crc t =
+    match t with
+    | Normal (_, crc) -> Some crc
+    | Name_only _ | Other (_, None) -> None
+    | Other (_, Some (_, crc)) -> Some crc
 
-let cu t =
-  match t with
-  | Normal (cu, _) | Normal_no_crc cu | Other (_, Some (cu, _)) -> cu
-  | Other (name, None) ->
-    Misc.fatal_errorf
-      "Cannot extract [Compilation_unit.t] from [Import_info.t] (for unit %a) \
-       that never received it"
-      CU.Name.print name
+  let crc_with_unit t =
+    match t with
+    | Normal (cu, crc) -> Some (CU.create CU.Prefix.empty cu, crc)
+    | Name_only _ | Other (_, None) -> None
+    | Other (_, some_cu_and_crc) -> some_cu_and_crc
 
-let crc t =
-  match t with
-  | Normal (_, crc) -> Some crc
-  | Normal_no_crc _ | Other (_, None) -> None
-  | Other (_, Some (_, crc)) -> Some crc
+  let has_name t ~name:name' = CU.Name.equal (name t) name'
 
-let crc_with_unit t =
-  match t with
-  | Normal (cu, crc) -> Some (cu, crc)
-  | Normal_no_crc _ | Other (_, None) -> None
-  | Other (_, some_cu_and_crc) -> some_cu_and_crc
+  let dummy = Name_only CU.Name.dummy
+end
 
-let has_name t ~name:name' = CU.Name.equal (name t) name'
+module Impl = struct
+  type t =
+    | With_crc of CU.t * Digest.t
+    | No_crc of CU.t
 
-let dummy = Other (CU.Name.dummy, None)
+  let create cu ~crc =
+    match crc with Some crc -> With_crc (cu, crc) | None -> No_crc cu
+
+  let cu (With_crc (cu, _) | No_crc cu) = cu
+
+  let name t = CU.name (cu t)
+
+  let crc t = match t with With_crc (_, crc) -> Some crc | No_crc _ -> None
+
+  let dummy = No_crc CU.dummy
+end

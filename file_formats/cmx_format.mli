@@ -59,9 +59,9 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_unit] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: Import_info.t list;
+    mutable ui_imports_cmi: Import_info.Intf.t list;
                                           (* Interfaces imported *)
-    mutable ui_imports_cmx: Import_info.t list;
+    mutable ui_imports_cmx: Import_info.Impl.t list;
                                           (* Infos imported *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
@@ -71,8 +71,8 @@ type unit_infos =
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;
     uir_defines: Compilation_unit.t list;
-    uir_imports_cmi: Import_info.t array;
-    uir_imports_cmx: Import_info.t array;
+    uir_imports_cmi: Import_info.Intf.t array;
+    uir_imports_cmx: Import_info.Impl.t array;
     uir_generic_fns: generic_fns;
     uir_export_info: export_info_raw;
     uir_checks: Checks.Raw.t;
@@ -95,8 +95,8 @@ type lib_unit_info =
     li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)
 
 type library_infos =
-  { lib_imports_cmi: Import_info.t array;
-    lib_imports_cmx: Import_info.t array;
+  { lib_imports_cmi: Import_info.Intf.t array;
+    lib_imports_cmx: Import_info.Impl.t array;
     lib_units: lib_unit_info list;
     lib_generic_fns: generic_fns;
     (* In the following fields the lists are reversed with respect to

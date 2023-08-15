@@ -52,7 +52,7 @@ module Serialized = Types.Make_wrapped(struct type 'a t = int end)
 (* these type abbreviations are not exported;
    they are used to provide consistency across
    input_value and output_value usage. *)
-type crcs = Import_info.t array  (* smaller on disk than using a list *)
+type crcs = Import_info.Intf.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = Compilation_unit.t * Serialized.signature
 
@@ -170,10 +170,11 @@ let output_cmi filename oc cmi =
   output_value oc ((cmi.cmi_name, sign) : header);
   flush oc;
   let crc = Digest.file filename in
-  let crcs =
-    Array.append [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-      cmi.cmi_crcs
+  let my_info =
+    Import_info.Intf.create (Compilation_unit.name cmi.cmi_name)
+      ~crc_with_unit:(Some (cmi.cmi_name, crc))
   in
+  let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);
   crc
