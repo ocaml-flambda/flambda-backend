@@ -187,8 +187,8 @@ let check_consistency file_name cu =
   begin try
     Array.iter
       (fun import ->
-        let name = Import_info.Intf.name import in
-        let crco = Import_info.Intf.crc import in
+        let name = Import_info.name import in
+        let crco = Import_info.crc import in
         let cuo = Import_info.Intf.impl import in
         interfaces := name :: !interfaces;
         match crco with

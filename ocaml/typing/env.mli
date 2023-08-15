@@ -449,10 +449,10 @@ val register_parameter_import: Compilation_unit.Name.t -> unit
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> Import_info.Intf.t list
+val imports: unit -> Import_info.t list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> Import_info.Intf.t array -> unit
+val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as parameters, along with the
    local variable representing each *)
