@@ -351,9 +351,9 @@ module Pattern_guarded = struct
     let fail_malformed ~loc =
       Location.raise_errorf ~loc "Malformed pattern guarded case rhs"
 
-  let of_case { pc_lhs; pc_rhs } =
-    match pc_rhs.pexp_desc with
-    | Pexp_match (scrutinee, cases) ->
+  let of_case { pc_lhs; pc_guard; pc_rhs } =
+    match pc_guard, pc_rhs.pexp_desc with
+    | None, Pexp_match (scrutinee, cases) ->
         Pg_case { lhs = pc_lhs; scrutinee; cases }
     | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
 
