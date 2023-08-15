@@ -810,6 +810,27 @@ type partiality_constraint =
   | Check_and_warn_if_partial
   | Check_and_warn_if_total
 
+(* Parsed case rhs's, encoded using Jane_syntax instead of in Parsetree proper.
+   Prefixed by "P" to distinguish from [Typedtree.case_rhs] *)
+type parsed_case_rhs =
+  | Psimple_rhs of Parsetree.expression
+  | Pboolean_guarded_rhs of
+      { guard : Parsetree.expression; rhs: Parsetree.expression }
+  | Ppattern_guarded_rhs of
+      { scrutinee : Parsetree.expression
+      ; cases: Parsetree.case list
+      ; loc: Location.t }
+
+let parsed_case_rhs_of_case case =
+  match Jane_syntax.Case.of_ast case with
+  | Some (Jcase_pattern_guarded (Pg_case { scrutinee; cases })) ->
+      let loc = case.pc_rhs.pexp_loc in
+      Ppattern_guarded_rhs { scrutinee; cases; loc }
+  | None ->
+      match case.pc_guard with
+      | None -> Psimple_rhs case.pc_rhs
+      | Some guard -> Pboolean_guarded_rhs { guard; rhs = case.pc_rhs }
+
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
    allowed, the caller should take care to check that the introduced module
@@ -3562,13 +3583,14 @@ let is_local_returning_expr, is_local_returning_case_rhs =
         | [] -> false, pexp_loc
         | first :: rest ->
             List.fold_left
-              (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
-              (loop_case_rhs first.pc_rhs) rest
+              (fun acc pc -> combine acc (loop_case pc))
+              (loop_case first) rest
       end
     | Pexp_try(e, cases) ->
         List.fold_left
-          (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
+          (fun acc pc -> combine acc (loop_case pc))
           (loop e) cases
+  and loop_case case = loop_case_rhs (parsed_case_rhs_of_case case)
   and loop_case_rhs = function
     | Psimple_rhs e -> loop e
     | Pboolean_guarded_rhs { rhs; _ } -> loop rhs
@@ -3596,10 +3618,12 @@ let is_local_returning_function cases =
   let rec loop_cases cases =
     match cases with
     | [] -> false
-    | [{pc_lhs = _; pc_rhs = Psimple_rhs e}] ->
+    | [{pc_lhs = _; pc_guard = None; pc_rhs = e} as case]
+      when Jane_syntax.Case.of_ast case = None ->
         loop_body e
     | cases ->
-        List.for_all (fun case -> is_local_returning_case_rhs case.pc_rhs) cases
+        List.for_all
+          (fun case -> is_local_returning_case_rhs (parsed_case_rhs_of_case case)) cases
   and loop_body e =
     if Builtin_attributes.has_curry e.pexp_attributes then
       is_local_returning_expr e
@@ -3734,11 +3758,11 @@ and type_approx_aux env sexp in_function ty_expected =
   | Pexp_fun (l, _, p, e) ->
       type_function_approx env sexp.pexp_loc l (Some p) (Psimple_rhs e)
         in_function ty_expected
-  | Pexp_function ({pc_rhs}::_) ->
-      type_function_approx env sexp.pexp_loc Nolabel None pc_rhs
-        in_function ty_expected
-  | Pexp_match (_, cases) ->
-      type_approx_aux_cases env cases None ty_expected
+  | Pexp_function (case::_) ->
+      let rhs = parsed_case_rhs_of_case case in
+      type_function_approx env sexp.pexp_loc Nolabel None rhs in_function
+        ty_expected
+  | Pexp_match (_, cases) -> type_approx_aux_cases env cases None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
@@ -3790,8 +3814,9 @@ and type_approx_aux_case_rhs env rhs in_function ty_expected =
 and type_approx_aux_cases env cases in_function ty_expected =
   match cases with
   | [] -> ()
-  | { pc_rhs; _ } :: _ ->
-      type_approx_aux_case_rhs env pc_rhs in_function ty_expected
+  | case :: _ ->
+    let rhs = parsed_case_rhs_of_case case in
+    type_approx_aux_case_rhs env rhs in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -4329,8 +4354,7 @@ and type_expect_
     (* TODO: allow non-empty attributes? *)
       type_expect ?in_function env expected_mode
         {sexp with
-         pexp_desc =
-           Pexp_match (sval, [Ast_helper.Exp.case spat (Psimple_rhs sbody)])}
+         pexp_desc = Pexp_match (sval, [Ast_helper.Exp.case spat sbody])}
         ty_expected_explained
   | Pexp_let(rec_flag, spat_sexp_list, sbody) ->
       let existential_context =
@@ -4422,17 +4446,15 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "Some"))))
              (Some ([], Pat.var ~loc:default_loc (mknoloc "*sth*"))))
-          (Psimple_rhs
-            (Exp.ident ~loc:default_loc (mknoloc (Longident.Lident "*sth*"))));
+          (Exp.ident ~loc:default_loc (mknoloc (Longident.Lident "*sth*")));
 
         Exp.case
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          (Psimple_rhs
-             (Exp.apply ~loc:default_loc
-                (Exp.extension (mknoloc "extension.escape", PStr []))
-                [Nolabel, default]));
+          (Exp.apply ~loc:default_loc
+            (Exp.extension (mknoloc "extension.escape", PStr []))
+            [Nolabel, default]);
        ]
       in
       let sloc =
@@ -4455,7 +4477,7 @@ and type_expect_
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
                     l ~has_local ~has_poly:false
-                    [Exp.case pat (Psimple_rhs body)]
+                    [Exp.case pat body]
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
@@ -4467,7 +4489,7 @@ and type_expect_
           Unsupported_extension Polymorphic_parameters));
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
-                    ~has_poly [Ast_helper.Exp.case spat (Psimple_rhs sbody)]
+                    ~has_poly [Ast_helper.Exp.case spat sbody]
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
@@ -5630,7 +5652,7 @@ and type_expect_
         type_andops env slet.pbop_exp sands ty_andops
       in
       let body_env = Env.add_lock Alloc_mode.global env in
-      let scase = Ast_helper.Exp.case spat_params (Psimple_rhs sbody) in
+      let scase = Ast_helper.Exp.case spat_params sbody in
       let cases, partial =
         type_cases Value ~require_value_case:true body_env
           (simple_pat_mode Value_mode.global)
@@ -5879,8 +5901,10 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   if separate then begin_def ();
   let uncurried_function =
     match caselist with
-    | [{pc_lhs = _; pc_rhs = Psimple_rhs e}] ->
-        is_an_uncurried_function e
+    | [ case ] ->
+        (match parsed_case_rhs_of_case case with
+         | Psimple_rhs e -> is_an_uncurried_function e
+         | _ -> false)
     | _ -> false
   in
   let ty_expected' = instance ty_expected in
@@ -6870,7 +6894,7 @@ and type_cases
     | _ -> false in
   let needs_exhaust_check =
     match caselist with
-      [{pc_rhs = Psimple_rhs {pexp_desc = Pexp_unreachable}}] -> true
+      [{pc_rhs = {pexp_desc = Pexp_unreachable}}] -> true
     | [{pc_lhs}] when is_var pc_lhs -> false
     | _ -> true
   in
@@ -6966,8 +6990,7 @@ and type_cases
     List.map
       (fun { typed_pat = pat; branch_env = ext_env;
              pat_vars = pvs; module_vars = mvs;
-             untyped_case = {pc_lhs = _; pc_rhs};
-             contains_gadt; _ }  ->
+             untyped_case; contains_gadt; _ }  ->
         let ext_env =
           if contains_gadt then
             do_copy_types ext_env
@@ -6998,24 +7021,25 @@ and type_cases
           in
           { rhs with exp_type = instance ty_res' }
         in
+        let pc_rhs = parsed_case_rhs_of_case untyped_case in
         let c_rhs =
           match pc_rhs with
-            | Psimple_rhs rhs -> Simple_rhs (type_rhs rhs)
-            | Pboolean_guarded_rhs { guard; rhs } ->
-                let guard =
-                  type_expect ext_env mode_local guard
-                    (mk_expected ~explanation:When_guard Predef.type_bool)
-                in
-                let rhs = type_rhs rhs in
-                Boolean_guarded_rhs { guard; rhs }
+          | Psimple_rhs rhs -> Simple_rhs (type_rhs rhs)
+          | Pboolean_guarded_rhs { guard; rhs } ->
+              let guard =
+                type_expect ext_env mode_local guard
+                  (mk_expected ~explanation:When_guard Predef.type_bool)
+              in
+              let rhs = type_rhs rhs in
+              Boolean_guarded_rhs { guard; rhs }
           | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
               let { arg; sort; cases; partial; } =
                 type_match
                   (* Pattern guards containing no value cases will have an
                      "Any" [_] case inserted during translation to handle the
-                     case where no cases match, so we can successfully
-                     typecheck such guards. Accordingly, [require_value_case]
-                     is set to [false] below. *)
+                     case where no cases match, so we can successfully typecheck
+                     such guards. Accordingly, [require_value_case] is set to
+                     [false] below. *)
                   ~require_value_case:false scrutinee cases ext_env loc
                   Check_and_warn_if_total (mk_expected ?explanation ty_res')
                   emode
@@ -7030,9 +7054,8 @@ and type_cases
                 ; rhs_type = instance ty_res'
                 }
         in
-        {
-         c_lhs = pat;
-         c_rhs
+        { c_lhs = pat
+        ; c_rhs
         }
       )
       half_typed_cases

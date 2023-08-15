@@ -100,6 +100,19 @@ module Include_functor : sig
   val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
 end
 
+(** The ASTs for pattern-guarded cases. *)
+module Pattern_guarded : sig
+  type case =
+    | Pg_case of
+        { lhs: Parsetree.pattern
+        ; scrutinee: Parsetree.expression
+        ; cases: Parsetree.case list
+        }
+    (** [| P when E match (| C1 | ... | Cn)] *)
+
+  val case_of : loc:Location.t -> case -> Parsetree.case
+end
+
 (** The ASTs for module type strengthening. *)
 module Strengthen : sig
   type module_type =
@@ -236,6 +249,18 @@ module Expression : sig
 
   val expr_of :
     loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.expression
+end
+
+(** Novel syntax in cases *)
+module Case : sig
+  type t =
+    | Jcase_pattern_guarded of Pattern_guarded.case
+
+  include AST
+    with type t := t
+     and type ast := Parsetree.case
+
+  val case_of : loc:Location.t -> t -> Parsetree.case
 end
 
 (** Novel syntax in patterns *)

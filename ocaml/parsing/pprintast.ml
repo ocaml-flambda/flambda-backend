@@ -1808,26 +1808,33 @@ and extension_constructor_jst _ctxt _f _attrs :
   Jane_syntax.Extension_constructor.t -> _ = function
   | _ -> .
 
-and case ctxt f {pc_lhs; pc_rhs} =
-  pp f "| @[<2>%a@;%a@]" (pattern ctxt) pc_lhs (case_rhs ctxt) pc_rhs
+and case ctxt f ({pc_lhs; pc_guard; pc_rhs} as case) =
+  match Jane_syntax.Case.of_ast case with
+  | Some jcase -> jane_syntax_case ctxt f jcase
+  | None ->
+      pp f "| @[<2>%a%a@;->@;%a@]"
+        (pattern ctxt) pc_lhs (option (expression ctxt) ~first:"@;when@;")
+        pc_guard (expression (under_pipe ctxt)) pc_rhs
 
-and case_list ctxt f l : unit = list (case ctxt) f l ~sep:"@;" ~first:"@;"
+and jane_syntax_case ctxt f : Jane_syntax.Case.t -> _ = function
+  | Jcase_pattern_guarded x -> pattern_guarded_case ctxt f x
 
-and case_rhs ctxt f = function
-  | Psimple_rhs e -> pp f "->@;%a" (expression (under_pipe ctxt)) e
-  | Pboolean_guarded_rhs { guard; rhs } ->
-      pp f "when@;%a@;->@;%a" (expression ctxt) guard
-        (expression (under_pipe ctxt)) rhs
-  | Ppattern_guarded_rhs { scrutinee; cases; _ } ->
+and pattern_guarded_case ctxt f :
+  Jane_syntax.Pattern_guarded.case -> _ = function
+  | Pg_case { lhs; scrutinee; cases } ->
       let singleton_case =
         match cases with
         | [ _ ] -> true
         | _ -> false
       in
-      let case_list = list (case ctxt) ~sep:"@;" ~first:"@," ~last:"@," in
-      pp f "@[<hv0>@[<hv0>@[<2>when %a@]@ match@] %a@]"
-        (expression reset_ctxt) scrutinee
+      let case_list =
+        list (case (under_pipe ctxt)) ~sep:"@;" ~first:"@," ~last:"@,"
+      in
+      pp f "| @[<2>%a@;@[<hv0>@[<hv0>@[<2>when %a@]@ match@] %a@]@]"
+        (pattern ctxt) lhs (expression reset_ctxt) scrutinee
         (paren (not singleton_case) case_list) cases
+
+and case_list ctxt f l : unit = list (case ctxt) f l ~sep:"@;" ~first:"@;"
 
 and label_x_expression_param ctxt f (l,e) =
   let simple_name = match e with

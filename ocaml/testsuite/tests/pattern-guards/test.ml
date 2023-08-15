@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension pattern_guards"
    * expect *)
 
 (* Typical usage of pattern guards *)
@@ -168,4 +169,53 @@ check_push_defaults g ~s:"ha" "name";;
 check_push_defaults g ~s:"hmm" "name";;
 [%%expect{|
 - : string = "name"
+|}];;
+
+(* Test that type information introduced in a guard is available in the rhs. *)
+
+module Foo = struct
+  type t = A | B
+
+  let is_a = function
+    | A -> true
+    | B -> false
+end
+[%%expect{|
+module Foo : sig type t = A | B val is_a : t -> bool end
+|}];;
+
+let disambiguation_impossible = function
+  | None -> "None"
+  | Some y ->
+      match y with
+      | A -> "A"
+      | B -> "B"
+;;
+[%%expect{|
+Line 5, characters 8-9:
+5 |       | A -> "A"
+            ^
+Error: Unbound constructor A
+|}];;
+
+let disambiguation_from_guard = function
+  | None -> "None"
+  | Some y when Foo.is_a y ->
+      (match y with
+       | A -> "A"
+       | B -> "B")
+  | _ -> "Not A"
+;;
+[%%expect{|
+val disambiguation_from_guard : Foo.t option -> string = <fun>
+|}, Principal{|
+Line 5, characters 9-10:
+5 |        | A -> "A"
+             ^
+Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
+Line 6, characters 9-10:
+6 |        | B -> "B")
+             ^
+Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
+val disambiguation_from_guard : Foo.t option -> string = <fun>
 |}];;

@@ -29,8 +29,8 @@ type iterator = {
   attributes: iterator -> attribute list -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
+  case_jane_syntax: iterator -> Jane_syntax.Case.t -> unit;
   cases: iterator -> case list -> unit;
-  case_rhs: iterator -> case_rhs -> unit;
   class_declaration: iterator -> class_declaration -> unit;
   class_description: iterator -> class_description -> unit;
   class_expr: iterator -> class_expr -> unit;
@@ -535,6 +535,30 @@ module E = struct
 
 end
 
+module CS = struct
+  (* Cases *)
+  module PG = Jane_syntax.Pattern_guarded
+
+  let iter_pattern_guarded_case sub : PG.case -> _ = function
+    | Pg_case { lhs; scrutinee; cases } ->
+        sub.pat sub lhs;
+        sub.expr sub scrutinee;
+        sub.cases sub cases
+
+  let iter_jst sub : Jane_syntax.Case.t -> _ = function
+    | Jcase_pattern_guarded x -> iter_pattern_guarded_case sub x
+
+  let iter sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
+    match Jane_syntax.Case.of_ast case with
+    | Some jcase ->
+        iter_jst sub jcase;
+        sub.location sub pc_rhs.pexp_loc
+    | None ->
+    sub.pat sub pc_lhs;
+    Option.iter (sub.expr sub) pc_guard;
+    sub.expr sub pc_rhs
+end
+
 module P = struct
   (* Patterns *)
 
@@ -788,22 +812,8 @@ let default_iterator =
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
-    case =
-      (fun this {pc_lhs; pc_rhs} ->
-         this.pat this pc_lhs;
-         this.case_rhs this pc_rhs;
-      );
-    case_rhs =
-      (fun this -> function
-         | Psimple_rhs e -> this.expr this e
-         | Pboolean_guarded_rhs { guard; rhs } ->
-             this.expr this guard;
-             this.expr this rhs
-         | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
-             this.expr this scrutinee;
-             this.cases this cases;
-             this.location this loc
-      );
+    case = CS.iter;
+    case_jane_syntax = CS.iter_jst;
 
     location = (fun _this _l -> ());
 

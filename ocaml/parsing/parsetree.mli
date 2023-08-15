@@ -431,24 +431,17 @@ and expression_desc =
   | Pexp_extension of extension  (** [[%id]] *)
   | Pexp_unreachable  (** [.] *)
 
+(** (Jane Street specific; delete when upstreaming.)
+    Use [Jane_syntax.Case.of_ast] before using these fields directly, as the
+    former will detect language extensions correctly.
+ *)
 and case =
     {
      pc_lhs: pattern;
-     pc_rhs: case_rhs;
-   }
-(** Values of type {!case} represent [(P R)] for [P] a pattern and [R] a rhs. *)
-
-and case_rhs =
-  | Psimple_rhs of expression
-  (** [-> e] *)
-  | Pboolean_guarded_rhs of { guard : expression; rhs : expression }
-  (** [when g -> e] *)
-  | Ppattern_guarded_rhs of
-      { scrutinee : expression
-      ; cases : case list
-      ; loc : Location.t
-      }
-  (** [when e match (cases) ] *)
+     pc_guard: expression option;
+     pc_rhs: expression;
+    }
+(** Values of type {!case} represents [(P -> E)], [(P when E0 -> E)]. *)
 
 and letop =
   {

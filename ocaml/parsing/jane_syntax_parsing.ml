@@ -465,6 +465,22 @@ module type AST_syntactic_category = sig
 
   (** Set the location of an AST node. *)
   val with_location : ast -> Location.t -> ast
+
+  (** Whether calling [of_ast] should report an error if the syntactic category
+      doesn't know how to interpret the topmost Jane Syntax embedding.
+
+      You usually want this to be [true]. For example, there are no pattern
+      comprehensions, so [Pattern.of_ast] should produce an error if it sees a
+      pattern that starts with an embedding from [Language_extension
+      Comprehensions].
+
+      There are rare cases where you want this to be [false]. For example, match
+      cases are embedded via their expression rhs. If a non-Jane Syntax match
+      case has an expression rhs that *is* Jane Syntax, then [Case.of_ast] will
+      see an embedding for the "wrong" syntactic category --- expression, when
+      case was expected. We don't want to produce an error here.
+   *)
+  val fail_if_wrong_syntactic_category : bool
 end
 
 module type AST_internal = sig
@@ -568,18 +584,14 @@ module Make_with_extension_node
     (AST_syntactic_category : sig
        include AST_syntactic_category
 
-       (** How to construct an extension node for this AST (something of the
-          shape [[%name]]). Should just be [Ast_helper.CAT.extension] for the
-          appropriate syntactic category [CAT]. (This means that [?loc] should
-          default to [!Ast_helper.default_loc.].) *)
-      val make_extension_node :
-        ?loc:Location.t -> ?attrs:attributes -> extension -> ast
-
-      (** Given an extension node (as created by [make_extension_node]) with an
-          appropriately-formed name and a body, combine them into the special
-          syntactic form we use for novel syntactic features in this syntactic
-          category. Partial inverse of [match_extension_use]. *)
-      val make_extension_use  : extension_node:ast -> ast -> ast
+      (** Combine information about a construct into the special syntactic form
+          we use for novel syntactic features in this syntactic category. The
+          form should contain an extension_node of the shape [[%name]],
+          constructed by [Ast_helper.CAT.extension] for the appropriate
+          syntactic category [CAT], so that its location defaults to
+          [!Ast_helper.default_loc].
+          Partial inverse of [match_extension_use]. *)
+      val make_extension_use : extension -> ast -> ast
 
       (** Given an AST node, check if it's of the special syntactic form
           indicating that this is one of our novel syntactic features (as
@@ -596,12 +608,10 @@ module Make_with_extension_node
 
     let make_jane_syntax name ast =
       make_extension_use
+        ( { txt = Embedded_name.to_string name
+          ; loc = !Ast_helper.default_loc }
+        , PStr [])
         ast
-        ~extension_node:
-          (make_extension_node
-             ({ txt = Embedded_name.to_string name
-              ; loc = !Ast_helper.default_loc },
-              PStr []))
 
     let match_jane_syntax ast =
       match match_extension_use ast with
@@ -627,6 +637,8 @@ module Type_AST_syntactic_category = struct
 
   let location typ = typ.ptyp_loc
   let with_location typ l = { typ with ptyp_loc = l }
+
+  let fail_if_wrong_syntactic_category = true
 
   let attributes typ = typ.ptyp_attributes
   let with_attributes typ ptyp_attributes = { typ with ptyp_attributes }
@@ -654,8 +666,38 @@ module Expression0 = Make_with_attribute (struct
   let location expr = expr.pexp_loc
   let with_location expr l = { expr with pexp_loc = l }
 
+  let fail_if_wrong_syntactic_category = true
+
   let attributes expr = expr.pexp_attributes
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
+end)
+
+(** Cases; embedded as [lhs guard -> [%%extension.EXTNAME] rhs] *)
+module Case0 = Make_with_extension_node (struct
+  type ast = case
+
+  let plural = "cases"
+  let location case = case.pc_rhs.pexp_loc
+  let with_location case l =
+    let pc_rhs = { case.pc_rhs with pexp_loc = l } in
+    { case with pc_rhs  }
+
+  (** See [AST_syntactic_category] documentation about the rare cases in which
+      *not* to fail if the "wrong" syntactic category is encountered. For cases,
+      we don't want to fail if the case rhs carries a Jane Syntax expression
+      embedding, as the rhs may itself be a Jane Syntax expression.
+   *)
+  let fail_if_wrong_syntactic_category = false
+
+  let make_extension_use extension ast =
+    let ext = Ast_helper.Exp.extension extension in
+    { ast with pc_rhs = Ast_helper.Exp.apply ext [ Nolabel, ast.pc_rhs ] }
+
+  let match_extension_use case =
+    match case.pc_rhs.pexp_desc with
+    | Pexp_apply ({ pexp_desc = Pexp_extension ext }, [ Nolabel, pc_rhs ]) ->
+        Some (ext, { case with pc_rhs })
+    | _ -> None
 end)
 
 (** Patterns; embedded using an attribute on the pattern. *)
@@ -665,6 +707,8 @@ module Pattern0 = Make_with_attribute (struct
   let plural = "patterns"
   let location pat = pat.ppat_loc
   let with_location pat l = { pat with ppat_loc = l }
+
+  let fail_if_wrong_syntactic_category = true
 
   let attributes pat = pat.ppat_attributes
   let with_attributes pat ppat_attributes = { pat with ppat_attributes }
@@ -678,6 +722,8 @@ module Module_type0 = Make_with_attribute (struct
     let location mty = mty.pmty_loc
     let with_location mty l = { mty with pmty_loc = l }
 
+    let fail_if_wrong_syntactic_category = true
+
     let attributes mty = mty.pmty_attributes
     let with_attributes mty pmty_attributes = { mty with pmty_attributes }
 end)
@@ -689,6 +735,8 @@ module Extension_constructor0 = Make_with_attribute (struct
     let plural = "extension constructors"
     let location ext = ext.pext_loc
     let with_location ext l = { ext with pext_loc = l }
+
+    let fail_if_wrong_syntactic_category = true
 
     let attributes ext = ext.pext_attributes
     let with_attributes ext pext_attributes = { ext with pext_attributes }
@@ -706,9 +754,10 @@ module Signature_item0 = Make_with_extension_node (struct
     let location sigi = sigi.psig_loc
     let with_location sigi l = { sigi with psig_loc = l }
 
-    let make_extension_node = Ast_helper.Sig.extension
+    let fail_if_wrong_syntactic_category = true
 
-    let make_extension_use ~extension_node sigi =
+    let make_extension_use extension sigi =
+      let extension_node = Ast_helper.Sig.extension extension in
       Ast_helper.Sig.include_
         { pincl_mod = Ast_helper.Mty.signature [extension_node; sigi]
         ; pincl_loc = !Ast_helper.default_loc
@@ -741,9 +790,10 @@ module Structure_item0 = Make_with_extension_node (struct
     let location stri = stri.pstr_loc
     let with_location stri l = { stri with pstr_loc = l }
 
-    let make_extension_node = Ast_helper.Str.extension
+    let fail_if_wrong_syntactic_category = true
 
-    let make_extension_use ~extension_node stri =
+    let make_extension_use extension stri =
+      let extension_node = Ast_helper.Str.extension extension in
       Ast_helper.Str.include_
         { pincl_mod = Ast_helper.Mod.structure [extension_node; stri]
         ; pincl_loc = !Ast_helper.default_loc
@@ -774,7 +824,7 @@ module type AST = sig
   val make_entire_jane_syntax :
     loc:Location.t -> Feature.t -> (unit -> ast) -> ast
   val make_of_ast :
-    of_ast_internal:(Feature.t -> ast -> 'a option) -> (ast -> 'a option)
+    of_ast_internal:(Feature.t -> ast -> 'a option) -> ast -> 'a option
 end
 
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
@@ -803,7 +853,9 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
               match of_ast_internal feat ast with
               | Some ext_ast -> Some ext_ast
               | None ->
-                  raise_error (Wrong_syntactic_category(feat, AST.plural))
+                if fail_if_wrong_syntactic_category
+                then raise_error (Wrong_syntactic_category(feat, AST.plural));
+                None
             end
           | Error err -> raise_error begin match err with
             | Disabled_extension ext ->
@@ -820,6 +872,7 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
 end
 
 module Expression = Make_ast(Expression0)
+module Case = Make_ast(Case0)
 module Pattern = Make_ast(Pattern0)
 module Module_type = Make_ast(Module_type0)
 module Signature_item = Make_ast(Signature_item0)

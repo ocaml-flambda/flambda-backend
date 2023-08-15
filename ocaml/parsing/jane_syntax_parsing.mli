@@ -185,16 +185,16 @@ module type AST = sig
         the embedding by the first argument.
 
         If the given syntax feature does not actually extend the given syntactic
-        category, returns [None]; this will be reported as an error. (For
-        example: There are no pattern comprehensions, so when building the
-        extended pattern AST, this function will return [None] if it spots an
-        embedding that claims to be from [Language_extension Comprehensions].)
+        category, returns [None].
     *)
     -> (ast -> 'a option)
 end
 
 module Expression :
   AST with type ast = Parsetree.expression
+
+module Case :
+  AST with type ast = Parsetree.case
 
 module Pattern :
   AST with type ast = Parsetree.pattern

@@ -217,10 +217,10 @@ and comprehension_iterator =
       ; sequence : expression }
 
 and 'k case =
-{
-  c_lhs: 'k general_pattern;
-  c_rhs: case_rhs;
-}
+    {
+     c_lhs: 'k general_pattern;
+     c_rhs: case_rhs;
+    }
 
 and case_rhs =
   | Simple_rhs of expression

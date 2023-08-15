@@ -338,6 +338,35 @@ module Include_functor = struct
     | _ -> failwith "Malformed [include functor] in structure"
 end
 
+module Pattern_guarded = struct
+  let feature : Feature.t = Language_extension Pattern_guards
+
+  type case =
+    | Pg_case of
+        { lhs: Parsetree.pattern
+        ; scrutinee: Parsetree.expression
+        ; cases: Parsetree.case list
+        }
+
+    let fail_malformed ~loc =
+      Location.raise_errorf ~loc "Malformed pattern guarded case rhs"
+
+  let of_case { pc_lhs; pc_guard; pc_rhs } =
+    match pc_guard, pc_rhs.pexp_desc with
+    | None, Pexp_match (scrutinee, cases) ->
+        Pg_case { lhs = pc_lhs; scrutinee; cases }
+    | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
+
+  let case_of ~loc = function
+    | Pg_case { lhs; scrutinee; cases } ->
+        Case.make_entire_jane_syntax ~loc feature
+          (fun () ->
+             let pc_rhs =
+               Ast_helper.Exp.match_ ~loc ~attrs:[] scrutinee cases
+             in
+             { pc_lhs = lhs; pc_guard = None; pc_rhs })
+end
+
 (** Module strengthening *)
 module Strengthen = struct
   type nonrec module_type =
@@ -467,6 +496,22 @@ module Expression = struct
     | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc ~attrs x
 end
 
+module Case = struct
+  type t =
+    | Jcase_pattern_guarded of Pattern_guarded.case
+
+  let of_ast_internal (feat : Feature.t) case = match feat with
+    | Language_extension Pattern_guards ->
+      let case = Pattern_guarded.of_case case in
+      Some (Jcase_pattern_guarded case)
+    | _ -> None
+
+  let of_ast = Case.make_of_ast ~of_ast_internal
+
+  let case_of ~loc = function
+    | Jcase_pattern_guarded x -> Pattern_guarded.case_of ~loc x
+end
+
 module Pattern = struct
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
@@ -511,7 +556,8 @@ module Signature_item = struct
       Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
     | _ -> None
 
-  let of_ast = Signature_item.make_of_ast ~of_ast_internal
+  let of_ast =
+    Signature_item.make_of_ast ~of_ast_internal
 end
 
 module Structure_item = struct

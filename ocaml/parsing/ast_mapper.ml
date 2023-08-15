@@ -32,7 +32,6 @@ type mapper = {
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;
-  case_rhs: mapper -> case_rhs -> case_rhs;
   class_declaration: mapper -> class_declaration -> class_declaration;
   class_description: mapper -> class_description -> class_description;
   class_expr: mapper -> class_expr -> class_expr;
@@ -78,6 +77,7 @@ type mapper = {
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
 
+  case_jane_syntax: mapper -> Jane_syntax.Case.t -> Jane_syntax.Case.t;
   expr_jane_syntax:
     mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
   extension_constructor_jane_syntax:
@@ -627,6 +627,35 @@ module E = struct
 
 end
 
+module CS = struct
+  (* Cases *)
+
+  module PG = Jane_syntax.Pattern_guarded
+
+  let map_pattern_guarded_case sub : PG.case -> PG.case = function
+    | Pg_case { lhs; scrutinee; cases } ->
+        let lhs = sub.pat sub lhs in
+        let scrutinee = sub.expr sub scrutinee in
+        let cases = sub.cases sub cases in
+        Pg_case { lhs; scrutinee; cases }
+
+  let map_jst sub : Jane_syntax.Case.t -> Jane_syntax.Case.t = function
+    | Jcase_pattern_guarded x ->
+        Jcase_pattern_guarded (map_pattern_guarded_case sub x)
+
+  let map sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
+    match Jane_syntax.Case.of_ast case with
+    | Some jcase ->
+        let jcase = map_jst sub jcase in
+        let loc = sub.location sub pc_rhs.pexp_loc in
+        Jane_syntax.Case.case_of ~loc jcase
+    | None ->
+    let pc_lhs = sub.pat sub pc_lhs in
+    let pc_guard = Option.map (sub.expr sub) pc_guard in
+    let pc_rhs = sub.expr sub pc_rhs in
+    { pc_lhs; pc_guard; pc_rhs }
+end
+
 module P = struct
   (* Patterns *)
 
@@ -901,28 +930,7 @@ let default_mapper =
       );
 
     cases = (fun this l -> List.map (this.case this) l);
-    case =
-      (fun this {pc_lhs; pc_rhs} ->
-         {
-           pc_lhs = this.pat this pc_lhs;
-           pc_rhs = this.case_rhs this pc_rhs;
-         }
-      );
-    case_rhs =
-      (fun this -> function
-         | Psimple_rhs e -> Psimple_rhs (this.expr this e)
-         | Pboolean_guarded_rhs { guard; rhs } ->
-             Pboolean_guarded_rhs
-               { guard = this.expr this guard
-               ; rhs = this.expr this rhs
-               }
-         | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
-             Ppattern_guarded_rhs
-               { scrutinee = this.expr this scrutinee
-               ; cases = this.cases this cases
-               ; loc = this.location this loc
-               }
-      );
+    case = CS.map;
 
     location = (fun _this l -> l);
 
@@ -943,6 +951,7 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
+    case_jane_syntax = CS.map_jst;
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;
     module_type_jane_syntax = MT.map_jane_syntax;
