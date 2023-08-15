@@ -433,7 +433,7 @@ val save_signature:
         (* Arguments: signature, module name, module kind, file name. *)
 val save_signature_with_imports:
   alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
-  -> filepath -> Import_info.Intf.t array -> Cmi_format.cmi_infos_lazy
+  -> filepath -> Import_info.t array -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, module kind,
            file name, imported units with their CRCs. *)
 

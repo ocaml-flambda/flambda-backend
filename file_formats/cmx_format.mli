@@ -106,8 +106,8 @@ type lib_unit_info =
     li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)
 
 type library_infos =
-  { lib_imports_cmi: Import_info.Intf.t array;
-    lib_imports_cmx: Import_info.Impl.t array;
+  { lib_imports_cmi: Import_info.t array;
+    lib_imports_cmx: Import_info.t array;
     lib_units: lib_unit_info list;
     lib_generic_fns: generic_fns;
     (* In the following fields the lists are reversed with respect to
