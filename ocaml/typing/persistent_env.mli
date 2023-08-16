@@ -30,6 +30,8 @@ type error =
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
+  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
+  | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
 
 exception Error of error
 
@@ -88,7 +90,11 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
-val make_cmi : 'a t -> Compilation_unit.t -> Subst.Lazy.signature -> alerts
+val make_cmi : 'a t
+  -> Compilation_unit.t
+  -> Cmi_format.kind
+  -> Subst.Lazy.signature
+  -> alerts
   -> Cmi_format.cmi_infos_lazy
 
 val save_cmi : 'a t -> Persistent_signature.t -> unit

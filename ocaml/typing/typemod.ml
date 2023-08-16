@@ -3300,10 +3300,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           let shape = Shape.local_reduce shape in
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
+            let kind = Cmi_format.Normal in
             let cmi =
               Profile.record_call "save_cmi" (fun () ->
                 Env.save_signature ~alerts
-                  simple_sg modulename (outputprefix ^ ".cmi"))
+                  simple_sg modulename kind (outputprefix ^ ".cmi"))
             in
             Profile.record_call "save_cmt" (fun () ->
               let annots = Cmt_format.Implementation str in
@@ -3441,9 +3442,10 @@ let package_units initial_env objfiles cmifile modulename =
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
+      let kind = Cmi_format.Normal in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg modulename
+          sg modulename kind
           (prefix ^ ".cmi") (Array.of_list imports)
       in
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in

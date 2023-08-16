@@ -34,6 +34,8 @@ type error =
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
+  | Illegal_import_of_parameter of CU.Name.t * filepath
+  | Not_compiled_as_parameter of CU.Name.t * filepath
 
 exception Error of error
 let error err = raise (Error err)
@@ -145,6 +147,10 @@ let check_consistency penv ps =
     else error (Inconsistent_package_declaration_between_imports(
         ps.ps_filename, auth_unit, source_unit))
 
+let is_registered_parameter_import _ _import =
+  (* Not yet implemented *)
+  false
+
 let can_load_cmis penv =
   !(penv.can_load_cmis)
 let set_can_load_cmis penv setting =
@@ -184,6 +190,7 @@ let save_pers_struct penv crc comp_unit flags filename =
 let process_pers_struct penv check modname pers_sig =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
+  let kind = cmi.cmi_kind in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let ps = { ps_name = name;
@@ -215,6 +222,19 @@ let process_pers_struct penv check modname pers_sig =
         let prefix = CU.for_pack_prefix current_unit in
         error (Direct_reference_from_wrong_package (name, filename, prefix));
   | None -> ()
+  end;
+  let is_param =
+    match kind with
+    | Normal -> false
+    | Parameter -> true
+  in
+  begin match is_param, is_registered_parameter_import penv modname with
+  | true, false ->
+      error (Illegal_import_of_parameter(modname, filename))
+  | false, true ->
+      error (Not_compiled_as_parameter(modname, filename))
+  | true, true
+  | false, false -> ()
   end;
   ps
 
@@ -301,6 +321,8 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf "%a is inaccessible from %a"
               CU.print unit
               describe_prefix prefix
+        | Illegal_import_of_parameter _ -> assert false
+        | Not_compiled_as_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -370,7 +392,7 @@ let is_imported {imported_units; _} s =
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
-let make_cmi penv modname sign alerts =
+let make_cmi penv modname kind sign alerts =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
@@ -382,6 +404,7 @@ let make_cmi penv modname sign alerts =
   let crcs = imports penv in
   {
     cmi_name = modname;
+    cmi_kind = kind;
     cmi_sign = sign;
     cmi_crcs = Array.of_list crcs;
     cmi_flags = flags
@@ -436,6 +459,19 @@ let report_error ppf =
         "@[<hov>The interface %a@ is compiled for package %s.@ %s@]"
         CU.print intf_package intf_filename
         "The compilation flag -for-pack with the same package is required"
+  | Illegal_import_of_parameter(modname, filename) ->
+      fprintf ppf
+        "@[<hov>The file %a@ contains the interface of a parameter.@ \
+         %a is not declared as a parameter for the current unit (-parameter %a).@]"
+        Location.print_filename filename
+        CU.Name.print modname
+        CU.Name.print modname
+  | Not_compiled_as_parameter(modname, filename) ->
+      fprintf ppf
+        "@[<hov>The module %a@ is specified as a parameter, but %a@ \
+         was not compiled with -as-parameter.@]"
+        CU.Name.print modname
+        Location.print_filename filename
   | Inconsistent_package_declaration_between_imports (filename, unit1, unit2) ->
       fprintf ppf
         "@[<hov>The file %s@ is imported both as %a@ and as %a.@]"

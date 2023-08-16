@@ -21,8 +21,13 @@ type pers_flags =
   | Opaque
   | Unsafe_string
 
+type kind =
+  | Normal
+  | Parameter
+
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.t;
+    cmi_kind : kind;
     cmi_sign : 'sg;
     cmi_crcs : Import_info.t array;
     cmi_flags : pers_flags list;

@@ -730,6 +730,11 @@ let mk_match_context_rows f =
   "<n>  (advanced, see manual section %d.%d.)" chapter section
 ;;
 
+let mk_as_parameter f =
+  "-as-parameter", Arg.Unit f,
+  "<module name> Compiles the interface as a parameter for an open module."
+;;
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 ;;
@@ -1052,6 +1057,7 @@ end
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _binannot_cms : unit -> unit
   val _c : unit -> unit
@@ -1251,6 +1257,7 @@ struct
     mk_alert F._alert;
     mk_absname F._absname;
     mk_annot F._annot;
+    mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_binannot_cms F._binannot_cms;
     mk_c F._c;
@@ -1449,6 +1456,7 @@ struct
     mk_afl_instrument F._afl_instrument;
     mk_afl_inst_ratio F._afl_inst_ratio;
     mk_annot F._annot;
+    mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_binannot_cms F._binannot_cms;
     mk_inline_branch_factor F._inline_branch_factor;
@@ -1990,6 +1998,7 @@ module Default = struct
     let _annot = set annotations
     let _args = Arg.read_arg
     let _args0 = Arg.read_arg0
+    let _as_parameter = set as_parameter
     let _binannot = set binary_annotations
     let _binannot_cms = set binary_annotations_cms
     let _c = set compile_only
