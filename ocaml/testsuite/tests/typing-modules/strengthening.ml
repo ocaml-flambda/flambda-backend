@@ -27,8 +27,12 @@ module type S2 = sig
   module N : T with M
 end
 [%%expect{|
-Line 1:
-Error: Modules do not match: sig end is not included in T
+Line 4, characters 13-21:
+4 |   module N : T with M
+                 ^^^^^^^^
+Error: In this strengthened module type, the type of M
+       does not match the underlying type
+       Modules do not match: sig end is not included in T
 |}]
 
 module type S3 = sig
@@ -68,8 +72,12 @@ module Must_be_subtype = struct
   module type S = sig type t1 type t2 end with M
 end
 [%%expect{|
-Line 1:
-Error: Modules do not match:
+Line 3, characters 18-48:
+3 |   module type S = sig type t1 type t2 end with M
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this strengthened module type, the type of M
+       does not match the underlying type
+       Modules do not match:
          sig type t1 end
        is not included in
          sig type t1 type t2 end

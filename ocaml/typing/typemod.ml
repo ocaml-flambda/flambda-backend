@@ -86,6 +86,7 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * sort
+  | Strengthening_mismatch of Longident.t * Includemod.explanation
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1472,18 +1473,23 @@ and transl_modtype_jane_syntax_aux ~loc env = function
   | Jane_syntax.Module_type.Jmty_strengthen { mty ; mod_id } ->
       let tmty = transl_modtype_aux env mty in
       let path, md =
-        Env.lookup_module ~use:false ~loc mod_id.txt env
+        Env.lookup_module ~use:false ~loc:mod_id.loc mod_id.txt env
       in
       let aliasable = not (Env.is_functor_arg path env) in
-      ignore
-        (Includemod.modtypes ~loc env
-          ~mark:Includemod.Mark_both md.md_type tmty.mty_type);
-      mkmty
-        (Tmty_strengthen (tmty, path, mod_id))
-        (Mty_strengthen (tmty.mty_type, path, Aliasability.aliasable aliasable))
-        env
-        loc
-        []
+      try
+        ignore
+          (Includemod.modtypes ~loc env
+            ~mark:Includemod.Mark_both md.md_type tmty.mty_type);
+        mkmty
+          (Tmty_strengthen (tmty, path, mod_id))
+          (Mty_strengthen
+            (tmty.mty_type, path, Aliasability.aliasable aliasable))
+          env
+          loc
+          []
+      with Includemod.Error explanation ->
+        raise(Error(loc, env, Strengthening_mismatch(mod_id.txt, explanation)))
+      ;
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let lid, with_info = match constr with
@@ -3662,6 +3668,14 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "@[Top-level module bindings must have layout value, but@ \
          %s has layout@ %a.@]" id Sort.format sort
+ | Strengthening_mismatch(lid, explanation) ->
+      let main = Includemod_errorprinter.err_msgs explanation in
+      Location.errorf ~loc
+        "@[<v>\
+           @[In this strengthened module type, the type of %a@ \
+             does not match the underlying type@]@ \
+           %t@]"
+        longident lid main
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env
