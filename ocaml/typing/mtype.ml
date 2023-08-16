@@ -219,9 +219,16 @@ let rec expand_paths_lazy paths env =
     Mty_signature sg ->
       Mty_signature (expand_paths_lazy_sig paths env sg)
   | Mty_functor (param,res) ->
-      let param = match param with
-        Unit -> Unit
-      | Named (name,mty) -> Named (name, expand_paths_lazy paths env mty)
+      let param, env = match param with
+        Unit -> Unit, env
+      | Named (name,mty) ->
+          let mty = expand_paths_lazy paths env mty in
+          let env = match name with
+            | Some param when !Clflags.applicative_functors ->
+                Env.add_module_lazy ~update_summary:false param Mp_present mty env
+            | Some _ | None -> env
+          in
+          Named (name, mty), env
       in
       let res = expand_paths_lazy paths env res in
       Mty_functor (param,res)
@@ -247,24 +254,26 @@ and expand_paths_lazy_sig paths env sg =
   |> expand_paths_lazy_sig_items paths env
   |> of_value
 
-and expand_paths_lazy_sig_items paths env =
+and expand_paths_lazy_sig_items paths env sg =
   let open Subst.Lazy in
-  function
-    [] -> []
-  | Sig_module (id,pres,md,rs,vis) :: rem  ->
-      let md = { md with md_type = expand_paths_lazy paths env md.md_type }
-      in
-      let env =
-        Env.add_module_declaration_lazy ~update_summary:false id pres md env
-      in
-      Sig_module (id,pres,md,rs,vis)
-        :: expand_paths_lazy_sig_items paths env rem
-  | Sig_modtype (id,mtd,vis) :: rem ->
-      let mt = Option.map (expand_paths_lazy paths env) mtd.mtd_type in
-      let mtd = { mtd with mtd_type = mt } in
-      let env = Env.add_modtype_lazy ~update_summary:false id mtd env in
-      Sig_modtype (id,mtd,vis) :: expand_paths_lazy_sig_items paths env rem
-  | item :: rem -> item :: expand_paths_lazy_sig_items paths env rem
+  let expand_item env = function
+    | Sig_module (id,pres,md,rs,vis) ->
+        let md = { md with md_type = expand_paths_lazy paths env md.md_type }
+        in
+        let env =
+          Env.add_module_declaration_lazy ~update_summary:false id pres md env
+        in
+        env, Sig_module (id,pres,md,rs,vis)
+      | Sig_modtype (id,mtd,vis) ->
+          let mt = Option.map (expand_paths_lazy paths env) mtd.mtd_type in
+          let mtd = { mtd with mtd_type = mt } in
+          let env = Env.add_modtype_lazy ~update_summary:false id mtd env in
+          env, Sig_modtype (id,mtd,vis)
+      | Sig_value _ | Sig_type _ | Sig_typext _ | Sig_class _
+      | Sig_class_type _ as item ->
+          env, item
+  in
+  List.fold_left_map expand_item env sg |> snd
 
 let expand_to env sg paths =
   let rec add_paths paths = function
