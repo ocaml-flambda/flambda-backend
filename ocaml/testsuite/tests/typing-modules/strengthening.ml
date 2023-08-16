@@ -28,7 +28,7 @@ module type S2 = sig
 end
 [%%expect{|
 Line 1:
-Error: Modules do not match: T is not included in sig end
+Error: Modules do not match: sig end is not included in T
 |}]
 
 module type S3 = sig
@@ -61,6 +61,19 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t = M.t
        The type int is not equal to the type M.t
+|}]
+
+module Must_be_subtype = struct
+  module M = struct type t1 end
+  module type S = sig type t1 type t2 end with M
+end
+[%%expect{|
+Line 1:
+Error: Modules do not match:
+         sig type t1 end
+       is not included in
+         sig type t1 type t2 end
+       The type `t2' is required but not provided
 |}]
 
 module Unaliasable = struct

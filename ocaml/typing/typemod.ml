@@ -1473,7 +1473,7 @@ and transl_modtype_jane_syntax_aux ~loc env = function
       let aliasable = not (Env.is_functor_arg path env) in
       ignore
         (Includemod.modtypes ~loc env
-          ~mark:Includemod.Mark_neither tmty.mty_type md.md_type);
+          ~mark:Includemod.Mark_both md.md_type tmty.mty_type);
       mkmty
         (Tmty_strengthen (tmty, path, mod_id))
         (Mty_strengthen (tmty.mty_type, path, Aliasability.aliasable aliasable))
