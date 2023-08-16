@@ -27,24 +27,22 @@ type rhs
    If a guard fails, a guarded rhs must fallthrough to the remaining cases.
    To facilitate this, guarded rhs's are constructed using a continuation.
 
-   [mk_pattern_guarded_rhs ~patch_guarded] produces a guarded rhs with a
+   [mk_guarded_rhs ~patch_guarded ~free_variables] produces a guarded rhs with a
    lambda representation given by [patch_guarded ~patch], where [patch] contains
-   an expression that falls through to the remaining cases.
-
-   [mk_boolean_guarded_rhs ~patch_guarded ~free_variables] produces a similar
-   rhs where [free_variables] contains the free variables of the rhs.
+   an expression that falls through to the remaining cases and [free_variables]
+   contains the free variables of the rhs.
 *)
-val mk_boolean_guarded_rhs:
+val mk_guarded_rhs:
         patch_guarded:(patch:lambda -> lambda) ->
         free_variables:Ident.Set.t ->
         rhs
 
-val mk_pattern_guarded_rhs:
-        patch_guarded:(patch:lambda -> lambda) ->
-        rhs
-
 (* Creates an unguarded rhs from its lambda representation. *)
 val mk_unguarded_rhs: lambda -> rhs
+
+val free_variables_of_rhs : rhs -> Ident.Set.t
+
+val unguarded_exn: rhs -> lambda
 
 (* Entry points to match compiler *)
 val for_function:
