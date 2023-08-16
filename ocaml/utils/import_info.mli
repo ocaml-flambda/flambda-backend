@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module CU = Compilation_unit
+module CU := Compilation_unit
 
 (* CR mshinwell: maybe there should be a phantom type allowing to distinguish
    the .cmx case from the others. Unclear it's worth it.
@@ -29,6 +29,8 @@ module CU = Compilation_unit
    here, or somewhere alongside, rather than being duplicated around the
    tree. *)
 
+(** Either an interface (.cmi) or implementation (.cmo/x) import. Should be
+    avoided in new code, in preference to [Intf.t] or [Impl.t]. *)
 type t
 
 val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
@@ -43,8 +45,39 @@ val cu : t -> CU.t
 
 val crc : t -> string option
 
-val crc_with_unit : t -> (CU.t * string) option
-
 val has_name : t -> name:CU.Name.t -> bool
 
 val dummy : t
+
+(** The preferred API to use for interface imports. An interface import might be
+    a parameter, in which case it has a CRC but no [CU.t] (since a [CU.t] is for
+    an implementation). *)
+module Intf : sig
+  type nonrec t = t
+
+  val create : CU.Name.t -> CU.t option -> crc:Digest.t option -> t
+
+  val name : t -> CU.Name.t
+
+  val impl : t -> CU.t option
+
+  val crc : t -> Digest.t option
+
+  val has_name : t -> name:CU.Name.t -> bool
+
+  val dummy : t
+end
+
+module Impl : sig
+  type nonrec t = t
+
+  val create : CU.t -> crc:Digest.t option -> t
+
+  val name : t -> CU.Name.t
+
+  val cu : t -> CU.t
+
+  val crc : t -> Digest.t option
+
+  val dummy : t
+end

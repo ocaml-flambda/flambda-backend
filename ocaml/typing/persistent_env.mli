@@ -16,16 +16,19 @@
 
 open Misc
 
-module Consistbl : module type of struct
-  include Consistbl.Make (Compilation_unit.Name) (Compilation_unit)
+module Impl : sig
+  type t
 end
 
-type error =
+module Consistbl : module type of struct
+  include Consistbl.Make (Compilation_unit.Name) (Impl)
+end
+
+type error = private
   | Illegal_renaming of Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
   | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
-  | Need_recursive_types of Compilation_unit.t
-  | Depend_on_unsafe_string_unit of Compilation_unit.t
-  | Inconsistent_package_declaration of Compilation_unit.t * filepath
+  | Need_recursive_types of Compilation_unit.Name.t
+  | Depend_on_unsafe_string_unit of Compilation_unit.Name.t
   | Inconsistent_package_declaration_between_imports of
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
@@ -91,7 +94,7 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
 val make_cmi : 'a t
-  -> Compilation_unit.t
+  -> Compilation_unit.Name.t
   -> Cmi_format.kind
   -> Subst.Lazy.signature
   -> alerts

@@ -22,7 +22,9 @@ type pers_flags =
   | Unsafe_string
 
 type kind =
-  | Normal
+  | Normal of {
+      cmi_impl : Compilation_unit.t;
+    }
   | Parameter
 
 type error =
@@ -59,13 +61,13 @@ module Serialized = Types.Make_wrapped(struct type 'a t = int end)
 type crcs = Import_info.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = {
-    header_name : Compilation_unit.t;
+    header_name : Compilation_unit.Name.t;
     header_kind : kind;
     header_sign : Serialized.signature;
 }
 
 type 'sg cmi_infos_generic = {
-    cmi_name : Compilation_unit.t;
+    cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
     cmi_sign : 'sg;
     cmi_crcs : crcs;
@@ -189,10 +191,15 @@ let output_cmi filename oc cmi =
     };
   flush oc;
   let crc = Digest.file filename in
-  let crcs =
-    Array.append [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-      cmi.cmi_crcs
+  let unit =
+    match cmi.cmi_kind with
+    | Normal { cmi_impl } -> Some cmi_impl
+    | Parameter -> None
   in
+  let my_info =
+    Import_info.Intf.create cmi.cmi_name unit ~crc:(Some crc)
+  in
+  let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);
   crc
