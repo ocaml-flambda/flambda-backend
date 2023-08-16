@@ -472,8 +472,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            ~position ~mode (transl_exp ~scopes Sort.for_function funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
-      transl_match ~scopes ~arg_sort ~return_sort:sort ~return_type:e.exp_type
-        ~loc:e.exp_loc ~env:e.exp_env ~extra_cases:[] arg pat_expr_list partial
+      let scrutineel = transl_match_scrutinee ~scopes arg_sort arg in
+      let pat_rhs_list =
+        transl_match_cases ~scopes ~return_sort:sort pat_expr_list
+      in
+      transl_match ~scopes ~arg_sort ~return_type:e.exp_type ~loc:e.exp_loc
+        ~env:e.exp_env ~extra_cases:[] arg scrutineel pat_rhs_list partial
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
       let return_layout = layout_exp sort e in
@@ -1030,12 +1034,6 @@ and pure_module m =
 and transl_list ~scopes expr_list =
   List.map (fun (exp, sort) -> transl_exp ~scopes sort exp) expr_list
 
-and transl_list_with_layout ~scopes expr_list =
-  List.map (fun (exp, sort) -> transl_exp ~scopes sort exp,
-                               sort,
-                               layout_exp sort exp)
-    expr_list
-
 (* Will raise if a list element has a non-value layout. *)
 and transl_list_with_shape ~scopes expr_list =
   let transl_with_shape (e, sort) =
@@ -1052,7 +1050,9 @@ and transl_rhs ~scopes rhs_sort rhs =
         (event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs))
   | Boolean_guarded_rhs { guard = typed_guard; rhs } ->
       let guard = transl_exp ~scopes Sort.for_predef_value typed_guard in
-      let body = event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs) in
+      let body =
+        event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs)
+      in
       let patch_guarded ~patch =
         event_before
           ~scopes typed_guard (Lifthenelse (guard, body, patch, layout))
@@ -1060,9 +1060,15 @@ and transl_rhs ~scopes rhs_sort rhs =
       let free_variables =
         Ident.Set.union (free_variables guard) (free_variables body)
       in
-      Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
+      Matching.mk_guarded_rhs ~patch_guarded ~free_variables
   | Pattern_guarded_rhs { scrutinee; scrutinee_sort; cases; partial;
                           loc; env; rhs_type } ->
+      let scrutineel =
+        transl_match_scrutinee ~scopes scrutinee_sort scrutinee
+      in
+      let pat_rhs_list =
+        transl_match_cases ~scopes ~return_sort:rhs_sort cases
+      in
       match partial with
       | Partial ->
           (* Partial pattern guards may fail to match, so we must construct a
@@ -1082,21 +1088,24 @@ and transl_rhs ~scopes rhs_sort rhs =
             let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
             event_before ~scopes scrutinee
               (transl_match ~scopes ~arg_sort:scrutinee_sort
-                 ~return_sort:rhs_sort ~return_type:rhs_type ~loc ~env
-                 ~extra_cases scrutinee cases partial)
+                 ~return_type:rhs_type ~loc:loc ~env:env ~extra_cases scrutinee
+                 scrutineel pat_rhs_list partial)
           in
-          Matching.mk_pattern_guarded_rhs ~patch_guarded
+          let free_variables =
+            free_variables_of_match scrutineel pat_rhs_list
+          in
+          Matching.mk_guarded_rhs ~patch_guarded ~free_variables
       | Total ->
           (* Total pattern guards are equivalent to nested matches. *)
           let nested_match =
-            transl_match ~scopes ~arg_sort:scrutinee_sort ~return_sort:rhs_sort
-              ~return_type:rhs_type ~loc ~env ~extra_cases:[] scrutinee cases
-              partial
+            transl_match ~scopes ~arg_sort:scrutinee_sort ~return_type:rhs_type
+              ~loc:loc ~env:env ~extra_cases:[] scrutinee scrutineel
+              pat_rhs_list partial
           in
           Matching.mk_unguarded_rhs
             (event_before ~scopes scrutinee nested_match)
 
-and transl_case ~scopes rhs_sort {c_lhs; c_rhs} =
+and transl_case ~scopes rhs_sort { c_lhs; c_rhs } =
   c_lhs, transl_rhs ~scopes rhs_sort c_rhs
 
 and transl_cases ~scopes rhs_sort cases =
@@ -1105,10 +1114,10 @@ and transl_cases ~scopes rhs_sort cases =
   in
   List.map (transl_case ~scopes rhs_sort) cases
 
-and transl_case_try ~scopes rhs_sort {c_lhs; c_rhs} =
+and transl_case_try ~scopes rhs_sort ({c_lhs; _} as case) =
   iter_exn_names Translprim.add_exception_ident c_lhs;
   Misc.try_finally
-    (fun () -> c_lhs, transl_rhs ~scopes rhs_sort c_rhs)
+    (fun () -> transl_case ~scopes rhs_sort case)
     ~always:(fun () ->
         iter_exn_names Translprim.remove_exception_ident c_lhs)
 
@@ -1615,31 +1624,57 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     end
   end
 
-and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
-      ~extra_cases arg pat_expr_list partial =
+and free_variables_of_match scrutineel cases =
+  let scrutinee_free_variables =
+    List.fold_left
+      (fun free arg -> Ident.Set.union free (free_variables arg))
+      Ident.Set.empty scrutineel
+  in
+  List.fold_left
+    (fun free (pat, rhs) ->
+       let case_free =
+         List.fold_left
+           (fun s id -> Ident.Set.remove id s)
+           (Matching.free_variables_of_rhs rhs) (pat_bound_idents pat)
+       in
+       Ident.Set.union free case_free)
+    scrutinee_free_variables cases
+
+and transl_match_scrutinee ~scopes scrutinee_sort scrutinee =
+  let argl =
+    match scrutinee with
+    | { exp_desc = Texp_tuple (argl, _) } ->
+        List.map (fun arg -> arg, Sort.for_tuple_element) argl
+    | _ -> [ scrutinee, scrutinee_sort ]
+  in
+  transl_list ~scopes argl
+
+and transl_match_cases ~scopes ~return_sort cases =
+  List.filter_map
+    (fun case -> transl_match_case ~scopes ~return_sort case) cases
+
+and transl_match_case ~scopes ~return_sort ({ c_lhs; c_rhs } as case) =
+  if is_rhs_unreachable c_rhs then None else
+  let _, rhs =
+    match split_pattern c_lhs with
+    | None, None -> assert false
+    | Some pv, None -> transl_case ~scopes return_sort { case with c_lhs = pv }
+    | _, Some pe ->
+        transl_case_try ~scopes return_sort { case with c_lhs = pe }
+  in
+  Some (c_lhs, rhs)
+
+and transl_match ~scopes ~arg_sort ~return_type ~loc ~env ~extra_cases arg
+      scrutineel pat_rhs_list partial =
   let return_layout = layout env loc arg_sort return_type in
-  let rewrite_case (val_cases, exn_cases, static_handlers as acc)
-        ({ c_lhs; c_rhs } as case) =
-    if is_rhs_unreachable c_rhs then acc else
+  let rewrite_case (val_cases, exn_cases, static_handlers)
+        (c_lhs, (c_rhs : Matching.rhs)) =
     let val_pat, exn_pat = split_pattern c_lhs in
     match val_pat, exn_pat with
     | None, None -> assert false
-    | Some pv, None ->
-        let val_case =
-          transl_case ~scopes return_sort { case with c_lhs = pv }
-        in
-        val_case :: val_cases, exn_cases, static_handlers
-    | None, Some pe ->
-        let exn_case =
-          transl_case_try ~scopes return_sort { case with c_lhs = pe }
-        in
-        val_cases, exn_case :: exn_cases, static_handlers
+    | Some pv, None -> (pv, c_rhs) :: val_cases, exn_cases, static_handlers
+    | None, Some pe -> val_cases, (pe, c_rhs) :: exn_cases, static_handlers
     | Some pv, Some pe ->
-        let rhs_exp =
-          match c_rhs with
-          | Simple_rhs rhs -> rhs
-          | Boolean_guarded_rhs _ | Pattern_guarded_rhs _ -> assert false
-        in
         let lbl  = next_raise_count () in
         let static_raise ids =
           Lstaticraise (lbl, List.map (fun id -> Lvar id) ids)
@@ -1655,21 +1690,12 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         in
         let vids = List.map Ident.rename ids in
         let pv = alpha_pat (List.combine ids vids) pv in
-        (* Also register the names of the exception so Re-raise happens. *)
-        iter_exn_names Translprim.add_exception_ident pe;
-        let rhs =
-          Misc.try_finally
-            (fun () -> event_before ~scopes rhs_exp
-                         (transl_exp ~scopes return_sort rhs_exp))
-            ~always:(fun () ->
-                iter_exn_names Translprim.remove_exception_ident pe)
-        in
         (pv, Matching.mk_unguarded_rhs (static_raise vids)) :: val_cases,
         (pe, Matching.mk_unguarded_rhs (static_raise ids)) :: exn_cases,
-        (lbl, ids_kinds, rhs) :: static_handlers
+        (lbl, ids_kinds, Matching.unguarded_exn c_rhs) :: static_handlers
   in
   let val_cases, exn_cases, static_handlers =
-    let x, y, z = List.fold_left rewrite_case ([], [], []) pat_expr_list in
+    let x, y, z = List.fold_left rewrite_case ([], [], []) pat_rhs_list in
     List.rev_append x extra_cases, List.rev y, List.rev z
   in
   (* In presence of exception patterns, the code we generate for
@@ -1706,9 +1732,14 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
-      let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
-      Matching.for_multiple_match ~scopes ~return_layout loc
-        (transl_list_with_layout ~scopes argl) mode val_cases partial
+      let argl =
+        List.map
+          (fun (exp, lam) ->
+             lam, Sort.for_tuple_element, layout_exp Sort.for_tuple_element exp)
+          (List.combine argl scrutineel)
+      in
+      Matching.for_multiple_match
+        ~scopes ~return_layout loc argl mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
         let val_ids, lvars =
@@ -1721,14 +1752,14 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
           |> List.split
         in
         let mode = transl_alloc_mode alloc_mode in
-        static_catch (transl_list ~scopes argl) val_ids
+        static_catch scrutineel val_ids
           (Matching.for_multiple_match ~scopes ~return_layout loc lvars mode
              val_cases partial)
     | arg, [] ->
-      assert (static_handlers = []);
-      let arg_layout = layout_exp arg_sort arg in
-      Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
-        loc None (transl_exp ~scopes arg_sort arg) val_cases partial
+        assert (static_handlers = []);
+        let arg_layout = layout_exp arg_sort arg in
+        Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
+          None (List.hd scrutineel) val_cases partial
     | arg, _ :: _ ->
         let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let arg_layout = layout_exp arg_sort arg in
