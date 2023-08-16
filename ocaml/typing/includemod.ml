@@ -446,7 +446,8 @@ module Sign_diff = struct
     }
 end
 
-(* Quickly compare module types without expanding them *)
+(* Quickly compare module types without expanding them, succeeding only if mty1
+  is a subtype of mty2 with no coercion  *)
 let rec shallow_modtypes env subst mty1 mty2 =
   let open Subst.Lazy in
   match mty1, mty2 with
@@ -461,7 +462,7 @@ let rec shallow_modtypes env subst mty1 mty2 =
   | Mty_strengthen (mty1,_,_), mty2 ->
       (* S with M <= S *)
       shallow_modtypes env subst mty1 mty2
-  | _ -> false
+  | (Mty_alias _ | Mty_ident _ | Mty_signature _ | Mty_functor _), _  -> false
 
 and shallow_module_paths env subst p1 mty2 p2 =
   equal_module_paths env p1 subst p2 ||
@@ -471,7 +472,8 @@ and shallow_module_paths env subst p1 mty2 p2 =
     | Mty_strengthen (mty1,p1,_) ->
         shallow_modtypes env subst mty1 mty2
           && equal_module_paths env p1 subst p2
-    | _ | exception Not_found -> false
+    | Mty_alias _ | Mty_ident _ | Mty_signature _ | Mty_functor _
+    | exception Not_found -> false
 
 (**
    In the group of mutual functions below, the [~in_eq] argument is [true] when
@@ -639,7 +641,8 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
             Error Error.(Mt_core Not_an_identifier)
         | _, Mty_alias _ ->
             Error (Error.Mt_core Error.Not_an_alias)
-        | _, _ -> Error (Error.Mt_core Abstract_module_type)
+        | (Mty_alias _ | Mty_signature _), _ ->
+            Error (Error.Mt_core Abstract_module_type)
 
 (* Functor parameters *)
 
