@@ -1549,6 +1549,7 @@ typing/typeclass.cmo : \
     parsing/parsetree.cmi \
     typing/oprint.cmi \
     typing/mode.cmi \
+    utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/layouts.cmi \
@@ -1579,6 +1580,7 @@ typing/typeclass.cmx : \
     parsing/parsetree.cmi \
     typing/oprint.cmx \
     typing/mode.cmx \
+    utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/layouts.cmx \
@@ -1918,7 +1920,6 @@ typing/typemod.cmo : \
     parsing/parsetree.cmi \
     parsing/parse.cmi \
     typing/mtype.cmi \
-    typing/mode.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
@@ -1961,7 +1962,6 @@ typing/typemod.cmx : \
     parsing/parsetree.cmi \
     parsing/parse.cmx \
     typing/mtype.cmx \
-    typing/mode.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
