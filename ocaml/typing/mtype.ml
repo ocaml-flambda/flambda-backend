@@ -58,14 +58,15 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
 
   | Mty_strengthen (mty,q,Not_aliasable) when aliasable ->
       (* Normally, we have S/M/N = S/M. However, if the inner strengthening is
-        not aliasable and the outer is, we strengthen types in S with M and
-        modules with N. We might consider changing this in the future. *)
+        not aliasable and the outer is, we have to strengthen types in S with M
+        and modules with N as per the semantics of strengthening.  *)
       begin match reduce_strengthen_lazy ~aliasable:false mty q with
       | Some mty -> reduce_strengthen_lazy ~aliasable:true mty p
       | None -> None
       end
   | Mty_alias _ | Mty_functor _ | Mty_strengthen _ ->
-      (* Strengthening aliases and already strengthened types is a no-op. *)
+      (* Strengthening aliases, generative functors and already strengthened
+        types is a no-op. *)
       Some mty
   | Mty_ident _ -> None
 
@@ -324,7 +325,11 @@ let rec sig_make_manifest sg =
     in
     Sig_modtype(Ident.rename id, newdecl, vis) :: sig_make_manifest rem
 
-let rec make_aliases_absent ?(aliased=false) pres mty =
+let rec make_aliases_absent ~aliased pres mty =
+  (* aliased=true means that mty is subject to aliasable strengthening
+    and thus any module we encounter in it will be an alias (we don't need to
+    know of what) and thus absent. This is purely an optimisation over
+    expanding Mty_strengthen nodes. *)
   match mty with
   | Mty_alias _ -> Mp_absent, mty
   | Mty_signature sg ->
@@ -339,7 +344,9 @@ let rec make_aliases_absent ?(aliased=false) pres mty =
               pres, { md with md_type }
           in
           Sig_module(id, pres, md, rs, priv)
-        | item -> item
+        | Sig_value _ | Sig_type _ | Sig_typext _ | Sig_modtype _
+        | Sig_class _ | Sig_class_type _ as item ->
+          item
       in
       pres, Mty_signature(List.map make_item sg)
   | Mty_functor(arg, res) ->
@@ -362,9 +369,9 @@ let scrape_for_type_of env pres mty =
         with Not_found -> outer
       end
     | Mty_strengthen (inner,_,_) -> loop env outer inner
-    | _ -> outer
+    | Mty_ident _ | Mty_signature _ | Mty_functor _ -> outer
   in
-  make_aliases_absent pres (loop env mty mty)
+  make_aliases_absent ~aliased:false pres (loop env mty mty)
 
 (* Expand manifest module type names at the top of the given module type *)
 
