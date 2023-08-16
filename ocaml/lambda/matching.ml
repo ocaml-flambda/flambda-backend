@@ -273,7 +273,7 @@ end = struct
       | `Alias (p, id, _, _) ->
           aux
             ( (General.view p, patl),
-                bind_alias p id ~arg ~arg_sort ~action )
+              bind_alias p id ~arg ~arg_sort ~action )
       | `Record ([], _) as view -> stop p view
       | `Record (lbls, closed) ->
           let full_view = `Record (all_record_args lbls, closed) in
