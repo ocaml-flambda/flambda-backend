@@ -101,3 +101,70 @@ module Unaliasable :
     module X : (A.S with A.M [@unaliasable])
   end
 |}]
+
+module Subtype = struct
+  module type S
+  module F(G:functor(X:S) -> S)(X:S)(Y:S with X) = G(Y)
+end
+[%%expect{|
+module Subtype :
+  sig
+    module type S
+    module F :
+      functor (G : functor (X : S) -> S) (X : S) (Y : (S with X)) ->
+        (S with G(Y))
+  end
+|}]
+
+module Can_use_type = struct
+  module type S = sig type t end
+  module A : sig
+    module M : S
+    module N : S with M
+    val foo : M.t -> M.t
+    val bar : N.t
+  end = struct
+    module M = struct type t = int end
+    module N = M
+    let foo x = x
+    let bar = 0
+  end
+
+  let x = A.foo A.bar
+end
+[%%expect{|
+module Can_use_type :
+  sig
+    module type S = sig type t end
+    module A :
+      sig
+        module M : S
+        module N : sig type t = M.t end
+        val foo : M.t -> M.t
+        val bar : N.t
+      end
+    val x : A.M.t
+  end
+|}]
+
+module Ignore_strengthening = struct
+  module type S = sig type t = int end
+  module A : sig
+    module M : S
+    module F(X : S with M) : S
+  end = struct
+    module M = struct type t = int end
+    module F(X : S with M) = X
+  end
+
+  module M = A.F(struct type t = int end)
+end
+[%%expect{|
+module Ignore_strengthening :
+  sig
+    module type S = sig type t = int end
+    module A :
+      sig module M : S module F : functor (X : sig type t = int end) -> S end
+    module M : S
+  end
+|}]
