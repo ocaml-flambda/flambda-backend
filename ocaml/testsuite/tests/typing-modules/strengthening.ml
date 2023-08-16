@@ -62,3 +62,29 @@ Error: In this `with' constraint, the new definition of t
          type t = M.t
        The type int is not equal to the type M.t
 |}]
+
+module Unaliasable = struct
+  module A : sig
+    module type S
+    module F (X:S) : S with X
+    module M : S
+  end = struct
+    module type S = sig end
+    module F(X:S) = X
+    module M = struct end
+  end
+  
+  module X = A.F(A.M)
+end
+[%%expect{|
+module Unaliasable :
+  sig
+    module A :
+      sig
+        module type S
+        module F : functor (X : S) -> (S with X)
+        module M : S
+      end
+    module X : (A.S with A.M [@unaliasable])
+  end
+|}]

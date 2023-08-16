@@ -147,6 +147,7 @@ type out_module_type =
   | Omty_signature of out_sig_item list
   | Omty_alias of out_ident
   | Omty_strengthen of out_module_type * out_ident * bool
+        (* the bool indicates whether we should print the unaliasable attribute *)
 and out_sig_item =
   | Osig_class of
       bool * string * out_type_param list * out_class_type *
