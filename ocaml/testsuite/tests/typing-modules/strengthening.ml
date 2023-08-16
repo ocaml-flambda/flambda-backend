@@ -168,3 +168,34 @@ module Ignore_strengthening :
     module M : S
   end
 |}]
+
+module Expand_destructive_with = struct
+  module type S = sig
+    module type T = sig type t val foo : t -> t end
+    module M : T
+    module N : T with M
+  end
+
+  module F(X:S with type M.t := int) = struct
+    let bar = X.N.foo 1
+  end
+end
+[%%expect{|
+module Expand_destructive_with :
+  sig
+    module type S =
+      sig
+        module type T = sig type t val foo : t -> t end
+        module M : T
+        module N : sig type t = M.t val foo : t -> t end
+      end
+    module F :
+      functor
+        (X : sig
+               module type T = sig type t val foo : t -> t end
+               module M : sig val foo : int -> int end
+               module N : sig type t = int val foo : t -> t end
+             end)
+        -> sig val bar : X.N.t end
+  end
+|}]
