@@ -133,8 +133,8 @@ TYPING_CMI = \
 LAMBDA = \
   lambda/printlambda.cmo \
   lambda/switch.cmo \
-  lambda/matching.cmo \
   lambda/translmode.cmo \
+  lambda/matching.cmo \
   lambda/transl_comprehension_utils.cmo \
   lambda/transl_array_comprehension.cmo \
   lambda/transl_list_comprehension.cmo \

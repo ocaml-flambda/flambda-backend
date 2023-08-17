@@ -3782,6 +3782,7 @@ lambda/matching.cmo : \
     typing/types.cmi \
     typing/typeopt.cmi \
     typing/typedtree.cmi \
+    lambda/translmode.cmi \
     lambda/switch.cmi \
     typing/printpat.cmi \
     lambda/printlambda.cmi \
@@ -3805,6 +3806,7 @@ lambda/matching.cmx : \
     typing/types.cmx \
     typing/typeopt.cmx \
     typing/typedtree.cmx \
+    lambda/translmode.cmx \
     lambda/switch.cmx \
     typing/printpat.cmx \
     lambda/printlambda.cmx \

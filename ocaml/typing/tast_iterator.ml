@@ -180,8 +180,8 @@ let pat
       List.iter (sub.pat sub) l;
       Option.iter (fun (_ids, ct) -> sub.typ sub ct) vto
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
-  | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
-  | Tpat_array (_, l) -> List.iter (sub.pat sub) l
+  | Tpat_record (l, _) -> List.iter (fun (_, _, i, _) -> sub.pat sub i) l
+  | Tpat_array (_, l) -> List.iter (fun (pat, _) -> sub.pat sub pat) l
   | Tpat_alias (p, _, _, _) -> sub.pat sub p
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)

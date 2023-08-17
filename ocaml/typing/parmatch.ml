@@ -141,7 +141,7 @@ let all_coherent column =
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 -> l1 = l2
-    | Record (lbl1 :: _), Record (lbl2 :: _) ->
+    | Record ((lbl1, _) :: _), Record ((lbl2, _) :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
     | Array (am1, _), Array (am2, _) -> am1 = am2
     | Any, _
@@ -257,9 +257,9 @@ let records_args l1 l2 =
   (* Invariant: fields are already sorted by Typecore.type_label_a_list *)
   let rec combine r1 r2 l1 l2 = match l1,l2 with
   | [],[] -> List.rev r1, List.rev r2
-  | [],(_,_,p2)::rem2 -> combine (omega::r1) (p2::r2) [] rem2
-  | (_,_,p1)::rem1,[] -> combine (p1::r1) (omega::r2) rem1 []
-  | (_,lbl1,p1)::rem1, ( _,lbl2,p2)::rem2 ->
+  | [],(_,_,p2,_)::rem2 -> combine (omega::r1) (p2::r2) [] rem2
+  | (_,_,p1,_)::rem1,[] -> combine (p1::r1) (omega::r2) rem1 []
+  | (_,lbl1,p1,_)::rem1, ( _,lbl2,p2,_)::rem2 ->
       if lbl1.lbl_num < lbl2.lbl_num then
         combine (p1::r1) (omega::r2) rem1 l2
       else if lbl1.lbl_num > lbl2.lbl_num then
@@ -304,8 +304,9 @@ module Compat
       compats ps qs
   | Tpat_array (am1, ps), Tpat_array (am2, qs) ->
       am1 = am2 &&
-      List.length ps = List.length qs &&
-      compats ps qs
+      let ps' = List.map fst ps in
+      let qs' = List.map fst qs in
+      compats ps' qs'
   | _,_  -> false
 
   and ocompat op oq = match op,oq with
@@ -382,11 +383,11 @@ let record_arg ph =
 
 let extract_fields lbls arg =
   let get_field pos arg =
-    match List.find (fun (lbl,_) -> pos = lbl.lbl_num) arg with
+    match List.find (fun ((lbl,_),_) -> pos = lbl.lbl_num) arg with
     | _, p -> p
     | exception Not_found -> omega
   in
-  List.map (fun lbl -> get_field lbl.lbl_num arg) lbls
+  List.map (fun (lbl,_) -> get_field lbl.lbl_num arg) lbls
 
 (* Build argument list when p2 >= p1, where p1 is a simple pattern *)
 let simple_match_args discr head args =
@@ -405,7 +406,7 @@ let simple_match_args discr head args =
       | Variant { has_arg = true }
       | Lazy -> [Patterns.omega]
       | Record lbls ->  omega_list lbls
-      | Array (_, len)
+      | Array (_, ams) -> Patterns.omegas (List.length ams)
       | Tuple len -> Patterns.omegas len
       | Variant { has_arg = false }
       | Any
@@ -455,11 +456,11 @@ let discr_pat q pss =
            However it makes the witness we generate for the exhaustivity warning
            less pretty. *)
         let fields =
-          List.fold_right (fun lbl r ->
-            if List.exists (fun l -> l.lbl_num = lbl.lbl_num) r then
+          List.fold_right (fun (lbl, am) r ->
+            if List.exists (fun (l, _) -> l.lbl_num = lbl.lbl_num) r then
               r
             else
-              lbl :: r
+              (lbl, am) :: r
           ) lbls (record_arg acc)
         in
         let d = { head with pat_desc = Record fields } in
@@ -495,15 +496,15 @@ let do_set_args ~erase_mutable q r = match q with
     let args,rest = read_args omegas r in
     make_pat
       (Tpat_record
-         (List.map2 (fun (lid, lbl,_) arg ->
+         (List.map2 (fun (lid, lbl,_, am) arg ->
            if
              erase_mutable &&
              (match lbl.lbl_mut with
              | Mutable -> true | Immutable -> false)
            then
-             lid, lbl, omega
+             lid, lbl, omega, am
            else
-             lid, lbl, arg)
+             lid, lbl, arg, am)
             omegas args, closed))
       q.pat_type q.pat_env::
     rest
@@ -532,7 +533,11 @@ let do_set_args ~erase_mutable q r = match q with
 | {pat_desc = Tpat_array (am, omegas)} ->
     let args,rest = read_args omegas r in
     make_pat
-      (Tpat_array (am, args)) q.pat_type q.pat_env::
+      (Tpat_array
+        (am,
+          (List.map2 (fun (_, am) arg ->
+            (arg, am))
+        omegas args))) q.pat_type q.pat_env::
     rest
 | {pat_desc=Tpat_constant _|Tpat_any} ->
     q::r (* case any is used in matching.ml *)
@@ -845,7 +850,7 @@ let pats_of_type ?(always=false) env ty =
       | Type_record (labels, _) ->
           let fields =
             List.map (fun ld ->
-              mknoloc (Longident.Lident ld.lbl_name), ld, omega)
+              mknoloc (Longident.Lident ld.lbl_name), ld, omega, None)
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
@@ -1050,13 +1055,16 @@ let build_other ext env =
           let all_lengths =
             List.map
               (fun (p,_) -> match p.pat_desc with
-              | Array (am', len) when am = am' -> len
+              | Array (am', ams) when am = am' -> List.length ams
               | _ -> assert false)
               env in
           let rec try_arrays l =
             if List.mem l all_lengths then try_arrays (l+1)
             else
-              make_pat (Tpat_array (am, omegas l))
+              let pats =
+                List.init l (fun _ -> (Patterns.omega, Alloc_mode.global))
+              in
+              make_pat (Tpat_array (am, pats))
                 d.pat_type d.pat_env in
           try_arrays 0
       | _ -> Patterns.omega
@@ -1066,9 +1074,10 @@ let rec has_instance p = match p.pat_desc with
   | Tpat_any | Tpat_var _ | Tpat_constant _ | Tpat_variant (_,None,_) -> true
   | Tpat_alias (p,_,_,_) | Tpat_variant (_,Some p,_) -> has_instance p
   | Tpat_or (p1,p2,_) -> has_instance p1 || has_instance p2
-  | Tpat_construct (_,_,ps, _) | Tpat_tuple ps | Tpat_array (_, ps) ->
+  | Tpat_construct (_,_,ps, _) | Tpat_tuple ps ->
       has_instances ps
-  | Tpat_record (lps,_) -> has_instances (List.map (fun (_,_,x) -> x) lps)
+  | Tpat_array (_, ps) -> has_instances (List.map (fun (x, _) -> x) ps)
+  | Tpat_record (lps,_) -> has_instances (List.map (fun (_,_,x,_) -> x) lps)
   | Tpat_lazy p
     -> has_instance p
 
@@ -1715,14 +1724,17 @@ let rec le_pat p q =
       let ps,qs = records_args l1 l2 in
       le_pats ps qs
   | Tpat_array(am1, ps), Tpat_array(am2, qs) ->
-      am1 = am2 && List.length ps = List.length qs && le_pats ps qs
+      let ps' = List.map fst ps in
+      let qs' = List.map fst qs in
+      am1 = am2 && le_pats ps' qs'
 (* In all other cases, enumeration is performed *)
   | _,_  -> not (satisfiable [[p]] [q])
 
 and le_pats ps qs =
   match ps,qs with
-    p::ps, q::qs -> le_pat p q && le_pats ps qs
-  | _, _         -> true
+  | [], [] -> true
+  | p::ps, q::qs -> le_pat p q && le_pats ps qs
+  | _, _         -> false
 
 let get_mins le ps =
   let rec select_rec r = function
@@ -1769,8 +1781,8 @@ let rec lub p q = match p.pat_desc,q.pat_desc with
     make_pat (Tpat_record (rs, closed))
       p.pat_type p.pat_env
 | Tpat_array (am1, ps), Tpat_array (am2, qs)
-      when am1 = am2 && List.length ps = List.length qs ->
-        let rs = lubs ps qs in
+      when am1 = am2 ->
+        let rs = array_lubs ps qs in
         make_pat (Tpat_array (am1, rs))
           p.pat_type p.pat_env
 | _,_  ->
@@ -1786,22 +1798,39 @@ and orlub p1 p2 q =
 with
 | Empty -> lub p2 q
 
+and am_lubs am1 am2 =
+  match am1, am2 with
+  | None, None -> None
+  | Some am1, Some am2 -> Some (Types.Alloc_mode.meet [am1; am2])
+  | _ -> raise Empty
+
 and record_lubs l1 l2 =
   let rec lub_rec l1 l2 = match l1,l2 with
   | [],_ -> l2
   | _,[] -> l1
-  | (lid1, lbl1,p1)::rem1, (lid2, lbl2,p2)::rem2 ->
+  | (lid1, lbl1,p1,am1)::rem1, (lid2, lbl2,p2,am2)::rem2 ->
       if lbl1.lbl_num < lbl2.lbl_num then
-        (lid1, lbl1,p1)::lub_rec rem1 l2
+        (lid1, lbl1,p1,am1)::lub_rec rem1 l2
       else if lbl2.lbl_num < lbl1.lbl_num  then
-        (lid2, lbl2,p2)::lub_rec l1 rem2
+        (lid2, lbl2,p2,am2)::lub_rec l1 rem2
       else
-        (lid1, lbl1,lub p1 p2)::lub_rec rem1 rem2 in
+        (lid1, lbl1,lub p1 p2, am_lubs am1 am2)
+          ::lub_rec rem1 rem2 in
   lub_rec l1 l2
 
+and array_lubs l1 l2 =
+  let rec lub_arr l1 l2 = match l1, l2 with
+  | [], [] -> []
+  | (p1, am1) :: rem1, (p2, am2) :: rem2 ->
+    (lub p1 p2, Types.Alloc_mode.meet [am1; am2]) :: lub_arr rem1 rem2
+  | _, _ -> raise Empty
+  in
+  lub_arr l1 l2
+
 and lubs ps qs = match ps,qs with
+| [], [] -> []
 | p::ps, q::qs -> lub p q :: lubs ps qs
-| _,_ -> []
+| _,_ -> raise Empty
 
 
 (******************************)
@@ -1905,7 +1934,7 @@ module Conv = struct
       | Tpat_record (subpatterns, _closed_flag) ->
           let fields =
             List.map
-              (fun (_, lbl, p) ->
+              (fun (_, lbl, p, _) ->
                 let id = fresh lbl.lbl_name in
                 Hashtbl.add labels id lbl;
                 (mknoloc (Longident.Lident id), loop p))
@@ -1913,7 +1942,7 @@ module Conv = struct
           in
           mkpat (Ppat_record (fields, Open))
       | Tpat_array (am, lst) ->
-          let pats = (List.map loop lst) in
+          let pats = (List.map (fun (pat, _ ) -> loop pat) lst) in
           let ppat, attrs = match am with
             | Mutable   -> Ppat_array pats, []
             | Immutable ->
@@ -2040,12 +2069,16 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
       (if extendable_path path then add_path path r else r)
       ps
 | Tpat_any|Tpat_var _|Tpat_constant _| Tpat_variant (_,None,_) -> r
-| Tpat_tuple ps | Tpat_array (_, ps)
+| Tpat_tuple ps
 | Tpat_construct (_, {cstr_tag=Extension _}, ps, _)->
     List.fold_left collect_paths_from_pat r ps
+| Tpat_array (_, ps) ->
+    List.fold_left
+      (fun r (p, _) -> collect_paths_from_pat r p)
+      r ps
 | Tpat_record (lps,_) ->
     List.fold_left
-      (fun r (_, _, p) -> collect_paths_from_pat r p)
+      (fun r (_, _, p, _) -> collect_paths_from_pat r p)
       r lps
 | Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_) -> collect_paths_from_pat r p
 | Tpat_or (p1,p2,_) ->
@@ -2179,14 +2212,15 @@ let inactive ~partial pat =
             | Const_int _ | Const_char _ | Const_float _
             | Const_int32 _ | Const_int64 _ | Const_nativeint _ -> true
           end
-        | Tpat_tuple ps | Tpat_construct (_, _, ps, _)
-        | Tpat_array (Immutable, ps) ->
+        | Tpat_tuple ps | Tpat_construct (_, _, ps, _) ->
             List.for_all (fun p -> loop p) ps
+        | Tpat_array (Immutable, ps) ->
+            List.for_all (fun (p, _) -> loop p)  ps
         | Tpat_alias (p,_,_,_) | Tpat_variant (_, Some p, _) ->
             loop p
         | Tpat_record (ldps,_) ->
             List.for_all
-              (fun (_, lbl, p) -> lbl.lbl_mut = Immutable && loop p)
+              (fun (_, lbl, p, _) -> lbl.lbl_mut = Immutable && loop p)
               ldps
         | Tpat_or (p,q,_) ->
             loop p && loop q

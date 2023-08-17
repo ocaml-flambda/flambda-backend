@@ -67,11 +67,11 @@ and 'k pattern_desc =
       label * value general_pattern option * row_desc ref ->
       value pattern_desc
   | Tpat_record :
-      (Longident.t loc * label_description * value general_pattern) list *
-        closed_flag ->
-      value pattern_desc
+      (Longident.t loc * label_description * value general_pattern
+        * alloc_mode option) list * closed_flag -> value pattern_desc
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutable_flag * (value general_pattern * alloc_mode) list
+        -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -768,8 +768,8 @@ let shallow_iter_pattern_desc
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
-      List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
-  | Tpat_array (_, patl) -> List.iter f.f patl
+      List.iter (fun (_, _, pat, _) -> f.f pat) lbl_pat_list
+  | Tpat_array (_, patl) -> List.iter (fun (pat, _) -> f.f pat) patl
   | Tpat_lazy p -> f.f p
   | Tpat_any
   | Tpat_var _
@@ -788,11 +788,11 @@ let shallow_map_pattern_desc
   | Tpat_tuple pats ->
       Tpat_tuple (List.map f.f pats)
   | Tpat_record (lpats, closed) ->
-      Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
+      Tpat_record (List.map (fun (lid, l,p,am) -> lid, l, f.f p, am) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
       Tpat_construct (lid, c, List.map f.f pats, ty)
   | Tpat_array (am, pats) ->
-      Tpat_array (am, List.map f.f pats)
+      Tpat_array (am, List.map (fun (pat, am) -> (f.f pat, am)) pats)
   | Tpat_lazy p1 -> Tpat_lazy (f.f p1)
   | Tpat_variant (x1, Some p1, x2) ->
       Tpat_variant (x1, Some (f.f p1), x2)
@@ -893,7 +893,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
-          List.iter (fun (_, lbl, pat) ->
+          List.iter (fun (_, lbl, pat, _) ->
             (loop f) (Layout.sort_of_layout lbl.lbl_layout) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
@@ -901,7 +901,8 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
       | Tpat_tuple patl -> List.iter (loop f Sort.value) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
-      | Tpat_array (_, patl) -> List.iter (loop f Sort.value) patl
+      | Tpat_array (_, patl) ->
+          List.iter (fun (pat, _) -> loop f Sort.value pat) patl
       | Tpat_lazy p | Tpat_exception p -> loop f Sort.value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()

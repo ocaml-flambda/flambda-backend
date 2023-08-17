@@ -306,7 +306,7 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       list i longident_x_pattern ppf l;
   | Tpat_array (am, l) ->
       line i ppf "Tpat_array %a\n" fmt_mutable_flag am;
-      list i pattern ppf l;
+      list i pattern_am ppf l;
   | Tpat_lazy p ->
       line i ppf "Tpat_lazy\n";
       pattern i ppf p;
@@ -1012,9 +1012,14 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
 and field_decl i ppf (ty, _) =
   core_type (i+1) ppf ty
 
-and longident_x_pattern i ppf (li, _, p) =
+and longident_x_pattern i ppf (li, _, p, am) =
   line i ppf "%a\n" fmt_longident li;
+  alloc_mode_option i ppf am;
   pattern (i+1) ppf p;
+
+and pattern_am i ppf (p, am) =
+  alloc_mode i ppf am;
+  pattern (i+1) ppf p
 
 and comprehension i ppf {comp_body; comp_clauses} =
   line i ppf "comprehension\n";

@@ -883,6 +883,8 @@ module Alloc_mode : sig
 
   val join : t list -> t
 
+  val meet : t list -> t
+
   (* Force a mode variable to its upper bound *)
   val constrain_upper : t -> const
 
@@ -989,6 +991,8 @@ module Value_mode : sig
   val newvar : unit -> t
 
   val newvar_below : t -> t
+
+  val newvar_above : t -> t
 
   val check_const : t -> const option
 

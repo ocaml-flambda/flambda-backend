@@ -382,10 +382,10 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_variant (label, pato, _) ->
         Ppat_variant (label, Option.map (sub.pat sub) pato)
     | Tpat_record (list, closed) ->
-        Ppat_record (List.map (fun (lid, _, pat) ->
+        Ppat_record (List.map (fun (lid, _, pat, _) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
     | Tpat_array (am, list) -> begin
-        let pats = List.map (sub.pat sub) list in
+        let pats = List.map (fun (pat, _) -> sub.pat sub pat) list in
         match am with
         | Mutable   -> Ppat_array pats
         | Immutable ->

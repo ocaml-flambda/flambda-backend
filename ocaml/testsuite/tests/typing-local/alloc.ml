@@ -153,6 +153,34 @@ let projfloat n =
 
 let floatconst = {x=0.; y=0.; z=0.}
 
+let pat_floatrecord_noescape a =
+  let foo {x;y;_} = local_ (x,y) in
+  ignore_local (foo {x=a;y=a;z=a});
+  ()
+
+let pat_floatrecord_escape a =
+  let foo {x;y;_} = (x,y) in
+  ignore_local (foo {x=a;y=a;z=a});
+  ()
+
+let pat_floatarray_noescape a =
+  let foo arr = local_
+  match arr with
+  | [| x; y |] -> (x, y)
+  | _ -> (42.0, 43.0)
+  in
+  ignore_local (foo [| a; a |]);
+  ()
+
+let pat_floatarray_escape a =
+  let foo arr =
+  match arr with
+  | [| x; y |] -> (x, y)
+  | _ -> (42.0, 43.0)
+  in
+  ignore_local (foo [| a; a |]);
+  ()
+
 let dupfloat n =
   ignore_local {n with x=42.};
   ()
@@ -452,6 +480,10 @@ let () =
   run "big" makebig 42;
   run "dupbig" dupbig bigconst;
   run "float" makefloat 42.;
+  run "pat_floatrecord_noescape" pat_floatrecord_noescape 42.;
+  run "pat_floatrecord_escape" pat_floatrecord_escape 42.;
+  run "pat_floatarray_noescape" pat_floatarray_noescape 42.;
+  run "pat_floatarray_escape" pat_floatarray_escape 42.;
   run "projfloat" projfloat 42.;
   run "dupfloat" dupfloat floatconst;
   run "polyvariant" makepolyvariant 42;
@@ -482,6 +514,7 @@ let () =
   run "manylong" makemanylong 100;
   run "optionalarg" optionalarg (fun_with_optional_arg, 10);
   run "optionaleta" optionaleta ()
+
 
   (* The following test commented out as it require more memory than the CI has
      *)

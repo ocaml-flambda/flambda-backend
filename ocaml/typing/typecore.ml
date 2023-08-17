@@ -1074,7 +1074,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
       in
       ty, mode
   | Tpat_record (lpl,_) ->
-      let lbl = snd3 (List.hd lpl) in
+      let lbl = snd4 (List.hd lpl) in
       if lbl.lbl_private = Private then p.pat_type, mode else
       (* The layout here is filled in via unification with [ty_res] in
          [unify_pat]. *)
@@ -1083,7 +1083,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
 
          RAE: why? It looks fine as-is. *)
       let ty = newvar (Layout.any ~why:Dummy_layout) in
-      let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
+      let ppl = List.map (fun (_, l, p, _) -> l.lbl_num, p) lpl in
       let do_label lbl =
         let _, ty_arg, ty_res = instance_label false lbl in
         unify_pat ~refine env {p with pat_type = ty} ty_res;
@@ -1884,10 +1884,10 @@ let type_label_a_list
 let check_recordpat_labels loc lbl_pat_list closed =
   match lbl_pat_list with
   | [] -> ()                            (* should not happen *)
-  | (_, label1, _) :: _ ->
+  | (_, label1, _, _) :: _ ->
       let all = label1.lbl_all in
       let defined = Array.make (Array.length all) false in
-      let check_defined (_, label, _) =
+      let check_defined (_, label, _, _) =
         if defined.(label.lbl_num)
         then raise(Error(loc, Env.empty, Label_multiply_defined label.lbl_name))
         else defined.(label.lbl_num) <- true in
@@ -2277,13 +2277,18 @@ and type_pat_aux
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
     let ty_elt = solve_Ppat_array ~refine loc env mutability expected_ty in
-      map_fold_cont (fun p ->
-        let alloc_mode =
+      map_fold_cont (fun p k ->
+        let base_mode =
           match mutability with
-          | Mutable -> simple_pat_mode Value_mode.global
-          | Immutable -> alloc_mode
+          | Mutable -> Value_mode.global
+          | Immutable -> alloc_mode.mode
         in
-        type_pat ~alloc_mode tps Value p ty_elt) spl (fun pl ->
+        let alloc_mode = Value_mode.newvar_above base_mode in
+        let am = register_allocation_value_mode alloc_mode in
+        let alloc_mode = simple_pat_mode alloc_mode in
+        type_pat ~alloc_mode tps Value p ty_elt (fun pat -> k (pat, am))
+        )
+        spl (fun pl ->
           rvp k {
           pat_desc = Tpat_array (mutability, pl);
           pat_loc = loc; pat_extra=[];
@@ -2585,9 +2590,17 @@ and type_pat_aux
           | Global -> Value_mode.global
           | Unrestricted -> alloc_mode.mode
         in
+        let alloc_mode, am =
+          match label.lbl_repres with
+          | Record_float ->
+            let m = Value_mode.newvar_above alloc_mode in
+            let am = register_allocation_value_mode m in
+            m, Some am
+          | _ -> alloc_mode, None
+        in
         let alloc_mode = simple_pat_mode alloc_mode in
         type_pat tps Value ~alloc_mode sarg ty_arg (fun arg ->
-          k (label_lid, label, arg))
+          k (label_lid, label, arg, am))
       in
       let make_record_pat lbl_pat_list =
         check_recordpat_labels loc lbl_pat_list closed;
