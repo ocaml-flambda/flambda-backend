@@ -136,7 +136,7 @@ let make_spill : type a. a make_operation =
 let rec insert_splills_or_reloads_in_block :
     State.t ->
     make_spill_or_reload:'a make_operation ->
-    array_of_interest:(Instruction.t -> Reg.t array) ->
+    occur_check:(Instruction.t -> Reg.t -> bool) ->
     insert:(Instruction.t DLL.cell -> Instruction.t -> unit) ->
     add_default:(Instruction.t DLL.t -> Instruction.t -> unit) ->
     move_cell:(Instruction.t DLL.cell -> Instruction.t DLL.cell option) ->
@@ -146,8 +146,8 @@ let rec insert_splills_or_reloads_in_block :
     Instruction.t DLL.cell option ->
     Reg.Set.t ->
     unit =
- fun state ~make_spill_or_reload ~array_of_interest ~insert ~add_default
-     ~move_cell ~block_subst ~stack_subst block cell live_at_interesting_point ->
+ fun state ~make_spill_or_reload ~occur_check ~insert ~add_default ~move_cell
+     ~block_subst ~stack_subst block cell live_at_interesting_point ->
   match Reg.Set.is_empty live_at_interesting_point with
   | true -> ()
   | false -> (
@@ -175,7 +175,7 @@ let rec insert_splills_or_reloads_in_block :
           (fun old_reg ->
             let new_reg = Substitution.apply_reg block_subst old_reg in
             let instr = DLL.value cell in
-            if occurs_array (array_of_interest instr) new_reg
+            if occur_check instr new_reg
             then (
               let spill_or_reload =
                 make_spill_or_reload state ~stack_subst ~old_reg ~new_reg
@@ -188,8 +188,8 @@ let rec insert_splills_or_reloads_in_block :
       in
       let cell = move_cell cell in
       insert_splills_or_reloads_in_block state ~make_spill_or_reload
-        ~array_of_interest ~insert ~add_default ~move_cell ~block_subst
-        ~stack_subst block cell live_at_interesting_point)
+        ~occur_check ~insert ~add_default ~move_cell ~block_subst ~stack_subst
+        block cell live_at_interesting_point)
 
 (* Inserts the spills in a block, as early as possible (i.e. immediately after
    the register is last set), to reduce live ranges. *)
@@ -203,7 +203,13 @@ let insert_spills_in_block :
     unit =
  fun state ~block_subst ~stack_subst block cell live_at_destruction_point ->
   insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_spill
-    ~array_of_interest:(fun instr -> instr.res)
+    ~occur_check:(fun instr reg ->
+      (* We assume `new_reg` has no location yet (we are before register
+         allocation, but selection uses fixed registers in various places). If
+         the assertion does not hold, we need to look at the registers destroyed
+         by the instruction. *)
+      assert (Reg.is_unknown reg);
+      occurs_array instr.res reg)
     ~insert:DLL.insert_after ~add_default:DLL.add_begin ~move_cell:DLL.prev
     ~block_subst ~stack_subst block cell live_at_destruction_point
 
@@ -266,7 +272,7 @@ let insert_reloads_in_block :
     unit =
  fun state ~block_subst ~stack_subst block cell live_at_definition_point ->
   insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_reload
-    ~array_of_interest:(fun instr -> instr.arg)
+    ~occur_check:(fun instr reg -> occurs_array instr.arg reg)
     ~insert:DLL.insert_before ~add_default:DLL.add_end ~move_cell:DLL.next
     ~block_subst ~stack_subst block cell live_at_definition_point
 
