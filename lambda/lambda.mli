@@ -199,6 +199,11 @@ type primitive =
                         one; O(1) *)
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
+  | Pget_header of alloc_mode
+  (* Get the header of a block. This primitive is invalid if provided with an
+     immediate value.
+     Note: The GC color bits in the header are not reliable except for checking
+     if the value is locally allocated *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
