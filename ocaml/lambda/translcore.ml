@@ -1057,10 +1057,7 @@ and transl_rhs ~scopes rhs_sort rhs =
         event_before
           ~scopes typed_guard (Lifthenelse (guard, body, patch, layout))
       in
-      let free_variables =
-        Ident.Set.union (free_variables guard) (free_variables body)
-      in
-      Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
+      Matching.mk_guarded_rhs ~patch_guarded
   | Pattern_guarded_rhs { scrutinee; scrutinee_sort; cases; partial;
                           loc; env; rhs_type } ->
       match partial with
@@ -1085,7 +1082,7 @@ and transl_rhs ~scopes rhs_sort rhs =
                  ~return_sort:rhs_sort ~return_type:rhs_type ~loc ~env
                  ~extra_cases scrutinee cases partial)
           in
-          Matching.mk_pattern_guarded_rhs ~patch_guarded
+          Matching.mk_guarded_rhs ~patch_guarded
       | Total ->
           (* Total pattern guards are equivalent to nested matches. *)
           let nested_match =

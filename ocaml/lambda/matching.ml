@@ -129,64 +129,27 @@ let may_compat = MayCompat.compat
 
 and may_compats = MayCompat.compats
 
-(* The free variables in a guarded rhs can be precomputed to be used in an
-   optimization, or uncomputed, in which case the optimization is not applied.
-*)
-type guarded_free_variables =
-  | Precomputed of Ident.Set.t
-  | Uncomputed
-
-let map_guarded_free_variables ~f = function
-  | Precomputed free_variables -> Precomputed (f free_variables)
-  | Uncomputed -> Uncomputed
-
 type rhs =
-  | Guarded of
-      { patch_guarded: patch:lambda -> lambda
-      ; free_variables: guarded_free_variables }
-  (* Guarded rhs's must allow for fallthrough if the guard fails.
-
-     When translating a guarded rhs, the code to execute on fallthrough must
-     be "patched" in. Because the fallthrough code is translated after the
-     rhs is created, guarded actions rhs's a function [patch_guarded], which
-     generates a lambda term for the action from the fallthrough code.
-
-     One translation optimization requires us to check the free variables of an
-     rhs. When it is simple to do so, we precompute these free variables for use
-     in the optimization. Otherwise, we leave them uncomputed and do not apply
-     the optimization.
-  *)
+  | Guarded of { rhs_with_fallthrough : lambda; fallthrough : static_label }
+  (* [rhs_with_fallthrough] raises exn [fallthrough] if the guard fails. *)
   | Unguarded of lambda
 
-let mk_boolean_guarded_rhs ~patch_guarded ~free_variables =
-  Guarded { patch_guarded; free_variables = Precomputed free_variables }
-
-let mk_pattern_guarded_rhs ~patch_guarded =
-  Guarded { patch_guarded; free_variables = Uncomputed }
+let map_rhs ~f = function
+  | Unguarded rhs -> Unguarded (f rhs)
+  | Guarded { rhs_with_fallthrough; fallthrough } ->
+      Guarded { rhs_with_fallthrough = f rhs_with_fallthrough; fallthrough }
 
 let mk_unguarded_rhs action = Unguarded action
+let mk_guarded_rhs ~patch_guarded =
+  let fresh_label = next_raise_count () in
+  let rhs_with_fallthrough =
+    patch_guarded ~patch:(Lstaticraise (fresh_label, []))
+  in
+  Guarded { rhs_with_fallthrough; fallthrough = fresh_label }
 
 let is_guarded = function
   | Guarded _ -> true
   | Unguarded _ -> false
-
-let bind_rhs_with_layout str (var, layout) exp body =
-  match body with
-  | Unguarded body -> Unguarded (bind_with_layout str (var, layout) exp body)
-  | Guarded { patch_guarded; free_variables = free } ->
-      match exp with
-      | Lvar var' when Ident.same var var' -> body
-      | _ ->
-          let patch_guarded ~patch =
-            Llet (str, layout, var, exp, patch_guarded ~patch) in
-          let free_variables =
-            map_guarded_free_variables
-              ~f:(fun free ->
-                    Ident.Set.union
-                      (free_variables exp) (Ident.Set.remove var free))
-              free
-          in
-          Guarded { patch_guarded; free_variables }
 
 (*
    Many functions on the various data structures of the algorithm :
@@ -224,7 +187,7 @@ let expand_record_head h =
 
 let bind_alias p id ~arg ~arg_sort ~action =
   let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
-  bind_rhs_with_layout Alias (id, k) arg action
+  map_rhs ~f:(bind_with_layout Alias (id, k) arg) action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
@@ -308,7 +271,7 @@ end = struct
       | `Alias (p, id, _, _) ->
           aux
             ( (General.view p, patl),
-                bind_alias p id ~arg ~arg_sort ~action )
+              bind_alias p id ~arg ~arg_sort ~action )
       | `Record ([], _) as view -> stop p view
       | `Record (lbls, closed) ->
           let full_view = `Record (all_record_args lbls, closed) in
@@ -1161,15 +1124,18 @@ let same_actions = function
 
 let safe_before ((p, ps), act_p) l =
   (* Test for swapping two clauses *)
+  let same_key act1 act2 =
+    match make_key act1, make_key act2 with
+    | Some key1, Some key2 -> key1 = key2
+    | None, _ | _, None -> false
+  in
   let same_actions act1 act2 =
     match act1, act2 with
-    | Unguarded act1, Unguarded act2 ->
-        (match make_key act1, make_key act2 with
-         | Some key1, Some key2 -> key1 = key2
-         | None, _ | _, None -> false)
-    (* CR-soon rgodse: Investigate the callsites of this function to determine
-       if Guarded rhs's should ever be deemed the same. *)
-    | Guarded _, _ | _, Guarded _ -> false
+    | Unguarded act1, Unguarded act2 -> same_key act1 act2
+    | Guarded { rhs_with_fallthrough = act1; fallthrough = f1 }
+    , Guarded { rhs_with_fallthrough = act2; fallthrough = f2 } ->
+        same_key act1 act2 && f1 = f2
+    | Unguarded _, Guarded _ | Guarded _, Unguarded _ -> false
   in
   List.for_all
     (fun ((q, qs), act_q) ->
@@ -1205,24 +1171,11 @@ let what_is_first_case = what_is_cases ~skip_any:false
 
 let what_is_cases = what_is_cases ~skip_any:true
 
-type pm_free_variables =
-  | Known of Ident.Set.t
-  (* Pattern match free variables are known: optimization can be applied *)
-  | Unknown
-  (* Pattern match free variables are unknown: optimization cannot be applied *)
-
 let pm_free_variables { cases } =
   List.fold_right
-    (fun (_, act) -> function
-       | Unknown -> Unknown
-       | Known free ->
-          match act with
-          | Unguarded lam ->
-              Known (Ident.Set.union free (free_variables lam))
-          | Guarded { free_variables = Precomputed free_variables } ->
-              Known (Ident.Set.union free free_variables)
-          | Guarded { free_variables = Uncomputed } -> Unknown)
-    cases (Known Ident.Set.empty)
+    (fun (_, (Unguarded rhs | Guarded { rhs_with_fallthrough = rhs; _ })) free
+       -> Ident.Set.union free (free_variables rhs))
+    cases Ident.Set.empty
 
 (* Basic grouping predicates *)
 
@@ -1660,32 +1613,13 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
                 default = Default_environment.pop_compat orp def
               }
             in
-            let patbound_idents =
-              Typedtree.pat_bound_idents_full arg_sort orp
-            in
-            (* CR-soon rgodse: Investigate if our initial thoughts about the
-               optimization below are true. We know that we're not affecting
-               existing code, but we should find a case where the optimization
-               fires and determine if the resulting change in code is important.
-            *)
-            (* Optimization: discard pattern vars not bound in orpm actions *)
-            let patbound_idents =
-              match pm_free_variables orpm with
-              (* Give up on the optimization: there is some action not tracking
-                 free variables, so the free variable set is not known. *)
-              | Unknown -> patbound_idents
-              (* The free variables set is known: apply the optimization by
-                 filtering out pattern-bound variables unused by the actions. *)
-              | Known pm_fv ->
-                  List.filter
-                    (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
-                    patbound_idents
-            in
+            let pm_fv = pm_free_variables orpm in
             let patbound_action_vars =
-              List.map
-                (fun (id, _, ty, id_sort) ->
-                   (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
-                patbound_idents
+              Typedtree.pat_bound_idents_full arg_sort orp
+              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+              |> List.map
+                   (fun (id, _, ty, id_sort) ->
+                      (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -3208,6 +3142,8 @@ let rec event_branch repr lam =
           } )
   | Llet (str, k, id, lam, body), _ ->
       Llet (str, k, id, lam, event_branch repr body)
+  | Lstaticcatch (body, exn, handler, k), _ ->
+      Lstaticcatch (event_branch repr body, exn, handler, k)
   | Lstaticraise _, _ -> lam
   | _, Some _ ->
       Printlambda.lambda Format.str_formatter lam;
@@ -3424,14 +3360,17 @@ let rec compile_match ~scopes value_kind repr partial ctx
   match m.cases with
   | ([], action) :: rem ->
       (match action with
-        | Unguarded action ->
-            event_branch repr action, Jumps.empty
-        | Guarded { patch_guarded; _ } ->
-            let lambda, total =
-              compile_match ~scopes value_kind None partial ctx
-                { m with cases = rem }
-            in
-            event_branch repr (patch_guarded ~patch:lambda), total)
+       | Unguarded action -> event_branch repr action, Jumps.empty
+       | Guarded { rhs_with_fallthrough; fallthrough } ->
+           let lambda, total =
+             compile_match ~scopes value_kind None partial ctx
+               { m with cases = rem }
+           in
+           let patched =
+             Lstaticcatch
+               (rhs_with_fallthrough, (fallthrough, []), lambda, value_kind)
+           in
+           event_branch repr patched, total)
   | nonempty_cases ->
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }
