@@ -130,24 +130,22 @@ let may_compat = MayCompat.compat
 and may_compats = MayCompat.compats
 
 type rhs =
-  | Guarded of { action: lambda; exn_label: static_label }
-  (* Guarded rhs's must allow for fallthrough if the guard fails. This
-     fallthrough is facilitated by raising with label [exn_label].
-  *)
+  | Guarded of { rhs_with_fallthrough : lambda; fallthrough : static_label }
+  (* [rhs_with_fallthrough] raises exn [fallthrough] if the guard fails. *)
   | Unguarded of lambda
 
-let lambda_of_rhs = function
-  | Unguarded action | Guarded { action; _ } -> action
-
 let map_rhs ~f = function
-  | Unguarded action -> Unguarded (f action)
-  | Guarded { action; exn_label } -> Guarded { action = f action; exn_label }
+  | Unguarded rhs -> Unguarded (f rhs)
+  | Guarded { rhs_with_fallthrough; fallthrough } ->
+      Guarded { rhs_with_fallthrough = f rhs_with_fallthrough; fallthrough }
 
 let mk_unguarded_rhs action = Unguarded action
 let mk_guarded_rhs ~patch_guarded =
   let fresh_label = next_raise_count () in
-  let with_exit = patch_guarded ~patch:(Lstaticraise (fresh_label, [])) in
-  Guarded { action = with_exit; exn_label = fresh_label }
+  let rhs_with_fallthrough =
+    patch_guarded ~patch:(Lstaticraise (fresh_label, []))
+  in
+  Guarded { rhs_with_fallthrough; fallthrough = fresh_label }
 
 let is_guarded = function
   | Guarded _ -> true
@@ -1126,10 +1124,18 @@ let same_actions = function
 
 let safe_before ((p, ps), act_p) l =
   (* Test for swapping two clauses *)
-  let same_actions act1 act2 =
-    match make_key (lambda_of_rhs act1), make_key (lambda_of_rhs act2) with
+  let same_key act1 act2 =
+    match make_key act1, make_key act2 with
     | Some key1, Some key2 -> key1 = key2
     | None, _ | _, None -> false
+  in
+  let same_actions act1 act2 =
+    match act1, act2 with
+    | Unguarded act1, Unguarded act2 -> same_key act1 act2
+    | Guarded { rhs_with_fallthrough = act1; fallthrough = f1 }
+    , Guarded { rhs_with_fallthrough = act2; fallthrough = f2 } ->
+        same_key act1 act2 && f1 = f2
+    | Unguarded _, Guarded _ | Guarded _, Unguarded _ -> false
   in
   List.for_all
     (fun ((q, qs), act_q) ->
@@ -1167,8 +1173,8 @@ let what_is_cases = what_is_cases ~skip_any:true
 
 let pm_free_variables { cases } =
   List.fold_right
-    (fun (_, act) free ->
-       Ident.Set.union free (free_variables (lambda_of_rhs act)))
+    (fun (_, (Unguarded rhs | Guarded { rhs_with_fallthrough = rhs; _ })) free
+       -> Ident.Set.union free (free_variables rhs))
     cases Ident.Set.empty
 
 (* Basic grouping predicates *)
@@ -3136,6 +3142,8 @@ let rec event_branch repr lam =
           } )
   | Llet (str, k, id, lam, body), _ ->
       Llet (str, k, id, lam, event_branch repr body)
+  | Lstaticcatch (body, exn, handler, k), _ ->
+      Lstaticcatch (event_branch repr body, exn, handler, k)
   | Lstaticraise _, _ -> lam
   | _, Some _ ->
       Printlambda.lambda Format.str_formatter lam;
@@ -3353,18 +3361,16 @@ let rec compile_match ~scopes value_kind repr partial ctx
   | ([], action) :: rem ->
       (match action with
        | Unguarded action -> event_branch repr action, Jumps.empty
-       | Guarded { action; exn_label } ->
+       | Guarded { rhs_with_fallthrough; fallthrough } ->
            let lambda, total =
              compile_match ~scopes value_kind None partial ctx
                { m with cases = rem }
            in
-           let rec catch_fallthrough = function
-             | Llet (str, k, id, lam, body) ->
-                 Llet (str, k, id, lam, catch_fallthrough body)
-             | Levent (lam, ev) -> Levent (catch_fallthrough lam, ev)
-             | lam ->  Lstaticcatch (lam, (exn_label, []), lambda, value_kind)
+           let patched =
+             Lstaticcatch
+               (rhs_with_fallthrough, (fallthrough, []), lambda, value_kind)
            in
-           event_branch repr (catch_fallthrough action), total)
+           event_branch repr patched, total)
   | nonempty_cases ->
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }
