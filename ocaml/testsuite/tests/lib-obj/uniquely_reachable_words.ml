@@ -10,10 +10,12 @@ let native =
 let sizes xs = Obj.uniquely_reachable_words (List.map Obj.repr xs |> Array.of_list)
   |> Array.to_list
 
+(* We make object with id i have size about 100 * 2 ** i which allows us to
+ * (approximately) deduce the reachable node ids just from the their total size. *)
 let deduce_reachable size =
   let reachable = ref []
   and cur = ref 0
-  and binary = ref ((size + 50) / 100) in
+  and binary = ref (size / 100) in
   while !binary > 0 do
     if !binary land 1 = 1 then
       reachable := !cur :: !reachable;
