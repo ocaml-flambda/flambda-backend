@@ -347,7 +347,7 @@ let partial_apply alloc_mode =
 
 (* Following functions are used to check if the return mode can omitted in the
    case of currying *)
-let same_locality expected real =
+let locality_agree expected real =
   match expected, real with
   (* If expected and real matches, can omit *)
   | Olm_local, Olm_local | Olm_global, Olm_global -> true
@@ -359,21 +359,41 @@ let same_locality expected real =
      safe*)
   | _, _ -> false
 
-let same_uniqueness expected real =
+let uniqueness_agree expected real =
   match expected, real with
   | Oum_unique, Oum_unique | Oum_shared, Oum_shared -> true
   | _, Oum_unknown -> true
   | _, _ -> false
 
-let same_linearity expected real =
+let linearity_agree expected real =
   match expected, real with
   | Olinm_many, Olinm_many | Olinm_once, Olinm_once -> true
   | _, Olinm_unknown -> true
   | _, _ -> false
 
+let mode_agree expected real =
+  locality_agree expected.oam_locality real.oam_locality &&
+  uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
+  linearity_agree expected.oam_linearity real.oam_linearity
+
 let print_out_layout ppf = function
   | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
   | Olay_var v     -> fprintf ppf "%s" v
+
+let is_local mode =
+  match mode.oam_locality with
+  | Olm_local -> true
+  | _ -> false
+
+let is_unique mode =
+  match mode.oam_uniqueness with
+  | Oum_unique -> true
+  | _ -> false
+
+let is_once mode =
+  match mode.oam_linearity with
+  | Olinm_once -> true
+  | _ -> false
 
 let rec print_out_type_0 mode ppf =
   function
@@ -389,21 +409,9 @@ let rec print_out_type_0 mode ppf =
       print_out_type_1 mode ppf ty
 
 and print_out_type_mode mode ppf ty =
-  let is_local =
-    match mode.oam_locality with
-    | Olm_local -> true
-    | _ -> false
-  in
-  let is_unique =
-    match mode.oam_uniqueness with
-    | Oum_unique -> true
-    | _ -> false
-  in
-  let is_once =
-    match mode.oam_linearity with
-    | Olinm_once -> true
-    | _ -> false
-  in
+  let is_local = is_local mode in
+  let is_unique = is_unique mode in
+  let is_once = is_once mode in
   if (not is_local || Language_extension.is_enabled Local) &&
      (not is_unique || Language_extension.is_enabled Unique) &&
      (not is_once || Language_extension.is_enabled Unique)
@@ -451,9 +459,7 @@ and print_out_ret mode rm ppf =
   function
   (* the 'mode' argument only has meaning if we are talking about closure *)
   | Otyp_arrow _ as ty ->
-    if same_locality mode.oam_locality rm.oam_locality &&
-       same_uniqueness mode.oam_uniqueness rm.oam_uniqueness &&
-       same_linearity mode.oam_linearity rm.oam_linearity
+    if mode_agree mode rm
       then print_out_type_1 rm ppf ty
       else print_out_type_mode rm ppf ty
   | ty -> print_out_type_mode rm ppf ty

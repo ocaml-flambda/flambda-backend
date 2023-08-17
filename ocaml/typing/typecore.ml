@@ -463,7 +463,9 @@ let mode_local expected_mode =
     mode = Value.to_local expected_mode.mode }
 
 let mode_exclave expected_mode =
-  mode_default (Value.to_local expected_mode.mode)
+  { (mode_default (Value.to_local expected_mode.mode))
+    with strictly_local = true
+  }
 
 let mode_strictly_local expected_mode =
   { (mode_local expected_mode)

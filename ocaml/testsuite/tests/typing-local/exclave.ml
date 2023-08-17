@@ -200,14 +200,16 @@ val f : unit -> local_ unit = <fun>
 - : unit = ()
 |}]
 
-(* local_ on the RHS of arrow types indicates allocating in the parent region.
-   To match that, exclave_ always returns local. However, the body could be
-   actually global and implicitly casted to local. In the following, the
-   [fun x y] is actually global. *)
+(* exclave_ should follow the allocation behaviour of local_. That means the
+   body must be strictly local (which only matters when allocating functions) *)
 let f () =
   exclave_ (
     (fun x y -> ()) : (string -> string -> unit)
   )
 [%%expect{|
-val f : unit -> local_ (string -> (string -> unit)) = <fun>
+Line 3, characters 4-19:
+3 |     (fun x y -> ()) : (string -> string -> unit)
+        ^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
 |}]
