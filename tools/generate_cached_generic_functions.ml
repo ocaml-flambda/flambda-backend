@@ -26,16 +26,55 @@
 
 open Printf
 open Misc
+open Config
 
+module CU = Compilation_unit
+
+let make_cached_generic_functions unix  ~ppf_dump genfns =
+  Location.input_name := "caml_cached_generic_functions"; (* set name of "current" input *)
+  let startup_comp_unit =
+    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions")
+  in
+  Compilenv.reset startup_comp_unit;
+  Emit.begin_assembly unix;
+  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
+  Profile.record_call "genfns" (fun () ->
+  List.iter compile_phrase
+    (Cmm_helpers.emit_preallocated_blocks []
+      (Cmm_helpers.generic_functions false genfns)));
+  Emit.end_assembly ()
+
+let cached_generic_functions unix ~ppf_dump output_name genfns =
+  Profile.record_call output_name (fun () ->
+    let startup = output_name ^ ext_asm in
+    Profile.record_call "compile_unit" (fun () ->
+      let obj_filename = output_name ^ ext_obj in
+      Asmgen.compile_unit ~output_prefix:output_name
+        ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
+        ~obj_filename
+        ~may_reduce_heap:true
+        ~ppf_dump
+        (fun () ->
+          make_cached_generic_functions unix ~ppf_dump genfns);
+      obj_filename
+    );
+  )
 
 let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
   Clflags.native_code := true;
   Clflags.use_linscan := true;
   Compmisc.init_path ();
-  let file_prefix = Filename.remove_extension filename in
-  Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
-      Asmlink.cached_generic_functions unix ~ppf_dump file_prefix)
+  let file_prefix = Filename.remove_extension filename ^ ext_lib in
+  let genfns_partitions = Cmm_helpers.Generic_fns_tbl.Precomputed.gen 64 in
+  let objects =
+    List.map (fun partition ->
+      let file_prefix = Filename.temp_file "cached-generated" "" in
+      Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
+        cached_generic_functions unix ~ppf_dump file_prefix partition)
+    ) genfns_partitions
+  in
+  ignore (Ccomp.create_archive file_prefix objects : int)
 
 let arg_usage =
   Printf.sprintf "%s FILE : Generate an obj file containing cached generatic functions named FILE" Sys.argv.(0)
