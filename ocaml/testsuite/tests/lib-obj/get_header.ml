@@ -57,17 +57,23 @@ let is_local repr =
 (* immediate *)
 let () =
   let x = 42 in
-  Format.printf "%a\n" print_maybe_header (get_header_parsed (repr x))
+  let rp = repr x in
+  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
+    Format.pp_print_bool (is_local rp)
 
 (* global*)
 let () =
   let s = "hello" in
   let _r = ref s in
-  Format.printf "%a\n" print_maybe_header (get_header_parsed (repr s))
+  let rp = repr s in
+  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
+    Format.pp_print_bool (is_local rp)
 
 (* local *)
 let foo x =
   let local_ s = ref x in
-  Format.printf "%a\n" print_maybe_header (get_header_parsed (repr s))
+  let rp = repr s in
+  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
+    Format.pp_print_bool (is_local rp)
 
 let () = foo 42
