@@ -326,7 +326,8 @@ type unary_primitive =
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with
           an immediate value.
-          Note: The GC color bits in the header is not reliable. *)
+          Note: The GC color bits in the header are not reliable except for
+          checking if the value is locally allocated *)
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
