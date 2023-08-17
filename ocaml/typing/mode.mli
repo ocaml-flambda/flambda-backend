@@ -123,6 +123,7 @@ module Linearity : sig
 
   type t
 
+  val legacy : t
   val of_const : Const.t -> t
   val to_dual : t -> Uniqueness.t
   val of_dual : Uniqueness.t -> t

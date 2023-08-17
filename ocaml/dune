@@ -69,7 +69,7 @@
 
    ;; TYPING
    ident path layouts primitive shape types btype oprint subst predef datarepr
-   cmi_format persistent_env env errortrace
+   cmi_format persistent_env env errortrace mode
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
