@@ -3072,7 +3072,7 @@ module Generic_fns_tbl = struct
       | Big
       | Evict
 
-    let classify_to_bool = function | Small | Big -> true | Evict -> false
+    let classify_to_bool = function Small | Big -> true | Evict -> false
 
     let keep l = if l <= considered_as_small_threshold then Small else Big
 
@@ -3104,12 +3104,10 @@ module Generic_fns_tbl = struct
       then Evict
       else
         match alloc with
-        | Lambda.Alloc_local ->
-          if len_arity arity = 0 then Small else Big
+        | Lambda.Alloc_local -> if len_arity arity = 0 then Small else Big
         | Lambda.Alloc_heap ->
           let l = len_arity arity in
-          if l <= max_send then keep l
-          else Evict
+          if l <= max_send then keep l else Evict
 
     let is_apply (arity, result, alloc) =
       if not (check_result result)
@@ -3118,13 +3116,10 @@ module Generic_fns_tbl = struct
         match alloc with
         | Lambda.Alloc_local ->
           let l = len_arity arity in
-          if 2 <= l && l <= considered_as_small_threshold then keep l
-          else Evict
+          if 2 <= l && l <= considered_as_small_threshold then keep l else Evict
         | Lambda.Alloc_heap ->
           let l = len_arity arity in
-          if 2 <= l && l <= max_apply then
-            keep l
-          else Evict
+          if 2 <= l && l <= max_apply then keep l else Evict
 
     type ('a, 'b, 'c) fn =
       | Curry of 'a
@@ -3172,10 +3167,11 @@ module Generic_fns_tbl = struct
         |> Seq.concat
       in
       let split_small_big seq =
-        Seq.filter_map (function
-          | Evict, _ -> None
-          | Small, f -> Some (Either.left f)
-          | Big, f -> Some (Either.right f))
+        Seq.filter_map
+          (function
+            | Evict, _ -> None
+            | Small, f -> Some (Either.left f)
+            | Big, f -> Some (Either.right f))
           seq
         |> Seq.partition_map (fun x -> x)
       in
@@ -3185,37 +3181,38 @@ module Generic_fns_tbl = struct
         |> split_small_big
       in
       let small_send_fns, big_send_fns =
-        Seq.map (fun f -> is_send f, Send f) send
-        |> split_small_big
+        Seq.map (fun f -> is_send f, Send f) send |> split_small_big
       in
       let small_apply_fns, big_apply_fns =
-        Seq.map (fun f -> is_apply f, Apply f) apply
-        |> split_small_big
+        Seq.map (fun f -> is_apply f, Apply f) apply |> split_small_big
       in
-      let merge curry send apply = Seq.concat (List.to_seq [curry; send; apply]) in
+      let merge curry send apply =
+        Seq.concat (List.to_seq [curry; send; apply])
+      in
       let convert fns =
         let t = make () in
-        Seq.fold_left (fun (t : Cmx_format.generic_fns) -> function
-          | Curry f -> { t with curry_fun = f :: t.curry_fun }
-          | Send f -> { t with send_fun = f :: t.send_fun }
-          | Apply f -> { t with apply_fun = f :: t.apply_fun }
-        )
-        { Cmx_format.curry_fun = []; send_fun = []; apply_fun = [] }
-        fns
+        Seq.fold_left
+          (fun (t : Cmx_format.generic_fns) -> function
+            | Curry f -> { t with curry_fun = f :: t.curry_fun }
+            | Send f -> { t with send_fun = f :: t.send_fun }
+            | Apply f -> { t with apply_fun = f :: t.apply_fun })
+          { Cmx_format.curry_fun = []; send_fun = []; apply_fun = [] }
+          fns
         |> add_uncached t;
         t
       in
-      let small = merge small_curry_fns small_send_fns small_apply_fns |> convert in
+      let small =
+        merge small_curry_fns small_send_fns small_apply_fns |> convert
+      in
       let bigs, bigs' =
         merge big_curry_fns big_send_fns big_apply_fns
         |> Seq.fold_left
-          (fun (queue, big) f ->
-            match queue with
-            | [] -> failwith "Should have at least 2 partitions"
-            | [ x ] -> (big, [ Seq.cons f x ])
-            | x :: tl -> (tl, (Seq.cons f x :: big))
-            )
-          (List.init (n_partitions - 1) (fun _ -> Seq.empty), [])
+             (fun (queue, big) f ->
+               match queue with
+               | [] -> failwith "Should have at least 2 partitions"
+               | [x] -> big, [Seq.cons f x]
+               | x :: tl -> tl, Seq.cons f x :: big)
+             (List.init (n_partitions - 1) (fun _ -> Seq.empty), [])
       in
       let partitions =
         small :: (List.map convert bigs @ List.map convert bigs')
