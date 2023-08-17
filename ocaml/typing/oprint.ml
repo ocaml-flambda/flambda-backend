@@ -345,19 +345,30 @@ let partial_apply alloc_mode =
   let oam_linearity = alloc_mode.oam_linearity in
   { oam_locality; oam_uniqueness; oam_linearity }
 
-let same_locality m1 m2 =
-  match m1.oam_locality, m2.oam_locality with
+(* Following functions are used to check if the return mode can omitted in the
+   case of currying *)
+let same_locality expected real =
+  match expected, real with
+  (* If expected and real matches, can omit *)
   | Olm_local, Olm_local | Olm_global, Olm_global -> true
+  (* If the real mode is unknown, we'd rather not put extra parentheses, because
+     we wouldn't put "unknown" around the parentheses either, which would make
+     the printing even less precise *)
+  | _, Olm_unknown -> true
+  (* In all other cases (the real mode is known), we will print the mode to be
+     safe*)
   | _, _ -> false
 
-let same_uniqueness m1 m2 =
-  match m1.oam_uniqueness, m2.oam_uniqueness with
+let same_uniqueness expected real =
+  match expected, real with
   | Oum_unique, Oum_unique | Oum_shared, Oum_shared -> true
-    | _, _ -> false
+  | _, Oum_unknown -> true
+  | _, _ -> false
 
-let same_linearity m1 m2 =
-  match m1.oam_linearity, m2.oam_linearity with
+let same_linearity expected real =
+  match expected, real with
   | Olinm_many, Olinm_many | Olinm_once, Olinm_once -> true
+  | _, Olinm_unknown -> true
   | _, _ -> false
 
 let print_out_layout ppf = function
@@ -440,7 +451,9 @@ and print_out_ret mode rm ppf =
   function
   (* the 'mode' argument only has meaning if we are talking about closure *)
   | Otyp_arrow _ as ty ->
-    if same_locality mode rm && same_uniqueness mode rm && same_linearity mode rm
+    if same_locality mode.oam_locality rm.oam_locality &&
+       same_uniqueness mode.oam_uniqueness rm.oam_uniqueness &&
+       same_linearity mode.oam_linearity rm.oam_linearity
       then print_out_type_1 rm ppf ty
       else print_out_type_mode rm ppf ty
   | ty -> print_out_type_mode rm ppf ty

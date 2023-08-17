@@ -2648,7 +2648,7 @@ Lines 3-6, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val g : 'a -> ('b -> local_ string)
+           val g : 'a -> 'b -> local_ string
            val f : 'a -> local_ ('b -> local_ string)
          end
        is not included in
