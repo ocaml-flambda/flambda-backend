@@ -133,11 +133,22 @@ let make_spill : type a. a make_operation =
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:new_reg ~to_:stack_reg
 
+let dummy_instr_of_terminator : Cfg.terminator Cfg.instruction -> Instruction.t
+    =
+ fun terminator ->
+  { Instruction.dummy with
+    dbg = terminator.dbg;
+    fdo = terminator.fdo;
+    live = terminator.live;
+    stack_offset = terminator.stack_offset
+  }
+
 let rec insert_splills_or_reloads_in_block :
     State.t ->
     make_spill_or_reload:'a make_operation ->
     occur_check:(Instruction.t -> Reg.t -> bool) ->
     insert:(Instruction.t DLL.cell -> Instruction.t -> unit) ->
+    copy_default:Instruction.t ->
     add_default:(Instruction.t DLL.t -> Instruction.t -> unit) ->
     move_cell:(Instruction.t DLL.cell -> Instruction.t DLL.cell option) ->
     block_subst:Substitution.t ->
@@ -146,8 +157,8 @@ let rec insert_splills_or_reloads_in_block :
     Instruction.t DLL.cell option ->
     Reg.Set.t ->
     unit =
- fun state ~make_spill_or_reload ~occur_check ~insert ~add_default ~move_cell
-     ~block_subst ~stack_subst block cell live_at_interesting_point ->
+ fun state ~make_spill_or_reload ~occur_check ~insert ~copy_default ~add_default
+     ~move_cell ~block_subst ~stack_subst block cell live_at_interesting_point ->
   match Reg.Set.is_empty live_at_interesting_point with
   | true -> ()
   | false -> (
@@ -156,16 +167,9 @@ let rec insert_splills_or_reloads_in_block :
       Reg.Set.iter
         (fun old_reg ->
           let new_reg = Substitution.apply_reg block_subst old_reg in
-          let copy =
-            { Instruction.dummy with
-              dbg = block.terminator.dbg;
-              fdo = block.terminator.fdo;
-              live = block.terminator.live;
-              stack_offset = block.terminator.stack_offset
-            }
-          in
           let spill_or_reload =
-            make_spill_or_reload state ~stack_subst ~old_reg ~new_reg ~copy
+            make_spill_or_reload state ~stack_subst ~old_reg ~new_reg
+              ~copy:copy_default
           in
           add_default block.body spill_or_reload)
         live_at_interesting_point
@@ -188,8 +192,8 @@ let rec insert_splills_or_reloads_in_block :
       in
       let cell = move_cell cell in
       insert_splills_or_reloads_in_block state ~make_spill_or_reload
-        ~occur_check ~insert ~add_default ~move_cell ~block_subst ~stack_subst
-        block cell live_at_interesting_point)
+        ~occur_check ~insert ~copy_default ~add_default ~move_cell ~block_subst
+        ~stack_subst block cell live_at_interesting_point)
 
 (* Inserts the spills in a block, as early as possible (i.e. immediately after
    the register is last set), to reduce live ranges. *)
@@ -210,8 +214,13 @@ let insert_spills_in_block :
          by the instruction. *)
       assert (Reg.is_unknown reg);
       occurs_array instr.res reg)
-    ~insert:DLL.insert_after ~add_default:DLL.add_begin ~move_cell:DLL.prev
-    ~block_subst ~stack_subst block cell live_at_destruction_point
+    ~insert:DLL.insert_after
+    ~copy_default:
+      (match DLL.hd block.body with
+      | None -> dummy_instr_of_terminator block.terminator
+      | Some hd -> hd)
+    ~add_default:DLL.add_begin ~move_cell:DLL.prev ~block_subst ~stack_subst
+    block cell live_at_destruction_point
 
 (* Inserts spills in all blocks. *)
 (* CR mshinwell: Add special handling for [Iname_for_debugger] (see
@@ -273,8 +282,10 @@ let insert_reloads_in_block :
  fun state ~block_subst ~stack_subst block cell live_at_definition_point ->
   insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_reload
     ~occur_check:(fun instr reg -> occurs_array instr.arg reg)
-    ~insert:DLL.insert_before ~add_default:DLL.add_end ~move_cell:DLL.next
-    ~block_subst ~stack_subst block cell live_at_definition_point
+    ~insert:DLL.insert_before
+    ~copy_default:(dummy_instr_of_terminator block.terminator)
+    ~add_default:DLL.add_end ~move_cell:DLL.next ~block_subst ~stack_subst block
+    cell live_at_definition_point
 
 (* Inserts reloads in all blocks. *)
 let insert_reloads :
