@@ -161,7 +161,7 @@ let f: local_ _ -> int lazy_t =
 Line 2, characters 16-17:
 2 |   fun n -> lazy n
                     ^
-Error: The value n is local, so cannot be used inside a closure that might escape
+Error: The value n is local, so cannot be used inside a lazy expression.
 |}]
 
 (* record field crosses mode at projection  *)

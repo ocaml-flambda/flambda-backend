@@ -45,6 +45,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
   | Local -> (module Unit)
+  | Unique -> (module Unit)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
   | Immutable_arrays -> (module Unit)
@@ -73,13 +74,14 @@ let pair_of_string_exn extn_name = match pair_of_string extn_name with
 let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b with
   | Comprehensions, Comprehensions -> Some Refl
   | Local, Local -> Some Refl
+  | Unique, Unique -> Some Refl
   | Include_functor, Include_functor -> Some Refl
   | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
   | Immutable_arrays, Immutable_arrays -> Some Refl
   | Module_strengthening, Module_strengthening -> Some Refl
   | Layouts, Layouts -> Some Refl
   | SIMD, SIMD -> Some Refl
-  | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
+  | (Comprehensions | Local | Unique | Include_functor | Polymorphic_parameters |
      Immutable_arrays | Module_strengthening | Layouts | SIMD), _ -> None
 
 let equal a b = Option.is_some (equal_t a b)

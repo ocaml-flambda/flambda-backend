@@ -242,7 +242,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = wrap_bindings bindings exp}]
   | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
-      let mode = Value_mode.of_alloc arg_mode in
+      let mode = Mode.Value.of_alloc arg_mode in
       let param = Typecore.name_cases "param" cases in
       let desc =
         {val_type = pat.pat_type; val_kind = Val_reg;
@@ -261,7 +261,8 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
             ({exp with exp_type = pat.pat_type; exp_env = env; exp_desc =
               Texp_ident
                 (Path.Pident param, mknoloc (Longident.Lident name),
-                 desc, Id_value)},
+                 desc, Id_value,
+                 (Mode.Value.uniqueness mode, Mode.Value.linearity mode))},
              arg_sort,
              cases, partial) }
       in
@@ -346,7 +347,7 @@ let can_apply_primitive p pmode pos args =
     else if pos <> Typedtree.Tail then true
     else begin
       let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
-      is_heap_mode (transl_alloc_mode return_mode)
+      is_heap_mode (transl_locality_mode return_mode)
     end
   end
 
@@ -370,7 +371,7 @@ and transl_exp1 ~scopes ~in_new_scope sort e =
 
 and transl_exp0 ~in_new_scope ~scopes sort e =
   match e.exp_desc with
-  | Texp_ident(path, _, desc, kind) ->
+  | Texp_ident(path, _, desc, kind, _) ->
       transl_ident (of_location ~scopes e.exp_loc)
         e.exp_env e.exp_type path desc kind
   | Texp_constant cst ->
@@ -388,8 +389,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_function ~scopes e alloc_mode param arg_mode arg_sort ret_sort
         cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
-                                       Id_prim pmode);
-                exp_type = prim_type; } as funct, oargs, pos, alloc_mode)
+                                       Id_prim pmode, _);
+                exp_type = prim_type; } as funct, oargs, pos, ap_mode)
     when can_apply_primitive p pmode pos oargs ->
       let rec cut_args prim_repr oargs =
         match prim_repr, oargs with
@@ -419,19 +420,19 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
-        let mode = transl_alloc_mode alloc_mode in
+        let mode = transl_locality_mode ap_mode in
         let result_layout = layout_exp sort e in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs, position, alloc_mode) ->
+  | Texp_apply(funct, oargs, position, ap_mode) ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
-      let mode = transl_alloc_mode alloc_mode in
+      let mode = transl_locality_mode ap_mode in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised ~result_layout
            ~position ~mode (transl_exp ~scopes Sort.for_function funct)
@@ -519,7 +520,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, _, lbl, alloc_mode) ->
+  | Texp_field(arg, _, lbl, _, alloc_mode) ->
       let targ = transl_exp ~scopes Sort.for_record arg in
       let sem =
         match lbl.lbl_mut with
@@ -1446,7 +1447,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
       Array.mapi
         (fun i (lbl, definition) ->
            match definition with
-           | Kept typ ->
+           | Kept (typ, _) ->
                let field_kind =
                  must_be_value (layout env lbl.lbl_loc Sort.for_record_field typ)
                in
@@ -1531,7 +1532,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
          the init record, we must have already checked for void. *)
       layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
       match definition with
-      | Kept _type -> cont
+      | Kept (_type, _uu) -> cont
       | Overridden (_lid, expr) ->
           let upd =
             match repres with
@@ -1740,12 +1741,12 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
           | Some (lhs, _) -> Typeopt.function_arg_layout env loc param_sort lhs
     in
     let return_layout = layout_exp case_sort case.c_rhs in
-    let curry = More_args { partial_mode = Alloc_mode.global } in
+    let curry = More_args { partial_mode = Mode.Alloc.legacy } in
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
-             ~arg_mode:(Amode Global) ~return_sort:case_sort
+             ~arg_mode:Mode.Alloc.legacy ~return_sort:case_sort
              ~return_layout case.c_rhs.exp_loc repr ~region:true ~curry partial
              warnings param [case])
     in
