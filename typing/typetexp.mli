@@ -17,6 +17,7 @@
 
 open Layouts
 open Types
+open Mode
 
 module TyVarEnv : sig
   (* this is just the subset of [TyVarEnv] that is needed outside
@@ -55,12 +56,12 @@ end
 val valid_tyvar_name : string -> bool
 
 val transl_simple_type:
-        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> alloc_mode_const
+        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_delayed
-  :  Env.t -> alloc_mode_const
+  :  Env.t -> Alloc.Const.t
   -> Parsetree.core_type
   -> Typedtree.core_type * type_expr * (unit -> unit)
         (* Translate a type, but leave type variables unbound. Returns
@@ -76,7 +77,7 @@ val transl_type_param:
 val get_type_param_layout: Path.t -> Parsetree.core_type -> layout
 val get_type_param_name: Parsetree.core_type -> string option
 
-val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
+val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
 
 exception Already_bound
 

@@ -776,7 +776,7 @@ let batch_mode_printer : report_printer =
       (self.pp_submsg_txt self report) txt
   in
   let pp_submsg_loc self report ppf loc =
-    if not loc.loc_ghost then
+    if not (is_dummy_loc loc) then
       pp_loc self report ppf loc
   in
   let pp_submsg_txt _self _ ppf loc =
@@ -799,7 +799,7 @@ let terminfo_toplevel_printer (lb: lexbuf): report_printer =
   in
   let pp_main_loc _ _ _ _ = () in
   let pp_submsg_loc _ _ ppf loc =
-    if not loc.loc_ghost then
+    if not (is_dummy_loc loc) then
       Format.fprintf ppf "%a:@ " print_loc loc in
   { batch_mode_printer with pp; pp_main_loc; pp_submsg_loc }
 

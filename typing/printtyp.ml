@@ -23,6 +23,7 @@ open Path
 open Asttypes
 open Layouts
 open Types
+open Mode
 open Btype
 open Outcometree
 
@@ -607,7 +608,9 @@ and raw_type_desc ppf = function
         (Layout.to_string layout)
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
-        (string_of_label l) Alloc_mode.print arg Alloc_mode.print ret
+        (string_of_label l)
+        (Alloc.print' ~verbose:true) arg
+        (Alloc.print' ~verbose:true) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
@@ -1188,6 +1191,28 @@ let out_layout_option_of_layout layout =
     then Some (Olay_var (Sort.var_name v))
     else None
 
+let tree_of_mode mode =
+  let {locality; uniqueness; linearity} = Alloc.check_const mode in
+  let oam_locality =
+    match locality with
+    | Some Global -> Olm_global
+    | Some Local -> Olm_local
+    | None -> Olm_unknown
+  in
+  let oam_uniqueness =
+    match uniqueness with
+    | Some Unique -> Oum_unique
+    | Some Shared -> Oum_shared
+    | None -> Oum_unknown
+  in
+  let oam_linearity =
+    match linearity with
+    | Some Many -> Olinm_many
+    | Some Once -> Olinm_once
+    | None -> Olinm_unknown
+  in
+  {oam_locality; oam_uniqueness; oam_linearity}
+
 let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
@@ -1219,19 +1244,9 @@ let rec tree_of_typexp mode ty =
           else
             tree_of_typexp mode ty1
         in
-        let am =
-          match Alloc_mode.check_const marg with
-          | Some Global -> Oam_global
-          | Some Local -> Oam_local
-          | None -> Oam_unknown
-        in
+        let am = tree_of_mode marg in
         let t2 = tree_of_typexp mode ty2 in
-        let rm =
-          match Alloc_mode.check_const mret with
-          | Some Global -> Oam_global
-          | Some Local -> Oam_local
-          | None -> Oam_unknown
-        in
+        let rm = tree_of_mode mret in
         Otyp_arrow (lab, am, t1, rm, t2)
     | Ttuple tyl ->
         Otyp_tuple (tree_of_typlist mode tyl)

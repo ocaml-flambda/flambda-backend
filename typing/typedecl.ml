@@ -352,7 +352,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type env ?univars ~closed Global arg in
+         let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
@@ -385,7 +385,7 @@ let transl_labels env univars closed lbls =
 
 let transl_types_gf env univars closed tyl =
   let mk arg =
-    let cty = transl_simple_type env ?univars ~closed Global arg in
+    let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
     (cty, gf)
   in
@@ -441,7 +441,9 @@ let make_constructor
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = transl_simple_type env ?univars ~closed Global sret_type in
+      let tret_type = 
+        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type 
+      in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
       begin match get_desc ret_type with
@@ -600,8 +602,8 @@ let transl_declaration env sdecl (id, uid) =
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->
-      transl_simple_type env ~closed:false Global sty,
-      transl_simple_type env ~closed:false Global sty', loc)
+      transl_simple_type env ~closed:false Mode.Alloc.Const.legacy sty,
+      transl_simple_type env ~closed:false Mode.Alloc.Const.legacy sty', loc)
     sdecl.ptype_cstrs
   in
   let unboxed_attr = get_unboxed_from_attributes sdecl in
@@ -625,7 +627,7 @@ let transl_declaration env sdecl (id, uid) =
       None -> None, None
     | Some sty ->
       let no_row = not (is_fixed_type sdecl) in
-      let cty = transl_simple_type env ~closed:no_row Global sty in
+      let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
   let any = Layout.any ~why:Initial_typedecl_env in
@@ -1924,7 +1926,7 @@ let make_native_repr env core_type sort ty ~global_repr =
     end
 
 let prim_const_mode m =
-  match Types.Alloc_mode.check_const m with
+  match Mode.Locality.check_const m with
   | Some Global -> Prim_global
   | Some Local -> Prim_local
   | None -> assert false
@@ -1958,10 +1960,11 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
-      else prim_const_mode marg
+      else prim_const_mode (Mode.Alloc.locality marg)
     in
     let repr_args, repr_res =
-      parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
+      parse_native_repr_attributes env ct2 t2
+        (prim_const_mode (Mode.Alloc.locality mret)) ~global_repr
     in
     ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
@@ -2094,8 +2097,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let arity = List.length params in
   let constraints =
     List.map (fun (ty, ty', loc) ->
-      let cty = transl_simple_type env ~closed:false Global ty in
-      let cty' = transl_simple_type env ~closed:false Global ty' in
+      let cty = transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty in
+      let cty' = transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty' in
       (* Note: We delay the unification of those constraints
          after the unification of parameters, so that clashing
          constraints report an error on the constraint location
@@ -2107,7 +2110,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let (tman, man) =  match sdecl.ptype_manifest with
       None -> None, None
     | Some sty ->
-        let cty = transl_simple_type env ~closed:no_row Global sty in
+        let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
         Some cty, Some cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two
