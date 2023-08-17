@@ -12,7 +12,8 @@ let mkTarrow (label, t1, t2, comm) =
 type texp_ident_identifier = ident_kind
 
 let mkTexp_ident ?id:(ident_kind = Id_value) (path, longident, vd) =
-  Texp_ident (path, longident, vd, ident_kind, (Uniqueness.legacy, Linearity.legacy))
+  Texp_ident
+    (path, longident, vd, ident_kind, (Uniqueness.legacy, Linearity.legacy))
 
 type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.t
@@ -26,7 +27,7 @@ let mkTexp_tuple ?id:(mode = Alloc.legacy) exps = Texp_tuple (exps, mode)
 
 type texp_construct_identifier = Alloc.t option
 
-let mkTexp_construct ?id:(mode = Some (Alloc.legacy)) (name, desc, args) =
+let mkTexp_construct ?id:(mode = Some Alloc.legacy) (name, desc, args) =
   Texp_construct (name, desc, args, mode)
 
 type texp_function = {
