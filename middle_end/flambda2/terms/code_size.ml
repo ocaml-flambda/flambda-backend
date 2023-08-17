@@ -336,6 +336,7 @@ let unary_prim_size prim =
   | Begin_try_region -> 1
   | End_region -> 1
   | Obj_dup -> alloc_extcall_size + 1
+  | Get_header -> 2
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

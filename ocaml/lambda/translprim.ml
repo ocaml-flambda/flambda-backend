@@ -418,6 +418,7 @@ let lookup_primitive loc poly pos p =
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
     | "%unbox_float" -> Primitive(Punbox_float, 1)
     | "%box_float" -> Primitive(Pbox_float mode, 1)
+    | "%get_header" -> Primitive (Pget_header mode, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -966,7 +967,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-  | Pbbswap _ | Pobj_dup -> true
+  | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
