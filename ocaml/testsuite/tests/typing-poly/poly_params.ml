@@ -279,7 +279,7 @@ Line 1, characters 24-25:
 1 | let foo (f : p1) : p2 = f
                             ^
 Error: This expression has type p1 = ('a. 'a -> 'a) -> int
-       but an expression was expected of type p2 = ('a 'b. 'a -> 'b) -> int
+       but an expression was expected of type ('a 'b. 'a -> 'b) -> int
        Type 'a is not compatible with type 'b
 |}];;
 
@@ -328,13 +328,13 @@ Line 4, characters 24-25:
 4 | let foo (x : p1) : p2 = x
                             ^
 Error: This expression has type p1 = (bool -> bool) -> int
-       but an expression was expected of type p2 = ('a. 'a -> 'a) -> int
+       but an expression was expected of type ('a. 'a -> 'a) -> int
        Type bool is not compatible with type 'a
 |}];;
 
 let foo x = (x : p1 :> p2)
 [%%expect {|
-val foo : p1 -> p2 = <fun>
+val foo : ((bool -> bool) -> int) -> p2 = <fun>
 |}];;
 
 module Foo (X : sig val f : p1 end) : sig val f : p2 end = X
