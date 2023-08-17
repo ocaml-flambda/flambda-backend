@@ -161,6 +161,11 @@ let rec insert_spills_in_block :
           (fun old_reg ->
             let new_reg = Substitution.apply_reg block_subst old_reg in
             let instr = DLL.value cell in
+            (* We assume `new_reg` has no location yet (we are before register
+               allocation, but selection uses fixed registers in various
+               places). If the assertion does not hold, we need to look at the
+               registers destroyed by the instruction. *)
+            assert (Reg.is_unknown new_reg);
             if occurs_array instr.res new_reg
             then (
               let spill =
