@@ -56,10 +56,6 @@ and ident_int64x2 = ident_create "int64x2"
 and ident_float32x4 = ident_create "float32x4"
 and ident_float64x2 = ident_create "float64x2"
 
-and ident_unboxed_pair = ident_create "unboxed_pair"
-and ident_unboxed_triple = ident_create "unboxed_triple"
-and ident_real_void = ident_create "void"
-
 let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
@@ -86,10 +82,6 @@ and path_int32x4 = Pident ident_int32x4
 and path_int64x2 = Pident ident_int64x2
 and path_float32x4 = Pident ident_float32x4
 and path_float64x2 = Pident ident_float64x2
-
-and path_unboxed_pair = Pident ident_unboxed_pair
-and path_unboxed_triple = Pident ident_unboxed_triple
-and path_void = Pident ident_real_void
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -222,55 +214,6 @@ let common_initial_env add_type add_extension empty_env =
       }
     in
     add_type type_ident decl env
-  and add_type2 type_ident
-      ?(kind=fun _ -> Type_abstract)
-      ?(layout=Layout.value ~why:(Primitive type_ident))
-      ~variance ~separability env =
-    let param0 = newgenvar (Layout.value ~why:Type_argument) in
-    let param1 = newgenvar (Layout.value ~why:Type_argument) in
-    let decl =
-      {type_params = [param0; param1];
-       type_arity = 2;
-       type_kind = kind param0;
-       type_layout = layout;
-       type_loc = Location.none;
-       type_private = Asttypes.Public;
-       type_manifest = None;
-       type_variance = [variance; variance];
-       type_separability = [separability; separability];
-       type_is_newtype = false;
-       type_expansion_scope = lowest_level;
-       type_attributes = [];
-       type_unboxed_default = false;
-       type_uid = Uid.of_predef_id type_ident;
-      }
-    in
-    add_type type_ident decl env
-  and add_type3 type_ident
-      ?(kind=fun _ -> Type_abstract)
-      ?(layout=Layout.value ~why:(Primitive type_ident))
-      ~variance ~separability env =
-    let param0 = newgenvar (Layout.value ~why:Type_argument) in
-    let param1 = newgenvar (Layout.value ~why:Type_argument) in
-    let param2 = newgenvar (Layout.value ~why:Type_argument) in
-    let decl =
-      {type_params = [param0; param1; param2];
-       type_arity = 3;
-       type_kind = kind param0;
-       type_layout = layout;
-       type_loc = Location.none;
-       type_private = Asttypes.Public;
-       type_manifest = None;
-       type_variance = [variance; variance; variance];
-       type_separability = [separability; separability; separability];
-       type_is_newtype = false;
-       type_expansion_scope = lowest_level;
-       type_attributes = [];
-       type_unboxed_default = false;
-       type_uid = Uid.of_predef_id type_ident;
-      }
-    in
-    add_type type_ident decl env
   in
   let add_extension id args layouts =
     add_extension id
@@ -338,13 +281,6 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)
-  |> add_type2 ident_unboxed_pair
-    ~variance:Variance.covariant
-    ~separability:Separability.Ind
-  |> add_type3 ident_unboxed_triple
-    ~variance:Variance.covariant
-    ~separability:Separability.Ind
-  |> add_type ident_real_void
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]

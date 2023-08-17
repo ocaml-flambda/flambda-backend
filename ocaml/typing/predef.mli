@@ -71,10 +71,6 @@ val path_int64x2: Path.t
 val path_float32x4: Path.t
 val path_float64x2: Path.t
 
-val path_unboxed_pair: Path.t
-val path_unboxed_triple: Path.t
-val path_void: Path.t
-
 val path_match_failure: Path.t
 val path_invalid_argument: Path.t
 val path_assert_failure : Path.t
