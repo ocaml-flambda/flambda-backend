@@ -9,11 +9,11 @@ let mkTvar name = Tvar { name; layout = dummy_layout }
 let mkTarrow (label, t1, t2, comm) =
   Tarrow ((label, Alloc.legacy, Alloc.legacy), t1, t2, comm)
 
-type texp_ident_identifier = ident_kind
+type texp_ident_identifier = ident_kind * unique_use
 
-let mkTexp_ident ?id:(ident_kind = Id_value) (path, longident, vd) =
-  Texp_ident
-    (path, longident, vd, ident_kind, (Uniqueness.legacy, Linearity.legacy))
+let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
+    (path, longident, vd) =
+  Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.t
@@ -108,8 +108,8 @@ type matched_expression_desc =
 
 let view_texp (e : expression_desc) =
   match e with
-  | Texp_ident (path, longident, vd, ident_kind, _) ->
-      Texp_ident (path, longident, vd, ident_kind)
+  | Texp_ident (path, longident, vd, ident_kind, uu) ->
+      Texp_ident (path, longident, vd, (ident_kind, uu))
   | Texp_apply (exp, args, pos, mode) -> Texp_apply (exp, args, (pos, mode))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
