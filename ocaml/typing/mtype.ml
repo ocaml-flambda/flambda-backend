@@ -239,6 +239,9 @@ let rec expand_paths_lazy paths env =
       begin match reduce_lazy env mty with
       | Some mty -> expand_paths_lazy paths env mty
       | None -> assert false
+          (* This shouldn't be able to happen because for
+            `with module M.N := X`, `paths` will only contain M but not M.N
+            and M's type can't be abstract. *)
       end
   | Mty_strengthen (mty,p,a) ->
       (* If the path we're strengthening with isn't in paths then we can
