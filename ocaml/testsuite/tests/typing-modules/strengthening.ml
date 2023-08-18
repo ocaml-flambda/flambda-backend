@@ -340,3 +340,14 @@ module Remove_aliases :
       end
   end
 |}]
+
+module Recursive = struct
+  module rec M : sig end with N = N
+  and N : sig end = struct end
+end
+[%%expect{|
+Line 2, characters 30-31:
+2 |   module rec M : sig end with N = N
+                                  ^
+Error: Illegal recursive module reference
+|}]

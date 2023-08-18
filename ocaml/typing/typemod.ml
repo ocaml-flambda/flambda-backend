@@ -911,8 +911,10 @@ and approx_modtype_jane_syntax env = function
   | Jane_syntax.Module_type.Jmty_strengthen { mty = smty; mod_id } ->
     let mty = approx_modtype env smty in
     let path =
+      (* CR-someday: potentially improve error message for strengthening with
+         a mutually recursive module. *)
       Env.lookup_module_path ~use:false ~load:false
-        ~loc:smty.pmty_loc mod_id.txt env
+        ~loc:mod_id.loc mod_id.txt env
     in
     let aliasable = (not (Env.is_functor_arg path env)) in
     Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
