@@ -57,7 +57,7 @@ end = struct
   (** A definition at the begin of a block can be moved down if:
 
      - the block does neither raise nor end with a destruction point;
-     - the block has only one (normal) successor;
+     - the block has only one normal successor and no exceptional successor;
      - the successor has only one predecessor;
      - the block and its successor are different;
      - the defined register has no occurrences in the block. *)
