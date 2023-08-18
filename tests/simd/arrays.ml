@@ -14,21 +14,14 @@ module Bytes = struct
 
   external get_int8x16_unaligned : bytes -> int -> int8x16 = "%caml_bytes_getu128"
   external get_int8x16_unaligned_unsafe : bytes -> int -> int8x16 = "%caml_bytes_getu128u"
-  external get_int8x16_aligned_unsafe : bytes -> int -> int8x16 = "%caml_bytes_geta128u"
 
   external set_int8x16_unaligned : bytes -> int -> int8x16 -> unit = "%caml_bytes_setu128"
   external set_int8x16_unaligned_unsafe : bytes -> int -> int8x16 -> unit = "%caml_bytes_setu128u"
-  external set_int8x16_aligned_unsafe : bytes -> int -> int8x16 -> unit = "%caml_bytes_seta128u"
 
   let data = Bytes.of_string "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x00\x01\x02\x03\x04\x05\x06\x07"
 
   let low = 0x0706050403020100L
   let high = 0x0f0e0d0c0b0a0908L
-
-  (* Data is statically allocated, so won't be moved by the gc *)
-  let good, bad =
-    if (((Obj.magic data : int) lsr 1) lsl 2) land 15 = 0 then 0, 8 else 8, 0
-  ;;
 
   (* Getters *)
 
@@ -50,12 +43,6 @@ module Bytes = struct
         assert false
       with | Invalid_argument s when s = "index out of bounds" -> ()
     done;
-  ;;
-
-  let () =
-    let expectl, expecth = if good = 0 then low, high else high, low in
-    let v = get_int8x16_aligned_unsafe data good in
-    eq expectl expecth (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 
   (* Setters *)
@@ -79,30 +66,17 @@ module Bytes = struct
     let v = get_int8x16_unaligned data 8 in
     eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
-
-  let () =
-    let set = int8x16_of_int64s high low in
-    set_int8x16_aligned_unsafe data good set;
-    let v = get_int8x16_aligned_unsafe data good in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v)
-  ;;
 end
 
 module String_ = struct
 
   external get_int8x16_unaligned : string -> int -> int8x16 = "%caml_string_getu128"
   external get_int8x16_unaligned_unsafe : string -> int -> int8x16 = "%caml_string_getu128u"
-  external get_int8x16_aligned_unsafe : string -> int -> int8x16 = "%caml_string_geta128u"
 
   let data = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x00\x01\x02\x03\x04\x05\x06\x07"
 
   let low = 0x0706050403020100L
   let high = 0x0f0e0d0c0b0a0908L
-
-  (* Data is statically allocated, so won't be moved by the gc *)
-  let good, bad =
-    if (((Obj.magic data : int) lsr 1) lsl 2) land 15 = 0 then 0, 8 else 8, 0
-  ;;
 
   (* Getters *)
 
@@ -124,12 +98,6 @@ module String_ = struct
         assert false
       with | Invalid_argument s when s = "index out of bounds" -> ()
     done;
-  ;;
-
-  let () =
-    let expectl, expecth = if good = 0 then low, high else high, low in
-    let v = get_int8x16_aligned_unsafe data good in
-    eq expectl expecth (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 end
 
@@ -155,18 +123,11 @@ module Bigstring = struct
   external set_int8x16_aligned : bigstring -> int -> int8x16 -> unit = "%caml_bigstring_seta128"
   external set_int8x16_aligned_unsafe : bigstring -> int -> int8x16 -> unit = "%caml_bigstring_seta128u"
 
+  (* Data is allocated off-heap, and will always be 16-byte aligned. *)
   let data = bigstring_of_string "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x00\x01\x02\x03\x04\x05\x06\x07"
 
   let low = 0x0706050403020100L
   let high = 0x0f0e0d0c0b0a0908L
-
-  (* Data is allocated off-heap, so can never be moved by the gc *)
-  let good, bad =
-    try
-      let _ = get_int8x16_aligned data 0 in
-      0, 1
-    with | Invalid_argument s when s = "address was misaligned" ->  1, 0
-  ;;
 
   (* Getters *)
 
@@ -191,13 +152,12 @@ module Bigstring = struct
   ;;
 
   let () =
-    let expectl, expecth = if good = 0 then low, high else high, low in
-    let v = get_int8x16_aligned data (good * 8) in
-    eq expectl expecth (int8x16_low_int64 v) (int8x16_high_int64 v);
-    let v = get_int8x16_aligned_unsafe data (good * 8) in
-    eq expectl expecth (int8x16_low_int64 v) (int8x16_high_int64 v);
+    let v = get_int8x16_aligned data 0 in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
+    let v = get_int8x16_aligned_unsafe data 0 in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
     try
-      let _ = get_int8x16_aligned data (bad * 8) in
+      let _ = get_int8x16_aligned data 8 in
       assert false
     with | Invalid_argument s when s = "address was misaligned" -> ();
     for bad = 1 to 7 do
@@ -232,11 +192,11 @@ module Bigstring = struct
 
   let () =
     let set = int8x16_of_int64s high low in
-    set_int8x16_aligned data (good * 8) set;
-    let v = get_int8x16_aligned data (good * 8) in
+    set_int8x16_aligned data 0 set;
+    let v = get_int8x16_aligned data 0 in
     eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
     try
-      let _ = set_int8x16_aligned data (bad * 8) set in
+      let _ = set_int8x16_aligned data 8 set in
       assert false
     with | Invalid_argument s when s = "address was misaligned" -> ();
     for bad = 1 to 7 do
@@ -249,8 +209,8 @@ module Bigstring = struct
 
   let () =
     let set = int8x16_of_int64s high low in
-    set_int8x16_aligned_unsafe data (good * 8) set;
-    let v = get_int8x16_aligned_unsafe data (good * 8) in
+    set_int8x16_aligned_unsafe data 0 set;
+    let v = get_int8x16_aligned_unsafe data 0 in
     eq high low (int8x16_low_int64 v) (int8x16_high_int64 v)
   ;;
 end

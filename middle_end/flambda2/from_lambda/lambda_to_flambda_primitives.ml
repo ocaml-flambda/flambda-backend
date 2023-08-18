@@ -921,13 +921,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_load_64 (true (* unsafe *), mode), [[bytes]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bytes (Some mode) bytes
         index ~current_region ]
-  | Pstring_load_128 { unsafe = true; aligned; mode }, [[str]; [index]] ->
+  | Pstring_load_128 { unsafe = true; mode }, [[str]; [index]] ->
     [ string_like_load_unsafe
-        ~access_size:(One_twenty_eight { aligned })
+        ~access_size:(One_twenty_eight { aligned = false })
         String (Some mode) str index ~current_region ]
-  | Pbytes_load_128 { unsafe = true; mode; aligned }, [[str]; [index]] ->
+  | Pbytes_load_128 { unsafe = true; mode }, [[str]; [index]] ->
     [ string_like_load_unsafe
-        ~access_size:(One_twenty_eight { aligned })
+        ~access_size:(One_twenty_eight { aligned = false })
         Bytes (Some mode) str index ~current_region ]
   | Pstring_load_16 false (* safe *), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen String None str
@@ -938,9 +938,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pstring_load_64 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four String
         (Some mode) str index ~current_region ]
-  | Pstring_load_128 { unsafe = false; mode; aligned }, [[str]; [index]] ->
+  | Pstring_load_128 { unsafe = false; mode }, [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int
-        ~access_size:(One_twenty_eight { aligned })
+        ~access_size:(One_twenty_eight { aligned = false })
         String (Some mode) str index ~current_region ]
   | Pbytes_load_16 false (* safe *), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bytes None bytes
@@ -951,9 +951,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_load_64 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
         (Some mode) bytes index ~current_region ]
-  | Pbytes_load_128 { unsafe = false; mode; aligned }, [[bytes]; [index]] ->
+  | Pbytes_load_128 { unsafe = false; mode }, [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int
-        ~access_size:(One_twenty_eight { aligned })
+        ~access_size:(One_twenty_eight { aligned = false })
         Bytes (Some mode) bytes index ~current_region ]
   | Pbytes_set_16 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [bytes_like_set_unsafe ~access_size:Sixteen Bytes bytes index new_value]
@@ -961,10 +961,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [bytes_like_set_unsafe ~access_size:Thirty_two Bytes bytes index new_value]
   | Pbytes_set_64 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [bytes_like_set_unsafe ~access_size:Sixty_four Bytes bytes index new_value]
-  | Pbytes_set_128 { unsafe = true; aligned }, [[bytes]; [index]; [new_value]]
-    ->
+  | Pbytes_set_128 { unsafe = true }, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe
-        ~access_size:(One_twenty_eight { aligned })
+        ~access_size:(One_twenty_eight { aligned = false })
         Bytes bytes index new_value ]
   | Pbytes_set_16 false (* safe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bytes bytes index
@@ -975,10 +974,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_set_64 false (* safe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes bytes
         index new_value ]
-  | Pbytes_set_128 { unsafe = false; aligned }, [[bytes]; [index]; [new_value]]
-    ->
+  | Pbytes_set_128 { unsafe = false }, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int
-        ~access_size:(One_twenty_eight { aligned })
+        ~access_size:(One_twenty_eight { aligned = false })
         Bytes bytes index new_value ]
   | Pisint { variant_only }, [[arg]] ->
     [tag_int (Unary (Is_int { variant_only }, arg))]

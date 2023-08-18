@@ -366,11 +366,9 @@ let lookup_primitive loc poly pos p =
     | "%caml_string_get64" -> Primitive ((Pstring_load_64(false, mode)), 2)
     | "%caml_string_get64u" -> Primitive ((Pstring_load_64(true, mode)), 2)
     | "%caml_string_getu128" ->
-      Primitive ((Pstring_load_128 {aligned = false; unsafe = false; mode}), 2)
+      Primitive ((Pstring_load_128 {unsafe = false; mode}), 2)
     | "%caml_string_getu128u" ->
-      Primitive ((Pstring_load_128 {aligned = false; unsafe = true; mode}), 2)
-    | "%caml_string_geta128u" ->
-      Primitive ((Pstring_load_128 {aligned = true; unsafe = true; mode}), 2)
+      Primitive ((Pstring_load_128 {unsafe = true; mode}), 2)
     | "%caml_string_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_string_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_string_set32" -> Primitive ((Pbytes_set_32(false)), 3)
@@ -378,11 +376,9 @@ let lookup_primitive loc poly pos p =
     | "%caml_string_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_string_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
     | "%caml_string_setu128" ->
-      Primitive ((Pbytes_set_128 {aligned = false; unsafe = false}), 3)
+      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
     | "%caml_string_setu128u" ->
-      Primitive ((Pbytes_set_128 {aligned = false; unsafe = true}), 3)
-    | "%caml_string_seta128u" ->
-      Primitive ((Pbytes_set_128 {aligned = true; unsafe = true}), 3)
+      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bytes_get16" -> Primitive ((Pbytes_load_16(false)), 2)
     | "%caml_bytes_get16u" -> Primitive ((Pbytes_load_16(true)), 2)
     | "%caml_bytes_get32" -> Primitive ((Pbytes_load_32(false, mode)), 2)
@@ -390,11 +386,9 @@ let lookup_primitive loc poly pos p =
     | "%caml_bytes_get64" -> Primitive ((Pbytes_load_64(false, mode)), 2)
     | "%caml_bytes_get64u" -> Primitive ((Pbytes_load_64(true, mode)), 2)
     | "%caml_bytes_getu128" ->
-      Primitive ((Pbytes_load_128 {aligned = false; unsafe = false; mode}), 2)
+      Primitive ((Pbytes_load_128 {unsafe = false; mode}), 2)
     | "%caml_bytes_getu128u" ->
-      Primitive ((Pbytes_load_128 {aligned = false; unsafe = true; mode}), 2)
-    | "%caml_bytes_geta128u" ->
-      Primitive ((Pbytes_load_128 {aligned = true; unsafe = true; mode}), 2)
+      Primitive ((Pbytes_load_128 {unsafe = true; mode}), 2)
     | "%caml_bytes_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_bytes_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_bytes_set32" -> Primitive ((Pbytes_set_32(false)), 3)
@@ -402,11 +396,9 @@ let lookup_primitive loc poly pos p =
     | "%caml_bytes_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_bytes_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
     | "%caml_bytes_setu128" ->
-      Primitive ((Pbytes_set_128 {aligned = false; unsafe = false}), 3)
+      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
     | "%caml_bytes_setu128u" ->
-      Primitive ((Pbytes_set_128 {aligned = false; unsafe = true}), 3)
-    | "%caml_bytes_seta128u" ->
-      Primitive ((Pbytes_set_128 {aligned = true; unsafe = true}), 3)
+      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bigstring_get16" -> Primitive ((Pbigstring_load_16(false)), 2)
     | "%caml_bigstring_get16u" -> Primitive ((Pbigstring_load_16(true)), 2)
     | "%caml_bigstring_get32" -> Primitive ((Pbigstring_load_32(false, mode)), 2)

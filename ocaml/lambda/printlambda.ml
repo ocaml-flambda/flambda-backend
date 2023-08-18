@@ -433,14 +433,10 @@ let primitive ppf = function
   | Pstring_load_64(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "string.get64%s" (alloc_kind m)
-  | Pstring_load_128 {unsafe = true; aligned = false; mode} ->
+  | Pstring_load_128 {unsafe = true; mode} ->
      fprintf ppf "string.unsafe_unaligned_get128%s" (alloc_kind mode)
-  | Pstring_load_128 {unsafe = false; aligned = false; mode} ->
+  | Pstring_load_128 {unsafe = false; mode} ->
      fprintf ppf "string.unaligned_get128%s" (alloc_kind mode)
-  | Pstring_load_128 {unsafe = true; aligned = true; mode} ->
-     fprintf ppf "string.unsafe_aligned_get128%s" (alloc_kind mode)
-  | Pstring_load_128 {unsafe = false; aligned = true; mode} ->
-     fprintf ppf "string.aligned_get128%s" (alloc_kind mode)
   | Pbytes_load_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_get16"
      else fprintf ppf "bytes.get16"
@@ -450,14 +446,10 @@ let primitive ppf = function
   | Pbytes_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bytes.get64%s" (alloc_kind m)
-  | Pbytes_load_128 {unsafe = true; aligned = false; mode} ->
+  | Pbytes_load_128 {unsafe = true; mode} ->
      fprintf ppf "bytes.unsafe_unaligned_get128%s" (alloc_kind mode)
-  | Pbytes_load_128 {unsafe = false; aligned = false; mode} ->
+  | Pbytes_load_128 {unsafe = false; mode} ->
      fprintf ppf "bytes.unaligned_get128%s" (alloc_kind mode)
-  | Pbytes_load_128 {unsafe = true; aligned = true; mode} ->
-     fprintf ppf "bytes.unsafe_aligned_get128%s" (alloc_kind mode)
-  | Pbytes_load_128 {unsafe = false; aligned = true; mode} ->
-     fprintf ppf "bytes.aligned_get128%s" (alloc_kind mode)
   | Pbytes_set_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set16"
      else fprintf ppf "bytes.set16"
@@ -467,14 +459,10 @@ let primitive ppf = function
   | Pbytes_set_64(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set64"
      else fprintf ppf "bytes.set64"
-  | Pbytes_set_128 {unsafe = true; aligned = false} ->
+  | Pbytes_set_128 {unsafe = true} ->
      fprintf ppf "bytes.unsafe_unaligned_set128"
-  | Pbytes_set_128 {unsafe = true; aligned = true} ->
-     fprintf ppf "bytes.unsafe_aligned_set128"
-  | Pbytes_set_128 {unsafe = false; aligned = false} ->
+  | Pbytes_set_128 {unsafe = false} ->
      fprintf ppf "bytes.unaligned_set128"
-  | Pbytes_set_128 {unsafe = false; aligned = true} ->
-     fprintf ppf "bytes.aligned_set128"
   | Pbigstring_load_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
      else fprintf ppf "bigarray.array1.get16"
