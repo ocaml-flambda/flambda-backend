@@ -285,3 +285,58 @@ Error: Signature mismatch:
        In module N:
        Module X cannot be aliased
 |}]
+
+module Remove_aliases = struct
+  module type T = sig module type S end
+
+  module F(X : T) = struct
+    module type U = sig
+      module M : X.S
+      module N : sig module O = M end
+    end
+
+    module G(Y : U) = struct
+      module P = Y.N
+    end
+  end
+
+  module A = struct
+    module type S = sig module Q : sig end end
+  end
+
+  module B = F(A)
+end
+[%%expect{|
+module Remove_aliases :
+  sig
+    module type T = sig module type S end
+    module F :
+      functor (X : T) ->
+        sig
+          module type U =
+            sig module M : X.S module N : sig module O = M end end
+          module G :
+            functor
+              (Y : sig
+                     module M : X.S
+                     module N :
+                       sig module O : (X.S with M [@unaliasable]) end
+                   end)
+              -> sig module P : sig module O : (X.S with Y.M) end end
+        end
+    module A : sig module type S = sig module Q : sig end end end
+    module B :
+      sig
+        module type U =
+          sig module M : A.S module N : sig module O = M end end
+        module G :
+          functor
+            (Y : sig
+                   module M : A.S
+                   module N : sig module O : sig module Q : sig end end end
+                 end)
+            ->
+            sig module P : sig module O : sig module Q : sig end end end end
+      end
+  end
+|}]
