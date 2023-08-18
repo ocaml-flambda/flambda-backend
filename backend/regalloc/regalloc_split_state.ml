@@ -96,6 +96,8 @@ end = struct
                  && Label.Set.cardinal successor_block.predecessors = 1
               then
                 let to_move : Reg.Set.t =
+                  (* CR-soon xclerc for xclerc: consider ignoring `res` to speed
+                     up the check. *)
                   Reg.Set.filter
                     (fun (reg : Reg.t) ->
                       let occurs = occurs_block block reg in
@@ -168,6 +170,8 @@ end = struct
             let to_move : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
+                  (* CR-soon xclerc for xclerc: consider ignoring `arg` to speed
+                     up the check. *)
                   let occurs_block = occurs_block block reg in
                   let occurs_defs =
                     match Label.Map.find_opt label definitions_at_beginning with
