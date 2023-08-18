@@ -446,7 +446,7 @@ let type_declaration' copy_scope s decl =
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
-        Type_abstract -> Type_abstract
+        Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep) ->
           let rep =
             match s.additional_action with

@@ -1544,7 +1544,7 @@ let rec tree_of_type_decl id decl =
         Some ty
   in
   begin match decl.type_kind with
-  | Type_abstract -> ()
+  | Type_abstract _ -> ()
   | Type_variant (cstrs, _rep) ->
       List.iter
         (fun c ->
@@ -1564,7 +1564,7 @@ let rec tree_of_type_decl id decl =
   let type_defined decl =
     let abstr =
       match decl.type_kind with
-        Type_abstract ->
+        Type_abstract _ ->
           decl.type_manifest = None || decl.type_private = Private
       | Type_record _ ->
           decl.type_private = Private
@@ -1580,7 +1580,7 @@ let rec tree_of_type_decl id decl =
           let is_var = is_Tvar ty in
           if abstr || not is_var then
             let inj =
-              decl_is_abstract decl && Variance.mem Inj v &&
+              type_kind_is_abstract decl && Variance.mem Inj v &&
               match decl.type_manifest with
               | None -> true
               | Some ty -> (* only abstract or private row types *)
@@ -1611,7 +1611,7 @@ let rec tree_of_type_decl id decl =
   let constraints = tree_of_constraints params in
   let ty, priv, unboxed =
     match decl.type_kind with
-    | Type_abstract ->
+    | Type_abstract _ ->
         begin match ty_manifest with
         | None -> (Otyp_abstract, Public, false)
         | Some ty ->
@@ -2013,7 +2013,7 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract;
+    type_kind = Type_abstract Abstract_def;
     type_layout = Layout.any ~why:Dummy_layout;
     type_private = Public;
     type_manifest = None;
@@ -2621,13 +2621,19 @@ let explain mis ppf =
 let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
-    begin
-      try
-        ignore(Env.find_type p env : Types.type_declaration)
-      with Not_found ->
+    begin match Env.find_type p env with
+    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
         fprintf ppf
-          "@,@[%a is abstract because no corresponding cmi file was found \
-           in path.@]" path p
+          "@,@[<hov>Type %a was considered abstract@ when checking\
+           @ constraints@ in this@ recursive type definition.@]"
+          path p
+    | exception Not_found ->
+        fprintf ppf
+          "@,@[<hov>Type %a is abstract because@ no corresponding\
+           @ cmi file@ was found@ in path.@]" path p
+    | {type_kind =
+       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
+      -> ()
     end
   | _ -> ()
 

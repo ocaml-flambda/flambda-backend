@@ -165,7 +165,7 @@ and ident_some = ident_create "Some"
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?(kind=Type_abstract)
+      ?(kind=Type_abstract Abstract_def)
       ?(layout=Layout.value ~why:(Primitive type_ident))
       env =
   let decl =
@@ -192,7 +192,7 @@ let mk_add_type add_type
 let common_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
-        ?(kind=fun _ -> Type_abstract)
+        ?(kind=fun _ -> Type_abstract Abstract_def)
         ?(layout=Layout.value ~why:(Primitive type_ident))
       ~variance ~separability env =
     let param = newgenvar (Layout.value ~why:Type_argument) in

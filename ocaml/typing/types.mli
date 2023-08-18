@@ -496,7 +496,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract
+    Type_abstract of abstract_reason
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -515,6 +515,10 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t * layout array
+
+and abstract_reason =
+    Abstract_def
+  | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
 and record_representation =
   | Record_unboxed
@@ -568,8 +572,6 @@ and constructor_arguments =
   | Cstr_record of label_declaration list
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
-
-val decl_is_abstract : type_declaration -> bool
 
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option

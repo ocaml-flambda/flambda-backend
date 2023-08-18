@@ -212,7 +212,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract
+    Type_abstract of abstract_reason
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -220,6 +220,10 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
         | Extension of Path.t * layout array
+
+and abstract_reason =
+    Abstract_def
+  | Abstract_rec_check_regularity
 
 and record_representation =
   | Record_unboxed
@@ -536,11 +540,6 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
-let decl_is_abstract decl =
-  match decl.type_kind with
-  | Type_abstract -> true
-  | Type_record _ | Type_variant _ | Type_open -> false
-
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
@@ -553,7 +552,7 @@ let find_unboxed_type decl =
                     | Record_boxed _ | Record_float | Record_ufloat ))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
-  | Type_abstract | Type_open ->
+  | Type_abstract _ | Type_open ->
     None
 
 type label_description =
