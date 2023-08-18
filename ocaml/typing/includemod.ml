@@ -450,13 +450,21 @@ end
   is a subtype of mty2 with no coercion  *)
 let rec shallow_modtypes env subst mty1 mty2 =
   let open Subst.Lazy in
+  let sub_aliasable a1 a2 =
+    (* S with M (unaliasable) is not a subtype of S with M (aliasable) *)
+    Aliasability.is_aliasable a1 || not (Aliasability.is_aliasable a2)
+  in
   match mty1, mty2 with
   | Mty_alias p1, Mty_alias p2 ->
       not (Env.is_functor_arg p2 env) && equal_module_paths env p1 subst p2
   | Mty_ident p1, Mty_ident p2 ->
       equal_modtype_paths env p1 subst p2
-  | Mty_strengthen (mty1,p1,_), Mty_strengthen (mty2,p2,_)
-        when shallow_modtypes env subst mty1 mty2
+  | Mty_strengthen (mty1,p1,a1), Mty_strengthen (mty2,p2,a2)
+        when sub_aliasable a1 a2
+              (* Destructive substitution can introduce this, similar to the
+                 Mty_alias check *)
+          && not (Aliasability.is_aliasable a2 && Env.is_functor_arg p2 env)
+          && shallow_modtypes env subst mty1 mty2
           && shallow_module_paths env subst p1 mty2 p2 ->
       true
   | Mty_strengthen (mty1,_,_), mty2 ->
@@ -620,6 +628,8 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
     | None ->
         (* Report error *)
         match mty1, mty2 with
+        | _, Mty_strengthen (_,p,Aliasable) when Env.is_functor_arg p env ->
+            Error (Error.Invalid_module_alias p)
         | (Mty_ident _ | Mty_strengthen _), _ ->
             Error (Error.Mt_core Abstract_module_type)
         | (Mty_alias _, Mty_alias p2) ->

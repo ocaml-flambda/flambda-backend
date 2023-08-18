@@ -207,3 +207,81 @@ module Expand_destructive_with :
         -> sig val bar : X.N.t end
   end
 |}]
+
+module Destructive_with1 = struct
+  module type S = sig type t end
+
+  module type T = sig
+    module M : S
+    module N : S with M
+  end
+
+  module F(X : S) : T with module M := X = struct
+    module N = X
+  end
+end
+[%%expect{|
+module Destructive_with1 :
+  sig
+    module type S = sig type t end
+    module type T = sig module M : S module N : sig type t = M.t end end
+    module F : functor (X : S) -> sig module N : sig type t = X.t end end
+  end
+|}]
+
+module Destructive_with2 = struct
+  module type S = sig module A : sig type t end end
+
+  module type T = sig
+    module M : S
+    module N : S with M
+  end
+
+  module F(X : S) : T with module M := X = struct
+    module N = X
+  end
+end
+[%%expect{|
+Lines 9-11, characters 43-5:
+ 9 | ...........................................struct
+10 |     module N = X
+11 |   end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module N : sig module A : sig type t = X.A.t end end end
+       is not included in
+         sig module N : sig module A = X.A end end
+       In module N:
+       Modules do not match:
+         sig module A = N.A end
+       is not included in
+         sig module A = X.A end
+       In module N.A:
+       Module X.A cannot be aliased
+|}]
+
+module Destructive_with3 = struct
+  module type S
+
+  module type T = sig
+    module M : S
+    module N : S with M
+  end
+
+  module F(X : S) : T with module M := X = struct
+    module N = X
+  end
+end
+[%%expect{|
+Lines 9-11, characters 43-5:
+ 9 | ...........................................struct
+10 |     module N = X
+11 |   end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module N : (S with X) end
+       is not included in
+         sig module N : (S with X) end
+       In module N:
+       Module X cannot be aliased
+|}]
