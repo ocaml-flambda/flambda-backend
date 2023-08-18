@@ -23,7 +23,7 @@ open Cmm
 open Reg
 open Mach
 
-let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD)
+let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD || !simd_regalloc)
 
 let fp = Config.with_frame_pointers
 
@@ -106,8 +106,8 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 1
   | Vec128 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     1
 
 let num_stack_slot_classes = 3
@@ -117,8 +117,8 @@ let stack_slot_class typ =
   | Val | Addr | Int -> 0
   | Float -> 1
   | Vec128 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     2
 
 let stack_class_tag c =
@@ -126,8 +126,8 @@ let stack_class_tag c =
   | 0 -> "i"
   | 1 -> "f"
   | 2 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     "x"
   | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
@@ -143,8 +143,8 @@ let register_name ty r =
   | Float ->
     float_reg_name.(r - first_available_register.(1))
   | Vec128 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -204,8 +204,9 @@ let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 let stack_slot slot ty =
   (match ty with
    | Float | Int | Addr | Val -> ()
-   | Vec128 -> if simd_regalloc_disabled () then
-     Misc.fatal_error "SIMD register allocation is not enabled.");
+   | Vec128 ->
+     if simd_regalloc_disabled ()
+     then Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location ty (Stack slot)
 
 (* Instruction selection *)
