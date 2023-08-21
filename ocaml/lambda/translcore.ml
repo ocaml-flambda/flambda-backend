@@ -382,11 +382,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         (event_before ~scopes body (transl_exp ~scopes sort body))
   | Texp_function { arg_label = _; param; cases; partial; region; curry;
                     warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
-      let scopes =
-        if in_new_scope then scopes
-        else enter_anonymous_function ~scopes
-      in
-      transl_function ~scopes e alloc_mode param arg_mode arg_sort ret_sort
+      transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort ret_sort
         cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode, _);
@@ -1321,9 +1317,27 @@ and transl_function0
          mode = arg_mode}],
       return_layout, region), body)
 
-and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
+and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort return_sort
       cases partial warnings region curry =
   let mode = transl_alloc_mode alloc_mode in
+  let attrs =
+    (* Collect attributes from the Pexp_newtype node for locally abstract types.
+       Otherwise we'd ignore the attribute in, e.g.;
+           fun [@inline] (type a) x -> ...
+    *)
+    List.fold_left
+      (fun attrs (extra_exp, _, extra_attrs) ->
+         match extra_exp with
+         | Texp_newtype _ -> extra_attrs @ attrs
+         | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
+      e.exp_attributes e.exp_extra
+  in
+  let scopes =
+    if in_new_scope then begin
+      scopes
+    end
+    else enter_anonymous_function ~scopes
+  in
   let arg_layout =
     function_arg_layout e.exp_env e.exp_loc arg_sort e.exp_type
   in
@@ -1344,18 +1358,6 @@ and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
   let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
-  let attrs =
-    (* Collect attributes from the Pexp_newtype node for locally abstract types.
-       Otherwise we'd ignore the attribute in, e.g.;
-           fun [@inline] (type a) x -> ...
-    *)
-    List.fold_left
-      (fun attrs (extra_exp, _, extra_attrs) ->
-         match extra_exp with
-         | Texp_newtype _ -> extra_attrs @ attrs
-         | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
-      e.exp_attributes e.exp_extra
-  in
   Translattribute.add_function_attributes lam e.exp_loc attrs
 
 (* Like transl_exp, but used when a new scope was just introduced. *)
@@ -1363,16 +1365,19 @@ and transl_scoped_exp ~scopes sort expr =
   transl_exp1 ~scopes ~in_new_scope:true sort expr
 
 (* Decides whether a pattern binding should introduce a new scope. *)
-and transl_bound_exp ~scopes ~in_structure pat sort expr =
+and transl_bound_exp ~scopes ~in_structure pat sort expr loc attrs =
   let should_introduce_scope =
     match expr.exp_desc with
     | Texp_function _ -> true
     | _ when in_structure -> true
     | _ -> false in
-  match pat_bound_idents pat with
-  | (id :: _) when should_introduce_scope ->
-     transl_scoped_exp ~scopes:(enter_value_definition ~scopes id) sort expr
-  | _ -> transl_exp ~scopes sort expr
+  let lam =
+    match pat_bound_idents pat with
+    | (id :: _) when should_introduce_scope ->
+      transl_scoped_exp ~scopes:(enter_value_definition ~scopes id) sort expr
+    | _ -> transl_exp ~scopes sort expr
+  in
+  Translattribute.add_function_attributes lam loc attrs
 
 (*
   Notice: transl_let consumes (ie compiles) its pat_expr_list argument,
@@ -1387,10 +1392,11 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       let rec transl = function
         [] ->
           fun body -> body
-      | {vb_pat=pat; vb_expr=expr; vb_sort=sort; vb_attributes=attr; vb_loc}
+      | {vb_pat=pat; vb_expr=expr; vb_sort=sort; vb_attributes; vb_loc}
         :: rem ->
-          let lam = transl_bound_exp ~scopes ~in_structure pat sort expr in
-          let lam = Translattribute.add_function_attributes lam vb_loc attr in
+          let lam =
+            transl_bound_exp ~scopes ~in_structure pat sort expr vb_loc vb_attributes
+          in
           let lam =
             if add_regions then maybe_region_exp sort expr lam else lam
           in
@@ -1410,10 +1416,7 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
       let transl_case
             {vb_expr=expr; vb_sort; vb_attributes; vb_loc; vb_pat} id =
         let lam =
-          transl_bound_exp ~scopes ~in_structure vb_pat vb_sort expr
-        in
-        let lam =
-          Translattribute.add_function_attributes lam vb_loc vb_attributes
+          transl_bound_exp ~scopes ~in_structure vb_pat vb_sort expr vb_loc vb_attributes
         in
         let lam =
           if add_regions then maybe_region_exp vb_sort expr lam else lam
