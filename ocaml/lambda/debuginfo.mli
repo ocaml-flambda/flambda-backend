@@ -25,19 +25,22 @@ module Scoped_location : sig
 
   type scopes = private
     | Empty
-    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
+    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
+               assume_zero_alloc: bool}
 
   val string_of_scopes : scopes -> string
 
   val empty_scopes : scopes
-  val enter_anonymous_function : scopes:scopes -> scopes
-  val enter_value_definition : scopes:scopes -> Ident.t -> scopes
+  val enter_anonymous_function : scopes:scopes -> assume_zero_alloc:bool -> scopes
+  val enter_value_definition : scopes:scopes -> assume_zero_alloc:bool -> Ident.t -> scopes
   val enter_compilation_unit : scopes:scopes -> Compilation_unit.t -> scopes
   val enter_module_definition : scopes:scopes -> Ident.t -> scopes
   val enter_class_definition : scopes:scopes -> Ident.t -> scopes
   val enter_method_definition : scopes:scopes -> Asttypes.label -> scopes
   val enter_lazy : scopes:scopes -> scopes
   val enter_partial_or_eta_wrapper : scopes:scopes -> scopes
+  val set_assume_zero_alloc : scopes:scopes -> scopes
+  val get_assume_zero_alloc : scopes:scopes -> bool
 
   type t =
     | Loc_unknown

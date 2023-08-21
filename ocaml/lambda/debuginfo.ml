@@ -29,7 +29,8 @@ module Scoped_location = struct
 
   type scopes =
     | Empty
-    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
+    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
+               assume_zero_alloc: bool}
 
   let str = function
     | Empty -> ""
@@ -39,8 +40,9 @@ module Scoped_location = struct
     | Empty -> "(fun)"
     | Cons r -> r.str_fun
 
-  let cons scopes item str name =
-    Cons {item; str; str_fun = str ^ ".(fun)"; name; prev = scopes}
+  let cons scopes item str name ~assume_zero_alloc =
+    Cons {item; str; str_fun = str ^ ".(fun)"; name; prev = scopes;
+          assume_zero_alloc}
 
   let empty_scopes = Empty
 
@@ -61,22 +63,27 @@ module Scoped_location = struct
     | Empty -> s
     | Cons {str; _} -> str ^ sep ^ s
 
-  let enter_anonymous_function ~scopes =
+  let enter_anonymous_function ~scopes ~assume_zero_alloc =
     let str = str_fun scopes in
-    Cons {item = Sc_anonymous_function; str; str_fun = str; name = ""; prev = scopes}
+    Cons {item = Sc_anonymous_function; str; str_fun = str; name = ""; prev = scopes;
+          assume_zero_alloc }
 
-  let enter_value_definition ~scopes id =
+  let enter_value_definition ~scopes ~assume_zero_alloc id =
     cons scopes Sc_value_definition (dot scopes (Ident.name id)) (Ident.name id)
+      ~assume_zero_alloc
 
   let enter_compilation_unit ~scopes cu =
     let name = Compilation_unit.name_as_string cu in
     cons scopes Sc_module_definition (dot scopes name) name
+      ~assume_zero_alloc:false
 
   let enter_module_definition ~scopes id =
     cons scopes Sc_module_definition (dot scopes (Ident.name id)) (Ident.name id)
+      ~assume_zero_alloc:false
 
   let enter_class_definition ~scopes id =
     cons scopes Sc_class_definition (dot scopes (Ident.name id)) (Ident.name id)
+      ~assume_zero_alloc:false
 
   let enter_method_definition ~scopes (s : Asttypes.label) =
     let str =
@@ -84,16 +91,32 @@ module Scoped_location = struct
       | Cons {item = Sc_class_definition; _} -> dot ~sep:"#" scopes s
       | _ -> dot scopes s
     in
-    cons scopes Sc_method_definition str s
+    cons scopes Sc_method_definition str s ~assume_zero_alloc:false
 
   let enter_lazy ~scopes = cons scopes Sc_lazy (str scopes) ""
+                             ~assume_zero_alloc:false
 
   let enter_partial_or_eta_wrapper ~scopes =
     cons scopes Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)") ""
+      ~assume_zero_alloc:false
+
+  let set_assume_zero_alloc ~scopes =
+    match scopes with
+    | Empty -> Empty
+    | Cons { assume_zero_alloc = true } -> scopes
+    | Cons { item; str; str_fun; name; prev; assume_zero_alloc = false; } ->
+      Cons { item; str; str_fun; name; prev; assume_zero_alloc = true; }
+
+  let get_assume_zero_alloc ~scopes =
+    match scopes with
+    | Empty -> false
+    | Cons { assume_zero_alloc; _ } -> assume_zero_alloc
 
   let string_of_scopes = function
     | Empty -> "<unknown>"
-    | Cons {str; _} -> str
+    | Cons {str; assume_zero_alloc; _} ->
+      if assume_zero_alloc then str^"(assume zero_alloc)"
+      else str
 
   let string_of_scopes =
     let module StringSet = Set.Make (String) in
@@ -199,7 +222,8 @@ let from_location = function
   | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc = false; }
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
-    { dbg = [item_from_location ~scopes loc]; assume_zero_alloc = false; }
+    let assume_zero_alloc = Scoped_location.get_assume_zero_alloc ~scopes in
+    { dbg = [item_from_location ~scopes loc]; assume_zero_alloc; }
 
 let to_location { dbg; assume_zero_alloc=_ } =
   match dbg with
