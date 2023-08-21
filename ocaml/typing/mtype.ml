@@ -717,9 +717,12 @@ let collect_arg_paths mty =
   Path.Set.fold (fun p -> Ident.Set.union (collect_ids !subst !bindings p))
     !paths Ident.Set.empty
 
+type remove_alias_from =
+  | Alias of Ident.t
+  | Strengthening
 type remove_alias_args =
     { mutable modified: bool;
-      exclude: Ident.t option -> Path.t -> bool;
+      exclude: remove_alias_from -> Path.t -> bool;
       scrape: Env.t -> module_type -> module_type }
 
 let rec remove_aliases_mty env args pres mty =
@@ -736,7 +739,7 @@ let rec remove_aliases_mty env args pres mty =
           args'.modified <- true;
           remove_aliases_mty env args' Mp_present mty'
         end
-    | Mty_strengthen (mty,p,Aliasable) when not (args.exclude None p) ->
+    | Mty_strengthen (mty,p,Aliasable) when not (args.exclude Strengthening p) ->
         let mty = strengthen ~aliasable:false mty p in
         args'.modified <- true;
         Mp_present, mty
@@ -756,7 +759,7 @@ and remove_aliases_sig env args sg =
   | Sig_module(id, pres, md, rs, priv) :: rem  ->
       let pres, mty =
         match md.md_type with
-          Mty_alias p when args.exclude (Some id) p ->
+          Mty_alias p when args.exclude (Alias id) p ->
             pres, md.md_type
         | mty ->
             remove_aliases_mty env args pres mty
@@ -782,8 +785,8 @@ let scrape_for_type_of ~remove_aliases env mty =
   if remove_aliases then begin
     let excl = collect_arg_paths mty in
     let exclude id _p = match id with
-      | Some id -> Ident.Set.mem id excl
-      | None -> false
+      | Alias id -> Ident.Set.mem id excl
+      | Strengthening -> false
     in
     let scrape _ mty = mty in
     let _, mty =
