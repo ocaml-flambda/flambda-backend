@@ -170,16 +170,13 @@ let unique_extension loc =
 let once_extension loc =
   Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
 
-let ghexp_stack ~loc ~kwd_loc exp =
-  let loc = ghost_loc loc in
+let mkexp_stack ~loc ~kwd_loc exp =
   Exp.mk ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
 
-let ghexp_unique ~loc ~kwd_loc exp =
-  let loc = ghost_loc loc in
+let mkexp_unique ~loc ~kwd_loc exp =
   Exp.mk ~loc (Pexp_apply(unique_extension (make_loc kwd_loc), [Nolabel, exp]))
 
-let ghexp_once ~loc ~kwd_loc exp =
-  let loc = ghost_loc loc in
+let mkexp_once ~loc ~kwd_loc exp =
   Exp.mk ~loc (Pexp_apply(once_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkpat_stack pat loc =
@@ -223,17 +220,18 @@ type modes = Local | Unique | Once
 (** [loc] is the location to be used for the whole expression including the
     extension node. It is taken as ghost.
     The extension node will always have the non-ghost location [kwd_loc]. *)
-let ghexp_with_mode loc (mode, kwd_loc) exp =
+let mkexp_with_mode loc (mode, kwd_loc) exp =
   match mode with
-  | Local -> ghexp_stack exp ~loc ~kwd_loc
-  | Unique -> ghexp_unique exp ~loc ~kwd_loc
-  | Once -> ghexp_once exp ~loc ~kwd_loc
+  | Local -> mkexp_stack exp ~loc ~kwd_loc
+  | Unique -> mkexp_unique exp ~loc ~kwd_loc
+  | Once -> mkexp_once exp ~loc ~kwd_loc
 
 (** [loc] is a location covering all the modes and the expression, and will be
   used as for all the nested expressions. It is imprecise and taken as ghost. *)
 let ghexp_with_modes loc modes exp =
+  let loc = ghost_loc loc in
   List.fold_left
-    (fun exp mode_loc -> ghexp_with_mode loc mode_loc exp )
+    (fun exp mode_loc -> mkexp_with_mode loc mode_loc exp )
     exp modes
 
 let mkpat_with_mode = function
@@ -2675,7 +2673,7 @@ expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode_flag seq_expr
-     { ghexp_with_mode $sloc $1 $2 }
+     { mkexp_with_mode (make_loc $sloc) $1 $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2806,7 +2804,7 @@ comprehension_clause_binding:
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes LOCAL pattern IN expr
       { let expr =
-          ghexp_stack $5 ~kwd_loc:$loc($2) ~loc:$sloc
+          mkexp_stack $5 ~kwd_loc:$loc($2) ~loc:(ghost_loc $sloc)
         in
         Jane_syntax.Comprehensions.
           { pattern    = $3
