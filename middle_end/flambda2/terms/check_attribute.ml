@@ -40,13 +40,13 @@ let print ppf t =
   | Ignore_assert_all property ->
     Format.fprintf ppf "@[ignore %a@]" Property.print property
   | Assume { property; strict; loc = _ } ->
-    Format.fprintf ppf "@[assume%s %a@]"
-      (if strict then " strict" else "")
+    Format.fprintf ppf "@[assume_%a%s@]"
       Property.print property
+      (if strict then "_strict" else "")
   | Check { property; strict; loc = _ } ->
-    Format.fprintf ppf "@[assert%s %a@]"
-      (if strict then " strict" else "")
+    Format.fprintf ppf "@[assert_%a%s@]"
       Property.print property
+      (if strict then "_strict" else "")
 
 let from_lambda : Lambda.check_attribute -> t = function
   | Default_check -> Default_check

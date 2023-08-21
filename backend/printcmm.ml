@@ -391,13 +391,13 @@ let codegen_option = function
   | Ignore_assert_all property ->
     Printf.sprintf "ignore %s" (property_to_string property)
   | Assume { property; strict; loc = _ } ->
-    Printf.sprintf "assume %s%s"
+    Printf.sprintf "assume_%s%s"
       (property_to_string property)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
   | Check { property; strict; loc = _ } ->
-    Printf.sprintf "assert %s%s"
+    Printf.sprintf "assert_%s%s"
       (property_to_string property)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

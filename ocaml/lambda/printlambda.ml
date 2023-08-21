@@ -635,13 +635,13 @@ let check_attribute ppf check =
   | Ignore_assert_all p ->
     fprintf ppf "ignore assert all %s@ " (check_property p)
   | Assume {property=p; strict; loc = _} ->
-    fprintf ppf "assume %s%s@ "
+    fprintf ppf "assume_%s%s@ "
       (check_property p)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
   | Check {property=p; strict; loc = _} ->
-    fprintf ppf "assert %s%s@ "
+    fprintf ppf "assert_%s%s@ "
       (check_property p)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
 
 let function_attribute ppf t =
   if t.is_a_functor then
