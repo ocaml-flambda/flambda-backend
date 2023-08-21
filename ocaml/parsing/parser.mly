@@ -171,17 +171,17 @@ let unique_extension loc =
 let once_extension loc =
   Exp.mk ~loc:Location.none (Pexp_extension(once_ext_loc loc, PStr []))
 
-let mkexp_stack ~loc ~kwd_loc exp =
-  let loc = make_loc loc in
-  Exp.mk ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
+let mkexp_stack ?loc ~kwd_loc exp =
+  let loc = Option.map make_loc loc in
+  Exp.mk ?loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
 
-let mkexp_unique ~loc ~kwd_loc exp =
-  let loc = make_loc loc in
-  Exp.mk ~loc (Pexp_apply(unique_extension (make_loc kwd_loc), [Nolabel, exp]))
+let mkexp_unique ?loc ~kwd_loc exp =
+  let loc = Option.map make_loc loc in
+  Exp.mk ?loc (Pexp_apply(unique_extension (make_loc kwd_loc), [Nolabel, exp]))
 
-let mkexp_once ~loc ~kwd_loc exp =
-  let loc = make_loc loc in
-  Exp.mk ~loc (Pexp_apply(once_extension (make_loc kwd_loc), [Nolabel, exp]))
+let mkexp_once ?loc ~kwd_loc exp =
+  let loc = Option.map make_loc loc in
+  Exp.mk ?loc (Pexp_apply(once_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkpat_stack pat loc =
   {pat with
@@ -221,15 +221,15 @@ let wrap_exp_once exp loc =
 
 type modes = Local | Unique | Once
 
-let mkexp_with_mode ~loc ~kwd_loc flag exp =
+let mkexp_with_mode ?loc (flag, kwd_loc) exp =
   match flag with
-  | Local -> mkexp_stack exp ~loc ~kwd_loc
-  | Unique -> mkexp_unique exp ~loc ~kwd_loc
-  | Once -> mkexp_once exp ~loc ~kwd_loc
+  | Local -> mkexp_stack exp ?loc ~kwd_loc
+  | Unique -> mkexp_unique exp ?loc ~kwd_loc
+  | Once -> mkexp_once exp ?loc ~kwd_loc
 
-let mkexp_with_modes flags exp loc =
+let mkexp_with_modes flags exp =
   List.fold_left
-    (fun exp (flag, kwd_loc) -> mkexp_with_mode flag exp ~loc ~kwd_loc)
+    (fun exp mode_flag -> mkexp_with_mode mode_flag exp )
     exp flags
 
 let mkpat_with_mode flag pat loc =
@@ -2674,7 +2674,7 @@ expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode_flag seq_expr
-     { mkexp_with_modes [$1] $2 $sloc }
+     { mkexp_with_mode ~loc:($sloc) $1 $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2998,7 +2998,6 @@ let_binding_body_no_punning:
         let exp =
           mkexp_with_modes $1
             (wrap_exp_with_modes $1 (mkexp_constraint ~loc:$sloc $5 $3))
-            $sloc
         in
         (pat, exp) }
   | mode_flags let_ident COLON poly(core_type) EQUAL seq_expr
@@ -3014,7 +3013,7 @@ let_binding_body_no_punning:
             (ghpat ~loc:patloc
                (Ppat_constraint($2, typ)))
         in
-        let exp = mkexp_with_modes $1 $6 $sloc in
+        let exp = mkexp_with_modes $1 $6 in
         (pat, exp) }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       { let exp, poly =
@@ -3027,7 +3026,7 @@ let_binding_body_no_punning:
       { let loc = ($startpos($1), $endpos($3)) in
         (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
   | mode_flag+ let_ident strict_binding_modes
-    { ($2, mkexp_with_modes $1 ($3 $1) $sloc) }
+    { ($2, mkexp_with_modes $1 ($3 $1)) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
