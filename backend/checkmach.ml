@@ -419,12 +419,14 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check { property; strict; assume; loc } when property = spec ->
-            Some { strict; assume; loc }
+          | Check { property; strict; loc } when property = spec ->
+            Some { strict; assume = false; loc }
+          | Assume { property; strict; loc; } when property = spec ->
+            Some { strict; assume = true; loc }
           | Ignore_assert_all property when property = spec ->
             ignore_assert_all := true;
             None
-          | Ignore_assert_all _ | Check _ | Reduce_code_size | No_CSE
+          | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)
         codegen_options

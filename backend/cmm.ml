@@ -302,8 +302,8 @@ type codegen_option =
   | No_CSE
   | Use_linscan_regalloc
   | Ignore_assert_all of property
-  | Check of { property: property; strict: bool; assume: bool;
-               loc : Location.t; }
+  | Assume of { property: property; strict: bool; loc: Location.t }
+  | Check of { property: property; strict: bool; loc : Location.t; }
 
 type fundecl =
   { fun_name: symbol;

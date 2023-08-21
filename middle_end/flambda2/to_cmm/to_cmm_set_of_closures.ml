@@ -324,8 +324,10 @@ let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
   | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Check { property; strict; assume; loc } ->
-    [Check { property = transl_property property; strict; assume; loc }]
+  | Assume { property; strict; loc } ->
+    [Assume { property = transl_property property; strict; loc }]
+  | Check { property; strict; loc } ->
+    [Check { property = transl_property property; strict; loc }]
 
 (* Translation of the bodies of functions. *)
 
