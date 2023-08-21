@@ -3256,8 +3256,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
+          let import = Compilation_unit.name modulename in
           let dclsig =
-            Env.read_signature modulename intf_file ~add_binding:false in
+            Env.read_signature import intf_file ~add_binding:false in
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
@@ -3395,14 +3396,14 @@ let package_units initial_env objfiles cmifile modulename =
          in
          let modname = Compilation_unit.create_child modulename unit in
          let sg =
-           Env.read_signature modname (pref ^ ".cmi") ~add_binding:false in
+           Env.read_signature unit (pref ^ ".cmi") ~add_binding:false in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig (Lazy.force Env.initial_safe_string)
                   sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
-         Env.read_signature modname (pref ^ ".cmi") ~add_binding:false)
+         Env.read_signature unit (pref ^ ".cmi") ~add_binding:false)
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -3425,7 +3426,8 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile ~add_binding:false in
+    let name = Compilation_unit.name modulename in
+    let dclsig = Env.read_signature name cmifile ~add_binding:false in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
