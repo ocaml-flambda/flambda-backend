@@ -935,7 +935,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let funcid = Ident.create_local ("probe_handler_" ^ name) in
       let return_layout = layout_unit (* Probe bodies have type unit. *) in
       let handler =
-        let scopes = enter_value_definition ~scopes funcid in
+        let assume_zero_alloc = get_assume_zero_alloc ~scopes in
+        let scopes = enter_value_definition ~scopes ~assume_zero_alloc funcid in
         lfunction
           ~kind:(Curried {nlocal=0})
           (* CR layouts: Adjust param layouts when we allow other things in
@@ -1332,11 +1333,13 @@ and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort r
          | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
       e.exp_attributes e.exp_extra
   in
+  let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
   let scopes =
     if in_new_scope then begin
-      scopes
+      if assume_zero_alloc then set_assume_zero_alloc ~scopes
+      else scopes
     end
-    else enter_anonymous_function ~scopes
+    else enter_anonymous_function ~scopes ~assume_zero_alloc
   in
   let arg_layout =
     function_arg_layout e.exp_env e.exp_loc arg_sort e.exp_type
@@ -1374,7 +1377,9 @@ and transl_bound_exp ~scopes ~in_structure pat sort expr loc attrs =
   let lam =
     match pat_bound_idents pat with
     | (id :: _) when should_introduce_scope ->
-      transl_scoped_exp ~scopes:(enter_value_definition ~scopes id) sort expr
+      let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
+      let scopes = enter_value_definition ~scopes ~assume_zero_alloc id in
+      transl_scoped_exp ~scopes sort expr
     | _ -> transl_exp ~scopes sort expr
   in
   Translattribute.add_function_attributes lam loc attrs
