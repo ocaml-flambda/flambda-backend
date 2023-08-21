@@ -396,6 +396,7 @@ type check_attribute =
   | Assume of { property: property;
                 strict: bool;
                 loc: Location.t;
+                never_returns_normally: bool;
               }
 
 type loop_attribute =

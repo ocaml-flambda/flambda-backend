@@ -634,10 +634,11 @@ let check_attribute ppf check =
   | Default_check -> ()
   | Ignore_assert_all p ->
     fprintf ppf "ignore assert all %s@ " (check_property p)
-  | Assume {property=p; strict; loc = _} ->
-    fprintf ppf "assume_%s%s@ "
+  | Assume {property=p; strict; never_returns_normally; loc = _} ->
+    fprintf ppf "assume_%s%s%s@ "
       (check_property p)
       (if strict then "_strict" else "")
+      (if never_returns_normally then "_never_returns_normally" else "")
   | Check {property=p; strict; loc = _} ->
     fprintf ppf "assert_%s%s@ "
       (check_property p)

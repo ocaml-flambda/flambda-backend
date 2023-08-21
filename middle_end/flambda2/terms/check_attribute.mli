@@ -20,6 +20,7 @@ type t =
   | Assume of
       { property : Property.t;
         strict : bool;
+        never_returns_normally : bool;
         loc : Location.t
       }
   | Check of
