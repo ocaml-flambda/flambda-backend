@@ -162,26 +162,37 @@ let once_attr loc =
   mk_attr ~loc (once_ext_loc loc) (PStr [])
 
 let local_extension loc =
-  Exp.mk ~loc:Location.none
-    (Pexp_extension(local_ext_loc loc, PStr []))
+  Exp.mk (Pexp_extension(local_ext_loc loc, PStr []))
 
 let unique_extension loc =
-  Exp.mk ~loc:Location.none (Pexp_extension(unique_ext_loc loc, PStr []))
+  Exp.mk (Pexp_extension(unique_ext_loc loc, PStr []))
 
 let once_extension loc =
-  Exp.mk ~loc:Location.none (Pexp_extension(once_ext_loc loc, PStr []))
+  Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
 
 let mkexp_stack ?loc ~kwd_loc exp =
-  let loc = Option.map make_loc loc in
-  Exp.mk ?loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
+  let loc =
+    match loc with
+    | None -> Location.ghostify exp.pexp_loc
+    | Some loc -> make_loc loc
+  in
+  Exp.mk ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkexp_unique ?loc ~kwd_loc exp =
-  let loc = Option.map make_loc loc in
-  Exp.mk ?loc (Pexp_apply(unique_extension (make_loc kwd_loc), [Nolabel, exp]))
+  let loc =
+    match loc with
+    | None -> Location.ghostify exp.pexp_loc
+    | Some loc -> make_loc loc
+  in
+  Exp.mk ~loc (Pexp_apply(unique_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkexp_once ?loc ~kwd_loc exp =
-  let loc = Option.map make_loc loc in
-  Exp.mk ?loc (Pexp_apply(once_extension (make_loc kwd_loc), [Nolabel, exp]))
+  let loc =
+    match loc with
+    | None -> Location.ghostify exp.pexp_loc
+    | Some loc -> make_loc loc
+  in
+  Exp.mk ~loc (Pexp_apply(once_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkpat_stack pat loc =
   {pat with
@@ -221,40 +232,41 @@ let wrap_exp_once exp loc =
 
 type modes = Local | Unique | Once
 
-let mkexp_with_mode ?loc (flag, kwd_loc) exp =
-  match flag with
+(* [loc] is the location of the whole expression including the extension node.
+    If not given, will use [exp.pexp_loc] (but ghost).
+    The extension node will always have non-ghost (but filled-in) location.
+ *)
+let mkexp_with_mode ?loc (mode, kwd_loc) exp =
+  match mode with
   | Local -> mkexp_stack exp ?loc ~kwd_loc
   | Unique -> mkexp_unique exp ?loc ~kwd_loc
   | Once -> mkexp_once exp ?loc ~kwd_loc
 
-let mkexp_with_modes flags exp =
+let mkexp_with_modes modes exp =
   List.fold_left
-    (fun exp mode_flag -> mkexp_with_mode mode_flag exp )
-    exp flags
+    (fun exp (mode, kwd_loc) -> mkexp_with_mode (mode, kwd_loc) exp )
+    exp modes
 
-let mkpat_with_mode flag pat loc =
-  match flag with
-  | Local -> mkpat_stack pat loc
-  | Unique -> mkpat_unique pat loc
-  | Once -> mkpat_once pat loc
+let mkpat_with_mode = function
+  | Local -> mkpat_stack
+  | Unique -> mkpat_unique
+  | Once -> mkpat_once
 
 let mkpat_with_modes flags pat =
   List.fold_left (fun pat (flag, loc) -> mkpat_with_mode flag pat loc) pat flags
 
-let mktyp_with_mode flag typ loc =
-  match flag with
-  | Local -> mktyp_stack typ loc
-  | Unique -> mktyp_unique typ loc
-  | Once -> mktyp_once typ loc
+let mktyp_with_mode = function
+  | Local -> mktyp_stack
+  | Unique -> mktyp_unique
+  | Once -> mktyp_once
 
 let mktyp_with_modes flags typ =
   List.fold_left (fun typ (flag, loc) -> mktyp_with_mode flag typ loc) typ flags
 
-let wrap_exp_with_mode flag exp loc =
-  match flag with
-  | Local -> wrap_exp_stack exp loc
-  | Unique -> wrap_exp_unique exp loc
-  | Once -> wrap_exp_once exp loc
+let wrap_exp_with_mode = function
+  | Local -> wrap_exp_stack
+  | Unique -> wrap_exp_unique
+  | Once -> wrap_exp_once
 
 let wrap_exp_with_modes flags exp =
   List.fold_left (fun exp (flag, loc) -> wrap_exp_with_mode flag exp loc) exp flags

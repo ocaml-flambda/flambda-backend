@@ -4635,10 +4635,6 @@ and type_expect_
       ({ pexp_desc = Pexp_extension({
             txt = ("ocaml.unique" | "unique" | "extension.unique" as txt)}, PStr []) },
        [Nolabel, sbody]) ->
-      let loc =
-        if loc.loc_ghost then sbody.pexp_loc
-        else loc
-      in
       if txt = "extension.unique" && not (Language_extension.is_enabled Unique) then
         raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Unique));
       let expected_mode = mode_unique expected_mode in
@@ -4652,10 +4648,6 @@ and type_expect_
       ({ pexp_desc = Pexp_extension({
           txt = ("ocaml.once" | "once" | "extension.once" as txt)}, PStr []) },
       [Nolabel, sbody]) ->
-      let loc =
-        if loc.loc_ghost then sbody.pexp_loc
-        else loc
-      in
       if txt = "extension.once" && not (Language_extension.is_enabled Unique) then
         raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Unique));
       let expected_mode = expect_mode_cross env ty_expected expected_mode in
@@ -4671,10 +4663,6 @@ and type_expect_
       ({ pexp_desc = Pexp_extension({
           txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
        [Nolabel, sbody]) ->
-      let loc =
-        if loc.loc_ghost then sbody.pexp_loc
-        else loc
-      in
       if txt = "extension.local" && not (Language_extension.is_enabled Local) then
         raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
       let expected_mode = expect_mode_cross env ty_expected expected_mode in
