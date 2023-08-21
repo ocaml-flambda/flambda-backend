@@ -29,19 +29,17 @@ val to_named : simplified_named -> Named.t
 type t = private
   { named : simplified_named;
     cost_metrics : Cost_metrics.t;
-    free_names : Name_occurrences.t;
-    kind : Flambda_kind.t
+    free_names : Name_occurrences.t
   }
 
 (** It is an error to pass [Set_of_closures] or [Static_consts] to this
     function. (Sets of closures are disallowed because computation of their free
     names might be expensive; use [reachable_with_known_free_names] instead.) *)
-val create : Flambda_kind.t -> Named.t -> t
+val create : Named.t -> t
 
 (** It is an error to pass [Static_consts] to this function. *)
 val create_with_known_free_names :
   find_code_characteristics:(Code_id.t -> Cost_metrics.code_characteristics) ->
-  Flambda_kind.t ->
   Named.t ->
   free_names:Name_occurrences.t ->
   t

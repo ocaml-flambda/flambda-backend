@@ -65,13 +65,19 @@ val record_defined_var : Variable.t -> Flambda_kind.t -> t -> t
 
 (** Add a variable binding from the current handler. *)
 val record_var_binding :
-  Variable.t -> Flambda_kind.t -> Name_occurrences.t -> generate_phantom_lets:bool -> t -> t
+  Variable.t ->
+  Flambda_kind.t ->
+  Name_occurrences.t ->
+  generate_phantom_lets:bool ->
+  t ->
+  t
 
 (** Record a let-binding *)
 val record_let_binding :
   rewrite_id:Named_rewrite_id.t ->
   generate_phantom_lets:bool ->
   let_bound:Bound_pattern.t ->
+  let_bound_kinds:Flambda_kind.t Variable.Map.t ->
   simplified_defining_expr:Simplified_named.t ->
   t ->
   t

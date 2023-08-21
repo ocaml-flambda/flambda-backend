@@ -84,15 +84,21 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
       let aliases = Dominator_graph.dominator_analysis dom_graph in
       let aliases_kind = Dominator_graph.aliases_kind dom_graph aliases in
       let aliases, aliases_kind =
-        Continuation.Map.fold (fun _ elt (aliases, aliases_kind) ->
-            if elt.T.Continuation_info.lift_inner_continuations then
-              Variable.Map.fold (fun v kind (aliases, aliases_kind) ->
-                  (if Variable.Map.mem v aliases then aliases else Variable.Map.add v v aliases),
-                  (if Variable.Map.mem v aliases_kind then aliases_kind else Variable.Map.add v kind aliases_kind)
-                )
+        Continuation.Map.fold
+          (fun _ elt (aliases, aliases_kind) ->
+            if elt.T.Continuation_info.lift_inner_continuations
+            then
+              Variable.Map.fold
+                (fun v kind (aliases, aliases_kind) ->
+                  ( (if Variable.Map.mem v aliases
+                    then aliases
+                    else Variable.Map.add v v aliases),
+                    if Variable.Map.mem v aliases_kind
+                    then aliases_kind
+                    else Variable.Map.add v kind aliases_kind ))
                 elt.T.Continuation_info.defined (aliases, aliases_kind)
-            else aliases, aliases_kind
-          ) map (aliases, aliases_kind)
+            else aliases, aliases_kind)
+          map (aliases, aliases_kind)
       in
       if Flambda_features.dump_flow ()
       then

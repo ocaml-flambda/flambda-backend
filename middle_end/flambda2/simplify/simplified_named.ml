@@ -31,11 +31,10 @@ let to_named = function
 type t =
   { named : simplified_named;
     cost_metrics : Cost_metrics.t;
-    free_names : Name_occurrences.t;
-    kind : Flambda_kind.t
+    free_names : Name_occurrences.t
   }
 
-let create kind (named : Named.t) =
+let create (named : Named.t) =
   let (simplified_named : simplified_named), cost_metrics =
     match named with
     | Simple simple ->
@@ -56,11 +55,10 @@ let create kind (named : Named.t) =
   in
   { named = simplified_named;
     cost_metrics;
-    free_names = Named.free_names named;
-    kind
+    free_names = Named.free_names named
   }
 
-let create_with_known_free_names ~find_code_characteristics kind (named : Named.t)
+let create_with_known_free_names ~find_code_characteristics (named : Named.t)
     ~free_names =
   let (simplified_named : simplified_named), cost_metrics =
     match named with
@@ -78,7 +76,7 @@ let create_with_known_free_names ~find_code_characteristics kind (named : Named.
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  { named = simplified_named; cost_metrics; free_names; kind }
+  { named = simplified_named; cost_metrics; free_names }
 
 let print ppf { named; _ } = Named.print ppf (to_named named)
 

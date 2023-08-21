@@ -77,8 +77,8 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if simple == new_simple
-      then Simplified_named.create (T.kind ty) named
-      else Simplified_named.create (T.kind ty) (Named.create_simple new_simple)
+      then Simplified_named.create named
+      else Simplified_named.create (Named.create_simple new_simple)
     in
     Ok
       (Simplify_named_result.create dacc
@@ -193,8 +193,8 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if rec_info_expr == new_rec_info_expr
-      then Simplified_named.create (T.kind ty) named
-      else Simplified_named.create (T.kind ty) (Named.create_rec_info new_rec_info_expr)
+      then Simplified_named.create named
+      else Simplified_named.create (Named.create_rec_info new_rec_info_expr)
     in
     Ok
       (Simplify_named_result.create dacc

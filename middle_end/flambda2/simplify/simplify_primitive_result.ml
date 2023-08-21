@@ -23,8 +23,8 @@ type t =
     dacc : Downwards_acc.t
   }
 
-let create ?(extra_bindings = []) kind named ~try_reify dacc =
-  { simplified_named = Ok (Simplified_named.create kind named);
+let create ?(extra_bindings = []) named ~try_reify dacc =
+  { simplified_named = Ok (Simplified_named.create named);
     try_reify;
     dacc;
     extra_bindings
@@ -45,11 +45,11 @@ let create_unit dacc ~result_var ~original_term =
      ? *)
   let ty = Flambda2_types.this_tagged_immediate Targetint_31_63.zero in
   let dacc = Downwards_acc.add_variable dacc result_var ty in
-  create Flambda_kind.value original_term ~try_reify:false dacc
+  create original_term ~try_reify:false dacc
 
 let create_unknown dacc ~result_var kind ~original_term =
   let ty = Flambda2_types.unknown kind in
   let dacc = Downwards_acc.add_variable dacc result_var ty in
-  create kind original_term ~try_reify:false dacc
+  create original_term ~try_reify:false dacc
 
 let with_dacc t dacc = { t with dacc }

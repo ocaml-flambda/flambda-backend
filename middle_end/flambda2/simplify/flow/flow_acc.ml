@@ -52,7 +52,8 @@ let add_extra_params_and_args cont extra (t : t) =
   in
   { t with extra }
 
-let enter_continuation continuation ~recursive ~is_exn_handler ?(lift_inner_continuations = false) params (t : t) =
+let enter_continuation continuation ~recursive ~is_exn_handler
+    ?(lift_inner_continuations = false) params (t : t) =
   let parent_continuation =
     match t.stack with [] -> None | parent :: _ -> Some parent.continuation
   in
@@ -337,19 +338,21 @@ let get_block_and_constant_field ~block ~field =
           Some (var, field)))
 
 let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
-    ~simplified_defining_expr t =
+    ~let_bound_kinds ~simplified_defining_expr t =
   match (simplified_defining_expr : Simplified_named.t) with
-  | { free_names; named; cost_metrics = _; kind } -> (
+  | { free_names; named; cost_metrics = _ } -> (
     let record_var_bindings t free_names =
       Bound_pattern.fold_all_bound_vars let_bound ~init:t ~f:(fun t v ->
-          record_var_binding (Bound_var.var v) kind free_names ~generate_phantom_lets
-            t)
+          let v = Bound_var.var v in
+          record_var_binding v
+            (Variable.Map.find v let_bound_kinds)
+            free_names ~generate_phantom_lets t)
     in
     match[@ocaml.warning "-4"] named with
     | Simple simple ->
       let bound_var = Bound_pattern.must_be_singleton let_bound in
       let var = Bound_var.var bound_var in
-      record_var_alias var kind simple t
+      record_var_alias var (Variable.Map.find var let_bound_kinds) simple t
     | Set_of_closures _ | Rec_info _ -> record_var_bindings t free_names
     | Prim (original_prim, _) -> (
       let bound_var = Bound_pattern.must_be_singleton let_bound in
@@ -401,7 +404,9 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
         then (* the primitive can be removed *)
           record_var_bindings t free_names
         else
-          let t = record_defined_var var kind t in
+          let t =
+            record_defined_var var (Variable.Map.find var let_bound_kinds) t
+          in
           add_used_in_current_handler free_names t))
 
 (* Normalisation *)
@@ -479,7 +484,8 @@ let extend_args_with_extra_args (t : T.Acc.t) =
                             | EPA.Extra_arg.New_let_binding (v, _)
                             | EPA.Extra_arg.New_let_binding_with_named_args
                                 (v, _) ->
-                              let kind = Flambda_kind.value in (* FIXME!!! *)
+                              let kind = Flambda_kind.value in
+                              (* FIXME!!! *)
                               Variable.Map.add v kind defined)
                           defined extra_args
                       in

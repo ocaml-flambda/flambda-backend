@@ -25,7 +25,6 @@ type t = private
 
 val create :
   ?extra_bindings:Expr_builder.binding_to_place list ->
-  Flambda_kind.t ->
   Flambda.Named.t ->
   try_reify:bool ->
   Downwards_acc.t ->

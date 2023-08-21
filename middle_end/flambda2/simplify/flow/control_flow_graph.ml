@@ -90,16 +90,23 @@ let compute_available_variables ~(source_info : T.Acc.t) t =
           (Variable.Set.union acc (Bound_parameters.var_set elt.params))
           extra_vars
       in
-      (if elt.lift_inner_continuations then acc else new_acc), Variable.Set.union new_acc (Variable.Map.keys elt.defined))
+      ( (if elt.lift_inner_continuations then acc else new_acc),
+        Variable.Set.union new_acc (Variable.Map.keys elt.defined) ))
     Variable.Set.empty
 
 let compute_added_extra_args ~(source_info : T.Acc.t) added_extra_args t =
   map_fold_on_children t
     (fun k available ->
-       let elt = Continuation.Map.find k source_info.map in
-       let children_available = if elt.lift_inner_continuations then available else Variable.Set.union (Continuation.Map.find k added_extra_args) available in
-      ( children_available,
-        available ))
+      let elt = Continuation.Map.find k source_info.map in
+      let children_available =
+        if elt.lift_inner_continuations
+        then available
+        else
+          Variable.Set.union
+            (Continuation.Map.find k added_extra_args)
+            available
+      in
+      children_available, available)
     Variable.Set.empty
 
 let fixpoint t ~init ~f =
@@ -194,36 +201,43 @@ let extra_args_for_aliases_overapproximation ~required_names
         in
         let s =
           let rec loop elt s =
-          match elt.T.Continuation_info.parent_continuation with
-          | None -> s
-          | Some parent ->
-            let parent_elt = Continuation.Map.find parent source_info.map in
-            if not parent_elt.lift_inner_continuations then s else
-          loop parent_elt (List.fold_left
-            (fun acc param ->
-               match Variable.Map.find param doms with
-               | exception Not_found ->
-                 if Name.Set.mem (Name.var param) required_names
-                 then
-                   (Format.eprintf "Dom not found for: %a@." Variable.print
-                     param; acc)
-                 else acc
-               | dom ->
-                 if Variable.Set.mem dom unboxed_blocks
-                 then acc
-                 else Variable.Set.add dom acc)
-            s
-            (Bound_parameters.vars parent_elt.T.Continuation_info.params @ (Variable.Set.elements (Variable.Map.keys parent_elt.T.Continuation_info.defined))))
-            in
-            loop elt s
+            match elt.T.Continuation_info.parent_continuation with
+            | None -> s
+            | Some parent ->
+              let parent_elt = Continuation.Map.find parent source_info.map in
+              if not parent_elt.lift_inner_continuations
+              then s
+              else
+                loop parent_elt
+                  (List.fold_left
+                     (fun acc param ->
+                       match Variable.Map.find param doms with
+                       | exception Not_found ->
+                         if Name.Set.mem (Name.var param) required_names
+                         then (
+                           Format.eprintf "Dom not found for: %a@."
+                             Variable.print param;
+                           acc)
+                         else acc
+                       | dom ->
+                         if Variable.Set.mem dom unboxed_blocks
+                         then acc
+                         else Variable.Set.add dom acc)
+                     s
+                     (Bound_parameters.vars
+                        parent_elt.T.Continuation_info.params
+                     @ Variable.Set.elements
+                         (Variable.Map.keys
+                            parent_elt.T.Continuation_info.defined)))
+          in
+          loop elt s
         in
         let s = remove_vars_in_scope_of k s in
         s)
       source_info.map
   in
-  (* Format.eprintf "AVAIL = %a@."
-    (Continuation.Map.print Variable.Set.print) available_variables;
-  Format.eprintf "ALIASES = %a@."
+  (* Format.eprintf "AVAIL = %a@." (Continuation.Map.print Variable.Set.print)
+     available_variables; Format.eprintf "ALIASES = %a@."
      (Continuation.Map.print Variable.Set.print) init; *)
   let added_extra_args =
     fixpoint t ~init
@@ -236,8 +250,8 @@ let extra_args_for_aliases_overapproximation ~required_names
         Variable.Set.union caller_aliases_needed
           (remove_vars_in_scope_of caller callee_aliases_needed))
   in
-  (* Format.eprintf "ALIASES_RESULT = %a@."
-     (Continuation.Map.print Variable.Set.print) added_extra_args; *)
+  (* Format.eprintf "ALIASES_RESULT = %a@." (Continuation.Map.print
+     Variable.Set.print) added_extra_args; *)
   added_extra_args
 
 let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
@@ -302,17 +316,21 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
               then default exception_param
               else default alias))
       (Variable.Set.empty, Variable.Map.empty)
-      (          let rec loop elt s =
-          match elt.T.Continuation_info.parent_continuation with
-          | None -> s
-          | Some parent ->
-            let parent_elt = Continuation.Map.find parent source_info.map in
-            if not parent_elt.lift_inner_continuations then s else
-          loop parent_elt (
-            Bound_parameters.vars parent_elt.T.Continuation_info.params @ (Variable.Set.elements (Variable.Map.keys parent_elt.T.Continuation_info.defined)) @ s)
-                 in
-            loop elt (Bound_parameters.vars elt.T.Continuation_info.params)
-)
+      (let rec loop elt s =
+         match elt.T.Continuation_info.parent_continuation with
+         | None -> s
+         | Some parent ->
+           let parent_elt = Continuation.Map.find parent source_info.map in
+           if not parent_elt.lift_inner_continuations
+           then s
+           else
+             loop parent_elt
+               (Bound_parameters.vars parent_elt.T.Continuation_info.params
+               @ Variable.Set.elements
+                   (Variable.Map.keys parent_elt.T.Continuation_info.defined)
+               @ s)
+       in
+       loop elt (Bound_parameters.vars elt.T.Continuation_info.params))
   in
   let recursive_continuation_wrapper :
       T.Continuation_param_aliases.recursive_continuation_wrapper =
@@ -334,7 +352,8 @@ let minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
   let available_added_extra_args =
     compute_added_extra_args ~source_info added_extra_args t
   in
-  (* Format.eprintf "AVADD = %a@." (Continuation.Map.print Variable.Set.print) available_added_extra_args; *)
+  (* Format.eprintf "AVADD = %a@." (Continuation.Map.print Variable.Set.print)
+     available_added_extra_args; *)
   Continuation.Map.mapi
     (minimize_extra_args_for_one_continuation ~source_info ~unboxed_blocks
        ~available_added_extra_args doms)
@@ -371,7 +390,8 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
     minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
       added_extra_args t
   in
-  (* Format.eprintf "%a@." (Continuation.Map.print T.Continuation_param_aliases.print) extra_args_for_aliases; *)
+  (* Format.eprintf "%a@." (Continuation.Map.print
+     T.Continuation_param_aliases.print) extra_args_for_aliases; *)
   extra_args_for_aliases
 
 module Dot = struct

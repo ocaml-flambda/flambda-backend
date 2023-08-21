@@ -131,7 +131,7 @@ end = struct
     let kind = N.result_kind in
     let[@inline always] result_unknown () =
       let dacc = DA.add_variable dacc result_var (N.unknown op) in
-      SPR.create kind original_term ~try_reify:false dacc
+      SPR.create original_term ~try_reify:false dacc
     in
     let[@inline always] result_invalid () =
       let dacc = DA.add_variable dacc result_var (T.bottom kind) in
@@ -166,10 +166,10 @@ end = struct
         in
         let dacc = DA.add_variable dacc result_var ty in
         match T.get_alias_exn ty with
-        | exception Not_found -> SPR.create kind named ~try_reify:false dacc
+        | exception Not_found -> SPR.create named ~try_reify:false dacc
         | simple ->
           let named = Named.create_simple simple in
-          SPR.create kind named ~try_reify:false dacc
+          SPR.create named ~try_reify:false dacc
     in
     let only_one_side_known op nums ~folder ~other_side =
       let possible_results =
@@ -806,7 +806,6 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
         (T.this_naked_immediate (Targetint_31_63.bool result))
     in
     SPR.create
-      Flambda_kind.naked_immediate
       (Named.create_simple (Simple.untagged_const_bool result))
       ~try_reify:false dacc
   | Unknown ->
@@ -814,7 +813,7 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
       DA.add_variable dacc result_var
         (T.these_naked_immediates Targetint_31_63.all_bools)
     in
-    SPR.create Flambda_kind.naked_immediate original_term ~try_reify:false dacc
+    SPR.create original_term ~try_reify:false dacc
 
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
@@ -835,7 +834,7 @@ let[@inline always] simplify_immutable_block_load0
       let dacc =
         DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
       in
-      SPR.create Flambda_kind.naked_immediate (Named.create_simple simple) ~try_reify:false dacc
+      SPR.create (Named.create_simple simple) ~try_reify:false dacc
     | Need_meet -> (
       let n = Targetint_31_63.add index Targetint_31_63.one in
       (* CR-someday mshinwell: We should be able to use the size in the
@@ -963,7 +962,7 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
     let dacc = DA.add_variable dacc result_var ty in
-    SPR.create result_kind named ~try_reify:false dacc
+    SPR.create named ~try_reify:false dacc
 
 let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
     ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_

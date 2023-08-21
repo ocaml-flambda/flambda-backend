@@ -112,7 +112,8 @@ val set_resimplify : t -> t
 
 val resimplify : t -> bool
 
-(* Predeclarations of types in [Simplify_let_cont_expr]; necessary to break a circular dependency. *)
+(* Predeclarations of types in [Simplify_let_cont_expr]; necessary to break a
+   circular dependency. *)
 type rebuilt_handler =
   { handler : Rebuilt_expr.Continuation_handler.t;
     handler_expr : Rebuilt_expr.t;

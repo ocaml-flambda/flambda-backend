@@ -21,7 +21,8 @@ module LCS = Lifted_constant_state
 module TE = Flambda2_types.Typing_env
 module UE = Upwards_env
 
-(* Predeclarations of types in [Simplify_let_cont_expr]; necessary to break a circular dependency. *)
+(* Predeclarations of types in [Simplify_let_cont_expr]; necessary to break a
+   circular dependency. *)
 type rebuilt_handler =
   { handler : Rebuilt_expr.Continuation_handler.t;
     handler_expr : Rebuilt_expr.t;
@@ -42,7 +43,6 @@ type rebuilt_handlers_group =
 type let_conts_to_lift =
   | Do_not_lift_let_conts
   | Lift_let_conts of rebuilt_handlers_group list
-
 
 type t =
   { uenv : UE.t;

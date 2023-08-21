@@ -1,4 +1,3 @@
-
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -101,7 +100,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
               let binding =
                 { binding with
                   simplified_defining_expr =
-                    Simplified_named.create k (Named.create_prim prim dbg)
+                    Simplified_named.create (Named.create_prim prim dbg)
                 }
               in
               [binding]
@@ -112,7 +111,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
               let binding =
                 { binding with
                   simplified_defining_expr =
-                    Simplified_named.create K.value (* XXX FIXME *) (Named.create_simple bound_to)
+                    Simplified_named.create (Named.create_simple bound_to)
                 }
               in
               [binding]
@@ -230,6 +229,13 @@ let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   Flow.Acc.record_let_binding ~rewrite_id ~generate_phantom_lets
     ~let_bound:binding.let_bound
+    ~let_bound_kinds:
+      (Bound_pattern.fold_all_bound_vars binding.let_bound
+         ~init:Variable.Map.empty ~f:(fun m v ->
+           let v = Bound_var.var v in
+           Variable.Map.add v
+             (T.kind (TE.find (DA.typing_env dacc) (Name.var v) None))
+             m))
     ~simplified_defining_expr:binding.simplified_defining_expr data_flow
 
 let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
