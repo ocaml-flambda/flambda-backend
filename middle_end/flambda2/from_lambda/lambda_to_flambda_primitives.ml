@@ -1286,7 +1286,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_set_64 true (* unsafe *), [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixty_four Bigstring bigstring index
         new_value ]
-  | ( Pbigstring_set_128 { unsafe = true; aligned } (* unsafe *),
+  | ( Pbigstring_set_128 { unsafe = true; aligned },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_unsafe
         ~access_size:(One_twenty_eight { aligned })
