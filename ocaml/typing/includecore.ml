@@ -98,7 +98,9 @@ let value_descriptions ~loc env name
          let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
          let ty2_global =
            let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-           Option.iter Alloc_mode.make_global_exn mode2;
+           Option.iter
+             (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
+             mode2;
            ty2
          in
          (try Ctype.moregeneral env true ty1_global ty2_global
@@ -106,7 +108,9 @@ let value_descriptions ~loc env name
          let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
          let ty2_local =
            let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-           Option.iter Alloc_mode.make_local_exn mode2;
+           Option.iter
+             (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
+             mode2;
            ty2
          in
          (try Ctype.moregeneral env true ty1_local ty2_local

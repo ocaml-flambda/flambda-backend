@@ -37,6 +37,9 @@ let ssse3_support = ref true
 let sse41_support = ref true
 let sse42_support = ref true
 
+(* Enable SIMD register allocation features. *)
+let simd_regalloc = ref false
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -76,7 +79,11 @@ let command_line_options =
     "-fsse42", Arg.Set sse42_support,
       " Enable SSE4.2 intrinsics (default)";
     "-fno-sse42", Arg.Clear sse42_support,
-      " Disable SSE4.2 intrinsics"
+      " Disable SSE4.2 intrinsics";
+    "-fsimd-regalloc", Arg.Set simd_regalloc,
+      " Enable SIMD register allocation (implied by -extension SIMD)";
+    "-fno-simd-regalloc", Arg.Clear simd_regalloc,
+      " Disable SIMD register allocation (overridden by -extension SIMD) (default)";
   ]
 
 (* Specific operations for the AMD64 processor *)

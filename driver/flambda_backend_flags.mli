@@ -34,6 +34,7 @@ val heap_reduction_threshold : int ref
 val dump_checkmach : bool ref
 
 val davail : bool ref
+val dranges : bool ref
 
 type checkmach_details_cutoff =
   | Keep_all

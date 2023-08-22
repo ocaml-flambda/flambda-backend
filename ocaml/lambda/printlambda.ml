@@ -484,6 +484,7 @@ let primitive ppf = function
 
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
+  | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -598,6 +599,7 @@ let name_of_primitive = function
   | Pbox_int _ -> "Pbox_int"
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
+  | Pget_header _ -> "Pget_header"
 
 let check_attribute ppf check =
   let check_property = function

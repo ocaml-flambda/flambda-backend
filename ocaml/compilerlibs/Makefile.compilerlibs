@@ -84,6 +84,7 @@ TYPING = \
   typing/layouts.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
+  typing/mode.cmo \
   typing/types.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
@@ -122,6 +123,7 @@ TYPING = \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \
   typing/typeopt.cmo \
+  typing/uniqueness_analysis.cmo \
   typing/rec_check.cmo \
   typing/typecore.cmo \
   typing/typeclass.cmo \

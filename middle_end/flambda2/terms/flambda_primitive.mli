@@ -323,6 +323,11 @@ type unary_primitive =
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
+  | Get_header
+      (** Get the header of a block. This primitive is invalid if provided with
+          an immediate value.
+          Note: The GC color bits in the header are not reliable except for
+          checking if the value is locally allocated *)
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"

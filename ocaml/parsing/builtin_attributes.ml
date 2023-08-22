@@ -635,6 +635,21 @@ let has_local attr =
 let has_global attrs =
   check_local ["extension.global"] ["ocaml.global"; "global"] attrs
 
+let check_unique ext_names other_names attr =
+  if has_attribute ext_names attr then
+    if not (Language_extension.is_enabled Unique) then
+      Error ()
+    else
+      Ok true
+  else
+    Ok (has_attribute other_names attr)
+
+let has_unique attrs =
+  check_unique ["extension.unique"] ["ocaml.unique"; "unique"] attrs
+
+let has_once attr =
+  check_unique ["extension.once"] ["ocaml.once"; "once"] attr
+
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
   let tail_attrs = filter_attributes [["ocaml.tail";"tail"], true] attr in
