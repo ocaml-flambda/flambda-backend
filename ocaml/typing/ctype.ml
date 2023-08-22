@@ -5347,7 +5347,12 @@ let rec build_subtype env (visited : transient_expr list)
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
-        if level > 2 then build_submode (not posi) a else a, Unchanged
+        if level > 2 then begin
+          if is_always_global env t1 then
+            Alloc_mode.newvar (), Changed
+          else
+            build_submode (not posi) a
+          end else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged

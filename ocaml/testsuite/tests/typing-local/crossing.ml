@@ -397,7 +397,6 @@ let _ = bar (foo : int -> int :> local_ int -> int)
 - : int = 42
 |}]
 
-
 (* Only the RHS type of :> is looked at for mode crossing *)
 let _ = bar (foo : int -> int :> local_ _ -> _)
 [%%expect{|
@@ -405,6 +404,29 @@ Line 1, characters 12-47:
 1 | let _ = bar (foo : int -> int :> local_ _ -> _)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type int -> int is not a subtype of local_ 'a -> 'b
+|}]
+
+
+(* An example: the RHS allows mode crossing but the LHS doesn't *)
+let foo = function
+  | `A -> ()
+  | `B (s : string) -> ()
+[%%expect{|
+val foo : [< `A | `B of string ] -> unit = <fun>
+|}]
+
+let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`A] -> unit)
+[%%expect{|
+val foo_ : local_ [ `A ] -> unit = <fun>
+|}]
+
+let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
+[%%expect{|
+Line 1, characters 11-79:
+1 | let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type [ `A | `B of string ] -> unit is not a subtype of
+         local_ [ `B of string ] -> unit
 |}]
 
 (* You can't erase the info that a function might allocate in parent region *)
