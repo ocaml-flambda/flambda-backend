@@ -5349,7 +5349,7 @@ let rec build_subtype env (visited : transient_expr list)
       let (a', c3) =
         if level > 2 then begin
           if is_always_global env t1 then
-            Alloc_mode.newvar (), Changed
+            Mode.Alloc.newvar (), Changed
           else
             build_submode (not posi) a
           end else a, Unchanged
