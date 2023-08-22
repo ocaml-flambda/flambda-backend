@@ -200,7 +200,8 @@ val f : unit -> local_ unit = <fun>
 - : unit = ()
 |}]
 
-(* exclave means the inner body must be exactly at local; cannot be global *)
+(* exclave_ should follow the allocation behaviour of local_. That means the
+   body must be strictly local (which only matters when allocating functions) *)
 let f () =
   exclave_ (
     (fun x y -> ()) : (string -> string -> unit)
@@ -210,5 +211,5 @@ Line 3, characters 4-19:
 3 |     (fun x y -> ()) : (string -> string -> unit)
         ^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
-       when it is partially applied
+       when it is partially applied.
 |}]

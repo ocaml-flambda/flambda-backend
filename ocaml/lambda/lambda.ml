@@ -42,9 +42,11 @@ type field_read_semantics =
 
 include (struct
 
-  type alloc_mode =
+  type locality_mode =
     | Alloc_heap
     | Alloc_local
+
+  type alloc_mode = locality_mode
 
   type modify_mode =
     | Modify_heap
@@ -64,31 +66,24 @@ include (struct
   let modify_heap = Modify_heap
 
   let modify_maybe_stack : modify_mode =
-    (* CR zqian: possible to move this check to a better place? *)
-    (* idealy I don't want to do the checking here.
-       if stack allocations are disabled, then the alloc_mode which this modify_mode
-        depends on should be heap, which makes this modify_mode to be heap *)
-
-    (* one suggestion: move the check to optimize_allocation;
-      if stack_allocation not enabled, force all allocations to be heap,
-        which then propagates to all the other modes.
-       *)
     if Config.stack_allocation then Modify_maybe_stack
     else Modify_heap
 
 end : sig
 
-  type alloc_mode = private
+  type locality_mode = private
     | Alloc_heap
     | Alloc_local
+
+  type alloc_mode = locality_mode
 
   type modify_mode = private
     | Modify_heap
     | Modify_maybe_stack
 
-  val alloc_heap : alloc_mode
+  val alloc_heap : locality_mode
 
-  val alloc_local : alloc_mode
+  val alloc_local : locality_mode
 
   val modify_heap : modify_mode
 
@@ -246,6 +241,7 @@ type primitive =
   (* Jane Street extensions *)
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pget_header of alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1462,7 +1458,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) -> Some m
+  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
   | Pbigstring_load_16 _ -> None
   | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m) -> Some m
@@ -1576,6 +1572,7 @@ let primitive_result_layout (p : primitive) =
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
+  | Pget_header _ -> layout_boxedint Pnativeint
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

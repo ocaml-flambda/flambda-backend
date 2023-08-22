@@ -258,7 +258,7 @@ let match_generic_printer_type desc path args printer_type =
     List.fold_right
       (fun ty_arg ty ->
          let arrow_desc =
-           Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global
+           Asttypes.Nolabel,Mode.Alloc.legacy,Mode.Alloc.legacy
          in
          Ctype.newty
            (Tarrow (arrow_desc, Ctype.newmono ty_arg, ty, commu_var ())))
@@ -419,7 +419,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc, _ = Env.lookup_value ~loc lid env in
+       let _path, desc, _, _ = Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."

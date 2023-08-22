@@ -133,7 +133,8 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
   | Loopify cont ->
     let call_self_cont_expr =
       let args = Bound_parameters.simples params in
-      Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])
+      Expr.create_apply_cont
+        (Apply_cont_expr.create cont ~args ~dbg:Debuginfo.none)
     in
     let handlers =
       Continuation.Map.singleton cont

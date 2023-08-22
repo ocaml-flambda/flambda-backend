@@ -34,18 +34,22 @@ type immediate_or_pointer =
   | Immediate
   | Pointer
 
-type alloc_mode = private
+type locality_mode = private
   | Alloc_heap
   | Alloc_local
+
+(** For now we don't have strong update, and thus uniqueness is irrelavent in 
+    middle and back-end; in the future this will be extended with uniqueness *)
+type alloc_mode = locality_mode
 
 type modify_mode = private
   | Modify_heap
   | Modify_maybe_stack
 
-val alloc_heap : alloc_mode
+val alloc_heap : locality_mode
 
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
-val alloc_local : alloc_mode
+val alloc_local : locality_mode
 
 val modify_heap : modify_mode
 
@@ -199,6 +203,11 @@ type primitive =
                         one; O(1) *)
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
+  | Pget_header of alloc_mode
+  (* Get the header of a block. This primitive is invalid if provided with an
+     immediate value.
+     Note: The GC color bits in the header are not reliable except for checking
+     if the value is locally allocated *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

@@ -177,8 +177,7 @@ let emit_frames a =
   in
   let debuginfos = Label_table.create 7 in
   let label_debuginfos rs dbg =
-    let rdbg = List.rev dbg in
-    let key = (rs, rdbg) in
+    let key = (rs, dbg) in
     try Label_table.find debuginfos key
     with Not_found ->
       let lbl = Cmm.new_label () in
@@ -261,7 +260,8 @@ let emit_frames a =
                    (add (shift_left (of_int kind) 1)
                       (of_int has_next)))))
   in
-  let emit_debuginfo (rs, rdbg) lbl =
+  let emit_debuginfo (rs, dbg) lbl =
+    let rdbg = dbg |> Debuginfo.to_list |> List.rev in
     (* Due to inlined functions, a single debuginfo may have multiple locations.
        These are represented sequentially in memory (innermost frame first),
        with the low bit of the packed debuginfo being 0 on the last entry. *)
@@ -346,6 +346,7 @@ let reset_debug_info () =
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
 let emit_debug_info_gen dbg file_emitter loc_emitter =
+  let dbg = Debuginfo.to_list dbg in
   if is_cfi_enabled () &&
     (!Clflags.debug || Config.with_frame_pointers) then begin
     match List.rev dbg with

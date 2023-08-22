@@ -417,6 +417,8 @@ void caml_empty_minor_heap (void)
 #endif
     if (caml_minor_gc_begin_hook != NULL) (*caml_minor_gc_begin_hook) ();
     prev_alloc_words = caml_allocated_words;
+    if (Caml_state->in_minor_collection)
+      caml_fatal_error("Minor GC triggered recursively");
     Caml_state->in_minor_collection = 1;
     caml_gc_message (0x02, "<");
     CAML_EV_BEGIN(EV_MINOR_LOCAL_ROOTS);
