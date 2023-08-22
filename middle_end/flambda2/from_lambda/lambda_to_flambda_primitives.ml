@@ -413,6 +413,10 @@ let string_like_load_unsafe ~access_size kind mode string index ~current_region
   in
   wrap (Binary (String_or_bigstring_load (kind, access_size), string, index))
 
+let get_header obj mode ~current_region =
+  let wrap hd = box_bint Pnativeint mode hd ~current_region in
+  wrap (Unary (Get_header, obj))
+
 let string_like_load_safe ~dbg ~size_int ~access_size kind mode str index
     ~current_region =
   match (kind : P.string_like_value) with
@@ -1330,6 +1334,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pprobe_is_enabled { name }, [] ->
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
+  | Pget_header m, [[obj]] -> [get_header obj m ~current_region]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1352,7 +1357,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-        ),
+      | Pget_header _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

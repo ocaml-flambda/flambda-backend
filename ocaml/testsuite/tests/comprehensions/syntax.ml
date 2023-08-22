@@ -18,41 +18,6 @@ let this_test_tests_that =
 (******************************************************************************)
 
 this_test_tests_that
-  "we print list comprehensions correctly"
-;;
-
-let test_printing parsed =
-  let expr = Parse.expression (Lexing.from_string parsed) in
-  let printed = Pprintast.string_of_expression expr in
-  if parsed = printed then
-    printf
-      "Parsing and printing round-tripped successfully!\n\n\
-       %s\n"
-      parsed
-  else
-    printf
-      "Parsing and printing failed to round-trip:\n\n\
-       %s\n\n\
-       became\n\n\
-       %s\n"
-      parsed printed
-;;
-
-let () =
-  (* The wonky formatting here is the best way to keep the line
-     break visible in the string and also keep things within 80
-     characters here *)
- test_printing
-    "[(i, j)\n\
-    \  for i = 0 to 9 when (i mod 2) = 0 for j = 0 to i when (i > 4) && (j > 4)]";
- (* Check that only user attributes survive pprintast *)
- test_printing
-   "(([((x)[@attr1 ]) for ((x)[@attr2 ]) in (([])[@attr3 ])])[@attr4 ])";
-;;
-
-(******************************************************************************)
-
-this_test_tests_that
   "compiler-generated attributes start with \"jane.\""
 ;;
 

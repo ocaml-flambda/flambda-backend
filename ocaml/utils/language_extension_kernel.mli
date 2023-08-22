@@ -13,6 +13,7 @@ type maturity = Stable | Beta | Alpha
 type _ t =
   | Comprehensions : unit t
   | Local : unit t
+  | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t

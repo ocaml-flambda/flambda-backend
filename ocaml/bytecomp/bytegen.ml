@@ -114,6 +114,7 @@ let preserve_tailcall_for_prim = function
       true
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
+  | Pget_header _
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _
@@ -533,6 +534,7 @@ let comp_primitive p args =
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
   | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
   | Parray_of_iarray -> Kccall("caml_array_of_iarray", 1)
+  | Pget_header _ -> Kccall("caml_get_header", 1)
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _ ->

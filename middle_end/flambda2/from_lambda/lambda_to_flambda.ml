@@ -1014,7 +1014,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
-  | Punbox_int _ | Pbox_int _ ->
+  | Punbox_int _ | Pbox_int _ | Pget_header _ ->
     false
 
 type cps_continuation =

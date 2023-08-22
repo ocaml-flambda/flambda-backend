@@ -156,6 +156,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psequor ->
       (* Removed by [Closure_conversion] in the flambda pipeline. *)
       No_effects, No_coeffects
+  | Pget_header _ -> No_effects, No_coeffects
 
 type return_type =
   | Float
@@ -282,3 +283,4 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Psequor ->
       false
   | Pprobe_is_enabled _ -> false
+  | Pget_header m -> is_local_alloc m
