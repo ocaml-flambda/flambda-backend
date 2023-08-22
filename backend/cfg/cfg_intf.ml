@@ -50,7 +50,7 @@ module S = struct
         }
     | Checkbound of { immediate : int option }
     | Checkalign of
-        { align : int;
+        { bytes_pow2 : int;
           immediate : int option
         }
     | Probe of

@@ -32,7 +32,7 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
   | Icheckbound
-  | Icheckalign of int
+  | Icheckalign of { bytes_pow2 : int }
 
 type float_comparison = Cmm.float_comparison
 
@@ -332,7 +332,7 @@ let equal_integer_operation left right =
   | Ipopcnt, Ipopcnt -> true
   | Icomp left, Icomp right -> equal_integer_comparison left right
   | Icheckbound, Icheckbound -> true
-  | Icheckalign left, Icheckalign right -> Int.equal left right
+  | Icheckalign { bytes_pow2 = left }, Icheckalign { bytes_pow2 = right } -> Int.equal left right
   | Iadd, (Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
           | Icheckalign _)

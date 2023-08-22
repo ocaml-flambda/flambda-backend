@@ -138,7 +138,7 @@ let intop = function
   | Ipopcnt -> "popcnt "
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> "checkbound > "
-  | Icheckalign a -> Printf.sprintf "checkalign[%d] " a
+  | Icheckalign { bytes_pow2 } -> Printf.sprintf "checkalign[%d] " bytes_pow2
 
 let test' ?(print_reg = reg) tst ppf arg =
   let reg = print_reg in

@@ -1261,7 +1261,8 @@ let make_checkbound dbg = function
     Cop (Ccheckbound, [a1; Cconst_int ((m lsl n) + (1 lsl n) - 1, dbg)], dbg)
   | args -> Cop (Ccheckbound, args, dbg)
 
-let make_checkalign dbg align args = Cop (Ccheckalign align, args, dbg)
+let make_checkalign dbg bytes_pow2 args =
+  Cop (Ccheckalign { bytes_pow2 }, args, dbg)
 
 (* Record application and currying functions *)
 

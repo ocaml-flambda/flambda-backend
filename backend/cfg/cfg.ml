@@ -376,10 +376,10 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
-      | Checkalign { align; immediate = Some x } ->
-        Mach.Iintop_imm (Icheckalign align, x)
-      | Checkalign { align; immediate = None } ->
-        Mach.Iintop (Icheckalign align)
+      | Checkalign { bytes_pow2; immediate = Some x } ->
+        Mach.Iintop_imm (Icheckalign { bytes_pow2 }, x)
+      | Checkalign { bytes_pow2; immediate = None } ->
+        Mach.Iintop (Icheckalign { bytes_pow2 })
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Mach.Iprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %d" sep label_after

@@ -48,23 +48,27 @@ module Bytes = struct
   (* Setters *)
 
   let () =
-    let set = int8x16_of_int64s high low in
+    let set = int8x16_of_int64s 0x1010101010101010L 0x1010101010101010L in
     set_int8x16_unaligned data 0 set;
     let v = get_int8x16_unaligned data 0 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x1010101010101010L 0x1010101010101010L (int8x16_low_int64 v) (int8x16_high_int64 v);
+
+    let set = int8x16_of_int64s 0x2020202020202020L 0x2020202020202020L in
     set_int8x16_unaligned data 8 set;
     let v = get_int8x16_unaligned data 8 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x2020202020202020L 0x2020202020202020L (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 
   let () =
-    let set = int8x16_of_int64s high low in
+    let set = int8x16_of_int64s 0x3030303030303030L 0x3030303030303030L in
     set_int8x16_unaligned_unsafe data 0 set;
     let v = get_int8x16_unaligned data 0 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x3030303030303030L 0x3030303030303030L (int8x16_low_int64 v) (int8x16_high_int64 v);
+
+    let set = int8x16_of_int64s 0x4040404040404040L 0x4040404040404040L in
     set_int8x16_unaligned_unsafe data 8 set;
     let v = get_int8x16_unaligned data 8 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x4040404040404040L 0x4040404040404040L (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 end
 
@@ -171,30 +175,36 @@ module Bigstring = struct
   (* Setters *)
 
   let () =
-    let set = int8x16_of_int64s high low in
+    let set = int8x16_of_int64s 0x1010101010101010L 0x1010101010101010L in
     set_int8x16_unaligned data 0 set;
     let v = get_int8x16_unaligned data 0 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x1010101010101010L 0x1010101010101010L (int8x16_low_int64 v) (int8x16_high_int64 v);
+
+    let set = int8x16_of_int64s 0x2020202020202020L 0x2020202020202020L in
     set_int8x16_unaligned data 8 set;
     let v = get_int8x16_unaligned data 8 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x2020202020202020L 0x2020202020202020L (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 
   let () =
-    let set = int8x16_of_int64s high low in
+    let set = int8x16_of_int64s 0x3030303030303030L 0x3030303030303030L in
     set_int8x16_unaligned_unsafe data 0 set;
     let v = get_int8x16_unaligned data 0 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x3030303030303030L 0x3030303030303030L (int8x16_low_int64 v) (int8x16_high_int64 v);
+
+    let set = int8x16_of_int64s 0x4040404040404040L 0x4040404040404040L in
     set_int8x16_unaligned_unsafe data 8 set;
     let v = get_int8x16_unaligned data 8 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x4040404040404040L 0x4040404040404040L (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 
   let () =
-    let set = int8x16_of_int64s high low in
+    let set = int8x16_of_int64s 0x5050505050505050L 0x5050505050505050L in
     set_int8x16_aligned data 0 set;
     let v = get_int8x16_aligned data 0 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v);
+    eq 0x5050505050505050L 0x5050505050505050L (int8x16_low_int64 v) (int8x16_high_int64 v);
+
+    let set = int8x16_of_int64s 0x6060606060606060L 0x6060606060606060L in
     try
       let _ = set_int8x16_aligned data 8 set in
       assert false
@@ -208,9 +218,9 @@ module Bigstring = struct
   ;;
 
   let () =
-    let set = int8x16_of_int64s high low in
+    let set = int8x16_of_int64s 0x7070707070707070L 0x7070707070707070L in
     set_int8x16_aligned_unsafe data 0 set;
     let v = get_int8x16_aligned_unsafe data 0 in
-    eq high low (int8x16_low_int64 v) (int8x16_high_int64 v)
+    eq 0x7070707070707070L 0x7070707070707070L (int8x16_low_int64 v) (int8x16_high_int64 v)
   ;;
 end

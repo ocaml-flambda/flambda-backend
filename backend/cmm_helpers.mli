@@ -472,10 +472,11 @@ val make_float_alloc :
 (** Generate a [Ccheckbound] term *)
 val make_checkbound : Debuginfo.t -> expression list -> expression
 
-(** [check_bound safety access_size dbg length a2 k] prefixes expression [k]
-    with a check that reading [access_size] bits starting at position [a2] in a
-    string/bytes value of length [length] is within bounds, unless [safety] is
-    [Unsafe]. *)
+(** [check_bound safety access_size dbg data length offset k] prefixes expression [k]
+    with a check that accessing [access_size] bits at [data + offset] is valid,
+    unless [safety] is [Unsafe].
+    An access is valid if it is within the bound specified by [length], and
+    the resulting address is sufficiently aligned. *)
 val check_bound :
   Lambda.is_safe ->
   Clambda_primitives.memory_access_size ->

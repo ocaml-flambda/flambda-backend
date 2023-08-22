@@ -272,6 +272,7 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Prim {op = Checkbound { immediate = Some _; }; _} ->
     may_use_stack_operand_for_only_argument ~has_result:false map term
   | Prim {op = Checkalign { immediate = Some _; _ }; _} ->
+    if debug then check_lengths term ~of_arg:0 ~of_res:0;
     All_spilled_registers_rewritten
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
