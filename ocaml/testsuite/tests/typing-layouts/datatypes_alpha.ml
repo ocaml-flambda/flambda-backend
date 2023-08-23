@@ -327,3 +327,10 @@ and t2 = Mk1 of t_void t | Mk2
 type ('b : void) t = 'b void_t * t2
 and t2 = Mk1 of t_void t | Mk2
 |}]
+
+type 'a t8_5 = { x : 'a t8_6; y : string}
+and 'a t8_6 = 'a void_t;;
+[%%expect {|
+type ('a : void) t8_5 = { x : 'a t8_6; y : string; }
+and ('a : void) t8_6 = 'a void_t
+|}]
