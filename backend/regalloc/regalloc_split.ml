@@ -456,7 +456,8 @@ let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
   | true, false -> fatal "Regalloc_split: flambda is currently not supported"
   | false, true ->
     (* note: classic mode is not properly supported, but is used in the
-       "tests/backend/frame-too-long" tests. *)
+       "tests/backend/frame-too-long" tests. We now implicitly disable split (in
+       `Regalloc_rewrite.prelude`) if classic mode is enabled. *)
     (* if Flambda2_ui.Flambda_features.classic_mode () then fatal
        "Regalloc_split: classic mode is currently not supported" *)
     ()
