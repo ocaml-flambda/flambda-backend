@@ -2617,7 +2617,7 @@ let open_signature
 (* Read a signature from a file *)
 let read_signature modname filename ~add_binding =
   let mda =
-    read_pers_mod (Compilation_unit.name modname) filename ~add_binding
+    read_pers_mod modname filename ~add_binding
   in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
