@@ -18,6 +18,8 @@
 
 open Format
 
+type operation_class = Pure
+
 type float_condition = X86_ast.float_condition =
   | EQf
   | LTf
@@ -773,3 +775,65 @@ let print_operation printreg op ppf arg =
   | SSSE3 op -> print_operation_ssse3 printreg op ppf arg
   | SSE41 op -> print_operation_sse41 printreg op ppf arg
   | SSE42 op -> print_operation_sse42 printreg op ppf arg
+
+let class_of_operation_sse = function
+  | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
+  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
+  | Interleave_high_32 | Interleave_low_32 | Movemask_32 | Shuffle_32 _ ->
+    Pure
+
+let class_of_operation_sse2 = function
+  | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Adds_i8 | Adds_i16
+  | Adds_u8 | Adds_u16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
+  | Subs_i8 | Subs_i16 | Subs_u8 | Subs_u16 | Max_u8 | Max_i16 | Max_f64
+  | Min_u8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64 | Avg_u8 | Avg_u16 | SAD_u8
+  | And_bits | Andnot_bits | Or_bits | Xor_bits | Movemask_8 | Movemask_64
+  | Shift_left_bytes _ | Shift_right_bytes _ | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32
+  | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32 | Cmp_f64 _ | I32_to_f64 | I32_to_f32
+  | F64_to_i32 | F64_to_f32 | F32_to_i32 | F32_to_f64 | I16_to_i8 | I32_to_i16
+  | I16_to_u8 | I32_to_u16 | SLL_i16 | SLL_i32 | SLL_i64 | SRL_i16 | SRL_i32
+  | SRL_i64 | SRA_i16 | SRA_i32 | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _
+  | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _ | SRAi_i32 _
+  | Shuffle_64 _ | Shuffle_high_16 _ | Shuffle_low_16 _ | Interleave_high_8
+  | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
+  | Interleave_low_16 | Interleave_low_64 ->
+    Pure
+
+let class_of_operation_sse3 = function
+  | Addsub_f32 | Addsub_f64 | Hadd_f32 | Hadd_f64 | Hsub_f32 | Hsub_f64
+  | Dup_low_64 | Dup_odd_32 | Dup_even_32 ->
+    Pure
+
+let class_of_operation_ssse3 = function
+  | Abs_i8 | Abs_i16 | Abs_i32 | Hadd_i16 | Hadd_i32 | Hadds_i16 | Hsub_i16
+  | Hsub_i32 | Hsubs_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32 | Shuffle_8
+  | Alignr_i8 _ ->
+    Pure
+
+let class_of_operation_sse41 = function
+  | Blend_16 _ | Blend_32 _ | Blend_64 _ | Blendv_8 | Blendv_32 | Blendv_64
+  | Cmpeq_i64 | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64
+  | I32_sx_i64 | U8_zx_i16 | U8_zx_i32 | U8_zx_i64 | U16_zx_i32 | U16_zx_i64
+  | U32_zx_i64 | Dp_f32 _ | Dp_f64 _ | Extract_i8 _ | Extract_i16 _
+  | Extract_i32 _ | Extract_i64 _ | Insert_i8 _ | Insert_i16 _ | Insert_i32 _
+  | Insert_i64 _ | Max_i8 | Max_i32 | Max_u16 | Max_u32 | Min_i8 | Min_i32
+  | Min_u16 | Min_u32 | Round_f64 _ | Round_f32 _ | Multi_sad_u8 _ | Minpos_u16
+    ->
+    Pure
+
+let class_of_operation_sse42 = function
+  | Cmpgt_i64 | Cmpestrm _ | Cmpestra _ | Cmpestrc _ | Cmpestri _ | Cmpestro _
+  | Cmpestrs _ | Cmpestrz _ | Cmpistrm _ | Cmpistra _ | Cmpistrc _ | Cmpistri _
+  | Cmpistro _ | Cmpistrs _ | Cmpistrz _ | Crc32_64 ->
+    Pure
+
+let class_of_operation op =
+  match op with
+  | SSE op -> class_of_operation_sse op
+  | SSE2 op -> class_of_operation_sse2 op
+  | SSE3 op -> class_of_operation_sse3 op
+  | SSSE3 op -> class_of_operation_ssse3 op
+  | SSE41 op -> class_of_operation_sse41 op
+  | SSE42 op -> class_of_operation_sse42 op
+
+let is_pure op = class_of_operation op = Pure
