@@ -18,7 +18,7 @@
 
 open Format
 
-type operation_class = | Pure
+type operation_class = Pure
 
 type float_condition = X86_ast.float_condition =
   | EQf
@@ -151,25 +151,12 @@ let print_operation printreg op ppf arg =
   | _ -> .
 
 let class_of_operation_sse = function
-  | Cmp_f32 _
-  | Add_f32
-  | Sub_f32
-  | Mul_f32
-  | Div_f32
-  | Max_f32
-  | Min_f32
-  | Rcp_f32
-  | Sqrt_f32
-  | Rsqrt_f32
-  | High_64_to_low_64
-  | Low_64_to_high_64
-  | Interleave_high_32
-  | Interleave_low_32
-  | Movemask_32
-  | Shuffle_32 _ -> Pure
+  | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
+  | Rcp_f32 | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
+  | Interleave_high_32 | Interleave_low_32 | Movemask_32 | Shuffle_32 _ ->
+    Pure
 
-let class_of_operation_sse42 = function
-  | Crc32_64 -> Pure
+let class_of_operation_sse42 = function Crc32_64 -> Pure
 
 let class_of_operation op =
   match op with
@@ -177,5 +164,4 @@ let class_of_operation op =
   | SSE42 op -> class_of_operation_sse42 op
   | _ -> .
 
-let is_pure op =
-  class_of_operation op = Pure
+let is_pure op = class_of_operation op = Pure
