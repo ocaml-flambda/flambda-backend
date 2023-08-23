@@ -69,18 +69,35 @@ type can_load_cmis =
   | Can_load_cmis
   | Cannot_load_cmis of Lazy_backtrack.log
 
-type pers_struct = {
-  ps_crcs: Import_info.t array;
-  ps_filename: string;
+(* Data relating directly to a .cmi *)
+type import = {
+  imp_impl : Impl.t;
+  imp_sign : Subst.Lazy.signature;
+  imp_filename : string;
+  imp_crcs : Import_info.Intf.t array;
+  imp_flags : Cmi_format.pers_flags list;
 }
 
 (* If a .cmi file is missing (or invalid), we
    store it as Missing in the cache. *)
-type 'a pers_struct_info =
+type import_info =
   | Missing
-  | Found of pers_struct * 'a
+  | Found of import
+
+type binding =
+  | Static of Compilation_unit.t (* Bound to a static constant *)
+
+(* Data relating to an actual referenceable module, with a signature and a
+   representation in memory. *)
+type pers_struct = {
+  ps_import: import;
+  ps_binding: binding;
+} [@@ocaml.warning "-unused-field"]
+
+type 'a pers_struct_info = pers_struct * 'a
 
 type 'a t = {
+  imports : (CU.Name.t, import_info) Hashtbl.t;
   persistent_structures :
     (CU.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
@@ -90,6 +107,7 @@ type 'a t = {
 }
 
 let empty () = {
+  imports = Hashtbl.create 17;
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
@@ -98,13 +116,15 @@ let empty () = {
 }
 
 let clear penv =
-  let {
+  let [@warning "+missing-record-field-pattern"] {
+    imports;
     persistent_structures;
     imported_units;
     imported_opaque_units;
     crc_units;
     can_load_cmis;
   } = penv in
+  Hashtbl.clear imports;
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
@@ -112,13 +132,13 @@ let clear penv =
   can_load_cmis := Can_load_cmis;
   ()
 
-let clear_missing {persistent_structures; _} =
+let clear_missing {imports; _} =
   let missing_entries =
     Hashtbl.fold
       (fun name r acc -> if r = Missing then name :: acc else acc)
-      persistent_structures []
+      imports []
   in
-  List.iter (Hashtbl.remove persistent_structures) missing_entries
+  List.iter (Hashtbl.remove imports) missing_entries
 
 let add_import {imported_units; _} s =
   imported_units := CU.Name.Set.add s !imported_units
@@ -126,11 +146,19 @@ let add_import {imported_units; _} s =
 let register_import_as_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
 
-let find_in_cache {persistent_structures; _} s =
-  match Hashtbl.find persistent_structures s with
+let _find_import_info_in_cache {imports; _} import =
+  match Hashtbl.find imports import with
   | exception Not_found -> None
   | Missing -> None
-  | Found (_ps, pm) -> Some pm
+  | Found imp -> Some imp
+
+let find_info_in_cache {persistent_structures; _} name =
+  match Hashtbl.find persistent_structures name with
+  | exception Not_found -> None
+  | ps, pm -> Some (ps, pm)
+
+let find_in_cache penv name =
+  find_info_in_cache penv name |> Option.map (fun (_ps, pm) -> pm)
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -143,8 +171,8 @@ let import_crcs penv ~source crcs =
         Consistbl.check crc_units name unit crc source
   in Array.iter import_crc crcs
 
-let check_consistency penv ps =
-  try import_crcs penv ~source:ps.ps_filename ps.ps_crcs
+let check_consistency penv imp =
+  try import_crcs penv ~source:imp.imp_filename imp.imp_crcs
   with Consistbl.Inconsistency {
       unit_name = name;
       inconsistent_source = source;
@@ -156,7 +184,7 @@ let check_consistency penv ps =
     | Known source_unit, Known auth_unit
       when not (CU.equal source_unit auth_unit) ->
         error (Inconsistent_package_declaration_between_imports(
-            ps.ps_filename, auth_unit, source_unit))
+            imp.imp_filename, auth_unit, source_unit))
     | (Known _ | Unknown_argument), _ ->
       error (Inconsistent_import(name, auth, source))
 
@@ -180,14 +208,12 @@ let without_cmis penv f x =
   res
 
 let fold {persistent_structures; _} f x =
-  Hashtbl.fold (fun modname pso x -> match pso with
-      | Missing -> x
-      | Found (_, pm) -> f modname pm x)
+  Hashtbl.fold (fun name (_, pm) x -> f name pm x)
     persistent_structures x
 
 (* Reading persistent structures from .cmi files *)
 
-let save_pers_struct penv crc modname impl flags filename =
+let save_import penv crc modname impl flags filename =
   let {crc_units; _} = penv in
   List.iter
     (function
@@ -199,15 +225,16 @@ let save_pers_struct penv crc modname impl flags filename =
   Consistbl.set crc_units modname impl crc filename;
   add_import penv modname
 
-let process_pers_struct penv check modname pers_sig =
+let acknowledge_import penv ~check modname pers_sig =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let found_name = cmi.cmi_name in
   let kind = cmi.cmi_kind in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
-  let ps = { ps_crcs = crcs;
-             ps_filename = filename;
-           } in
+  let sign =
+    (* Freshen identifiers bound by signature *)
+    Subst.Lazy.signature Make_local Subst.identity cmi.cmi_sign
+  in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
   List.iter
@@ -221,7 +248,6 @@ let process_pers_struct penv check modname pers_sig =
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     flags;
-  if check then check_consistency penv ps;
   begin match kind, CU.get_current () with
   | Normal { cmi_impl = imported_unit }, Some current_unit ->
       let access_allowed =
@@ -245,47 +271,109 @@ let process_pers_struct penv check modname pers_sig =
   | true, true
   | false, false -> ()
   end;
-  ps
+  let impl =
+    match kind with
+    | Normal { cmi_impl } -> Impl.Known cmi_impl
+    | Parameter -> Impl.Unknown_argument
+  in
+  let {imports;} = penv in
+  let import = { imp_impl = impl;
+                 imp_sign = sign;
+                 imp_filename = filename;
+                 imp_crcs = crcs;
+                 imp_flags = flags;
+               } in
+  if check then check_consistency penv import;
+  Hashtbl.add imports modname (Found import);
+  import
 
-let bind_pers_struct penv modname ps pm =
-  let {persistent_structures; _} = penv in
-  Hashtbl.add persistent_structures modname (Found (ps, pm))
-
-let acknowledge_pers_struct penv check modname pers_sig pm =
-  let ps = process_pers_struct penv check modname pers_sig in
-  bind_pers_struct penv modname ps pm;
-  ps
-
-let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
+let read_import penv ~check modname filename =
   add_import penv modname;
   let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
-  let pm = val_of_pers_sig pers_sig in
-  let ps = process_pers_struct penv check modname pers_sig in
+  acknowledge_import penv ~check modname pers_sig
+
+let find_import penv ~check modname =
+  let {imports; _} = penv in
+  if CU.Name.equal modname CU.Name.predef_exn then raise Not_found;
+  match Hashtbl.find imports modname with
+  | Found imp -> imp
+  | Missing -> raise Not_found
+  | exception Not_found ->
+      match can_load_cmis penv with
+      | Cannot_load_cmis _ -> raise Not_found
+      | Can_load_cmis ->
+          let psig =
+            match !Persistent_signature.load ~unit_name:modname with
+            | Some psig -> psig
+            | None ->
+                Hashtbl.add imports modname Missing;
+                raise Not_found
+          in
+          add_import penv modname;
+          acknowledge_import penv ~check modname psig
+
+let make_binding _penv (impl : Impl.t) : binding =
+  let unit =
+    match impl with
+    | Known unit -> unit
+    | Unknown_argument ->
+        Misc.fatal_errorf "Can't bind a parameter statically"
+  in
+  Static unit
+
+type 'a sig_reader =
+  Subst.Lazy.signature
+  -> Compilation_unit.Name.t
+  -> Shape.Uid.t
+  -> address:Address.t
+  -> flags:Cmi_format.pers_flags list
+  -> 'a
+
+let process_pers_struct penv modname import val_of_pers_sig =
+  let impl = import.imp_impl in
+  let sign = import.imp_sign in
+  let flags = import.imp_flags in
+  let binding =
+    (* This binding should be seen as provisional: _if_ this gets added to the
+       environment, this is what it will be bound to *)
+    make_binding penv impl in
+  let address : Address.t =
+    match binding with
+    | Static unit -> Aunit unit
+  in
+  let uid =
+    match binding with
+    | Static unit -> Shape.Uid.of_compilation_unit_id unit
+  in
+  let pm = val_of_pers_sig sign modname uid ~address ~flags in
+  let ps = { ps_import = import;
+             ps_binding = binding;
+           } in
+  (ps, pm)
+
+let bind_pers_struct penv modname ps pm =
+  let {persistent_structures; _} = penv in
+  Hashtbl.add persistent_structures modname (ps, pm)
+
+let acknowledge_pers_struct penv modname import val_of_pers_sig =
+  let ps, pm = process_pers_struct penv modname import val_of_pers_sig in
+  bind_pers_struct penv modname ps pm;
+  (ps, pm)
+
+let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
+  let import = read_import penv ~check modname filename in
+  let ps, pm = process_pers_struct penv modname import val_of_pers_sig in
   if add_binding then bind_pers_struct penv modname ps pm;
   (ps, pm)
 
 let find_pers_struct penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
-  if CU.Name.equal name CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find persistent_structures name with
-  | Found (ps, pm) -> (ps, pm)
-  | Missing -> raise Not_found
+  | (ps, pm) -> (ps, pm)
   | exception Not_found ->
-    match can_load_cmis penv with
-    | Cannot_load_cmis _ -> raise Not_found
-    | Can_load_cmis ->
-        let psig =
-          match !Persistent_signature.load ~unit_name:name with
-          | Some psig -> psig
-          | None ->
-            Hashtbl.add persistent_structures name Missing;
-            raise Not_found
-        in
-        add_import penv name;
-        let pm = val_of_pers_sig psig in
-        let ps = acknowledge_pers_struct penv check name psig pm in
-        (ps, pm)
+      let import = find_import penv ~check name in
+      acknowledge_pers_struct penv name import val_of_pers_sig
 
 let describe_prefix ppf prefix =
   if CU.Prefix.is_empty prefix then
@@ -370,12 +458,12 @@ module Array = struct
     loop 0
 end
 
-let crc_of_unit penv f name =
+let crc_of_unit penv name =
   match Consistbl.find penv.crc_units name with
-  | Some (_, crc) -> crc
+  | Some (_impl, crc) -> crc
   | None ->
-    let (ps, _pm) = find_pers_struct penv f true name in
-    match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
+    let import = find_import penv ~check:true name in
+    match Array.find_opt (Import_info.Intf.has_name ~name) import.imp_crcs with
     | None -> assert false
     | Some import_info ->
       match Import_info.crc import_info with
@@ -445,7 +533,7 @@ let save_cmi penv psig =
         | Normal { cmi_impl } -> Known cmi_impl
         | Parameter -> Unknown_argument
       in
-      save_pers_struct penv crc modname impl flags filename
+      save_import penv crc modname impl flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 

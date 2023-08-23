@@ -82,6 +82,7 @@
     cmxs_format
     debug_event
     compilation_unit
+    address
     import_info
     symbol
     linkage_name)
@@ -141,6 +142,7 @@
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/layouts.ml)
+(copy_files ../../typing/address.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/types.ml)
@@ -200,6 +202,7 @@
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/layouts.mli)
+(copy_files ../../typing/address.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/types.mli)
@@ -280,6 +283,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Address.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Import_info.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
@@ -354,6 +358,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Address.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Import_info.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx

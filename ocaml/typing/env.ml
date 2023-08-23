@@ -187,7 +187,7 @@ let map_summary f = function
   | Env_value_unbound (s, u, r) -> Env_value_unbound (f s, u, r)
   | Env_module_unbound (s, u, r) -> Env_module_unbound (f s, u, r)
 
-type address =
+type address = Address.t =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
@@ -926,33 +926,26 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
-  let name =
-    match cmi.cmi_kind with
-    | Normal { cmi_impl } -> cmi_impl
-    | Parameter -> Misc.fatal_error "Unsupported import of parameter module"
-  in
-  let sign = cmi.cmi_sign in
-  let flags = cmi.cmi_flags in
-  let id = Ident.create_persistent (Compilation_unit.name_as_string name) in
+let read_sign_of_cmi sign name uid ~address:addr ~flags =
+  let id = Ident.create_persistent (Compilation_unit.Name.to_string name) in
   let path = Pident id in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
       flags
   in
-  let sign = Subst.Lazy.signature Make_local Subst.identity sign in
   let md =
     { Subst.Lazy.md_type = Mty_signature sign;
       md_loc = Location.none;
       md_attributes = [];
-      md_uid = Uid.of_compilation_unit_id name;
+      md_uid = uid;
     }
   in
-  let mda_address = Lazy_backtrack.create_forced (Aunit name) in
+  let mda_address = Lazy_backtrack.create_forced addr in
   let mda_declaration = md in
   let mda_shape =
-    Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
+    (* CR lmaurer: This is a hack *)
+    Shape.for_persistent_unit (Format.asprintf "%a" Shape.Uid.print uid)
   in
   let mda_components =
     let mty = md.md_type in
@@ -989,7 +982,7 @@ let check_pers_mod ~loc name =
   Persistent_env.check !persistent_env read_sign_of_cmi ~loc name
 
 let crc_of_unit name =
-  Persistent_env.crc_of_unit !persistent_env read_sign_of_cmi name
+  Persistent_env.crc_of_unit !persistent_env name
 
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque !persistent_env modname

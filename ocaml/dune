@@ -72,7 +72,7 @@
    cmi_format persistent_env env errortrace
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
-   includemod includemod_errorprinter
+   includemod includemod_errorprinter address
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
    typecore
    typeclass typemod typedecl_variance typedecl_properties
