@@ -303,8 +303,8 @@ let extension_constructor sub ext =
     let vs = List.map (var_layout ~loc) vs in
     let args = constructor_arguments sub args in
     let ret = Option.map (sub.typ sub) ret in
-    Jane_syntax.Layouts.extension_constructor_of
-      ~loc ~name ~attrs (Lext_decl (vs, args, ret))
+    Jane_syntax.Extension_constructor.extension_constructor_of
+      ~loc ~name ~attrs (Jext_layout (Lext_decl (vs, args, ret)))
   | Text_rebind (_p, lid) ->
     Te.constructor ~loc ~attrs name (Pext_rebind (map_loc sub lid))
 
@@ -390,7 +390,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         | Mutable   -> Ppat_array pats
         | Immutable ->
           Jane_syntax.Immutable_arrays.pat_of
-            ~loc ~attrs:[]
+            ~loc
             (Iapat_immutable_array pats)
           |> add_jane_syntax_attributes
       end
@@ -427,7 +427,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
     | Texp_newtype (s, Some layout) ->
-        Jane_syntax.Layouts.expr_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, add_loc layout, sexp))
         |> add_jane_syntax_attributes
   in
@@ -473,7 +473,7 @@ let comprehension sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  Jane_syntax.Comprehensions.expr_of ~attrs:[] (comp_type (comprehension comp))
+  Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -555,7 +555,7 @@ let expression sub exp =
             Pexp_array plist
         | Immutable ->
             Jane_syntax.Immutable_arrays.expr_of
-              ~loc ~attrs:[] (Iaexp_immutable_array plist)
+              ~loc (Iaexp_immutable_array plist)
             |> add_jane_syntax_attributes
       end
     | Texp_list_comprehension comp ->
@@ -928,7 +928,7 @@ let core_type sub ct =
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
     | Ttyp_var (name, Some layout) ->
-        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.type_of ~loc
           (Ltyp_var { name; layout = mkloc layout loc }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
@@ -945,7 +945,7 @@ let core_type sub ct =
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
     | Ttyp_alias (ct, s, Some layout) ->
-        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
                         layout = mkloc layout loc }) |>
         add_jane_syntax_attributes
@@ -955,7 +955,7 @@ let core_type sub ct =
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
         let bound_vars = List.map (var_layout ~loc) list in
-        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.type_of ~loc
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
