@@ -166,7 +166,67 @@ type item = {
   dinfo_scopes: Scoped_location.scopes;
 }
 
-type t = { dbg : item list; assume_zero_alloc : bool }
+module Dbg = struct
+ type t = item list
+
+  (* CR-someday afrisch: FWIW, the current compare function does not seem very
+     good, since it reverses the two lists. I don't know how long the lists are,
+     nor if the specific currently implemented ordering is useful in other
+     contexts, but if one wants to use Map, a more efficient comparison should
+     be considered. *)
+  let compare dbg1 dbg2 =
+    let rec loop ds1 ds2 =
+      match ds1, ds2 with
+      | [], [] -> 0
+      | _ :: _, [] -> 1
+      | [], _ :: _ -> -1
+      | d1 :: ds1, d2 :: ds2 ->
+        let c = String.compare d1.dinfo_file d2.dinfo_file in
+        if c <> 0 then c else
+          let c = compare d1.dinfo_line d2.dinfo_line in
+          if c <> 0 then c else
+            let c = compare d1.dinfo_char_end d2.dinfo_char_end in
+            if c <> 0 then c else
+              let c = compare d1.dinfo_char_start d2.dinfo_char_start in
+              if c <> 0 then c else
+                let c = compare d1.dinfo_start_bol d2.dinfo_start_bol in
+                if c <> 0 then c else
+                  let c = compare d1.dinfo_end_bol d2.dinfo_end_bol in
+                  if c <> 0 then c else
+                    let c = compare d1.dinfo_end_line d2.dinfo_end_line in
+                    if c <> 0 then c else
+                      loop ds1 ds2
+    in
+    loop (List.rev dbg1) (List.rev dbg2)
+
+  let is_none dbg =
+    match dbg with
+    | [] -> true
+    | _ :: _ -> false
+
+  let hash dbg =
+    List.fold_left (fun hash item -> Hashtbl.hash (hash, item)) 0 dbg
+
+  let to_string dbg =
+    match dbg with
+    | [] -> ""
+    | ds ->
+      let items =
+        List.map
+          (fun d ->
+             Printf.sprintf "%s:%d,%d-%d"
+               d.dinfo_file d.dinfo_line d.dinfo_char_start d.dinfo_char_end)
+          ds
+      in
+      "{" ^ String.concat ";" items ^ "}"
+
+  let to_list t = t
+
+  let length t = List.length t
+
+end
+
+type t = { dbg : Dbg.t; assume_zero_alloc : bool }
 
 type alloc_dbginfo_item =
   { alloc_words : int;
@@ -175,27 +235,8 @@ type alloc_dbginfo = alloc_dbginfo_item list
 
 let none = { dbg = []; assume_zero_alloc = false }
 
-let is_none { dbg; assume_zero_alloc } =
-  if assume_zero_alloc then false else
-  match dbg with
-  | [] -> true
-  | _ :: _ -> false
-
-let to_string dbg =
-  match dbg with
-  | [] -> ""
-  | ds ->
-    let items =
-      List.map
-        (fun d ->
-           Printf.sprintf "%s:%d,%d-%d"
-             d.dinfo_file d.dinfo_line d.dinfo_char_start d.dinfo_char_end)
-        ds
-    in
-    "{" ^ String.concat ";" items ^ "}"
-
 let to_string { dbg; assume_zero_alloc; } =
-  let s = to_string dbg in
+  let s = Dbg.to_string dbg in
   if assume_zero_alloc then s^"(assume zero_alloc)" else s
 
 let item_from_location ~scopes loc =
@@ -247,44 +288,13 @@ let inline { dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2; } =
   { dbg = dbg1 @ dbg2; assume_zero_alloc = a1 || a2; }
 
-(* CR-someday afrisch: FWIW, the current compare function does not seem very
-   good, since it reverses the two lists. I don't know how long the lists are,
-   nor if the specific currently implemented ordering is useful in other
-   contexts, but if one wants to use Map, a more efficient comparison should
-   be considered. *)
-let compare_dbg dbg1 dbg2 =
-  let rec loop ds1 ds2 =
-    match ds1, ds2 with
-    | [], [] -> 0
-    | _ :: _, [] -> 1
-    | [], _ :: _ -> -1
-    | d1 :: ds1, d2 :: ds2 ->
-      let c = String.compare d1.dinfo_file d2.dinfo_file in
-      if c <> 0 then c else
-      let c = Int.compare d1.dinfo_line d2.dinfo_line in
-      if c <> 0 then c else
-      let c = Int.compare d1.dinfo_char_end d2.dinfo_char_end in
-      if c <> 0 then c else
-      let c = Int.compare d1.dinfo_char_start d2.dinfo_char_start in
-      if c <> 0 then c else
-      let c = Int.compare d1.dinfo_start_bol d2.dinfo_start_bol in
-      if c <> 0 then c else
-      let c = Int.compare d1.dinfo_end_bol d2.dinfo_end_bol in
-      if c <> 0 then c else
-      let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
-      if c <> 0 then c else
-      loop ds1 ds2
-  in
-  loop (List.rev dbg1) (List.rev dbg2)
+let is_none { dbg; assume_zero_alloc } =
+  (not assume_zero_alloc) && Dbg.is_none dbg
 
 let compare { dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2; } =
-  let res = compare_dbg dbg1 dbg2 in
+  let res = Dbg.compare dbg1 dbg2 in
   if res <> 0 then res else Bool.compare a1 a2
-
-let hash { dbg; assume_zero_alloc } =
-  let init = Bool.to_int assume_zero_alloc in
-  List.fold_left (fun hash item -> Hashtbl.hash (hash, item)) init dbg
 
 let rec print_compact ppf t =
   let print_item item =
@@ -305,13 +315,10 @@ let rec print_compact ppf t =
 
 let print_compact ppf { dbg; } = print_compact ppf dbg
 
-let to_list { dbg; } = dbg
-
-let length { dbg; } = List.length dbg
-
-
 let merge ~into:{ dbg = dbg1 } { dbg = _dbg2; } =
   { dbg = dbg1 }
 
 let assume_zero_alloc t = t.assume_zero_alloc
+
+let get_dbg t = t.dbg
 

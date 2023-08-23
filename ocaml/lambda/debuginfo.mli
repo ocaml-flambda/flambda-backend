@@ -93,15 +93,23 @@ val inline : t -> t -> t
 
 val compare : t -> t -> int
 
-val hash : t -> int
-
 val print_compact : Format.formatter -> t -> unit
-
-val to_list : t -> item list
-
-val length : t -> int
 
 val merge : into:t -> t -> t
 
 val assume_zero_alloc : t -> bool
+
+module Dbg : sig
+  type t
+
+  (** [compare] and [hash] ignore [dinfo_scopes] field of item *)
+
+  val is_none : t -> bool
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_list : t -> item list
+  val length : t -> int
+end
+
+val get_dbg : t -> Dbg.t
 

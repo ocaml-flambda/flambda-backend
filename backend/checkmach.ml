@@ -95,7 +95,7 @@ module Witness = struct
           pp ppf;
           (* Show inlined locations. If dbg has only one item, it will already
              be shown as [loc]. *)
-          if Debuginfo.length t.dbg > 1
+          if Debuginfo.Dbg.length (Debuginfo.get_dbg t.dbg) > 1
           then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg;
           if not (String.equal "" component)
           then Format.fprintf ppf " on a path to %s" component;
@@ -453,7 +453,7 @@ end = struct
     Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
       (Printcmm.property_to_string property)
       (if t.strict then " strict" else "")
-      (fun_dbg |> Debuginfo.to_list
+      (fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
       |> List.map (fun dbg ->
              Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
       |> String.concat ",")
