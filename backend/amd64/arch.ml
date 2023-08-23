@@ -286,11 +286,12 @@ let win64 =
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32 -> true
   | Ifloatarithmem _ | Ifloatsqrtf _ -> true
-  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max | Isimd _ -> true
+  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max -> true
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
+  | Isimd op -> Simd.is_pure op
 
 (* Specific operations that can raise *)
 
