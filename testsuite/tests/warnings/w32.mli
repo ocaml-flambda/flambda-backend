@@ -18,3 +18,5 @@ module H (X : sig val x : int end) : sig val x : int end
 module type S = sig
   module F:  sig val x : int end -> sig end
 end
+
+module Nominal : sig module N : sig type t end end
