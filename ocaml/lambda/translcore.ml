@@ -1574,7 +1574,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
-  let return_layout = layout_exp arg_sort e in
+  let return_layout = layout_exp return_sort e in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
         ({ c_lhs; c_guard; c_rhs } as case) =
     if c_rhs.exp_desc = Texp_unreachable then acc else
