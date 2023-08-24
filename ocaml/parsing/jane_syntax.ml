@@ -2,6 +2,19 @@ open Asttypes
 open Parsetree
 open Jane_syntax_parsing
 
+(** We carefully regulate which bindings we import from [Language_extension]
+    to ensure that we can import this file into the Jane Street internal
+    repo with no changes.
+*)
+module Language_extension = struct
+  include Language_extension_kernel
+  include (
+    Language_extension
+    : Language_extension_kernel.Language_extension_for_jane_syntax)
+end
+
+module _ = Language_extension
+
 (****************************************)
 (* Helpers used just within this module *)
 
@@ -767,14 +780,15 @@ module N_ary_functions = struct
               List.iter (fun mode_annotation ->
                 assert_extension_enabled ~loc
                   (match (mode_annotation.txt : mode_annotation) with
-                   | Local -> Language_extension.Local
-                   | Unique | Once -> Language_extension.Unique)
+                   | Local -> Local
+                   | Unique | Once -> Unique)
                   ())
                 mode_annotations;
               Mode_constraint mode_annotations)
       | [ "layout_annotation" ] ->
           Payload (fun payload ~loc ->
-              assert_extension_enabled ~loc Layouts Language_extension.Stable;
+              assert_extension_enabled ~loc Layouts
+                (Stable : Language_extension.maturity);
               let layout_annotation =
                 Layout_annotation.Decode.from_payload payload ~loc
               in
