@@ -46,8 +46,6 @@ val uniquely_reachable_words : t array -> int array
 (** For each element of the array, computes the total size (as defined
     above by [reachable_words]) of all heap blocks accessible from the
     argument but excluding all blocks accessible from any other arguments.
-
-    @since 4.15
   *)
 
 val field : t -> int -> t

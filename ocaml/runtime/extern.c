@@ -1217,6 +1217,7 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
       header_t hd = Hd_val(v);
       tag_t tag = Tag_hd(hd);
       mlsize_t sz = Wosize_hd(hd);
+      intnat sz_with_header = 1 + sz;
       /* Infix pointer: go back to containing closure */
       if (tag == Infix_tag) {
         v = v - Infix_offset_hd(hd);
@@ -1253,16 +1254,16 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
         }
 
         /* The block contributes to the total size */
-        size += 1 + sz;           /* header word included */
+        size += sz_with_header;           /* header word included */
         if (sizes_by_root_id != Val_unit) {
           if (new_mark == Shared) {
             /* mark is identifier of some other root that we counted this node
              * as contributing to. Since it is evidently not uniquely reachable, we
              * undo this contribution */
-            add_to_long_value(&Field(sizes_by_root_id, mark), -(1 + sz));
+            add_to_long_value(&Field(sizes_by_root_id, mark), -sz_with_header);
           } else {
             CAMLassert(new_mark == identifier || (v == root && new_mark == RootProcessed));
-            add_to_long_value(&Field(sizes_by_root_id, identifier), 1 + sz);
+            add_to_long_value(&Field(sizes_by_root_id, identifier), sz_with_header);
           }
         }
         if (tag < No_scan_tag) {
