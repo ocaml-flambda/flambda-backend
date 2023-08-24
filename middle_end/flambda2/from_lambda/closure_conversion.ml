@@ -713,7 +713,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
-  | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
+  | (Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _),
+    [] ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
       match prim with
@@ -729,12 +730,15 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
             "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
+      | Pmakeufloatblock _ ->
+        Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
       | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
       | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
       | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
+      | Pufloatfield _ | Psetufloatfield _
       | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
       | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
       | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats

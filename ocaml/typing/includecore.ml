@@ -187,6 +187,7 @@ type record_mismatch =
   | Label_mismatch of record_change list
   | Inlined_representation of position
   | Float_representation of position
+  | Ufloat_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -360,6 +361,10 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses unboxed float representation"
+  | Ufloat_representation ord ->
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses float# representation"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -633,6 +638,12 @@ module Record_diffing = struct
         Some (Record_mismatch (Float_representation First))
      | _, Record_float ->
         Some (Record_mismatch (Float_representation Second))
+
+     | Record_ufloat, Record_ufloat -> None
+     | Record_ufloat, _ ->
+        Some (Record_mismatch (Ufloat_representation First))
+     | _, Record_ufloat ->
+        Some (Record_mismatch (Ufloat_representation Second))
 
      | Record_boxed _, Record_boxed _ -> None
 

@@ -196,6 +196,7 @@ let record_representation i ppf = let open Types in function
   | Record_inlined (t,v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
+  | Record_ufloat -> line i ppf "Record_ufloat\n"
 
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;

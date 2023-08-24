@@ -523,7 +523,10 @@ and record_representation =
      contains it and the tag of the relevant constructor of that variant. *)
   | Record_boxed of layout array
   | Record_float (* All fields are floats *)
-
+  | Record_ufloat
+  (* All fields are [float#]s.  Same runtime representation as [Record_float],
+     but operations on these (e.g., projection, update) work with unboxed floats
+     rather than boxed floats. *)
 
 (* For unboxed variants, we record the layout of the mandatory single argument.
    For boxed variants, we record the layouts for the arguments of each

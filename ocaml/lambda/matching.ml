@@ -101,6 +101,7 @@ module Scoped_location = Debuginfo.Scoped_location
 
 type error =
     Non_value_layout of Layout.Violation.t
+  | Illegal_record_field of Layout.const
 
 exception Error of Location.t * error
 
@@ -112,6 +113,15 @@ let layout_must_be_value loc layout =
   match Layout.(sub layout (value ~why:V1_safety_check)) with
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
+
+let check_record_field_layout lbl =
+  match Layout.(get_default_value lbl.lbl_layout), lbl.lbl_repres with
+  | (Value | Immediate | Immediate64), _ -> ()
+  | Float64, Record_ufloat -> ()
+  | Float64, (Record_boxed _ | Record_inlined _
+             | Record_unboxed | Record_float) ->
+    raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
+  | (Any | Void) as c, _ -> raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors
@@ -2084,7 +2094,7 @@ let record_matching_line num_fields lbl_pat_list =
   List.iter (fun (_, lbl, pat) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
-    layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
+    check_record_field_layout lbl;
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
@@ -2111,35 +2121,34 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-      layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
+      check_record_field_layout lbl;
+      let lbl_sort = Layout.sort_of_layout lbl.lbl_layout in
+      let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
         match lbl.lbl_mut with
         | Immutable -> Reads_agree
         | Mutable -> Reads_vary
       in
       let access, sort, layout =
-        (* CR layouts v5: Here we'll need to get the layout from the
-           record_representation and translate it to `Lambda.layout`, rather
-           than just using layout_field everywhere.  (Though layout_field is
-           safe for now, particularly after checking for void above.)  I think
-           only the sort information matters here, so when we make that change
-           we may want to use `Typeopt.layout_of_sort` rather than
-           `Typeopt.layout`.  *)
         match lbl.lbl_repres with
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc),
-            Sort.for_record_field, layout_field
+            lbl_sort, lbl_layout
         | Record_unboxed
         | Record_inlined (_, Variant_unboxed) -> arg, sort, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
            (* Here we are projecting a boxed float from a float record. *)
-           Sort.for_predef_value, layout_boxed_float
+           lbl_sort, lbl_layout
+        | Record_ufloat ->
+           Lprim (Pufloatfield (lbl.lbl_pos, sem), [ arg ], loc),
+           (* Here we are projecting an unboxed float from a float record. *)
+           lbl_sort, lbl_layout
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc),
-            Sort.for_record_field, layout_field
+            lbl_sort, lbl_layout
       in
       let str =
         match lbl.lbl_mut with
@@ -4010,6 +4019,11 @@ let report_error ppf = function
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
         (Layout.Violation.report_with_name ~name:"This expression") err
+  | Illegal_record_field c ->
+      fprintf ppf
+        "Sort %s detected where value was expected in a record field:@ Please \
+         report this error to the Jane Street compilers team."
+        (Layout.string_of_const c)
 
 let () =
   Location.register_error_of_exn

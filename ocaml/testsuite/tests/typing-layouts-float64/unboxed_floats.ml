@@ -324,3 +324,139 @@ let _ =
   in
   print_floatu "Test 7, 32.20" result
 
+(********************************)
+(* Test 8: basic float# records *)
+
+(* Copy of test 3, but the float args are in a record *)
+type manyargs = { x1 : float#; x3 : float#; x5 : float#; x7: float#; x9: float# }
+
+(* Get some float# args by pattern matching and others by projection *)
+let[@inline_never] f8 x0 x2 x4 x6 x8 steps ({ x1; x5; _ } as fargs) () =
+  let (start_k, end_k) = x0 in
+  let[@inline never] rec go k =
+    if k = end_k
+    then Float_u.of_float 0.
+    else begin
+      let (x2_1, x2_2) = x2 in
+      let (x4_1, x4_2) = x4 in
+      let (x6_1, x6_2) = x6 in
+      let (x8_1, x8_2) = x8 in
+      let sum = x2_1 + x2_2 + x4_1 + x4_2 + x6_1 + x6_2 + x8_1 + x8_2 in
+      let acc = go (k + 1) in
+      steps.(k) <- Float_u.to_float acc;
+      Float_u.(acc + ((x1 + fargs.x3 + x5 + fargs.x7 + fargs.x9)
+                      * (of_float (Float.of_int sum))))
+    end
+  in
+  go start_k
+
+let test8 () =
+  (* same math as f3_manyargs *)
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let x1 = Float_u.of_float 3.14 in
+  let x3 = Float_u.of_float 2.72 in
+  let x5 = Float_u.of_float 1.62 in
+  let x7 = Float_u.of_float 1.41 in
+  let x9 = Float_u.of_float 42.0 in
+
+  (* these sum to 3 *)
+  let x2 = (7, 42) in
+  let x4 = (-23, 109) in
+  let x6 = (-242, 90) in
+  let x8 = (-2, 22) in
+
+  let fargs = { x1; x3; x5; x7; x9 } in
+
+  let f8 = f8 (4,8) x2 x4 x6 x8 steps fargs in
+  print_floatu "Test 8, 610.68: " (f8 ());
+  Array.iteri (Printf.printf "  Test 8, step %d: %.2f\n") steps
+
+let _ = test8 ()
+
+(**************************************)
+(* Test 9: float# record manipulation *)
+
+type t9 = { a : float#;
+            mutable b : float#;
+            c : float#;
+            mutable d : float# }
+
+(* Construction *)
+let t9_1 = { a = Float_u.of_float 3.14;
+             b = Float_u.of_float 2.72;
+             c = Float_u.of_float 1.62;
+             d = Float_u.of_float 1.41 }
+
+let t9_2 = { a = Float_u.of_float (-3.14);
+             b = Float_u.of_float (-2.72);
+             c = Float_u.of_float (-1.62);
+             d = Float_u.of_float (-1.41) }
+
+let print_t9 t9 =
+  print_floatu "  a" t9.a;
+  print_floatu "  b" t9.b;
+  print_floatu "  c" t9.c;
+  print_floatu "  d" t9.d
+
+let _ =
+  Printf.printf "Test 9, construction:\n";
+  print_t9 t9_1;
+  print_t9 t9_2
+
+(* Matching, projection *)
+let f9_1 {c; d; _} r =
+  match r with
+  | { a; _ } ->
+    Float_u. { a = c;
+               b = a - d;
+               c = r.c + c;
+               d = d - r.b }
+
+let _ =
+  Printf.printf "Test 9, matching and projection:\n";
+  print_t9 (f9_1 t9_1 t9_2)
+
+(* Record update and mutation *)
+let f9_2 ({a; d; _} as r1) r2 =
+  r1.d <- Float_u.of_float 42.0;
+  let r3 = { r2 with c = r1.d; d = Float_u.of_float 25.0 } in
+  r3.b <- Float_u.(a + d);
+  r2.b <- Float_u.of_float 17.0;
+  r3
+
+let _ =
+  Printf.printf "Test 9, record update and mutation:\n";
+  let t9_3 = f9_2 t9_1 t9_2 in
+  print_t9 t9_1;
+  print_t9 t9_2;
+  print_t9 t9_3
+
+(***********************************************)
+(* Test 10: float# records in recursive groups *)
+
+let rec f r =
+  r.d <- t10_1.b;
+  t10_2.b <- (Float_u.of_float 42.0);
+  Float_u.(r.a + t10_2.a)
+
+
+and t10_1 = { a = Float_u.of_float 1.1;
+              b = Float_u.of_float 2.2;
+              c = Float_u.of_float 3.2;
+              d = Float_u.of_float 4.4 }
+
+and t10_2 = { a = Float_u.of_float (- 5.1);
+              b = Float_u.of_float (- 6.2);
+              c = Float_u.of_float (- 7.3);
+              d = Float_u.of_float (- 8.4) }
+
+let _ =
+  Printf.printf "Test 10, float# records in recursive groups.\n";
+  print_t9 t10_1;
+  print_t9 t10_2;
+  let result = f t10_1 in
+  print_floatu "  result (-4.00)" result;
+  print_t9 t10_1;
+  print_t9 t10_2
+
+

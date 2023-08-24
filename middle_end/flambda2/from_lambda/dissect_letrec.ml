@@ -285,7 +285,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         build_block cl size (Normal runtime_tag) arg letrec
       | Record_inlined (Extension _, Variant_extensible) ->
         build_block cl (size + 1) (Normal 0) arg letrec
-      | Record_float -> build_block cl size Boxed_float arg letrec
+      | Record_float | Record_ufloat ->
+        build_block cl size Boxed_float arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->

@@ -1910,7 +1910,7 @@ module Label = NameChoice (struct
     Env.lookup_all_labels_from_type ~loc usage path env
   let in_env lbl =
     match lbl.lbl_repres with
-    | Record_boxed _ | Record_float | Record_unboxed -> true
+    | Record_boxed _ | Record_float | Record_ufloat | Record_unboxed -> true
     | Record_inlined _ -> false
 end)
 

@@ -958,6 +958,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
   | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _
   | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint
   | Porint | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
   | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
