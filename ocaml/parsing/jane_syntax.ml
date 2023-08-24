@@ -13,6 +13,8 @@ module Language_extension = struct
     : Language_extension_kernel.Language_extension_for_jane_syntax)
 end
 
+(* Suppress the unused module warning so it's easy to keep around the
+   shadowing even if we delete use sites of the module. *)
 module _ = Language_extension
 
 (****************************************)
