@@ -164,4 +164,4 @@ let class_of_operation op =
   | SSE42 op -> class_of_operation_sse42 op
   | _ -> .
 
-let is_pure op = class_of_operation op = Pure
+let is_pure op = match class_of_operation op with Pure -> true
