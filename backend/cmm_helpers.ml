@@ -1988,7 +1988,7 @@ let max_or_zero a dbg =
 let check_bound safety access_size dbg base length a2 k =
   match (safety : Lambda.is_safe) with
   | Unsafe -> k
-  | Safe -> (
+  | Safe ->
     let offset, check_align =
       match (access_size : Clambda_primitives.memory_access_size) with
       | Sixteen -> 1, 0
@@ -1997,14 +1997,13 @@ let check_bound safety access_size dbg base length a2 k =
       | One_twenty_eight { aligned = false } -> 15, 0
       | One_twenty_eight { aligned = true } -> 15, 16
     in
-    let check_bound =
-      let a1 = sub_int length (Cconst_int (offset, dbg)) dbg in
-      Csequence (make_checkbound dbg [max_or_zero a1 dbg; a2], k)
+    let check_align =
+      match check_align with
+      | 0 -> k
+      | align -> Csequence (make_checkalign dbg align [add_int base a2 dbg], k)
     in
-    match check_align with
-    | 0 -> check_bound
-    | align ->
-      Csequence (make_checkalign dbg align [add_int base a2 dbg], check_bound))
+    let a1 = sub_int length (Cconst_int (offset, dbg)) dbg in
+    Csequence (make_checkbound dbg [max_or_zero a1 dbg; a2], check_align)
 
 let opaque e dbg = Cop (Copaque, [e], dbg)
 
