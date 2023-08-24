@@ -1160,10 +1160,16 @@ enum reachable_words_node_state {
   RootUnprocessed = -2,
   /* This node is one of the roots and the computation for that root has already ran */
   RootProcessed = -3,
+  /* Sentinel value for a state that should never be observed */
+  Invalid = -4,
   /* States that are non-negative integers indicate that a node has only been visited
    * starting from a single root. The state is then equal to the identifier of the
    * root that we reached it from */
 };
+
+static void add_to_long_value(value *v, intnat x) {
+  *v = Val_long(Long_val(*v) + x);
+}
 
 /* Performs traversal through the OCaml object reachability graph to deterime
    how much memory an object has access to.
@@ -1181,16 +1187,17 @@ enum reachable_words_node_state {
    from the current root and can be reached by at most one root from the ones
    that already ran.
 
-   If [sizes_by_root_id] is not [NULL], we expect it to be an OCaml array
+   If [sizes_by_root_id] is not [Val_unit], we expect it to be an OCaml array
    with length equal to the number of roots. Then during the traversal we will
    update the number of words uniquely reachable from each root.
    That is, when we visit a node for the first time, we add its size to the
    corresponding root identifier, and when we visit it for the second time, we
    undo this addition. */
 intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_id) {
+  CAMLassert(identifier >= 0);
   struct extern_item * sp;
   intnat size;
-  uintnat mark, new_mark;
+  uintnat mark = Invalid, new_mark;
   value v = root;
   uintnat h;
   int previously_marked, should_traverse;
@@ -1207,10 +1214,21 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
          and the test above is always false,
          so we end up counting out-of-heap blocks too. */
     } else {
+      header_t hd = Hd_val(v);
+      tag_t tag = Tag_hd(hd);
+      mlsize_t sz = Wosize_hd(hd);
+      /* Infix pointer: go back to containing closure */
+      if (tag == Infix_tag) {
+        v = v - Infix_offset_hd(hd);
+        continue;
+      }
+
       previously_marked = extern_lookup_position(v, &mark, &h);
       if (!previously_marked) {
-        /* Invariant: v != root as we have marked roots before running this function.
-         * So we can safely assign new_mark to identifier */
+        /* All roots must have been marked by [reachable_words_mark_root] before
+         * calling this function so we can safely assign new_mark to
+         * identifier */
+        CAMLassert(v != root);
         should_traverse = 1;
         new_mark = identifier;
       } else if (mark == RootUnprocessed && v == root) {
@@ -1221,20 +1239,13 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
       } else if (mark == identifier) {
         should_traverse = 0;
       } else {
+        CAMLassert(mark != Invalid);
         /* mark is some other root's identifier */
         should_traverse = 1;
         new_mark = Shared;
       }
 
       if (should_traverse) {
-        header_t hd = Hd_val(v);
-        tag_t tag = Tag_hd(hd);
-        mlsize_t sz = Wosize_hd(hd);
-        /* Infix pointer: go back to containing closure */
-        if (tag == Infix_tag) {
-          v = v - Infix_offset_hd(hd);
-          continue;
-        }
         if (!previously_marked) {
           extern_record_location_with_data(v, h, new_mark);
         } else {
@@ -1243,21 +1254,15 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
 
         /* The block contributes to the total size */
         size += 1 + sz;           /* header word included */
-        if (sizes_by_root_id) {
+        if (sizes_by_root_id != Val_unit) {
           if (new_mark == Shared) {
-#pragma GCC diagnostic push
-            /* GCC complains that [mark] could be uninitialized. This can only happen
-             * if previously_marked returns false. But then new_mark is set to
-             * identifier which by assumption is != Shared. */
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
             /* mark is identifier of some other root that we counted this node
              * as contributing to. Since it is evidently not uniquely reachable, we
              * undo this contribution */
-            /* Need to shift left by 1 to respect the OCaml representation of [int] values */
-            Field(sizes_by_root_id, mark) -= (1 + sz) << 1;
-#pragma GCC diagnostic pop
+            add_to_long_value(&Field(sizes_by_root_id, mark), -(1 + sz));
           } else {
-            Field(sizes_by_root_id, identifier) += (1 + sz) << 1;
+            CAMLassert(new_mark == identifier || (v == root && new_mark == RootProcessed));
+            add_to_long_value(&Field(sizes_by_root_id, identifier), 1 + sz);
           }
         }
         if (tag < No_scan_tag) {
@@ -1315,7 +1320,7 @@ CAMLprim value caml_obj_reachable_words(value v)
 
   reachable_words_init();
   reachable_words_mark_root(v);
-  size = Val_long(reachable_words_once(v, 0, 0));
+  size = Val_long(reachable_words_once(v, 0, Val_unit));
   reachable_words_cleanup();
 
   CAMLreturn(size);

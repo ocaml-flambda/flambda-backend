@@ -38,7 +38,7 @@ let make id ch = { id; used_memory = Array.make (Int.shift_left 100 id) 0; child
 (* Note that this all needs to be in a function to ensure our nodes actually get
    allocated on the heap and are not static values in the binary (whose size we
    would not count) *)
-let f () =
+let[@inline never] f () =
   let n10 = make 10 [] in
   let n9 = make 9 [] in
   let n8 = make 8 [] in
