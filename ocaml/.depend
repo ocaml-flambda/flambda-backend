@@ -1070,6 +1070,7 @@ typing/mode.cmi :
 typing/mtype.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
+    typing/printtyp.cmi \
     typing/path.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
@@ -1082,6 +1083,7 @@ typing/mtype.cmo : \
 typing/mtype.cmx : \
     typing/types.cmx \
     typing/subst.cmx \
+    typing/printtyp.cmx \
     typing/path.cmx \
     parsing/location.cmx \
     typing/ident.cmx \

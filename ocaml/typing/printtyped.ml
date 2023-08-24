@@ -799,6 +799,10 @@ and module_type i ppf x =
   | Tmty_typeof m ->
       line i ppf "Tmty_typeof\n";
       module_expr i ppf m;
+  | Tmty_strengthen (mt, li, _) ->
+    line i ppf "Tmty_strengthen\n";
+    module_type i ppf mt;
+    line i ppf "%a\n" fmt_path li;
 
 and signature i ppf x = list i signature_item ppf x.sig_items
 

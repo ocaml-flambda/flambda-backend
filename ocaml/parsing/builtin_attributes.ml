@@ -106,6 +106,7 @@ let builtin_attrs =
   ; "poll"; "ocaml.poll"
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
+  ; "unaliasable"; "ocaml.unaliasable"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't

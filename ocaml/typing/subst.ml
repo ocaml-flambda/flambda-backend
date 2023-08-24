@@ -184,7 +184,7 @@ let rec module_path s path =
 let modtype_path s path =
       match Path.Map.find path s.modtypes with
       | Mty_ident p -> p
-      | Mty_alias _ | Mty_signature _ | Mty_functor _ ->
+      | Mty_alias _ | Mty_signature _ | Mty_functor _| Mty_strengthen _ ->
          fatal_error "Subst.modtype_path"
       | exception Not_found ->
          match path with
@@ -765,6 +765,8 @@ and subst_lazy_modtype scoping s = function
                   subst_lazy_modtype scoping (add_module id (Pident id') s) res)
   | Mty_alias p ->
       Mty_alias (module_path s p)
+  | Mty_strengthen (mty, p, a) ->
+      Mty_strengthen (subst_lazy_modtype scoping s mty, module_path s p, a)
 
 and subst_lazy_modtype_decl scoping s mtd =
   { mtd_type = Option.map (subst_lazy_modtype scoping s) mtd.mtd_type;
