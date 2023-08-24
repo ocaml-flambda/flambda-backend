@@ -47,28 +47,40 @@ module Bytes = struct
 
   (* Setters *)
 
-  let () =
-    let set = int8x16_of_int64s 0x1010101010101010L 0x1010101010101010L in
-    set_int8x16_unaligned data 0 set;
-    let v = get_int8x16_unaligned data 0 in
-    eq 0x1010101010101010L 0x1010101010101010L (int8x16_low_int64 v) (int8x16_high_int64 v);
+  let set_unaligned low high offset =
+    let set = int8x16_of_int64s low high in
+    set_int8x16_unaligned data offset set;
+    let v = get_int8x16_unaligned data offset in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
+  ;;
 
-    let set = int8x16_of_int64s 0x2020202020202020L 0x2020202020202020L in
-    set_int8x16_unaligned data 8 set;
-    let v = get_int8x16_unaligned data 8 in
-    eq 0x2020202020202020L 0x2020202020202020L (int8x16_low_int64 v) (int8x16_high_int64 v);
+  let set_unaligned_unsafe low high offset =
+    let set = int8x16_of_int64s low high in
+    set_int8x16_unaligned_unsafe data offset set;
+    let v = get_int8x16_unaligned data offset in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 
   let () =
-    let set = int8x16_of_int64s 0x3030303030303030L 0x3030303030303030L in
-    set_int8x16_unaligned_unsafe data 0 set;
-    let v = get_int8x16_unaligned data 0 in
-    eq 0x3030303030303030L 0x3030303030303030L (int8x16_low_int64 v) (int8x16_high_int64 v);
+    set_unaligned 0x1010101010101010L 0x1010101010101010L 0;
+    set_unaligned 0x2020202020202020L 0x2020202020202020L 8;
+    set_unaligned_unsafe 0x3030303030303030L 0x3030303030303030L 0;
+    set_unaligned_unsafe 0x4040404040404040L 0x4040404040404040L 8;
+    Random.init 1234;
+    for _ = 1 to 1000 do
+      set_unaligned (Random.int64 Int64.max_int) (Random.int64 Int64.max_int) (Random.int 9);
+      set_unaligned_unsafe (Random.int64 Int64.max_int) (Random.int64 Int64.max_int) (Random.int 9)
+    done;
+  ;;
 
-    let set = int8x16_of_int64s 0x4040404040404040L 0x4040404040404040L in
-    set_int8x16_unaligned_unsafe data 8 set;
-    let v = get_int8x16_unaligned data 8 in
-    eq 0x4040404040404040L 0x4040404040404040L (int8x16_low_int64 v) (int8x16_high_int64 v);
+  let () =
+    let set = int8x16_of_int64s 0xFFFFFFFFFFFFFFFFL 0xFFFFFFFFFFFFFFFFL in
+    for bad = 9 to 24 do
+      try
+        let _ = set_int8x16_unaligned data bad set in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
   ;;
 end
 
@@ -160,67 +172,79 @@ module Bigstring = struct
     eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
     let v = get_int8x16_aligned_unsafe data 0 in
     eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
-    try
-      let _ = get_int8x16_aligned data 8 in
-      assert false
-    with | Invalid_argument s when s = "address was misaligned" -> ();
-    for bad = 1 to 7 do
+    for bad = 1 to 8 do
       try
         let _ = get_int8x16_aligned data bad in
         assert false
       with | Invalid_argument s when s = "address was misaligned" -> ()
     done;
+    for bad = 9 to 24 do
+      try
+        let _ = get_int8x16_aligned data bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
   ;;
 
   (* Setters *)
 
-  let () =
-    let set = int8x16_of_int64s 0x1010101010101010L 0x1010101010101010L in
-    set_int8x16_unaligned data 0 set;
-    let v = get_int8x16_unaligned data 0 in
-    eq 0x1010101010101010L 0x1010101010101010L (int8x16_low_int64 v) (int8x16_high_int64 v);
+  let set_unaligned low high offset =
+    let set = int8x16_of_int64s low high in
+    set_int8x16_unaligned data offset set;
+    let v = get_int8x16_unaligned data offset in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
+  ;;
 
-    let set = int8x16_of_int64s 0x2020202020202020L 0x2020202020202020L in
-    set_int8x16_unaligned data 8 set;
-    let v = get_int8x16_unaligned data 8 in
-    eq 0x2020202020202020L 0x2020202020202020L (int8x16_low_int64 v) (int8x16_high_int64 v);
+  let set_unaligned_unsafe low high offset =
+    let set = int8x16_of_int64s low high in
+    set_int8x16_unaligned_unsafe data offset set;
+    let v = get_int8x16_unaligned data offset in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
+  ;;
+
+  let set_aligned low high offset =
+    let set = int8x16_of_int64s low high in
+    set_int8x16_aligned data offset set;
+    let v = get_int8x16_aligned data offset in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
+  ;;
+
+  let set_aligned_unsafe low high offset =
+    let set = int8x16_of_int64s low high in
+    set_int8x16_aligned_unsafe data offset set;
+    let v = get_int8x16_aligned_unsafe data offset in
+    eq low high (int8x16_low_int64 v) (int8x16_high_int64 v);
   ;;
 
   let () =
-    let set = int8x16_of_int64s 0x3030303030303030L 0x3030303030303030L in
-    set_int8x16_unaligned_unsafe data 0 set;
-    let v = get_int8x16_unaligned data 0 in
-    eq 0x3030303030303030L 0x3030303030303030L (int8x16_low_int64 v) (int8x16_high_int64 v);
-
-    let set = int8x16_of_int64s 0x4040404040404040L 0x4040404040404040L in
-    set_int8x16_unaligned_unsafe data 8 set;
-    let v = get_int8x16_unaligned data 8 in
-    eq 0x4040404040404040L 0x4040404040404040L (int8x16_low_int64 v) (int8x16_high_int64 v);
+    set_unaligned 0x1010101010101010L 0x1010101010101010L 0;
+    set_unaligned 0x2020202020202020L 0x2020202020202020L 8;
+    set_unaligned_unsafe 0x3030303030303030L 0x3030303030303030L 0;
+    set_unaligned_unsafe 0x4040404040404040L 0x4040404040404040L 8;
+    set_aligned 0x5050505050505050L 0x5050505050505050L 0;
+    set_aligned_unsafe 0x6060606060606060L 0x6060606060606060L 0;
+    Random.init 1234;
+    for _ = 1 to 1000 do
+      set_unaligned (Random.int64 Int64.max_int) (Random.int64 Int64.max_int) (Random.int 9);
+      set_unaligned_unsafe (Random.int64 Int64.max_int) (Random.int64 Int64.max_int) (Random.int 9);
+      set_aligned (Random.int64 Int64.max_int) (Random.int64 Int64.max_int) 0;
+      set_aligned_unsafe (Random.int64 Int64.max_int) (Random.int64 Int64.max_int) 0;
+    done;
   ;;
 
   let () =
-    let set = int8x16_of_int64s 0x5050505050505050L 0x5050505050505050L in
-    set_int8x16_aligned data 0 set;
-    let v = get_int8x16_aligned data 0 in
-    eq 0x5050505050505050L 0x5050505050505050L (int8x16_low_int64 v) (int8x16_high_int64 v);
-
-    let set = int8x16_of_int64s 0x6060606060606060L 0x6060606060606060L in
-    try
-      let _ = set_int8x16_aligned data 8 set in
-      assert false
-    with | Invalid_argument s when s = "address was misaligned" -> ();
-    for bad = 1 to 7 do
+    let set = int8x16_of_int64s 0xFFFFFFFFFFFFFFFFL 0xFFFFFFFFFFFFFFFFL in
+    for bad = 1 to 8 do
       try
         let _ = set_int8x16_aligned data bad set in
         assert false
       with | Invalid_argument s when s = "address was misaligned" -> ()
     done;
-  ;;
-
-  let () =
-    let set = int8x16_of_int64s 0x7070707070707070L 0x7070707070707070L in
-    set_int8x16_aligned_unsafe data 0 set;
-    let v = get_int8x16_aligned_unsafe data 0 in
-    eq 0x7070707070707070L 0x7070707070707070L (int8x16_low_int64 v) (int8x16_high_int64 v)
+    for bad = 9 to 24 do
+      try
+        let _ = get_int8x16_aligned data bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
   ;;
 end
