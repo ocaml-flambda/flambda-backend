@@ -1,0 +1,102 @@
+##### All extensions enabled
+--------------------------------
+
+longident: No.Longidents.Require.extensions
+
+expression: [x for x = 1 to 10]
+
+pattern: [:_:]
+
+core_type: local_ ('a : value) -> unit
+
+signature: include functor F
+
+structure: include functor F
+
+module_expr: struct include functor F end
+
+toplevel_phrase: ;;#2.17
+
+top_phrase: 
+;;#2.17;;
+
+
+class_field: initializer [x for x = 1 to 10]
+
+class_type_field:
+  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+
+class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+
+class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+
+module_type: sig include functor F end
+
+structure_item: ;;[x for x = 1 to 10]
+
+signature_item: module M : sig include functor F end
+
+binding: [:_:] = [x for x = 1 to 10]
+
+payload: include functor F
+
+class_signature:
+  object (local_ ('a : value) -> unit)
+    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  end
+
+type_declaration:  local_ ('a : value) -> unit
+
+string_of_expression: [x for x = 1 to 10]
+
+string_of_structure: include functor F
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+##### Extensions disallowed
+--------------------------------
+
+longident: No.Longidents.Require.extensions
+
+expression: JANE SYNTAX ERROR FROM PPRINTAST
+
+pattern: JANE SYNTAX ERROR FROM PPRINTAST
+
+core_type: local_ JANE SYNTAX ERROR FROM PPRINTAST
+
+signature: JANE SYNTAX ERROR FROM PPRINTAST
+
+structure: JANE SYNTAX ERROR FROM PPRINTAST
+
+module_expr: struct JANE SYNTAX ERROR FROM PPRINTAST
+
+toplevel_phrase: ;;JANE SYNTAX ERROR FROM PPRINTAST
+
+top_phrase: 
+;;JANE SYNTAX ERROR FROM PPRINTAST
+
+class_field: initializer JANE SYNTAX ERROR FROM PPRINTAST
+
+class_type_field: constraint local_ JANE SYNTAX ERROR FROM PPRINTAST
+
+class_expr: [local_ JANE SYNTAX ERROR FROM PPRINTAST
+
+class_type: [local_ JANE SYNTAX ERROR FROM PPRINTAST
+
+module_type: sig JANE SYNTAX ERROR FROM PPRINTAST
+
+structure_item: ;;JANE SYNTAX ERROR FROM PPRINTAST
+
+signature_item: module M : sig JANE SYNTAX ERROR FROM PPRINTAST
+
+binding: JANE SYNTAX ERROR FROM PPRINTAST
+
+payload: JANE SYNTAX ERROR FROM PPRINTAST
+
+class_signature: object (local_ JANE SYNTAX ERROR FROM PPRINTAST
+
+type_declaration:  local_ JANE SYNTAX ERROR FROM PPRINTAST
+
+string_of_expression: JANE SYNTAX ERROR FROM PPRINTAST
+
+string_of_structure: JANE SYNTAX ERROR FROM PPRINTAST
