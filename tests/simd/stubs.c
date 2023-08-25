@@ -4,6 +4,7 @@
 #include <caml/memory.h>
 #include <smmintrin.h>
 #include <emmintrin.h>
+#include <assert.h>
 
 int64_t vec128_low_int64(__m128i v)
 {
@@ -101,3 +102,106 @@ __m128i vectors_and_floats_and_ints(
   int64_t i = i0 + i1 + i2 + i3 + i4 + i5 + i6;
   return vec128_of_int64s((int64_t)f + i, vec128_low_int64(z) + vec128_high_int64(z));
 }
+
+#define BUILTIN(name) void name() { assert(0); }
+
+BUILTIN(caml_vec128_cast);
+
+BUILTIN(caml_float32x4_low_of_float);
+BUILTIN(caml_float32x4_low_to_float);
+BUILTIN(caml_float32x4_const1);
+BUILTIN(caml_float32x4_const4);
+
+BUILTIN(caml_float64x2_low_of_float);
+BUILTIN(caml_float64x2_low_to_float);
+BUILTIN(caml_float64x2_const1);
+BUILTIN(caml_float64x2_const2);
+
+BUILTIN(caml_int64x2_low_of_int64);
+BUILTIN(caml_int64x2_low_to_int64);
+BUILTIN(caml_int64x2_const1);
+BUILTIN(caml_int64x2_const2);
+
+BUILTIN(caml_int32x4_low_of_int32);
+BUILTIN(caml_int32x4_low_to_int32);
+BUILTIN(caml_int32x4_const1);
+BUILTIN(caml_int32x4_const4);
+
+BUILTIN(caml_int16x8_low_of_int);
+BUILTIN(caml_int16x8_low_to_int);
+BUILTIN(caml_int16x8_const1);
+BUILTIN(caml_int16x8_const8);
+
+BUILTIN(caml_int8x16_low_of_int);
+BUILTIN(caml_int8x16_low_to_int);
+BUILTIN(caml_int8x16_const1);
+BUILTIN(caml_int8x16_const16);
+
+BUILTIN(caml_sse_float32x4_cmp);
+BUILTIN(caml_sse_float32x4_add);
+BUILTIN(caml_sse_float32x4_sub);
+BUILTIN(caml_sse_float32x4_mul);
+BUILTIN(caml_sse_float32x4_div);
+BUILTIN(caml_sse_float32x4_max);
+BUILTIN(caml_sse_float32x4_min);
+BUILTIN(caml_sse_float32x4_rcp);
+BUILTIN(caml_sse_float32x4_rsqrt);
+BUILTIN(caml_sse_float32x4_sqrt);
+BUILTIN(caml_sse_vec128_high_64_to_low_64);
+BUILTIN(caml_sse_vec128_low_64_to_high_64);
+BUILTIN(caml_sse_vec128_interleave_high_32);
+BUILTIN(caml_sse_vec128_interleave_low_32);
+BUILTIN(caml_sse_vec128_shuffle_32);
+BUILTIN(caml_sse_vec128_movemask_32);
+
+#include <float.h>
+#include <math.h>
+
+int32_t int32_of_float(float f) {
+  return *(int32_t*)&f;
+}
+float float_of_int32(int32_t i) {
+  return *(float*)&i;
+}
+
+int32_t float32_zero(value unit) { return int32_of_float(0.0f); }
+int32_t float32_neg_zero(value unit) { return int32_of_float(-0.0f); }
+int32_t float32_one(value unit) { return int32_of_float(1.0f); }
+int32_t float32_neg_one(value unit) { return int32_of_float(-1.0f); }
+int32_t float32_nan(value unit) { return int32_of_float(NAN); }
+int32_t float32_neg_infinity(value unit) { return int32_of_float(-INFINITY); }
+int32_t float32_infinity(value unit) { return int32_of_float(INFINITY); }
+int32_t float32_maxv(value unit) { return int32_of_float(FLT_MAX); }
+int32_t float32_minv(value unit) { return int32_of_float(FLT_MIN); }
+value float32_eq(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) == float_of_int32(r)); }
+value float32_lt(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) < float_of_int32(r)); }
+value float32_le(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) <= float_of_int32(r)); }
+value float32_ne(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) != float_of_int32(r)); }
+value float32_nle(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) <= float_of_int32(r))); }
+value float32_nlt(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) < float_of_int32(r))); }
+value float32_ord(int32_t l, int32_t r) { return Val_bool(!(isnan(float_of_int32(l)) || isnan(float_of_int32(r)))); }
+value float32_uord(int32_t l, int32_t r) { return Val_bool(isnan(float_of_int32(l)) || isnan(float_of_int32(r))); }
+
+#define FLOAT32_BINOP(name, intrin)              \
+  int32_t float32_##name(int32_t l, int32_t r) { \
+    __m128 vl = _mm_set1_ps(float_of_int32(l));  \
+    __m128 vr = _mm_set1_ps(float_of_int32(r));  \
+    return _mm_extract_ps(intrin(vl, vr), 0);    \
+  }
+
+#define FLOAT32_UNOP(name, intrin)             \
+  int32_t float32_##name(int32_t f) {          \
+    __m128 v = _mm_set1_ps(float_of_int32(f)); \
+    return _mm_extract_ps(intrin(v), 0);       \
+  }
+
+FLOAT32_BINOP(add, _mm_add_ps);
+FLOAT32_BINOP(sub, _mm_sub_ps);
+FLOAT32_BINOP(mul, _mm_mul_ps);
+FLOAT32_BINOP(div, _mm_div_ps);
+FLOAT32_BINOP(min, _mm_min_ps);
+FLOAT32_BINOP(max, _mm_max_ps);
+
+FLOAT32_UNOP(sqrt, _mm_sqrt_ps);
+FLOAT32_UNOP(rcp, _mm_rcp_ps);
+FLOAT32_UNOP(rsqrt, _mm_rsqrt_ps);

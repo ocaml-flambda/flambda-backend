@@ -432,6 +432,7 @@ let init () = ()
 let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
+  | Cvectorcast _ | Cscalarcast _
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _

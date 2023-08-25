@@ -698,8 +698,8 @@ let add_vec128_constant bits =
     lbl
 
 let emit_vec128_constant {high; low} lbl =
-  _label (emit_label lbl);
   (* SIMD vectors respect little-endian byte order *)
+  _label (emit_label lbl);
   D.qword (Const low);
   D.qword (Const high)
 
@@ -907,6 +907,38 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.lock_cmpxchg src dst;
     I.set E res8;
     I.movzx res8 res
+
+let emit_simd_instr op i =
+  (match Simd_selection.register_behavior op with
+  | RM_to_R ->
+    assert (Reg.is_reg i.res.(0))
+  | R_to_R ->
+    assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.res.(0))
+  | R_RM_to_fst ->
+    assert (arg i 0 = res i 0);
+    assert (Reg.is_reg i.arg.(0))
+  | R_R_to_fst ->
+    assert (arg i 0 = res i 0);
+    assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1)));
+  match (op : Simd.operation) with
+  | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
+  | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
+  | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)
+  | SSE Mul_f32 -> I.mulps (arg i 1) (res i 0)
+  | SSE Div_f32 -> I.divps (arg i 1) (res i 0)
+  | SSE Max_f32 -> I.maxps (arg i 1) (res i 0)
+  | SSE Min_f32 -> I.minps (arg i 1) (res i 0)
+  | SSE Rcp_f32 -> I.rcpps (arg i 0) (res i 0)
+  | SSE Sqrt_f32 -> I.sqrtps (arg i 0) (res i 0)
+  | SSE Rsqrt_f32 -> I.rsqrtps (arg i 0) (res i 0)
+  | SSE High_64_to_low_64 -> I.movhlps (arg i 1) (res i 0)
+  | SSE Low_64_to_high_64 -> I.movlhps (arg i 1) (res i 0)
+  | SSE Interleave_high_32 -> I.unpckhps (arg i 1) (res i 0)
+  | SSE Interleave_low_32 -> I.unpcklps (arg i 1) (res i 0)
+  | SSE Movemask_32 -> I.movmskps (arg i 0) (res i 0)
+  | SSE (Shuffle_32 n) -> I.shufps n (arg i 1) (res i 0)
+  | SSE42 Crc32_64 -> I.crc32 (arg i 1) (res i 0)
+  | _ -> .
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -1182,8 +1214,40 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
-  | Lop(Iintofvalue | Ivalueofint) ->
+  | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
+      I.movsd (arg i 0) (res i 0)
+  | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->
+      I.movq (arg i 0) (res i 0)
+  | Lop(Iscalarcast (V128_to_scalar Int32x4)) ->
+      I.movd (arg i 0) (res32 i 0)
+  | Lop(Iscalarcast (V128_of_scalar Int32x4)) ->
+      I.movd (arg32 i 0) (res i 0)
+  | Lop(Iscalarcast (V128_of_scalar Float32x4)) ->
+      (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
+      I.cvtsd2ss (arg i 0) (res i 0)
+  | Lop(Iscalarcast (V128_to_scalar Float32x4)) ->
+      (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
+      I.cvtss2sd (arg i 0) (res i 0)
+  | Lop(Iscalarcast (V128_to_scalar Int16x8)) ->
+      (* [movw] and [movzx] cannot operate on vector registers.
+         We must zero extend as the result is an untagged positive int.
+         CR mslater: (SIMD) remove zx once we have unboxed int16 *)
+      I.movd (arg i 0) (res32 i 0);
+      I.movzx (res16 i 0) (res i 0)
+  | Lop(Iscalarcast (V128_to_scalar Int8x16)) ->
+      (* [movb] and [movzx] cannot operate on vector registers.
+         We must zero extend as the result is an untagged positive int.
+         CR mslater: (SIMD) remove zx once we have unboxed int8 *)
+      I.movd (arg i 0) (res32 i 0);
+      I.movzx (res8 i 0) (res i 0)
+  | Lop(Iscalarcast (V128_of_scalar Int16x8 | V128_of_scalar Int8x16)) ->
+      (* [movw] and [movb] cannot operate on vector registers.
+         Moving 32 bits is OK because the argument is an untagged
+         positive int and these operations leave the top bits of the vector unspecified.
+         CR mslater: (SIMD) don't load 32 bits once we have unboxed int16/int8 *)
+      I.movd (arg32 i 0) (res i 0)
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->
@@ -1297,9 +1361,8 @@ let emit_instr fallthrough i =
     I.sfence ()
   | Lop (Ispecific Imfence) ->
     I.mfence ()
-  | Lop (Ispecific Icrc32q) ->
-    assert (arg i 0 = res i 0);
-    I.crc32 (arg i 1) (res i 0)
+  | Lop (Ispecific (Isimd op)) ->
+    emit_simd_instr op i
   | Lop (Ispecific Ipause) ->
     I.pause ()
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->
