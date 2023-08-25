@@ -2066,6 +2066,17 @@ and n_ary_function_expr
           function_params_then_body
             ctxt f params constraint_ body ~delimiter:"->")
 
+(******************************************************************************)
+(* All exported functions must be defined or redefined below here and wrapped in
+   [export_printer] in order to ensure they are invariant with respecto which
+   language extensions are enabled. *)
+
+let Language_extension.For_pprintast.{ print_with_maximal_extensions } =
+  Language_extension.For_pprintast.make_printer_exporter ()
+
+let print_reset_with_maximal_extensions f =
+  print_with_maximal_extensions (f reset_ctxt)
+
 let toplevel_phrase f x =
   match x with
   | Ptop_def (s) ->pp f "@[<hov0>%a@]"  (list (structure_item reset_ctxt)) s
@@ -2077,8 +2088,12 @@ let toplevel_phrase f x =
   | Ptop_dir {pdir_name; pdir_arg = Some pdir_arg; _} ->
    pp f "@[<hov2>#%s@ %a@]" pdir_name.txt directive_argument pdir_arg
 
+let toplevel_phrase = print_with_maximal_extensions toplevel_phrase
+
 let expression f x =
   pp f "@[%a@]" (expression reset_ctxt) x
+
+let expression = print_with_maximal_extensions expression
 
 let string_of_expression x =
   ignore (flush_str_formatter ()) ;
@@ -2086,10 +2101,12 @@ let string_of_expression x =
   expression f x;
   flush_str_formatter ()
 
+let structure = print_reset_with_maximal_extensions structure
+
 let string_of_structure x =
   ignore (flush_str_formatter ());
   let f = str_formatter in
-  structure reset_ctxt f x;
+  structure f x;
   flush_str_formatter ()
 
 let top_phrase f x =
@@ -2098,19 +2115,20 @@ let top_phrase f x =
   pp f ";;";
   pp_print_newline f ()
 
-let core_type = core_type reset_ctxt
-let pattern = pattern reset_ctxt
-let signature = signature reset_ctxt
-let structure = structure reset_ctxt
-let module_expr = module_expr reset_ctxt
-let module_type = module_type reset_ctxt
-let class_field = class_field reset_ctxt
-let class_type_field = class_type_field reset_ctxt
-let class_expr = class_expr reset_ctxt
-let class_type = class_type reset_ctxt
-let class_signature = class_signature reset_ctxt
-let structure_item = structure_item reset_ctxt
-let signature_item = signature_item reset_ctxt
-let binding = binding reset_ctxt
-let payload = payload reset_ctxt
-let type_declaration = type_declaration reset_ctxt
+let longident = print_with_maximal_extensions longident
+let core_type = print_reset_with_maximal_extensions core_type
+let pattern = print_reset_with_maximal_extensions pattern
+let signature = print_reset_with_maximal_extensions signature
+let module_expr = print_reset_with_maximal_extensions module_expr
+let module_type = print_reset_with_maximal_extensions module_type
+let class_field = print_reset_with_maximal_extensions class_field
+let class_type_field = print_reset_with_maximal_extensions class_type_field
+let class_expr = print_reset_with_maximal_extensions class_expr
+let class_type = print_reset_with_maximal_extensions class_type
+let class_signature = print_reset_with_maximal_extensions class_signature
+let structure_item = print_reset_with_maximal_extensions structure_item
+let signature_item = print_reset_with_maximal_extensions signature_item
+let binding = print_reset_with_maximal_extensions binding
+let payload = print_reset_with_maximal_extensions payload
+let type_declaration = print_reset_with_maximal_extensions type_declaration
+
