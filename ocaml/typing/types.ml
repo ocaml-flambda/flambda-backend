@@ -332,6 +332,16 @@ type module_presence =
   | Mp_present
   | Mp_absent
 
+module Aliasability = struct
+  type t = Not_aliasable | Aliasable
+
+  let aliasable b = if b then Aliasable else Not_aliasable
+
+  let is_aliasable = function
+    | Aliasable -> true
+    | Not_aliasable -> false
+end
+
 module type Wrap = sig
   type 'a t
 end
@@ -352,6 +362,8 @@ module type Wrapped = sig
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
+  | Mty_strengthen of module_type * Path.t * Aliasability.t
+      (* See comments about the aliasability of strengthening in mtype.ml *)
 
   and functor_parameter =
   | Unit
@@ -408,6 +420,8 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
     | Mty_functor (parm,mty) ->
         To.Mty_functor (functor_parameter m parm, module_type m mty)
     | Mty_signature sg -> To.Mty_signature (signature m sg)
+    | Mty_strengthen (mty,p,aliasable) ->
+        To.Mty_strengthen (module_type m mty, p, aliasable)
 
   and functor_parameter m = function
       | Unit -> To.Unit

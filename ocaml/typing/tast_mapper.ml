@@ -530,6 +530,8 @@ let module_type sub x =
         )
     | Tmty_typeof mexpr ->
         Tmty_typeof (sub.module_expr sub mexpr)
+    | Tmty_strengthen (mtype, p, lid) ->
+        Tmty_strengthen (sub.module_type sub mtype, p, lid)
   in
   {x with mty_desc; mty_env}
 

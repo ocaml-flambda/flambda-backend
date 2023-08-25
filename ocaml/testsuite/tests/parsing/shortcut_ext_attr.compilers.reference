@@ -73,6 +73,8 @@
                             expression (shortcut_ext_attr.ml[14,294+3]..[14,294+24])
                               attribute "foo"
                                 []
+                              attribute "jane.erasable._builtin"
+                                []
                               Pexp_fun
                               Nolabel
                               None
@@ -91,6 +93,8 @@
                               Pstr_eval
                               expression (shortcut_ext_attr.ml[15,322+3]..[15,322+29])
                                 attribute "foo"
+                                  []
+                                attribute "jane.erasable._builtin"
                                   []
                                 Pexp_function
                                 [

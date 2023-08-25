@@ -6,6 +6,8 @@
         pattern 
           Ppat_var "fib" 
         expression 
+          attribute "jane.erasable._builtin"
+            []
           Pexp_function
           [
             <case>
