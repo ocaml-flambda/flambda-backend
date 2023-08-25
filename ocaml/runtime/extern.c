@@ -1187,13 +1187,18 @@ static void add_to_long_value(value *v, intnat x) {
    from the current root and can be reached by at most one root from the ones
    that already ran.
 
+   [shared_size] is incremented by the total size of elements that were newly
+   marked [Shared], that is ones that we just found out are reachable from at least
+   two roots.
+
    If [sizes_by_root_id] is not [Val_unit], we expect it to be an OCaml array
    with length equal to the number of roots. Then during the traversal we will
    update the number of words uniquely reachable from each root.
    That is, when we visit a node for the first time, we add its size to the
    corresponding root identifier, and when we visit it for the second time, we
    undo this addition. */
-intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_id) {
+intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_id,
+    intnat *shared_size) {
   CAMLassert(identifier >= 0);
   struct extern_item * sp;
   intnat size;
@@ -1261,6 +1266,7 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
              * as contributing to. Since it is evidently not uniquely reachable, we
              * undo this contribution */
             add_to_long_value(&Field(sizes_by_root_id, mark), -sz_with_header);
+            *shared_size += sz_with_header;
           } else {
             CAMLassert(new_mark == identifier || (v == root && new_mark == RootProcessed));
             add_to_long_value(&Field(sizes_by_root_id, identifier), sz_with_header);
@@ -1319,9 +1325,11 @@ CAMLprim value caml_obj_reachable_words(value v)
   CAMLparam1(v);
   CAMLlocal1(size);
 
+  intnat shared_size = 0;
+
   reachable_words_init();
   reachable_words_mark_root(v);
-  size = Val_long(reachable_words_once(v, 0, Val_unit));
+  size = Val_long(reachable_words_once(v, 0, Val_unit, &shared_size));
   reachable_words_cleanup();
 
   CAMLreturn(size);
@@ -1330,12 +1338,13 @@ CAMLprim value caml_obj_reachable_words(value v)
 CAMLprim value caml_obj_uniquely_reachable_words(value v)
 {
   CAMLparam1(v);
-  CAMLlocal1(sizes_by_root_id);
+  CAMLlocal2(sizes_by_root_id, ret);
 
-  intnat length;
+  intnat length, shared_size;
 
   length = Wosize_val(v);
   sizes_by_root_id = caml_alloc(length, 0);
+  shared_size = 0;
 
   reachable_words_init();
   for (intnat i = 0; i < length; i++) {
@@ -1343,9 +1352,12 @@ CAMLprim value caml_obj_uniquely_reachable_words(value v)
     Field(sizes_by_root_id, i) = Val_int(0);
   }
   for (intnat i = 0; i < length; i++) {
-    reachable_words_once(Field(v, i), i, sizes_by_root_id);
+    reachable_words_once(Field(v, i), i, sizes_by_root_id, &shared_size);
   }
   reachable_words_cleanup();
 
-  CAMLreturn(sizes_by_root_id);
+  ret = caml_alloc_small(2, 0);
+  Field(ret, 0) = sizes_by_root_id;
+  Field(ret, 1) = Val_long(shared_size);
+  CAMLreturn(ret);
 }

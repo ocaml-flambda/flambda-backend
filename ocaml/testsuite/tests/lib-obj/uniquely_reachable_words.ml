@@ -7,8 +7,9 @@ let native =
   | Sys.Bytecode -> false
   | Sys.Other s -> print_endline s; assert false
 
-let sizes xs = Obj.uniquely_reachable_words (List.map Obj.repr xs |> Array.of_list)
-  |> Array.to_list
+let sizes xs =
+  let individual, shared = Obj.uniquely_reachable_words (List.map Obj.repr xs |> Array.of_list) in
+  Array.to_list individual, shared
 
 (* We make object with id i have size about 100 * 2 ** i which allows us to
  * (approximately) deduce the reachable node ids just from the their total size. *)
@@ -24,13 +25,16 @@ let deduce_reachable size =
   done;
   List.rev !reachable
 
-let expect_reachable roots expected :unit=
-  let actual = sizes roots in
-  List.combine (List.map deduce_reachable actual) expected
-  |> List.iter (fun (a, e) ->
-    if List.(a <> e) then
-      let string_of_arr x = List.map string_of_int x |> String.concat "," in
-      Printf.printf "actual = %s; expected = %s\n" (string_of_arr a) (string_of_arr e))
+let expect_equal_list a e =
+  let string_of_arr x = List.map string_of_int x |> String.concat "," in
+  if List.(a <> e) then
+    Printf.printf "actual = %s; expected = %s\n" (string_of_arr a) (string_of_arr e)
+
+let expect_reachable roots expected_individual expected_shared =
+  let actual_individual, actual_shared = sizes roots in
+  List.combine (List.map deduce_reachable actual_individual) expected_individual
+  |> List.iter (fun (a, e) -> expect_equal_list a e);
+  expect_equal_list (deduce_reachable actual_shared) expected_shared
 
 type node = { id: int; used_memory: int array; mutable children: node list }
 let make id ch = { id; used_memory = Array.make (Int.shift_left 100 id) 0; children = ch }
@@ -65,33 +69,33 @@ let[@inline never] f () =
    *   /-> 12 >--\
    * 11 -> 13 >- 14
    *)
-  expect_reachable [n0; n1; n2] [[0]; [1; 10]; [2; 4; 6; 7; 8]]; (* Proper roots *)
-  expect_reachable [n0; n2; n1] [[0]; [2; 4; 6; 7; 8]; [1; 10]]; (* check permutation doesn't matter *)
-  expect_reachable [n1; n0; n2] [[1; 10]; [0]; [2; 4; 6; 7; 8]];
-  expect_reachable [n1; n2; n0] [[1; 10]; [2; 4; 6; 7; 8]; [0]];
-  expect_reachable [n2; n0; n1] [[2; 4; 6; 7; 8]; [0]; [1; 10]];
-  expect_reachable [n2; n1; n0] [[2; 4; 6; 7; 8]; [1; 10]; [0]];
-  expect_reachable [n1; n2] [[1; 5; 9; 10]; [2; 3; 4; 6; 7; 8]];
-  expect_reachable [n0; n2] [[0; 5; 9]; [2; 4; 6; 7; 8]];
-  expect_reachable [n0; n1] [[0; 3]; [1; 10]];
+  expect_reachable [n0; n1; n2] [[0]; [1; 10]; [2; 4; 6; 7; 8]] [3; 5; 9]; (* Proper roots *)
+  expect_reachable [n0; n2; n1] [[0]; [2; 4; 6; 7; 8]; [1; 10]] [3; 5; 9]; (* check permutation doesn't matter *)
+  expect_reachable [n1; n0; n2] [[1; 10]; [0]; [2; 4; 6; 7; 8]] [3; 5; 9];
+  expect_reachable [n1; n2; n0] [[1; 10]; [2; 4; 6; 7; 8]; [0]] [3; 5; 9];
+  expect_reachable [n2; n0; n1] [[2; 4; 6; 7; 8]; [0]; [1; 10]] [3; 5; 9];
+  expect_reachable [n2; n1; n0] [[2; 4; 6; 7; 8]; [1; 10]; [0]] [3; 5; 9];
+  expect_reachable [n1; n2] [[1; 5; 9; 10]; [2; 3; 4; 6; 7; 8]] [];
+  expect_reachable [n0; n2] [[0; 5; 9]; [2; 4; 6; 7; 8]] [3];
+  expect_reachable [n0; n1] [[0; 3]; [1; 10]] [5; 9];
 
-  expect_reachable [n6; n7] [[6]; [7]]; (* Cycles between roots *)
-  expect_reachable [n6; n7; n2] [[6]; [7]; [2; 3; 4]];
-  expect_reachable [n6; n7; n8] [[6]; [7]; [8]];
+  expect_reachable [n6; n7] [[6]; [7]] [8]; (* Cycles between roots *)
+  expect_reachable [n6; n7; n2] [[6]; [7]; [2; 3; 4]] [8];
+  expect_reachable [n6; n7; n8] [[6]; [7]; [8]] [];
 
-  expect_reachable [n5; n9] [[5]; [9]]; (* Root is parent of another root *)
-  expect_reachable [n5; n9; n3] [[5]; [9]; [3]];
-  expect_reachable [n5; n9; n3; n0] [[5]; [9]; [3]; [0]];
-  expect_reachable [n1; n10; n5] [[1]; [10]; [5; 9]];
+  expect_reachable [n5; n9] [[5]; [9]] []; (* Root is parent of another root *)
+  expect_reachable [n5; n9; n3] [[5]; [9]; [3]] [];
+  expect_reachable [n5; n9; n3; n0] [[5]; [9]; [3]; [0]] [];
+  expect_reachable [n1; n10; n5] [[1]; [10]; [5; 9]] [];
 
-  expect_reachable [n12; n13] [[12]; [13]]; (* Multiple owners *)
-  expect_reachable [n12; n13; n14] [[12]; [13]; [14]];
-  expect_reachable [n11; n12] [[11; 13]; [12]];
-  expect_reachable [n12; n11] [[12]; [11; 13]];
-  expect_reachable [n11; n12; n13] [[11]; [12]; [13]];
-  expect_reachable [n11] [[11; 12; 13; 14]];
+  expect_reachable [n12; n13] [[12]; [13]] [14]; (* Multiple owners *)
+  expect_reachable [n12; n13; n14] [[12]; [13]; [14]] [];
+  expect_reachable [n11; n12] [[11; 13]; [12]] [14];
+  expect_reachable [n12; n11] [[12]; [11; 13]] [14];
+  expect_reachable [n11; n12; n13] [[11]; [12]; [13]] [14];
+  expect_reachable [n11] [[11; 12; 13; 14]] [];
 
-  expect_reachable [n8; n9; n10] [[8]; [9]; [10]]; (* Leaves *)
+  expect_reachable [n8; n9; n10] [[8]; [9]; [10]] []; (* Leaves *)
 
   ()
 
