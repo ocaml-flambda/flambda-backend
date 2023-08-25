@@ -307,7 +307,7 @@ end
 
 module For_pprintast = struct
   type printer_exporter =
-    { export_printer :
+    { print_with_maximal_extensions :
         'a. (Format.formatter -> 'a -> unit) -> (Format.formatter -> 'a -> unit)
     }
 
@@ -316,7 +316,7 @@ module For_pprintast = struct
   let make_printer_exporter () =
     if !can_still_define_printers then begin
       can_still_define_printers := false;
-      { export_printer = fun pp fmt item ->
+      { print_with_maximal_extensions = fun pp fmt item ->
           with_temporary_extensions (fun () ->
             (* It's safe to call this here without validating that the
                extensions are enabled, because the [Pprintast] printers should

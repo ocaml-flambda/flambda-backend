@@ -116,14 +116,14 @@ val disallow_extensions : unit -> unit
 
 (** Special functionality that can only be used in "pprintast.ml" *)
 module For_pprintast : sig
-  (** A fully-polymorphic function that can wrap printers from "pprintast.ml" *)
+  (** A function for wrapping a printer from "pprintast.ml" so that it will
+      unconditionally print Jane Syntax instead of raising an exception when
+      trying to print syntax from disabled extensions. *)
   type printer_exporter =
-    { export_printer :
+    { print_with_maximal_extensions :
         'a. (Format.formatter -> 'a -> unit) -> (Format.formatter -> 'a -> unit)
     }
 
-  (** Wrap a printer from "pprintast.ml" so that it will unconditionally print
-      Jane syntax, and will not raise an exception.  Raises if called more than
-      once ever. *)
+  (** Raises if called more than once ever. *)
   val make_printer_exporter : unit -> printer_exporter
 end
