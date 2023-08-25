@@ -76,6 +76,15 @@ module Example = struct
                          }
 end
 
+let print_test_header name =
+  Format.printf "##### %s@;%s@." name (String.make 32 '-')
+;;
+
+let print_test_separator () =
+  Format.printf "@.%s@.@."
+    (String.init 75 (fun i -> if i mod 2 = 0 then '*' else ' '))
+;;
+
 module type Test = sig
   val name : string
   val setup : unit -> unit
@@ -108,7 +117,7 @@ end = struct
   ;;
 
   let () =
-    Format.printf "##### %s@;%s@." Test.name (String.make 32 '-');
+    print_test_header Test.name;
     Test.setup ()
   ;;
 
@@ -137,11 +146,6 @@ end = struct
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
 end
 
-let print_test_separator () =
-  Format.printf "@.%s@.@."
-    (String.init 65 (fun i -> if i mod 2 = 0 then '*' else ' '))
-;;
-
 
 (******************************************************************************)
 (* Tests *)
@@ -166,4 +170,20 @@ module _ =
       let setup () = Language_extension.disallow_extensions ()
     end)
     ()
+;;
+
+let () = print_test_separator ();;
+
+(* Can't call [Language_extension.For_pprintast.make_printer_exporter]. *)
+let () =
+  print_test_header
+    "Calling [Language_extension.For_pprintast.make_printer_exporter ()]";
+  Format.print_newline ();
+  begin match Language_extension.For_pprintast.make_printer_exporter () with
+  | _ ->
+    Format.printf "INCORRECT SUCCESS"
+  | exception Misc.Fatal_error ->
+    Format.printf "Correctly raised a fatal error"
+  end;
+  Format.print_newline ()
 ;;

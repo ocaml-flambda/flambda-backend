@@ -2066,6 +2066,14 @@ and n_ary_function_expr
           function_params_then_body
             ctxt f params constraint_ body ~delimiter:"->")
 
+(******************************************************************************)
+(* All exported functions must be defined or redefined below here and wrapped in
+   [export_printer] in order to ensure they are invariant with respecto which
+   language extensions are enabled. *)
+
+let Language_extension.For_pprintast.{ export_printer } =
+  Language_extension.For_pprintast.make_printer_exporter ()
+
 let toplevel_phrase f x =
   match x with
   | Ptop_def (s) ->pp f "@[<hov0>%a@]"  (list (structure_item reset_ctxt)) s
@@ -2077,8 +2085,12 @@ let toplevel_phrase f x =
   | Ptop_dir {pdir_name; pdir_arg = Some pdir_arg; _} ->
    pp f "@[<hov2>#%s@ %a@]" pdir_name.txt directive_argument pdir_arg
 
+let toplevel_phrase = export_printer toplevel_phrase
+
 let expression f x =
   pp f "@[%a@]" (expression reset_ctxt) x
+
+let expression = export_printer expression
 
 let string_of_expression x =
   ignore (flush_str_formatter ()) ;
@@ -2086,10 +2098,12 @@ let string_of_expression x =
   expression f x;
   flush_str_formatter ()
 
+let structure = export_printer (structure reset_ctxt)
+
 let string_of_structure x =
   ignore (flush_str_formatter ());
   let f = str_formatter in
-  structure reset_ctxt f x;
+  structure f x;
   flush_str_formatter ()
 
 let top_phrase f x =
@@ -2098,19 +2112,19 @@ let top_phrase f x =
   pp f ";;";
   pp_print_newline f ()
 
-let core_type = core_type reset_ctxt
-let pattern = pattern reset_ctxt
-let signature = signature reset_ctxt
-let structure = structure reset_ctxt
-let module_expr = module_expr reset_ctxt
-let module_type = module_type reset_ctxt
-let class_field = class_field reset_ctxt
-let class_type_field = class_type_field reset_ctxt
-let class_expr = class_expr reset_ctxt
-let class_type = class_type reset_ctxt
-let class_signature = class_signature reset_ctxt
-let structure_item = structure_item reset_ctxt
-let signature_item = signature_item reset_ctxt
-let binding = binding reset_ctxt
-let payload = payload reset_ctxt
-let type_declaration = type_declaration reset_ctxt
+let longident = export_printer longident
+let core_type = export_printer (core_type reset_ctxt)
+let pattern = export_printer (pattern reset_ctxt)
+let signature = export_printer (signature reset_ctxt)
+let module_expr = export_printer (module_expr reset_ctxt)
+let module_type = export_printer (module_type reset_ctxt)
+let class_field = export_printer (class_field reset_ctxt)
+let class_type_field = export_printer (class_type_field reset_ctxt)
+let class_expr = export_printer (class_expr reset_ctxt)
+let class_type = export_printer (class_type reset_ctxt)
+let class_signature = export_printer (class_signature reset_ctxt)
+let structure_item = export_printer (structure_item reset_ctxt)
+let signature_item = export_printer (signature_item reset_ctxt)
+let binding = export_printer (binding reset_ctxt)
+let payload = export_printer (payload reset_ctxt)
+let type_declaration = export_printer (type_declaration reset_ctxt)

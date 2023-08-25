@@ -103,11 +103,27 @@ val with_disabled : 'a t -> (unit -> unit) -> unit
     way. *)
 val restrict_to_erasable_extensions : unit -> unit
 
-(** Permanently ban all extensions; used for [-disable-all-extensions] to
-    ensure that some code is 100% extension-free.  When called, disables any
+(** Permanently ban all extensions; used for [-disable-all-extensions] to ensure
+    that some code is 100% extension-free.  When called, disables any
     currently-enabled extensions, including the defaults.  Causes any future
-    uses of [set ~enabled:true], [enable], and their [with_] variants to
-    raise; also causes any future uses of [only_erasable_extensions] to raise.
+    uses of [set ~enabled:true], [enable], and their [with_] variants to raise;
+    also causes any future uses of [restrict_to_erasable_extensions] to raise.
     The [is_enabled] function will still work, it will just always return
     [false].*)
 val disallow_extensions : unit -> unit
+
+(**/**)
+
+(** Special functionality that can only be used in "pprintast.ml" *)
+module For_pprintast : sig
+  (** A fully-polymorphic function that can wrap printers from "pprintast.ml" *)
+  type printer_exporter =
+    { export_printer :
+        'a. (Format.formatter -> 'a -> unit) -> (Format.formatter -> 'a -> unit)
+    }
+
+  (** Wrap a printer from "pprintast.ml" so that it will unconditionally print
+      Jane syntax, and will not raise an exception.  Raises if called more than
+      once ever. *)
+  val make_printer_exporter : unit -> printer_exporter
+end
