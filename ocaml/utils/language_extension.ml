@@ -230,7 +230,7 @@ let disable_of_string_exn extn_name = match pair_of_string_exn extn_name with
 let disable_all () =
   extensions := []
 
-let unsafe_unconditionally_enable_maximal () =
+let unconditionally_enable_maximal_without_checks () =
   let maximal_pair (Pack extn) =
     let (module Ops) = get_level_ops extn in
     Pair (extn, Ops.max_value)
@@ -240,7 +240,7 @@ let unsafe_unconditionally_enable_maximal () =
 let enable_maximal () =
   Universe.check_maximal ();
   (* It's safe to call this here because we've confirmed that we can. *)
-  unsafe_unconditionally_enable_maximal ()
+  unconditionally_enable_maximal_without_checks ()
 
 let restrict_to_erasable_extensions () =
   let changed = Universe.set Only_erasable in
@@ -321,7 +321,7 @@ module For_pprintast = struct
             (* It's safe to call this here without validating that the
                extensions are enabled, because the [Pprintast] printers should
                always print Jane syntax. *)
-            unsafe_unconditionally_enable_maximal ();
+            unconditionally_enable_maximal_without_checks ();
             pp fmt item)
       }
     end else
