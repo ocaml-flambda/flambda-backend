@@ -6,6 +6,9 @@ let split_debug = false
 
 let split_live_ranges : bool Lazy.t = bool_of_param "SPLIT_LIVE_RANGES"
 
+let split_more_destruction_points : bool Lazy.t =
+  bool_of_param "SPLIT_MORE_DESTR_POINTS"
+
 let bool_of_param param_name =
   bool_of_param ~guard:(split_debug, "split_debug") param_name
 
@@ -80,7 +83,8 @@ type destruction_kind =
 
 let destruction_point_at_end : Cfg.basic_block -> destruction_kind option =
  fun block ->
-  if Proc.is_destruction_point block.terminator.desc
+  let more_destruction_points = Lazy.force split_more_destruction_points in
+  if Proc.is_destruction_point ~more_destruction_points block.terminator.desc
   then Some Destruction_on_all_paths
   else if Option.is_none block.exn
   then None
