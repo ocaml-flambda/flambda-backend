@@ -765,6 +765,10 @@ let a, b, c, a', b', c' =
   FU.to_float r'.b,
   FU.to_float r'.c
 
+let f14_4 r =
+  let {x; y} = r in
+  FU.add x y
+
 
 [%%expect{|
 module FU = Stdlib__Float_u
@@ -782,4 +786,5 @@ val c : float = 27.7
 val a' : float = 42.
 val b' : float = 20.
 val c' : float = 3.1
+val f14_4 : t14_1 -> float# = <fun>
 |}]

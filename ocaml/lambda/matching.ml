@@ -3823,14 +3823,14 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
-      let catch_ids = pat_bound_idents_with_types pat in
+      let catch_ids = pat_bound_idents_full arg_sort pat in
       let ids_with_kinds =
         List.map
-          (fun (id, typ) ->
-             (id, Typeopt.layout pat.pat_env pat.pat_loc arg_sort typ))
+          (fun (id, _, typ, sort) ->
+             (id, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
           catch_ids
       in
-      let ids = List.map (fun (id, _) -> id) catch_ids in
+      let ids = List.map (fun (id, _, _, _) -> id) catch_ids in
       let bind =
         map_return (assign_pat ~scopes return_layout opt nraise ids loc pat
                       arg_sort)
