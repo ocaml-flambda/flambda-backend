@@ -51,10 +51,7 @@ module Section_name = struct
 
     let is_text_like t = String.starts_with ~prefix:".text" t.name_str
     let is_data_like t = String.starts_with ~prefix:".data" t.name_str
-    (* An error was being thrown because the .note.stapsdt section
-       had the wrong sh_type. It may be appropriate to change this to
-       isprefix ".note" t.name_str, but not sure *)
-    let is_note_like t = t.name_str = ".note.stapsdt"
+    let is_note_like t = String.starts_with ~prefix:".note" t.name_str
   end
   include S
   module Map = Map.Make (S)
