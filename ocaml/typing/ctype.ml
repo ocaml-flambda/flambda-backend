@@ -5348,6 +5348,11 @@ let rec build_subtype env (visited : transient_expr list)
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
         if level > 2 then begin
+          (* If posi, then t1' >= t1, and we pick t1; otherwise we pick t1'. In
+            either case we pick the smaller type which is the "real" type of
+            runtime values, and easier to cross modes (and thus making the
+            mode-crossing more complete). *)
+          let t1 = if posi then t1 else t1' in
           if is_always_global env t1 then
             Mode.Alloc.newvar (), Changed
           else
