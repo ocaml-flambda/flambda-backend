@@ -2114,6 +2114,9 @@ let unification_layout_check env ty layout =
   | Delay_checks r -> r := (ty,layout) :: !r
   | Skip_checks -> ()
 
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
+
 let is_always_global env ty =
   let perform_check () =
     Result.is_ok (check_type_layout env ty
@@ -2128,6 +2131,9 @@ let is_always_global env ty =
     result
   else
     perform_check ()
+
+let mode_cross env (ty : type_expr) =
+  is_principal ty && is_always_global env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
@@ -5341,7 +5347,17 @@ let rec build_subtype env (visited : transient_expr list)
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
-        if level > 2 then build_submode (not posi) a else a, Unchanged
+        if level > 2 then begin
+          (* If posi, then t1' >= t1, and we pick t1; otherwise we pick t1'. In
+            either case we pick the smaller type which is the "real" type of
+            runtime values, and easier to cross modes (and thus making the
+            mode-crossing more complete). *)
+          let t1 = if posi then t1 else t1' in
+          if is_always_global env t1 then
+            Mode.Alloc.newvar (), Changed
+          else
+            build_submode (not posi) a
+          end else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged
@@ -5557,7 +5573,10 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        subtype_alloc_mode env trace a2 a1;
+        if not (is_always_global env t2) then
+          subtype_alloc_mode env trace a2 a1;
+        (* RHS mode of arrow types indicates allocation in the parent region
+           and is not subject to mode crossing *)
         subtype_alloc_mode env trace r1 r2;
         subtype_rec
           env

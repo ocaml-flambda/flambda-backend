@@ -709,9 +709,6 @@ let extract_label_names env ty =
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
   | Not_a_record_type | Maybe_a_record_type -> assert false
 
-let is_principal ty =
-  not !Clflags.principal || get_level ty = generic_level
-
 let has_local_attr loc attrs =
   match Builtin_attributes.has_local attrs with
   | Ok l -> l
@@ -732,9 +729,6 @@ let has_poly_constraint spat =
       | _ -> false
     end
   | _ -> false
-
-let mode_cross env (ty : type_expr) =
-  is_principal ty && is_always_global env ty
 
 let mode_cross_to_min env ty mode =
   if mode_cross env ty then
