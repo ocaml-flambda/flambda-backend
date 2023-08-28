@@ -69,6 +69,8 @@ type iterator = {
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
+  constructor_argument_jane_syntax: iterator ->
+    Jane_syntax.Constructor_argument.t -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;
@@ -95,6 +97,16 @@ let iter_loc_txt sub f { loc; txt } =
   sub.location sub loc;
   f sub txt
 
+module CA_jst = struct
+  (* Constructor arguments -- Jane syntax specific *)
+
+  let iter_local sub : Jane_syntax.Local.constructor_argument -> _ = function
+    | Lcarg_global typ -> sub.typ sub typ
+
+  let iter sub : Jane_syntax.Constructor_argument.t -> _ = function
+    | Jcarg_local lcarg -> iter_local sub lcarg
+end
+
 module T = struct
   (* Type expressions for the core language *)
 
@@ -120,6 +132,7 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
+<<<<<<< HEAD
   let layout_annotation sub =
     iter_loc_txt sub sub.layout_annotation
 
@@ -139,6 +152,16 @@ module T = struct
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
     | Jtyp_layout typ -> iter_jst_layout sub typ
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  let iter_jst _sub : Jane_syntax.Core_type.t -> _ = function
+    | _ -> .
+=======
+  let iter_local sub : Jane_syntax.Local.core_type -> _ = function
+    | Ltyp_local ty -> sub.typ sub ty
+
+  let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
+    | Jtyp_local lty -> iter_local sub lty
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
@@ -195,8 +218,16 @@ module T = struct
     | Ptype_record l -> List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
 
+  let iter_constructor_argument sub carg =
+    match Jane_syntax.Constructor_argument.of_ast carg with
+    | Some jcarg ->
+        sub.location sub carg.ptyp_loc;
+        sub.constructor_argument_jane_syntax sub jcarg
+    | None ->
+        sub.typ sub carg
+
   let iter_constructor_arguments sub = function
-    | Pcstr_tuple l -> List.iter (sub.typ sub) l
+    | Pcstr_tuple l -> List.iter (iter_constructor_argument sub) l
     | Pcstr_record l ->
         List.iter (sub.label_declaration sub) l
 
@@ -431,10 +462,16 @@ let iter_constant = ()
 module E = struct
   (* Value expressions for the core language *)
 
+  module L = Jane_syntax.Local
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
+
+  let iter_local_exp sub : L.expression -> _ = function
+    | Lexp_local expr -> sub.expr sub expr
+    | Lexp_exclave expr -> sub.expr sub expr
+    | Lexp_constrain_local expr -> sub.expr sub expr
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -509,6 +546,7 @@ module E = struct
       iter_function_body sub body
 
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
+    | Jexp_local local_exp -> iter_local_exp sub local_exp
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
@@ -607,13 +645,18 @@ end
 module P = struct
   (* Patterns *)
 
+  module L = Jane_syntax.Local
   module IA = Jane_syntax.Immutable_arrays
+
+  let iter_lpat sub : L.pattern -> _ = function
+    | Lpat_local pat -> sub.pat sub pat
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
+    | Jpat_local lpat -> iter_lpat sub lpat
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_layout (Lpat_constant _) -> iter_constant
 
@@ -747,6 +790,7 @@ let default_iterator =
     type_kind = T.iter_type_kind;
     typ = T.iter;
     typ_jane_syntax = T.iter_jst;
+    constructor_argument_jane_syntax = CA_jst.iter;
     row_field = T.row_field;
     object_field = T.object_field;
     type_extension = T.iter_type_extension;
@@ -859,7 +903,7 @@ let default_iterator =
     label_declaration =
       (fun this {pld_name; pld_type; pld_loc; pld_mutable = _; pld_attributes}->
          iter_loc this pld_name;
-         this.typ this pld_type;
+         T.iter_constructor_argument this pld_type;
          this.location this pld_loc;
          this.attributes this pld_attributes
       );

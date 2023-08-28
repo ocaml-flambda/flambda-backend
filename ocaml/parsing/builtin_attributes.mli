@@ -162,12 +162,11 @@ val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
 val has_local_opt: Parsetree.attributes -> bool
-val has_curry: Parsetree.attributes -> bool
+
+val is_explicitly_curried : Parsetree.attributes -> bool
 
 (* These functions report Error if the builtin extension.* attributes
    are present despite the extension being disabled *)
-val has_local: Parsetree.attributes -> (bool,unit) result
-val has_global: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 

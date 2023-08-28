@@ -91,6 +91,8 @@ type mapper = {
   structure_item_jane_syntax: mapper ->
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
+  constructor_argument_jane_syntax: mapper ->
+    Jane_syntax.Constructor_argument.t -> Jane_syntax.Constructor_argument.t
 
 }
 
@@ -115,6 +117,21 @@ module C = struct
     | Pconst_string (s, loc, quotation_delimiter) ->
         let loc = sub.location sub loc in
         Const.string ~loc ?quotation_delimiter s
+end
+
+module CA_jst = struct
+  (* Constructor arguments -- Jane syntax specific *)
+
+  let map_local sub
+    : Jane_syntax.Local.constructor_argument ->
+      Jane_syntax.Local.constructor_argument =
+    function
+    | Lcarg_global typ -> Lcarg_global (sub.typ sub typ)
+
+  let map sub
+    : Jane_syntax.Constructor_argument.t -> Jane_syntax.Constructor_argument.t =
+    function
+    | Jcarg_local lcarg -> Jcarg_local (map_local sub lcarg)
 end
 
 module T = struct
@@ -146,6 +163,7 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
+<<<<<<< HEAD
   let var_layout sub (name, layout_opt) =
     let name = map_loc sub name in
     let layout_opt =
@@ -157,7 +175,17 @@ module T = struct
 
   let map_jst_layouts sub :
         Jane_syntax.Layouts.core_type -> Jane_syntax.Layouts.core_type =
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  let map_jst _sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
+=======
+  let map_local sub
+      : Jane_syntax.Local.core_type -> Jane_syntax.Local.core_type = function
+    | Ltyp_local typ -> Ltyp_local (sub.typ sub typ)
+
+  let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     function
+<<<<<<< HEAD
     | Ltyp_var { name; layout } ->
       let layout = map_loc_txt sub sub.layout_annotation layout in
       Ltyp_var { name; layout }
@@ -173,17 +201,33 @@ module T = struct
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
     | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | _ -> .
+=======
+    | Jtyp_local lty -> Jtyp_local (map_local sub lty)
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
   let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                  as typ) =
     let open Typ in
     let loc = sub.location sub loc in
     match Jane_syntax.Core_type.of_ast typ with
-    | Some (jtyp, attrs) -> begin
+    | Some (jtyp, attrs) ->
         let attrs = sub.attributes sub attrs in
+<<<<<<< HEAD
         let jtyp = sub.typ_jane_syntax sub jtyp in
         Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+        let typ = match sub.typ_jane_syntax sub jtyp with
+          | _ -> .
+        in
+        { typ with ptyp_attributes = attrs @ typ.ptyp_attributes }
+    end
+=======
+        let jtyp  = sub.typ_jane_syntax sub jtyp in
+        Jane_syntax.Core_type.ast_of ~loc (jtyp, attrs)
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
@@ -233,8 +277,18 @@ module T = struct
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
+  let map_constructor_argument sub carg =
+    match Jane_syntax.Constructor_argument.of_ast carg with
+    | Some jcarg ->
+        let loc = sub.location sub carg.ptyp_loc in
+        let jcarg = sub.constructor_argument_jane_syntax sub jcarg in
+        Jane_syntax.Constructor_argument.ast_of ~loc jcarg
+    | None ->
+        sub.typ sub carg
+
   let map_constructor_arguments sub = function
-    | Pcstr_tuple l -> Pcstr_tuple (List.map (sub.typ sub) l)
+    | Pcstr_tuple l ->
+        Pcstr_tuple (List.map (map_constructor_argument sub) l)
     | Pcstr_record l ->
         Pcstr_record (List.map (sub.label_declaration sub) l)
 
@@ -350,8 +404,16 @@ module MT = struct
     match Jane_syntax.Module_type.of_ast mty with
     | Some (jmty, attrs) -> begin
         let attrs = sub.attributes sub attrs in
+<<<<<<< HEAD
         Jane_syntax.Module_type.mty_of ~loc ~attrs
           (sub.module_type_jane_syntax sub jmty)
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+        match sub.module_type_jane_syntax sub jmty with
+        | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc ~attrs smty
+=======
+        let jmty = sub.module_type_jane_syntax sub jmty in
+        Jane_syntax.Module_type.ast_of ~loc (jmty, attrs)
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -400,11 +462,9 @@ module MT = struct
     let open Sig in
     let loc = sub.location sub loc in
     match Jane_syntax.Signature_item.of_ast sigi with
-    | Some jsigi -> begin
-        match sub.signature_item_jane_syntax sub jsigi with
-        | Jsig_include_functor incl ->
-            Jane_syntax.Include_functor.sig_item_of ~loc incl
-    end
+    | Some jsigi ->
+        let jsigi = sub.signature_item_jane_syntax sub jsigi in
+        Jane_syntax.Signature_item.ast_of ~loc jsigi
     | None ->
     match desc with
     | Psig_value vd -> value ~loc (sub.value_description sub vd)
@@ -479,11 +539,9 @@ module M = struct
     let open Str in
     let loc = sub.location sub loc in
     match Jane_syntax.Structure_item.of_ast stri with
-    | Some jstri -> begin
-        match sub.structure_item_jane_syntax sub jstri with
-        | Jstr_include_functor incl ->
-            Jane_syntax.Include_functor.str_item_of ~loc incl
-    end
+    | Some jstri ->
+        let jstri = sub.structure_item_jane_syntax sub jstri in
+        Jane_syntax.Structure_item.ast_of ~loc jstri
     | None ->
     match desc with
     | Pstr_eval (x, attrs) ->
@@ -511,10 +569,16 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
+  module L = Jane_syntax.Local
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
+
+  let map_lexp sub : L.expression -> L.expression = function
+    | Lexp_local expr -> Lexp_local (sub.expr sub expr)
+    | Lexp_exclave expr -> Lexp_exclave (sub.expr sub expr)
+    | Lexp_constrain_local expr -> Lexp_constrain_local (sub.expr sub expr)
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -606,6 +670,7 @@ module E = struct
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
+    | Jexp_local x -> Jexp_local (map_lexp sub x)
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
@@ -616,11 +681,10 @@ module E = struct
     let open Exp in
     let loc = sub.location sub loc in
     match Jane_syntax.Expression.of_ast exp with
-    | Some (jexp, attrs) -> begin
+    | Some (jexp, attrs) ->
         let attrs = sub.attributes sub attrs in
-        Jane_syntax.Expression.expr_of ~loc ~attrs
-          (sub.expr_jane_syntax sub jexp)
-    end
+        let jexp = sub.expr_jane_syntax sub jexp in
+        Jane_syntax.Expression.ast_of ~loc (jexp, attrs)
     | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
@@ -713,8 +777,12 @@ end
 module P = struct
   (* Patterns *)
 
+  module L = Jane_syntax.Local
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
+
+  let map_lpat sub : L.pattern -> L.pattern = function
+    | Lpat_local pat -> Lpat_local (sub.pat sub pat)
 
   let map_iapat sub : IA.pattern -> IA.pattern = function
     | Iapat_immutable_array elts ->
@@ -727,6 +795,7 @@ module P = struct
     | Float _ | Integer _ as x -> x
 
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
+    | Jpat_local x -> Jpat_local (map_lpat sub x)
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
     | Jpat_layout (Lpat_constant x) ->
         Jpat_layout (Lpat_constant (map_unboxed_constant_pat sub x))
@@ -736,10 +805,10 @@ module P = struct
     let open Pat in
     let loc = sub.location sub loc in
     match Jane_syntax.Pattern.of_ast pat with
-    | Some (jpat, attrs) -> begin
+    | Some (jpat, attrs) ->
         let attrs = sub.attributes sub attrs in
-        Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
-    end
+        let jpat = sub.pat_jane_syntax sub jpat in
+        Jane_syntax.Pattern.ast_of ~loc (jpat, attrs)
     | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
@@ -985,7 +1054,7 @@ let default_mapper =
       (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_attributes} ->
          Type.field
            (map_loc this pld_name)
-           (this.typ this pld_type)
+           (T.map_constructor_argument this pld_type)
            ~mut:pld_mutable
            ~loc:(this.location this pld_loc)
            ~attrs:(this.attributes this pld_attributes)
@@ -1031,6 +1100,13 @@ let default_mapper =
     signature_item_jane_syntax = MT.map_signature_item_jst;
     structure_item_jane_syntax = M.map_structure_item_jst;
     typ_jane_syntax = T.map_jst;
+<<<<<<< HEAD
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+
+=======
+    constructor_argument_jane_syntax = CA_jst.map;
+
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   }
 
 let extension_of_error {kind; main; sub} =

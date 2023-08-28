@@ -27,6 +27,7 @@ let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
 let empty_comprehension loc = err loc "Comprehension with no clauses"
+<<<<<<< HEAD
 let no_val_params loc = err loc "Functions must have a value parameter."
 
 let non_jane_syntax_function loc =
@@ -34,6 +35,13 @@ let non_jane_syntax_function loc =
 
 (* We will enable this check after we finish migrating to n-ary functions. *)
 let () = ignore non_jane_syntax_function
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+let misplaced_local loc =
+  err loc "\"local_\" cannot occur outside of an arrow type"
+let local_with_attributes loc =
+  err loc "\"local_ t\" cannot have attributes"
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 let simple_longident id =
   let rec is_simple = function
@@ -52,9 +60,31 @@ let iterator =
     | Ptype_record [] -> empty_record loc
     | _ -> ()
   in
+  let jtyp _self loc (jty : Jane_syntax.Core_type.t) =
+    match jty with
+    | Jtyp_local (Ltyp_local _) -> misplaced_local loc
+  in
+  let typ_without_local ty =
+    match Jane_syntax.Core_type.of_ast ty with
+    | Some (Jtyp_local (Ltyp_local ty), []) -> ty
+    | None -> ty
+    | Some (Jtyp_local (Ltyp_local _), _::_) ->
+        local_with_attributes ty.ptyp_loc
+  in
   let typ self ty =
-    super.typ self ty;
+    begin match Jane_syntax.Core_type.of_ast ty, ty.ptyp_desc with
+    | None, Ptyp_arrow (lab, ty1, ty2) ->
+        let without_locals =
+          Ptyp_arrow(lab, typ_without_local ty1, typ_without_local ty2)
+        in
+        super.typ self { ty with ptyp_desc = without_locals }
+    | _ ->
+        super.typ self ty
+    end;
     let loc = ty.ptyp_loc in
+    match Jane_syntax.Core_type.of_ast ty with
+    | Some (jty, _attrs) -> jtyp self ty.ptyp_loc jty
+    | None ->
     match ty.ptyp_desc with
     | Ptyp_tuple ([] | [_]) -> invalid_tuple loc
     | Ptyp_package (_, cstrs) ->
@@ -62,8 +92,8 @@ let iterator =
     | _ -> ()
   in
   let pat self pat =
-    begin match pat.ppat_desc with
-    | Ppat_construct (_, Some (_, ({ppat_desc = Ppat_tuple _} as p)))
+    begin match Jane_syntax.Pattern.of_ast pat, pat.ppat_desc with
+    | None, Ppat_construct (_, Some (_, ({ppat_desc = Ppat_tuple _} as p)))
       when Builtin_attributes.explicit_arity pat.ppat_attributes ->
         super.pat self p (* allow unary tuple, see GPR#523. *)
     | _ ->
@@ -100,6 +130,7 @@ let iterator =
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
+    | Jexp_local _
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout _

@@ -79,6 +79,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Mutable_and_global
   | Layout_not_enabled of Layout.const
 
 open Typedtree
@@ -327,6 +328,7 @@ let set_private_row env loc p decl =
 
 (* Translate one type declaration *)
 
+<<<<<<< HEAD
 let transl_global_flags loc attrs =
   let transl_global_flag loc (r : (bool,unit) result) =
     match r with
@@ -337,6 +339,71 @@ let transl_global_flags loc attrs =
   match global with
   | true -> Types.Global
   | false -> Types.Unrestricted
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+(* [make_params] creates sort variables - these can be defaulted away (as in
+   transl_type_decl) or unified with existing sort-variable-free types (as in
+   transl_with_constraint). *)
+let make_params env path params =
+  (* Our choice for now is that if you want a parameter of layout any, you have
+     to ask for it with an annotation.  Some restriction here seems necessary
+     for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
+     have layout any).  But it might be possible to infer any in some cases. *)
+  let make_param (sty, v) =
+    try
+      let layout =
+        layout_of_attributes_default ~legacy_immediate:false
+          ~reason:(Type_parameter (path, parameter_name sty))
+          ~default:(Layout.of_new_sort_var ~why:Unannotated_type_parameter)
+          sty.ptyp_attributes
+      in
+      (transl_type_param env sty layout, v)
+    with Already_bound ->
+      raise(Error(sty.ptyp_loc, Repeated_parameter))
+  in
+    List.map make_param params
+
+
+let transl_global_flags loc attrs =
+  let transl_global_flag loc (r : (bool,unit) result) =
+    match r with
+    | Ok b -> b
+    | Error () -> raise(Error(loc, Local_not_enabled))
+  in
+  let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
+  match global with
+  | true -> Types.Global
+  | false -> Types.Unrestricted
+=======
+(* [make_params] creates sort variables - these can be defaulted away (as in
+   transl_type_decl) or unified with existing sort-variable-free types (as in
+   transl_with_constraint). *)
+let make_params env path params =
+  (* Our choice for now is that if you want a parameter of layout any, you have
+     to ask for it with an annotation.  Some restriction here seems necessary
+     for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
+     have layout any).  But it might be possible to infer any in some cases. *)
+  let make_param (sty, v) =
+    try
+      let layout =
+        layout_of_attributes_default ~legacy_immediate:false
+          ~reason:(Type_parameter (path, parameter_name sty))
+          ~default:(Layout.of_new_sort_var ~why:Unannotated_type_parameter)
+          sty.ptyp_attributes
+      in
+      (transl_type_param env sty layout, v)
+    with Already_bound ->
+      raise(Error(sty.ptyp_loc, Repeated_parameter))
+  in
+    List.map make_param params
+
+
+let transl_global_flags arg =
+  match Jane_syntax.Constructor_argument.of_ast arg with
+  | Some (Jcarg_local larg) -> begin match larg with
+    | Lcarg_global arg -> Types.Global, arg
+  end
+  | None -> Types.Unrestricted, arg
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 let transl_labels env univars closed lbls =
   assert (lbls <> []);
@@ -351,13 +418,34 @@ let transl_labels env univars closed lbls =
           pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
+         let gbl, arg = transl_global_flags arg in
+         let gbl = match mut, gbl with
+           | Mutable, Unrestricted -> Types.Global
+           | Mutable, Global ->
+               (* Unreachable without writing Jane-syntax directly; the parser
+                  won't let you write this.  Technically [Global] would be fine
+                  here, but you can't get it so we outlaw it. *)
+               raise(Error(loc, Mutable_and_global))
+           | Immutable, _ -> gbl
+         in
          let arg = Ast_helper.Typ.force_poly arg in
+<<<<<<< HEAD
          let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
            | Immutable -> transl_global_flags loc attrs
          in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+         let cty = transl_simple_type env ?univars ~closed Global arg in
+         let gbl =
+           match mut with
+           | Mutable -> Types.Global
+           | Immutable -> transl_global_flags loc attrs
+         in
+=======
+         let cty = transl_simple_type env ?univars ~closed Global arg in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut; ld_global = gbl;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
@@ -385,8 +473,16 @@ let transl_labels env univars closed lbls =
 
 let transl_types_gf env univars closed tyl =
   let mk arg =
+<<<<<<< HEAD
     let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    let cty = transl_simple_type env ?univars ~closed Global arg in
+    let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
+=======
+    let gf, arg = transl_global_flags arg in
+    let cty = transl_simple_type env ?univars ~closed Global arg in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     (cty, gf)
   in
   let tyl_gfl = List.map mk tyl in
@@ -1879,6 +1975,7 @@ let native_repr_of_type env kind ty =
     Some (Unboxed_integer Pint64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
+<<<<<<< HEAD
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
     Some (Unboxed_vector (Pvec128 Int8x16))
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
@@ -1891,6 +1988,13 @@ let native_repr_of_type env kind ty =
     Some (Unboxed_vector (Pvec128 Float32x4))
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
     Some (Unboxed_vector (Pvec128 Float64x2))
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_vec128 -> 
+    Some (Unboxed_vector Pvec128)
+=======
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_vec128 ->
+    Some (Unboxed_vector Pvec128)
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | _ ->
     None
 
@@ -1951,7 +2055,7 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   | Ptyp_arrow _, Tarrow _, Native_repr_attr_present kind  ->
     raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
   | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
-    when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
+    when not (Jane_syntax.Builtin.is_curried core_type) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
     let sort_arg =
       type_sort_external ~why:External_argument env ct1.ptyp_loc t1
@@ -2585,6 +2689,9 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
+  | Mutable_and_global ->
+      fprintf ppf "@[A type cannot be both mutable and@ \
+                   explicitly marked \"global_\"@]"
   | Layout_not_enabled c ->
       fprintf ppf
         "@[Layout %s is used here, but the appropriate layouts extension is \

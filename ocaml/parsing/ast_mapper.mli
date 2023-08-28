@@ -129,6 +129,8 @@ type mapper = {
   structure_item_jane_syntax: mapper ->
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
+  constructor_argument_jane_syntax: mapper ->
+    Jane_syntax.Constructor_argument.t -> Jane_syntax.Constructor_argument.t
 
 }
 (** A mapper record implements one "method" per syntactic category,

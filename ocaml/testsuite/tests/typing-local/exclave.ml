@@ -182,13 +182,13 @@ val bar : 'a -> string = <fun>
 |}]
 
 (* Ensure that Alias bindings are not substituted by Simplif (PR1448) *)
-type 'a glob = Glob of ('a[@global])
+type 'a glob = Glob of global_ 'a
 
-let[@inline never] return_local a = [%local] (Glob a)
+let[@inline never] return_local a = local_ (Glob a)
 
 let f () =
   let (Glob x) = return_local 1 in
-  [%exclave]
+  exclave_
     (let (_ : _) = return_local 99 in
      assert (x = 1))
 ;;

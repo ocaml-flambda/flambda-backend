@@ -546,7 +546,29 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
       raise (Error(loc, env, error))
 
 let escape ~loc ~env ~reason m =
+<<<<<<< HEAD
   submode ~loc ~env ~reason m mode_legacy
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  submode ~loc ~env ~reason m mode_global
+
+let eqmode ~loc ~env m1 m2 err =
+  match Alloc_mode.equate m1 m2 with
+  | Ok () -> ()
+  | Error () -> raise (Error(loc, env, err))
+=======
+  submode ~loc ~env ~reason m mode_global
+
+let alloc_mode_satisfies_annotation ~loc ~env m1 om2 err =
+  match om2 with
+  | Some m2 -> begin
+      match Alloc_mode.equate m1 (Alloc_mode.of_const m2) with
+      | Ok () -> ()
+      | Error () -> raise (Error(loc, env, err))
+    end
+  | None ->
+      (* No constraints *)
+      ()
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 type expected_pat_mode =
   { mode : Value.t;
@@ -709,19 +731,43 @@ let extract_label_names env ty =
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
   | Not_a_record_type | Maybe_a_record_type -> assert false
 
+<<<<<<< HEAD
 let has_local_attr loc attrs =
   match Builtin_attributes.has_local attrs with
   | Ok l -> l
   | Error () ->
      raise(Typetexp.Error(loc, Env.empty, Unsupported_extension Local))
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
 
-let has_local_attr_pat ppat =
-  has_local_attr ppat.ppat_loc ppat.ppat_attributes
+let has_local_attr loc attrs =
+  match Builtin_attributes.has_local attrs with
+  | Ok l -> l
+  | Error () ->
+     raise(Typetexp.Error(loc, Env.empty, Unsupported_extension Local))
+=======
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
 
-let has_local_attr_exp pexp =
-  has_local_attr pexp.pexp_loc pexp.pexp_attributes
+let unwrap_local_pat spat = match Jane_syntax.Pattern.of_ast spat with
+  | Some (Jpat_local (Lpat_local spat), _) -> Some spat
+  | Some _ | None -> None
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+
+let get_fun_arg_alloc_mode spat =
+  (* If there's an explicit [local_] annotation, return that information *)
+  Option.map (fun _ -> Alloc_mode.Local) (unwrap_local_pat spat)
+
+let extract_constraint_alloc_mode pexp =
+  match Jane_syntax.Expression.of_ast pexp with
+  | Some (Jexp_local (Lexp_constrain_local pexp), attrs) ->
+      Alloc_mode.Local,
+      {pexp with pexp_attributes = pexp.pexp_attributes @ attrs}
+  | Some _ | None -> Alloc_mode.Global, pexp
 
 let has_poly_constraint spat =
+  let spat = Option.value ~default:spat (unwrap_local_pat spat) in
   match spat.ppat_desc with
   | Ppat_constraint(_, styp) -> begin
       match styp.ptyp_desc with
@@ -2122,6 +2168,8 @@ let rec has_literal_pattern p =
   | Ppat_or (p, q) ->
      has_literal_pattern p || has_literal_pattern q
 and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
+  | Jpat_local (Lpat_local p) ->
+      has_literal_pattern p
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
   | Jpat_layout (Lpat_constant _) -> true
@@ -2381,15 +2429,16 @@ let rec type_pat
   Builtin_attributes.warning_scope sp.ppat_attributes
     (fun () ->
        type_pat_aux tps category ~no_existentials ~mode
-         ~alloc_mode ~env sp expected_ty k
+         ~alloc_mode ~explicit_mode:Global ~env sp expected_ty k
     )
 
 and type_pat_aux
   : type k r . type_pat_state -> k pattern_category -> no_existentials:_
-         -> mode:_ -> alloc_mode:expected_pat_mode -> env:_ -> _ -> _
+         -> mode:_ -> alloc_mode:expected_pat_mode
+         -> explicit_mode:Types.Alloc_mode.const -> env:_ -> _ -> _
          -> (k general_pattern -> r) -> r
   = fun tps category ~no_existentials ~mode
-      ~alloc_mode ~env sp expected_ty k ->
+      ~alloc_mode ~explicit_mode ~env sp expected_ty k ->
   let type_pat tps category ?(mode=mode) ?(alloc_mode=alloc_mode) ?(env=env) =
     type_pat tps category ~no_existentials ~mode ~alloc_mode ~env
   in
@@ -2442,6 +2491,11 @@ and type_pat_aux
          local definitions, it seems better to just put the pattern matching
          here.  This shouldn't mess up the diff *too* much. *)
       match jpat with
+      | Jpat_local (Lpat_local sp) ->
+          type_pat_aux
+            tps category
+            ~no_existentials ~mode ~alloc_mode ~explicit_mode:Local ~env
+            sp expected_ty k
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
           type_pat_array Immutable spl attrs
       | Jpat_layout (Lpat_constant cst) ->
@@ -2866,12 +2920,19 @@ and type_pat_aux
       assert construction_not_used_in_counterexamples;
       (* Pretend separate = true *)
       let cty, ty, expected_ty' =
+<<<<<<< HEAD
         let mode_annots = mode_annots_from_pat_attrs sp in
         let type_modes =
           mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
         in
         solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
       in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+        solve_Ppat_constraint ~refine tps loc env type_mode sty expected_ty in
+=======
+        solve_Ppat_constraint ~refine tps loc env explicit_mode sty expected_ty
+      in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       type_pat ~alloc_mode tps category sp' expected_ty' (fun p ->
         (*Format.printf "%a@.%a@."
           Printtyp.raw_type_expr ty
@@ -3093,6 +3154,7 @@ let rec pat_tuple_arity spat =
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
   | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
+  | Jpat_local (Lpat_local p) -> pat_tuple_arity p
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
   | Jpat_layout (Lpat_constant _) -> Not_local_tuple
 
@@ -3650,6 +3712,7 @@ let is_local_returning_expr e =
   in
   let rec loop e =
     match Jane_syntax.Expression.of_ast e with
+<<<<<<< HEAD
     | Some (jexp, _attrs) -> begin
         match jexp with
         | Jexp_comprehension   _ -> false, e.pexp_loc
@@ -3657,9 +3720,27 @@ let is_local_returning_expr e =
         | Jexp_layout (Lexp_constant _) -> false, e.pexp_loc
         | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
         | Jexp_n_ary_function _ -> false, e.pexp_loc
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Some (jexp, _attrs) -> begin
+        match jexp with
+        | Jexp_comprehension   _ -> false, e.pexp_loc
+        | Jexp_immutable_array _ -> false, e.pexp_loc
+        | Jexp_unboxed_constant _ -> false, e.pexp_loc
+=======
+    | Some (jexp, _attrs) -> begin match jexp with
+        | Jexp_local (Lexp_local _) ->
+            true, e.pexp_loc
+        | Jexp_local (Lexp_exclave _)
+        | Jexp_comprehension _ | Jexp_immutable_array _
+        | Jexp_unboxed_constant _ ->
+            false, e.pexp_loc
+        | Jexp_local (Lexp_constrain_local e) ->
+            loop e
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       end
     | None      ->
     match e.pexp_desc with
+<<<<<<< HEAD
     | Pexp_apply
         ({ pexp_desc = Pexp_extension(
            {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
@@ -3675,6 +3756,14 @@ let is_local_returning_expr e =
           {txt = "extension.once" | "ocaml.once" | "once"}, PStr []) },
         [Nolabel, exp]) ->
         loop exp
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Pexp_apply
+        ({ pexp_desc = Pexp_extension(
+           {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
+         [Nolabel, _]) ->
+        true, e.pexp_loc
+=======
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
     | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
     | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
@@ -3705,8 +3794,18 @@ let is_local_returning_expr e =
   local
 
 let rec is_an_uncurried_function e =
-  if Builtin_attributes.has_curry e.pexp_attributes then false
+  if Builtin_attributes.is_explicitly_curried e.pexp_attributes then false
   else begin
+    match Jane_syntax.Expression.of_ast e with
+    | Some (jexp, _attrs) -> begin match jexp with
+        | Jexp_local (Lexp_local e | Lexp_constrain_local e) ->
+            is_an_uncurried_function e
+        | Jexp_local (Lexp_exclave _)
+        | Jexp_comprehension _ | Jexp_immutable_array _
+        | Jexp_unboxed_constant _ ->
+            false
+      end
+    | None ->
     match e.pexp_desc, e.pexp_attributes with
     | (Pexp_fun _ | Pexp_function _), _ -> true
     | Pexp_poly (e, _), _
@@ -3728,7 +3827,7 @@ let is_local_returning_function cases =
     | cases ->
         List.for_all (fun case -> is_local_returning_expr case.pc_rhs) cases
   and loop_body e =
-    if Builtin_attributes.has_curry e.pexp_attributes then
+    if Builtin_attributes.is_explicitly_curried e.pexp_attributes then
       is_local_returning_expr e
     else begin
       match Jane_syntax.Expression.of_ast e with
@@ -3780,14 +3879,14 @@ let approx_type_default () = newvar (Layout.any ~why:Dummy_layout)
 
 let rec approx_type env sty =
   match Jane_syntax.Core_type.of_ast sty with
-  | Some (jty, attrs) -> approx_type_jst env attrs jty
+  | Some (jty, attrs) -> approx_type_jst ~loc:sty.ptyp_loc env attrs jty
   | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
       if is_optional p then newvar (Layout.value ~why:Type_argument)
       else begin
-        let arg_mode = Typetexp.get_alloc_mode arg_sty in
+        let arg_mode, arg_sty = Typetexp.unwrap_mode env arg_sty in
         let arg_ty =
           (* Polymorphic types will only unify with types that match all of their
            polymorphic parts, so we need to fully translate the type here
@@ -3800,7 +3899,9 @@ let rec approx_type env sty =
         newty (Tarrow ((p,marg,mret), arg_ty.ctyp_type, ret, commu_ok))
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
-      let arg_mode = Typetexp.get_alloc_mode arg_sty in
+      let arg_mode, _arg_sty' = Typetexp.unwrap_mode env arg_sty in
+      let arg_sty = `Intentionally_shadowed in
+      let _ = arg_sty in
       let arg =
         if is_optional p
         then type_option (newvar (Layout.value ~why:Type_argument))
@@ -3822,33 +3923,64 @@ let rec approx_type env sty =
       end
   | _ -> approx_type_default ()
 
+<<<<<<< HEAD
 and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout (Ltyp_var _) -> approx_type_default ()
   | Jtyp_layout (Ltyp_poly _) -> approx_type_default ()
   | Jtyp_layout (Ltyp_alias _) -> approx_type_default ()
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
+=======
+and approx_type_jst ~loc env _attrs : Jane_syntax.Core_type.t -> _ = function
+  | Jtyp_local (Ltyp_local _) ->
+      (* Unreachable without writing Jane-syntax directly; the parser won't
+         generate this *)
+      raise (Typetexp.Error(loc, env, Misplaced_local))
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
+<<<<<<< HEAD
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _
   | Jpat_layout (Lpat_constant _) -> ()
 
 let type_pattern_approx env spat ty_expected =
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
+  | Jpat_immutable_array _
+  | Jpat_unboxed_constant _ -> ()
+
+let type_pattern_approx env spat ty_expected =
+=======
+let rec type_pattern_approx ~explicit_mode env spat ty_expected =
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   match Jane_syntax.Pattern.of_ast spat with
-  | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
+  | Some (jpat, _attrs) ->
+      type_pattern_approx_jane_syntax ~env ~ty_expected jpat
   | None      ->
   match spat.ppat_desc with
   | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
+<<<<<<< HEAD
       let mode_annots = mode_annots_from_pat_attrs spat in
       let arg_type_mode =
         mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
       in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      let arg_type_mode =
+        if has_local_attr_pat spat then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+=======
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       let ty_pat =
-        Typetexp.transl_simple_type env ~closed:false arg_type_mode sty
+        Typetexp.transl_simple_type env ~closed:false explicit_mode sty
       in
       begin try unify env ty_pat.ctyp_type ty_expected with Unify trace ->
         raise(Error(spat.ppat_loc, env, Pattern_type_clash(trace, None)))
       end;
   | _ -> ()
 
+<<<<<<< HEAD
 let type_approx_constraint ~loc env constraint_ ty_expected =
   let open Jane_syntax.N_ary_functions in
   match constraint_ with
@@ -3876,14 +4008,50 @@ let type_approx_fun_one_param
     env loc label spato ty_expected ~first ~in_function
   =
   let mode_annots, has_poly =
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+let rec type_function_approx env loc label spato sexp in_function ty_expected =
+  let has_local, has_poly =
+=======
+and type_pattern_approx_jane_syntax ~env ~ty_expected
+  : Jane_syntax.Pattern.t -> _ = function
+  | Jpat_local (Lpat_local spat) ->
+      type_pattern_approx ~explicit_mode:Alloc_mode.Global env spat ty_expected
+  | Jpat_immutable_array (Iapat_immutable_array _)
+  | Jpat_unboxed_constant (Float _ | Integer _) -> ()
+
+let rec type_function_approx env loc label spato sexp in_function ty_expected =
+  let spat_mode, has_poly =
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     match spato with
     | None -> None, false
     | Some spat ->
+<<<<<<< HEAD
         let mode_annots = mode_annots_from_pat_attrs spat in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+        let has_local = has_local_attr_pat spat in
+=======
+        let spat_mode = get_fun_arg_alloc_mode spat in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
         let has_poly = has_poly_constraint spat in
         if has_poly && is_optional label then
           raise(Error(spat.ppat_loc, env, Optional_poly_param));
+<<<<<<< HEAD
         Some mode_annots, has_poly
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+        has_local, has_poly
+  in
+  let loc_fun, ty_fun =
+    match in_function with
+    | Some (loc, ty) -> loc, ty
+    | None -> loc, ty_expected
+=======
+        spat_mode, has_poly
+  in
+  let loc_fun, ty_fun =
+    match in_function with
+    | Some (loc, ty) -> loc, ty
+    | None -> loc, ty_expected
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   in
   let loc_fun, ty_fun = in_function in
   let { ty_arg; arg_mode; ty_ret; _ } =
@@ -3894,21 +4062,37 @@ let type_approx_fun_one_param
       in
       raise (Error(loc_fun, env, err))
   in
+<<<<<<< HEAD
   Option.iter
     (fun mode_annots ->
       apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode)
     mode_annots;
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  if has_local then
+    eqmode ~loc ~env arg_mode Alloc_mode.local
+      (Param_mode_mismatch ty_expected);
+=======
+  alloc_mode_satisfies_annotation ~loc ~env arg_mode spat_mode
+    (Param_mode_mismatch ty_expected);
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   if has_poly then begin
     match spato with
     | None -> ()
-    | Some spat -> type_pattern_approx env spat ty_arg
+    | Some spat -> type_pattern_approx ~explicit_mode:Global env spat ty_arg
   end;
   ty_ret
 
 let rec type_approx env sexp ty_expected =
   let loc = sexp.pexp_loc in
   match Jane_syntax.Expression.of_ast sexp with
+<<<<<<< HEAD
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax ~loc env jexp ty_expected
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
+=======
+  | Some (jexp, _attrs) ->
+      type_approx_aux_jane_syntax env in_function ty_expected jexp
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx env e ty_expected
   | Pexp_fun (lbl, def, pat, body) ->
@@ -3948,6 +4132,7 @@ let rec type_approx env sexp ty_expected =
         (type_approx_constraint env (Pcoerce (sty1, sty2)) ty_expected ~loc
            : type_expr)
   | Pexp_apply
+<<<<<<< HEAD
       ({ pexp_desc = Pexp_extension(
          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) ->
@@ -3963,11 +4148,27 @@ let rec type_approx env sexp ty_expected =
       [Nolabel, e]) ->
     type_approx env e ty_expected
   | Pexp_apply
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      ({ pexp_desc = Pexp_extension(
+         {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
+       [Nolabel, e]) ->
+    type_approx_aux env e None ty_expected
+  | Pexp_apply
+=======
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, e]) ->
+<<<<<<< HEAD
     type_approx env e ty_expected
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    type_approx_aux env e None ty_expected
+=======
+    (* See Note [extension.escape] *)
+    type_approx_aux env e None ty_expected
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | _ -> ()
 
+<<<<<<< HEAD
 and type_approx_aux_jane_syntax
     ~loc
     env
@@ -3981,6 +4182,24 @@ and type_approx_aux_jane_syntax
   | Jexp_layout (Lexp_newtype _) -> ()
   | Jexp_n_ary_function (params, c, body) ->
       type_approx_function ~loc env params c body ty_expected
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
+  | Jexp_comprehension _
+  | Jexp_immutable_array _
+  | Jexp_unboxed_constant _ -> ()
+=======
+and type_approx_aux_jane_syntax env _in_function ty_expected
+      : Jane_syntax.Expression.t -> _ = function
+  | Jexp_local (Lexp_local e) ->
+      type_approx_aux env e None ty_expected
+  | Jexp_local (Lexp_exclave e) ->
+      type_approx_aux env e None ty_expected
+  | Jexp_local (Lexp_constrain_local e) ->
+      type_approx_aux env e None ty_expected
+  | Jexp_comprehension (Cexp_list_comprehension _ | Cexp_array_comprehension _)
+  | Jexp_immutable_array (Iaexp_immutable_array _)
+  | Jexp_unboxed_constant (Float _ | Integer _) -> ()
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 and type_approx_function =
   let rec loop env params c body ty_expected ~in_function ~first =
@@ -4229,6 +4448,7 @@ let contains_variant_either ty =
   with Exit -> unmark_type ty; true
 
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
+  | Jpat_local (Lpat_local p) -> f p
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
   | Jpat_layout (Lpat_constant _) -> ()
 
@@ -4381,10 +4601,27 @@ let rec is_inferred sexp =
   | _ -> false
 
 and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
+<<<<<<< HEAD
   | Jexp_comprehension _
   | Jexp_immutable_array _
   | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
   | Jexp_n_ary_function _ -> false
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  | Jexp_comprehension _
+  | Jexp_immutable_array _
+  | Jexp_unboxed_constant _ -> false
+=======
+  | Jexp_local (Lexp_local e) ->
+      is_inferred e
+  | Jexp_local (Lexp_exclave e) ->
+      is_inferred e
+  | Jexp_local (Lexp_constrain_local e) ->
+      is_inferred e
+  | Jexp_comprehension (Cexp_list_comprehension _ | Cexp_array_comprehension _)
+  | Jexp_immutable_array (Iaexp_immutable_array _)
+  | Jexp_unboxed_constant (Float _ | Integer _) ->
+      false
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -4493,10 +4730,13 @@ and type_expect_
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
+        ~in_function
+        ~recarg
         ~loc
         ~loc_stack:sexp.pexp_loc_stack
         ~env
         ~expected_mode
+        ~ty_expected_explained
         ~ty_expected
         ~explanation
         ~rue
@@ -4663,6 +4903,7 @@ and type_expect_
           Misc.fatal_error "[default] allowed only with optional argument"
       in
       let open Ast_helper in
+      let arg_pat_mode = get_fun_arg_alloc_mode spat in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
          region by Simplf.split_default_wrapper, or they could be evaluated
@@ -4680,9 +4921,20 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
+          (* See Note [extension.escape] *)
           (Exp.apply ~loc:default_loc
              (Exp.extension (mknoloc "extension.escape", PStr []))
              [Nolabel, default]);
+
+          (* Note [extension.escape]
+             ~~~~~~~~~~~~~~~~~~~~~~~
+
+             [[%extension.escape]] is the last remnant of old-style syntax
+             extension encodings present in the compiler.  I (antalsz) expect it
+             to be removed by nroberts's (@ncik-roberts's) forthcoming syntactic
+             function arity parsing patch; if you're reading this in 2024 and
+             [[%extension.escape]] is still present, convert it into
+             [Lexp_escape] like the existing [Lexp_local] and [Lexp_exclave]. *)
        ]
       in
       let sloc =
@@ -4702,12 +4954,29 @@ and type_expect_
           ~attrs:[Attr.mk (mknoloc "#default") (PStr [])]
           [Vb.mk spat smatch] sbody
       in
+<<<<<<< HEAD
       let mode_annots = mode_annots_from_pat_attrs spat in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      let has_local = has_local_attr_pat spat in
+=======
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
+<<<<<<< HEAD
                     l ~mode_annots ~has_poly:false [Exp.case pat body]
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+                    l ~has_local ~has_poly:false [Exp.case pat body]
+=======
+                    l ~arg_pat_mode ~has_poly:false [Exp.case pat body]
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | Pexp_fun (l, None, spat, sbody) ->
+<<<<<<< HEAD
       let mode_annots = mode_annots_from_pat_attrs spat in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      let has_local = has_local_attr_pat spat in
+=======
+      let arg_pat_mode = get_fun_arg_alloc_mode spat in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       let has_poly = has_poly_constraint spat in
       if has_poly && is_optional l then
         raise(Error(spat.ppat_loc, env, Optional_poly_param));
@@ -4716,12 +4985,19 @@ and type_expect_
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
       type_function ?in_function loc sexp.pexp_attributes env
+<<<<<<< HEAD
                     expected_mode ty_expected_explained l ~mode_annots
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+                    expected_mode ty_expected_explained l ~has_local
+=======
+                    expected_mode ty_expected_explained l ~arg_pat_mode
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
                     ~has_poly [Ast_helper.Exp.case spat sbody]
   | Pexp_function caselist ->
       let mode_annots = mode_annots_none in
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
+<<<<<<< HEAD
         ty_expected_explained Nolabel ~mode_annots ~has_poly:false caselist
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({
@@ -4765,14 +5041,48 @@ and type_expect_
         type_expect ?in_function ~recarg env expected_mode sbody ty_expected_explained
       in
       {exp with exp_loc = loc}
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+        ty_expected_explained Nolabel ~has_local:false ~has_poly:false caselist
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
+       [Nolabel, sbody]) ->
+      if txt = "extension.local" && not (Language_extension.is_enabled Local) then
+        raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
+
+      let mode = if mode_cross env ty_expected then
+        (* when mode crosses, we check the inner expr with the most relaxed mode *)
+        {expected_mode with mode = Value_mode.local; exact = false}
+        (* moreover, because mode crosses, expected_mode is completely useless *)
+      else begin
+        (* if mode does not cross, expected.mode must be local *)
+        submode ~loc ~env ~reason:Other Value_mode.local expected_mode;
+        (* and we require the inner expr to be exact local *)
+        {expected_mode with mode = Value_mode.local; exact = true}
+      end
+      in
+      let exp =
+        type_expect ?in_function ~recarg env mode sbody
+          ty_expected_explained
+      in
+      { exp with exp_loc = loc }
+=======
+        ty_expected_explained Nolabel
+        ~arg_pat_mode:None ~has_poly:false caselist
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, sbody]) ->
+<<<<<<< HEAD
       submode ~loc ~env ~reason:Other Value.legacy expected_mode;
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+      (* See Note [extension.escape] *)
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       let exp =
         type_expect ?in_function ~recarg env mode_legacy sbody
           ty_expected_explained
       in
+<<<<<<< HEAD
       {exp with exp_loc = loc}
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({
@@ -4808,6 +5118,41 @@ and type_expect_
             exp_attributes = sexp.pexp_attributes;
           }
       end
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      { exp with exp_loc = loc }
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({
+         txt = "extension.exclave" | "ocaml.exclave" | "exclave" as txt}, PStr []) },
+       [Nolabel, sbody]) ->
+      if (txt = "extension.exclave") && not (Language_extension.is_enabled Local) then
+          raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
+      begin
+        match expected_mode.position with
+        | RNontail ->
+          raise (Error (loc, env, Exclave_in_nontail_position))
+        | RTail (mode, _) ->
+          (* mode' is RNontail, because currently our language cannot construct
+             region in the tail of another region.*)
+          let mode' = mode_exact mode in
+          (* The middle-end relies on all functions which allocate into their
+             parent's region having a return mode of local. *)
+          submode ~loc ~env ~reason:Other Value_mode.local mode';
+          let new_env = Env.add_exclave_lock env in
+          let exp =
+            type_expect ?in_function ~recarg new_env mode' sbody ty_expected_explained
+          in
+          submode ~loc ~env ~reason:Other Value_mode.regional expected_mode;
+          { exp_desc = Texp_exclave exp;
+            exp_loc = loc;
+            exp_extra = [];
+            exp_type = exp.exp_type;
+            exp_env = env;
+            exp_attributes = sexp.pexp_attributes;
+          }
+      end
+=======
+      { exp with exp_loc = loc }
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
       let pm = position_and_mode env expected_mode sexp in
@@ -5349,10 +5694,19 @@ and type_expect_
   | Pexp_constraint (sarg, sty) ->
      (* Pretend separate = true, 1% slowdown for lablgtk *)
       begin_def ();
+<<<<<<< HEAD
       let mode_annots = mode_annots_from_exp_attrs sexp in
       let type_mode =
         mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
       in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      let type_mode =
+        if has_local_attr_exp sexp then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+=======
+      let type_mode, sarg = extract_constraint_alloc_mode sarg in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       let cty = Typetexp.transl_simple_type env ~closed:false type_mode sty in
       let ty = cty.ctyp_type in
       end_def ();
@@ -5372,10 +5726,19 @@ and type_expect_
       (* Pretend separate = true, 1% slowdown for lablgtk *)
       (* Also see PR#7199 for a problem with the following:
          let separate = !Clflags.principal || Env.has_local_constraints env in*)
+<<<<<<< HEAD
       let mode_annots = mode_annots_from_exp_attrs sexp in
       let type_mode =
         mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
       in
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      let type_mode =
+        if has_local_attr_exp sexp then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+=======
+      let type_mode, sarg = extract_constraint_alloc_mode sarg in
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       let (arg, ty',cty,cty') =
         match sty with
         | None ->
@@ -6077,9 +6440,17 @@ and type_binding_op_ident env s =
   assert (kind = Id_value);
   path, desc
 
+<<<<<<< HEAD
 and type_function
     ?in_function loc attrs env (expected_mode : expected_mode)
       ty_expected_explained arg_label ~mode_annots ~has_poly caselist =
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+and type_function ?in_function loc attrs env (expected_mode : expected_mode)
+      ty_expected_explained arg_label ~has_local ~has_poly caselist =
+=======
+and type_function ?in_function loc attrs env (expected_mode : expected_mode)
+      ty_expected_explained arg_label ~arg_pat_mode ~has_poly caselist =
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
   let alloc_mode =
@@ -6122,7 +6493,16 @@ and type_function
       in
       raise (Error(loc_fun, env, err))
   in
+<<<<<<< HEAD
   apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  if has_local then
+    eqmode ~loc ~env arg_mode Alloc_mode.local
+      (Param_mode_mismatch ty_expected');
+=======
+  alloc_mode_satisfies_annotation ~loc ~env arg_mode arg_pat_mode
+    (Param_mode_mismatch ty_expected');
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   if separate then begin
     end_def ();
     generalize_structure ty_arg;
@@ -7359,6 +7739,7 @@ and type_let
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
     | Pexp_constraint (e, _)
+<<<<<<< HEAD
     | Pexp_newtype (_, e)
     | Pexp_apply
       ({ pexp_desc = Pexp_extension({
@@ -7372,13 +7753,37 @@ and type_let
       ({ pexp_desc = Pexp_extension(
           {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) -> sexp_is_fun e
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Pexp_newtype (_, e)
+    | Pexp_apply
+      ({ pexp_desc = Pexp_extension(
+          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
+       [Nolabel, e]) -> sexp_is_fun e
+=======
+    | Pexp_newtype (_, e) -> sexp_is_fun e
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
+<<<<<<< HEAD
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout (Lexp_constant _) -> false
     | Jexp_layout (Lexp_newtype (_, _, e)) -> sexp_is_fun e
     | Jexp_n_ary_function _ -> true
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Jexp_comprehension _
+    | Jexp_immutable_array _
+    | Jexp_unboxed_constant _ -> false
+=======
+    | Jexp_local (Lexp_local e | Lexp_constrain_local e) ->
+        sexp_is_fun e
+    | Jexp_local (Lexp_exclave _)
+    | Jexp_comprehension ( Cexp_list_comprehension  _
+                         | Cexp_array_comprehension _)
+    | Jexp_immutable_array (Iaexp_immutable_array _)
+    | Jexp_unboxed_constant (Float _ | Integer _) ->
+        false
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -7773,9 +8178,20 @@ and type_generic_array
     exp_env = env }
 
 and type_expect_jane_syntax
+<<<<<<< HEAD
       ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes
         ~loc_stack
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
+=======
+      ~in_function ~recarg ~loc ~env ~expected_mode ~ty_expected_explained
+      ~ty_expected ~explanation ~attributes
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   : Jane_syntax.Expression.t -> _ = function
+  | Jexp_local x ->
+      type_local_expr
+        ~in_function ~recarg ~loc ~env ~expected_mode ~ty_expected_explained
+        ~ty_expected ~attributes x
   | Jexp_comprehension x ->
       type_comprehension_expr
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
@@ -7875,6 +8291,55 @@ and type_n_ary_function
     in
     type_expect_
       env expected_mode ast { ty = ty_expected; explanation }
+
+and type_local_expr
+      ~in_function ~recarg ~loc ~env ~expected_mode ~ty_expected_explained
+      ~ty_expected ~attributes
+  : Jane_syntax.Local.expression -> _ = function
+  | Lexp_local sbody ->
+      let mode = if mode_cross env ty_expected then
+        (* when mode crosses, we check the inner expr with the most relaxed mode *)
+        {expected_mode with mode = Value_mode.local; exact = false}
+        (* moreover, because mode crosses, expected_mode is completely useless *)
+      else begin
+        (* if mode does not cross, expected.mode must be local *)
+        submode ~loc ~env ~reason:Other Value_mode.local expected_mode;
+        (* and we require the inner expr to be exact local *)
+        {expected_mode with mode = Value_mode.local; exact = true}
+      end
+      in
+      let exp =
+        type_expect ?in_function ~recarg env mode sbody
+          ty_expected_explained
+      in
+      { exp with exp_loc = loc }
+  | Lexp_exclave sbody -> begin
+      match expected_mode.position with
+      | RNontail ->
+        raise (Error (loc, env, Exclave_in_nontail_position))
+      | RTail (mode, _) ->
+        (* mode' is RNontail, because currently our language cannot construct
+           region in the tail of another region.*)
+        let mode' = mode_exact mode in
+        (* The middle-end relies on all functions which allocate into their
+           parent's region having a return mode of local. *)
+        submode ~loc ~env ~reason:Other Value_mode.local mode';
+        let new_env = Env.add_exclave_lock env in
+        let exp =
+          type_expect ?in_function ~recarg new_env mode' sbody ty_expected_explained
+        in
+        submode ~loc ~env ~reason:Other Value_mode.regional expected_mode;
+        { exp_desc = Texp_exclave exp;
+          exp_loc = loc;
+          exp_extra = [];
+          exp_type = exp.exp_type;
+          exp_env = env;
+          exp_attributes = attributes
+        }
+    end
+  | Lexp_constrain_local exp ->
+      type_expect_
+        ?in_function ~recarg env expected_mode exp ty_expected_explained
 
 (* What modes should comprehensions use?  Let us be generic over the sequence
    type we use for comprehensions, calling it [sequence] (standing for either
@@ -8194,6 +8659,7 @@ let type_expression env layout sexp =
   end_def();
   if maybe_expansive exp then lower_contravariant env exp.exp_type;
   generalize exp.exp_type;
+<<<<<<< HEAD
   let exp =
     match sexp.pexp_desc with
       Pexp_ident lid ->
@@ -8206,6 +8672,28 @@ let type_expression env layout sexp =
     | _ -> exp
   in
   maybe_check_uniqueness_exp exp; exp
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  match sexp.pexp_desc with
+    Pexp_ident lid ->
+      let loc = sexp.pexp_loc in
+      (* Special case for keeping type variables when looking-up a variable *)
+      let (_path, desc, _mode) =
+        Env.lookup_value ~use:false ~loc lid.txt env
+      in
+      {exp with exp_type = desc.val_type}
+  | _ -> exp
+=======
+  match Jane_syntax.Expression.of_ast sexp, sexp.pexp_desc with
+  | None,
+    Pexp_ident lid ->
+      let loc = sexp.pexp_loc in
+      (* Special case for keeping type variables when looking-up a variable *)
+      let (_path, desc, _mode) =
+        Env.lookup_value ~use:false ~loc lid.txt env
+      in
+      {exp with exp_type = desc.val_type}
+  | _ -> exp
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 let type_representable_expression ~why env sexp =
   let sort = Sort.new_var () in

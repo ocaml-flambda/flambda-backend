@@ -565,6 +565,54 @@ Error: This application is complete, but surplus arguments were provided afterwa
   Hint: Try splitting the application in two. The arguments that come
   after a in the function's type should be applied separately.
 |}]
+let bug2_parens_outside () =
+  let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> ()
+  in
+  let bar = (local_ foo ~b:"hello") in
+  let res = bar ~a:"world" in
+  res
+[%%expect{|
+Line 5, characters 20-34:
+5 |   let bar = (local_ foo ~b:"hello") in
+                        ^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after a in the function's type should be applied separately.
+|}]
+let bug2_parens_inside () =
+  let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> ()
+  in
+  let bar = local_ (foo ~b:"hello") in
+  let res = bar ~a:"world" in
+  res
+[%%expect{|
+Line 5, characters 19-35:
+5 |   let bar = local_ (foo ~b:"hello") in
+                       ^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after a in the function's type should be applied separately.
+|}]
+let bug2_parens_both () =
+  let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> ()
+  in
+  let bar = (local_ (foo ~b:"hello")) in
+  let res = bar ~a:"world" in
+  res
+[%%expect{|
+Line 5, characters 20-36:
+5 |   let bar = (local_ (foo ~b:"hello")) in
+                        ^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after a in the function's type should be applied separately.
+|}]
 let bug3 () =
   let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a

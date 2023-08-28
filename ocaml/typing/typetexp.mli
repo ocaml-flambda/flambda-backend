@@ -74,10 +74,26 @@ val transl_type_param:
 (* the Path.t above is of the type/class whose param we are processing;
    the level defaults to the current level *)
 
+<<<<<<< HEAD
 val get_type_param_layout: Path.t -> Parsetree.core_type -> layout
 val get_type_param_name: Parsetree.core_type -> string option
 
 val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
+=======
+(** Takes a type [t] and, if it's of the form [local_ t'], returns [t'].
+    Otherwise, returns [t].  The [alloc_mode_const] is [Local] if the type was
+    explicitly [local_] and [Global] otherwise.
+
+    We could effectively return a [Parsetree.core_type option], but we always
+    want the actual allocation mode and type, so this function preemtively
+    unpacks it.
+
+    The [Env.t] is only used for error reporting.*)
+val unwrap_mode
+  : Env.t -> Parsetree.core_type -> alloc_mode_const * Parsetree.core_type
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 exception Already_bound
 
@@ -118,7 +134,13 @@ type error =
       {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+<<<<<<< HEAD
   | Bad_layout_annot of type_expr * Layout.Violation.t
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+  | Misplaced_local
+  | Local_type_has_attributes
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 exception Error of Location.t * Env.t * error
 

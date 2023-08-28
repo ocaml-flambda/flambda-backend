@@ -460,18 +460,17 @@ remains in the region even after `f` returns and is released only when the
 program exits the caller's region. To allow temporary allocations to be released
 upon the function's return, we can rewrite the example as follows:
 
-
 ```
 let f (local_ x) =
   let local_ y = (complex computation on x) in
-  if y then [%exclave] (local_ None)
-  else [%exclave] (local_ (Some x))
+  if y then exclave_ (local_ None)
+  else exclave_ (local_ (Some x))
 ```
 
-The new primitive `[%exclave]` terminates the current region early and executes
+The new primitive `exclave_` terminates the current region early and executes
 the subsequent code in the outer region. In this example, the function `f`
 retains its own region where the allocation for the complex computation occurs.
-This region is terminated by `[%exclave]`, releasing all temporary allocations.
+This region is terminated by `exclave_`, releasing all temporary allocations.
 Both `local_ None` and `local_ (Some x)` are considered "local" relative to the
 outer region and are allowed to escape. In summary, we have temporary
 allocations on the stack that are promptly released and result allocations on
@@ -479,7 +478,7 @@ the stack that can escape.
 
 
 Here is another example in which the stack usage can be improved asymptotically
-by applying `[%exclave]`:
+by applying `exclave_`:
 
 
 ```
@@ -508,33 +507,32 @@ not to allocate heap memory, instead using the stack for all `Some` allocations.
 However, it will currently use O(N) stack space because all allocations occur in
 the original caller's stack frame. To improve its space usage, we remove the
 `local_` annotation (so the function has its own region), and wrap `Some {res =
-count + 1}` inside `[%exclave]` to release the region before the allocation.
+count + 1}` inside `exclave_` to release the region before the allocation.
 After the revision, the function should use O(1) stack space.
 
 
-`[%exclave]` terminates the current region, so local values from that region
-cannot be used inside `[%exclave]`. For example, the following code produces an
+`exclave_` terminates the current region, so local values from that region
+cannot be used inside `exclave_`. For example, the following code produces an
 error because `x` would escape its region:
 
 
 ```
   let local_ x = "hello" in
-  [%exclave] (
+  exclave_
     let local_ y = "world" in
     local_ (x ^ y)
-  )
 ```
 
-Similarly, `[%exclave]` can only appear at the tail position of a region since
+Similarly, `exclave_` can only appear at the tail position of a region since
 one cannot re-enter a terminated region. The following code is an error for this
 reason:
 
 
 ```
   let local_ x = "hello" in
-  [%exclave] (
-    let local_ y = "world" in
-    ()
+  (exclave_
+     let local_ y = "world" in
+     ()
   );
   local_ (x ^ "world")
 ```

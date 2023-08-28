@@ -389,9 +389,17 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         match am with
         | Mutable   -> Ppat_array pats
         | Immutable ->
+<<<<<<< HEAD
           Jane_syntax.Immutable_arrays.pat_of
             ~loc
             (Iapat_immutable_array pats)
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+          Jane_syntax.Immutable_arrays.pat_of
+            ~loc ~attrs:[]
+            (Iapat_immutable_array pats)
+=======
+          Jane_syntax.Immutable_arrays.pat_of ~loc (Iapat_immutable_array pats)
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
           |> add_jane_syntax_attributes
       end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)

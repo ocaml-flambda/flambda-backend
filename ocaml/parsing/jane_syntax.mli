@@ -23,29 +23,104 @@
 (*********************************************)
 (* Individual features *)
 
+(** The ASTs for built-in syntax extensions.  No ASTs as yet; for now, we just
+    have some attribute machinery. *)
+module Builtin : sig
+  (** Mark an arrow type as "curried" (written with parentheses) for the local
+      extension.  This is done unconditionally by the parser: [a -> (b -> c)] is
+      parsed as [a -> ((b -> c)[@CURRY])] for some (private) attribute.  A
+      non-arrow type won't be modified by this function.
+
+      We leave this as an attribute because it's only used internally, and
+      changing function types/adding another kind of arrow is a *lot* of
+      work. *)
+  val mark_curried :
+    loc:Location.t -> Parsetree.core_type -> Parsetree.core_type
+
+  (** Check if a type was marked as curried via [mark_curried].  Does not modify
+      the attributes of the type. *)
+  val is_curried : Parsetree.core_type -> bool
+
+  (** Return all the attributes from the given list that were not added by
+      marking functions such as [mark_curried].  The same as accessing
+      [ptyp_attributes] if the type was not so marked. *)
+  val non_syntax_attributes : Parsetree.attributes -> Parsetree.attributes
+end
+
+(** The ASTs for locality modes *)
+module Local : sig
+  type core_type = Ltyp_local of Parsetree.core_type
+  (** [local_ TYPE]
+
+      Invariant: Only used in arrow types (e.g., [local_ a -> local_ b]), and
+      has no attributes (the inner [core_type] can).
+
+      The other part of locality that shows up in types is the marking of what's
+      curried (i.e., represented with explicit parentheses in the source); this
+      is represented by the [Builtin.mark_curried] machinery, which see. *)
+
+  type constructor_argument =
+    | Lcarg_global of Parsetree.core_type
+    (** [global_ TYPE]
+
+        E.g.: [type t = { x : global_ string }] or
+        [type t = C of global_ string]. *)
+
+  type expression =
+    | Lexp_local of Parsetree.expression
+    (** [local_ EXPR] *)
+    | Lexp_exclave of Parsetree.expression
+    (** [exclave_ EXPR] *)
+    | Lexp_constrain_local of Parsetree.expression
+    (** This represents the shadow [local_] that is inserted on the right-hand
+        side of a [let local_ f : t = e in ...] binding; the contents of this
+        constructor are the [e] on the RHS.  This enables [e] to be correctly
+        checked at the local mode.
+
+        Invariant: [Lexp_constrain_local] occurs as the direct child of a
+        [Pexp_constraint] or [Pexp_coerce] node.
+
+        We don't inline the definition of [Pexp_constraint] or [Pexp_coerce]
+        here because nroberts's (@ncik-roberts's) forthcoming syntactic
+        function arity parsing patch handles this case more directly, and we
+        don't want to double the amount of work we're doing. *)
+
+  type pattern =
+    | Lpat_local of Parsetree.pattern
+    (** [local_ PAT]
+
+        Invariant: [Lpat_local] is always the outermost part of a pattern. *)
+
+  val type_of : loc:Location.t -> core_type -> Parsetree.core_type
+  val constr_arg_of :
+    loc:Location.t -> constructor_argument -> Parsetree.core_type
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
+end
+
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
   type iterator =
     | Range of { start     : Parsetree.expression
                ; stop      : Parsetree.expression
                ; direction : Asttypes.direction_flag }
-    (** "= START to STOP" (direction = Upto)
-        "= START downto STOP" (direction = Downto) *)
+    (** [= START to STOP] (direction = [Upto])
+        [= START downto STOP] (direction = [Downto]) *)
     | In of Parsetree.expression
-    (** "in EXPR" *)
+    (** [in EXPR] *)
 
   (* In [Typedtree], the [pattern] moves into the [iterator]. *)
   type clause_binding =
     { pattern    : Parsetree.pattern
     ; iterator   : iterator
     ; attributes : Parsetree.attribute list }
-    (** [@...] PAT (in/=) ... *)
+    (** [[@...] PAT (in/=) ...] *)
 
   type clause =
     | For of clause_binding list
-    (** "for PAT (in/=) ... and PAT (in/=) ... and ..."; must be nonempty *)
+    (** [for PAT (in/=) ... and PAT (in/=) ... and ...]; must be nonempty *)
     | When of Parsetree.expression
-    (** "when EXPR" *)
+    (** [when EXPR] *)
 
   type comprehension =
     { body : Parsetree.expression
@@ -55,10 +130,10 @@ module Comprehensions : sig
 
   type expression =
     | Cexp_list_comprehension  of comprehension
-    (** [BODY ...CLAUSES...] *)
+    (** [[BODY ...CLAUSES...]] *)
     | Cexp_array_comprehension of Asttypes.mutable_flag * comprehension
-    (** [|BODY ...CLAUSES...|] (flag = Mutable)
-        [:BODY ...CLAUSES...:] (flag = Immutable)
+    (** [[|BODY ...CLAUSES...|]] (flag = [Mutable])
+        [[:BODY ...CLAUSES...:]] (flag = [Immutable])
           (only allowed with [-extension immutable_arrays]) *)
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
@@ -70,12 +145,13 @@ end
 module Immutable_arrays : sig
   type expression =
     | Iaexp_immutable_array of Parsetree.expression list
-    (** [: E1; ...; En :] *)
+    (** [[: E1; ...; En :]] *)
 
   type pattern =
     | Iapat_immutable_array of Parsetree.pattern list
-    (** [: P1; ...; Pn :] **)
+    (** [[: P1; ...; Pn :]] **)
 
+<<<<<<< HEAD
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
@@ -177,6 +253,17 @@ module N_ary_functions : sig
     function_param list * function_constraint option * function_body
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  val expr_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    expression -> Parsetree.expression
+  val pat_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    pattern -> Parsetree.pattern
+=======
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -185,9 +272,11 @@ end
 module Include_functor : sig
   type signature_item =
     | Ifsig_include_functor of Parsetree.include_description
+    (** [include functor MTY] *)
 
   type structure_item =
     | Ifstr_include_functor of Parsetree.include_declaration
+    (** [include functor MOD] *)
 
   val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
   val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
@@ -205,13 +294,27 @@ end
 module Layouts : sig
   type constant =
     | Float of string * char option
+    (** Unboxed float constants such as [3.4#], [-2e5#], or [+1.4e-4#g].
+
+        Unlike with boxed constants, the sign (if present) is included.
+
+        Suffixes [g-z][G-Z] are accepted by the parser.
+        Suffixes are rejected by the typechecker. *)
     | Integer of string * char
+    (** Unboxed float constants such as [3#], [-3#l], [+3#L], or [3#n].
+
+        Unlike with boxed constants, the sign (if present) is included.
+
+        Suffixes [g-z][G-Z] are *required* by the parser.
+        Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker.
+    *)
 
   type nonrec expression =
     (* examples: [ #2.0 ] or [ #42L ] *)
     (* This is represented as an attribute wrapping a [Pexp_constant] node. *)
     | Lexp_constant of constant
 
+<<<<<<< HEAD
     (* [fun (type a : immediate) -> ...] *)
     (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
     | Lexp_newtype of
@@ -289,6 +392,18 @@ module Layouts : sig
     Parsetree.constructor_declaration ->
     ((string Location.loc * Asttypes.layout_annotation option) list *
      Parsetree.attributes) option
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  val expr_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    expression -> Parsetree.expression
+
+  val pat_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    pattern -> Parsetree.pattern
+=======
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 end
 
 (******************************************)
@@ -362,6 +477,11 @@ module type AST = sig
       match on [sexp.pexp_desc] *without going up an indentation level*.  This
       is important to reduce the number of merge conflicts. *)
   val of_ast : ast -> t option
+
+  (** The dual of [of_ast], only used by [Ast_mapper].  This is built up from
+      the various [FEATURE.CATEGORY_of] functions, such as [Local.type_of],
+      which you should prefer. *)
+  val ast_of : loc:Location.t -> t -> ast
 end
 
 (******************************************)
@@ -369,8 +489,15 @@ end
 
 (** Novel syntax in types *)
 module Core_type : sig
+<<<<<<< HEAD
   type t =
     | Jtyp_layout of Layouts.core_type
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  type t = |
+=======
+  type t =
+    | Jtyp_local of Local.core_type
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
   include AST
     with type t := t * Parsetree.attributes
@@ -380,44 +507,53 @@ module Core_type : sig
     loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.core_type
 end
 
-(** Novel syntax in constructor arguments; this isn't a core AST type,
-    but captures where [global_] lives *)
+(** Novel syntax in constructor arguments; this isn't a core AST type, but
+    captures where [global_] lives.  Unlike types, they don't have attributes;
+    any attributes are either on the label declaration they're in (if any) or on
+    the inner type. *)
 module Constructor_argument : sig
-  type t = |
+  type t =
+    | Jcarg_local of Local.constructor_argument
 
   include AST
-    with type t := t * Parsetree.attributes
+    with type t := t
      and type ast := Parsetree.core_type
 end
 
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =
+<<<<<<< HEAD
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Jexp_comprehension    of Comprehensions.expression
+    | Jexp_immutable_array  of Immutable_arrays.expression
+    | Jexp_unboxed_constant of Unboxed_constants.expression
+=======
+    | Jexp_local            of Local.expression
+    | Jexp_comprehension    of Comprehensions.expression
+    | Jexp_immutable_array  of Immutable_arrays.expression
+    | Jexp_unboxed_constant of Unboxed_constants.expression
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.expression
-
-  val expr_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.expression
 end
 
 (** Novel syntax in patterns *)
 module Pattern : sig
   type t =
+    | Jpat_local           of Local.pattern
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
 
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.pattern
-
-  val pat_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.pattern
 end
 
 (** Novel syntax in module types *)

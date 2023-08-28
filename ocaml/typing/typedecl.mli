@@ -117,6 +117,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Mutable_and_global
   | Layout_not_enabled of Layout.const
 
 exception Error of Location.t * error

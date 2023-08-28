@@ -1,0 +1,56 @@
+---
+Test: Local: outer attribute
+Program text:
+(local_ x) [@outer]
+Pprintast (before Ast_mapper):
+((local_ x)[@outer ])
+Pprintast (after Ast_mapper):
+((local_ x)[@outer ])
+---
+Test: Local: inner attribute
+Program text:
+local_ (x [@inner])
+Pprintast (before Ast_mapper):
+local_ ((x)[@inner ])
+Pprintast (after Ast_mapper):
+local_ ((x)[@inner ])
+---
+Test: Local: inner and outer attribute
+Program text:
+(local_ (x [@inner])) [@outer]
+Pprintast (before Ast_mapper):
+((local_ ((x)[@inner ]))[@outer ])
+Pprintast (after Ast_mapper):
+((local_ ((x)[@inner ]))[@outer ])
+---
+Test: Local: multiple attributes
+Program text:
+(local_ (x [@inner1] [@inner2])) [@outer1] [@outer2]
+Pprintast (before Ast_mapper):
+((local_ ((x)[@inner1 ][@inner2 ]))[@outer1 ][@outer2 ])
+Pprintast (after Ast_mapper):
+((local_ ((x)[@inner1 ][@inner2 ]))[@outer1 ][@outer2 ])
+---
+Test: Comprehension: outer attribute
+Program text:
+[ x for x = 0 to 1 ] [@outer]
+Pprintast (before Ast_mapper):
+(([x for x = 0 to 1])[@outer ])
+Pprintast (after Ast_mapper):
+(([x for x = 0 to 1])[@outer ])
+---
+Test: Comprehension: inner attribute
+Program text:
+[ x[@inner] for x = 0 to 1 ] 
+Pprintast (before Ast_mapper):
+[((x)[@inner ]) for x = 0 to 1]
+Pprintast (after Ast_mapper):
+[((x)[@inner ]) for x = 0 to 1]
+---
+Test: Comprehension: inner and outer attribute
+Program text:
+[ x[@inner] for x = 0 to 1 ] [@outer] 
+Pprintast (before Ast_mapper):
+(([((x)[@inner ]) for x = 0 to 1])[@outer ])
+Pprintast (after Ast_mapper):
+(([((x)[@inner ]) for x = 0 to 1])[@outer ])

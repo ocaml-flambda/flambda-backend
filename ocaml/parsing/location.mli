@@ -52,6 +52,12 @@ type t = Warnings.loc = {
    Else all fields are correct.
 *)
 
+(** Strict equality: Two locations are equal iff every field is equal.  Two
+    locations that happen to refer to the same place -- for instance, if one has
+    [pos_lnum] set correctly and the other has [pos_lnum = -1] -- are not
+    considered to be equal. *)
+val equal : t -> t -> bool
+
 val none : t
 (** An arbitrary value of type [t]; describes an empty ghost range. *)
 

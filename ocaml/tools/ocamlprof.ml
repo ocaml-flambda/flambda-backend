@@ -308,6 +308,7 @@ and rw_exp iflag sexp =
   | Pexp_unreachable -> ()
 
 and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
+  | Jexp_local x -> rewrite_local_exp iflag x
   | Jexp_comprehension x -> rewrite_comprehension_exp iflag x
   | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x
   | Jexp_layout (Lexp_constant _) -> rewrite_constant
@@ -330,6 +331,11 @@ and rewrite_function_cases iflag caselist =
     rewrite_function iflag (List.map case caselist)
   else
     rewrite_cases iflag caselist
+
+and rewrite_local_exp iflag : Jane_syntax.Local.expression -> _ = function
+  | Lexp_local exp -> rewrite_exp iflag exp
+  | Lexp_exclave exp -> rewrite_exp iflag exp
+  | Lexp_constrain_local exp -> rewrite_exp iflag exp
 
 and rewrite_comprehension_exp iflag :
   Jane_syntax.Comprehensions.expression -> _ = function

@@ -76,7 +76,13 @@ type error =
       {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+<<<<<<< HEAD
   | Bad_layout_annot of type_expr * Layout.Violation.t
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+  | Misplaced_local
+  | Local_type_has_attributes
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -493,6 +499,7 @@ let get_type_param_name styp =
   | Ptyp_var name -> Some name
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
+<<<<<<< HEAD
 let get_alloc_mode styp =
   let locality =
     match Builtin_attributes.has_local styp.ptyp_attributes with
@@ -516,17 +523,35 @@ let get_alloc_mode styp =
       raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
   in
   { locality = locality; uniqueness; linearity }
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+let get_alloc_mode styp =
+  match Builtin_attributes.has_local styp.ptyp_attributes with
+  | Ok true -> Alloc_mode.Local
+  | Ok false -> Alloc_mode.Global
+  | Error () ->
+     raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Local))
+=======
+let unwrap_mode env styp =
+  match Jane_syntax.Core_type.of_ast styp with
+  | Some (Jtyp_local (Ltyp_local styp), []) -> Alloc_mode.Local, styp
+  | None -> Alloc_mode.Global, styp
+  | Some (Jtyp_local (Ltyp_local _), _ :: _) ->
+      (* Unreachable without writing Jane-syntax directly; the parser won't
+         generate this *)
+      raise (Error(styp.ptyp_loc, env, Local_type_has_attributes))
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
-let rec extract_params styp =
+let rec extract_params env styp =
   let final styp =
-    [], styp, get_alloc_mode styp
+    let mode, styp = unwrap_mode env styp in
+    [], styp, mode
   in
   match styp.ptyp_desc with
   | Ptyp_arrow (l, a, r) ->
-      let arg_mode = get_alloc_mode a in
+      let arg_mode, a = unwrap_mode env a in
       let params, ret, ret_mode =
-        if Builtin_attributes.has_curry r.ptyp_attributes then final r
-        else extract_params r
+        if Jane_syntax.Builtin.is_curried r then final r
+        else extract_params env r
       in
       (l, arg_mode, a) :: params, ret, ret_mode
   | _ -> final styp
@@ -564,9 +589,15 @@ and transl_type_aux env policy mode styp =
       ctyp_loc = loc; ctyp_attributes = styp.ptyp_attributes }
   in
   match Jane_syntax.Core_type.of_ast styp with
+<<<<<<< HEAD
   | Some (etyp, attrs) ->
     let desc, typ = transl_type_aux_jst env policy mode attrs loc etyp in
     ctyp desc typ
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  | Some (etyp, attrs) -> transl_type_aux_jst env policy mode attrs etyp
+=======
+  | Some (etyp, attrs) -> transl_type_aux_jst ~loc env policy mode attrs etyp
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
@@ -578,7 +609,7 @@ and transl_type_aux env policy mode styp =
       let desc, typ = transl_type_var env policy styp.ptyp_loc name None in
       ctyp desc typ
   | Ptyp_arrow _ ->
-      let args, ret, ret_mode = extract_params styp in
+      let args, ret, ret_mode = extract_params env styp in
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
@@ -918,6 +949,7 @@ and transl_type_aux env policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
+<<<<<<< HEAD
 and transl_type_aux_jst env policy mode _attrs loc :
       Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> transl_type_aux_jst_layout env policy mode loc typ
@@ -1052,6 +1084,18 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
   in
   Ttyp_alias (cty, name_opt, Option.map Location.get_txt layout_annot_opt),
   cty.ctyp_type
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+and transl_type_aux_jst _env _policy _mode _attrs
+      : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
+=======
+and transl_type_aux_jst ~loc env _policy _mode _attrs
+      : Jane_syntax.Core_type.t -> _ = function
+  | Jtyp_local (Ltyp_local _) ->
+      (* Unreachable without writing Jane-syntax directly; the parser won't
+         generate this *)
+      raise (Error(loc, env, Misplaced_local))
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 and transl_fields env policy o fields =
   let hfields = Hashtbl.create 17 in
@@ -1384,10 +1428,22 @@ let report_error env ppf = function
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+<<<<<<< HEAD
   | Bad_layout_annot(ty, violation) ->
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
       (Layout.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+  | Misplaced_local ->
+      (* Unreachable without writing Jane-syntax directly; the parser won't
+         generate this *)
+      fprintf ppf "@[\"local_\" cannot occur outside of an arrow type@]"
+  | Local_type_has_attributes ->
+      (* Unreachable without writing Jane-syntax directly; the parser won't
+         generate this *)
+      fprintf ppf "@[\"local_ t\" cannot have attributes@]"
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 let () =
   Location.register_error_of_exn

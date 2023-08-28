@@ -73,9 +73,8 @@ let () =
 let[@inline never] uses_exclave x =
   let local_ r = ref x in
   let _ = opaque_identity r in
-  [%exclave] (
+  exclave_
     check_empty "cleanup upon exclave"
-  )
 let () =
   uses_exclave 42
 
@@ -297,12 +296,12 @@ let[@inline never] allocate_in_exclave a =
     let pair = local_ opaque_identity (a, a) in
     let b, _ = pair in
     let b : int = b in
-    exclave_ (
+    exclave_
       (* This should allocate in the function's region - in particular, the
          function needs to have one *)
       let pair = local_ opaque_identity (b, b) in
       let c, _ = pair in
-      c = 42)
+      c = 42
   do
     ()
   done

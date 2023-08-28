@@ -142,7 +142,6 @@ utils/language_extension_kernel.cmo : \
 utils/language_extension_kernel.cmx : \
     utils/language_extension_kernel.cmi
 utils/language_extension_kernel.cmi :
-utils/language_extension_kernel_intf.cmi :
 utils/lazy_backtrack.cmo : \
     utils/lazy_backtrack.cmi
 utils/lazy_backtrack.cmx : \
@@ -469,6 +468,7 @@ parsing/jane_syntax.cmi : \
     parsing/asttypes.cmi
 parsing/jane_syntax_parsing.cmo : \
     parsing/parsetree.cmi \
+    parsing/longident.cmi \
     parsing/location.cmi \
     utils/language_extension_kernel.cmi \
     utils/language_extension.cmi \
@@ -476,6 +476,7 @@ parsing/jane_syntax_parsing.cmo : \
     parsing/jane_syntax_parsing.cmi
 parsing/jane_syntax_parsing.cmx : \
     parsing/parsetree.cmi \
+    parsing/longident.cmx \
     parsing/location.cmx \
     utils/language_extension_kernel.cmx \
     utils/language_extension.cmx \
@@ -769,8 +770,13 @@ typing/env.cmo : \
     utils/local_store.cmi \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
+<<<<<<< HEAD
     typing/layouts.cmi \
     utils/language_extension.cmi \
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+    utils/language_extension.cmi \
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     typing/ident.cmi \
     typing/datarepr.cmi \
     utils/compilation_unit.cmi \
@@ -796,8 +802,13 @@ typing/env.cmx : \
     utils/local_store.cmx \
     utils/load_path.cmx \
     utils/lazy_backtrack.cmx \
+<<<<<<< HEAD
     typing/layouts.cmx \
     utils/language_extension.cmx \
+||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+=======
+    utils/language_extension.cmx \
+>>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     typing/ident.cmx \
     typing/datarepr.cmx \
     utils/compilation_unit.cmx \
@@ -3685,6 +3696,7 @@ middle_end/convert_primitives.cmo : \
     lambda/printlambda.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
+    typing/layouts.cmi \
     lambda/lambda.cmi \
     middle_end/clambda_primitives.cmi \
     middle_end/convert_primitives.cmi
@@ -3692,6 +3704,7 @@ middle_end/convert_primitives.cmx : \
     lambda/printlambda.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
+    typing/layouts.cmx \
     lambda/lambda.cmx \
     middle_end/clambda_primitives.cmx \
     middle_end/convert_primitives.cmi
@@ -3817,7 +3830,6 @@ lambda/lambda.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -3833,7 +3845,6 @@ lambda/lambda.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -3848,7 +3859,6 @@ lambda/lambda.cmi : \
     typing/primitive.cmi \
     typing/path.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
