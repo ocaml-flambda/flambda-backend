@@ -520,10 +520,14 @@ val check_type_layout :
 val constrain_type_layout :
   Env.t -> type_expr -> layout -> (unit, Layout.Violation.t) result
 
+val is_principal : type_expr -> bool
+
 (* True if a type is always global (i.e., it mode crosses for local).  This is
    true for all immediate and immediate64 types.  To make it sound for
    immediate64, we've disabled stack allocation on 32-bit builds. *)
 val is_always_global : Env.t -> type_expr -> bool
+
+val mode_cross : Env.t -> type_expr -> bool
 
 (* For use with ocamldebug *)
 type global_state
