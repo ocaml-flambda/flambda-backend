@@ -1308,15 +1308,16 @@ module Layouts = struct
       | Unexpected_wrapped_expr of Parsetree.expression
       | Unexpected_wrapped_pat of Parsetree.pattern
 
+    (* Most things here are unprintable because we can't reference any
+       [Printast] functions that aren't exposed by the upstream compiler, as we
+       want this file to be compatible with the upstream compiler-libs. *)
     let report_error ~loc = function
-      | Unexpected_wrapped_type typ ->
+      | Unexpected_wrapped_type _typ ->
         Location.errorf ~loc
-          "Layout attribute on wrong core type:@;%a"
-          (Printast.core_type 0) typ
-      | Unexpected_wrapped_ext ext ->
+          "Layout attribute on wrong core type (unprintable)"
+      | Unexpected_wrapped_ext _ext ->
         Location.errorf ~loc
-          "Layout attribute on wrong extension constructor:@;%a"
-          (Printast.extension_constructor 0) ext
+          "Layout attribute on wrong extension constructor (unprintable)"
       | Unexpected_attribute names ->
         Location.errorf ~loc
           "Layout extension does not understand these attribute names:@;[%a]"
@@ -1326,18 +1327,16 @@ module Layouts = struct
       | No_integer_suffix ->
         Location.errorf ~loc
           "All unboxed integers require a suffix to determine their size."
-      | Unexpected_constant c ->
+      | Unexpected_constant _c ->
         Location.errorf ~loc
-          "Unexpected unboxed constant:@ %a"
-          (Printast.constant) c
+          "Unexpected unboxed constant (unprintable)"
       | Unexpected_wrapped_expr expr ->
         Location.errorf ~loc
           "Layout attribute on wrong expression:@;%a"
           (Printast.expression 0) expr
-      | Unexpected_wrapped_pat pat ->
+      | Unexpected_wrapped_pat _pat ->
         Location.errorf ~loc
-          "Layout attribute on wrong pattern:@;%a"
-          (Printast.pattern 0) pat
+          "Layout attribute on wrong pattern (unprintable)"
 
     exception Error of Location.t * error
 
