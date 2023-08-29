@@ -20,6 +20,24 @@
     For details on the rationale behind this approach (and for some of the gory
     details), see [Jane_syntax_parsing]. *)
 
+(******************************************************************************)
+
+(* Note [Buildable with upstream]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   We want to make sure that the various [Jane_*] modules, along with
+   [Language_extension_kernel] and a small stub for [Language_extension], are
+   buildable with the upstream compiler and compiler-libs.  This allows us to
+   import these files into compatibility libraries such as
+   {{:https://github.com/janestreet/ppxlib_jane}ppxlib_jane}.  We have CI tests
+   which ensure that this property is maintained.
+
+   It is possible that at some point we'll really need to depend on new
+   functionality we provide elsewhere in the compiler; at that point, we can
+   look into providing stub implementations of these modules for use with the
+   upstream compiler instead.  For now, though, this is sufficient.
+*)
+
 (*********************************************)
 (* Individual features *)
 
