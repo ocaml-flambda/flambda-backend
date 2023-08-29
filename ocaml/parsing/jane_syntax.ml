@@ -1168,7 +1168,9 @@ module N_ary_functions = struct
           | None -> body
           | Some { mode_annotations; type_constraint } ->
               let constrained_body =
-                let loc = Location.ghostify body.pexp_loc in
+                (* We can't call [Location.ghostify] here, as we need
+                   [jane_syntax.ml] to build with the upstream compilerlibs. *)
+                let loc = { body.pexp_loc with loc_ghost = true } in
                 match type_constraint with
                 | Pconstraint ty -> Ast_helper.Exp.constraint_ body ty ~loc
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc

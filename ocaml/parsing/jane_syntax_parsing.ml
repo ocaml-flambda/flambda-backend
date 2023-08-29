@@ -800,6 +800,8 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
 
   let make_entire_jane_syntax ~loc feature ast =
     AST.with_location
+      (* We can't call [Location.ghostify] here, as we need
+         [jane_syntax_parsing.ml] to build with the upstream compilerlibs. *)
       (Ast_helper.with_default_loc { loc with loc_ghost = true } (fun () ->
         make_jane_syntax feature [] (ast ())))
       loc
