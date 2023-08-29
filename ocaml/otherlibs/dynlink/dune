@@ -77,6 +77,7 @@
     meta
     symtable
     asttypes
+    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -88,6 +89,7 @@
     linkage_name)
   (modules_without_implementation
     asttypes
+    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -226,6 +228,7 @@
 
 ; .mli-only:
 (copy_files ../../parsing/asttypes.mli)
+(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/parsetree.mli)
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)

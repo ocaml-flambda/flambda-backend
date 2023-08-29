@@ -202,5 +202,5 @@ val has_once : Parsetree.attributes -> (bool, unit) result
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
 val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Asttypes.layout_annotation option,
-   Asttypes.layout_annotation) result
+  (Jane_asttypes.layout_annotation option,
+   Jane_asttypes.layout_annotation) result

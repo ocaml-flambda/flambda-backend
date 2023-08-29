@@ -18,6 +18,7 @@
 (* Typechecking of type expressions for the core language *)
 
 open Asttypes
+open Jane_asttypes
 open Misc
 open Parsetree
 open Typedtree

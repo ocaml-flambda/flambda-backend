@@ -285,7 +285,7 @@ module Layout : sig
 
   (** Constant layouts are used both for user-written annotations and within
       the type checker when we know a layout has no variables *)
-  type const = Asttypes.const_layout =
+  type const = Jane_asttypes.const_layout =
     | Any
     | Value
     | Void
@@ -329,19 +329,22 @@ module Layout : sig
   (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
      is rerouted away from the new annotations mechanism *)
   val of_annotation :
-    ?legacy_immediate:bool -> context:annotation_context -> Asttypes.layout_annotation -> t
+    ?legacy_immediate:bool ->
+    context:annotation_context ->
+    Jane_asttypes.layout_annotation ->
+    t
 
   val of_annotation_option_default :
     ?legacy_immediate:bool ->
     default:t -> context:annotation_context ->
-    Asttypes.layout_annotation option -> t
+    Jane_asttypes.layout_annotation option -> t
 
   (** Find a layout in attributes.  Returns error if a disallowed layout is
       present, but always allows immediate attributes if ~legacy_immediate is
       true.  See comment on [Builtin_attributes.layout].  *)
   val of_attributes :
     legacy_immediate:bool -> context:annotation_context -> Parsetree.attributes ->
-    (t option, const Location.loc) result
+    (t option, Jane_asttypes.layout_annotation) result
 
   (** Find a layout in attributes, defaulting to ~default.  Returns error if a
       disallowed layout is present, but always allows immediate if
@@ -349,7 +352,7 @@ module Layout : sig
   val of_attributes_default :
     legacy_immediate:bool -> context:annotation_context ->
     default:t -> Parsetree.attributes ->
-    (t, const Location.loc) result
+    (t, Jane_asttypes.layout_annotation) result
 
   (** Choose an appropriate layout for a boxed record type, given whether
       all of its fields are [void]. *)

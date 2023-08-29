@@ -20,6 +20,10 @@
 
 *)
 
+(** (Jane Street specific; delete when upstreaming.)
+    Don't add new types to this file; add them to [jane_asttypes.mli] instead.
+    This file is considered part of the parse tree, which we can't modify. *)
+
 type constant =
     Const_int of int
   | Const_char of char

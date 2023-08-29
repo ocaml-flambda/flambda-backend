@@ -1,4 +1,5 @@
 open Asttypes
+open Jane_asttypes
 open Parsetree
 open Jane_syntax_parsing
 
@@ -1265,16 +1266,15 @@ module Layouts = struct
 
   type nonrec core_type =
     | Ltyp_var of { name : string option
-                  ; layout : Asttypes.layout_annotation }
+                  ; layout : layout_annotation }
     | Ltyp_poly of { bound_vars : (string loc * layout_annotation option) list
                    ; inner_type : core_type }
     | Ltyp_alias of { aliased_type : core_type
                     ; name : string option
-                    ; layout : Asttypes.layout_annotation }
+                    ; layout : layout_annotation }
 
   type nonrec extension_constructor =
-    | Lext_decl of (string Location.loc *
-                    Asttypes.layout_annotation option) list *
+    | Lext_decl of (string Location.loc * layout_annotation option) list *
                    constructor_arguments *
                    Parsetree.core_type option
 

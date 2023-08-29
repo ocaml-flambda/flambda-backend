@@ -63,6 +63,7 @@ NATOBJS=dynlink_compilerlibs.cmx dynlink_types.cmx \
 # .mli files from compilerlibs that don't have a corresponding .ml file.
 COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
+  parsing/jane_asttypes.mli \
   parsing/parsetree.mli \
   typing/outcometree.mli \
   file_formats/cmo_format.mli \

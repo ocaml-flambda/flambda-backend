@@ -57,7 +57,7 @@ type out_value =
   | Oval_variant of string * out_value option
 
 type out_layout =
-  | Olay_const of Asttypes.const_layout
+  | Olay_const of Jane_asttypes.const_layout
   | Olay_var of string
 
 type out_type_param =

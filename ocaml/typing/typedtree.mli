@@ -22,6 +22,7 @@
 *)
 
 open Asttypes
+open Jane_asttypes
 
 (* Value expressions for the core language *)
 
@@ -738,7 +739,7 @@ and core_type_desc =
   | Ttyp_class of Path.t * Longident.t loc * core_type list
   | Ttyp_alias of core_type * string option * const_layout option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * Asttypes.const_layout option) list * core_type
+  | Ttyp_poly of (string * const_layout option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {

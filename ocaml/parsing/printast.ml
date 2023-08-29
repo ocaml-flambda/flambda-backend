@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes;;
+open Jane_asttypes;;
 open Format;;
 open Lexing;;
 open Location;;

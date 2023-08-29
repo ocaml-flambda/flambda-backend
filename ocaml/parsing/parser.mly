@@ -25,6 +25,7 @@
 %{
 
 open Asttypes
+open Jane_asttypes
 open Longident
 open Parsetree
 open Ast_helper

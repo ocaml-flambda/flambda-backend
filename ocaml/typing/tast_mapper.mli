@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 (** {1 A generic Typedtree mapper} *)

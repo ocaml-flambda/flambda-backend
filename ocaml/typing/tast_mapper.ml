@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 (* TODO: add 'methods' for location, attribute, extension,
