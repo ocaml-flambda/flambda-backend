@@ -231,17 +231,17 @@ let compare { dbg = dbg1; } { dbg = dbg2; } =
     | d1 :: ds1, d2 :: ds2 ->
       let c = String.compare d1.dinfo_file d2.dinfo_file in
       if c <> 0 then c else
-      let c = compare d1.dinfo_line d2.dinfo_line in
+      let c = Int.compare d1.dinfo_line d2.dinfo_line in
       if c <> 0 then c else
-      let c = compare d1.dinfo_char_end d2.dinfo_char_end in
+      let c = Int.compare d1.dinfo_char_end d2.dinfo_char_end in
       if c <> 0 then c else
-      let c = compare d1.dinfo_char_start d2.dinfo_char_start in
+      let c = Int.compare d1.dinfo_char_start d2.dinfo_char_start in
       if c <> 0 then c else
-      let c = compare d1.dinfo_start_bol d2.dinfo_start_bol in
+      let c = Int.compare d1.dinfo_start_bol d2.dinfo_start_bol in
       if c <> 0 then c else
-      let c = compare d1.dinfo_end_bol d2.dinfo_end_bol in
+      let c = Int.compare d1.dinfo_end_bol d2.dinfo_end_bol in
       if c <> 0 then c else
-      let c = compare d1.dinfo_end_line d2.dinfo_end_line in
+      let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
       if c <> 0 then c else
       loop ds1 ds2
   in
