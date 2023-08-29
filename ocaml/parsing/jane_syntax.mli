@@ -261,6 +261,14 @@ module Layouts : sig
         Parsetree.constructor_arguments *
         Parsetree.core_type option
 
+  module Pprint : sig
+    val const_layout :
+      Format.formatter -> Jane_asttypes.const_layout -> unit
+
+    val layout_annotation :
+      Format.formatter -> Jane_asttypes.layout_annotation -> unit
+  end
+
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern

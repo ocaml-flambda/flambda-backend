@@ -318,6 +318,36 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable)
   end
 end
 
+module Stringable_const_layout = struct
+  type t = const_layout
+
+  let indefinite_article_and_name = "a", "layout"
+
+  let to_string = function
+    | Any -> "any"
+    | Value -> "value"
+    | Void -> "void"
+    | Immediate64 -> "immediate64"
+    | Immediate -> "immediate"
+    | Float64 -> "float64"
+
+  (* CR layouts v1.5: revise when moving layout recognition away from parser *)
+  let of_string = function
+    | "any" -> Some Any
+    | "value" -> Some Value
+    | "void" -> Some Void
+    | "immediate" -> Some Immediate
+    | "immediate64" -> Some Immediate64
+    | "float64" -> Some Float64
+    | _ -> None
+end
+
+module Layouts_pprint = struct
+  let const_layout fmt cl =
+    Format.pp_print_string fmt (Stringable_const_layout.to_string cl)
+
+  let layout_annotation fmt ann = const_layout fmt ann.txt
+end
 
 (** Layout annotations' encoding as attribute payload, used in both n-ary
     functions and layouts. *)
@@ -332,29 +362,9 @@ module Layout_annotation : sig
       (string Location.loc * layout_annotation option) list
   end
 end = struct
-  module Protocol = Make_payload_protocol_of_stringable (struct
-      type t = const_layout
+  module Protocol =
+    Make_payload_protocol_of_stringable (Stringable_const_layout)
 
-      let indefinite_article_and_name = "a", "layout"
-
-      let to_string = function
-        | Any -> "any"
-        | Value -> "value"
-        | Void -> "void"
-        | Immediate64 -> "immediate64"
-        | Immediate -> "immediate"
-        | Float64 -> "float64"
-
-      (* CR layouts v1.5: revise when moving layout recognition away from parser*)
-      let of_string = function
-        | "any" -> Some Any
-        | "value" -> Some Value
-        | "void" -> Some Void
-        | "immediate" -> Some Immediate
-        | "immediate64" -> Some Immediate64
-        | "float64" -> Some Float64
-        | _ -> None
-    end)
   (*******************************************************)
   (* Conversions with a payload *)
 
@@ -376,7 +386,7 @@ end = struct
               (Format.pp_print_list
                 (Format.pp_print_option
                     ~none:(fun ppf () -> Format.fprintf ppf "None")
-                    (Printast.layout_annotation 0)))
+                    Layouts_pprint.layout_annotation))
               layouts
 
       exception Error of Location.t * error
@@ -1277,6 +1287,11 @@ module Layouts = struct
     | Lext_decl of (string Location.loc * layout_annotation option) list *
                    constructor_arguments *
                    Parsetree.core_type option
+
+  (*******************************************************)
+  (* Pretty-printing *)
+
+  module Pprint = Layouts_pprint
 
   (*******************************************************)
   (* Errors *)
