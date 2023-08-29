@@ -15,10 +15,16 @@
 (** Auxiliary Jane Street extensions to AST types used by parsetree and
     typedtree.
 
+    This file exists because [Asttypes] is considered part of the parse tree,
+    and we can't modify the parse tree.  This also enables us to build other
+    files with the upstream compiler as long as [jane_asttypes.mli] is present;
+    see Note [Buildable with upstream] in jane_syntax.mli for details on that.
+
   {b Warning:} this module is unstable and part of
   {{!Compiler_libs}compiler-libs}.
 
 *)
+
 
 open Asttypes
 

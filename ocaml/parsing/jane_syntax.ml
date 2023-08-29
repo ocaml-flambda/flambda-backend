@@ -1311,15 +1311,15 @@ module Layouts = struct
 
     (* Most things here are unprintable because we can't reference any
        [Printast] functions that aren't exposed by the upstream compiler, as we
-       want this file to be compatible with the upstream compiler; ; see Note
+       want this file to be compatible with the upstream compiler; see Note
        [Buildable with upstream] in jane_syntax.mli for details. *)
     let report_error ~loc = function
       | Unexpected_wrapped_type _typ ->
         Location.errorf ~loc
-          "Layout attribute on wrong core type (unprintable)"
+          "Layout attribute on wrong core type"
       | Unexpected_wrapped_ext _ext ->
         Location.errorf ~loc
-          "Layout attribute on wrong extension constructor (unprintable)"
+          "Layout attribute on wrong extension constructor"
       | Unexpected_attribute names ->
         Location.errorf ~loc
           "Layout extension does not understand these attribute names:@;[%a]"
@@ -1331,14 +1331,14 @@ module Layouts = struct
           "All unboxed integers require a suffix to determine their size."
       | Unexpected_constant _c ->
         Location.errorf ~loc
-          "Unexpected unboxed constant (unprintable)"
+          "Unexpected unboxed constant"
       | Unexpected_wrapped_expr expr ->
         Location.errorf ~loc
           "Layout attribute on wrong expression:@;%a"
           (Printast.expression 0) expr
       | Unexpected_wrapped_pat _pat ->
         Location.errorf ~loc
-          "Layout attribute on wrong pattern (unprintable)"
+          "Layout attribute on wrong pattern"
 
     exception Error of Location.t * error
 
