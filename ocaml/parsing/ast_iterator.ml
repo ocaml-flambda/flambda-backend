@@ -132,7 +132,9 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-<<<<<<< HEAD
+  let iter_local sub : Jane_syntax.Local.core_type -> _ = function
+    | Ltyp_local ty -> sub.typ sub ty
+
   let layout_annotation sub =
     iter_loc_txt sub sub.layout_annotation
 
@@ -151,17 +153,8 @@ module T = struct
       iter_loc_txt sub sub.layout_annotation layout
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
-    | Jtyp_layout typ -> iter_jst_layout sub typ
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  let iter_jst _sub : Jane_syntax.Core_type.t -> _ = function
-    | _ -> .
-=======
-  let iter_local sub : Jane_syntax.Local.core_type -> _ = function
-    | Ltyp_local ty -> sub.typ sub ty
-
-  let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
     | Jtyp_local lty -> iter_local sub lty
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Jtyp_layout typ -> iter_jst_layout sub typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =

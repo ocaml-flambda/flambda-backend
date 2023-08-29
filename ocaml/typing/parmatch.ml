@@ -1914,29 +1914,6 @@ module Conv = struct
           mkpat (Ppat_record (fields, Open))
       | Tpat_array (am, lst) ->
           let pats = (List.map loop lst) in
-<<<<<<< HEAD
-          let ppat, attrs = match am with
-            | Mutable   -> Ppat_array pats, []
-            | Immutable ->
-                let ppat =
-                  Jane_syntax.Immutable_arrays.pat_of
-                    ~loc:pat.pat_loc (Iapat_immutable_array pats)
-                in
-                ppat.ppat_desc, ppat.ppat_attributes
-          in
-          mkpat ~attrs ppat
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-          let ppat, attrs = match am with
-            | Mutable   -> Ppat_array pats, []
-            | Immutable ->
-                let ppat =
-                  Jane_syntax.Immutable_arrays.pat_of
-                    ~loc:pat.pat_loc ~attrs:[] (Iapat_immutable_array pats)
-                in
-                ppat.ppat_desc, ppat.ppat_attributes
-          in
-          mkpat ~attrs ppat
-=======
           begin match am with
           | Mutable ->
               mkpat (Ppat_array pats)
@@ -1945,7 +1922,6 @@ module Conv = struct
                 ~loc:pat.pat_loc
                 (Iapat_immutable_array pats)
           end
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       | Tpat_lazy p ->
           mkpat (Ppat_lazy (loop p))
     in

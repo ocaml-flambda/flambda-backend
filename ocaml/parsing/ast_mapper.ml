@@ -163,7 +163,10 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
-<<<<<<< HEAD
+  let map_local sub
+      : Jane_syntax.Local.core_type -> Jane_syntax.Local.core_type = function
+    | Ltyp_local typ -> Ltyp_local (sub.typ sub typ)
+
   let var_layout sub (name, layout_opt) =
     let name = map_loc sub name in
     let layout_opt =
@@ -175,17 +178,7 @@ module T = struct
 
   let map_jst_layouts sub :
         Jane_syntax.Layouts.core_type -> Jane_syntax.Layouts.core_type =
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  let map_jst _sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
-=======
-  let map_local sub
-      : Jane_syntax.Local.core_type -> Jane_syntax.Local.core_type = function
-    | Ltyp_local typ -> Ltyp_local (sub.typ sub typ)
-
-  let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     function
-<<<<<<< HEAD
     | Ltyp_var { name; layout } ->
       let layout = map_loc_txt sub sub.layout_annotation layout in
       Ltyp_var { name; layout }
@@ -200,12 +193,8 @@ module T = struct
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
-    | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-    | _ -> .
-=======
     | Jtyp_local lty -> Jtyp_local (map_local sub lty)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
 
   let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                  as typ) =
@@ -214,20 +203,8 @@ module T = struct
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) ->
         let attrs = sub.attributes sub attrs in
-<<<<<<< HEAD
-        let jtyp = sub.typ_jane_syntax sub jtyp in
-        Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
-    end
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-        let typ = match sub.typ_jane_syntax sub jtyp with
-          | _ -> .
-        in
-        { typ with ptyp_attributes = attrs @ typ.ptyp_attributes }
-    end
-=======
         let jtyp  = sub.typ_jane_syntax sub jtyp in
         Jane_syntax.Core_type.ast_of ~loc (jtyp, attrs)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
@@ -404,16 +381,8 @@ module MT = struct
     match Jane_syntax.Module_type.of_ast mty with
     | Some (jmty, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-<<<<<<< HEAD
-        Jane_syntax.Module_type.mty_of ~loc ~attrs
-          (sub.module_type_jane_syntax sub jmty)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-        match sub.module_type_jane_syntax sub jmty with
-        | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc ~attrs smty
-=======
         let jmty = sub.module_type_jane_syntax sub jmty in
         Jane_syntax.Module_type.ast_of ~loc (jmty, attrs)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -1100,13 +1069,7 @@ let default_mapper =
     signature_item_jane_syntax = MT.map_signature_item_jst;
     structure_item_jane_syntax = M.map_structure_item_jst;
     typ_jane_syntax = T.map_jst;
-<<<<<<< HEAD
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-
-=======
     constructor_argument_jane_syntax = CA_jst.map;
-
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   }
 
 let extension_of_error {kind; main; sub} =

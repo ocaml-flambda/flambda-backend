@@ -151,7 +151,6 @@ module Immutable_arrays : sig
     | Iapat_immutable_array of Parsetree.pattern list
     (** [[: P1; ...; Pn :]] **)
 
-<<<<<<< HEAD
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
@@ -253,17 +252,6 @@ module N_ary_functions : sig
     function_param list * function_constraint option * function_body
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  val expr_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    expression -> Parsetree.expression
-  val pat_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    pattern -> Parsetree.pattern
-=======
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -314,7 +302,6 @@ module Layouts : sig
     (* This is represented as an attribute wrapping a [Pexp_constant] node. *)
     | Lexp_constant of constant
 
-<<<<<<< HEAD
     (* [fun (type a : immediate) -> ...] *)
     (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
     | Lexp_newtype of
@@ -392,18 +379,6 @@ module Layouts : sig
     Parsetree.constructor_declaration ->
     ((string Location.loc * Asttypes.layout_annotation option) list *
      Parsetree.attributes) option
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  val expr_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    expression -> Parsetree.expression
-
-  val pat_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    pattern -> Parsetree.pattern
-=======
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 end
 
 (******************************************)
@@ -489,15 +464,9 @@ end
 
 (** Novel syntax in types *)
 module Core_type : sig
-<<<<<<< HEAD
-  type t =
-    | Jtyp_layout of Layouts.core_type
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  type t = |
-=======
   type t =
     | Jtyp_local of Local.core_type
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+    | Jtyp_layout of Layouts.core_type
 
   include AST
     with type t := t * Parsetree.attributes
@@ -523,21 +492,11 @@ end
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =
-<<<<<<< HEAD
+    | Jexp_local of Local.expression
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-    | Jexp_comprehension    of Comprehensions.expression
-    | Jexp_immutable_array  of Immutable_arrays.expression
-    | Jexp_unboxed_constant of Unboxed_constants.expression
-=======
-    | Jexp_local            of Local.expression
-    | Jexp_comprehension    of Comprehensions.expression
-    | Jexp_immutable_array  of Immutable_arrays.expression
-    | Jexp_unboxed_constant of Unboxed_constants.expression
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
   include AST
     with type t := t * Parsetree.attributes

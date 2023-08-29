@@ -27,21 +27,17 @@ let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
 let empty_comprehension loc = err loc "Comprehension with no clauses"
-<<<<<<< HEAD
 let no_val_params loc = err loc "Functions must have a value parameter."
+let misplaced_local loc =
+  err loc "\"local_\" cannot occur outside of an arrow type"
+let local_with_attributes loc =
+  err loc "\"local_ t\" cannot have attributes"
 
 let non_jane_syntax_function loc =
   err loc "Functions must be constructed using Jane Street syntax."
 
 (* We will enable this check after we finish migrating to n-ary functions. *)
 let () = ignore non_jane_syntax_function
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-=======
-let misplaced_local loc =
-  err loc "\"local_\" cannot occur outside of an arrow type"
-let local_with_attributes loc =
-  err loc "\"local_ t\" cannot have attributes"
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 let simple_longident id =
   let rec is_simple = function

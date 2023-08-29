@@ -157,12 +157,6 @@ end
     corresponding module of this module type.  We're adding these lazily as we
     need them. When you add another one, make sure also to add special handling
     in [Ast_iterator] and [Ast_mapper].
-<<<<<<< HEAD
-*)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-
-*)
-=======
 
     This module type comes in two varieties: [AST_with_attributes] and
     [AST_without_attributes].  They reflect whether desugaring an OCaml AST into
@@ -175,7 +169,6 @@ end
     the ASTs that has a [loc_stack]; for instance, in [local_ e], this will
     enable the Jane syntax machinery preserve the location of [e] itself, which
     would otherwise get overridden with the outer location. *)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 module type AST = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
@@ -345,60 +338,6 @@ module Constructor_declaration :
 val assert_extension_enabled :
   loc:Location.t -> 'a Language_extension.t -> 'a -> unit
 
-<<<<<<< HEAD
-(* CR-someday nroberts: An earlier version of this revealed less of its
-   implementation in its name: it was called [match_jane_syntax], and
-   was a function from ast to ast. This has some advantages (less revealing
-   of the Jane Syntax encoding) but I felt it important to document the caller's
-   responsibility to plumb through uninterpreted attributes.
-
-   Given that it only has one callsite currently, we decided to keep this
-   approach for now, but we could revisit this decision if we use it more
-   often.
-*)
-(** Extracts the last attribute (in list order) that was inserted by the
-    Jane Syntax framework, and returns the rest of the attributes in the
-    same relative order as was input, along with the location of the removed
-    attribute and its payload.
-
-    This can be used by [Jane_syntax] to peel off individual attributes in
-    order to process a Jane Syntax element that consists of multiple
-    nested ASTs.
-*)
-val find_and_remove_jane_syntax_attribute :
-  Parsetree.attributes ->
-  (Embedded_name.t * Location.t *
-   Parsetree.payload * Parsetree.attributes) option
-
-(** Creates an attribute used for encoding syntax from the given [Feature.t] *)
-val make_jane_syntax_attribute :
-  Feature.t -> string list -> Parsetree.payload -> Parsetree.attribute
-
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-(* CR-someday nroberts: An earlier version of this revealed less of its
-   implementation in its name: it was called [match_jane_syntax], and
-   was a function from ast to ast. This has some advantages (less revealing
-   of the Jane Syntax encoding) but I felt it important to document the caller's
-   responsibility to plumb through uninterpreted attributes.
-
-   Given that it only has one callsite currently, we decided to keep this
-   approach for now, but we could revisit this decision if we use it more
-   often.
-*)
-(** Extracts the first attribute (in list order) that was inserted by the
-    Jane Syntax framework, and returns the rest of the attributes in the
-    same relative order as was input.
-
-    This can be used by [Jane_syntax] to peel off individual attributes in
-    order to process a Jane Syntax element that consists of multiple
-    nested ASTs.
-*)
-val find_and_remove_jane_syntax_attribute
-  :  Parsetree.attributes
-  -> (Embedded_name.t * Parsetree.attributes) option
-
-=======
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 (** Errors around the representation of our extended ASTs.  These should mostly
     just be fatal, but they're needed for one test case
     (language-extensions/language_extensions.ml). *)

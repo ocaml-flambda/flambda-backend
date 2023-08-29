@@ -542,26 +542,13 @@ module type AST_internal = sig
     Embedded_name.t -> ?payload:payload -> ast -> ast
 
   (** Given an AST node, check if it's a representation of a term from one of
-<<<<<<< HEAD
       our novel syntactic features; if it is, split it back up into its name,
-      the location of the extension/attribute, any payload, and the body.  If
-      the embedded term is malformed in any way, raises an error; if the input
-      isn't an embedding of one of our novel syntactic features, returns [None].
-      Partial inverse of [make_jane_syntax]. *)
+      the location of the extension/attribute, any payload, and
+      the body.  If the embedded term is malformed in any way, raises an error;
+      if the input isn't an embedding of one of our novel syntactic features,
+      returns [None].  Partial inverse of [make_jane_syntax]. *)
   val match_jane_syntax :
-    ast -> (Embedded_name.t * Location.t * Parsetree.payload * ast) option
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-      our novel syntactic features; if it is, split it back up into its name and
-      the body.  If the embedded term is malformed in any way, raises an error;
-      if the input isn't an embedding of one of our novel syntactic features,
-      returns [None].  Partial inverse of [make_jane_syntax]. *)
-  val match_jane_syntax : ast -> (Embedded_name.t * ast) option
-=======
-      our novel syntactic features; if it is, split it back up into its name and
-      the body.  If the embedded term is malformed in any way, raises an error;
-      if the input isn't an embedding of one of our novel syntactic features,
-      returns [None].  Partial inverse of [make_jane_syntax]. *)
-  val match_jane_syntax : ast -> (Embedded_name.t * ast with_attributes) option
+    ast -> (Embedded_name.t * Location.t * Parsetree.payload * ast with_attributes) option
 end
 
 module type AST_with_attributes_internal = sig
@@ -574,60 +561,17 @@ module type AST_with_attributes_and_loc_stack_internal = sig
   include AST_with_attributes_internal
   val save_location : ast -> ast
   val restore_location : ast -> ast
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 end
 
-(* Parses the embedded name from an embedding, raising if
-<<<<<<< HEAD
-    the embedding is malformed. Malformed means that
-    NAME is missing; e.g. the attribute is just [[@jane]].
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-    the embedding is malformed. Malformed means either:
-
-    1. The embedding has a payload; attribute payloads must
-    be empty, so other ppxes can traverse "into" them.
-
-    2. NAME is missing; e.g. the attribute is just [[@jane]].
-=======
-    the embedding is malformed. Malformed means either:
-
-    1. The embedding has a payload; attribute payloads must
-       be empty, so other ppxes can traverse "into" them.
-
-    2. NAME is missing; i.e., the attribute is just [[@jane]] or
-       [[@jane.ERASABILITY]], and similarly for extension nodes.
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-*)
+(* Parses the embedded name from an embedding, raising if the embedding is
+   malformed. Malformed means that NAME is missing; i.e., the attribute is just
+   [[@jane]] or [[@jane.ERASABILITY]], and similarly for extension nodes. *)
 let parse_embedding_exn ~loc ~name ~embedding_syntax =
   let raise_error err = raise (Error (loc, err)) in
   match Embedded_name.of_string name with
-<<<<<<< HEAD
+  | Some (Ok name) when Embedded_name.is_marker name -> None
   | Some (Ok name) -> Some name
   | Some (Error err) -> raise_error (Misnamed_embedding (err, name, embedding_syntax))
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  | Some (Ok name) -> begin
-      let raise_malformed err =
-        raise_error (Malformed_embedding (embedding_syntax, name, err))
-      in
-      match payload with
-      | PStr [] -> Some name
-      | _ -> raise_malformed (Has_payload payload)
-    end
-  | Some (Error err) ->
-      raise_error (Misnamed_embedding (err, name, embedding_syntax))
-=======
-  | Some (Ok name) when Embedded_name.is_marker name -> None
-  | Some (Ok name) -> begin
-      let raise_malformed err =
-        raise_error (Malformed_embedding (embedding_syntax, name, err))
-      in
-      match payload with
-      | PStr [] -> Some name
-      | _ -> raise_malformed (Has_payload payload)
-    end
-  | Some (Error err) ->
-      raise_error (Misnamed_embedding (err, name, embedding_syntax))
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   | None -> None
 
 (** Extracts the last attribute (in list order) that was inserted by the Jane
@@ -636,50 +580,6 @@ let parse_embedding_exn ~loc ~name ~embedding_syntax =
     one are first, and the attributes that come after are last; this last
     component is guaranteed not to have any Jane Syntax attributes in it. *)
 let find_and_remove_jane_syntax_attribute =
-<<<<<<< HEAD
-  (* Recurs on [rev_prefix] *)
-  let rec loop ~rev_prefix ~suffix =
-    match rev_prefix with
-    | [] -> None
-    | attr :: rev_prefix ->
-        let { attr_name = { txt = name; loc = attr_loc }; attr_payload } =
-          attr
-        in
-        begin
-          match
-            parse_embedding_exn ~loc:attr_loc ~name ~embedding_syntax:Attribute
-          with
-          | None -> loop ~rev_prefix ~suffix:(attr :: suffix)
-          | Some name ->
-              let unconsumed_attributes = List.rev_append rev_prefix suffix in
-              Some (name, attr_loc, attr_payload, unconsumed_attributes)
-        end
-  in
-  fun attributes -> loop ~rev_prefix:(List.rev attributes) ~suffix:[]
-;;
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  let rec loop rest ~rev_prefix =
-    match rest with
-    | [] -> None
-    | attr :: rest ->
-      let { attr_name = { txt = name; loc = attr_loc }; attr_payload } =
-        attr
-      in
-      begin
-        match
-         parse_embedding_exn
-           ~loc:attr_loc
-           ~payload:attr_payload
-           ~name
-           ~embedding_syntax:Attribute
-        with
-        | None -> loop rest ~rev_prefix:(attr :: rev_prefix)
-        | Some name -> Some (name, List.rev_append rev_prefix rest)
-      end
-  in
-  fun attributes -> loop attributes ~rev_prefix:[]
-;;
-=======
   Util.find_map_last_and_split
     ~f:(fun { attr_name = { txt = name; loc }; attr_payload = payload } ->
           parse_embedding_exn ~loc ~payload ~name ~embedding_syntax:Attribute)
@@ -732,7 +632,6 @@ module Desugaring_error = struct
         | Error(loc, feature, err) -> Some (report_error ~loc ~feature err)
         | _ -> None)
 end
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 let make_jane_syntax_attribute name payload =
   { attr_name =
@@ -757,52 +656,24 @@ module Make_with_attribute
 = struct
     include AST_syntactic_category
 
-    let add_attributes attrs ast = set_attributes ast (attributes ast @ attrs)
+    let add_attributes attrs ast =
+      (* Performance hack: save on allocations and a list traversal if [attrs]
+         is empty. *)
+      match attrs with
+      | [] -> ast
+      | _ :: _ -> set_attributes ast (attributes ast @ attrs)
 
     let embedding_syntax = Embedding_syntax.Attribute
 
-<<<<<<< HEAD
     let make_jane_syntax name ?(payload = PStr []) ast =
       let attr = make_jane_syntax_attribute name payload in
-      (* See Note [Outer attributes at end] in jane_syntax.ml *)
-      with_attributes ast (attributes ast @ [ attr ])
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-    let make_jane_syntax name ast =
-      let attr =
-        { attr_name =
-            { txt = Embedded_name.to_string name
-            ; loc = !Ast_helper.default_loc
-            }
-        ; attr_loc = !Ast_helper.default_loc
-        ; attr_payload = PStr []
-        }
-      in
-      with_attributes ast (attr :: attributes ast)
-=======
-    let make_jane_syntax name ast =
-      let attr =
-        { attr_name =
-            { txt = Embedded_name.to_string name
-            ; loc = !Ast_helper.default_loc
-            }
-        ; attr_loc = !Ast_helper.default_loc
-        ; attr_payload = PStr []
-        }
-      in
       add_attributes [attr] ast
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
     let match_jane_syntax ast =
       match find_and_remove_jane_syntax_attribute (attributes ast) with
       | None -> None
-<<<<<<< HEAD
-      | Some (name, loc, payload, attrs) ->
-        Some (name, loc, payload, with_attributes ast attrs)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-      | Some (name, attrs) -> Some (name, with_attributes ast attrs)
-=======
-      | Some (inner_attrs, name, outer_attrs) ->
-        Some (name, (set_attributes ast inner_attrs, outer_attrs))
+      | Some (inner_attrs, name, loc, payload, outer_attrs) ->
+        Some (name, loc, payload, (set_attributes ast inner_attrs, outer_attrs))
 end
 
 module Make_with_attribute_and_include_loc_stack
@@ -837,7 +708,6 @@ module Make_with_attribute_and_include_loc_stack
       | None ->
         raise (Error (location ast,
                       Cannot_restore_location_from_empty_loc_stack))
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 end
 
 (** For a syntactic category, produce translations into and out of
@@ -874,34 +744,14 @@ struct
 
   let embedding_syntax = Embedding_syntax.Extension_node
 
-<<<<<<< HEAD
-    let make_jane_syntax name ?(payload = PStr []) ast =
-      make_extension_use
-        ast
-        ~extension_node:
-          (make_extension_node
-             ({ txt = Embedded_name.to_string name
-              ; loc = !Ast_helper.default_loc },
-              payload))
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-    let make_jane_syntax name ast =
-      make_extension_use
-        ast
-        ~extension_node:
-          (make_extension_node
-             ({ txt = Embedded_name.to_string name
-              ; loc = !Ast_helper.default_loc },
-              PStr []))
-=======
-  let make_jane_syntax name ast =
+  let make_jane_syntax name ?(payload = PStr []) ast =
     make_extension_use
       ast
       ~extension_node:
         (make_extension_node
            ({ txt = Embedded_name.to_string name
             ; loc = !Ast_helper.default_loc },
-            PStr []))
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+            payload))
 
   let match_jane_syntax ast =
     match match_extension_use ast with
@@ -910,35 +760,11 @@ struct
       match
         parse_embedding_exn
           ~loc:ext_loc
-          ~payload:ext_payload
           ~name
           ~embedding_syntax
       with
       | None -> None
-<<<<<<< HEAD
-      | Some (({txt = name; loc = ext_loc}, ext_payload), body) ->
-        match
-          parse_embedding_exn
-            ~loc:ext_loc
-            ~name
-            ~embedding_syntax
-        with
-        | None -> None
-        | Some name -> Some (name, ext_loc, ext_payload, body)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-      | Some (({txt = name; loc = ext_loc}, ext_payload), body) ->
-        match
-          parse_embedding_exn
-            ~loc:ext_loc
-            ~payload:ext_payload
-            ~name
-            ~embedding_syntax
-        with
-        | None -> None
-        | Some name -> Some (name, body)
-=======
-      | Some name -> Some (name, body)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      | Some name -> Some (name, ext_loc, ext_payload, body)
 end
 
 (********************************************************)
@@ -970,16 +796,8 @@ module Type_AST_syntactic_category = struct
   let set_loc_stack typ ptyp_loc_stack = { typ with ptyp_loc_stack }
 end
 
-<<<<<<< HEAD
 (** Types; embedded with attributes. *)
-module Core_type0 = Make_with_attribute (struct
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-(** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
-module Core_type0 = Make_with_attribute (struct
-=======
-(** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
 module Core_type0 = Make_with_attribute_and_include_loc_stack (struct
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     include Type_AST_syntactic_category
 
     let plural = "types"
@@ -1147,12 +965,6 @@ module type AST = sig
     -> (ast -> ('a with_attributes) option)
 end
 
-<<<<<<< HEAD
-(* See Note [Hiding internal details] *)
-module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
-=======
 module type AST_without_attributes =
   AST with type 'ast with_attributes := 'ast
 
@@ -1196,6 +1008,7 @@ module No_loc_stack = struct
   let restore_location = Fun.id
 end
 
+(* See Note [Hiding internal details] *)
 module Make_ast
     (Handle_attributes : Handle_attributes)
     (AST : AST_internal
@@ -1204,7 +1017,6 @@ module Make_ast
   : AST with type ast = AST.ast
          and type 'ast with_attributes := 'ast Handle_attributes.t =
 struct
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   include AST
 
   let make_jane_syntax feature trailing_components ?payload ast =
@@ -1215,17 +1027,9 @@ struct
 
   let make_entire_jane_syntax ~loc feature ast =
     AST.with_location
-<<<<<<< HEAD
-      (Ast_helper.with_default_loc { loc with loc_ghost = true } (fun () ->
-        make_jane_syntax feature [] (ast ())))
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-      (make_jane_syntax feature []
-         (Ast_helper.with_default_loc { loc with loc_ghost = true } ast))
-=======
       (make_jane_syntax feature []
          (Ast_helper.with_default_loc (Location.ghostify loc)
             (fun () -> Handle_location.save_location (ast ()))))
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       loc
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
@@ -1234,19 +1038,18 @@ struct
       let loc = AST.location ast in
       let raise_error loc err = raise (Error (loc, err)) in
       match AST.match_jane_syntax ast with
-<<<<<<< HEAD
-      | Some ({ erasability; components = [name] } as embedded_name, syntax_loc, payload, ast) -> begin
+      | Some ( { erasability; components = [name] } as embedded_name
+             , syntax_loc
+             , payload
+             , ast_attrs
+             ) ->
+        begin
           begin match payload with
           | PStr [] -> ()
           | _ -> raise_error syntax_loc
                    (Introduction_has_payload
                       (AST.embedding_syntax, embedded_name, payload))
           end;
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-      | Some ({ erasability; components = [name] }, ast) -> begin
-=======
-      | Some ({ erasability; components = [name] }, ast_attrs) -> begin
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
           match Feature.of_component name with
           | Ok feat -> Some begin
             ast_attrs |> Handle_attributes.map_ast ~f:(fun ast ->
@@ -1254,13 +1057,7 @@ struct
               match of_ast_internal feat ast with
               | Some ext_ast -> ext_ast
               | None ->
-<<<<<<< HEAD
-                  raise_error loc (Wrong_syntactic_category(feat, AST.plural))
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-                  raise_error (Wrong_syntactic_category(feat, AST.plural))
-=======
-                  raise_error (Wrong_syntactic_category(feat, AST.plural)))
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+                  raise_error loc (Wrong_syntactic_category(feat, AST.plural)))
             end
           | Error err -> raise_error loc begin match err with
             | Disabled_extension ext ->
@@ -1300,32 +1097,11 @@ struct
                                   Bad_embedding subparts))
 end
 
-<<<<<<< HEAD
 let make_jane_syntax_attribute feature trailing_components payload =
   make_jane_syntax_attribute
     (Embedded_name.of_feature feature trailing_components)
     payload
 
-(* See Note [Hiding internal details] *)
-module Expression = Make_ast(Expression0)
-module Pattern = Make_ast(Pattern0)
-module Module_type = Make_ast(Module_type0)
-module Signature_item = Make_ast(Signature_item0)
-module Structure_item = Make_ast(Structure_item0)
-module Core_type = Make_ast(Core_type0)
-module Constructor_argument = Make_ast(Constructor_argument0)
-module Extension_constructor = Make_ast(Extension_constructor0)
-module Constructor_declaration = Make_ast(Constructor_declaration0)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-module Expression = Make_ast(Expression0)
-module Pattern = Make_ast(Pattern0)
-module Module_type = Make_ast(Module_type0)
-module Signature_item = Make_ast(Signature_item0)
-module Structure_item = Make_ast(Structure_item0)
-module Core_type = Make_ast(Core_type0)
-module Constructor_argument = Make_ast(Constructor_argument0)
-module Extension_constructor = Make_ast(Extension_constructor0)
-=======
 module Make_extension_ast
     (AST : AST_internal with type 'ast with_attributes := 'ast)
   : AST_without_attributes with type ast = AST.ast =
@@ -1346,6 +1122,7 @@ struct
   let add_attributes = AST.add_attributes
 end
 
+(* See Note [Hiding internal details] *)
 module Expression = Make_attribute_ast_with_loc_stack(Expression0)
 module Pattern = Make_attribute_ast_with_loc_stack(Pattern0)
 module Module_type = Make_attribute_ast(Module_type0)
@@ -1353,6 +1130,7 @@ module Signature_item = Make_extension_ast(Signature_item0)
 module Structure_item = Make_extension_ast(Structure_item0)
 module Core_type = Make_attribute_ast_with_loc_stack(Core_type0)
 module Extension_constructor = Make_attribute_ast(Extension_constructor0)
+module Constructor_declaration = Make_attribute_ast(Constructor_declaration0)
 
 module Constructor_argument = struct
   include Make_attribute_ast(Constructor_argument0)
@@ -1364,4 +1142,3 @@ module Constructor_argument = struct
     | Some (_, _ :: _) ->
       Misc.fatal_errorf "Constructor arguments should not have attributes"
 end
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)

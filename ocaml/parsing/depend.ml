@@ -130,8 +130,8 @@ let rec add_type bv ty =
   | Ptyp_package pt -> add_package_type bv pt
   | Ptyp_extension e -> handle_extension e
 
-<<<<<<< HEAD
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
+  | Jtyp_local (Ltyp_local ty) -> add_type bv ty
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
 
 and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
@@ -143,13 +143,6 @@ and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
   | Ltyp_alias { aliased_type; name = _; layout } ->
     add_type bv aliased_type;
     add_layout bv layout
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-and add_type_jst _bv : Jane_syntax.Core_type.t -> _ = function
-  | _ -> .
-=======
-and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_local (Ltyp_local ty) -> add_type bv ty
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -341,21 +334,11 @@ let rec add_expr bv exp =
   | Pexp_unreachable -> ()
 
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
-<<<<<<< HEAD
-  | Jexp_comprehension x -> add_comprehension_expr bv x
-  | Jexp_immutable_array x -> add_immutable_array_expr bv x
-  | Jexp_layout x -> add_layout_expr bv x
-  | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  | Jexp_comprehension x -> add_comprehension_expr bv x
-  | Jexp_immutable_array x -> add_immutable_array_expr bv x
-  | Jexp_unboxed_constant _ -> add_constant
-=======
   | Jexp_local je -> add_local_expr bv je
   | Jexp_comprehension je -> add_comprehension_expr bv je
   | Jexp_immutable_array je -> add_immutable_array_expr bv je
-  | Jexp_unboxed_constant _ -> add_constant
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  | Jexp_layout je -> add_layout_expr bv je
+  | Jexp_n_ary_function je -> add_n_ary_function bv je
 
 and add_local_expr bv : Jane_syntax.Local.expression -> _ = function
   | Lexp_local e -> add_expr bv e

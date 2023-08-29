@@ -291,31 +291,13 @@ let tyvar_layout_loc ~print_quote f (str,layout) =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
-<<<<<<< HEAD
 let non_jane_syntax_expr_attributes expr =
   match Jane_syntax.Expression.of_ast expr with
   | Some (_, attrs) -> attrs
   | None -> expr.pexp_attributes
 
-let maybe_local_type pty ctxt f c =
-  let cattrs, is_local = check_local_attr c.ptyp_attributes in
-  let c = { c with ptyp_attributes = cattrs } in
-  if is_local then
-    pp f "local_ %a" (pty ctxt) c
-  else
-    pty ctxt f c
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-let maybe_local_type pty ctxt f c =
-  let cattrs, is_local = check_local_attr c.ptyp_attributes in
-  let c = { c with ptyp_attributes = cattrs } in
-  if is_local then
-    pp f "local_ %a" (pty ctxt) c
-  else
-    pty ctxt f c
-=======
 let local_type pty ctxt f ty = pp f "local_ %a" (pty ctxt) ty
 
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -449,52 +431,27 @@ and core_type1 ctxt f x =
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
 
-<<<<<<< HEAD
-and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
-  let filtered_attrs = filter_curry_attrs attrs in
-  if filtered_attrs <> [] then begin
-    pp f "((%a)%a)" (core_type_jane_syntax ctxt []) x
-      (attributes ctxt) filtered_attrs
-  end
-  else match x with
-  | Jtyp_layout (Ltyp_alias { aliased_type; name; layout }) ->
-    pp f "@[<2>%a@;as@;(%a :@ %a)@]"
-      (core_type1 ctxt) aliased_type
-      tyvar_option name
-      layout_annotation layout
-  | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-and core_type1_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
-  function
-  | _ -> .
-=======
 and core_type1_jane_syntax ctxt f : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_local (Ltyp_local _) as jty ->
       core_type_jane_syntax ctxt f jty
       (* [local_ t] doesn't need parentheses, even where [core_type1] generally
          does *)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-
-<<<<<<< HEAD
-and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
-  if has_non_curry_attr attrs then core_type_jane_syntax ctxt attrs f x
-  else
-    match x with
-    | Jtyp_layout (Ltyp_var { name; layout }) ->
+  | Jtyp_layout (Ltyp_var { name; layout }) ->
       pp f "(%a@;:@;%a)" tyvar_option name layout_annotation layout
-    | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
+  | Jtyp_layout () -> paren true (core_type_jane_syntax ctxt attrs) f x
+
+and core_type_jane_syntax ctxt f : Jane_syntax.Core_type.t -> _ = function
+  | Jtyp_local (Ltyp_local ty) -> local_type core_type ctxt f ty
+  | Jtyp_layout (Ltyp_alias { aliased_type; name; layout }) ->
+      pp f "@[<2>%a@;as@;(%a :@ %a)@]"
+        (core_type1 ctxt) aliased_type
+        tyvar_option name
+        layout_annotation layout
+  | Jtyp_layout () -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 and tyvar_option f = function
   | None -> pp f "_"
   | Some name -> tyvar f name
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-and core_type_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
-  function
-  | _ -> .
-=======
-and core_type_jane_syntax ctxt f : Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_local (Ltyp_local ty) -> local_type core_type ctxt f ty
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 and return_type ctxt f x =
   if x.ptyp_attributes <> [] then core_type1 ctxt f x
@@ -613,15 +570,9 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         let with_paren =
         match Jane_syntax.Pattern.of_ast p with
         | Some (jpat, _attrs) -> begin match jpat with
-        | Jpat_immutable_array (Iapat_immutable_array _) -> false
-<<<<<<< HEAD
+        | Jpat_immutable_array (Iapat_immutable_array _)
         | Jpat_layout (Lpat_constant _) -> false
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-        | Jpat_unboxed_constant _ -> false
-=======
-        | Jpat_unboxed_constant _ -> false
         | Jpat_local (Lpat_local _) -> true
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
         end
         | None ->
         match p.ppat_desc with
@@ -795,14 +746,8 @@ and sugar_expr ctxt f e =
 *)
 and expression ?(jane_syntax_parens = false) ctxt f x =
   match Jane_syntax.Expression.of_ast x with
-<<<<<<< HEAD
   | Some (jexpr, attrs) ->
-      jane_syntax_expr ctxt attrs f jexpr ~parens:jane_syntax_parens
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  | Some (jexpr, attrs) -> jane_syntax_expr ctxt attrs f jexpr
-=======
-  | Some (jexpr, attrs) -> jane_syntax_expression ctxt attrs f jexpr
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+      jane_syntax_expression ctxt attrs f jexpr ~parens:jane_syntax_parens
   | None ->
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
@@ -955,32 +900,20 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
     | _ -> expression1 ctxt f x
 
 and expression1 ctxt f x =
-<<<<<<< HEAD
-  if x.pexp_attributes <> [] then expression ctxt f x ~jane_syntax_parens:true
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  if x.pexp_attributes <> [] then expression ctxt f x
-=======
   match Jane_syntax.Expression.of_ast x with
   | Some _ -> expression2 ctxt f x
   | None ->
-  if x.pexp_attributes <> [] then expression ctxt f x
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  if x.pexp_attributes <> [] then expression ctxt f x ~jane_syntax_parens:true
   else match x.pexp_desc with
     | Pexp_object cs -> pp f "%a" (class_structure ctxt) cs
     | _ -> expression2 ctxt f x
 (* used in [Pexp_apply] *)
 
 and expression2 ctxt f x =
-<<<<<<< HEAD
-  if x.pexp_attributes <> [] then expression ctxt f x ~jane_syntax_parens:true
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  if x.pexp_attributes <> [] then expression ctxt f x
-=======
   match Jane_syntax.Expression.of_ast x with
   | Some _ -> simple_expr ctxt f x
   | None ->
-  if x.pexp_attributes <> [] then expression ctxt f x
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  if x.pexp_attributes <> [] then expression ctxt f x ~jane_syntax_parens:true
   else match x.pexp_desc with
     | Pexp_field (e, li) ->
         pp f "@[<hov2>%a.%a@]" (simple_expr ctxt) e longident_loc li
@@ -989,16 +922,10 @@ and expression2 ctxt f x =
     | _ -> simple_expr ctxt f x
 
 and simple_expr ctxt f x =
-<<<<<<< HEAD
-  if x.pexp_attributes <> [] then expression ctxt f x ~jane_syntax_parens:true
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  if x.pexp_attributes <> [] then expression ctxt f x
-=======
   match Jane_syntax.Expression.of_ast x with
   | Some (jexpr, attrs) -> jane_syntax_simple_expr ctxt attrs f jexpr
   | None ->
-  if x.pexp_attributes <> [] then expression ctxt f x
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+  if x.pexp_attributes <> [] then expression ctxt f x ~jane_syntax_parens:true
   else match x.pexp_desc with
     | Pexp_construct _  when is_simple_construct (view_expr x) ->
         (match view_expr x with
@@ -1514,10 +1441,6 @@ and payload ctxt f = function
       pp f " when "; expression ctxt f e
 
 and pp_print_pexp_function ctxt sep f x =
-<<<<<<< HEAD
-  (* do not print [@extension.local] on expressions *)
-  let attrs, _ = check_local_attr x.pexp_attributes in
-  let x = { x with pexp_attributes = attrs } in
   (* We go to some trouble to print nested [Pexp_newtype]/[Lexp_newtype] as
      newtype parameters of the same "fun" (rather than printing several nested
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
@@ -1533,12 +1456,6 @@ and pp_print_pexp_function ctxt sep f x =
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
   | None ->
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  (* do not print [@extension.local] on expressions *)
-  let attrs, _ = check_local_attr x.pexp_attributes in
-  let x = { x with pexp_attributes = attrs } in
-=======
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   if x.pexp_attributes <> [] then pp f "%s@;%a" sep (expression ctxt) x
   else
     match x.pexp_desc with
@@ -1921,12 +1838,7 @@ and type_extension ctxt f x =
     x.ptyext_constructors
     (item_attributes ctxt) x.ptyext_attributes
 
-<<<<<<< HEAD
 and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-and constructor_declaration ctxt f (name, vars, args, res, attrs) =
-=======
-and constructor_declaration ctxt f (name, vars, args, res, attrs) =
   let constructor_arg ctxt f carg =
     match Jane_syntax.Constructor_argument.of_ast carg with
     | Some (Jcarg_local (Lcarg_global carg)) ->
@@ -1934,7 +1846,6 @@ and constructor_declaration ctxt f (name, vars, args, res, attrs) =
     | None ->
         core_type1 ctxt f carg
   in
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
   let name =
     match name with
     | "::" -> "(::)"
@@ -2023,44 +1934,23 @@ and directive_argument f x =
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
-<<<<<<< HEAD
 (* [parens] is whether parens should be inserted around constructs that aren't
    already self-delimiting. E.g. immutable arrays are self-delimiting because
    they begin and end in a bracket.
 *)
-and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
-=======
-and jane_syntax_expression ctxt attrs f (jexp : Jane_syntax.Expression.t) =
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
+and jane_syntax_expression
+      ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
   if attrs <> [] then
-<<<<<<< HEAD
     pp f "((%a)@,%a)" (jane_syntax_expr ctxt [] ~parens:false) jexp
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-    pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
-=======
-    pp f "((%a)@,%a)" (jane_syntax_expression ctxt []) jexp
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
       (attributes ctxt) attrs
   else match jexp with
-<<<<<<< HEAD
+  | Jexp_local x -> local_expr ctxt f x
   | Jexp_comprehension x -> comprehension_expr ctxt f x
   | Jexp_immutable_array x -> immutable_array_expr ctxt f x
   | Jexp_layout x -> layout_expr ctxt f x ~parens
   | Jexp_n_ary_function x   ->
       if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
       else n_ary_function_expr ctxt f x
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-  | Jexp_comprehension x    -> comprehension_expr ctxt f x
-  | Jexp_immutable_array x  -> immutable_array_expr ctxt f x
-  | Jexp_unboxed_constant x -> unboxed_constant ctxt f x
-=======
-  | Jexp_local x            -> local_expr ctxt f x
-  | Jexp_comprehension x    -> comprehension_expr ctxt f x
-  | Jexp_immutable_array x  -> immutable_array_expr ctxt f x
-  | Jexp_unboxed_constant x -> unboxed_constant ctxt f x
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
 
 and local_expr ctxt f (lexp : Jane_syntax.Local.expression) =
   match lexp with

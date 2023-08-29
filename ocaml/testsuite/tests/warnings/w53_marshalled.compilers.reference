@@ -518,15 +518,7 @@ File "w53.ml", line 315, characters 39-43:
 315 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
                                              ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
-<<<<<<< HEAD
-File "w53.ml", line 356, characters 17-22:
-356 |   let f2 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-File "w53.ml", line 359, characters 17-22:
-359 |   let f3 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
-=======
 File "w53.ml", line 328, characters 17-22:
 328 |   let f3 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
                        ^^^^^
 Warning 53 [misplaced-attribute]: the "boxed" attribute cannot appear in this context
