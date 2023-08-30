@@ -317,4 +317,15 @@ let () =
      happened in our region instead *)
   check_empty "allocation from exclave"
 
+let exclave_curry x y = exclave_ (fun z -> x + y + z)
+
+let use_exclave_curry () =
+  let f = exclave_curry 1 2 in
+  let n = f 3 in
+  assert (n = 6)
+
+let () =
+  use_exclave_curry ();
+  check_empty "exclave curry"
+
 let () = Gc.compact ()
