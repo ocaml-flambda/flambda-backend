@@ -69,7 +69,7 @@ let emit unix i =
 
 let implementation unix ~backend ~(flambda2 : flambda2) ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
-  let backend info ({ structure; coercion; secondary_iface }
+  let backend info ({ structure; coercion; secondary_iface; _ }
                     : Typedtree.implementation) =
     Compilenv.reset info.module_name;
     let secondary_coercion =

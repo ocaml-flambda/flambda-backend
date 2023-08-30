@@ -927,7 +927,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let read_sign_of_cmi sign name ~filename ~address:addr ~flags =
+let read_sign_of_cmi sign name uid ~filename ~address:addr ~flags =
   let id = Ident.create_global name in
   let path = Pident id in
   let alerts =
@@ -935,19 +935,18 @@ let read_sign_of_cmi sign name ~filename ~address:addr ~flags =
       Misc.Stdlib.String.Map.empty
       flags
   in
-  let sign = Subst.Lazy.signature Make_local Subst.identity sign in
   let md =
     { Subst.Lazy.md_type = Mty_signature sign;
       md_loc = Location.none;
       md_attributes = [];
-      md_uid = Uid.of_global_name name;
+      md_uid = uid;
     }
   in
   let mda_address = Lazy_backtrack.create_forced addr in
   let mda_declaration = md in
   let mda_shape =
-    (* CR lmaurer: Probably should do something more sophisticated *)
-    Shape.for_persistent_unit (Format.asprintf "%a" Global.Name.print name)
+    (* CR lmaurer: This is a hack *)
+    Shape.for_persistent_unit (Format.asprintf "%a" Shape.Uid.print uid)
   in
   let mda_filename = Some filename in
   let mda_components =
@@ -967,9 +966,6 @@ let read_sign_of_cmi sign name ~filename ~address:addr ~flags =
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
-let find_pers_mod name =
-  Persistent_env.find !persistent_env read_sign_of_cmi name
-
 let without_cmis f x =
   Persistent_env.without_cmis !persistent_env f x
 
@@ -985,6 +981,9 @@ let exported_parameters () = Persistent_env.exported_parameters !persistent_env
 let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
     ~add_binding
+
+let find_pers_mod name =
+  Persistent_env.find !persistent_env read_sign_of_cmi name
 
 let check_pers_mod ~loc name =
   Persistent_env.check !persistent_env read_sign_of_cmi ~loc name
@@ -2645,8 +2644,8 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
-let read_signature global_name filename ~add_binding =
-  let mda = read_pers_mod global_name filename ~add_binding in
+let read_signature modname filename ~add_binding =
+  let mda = read_pers_mod modname filename ~add_binding in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
   | Mty_signature sg -> sg

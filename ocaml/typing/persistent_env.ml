@@ -146,15 +146,17 @@ type pers_struct = {
   ps_binding: binding;
 }
 
+type 'a pers_struct_info = pers_struct * 'a
+
 module Param_set = Global.Name.Set
 
 type 'a t = {
   globals : (Global.Name.t, global_name_info) Hashtbl.t;
+  imports : (CU.Name.t, import_info) Hashtbl.t;
   persistent_names : (Global.Name.t, pers_name) Hashtbl.t;
-  persistent_structures : (Global.Name.t, pers_struct * 'a) Hashtbl.t;
+  persistent_structures : (Global.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
-  imports : (CU.Name.t, import_info) Hashtbl.t;
   param_imports : CU.Name.Set.t ref;
   exported_params : Param_set.t ref;
   crc_units: Consistbl.t;
@@ -163,11 +165,11 @@ type 'a t = {
 
 let empty () = {
   globals = Hashtbl.create 17;
+  imports = Hashtbl.create 17;
   persistent_names = Hashtbl.create 17;
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
-  imports = Hashtbl.create 17;
   param_imports = ref CU.Name.Set.empty;
   exported_params = ref Param_set.empty;
   crc_units = Consistbl.create ();
@@ -177,22 +179,22 @@ let empty () = {
 let clear penv =
   let [@warning "+missing-record-field-pattern"] {
     globals;
+    imports;
     persistent_names;
     persistent_structures;
     imported_units;
     imported_opaque_units;
-    imports;
     param_imports;
     exported_params;
     crc_units;
     can_load_cmis;
   } = penv in
   Hashtbl.clear globals;
+  Hashtbl.clear imports;
   Hashtbl.clear persistent_names;
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
-  Hashtbl.clear imports;
   param_imports := CU.Name.Set.empty;
   exported_params := Param_set.empty;
   Consistbl.clear crc_units;
@@ -229,6 +231,9 @@ let find_info_in_cache {persistent_structures; _} name =
   | exception Not_found -> None
   | ps, pm -> Some (ps, pm)
 
+let find_in_cache penv name =
+  find_info_in_cache penv name |> Option.map (fun (_ps, pm) -> pm)
+
 let register_parameter_import ({param_imports; _} as penv) import =
   begin match find_import_info_in_cache penv import with
   | None ->
@@ -243,9 +248,6 @@ let register_parameter_import ({param_imports; _} as penv) import =
 let register_exported_parameter ({exported_params; _} as penv) modname =
   register_parameter_import penv (CU.Name.of_head_of_global_name modname);
   exported_params := Param_set.add modname !exported_params
-
-let find_in_cache penv name =
-  find_info_in_cache penv name |> Option.map (fun (_ps, pm) -> pm)
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -328,6 +330,7 @@ let acknowledge_import penv ~check modname pers_sig =
   let params = cmi.cmi_params in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
+  let sign = Signature_with_global_bindings.read_from_cmi cmi in
   let module_block_layout = Cmi_format.module_block_layout cmi in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
@@ -370,7 +373,6 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Impl.Known cmi_impl
     | Parameter -> None, Impl.Unknown_argument
   in
-  let sign = Signature_with_global_bindings.read_from_cmi cmi in
   let {imports; _} = penv in
   let import = { imp_is_param = is_param;
                  imp_params = params;
@@ -474,10 +476,10 @@ let rec global_of_global_name penv ~check ~param name =
   | exception Not_found ->
       if param then
         register_parameter_import penv (CU.Name.of_head_of_global_name name);
-      let pn = find_pers_name penv ~check name in
+      let pn = find_pers_name penv check name in
       pn.pn_global
 
-and compute_global penv modname ~params ~check =
+and compute_global penv modname ~params check =
   let arg_global_by_param_name =
     List.map
       (fun (name, value) ->
@@ -516,7 +518,7 @@ and compute_global penv modname ~params ~check =
            (* Parameter with no argument: fine so long as it's a parameter *)
            register_parameter_import penv
              (CU.Name.of_head_of_global_name param);
-           let pn = find_pers_name penv ~check param in
+           let pn = find_pers_name penv check param in
            (* Either [register_parameter_import] or [find_pers_name] should
               have thrown if this were false *)
            assert pn.pn_import.imp_is_param)
@@ -533,7 +535,7 @@ and compute_global penv modname ~params ~check =
       ~both:
         (fun (_param_name, expected_type_global) (_arg_name, arg_value_global) ->
             let arg_value = arg_value_global |> Global.to_name in
-            let pn = find_pers_name penv ~check arg_value in
+            let pn = find_pers_name penv check arg_value in
             let actual_type =
               match pn.pn_arg_for with
               | None ->
@@ -543,7 +545,7 @@ and compute_global penv modname ~params ~check =
               | Some ty -> ty
             in
             let actual_type_global =
-              global_of_global_name penv actual_type ~check ~param:true
+              global_of_global_name penv ~check actual_type ~param:true
             in
             if not (Global.equal expected_type_global actual_type_global)
             then begin
@@ -575,11 +577,11 @@ and compute_global penv modname ~params ~check =
   in
   Global.subst global_without_args subst
 
-and acknowledge_pers_name penv ~check global_name import =
+and acknowledge_pers_name penv check global_name import =
   let params = import.imp_params in
   let arg_for = import.imp_arg_for in
   let sign = import.imp_raw_sign in
-  let global = compute_global penv global_name ~params ~check in
+  let global = compute_global penv global_name ~params check in
   check_for_unset_parameters penv global;
   let {persistent_names; _} = penv in
   let sign =
@@ -602,19 +604,19 @@ and acknowledge_pers_name penv ~check global_name import =
   remember_global penv global ~mentioned_by:global_name;
   pn
 
-and find_pers_name penv ~check name =
+and find_pers_name penv check name =
   let {persistent_names; _} = penv in
   match Hashtbl.find persistent_names name with
   | pn -> pn
   | exception Not_found ->
       let unit_name = CU.Name.of_head_of_global_name name in
       let import = find_import penv ~check unit_name in
-      acknowledge_pers_name penv ~check name import
+      acknowledge_pers_name penv check name import
 
-let read_pers_name penv ~check name filename =
+let read_pers_name penv check name filename =
   let unit_name = CU.Name.of_head_of_global_name name in
   let import = read_import penv ~check unit_name filename in
-  acknowledge_pers_name penv ~check name import
+  acknowledge_pers_name penv check name import
 
 let need_local_ident penv (global : Global.t) =
   (* There are three equivalent ways to phrase the question we're asking here:
@@ -685,6 +687,7 @@ let make_binding penv (global : Global.t) (impl : Impl.t) : binding =
 type 'a sig_reader =
   Subst.Lazy.signature
   -> Global.Name.t
+  -> Shape.Uid.t
   -> filename:string
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
@@ -714,7 +717,14 @@ let process_pers_struct penv global_name pers_name val_of_pers_sig =
               Adot (Aunit unit, 0)
         end
   in
-  let pm = val_of_pers_sig sign global_name ~filename ~address ~flags in
+  let uid =
+    (* The uid neeeds to include the either the pack prefix, if it's packed, or
+       the arguments, if it has any. It cannot have both. *)
+    match binding with
+    | Local _ -> (* no pack prefix *) Shape.Uid.of_global_name global_name
+    | Static unit -> Shape.Uid.of_compilation_unit_id unit
+  in
+  let pm = val_of_pers_sig sign global_name uid ~filename ~address ~flags in
   let ps = { ps_name_info = pers_name;
              ps_binding = binding;
            } in
@@ -737,19 +747,19 @@ let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
   bind_pers_struct penv global_name ps pm;
   (ps, pm)
 
-let read_pers_struct penv val_of_pers_sig ~check modname filename ~add_binding =
-  let pers_name = read_pers_name penv ~check modname filename in
+let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
+  let pers_name = read_pers_name penv check modname filename in
   let ps, pm = process_pers_struct penv modname pers_name val_of_pers_sig in
   if add_binding then bind_pers_struct penv modname ps pm;
   (ps, pm)
 
-let find_pers_struct penv sig_reader ~check name =
+let find_pers_struct penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
   | (ps, pm) -> (ps, pm)
   | exception Not_found ->
-      let pers_name = find_pers_name penv ~check name in
-      acknowledge_pers_struct penv name pers_name sig_reader
+      let pers_name = find_pers_name penv check name in
+      acknowledge_pers_struct penv name pers_name val_of_pers_sig
 
 let describe_prefix ppf prefix =
   if CU.Prefix.is_empty prefix then
@@ -761,7 +771,7 @@ let describe_prefix ppf prefix =
 let check_pers_struct penv f ~loc name =
   let name_as_string = CU.Name.to_string (CU.Name.of_head_of_global_name name) in
   try
-    ignore (find_pers_struct penv f ~check:false name)
+    ignore (find_pers_struct penv f false name)
   with
   | Not_found ->
       let warn = Warnings.No_cmi_file(name_as_string, None) in
@@ -808,10 +818,10 @@ let check_pers_struct penv f ~loc name =
         Location.prerr_warning loc warn
 
 let read penv f modname filename ~add_binding =
-  snd (read_pers_struct penv f ~check:true modname filename ~add_binding)
+  snd (read_pers_struct penv f true modname filename ~add_binding)
 
 let find penv f name =
-  snd (find_pers_struct penv f ~check:true name)
+  snd (find_pers_struct penv f true name)
 
 let check penv f ~loc name =
   let {persistent_structures; _} = penv in
@@ -846,17 +856,11 @@ let crc_of_unit penv name =
   match Consistbl.find penv.crc_units name with
   | Some (_impl, crc) -> crc
   | None ->
-    let global_name = Global.Name.create (name |> CU.Name.to_string) [] in
-    let pn =
-      (* This is a bit wasteful for instances since we'll end up loading the file
-        twice, but probably not enough to be a problem. *)
-      find_pers_name penv ~check:true global_name
-    in
-    match Array.find_opt (Import_info.Intf.has_name ~name)
-            pn.pn_import.imp_crcs with
+    let import = find_import penv ~check:true name in
+    match Array.find_opt (Import_info.Intf.has_name ~name) import.imp_crcs with
     | None -> assert false
     | Some import_info ->
-      match Import_info.Intf.crc import_info with
+      match Import_info.crc import_info with
       | None -> assert false
       | Some crc -> crc
 

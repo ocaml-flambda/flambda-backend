@@ -17,7 +17,9 @@
 open Misc
 
 module Impl : sig
-  type t
+  type t =
+    | Unknown_argument
+    | Known of Compilation_unit.t
 end
 
 module Consistbl : module type of struct
@@ -25,8 +27,7 @@ module Consistbl : module type of struct
 end
 
 type error = private
-  | Illegal_renaming of
-      Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
+  | Illegal_renaming of Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
   | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Need_recursive_types of Compilation_unit.Name.t
   | Depend_on_unsafe_string_unit of Compilation_unit.Name.t
@@ -92,13 +93,10 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Global.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
-type binding =
-  | Local of Ident.t
-  | Static of Compilation_unit.t
-
 type 'a sig_reader =
   Subst.Lazy.signature
   -> Global.Name.t
+  -> Shape.Uid.t
   -> filename:string
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list

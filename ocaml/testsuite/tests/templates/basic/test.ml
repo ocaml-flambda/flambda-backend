@@ -22,6 +22,8 @@ readonly_files = "\
   monoid_of_semigroup.ml monoid_of_semigroup.mli \
   monoid_utils.ml monoid_utils.mli \
   semigroup.mli \
+  string_monoid.ml string_monoid.mli \
+  test_direct_access.ml test_direct_access.reference \
 "
 
 * setup-ocamlc.byte-build-env
@@ -48,6 +50,24 @@ compiler_output = "bad_arg_intf.output"
 ocamlc_byte_exit_status = "2"
 **** check-ocamlc.byte-output
 compiler_reference = "bad_arg_intf.reference"
+*** copy
+src = "string_monoid.ml"
+dst = "string_monoid_no_mli.ml"
+**** ocamlc.byte
+flags = "-as-argument-for Monoid"
+module = "string_monoid_no_mli.ml string_monoid.mli string_monoid.ml"
+***** ocamlc.byte
+flags = ""
+module = "test_direct_access.ml"
+****** ocamlc.byte
+flags = ""
+program = "${test_build_directory}/test_direct_access.exe"
+module = ""
+all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo"
+******* run
+output = "test_direct_access.output"
+******** check-program-output
+reference = "test_direct_access.reference"
 *** ocamlc.byte
 module = "semigroup.mli"
 **** ocamlc.byte
