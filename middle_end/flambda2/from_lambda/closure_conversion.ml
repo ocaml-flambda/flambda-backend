@@ -2096,7 +2096,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         is_a_functor = false;
         stub = true;
         poll = Default_poll;
-        tmc_candidate = false
+        tmc_candidate = false;
+        may_fuse_arity = true
       }
   in
   let free_idents_of_body =

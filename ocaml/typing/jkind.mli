@@ -183,6 +183,7 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
+  | Optional_arg_default
 
 type annotation_context =
   | Type_declaration of Path.t

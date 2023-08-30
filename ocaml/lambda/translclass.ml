@@ -37,7 +37,8 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true)
+    return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
@@ -955,7 +956,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let lclass lam =
     Llet(Strict, layout_function, class_init,
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0}) ~params:[lparam cla layout_table]
+                   ~kind:(Curried {nlocal=0})
+                   ~params:[lparam cla layout_table]
                    ~return:layout_function
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown

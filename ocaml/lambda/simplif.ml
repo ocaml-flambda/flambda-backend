@@ -556,13 +556,14 @@ let simplify_lets lam =
       | _ -> no_opt ()
       end
   | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
-              attr; loc; mode; region=outer_region} ->
+              attr=attr1; loc; mode; region=outer_region} ->
       begin match outer_kind, outer_region, simplif l with
         Curried {nlocal=0},
         true,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
-                  body; attr; loc; mode=inner_mode; region}
+                  body; attr=attr2; loc; mode=inner_mode; region}
         when optimize &&
+             attr1.may_fuse_arity && attr2.may_fuse_arity &&
              List.length params + List.length params' <= Lambda.max_arity() ->
           (* The returned function's mode should match the outer return mode *)
           assert (is_heap_mode inner_mode);
@@ -571,9 +572,9 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
-          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~region
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr1 ~loc ~mode ~region
       | kind, region, body ->
-          lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~region
+          lfunction ~kind ~params ~return:outer_return ~body ~attr:attr1 ~loc ~mode ~region
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));

@@ -71,6 +71,7 @@ let () =
   let default_cutoff = 20 in
   print_test ~flambda_only:false ~deps:"s.ml t.ml";
   print_test ~flambda_only:false ~deps:"t5.ml test_assume.ml";
+  print_test ~flambda_only:false ~deps:"test_match_on_mutable_state.ml";
   print_test ~flambda_only:true ~deps:"test_flambda.ml";
 
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail1";
@@ -85,7 +86,6 @@ let () =
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail8";
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail9";
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail10";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail11";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true  ~extra_dep:None ~exit_code:2 "fail12";
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail13";
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail14";

@@ -182,11 +182,12 @@ module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
 end;;
 [%%expect{|
-Line 2, characters 8-44:
+Line 2, characters 16-44:
 2 |   let g z = X.f { vr_void = z; vr_int = 42 }
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       t_void. Please report this error to the Jane Street compilers team.
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (**************************************)
@@ -335,9 +336,9 @@ let id5 : 'a void5 -> 'a void5 = function
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
 type 'a any5 = Any5 of 'a
-Lines 4-5, characters 33-22:
-4 | .................................function
+Line 5, characters 15-22:
 5 |   | Void5 x -> Void5 x
+                   ^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        'a has layout void, which is not a sublayout of value.
@@ -368,13 +369,11 @@ let g (x : 'a void5) =
   match x with
   | Void5 x -> x;;
 [%%expect{|
-Lines 1-3, characters 6-16:
-1 | ......(x : 'a void5) =
-2 |   match x with
+Lines 2-3, characters 2-16:
+2 | ..match x with
 3 |   | Void5 x -> x..
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       'a. Please report this error to the Jane Street compilers team.
 |}]
 
 (****************************************)
@@ -730,12 +729,11 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-Line 4, characters 12-33:
+Line 4, characters 32-33:
 4 |   let foo o (A x) = o # usevoid x
-                ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
+                                    ^
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       'a. Please report this error to the Jane Street compilers team.
 |}];;
 
 module M11_4 = struct
@@ -1154,9 +1152,8 @@ let f () =
 [%%expect{|
 type t_void : void
 type ('a : void) r = { x : int; y : 'a; }
-Lines 5-7, characters 6-20:
-5 | ......() =
-6 |   let rec g { x = x ; y = y } : _ r = g { x; y } in
+Lines 6-7, characters 2-20:
+6 | ..let rec g { x = x ; y = y } : _ r = g { x; y } in
 7 |   g (failwith "foo")..
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
@@ -1206,11 +1203,11 @@ let f (x : 'a. 'a t2_void) = x
 
 [%%expect{|
 type 'a t2_void : void
-Line 3, characters 6-30:
+Line 3, characters 29-30:
 3 | let f (x : 'a. 'a t2_void) = x
-          ^^^^^^^^^^^^^^^^^^^^^^^^
+                                 ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       'a. 'a t2_void.
+       'a t2_void.
        Please report this error to the Jane Street compilers team.
 |}]
 
@@ -1236,9 +1233,9 @@ Error: This expression has type t_void but an expression was expected of type
 let g f (x : t_void) : t_void = f x
 
 [%%expect{|
-Line 1, characters 8-35:
+Line 1, characters 32-35:
 1 | let g f (x : t_void) : t_void = f x
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    ^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1249,9 +1246,9 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 let rec f : _ -> _ = fun (x : t_void) -> x
 
 [%%expect{|
-Line 1, characters 21-42:
+Line 1, characters 41-42:
 1 | let rec f : _ -> _ = fun (x : t_void) -> x
-                         ^^^^^^^^^^^^^^^^^^^^^
+                                             ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1271,9 +1268,9 @@ and q () =
   ()
 
 [%%expect{|
-Line 1, characters 17-36:
+Line 1, characters 17-29:
 1 | let rec ( let* ) (x : t_void) f = ()
-                     ^^^^^^^^^^^^^^^^^^^
+                     ^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1297,9 +1294,9 @@ and q () =
   ()
 
 [%%expect{|
-Lines 4-5, characters 2-4:
-4 | ..let* x = assert false in
-5 |   ()
+Line 4, characters 7-8:
+4 |   let* x = assert false in
+           ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1349,9 +1346,9 @@ and q () =
   ()
 
 [%%expect{|
-Line 1, characters 19-44:
+Line 1, characters 32-44:
 1 | let rec ( let* ) x f : t_void = assert false
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    ^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1377,9 +1374,9 @@ and q () =
     ()
 
 [%%expect{|
-Line 2, characters 16-34:
+Line 2, characters 16-29:
 2 | and ( and* ) x1 (x2 : t_void) = ()
-                    ^^^^^^^^^^^^^^^^^^
+                    ^^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1408,9 +1405,9 @@ and q () =
     ()
 
 [%%expect{|
-Line 2, characters 13-34:
+Line 2, characters 13-26:
 2 | and ( and* ) (x1 : t_void) x2 = ()
-                 ^^^^^^^^^^^^^^^^^^^^^
+                 ^^^^^^^^^^^^^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
@@ -1439,9 +1436,9 @@ and q () =
     ()
 
 [%%expect{|
-Line 1, characters 17-25:
+Line 1, characters 17-18:
 1 | let rec ( let* ) x f = ()
-                     ^^^^^^^^
+                     ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]

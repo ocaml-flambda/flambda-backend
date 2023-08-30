@@ -585,6 +585,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       check = Ignore_assert_all Zero_alloc;
       stub = false;
       tmc_candidate = false;
+      may_fuse_arity = true;
     }
     ~loc
     ~mode:alloc_heap

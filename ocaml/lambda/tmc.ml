@@ -1000,9 +1000,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       match lfun.mode, lfun.kind with
       | Alloc_heap, Tupled ->
          (* Support of Tupled function: see [choice_apply]. *)
-         Curried {nlocal=0}
+          Curried {nlocal=0}
       | Alloc_local, (Tupled | Curried _) ->
-         Curried {nlocal=List.length params}
+          Curried {nlocal=List.length params}
       | Alloc_heap, (Curried _ as k) ->
          (* Prepending arguments does not affect nlocal *)
          k

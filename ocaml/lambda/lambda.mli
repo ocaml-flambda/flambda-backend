@@ -414,10 +414,12 @@ type loop_attribute =
   | Never_loop (* [@loop never] *)
   | Default_loop (* no [@loop] attribute *)
 
-type function_kind = Curried of {nlocal: int} | Tupled
+type curried_function_kind = { nlocal: int }
 (* [nlocal] determines how many arguments may be partially applied
-   before the resulting closure must be locally allocated.
-   See [lfunction] for details *)
+    before the resulting closure must be locally allocated.
+    See [lfunction] for details *)
+
+type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
@@ -448,6 +450,9 @@ type function_attribute = {
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
+  (* [may_fuse_arity] is true if [simplif.ml] is permitted to fuse arity, i.e.,
+     to perform the rewrite [fun x -> fun y -> e] to [fun x y -> e] *)
+  may_fuse_arity: bool;
 }
 
 type parameter_attribute = No_attributes

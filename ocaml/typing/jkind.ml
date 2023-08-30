@@ -277,6 +277,7 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
+  | Optional_arg_default
 
 type value_creation_reason =
   | Class_let_binding
@@ -696,6 +697,7 @@ end = struct
     | External_result ->
       fprintf ppf "used as the result of an external declaration"
     | Statement -> fprintf ppf "used as a statement"
+    | Optional_arg_default -> fprintf ppf "used as an optional argument default"
 
   let format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
@@ -1122,6 +1124,7 @@ module Debug_printers = struct
     | External_argument -> fprintf ppf "External_argument"
     | External_result -> fprintf ppf "External_result"
     | Statement -> fprintf ppf "Statement"
+    | Optional_arg_default -> fprintf ppf "Optional_arg_default"
 
   let annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p

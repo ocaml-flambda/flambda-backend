@@ -174,6 +174,8 @@ module N_ary_functions : sig
     | Unique
     | Once
 
+  val mode_annotation_equal : mode_annotation -> mode_annotation -> bool
+
   type function_constraint =
     { mode_annotations : mode_annotation Location.loc list;
       type_constraint : type_constraint

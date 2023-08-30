@@ -1191,11 +1191,37 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let ext, uf_vbs = check_uniqueness_value_bindings ienv vbs in
     let uf_body = check_uniqueness_exp (Ienv.extend ienv ext) body in
     UF.seq uf_vbs uf_body
-  | Texp_function { cases; _ } ->
-    (* `param` is only a hint not a binder;
-       actual binding done in cases by Tpat_var and Tpat_alias *)
-    let value = Match_single (Paths.fresh ()) in
-    let uf = check_uniqueness_cases ienv value cases in
+  | Texp_function { params; body; _ } ->
+    let ienv, uf_params =
+      List.fold_left_map
+        (fun ienv param ->
+          (* [param.fp_param] is only a hint not a binder;
+             actual binding done by [param.fp_kind]'s pattern. *)
+          let ext, uf_param =
+            match param.fp_kind with
+            | Tparam_pat pat ->
+              let value = Match_single (Paths.fresh ()) in
+              pattern_match pat value
+            | Tparam_optional_default (pat, default, _) ->
+              let value, uf_default =
+                check_uniqueness_exp_for_match ienv default
+              in
+              let ext, uf_pat = pattern_match pat value in
+              ext, UF.seq uf_default uf_pat
+          in
+          Ienv.extend ienv ext, uf_param)
+        ienv params
+    in
+    let uf_body =
+      match body with
+      | Tfunction_body body -> check_uniqueness_exp ienv body
+      | Tfunction_cases { fc_cases; fc_param = _; _ } ->
+        (* [param] is only a hint not a binder; actual binding done by the
+           [c_lhs] field of each of the [cases]. *)
+        let value = Match_single (Paths.fresh ()) in
+        check_uniqueness_cases ienv value fc_cases
+    in
+    let uf = UF.seq (UF.seqs uf_params) uf_body in
     (* we are constructing a closure here, and therefore any implicit
        borrowing of free variables in the closure is in fact using shared. *)
     lift_implicit_borrowing uf
