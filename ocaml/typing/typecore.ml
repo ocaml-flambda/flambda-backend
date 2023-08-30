@@ -1597,7 +1597,8 @@ let split_cases env cases =
    so [enter_variable] can be called, depending on the usage. *)
 let type_for_loop_like_index ~error ~loc ~env ~param ~any ~var =
   match param.ppat_desc with
-  | Ppat_any -> any (Ident.create_local "_for")
+  | Ppat_any ->
+    any (Ident.create_local "_for", Uid.mk ~current_unit:(Env.get_unit_name ()))
   | Ppat_var name ->
       var ~name
           ~pv_mode:Value.min_mode
@@ -1630,7 +1631,7 @@ let type_for_loop_index ~loc ~env ~param =
             let pv =
               { pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes }
             in
-            pv_id, add_pattern_variables ~check ~check_as:check env [pv])
+            (pv_id, pv_uid), add_pattern_variables ~check ~check_as:check env [pv])
 
 let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
   type_for_loop_like_index
@@ -1643,16 +1644,14 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
        for duplicates or anything else. *)
     ~any:Fun.id
     ~var:(fun ~name ~pv_mode ~pv_type ~pv_loc ~pv_as_var ~pv_attributes ->
-      (* CR tnowak: verify this change *)
-      fst (
-            enter_variable
-              ~is_as_variable:pv_as_var
-              tps
-              pv_loc
-              name
-              pv_mode
-              pv_type
-              pv_attributes))
+          enter_variable
+            ~is_as_variable:pv_as_var
+            tps
+            pv_loc
+            name
+            pv_mode
+            pv_type
+            pv_attributes)
 
 
 (* Type paths *)
@@ -5347,7 +5346,8 @@ and type_expect_
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
       let env = Env.add_share_lock For_loop env in
-      let for_id, new_env =
+      (* When we'll want to add Uid to for loops, we can take it from here. *)
+      let (for_id, _for_uid), new_env =
         type_for_loop_index ~loc ~env ~param
       in
       let new_env = Env.add_region_lock new_env in
@@ -8115,7 +8115,9 @@ and type_comprehension_iterator
       in
       let start = tbound ~explanation:Comprehension_for_start start in
       let stop  = tbound ~explanation:Comprehension_for_stop  stop  in
-      let ident =
+      (* When we'll want to add Uid to comprehension bindings,
+         we can take it from here. *)
+      let (ident, _uid) =
         type_comprehension_for_range_iterator_index
           tps
           ~loc
