@@ -137,28 +137,33 @@ module Definition = struct
   let simplify_projections t denv =
     let typing_env = DE.typing_env denv in
     let symbol_projections, vars_to_replace =
-      Variable.Map.fold (fun proj_var projection (symbol_projections, vars_to_replace) ->
+      Variable.Map.fold
+        (fun proj_var projection (symbol_projections, vars_to_replace) ->
           let keep () =
-            Variable.Map.add proj_var projection symbol_projections, vars_to_replace
+            ( Variable.Map.add proj_var projection symbol_projections,
+              vars_to_replace )
           in
           let replace simple =
             symbol_projections, Variable.Map.add proj_var simple vars_to_replace
           in
-          if T.Typing_env.mem ~min_name_mode:Name_mode.normal typing_env (Name.var proj_var)
-          then
-            (* No need to try to replace it, it is already bound *)
+          if T.Typing_env.mem ~min_name_mode:Name_mode.normal typing_env
+               (Name.var proj_var)
+          then (* No need to try to replace it, it is already bound *)
             keep ()
           else
             let symbol = Symbol_projection.symbol projection in
-            let ty = T.alias_type_of Flambda_kind.value (Simple.symbol symbol) in
+            let ty =
+              T.alias_type_of Flambda_kind.value (Simple.symbol symbol)
+            in
             let meet_shortcut =
               match Symbol_projection.projection projection with
               | Block_load { index } ->
                 let field_kind =
-                  Symbol_projection.kind projection |> Flambda_kind.With_subkind.kind
+                  Symbol_projection.kind projection
+                  |> Flambda_kind.With_subkind.kind
                 in
-                T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal
-                  ~field_kind ty index
+                T.meet_block_field_simple typing_env
+                  ~min_name_mode:Name_mode.normal ~field_kind ty index
               | Project_value_slot { project_from = _; value_slot } ->
                 T.meet_project_value_slot_simple typing_env
                   ~min_name_mode:Name_mode.normal ty value_slot
@@ -169,9 +174,11 @@ module Definition = struct
             | Invalid ->
               (* Propagating Invalid would be too cumbersome *)
               keep ())
-        (symbol_projections t) (Variable.Map.empty, Variable.Map.empty)
+        (symbol_projections t)
+        (Variable.Map.empty, Variable.Map.empty)
     in
-    if Variable.Map.is_empty vars_to_replace then t
+    if Variable.Map.is_empty vars_to_replace
+    then t
     else
       match Rebuilt_static_const.to_const t.defining_expr with
       | None -> t
@@ -185,8 +192,10 @@ module Definition = struct
         let descr =
           match t.descr with
           | Code _ -> t.descr
-          | Set_of_closures { denv; closure_symbols_with_types; symbol_projections = _ } ->
-            Set_of_closures { denv; closure_symbols_with_types; symbol_projections }
+          | Set_of_closures
+              { denv; closure_symbols_with_types; symbol_projections = _ } ->
+            Set_of_closures
+              { denv; closure_symbols_with_types; symbol_projections }
           | Block_like { symbol; denv; ty; symbol_projections = _ } ->
             Block_like { symbol; denv; ty; symbol_projections }
         in
@@ -385,5 +394,5 @@ let simplify_projections t denv =
   concat
     (List.map
        (fun definition ->
-          create_definition (Definition.simplify_projections definition denv))
+         create_definition (Definition.simplify_projections definition denv))
        t.definitions)

@@ -251,9 +251,8 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     ~f:(record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id)
 
 let simplify_projections dacc lifted_constants =
-  LCS.fold lifted_constants ~init:LCS.empty
-    ~f:(fun lcs lifted_constant ->
-        LCS.add lcs (LC.simplify_projections lifted_constant (DA.denv dacc)))
+  LCS.fold lifted_constants ~init:LCS.empty ~f:(fun lcs lifted_constant ->
+      LCS.add lcs (LC.simplify_projections lifted_constant (DA.denv dacc)))
 
 let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
     ~down_to_up bound_pattern ~body =
@@ -305,7 +304,9 @@ let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
        Note that no lifted constants are ever placed during the simplification
        of the defining expression. (Not even in the case of a [Set_of_closures]
        binding, since "let symbol" is disallowed under a lambda.) *)
-    let lifted_constants_from_defining_expr_raw = DA.get_lifted_constants dacc in
+    let lifted_constants_from_defining_expr_raw =
+      DA.get_lifted_constants dacc
+    in
     let lifted_constants_from_defining_expr =
       simplify_projections dacc lifted_constants_from_defining_expr_raw
     in
