@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # Build Jane Syntax files with the opam switch's OCaml. This verifies
 # that they can be put into public release with minimal changes;
 # see Note [Buildable with upstream] in ocaml/parsing/jane_syntax.mli
@@ -14,13 +16,19 @@ files_in_dependency_order=(
 )
 
 function basenames_in_dependency_order() {
-  echo "${files_in_dependency_order[@]}" | xargs -n 1 basename
+  printf "%s\n" "${files_in_dependency_order[@]}" | xargs -n 1 basename
+}
+
+# language_extension.ml is stubbed later, so we don't copy anything
+# from ocaml/ for it.
+function source_files_in_ocaml_dir() {
+  printf "%s\n" "${files_in_dependency_order[@]}" | grep -v '^language_extension.ml$'
 }
 
 # Copy files to another directory before compiling so we're confident
 # we're not using the build artifacts of an earlier build.
 tmp=$(mktemp -d)
-cp "${files_in_dependency_order[@]}" "$tmp" 2>/dev/null || true
+cp $(source_files_in_ocaml_dir) "$tmp"
 
 cd "$tmp"
 
