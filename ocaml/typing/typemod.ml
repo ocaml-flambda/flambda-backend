@@ -87,7 +87,7 @@ type error =
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * sort
   | Cannot_implement_parameter of filepath
-  | Cannot_pack_parameter of filepath
+  | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
   | Argument_for_non_parameter of Global.Name.t * Misc.filepath
   | Cannot_find_argument_type of Global.Name.t
@@ -3467,7 +3467,10 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
 
-let type_interface sourcefile env ast =
+let type_interface sourcefile modulename env ast =
+  if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
+    raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+  end;
   type_params !Clflags.parameters ~exported:true;
   let sg = transl_signature env ast in
   let arg_type =
@@ -3782,11 +3785,9 @@ let report_error ~loc _env = function
         "@[Interface %s@ found for this unit is flagged as a parameter.@ \
          It cannot be implemented directly. Use -as-argument-for instead.@]"
         path
-  | Cannot_pack_parameter path ->
+  | Cannot_pack_parameter ->
       Location.errorf ~loc
-        "@[Interface %s@ found for this unit is flagged as a parameter.@ \
-         It cannot be packed into a module.@]"
-        path
+        "Cannot compile a parameter with -for-pack."
   | Cannot_compile_implementation_as_parameter ->
       Location.errorf ~loc
         "Cannot compile an implementation with -as-parameter."
