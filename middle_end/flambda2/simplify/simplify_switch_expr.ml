@@ -254,6 +254,88 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       |> List.map Apply_cont.continuation
       |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
+  let switch_is_single_arg_to_same_destination =
+    let module TI = Targetint_31_63 in
+    (* Switch must be large enough *)
+    if TI.Map.cardinal arms < 3
+    then None
+    else
+      let dest_and_args_rev_and_expected_discr =
+        TI.Map.fold
+          (fun discr dest dest_and_args_rev_and_expected_discr ->
+            match dest_and_args_rev_and_expected_discr with
+            | None -> None
+            | Some (expected_dest, args_rev, expected_discr) -> (
+              (* All arms must go to the same continuation, with no trap
+                 actions *)
+              match expected_dest with
+              | Some expected_dest
+                when not
+                       (Continuation.equal
+                          (Apply_cont.continuation dest)
+                          expected_dest) ->
+                None
+              | Some _ | None -> (
+                if (* Discriminants must be 0..(num_arms-1) *)
+                   not (TI.equal discr expected_discr)
+                then None
+                else
+                  match Apply_cont.to_one_arg_without_trap_action dest with
+                  | None -> None
+                  | Some arg ->
+                    (* Continuations must have single constant arguments *)
+                    Simple.pattern_match arg
+                      ~name:(fun _ ~coercion:_ ->
+                        (* Aliases should have been followed by now. *) None)
+                      ~const:(fun const ->
+                        Some
+                          ( Some (Apply_cont.continuation dest),
+                            const :: args_rev,
+                            TI.add TI.one expected_discr )))))
+          arms
+          (Some (None, [], TI.zero))
+      in
+      match dest_and_args_rev_and_expected_discr with
+      | None | Some (None, _, _) | Some (_, [], _) -> None
+      | Some (Some dest, args_rev, _) -> (
+        let args = List.rev args_rev in
+        assert (List.compare_length_with args 1 >= 0);
+        (* For the moment just do this for things that can be put in scannable
+           blocks. *)
+        match Reg_width_const.descr (List.hd args) with
+        (* All arguments must be of the same kind *)
+        | Naked_immediate _ ->
+          let args' =
+            List.filter_map
+              (fun arg ->
+                match Reg_width_const.descr arg with
+                | Naked_immediate ni -> Some ni
+                | Tagged_immediate _ | Naked_float _ | Naked_int32 _
+                | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+                  None)
+              args
+          in
+          if List.compare_lengths args args' = 0
+          then Some (dest, false, args')
+          else None
+        | Tagged_immediate _ ->
+          let args' =
+            List.filter_map
+              (fun arg ->
+                match Reg_width_const.descr arg with
+                | Tagged_immediate ti -> Some ti
+                | Naked_immediate _ | Naked_float _ | Naked_int32 _
+                | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+                  None)
+              args
+          in
+          if List.compare_lengths args args' = 0
+          then Some (dest, true, args')
+          else None
+        | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+        | Naked_vec128 _ ->
+          None)
+  in
   let body, uacc =
     if Targetint_31_63.Map.cardinal arms < 1
     then
@@ -261,7 +343,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       RE.create_invalid Zero_switch_arms, uacc
     else
       let dbg = Debuginfo.none in
-      let[@inline] normal_case uacc =
+      let[@inline] normal_case0 uacc =
         (* In that case, even though some branches were removed by simplify we
            should not count them in the number of removed operations: these
            branches wouldn't have been taken during execution anyway. *)
@@ -279,6 +361,108 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             (RE.print (UA.are_rebuilding_terms uacc))
             expr;
         expr, uacc
+      in
+      let[@inline] normal_case uacc =
+        match switch_is_single_arg_to_same_destination with
+        | None -> normal_case0 uacc
+        | Some (dest, must_tag, consts) -> (
+          assert (List.length consts = Targetint_31_63.Map.cardinal arms);
+          let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
+          match
+            find_cse_simple dacc_before_switch (UA.required_names uacc)
+              tagging_prim
+          with
+          | None -> normal_case0 uacc
+          | Some tagged_scrutinee ->
+            let tag = Tag.Scannable.zero in
+            let num_consts = List.length consts in
+            let block_sym =
+              let var = Variable.create "switch_block" in
+              Symbol.create
+                (Compilation_unit.get_current_exn ())
+                (Linkage_name.of_string (Variable.unique_name var))
+            in
+            let uacc =
+              let fields =
+                List.map
+                  (fun const -> Field_of_static_block.Tagged_immediate const)
+                  consts
+              in
+              UA.add_lifted_constant uacc
+                (Lifted_constant.create_definition
+                   (Lifted_constant.Definition.block_like
+                      (DA.denv dacc_before_switch)
+                      block_sym T.any_block
+                      ~symbol_projections:Variable.Map.empty
+                      (Rebuilt_static_const.create_block
+                         (UA.are_rebuilding_terms uacc)
+                         tag Immutable ~fields)))
+            in
+            (* CR mshinwell: consider sharing the constants *)
+            let block = Simple.symbol block_sym in
+            let load_from_block =
+              Named.create_prim
+                (Binary
+                   ( Block_load
+                       ( Values
+                           { tag = Known tag;
+                             size = Known (Targetint_31_63.of_int num_consts);
+                             field_kind = Immediate
+                           },
+                         Immutable ),
+                     block,
+                     tagged_scrutinee ))
+                dbg
+            in
+            let arg_var = Variable.create "arg" in
+            let arg = Simple.var arg_var in
+            let final_arg_var =
+              if must_tag then arg_var else Variable.create "final_arg"
+            in
+            let final_arg =
+              if must_tag then arg else Simple.var final_arg_var
+            in
+            (* CR mshinwell: check about potential CSE problem as before, but
+               this probably isn't relevant since the primitive this time is on
+               a fresh var *)
+            (* CR mshinwell: we could probably expose the actual integer counts
+               of continuations in [Name_occurrences] and then try to inline out
+               [dest]. This might happen anyway in the backend though so this
+               probably isn't that important for now. *)
+            let apply_cont = Apply_cont.create dest ~args:[final_arg] ~dbg in
+            let free_names_of_body = Apply_cont.free_names apply_cont in
+            let expr =
+              let body =
+                let body = RE.create_apply_cont apply_cont in
+                if must_tag
+                then body
+                else
+                  let bound =
+                    Bound_pattern.singleton
+                      (Bound_var.create final_arg_var NM.normal)
+                  in
+                  let untag_arg =
+                    Named.create_prim (Unary (Untag_immediate, arg)) dbg
+                  in
+                  RE.create_let
+                    (UA.are_rebuilding_terms uacc)
+                    bound untag_arg ~body ~free_names_of_body
+              in
+              let bound =
+                Bound_pattern.singleton (Bound_var.create arg_var NM.normal)
+              in
+              RE.create_let
+                (UA.are_rebuilding_terms uacc)
+                bound load_from_block ~body ~free_names_of_body
+            in
+            (* CR mshinwell: should adjust benefit *)
+            let uacc =
+              UA.add_free_names uacc
+                (NO.union
+                   (Named.free_names load_from_block)
+                   (NO.remove_var free_names_of_body ~var:final_arg_var))
+            in
+            expr, uacc)
       in
       match switch_merged with
       | Some (dest, args) ->
