@@ -1573,19 +1573,6 @@ let build_or_pat env loc lid =
           pat pats in
       (path, rp { r with pat_loc = loc })
 
-let split_cases env cases =
-  let add_case lst case = function
-    | None -> lst
-    | Some c_lhs -> { case with c_lhs } :: lst
-  in
-  List.fold_right (fun ({ c_lhs; c_guard } as case) (vals, exns) ->
-    match split_pattern c_lhs with
-    | Some _, Some _ when c_guard <> None ->
-      raise (Error (c_lhs.pat_loc, env,
-                    Mixed_value_and_exception_patterns_under_guard))
-    | vp, ep -> add_case vals case vp, add_case exns case ep
-  ) cases ([], [])
-
 (* When typing a for-loop index or similar, we need to restrict ourselves to the
    [Ppat_any] and [Ppat_var] cases, and construct a [pattern_variable] with
    consistent fields.  However, in the case where we're reifying a name for
@@ -2088,18 +2075,38 @@ end)
 
 (* Typing of patterns *)
 
-(* "half typed" cases are produced in [type_cases] when we've just typechecked
-   the pattern but haven't type-checked the body yet.
-   At this point we might have added some type equalities to the environment,
-   but haven't yet added identifiers bound by the pattern. *)
-type 'case_pattern half_typed_case =
+(* "untyped" cases are prior to checking the pattern. *)
+type untyped_case = Parsetree.pattern Parmatch.parmatch_case
+
+(* "half typed" cases are produced in [map_half_typed_cases] when we've just
+   typechecked the pattern but haven't type-checked the body yet. At this point
+   we might have added some type equalities to the environment, but haven't yet
+   added identifiers bound by the pattern. *)
+type ('case_pattern, 'case_data) half_typed_case =
   { typed_pat: 'case_pattern;
     pat_type_for_unif: type_expr;
-    untyped_case: Parsetree.case;
+    untyped_case: untyped_case;
+    case_data : 'case_data;
     branch_env: Env.t;
     pat_vars: pattern_variable list;
     module_vars: module_variables;
     contains_gadt: bool; }
+
+(* Used to split patterns into value cases and exception cases. *)
+let split_half_typed_cases env zipped_cases =
+  let add_case lst htc data = function
+    | None -> lst
+    | Some split_pat ->
+        ({ htc.untyped_case with pattern = split_pat }, data) :: lst
+  in
+  List.fold_right (fun (htc, data) (vals, exns) ->
+      let pat = htc.typed_pat in
+      match split_pattern pat with
+      | Some _, Some _ when htc.untyped_case.has_guard ->
+          raise (Error (pat.pat_loc, env,
+                        Mixed_value_and_exception_patterns_under_guard))
+      | vp, ep -> add_case vals htc data vp, add_case exns htc data ep
+    ) zipped_cases ([], [])
 
 let rec has_literal_pattern p =
   match Jane_syntax.Pattern.of_ast p with
@@ -7122,17 +7129,39 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
         raise(Error(exp.exp_loc, env, Expr_type_clash(err, None, Some exp.exp_desc))));
     exp, sort
   end
+(* Most of the arguments are the same as [type_cases].
 
-(* Typing of match cases *)
-and type_cases
-    : type k . k pattern_category ->
-           ?in_function:_ -> _ -> _ -> _ -> _ -> _ -> _ -> _ -> Parsetree.case list ->
-           k case list * partial
-  = fun category ?in_function env pmode emode
-        ty_arg ty_res_explained partial_flag loc caselist ->
-  (* ty_arg is _fully_ generalized *)
-  let { ty = ty_res; explanation } = ty_res_explained in
-  let patterns = List.map (fun {pc_lhs=p} -> p) caselist in
+   Takes a callback which is responsible for typing the body of the case.
+   The arguments are documented inline in the type signature.
+
+   It takes a callback rather than returning the half-typed cases directly
+   because the typing of the body must take place at an increased level.
+
+   The overall function returns:
+     - The data returned by the callback
+     - Whether the cases' patterns are partial or total
+*)
+and map_half_typed_cases
+  : type k ret case_data.
+    ?additional_checks_for_split_cases:((_ * ret) list -> unit)
+    -> ?in_function:_
+    -> k pattern_category -> _ -> _ -> _ -> _ -> _
+    -> (untyped_case * case_data) list
+    -> type_body:(
+        ?in_function:_
+        -> case_data
+        -> k general_pattern (* the typed pattern *)
+        -> ext_env:_ (* environment with module variables / pattern variables *)
+        -> ty_expected:_ (* type to check body in scope of *)
+        -> ty_infer:_ (* type to infer for the body *)
+        -> contains_gadt:_ (* whether the pattern contains a GADT *)
+        -> ret)
+    -> partial_flag:bool
+    -> ret list * partial
+  = fun ?additional_checks_for_split_cases ?in_function
+    category env pat_mode
+    ty_arg ty_res loc caselist ~type_body ~partial_flag ->
+  let patterns = List.map (fun ((x : untyped_case), _) -> x.pattern) caselist in
   let contains_polyvars = List.exists contains_polymorphic_variant patterns in
   let erase_either = contains_polyvars && contains_variant_either ty_arg in
   let may_contain_gadts = List.exists may_contain_gadts patterns in
@@ -7149,8 +7178,8 @@ and type_cases
     | _ -> false in
   let needs_exhaust_check =
     match caselist with
-      [{pc_rhs = {pexp_desc = Pexp_unreachable}}] -> true
-    | [{pc_lhs}] when is_var pc_lhs -> false
+      [ ({ needs_refute = true }, _) ] -> true
+    | [ ({ pattern }, _) ] when is_var pattern -> false
     | _ -> true
   in
   let outer_level = get_current_level () in
@@ -7173,14 +7202,14 @@ and type_cases
     Printtyp.raw_type_expr ty_arg; *)
   let half_typed_cases =
     List.map
-      (fun ({pc_lhs; pc_guard = _; pc_rhs = _} as case) ->
+      (fun ({ Parmatch.pattern; _ } as untyped_case, case_data) ->
         if !Clflags.principal then begin_def (); (* propagation of pattern *)
         begin_def ();
         let ty_arg = instance ?partial:take_partial_instance ty_arg in
         end_def ();
         generalize_structure ty_arg;
         let (pat, ext_env, force, pvs, mvs) =
-          type_pattern category ~lev ~alloc_mode:pmode env pc_lhs ty_arg
+          type_pattern category ~lev ~alloc_mode:pat_mode env pattern ty_arg
             allow_modules
         in
         pattern_force := force @ !pattern_force;
@@ -7195,7 +7224,8 @@ and type_cases
         check_scope_escape pat.pat_loc env outer_level ty_arg;
         { typed_pat = pat;
           pat_type_for_unif = ty_arg;
-          untyped_case = case;
+          untyped_case;
+          case_data;
           branch_env = ext_env;
           pat_vars = pvs;
           module_vars = mvs;
@@ -7240,21 +7270,24 @@ and type_cases
     iter_pattern_variables_type generalize pat_vars
   ) half_typed_cases;
   (* type bodies *)
-  let in_function = if List.length caselist = 1 then in_function else None in
   let ty_res' = instance ty_res in
   if !Clflags.principal then begin_def ();
-  let cases =
+  let result =
     List.map
       (fun { typed_pat = pat; branch_env = ext_env;
              pat_vars = pvs; module_vars = mvs;
-             untyped_case = {pc_lhs = _; pc_guard; pc_rhs};
-             contains_gadt; _ }  ->
+             case_data; contains_gadt; _ }
+        ->
         let ext_env =
           if contains_gadt then
             do_copy_types ext_env
           else
             ext_env
         in
+        (* Before handing off the cases to the callback, first set up the the
+           branch environments by adding the variables (and module variables)
+           from the patterns.
+        *)
         let ext_env =
           add_pattern_variables ext_env pvs
             ~check:(fun s -> Warnings.Unused_var_strict s)
@@ -7266,24 +7299,8 @@ and type_cases
             (* allow propagation from preceding branches *)
             correct_levels ty_res
           else ty_res in
-        let guard =
-          match pc_guard with
-          | None -> None
-          | Some scond ->
-              Some
-                (type_expect ext_env mode_max scond
-                   (mk_expected ~explanation:When_guard Predef.type_bool))
-        in
-        let exp =
-          type_expect ?in_function ext_env emode
-            pc_rhs (mk_expected ?explanation ty_expected)
-        in
-        {
-         c_lhs = pat;
-         c_guard = guard;
-         c_rhs = {exp with exp_type = ty_res'}
-        }
-      )
+        type_body ?in_function case_data pat ~ext_env ~ty_expected
+          ~ty_infer:ty_res' ~contains_gadt)
       half_typed_cases
   in
   if !Clflags.principal then end_def ();
@@ -7302,10 +7319,31 @@ and type_cases
         ty_arg'
     else ty_arg'
   in
-  let val_cases, exn_cases =
+  (* Split the cases into val and exn cases so we can do the appropriate checks
+     for exhaustivity and unused variables.
+     The caller of this function can define custom checks. For some of these
+     checks, the half-typed case doesn't provide enough info on its own -- for
+     instance, the check for ambiguous bindings in when guards needs to know the
+     case body's expression -- so the code pairs each case with its
+     corresponding element in [result] before handing it off to the caller's
+     custom checks.
+  *)
+  let val_cases_with_result, exn_cases_with_result =
     match category with
-      | Value -> (cases : value case list), []
-      | Computation -> split_cases env cases in
+    | Value ->
+        let val_cases =
+          List.map2
+            (fun htc res ->
+               { htc.untyped_case with pattern = htc.typed_pat }, res)
+            half_typed_cases
+            result
+        in
+        (val_cases : (pattern Parmatch.parmatch_case * ret) list), []
+    | Computation ->
+        split_half_typed_cases env (List.combine half_typed_cases result)
+  in
+  let val_cases = List.map fst val_cases_with_result in
+  let exn_cases = List.map fst exn_cases_with_result in
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
   let partial =
@@ -7322,21 +7360,72 @@ and type_cases
     check_unused ~lev env ty_arg_check val_cases ;
     check_unused ~lev env Predef.type_exn exn_cases ;
     if delayed then end_def ();
-    Parmatch.check_ambiguous_bindings val_cases ;
-    Parmatch.check_ambiguous_bindings exn_cases
   in
   if contains_polyvars then
     add_delayed_check (fun () -> unused_check true)
   else
     (* Check for unused cases, do not delay because of gadts *)
     unused_check false;
+  begin
+    match additional_checks_for_split_cases with
+    | None -> ()
+    | Some check ->
+        check val_cases_with_result;
+        check exn_cases_with_result;
+  end;
   if create_inner_level then begin
     end_def ();
     (* Ensure that existential types do not escape *)
     unify_exp_types loc env ty_res'
       (newvar (Jkind.any ~why:Dummy_jkind));
   end;
-  cases, partial
+  result, partial
+
+(* Typing of match cases *)
+and type_cases
+    : type k . ?in_function:_ -> k pattern_category ->
+           _ -> _ -> _ -> _ -> _ -> _ -> _ -> Parsetree.case list ->
+           k case list * partial
+  = fun ?in_function category env pat_mode expr_mode
+        ty_arg ty_res_explained partial_flag loc caselist ->
+  let { ty = ty_res; explanation } = ty_res_explained in
+  let caselist =
+    List.map (fun case -> Parmatch.untyped_case case, case) caselist
+  in
+  (* Most of the work is done by [map_half_typed_cases]. All that's left
+     is to typecheck the guards and the cases, and then to check for some
+     warnings that can fire in the presence of guards.
+  *)
+  map_half_typed_cases ?in_function category env pat_mode
+    ty_arg ty_res loc caselist ~partial_flag
+    ~type_body:begin
+      fun ?in_function { pc_guard; pc_rhs } pat ~ext_env ~ty_expected
+          ~ty_infer ~contains_gadt:_ ->
+        let guard =
+          match pc_guard with
+          | None -> None
+          | Some scond ->
+            Some
+              (type_expect ext_env mode_max scond
+                (mk_expected ~explanation:When_guard Predef.type_bool))
+        in
+        let exp =
+          type_expect ?in_function ext_env expr_mode pc_rhs
+            (mk_expected ?explanation ty_expected)
+        in
+        {
+          c_lhs = pat;
+          c_guard = guard;
+          c_rhs = {exp with exp_type = ty_infer}
+        }
+    end
+    ~additional_checks_for_split_cases:(fun cases ->
+      let cases =
+        List.map
+          (fun (case_with_pat, case) ->
+             { case with c_lhs = case_with_pat.Parmatch.pattern }) cases
+      in
+      Parmatch.check_ambiguous_bindings cases)
 
 (** Typecheck the body of a newtype. The "body" of a newtype may be:
     - an expression
@@ -7691,8 +7780,9 @@ and type_let
     (fun (_,pat,_) (attrs, exp) ->
        Builtin_attributes.warning_scope ~ppwarning:false attrs
          (fun () ->
+            let case = Parmatch.typed_case (case pat exp) in
             ignore(check_partial env pat.pat_type pat.pat_loc
-                     [case pat exp] : Typedtree.partial)
+                     [case] : Typedtree.partial)
          )
     )
     pat_list
@@ -9059,6 +9149,10 @@ let () =
   Persistent_env.add_delayed_check_forward := add_delayed_check;
   Env.add_delayed_check_forward := add_delayed_check;
   ()
+
+(* drop the need to call [Parmatch.typed_case] from the external API *)
+let check_partial ?lev a b c cases =
+  check_partial ?lev a b c (List.map Parmatch.typed_case cases)
 
 (* drop unnecessary arguments from the external API
    and check for uniqueness *)
