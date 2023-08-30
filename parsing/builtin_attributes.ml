@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Parsetree
 open Ast_helper
 

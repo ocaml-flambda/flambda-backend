@@ -396,7 +396,7 @@ module Layout = struct
   let float64 ~why =
     fresh_layout (Sort Sort.float64) ~why:(Float64_creation why)
 
-  type const = Asttypes.const_layout =
+  type const = Jane_asttypes.const_layout =
     | Any
     | Value
     | Void
@@ -432,7 +432,7 @@ module Layout = struct
   (******************************)
   (*** user errors ***)
   type error =
-    | Insufficient_level of annotation_context * Asttypes.const_layout
+    | Insufficient_level of annotation_context * Jane_asttypes.const_layout
 
   exception User_error of Location.t * error
 

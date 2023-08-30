@@ -90,7 +90,8 @@ type mapper = {
       type *)
 
   label_declaration: mapper -> label_declaration -> label_declaration;
-  layout_annotation: mapper -> Asttypes.const_layout -> Asttypes.const_layout;
+  layout_annotation:
+    mapper -> Jane_asttypes.const_layout -> Jane_asttypes.const_layout;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
   module_declaration: mapper -> module_declaration -> module_declaration;

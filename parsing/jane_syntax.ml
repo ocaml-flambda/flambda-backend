@@ -1,4 +1,5 @@
 open Asttypes
+open Jane_asttypes
 open Parsetree
 open Jane_syntax_parsing
 
@@ -317,6 +318,36 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable)
   end
 end
 
+module Stringable_const_layout = struct
+  type t = const_layout
+
+  let indefinite_article_and_name = "a", "layout"
+
+  let to_string = function
+    | Any -> "any"
+    | Value -> "value"
+    | Void -> "void"
+    | Immediate64 -> "immediate64"
+    | Immediate -> "immediate"
+    | Float64 -> "float64"
+
+  (* CR layouts v1.5: revise when moving layout recognition away from parser *)
+  let of_string = function
+    | "any" -> Some Any
+    | "value" -> Some Value
+    | "void" -> Some Void
+    | "immediate" -> Some Immediate
+    | "immediate64" -> Some Immediate64
+    | "float64" -> Some Float64
+    | _ -> None
+end
+
+module Layouts_pprint = struct
+  let const_layout fmt cl =
+    Format.pp_print_string fmt (Stringable_const_layout.to_string cl)
+
+  let layout_annotation fmt ann = const_layout fmt ann.txt
+end
 
 (** Layout annotations' encoding as attribute payload, used in both n-ary
     functions and layouts. *)
@@ -331,29 +362,9 @@ module Layout_annotation : sig
       (string Location.loc * layout_annotation option) list
   end
 end = struct
-  module Protocol = Make_payload_protocol_of_stringable (struct
-      type t = const_layout
+  module Protocol =
+    Make_payload_protocol_of_stringable (Stringable_const_layout)
 
-      let indefinite_article_and_name = "a", "layout"
-
-      let to_string = function
-        | Any -> "any"
-        | Value -> "value"
-        | Void -> "void"
-        | Immediate64 -> "immediate64"
-        | Immediate -> "immediate"
-        | Float64 -> "float64"
-
-      (* CR layouts v1.5: revise when moving layout recognition away from parser*)
-      let of_string = function
-        | "any" -> Some Any
-        | "value" -> Some Value
-        | "void" -> Some Void
-        | "immediate" -> Some Immediate
-        | "immediate64" -> Some Immediate64
-        | "float64" -> Some Float64
-        | _ -> None
-    end)
   (*******************************************************)
   (* Conversions with a payload *)
 
@@ -375,7 +386,7 @@ end = struct
               (Format.pp_print_list
                 (Format.pp_print_option
                     ~none:(fun ppf () -> Format.fprintf ppf "None")
-                    (Printast.layout_annotation 0)))
+                    Layouts_pprint.layout_annotation))
               layouts
 
       exception Error of Location.t * error
@@ -1157,7 +1168,10 @@ module N_ary_functions = struct
           | None -> body
           | Some { mode_annotations; type_constraint } ->
               let constrained_body =
-                let loc = Location.ghostify body.pexp_loc in
+                (* We can't call [Location.ghostify] here, as we need this file
+                   to build with the upstream compiler; see Note [Buildable with
+                   upstream] in jane_syntax.mli for details. *)
+                let loc = { body.pexp_loc with loc_ghost = true } in
                 match type_constraint with
                 | Pconstraint ty -> Ast_helper.Exp.constraint_ body ty ~loc
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
@@ -1265,18 +1279,22 @@ module Layouts = struct
 
   type nonrec core_type =
     | Ltyp_var of { name : string option
-                  ; layout : Asttypes.layout_annotation }
+                  ; layout : layout_annotation }
     | Ltyp_poly of { bound_vars : (string loc * layout_annotation option) list
                    ; inner_type : core_type }
     | Ltyp_alias of { aliased_type : core_type
                     ; name : string option
-                    ; layout : Asttypes.layout_annotation }
+                    ; layout : layout_annotation }
 
   type nonrec extension_constructor =
-    | Lext_decl of (string Location.loc *
-                    Asttypes.layout_annotation option) list *
+    | Lext_decl of (string Location.loc * layout_annotation option) list *
                    constructor_arguments *
                    Parsetree.core_type option
+
+  (*******************************************************)
+  (* Pretty-printing *)
+
+  module Pprint = Layouts_pprint
 
   (*******************************************************)
   (* Errors *)
@@ -1291,15 +1309,17 @@ module Layouts = struct
       | Unexpected_wrapped_expr of Parsetree.expression
       | Unexpected_wrapped_pat of Parsetree.pattern
 
+    (* Most things here are unprintable because we can't reference any
+       [Printast] functions that aren't exposed by the upstream compiler, as we
+       want this file to be compatible with the upstream compiler; see Note
+       [Buildable with upstream] in jane_syntax.mli for details. *)
     let report_error ~loc = function
-      | Unexpected_wrapped_type typ ->
+      | Unexpected_wrapped_type _typ ->
         Location.errorf ~loc
-          "Layout attribute on wrong core type:@;%a"
-          (Printast.core_type 0) typ
-      | Unexpected_wrapped_ext ext ->
+          "Layout attribute on wrong core type"
+      | Unexpected_wrapped_ext _ext ->
         Location.errorf ~loc
-          "Layout attribute on wrong extension constructor:@;%a"
-          (Printast.extension_constructor 0) ext
+          "Layout attribute on wrong extension constructor"
       | Unexpected_attribute names ->
         Location.errorf ~loc
           "Layout extension does not understand these attribute names:@;[%a]"
@@ -1309,18 +1329,16 @@ module Layouts = struct
       | No_integer_suffix ->
         Location.errorf ~loc
           "All unboxed integers require a suffix to determine their size."
-      | Unexpected_constant c ->
+      | Unexpected_constant _c ->
         Location.errorf ~loc
-          "Unexpected unboxed constant:@ %a"
-          (Printast.constant) c
+          "Unexpected unboxed constant"
       | Unexpected_wrapped_expr expr ->
         Location.errorf ~loc
           "Layout attribute on wrong expression:@;%a"
           (Printast.expression 0) expr
-      | Unexpected_wrapped_pat pat ->
+      | Unexpected_wrapped_pat _pat ->
         Location.errorf ~loc
-          "Layout attribute on wrong pattern:@;%a"
-          (Printast.pattern 0) pat
+          "Layout attribute on wrong pattern"
 
     exception Error of Location.t * error
 
