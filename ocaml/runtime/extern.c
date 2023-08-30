@@ -1199,7 +1199,6 @@ static void add_to_long_value(value *v, intnat x) {
    undo this addition. */
 intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_id,
     intnat *shared_size) {
-  CAMLassert(identifier >= 0);
   struct extern_item * sp;
   intnat size;
   uintnat mark = Invalid, new_mark;
@@ -1208,6 +1207,8 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
   int previously_marked, should_traverse;
   sp = extern_stack;
   size = 0;
+
+  CAMLassert(identifier >= 0);
 
   while (1) {
     if (Is_long(v)) {
