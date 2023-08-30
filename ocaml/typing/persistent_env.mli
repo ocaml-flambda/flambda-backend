@@ -90,6 +90,10 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
+(* [is_parameter_unit penv md] checks if [md] has been imported in [penv] and
+   was compiled as a parameter *)
+val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
+
 val make_cmi : 'a t
   -> Compilation_unit.t
   -> Cmi_format.kind

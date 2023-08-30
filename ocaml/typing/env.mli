@@ -449,6 +449,10 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
 
+(* [is_parameter_unit md] returns true if [md] was compiled with
+   -as-parameter *)
+val is_parameter_unit: Compilation_unit.Name.t -> bool
+
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
 
