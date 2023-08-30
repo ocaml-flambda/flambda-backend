@@ -30,3 +30,4 @@ dynamic/partial overapply: OK
          method overapply: OK
       mode-crossed region: OK
   allocation from exclave: OK
+            exclave curry: OK

@@ -127,14 +127,22 @@ let transl_apply_position position =
     if Config.stack_allocation then Rc_close_at_apply
     else Rc_normal
 
+let iter_exclaves ~f lam =
+  let rec loop ~depth = function
+    | Lregion (body, _layout) ->
+      loop ~depth:(depth + 1) body
+    | Lexclave excl when depth = 0 -> f excl
+    | Lexclave excl ->
+      loop ~depth:(depth - 1) excl
+    | lam ->
+      shallow_iter lam
+        ~tail:(loop ~depth)
+        ~non_tail:ignore (* Exclaves are in tail position *)
+  in
+  loop ~depth:0 lam
+
 let may_allocate_in_region lam =
-  (* loop_region raises, if the lambda might allocate in parent region *)
-  let rec loop_region lam =
-    shallow_iter ~tail:(function
-      | Lexclave body -> loop body
-      | lam -> loop_region lam
-    ) ~non_tail:(fun lam -> loop_region lam) lam
-  and loop = function
+  let rec loop = function
     | Lvar _ | Lmutvar _ | Lconst _ -> ()
 
     | Lfunction {mode=Alloc_heap} -> ()
@@ -152,7 +160,7 @@ let may_allocate_in_region lam =
     | Lregion (body, _layout) ->
        (* [body] might allocate in the parent region because of exclave, and thus
           [Lregion body] might allocate in the current region *)
-      loop_region body
+      iter_exclaves ~f:loop body
     | Lexclave _body ->
       (* [_body] might do local allocations, but not in the current region;
         rather, it's in the parent region *)
@@ -1287,7 +1295,6 @@ and transl_tupled_function
           Matching.for_tupled_function ~scopes ~return_layout loc params
             (transl_tupled_cases ~scopes return_sort pats_expr_list) partial
         in
-        let region = region || not (may_allocate_in_region body) in
         ((Tupled, tparams, return_layout, region), body)
     with Matching.Cannot_flatten ->
       transl_function0 ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout
@@ -1303,12 +1310,10 @@ and transl_function0
       Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
         repr (Lvar param) (transl_cases ~scopes return_sort cases) partial
     in
-    let region = region || not (may_allocate_in_region body) in
     let nlocal =
-      if not region then 1
-      else match partial_mode with
-        | Alloc_local -> 1
-        | Alloc_heap -> 0
+      match partial_mode with
+      | Alloc_local -> 1
+      | Alloc_heap -> 0
     in
     let arg_mode = transl_alloc_mode arg_mode in
     ((Curried {nlocal},
@@ -1360,7 +1365,21 @@ and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort r
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
-  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
+  let may_locally_allocate_in_parent = may_allocate_in_region body in
+  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode
+              ~region:(not may_locally_allocate_in_parent) in
+  let attrs =
+    (* Collect attributes from the Pexp_newtype node for locally abstract types.
+       Otherwise we'd ignore the attribute in, e.g.;
+           fun [@inline] (type a) x -> ...
+    *)
+    List.fold_left
+      (fun attrs (extra_exp, _, extra_attrs) ->
+         match extra_exp with
+         | Texp_newtype _ -> extra_attrs @ attrs
+         | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
+      e.exp_attributes e.exp_extra
+  in
   Translattribute.add_function_attributes lam e.exp_loc attrs
 
 (* Like transl_exp, but used when a new scope was just introduced. *)

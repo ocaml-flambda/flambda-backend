@@ -661,7 +661,6 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
      let nparams = List.length params in
      assert (0 <= nlocal);
      assert (nlocal <= nparams);
-     if not region then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
   end;
   Lfunction { kind; params; return; body; attr; loc; mode; region }

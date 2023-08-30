@@ -843,9 +843,8 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
   try
     (* TODO: enable this optimisation even in the presence of local returns *)
     begin match kind with
-    | Curried {nlocal} when nlocal > 0 -> raise Exit
-    | Tupled when not orig_region -> raise Exit
-    | _ -> assert orig_region
+    | Curried {nlocal = 0} | Tupled when orig_region -> ()
+    | _ -> raise Exit
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
