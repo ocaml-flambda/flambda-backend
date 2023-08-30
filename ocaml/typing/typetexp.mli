@@ -36,7 +36,7 @@ module TyVarEnv : sig
 
   val make_poly_univars_layouts :
     context:(string -> Layout.annotation_context) ->
-    (string Location.loc * Asttypes.layout_annotation option) list ->
+    (string Location.loc * Jane_asttypes.layout_annotation option) list ->
     poly_univars
     (** remember that a list of strings connotes univars; this must
         always be paired with a [check_poly_univars]. *)

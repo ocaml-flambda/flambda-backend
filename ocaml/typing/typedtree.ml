@@ -16,6 +16,7 @@
 (* Abstract syntax tree after typing *)
 
 open Asttypes
+open Jane_asttypes
 open Layouts
 open Types
 

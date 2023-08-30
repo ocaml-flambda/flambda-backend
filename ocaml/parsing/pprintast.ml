@@ -290,7 +290,7 @@ let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 let constant_string f s = pp f "%S" s
 
 let tyvar = Printast.tyvar
-let layout_annotation = Printast.layout_annotation 0
+let layout_annotation = Jane_syntax.Layouts.Pprint.layout_annotation
 
 let tyvar_layout_loc ~print_quote f (str,layout) =
   let pptv =

@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Location
 open Longident
 open Parsetree
@@ -97,7 +98,7 @@ let handle_extension ext =
 
 (* CR layouts: Remember to add this when layouts can have module
    prefixes. *)
-let add_layout _bv (_layout : Asttypes.layout_annotation) = ()
+let add_layout _bv (_layout : layout_annotation) = ()
 
 let add_vars_layouts bv vars_layouts =
   let add_one (_, layout) = Option.iter (add_layout bv) layout in
