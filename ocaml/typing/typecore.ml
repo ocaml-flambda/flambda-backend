@@ -7291,8 +7291,18 @@ and type_cases
   end;
   cases, partial
 
-and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
-      name jkind_annot_opt sbody =
+(** Typecheck the body of a newtype. The "body" of a newtype may be:
+    - an expression
+    - a suffix of function parameters together with a function body
+      That's why this function is polymorphic over the body.
+      @param type_body A function that produces a type for the body given the
+      environment. When typechecking an expression, this is [type_exp].
+      @return The type returned by [type_body] but with the Tconstr
+      nodes for the newtype properly linked.
+*)
+and type_newtype_gen
+  : type a. _ -> _ -> _ -> _ -> (Env.t -> _ -> a * type_expr) -> a * type_expr =
+  fun loc env name jkind_annot_opt type_body  ->
   let jkind =
     Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
       ~default:(Jkind.value ~why:Univar) jkind_annot_opt
@@ -7310,7 +7320,7 @@ and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
   let scope = create_scope () in
   let (id, new_env) = Env.enter_type ~scope name decl env in
 
-  let body = type_exp new_env expected_mode sbody in
+  let result, exp_type = type_body new_env jkind in
   (* Replace every instance of this type constructor in the resulting
      type. *)
   let seen = Hashtbl.create 8 in
@@ -7323,13 +7333,22 @@ and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
       | _ -> Btype.iter_type_expr replace t
     end
   in
-  let ety = Subst.type_expr Subst.identity body.exp_type in
+  let ety = Subst.type_expr Subst.identity exp_type in
   replace ety;
   (* back to original level *)
   end_def ();
   (* lower the levels of the result type *)
   (* unify_var env ty ety; *)
+  (result, ety)
 
+(** [type_newtype_gen] where the "body" is just an expression. *)
+and type_newtype
+    ~loc ~env ~expected_mode ~rue ~attributes name jkind_annot_opt sbody =
+  let body, ety =
+    type_newtype_gen loc env name jkind_annot_opt (fun env _ ->
+      let expr = type_exp env expected_mode sbody in
+      expr, expr.exp_type)
+  in
   (* non-expansive if the body is non-expansive, so we don't introduce
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
