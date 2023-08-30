@@ -901,10 +901,16 @@ and 'a class_infos =
     ci_attributes: attributes;
    }
 
+type secondary_interface = {
+  si_signature: Types.signature;
+  si_coercion_from_primary: module_coercion;
+}
+
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
+  secondary_iface: secondary_interface option;
   shape: Shape.t;
 }
 (** A typechecked implementation including its module structure, its exported
@@ -915,6 +921,10 @@ type implementation = {
 
     If there isn't one, the signature will be inferred from the module
     structure.
+
+    If the module is checked against another .mli besides its own,
+    [secondary_interface] will record the other signature and the coercion
+    _from the primary interface_ to the secondary one.
 *)
 
 (* Auxiliary functions over the a.s.t. *)

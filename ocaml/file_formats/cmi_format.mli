@@ -24,6 +24,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
+      cmi_arg_for : Compilation_unit.Name.t option;
     }
   | Parameter
 
@@ -48,6 +49,18 @@ val input_cmi_lazy : in_channel -> cmi_infos_lazy
 (* read a cmi from a filename, checking the magic *)
 val read_cmi : string -> cmi_infos
 val read_cmi_lazy : string -> cmi_infos_lazy
+
+(* The contents of the module block *)
+type module_block_layout =
+  | Single_block
+      (* One block whose contents are described by [cmi_sign] *)
+  | Full_module_and_argument_form
+      (* An outer block containing two blocks: the usual module block, and a
+         block used as the value of the module when it's passed as an argument.
+         The first block's signature is [cmi_sign] and the second block's
+         signature is described by the .cmi file for [cmi_arg_for] ([cmi_kind]
+         must be [Normal]). *)
+val module_block_layout : _ cmi_infos_generic -> module_block_layout
 
 (* Error report *)
 

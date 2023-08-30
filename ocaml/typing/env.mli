@@ -434,6 +434,11 @@ val save_signature_with_imports:
         (* Arguments: signature, module name, module kind,
            file name, imported units with their CRCs. *)
 
+(* Register a module as a parameter unit, though not necessarily a parameter to
+   this unit. It is unnecessary (but harmless) to call both this and
+   [register_parameter]. *)
+val register_parameter_import: Compilation_unit.Name.t -> unit
+
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
@@ -448,6 +453,15 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit md] returns true if [md] was compiled with
+   -as-parameter *)
+val is_parameter_unit: Compilation_unit.Name.t -> bool
+
+(* [implemented_parameter md] is the argument given to -as-argument-for when
+   [md] was compiled *)
+val implemented_parameter:
+  Compilation_unit.Name.t -> Compilation_unit.Name.t option
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

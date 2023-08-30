@@ -25,7 +25,7 @@ type compilation_unit_style =
   | Set_individual_fields (* Closure *)
 
 val transl_implementation:
-      Compilation_unit.t -> structure * module_coercion
+      Compilation_unit.t -> structure * module_coercion * module_coercion option
         -> style:compilation_unit_style -> Lambda.program
 val transl_store_phrases: Compilation_unit.t -> structure -> int * lambda
 

@@ -145,6 +145,14 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * sort
+  | Cannot_implement_parameter of Misc.filepath
+  | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Compilation_unit.Name.t
+  | Inconsistent_argument_types of {
+      new_arg_type: Compilation_unit.Name.t option;
+      old_arg_type: Compilation_unit.Name.t option;
+      old_source_file: Misc.filepath;
+    }
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

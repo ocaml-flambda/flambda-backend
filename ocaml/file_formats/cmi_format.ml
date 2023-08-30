@@ -24,6 +24,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
+      cmi_arg_for : Compilation_unit.Name.t option;
     }
   | Parameter
 
@@ -207,6 +208,15 @@ let output_cmi filename oc cmi =
 
 let input_cmi ic = input_cmi_lazy ic |> force_cmi_infos
 let read_cmi filename = read_cmi_lazy filename |> force_cmi_infos
+
+type module_block_layout =
+  | Single_block
+  | Full_module_and_argument_form
+
+let module_block_layout cmi =
+  match cmi.cmi_kind with
+  | Parameter | Normal { cmi_arg_for = None; _ } -> Single_block
+  | Normal { cmi_arg_for = Some _; _ } -> Full_module_and_argument_form
 
 (* Error report *)
 

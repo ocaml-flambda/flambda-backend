@@ -990,6 +990,12 @@ let is_imported_opaque modname =
 let register_import_as_opaque modname =
   Persistent_env.register_import_as_opaque !persistent_env modname
 
+let is_parameter_unit modname =
+  Persistent_env.is_parameter_unit !persistent_env modname
+
+let implemented_parameter modname =
+  Persistent_env.implemented_parameter !persistent_env modname
+
 let reset_declaration_caches () =
   Types.Uid.Tbl.clear !value_declarations;
   Types.Uid.Tbl.clear !type_declarations;
@@ -2623,6 +2629,9 @@ let read_signature modname filename ~add_binding =
   match md.md_type with
   | Mty_signature sg -> sg
   | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+
+let register_parameter_import import =
+  Persistent_env.register_parameter_import !persistent_env import
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'

@@ -30,8 +30,14 @@ let interface ~source_file ~output_prefix =
 
 (** Bytecode compilation backend for .ml files. *)
 
-let to_bytecode i Typedtree.{structure; coercion; _} =
-  (structure, coercion)
+let to_bytecode i Typedtree.{structure; coercion; secondary_iface; _} =
+  let secondary_coercion =
+    match secondary_iface with
+    | Some { si_coercion_from_primary; si_signature = _ } ->
+        Some si_coercion_from_primary
+    | None -> None
+  in
+  (structure, coercion, secondary_coercion)
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
   |> Profile.(record ~accumulate:true generate)
