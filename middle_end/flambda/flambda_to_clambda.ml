@@ -100,7 +100,7 @@ let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
     |> List.length
   in
   {
-    function_kind = Curried {nlocal} ;
+    function_kind = Curried {nlocal; may_fuse_arity=true} ;
     params_layout = List.map Parameter.kind func.params ;
     return_layout = func.return_layout ;
   }

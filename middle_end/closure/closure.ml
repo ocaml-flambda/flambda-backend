@@ -1090,10 +1090,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           assert (nparams >= nlocal);
           let heap_params = nparams - nlocal in
           if nargs <= heap_params then
-            alloc_heap, Curried {nlocal}
+            alloc_heap, Curried {nlocal; may_fuse_arity=true}
           else
             let supplied_local_args = nargs - heap_params in
-            alloc_local, Curried {nlocal = nlocal - supplied_local_args}
+            alloc_local,
+            Curried {nlocal = nlocal - supplied_local_args; may_fuse_arity=true}
         in
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
         (* CR ncourant: mode = new_clos_mode is incorrect; but the modes will

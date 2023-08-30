@@ -940,7 +940,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      in
      let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args) in
      lfunction
-       ~kind:(Curried {nlocal})
+       ~kind:(Curried {nlocal; may_fuse_arity = true})
        ~params
        ~return
        ~attr:default_stub_attribute

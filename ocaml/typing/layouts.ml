@@ -249,6 +249,7 @@ module Layout = struct
     | External_argument
     | External_result
     | Statement
+    | Optional_arg_default
 
   type value_creation_reason =
     | Class_let_binding
@@ -663,6 +664,8 @@ module Layout = struct
         fprintf ppf "used as the result of an external declaration"
       | Statement ->
         fprintf ppf "used as a statement"
+      | Optional_arg_default ->
+        fprintf ppf "used as an optional argument default"
 
     let format_annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
@@ -1118,6 +1121,8 @@ module Layout = struct
           fprintf ppf "External_result"
       | Statement ->
           fprintf ppf "Statement"
+      | Optional_arg_default ->
+          fprintf ppf "Optional_arg_default"
 
     let annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->

@@ -59,7 +59,7 @@ let get_func_decl_params_arity t code_id =
         Flambda_arity.cardinal (Code_metadata.params_arity info)
         - Code_metadata.first_complex_local_param info
       in
-      Lambda.Curried { nlocal }
+      Lambda.Curried { nlocal; may_fuse_arity = true }
   in
   let closure_code_pointers =
     match kind, params_ty with

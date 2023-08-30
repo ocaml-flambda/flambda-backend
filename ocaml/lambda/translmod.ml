@@ -160,7 +160,7 @@ and apply_coercion_result loc strict funct params args cc_res =
       name_lambda strict funct Lambda.layout_functor
         (fun id ->
            lfunction
-             ~kind:(Curried {nlocal=0})
+             ~kind:(Curried {nlocal=0; may_fuse_arity=true})
              ~params:(List.rev params)
              ~return:Lambda.layout_module
              ~attr:{ default_function_attribute with
@@ -578,7 +578,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       functor_params_rev
   in
   lfunction
-    ~kind:(Curried {nlocal=0})
+    ~kind:(Curried {nlocal=0; may_fuse_arity=true})
     ~params
     ~return:Lambda.layout_module
     ~attr:{

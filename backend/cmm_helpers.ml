@@ -2892,7 +2892,8 @@ let final_curry_function nlocal arity result =
   let narity = List.length arity in
   let fun_name =
     global_symbol
-      (curry_function_sym_name (Lambda.Curried { nlocal }) arity result
+      (curry_function_sym_name (Lambda.Curried { nlocal; may_fuse_arity=true })
+         arity result
       ^ "_"
       ^ Int.to_string (narity - 1))
   in
@@ -2912,7 +2913,8 @@ let final_curry_function nlocal arity result =
 
 let intermediate_curry_functions ~nlocal ~arity result =
   let name1 =
-    curry_function_sym_name (Lambda.Curried { nlocal }) arity result
+    curry_function_sym_name (Lambda.Curried { nlocal; may_fuse_arity=true })
+      arity result
   in
   let narity = List.length arity in
   let dbg = placeholder_dbg in
@@ -3132,7 +3134,7 @@ module Generic_fns_tbl = struct
       let curry =
         Seq.init (Lambda.max_arity ()) (fun n ->
             Seq.init (Lambda.max_arity ()) (fun nlocal ->
-                Lambda.Curried { nlocal }, arity n, result))
+                Lambda.Curried { nlocal; may_fuse_arity=true }, arity n, result))
         |> Seq.concat
       in
       let send =

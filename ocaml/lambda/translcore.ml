@@ -193,85 +193,41 @@ let maybe_region_layout layout lam =
 let maybe_region_exp sort exp lam =
   maybe_region (fun () -> layout_exp sort exp) lam
 
-(* Push the default values under the functional abstractions *)
+(** A well-formed function parameter list's fp_curry field is of the form
+    [G @ L @ [ Final_arg ]], where the values of G and L are of the form
+    [More_args { partial_mode }], where [partial_mode] has locality Global in G
+    and locality Local in L.
 
-let wrap_bindings bindings exp =
-  List.fold_left
-    (fun exp binds ->
-      {exp with exp_desc = Texp_let(Nonrecursive, binds, exp)})
-    exp bindings
+    [nlocal_of_function_params p] checks the well-formedness of the list returns
+    the corresponding [curried_function_kind], which has:
+      - {v nlocal = |L| + 1 v}
+      - {v may_fuse_arity = false v}
 
-let rec trivial_pat pat =
-  match pat.pat_desc with
-    Tpat_var _
-  | Tpat_any -> true
-  | Tpat_alias (p, _, _, _) ->
-      trivial_pat p
-  | Tpat_construct (_, cd, [], _) ->
-      not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
-  | Tpat_tuple patl ->
-      List.for_all trivial_pat patl
-  | _ -> false
-
-let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
-          partial warnings =
-  match cases with
-    [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial;
-                                        region; curry; warnings; arg_mode;
-                                        arg_sort; ret_sort; alloc_mode } }
-        as exp}] when bindings = [] || trivial_pat pat ->
-      let cases =
-        push_defaults exp.exp_loc bindings false arg_mode arg_sort cases partial
-          warnings
-      in
-      [{c_lhs=pat; c_guard=None;
-        c_rhs={exp with exp_desc =
-                          Texp_function { arg_label; param; cases; partial;
-                                          region; curry; warnings; arg_mode;
-                                          arg_sort; ret_sort; alloc_mode }}}]
-  | [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
-             exp_desc = Texp_let
-               (Nonrecursive, binds,
-                ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (binds :: bindings) true
-                   arg_mode arg_sort [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial warnings
-  | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
-    when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
-      [{case with c_rhs = wrap_bindings bindings exp}]
-  | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
-      let mode = Mode.Value.of_alloc arg_mode in
-      let param = Typecore.name_cases "param" cases in
-      let desc =
-        {val_type = pat.pat_type; val_kind = Val_reg;
-         val_attributes = []; Types.val_loc = Location.none;
-         val_uid = Types.Uid.internal_not_actually_unique; }
-      in
-      let env = Env.add_value ~mode param desc exp.exp_env in
-      let name = Ident.name param in
-      let exp =
-        let cases =
-          let pure_case ({c_lhs; _} as case) =
-            {case with c_lhs = as_computation_pattern c_lhs} in
-          List.map pure_case cases in
-        { exp with exp_loc = loc; exp_env = env; exp_desc =
-          Texp_match
-            ({exp with exp_type = pat.pat_type; exp_env = env; exp_desc =
-              Texp_ident
-                (Path.Pident param, mknoloc (Longident.Lident name),
-                 desc, Id_value,
-                 (Mode.Value.uniqueness mode, Mode.Value.linearity mode))},
-             arg_sort,
-             cases, partial) }
-      in
-      [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name, mode)};
-        c_guard = None; c_rhs= wrap_bindings bindings exp}]
-  | _ ->
-      cases
-
-let push_defaults loc = push_defaults loc [] false
+    When {v may_fuse_arity = false v}, there is no difference between
+    {v nlocal = 0 v} and {v nlocal = 1 v}. We opt for the latter in cases
+    where [L] is empty.
+*)
+let curried_function_kind : function_param list -> curried_function_kind =
+  let rec loop params ~running_count ~found_local_already =
+    match params with
+    | [] -> Misc.fatal_error "Expected to find [Final_arg] at end of list"
+    | [ Final_arg ] -> { nlocal = running_count + 1; may_fuse_arity = false }
+    | Final_arg :: _ -> Misc.fatal_error "Found [Final_arg] too early"
+    | More_args { partial_mode } :: params ->
+        match transl_alloc_mode partial_mode with
+        | Alloc_heap when not found_local_already ->
+            loop params ~running_count:0 ~found_local_already
+        | Alloc_local ->
+            loop params
+              ~running_count:(running_count + 1) ~found_local_already:true
+        | Alloc_heap ->
+            Misc.fatal_error
+              "A function argument with a Global partial_mode unexpectedly \
+              found following a function argument with a Local partial_mode"
+  in
+  fun params ->
+    let params = List.map (fun fp -> fp.fp_curry) params in
+    loop params ~running_count:0 ~found_local_already:false
 
 (* Insertion of debugging events *)
 
@@ -313,6 +269,29 @@ let assert_failed ~scopes exp =
                Const_base(Const_int line);
                Const_base(Const_int char)]))], loc))], loc)
 ;;
+
+(* [fuse_method_arity] is what ensures that a n-ary method is compiled as a
+   (n+1)-ary function, where the first parameter is self. It fuses together the
+   self and method parameters.
+
+   Input:  fun self -> fun method_param_1 ... method_param_n -> body
+   Output: fun self method_param_1 ... method_param_n -> body
+
+   It detects whether the AST is a method by the presence of [Texp_poly] on the
+   inner function. This is only ever added to methods.
+*)
+let fuse_method_arity parent_params parent_body =
+  match parent_body with
+  | Tfunction_body
+      { exp_desc = Texp_function { params = method_params; body = method_body };
+        exp_extra;
+      }
+    when
+      List.exists
+        (function (Texp_poly _, _, _) -> true | _ -> false)
+        exp_extra
+    -> parent_params @ method_params, method_body
+  | _ -> parent_params, parent_body
 
 (* Translation of expressions *)
 
@@ -356,8 +335,10 @@ let rec transl_exp ~scopes sort e =
 
 (* ~in_new_scope tracks whether we just opened a new scope.
 
-   We go to some trouble to avoid introducing many new anonymous function
-   scopes, as `let f a b = ...` is desugared to several Pexp_fun.
+   When we just opened a new scope, we avoid introducing an extraneous anonymous
+   function scope and instead inherit the new scope. E.g., [let f x = ...] is
+   parsed as a let-bound Pexp_function node [let f = fun x -> ...].
+   We give it f's scope.
 *)
 and transl_exp1 ~scopes ~in_new_scope sort e =
   let eval_once =
@@ -380,14 +361,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes sort body))
-  | Texp_function { arg_label = _; param; cases; partial; region; curry;
-                    warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
+  | Texp_function { params; body; region; ret_sort; alloc_mode } ->
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
-      transl_function ~scopes e alloc_mode param arg_mode arg_sort ret_sort
-        cases partial warnings region curry
+      transl_function ~scopes e alloc_mode params body ret_sort ~region
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode, _);
                 exp_type = prim_type; } as funct, oargs, pos, ap_mode)
@@ -819,7 +798,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          (* other cases compile to a lazy block holding a function.  The
             typechecker enforces that e has layout value.  *)
          let scopes = enter_lazy ~scopes in
-         let fn = lfunction ~kind:(Curried {nlocal=0})
+         let fn = lfunction ~kind:(Curried {nlocal=0; may_fuse_arity=false})
                             ~params:[{ name = Ident.create_local "param";
                                        layout = Lambda.layout_unit;
                                        attributes = Lambda.default_param_attribute;
@@ -846,11 +825,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           cl_env = e.exp_env;
           cl_attributes = [];
          }
-  | Texp_letop{let_; ands; param; param_sort; body; body_sort; partial;
-               warnings} ->
+  | Texp_letop{let_; ands; param; param_sort; body; body_sort; partial} ->
       event_after ~scopes e
         (transl_letop ~scopes e.exp_loc e.exp_env let_ ands
-           param param_sort body body_sort partial warnings)
+           param param_sort body body_sort partial)
   | Texp_unreachable ->
       raise (Error (e.exp_loc, Unreachable_reached))
   | Texp_open (od, e) ->
@@ -941,7 +919,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let handler =
         let scopes = enter_value_definition ~scopes funcid in
         lfunction
-          ~kind:(Curried {nlocal=0})
+          ~kind:(Curried {nlocal=0; may_fuse_arity=false})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
           ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
@@ -1150,7 +1128,7 @@ and transl_apply ~scopes
               attributes = Lambda.default_param_attribute;
               mode = arg_mode
             }] in
-          lfunction ~kind:(Curried {nlocal}) ~params
+          lfunction ~kind:(Curried {nlocal; may_fuse_arity=false}) ~params
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
         in
@@ -1171,93 +1149,61 @@ and transl_apply ~scopes
   in
   build_apply lam [] loc position mode args
 
-and transl_curried_function
-      ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc repr ~region
-      ~curry partial warnings (param:Ident.t) cases =
-  let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc
-            ~arity ~region ~curry ~arg_mode partial warnings (param:Ident.t) cases =
-    match curry, cases with
-      More_args {partial_mode},
-      [{c_lhs=pat; c_guard=None;
-        c_rhs={exp_desc =
-                 Texp_function
-                   { arg_label = _; param = param'; cases = cases';
-                     partial = partial'; region = region';
-                     curry = curry';
-                     warnings = warnings'; arg_mode = arg_mode'; arg_sort; ret_sort };
-               exp_env; exp_type; exp_loc }}]
-      when arity < max_arity ->
-      (* Lfunctions must have local returns after the first local arg/ret *)
-      if Parmatch.inactive ~partial pat
-      then
-        let partial_mode = transl_alloc_mode partial_mode in
-        let ((fnkind, params, return_layout, region), body) =
-          let return_layout =
-            function_return_layout exp_env exp_loc ret_sort exp_type
-          in
-          let arg_layout =
-            function_arg_layout exp_env exp_loc arg_sort exp_type
-          in
-          loop ~scopes ~arg_sort ~arg_layout ~arg_mode:arg_mode' ~return_sort:ret_sort
-            ~return_layout exp_loc ~arity:(arity + 1) ~region:region'
-            ~curry:curry' partial' warnings' param' cases'
-        in
-        let fnkind =
-          match partial_mode, fnkind with
-          | _, Tupled ->
-             (* arity > 1 prevents this *)
-             assert false
-          | Alloc_heap, (Curried _ as c) -> c
-          | Alloc_local, Curried {nlocal} ->
-             (* all subsequent curried arrows should be local *)
-             assert (nlocal = List.length params);
-             Curried {nlocal = nlocal + 1}
-        in
-        let arg_mode = transl_alloc_mode arg_mode in
-        let params = {
-          name = param ;
-          layout = arg_layout ;
-          attributes = Lambda.default_param_attribute ;
-          mode = arg_mode
-        } :: params
-        in
-        ((fnkind, params, return_layout, region),
-         Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
-           None (Lvar param) [pat, body] partial)
-      else begin
-        begin match partial with
-        | Total ->
-            let prev = Warnings.backup () in
-            Warnings.restore warnings;
-            Location.prerr_warning pat.pat_loc
-              Match_on_mutable_state_prevent_uncurry;
-            Warnings.restore prev
-        | Partial -> ()
-        end;
-        transl_tupled_function ~scopes ~arg_sort ~arg_layout ~arg_mode
-          ~return_sort:ret_sort ~return_layout ~arity ~region ~curry loc repr
-          partial param cases
-      end
-    | curry, cases ->
-      transl_tupled_function ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort
-        ~return_layout ~arity ~region ~curry loc repr partial param cases
-  in
-  loop ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc ~arity:1
-    ~region ~curry partial warnings param cases
+(* There are two cases in function translation:
+    - [Tupled]. It takes a tupled argument, and we can flatten it.
+    - [Curried]. It takes each argument individually.
+
+   We first try treating the function as taking a flattened tupled argument (in
+   [trans_tupled_function]) and, if that doesn't work, we fall back to treating
+   the function as taking each argument individually (in
+   [trans_curried_function]).
+*)
+and transl_function_without_attributes
+    ~scopes ~return_sort ~return_layout ~mode ~region loc repr params body
+  =
+  match
+    transl_tupled_function ~scopes ~return_sort ~return_layout ~mode ~region
+      loc params body
+  with
+  | Some result -> result
+  | None ->
+      transl_curried_function ~scopes ~return_sort ~return_layout ~mode ~region
+        loc repr params body
 
 and transl_tupled_function
-      ~scopes ~arg_layout ~arg_sort ~arg_mode ~return_sort ~return_layout ~arity ~region
-      ~curry loc repr partial (param:Ident.t) cases =
-  let partial_mode =
-    match curry with
-    | More_args {partial_mode} | Final_arg {partial_mode} ->
-      transl_alloc_mode partial_mode
+      ~scopes ~return_sort ~return_layout ~mode ~region loc params body
+  =
+  (* Cases are eligible for flattening if they belong to the only param (whose
+     alloc mode must be global) and the function itself is global. It may
+     actually be sound to tuplify locally-allocated functions, but we haven't
+     thought it through.
+  *)
+  let is_alloc_heap = function Alloc_heap -> true | Alloc_local -> false in
+  let eligible_cases =
+    if not (is_alloc_heap mode) then None else
+      match params, body with
+      | [], Tfunction_cases { fc_cases; fc_partial; fc_arg_mode; fc_arg_sort }
+        when is_alloc_heap (transl_alloc_mode fc_arg_mode) ->
+          let arg_layout =
+            match fc_cases with
+            | { c_rhs } :: _ -> layout_exp fc_arg_sort c_rhs
+            | [] -> Pvalue Pgenval
+          in
+          Some (fc_cases, fc_partial, arg_layout)
+      | [{ fp_kind = Tparam_pat pat; fp_partial; fp_mode; fp_sort }],
+        Tfunction_body body
+        when is_alloc_heap (transl_alloc_mode fp_mode) ->
+          let arg_layout = layout_exp fp_sort body in
+          let case = { c_lhs = pat; c_guard = None; c_rhs = body } in
+          Some ([ case ], fp_partial, arg_layout)
+      | _ -> None
   in
-  match partial_mode, cases with
-  | Alloc_heap, {c_lhs={pat_desc = Tpat_tuple pl }} :: _
+  match eligible_cases with
+  | Some
+      (({ c_lhs = { pat_desc = Tpat_tuple pl } } :: _) as cases,
+       partial,
+       arg_layout)
     when !Clflags.native_code
-      && arity = 1
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let size = List.length pl in
@@ -1291,54 +1237,142 @@ and transl_tupled_function
             (transl_tupled_cases ~scopes return_sort pats_expr_list) partial
         in
         let region = region || not (may_allocate_in_region body) in
-        ((Tupled, tparams, return_layout, region), body)
-    with Matching.Cannot_flatten ->
-      transl_function0 ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout
-        loc ~region ~partial_mode repr partial param cases
+        Some ((Tupled, tparams, return_layout, region), body)
+    with Matching.Cannot_flatten -> None
       end
-  | _ -> transl_function0 ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort
-           ~return_layout loc ~region ~partial_mode repr partial param cases
+  | _ -> None
 
-and transl_function0
-      ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc ~region
-      ~partial_mode repr partial (param:Ident.t) cases =
-    let body =
-      Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
-        repr (Lvar param) (transl_cases ~scopes return_sort cases) partial
-    in
-    let region = region || not (may_allocate_in_region body) in
-    let nlocal =
-      if not region then 1
-      else match partial_mode with
-        | Alloc_local -> 1
-        | Alloc_heap -> 0
-    in
-    let arg_mode = transl_alloc_mode arg_mode in
-    ((Curried {nlocal},
-      [{ name = param;
-         layout = arg_layout;
-         attributes = Lambda.default_param_attribute;
-         mode = arg_mode}],
-      return_layout, region), body)
-
-and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
-      cases partial warnings region curry =
-  let mode = transl_alloc_mode alloc_mode in
-  let arg_layout =
-    function_arg_layout e.exp_env e.exp_loc arg_sort e.exp_type
+and transl_curried_function
+    ~scopes ~return_sort ~return_layout ~region ~mode loc repr params body =
+  let cases_param, body =
+    match body with
+    | Tfunction_body body ->
+        None, event_before ~scopes body (transl_exp ~scopes return_sort body)
+    | Tfunction_cases
+        { fc_cases; fc_partial; fc_param; fc_loc; fc_arg_sort; fc_arg_mode }
+      ->
+        let arg_layout =
+          match fc_cases with
+          | [] -> Pvalue Pgenval
+          | { c_lhs } :: _ ->
+              layout c_lhs.pat_env fc_loc fc_arg_sort c_lhs.pat_type
+        in
+        let arg_mode = transl_alloc_mode fc_arg_mode in
+        let param =
+          { name = fc_param;
+            layout = arg_layout;
+            attributes = Lambda.default_param_attribute;
+            mode = arg_mode;
+          }
+        in
+        let body =
+          Matching.for_function ~scopes fc_loc repr (Lvar fc_param)
+            ~arg_sort:fc_arg_sort ~arg_layout ~return_layout
+            (transl_cases ~scopes return_sort fc_cases) fc_partial
+        in
+        Some param, body
   in
+  let { nlocal; may_fuse_arity } = curried_function_kind params in
+  let body, params =
+    List.fold_right
+      (fun fp (body, params) ->
+        let { fp_param; fp_kind; fp_mode; fp_sort; fp_partial; fp_loc } = fp in
+        let arg_env, arg_type =
+          match fp_kind with
+          | Tparam_pat pat -> pat.pat_env, pat.pat_type
+          | Tparam_optional_default (_, expr, _) ->
+              expr.exp_env, Predef.type_option expr.exp_type
+        in
+        let arg_layout = layout arg_env fp_loc fp_sort arg_type in
+        let arg_mode = transl_alloc_mode fp_mode in
+        let param =
+          { name = fp_param;
+            layout = arg_layout;
+            attributes = Lambda.default_param_attribute;
+            mode = arg_mode;
+          }
+        in
+        let body =
+          match fp_kind with
+          | Tparam_pat pat ->
+              Matching.for_function ~scopes pat.pat_loc None (Lvar fp_param)
+                [ pat, body ]
+                fp_partial
+                ~arg_sort:fp_sort ~arg_layout
+                ~return_layout
+          | Tparam_optional_default (pat, default_arg, default_arg_sort) ->
+              let default_arg =
+                event_before ~scopes default_arg
+                  (transl_exp ~scopes default_arg_sort default_arg)
+              in
+              Matching.for_optional_arg_default ~return_layout
+                ~scopes pat.pat_loc pat body ~default_arg ~default_arg_sort
+                ~param:fp_param
+        in
+        body, param :: params)
+      params
+      (body, Option.to_list cases_param)
+    in
+    (* chunk params according to Lambda.max_arity. If Lambda.max_arity = n and
+      N>n, then the translation of an N-ary typedtree function is an n-ary lambda
+      function returning the translation of an (N-n)-ary typedtree function.
+    *)
+    let open struct
+      type acc = { body : lambda; return_layout : layout; region : bool; nlocal : int }
+    end
+    in
+    let params, { body; return_layout; region; nlocal } =
+      match Misc.Stdlib.List.chunks_of (Lambda.max_arity ()) params with
+      | [] ->
+          Misc.fatal_error
+            "attempted to translate a function with zero arguments"
+      | first_chunk :: rest_of_chunks ->
+        let acc =
+          List.fold_right
+            (fun chunk { body; return_layout; nlocal; region } ->
+              let attr = default_function_attribute in
+              let chunk_length = List.length chunk in
+              let loc = of_location ~scopes loc in
+              let current_nlocal, current_mode, enclosing_region =
+                if nlocal >= chunk_length
+                then chunk_length, alloc_local, false
+                else nlocal, mode, true
+              in
+              let enclosing_nlocal = nlocal - current_nlocal in
+              let body =
+                lfunction
+                  ~kind:
+                    (Curried { nlocal=current_nlocal; may_fuse_arity=false })
+                  ~params:chunk ~mode:current_mode
+                  ~return:return_layout ~body ~attr ~loc ~region
+              in
+              (* we return Pgenval (for a function) after the rightmost chunk *)
+              { body;
+                return_layout = Pvalue Pgenval;
+                nlocal = enclosing_nlocal;
+                region = enclosing_region;
+              })
+            rest_of_chunks
+            (let region = region || not (may_allocate_in_region body) in
+            { body; return_layout; nlocal; region })
+        in
+        first_chunk, acc
+    in
+    ( (Curried { nlocal; may_fuse_arity }, params, return_layout, region),
+      body )
+
+and transl_function ~scopes e alloc_mode params body return_sort ~region =
+  let mode = transl_alloc_mode alloc_mode in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
       (function repr ->
-         let pl =
-           push_defaults e.exp_loc arg_mode arg_sort cases partial warnings
-         in
+         let params, body = fuse_method_arity params body in
          let return_layout =
            function_return_layout e.exp_env e.exp_loc return_sort e.exp_type
          in
-         transl_curried_function ~arg_sort ~arg_layout ~arg_mode ~return_sort
-           ~return_layout ~scopes e.exp_loc repr ~region ~curry partial warnings
-           param pl)
+         transl_function_without_attributes
+           ~mode ~return_sort ~return_layout ~scopes ~region
+           e.exp_loc repr params body)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
@@ -1566,7 +1600,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
-  let return_layout = layout_exp arg_sort e in
+  let return_layout = layout_exp return_sort e in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
         ({ c_lhs; c_guard; c_rhs } as case) =
     if c_rhs.exp_desc = Texp_unreachable then acc else
@@ -1686,7 +1720,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   ) classic static_handlers
 
 and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
-      partial warnings =
+      partial =
   let rec loop prev_layout prev_lam = function
     | [] -> prev_lam
     | and_ :: rest ->
@@ -1728,27 +1762,24 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       (transl_exp ~scopes Sort.for_bop_exp let_.bop_exp) ands
   in
   let func =
-    let arg_layout =
-      match Typeopt.is_function_type env let_.bop_op_type with
-      | None ->
-          Misc.fatal_error
-            "Translcore.transl_letop: letop should be a function"
-      | Some (_, rhs) ->
-          match Typeopt.is_function_type env rhs with
-          | None ->
-              Misc.fatal_error
-                "Translcore.transl_letop: letop should have at least two arguments"
-          | Some (lhs, _) -> Typeopt.function_arg_layout env loc param_sort lhs
-    in
     let return_layout = layout_exp case_sort case.c_rhs in
-    let curry = More_args { partial_mode = Mode.Alloc.legacy } in
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
-           transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
-             ~arg_mode:Mode.Alloc.legacy ~return_sort:case_sort
-             ~return_layout case.c_rhs.exp_loc repr ~region:true ~curry partial
-             warnings param [case])
+           let loc = case.c_rhs.exp_loc in
+           let ghost_loc = { loc with loc_ghost = true } in
+           transl_function_without_attributes ~scopes ~region:true
+             ~return_sort:case_sort ~return_layout ~mode:alloc_heap
+             loc repr []
+             (Tfunction_cases
+                { fc_cases = [case]; fc_param = param; fc_partial = partial;
+                  fc_loc = ghost_loc; fc_exp_extra = None; fc_attributes = [];
+                  fc_arg_mode = Mode.Alloc.legacy; fc_arg_sort = param_sort;
+                }))
+           (* transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
+            *   ~arg_mode:Mode.Alloc.legacy ~return_sort:case_sort
+            *   ~return_layout case.c_rhs.exp_loc repr ~region:true ~curry partial
+            *   warnings param [case]) *)
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

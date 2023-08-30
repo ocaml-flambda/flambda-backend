@@ -38,7 +38,8 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
+let lfunction ?(kind=Curried {nlocal=0; may_fuse_arity=true}) ?(region=true)
+    return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
@@ -220,7 +221,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
              partial
          in
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0})
+                   ~kind:(Curried {nlocal=0; may_fuse_arity=true})
                    ~params:(lparam param arg_layout::params)
                    ~return:layout_obj
                    ~attr:default_function_attribute
@@ -508,7 +509,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
             None (Lvar param) [pat, rem] partial
         in
         Lambda.lfunction
-                  ~kind:(Curried {nlocal=0})
+                  ~kind:(Curried {nlocal=0; may_fuse_arity=true})
                   ~params:(lparam param arg_layout :: params)
                   ~return:return_layout
                   ~attr:default_function_attribute
@@ -871,7 +872,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let concrete = (vflag = Concrete)
   and lclass lam =
     let cl_init = llets layout_function (Lambda.lfunction
-                           ~kind:(Curried {nlocal=0})
+                           ~kind:(Curried {nlocal=0; may_fuse_arity=true})
                            ~attr:default_function_attribute
                            ~loc:Loc_unknown
                            ~return:layout_function
@@ -896,7 +897,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   and lbody_virt lenvs =
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [lambda_unit; Lambda.lfunction
-                          ~kind:(Curried {nlocal=0})
+                          ~kind:(Curried {nlocal=0; may_fuse_arity=true})
                           ~attr:default_function_attribute
                           ~loc:Loc_unknown
                           ~return:layout_function
@@ -956,7 +957,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let lclass lam =
     Llet(Strict, layout_function, class_init,
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0}) ~params:[lparam cla layout_table]
+                   ~kind:(Curried {nlocal=0; may_fuse_arity=true})
+                   ~params:[lparam cla layout_table]
                    ~return:layout_function
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
@@ -982,7 +984,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   and lclass_virt () =
     lset cached 0
       (Lambda.lfunction
-         ~kind:(Curried {nlocal=0})
+         ~kind:(Curried {nlocal=0; may_fuse_arity=true})
          ~attr:default_function_attribute
          ~loc:Loc_unknown
          ~mode:alloc_heap

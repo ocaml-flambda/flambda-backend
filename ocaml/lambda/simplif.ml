@@ -558,7 +558,7 @@ let simplify_lets lam =
   | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
               attr; loc; mode; region=outer_region} ->
       begin match outer_kind, outer_region, simplif l with
-        Curried {nlocal=0},
+        Curried {nlocal=0; may_fuse_arity=true},
         true,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
                   body; attr; loc; mode=inner_mode; region}
@@ -834,7 +834,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = Lambda.rename subst body in
         let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
-          lfunction ~kind:(Curried {nlocal=0})
+          lfunction ~kind:(Curried {nlocal=0; may_fuse_arity = true})
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~region:true
         in

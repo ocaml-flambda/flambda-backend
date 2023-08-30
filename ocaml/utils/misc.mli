@@ -122,6 +122,12 @@ module Stdlib : sig
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
 
+    val chunks_of : int -> 'a t -> 'a t t
+    (** [chunks_of n t] returns a list of nonempty lists whose
+        concatenation is equal to the original list. Every list has [n]
+        elements, except for possibly the last list, which may have fewer.
+        [chunks_of] raises if [n <= 0]. *)
+
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list
@@ -710,5 +716,3 @@ end
 
 (** Propositional equality *)
 type (_, _) eq = Refl : ('a, 'a) eq
-
-

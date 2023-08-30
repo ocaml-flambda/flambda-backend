@@ -1625,7 +1625,9 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     Function_decl.t =
   let first_complex_local_param =
     List.length params
-    - match kind with Curried { nlocal } -> nlocal | Tupled -> 0
+    - match kind with
+      | Curried { nlocal; may_fuse_arity = _ } -> nlocal
+      | Tupled -> 0
   in
   let body_cont = Continuation.create ~sort:Return () in
   let body_exn_cont = Continuation.create () in

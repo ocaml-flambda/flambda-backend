@@ -2114,7 +2114,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
           (Lambda.Curried
              { nlocal =
                  Flambda_arity.cardinal missing_arity
-                 - first_complex_local_param
+                 - first_complex_local_param;
+               may_fuse_arity = true;
              })
         ~params ~return:result_arity ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
