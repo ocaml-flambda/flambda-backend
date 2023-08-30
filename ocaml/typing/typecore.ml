@@ -928,6 +928,7 @@ let finalize_variants p =
 type pattern_variable =
   {
     pv_id: Ident.t;
+    pv_uid: Uid.t;
     pv_mode: Value.t;
     pv_type: type_expr;
     pv_loc: Location.t;
@@ -1028,12 +1029,12 @@ let iter_pattern_variables_type f : pattern_variable list -> unit =
 
 let add_pattern_variables ?check ?check_as env pv =
   List.fold_right
-    (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes} env ->
+    (fun {pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes} env ->
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes;
-          val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+          val_uid = pv_uid
          } env
     )
     pv env
@@ -1109,6 +1110,7 @@ let enter_variable
   let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
   tps.tps_pattern_variables <-
     {pv_id = id;
+     pv_uid;
      pv_mode = mode;
      pv_type = ty;
      pv_loc = loc;
@@ -1624,8 +1626,9 @@ let type_for_loop_index ~loc ~env ~param =
           ->
             let check s = Warnings.Unused_for_index s in
             let pv_id = Ident.create_local txt in
+            let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
             let pv =
-              { pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes }
+              { pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes }
             in
             pv_id, add_pattern_variables ~check ~check_as:check env [pv])
 
@@ -3027,20 +3030,19 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   end;
   let (pv, val_env, met_env) =
     List.fold_right
-      (fun {pv_id; pv_type; pv_loc; pv_as_var; pv_attributes}
+      (fun {pv_id; pv_uid; pv_type; pv_loc; pv_as_var; pv_attributes}
         (pv, val_env, met_env) ->
          let check s =
            if pv_as_var then Warnings.Unused_var s
            else Warnings.Unused_var_strict s in
          let id' = Ident.rename pv_id in
-         let val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
          let val_env =
           Env.add_value pv_id
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
             ; val_loc = pv_loc
-            ; val_uid
+            ; val_uid = pv_uid
             }
             val_env
          in
@@ -3050,7 +3052,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
             ; val_loc = pv_loc
-            ; val_uid
+            ; val_uid = pv_uid
             }
             met_env
          in
