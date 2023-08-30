@@ -4458,6 +4458,23 @@ let unique_use ~loc ~env mode_l mode_r  =
   end
   else (uniqueness, linearity)
 
+(** The body of a constraint or coercion. The "body" may be either an expression
+    or a list of function cases. This type is polymorphic in the data returned
+    out of typing so that typing an expression body can return an expression
+    and typing a function cases body can return the cases.
+*)
+type 'ret constraint_arg =
+  { type_without_constraint: Env.t -> expected_mode -> 'ret * type_expr;
+    (** [type_without_constraint] types a body (e :> t) where there is no
+        constraint.
+    *)
+    type_with_constraint: Env.t -> expected_mode -> type_expr -> 'ret;
+    (** [type_with_constraint] types a body (e : t) or (e : t :> t') in
+        the presence of a constraint.
+    *)
+    is_self: 'ret -> bool;
+  }
+
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
@@ -5358,16 +5375,10 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
-     (* Pretend separate = true, 1% slowdown for lablgtk *)
-      begin_def ();
-      let mode_annots = mode_annots_from_exp_attrs sexp in
-      let type_mode =
-        mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+      let (ty, exp_extra) =
+        type_constraint env sty (mode_annots_from_exp_attrs sexp)
       in
-      let cty = Typetexp.transl_simple_type env ~closed:false type_mode sty in
-      let ty = cty.ctyp_type in
-      end_def ();
-      generalize_structure ty;
+      (* CR nroberts: Upstream: we should add back in this call to [instance]! *)
       let ty' = instance ty in
       let arg = type_argument env expected_mode sarg ty (instance ty) in
       rue {
@@ -5376,83 +5387,12 @@ and type_expect_
         exp_type = ty';
         exp_attributes = arg.exp_attributes;
         exp_env = env;
-        exp_extra =
-          (Texp_constraint cty, loc, sexp.pexp_attributes) :: arg.exp_extra;
+        exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_coerce(sarg, sty, sty') ->
-      (* Pretend separate = true, 1% slowdown for lablgtk *)
-      (* Also see PR#7199 for a problem with the following:
-         let separate = !Clflags.principal || Env.has_local_constraints env in*)
-      let mode_annots = mode_annots_from_exp_attrs sexp in
-      let type_mode =
-        mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
-      in
-      let (arg, ty',cty,cty') =
-        match sty with
-        | None ->
-            let (cty', ty', force) =
-              Typetexp.transl_simple_type_delayed env type_mode sty'
-            in
-            begin_def ();
-            let arg = type_exp env expected_mode sarg in
-            end_def ();
-            let tv = newvar (Jkind.any ~why:Dummy_jkind) in
-            let gen = generalizable (get_level tv) arg.exp_type in
-            unify_var env tv arg.exp_type;
-            begin match arg.exp_desc, !self_coercion, get_desc ty' with
-              Texp_ident(_, _, {val_kind=Val_self _}, _, _), (path,r) :: _,
-              Tconstr(path',_,_) when Path.same path path' ->
-                (* prerr_endline "self coercion"; *)
-                r := loc :: !r;
-                force ()
-            | _ when free_variables ~env arg.exp_type = []
-                  && free_variables ~env ty' = [] ->
-                if not gen && (* first try a single coercion *)
-                  let snap = snapshot () in
-                  let ty, _b = enlarge_type env ty' in
-                  try
-                    force (); Ctype.unify env arg.exp_type ty; true
-                  with Unify _ ->
-                    backtrack snap; false
-                then ()
-                else begin try
-                  let force' = subtype env arg.exp_type ty' in
-                  force (); force' ();
-                  if not gen && !Clflags.principal then
-                    Location.prerr_warning loc
-                      (Warnings.Not_principal "this ground coercion");
-                with Subtype err ->
-                  (* prerr_endline "coercion failed"; *)
-                  raise (Error(loc, env, Not_subtype err))
-                end;
-            | _ ->
-                let ty, b = enlarge_type env ty' in
-                force ();
-                begin try Ctype.unify env arg.exp_type ty with Unify err ->
-                  let expanded = full_expand ~may_forget_scope:true env ty' in
-                  raise(Error(sarg.pexp_loc, env,
-                              Coercion_failure({ty = ty'; expanded}, err, b)))
-                end
-            end;
-            (arg, ty', None, cty')
-        | Some sty ->
-            begin_def ();
-            let (cty, ty, force) =
-              Typetexp.transl_simple_type_delayed env type_mode sty
-            and (cty', ty', force') =
-              Typetexp.transl_simple_type_delayed env type_mode sty'
-            in
-            end_def ();
-            generalize_structure ty;
-            generalize_structure ty';
-            begin try
-              let force'' = subtype env (instance ty) (instance ty') in
-              force (); force' (); force'' ()
-            with Subtype err ->
-              raise (Error(loc, env, Not_subtype err))
-            end;
-            (type_argument env expected_mode sarg ty (instance ty),
-             instance ty', Some cty, cty')
+      let arg, ty', exp_extra =
+        type_coerce (expression_constraint sarg) env expected_mode loc sty sty'
+          (mode_annots_from_exp_attrs sexp) ~loc_arg:sarg.pexp_loc
       in
       rue {
         exp_desc = arg.exp_desc;
@@ -5460,8 +5400,7 @@ and type_expect_
         exp_type = ty';
         exp_attributes = arg.exp_attributes;
         exp_env = env;
-        exp_extra = (Texp_coerce (cty, cty'), loc, sexp.pexp_attributes) ::
-                       arg.exp_extra;
+        exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_send (e, {txt=met}) ->
       if !Clflags.principal then begin_def ();
@@ -6027,6 +5966,114 @@ and type_expect_
            exp_type = instance ty_expected;
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
+and expression_constraint pexp =
+  { type_without_constraint = (fun env expected_mode ->
+        let expr = type_exp env expected_mode pexp in
+        expr, expr.exp_type);
+    type_with_constraint =
+      (fun env expected_mode ty ->
+         type_argument env expected_mode pexp ty (instance ty));
+    is_self =
+      (fun expr ->
+         match expr.exp_desc with
+         | Texp_ident (_, _, { val_kind = Val_self _ }, _, _) -> true
+         | _ -> false);
+  }
+
+(** Types a body in the scope of a coercion (with an optional constraint)
+    and returns the inferred type. See the comment on {!constraint_arg} for
+    an explanation of how this typechecking is polymorphic in the body.
+*)
+and type_coerce
+  : type a. a constraint_arg -> _ -> _ -> _ -> _ -> _ -> _ -> loc_arg:_
+    -> a * type_expr * exp_extra =
+  fun constraint_arg env expected_mode loc sty sty' mode_annots ~loc_arg ->
+    (* Pretend separate = true, 1% slowdown for lablgtk *)
+    (* Also see PR#7199 for a problem with the following:
+        let separate = !Clflags.principal || Env.has_local_constraints env in*)
+    let { is_self; type_with_constraint; type_without_constraint } =
+      constraint_arg
+    in
+    let type_mode =
+      mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+    in
+    match sty with
+    | None ->
+        let (cty', ty', force) =
+          Typetexp.transl_simple_type_delayed env type_mode sty'
+        in
+        begin_def ();
+        let arg, arg_type = type_without_constraint env expected_mode in
+        end_def ();
+        let tv = newvar (Jkind.any ~why:Dummy_jkind) in
+        let gen = generalizable (get_level tv) arg_type in
+        unify_var env tv arg_type;
+        begin match !self_coercion, get_desc ty' with
+        | ((path, r) :: _, Tconstr(path', _, _))
+          when is_self arg && Path.same path path' ->
+            (* prerr_endline "self coercion"; *)
+            r := loc :: !r;
+            force ()
+        | _ when free_variables ~env arg_type = []
+              && free_variables ~env ty' = [] ->
+            if not gen && (* first try a single coercion *)
+              let snap = snapshot () in
+              let ty, _b = enlarge_type env ty' in
+              try
+                force (); Ctype.unify env arg_type ty; true
+              with Unify _ ->
+                backtrack snap; false
+            then ()
+            else begin try
+              let force' = subtype env arg_type ty' in
+              force (); force' ();
+              if not gen && !Clflags.principal then
+                Location.prerr_warning loc
+                  (Warnings.Not_principal "this ground coercion");
+            with Subtype err ->
+              (* prerr_endline "coercion failed"; *)
+              raise (Error(loc, env, Not_subtype err))
+            end;
+        | _ ->
+            let ty, b = enlarge_type env ty' in
+            force ();
+            begin try Ctype.unify env arg_type ty with Unify err ->
+              let expanded = full_expand ~may_forget_scope:true env ty' in
+              raise(Error(loc_arg, env,
+                          Coercion_failure({ty = ty'; expanded}, err, b)))
+            end
+        end;
+        (arg, ty', Texp_coerce (None, cty'))
+    | Some sty ->
+        begin_def ();
+        let (cty, ty, force) =
+          Typetexp.transl_simple_type_delayed env type_mode sty
+        and (cty', ty', force') =
+          Typetexp.transl_simple_type_delayed env type_mode sty'
+        in
+        end_def ();
+        generalize_structure ty;
+        generalize_structure ty';
+        begin try
+          let force'' = subtype env (instance ty) (instance ty') in
+          force (); force' (); force'' ()
+        with Subtype err ->
+          raise (Error(loc, env, Not_subtype err))
+        end;
+        (type_with_constraint env expected_mode ty,
+          instance ty', Texp_coerce (Some cty, cty'))
+
+and type_constraint env sty mode_annots =
+  (* Pretend separate = true, 1% slowdown for lablgtk *)
+  begin_def ();
+  let type_mode =
+    mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+  in
+  let cty = Typetexp.transl_simple_type env ~closed:false type_mode sty in
+  end_def ();
+  let ty = cty.ctyp_type in
+  generalize_structure ty;
+  ty, Texp_constraint cty
 
 and type_ident env ?(recarg=Rejected) lid =
   let (path, desc, mode, reason) = Env.lookup_value ~loc:lid.loc lid.txt env in
