@@ -678,13 +678,19 @@ let extract_option_type env ty =
     Tconstr(path, [ty], _) when Path.same path Predef.path_option -> ty
   | _ -> assert false
 
+let protect_expansion env ty =
+  if Env.has_local_constraints env then generic_instance ty else ty
+
 type record_extraction_result =
   | Record_type of Path.t * Path.t * Types.label_declaration list * record_representation
   | Not_a_record_type
   | Maybe_a_record_type
 
+let extract_concrete_typedecl_protected env ty =
+  extract_concrete_typedecl env (protect_expansion env ty)
+
 let extract_concrete_record env ty =
-  match extract_concrete_typedecl env ty with
+  match extract_concrete_typedecl_protected env ty with
   | Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
     Record_type (p0, p, fields, repres)
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_record_type
@@ -696,7 +702,7 @@ type variant_extraction_result =
   | Maybe_a_variant_type
 
 let extract_concrete_variant env ty =
-  match extract_concrete_typedecl env ty with
+  match extract_concrete_typedecl_protected env ty with
   | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _)}) ->
     Variant_type (p0, p, cstrs)
   | Typedecl(p0, p, {type_kind=Type_open}) ->
@@ -3342,6 +3348,12 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
 let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret_tvar =
   let warned = ref false in
   let rec loop ty_fun ty_fun0 mode_fun rev_args sargs =
+    let type_unknown_args () =
+      (* We're not looking at a *known* function type anymore, or there are no
+         arguments left. *)
+      collect_unknown_apply_args env funct ty_fun0 mode_fun rev_args sargs ret_tvar
+    in
+    if sargs = [] then type_unknown_args () else
     let ty_fun' = expand_head env ty_fun in
     match get_desc ty_fun', get_desc (expand_head env ty_fun0), sargs with
     | Tarrow (ad, ty_arg, ty_ret, com),
@@ -3426,9 +3438,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         in
         loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
     | _ ->
-        (* We're not looking at a *known* function type anymore, or there are no
-           arguments left. *)
-        collect_unknown_apply_args env funct ty_fun0 mode_fun rev_args sargs ret_tvar
+        type_unknown_args ()
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
@@ -4537,7 +4547,7 @@ and type_expect_
   | Pexp_constant(Pconst_string (str, _, _) as cst) ->
       let cst = constant_or_raise env loc cst in
       (* Terrible hack for format strings *)
-      let ty_exp = expand_head env ty_expected in
+      let ty_exp = expand_head env (protect_expansion env ty_expected) in
       let fmt6_path =
         Path.(Pdot (Pident (Ident.create_persistent "CamlinternalFormatBasics"),
                     "format6"))
@@ -4973,10 +4983,11 @@ and type_expect_
         sarg ty_expected_explained sexp.pexp_attributes
   | Pexp_variant(l, sarg) ->
       (* Keep sharing *)
+      let ty_expected1 = protect_expansion env ty_expected in
       let ty_expected0 = instance ty_expected in
       let argument_mode = mode_subcomponent expected_mode in
       begin try match
-        sarg, get_desc (expand_head env ty_expected),
+        sarg, get_desc (expand_head env ty_expected1),
         get_desc (expand_head env ty_expected0)
       with
       | Some sarg, Tvariant row, Tvariant row0 ->
@@ -5746,7 +5757,7 @@ and type_expect_
   | Pexp_poly(sbody, sty) ->
       if !Clflags.principal then begin_def ();
       let ty, cty =
-        match sty with None -> ty_expected, None
+        match sty with None -> protect_expansion env ty_expected, None
         | Some sty ->
             let sty = Ast_helper.Typ.force_poly sty in
             let cty =
@@ -5796,7 +5807,8 @@ and type_expect_
         match get_desc (Ctype.expand_head env (instance ty_expected)) with
           Tpackage (p, fl) ->
             if !Clflags.principal &&
-              get_level (Ctype.expand_head env ty_expected)
+              get_level (Ctype.expand_head env
+                           (protect_expansion env ty_expected))
                 < Btype.generic_level
             then
               Location.prerr_warning loc
@@ -6684,7 +6696,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         (lv <> generic_level || get_level ty_fun' <> generic_level)
       and ty_fun = instance ty_fun' in
       let marg, ty_arg, mret, ty_res =
-        match get_desc (expand_head env ty_expected') with
+        match get_desc (expand_head env ty_expected) with
           Tarrow((Nolabel,marg,mret),ty_arg,ty_res,_) ->
            marg, ty_arg, mret, ty_res
         | _ -> assert false
@@ -7182,6 +7194,8 @@ and type_cases
   ) half_typed_cases;
   (* type bodies *)
   let in_function = if List.length caselist = 1 then in_function else None in
+  let ty_res' = instance ty_res in
+  if !Clflags.principal then begin_def ();
   let cases =
     List.map
       (fun { typed_pat = pat; branch_env = ext_env;
@@ -7200,14 +7214,8 @@ and type_cases
             ~check_as:(fun s -> Warnings.Unused_var s)
         in
         let ext_env = add_module_variables ext_env mvs in
-        let ty_res' =
-          if !Clflags.principal then begin
-            begin_def ();
-            let ty = instance ~partial:true ty_res in
-            end_def ();
-            generalize_structure ty; ty
-          end
-          else if contains_gadt then
+        let ty_expected =
+          if contains_gadt && not !Clflags.principal then
             (* allow propagation from preceding branches *)
             correct_levels ty_res
           else ty_res in
@@ -7221,20 +7229,17 @@ and type_cases
         in
         let exp =
           type_expect ?in_function ext_env emode
-            pc_rhs (mk_expected ?explanation ty_res')
+            pc_rhs (mk_expected ?explanation ty_expected)
         in
         {
          c_lhs = pat;
          c_guard = guard;
-         c_rhs = {exp with exp_type = instance ty_res'}
+         c_rhs = {exp with exp_type = ty_res'}
         }
       )
       half_typed_cases
   in
-  if !Clflags.principal || does_contain_gadt then begin
-    let ty_res' = instance ty_res in
-    List.iter (fun c -> unify_exp env c.c_rhs ty_res') cases
-  end;
+  if !Clflags.principal then end_def ();
   let do_init = may_contain_gadts || needs_exhaust_check in
   let ty_arg_check =
     if do_init then
@@ -7281,7 +7286,7 @@ and type_cases
   if create_inner_level then begin
     end_def ();
     (* Ensure that existential types do not escape *)
-    unify_exp_types loc env (instance ty_res)
+    unify_exp_types loc env ty_res'
       (newvar (Layout.any ~why:Dummy_layout));
   end;
   cases, partial
