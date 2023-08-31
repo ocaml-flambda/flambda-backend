@@ -52,6 +52,14 @@ type t = Warnings.loc = {
    Else all fields are correct.
 *)
 
+(** Strict comparison: Compares all fields of the two locations, irrespective of
+    whether or not they happen to refer to the same place.  For fully-defined
+    locations within the same file, is guaranteed to return them in source
+    order; otherwise, or if given two locations that differ only in ghostiness,
+    is just guaranteed to produce a consistent order, but which one is
+    unspecified. *)
+val compare : t -> t -> int
+
 val none : t
 (** An arbitrary value of type [t]; describes an empty ghost range. *)
 

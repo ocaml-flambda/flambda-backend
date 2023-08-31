@@ -134,7 +134,7 @@ let init_rewrite modes mod_name =
   end
 
 let final_rewrite add_function =
-  to_insert := List.sort (fun x y -> compare (snd x) (snd y)) !to_insert;
+  to_insert := List.sort (fun x y -> Int.compare (snd x) (snd y)) !to_insert;
   prof_counter := 0;
   List.iter add_function !to_insert;
   copy (in_channel_length !inchan);

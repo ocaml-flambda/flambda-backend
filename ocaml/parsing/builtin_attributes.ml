@@ -31,11 +31,7 @@ let mark_used t = Attribute_table.remove unused_attrs t
 (* [attr_order] is used to issue unused attribute warnings in the order the
    attributes occur in the file rather than the random order of the hash table
 *)
-let attr_order a1 a2 =
-  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
-  with
-  | 0 -> Int.compare a1.loc.loc_start.pos_lnum a2.loc.loc_start.pos_lnum
-  | n -> n
+let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
 let unchecked_properties = Attribute_table.create 1
 let mark_property_checked txt loc =
