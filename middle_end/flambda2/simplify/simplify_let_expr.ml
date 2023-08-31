@@ -308,7 +308,12 @@ let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
       DA.get_lifted_constants dacc
     in
     let lifted_constants_from_defining_expr =
-      simplify_projections dacc lifted_constants_from_defining_expr_raw
+      (* If we're at toplevel, we're going to be able to place the lifted
+         constants here. So we simplify the projections to remove any
+         unnecessary use of value slots in projections. *)
+      if DE.at_unit_toplevel (DA.denv dacc)
+      then simplify_projections dacc lifted_constants_from_defining_expr_raw
+      else lifted_constants_from_defining_expr_raw
     in
     let dacc =
       DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
