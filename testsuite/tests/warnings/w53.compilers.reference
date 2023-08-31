@@ -98,14 +98,14 @@ File "w53.ml", line 75, characters 14-25:
 75 |   type t4 [@@@immediate64] (* rejected *)
                    ^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "immediate64" attribute cannot appear in this context
-File "w53.ml", line 79, characters 32-43:
-79 |   let x = (4 [@immediate], 42 [@immediate64]) (* rejected *)
-                                     ^^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "immediate64" attribute cannot appear in this context
 File "w53.ml", line 79, characters 15-24:
 79 |   let x = (4 [@immediate], 42 [@immediate64]) (* rejected *)
                     ^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "immediate" attribute cannot appear in this context
+File "w53.ml", line 79, characters 32-43:
+79 |   let x = (4 [@immediate], 42 [@immediate64]) (* rejected *)
+                                     ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "immediate64" attribute cannot appear in this context
 File "w53.ml", line 84, characters 26-31:
 84 |   type t2 = {x : int} [@@@boxed]   (* rejected *)
                                ^^^^^
@@ -118,14 +118,14 @@ File "w53.ml", line 87, characters 17-24:
 87 |   val x : int [@@unboxed]          (* rejected *)
                       ^^^^^^^
 Warning 53 [misplaced-attribute]: the "unboxed" attribute cannot appear in this context
-File "w53.ml", line 91, characters 30-35:
-91 |   let x = (5 [@unboxed], 42 [@boxed]) (* rejected *)
-                                   ^^^^^
-Warning 53 [misplaced-attribute]: the "boxed" attribute cannot appear in this context
 File "w53.ml", line 91, characters 15-22:
 91 |   let x = (5 [@unboxed], 42 [@boxed]) (* rejected *)
                     ^^^^^^^
 Warning 53 [misplaced-attribute]: the "unboxed" attribute cannot appear in this context
+File "w53.ml", line 91, characters 30-35:
+91 |   let x = (5 [@unboxed], 42 [@boxed]) (* rejected *)
+                                   ^^^^^
+Warning 53 [misplaced-attribute]: the "boxed" attribute cannot appear in this context
 File "w53.ml", line 95, characters 21-30:
 95 |   type 'a t1 = 'a [@@principal] (* rejected *)
                           ^^^^^^^^^
