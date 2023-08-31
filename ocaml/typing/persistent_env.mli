@@ -76,6 +76,12 @@ val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 val check : 'a t -> (Persistent_signature.t -> 'a)
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
+(* Lets it be known that the given module is a parameter and thus is expected
+   to have been compiled as such. It may or may not be a parameter to _this_
+   module (see [register_parameter]). Raises an exception if the module has
+   already been imported as a non-parameter. *)
+val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
+
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
@@ -92,6 +98,10 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 (* [register_import_as_opaque penv md] registers [md] in [penv] as an
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit penv md] checks if [md] has been imported in [penv] and
+   was compiled as a parameter *)
+val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t

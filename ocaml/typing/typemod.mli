@@ -43,7 +43,7 @@ val type_implementation:
   string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
-        Env.t -> Parsetree.signature -> Typedtree.signature
+        Compilation_unit.t -> Env.t -> Parsetree.signature -> Typedtree.signature
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_signature:
@@ -145,6 +145,9 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * sort
+  | Cannot_implement_parameter of Misc.filepath
+  | Cannot_pack_parameter
+  | Cannot_compile_implementation_as_parameter
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

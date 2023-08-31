@@ -86,6 +86,9 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * sort
+  | Cannot_implement_parameter of filepath
+  | Cannot_pack_parameter
+  | Cannot_compile_implementation_as_parameter
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3214,6 +3217,9 @@ let gen_annot outputprefix sourcefile annots =
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
+  let error e =
+    raise (Error (Location.in_file sourcefile, initial_env, e))
+  in
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
@@ -3246,6 +3252,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           signature = simple_sg
         } (* result is ignored by Compile.implementation *)
       end else begin
+        if !Clflags.as_parameter then
+          error Cannot_compile_implementation_as_parameter;
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if Sys.file_exists sourceintf then begin
@@ -3259,6 +3267,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           let import = Compilation_unit.name modulename in
           let dclsig =
             Env.read_signature import intf_file ~add_binding:false in
+          if Env.is_parameter_unit (Compilation_unit.name modulename) then
+            error (Cannot_implement_parameter intf_file);
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
@@ -3283,6 +3293,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             signature = dclsig
           }
         end else begin
+          if !Clflags.as_parameter then
+            error Cannot_compile_implementation_as_parameter;
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
@@ -3345,7 +3357,10 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
 
-let type_interface env ast =
+let type_interface modulename env ast =
+  if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
+    raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+  end;
   transl_signature env ast
 
 (* "Packaging" of several compilation units into one unit
@@ -3639,6 +3654,17 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "@[Top-level module bindings must have layout value, but@ \
          %s has layout@ %a.@]" id Sort.format sort
+  | Cannot_implement_parameter path ->
+      Location.errorf ~loc
+        "@[Interface %s@ found for this unit is flagged as a parameter.@ \
+         It cannot be implemented directly. Use -as-argument-for instead.@]"
+        path
+  | Cannot_pack_parameter ->
+      Location.errorf ~loc
+        "Cannot compile a parameter with -for-pack."
+  | Cannot_compile_implementation_as_parameter ->
+      Location.errorf ~loc
+        "Cannot compile an implementation with -as-parameter."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env
