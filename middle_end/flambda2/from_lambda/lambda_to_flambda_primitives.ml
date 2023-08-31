@@ -674,9 +674,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
-    [ Variadic
-        (Make_block (Naked_floats, mutability, mode), args)
-    ]
+    [Variadic (Make_block (Naked_floats, mutability, mode), args)]
   | Pmakearray (array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1014,7 +1012,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
-    [ Binary (Block_load (block_access, mutability), arg, Simple field) ]
+    [Binary (Block_load (block_access, mutability), arg, Simple field)]
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -1050,10 +1048,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     [ Ternary
-        ( Block_set (block_access, init_or_assign),
-          block,
-          Simple field,
-          value ) ]
+        (Block_set (block_access, init_or_assign), block, Simple field, value)
+    ]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
@@ -1327,8 +1323,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbytes_load_32 _ | Pbytes_load_64 _ | Pisout | Paddbint _ | Psubbint _
       | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
       | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _
+      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
+      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Parrayrefu
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
       | Parrayrefs
