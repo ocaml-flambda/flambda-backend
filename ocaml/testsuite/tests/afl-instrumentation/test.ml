@@ -63,6 +63,11 @@ let random () = opaque @@
 let already_forced = lazy (ref 42)
 let _ = Lazy.force already_forced
 
+(* Without this collection, the first call to Gc.major in [laziness] explores
+   a different branch than the second.
+ *)
+let () = Gc.minor ()
+
 let laziness () = opaque @@
   let _ = Lazy.force already_forced in
   Gc.major ()
