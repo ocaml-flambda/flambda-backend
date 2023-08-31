@@ -281,7 +281,6 @@ let acknowledge_import penv ~check modname pers_sig =
   in
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
-      if true then assert false else
       error (Illegal_import_of_parameter(modname, filename))
   | false, true ->
       error (Not_compiled_as_parameter(modname, filename))
