@@ -32,18 +32,18 @@ let[@inline always] mul x y = of_int64 (Int64.mul (to_int64 x) (to_int64 y))
 let[@inline always] div x y = of_int64 (Int64.div (to_int64 x) (to_int64 y))
 
 let[@inline always] unsigned_div x y =
-  of_int64 (Int64.unsigned_div (to_int64 x) (to_int64 y))
+  of_int64 ((Int64.unsigned_div[@inlined]) (to_int64 x) (to_int64 y))
 
 let[@inline always] rem x y = of_int64 (Int64.rem (to_int64 x) (to_int64 y))
 
 let[@inline always] unsigned_rem x y =
-  of_int64 (Int64.unsigned_rem (to_int64 x) (to_int64 y))
+  of_int64 ((Int64.unsigned_rem[@inlined]) (to_int64 x) (to_int64 y))
 
-let[@inline always] succ x = of_int64 (Int64.succ (to_int64 x))
+let[@inline always] succ x = of_int64 ((Int64.succ[@inlined]) (to_int64 x))
 
-let[@inline always] pred x = of_int64 (Int64.pred (to_int64 x))
+let[@inline always] pred x = of_int64 ((Int64.pred[@inlined]) (to_int64 x))
 
-let[@inline always] abs x = of_int64 (Int64.abs (to_int64 x))
+let[@inline always] abs x = of_int64 ((Int64.abs[@inlined]) (to_int64 x))
 
 let[@inline always] logand x y =
   of_int64 (Int64.logand (to_int64 x) (to_int64 y))
@@ -53,7 +53,7 @@ let[@inline always] logor x y = of_int64 (Int64.logor (to_int64 x) (to_int64 y))
 let[@inline always] logxor x y =
   of_int64 (Int64.logxor (to_int64 x) (to_int64 y))
 
-let[@inline always] lognot x = of_int64 (Int64.lognot (to_int64 x))
+let[@inline always] lognot x = of_int64 ((Int64.lognot[@inlined]) (to_int64 x))
 
 let[@inline always] shift_left x y = of_int64 (Int64.shift_left (to_int64 x) y)
 
@@ -67,7 +67,8 @@ let[@inline always] of_int x = of_int64 (Int64.of_int x)
 
 let[@inline always] to_int x = Int64.to_int (to_int64 x)
 
-let[@inline always] unsigned_to_int x = Int64.unsigned_to_int (to_int64 x)
+let[@inline always] unsigned_to_int x =
+  (Int64.unsigned_to_int[@inlined]) (to_int64 x)
 
 let[@inline always] of_float x = of_int64 (Int64.of_float x)
 
@@ -87,7 +88,7 @@ let[@inline always] float_of_bits x = Int64.float_of_bits (to_int64 x)
 
 let[@inline always] of_string x = of_int64 (Int64.of_string x)
 
-let[@inline always] to_string x = Int64.to_string (to_int64 x)
+let[@inline always] to_string x = (Int64.to_string[@inlined]) (to_int64 x)
 
 type t = int64#
 
