@@ -111,11 +111,11 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
    was compiled as a parameter *)
 val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
-
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
 val implemented_parameter : 'a t -> Compilation_unit.Name.t
   -> Compilation_unit.Name.t option
+
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
   -> Cmi_format.kind
