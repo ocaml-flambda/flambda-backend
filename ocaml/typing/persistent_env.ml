@@ -71,6 +71,7 @@ type can_load_cmis =
 
 (* Data relating directly to a .cmi *)
 type import = {
+  imp_is_param : bool;
   imp_impl : Impl.t;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
@@ -102,6 +103,7 @@ type 'a t = {
     (CU.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
+  param_imports : CU.Name.Set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -111,6 +113,7 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
+  param_imports = ref CU.Name.Set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -121,6 +124,7 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
+    param_imports;
     crc_units;
     can_load_cmis;
   } = penv in
@@ -128,6 +132,7 @@ let clear penv =
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
+  param_imports := CU.Name.Set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -146,7 +151,7 @@ let add_import {imported_units; _} s =
 let register_import_as_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
 
-let _find_import_info_in_cache {imports; _} import =
+let find_import_info_in_cache {imports; _} import =
   match Hashtbl.find imports import with
   | exception Not_found -> None
   | Missing -> None
@@ -159,6 +164,17 @@ let find_info_in_cache {persistent_structures; _} name =
 
 let find_in_cache penv name =
   find_info_in_cache penv name |> Option.map (fun (_ps, pm) -> pm)
+
+let register_parameter_import ({param_imports; _} as penv) import =
+  begin match find_import_info_in_cache penv import with
+  | None ->
+      (* Not loaded yet; if it's wrong, we'll get an error at load time *)
+      ()
+  | Some imp ->
+      if not imp.imp_is_param then
+        raise (Error (Not_compiled_as_parameter(import, imp.imp_filename)))
+  end;
+  param_imports := CU.Name.Set.add import !param_imports
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -188,9 +204,8 @@ let check_consistency penv imp =
     | (Known _ | Unknown_argument), _ ->
       error (Inconsistent_import(name, auth, source))
 
-let is_registered_parameter_import _ _import =
-  (* Not yet implemented *)
-  false
+let is_registered_parameter_import {param_imports; _} import =
+  CU.Name.Set.mem import !param_imports
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -277,7 +292,8 @@ let acknowledge_import penv ~check modname pers_sig =
     | Parameter -> Impl.Unknown_argument
   in
   let {imports;} = penv in
-  let import = { imp_impl = impl;
+  let import = { imp_is_param = is_param;
+                 imp_impl = impl;
                  imp_sign = sign;
                  imp_filename = filename;
                  imp_crcs = crcs;
@@ -493,6 +509,9 @@ let is_imported {imported_units; _} s =
 
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
+
+let is_parameter_unit penv s =
+  is_registered_parameter_import penv s
 
 let make_cmi penv modname kind sign alerts =
   let flags =
