@@ -32,18 +32,18 @@ let[@inline always] mul x y = of_int32 (Int32.mul (to_int32 x) (to_int32 y))
 let[@inline always] div x y = of_int32 (Int32.div (to_int32 x) (to_int32 y))
 
 let[@inline always] unsigned_div x y =
-  of_int32 (Int32.unsigned_div (to_int32 x) (to_int32 y))
+  of_int32 ((Int32.unsigned_div[@inlined]) (to_int32 x) (to_int32 y))
 
 let[@inline always] rem x y = of_int32 (Int32.rem (to_int32 x) (to_int32 y))
 
 let[@inline always] unsigned_rem x y =
-  of_int32 (Int32.unsigned_rem (to_int32 x) (to_int32 y))
+  of_int32 ((Int32.unsigned_rem[@inlined]) (to_int32 x) (to_int32 y))
 
-let[@inline always] succ x = of_int32 (Int32.succ (to_int32 x))
+let[@inline always] succ x = of_int32 ((Int32.succ[@inlined]) (to_int32 x))
 
-let[@inline always] pred x = of_int32 (Int32.pred (to_int32 x))
+let[@inline always] pred x = of_int32 ((Int32.pred[@inlined]) (to_int32 x))
 
-let[@inline always] abs x = of_int32 (Int32.abs (to_int32 x))
+let[@inline always] abs x = of_int32 ((Int32.abs[@inlined]) (to_int32 x))
 
 let[@inline always] logand x y =
   of_int32 (Int32.logand (to_int32 x) (to_int32 y))
@@ -53,7 +53,7 @@ let[@inline always] logor x y = of_int32 (Int32.logor (to_int32 x) (to_int32 y))
 let[@inline always] logxor x y =
   of_int32 (Int32.logxor (to_int32 x) (to_int32 y))
 
-let[@inline always] lognot x = of_int32 (Int32.lognot (to_int32 x))
+let[@inline always] lognot x = of_int32 ((Int32.lognot[@inlined]) (to_int32 x))
 
 let[@inline always] shift_left x y = of_int32 (Int32.shift_left (to_int32 x) y)
 
@@ -67,7 +67,8 @@ let[@inline always] of_int x = of_int32 (Int32.of_int x)
 
 let[@inline always] to_int x = Int32.to_int (to_int32 x)
 
-let[@inline always] unsigned_to_int x = Int32.unsigned_to_int (to_int32 x)
+let[@inline always] unsigned_to_int x =
+  (Int32.unsigned_to_int[@inlined]) (to_int32 x)
 
 let[@inline always] of_float x = of_int32 (Int32.of_float x)
 
@@ -79,17 +80,21 @@ let[@inline always] float_of_bits x = Int32.float_of_bits (to_int32 x)
 
 let[@inline always] of_string x = of_int32 (Int32.of_string x)
 
-let[@inline always] to_string x = Int32.to_string (to_int32 x)
+let[@inline always] to_string x = (Int32.to_string[@inlined]) (to_int32 x)
 
 type t = int32#
 
-let[@inline always] compare x y = Int32.compare (to_int32 x) (to_int32 y)
+let[@inline always] compare x y =
+  (Int32.compare[@inlined]) (to_int32 x) (to_int32 y)
 
 let[@inline always] unsigned_compare x y =
-  Int32.unsigned_compare (to_int32 x) (to_int32 y)
+  (Int32.unsigned_compare[@inlined]) (to_int32 x) (to_int32 y)
 
-let[@inline always] equal x y = Int32.equal (to_int32 x) (to_int32 y)
+let[@inline always] equal x y =
+  (Int32.equal[@inlined]) (to_int32 x) (to_int32 y)
 
-let[@inline always] min x y = of_int32 (Int32.min (to_int32 x) (to_int32 y))
+let[@inline always] min x y =
+  of_int32 ((Int32.min[@inlined]) (to_int32 x) (to_int32 y))
 
-let[@inline always] max x y = of_int32 (Int32.max (to_int32 x) (to_int32 y))
+let[@inline always] max x y =
+  of_int32 ((Int32.max[@inlined]) (to_int32 x) (to_int32 y))
