@@ -28,7 +28,7 @@ open! Stdlib
    truncating.
 *)
 
-(* CR layouts XXX ASZ: add back this comment to the above when we support
+(* CR layouts v2.1: add back this comment to the above when we support
    literals.
 
     Literals for unboxed 64-bit integers are prefixed by # and suffixed by L:
