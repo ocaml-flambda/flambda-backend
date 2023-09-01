@@ -23,7 +23,7 @@ open! Stdlib
 
    This module provides operations on the type [int32#]
    of unboxed signed 32-bit integers.  Unlike the built-in [int] type,
-   the type [int32#] is guaranteed to be exactly 32-bit wide on all
+   the type [int32#] is guaranteed to be exactly 32 bits wide on all
    platforms.  All arithmetic operations over [int32#] are taken
    modulo 2{^32}
 *)
