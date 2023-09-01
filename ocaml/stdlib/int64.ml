@@ -105,4 +105,4 @@ let[@inline available] unsigned_div n d =
     if unsigned_compare r d >= 0 then succ q else q
 
 let[@inline available] unsigned_rem n d =
-  sub n (mul (unsigned_div n d) d)
+  sub n (mul ((unsigned_div[@inlined]) n d) d)
