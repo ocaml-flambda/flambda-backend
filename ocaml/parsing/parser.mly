@@ -840,10 +840,11 @@ let assert_unboxed_type ~loc =
     Language_extension.(
       Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
-let unboxed_type sloc name tys =
+(* Invariant: [lident] must end with an [Lident] that ends with a ["#"]. *)
+let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
   assert_unboxed_type ~loc;
-  Ptyp_constr (mkloc (Lident (name ^ "#")) loc, tys)
+  Ptyp_constr (mkloc lident loc, tys)
 %}
 
 /* Tokens */
@@ -3863,22 +3864,11 @@ atomic_type:
     | UNDERSCORE
         { Ptyp_any }
     | tys = actual_type_parameters
-      tid = mkrhs(type_longident)
-      HASH_SUFFIX
-        { match tid.txt with
-          | Lident ("float" | "nativeint" | "int32" | "int64" as name) ->
-              let ident_start = fst $loc(tid) in
-              let hash_end = snd $loc($3) in
-              unboxed_type (ident_start, hash_end) name tys
-          | _ ->
-              (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
-                 code. When we support unboxed types other than the basic ones,
-                 we should consider moving this check into the typechecker. *)
-              not_expecting $sloc "Unsupported unboxed type"
-        }
+      tid = mkrhs(type_unboxed_longident)
+        { unboxed_type $loc(tid) tid.txt tys }
     | tys = actual_type_parameters
       tid = mkrhs(type_longident)
-        { Ptyp_constr(tid, tys) } %prec below_HASH
+        { Ptyp_constr(tid, tys) }
     | LESS meth_list GREATER
         { let (f, c) = $2 in Ptyp_object (f, c) }
     | LESS GREATER
@@ -4125,8 +4115,17 @@ val_longident:
 label_longident:
     mk_longident(mod_longident, LIDENT) { $1 }
 ;
+type_trailing_no_hash:
+  LIDENT  { $1 } %prec below_HASH
+;
+type_trailing_hash:
+  LIDENT HASH_SUFFIX  { $1 ^ "#" }
+;
 type_longident:
-    mk_longident(mod_ext_longident, LIDENT)  { $1 }
+    mk_longident(mod_ext_longident, type_trailing_no_hash)  { $1 }
+;
+type_unboxed_longident:
+    mk_longident(mod_ext_longident, type_trailing_hash)  { $1 }
 ;
 mod_longident:
     mk_longident(mod_longident, UIDENT)  { $1 }
