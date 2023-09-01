@@ -24,8 +24,8 @@ open! Stdlib
    This module provides operations on the type [int64#] of
    unboxed signed 64-bit integers.  Unlike the built-in [int] type,
    the type [int64#] is guaranteed to be exactly 64-bit wide on all
-   platforms.  All arithmetic operations over [int64#] are taken
-   modulo 2{^64}
+   platforms.  All arithmetic operations over [int64#] are wrapping, not
+   truncating.
 *)
 
 (* CR layouts XXX ASZ: add back this comment to the above when we support

@@ -26,8 +26,7 @@ open! Stdlib
    unboxed signed 64-bit integers (on 64-bit platforms).
    This integer type has exactly the same width as that of a
    pointer type in the C compiler.  All arithmetic operations over
-   [nativeint#] are taken modulo 2{^32} or 2{^64} depending
-   on the word size of the architecture.
+   [nativeint#] are wrapping, not truncating.
 *)
 
 (* CR layouts XXX ASZ: add back this comment to the above when we support
