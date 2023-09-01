@@ -28,7 +28,7 @@ open! Stdlib
    modulo 2{^32}
 *)
 
-(* CR layouts XXX ASZ: add back this comment to the above when we support
+(* CR layouts v2.1: add back this comment to the above when we support
    literals.
 
     Literals for unboxed 32-bit integers are prefixed by # and suffixed by l:
