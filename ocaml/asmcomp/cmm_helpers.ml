@@ -2254,7 +2254,13 @@ let tuplify_function arity return =
     else get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
          :: access_components(i+1)
   in
-  let fun_name = "caml_tuplify" ^ Int.to_string arity in
+  let fun_name =
+    "caml_tuplify" ^ Int.to_string arity
+    ^
+    match return with
+    | [| Val |] -> ""
+    | _ -> "_R" ^ machtype_identifier return
+  in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
    {fun_name;
