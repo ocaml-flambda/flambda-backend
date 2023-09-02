@@ -7,6 +7,7 @@ type t_any   : any
 type t_value : value
 type t_imm   : immediate
 type t_imm64 : immediate64
+type t_float64 : float64
 type t_void  : void
 
 type void_variant = VV of t_void
@@ -18,6 +19,7 @@ type t_any : any
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
+type t_float64 : float64
 type t_void : void
 type void_variant = VV of t_void
 type void_record = { vr_void : t_void; vr_int : int; }
@@ -1263,11 +1265,11 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 (**********************************************)
 (* Test 28: Exotic layouts in letop and andop *)
 
-(* CR layouts: this must be [let rec] and [and] so that we can test the
-   type-checker, as opposed to the value-kind check. After we have proper
-   support for a non-value argument type, remove the [rec], throughout
-   this test.
-*)
+(* CR layouts v5: the void parts of this test use [let rec] and [and] so that we
+   can test the type-checker as opposed to the value-kind check.  Once void is
+   properly supported, they don't need to be recursive anymore. *)
+
+(* 28.1: non-value letop arg *)
 let rec ( let* ) (x : t_void) f = ()
 
 and q () =
@@ -1282,6 +1284,18 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) (x : t_float64) f = ()
+
+let q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+val ( let* ) : t_float64 -> 'a -> unit = <fun>
+val q : unit -> unit = <fun>
+|}]
+
+(* 28.2: non-value letop binder arg without and *)
 let rec ( let* ) x (f : t_void -> _) = ()
 
 and q () =
@@ -1296,6 +1310,18 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) x (f : t_float64 -> _) = ()
+
+let q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val q : unit -> unit = <fun>
+|}]
+
+(* 28.3: non-value letop binder result *)
 let rec ( let* ) x (f : _ -> t_void) = ()
 
 and q () =
@@ -1310,6 +1336,18 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) x (f : _ -> t_float64) = ()
+
+let q () =
+  let* x = assert false in
+  assert false
+
+[%%expect{|
+val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val q : unit -> unit = <fun>
+|}]
+
+(* 28.4: non-value letop result *)
 let rec ( let* ) x f : t_void = assert false
 
 and q () =
@@ -1324,6 +1362,18 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) x f : t_float64 = assert false
+
+let q () =
+  let* x = 5 in
+  ()
+
+[%%expect{|
+val ( let* ) : 'a -> 'b -> t_float64 = <fun>
+val q : unit -> t_float64 = <fun>
+|}]
+
+(* 28.5: non-value andop second arg *)
 let rec ( let* ) x f = ()
 and ( and* ) x1 (x2 : t_void) = ()
 and q () =
@@ -1340,6 +1390,21 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) x f = ()
+let ( and* ) x1 (x2 : t_float64) = ()
+let q () =
+    let* x = 5
+    and* y = assert false
+    in
+    ()
+
+[%%expect{|
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> t_float64 -> unit = <fun>
+val q : unit -> unit = <fun>
+|}]
+
+(* 28.5: non-value andop first arg *)
 let rec ( let* ) x f = ()
 and ( and* ) (x1 : t_void) x2 = ()
 and q () =
@@ -1356,6 +1421,21 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) x f = ()
+let ( and* ) (x1 : t_float64) x2 = ()
+let q () =
+    let* x = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : t_float64 -> 'a -> unit = <fun>
+val q : unit -> unit = <fun>
+|}]
+
+(* 28.6: non-value andop result *)
 let rec ( let* ) x f = ()
 and ( and* ) x1 x2 : t_void = assert false
 and q () =
@@ -1372,6 +1452,21 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        t_void. Please report this error to the Jane Street compilers team.
 |}]
 
+let ( let* ) (x : (_ : float64))  f = ()
+let ( and* ) x1 x2 : t_float64 = assert false
+let q () =
+    let* x = 5
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+val ( let* ) : 'b ('a : float64). 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> t_float64 = <fun>
+val q : unit -> unit = <fun>
+|}]
+
+(* 28.7: non-value letop binder arg with and *)
 (* CR layouts v5: when we allow non-values in tuples, this next one should
    type-check *)
 let rec ( let* ) x f = ()
@@ -1390,6 +1485,26 @@ Error: This pattern matches values of type t_void
        but a pattern was expected which matches values of type ('a : value)
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+let ( let* ) x f = ()
+let ( and* ) x1 x2 = assert false
+let q () =
+    let* x : t_float64 = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> 'c = <fun>
+Line 4, characters 9-22:
+4 |     let* x : t_float64 = assert false
+             ^^^^^^^^^^^^^
+Error: This pattern matches values of type t_float64
+       but a pattern was expected which matches values of type ('a : value)
+       t_float64 has layout float64, which is not a sublayout of value.
+|}]
+
 
 (*******************************************)
 (* Test 29: [external]s default to [value] *)

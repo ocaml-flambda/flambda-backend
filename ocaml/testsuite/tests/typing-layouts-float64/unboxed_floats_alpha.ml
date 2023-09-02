@@ -289,3 +289,24 @@ let test6 () =
   print_floatu "Test 6, -46.88" result
 
 let _ = test6 ()
+
+(*****************************)
+(* Test 7: letop with floats *)
+
+let ( let* ) x f = f Float_u.(x + (of_float 1.5))
+
+let _ =
+  let* x = Float_u.of_float 42.0 in
+  print_floatu "Test 7, 36.50" Float_u.(x - of_float 7.0)
+
+let ( let* ) x (f : _ -> float#) = f x
+let ( and* ) x y = Float_u.(x, to_float (y - (of_float 1.2)))
+let _ =
+  let result =
+    let* x = 42.0
+    and* y = Float_u.of_float 3.3
+    and* z = Float_u.of_float (-10.7) in
+    Float_u.of_float (x +. y +. z)
+  in
+  print_floatu "Test 7, 32.20" result
+

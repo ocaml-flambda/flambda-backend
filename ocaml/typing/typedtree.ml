@@ -245,6 +245,7 @@ and binding_op =
     bop_op_type : Types.type_expr;
     bop_op_return_sort : sort;
     bop_exp : expression;
+    bop_exp_sort : sort;
     bop_loc : Location.t;
   }
 

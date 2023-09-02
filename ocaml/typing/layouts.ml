@@ -219,7 +219,6 @@ module Sort = struct
   let for_lazy_body = value
   let for_tuple_element = value
   let for_instance_var = value
-  let for_bop_exp = value
   let for_class_arg = value
   let for_method = value
   let for_initializer = value
