@@ -287,10 +287,12 @@ module Env = struct
           Variable.Map.add var approx t.value_approximations
       }
 
-  let add_block_approximation t var approxs alloc_mode =
+  let add_block_approximation t var tag approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
     then t
-    else add_var_approximation t var (Block_approximation (approxs, alloc_mode))
+    else
+      add_var_approximation t var
+        (Block_approximation (tag, approxs, alloc_mode))
 
   let find_var_approximation t var =
     try Variable.Map.find var t.value_approximations
@@ -376,9 +378,9 @@ module Acc = struct
         let rec filter_inlinable approx =
           match (approx : Env.value_approximation) with
           | Value_unknown | Value_symbol _ | Value_int _ -> approx
-          | Block_approximation (approxs, alloc_mode) ->
+          | Block_approximation (tag, approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
-            Value_approximation.Block_approximation (approxs, alloc_mode)
+            Value_approximation.Block_approximation (tag, approxs, alloc_mode)
           | Closure_approximation
               { code_id;
                 function_slot;
@@ -455,7 +457,7 @@ module Acc = struct
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     let approx : _ Value_approximation.t =
       match (constant : Static_const.t) with
-      | Block (_tag, mut, fields) ->
+      | Block (tag, mut, fields) ->
         if not (Mutability.is_mutable mut)
         then
           let approx_of_field :
@@ -464,8 +466,9 @@ module Acc = struct
             | Tagged_immediate i -> Value_int i
             | Dynamically_computed _ -> Value_unknown
           in
+          let tag = Tag.Scannable.to_tag tag in
           let fields = List.map approx_of_field fields |> Array.of_list in
-          Block_approximation (fields, Alloc_mode.For_types.unknown ())
+          Block_approximation (tag, fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
       | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _

@@ -824,7 +824,7 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   match find_value_approximation_through_symbol acc body_env block with
   | Value_unknown -> Unknown
   | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
-  | Block_approximation (approx, _alloc_mode) -> (
+  | Block_approximation (_tag, approx, _alloc_mode) -> (
     let approx =
       Simple.pattern_match field
         ~const:(fun const ->
@@ -921,6 +921,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             ( Variadic
                 (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
               _ ) -> (
+          let tag' = Tag.Scannable.to_tag tag in
           let approxs =
             List.map (find_value_approximation body_env) fields |> Array.of_list
           in
@@ -938,7 +939,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             let acc =
               Acc.add_symbol_approximation acc sym
                 (Value_approximation.Block_approximation
-                   (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+                   (tag', approxs, Alloc_mode.For_allocations.as_type alloc_mode))
             in
             body acc body_env
           | Computed_static static_fields ->
@@ -964,7 +965,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             in
             let approx =
               Value_approximation.Block_approximation
-                (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+                (tag', approxs, Alloc_mode.For_allocations.as_type alloc_mode)
             in
             let acc = Acc.add_symbol_approximation acc symbol approx in
             let acc, body = body acc body_env in
@@ -974,7 +975,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
               defining_expr ~body
           | Dynamic_block ->
             let body_env =
-              Env.add_block_approximation body_env var approxs
+              Env.add_block_approximation body_env var tag' approxs
                 (Alloc_mode.For_allocations.as_type alloc_mode)
             in
             bind acc body_env)
