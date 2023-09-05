@@ -52,7 +52,7 @@ module Scoped_location : sig
   val map_scopes : (scopes:scopes -> scopes) -> t -> t
 end
 
-type item = private {
+type item = {
   dinfo_file: string;
   dinfo_line: int;
   dinfo_char_start: int;
@@ -61,6 +61,7 @@ type item = private {
   dinfo_end_bol: int;
   dinfo_end_line: int;
   dinfo_scopes: Scoped_location.scopes;
+  dinfo_uid: string option;
 }
 
 type t

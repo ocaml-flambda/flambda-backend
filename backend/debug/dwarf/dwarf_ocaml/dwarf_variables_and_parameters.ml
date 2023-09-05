@@ -244,7 +244,8 @@ let iterate_over_variable_like_things state ~available_ranges_vars ~f =
       let ident_for_type = Some (Compilation_unit.get_current_exn (), var) in
       f var ~ident_for_type ~range)
 
-let dwarf state ~function_proto_die available_ranges_vars =
+let dwarf state ~function_proto_die available_ranges_vars
+    ~inlined_frame_proto_dies =
   let proto_dies_for_vars = Backend_var.Tbl.create 42 in
   iterate_over_variable_like_things state ~available_ranges_vars
     ~f:(fun var ~ident_for_type:_ ~range:_ ->

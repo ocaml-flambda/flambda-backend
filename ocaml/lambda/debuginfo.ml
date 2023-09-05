@@ -141,6 +141,7 @@ type item = {
   dinfo_end_bol: int;
   dinfo_end_line: int;
   dinfo_scopes: Scoped_location.scopes;
+  dinfo_uid: string option;
 }
 
 type t = { dbg : item list; }
@@ -187,7 +188,8 @@ let item_from_location ~scopes loc =
     dinfo_end_line =
       if valid_endpos then loc.loc_end.pos_lnum
       else loc.loc_start.pos_lnum;
-    dinfo_scopes = scopes
+    dinfo_scopes = scopes;
+    dinfo_uid = None
   }
 
 let from_location = function
@@ -257,7 +259,10 @@ let rec print_compact ppf t =
       item.dinfo_line;
     if item.dinfo_char_start >= 0 then begin
       Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end
-    end
+    end;
+    match item.dinfo_uid with
+    | None -> ()
+    | Some uid -> Format.fprintf ppf "[%s]" uid
   in
   match t with
   | [] -> ()

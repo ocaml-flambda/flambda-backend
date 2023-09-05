@@ -24,7 +24,9 @@ type t =
     debug_loc_table : Debug_loc_table.t;
     debug_ranges_table : Debug_ranges_table.t;
     address_table : Address_table.t;
-    location_list_table : Location_list_table.t
+    location_list_table : Location_list_table.t;
+    function_abstract_instances :
+      (Proto_die.t * Asm_symbol.t) Misc.Stdlib.String.Tbl.t
   }
 
 let create ~compilation_unit_header_label ~compilation_unit_proto_die
@@ -37,7 +39,8 @@ let create ~compilation_unit_header_label ~compilation_unit_proto_die
     debug_loc_table;
     debug_ranges_table;
     address_table;
-    location_list_table
+    location_list_table;
+    function_abstract_instances = Misc.Stdlib.String.Tbl.create 42
   }
 
 let compilation_unit_header_label t = t.compilation_unit_header_label
@@ -55,3 +58,5 @@ let debug_ranges_table t = t.debug_ranges_table
 let address_table t = t.address_table
 
 let location_list_table t = t.location_list_table
+
+let function_abstract_instances t = t.function_abstract_instances
