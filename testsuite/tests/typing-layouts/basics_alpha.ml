@@ -464,13 +464,6 @@ Line 8, characters 16-21:
 8 |     | `Bar v -> { v }
                     ^^^^^
 Error: This expression should not be a record, the expected type is result
-|}, Principal{|
-Line 8, characters 18-19:
-8 |     | `Bar v -> { v }
-                      ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 module M8_3 = struct
