@@ -437,3 +437,14 @@ Line 1, characters 12-39:
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type int -> local_ int is not a subtype of local_ int -> int
 |}]
+
+(* Mode crossing at identifiers - in the following, x and y are added to the
+environment at mode local, but they cross to global when they are refered to
+again. Note that ref is polymorphic and thus doesn't trigger crossing. *)
+let foo () =
+  let x, y = local_ (42, 24) in
+  let _ = ref x, ref y in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]

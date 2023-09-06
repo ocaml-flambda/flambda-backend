@@ -147,7 +147,7 @@ Error: Found a shared value where a unique value was expected
 |}]
 
 let f =
-  let unique_ a = 3 in
+  let unique_ a = "hello" in
   let g (unique_ a) = a in
   for i = 0 to 5 do
     let _ = g a in ()
