@@ -1,6 +1,8 @@
 (* TEST
    flags = "-extension layouts_alpha"
    * expect
+   flags = "-extension layouts_beta"
+   * expect
 *)
 
 (* These tests show how potential ambiguities are resolved

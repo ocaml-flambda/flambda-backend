@@ -1,6 +1,14 @@
 (* TEST
    modules = "stubs.c"
-   flags = "-extension layouts_alpha"
+   reference = "${test_source_directory}/c_api.reference"
+   * native
+     flags = "-extension layouts_alpha"
+   * bytecode
+     flags = "-extension layouts_alpha"
+   * native
+     flags = "-extension layouts_beta"
+   * bytecode
+     flags = "-extension layouts_beta"
 *)
 
 (* This file tests using external C functions with float#. *)

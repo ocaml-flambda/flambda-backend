@@ -7,6 +7,7 @@ type t_any   : any
 type t_value : value
 type t_imm   : immediate
 type t_imm64 : immediate64
+type t_float64 : float64
 type t_void  : void;;
 
 (*********************************************************)
@@ -24,10 +25,27 @@ type t_any : any
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
+type t_float64 : float64
 type t_void : void
 module type S1 = sig type ('a : void) t type s end
 type ('a : void) t1
 module type S1' = sig type ('a : void) t = t_void t1 type s = t_void t1 end
+|}];;
+
+module type S1f = sig
+  type ('a : float64) t
+  type s
+end;;
+
+type ('a : float64) t1;;
+
+module type S1f' = S1f with type 'a t = t_float64 t1 and type s = t_float64 t1;;
+
+[%%expect {|
+module type S1f = sig type ('a : float64) t type s end
+type ('a : float64) t1
+module type S1f' =
+  sig type ('a : float64) t = t_float64 t1 type s = t_float64 t1 end
 |}];;
 
 module type S1'' = S1 with type 'a t = 'a list;;
@@ -40,6 +58,16 @@ Error: The type constraints are not consistent.
        'a has layout void, which does not overlap with value.
 |}];;
 
+module type S1f'' = S1f with type 'a t = 'a list;;
+[%%expect {|
+Line 1, characters 34-36:
+1 | module type S1f'' = S1f with type 'a t = 'a list;;
+                                      ^^
+Error: The type constraints are not consistent.
+       Type ('a : value) is not compatible with type ('b : float64)
+       'a has layout float64, which does not overlap with value.
+|}];;
+
 module type S1'' = S1 with type s = t_void;;
 
 [%%expect{|
@@ -47,6 +75,15 @@ Line 1, characters 27-42:
 1 | module type S1'' = S1 with type s = t_void;;
                                ^^^^^^^^^^^^^^^
 Error: Type t_void has layout void, which is not a sublayout of value.
+|}]
+
+module type S1f'' = S1f with type s = t_float64;;
+
+[%%expect{|
+Line 1, characters 29-47:
+1 | module type S1f'' = S1f with type s = t_float64;;
+                                 ^^^^^^^^^^^^^^^^^^
+Error: Type t_float64 has layout float64, which is not a sublayout of value.
 |}]
 
 module type S1_2 = sig
@@ -167,6 +204,22 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        'a. Please report this error to the Jane Street compilers team.
 |}];;
 
+module rec Foo3f : sig
+  val create : Bar3f.t -> unit
+end = struct
+  let create _ = ()
+end
+
+and Bar3f : sig
+  type t : float64
+end = struct
+  type t : float64
+end;;
+[%%expect {|
+module rec Foo3f : sig val create : Bar3f.t -> unit end
+and Bar3f : sig type t : float64 end
+|}];;
+
 module rec Foo3 : sig
   type t : immediate = Bar3.t
 end = struct
@@ -220,6 +273,25 @@ Error: This type ('a : void) should be an instance of type ('b : value)
        'a has layout void, which does not overlap with value.
 |}];;
 
+module rec Foo3f : sig
+  type 'a t = 'a Bar3f.t * 'a list
+end = struct
+  type t = 'a Bar3f.t * 'a list
+end
+
+and Bar3f : sig
+  type ('a : float64) t
+end = struct
+  type 'a t
+end;;
+[%%expect {|
+Line 2, characters 27-29:
+2 |   type 'a t = 'a Bar3f.t * 'a list
+                               ^^
+Error: This type ('a : float64) should be an instance of type ('b : value)
+       'a has layout float64, which does not overlap with value.
+|}];;
+
 (* One downside of the current approach - this could be allowed, but isn't.  You
    need to annotate types declared in recursive modules if they need to have
    layouts other than value, even if it's obvious from the manifest *)
@@ -268,6 +340,51 @@ module rec Foo3 : sig type t = t3 end
 and Bar3 : sig type ('a : void) t type s = Foo3.t t end
 |}];;
 
+type t3f : float64
+
+module rec Foo3f : sig
+  type t = t3f
+end = struct
+  type t = t3f
+end
+
+and Bar3f : sig
+  type ('a : float64) t
+
+  type s = Foo3f.t t
+end = struct
+  type ('a : float64) t
+  type s = Foo3f.t t
+end;;
+[%%expect {|
+type t3f : float64
+Line 12, characters 11-18:
+12 |   type s = Foo3f.t t
+                ^^^^^^^
+Error: This type Foo3f.t should be an instance of type ('a : float64)
+       Foo3f.t has layout value, which is not a sublayout of float64.
+|}];;
+
+(* Previous example works with annotation *)
+module rec Foo3f : sig
+  type t : float64 = t3f
+end = struct
+  type t = t3f
+end
+
+and Bar3 : sig
+  type ('a : float64) t
+
+  type s = Foo3f.t t
+end = struct
+  type ('a : float64) t
+  type s = Foo3f.t t
+end;;
+[%%expect {|
+module rec Foo3f : sig type t = t3f end
+and Bar3 : sig type ('a : float64) t type s = Foo3f.t t end
+|}];;
+
 (*************************************************************************)
 (* Test 4: Nondep typedecl layout approximation in the Nondep_cannot_erase
    case. *)
@@ -278,24 +395,35 @@ end
 module M4 = F4(struct type t = T end)
 
 type ('a : value) t4_val
-type ('a : void) t4_void
 
 type t4 = M4.s t4_val;;
 [%%expect {|
 module F4 : functor (X : sig type t end) -> sig type s = Foo of X.t end
 module M4 : sig type s end
 type 'a t4_val
-type ('a : void) t4_void
 type t4 = M4.s t4_val
 |}]
 
+type ('a : void) t4_void
 type t4' = M4.s t4_void;;
 [%%expect {|
-Line 1, characters 11-15:
-1 | type t4' = M4.s t4_void;;
+type ('a : void) t4_void
+Line 2, characters 11-15:
+2 | type t4' = M4.s t4_void;;
                ^^^^
 Error: This type M4.s should be an instance of type ('a : void)
        M4.s has layout value, which is not a sublayout of void.
+|}]
+
+type ('a : float64) t4_float64
+type t4f' = M4.s t4_float64;;
+[%%expect {|
+type ('a : float64) t4_float64
+Line 2, characters 12-16:
+2 | type t4f' = M4.s t4_float64;;
+                ^^^^
+Error: This type M4.s should be an instance of type ('a : float64)
+       M4.s has layout value, which is not a sublayout of float64.
 |}]
 
 module F4'(X : sig type t : immediate end) = struct
@@ -324,6 +452,16 @@ Line 1, characters 10-15:
 Error: This type M4'.s should be an instance of type ('a : void)
        M4'.s has layout immediate, which is not a sublayout of void.
 |}];;
+
+type t4 = M4'.s t4_float64;;
+[%%expect{|
+Line 1, characters 10-15:
+1 | type t4 = M4'.s t4_float64;;
+              ^^^^^
+Error: This type M4'.s should be an instance of type ('a : float64)
+       M4'.s has layout immediate, which is not a sublayout of float64.
+|}];;
+
 
 (************************************)
 (* Test 5: Destructive substitution *)
@@ -391,6 +529,27 @@ Error: In this `with' constraint, the new definition of t
        the first has layout value, which is not a sublayout of void.
 |}];;
 
+module type S6_1f = sig
+  type t : float64
+end
+
+module type S6_2f = sig
+  val m : (module S6_1f with type t = int)
+end;;
+[%%expect{|
+module type S6_1f = sig type t : float64 end
+Line 6, characters 10-42:
+6 |   val m : (module S6_1f with type t = int)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this `with' constraint, the new definition of t
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type t
+       is not included in
+         type t : float64
+       the first has layout value, which is not a sublayout of float64.
+|}];;
+
 module type S6_3 = sig
   type t : value
 end
@@ -405,6 +564,17 @@ Line 6, characters 33-34:
                                      ^
 Error: Signature package constraint types must have layout value.
         t_void has layout void, which is not a sublayout of value.
+|}];;
+
+module type S6_4f = sig
+  val m : (module S6_3 with type t = t_float64)
+end;;
+[%%expect{|
+Line 2, characters 33-34:
+2 |   val m : (module S6_3 with type t = t_float64)
+                                     ^
+Error: Signature package constraint types must have layout value.
+        t_float64 has layout float64, which is not a sublayout of value.
 |}];;
 
 module type S6_5 = sig
