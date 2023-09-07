@@ -160,8 +160,8 @@ end = struct
                         if split_debug && Lazy.force split_invariants
                         then
                           if not
-                               (Cfg_dominators.is_strictly_dominating
-                                  doms.dominators spilled_at tree.label)
+                               (Cfg_dominators.is_strictly_dominating doms
+                                  spilled_at tree.label)
                           then fatal "inconsistent dominator tree";
                         if split_debug
                         then
@@ -229,8 +229,9 @@ end = struct
           log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
         num_sets);
     let doms = Cfg_with_infos.dominators cfg_with_infos in
-    remove_dominated_spills doms doms.Cfg_dominators.dominator_tree ~num_sets
-      ~already_spilled:Reg.Map.empty ~destructions_at_end
+    remove_dominated_spills doms
+      (Cfg_dominators.dominator_tree doms)
+      ~num_sets ~already_spilled:Reg.Map.empty ~destructions_at_end
 end
 
 let add_destruction_point_at_end :
@@ -346,14 +347,7 @@ let add_phis :
  fun cfg_with_infos destruction_label destroyed_regs phi_at_beginning ->
   let doms = Cfg_with_infos.dominators cfg_with_infos in
   let destruction_frontier =
-    match
-      Label.Map.find_opt destruction_label
-        doms.Cfg_dominators.dominance_frontiers
-    with
-    | None ->
-      fatal "Regalloc_split_state.add_phis: no dominance frontier for block %d"
-        destruction_label
-    | Some frontier -> frontier
+    Cfg_dominators.find_dominance_frontier doms destruction_label
   in
   Label.Set.fold
     (fun destruction_frontier_label phi_at_beginning ->
@@ -382,13 +376,7 @@ let rec fix_point_phi : Cfg_with_infos.t -> phi_at_beginning -> phi_at_beginning
   Label.Map.iter
     (fun label regset ->
       let frontier : Label.Set.t =
-        match Label.Map.find_opt label doms.dominance_frontiers with
-        | None ->
-          fatal
-            "Regalloc_split_state.fix_point_phi: no dominance frontier for \
-             block %d"
-            label
-        | Some f -> f
+        Cfg_dominators.find_dominance_frontier doms label
       in
       Label.Set.iter
         (fun flab ->

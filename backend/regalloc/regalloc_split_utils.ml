@@ -21,17 +21,16 @@ let log :
     indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
  fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
 
-let log_dominance_frontier :
-    indent:int -> Cfg_dominators.dominance_frontiers -> unit =
- fun ~indent dom_front ->
+let log_dominance_frontier : indent:int -> Cfg.t -> Cfg_dominators.t -> unit =
+ fun ~indent cfg doms ->
   log ~indent "dominance frontier:";
-  Label.Map.iter
-    (fun label labels ->
+  Cfg.iter_blocks cfg ~f:(fun label _block ->
+      let frontier = Cfg_dominators.find_dominance_frontier doms label in
       log ~indent:(indent + 1) "block %d" label;
       Label.Set.iter
-        (fun label -> log ~indent:(indent + 1) "block %d" label)
-        labels)
-    dom_front
+        (fun frontier_label ->
+          log ~indent:(indent + 1) "block %d" frontier_label)
+        frontier)
 
 let log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit =
  fun ~indent dom_tree ->
