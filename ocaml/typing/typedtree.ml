@@ -16,6 +16,7 @@
 (* Abstract syntax tree after typing *)
 
 open Asttypes
+open Jane_asttypes
 open Layouts
 open Types
 
@@ -32,6 +33,12 @@ type computation = Computation_pattern
 type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
+
+type unique_barrier = Mode.Uniqueness.t option
+
+type unique_use = Mode.Uniqueness.t * Mode.Linearity.t
+
+let shared_many_use = (Mode.Uniqueness.shared, Mode.Linearity.many)
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
@@ -54,9 +61,9 @@ and pat_extra =
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
-  | Tpat_var : Ident.t * string loc * value_mode -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Mode.Value.t -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * value_mode -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Mode.Value.t -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : value general_pattern list -> value pattern_desc
   | Tpat_construct :
@@ -96,43 +103,46 @@ and exp_extra =
   | Texp_constraint of core_type
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
-  | Texp_newtype of string
+  | Texp_newtype of string * const_layout option
 
 
 and fun_curry_state =
-  | More_args of { partial_mode : Types.alloc_mode }
-  | Final_arg of { partial_mode : Types.alloc_mode }
+  | More_args of { partial_mode : Mode.Alloc.t }
+  | Final_arg of { partial_mode : Mode.Alloc.t }
 
 and expression_desc =
     Texp_ident of
-      Path.t * Longident.t loc * Types.value_description * ident_kind
+      Path.t * Longident.t loc * Types.value_description * ident_kind * unique_use
   | Texp_constant of constant
   | Texp_let of rec_flag * value_binding list * expression
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
-      arg_mode : Types.alloc_mode;
+      arg_mode : Mode.Alloc.t;
       arg_sort : sort;
       ret_sort : sort;
-      alloc_mode : Types.alloc_mode }
-  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
+      alloc_mode : Mode.Alloc.t }
+  | Texp_apply of
+      expression * (arg_label * apply_arg) list * apply_position *
+        Mode.Locality.t
   | Texp_match of expression * sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of expression list * Types.alloc_mode
+  | Texp_tuple of expression list * Mode.Alloc.t
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list * Types.alloc_mode option
-  | Texp_variant of label * (expression * Types.alloc_mode) option
+      Longident.t loc * constructor_description * expression list * Mode.Alloc.t option
+  | Texp_variant of label * (expression * Mode.Alloc.t) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Types.alloc_mode option
+      alloc_mode : Mode.Alloc.t option
     }
-  | Texp_field of expression * Longident.t loc * label_description * Types.alloc_mode option
+  | Texp_field of
+      expression * Longident.t loc * label_description * unique_use * Mode.Alloc.t option
   | Texp_setfield of
-      expression * Types.alloc_mode * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * expression list * Types.alloc_mode
+      expression * Mode.Locality.t * Longident.t loc * label_description * expression
+  | Texp_array of mutable_flag * expression list * Mode.Alloc.t
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -151,7 +161,7 @@ and expression_desc =
       for_body : expression;
       for_body_sort : sort;
     }
-  | Texp_send of expression * meth * apply_position * Types.alloc_mode
+  | Texp_send of expression * meth * apply_position * Mode.Alloc.t
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
@@ -182,7 +192,7 @@ and expression_desc =
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
 
-and ident_kind = Id_value | Id_prim of Types.alloc_mode option
+and ident_kind = Id_value | Id_prim of Mode.Locality.t option
 
 and meth =
   | Tmeth_name of string
@@ -224,7 +234,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr
+  | Kept of Types.type_expr * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -243,9 +253,9 @@ and ('a, 'b) arg_or_omitted =
   | Omitted of 'b
 
 and omitted_parameter =
-  { mode_closure : alloc_mode;
-    mode_arg : alloc_mode;
-    mode_ret : alloc_mode;
+  { mode_closure : Mode.Alloc.t;
+    mode_arg : Mode.Alloc.t;
+    mode_ret : Mode.Alloc.t;
     sort_arg : sort }
 
 and apply_arg = (expression * sort, omitted_parameter) arg_or_omitted
@@ -407,13 +417,14 @@ and module_type_desc =
   | Tmty_with of module_type * (Path.t * Longident.t loc * with_constraint) list
   | Tmty_typeof of module_expr
   | Tmty_alias of Path.t * Longident.t loc
+  | Tmty_strengthen of module_type * Path.t * Longident.t loc
 
 (* Keep primitive type information for type-based lambda-code specialization *)
 and primitive_coercion =
   {
     pc_desc: Primitive.description;
     pc_type: type_expr;
-    pc_poly_mode: alloc_mode option;
+    pc_poly_mode: Mode.Locality.t option;
     pc_env: Env.t;
     pc_loc : Location.t;
   }
@@ -526,16 +537,15 @@ and core_type =
    }
 
 and core_type_desc =
-    Ttyp_any
-  | Ttyp_var of string
+  | Ttyp_var of string option * const_layout option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string
+  | Ttyp_alias of core_type * string option * const_layout option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of string list * core_type
+  | Ttyp_poly of (string * const_layout option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -586,7 +596,6 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attribute list;
-    typ_layout_annotation: layout option;
    }
 
 and type_kind =
@@ -610,7 +619,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: string loc list;
+     cd_vars: (string * const_layout option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -650,7 +659,9 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of string loc list * constructor_arguments * core_type option
+    Text_decl of (string * const_layout option) list *
+                 constructor_arguments *
+                 core_type option
   | Text_rebind of Path.t * Longident.t loc
 
 and class_type =
@@ -859,7 +870,7 @@ let rec iter_bound_idents
        d
 
 type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> value_mode -> sort -> unit
+  Ident.t -> string loc -> type_expr -> Mode.Value.t -> sort -> unit
 
 (* The intent is that the sort should be the sort of the type of the pattern.
    It's used to avoid computing layouts from types.  `f` then gets passed

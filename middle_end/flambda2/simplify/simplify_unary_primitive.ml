@@ -110,6 +110,10 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
       ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var'
           (Alloc_mode.For_types.unknown ()),
         K.naked_nativeint )
+    | Naked_vec128 ->
+      ( T.boxed_vec128_alias_to ~naked_vec128:result_var'
+          (Alloc_mode.For_types.unknown ()),
+        K.naked_vec128 )
   in
   let alloc_mode =
     T.prove_alloc_mode_of_boxed_number (DA.typing_env dacc) boxed_number_ty
@@ -165,6 +169,7 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode
     | Naked_int64 -> T.box_int64 naked_number_ty alloc_mode
     | Naked_nativeint -> T.box_nativeint naked_number_ty alloc_mode
+    | Naked_vec128 -> T.box_vec128 naked_number_ty alloc_mode
   in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:true dacc
@@ -480,7 +485,8 @@ let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
-let simplify_int_as_pointer dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+let simplify_int_as_pointer ~mode:_ dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
   SPR.create_unknown dacc ~result_var K.value ~original_term
 
 let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
@@ -569,6 +575,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
       | Naked_int32 -> T.box_int32
       | Naked_int64 -> T.box_int64
       | Naked_nativeint -> T.box_nativeint
+      | Naked_vec128 -> T.box_vec128
     in
     let ty = boxer contents_ty Alloc_mode.For_types.heap in
     let dacc = DA.add_variable dacc result_var ty in
@@ -584,6 +591,12 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     | Proved (Heap, _) -> elide_primitive ()
     | Proved ((Heap_or_local | Local), _) | Unknown ->
       SPR.create_unknown dacc ~result_var K.value ~original_term)
+
+let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
@@ -625,7 +638,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
-    | Int_as_pointer -> simplify_int_as_pointer
+    | Int_as_pointer mode -> simplify_int_as_pointer ~mode
     | Bigarray_length { dimension } -> simplify_bigarray_length ~dimension
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
@@ -635,5 +648,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
+    | Get_header -> simplify_get_header ~original_prim
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

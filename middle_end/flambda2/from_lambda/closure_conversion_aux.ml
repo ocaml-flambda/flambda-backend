@@ -287,10 +287,12 @@ module Env = struct
           Variable.Map.add var approx t.value_approximations
       }
 
-  let add_block_approximation t var approxs alloc_mode =
+  let add_block_approximation t var tag approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
     then t
-    else add_var_approximation t var (Block_approximation (approxs, alloc_mode))
+    else
+      add_var_approximation t var
+        (Block_approximation (tag, approxs, alloc_mode))
 
   let find_var_approximation t var =
     try Variable.Map.find var t.value_approximations
@@ -376,9 +378,9 @@ module Acc = struct
         let rec filter_inlinable approx =
           match (approx : Env.value_approximation) with
           | Value_unknown | Value_symbol _ | Value_int _ -> approx
-          | Block_approximation (approxs, alloc_mode) ->
+          | Block_approximation (tag, approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
-            Value_approximation.Block_approximation (approxs, alloc_mode)
+            Value_approximation.Block_approximation (tag, approxs, alloc_mode)
           | Closure_approximation
               { code_id;
                 function_slot;
@@ -455,7 +457,7 @@ module Acc = struct
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     let approx : _ Value_approximation.t =
       match (constant : Static_const.t) with
-      | Block (_tag, mut, fields) ->
+      | Block (tag, mut, fields) ->
         if not (Mutability.is_mutable mut)
         then
           let approx_of_field :
@@ -464,13 +466,14 @@ module Acc = struct
             | Tagged_immediate i -> Value_int i
             | Dynamically_computed _ -> Value_unknown
           in
+          let tag = Tag.Scannable.to_tag tag in
           let fields = List.map approx_of_field fields |> Array.of_list in
-          Block_approximation (fields, Alloc_mode.For_types.unknown ())
+          Block_approximation (tag, fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
       | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
-      | Immutable_string _ ->
+      | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
+      | Immutable_float_array _ | Immutable_value_array _ | Empty_array
+      | Mutable_string _ | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =
@@ -672,11 +675,18 @@ end
 
 module Function_decls = struct
   module Function_decl = struct
+    type param =
+      { name : Ident.t;
+        kind : Flambda_kind.With_subkind.t;
+        attributes : Lambda.parameter_attribute;
+        mode : Lambda.alloc_mode
+      }
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        params : param list;
         return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
@@ -807,7 +817,7 @@ module Function_decls = struct
     set_diff
       (set_diff
          (all_free_idents function_decls)
-         (List.map fst (all_params function_decls)))
+         (List.map (fun p -> p.Function_decl.name) (all_params function_decls)))
       (let_rec_idents function_decls)
 
   let create function_decls alloc_mode =
@@ -979,7 +989,7 @@ module Let_with_acc = struct
 end
 
 module Continuation_handler_with_acc = struct
-  let create acc parameters ~handler ~is_exn_handler =
+  let create acc parameters ~handler ~is_exn_handler ~is_cold =
     let free_names_of_handler = Or_unknown.Known (Acc.free_names acc) in
     let acc =
       List.fold_left
@@ -990,7 +1000,7 @@ module Continuation_handler_with_acc = struct
     in
     ( acc,
       Continuation_handler.create parameters ~handler ~free_names_of_handler
-        ~is_exn_handler )
+        ~is_exn_handler ~is_cold )
 end
 
 module Let_cont_with_acc = struct
@@ -1029,13 +1039,13 @@ module Let_cont_with_acc = struct
   let build_recursive acc ~invariant_params ~handlers ~body =
     let handlers_free_names, cost_metrics_of_handlers, acc, handlers =
       Continuation.Map.fold
-        (fun cont (handler, params, is_exn_handler)
+        (fun cont (handler, params, is_exn_handler, is_cold)
              (free_names, costs, acc, handlers) ->
           let cost_metrics_of_handler, handler_free_names, acc, handler =
             Acc.measure_cost_metrics acc ~f:(fun acc ->
                 let acc, handler = handler acc in
                 Continuation_handler_with_acc.create acc params ~handler
-                  ~is_exn_handler)
+                  ~is_exn_handler ~is_cold)
           in
           ( Name_occurrences.union free_names handler_free_names,
             Cost_metrics.( + ) costs cost_metrics_of_handler,
@@ -1055,7 +1065,7 @@ module Let_cont_with_acc = struct
       ~cost_metrics_of_handlers
 
   let build_non_recursive acc cont ~handler_params ~handler ~body
-      ~is_exn_handler =
+      ~is_exn_handler ~is_cold =
     (* We need to evaluate the body before the handler to pass along information
        on the argument for inlining *)
     let free_names_of_body, acc, body =
@@ -1066,7 +1076,7 @@ module Let_cont_with_acc = struct
       Acc.measure_cost_metrics acc ~f:(fun acc ->
           let acc, handler = handler acc in
           Continuation_handler_with_acc.create acc handler_params ~handler
-            ~is_exn_handler)
+            ~is_exn_handler ~is_cold)
     in
     match Name_occurrences.count_continuation free_names_of_body cont with
     | Zero when not (Continuation_handler.is_exn_handler handler) ->

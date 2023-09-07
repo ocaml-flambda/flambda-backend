@@ -34,18 +34,22 @@ type immediate_or_pointer =
   | Immediate
   | Pointer
 
-type alloc_mode = private
+type locality_mode = private
   | Alloc_heap
   | Alloc_local
+
+(** For now we don't have strong update, and thus uniqueness is irrelavent in 
+    middle and back-end; in the future this will be extended with uniqueness *)
+type alloc_mode = locality_mode
 
 type modify_mode = private
   | Modify_heap
   | Modify_maybe_stack
 
-val alloc_heap : alloc_mode
+val alloc_heap : locality_mode
 
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
-val alloc_local : alloc_mode
+val alloc_local : locality_mode
 
 val modify_heap : modify_mode
 
@@ -182,7 +186,7 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer
+  | Pint_as_pointer of alloc_mode
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -199,6 +203,11 @@ type primitive =
                         one; O(1) *)
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
+  | Pget_header of alloc_mode
+  (* Get the header of a block. This primitive is invalid if provided with an
+     immediate value.
+     Note: The GC color bits in the header are not reliable except for checking
+     if the value is locally allocated *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -235,6 +244,7 @@ and value_kind =
           expected to be significant. *)
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector
 
 (* Because we check for and error on void in the translation to lambda, we don't
    need a constructor for it here. *)
@@ -243,6 +253,7 @@ and layout =
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
   | Pbottom
 
 and block_shape =
@@ -250,6 +261,18 @@ and block_shape =
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and vec128_type =
+  | Unknown128
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
+and boxed_vector =
+  | Pvec128 of vec128_type
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -270,7 +293,9 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-val equal_primitive : primitive -> primitive -> bool
+val vec128_name: vec128_type -> string
+
+val join_boxed_vector_layout: boxed_vector -> boxed_vector -> layout
 
 val equal_value_kind : value_kind -> value_kind -> bool
 
@@ -279,6 +304,8 @@ val equal_layout : layout -> layout -> bool
 val compatible_layout : layout -> layout -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
+
+val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
 val must_be_value : layout -> value_kind
 
@@ -396,6 +423,14 @@ type function_attribute = {
   tmc_candidate: bool;
 }
 
+type parameter_attribute = No_attributes
+
+type lparam = {
+  name : Ident.t;
+  layout : layout;
+  attributes : parameter_attribute;
+  mode : alloc_mode
+}
 
 type scoped_location = Debuginfo.Scoped_location.t
 
@@ -433,7 +468,7 @@ type lambda =
 
 and lfunction = private
   { kind: function_kind;
-    params: (Ident.t * layout) list;
+    params: lparam list;
     return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
@@ -528,7 +563,9 @@ val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
 val layout_boxed_float : layout
+val layout_unboxed_float : layout
 val layout_boxedint : boxed_integer -> layout
+val layout_boxed_vector : Primitive.boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a block *)
 val layout_field : layout
 val layout_lazy : layout
@@ -548,7 +585,7 @@ val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambd
 
 val lfunction :
   kind:function_kind ->
-  params:(Ident.t * layout) list ->
+  params:lparam list ->
   return:layout ->
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
@@ -633,6 +670,7 @@ val swap_float_comparison : float_comparison -> float_comparison
 
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
+val default_param_attribute : parameter_attribute
 
 val find_exact_application :
   function_kind -> arity:int -> lambda list -> lambda list option

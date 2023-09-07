@@ -35,6 +35,8 @@ val use_g3 : unit -> unit
 
 val restrict_to_upstream_dwarf : bool ref
 
+val dwarf_max_function_complexity : int ref
+
 val dwarf_for_startup_file : bool ref
 
 type dwarf_version =
@@ -64,3 +66,5 @@ val default_gdwarf_format : dwarf_format
 val default_ddebug_invariants : bool
 
 val ddebug_invariants : bool ref
+
+val gdwarf_may_alter_codegen : bool ref

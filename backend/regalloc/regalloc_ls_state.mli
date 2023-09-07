@@ -20,6 +20,8 @@ val release_expired_intervals : t -> pos:int -> unit
 
 val active : t -> reg_class:int -> ClassIntervals.t
 
+val active_classes : t -> ClassIntervals.t array
+
 val stack_slots : t -> Regalloc_stack_slots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id

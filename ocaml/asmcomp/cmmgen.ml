@@ -124,6 +124,8 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
+    | Punboxed_vector _ ->
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -331,6 +333,21 @@ let join_unboxed_number_kind ~strict k1 k2 =
   | No_unboxing, k | k, No_unboxing when not strict ->
       k
   | _, _ -> No_unboxing
+
+(* [exttype_of_sort] and [machtype_of_sort] should be kept in sync with
+   [Typeopt.layout_of_const_sort]. *)
+(* CR layouts v5: Void case should probably be typ_void *)
+let exttype_of_sort (s : Layouts.Sort.const) =
+  match s with
+  | Value -> XInt
+  | Float64 -> XFloat
+  | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
+
+let machtype_of_sort (s : Layouts.Sort.const) =
+  match s with
+  | Value -> typ_val
+  | Float64 -> typ_float
+  | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
 
 let is_unboxed_number_cmm ~strict cmm =
   let r = ref No_result in
@@ -612,7 +629,7 @@ let rec transl env e =
          | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu
          | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
          | Pbytesrefs | Pbytessets | Pisint | Pisout
-         | Pbswap16 | Pint_as_pointer | Popaque | Pfield _
+         | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
@@ -625,7 +642,7 @@ let rec transl env e =
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-         | Pbbswap _), _)
+         | Pbbswap _ | Pget_header _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
       end
@@ -826,13 +843,8 @@ and transl_make_array dbg env kind mode args =
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
-    (* CR layouts v2: This match to be extended with
-         | Same_as_ocaml_repr Float64 -> (XFloat, transl env arg)
-       in the PR that adds Float64 *)
     match native_repr with
-    | Same_as_ocaml_repr Value ->
-        (XInt, transl env arg)
-    | Same_as_ocaml_repr Void -> assert false
+    | Same_as_ocaml_repr sort -> (exttype_of_sort sort, transl env arg)
     | Unboxed_float ->
         (XFloat, transl_unbox_float dbg env arg)
     | Unboxed_integer bi ->
@@ -842,6 +854,8 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
+    | Unboxed_vector _ ->
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -860,17 +874,15 @@ and transl_ccall env prim args dbg =
   in
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
-    (* CR layouts v2: This match to be extended with
-         | Same_as_ocaml_repr Float64 -> (typ_float, fun x -> x)
-       in the PR that adds Float64 *)
-    | _, Same_as_ocaml_repr Value -> (typ_val, fun x -> x)
-    | _, Same_as_ocaml_repr Void -> assert false
+    | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+    | _, Unboxed_vector _ ->
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result
@@ -888,7 +900,7 @@ and transl_prim_1 env p arg dbg =
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
-  | Pint_as_pointer ->
+  | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
   | Praise rkind ->
@@ -948,6 +960,8 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Pget_header m ->
+      box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
@@ -1134,7 +1148,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
-  | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pfloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
@@ -1143,7 +1157,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1191,7 +1205,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
-  | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
@@ -1204,7 +1218,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1244,6 +1258,8 @@ and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
         Boxed (Boxed_float (alloc_heap, dbg), false)
     | Mutable, Pboxedintval bi ->
         Boxed (Boxed_integer (bi, alloc_heap, dbg), false)
+    | _, Pboxedvectorval _ ->
+        Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | _, (Pfloatval | Pboxedintval _) ->
         (* It would be safe to always unbox in this case, but
            we do it only if this indeed allows us to get rid of
@@ -1290,6 +1306,8 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
          there may be constant closures inside that need lifting out. *)
       let _cbody : expression = transl_body env in
       cexp
+  | Punboxed_vector _ ->
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
   | Punboxed_float | Punboxed_int _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in

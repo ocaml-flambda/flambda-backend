@@ -141,7 +141,6 @@ end
     corresponding module of this module type.  We're adding these lazily as we
     need them. When you add another one, make sure also to add special handling
     in [Ast_iterator] and [Ast_mapper].
-
 *)
 module type AST = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
@@ -154,6 +153,7 @@ module type AST = sig
   val make_jane_syntax
     :  Feature.t
     -> string list
+    -> ?payload:Parsetree.payload
     -> ast
     -> ast
 
@@ -217,6 +217,9 @@ module Constructor_argument :
 module Extension_constructor :
   AST with type ast = Parsetree.extension_constructor
 
+module Constructor_declaration :
+  AST with type ast = Parsetree.constructor_declaration
+
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
     saying otherwise.  This is intended to be used in [jane_syntax.ml] when a
@@ -236,17 +239,23 @@ val assert_extension_enabled :
    approach for now, but we could revisit this decision if we use it more
    often.
 *)
-(** Extracts the first attribute (in list order) that was inserted by the
+(** Extracts the last attribute (in list order) that was inserted by the
     Jane Syntax framework, and returns the rest of the attributes in the
-    same relative order as was input.
+    same relative order as was input, along with the location of the removed
+    attribute and its payload.
 
     This can be used by [Jane_syntax] to peel off individual attributes in
     order to process a Jane Syntax element that consists of multiple
     nested ASTs.
 *)
-val find_and_remove_jane_syntax_attribute
-  :  Parsetree.attributes
-  -> (Embedded_name.t * Parsetree.attributes) option
+val find_and_remove_jane_syntax_attribute :
+  Parsetree.attributes ->
+  (Embedded_name.t * Location.t *
+   Parsetree.payload * Parsetree.attributes) option
+
+(** Creates an attribute used for encoding syntax from the given [Feature.t] *)
+val make_jane_syntax_attribute :
+  Feature.t -> string list -> Parsetree.payload -> Parsetree.attribute
 
 (** Errors around the representation of our extended ASTs.  These should mostly
     just be fatal, but they're needed for one test case

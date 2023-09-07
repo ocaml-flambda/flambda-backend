@@ -394,6 +394,29 @@ let simplify_move_within_set_of_closures env r
                 let approx = A.value_closure value_set_of_closures move_to in
                 Move_within_set_of_closures move_within, ret r approx)
 
+let remove_exclaves (lam : Flambda.t) =
+  let rec remove lam ~depth : Flambda.t =
+    match (lam : Flambda.t) with
+    | Region body ->
+      let new_body = remove ~depth:(depth + 1) body in
+      if new_body == body then lam else Region new_body
+    | Exclave body ->
+      if depth = 0 then body
+      else
+        let new_body = remove ~depth:(depth - 1) body in
+        if new_body == body then lam else Exclave new_body
+    | Apply ({ reg_close = Rc_close_at_apply; _ } as apply) when depth = 0 ->
+      (* Can still be compiled as a tail call, so use [Rc_normal] rather than
+         [Rc_nontail] *)
+      Apply { apply with reg_close = Rc_normal }
+    | Send ({ reg_close = Rc_close_at_apply; _ } as send) when depth = 0 ->
+      (* Similar to [Apply] *)
+      Send { send with reg_close = Rc_normal }
+    | _ ->
+      Flambda_iterators.map_tail_subexpressions (remove ~depth) lam
+  in
+  remove lam ~depth:0
+
 (* Transform an expression denoting an access to a variable bound in
    a closure.  Variables in the closure ([project_var.closure]) may
    have been freshened since [expr] was constructed; as such, we
@@ -675,10 +698,18 @@ and simplify_set_of_closures original_env r
   set_of_closures, r, value_set_of_closures.freshening
 
 and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambda.alloc_mode) r =
-  match reg_close, mode with
-  | (Rc_normal | Rc_nontail), Alloc_heap -> r
-  | Rc_close_at_apply, _
-  | _, Alloc_local -> R.set_region_used r
+  let r =
+    (* A close-at-apply tail call is effectively a small exclave *)
+    match reg_close with
+    | Rc_close_at_apply -> R.set_region_has_exclave r
+    | Rc_normal | Rc_nontail -> r
+  in
+  let r =
+    match mode with
+    | Alloc_local -> R.set_region_used r
+    | Alloc_heap -> r
+  in
+  r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
@@ -777,10 +808,13 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
                 ~function_decls ~lhs_of_application ~closure_id_being_applied
                 ~function_decl ~value_set_of_closures ~dbg ~reg_close ~mode
                 ~inlined_requested ~specialise_requested ~result_layout
-            else if nargs > 0 && nargs < arity then
+            else if nargs > 0 && nargs < arity then begin
+              assert(Lambda.compatible_layout Lambda.layout_function
+                       result_layout);
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-                ~inlined_requested ~specialise_requested ~result_layout
+                ~inlined_requested ~specialise_requested
+            end
             else
               Misc.fatal_errorf "Function with arity %d when simplifying \
                   application expression: %a"
@@ -809,7 +843,7 @@ and simplify_full_application env r ~function_decls ~lhs_of_application
 
 and simplify_partial_application env r ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-      ~inlined_requested ~specialise_requested ~result_layout
+      ~inlined_requested ~specialise_requested
   =
   let arity = A.function_arity function_decl in
   assert (arity > List.length args);
@@ -867,10 +901,9 @@ and simplify_partial_application env r ~lhs_of_application
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
-        result_layout;
+        result_layout = function_decl.A.return_layout;
       }
     in
-    assert(Lambda.compatible_layout function_decl.A.return_layout result_layout);
     let closure_variable =
       Variable.rename ~debug_info:(Closure_id.debug_info closure_id_being_applied)
         (Closure_id.unwrap closure_id_being_applied)
@@ -1460,11 +1493,11 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
      let r = R.enter_region r in
      let body, r = simplify env r body in
      let use_inner_region = R.may_use_region r in
+     let has_exclave = R.region_has_exclave r in
      let r = R.leave_region r in
      if use_inner_region then Region body, r
-     else body, r
+     else if has_exclave then remove_exclaves body, r else body, r
   | Exclave body ->
-     let r = R.set_region_used r in
      let exclave, r = R.enter_exclave r in
      let body, r = simplify env r body in
      let r = R.leave_exclave r exclave in

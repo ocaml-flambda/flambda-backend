@@ -39,6 +39,7 @@ open Cmm_builtins
 type boxed_number =
   | Boxed_float of alloc_mode * Debuginfo.t
   | Boxed_integer of boxed_integer * alloc_mode * Debuginfo.t
+  | Boxed_vector of boxed_vector * alloc_mode * Debuginfo.t
 
 type env = {
   unboxed_ids : (V.t * boxed_number) V.tbl;
@@ -162,6 +163,7 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
+    | Punboxed_vector (Pvec128 _) -> Onetwentyeight
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -274,6 +276,8 @@ let emit_structured_constant symb cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
+  | Uconst_vec128 {high; low} ->
+      emit_vec128_constant symb {high; low} cont
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
       emit_block symb (block_header tag (List.length csts)) cont
@@ -319,6 +323,7 @@ let typ_of_boxed_number = function
   | Boxed_float _ -> Cmm.typ_float
   | Boxed_integer (Pint64, _,_) when size_int = 4 -> [|Int;Int|]
   | Boxed_integer _ -> Cmm.typ_int
+  | Boxed_vector (Pvec128 _, _, _) -> Cmm.typ_vec128
 
 let equal_unboxed_integer ui1 ui2 =
   match ui1, ui2 with
@@ -338,6 +343,7 @@ let box_number bn arg =
   match bn with
   | Boxed_float (m, dbg) -> box_float dbg m arg
   | Boxed_integer (bi, m, dbg) -> box_int dbg bi m arg
+  | Boxed_vector (Pvec128 _, m, dbg) -> box_vec128 dbg m arg
 
 (* Returns the unboxed representation of a boxed float or integer.
    For Pint32 on 64-bit archs, the high 32 bits of the result are undefined. *)
@@ -349,6 +355,8 @@ let unbox_number dbg bn arg =
     low_32 dbg (unbox_int dbg Pint32 arg)
   | Boxed_integer (bi, _, _) ->
     unbox_int dbg bi arg
+  | Boxed_vector (Pvec128 _, _, _) ->
+    unbox_vec128 dbg arg
 
 (* Auxiliary functions for optimizing "let" of boxed numbers (floats and
    boxed integers *)
@@ -380,8 +388,23 @@ let join_unboxed_number_kind ~strict k1 k2 =
   | _, _ -> No_unboxing
 
 let is_strict : kind_for_unboxing -> bool = function
-  | Boxed_integer _ | Boxed_float -> false
+  | Boxed_integer _ | Boxed_float | Boxed_vector _ -> false
   | Any -> true
+
+(* [exttype_of_sort] and [machtype_of_sort] should be kept in sync with
+   [Typeopt.layout_of_const_sort]. *)
+(* CR layouts v5: Void case should probably be typ_void *)
+let exttype_of_sort (s : Layouts.Sort.const) =
+  match s with
+  | Value -> XInt
+  | Float64 -> XFloat
+  | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
+
+let machtype_of_sort (s : Layouts.Sort.const) =
+  match s with
+  | Value -> typ_val
+  | Float64 -> typ_float
+  | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
 
 let rec is_unboxed_number_cmm = function
     | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
@@ -414,6 +437,8 @@ let rec is_unboxed_number_cmm = function
           Boxed (Boxed_integer (Pint32, alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int64 _) ->
           Boxed (Boxed_integer (Pint64, alloc_heap, Debuginfo.none), true)
+        | Some (Uconst_vec128 _) ->
+          Boxed (Boxed_vector (Pvec128 Unknown128, alloc_heap, Debuginfo.none), true)
         | _ ->
           No_unboxing
       end
@@ -424,6 +449,7 @@ let rec is_unboxed_number_cmm = function
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _
+    | Cconst_vec128 _
     | Cvar _
     | Cassign _
     | Ctuple _
@@ -445,7 +471,7 @@ let rec is_unboxed_number_cmm = function
       List.fold_left
         (join_unboxed_number_kind ~strict)
         (is_unboxed_number_cmm body)
-        (List.map (fun (_, _, e, _) -> is_unboxed_number_cmm e) handlers)
+        (List.map (fun (_, _, e, _, _) -> is_unboxed_number_cmm e) handlers)
 
 (* Translate an expression *)
 
@@ -683,7 +709,7 @@ let rec transl env e =
          | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu
          | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
          | Pbytesrefs | Pbytessets | Pisint | Pisout
-         | Pbswap16 | Pint_as_pointer | Popaque | Pfield _
+         | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
@@ -696,7 +722,7 @@ let rec transl env e =
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-         | Pbbswap _), _)
+         | Pbbswap _ | Pget_header _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
       end
@@ -770,7 +796,7 @@ let rec transl env e =
                     )
               dbg,
             Ctuple [],
-            dbg, Any))
+            dbg, Any, false))
   | Ufor(id, low, high, dir, body) ->
       let dbg = Debuginfo.none in
       let tst = match dir with Upto -> Cgt   | Downto -> Clt in
@@ -805,7 +831,7 @@ let rec transl env e =
                       dbg,
                    dbg, Any),
                  Ctuple [],
-                 dbg, Any))))
+                 dbg, Any, false))))
   | Uassign(id, exp) ->
       let dbg = Debuginfo.none in
       let cexp = transl env exp in
@@ -856,7 +882,7 @@ and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   in
   if env == new_env then
     (* No unboxing *)
-    ccatch (nfail, ids, body, transl env handler, dbg, kind)
+    ccatch (nfail, ids, body, transl env handler, dbg, kind, false)
   else
     (* allocate new "nfail" to catch errors more easily *)
     let new_nfail = next_raise_count () in
@@ -870,7 +896,7 @@ and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
       in
       aux body
     in
-    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind)
+    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind, false)
 
 and transl_make_array dbg env kind mode args =
   match kind with
@@ -895,13 +921,8 @@ and transl_make_array dbg env kind mode args =
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
-    (* CR layouts v2: This match to be extended with
-         | Same_as_ocaml_repr Float64 -> (XFloat, transl env arg)
-       in the PR that adds Float64 *)
     match native_repr with
-    | Same_as_ocaml_repr Value ->
-        (XInt, transl env arg)
-    | Same_as_ocaml_repr Void -> assert false
+    | Same_as_ocaml_repr sort -> (exttype_of_sort sort, transl env arg)
     | Unboxed_float ->
         (XFloat, transl_unbox_float dbg env arg)
     | Unboxed_integer bi ->
@@ -911,6 +932,8 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
+    | Unboxed_vector (Pvec128 _) ->
+        (XVec128, transl_unbox_vec128 dbg env arg)
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -928,17 +951,14 @@ and transl_ccall env prim args dbg =
         (ty1 :: tys, arg' :: args')
   in
   let typ_res, wrap_result =
-    (* CR layouts v2: This match to be extended with
-         | Same_as_ocaml_repr Float64 -> (typ_float, fun x -> x)
-       in the PR that adds Float64 *)
     match prim.prim_native_repr_res with
-    | _, Same_as_ocaml_repr Value -> (typ_val, fun x -> x)
-    | _, Same_as_ocaml_repr Void -> assert false
+    | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
+    | _, Unboxed_vector (Pvec128 _) -> (typ_vec128, box_vec128 dbg alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
@@ -956,7 +976,7 @@ and transl_prim_1 env p arg dbg =
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
-  | Pint_as_pointer ->
+  | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
   | Praise rkind ->
@@ -1016,6 +1036,8 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Pget_header m ->
+      box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
@@ -1202,7 +1224,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
-  | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pfloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
@@ -1211,7 +1233,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1259,7 +1281,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
-  | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
@@ -1272,7 +1294,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1282,6 +1304,9 @@ and transl_unbox_float dbg env exp =
 
 and transl_unbox_int dbg env bi exp =
   unbox_int dbg bi (transl env exp)
+
+and transl_unbox_vec128 dbg env exp =
+  unbox_vec128 dbg (transl env exp)
 
 (* transl_unbox_int, but may return garbage in upper bits *)
 and transl_unbox_int_low dbg env bi e =
@@ -1346,7 +1371,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
        there may be constant closures inside that need lifting out. *)
     let _cbody : expression = transl_body env in
     cexp
-  | Punboxed_float | Punboxed_int _ -> begin
+  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with
@@ -1362,7 +1387,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
 and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg =
   match body with
   | Cexit (Lbl nexit,[],[]) when nexit=ncatch -> handler
-  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind)
+  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind, false)
 
 and is_shareable_cont exp =
   match exp with

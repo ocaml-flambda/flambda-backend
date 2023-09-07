@@ -79,8 +79,8 @@ let rec deadcode i =
     let s = deadcode i.next in
     let handlers' =
       List.fold_left
-        (fun map (nfail, ts, handler) ->
-           Int.Map.add nfail (ts, deadcode handler) map)
+        (fun map (nfail, ts, handler, is_cold) ->
+           Int.Map.add nfail (ts, deadcode handler, is_cold) map)
         Int.Map.empty handlers
     in
     (* Previous passes guarantee that indexes of handlers are unique
@@ -94,8 +94,8 @@ let rec deadcode i =
         let live_exits = Int.Set.add nfail live_exits in
         match Int.Map.find_opt nfail handlers' with
         | None -> (live_exits, used_handlers)
-        | Some (ts, handler) ->
-          let used_handlers = (nfail, ts, handler) :: used_handlers in
+        | Some (ts, handler, is_cold) ->
+          let used_handlers = (nfail, ts, handler, is_cold) :: used_handlers in
           match rec_flag with
           | Cmm.Nonrecursive -> (live_exits, used_handlers)
           | Cmm.Recursive ->
@@ -106,7 +106,7 @@ let rec deadcode i =
     in
     (* Remove exits that are going out of scope. *)
     let used_handler_indexes =
-      List.fold_left (fun acc (n, _, _) -> Int.Set.add n acc)
+      List.fold_left (fun acc (n, _, _, _) -> Int.Set.add n acc)
         Int.Set.empty used_handlers
     in
     let live_exits = Int.Set.diff live_exits used_handler_indexes in
@@ -115,7 +115,7 @@ let rec deadcode i =
       match rec_flag with
       | Cmm.Recursive -> live_exits
       | Cmm.Nonrecursive ->
-        List.fold_left (fun exits (_,_,h) -> Int.Set.union h.exits exits)
+        List.fold_left (fun exits (_,_,h,_) -> Int.Set.union h.exits exits)
           live_exits
           used_handlers
     in
@@ -127,7 +127,7 @@ let rec deadcode i =
         exits;
       }
     | _ ->
-      let handlers = List.map (fun (n,ts,h) -> (n,ts,h.i)) used_handlers in
+      let handlers = List.map (fun (n,ts,h,is_cold) -> (n,ts,h.i,is_cold)) used_handlers in
       { i = { i with desc = Icatch(rec_flag, ts, handlers, body'.i);
                      next = s.i };
         regs = i.live;

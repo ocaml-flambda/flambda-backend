@@ -29,8 +29,6 @@ exception Escape of type_expr Errortrace.escape
 exception Tags of label * label
 exception Cannot_expand
 exception Cannot_apply
-exception Matches_failure of Env.t * Errortrace.unification_error
-  (* Raised from [matches], hence the odd name *)
 exception Incompatible
   (* Raised from [mcomp] *)
 
@@ -179,10 +177,10 @@ val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
-        alloc_mode option -> (Primitive.mode * Primitive.native_repr)
-        -> alloc_mode
+        Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
+        -> Mode.Locality.t
 val instance_prim_mode:
-        Primitive.description -> type_expr -> type_expr * alloc_mode option
+        Primitive.description -> type_expr -> type_expr * Mode.Locality.t option
 
 val apply:
         Env.t -> type_expr list -> type_expr -> type_expr list -> type_expr
@@ -247,10 +245,10 @@ val unify_delaying_layout_checks :
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : alloc_mode;
+    arg_mode : Mode.Alloc.t;
     arg_sort : sort;
     ty_ret : type_expr;
-    ret_mode : alloc_mode;
+    ret_mode : Mode.Alloc.t;
     ret_sort : sort
   }
 
@@ -280,17 +278,20 @@ val deep_occur: type_expr -> type_expr -> bool
 val moregeneral: Env.t -> bool -> type_expr -> type_expr -> unit
         (* Check if the first type scheme is more general than the second. *)
 val is_moregeneral: Env.t -> bool -> type_expr -> type_expr -> bool
-val rigidify: type_expr -> type_expr list
-        (* "Rigidify" a type and return its type variable *)
 val all_distinct_vars: Env.t -> type_expr list -> bool
         (* Check those types are all distinct type variables *)
-val matches: expand_error_trace:bool -> Env.t -> type_expr -> type_expr -> unit
+
+type matches_result =
+  | Unification_failure of Errortrace.unification_error
+  | Layout_mismatch of { original_layout : layout; inferred_layout : layout
+                       ; ty : type_expr }
+  | All_good
+val matches: expand_error_trace:bool -> Env.t ->
+  type_expr -> type_expr -> matches_result
         (* Same as [moregeneral false], implemented using the two above
            functions and backtracking. Ignore levels. The [expand_error_trace]
            flag controls whether the error raised performs expansion; this
            should almost always be [true]. *)
-val does_match: Env.t -> type_expr -> type_expr -> bool
-        (* Same as [matches], but returns a [bool] *)
 
 val reify_univars : Env.t -> Types.type_expr -> Types.type_expr
         (* Replaces all the variables of a type by a univar. *)
@@ -443,7 +444,11 @@ val nongen_class_declaration: class_declaration -> bool
            Uses the empty environment.  *)
 
 val free_variables: ?env:Env.t -> type_expr -> type_expr list
-        (* If env present, then check for incomplete definitions too *)
+        (* If env present, then check for incomplete definitions too;
+           returns both normal variables and row variables*)
+val free_non_row_variables_of_list: type_expr list -> type_expr list
+        (* gets only non-row variables *)
+
 val closed_type_decl: type_declaration -> type_expr option
 val closed_extension_constructor: extension_constructor -> type_expr option
 val closed_class:
@@ -491,6 +496,9 @@ val tvariant_not_immediate : row_desc -> bool
 (* Cheap upper bound on layout.  Will not expand unboxed types - call
    [type_layout] if that's needed. *)
 val estimate_type_layout : Env.t ->  type_expr -> layout
+
+(* Get the layout of a type, expanding it and looking through [[@@unboxed]]
+   types. *)
 val type_layout : Env.t -> type_expr -> layout
 
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
@@ -512,10 +520,14 @@ val check_type_layout :
 val constrain_type_layout :
   Env.t -> type_expr -> layout -> (unit, Layout.Violation.t) result
 
+val is_principal : type_expr -> bool
+
 (* True if a type is always global (i.e., it mode crosses for local).  This is
    true for all immediate and immediate64 types.  To make it sound for
    immediate64, we've disabled stack allocation on 32-bit builds. *)
 val is_always_global : Env.t -> type_expr -> bool
+
+val mode_cross : Env.t -> type_expr -> bool
 
 (* For use with ocamldebug *)
 type global_state

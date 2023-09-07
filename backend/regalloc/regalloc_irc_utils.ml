@@ -106,11 +106,15 @@ let is_move_basic : Cfg.basic -> bool =
   | Op op -> (
     match op with
     | Move -> true
+    (* CR mslater: (SIMD) vectorcast / float64<->float64x2 cast may be true *)
+    | Vectorcast _ -> false
+    | Scalarcast _ -> false
     | Spill -> false
     | Reload -> false
     | Const_int _ -> false
     | Const_float _ -> false
     | Const_symbol _ -> false
+    | Const_vec128 _ -> false
     | Stackoffset _ -> false
     | Load _ -> false
     | Store _ -> false
@@ -140,22 +144,9 @@ let is_move_basic : Cfg.basic -> bool =
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
 
-let all_precolored_regs : Reg.t array =
+let all_precolored_regs =
   Proc.init ();
-  let num_available_registers =
-    Array.fold_left Proc.num_available_registers ~f:( + ) ~init:0
-  in
-  let res = Array.make num_available_registers Reg.dummy in
-  let i = ref 0 in
-  for reg_class = 0 to pred Proc.num_register_classes do
-    let first_available_register = Proc.first_available_register.(reg_class) in
-    let num_available_registers = Proc.num_available_registers.(reg_class) in
-    for reg_idx = 0 to pred num_available_registers do
-      res.(!i) <- Proc.phys_reg (first_available_register + reg_idx);
-      incr i
-    done
-  done;
-  res
+  Proc.precolored_regs
 
 let k reg = Proc.num_available_registers.(Proc.register_class reg)
 
@@ -175,34 +166,6 @@ let update_register_locations : unit -> unit =
           if irc_debug
           then log ~indent:1 "updating %a to %d" Printmach.reg reg color;
           reg.Reg.loc <- Reg color))
-
-module Split_mode = struct
-  type t =
-    | Off
-    | Naive
-
-  let all = [Off; Naive]
-
-  let to_string = function Off -> "off" | Naive -> "naive"
-
-  let value =
-    let available_modes () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "IRC_SPLIT" with
-      | None ->
-        fatal "the IRC_SPLIT parameter is not set (possible values: %s)"
-          (available_modes ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "off" -> Off
-        | "naive" -> Naive
-        | _ ->
-          fatal "unknown split mode %S (possible values: %s)" id
-            (available_modes ())))
-end
 
 module Spilling_heuristics = struct
   type t =

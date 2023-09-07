@@ -1,25 +1,29 @@
-(** Language extensions provided by ocaml-jst *)
+(** Language extensions provided by the Jane Street version of the OCaml
+    compiler.
+*)
 
 (** A setting for extensions that track multiple maturity levels *)
-type maturity = Stable | Beta | Alpha
+type maturity = Language_extension_kernel.maturity = Stable | Beta | Alpha
 
 (** The type of language extensions. An ['a t] is an extension that can either
     be off or be set to have any value in ['a], so a [unit t] can be either on
     or off, while a [maturity t] can have different maturity settings. *)
-type _ t =
+type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
   | Local : unit t
+  | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
+  | SIMD : unit t
 
 (** Existentially packed language extension *)
 module Exist : sig
   type 'a extn = 'a t (* this is removed from the sig by the [with] below;
                          ocamldoc doesn't like [:=] in sigs *)
-  type t =
+  type t = Language_extension_kernel.Exist.t =
     | Pack : 'a extn -> t
 
   val to_string : t -> string
@@ -50,9 +54,14 @@ val is_erasable : 'a t -> bool
 
 (** Print and parse language extensions; parsing is case-insensitive *)
 val to_string : 'a t -> string
+val to_command_line_string : 'a t -> 'a -> string
 val of_string : string -> Exist.t option
 
 val maturity_to_string : maturity -> string
+
+(** Get the command line string enabling the given extension, if it's
+    enabled; otherwise None *)
+val get_command_line_string_if_enabled : 'a t -> string option
 
 (** Enable and disable according to command-line strings; these raise
     an exception if the input string is invalid. *)
@@ -94,11 +103,27 @@ val with_disabled : 'a t -> (unit -> unit) -> unit
     way. *)
 val restrict_to_erasable_extensions : unit -> unit
 
-(** Permanently ban all extensions; used for [-disable-all-extensions] to
-    ensure that some code is 100% extension-free.  When called, disables any
+(** Permanently ban all extensions; used for [-disable-all-extensions] to ensure
+    that some code is 100% extension-free.  When called, disables any
     currently-enabled extensions, including the defaults.  Causes any future
-    uses of [set ~enabled:true], [enable], and their [with_] variants to
-    raise; also causes any future uses of [only_erasable_extensions] to raise.
+    uses of [set ~enabled:true], [enable], and their [with_] variants to raise;
+    also causes any future uses of [restrict_to_erasable_extensions] to raise.
     The [is_enabled] function will still work, it will just always return
     [false].*)
 val disallow_extensions : unit -> unit
+
+(**/**)
+
+(** Special functionality that can only be used in "pprintast.ml" *)
+module For_pprintast : sig
+  (** A function for wrapping a printer from "pprintast.ml" so that it will
+      unconditionally print Jane Syntax instead of raising an exception when
+      trying to print syntax from disabled extensions. *)
+  type printer_exporter =
+    { print_with_maximal_extensions :
+        'a. (Format.formatter -> 'a -> unit) -> (Format.formatter -> 'a -> unit)
+    }
+
+  (** Raises if called more than once ever. *)
+  val make_printer_exporter : unit -> printer_exporter
+end

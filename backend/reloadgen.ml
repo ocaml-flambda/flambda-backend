@@ -63,11 +63,11 @@ method reload_operation op arg res =
      res to be stack-allocated, but do something for
      stack-to-stack moves *)
   match op with
-    Imove | Ireload | Ispill | Iintofvalue | Ivalueofint ->
+    | Imove | Ireload | Ispill | Iintofvalue | Ivalueofint | Ivectorcast _ ->
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2
-          && Proc.register_class arg.(0) = Proc.register_class res.(0) then
+          && Proc.stack_slot_class arg.(0).typ = Proc.stack_slot_class res.(0).typ then
             (* nothing will be emitted later,
                not necessary to apply constraints *)
             (arg, res)
@@ -85,8 +85,7 @@ method reload_operation op arg res =
       (* arg = result, can be on stack or register *)
       assert (arg.(0).stamp = res.(0).stamp);
       (arg, res)
-  | _ ->
-      (self#makeregs arg, self#makeregs res)
+  | _ -> (self#makeregs arg, self#makeregs res)
 
 method reload_test _tst args =
   self#makeregs args
@@ -131,7 +130,7 @@ method private reload i k =
              (instr_cons (Iswitch(index, cases)) newarg [||] next)))
   | Icatch(rec_flag, ts, handlers, body) ->
       let new_handlers = List.map
-          (fun (nfail, ts, handler) -> nfail, ts, self#reload handler Fun.id)
+          (fun (nfail, ts, handler, is_cold) -> nfail, ts, self#reload handler Fun.id, is_cold)
           handlers in
       self#reload body (fun body ->
         self#reload i.next (fun next ->

@@ -79,6 +79,17 @@
 
 open Parsetree
 
+(** We carefully regulate which bindings we import from [Language_extension]
+    to ensure that we can import this file into the Jane Street internal
+    repo with no changes.
+*)
+module Language_extension = struct
+  include Language_extension_kernel
+  include (
+    Language_extension
+      : Language_extension_kernel.Language_extension_for_jane_syntax)
+end
+
 (******************************************************************************)
 
 module Feature : sig
@@ -138,7 +149,7 @@ end = struct
 end
 
 (** Was this embedded as an [[%extension_node]] or an [[@attribute]]?  Not
-    exported. *)
+    exported. Used only for error messages. *)
 module Embedding_syntax = struct
   type t =
     | Extension_node
@@ -324,15 +335,11 @@ end
 
 (******************************************************************************)
 module Error = struct
-  (** Someone used [[%jane.*.FEATNAME]]/[[@jane.*.FEATNAME]] wrong *)
-  type malformed_embedding =
-    | Has_payload of payload
-
   (** An error triggered when desugaring a language extension from an OCaml
       AST; should always be fatal *)
   type error =
-    | Malformed_embedding of
-        Embedding_syntax.t * Embedded_name.t * malformed_embedding
+    | Introduction_has_payload of
+        Embedding_syntax.t * Embedded_name.t * payload
     | Unknown_extension of Embedding_syntax.t * Erasability.t * string
     | Disabled_extension :
         { ext : _ Language_extension.t
@@ -363,16 +370,13 @@ let assert_extension_enabled
 ;;
 
 let report_error ~loc = function
-  | Malformed_embedding(what, name, malformed) -> begin
-      match malformed with
-      | Has_payload _payload ->
-          Location.errorf
+  | Introduction_has_payload (what, name, _payload) ->
+       Location.errorf
             ~loc
             "@[Modular syntax %s are not allowed to have a payload,@ \
              but %a does@]"
           (Embedding_syntax.name_plural what)
           Embedded_name.pp_quoted_name name
-    end
   | Unknown_extension (what, erasability, name) ->
       let embedded_name = { Embedded_name.erasability; components = [name] } in
       Location.errorf
@@ -461,61 +465,60 @@ module type AST_internal = sig
 
   val embedding_syntax : Embedding_syntax.t
 
-  val make_jane_syntax : Embedded_name.t -> ast -> ast
+  val make_jane_syntax :
+    Embedded_name.t -> ?payload:payload -> ast -> ast
 
   (** Given an AST node, check if it's a representation of a term from one of
-      our novel syntactic features; if it is, split it back up into its name and
-      the body.  If the embedded term is malformed in any way, raises an error;
-      if the input isn't an embedding of one of our novel syntactic features,
-      returns [None].  Partial inverse of [make_jane_syntax]. *)
-  val match_jane_syntax : ast -> (Embedded_name.t * ast) option
+      our novel syntactic features; if it is, split it back up into its name,
+      the location of the extension/attribute, any payload, and the body.  If
+      the embedded term is malformed in any way, raises an error; if the input
+      isn't an embedding of one of our novel syntactic features, returns [None].
+      Partial inverse of [make_jane_syntax]. *)
+  val match_jane_syntax :
+    ast -> (Embedded_name.t * Location.t * Parsetree.payload * ast) option
 end
 
 (* Parses the embedded name from an embedding, raising if
-    the embedding is malformed. Malformed means either:
-
-    1. The embedding has a payload; attribute payloads must
-    be empty, so other ppxes can traverse "into" them.
-
-    2. NAME is missing; e.g. the attribute is just [[@jane]].
+    the embedding is malformed. Malformed means that
+    NAME is missing; e.g. the attribute is just [[@jane]].
 *)
-let parse_embedding_exn ~loc ~payload ~name ~embedding_syntax =
+let parse_embedding_exn ~loc ~name ~embedding_syntax =
   let raise_error err = raise (Error (loc, err)) in
   match Embedded_name.of_string name with
-  | Some (Ok name) -> begin
-      let raise_malformed err =
-        raise_error (Malformed_embedding (embedding_syntax, name, err))
-      in
-      match payload with
-      | PStr [] -> Some name
-      | _ -> raise_malformed (Has_payload payload)
-    end
-  | Some (Error err) ->
-      raise_error (Misnamed_embedding (err, name, embedding_syntax))
+  | Some (Ok name) -> Some name
+  | Some (Error err) -> raise_error (Misnamed_embedding (err, name, embedding_syntax))
   | None -> None
 
 let find_and_remove_jane_syntax_attribute =
-  let rec loop rest ~rev_prefix =
-    match rest with
+  (* Recurs on [rev_prefix] *)
+  let rec loop ~rev_prefix ~suffix =
+    match rev_prefix with
     | [] -> None
-    | attr :: rest ->
-      let { attr_name = { txt = name; loc = attr_loc }; attr_payload } =
-        attr
-      in
-      begin
-        match
-         parse_embedding_exn
-           ~loc:attr_loc
-           ~payload:attr_payload
-           ~name
-           ~embedding_syntax:Attribute
-        with
-        | None -> loop rest ~rev_prefix:(attr :: rev_prefix)
-        | Some name -> Some (name, List.rev_append rev_prefix rest)
-      end
+    | attr :: rev_prefix ->
+        let { attr_name = { txt = name; loc = attr_loc }; attr_payload } =
+          attr
+        in
+        begin
+          match
+            parse_embedding_exn ~loc:attr_loc ~name ~embedding_syntax:Attribute
+          with
+          | None -> loop ~rev_prefix ~suffix:(attr :: suffix)
+          | Some name ->
+              let unconsumed_attributes = List.rev_append rev_prefix suffix in
+              Some (name, attr_loc, attr_payload, unconsumed_attributes)
+        end
   in
-  fun attributes -> loop attributes ~rev_prefix:[]
+  fun attributes -> loop ~rev_prefix:(List.rev attributes) ~suffix:[]
 ;;
+
+let make_jane_syntax_attribute name payload =
+  { attr_name =
+      { txt = Embedded_name.to_string name
+      ; loc = !Ast_helper.default_loc
+      }
+  ; attr_loc = !Ast_helper.default_loc
+  ; attr_payload = payload
+  }
 
 (** For a syntactic category, produce translations into and out of
     our novel syntax, using parsetree attributes as the encoding.
@@ -532,22 +535,16 @@ module Make_with_attribute
 
     let embedding_syntax = Embedding_syntax.Attribute
 
-    let make_jane_syntax name ast =
-      let attr =
-        { attr_name =
-            { txt = Embedded_name.to_string name
-            ; loc = !Ast_helper.default_loc
-            }
-        ; attr_loc = !Ast_helper.default_loc
-        ; attr_payload = PStr []
-        }
-      in
-      with_attributes ast (attr :: attributes ast)
+    let make_jane_syntax name ?(payload = PStr []) ast =
+      let attr = make_jane_syntax_attribute name payload in
+      (* See Note [Outer attributes at end] in jane_syntax.ml *)
+      with_attributes ast (attributes ast @ [ attr ])
 
     let match_jane_syntax ast =
       match find_and_remove_jane_syntax_attribute (attributes ast) with
       | None -> None
-      | Some (name, attrs) -> Some (name, with_attributes ast attrs)
+      | Some (name, loc, payload, attrs) ->
+        Some (name, loc, payload, with_attributes ast attrs)
 end
 
 (** For a syntactic category, produce translations into and out of
@@ -583,14 +580,14 @@ module Make_with_extension_node
 
     let embedding_syntax = Embedding_syntax.Extension_node
 
-    let make_jane_syntax name ast =
+    let make_jane_syntax name ?(payload = PStr []) ast =
       make_extension_use
         ast
         ~extension_node:
           (make_extension_node
              ({ txt = Embedded_name.to_string name
               ; loc = !Ast_helper.default_loc },
-              PStr []))
+              payload))
 
     let match_jane_syntax ast =
       match match_extension_use ast with
@@ -599,16 +596,27 @@ module Make_with_extension_node
         match
           parse_embedding_exn
             ~loc:ext_loc
-            ~payload:ext_payload
             ~name
             ~embedding_syntax
         with
         | None -> None
-        | Some name -> Some (name, body)
+        | Some name -> Some (name, ext_loc, ext_payload, body)
 end
 
-(** The AST parameters for every subset of types; embedded as
-    [[[%jane.FEATNAME] * BODY]]. *)
+(********************************************************)
+(* Modules representing individual syntactic categories *)
+
+(* Note [Hiding internal details]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Each such module is first written with a '0' suffix. These '0'
+   modules are used internally as arguments to [Make_ast] to produce
+   non-'0' modules which are exported. This approach allows us to
+   hide details of these modules necessary for [Make_ast] but
+   unnecessary for external uses.
+*)
+
+(** The AST parameters for every subset of types; embedded with attributes. *)
 module Type_AST_syntactic_category = struct
   type ast = core_type
 
@@ -621,7 +629,7 @@ module Type_AST_syntactic_category = struct
   let with_attributes typ ptyp_attributes = { typ with ptyp_attributes }
 end
 
-(** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
+(** Types; embedded with attributes. *)
 module Core_type0 = Make_with_attribute (struct
     include Type_AST_syntactic_category
 
@@ -753,61 +761,92 @@ module Structure_item0 = Make_with_extension_node (struct
       | _ -> None
 end)
 
+
+(** Constructor declarations; embedded with attributes. *)
+module Constructor_declaration0 = Make_with_attribute(struct
+  type ast = Parsetree.constructor_declaration
+
+  let plural = "constructor declarations"
+  let location pcd = pcd.pcd_loc
+  let with_location pcd loc = { pcd with pcd_loc = loc }
+
+  let attributes pcd = pcd.pcd_attributes
+  let with_attributes pcd pcd_attributes = { pcd with pcd_attributes }
+end)
+
 (******************************************************************************)
 (* Main exports *)
 
 module type AST = sig
   type ast
 
-  val make_jane_syntax : Feature.t -> string list -> ast -> ast
+  val make_jane_syntax :
+    Feature.t -> string list -> ?payload:payload -> ast -> ast
   val make_entire_jane_syntax :
     loc:Location.t -> Feature.t -> (unit -> ast) -> ast
   val make_of_ast :
     of_ast_internal:(Feature.t -> ast -> 'a option) -> (ast -> 'a option)
 end
 
+(* See Note [Hiding internal details] *)
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
   include AST
 
-  let make_jane_syntax feature trailing_components ast =
+  let make_jane_syntax feature trailing_components ?payload ast =
     AST.make_jane_syntax
       (Embedded_name.of_feature feature trailing_components)
+      ?payload
       ast
 
   let make_entire_jane_syntax ~loc feature ast =
     AST.with_location
-      (make_jane_syntax feature []
-         (Ast_helper.with_default_loc (Location.ghostify loc) ast))
+      (* We can't call [Location.ghostify] here, as we need
+         [jane_syntax_parsing.ml] to build with the upstream compiler; see
+         Note [Buildable with upstream] in jane_syntax.mli for details. *)
+      (Ast_helper.with_default_loc { loc with loc_ghost = true } (fun () ->
+        make_jane_syntax feature [] (ast ())))
       loc
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
   let make_of_ast ~of_ast_internal =
     let of_ast ast =
       let loc = AST.location ast in
-      let raise_error err = raise (Error (loc, err)) in
+      let raise_error loc err = raise (Error (loc, err)) in
       match AST.match_jane_syntax ast with
-      | Some ({ erasability; components = [name] }, ast) -> begin
+      | Some ({ erasability; components = [name] } as embedded_name, syntax_loc, payload, ast) -> begin
+          begin match payload with
+          | PStr [] -> ()
+          | _ -> raise_error syntax_loc
+                   (Introduction_has_payload
+                      (AST.embedding_syntax, embedded_name, payload))
+          end;
           match Feature.of_component name with
           | Ok feat -> begin
               match of_ast_internal feat ast with
               | Some ext_ast -> Some ext_ast
               | None ->
-                  raise_error (Wrong_syntactic_category(feat, AST.plural))
+                  raise_error loc (Wrong_syntactic_category(feat, AST.plural))
             end
-          | Error err -> raise_error begin match err with
+          | Error err -> raise_error loc begin match err with
             | Disabled_extension ext ->
                 Disabled_extension { ext; maturity = None }
             | Unknown_extension name ->
                 Unknown_extension (AST.embedding_syntax, erasability, name)
           end
         end
-      | Some ({ components = _ :: _ :: _; _ } as name, _) ->
-          raise_error (Bad_introduction(AST.embedding_syntax, name))
+      | Some ({ components = _ :: _ :: _; _ } as name, _, _, _) ->
+          raise_error loc (Bad_introduction(AST.embedding_syntax, name))
       | None -> None
     in
     of_ast
 end
 
+let make_jane_syntax_attribute feature trailing_components payload =
+  make_jane_syntax_attribute
+    (Embedded_name.of_feature feature trailing_components)
+    payload
+
+(* See Note [Hiding internal details] *)
 module Expression = Make_ast(Expression0)
 module Pattern = Make_ast(Pattern0)
 module Module_type = Make_ast(Module_type0)
@@ -816,3 +855,4 @@ module Structure_item = Make_ast(Structure_item0)
 module Core_type = Make_ast(Core_type0)
 module Constructor_argument = Make_ast(Constructor_argument0)
 module Extension_constructor = Make_ast(Extension_constructor0)
+module Constructor_declaration = Make_ast(Constructor_declaration0)

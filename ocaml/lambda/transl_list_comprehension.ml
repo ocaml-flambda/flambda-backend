@@ -245,7 +245,17 @@ let rec translate_bindings
           ~kind:(Curried { nlocal = 2 })
           (* Only the accumulator is local, but since the function itself is
              local, [nlocal] has to be equal to the number of parameters *)
-          ~params:[element, element_kind; inner_acc, Pvalue Pgenval]
+          ~params:[
+            {name = element;
+             layout = element_kind;
+             attributes = Lambda.default_param_attribute;
+             (* CR ncourant: check *)
+             mode = alloc_heap};
+            {name = inner_acc;
+             layout = Pvalue Pgenval;
+             attributes = Lambda.default_param_attribute;
+             mode = alloc_local}
+          ]
           ~return:(Pvalue Pgenval)
           ~attr:default_function_attribute
           ~loc

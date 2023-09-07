@@ -24,10 +24,20 @@ ci: ci-no-coverage
 endif
 
 .PHONY: ci-no-coverage
-ci-no-coverage: runtest runtest-upstream
+ci-no-coverage: runtest runtest-upstream minimizer-upstream minimizer
 
 .PHONY: ci-coverage
 ci-coverage: boot-runtest coverage
+
+.PHONY: minimizer-upstream
+minimizer-upstream:
+	cp chamelon/dune.upstream chamelon/dune
+	cd chamelon && $(dune) build
+
+.PHONY: minimizer
+minimizer: _build/_bootinstall
+	cp chamelon/dune.jst chamelon/dune
+	cd chamelon && $(dune) build
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
@@ -163,14 +173,14 @@ coverage: boot-runtest
 
 .PHONY: debug
 .NOTPARALLEL: debug
-debug: install ocaml/tools/debug_printers ocamlc
+debug: install debug-printers ocamlc ocamlopt .ocamldebug
 
 ocamlc:
 	ln -s $(prefix)/bin/ocamlc.byte ocamlc
 
-ocaml/tools/debug_printers: ocaml/tools/debug_printers.ml ocaml/tools/debug_printers.cmo
-	echo 'load_printer "ocaml/tools/debug_printers.cmo"' > $@
-	awk '{ print "install_printer Debug_printers." $$2 }' < $< >> $@
+ocamlopt:
+	ln  -s $(prefix)/bin/ocamlopt.byte ocamlopt
 
-ocaml/tools/debug_printers.cmo: ocaml/tools/debug_printers.ml _build/install/main/bin/ocamlc.byte
-	_build/install/main/bin/ocamlc.byte -c -I _build/main/ocaml/.ocamlcommon.objs/byte ocaml/tools/debug_printers.ml
+.ocamldebug: install
+	find _build/main -name '*.cmo' -type f -printf 'directory %h\n' | sort -u > .ocamldebug
+	echo "source _build/main/$(ocamldir)/tools/debug_printers" >> .ocamldebug

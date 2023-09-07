@@ -164,6 +164,12 @@ val tree_of_modtype: module_type -> out_module_type
 val tree_of_modtype_declaration:
     Ident.t -> modtype_declaration -> out_sig_item
 
+val expand_module_type: (Env.t -> module_type -> module_type) ref
+(* Forward declaration to be filled in Mtype. We want to be able to print types
+     in Mtype for debugging purposes and hence don't want to depend on Mtype
+     here.
+*)
+
 (** Print a list of functor parameters while adjusting the printing environment
     for each functor argument.
 

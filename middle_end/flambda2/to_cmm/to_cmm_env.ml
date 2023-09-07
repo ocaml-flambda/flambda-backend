@@ -283,10 +283,22 @@ let exported_offsets t = t.offsets
 (* Variables *)
 
 let gen_variable v =
-  let name = Variable.unique_name v in
+  let user_visible = Variable.user_visible v in
+  let name = Variable.name v in
   let v = Backend_var.create_local name in
-  (* CR mshinwell: Fix [provenance] *)
-  Backend_var.With_provenance.create ?provenance:None v
+  let provenance =
+    if not (!Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf)
+    then None
+    else if not user_visible
+    then None
+    else
+      (* CR mshinwell: this is a temporary hack, the provenance information will
+         be reworked soon *)
+      Some
+        (Backend_var.Provenance.create ~module_path:(Path.Pident v)
+           ~location:Debuginfo.none ~original_ident:v)
+  in
+  Backend_var.With_provenance.create ?provenance v
 
 let add_bound_param env v v' =
   let v'' = Backend_var.With_provenance.var v' in
@@ -394,8 +406,8 @@ let splittable_primitive dbg prim args = Splittable_prim { dbg; prim; args }
 
 let is_cmm_simple cmm =
   match (cmm : Cmm.expression) with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-    ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_vec128 _
+  | Cconst_symbol _ | Cvar _ ->
     true
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
   | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _

@@ -141,8 +141,6 @@ exception Cannot_subst
 
 exception Cannot_unify_universal_variables
 
-exception Matches_failure of Env.t * unification_error
-
 exception Incompatible
 
 (**** Type level management ****)
@@ -153,8 +151,11 @@ let global_level = s_ref 1
 let saved_level = s_ref []
 
 type levels =
-    { current_level: int; nongen_level: int; global_level: int;
-      saved_level: (int * int) list; }
+    { current_level: int;
+      nongen_level: int;
+      global_level: int; (* level assigned to a fresh 'a in user code *)
+      saved_level: (int * int) list;
+    }
 let save_levels () =
   { current_level = !current_level;
     nongen_level = !nongen_level;
@@ -373,7 +374,7 @@ let in_current_module = function
 
 let in_pervasives p =
   in_current_module p &&
-  try ignore (Env.find_type p Env.initial_safe_string); true
+  try ignore (Env.find_type p (Lazy.force Env.initial_safe_string)); true
   with Not_found -> false
 
 let is_datatype decl=
@@ -517,8 +518,8 @@ let remove_mode_and_layout_variables ty =
       | Tvar { layout } -> Layout.default_to_value layout
       | Tunivar { layout } -> Layout.default_to_value layout
       | Tarrow ((_,marg,mret),targ,tret,_) ->
-         let _ = Alloc_mode.constrain_lower marg in
-         let _ = Alloc_mode.constrain_lower mret in
+         let _ = Mode.Alloc.constrain_legacy marg in
+         let _ = Mode.Alloc.constrain_legacy mret in
          go targ; go tret
       | _ -> iter_type_expr go ty
     end
@@ -542,7 +543,7 @@ let really_closed = ref None
      are expanded to check whether the apparently-free variable would vanish
      during expansion.
    - We collect both type variables and row variables, paired with a boolean
-     that is [true] if we have a row variable.
+     that is [false] if we have a row variable.
    - We do not count "virtual" free variables -- free variables stored in
      the abbreviation of an object type that has been expanded (we store
      the abbreviations for use when displaying the type).
@@ -581,23 +582,30 @@ let rec free_vars_rec real ty =
     | _    ->
         iter_type_expr (free_vars_rec true) ty
 
-let free_vars ?env ty =
+let free_vars ?env tyl =
   free_variables := [];
   really_closed := env;
-  free_vars_rec true ty;
+  List.iter (free_vars_rec true) tyl;
   let res = !free_variables in
   free_variables := [];
   really_closed := None;
   res
 
 let free_variables ?env ty =
-  let tl = List.map fst (free_vars ?env ty) in
+  let tl = List.map fst (free_vars ?env [ty]) in
   unmark_type ty;
+  tl
+
+let free_non_row_variables_of_list tyl =
+  let tl = List.filter_map (fun (v, not_row) -> if not_row then Some v else None)
+             (free_vars tyl)
+  in
+  List.iter unmark_type tyl;
   tl
 
 let closed_type ty =
   remove_mode_and_layout_variables ty;
-  match free_vars ty with
+  match free_vars [ty] with
       []           -> ()
   | (v, real) :: _ -> raise (Non_closed (v, real))
 
@@ -631,10 +639,7 @@ let closed_type_decl decl =
                     remove_mode_and_layout_variables l.ld_type) l
                 end;
                 remove_mode_and_layout_variables res_ty
-            | None ->
-                match cd_args with
-                | Cstr_tuple l ->  List.iter (fun (ty, _) -> closed_type ty) l
-                | Cstr_record l -> List.iter (fun l -> closed_type l.ld_type) l
+            | None -> List.iter closed_type (tys_of_constr_args cd_args)
           )
           v
     | Type_record(r, _rep) ->
@@ -797,7 +802,7 @@ let rec normalize_package_path env p =
   in
   match t with
   | Some (Mty_ident p) -> normalize_package_path env p
-  | Some (Mty_signature _ | Mty_functor _ | Mty_alias _) | None ->
+  | Some (Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) | None ->
       match p with
         Path.Pdot (p1, s) ->
           (* For module aliases *)
@@ -1549,8 +1554,8 @@ let instance_label fixed lbl =
   )
 
 let prim_mode mvar = function
-  | Primitive.Prim_global, _ -> Alloc_mode.global
-  | Primitive.Prim_local, _ -> Alloc_mode.local
+  | Primitive.Prim_global, _ -> Mode.Locality.global
+  | Primitive.Prim_local, _ -> Mode.Locality.local
   | Primitive.Prim_poly, _ ->
     match mvar with
     | Some mvar -> mvar
@@ -1558,12 +1563,17 @@ let prim_mode mvar = function
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
-  | l :: locals, Tarrow ((lbl,_,mret),arg,ret,commu) ->
-     let marg = prim_mode (Some mvar) l in
-     let macc = Alloc_mode.join [marg; mret; macc] in
+  | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
+     let marg = Mode.Alloc.with_locality (prim_mode (Some mvar) l) marg in
+     let macc =
+       Mode.Alloc.join [mret;
+         Mode.Alloc.close_over marg;
+         Mode.Alloc.partial_apply macc
+       ]
+     in
      let mret =
        match locals with
-       | [] -> finalret
+       | [] -> Mode.Alloc.with_locality finalret mret
        | _ :: _ -> macc (* curried arrow *)
      in
      let ret = instance_prim_locals locals mvar macc finalret ret in
@@ -1576,10 +1586,10 @@ let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
-    let mode = Alloc_mode.newvar () in
+    let mode = Mode.Locality.newvar () in
     let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
-      mode Alloc_mode.global finalret ty,
+      mode Mode.Alloc.legacy finalret ty,
     Some mode
   else
     ty, None
@@ -2048,6 +2058,9 @@ let check_type_layout env ty layout =
 let constrain_type_layout env ty layout =
   constrain_type_layout ~fixed:false env ty layout 100
 
+let () =
+  Env.constrain_type_layout := constrain_type_layout
+
 let check_decl_layout env decl layout =
   match Layout.sub decl.type_layout layout with
   | Ok () as ok -> ok
@@ -2101,6 +2114,9 @@ let unification_layout_check env ty layout =
   | Delay_checks r -> r := (ty,layout) :: !r
   | Skip_checks -> ()
 
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
+
 let is_always_global env ty =
   let perform_check () =
     Result.is_ok (check_type_layout env ty
@@ -2115,6 +2131,9 @@ let is_always_global env ty =
     result
   else
     perform_check ()
+
+let mode_cross env (ty : type_expr) =
+  is_principal ty && is_always_global env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
@@ -3064,9 +3083,9 @@ let unify_package env unify_list lv1 p1 fl1 lv2 p2 fl2 =
   && !package_subtype env p2 fl2 p1 fl1 then () else raise Not_found
 
 let unify_alloc_mode_for tr_exn a b =
-  match Alloc_mode.equate a b with
+  match Mode.Alloc.equate a b with
   | Ok () -> ()
-  | Error () -> raise_unexplained_for tr_exn
+  | Error _ -> raise_unexplained_for tr_exn
 
 (* force unification in Reither when one side has a non-conjunctive type *)
 let rigid_variants = ref false
@@ -3777,10 +3796,10 @@ exception Filter_arrow_failed of filter_arrow_failure
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : alloc_mode;
+    arg_mode : Mode.Alloc.t;
     arg_sort : sort;
     ty_ret : type_expr;
-    ret_mode : alloc_mode;
+    ret_mode : Mode.Alloc.t;
     ret_sort : sort
   }
 
@@ -3818,8 +3837,8 @@ let filter_arrow env t l ~force_tpoly =
       end
     in
     let ty_ret = newvar2 level l_res in
-    let arg_mode = Alloc_mode.newvar () in
-    let ret_mode = Alloc_mode.newvar () in
+    let arg_mode = Mode.Alloc.newvar () in
+    let ret_mode = Mode.Alloc.newvar () in
     let t' =
       newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
     in
@@ -4322,13 +4341,13 @@ let relevant_pairs pairs v =
 let moregen_alloc_mode v a1 a2 =
   match
     match v with
-    | Invariant -> Alloc_mode.equate a1 a2
-    | Covariant -> Alloc_mode.submode a1 a2
-    | Contravariant -> Alloc_mode.submode a2 a1
+    | Invariant -> Mode.Alloc.equate a1 a2
+    | Covariant -> Mode.Alloc.submode a1 a2
+    | Contravariant -> Mode.Alloc.submode a2 a1
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
-  | Error () -> raise_unexplained_for Moregen
+  | Error _  -> raise_unexplained_for Moregen
 
 let may_instantiate inst_nongen t1 =
   let level = get_level t1 in
@@ -4622,6 +4641,23 @@ let is_moregeneral env inst_nongen pat_sch subj_sch =
   | () -> true
   | exception Moregen _ -> false
 
+let all_distinct_vars env vars =
+  let tys = ref TypeSet.empty in
+  List.for_all
+    (fun ty ->
+      let ty = expand_head env ty in
+      if TypeSet.mem ty !tys then false else begin
+       tys := TypeSet.add ty !tys;
+       is_Tvar ty
+     end)
+    vars
+
+type matches_result =
+  | Unification_failure of Errortrace.unification_error
+  | Layout_mismatch of { original_layout : layout; inferred_layout : layout
+                       ; ty : type_expr }
+  | All_good
+
 (* Alternative approach: "rigidify" a type scheme,
    and check validity after unification *)
 (* Simpler, no? *)
@@ -4629,8 +4665,8 @@ let is_moregeneral env inst_nongen pat_sch subj_sch =
 let rec rigidify_rec vars ty =
   if try_mark_node ty then
     begin match get_desc ty with
-    | Tvar _ ->
-        if not (TypeSet.mem ty !vars) then vars := TypeSet.add ty !vars
+    | Tvar { layout } ->
+        vars := TypeMap.add ty layout !vars
     | Tvariant row ->
         let Row {more; name; closed} = row_repr row in
         if is_Tvar more && not (has_fixed_explanation row) then begin
@@ -4648,45 +4684,71 @@ let rec rigidify_rec vars ty =
         iter_type_expr (rigidify_rec vars) ty
     end
 
+(* remember free variables in a type so we can make sure they aren't unified;
+   should be paired with a call to [all_distinct_vars_with_original__layouts]
+   later. *)
 let rigidify ty =
-  let vars = ref TypeSet.empty in
+  let vars = ref TypeMap.empty in
   rigidify_rec vars ty;
   unmark_type ty;
-  TypeSet.elements !vars
+  List.map (fun (trans_expr, lay) -> Transient_expr.type_expr trans_expr, lay)
+    (TypeMap.bindings !vars)
 
-let all_distinct_vars env vars =
+(* this version doesn't carry the unification error, which is computed after
+   the error is detected *)
+module No_trace = struct
+  type matches_result_ =
+    | Unification_failure
+    | Layout_mismatch of { original_layout : layout; inferred_layout : layout
+                         ; ty : type_expr }
+    | All_good
+end
+
+let all_distinct_vars_with_original_layouts env vars_layouts =
+  let open No_trace in
   let tys = ref TypeSet.empty in
-  List.for_all
-    (fun ty ->
-      let ty = expand_head env ty in
-      if TypeSet.mem ty !tys then false else
-      (tys := TypeSet.add ty !tys; is_Tvar ty))
-    vars
+  let folder acc (ty, original_layout) =
+    match acc with
+    | Unification_failure | Layout_mismatch _ -> acc
+    | All_good ->
+       let open No_trace in
+       let ty = expand_head env ty in
+       if TypeSet.mem ty !tys then Unification_failure else begin
+         tys := TypeSet.add ty !tys;
+         match get_desc ty with
+         | Tvar { layout = inferred_layout } ->
+           if Layout.equate inferred_layout original_layout
+           then All_good
+           else Layout_mismatch { original_layout; inferred_layout; ty }
+         | _ -> Unification_failure
+       end
+  in
+  List.fold_left folder All_good vars_layouts
 
 let matches ~expand_error_trace env ty ty' =
   let snap = snapshot () in
-  let vars = rigidify ty in
+  let vars_layouts = rigidify ty in
   cleanup_abbrev ();
   match unify env ty ty' with
   | () ->
-      if not (all_distinct_vars env vars) then begin
-        backtrack snap;
+    let result =
+      match all_distinct_vars_with_original_layouts env vars_layouts with
+      | Unification_failure ->
         let diff =
-          if expand_error_trace
-          then expanded_diff env ~got:ty ~expected:ty'
-          else unexpanded_diff ~got:ty ~expected:ty'
+            if expand_error_trace
+            then expanded_diff env ~got:ty ~expected:ty'
+            else unexpanded_diff ~got:ty ~expected:ty'
         in
-        raise (Matches_failure (env, unification_error ~trace:[diff]))
-      end;
-      backtrack snap
+        Unification_failure (unification_error ~trace:[diff])
+      | Layout_mismatch { original_layout; inferred_layout; ty } ->
+        Layout_mismatch { original_layout; inferred_layout; ty }
+      | All_good -> All_good
+    in
+    backtrack snap;
+    result
   | exception Unify err ->
       backtrack snap;
-      raise (Matches_failure (env, err))
-
-let does_match env ty ty' =
-  match matches ~expand_error_trace:false env ty ty' with
-  | () -> true
-  | exception Matches_failure (_, _) -> false
+      Unification_failure err
 
                  (*********************************************)
                  (*  Equivalence between parameterized types  *)
@@ -5256,11 +5318,11 @@ let has_constr_row' env t =
 
 let build_submode posi m =
   if posi then begin
-    let m', changed = Alloc_mode.newvar_below m in
+    let m', changed = Mode.Alloc.newvar_below m in
     let c = if changed then Changed else Unchanged in
     m', c
   end else begin
-    let m', changed = Alloc_mode.newvar_above m in
+    let m', changed = Mode.Alloc.newvar_above m in
     let c = if changed then Changed else Unchanged in
     m', c
   end
@@ -5285,7 +5347,17 @@ let rec build_subtype env (visited : transient_expr list)
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
-        if level > 2 then build_submode (not posi) a else a, Unchanged
+        if level > 2 then begin
+          (* If posi, then t1' >= t1, and we pick t1; otherwise we pick t1'. In
+            either case we pick the smaller type which is the "real" type of
+            runtime values, and easier to cross modes (and thus making the
+            mode-crossing more complete). *)
+          let t1 = if posi then t1 else t1' in
+          if is_always_global env t1 then
+            Mode.Alloc.newvar (), Changed
+          else
+            build_submode (not posi) a
+          end else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged
@@ -5477,9 +5549,9 @@ let subtype_error ~env ~trace ~unification_trace =
                     ~unification_trace))
 
 let subtype_alloc_mode env trace a1 a2 =
-  match Alloc_mode.submode a1 a2 with
+  match Mode.Alloc.submode a1 a2 with
   | Ok () -> ()
-  | Error () -> subtype_error ~env ~trace ~unification_trace:[]
+  | Error _ -> subtype_error ~env ~trace ~unification_trace:[]
 
 let rec subtype_rec env trace t1 t2 cstrs =
   if eq_type t1 t2 then cstrs else
@@ -5501,7 +5573,10 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        subtype_alloc_mode env trace a2 a1;
+        if not (is_always_global env t2) then
+          subtype_alloc_mode env trace a2 a1;
+        (* RHS mode of arrow types indicates allocation in the parent region
+           and is not subject to mode crossing *)
         subtype_alloc_mode env trace r1 r2;
         subtype_rec
           env

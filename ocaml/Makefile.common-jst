@@ -20,7 +20,10 @@ define dune_boot_context
 (context (default
   (name default)
   ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile boot)))
+  (profile boot)
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" ""))))))
 endef
 
 define dune_runtime_stdlib_context
@@ -31,8 +34,9 @@ define dune_runtime_stdlib_context
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
-  (env (_ (env-vars
-    ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
 define dune_main_context
@@ -43,8 +47,9 @@ define dune_main_context
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
-  (env (_ (env-vars
-    ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
 
@@ -102,7 +107,8 @@ dune_config_targets = \
   duneconf/main.ws \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
-  dune-project
+  dune-project \
+  $(ocamldir)/stdlib/ocaml_compiler_internal_params
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)
 	echo -n '$(NATDYNLINKOPTS)' > $(ocamldir)/otherlibs/dynlink/natdynlinkops
@@ -172,6 +178,12 @@ _install: compiler
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
+	rm -f '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
+        # rm `ocaml_compiler_internal_params`, which is used to compile the
+        # stdlib `Float_u` module with `-extension layouts_alpha`, because we
+        # don't want user programs that happened to be named
+        # `ocaml/stdlib/float_u.ml` to get the flag automatically.
+
 
 # Same as above, but relies on a successfull earlier _install
 install_for_opam:
@@ -198,6 +210,9 @@ install_for_test: _install
 	 # replace backend-specific testsuite/tests/asmgen with their new versions
 	rm _runtest/testsuite/tests/asmgen/*
 	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
+	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
+	rm _runtest/testsuite/tests/unboxed-primitive-args/*
+	cp -a testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
 
 	cp $(ocamldir)/Makefile.* _runtest/
 

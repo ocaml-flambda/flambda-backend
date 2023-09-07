@@ -106,7 +106,7 @@ exception Error of Location.t * error
 
 let dbg = false
 
-(* CR layouts v2: When we're ready to allow non-values, these can be deleted or
+(* CR layouts v5: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
 let layout_must_be_value loc layout =
   match Layout.(sub layout (value ~why:V1_safety_check)) with
@@ -1772,7 +1772,7 @@ let get_pat_args_constr p rem =
     List.iteri
       (fun i arg -> layout_must_be_value arg.pat_loc cstr_arg_layouts.(i))
       args;
-      (* CR layouts v2: This sanity check will have to go (or be replaced with a
+      (* CR layouts v5: This sanity check will have to go (or be replaced with a
          void-specific check) when we have other non-value sorts *)
     args @ rem
   | _ -> assert false
@@ -1784,7 +1784,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
     | _ -> fatal_error "Matching.get_expr_args_constr"
   in
   let loc = head_loc ~scopes head in
-  (* CR layouts v2: This sanity check should be removed or changed to
+  (* CR layouts v5: This sanity check should be removed or changed to
      specifically check for void when we add other non-value sorts. *)
   Array.iter (fun layout -> layout_must_be_value head.pat_loc layout)
     cstr.cstr_arg_layouts;
@@ -1898,7 +1898,8 @@ let get_mod_field modname field =
   lazy
     (let mod_ident = Ident.create_persistent modname in
      let env =
-       Env.add_persistent_structure mod_ident Env.initial_safe_string
+       Env.add_persistent_structure mod_ident
+         (Lazy.force Env.initial_safe_string)
      in
      match Env.open_pers_signature modname env with
      | Error `Not_found ->
@@ -3580,7 +3581,7 @@ let failure_handler ~scopes loc ~failer () =
     let sloc = Scoped_location.of_location ~scopes loc in
     let slot =
       transl_extension_path sloc
-        Env.initial_safe_string Predef.path_match_failure
+        (Lazy.force Env.initial_safe_string) Predef.path_match_failure
     in
     let fname, line, char =
       Location.get_pos_info loc.Location.loc_start in
@@ -3998,7 +3999,7 @@ let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list parti
        partial)
 
 (* Error report *)
-(* CR layouts v2: This file didn't use to have the report_error infrastructure -
+(* CR layouts v5: This file didn't use to have the report_error infrastructure -
    I added it only for the void sanity checking in this module, which I'm not
    sure is even needed.  Reevaluate. *)
 open Format

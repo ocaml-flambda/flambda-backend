@@ -16,12 +16,66 @@ Error: Unboxed float literals aren't supported yet.
 
 let negative_one_half = -#0.5
 [%%expect{|
-val negative_one_half : float = -0.5
+Line 1, characters 24-29:
+1 | let negative_one_half = -#0.5
+                            ^^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
+let negative_one_half = - #0.5
+[%%expect{|
+Line 1, characters 24-30:
+1 | let negative_one_half = - #0.5
+                            ^^^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
+let negative_one_half = -.#0.5
+[%%expect{|
+Line 1, characters 24-30:
+1 | let negative_one_half = -.#0.5
+                            ^^^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
+let negative_one_half = -. #0.5
+[%%expect{|
+Line 1, characters 24-31:
+1 | let negative_one_half = -. #0.5
+                            ^^^^^^^
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 let positive_one_dot = +#1.
 [%%expect{|
-val positive_one_dot : float = 1.
+Line 1, characters 23-27:
+1 | let positive_one_dot = +#1.
+                           ^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
+let positive_one_dot = + #1.
+[%%expect{|
+Line 1, characters 23-28:
+1 | let positive_one_dot = + #1.
+                           ^^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
+let positive_one_dot = +.#1.
+[%%expect{|
+Line 1, characters 23-28:
+1 | let positive_one_dot = +.#1.
+                           ^^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
+let positive_one_dot = +. #1.
+[%%expect{|
+Line 1, characters 23-29:
+1 | let positive_one_dot = +. #1.
+                           ^^^^^^
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 let one_billion = #1e9
@@ -42,12 +96,34 @@ Error: Unboxed int literals aren't supported yet.
 
 let positive_one = +#1l
 [%%expect{|
-val positive_one : int32 = 1l
+Line 1, characters 19-23:
+1 | let positive_one = +#1l
+                       ^^^^
+Error: Unboxed int literals aren't supported yet.
+|}]
+
+let positive_one = + #1l
+[%%expect{|
+Line 1, characters 19-24:
+1 | let positive_one = + #1l
+                       ^^^^^
+Error: Unboxed int literals aren't supported yet.
 |}]
 
 let negative_one = -#1L
 [%%expect{|
-val negative_one : int64 = -1L
+Line 1, characters 19-23:
+1 | let negative_one = -#1L
+                       ^^^^
+Error: Unboxed int literals aren't supported yet.
+|}]
+
+let negative_one = - #1L
+[%%expect{|
+Line 1, characters 19-24:
+1 | let negative_one = - #1L
+                       ^^^^^
+Error: Unboxed int literals aren't supported yet.
 |}]
 
 let two_fifty_five_in_hex = #0xFFn
@@ -95,7 +171,7 @@ let unknown_floating_point_suffix = #0.P
 Line 1, characters 36-40:
 1 | let unknown_floating_point_suffix = #0.P
                                         ^^^^
-Error: Unknown modifier 'P' for literal #0.P
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 (*****************************************)

@@ -63,8 +63,10 @@ let is_gc_ignorable kind =
   | Pbottom -> Misc.fatal_error "[Pbottom] should not be stored in a closure."
   | Punboxed_float -> true
   | Punboxed_int _ -> true
+  | Punboxed_vector _ -> true
   | Pvalue Pintval -> true
-  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
+  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _ |
+            Pboxedvectorval _) -> false
 
 let split_closure_fv kinds fv =
   List.fold_right (fun id (not_scanned, scanned) ->
@@ -827,8 +829,10 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
         else begin
           let p1' = VP.rename p1 in
           let u1, u2, layout =
-            match VP.name p1, a1 with
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg) ->
+            let p1_name = VP.name p1 in
+            match a1 with
+            | Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg)
+              when String.starts_with ~prefix:"*opt*" p1_name ->
                 (* This parameter corresponds to an optional parameter,
                    and although it is used twice pushing the expression down
                    actually allows us to remove the allocation as it will
@@ -866,7 +870,7 @@ let warning_if_forced_inlined ~loc ~attribute warning =
     Location.prerr_warning (Debuginfo.Scoped_location.to_location loc)
       (Warnings.Inlining_impossible warning)
 
-let fail_if_probe ~probe msg =
+let fail_if_probe ~(probe : Lambda.probe) msg =
   match probe with
   | None -> ()
   | Some {name} ->
@@ -1080,23 +1084,6 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           List.fold_left (fun kinds (arg, _, kind) -> V.Map.add arg kind kinds)
             kinds first_args
         in
-        let final_args =
-          List.map (fun kind -> V.create_local "arg", kind) rem_layouts
-        in
-        let rec iter args body =
-          match args with
-              [] -> body
-            | (arg1, arg2, kind) :: args ->
-              iter args
-                (Ulet (Immutable, kind, VP.create arg1, arg2, body))
-        in
-        let internal_args =
-          (List.map (fun (arg1, _arg2, _) -> Lvar arg1) first_args)
-          @ (List.map (fun (arg, _) -> Lvar arg ) final_args)
-        in
-        let funct_var = V.create_local "funct" in
-        let fenv = V.Map.add funct_var fapprox fenv in
-        let kinds = V.Map.add funct_var Lambda.layout_function kinds in
         let new_clos_mode, kind =
           (* If the closure has a local suffix, and we've supplied
              enough args to hit it, then the closure must be local
@@ -1110,8 +1097,31 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             let supplied_local_args = nargs - heap_params in
             alloc_local, Curried {nlocal = nlocal - supplied_local_args}
         in
-        if Lambda.is_local_mode clos_mode then
-          assert (Lambda.is_local_mode new_clos_mode);
+        if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
+        (* CR ncourant: mode = new_clos_mode is incorrect; but the modes will
+           not be used for anything, so it is fine here. *)
+        let final_args =
+          List.map (fun kind -> {
+                name = V.create_local "arg";
+                layout = kind;
+                attributes = Lambda.default_param_attribute;
+                mode = new_clos_mode
+              }) rem_layouts
+        in
+        let rec iter args body =
+          match args with
+              [] -> body
+            | (arg1, arg2, kind) :: args ->
+              iter args
+                (Ulet (Immutable, kind, VP.create arg1, arg2, body))
+        in
+        let internal_args =
+          (List.map (fun (arg1, _arg2, _) -> Lvar arg1) first_args)
+          @ (List.map (fun p -> Lvar p.name ) final_args)
+        in
+        let funct_var = V.create_local "funct" in
+        let fenv = V.Map.add funct_var fapprox fenv in
+        let kinds = V.Map.add funct_var Lambda.layout_function kinds in
         let ret_mode =
           if fundesc.fun_region then alloc_heap else alloc_local
         in
@@ -1514,7 +1524,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
               {fun_label = label;
                fun_arity = {
                  function_kind = kind ;
-                 params_layout = List.map snd params ;
+                 params_layout = List.map (fun p -> p.layout) params ;
                  return_layout = return
                };
                fun_closed = initially_closed;
@@ -1523,7 +1533,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_region = region;
                fun_poll = attr.poll } in
             let dbg = Debuginfo.from_location loc in
-            (id, params, return, body, mode, fundesc, dbg)
+            (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
+             return, body, mode, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
       fun_defs in
   (* Build an approximate fenv for compiling the functions *)
@@ -1573,7 +1584,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     in
     let kinds_body =
       List.fold_right
-        (fun (id, kind) kinds -> V.Map.add id kind kinds)
+        (fun (id, kind, _) kinds -> V.Map.add id kind kinds)
         params (V.Map.add env_param Lambda.layout_function kinds_rec)
     in
     let (ubody, approx) =
@@ -1591,13 +1602,13 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     let fun_params =
       if !useless_env
       then params
-      else params @ [env_param, Lambda.layout_function]
+      else params @ [env_param, Lambda.layout_function, alloc_heap]
     in
     let f =
       {
         label  = fundesc.fun_label;
         arity  = fundesc.fun_arity;
-        params = List.map (fun (var, _) -> VP.create var) fun_params;
+        params = List.map (fun (var, _, _) -> VP.create var) fun_params;
         body   = ubody;
         dbg;
         env = Some env_param;
@@ -1609,7 +1620,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
        their wrapper functions) to be inlined *)
     let n =
       List.fold_left
-        (fun n (id, _) -> n + if V.name id = "*opt*" then 8 else 1)
+        (fun n (id, _, _) ->
+          n + if String.starts_with (V.name id) ~prefix:"*opt*" then 8 else 1)
         0
         fun_params
     in
@@ -1625,7 +1637,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       | Never_inline -> min_int
       | Unroll _ -> assert false
     in
-    let fun_params = List.map (fun (var, _) -> VP.create var) fun_params in
+    let fun_params = List.map (fun (var, _, _) -> VP.create var) fun_params in
     if lambda_smaller ubody threshold
     then fundesc.fun_inline <- Some(fun_params, ubody);
 

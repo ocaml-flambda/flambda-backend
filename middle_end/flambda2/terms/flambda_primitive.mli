@@ -270,7 +270,7 @@ type unary_primitive =
   (* CR mshinwell/xclerc: Invariant check: dimension >= 0 *)
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
-  | Int_as_pointer
+  | Int_as_pointer of Alloc_mode.For_allocations.t
   | Opaque_identity of
       { middle_end_only : bool;
         kind : Flambda_kind.t
@@ -323,6 +323,11 @@ type unary_primitive =
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
+  | Get_header
+      (** Get the header of a block. This primitive is invalid if provided with
+          an immediate value.
+          Note: The GC color bits in the header are not reliable except for
+          checking if the value is locally allocated *)
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -369,6 +374,7 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
+  | Bigarray_get_alignment of int
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

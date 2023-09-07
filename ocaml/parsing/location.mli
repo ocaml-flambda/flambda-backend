@@ -52,6 +52,14 @@ type t = Warnings.loc = {
    Else all fields are correct.
 *)
 
+(** Strict comparison: Compares all fields of the two locations, irrespective of
+    whether or not they happen to refer to the same place.  For fully-defined
+    locations within the same file, is guaranteed to return them in source
+    order; otherwise, or if given two locations that differ only in ghostiness,
+    is just guaranteed to produce a consistent order, but which one is
+    unspecified. *)
+val compare : t -> t -> int
+
 val none : t
 (** An arbitrary value of type [t]; describes an empty ghost range. *)
 
@@ -91,6 +99,8 @@ type 'a loc = {
 val mknoloc : 'a -> 'a loc
 val mkloc : 'a -> t -> 'a loc
 val get_txt : 'a loc -> 'a
+val map : ('a -> 'b) -> 'a loc -> 'b loc
+val compare_txt : ('a -> 'b -> 'c) -> 'a loc -> 'b loc -> 'c
 
 (** {1 Input info} *)
 

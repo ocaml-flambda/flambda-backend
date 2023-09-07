@@ -51,8 +51,6 @@ val ecx: arg
 val edx: arg
 val ebp: arg
 val esp: arg
-val st0: arg
-val st1: arg
 
 val mem32:
   data_type -> ?scale:int -> ?base:reg64 -> ?sym:string ->
@@ -94,7 +92,7 @@ module D : sig
   val private_extern: string -> unit
   val qword: constant -> unit
   val reloc: offset:constant -> name:reloc_type -> expr:constant -> unit
-  val section: string list -> string option -> string list -> unit
+  val section: ?delayed:bool -> string list -> string option -> string list -> unit
   val setvar: string * constant -> unit
   val size: string -> constant -> unit
   val sleb128 : constant -> unit
@@ -123,7 +121,6 @@ module I : sig
   val cmpsd : float_condition -> arg -> arg -> unit
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
-  val crc32 : arg -> arg -> unit
   val cvtsd2si: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
@@ -131,40 +128,6 @@ module I : sig
   val cvttsd2si: arg -> arg -> unit
   val dec: arg -> unit
   val divsd: arg -> arg -> unit
-  val fabs: unit -> unit
-  val fadd: arg -> unit
-  val faddp: arg -> arg -> unit
-  val fchs: unit -> unit
-  val fcomp: arg -> unit
-  val fcompp: unit -> unit
-  val fcos: unit -> unit
-  val fdiv: arg -> unit
-  val fdivp: arg -> arg -> unit
-  val fdivr: arg -> unit
-  val fdivrp: arg -> arg -> unit
-  val fild: arg -> unit
-  val fistp: arg -> unit
-  val fld1: unit -> unit
-  val fld: arg -> unit
-  val fldcw: arg -> unit
-  val fldlg2: unit -> unit
-  val fldln2: unit -> unit
-  val fldz: unit -> unit
-  val fmul: arg -> unit
-  val fmulp: arg -> arg -> unit
-  val fnstcw: arg -> unit
-  val fnstsw: arg -> unit
-  val fpatan: unit -> unit
-  val fptan: unit -> unit
-  val fsin: unit -> unit
-  val fsqrt: unit -> unit
-  val fstp: arg -> unit
-  val fsub: arg -> unit
-  val fsubp: arg -> arg -> unit
-  val fsubr: arg -> unit
-  val fsubrp: arg -> arg -> unit
-  val fxch: arg -> unit
-  val fyl2x: unit -> unit
   val hlt: unit -> unit
   val idiv: arg -> unit
   val imul: arg -> arg option -> unit
@@ -187,6 +150,7 @@ module I : sig
   val minsd: arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit
+  val movupd: arg -> arg -> unit
   val movd: arg -> arg -> unit
   val movq: arg -> arg -> unit
   val movsd: arg -> arg -> unit
@@ -222,4 +186,27 @@ module I : sig
   val xchg: arg -> arg -> unit
   val xor: arg -> arg -> unit
   val xorpd: arg -> arg -> unit
+
+  (* SSE instructions *)
+
+  val cmpps: float_condition -> arg -> arg -> unit
+  val shufps: int -> arg -> arg -> unit
+  val addps: arg -> arg -> unit
+  val subps: arg -> arg -> unit
+  val mulps: arg -> arg -> unit
+  val divps: arg -> arg -> unit
+  val maxps: arg -> arg -> unit
+  val minps: arg -> arg -> unit
+  val rcpps: arg -> arg -> unit
+  val sqrtps: arg -> arg -> unit
+  val rsqrtps: arg -> arg -> unit
+  val movhlps: arg -> arg -> unit
+  val movlhps: arg -> arg -> unit
+  val unpckhps: arg -> arg -> unit
+  val unpcklps: arg -> arg -> unit
+  val movmskps: arg -> arg -> unit
+
+  (* SSE4.2 instructions *)
+
+  val crc32 : arg -> arg -> unit
 end

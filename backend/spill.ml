@@ -286,7 +286,7 @@ let rec reload env i before =
       (i, finally, env)
   | Icatch(rec_flag, ts, handlers, body) ->
       let reload_at_exit = List.fold_left
-          (fun reload_at_exit (nfail, _, _) ->
+          (fun reload_at_exit (nfail, _, _, _) ->
             Numbers.Int.Map.add nfail Reg.Set.empty reload_at_exit)
           env.reload_at_exit
           handlers
@@ -296,7 +296,7 @@ let rec reload env i before =
       let rec fixpoint env_fix =
         let new_handlers, after_union, env =
           List.fold_right
-            (fun (nfail, ts, handler) (handlers, after_union, env) ->
+            (fun (nfail, ts, handler, is_cold) (handlers, after_union, env) ->
                let handler, after_handler, env =
                  match find_in_reload_cache nfail env with
                  | None ->
@@ -316,7 +316,7 @@ let rec reload env i before =
                    in
                    handler, after_handler, { env with reload_at_exit }
                in
-               ((nfail, ts, handler) :: handlers,
+               ((nfail, ts, handler, is_cold) :: handlers,
                 Reg.Set.union after_union after_handler,
                 env))
             handlers ([], after_body, env_fix)
@@ -326,7 +326,7 @@ let rec reload env i before =
             new_handlers, after_union, env
         | Cmm.Recursive ->
             let equal =
-              List.for_all (fun (nfail, _ts, _handler) ->
+              List.for_all (fun (nfail, _ts, _handler, _) ->
                 Reg.Set.equal
                   (find_reload_at_exit env_fix nfail)
                   (find_reload_at_exit env nfail))
@@ -338,7 +338,7 @@ let rec reload env i before =
       in
       let new_handlers, after_union, env = fixpoint env in
       let reload_at_exit =
-        List.fold_left (fun reload_at_exit (nfail, _, _) ->
+        List.fold_left (fun reload_at_exit (nfail, _, _, _) ->
             Numbers.Int.Map.remove nfail reload_at_exit)
           env.reload_at_exit handlers
       in
@@ -477,9 +477,24 @@ let find_in_spill_cache nfail at_join env =
   with Not_found -> None
 
 let add_spills env regset i =
-  Reg.Set.fold
-    (fun r i -> instr_cons (Iop Ispill) [|r|] [|spill_reg_no_add env r|] i)
-    regset i
+  let regset = Reg.Set.elements regset in
+  (* Skip over any [Iname_for_debugger] operations so that we don't put a
+     spill between a move into a register and the operation naming that
+     register.  (Such a situation would cause the spilled register to be
+     unnamed). *)
+  (* CR mshinwell: this probably needs implementing for Cfg regalloc
+     (see Regalloc_split.insert_spills). *)
+  let rec add_spills i =
+    match i.desc with
+    | Iop (Iname_for_debugger _) ->
+      let next = add_spills i.next in
+      { i with next; }
+    | _ ->
+      List.fold_left (fun i r ->
+          instr_cons (Iop Ispill) [|r|] [|spill_reg_no_add env r|] i)
+        i regset
+  in
+  add_spills i
 
 let rec spill :
   type a. spill_env -> Mach.instruction -> Reg.Set.t ->
@@ -546,7 +561,7 @@ let rec spill :
     let next_env = { env with at_raise = at_raise_from_trap_stack env ts } in
     spill next_env i.next finally (fun new_next at_join ->
       let spill_at_exit_add at_exits = List.map2
-          (fun (nfail,_,_) at_exit -> nfail, at_exit)
+          (fun (nfail,_,_,_) at_exit -> nfail, at_exit)
           handlers at_exits
       in
       let rec fixpoint at_exits =
@@ -554,7 +569,7 @@ let rec spill :
         let new_at_exit = spill_at_exit_add @ env.at_exit in
         let res =
           List.map
-            (fun (nfail, ts, handler) ->
+            (fun (nfail, ts, handler, _) ->
                let env =
                  { env with at_exit = new_at_exit;
                             at_raise = at_raise_from_trap_stack env ts;
@@ -587,7 +602,7 @@ let rec spill :
       let env_body = { env with at_exit = spill_at_exit_add @ env.at_exit; } in
       spill env_body body at_join (fun new_body before ->
       let new_handlers = List.map2
-          (fun (nfail, ts, _) (handler, _) -> nfail, ts, handler)
+          (fun (nfail, ts, _, is_cold) (handler, _) -> nfail, ts, handler, is_cold)
           handlers res in
       k (instr_cons (Icatch(rec_flag, ts, new_handlers, new_body))
          i.arg i.res new_next)

@@ -238,6 +238,9 @@ let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
 let targetint_31_63 (i : Fexpr.targetint) : Targetint_31_63.t =
   Targetint_31_63.of_int64 i
 
+let vec128 bits : Vector_types.Vec128.Bit_pattern.t =
+  Vector_types.Vec128.Bit_pattern.of_bits bits
+
 let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
   Tag.Scannable.create_exn tag
 
@@ -252,6 +255,7 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
   | Boxed_nativeint -> Boxed_nativeint
+  | Boxed_vec128 -> Boxed_vec128
   | Tagged_immediate -> Tagged_immediate
   | Variant { consts; non_consts } ->
     let consts =
@@ -293,6 +297,7 @@ let const (c : Fexpr.const) : Reg_width_const.t =
   | Naked_int32 i -> Reg_width_const.naked_int32 i
   | Naked_int64 i -> Reg_width_const.naked_int64 i
   | Naked_nativeint i -> Reg_width_const.naked_nativeint (i |> targetint)
+  | Naked_vec128 bits -> Reg_width_const.naked_vec128 (bits |> vec128)
 
 let rec rec_info env (ri : Fexpr.rec_info) : Rec_info_expr.t =
   let module US = Rec_info_expr.Unrolling_state in
@@ -438,6 +443,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_get_alignment align -> Bigarray_get_alignment align
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
@@ -635,7 +641,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let handler =
       Flambda.Continuation_handler.create
         (Bound_parameters.create params)
-        ~handler ~free_names_of_handler:Unknown ~is_exn_handler
+        ~handler ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold:false
     in
     match recursive with
     | Nonrecursive ->
@@ -758,6 +764,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           static_const (SC.boxed_int64 (or_variable Fun.id env i))
         | Boxed_nativeint i ->
           static_const (SC.boxed_nativeint (or_variable targetint env i))
+        | Boxed_vec128 i ->
+          static_const (SC.boxed_vec128 (or_variable vec128 env i))
         | Immutable_float_block elements ->
           static_const
             (SC.immutable_float_block
@@ -878,10 +886,16 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let cost_metrics =
           Cost_metrics.from_size (Code_size.of_int code_size)
         in
+        (* CR ncourant: allow fexpr to specify param modes? *)
+        let param_modes =
+          List.map
+            (fun _ -> Alloc_mode.For_types.heap)
+            (Flambda_arity.to_list params_arity)
+        in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
-            ~newer_version_of ~params_arity
+            ~newer_version_of ~params_arity ~param_modes
             ~first_complex_local_param:(Flambda_arity.cardinal params_arity)
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline

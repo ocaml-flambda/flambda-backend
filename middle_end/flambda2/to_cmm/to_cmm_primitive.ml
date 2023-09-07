@@ -50,6 +50,7 @@ let value_slot_offset env value_slot =
 let unbox_number ~dbg kind arg =
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
+  | Naked_vec128 -> C.unbox_vec128 dbg arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
@@ -58,6 +59,7 @@ let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
+  | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
@@ -542,7 +544,7 @@ let unary_primitive env res dbg f arg =
       C.load ~dbg Word_int Mutable
         ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
-  | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
+  | Int_as_pointer _ -> None, res, C.int_as_pointer arg dbg
   | Opaque_identity { middle_end_only = true; kind = _ } -> None, res, arg
   | Opaque_identity { middle_end_only = false; kind = _ } ->
     None, res, C.opaque arg dbg
@@ -630,6 +632,7 @@ let unary_primitive env res dbg f arg =
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
   | Begin_try_region -> None, res, C.beginregion ~dbg
   | End_region -> None, res, C.return_unit dbg (C.endregion ~dbg arg)
+  | Get_header -> None, res, C.get_header arg dbg
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
@@ -651,6 +654,7 @@ let binary_primitive env dbg f x y =
     binary_float_comp_primitive env dbg cmp x y
   | Float_comp (Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg x y
+  | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with

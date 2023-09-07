@@ -24,7 +24,10 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     fdo: Fdo_info.t;
-    live: Reg.Set.t }
+    live: Reg.Set.t;
+    available_before: Reg_availability_set.t option;
+    available_across: Reg_availability_set.t option;
+  }
 
 and instruction_desc =
   | Lprologue
@@ -86,12 +89,16 @@ let rec end_instr =
     res = [||];
     dbg = Debuginfo.none;
     fdo = Fdo_info.none;
-    live = Reg.Set.empty }
+    live = Reg.Set.empty;
+    available_before = Some Unreachable;
+    available_across = None
+  }
 
 (* Cons an instruction (live, debug empty) *)
 
-let instr_cons d a r n =
+let instr_cons d a r n ~available_before ~available_across =
   { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; fdo = Fdo_info.none; live = Reg.Set.empty }
+    dbg = Debuginfo.none; fdo = Fdo_info.none; live = Reg.Set.empty;
+    available_before; available_across }
 
 let traps_to_bytes traps = Proc.trap_size_in_bytes * traps

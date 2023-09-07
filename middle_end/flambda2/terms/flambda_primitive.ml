@@ -659,6 +659,10 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Begin_region -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
 
+let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
+  | Local _ -> Coeffects.Has_coeffects
+  | Heap -> Coeffects.No_coeffects
+
 let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
   (* Ensure these don't get moved, but allow them to be deleted. *)
   Only_generative_effects Mutable, Has_coeffects, Strict
@@ -695,7 +699,7 @@ type unary_primitive =
   | Array_length
   | Bigarray_length of { dimension : int }
   | String_length of string_or_bytes
-  | Int_as_pointer
+  | Int_as_pointer of Alloc_mode.For_allocations.t
   | Opaque_identity of
       { middle_end_only : bool;
         kind : K.t
@@ -726,6 +730,7 @@ type unary_primitive =
   | Begin_try_region
   | End_region
   | Obj_dup
+  | Get_header
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -733,11 +738,11 @@ let unary_primitive_eligible_for_cse p ~arg =
   match p with
   | Duplicate_array _ -> false
   | Duplicate_block { kind = _ } -> false
-  | Is_int _ | Get_tag -> true
+  | Is_int _ | Get_tag | Get_header -> true
   | Array_length -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
-  | Int_as_pointer -> true
+  | Int_as_pointer m -> ( match m with Heap -> true | Local _ -> false)
   | Opaque_identity _ -> false
   | Int_arith _ -> true
   | Float_arith _ ->
@@ -768,7 +773,7 @@ let compare_unary_primitive p1 p2 =
     | Array_length -> 4
     | Bigarray_length _ -> 5
     | String_length _ -> 6
-    | Int_as_pointer -> 7
+    | Int_as_pointer _ -> 7
     | Opaque_identity _ -> 8
     | Int_arith _ -> 9
     | Float_arith _ -> 10
@@ -786,6 +791,7 @@ let compare_unary_primitive p1 p2 =
     | Begin_try_region -> 22
     | End_region -> 23
     | Obj_dup -> 24
+    | Get_header -> 25
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -858,12 +864,12 @@ let compare_unary_primitive p1 p2 =
     let c = Bool.compare middle_end_only1 middle_end_only2 in
     if c <> 0 then c else K.compare kind1 kind2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
-      | String_length _ | Int_as_pointer | Opaque_identity _ | Int_arith _
+      | String_length _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
-      | Begin_try_region | End_region | Obj_dup ),
+      | Begin_try_region | End_region | Obj_dup | Get_header ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -883,7 +889,7 @@ let print_unary_primitive ppf p =
     if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
-  | Int_as_pointer -> fprintf ppf "Int_as_pointer"
+  | Int_as_pointer _ -> fprintf ppf "Int_as_pointer"
   | Opaque_identity { middle_end_only; kind } ->
     fprintf ppf "@[(Opaque_identity@ (middle_end_only %b) (kind %a))@]"
       middle_end_only K.print kind
@@ -917,6 +923,7 @@ let print_unary_primitive ppf p =
   | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
   | End_region -> Format.pp_print_string ppf "End_region"
   | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
+  | Get_header -> Format.pp_print_string ppf "Get_header"
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -924,7 +931,7 @@ let arg_kind_of_unary_primitive p =
   | Is_int _ -> K.value
   | Get_tag -> K.value
   | String_length _ -> K.value
-  | Int_as_pointer -> K.value
+  | Int_as_pointer _ -> K.value
   | Opaque_identity { middle_end_only = _; kind } -> kind
   | Int_arith (kind, _) -> K.Standard_int.to_kind kind
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
@@ -941,13 +948,14 @@ let arg_kind_of_unary_primitive p =
   | Begin_try_region -> K.region
   | End_region -> K.region
   | Obj_dup -> K.value
+  | Get_header -> K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> Singleton K.value
   | Is_int _ | Get_tag -> Singleton K.naked_immediate
   | String_length _ -> Singleton K.naked_immediate
-  | Int_as_pointer ->
+  | Int_as_pointer _ ->
     (* This primitive is *only* to be used when the resulting pointer points at
        something which is a valid OCaml value (even if outside of the heap). *)
     Singleton K.value
@@ -967,6 +975,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value
   | Obj_dup -> Singleton K.value
+  | Get_header -> Singleton K.naked_nativeint
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -995,7 +1004,8 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     (* [Obj.truncate] has now been removed. *)
     No_effects, No_coeffects, Strict
   | String_length _ -> No_effects, No_coeffects, Strict
-  | Int_as_pointer -> No_effects, No_coeffects, Strict
+  | Int_as_pointer alloc_mode ->
+    No_effects, coeffects_of_mode alloc_mode, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
   | Int_arith (_, (Neg | Swap_byte_endianness))
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
@@ -1036,10 +1046,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
         match alloc_mode with Heap -> Delay | Local _ -> Strict
       else Strict
     in
-    let coeffects : Coeffects.t =
-      match alloc_mode with Heap -> No_coeffects | Local _ -> Has_coeffects
-    in
-    Only_generative_effects Immutable, coeffects, placement
+    Only_generative_effects Immutable, coeffects_of_mode alloc_mode, placement
   | Project_function_slot _ | Project_value_slot _ ->
     No_effects, No_coeffects, Delay
   | Is_boxed_float | Is_flat_float_array ->
@@ -1056,12 +1063,13 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     ( Only_generative_effects Mutable (* Mutable is conservative *),
       Has_coeffects,
       Strict )
+  | Get_header -> No_effects, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Is_int _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
@@ -1070,6 +1078,7 @@ let unary_classify_for_printing p =
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | Begin_try_region | End_region -> Neither
+  | Get_header -> Neither
 
 let free_names_unary_primitive p =
   match p with
@@ -1086,11 +1095,11 @@ let free_names_unary_primitive p =
          value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Obj_dup ->
+  | Obj_dup | Get_header ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1101,11 +1110,11 @@ let apply_renaming_unary_primitive p renaming =
     in
     if alloc_mode == alloc_mode' then p else Box_number (kind, alloc_mode')
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1113,11 +1122,11 @@ let ids_for_export_unary_primitive p =
   | Box_number (_kind, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
     Ids_for_export.empty
 
 type binary_int_arith_op =
@@ -1180,12 +1189,14 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
+  | Bigarray_get_alignment of int
 
 let binary_primitive_eligible_for_cse p =
   match p with
   | Array_load _ | Block_load _ -> false
   | String_or_bigstring_load _ -> false (* CR mshinwell: review *)
   | Bigarray_load _ -> false
+  | Bigarray_get_alignment _ -> true
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ -> true
   | Float_arith _ | Float_comp _ ->
     (* We believe that under the IEEE standard it is correct to CSE
@@ -1210,6 +1221,7 @@ let compare_binary_primitive p1 p2 =
     | Int_comp _ -> 7
     | Float_arith _ -> 8
     | Float_comp _ -> 9
+    | Bigarray_get_alignment _ -> 10
   in
   match p1, p2 with
   | Block_load (kind1, mut1), Block_load (kind2, mut2) ->
@@ -1242,9 +1254,11 @@ let compare_binary_primitive p1 p2 =
     if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
   | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
+  | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
+    Int.compare align1 align2
   | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
-      | Float_arith _ | Float_comp _ ),
+      | Float_arith _ | Float_comp _ | Bigarray_get_alignment _ ),
       _ ) ->
     Stdlib.compare
       (binary_primitive_numbering p1)
@@ -1278,6 +1292,8 @@ let print_binary_primitive ppf p =
   | Float_comp comp_behaviour ->
     print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;
     fprintf ppf "."
+  | Bigarray_get_alignment align ->
+    fprintf ppf "@[(Bigarray_get_alignment[%d])@]" align
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1297,6 +1313,7 @@ let args_kind_of_binary_primitive p =
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float
+  | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
 
 let result_kind_of_binary_primitive p : result_kind =
   match p with
@@ -1312,6 +1329,7 @@ let result_kind_of_binary_primitive p : result_kind =
     Singleton (K.Standard_int.to_kind kind)
   | Float_arith _ -> Singleton K.naked_float
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
+  | Bigarray_get_alignment _ -> Singleton K.naked_immediate
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1337,33 +1355,35 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     if Flambda_features.float_const_prop ()
     then No_effects, No_coeffects, Strict
     else No_effects, Has_coeffects, Strict
+  | Bigarray_get_alignment _ -> No_effects, No_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
   | Block_load _ | Array_load _ -> Destructive
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _ ->
+  | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _
+  | Bigarray_get_alignment _ ->
     Neither
 
 let free_names_binary_primitive p =
   match p with
   | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ ->
+  | Float_comp _ | Bigarray_get_alignment _ ->
     Name_occurrences.empty
 
 let apply_renaming_binary_primitive p _renaming =
   match p with
   | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ ->
+  | Float_comp _ | Bigarray_get_alignment _ ->
     p
 
 let ids_for_export_binary_primitive p =
   match p with
   | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ ->
+  | Float_comp _ | Bigarray_get_alignment _ ->
     Ids_for_export.empty
 
 type ternary_primitive =

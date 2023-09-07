@@ -277,14 +277,14 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "polling"
        (Polling.instrument_fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
+  ++ Profile.record ~accumulate:true "checkmach"
+       (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Profile.record ~accumulate:true "checkmach"
-       (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     match register_allocator fd with
     | ((IRC | LS) as regalloc) ->
@@ -308,6 +308,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Cfg_with_infos.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
+          (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness, otherwise
+             we would have to recompute it here. Recomputing it here breaks the CI because
+             the liveness_analysis algorithm does not work properly after register allocation. *)
+        ++ Profile.record ~accumulate:true "peephole_optimize_cfg" Peephole_optimize.peephole_optimize_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -329,7 +333,19 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ pass_dump_if ppf_dump dump_split "After live range splitting"
         ++ Profile.record ~accumulate:true "liveness" liveness
         ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-        ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        ++ Profile.record ~accumulate:true "available_regs"
+          (fun (fundecl : Mach.fundecl) ->
+            (* Skip DWARF variable range generation for complicated functions
+               to avoid high compilation speed penalties *)
+            let total_num_stack_slots =
+              Array.fold_left (+) 0 fundecl.fun_num_stack_slots
+            in
+            if total_num_stack_slots
+               > !Dwarf_flags.dwarf_max_function_complexity
+            then fundecl
+            else Available_regs.fundecl fundecl)
+        ++ pass_dump_if ppf_dump Flambda_backend_flags.davail
+             "Register availability analysis"
         ++ Profile.record ~accumulate:true "mach to linear" (fun (fd : Mach.fundecl) ->
           if !Flambda_backend_flags.use_ocamlcfg then begin
             fd
@@ -403,7 +419,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
   reset ();
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
-  Emitaux.create_asm_file := create_asm;
+  X86_proc.create_asm_file := create_asm;
   Misc.try_finally
     ~exceptionally:(fun () -> remove_file obj_filename)
     (fun () ->

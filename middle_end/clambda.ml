@@ -32,6 +32,7 @@ type ustructured_constant =
   | Uconst_int32 of int32
   | Uconst_int64 of int64
   | Uconst_nativeint of nativeint
+  | Uconst_vec128 of { high : int64; low : int64 }
   | Uconst_block of int * uconstant list
   | Uconst_float_array of float list
   | Uconst_string of string
@@ -212,6 +213,7 @@ let rank_structured_constant = function
   | Uconst_float_array _ -> 5
   | Uconst_string _ -> 6
   | Uconst_closure _ -> 7
+  | Uconst_vec128 _ -> 8
 
 let compare_structured_constants c1 c2 =
   match c1, c2 with
@@ -227,6 +229,10 @@ let compare_structured_constants c1 c2 =
   | Uconst_string s1, Uconst_string s2 -> String.compare s1 s2
   | Uconst_closure (_,lbl1,_), Uconst_closure (_,lbl2,_) ->
       String.compare lbl1 lbl2
+  | Uconst_vec128 { high = l0; low = l1},
+    Uconst_vec128 { high = r0; low = r1} ->
+    let cmp = Int64.compare l0 r0 in
+    if cmp = 0 then Int64.compare l1 r1 else cmp
   | _, _ ->
     (* no overflow possible here *)
     rank_structured_constant c1 - rank_structured_constant c2

@@ -54,10 +54,11 @@ type basic_block =
     mutable is_trap_handler : bool;
         (** Is this block a trap handler (i.e. is it an exn successor of another
             block) or not? *)
-    mutable dead : bool
+    mutable dead : bool;
         (** This block must be unreachable from function entry. This field is
             set during cfg construction (if trap stacks are unresolved) and used
             during dead block elimination for checking. *)
+    mutable cold : bool
         (* CR-someday gyorsh: The current implementation allows multiple
            pushtraps in each block means that different trap stacks are
            associated with the block at different points. At most one

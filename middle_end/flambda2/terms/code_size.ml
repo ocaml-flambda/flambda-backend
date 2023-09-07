@@ -120,14 +120,14 @@ let arith_conversion_size src dst =
 
 let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float -> 1 (* 1 load *)
+  | Naked_float | Naked_vec128 -> 1 (* 1 load *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
 
 let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float -> alloc_size (* 1 alloc *)
+  | Naked_float | Naked_vec128 -> alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
 (* alloc *)
@@ -318,7 +318,7 @@ let unary_prim_size prim =
   | Array_length -> array_length_size
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
-  | Int_as_pointer -> 1
+  | Int_as_pointer _ -> 1
   | Opaque_identity _ -> 0
   | Int_arith (kind, op) -> unary_int_prim_size kind op
   | Float_arith _ -> 2
@@ -336,6 +336,7 @@ let unary_prim_size prim =
   | Begin_try_region -> 1
   | End_region -> 1
   | Obj_dup -> alloc_extcall_size + 1
+  | Get_header -> 2
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
@@ -355,6 +356,7 @@ let binary_prim_size prim =
   | Float_arith op -> binary_float_arith_primitive op
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with

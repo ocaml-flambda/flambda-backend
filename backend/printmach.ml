@@ -23,14 +23,14 @@ open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
-  match l with
+let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
+  match loc with
   | Unknown -> unknown ppf
   | Reg r ->
-      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
+      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name typ r))
   | Stack(Local s) ->
       wrap_out ppf (fun ppf ->
-        fprintf ppf "s[%s:%i]" (Proc.register_class_tag reg_class) s)
+        fprintf ppf "s[%s:%i]" (Proc.stack_class_tag (Proc.stack_slot_class typ)) s)
   | Stack(Incoming s) ->
       wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
   | Stack(Outgoing s) ->
@@ -43,11 +43,16 @@ let reg ppf r =
     fprintf ppf "%s" (Reg.name r)
   else
     fprintf ppf "%s"
-      (match r.typ with Val -> "V" | Addr -> "A" | Int -> "I" | Float -> "F");
+      (match r.typ with
+      | Val -> "V"
+      | Addr -> "A"
+      | Int -> "I"
+      | Float -> "F"
+      | Vec128 -> "X");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
-    ~reg_class:(Proc.register_class r) ~unknown:(fun _ -> ()) ppf r.loc
+    ~unknown:(fun _ -> ()) ppf r.loc r.typ
 
 let regs' ?(print_reg = reg) ppf v =
   let reg = print_reg in
@@ -159,6 +164,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
+  | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
   | Icall_ind -> fprintf ppf "call %a" regs arg
   | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func.sym_name regs arg
   | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg
@@ -219,14 +225,23 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
+  | Ivectorcast Bits128 ->
+    fprintf ppf "vec128->vec128 %a"
+      reg arg.(0)
+  | Iscalarcast (V128_of_scalar ty) ->
+    fprintf ppf "scalar->%s %a"
+      (Primitive.vec128_name ty) reg arg.(0)
+  | Iscalarcast (V128_to_scalar ty) ->
+    fprintf ppf "%s->scalar %a"
+      (Primitive.vec128_name ty) reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
-  | Iname_for_debugger { ident; which_parameter; } ->
-    fprintf ppf "name_for_debugger %a%s=%a"
+  | Iname_for_debugger { ident; which_parameter; regs = r } ->
+    fprintf ppf "%a holds the value of %a%s"
+      regs r
       V.print ident
       (match which_parameter with
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
-      reg arg.(0)
   | Ibeginregion -> fprintf ppf "beginregion"
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
@@ -247,18 +262,35 @@ let rec instr ppf i =
   if !Clflags.dump_live then begin
     fprintf ppf "@[<1>{%a" regsetaddr i.live;
     if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
-    fprintf ppf "}@]@,";
-    (* CR-someday mshinwell: to use for gdb work
-    if !Clflags.dump_avail then begin
-      let module RAS = Reg_availability_set in
-      fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg) i.available_before;
-      begin match i.available_across with
-      | None -> ()
-      | Some available_across ->
-        fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
-      end;
-      fprintf ppf "@]@,"
-    end *)
+    fprintf ppf "}@]@,"
+  end;
+  if !Flambda_backend_flags.davail then begin
+    let module RAS = Reg_availability_set in
+    let ras_is_nonempty (set : RAS.t) =
+      match set with
+      | Ok set -> not (Reg_with_debug_info.Set.is_empty set)
+      | Unreachable -> true
+    in
+    if ras_is_nonempty i.available_before
+       || match i.available_across with
+          | None -> false
+          | Some available_across -> ras_is_nonempty available_across
+    then (
+      if Option.equal RAS.equal (Some i.available_before) i.available_across
+      then
+        fprintf ppf "@[<1>AB=AA={%a}@]@," (RAS.print ~print_reg:reg)
+          i.available_before
+      else (
+        fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg)
+          i.available_before;
+        begin match i.available_across with
+        | None -> ()
+        | Some available_across ->
+          fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
+        end;
+        fprintf ppf "@]@,"
+      )
+    )
   end;
   begin match i.desc with
   | Iend -> ()
@@ -286,8 +318,8 @@ let rec instr ppf i =
   | Icatch(flag, ts, handlers, body) ->
       fprintf ppf "@[<v 2>catch%a%a@,%a@;<0 -2>with"
         Printcmm.rec_flag flag trap_stack ts instr body;
-      let h (nfail, ts, handler) =
-        fprintf ppf "(%d)%a@,%a@;" nfail trap_stack ts instr handler in
+      let h (nfail, ts, handler, is_cold) =
+        fprintf ppf "(%d)%s%a@,%a@;" nfail (if is_cold then "(cold)" else "") trap_stack ts instr handler in
       let rec aux = function
         | [] -> ()
         | [v] -> h v

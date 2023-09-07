@@ -20,6 +20,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Addr
   | Int
   | Float
+  | Vec128
 
 (* - [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
@@ -54,6 +55,7 @@ val typ_val: machtype
 val typ_addr: machtype
 val typ_int: machtype
 val typ_float: machtype
+val typ_vec128: machtype
 
 (** Least upper bound of two [machtype_component]s. *)
 val lub_component
@@ -73,6 +75,7 @@ type exttype =
   | XInt32                              (**r 32-bit integer *)
   | XInt64                              (**r 64-bit integer  *)
   | XFloat                              (**r double-precision FP number  *)
+  | XVec128                             (**r 128-bit vector *)
 (** A variant of [machtype] used to describe arguments
     to external C functions *)
 
@@ -178,7 +181,17 @@ type memory_chunk =
   | Single
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
-and operation =
+  | Onetwentyeight                     (* word-aligned 128-bit vector
+                                          CR mslater: (SIMD) alignment *)
+
+type vector_cast =
+  | Bits128
+
+type scalar_cast =
+  | V128_to_scalar of Primitive.vec128_type
+  | V128_of_scalar of Primitive.vec128_type
+
+type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
       { func: string;
@@ -213,6 +226,8 @@ and operation =
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
+  | Cvectorcast of vector_cast
+  | Cscalarcast of scalar_cast
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound (* Takes two arguments : first the bound to check against,
@@ -229,6 +244,7 @@ and operation =
 type kind_for_unboxing =
   | Any (* This may contain anything, including non-scannable things *)
   | Boxed_integer of Lambda.boxed_integer
+  | Boxed_vector of Lambda.boxed_vector
   | Boxed_float
 
 type is_global = Global | Local
@@ -250,6 +266,10 @@ type symbol =
   { sym_name : string;
     sym_global : is_global }
 
+(* SIMD vectors are untyped in the backend.
+   This record holds the bitwise representation of a 128-bit value. *)
+type vec128_bits = { low : int64; high: int64 }
+
 val global_symbol : string -> symbol
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
@@ -258,6 +278,7 @@ type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
+  | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
@@ -277,7 +298,7 @@ type expression =
   | Ccatch of
       rec_flag
         * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
-          * expression * Debuginfo.t) list
+          * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression
         * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
@@ -315,6 +336,7 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
+  | Cvec128 of vec128_bits
   | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int
@@ -327,6 +349,7 @@ type phrase =
 val ccatch :
      label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t * kind_for_unboxing
+       * bool
   -> expression
 
 val reset : unit -> unit

@@ -155,8 +155,20 @@ let arg_label i ppf = function
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
 
+let typevar_layout ~print_quote ppf (v, l) =
+  let pptv =
+    if print_quote
+    then Printast.tyvar
+    else fun ppf s -> fprintf ppf "%s" s
+  in
+  match l with
+  | None -> fprintf ppf " %a" pptv v
+  | Some lay -> fprintf ppf " (%a : %a)"
+                    pptv v
+                    Jane_syntax.Layouts.Pprint.const_layout lay
+
 let typevars ppf vs =
-  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
+  List.iter (typevar_layout ~print_quote:true ppf) vs
 ;;
 
 let layout_array i ppf layouts =
@@ -196,13 +208,17 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
+let layout_annotation i ppf layout =
+  line i ppf "%s" (Layouts.Layout.string_of_const layout)
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
   let i = i+1 in
   match x.ctyp_desc with
-  | Ttyp_any -> line i ppf "Ttyp_any\n";
-  | Ttyp_var (s) -> line i ppf "Ttyp_var %s\n" s;
+  | Ttyp_var (s, layout) ->
+      line i ppf "Ttyp_var %s\n" (Option.value ~default:"_" s);
+      option i layout_annotation ppf layout
   | Ttyp_arrow (l, ct1, ct2) ->
       line i ppf "Ttyp_arrow\n";
       arg_label i ppf l;
@@ -234,12 +250,13 @@ let rec core_type i ppf x =
   | Ttyp_class (li, _, l) ->
       line i ppf "Ttyp_class %a\n" fmt_path li;
       list i core_type ppf l;
-  | Ttyp_alias (ct, s) ->
-      line i ppf "Ttyp_alias \"%s\"\n" s;
+  | Ttyp_alias (ct, s, layout) ->
+      line i ppf "Ttyp_alias \"%s\"\n" (Option.value s ~default:"_");
       core_type i ppf ct;
+      option i layout_annotation ppf layout
   | Ttyp_poly (sl, ct) ->
       line i ppf "Ttyp_poly%a\n"
-        (fun ppf -> List.iter (fun x -> fprintf ppf " '%s" x)) sl;
+        (fun ppf -> List.iter (typevar_layout ~print_quote:true ppf)) sl;
       core_type i ppf ct;
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
@@ -335,28 +352,21 @@ and expression_extra i ppf (x,_,attrs) =
       line i ppf "Texp_poly\n";
       attributes i ppf attrs;
       option i core_type ppf cto;
-  | Texp_newtype s ->
-      line i ppf "Texp_newtype \"%s\"\n" s;
+  | Texp_newtype (s, lay) ->
+      line i ppf "Texp_newtype %a\n" (typevar_layout ~print_quote:false) (s, lay);
       attributes i ppf attrs;
 
 and alloc_mode i ppf m =
-  line i ppf "alloc_mode %s\n"
-  (match Types.Alloc_mode.check_const m with
-  | Some Global ->  "global"
-  | Some Local ->  "local"
-  | None -> "<modevar>"
-  )
+  line i ppf "alloc_mode %a\n" (Mode.Alloc.print' ~verbose:false) m
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
 
+and locality_mode i ppf m =
+  line i ppf "locality_mode %a\n"
+    (Mode.Locality.print' ~verbose:false ?label:None) m
+
 and value_mode i ppf m =
-  line i ppf "alloc_mode %s\n"
-  (match Types.Value_mode.check_const m with
-  | Some Global ->  "global"
-  | Some Local ->  "local"
-  | Some Regional -> "regional"
-  | None -> "<modevar>"
-  )
+  line i ppf "value_mode %a\n" (Mode.Value.print' ~verbose:false) m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
@@ -373,7 +383,7 @@ and expression i ppf x =
     List.iter (expression_extra (i+1) ppf) extra;
   end;
   match x.exp_desc with
-  | Texp_ident (li,_,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
+  | Texp_ident (li,_,_,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
   | Texp_instvar (_, li,_) -> line i ppf "Texp_instvar %a\n" fmt_path li;
   | Texp_constant (c) -> line i ppf "Texp_constant %a\n" fmt_constant c;
   | Texp_let (rf, l, e) ->
@@ -393,7 +403,7 @@ and expression i ppf x =
          | Tail -> "Tail"
          | Nontail -> "Nontail"
          | Default -> "Default");
-      alloc_mode i ppf am;
+      locality_mode i ppf am;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
   | Texp_match (e, sort, l, _partial) ->
@@ -426,14 +436,14 @@ and expression i ppf x =
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf extended_expression;
-  | Texp_field (e, li, _, am) ->
+  | Texp_field (e, li, _, _, am) ->
       line i ppf "Texp_field\n";
       alloc_mode_option i ppf am;
       expression i ppf e;
       longident i ppf li;
   | Texp_setfield (e1, am, li, _, e2) ->
       line i ppf "Texp_setfield\n";
-      alloc_mode i ppf am;
+      locality_mode i ppf am;
       expression i ppf e1;
       longident i ppf li;
       expression i ppf e2;
@@ -789,6 +799,10 @@ and module_type i ppf x =
   | Tmty_typeof m ->
       line i ppf "Tmty_typeof\n";
       module_expr i ppf m;
+  | Tmty_strengthen (mt, li, _) ->
+    line i ppf "Tmty_strengthen\n";
+    module_type i ppf mt;
+    line i ppf "%a\n" fmt_path li;
 
 and signature i ppf x = list i signature_item ppf x.sig_items
 

@@ -62,7 +62,11 @@ and offset = Offset of lambda
 let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
-  (var, Lambda.layout_block) :: (offset, Lambda.layout_int) :: params
+  { name = var ; layout = Lambda.layout_block ;
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+  { name = offset ; layout = Lambda.layout_int ;
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+  params
 
 let add_dst_args ({var; offset} : offset destination) args =
   Lvar var :: offset_code offset :: args
@@ -917,10 +921,11 @@ let rec choice ctx t =
     | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
     | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+    | Pget_header _
     | Pctconst _
     | Pbswap16
     | Pbbswap _
-    | Pint_as_pointer
+    | Pint_as_pointer _
       ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))
