@@ -1210,7 +1210,7 @@ let probe_env p =
   env.stack_offset <- p.probe_stack_offset;
   (* Account for the return address that is now pushed on the stack. *)
   env.stack_offset <- env.stack_offset + 8;
-  env  
+  env
 
 let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in

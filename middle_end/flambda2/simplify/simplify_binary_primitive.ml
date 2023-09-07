@@ -923,7 +923,7 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
             ~projection_bound_to:result_var
             ~kind:Flambda_kind.With_subkind.tagged_immediate
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ ->
+        | Naked_nativeint _ | Naked_vec128 _ ->
           Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
             Simple.print arg1 Simple.print arg2)
       ~name:(fun _ ~coercion:_ -> dacc)
@@ -979,6 +979,12 @@ let simplify_bigarray_load _num_dimensions _bigarray_kind _bigarray_layout
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_bigarray_get_alignment _align ~original_prim dacc ~original_term
+    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -1021,5 +1027,7 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     | Bigarray_load (num_dimensions, bigarray_kind, bigarray_layout) ->
       simplify_bigarray_load num_dimensions bigarray_kind bigarray_layout
         ~original_prim
+    | Bigarray_get_alignment align ->
+      simplify_bigarray_get_alignment align ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var

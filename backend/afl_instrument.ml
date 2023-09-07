@@ -84,7 +84,8 @@ and instrument = function
   | Csequence (e1, e2) -> Csequence (instrument e1, instrument e2)
   | Ccatch (isrec, cases, body, kind) ->
      let cases =
-       List.map (fun (nfail, ids, e, dbg) -> nfail, ids, instrument e, dbg)
+       List.map (fun (nfail, ids, e, dbg, is_cold) ->
+           nfail, ids, instrument e, dbg, is_cold)
          cases
      in
      Ccatch (isrec, cases, instrument body, kind)
@@ -93,7 +94,7 @@ and instrument = function
   | Ctail e -> Ctail (instrument e)
 
   (* these are base cases and have no logging *)
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _ as c -> c
 

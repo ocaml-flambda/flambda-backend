@@ -127,7 +127,7 @@ end
 
 let rec check env (expr : Cmm.expression) =
   match expr with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
   | Cvar _ ->
     ()
   | Clet (_, expr, body)
@@ -155,7 +155,7 @@ let rec check env (expr : Cmm.expression) =
   | Ccatch (rec_flag, handlers, body, _) ->
     let env_extended =
       List.fold_left
-        (fun env (cont, args, _, _) ->
+        (fun env (cont, args, _, _, _) ->
            Env.handler env ~cont ~arg_num:(List.length args))
         env
         handlers
@@ -166,7 +166,7 @@ let rec check env (expr : Cmm.expression) =
       | Recursive -> env_extended
       | Nonrecursive -> env
     in
-    List.iter (fun (_, _, handler, _) -> check env_handler handler) handlers
+    List.iter (fun (_, _, handler, _, _) -> check env_handler handler) handlers
   | Cexit (exit_label, args, _trap_actions) ->
     Env.jump env ~exit_label ~arg_num:(List.length args)
   | Ctrywith (body, _trywith_kind, _, handler, _, _) ->

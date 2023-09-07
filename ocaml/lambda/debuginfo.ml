@@ -87,7 +87,7 @@ module Scoped_location = struct
     cons scopes Sc_method_definition str s
 
   let enter_lazy ~scopes = cons scopes Sc_lazy (str scopes) ""
-  
+
   let enter_partial_or_eta_wrapper ~scopes =
     cons scopes Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)") ""
 
@@ -143,20 +143,21 @@ type item = {
   dinfo_scopes: Scoped_location.scopes;
 }
 
-type t = item list
+type t = { dbg : item list; }
 
 type alloc_dbginfo_item =
   { alloc_words : int;
     alloc_dbg : t }
 type alloc_dbginfo = alloc_dbginfo_item list
 
-let none = []
+let none = { dbg = []; }
 
-let is_none = function
+let is_none { dbg } =
+  match dbg with
   | [] -> true
   | _ :: _ -> false
 
-let to_string dbg =
+let to_string { dbg } =
   match dbg with
   | [] -> ""
   | ds ->
@@ -190,12 +191,13 @@ let item_from_location ~scopes loc =
   }
 
 let from_location = function
-  | Scoped_location.Loc_unknown -> []
+  | Scoped_location.Loc_unknown -> { dbg = []; }
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
-    [item_from_location ~scopes loc]
+    { dbg = [item_from_location ~scopes loc]; }
 
-let to_location = function
+let to_location { dbg } =
+  match dbg with
   | [] -> Location.none
   | d :: _ ->
     let loc_start =
@@ -212,15 +214,15 @@ let to_location = function
       } in
     { loc_ghost = false; loc_start; loc_end; }
 
-let inline dbg1 dbg2 =
-  dbg1 @ dbg2
+let inline { dbg = dbg1;  } { dbg = dbg2; } =
+  { dbg = dbg1 @ dbg2;  }
 
 (* CR-someday afrisch: FWIW, the current compare function does not seem very
    good, since it reverses the two lists. I don't know how long the lists are,
    nor if the specific currently implemented ordering is useful in other
    contexts, but if one wants to use Map, a more efficient comparison should
    be considered. *)
-let compare dbg1 dbg2 =
+let compare { dbg = dbg1; } { dbg = dbg2; } =
   let rec loop ds1 ds2 =
     match ds1, ds2 with
     | [], [] -> 0
@@ -229,24 +231,24 @@ let compare dbg1 dbg2 =
     | d1 :: ds1, d2 :: ds2 ->
       let c = String.compare d1.dinfo_file d2.dinfo_file in
       if c <> 0 then c else
-      let c = compare d1.dinfo_line d2.dinfo_line in
+      let c = Int.compare d1.dinfo_line d2.dinfo_line in
       if c <> 0 then c else
-      let c = compare d1.dinfo_char_end d2.dinfo_char_end in
+      let c = Int.compare d1.dinfo_char_end d2.dinfo_char_end in
       if c <> 0 then c else
-      let c = compare d1.dinfo_char_start d2.dinfo_char_start in
+      let c = Int.compare d1.dinfo_char_start d2.dinfo_char_start in
       if c <> 0 then c else
-      let c = compare d1.dinfo_start_bol d2.dinfo_start_bol in
+      let c = Int.compare d1.dinfo_start_bol d2.dinfo_start_bol in
       if c <> 0 then c else
-      let c = compare d1.dinfo_end_bol d2.dinfo_end_bol in
+      let c = Int.compare d1.dinfo_end_bol d2.dinfo_end_bol in
       if c <> 0 then c else
-      let c = compare d1.dinfo_end_line d2.dinfo_end_line in
+      let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
       if c <> 0 then c else
       loop ds1 ds2
   in
   loop (List.rev dbg1) (List.rev dbg2)
 
-let hash t =
-  List.fold_left (fun hash item -> Hashtbl.hash (hash, item)) 0 t
+let hash { dbg; } =
+  List.fold_left (fun hash item -> Hashtbl.hash (hash, item)) 0 dbg
 
 let rec print_compact ppf t =
   let print_item item =
@@ -264,3 +266,9 @@ let rec print_compact ppf t =
     print_item item;
     Format.fprintf ppf ";";
     print_compact ppf t
+
+let print_compact ppf { dbg; } = print_compact ppf dbg
+
+let to_list { dbg; } = dbg
+
+let length { dbg; } = List.length dbg

@@ -22,6 +22,7 @@ module VB = Bound_var
 type failure =
   | Division_by_zero
   | Index_out_of_bounds
+  | Address_was_misaligned
 
 type expr_primitive =
   | Simple of Simple.t
@@ -98,6 +99,24 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket =
 let symbol_for_prim id =
   Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
 
+let register_invalid_argument ~register_const0 acc error_text =
+  let invalid_argument =
+    (* [Predef.invalid_argument] is not exposed; the following avoids a change
+       to the frontend. *)
+    let matches ident = String.equal (Ident.name ident) "Invalid_argument" in
+    let invalid_argument =
+      match List.find matches Predef.all_predef_exns with
+      | exception Not_found ->
+        Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
+      | ident -> ident
+    in
+    symbol_for_prim invalid_argument
+  in
+  register_const0 acc
+    (Static_const.block Tag.Scannable.zero Immutable
+       [Symbol invalid_argument; Symbol error_text])
+    "block"
+
 let expression_for_failure acc exn_cont ~register_const0 primitive dbg
     (failure : failure) =
   let exn_cont =
@@ -120,23 +139,19 @@ let expression_for_failure acc exn_cont ~register_const0 primitive dbg
         (Static_const.immutable_string "index out of bounds")
         "string"
     in
-    let invalid_argument =
-      (* [Predef.invalid_argument] is not exposed; the following avoids a change
-         to the frontend. *)
-      let matches ident = String.equal (Ident.name ident) "Invalid_argument" in
-      let invalid_argument =
-        match List.find matches Predef.all_predef_exns with
-        | exception Not_found ->
-          Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
-        | ident -> ident
-      in
-      symbol_for_prim invalid_argument
+    let acc, exn_bucket =
+      register_invalid_argument ~register_const0 acc error_text
+    in
+    raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol exn_bucket)
+  | Address_was_misaligned ->
+    (* CR mshinwell: Share this text with elsewhere. *)
+    let acc, error_text =
+      register_const0 acc
+        (Static_const.immutable_string "address was misaligned")
+        "string"
     in
     let acc, exn_bucket =
-      register_const0 acc
-        (Static_const.block Tag.Scannable.zero Immutable
-           [Symbol invalid_argument; Symbol error_text])
-        "block"
+      register_invalid_argument ~register_const0 acc error_text
     in
     raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol exn_bucket)
 
@@ -227,17 +242,18 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
           in
           Let_cont_with_acc.build_non_recursive acc condition_passed_cont
             ~handler_params:Bound_parameters.empty
-            ~handler:condition_passed_expr ~body ~is_exn_handler:false)
+            ~handler:condition_passed_expr ~body ~is_exn_handler:false
+            ~is_cold:false)
         prim_apply_cont validity_conditions
     in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc failure_cont
         ~handler_params:Bound_parameters.empty ~handler:failure_handler_expr
-        ~body:check_validity_conditions ~is_exn_handler:false
+        ~body:check_validity_conditions ~is_exn_handler:false ~is_cold:true
     in
     Let_cont_with_acc.build_non_recursive acc primitive_cont
       ~handler_params:Bound_parameters.empty ~handler:primitive_handler_expr
-      ~body ~is_exn_handler:false
+      ~body ~is_exn_handler:false ~is_cold:false
   | If_then_else (cond, ifso, ifnot) ->
     let cond_result = Variable.create "cond_result" in
     let cond_result_pat = Bound_var.create cond_result Name_mode.normal in
@@ -298,16 +314,16 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifnot_cont
         ~handler_params:Bound_parameters.empty ~handler:ifnot_handler_expr
-        ~body:compute_cond_and_switch ~is_exn_handler:false
+        ~body:compute_cond_and_switch ~is_exn_handler:false ~is_cold:false
     in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifso_cont
         ~handler_params:Bound_parameters.empty ~handler:ifso_handler_expr ~body
-        ~is_exn_handler:false
+        ~is_exn_handler:false ~is_cold:false
     in
     Let_cont_with_acc.build_non_recursive acc join_point_cont
       ~handler_params:(Bound_parameters.create [result_param])
-      ~handler:join_handler_expr ~body ~is_exn_handler:false
+      ~handler:join_handler_expr ~body ~is_exn_handler:false ~is_cold:false
 
 and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
     (dbg : Debuginfo.t) (cont : Acc.t -> Simple.t -> Expr_with_acc.t) :

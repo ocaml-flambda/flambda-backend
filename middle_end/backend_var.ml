@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2018 Jane Street Group LLC                                 *)
+(*   Copyright 2018--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -17,6 +17,18 @@
 include Ident
 
 type backend_var = t
+
+let name_for_debugger t =
+  let prefix = "*opt*" in
+  let prefix_len = String.length prefix in
+  let name = name t in
+  if String.starts_with ~prefix name
+     && String.length name > prefix_len
+  then (String.sub name prefix_len (String.length name - prefix_len)) ^ "_opt"
+  else name
+
+let unique_name_for_debugger t =
+  Printf.sprintf "%s/%d" (name_for_debugger t) (stamp t)
 
 module Provenance = struct
   type t = {
@@ -46,6 +58,8 @@ module Provenance = struct
   let module_path t = t.module_path
   let location t = t.location
   let original_ident t = t.original_ident
+
+  let equal t1 t2 = Stdlib.compare t1 t2 = 0
 end
 
 module With_provenance = struct

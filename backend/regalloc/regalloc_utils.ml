@@ -46,8 +46,6 @@ let bool_of_param ?guard param_name =
          then fatal "%s is set but %s is not" param_name guard_name);
      res)
 
-let stack_slots_optim = bool_of_param "STACK_SLOTS_OPTIM"
-
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
 type liveness = Cfg_with_infos.liveness
@@ -89,7 +87,9 @@ module Instruction = struct
       stack_offset = -1;
       id = -1;
       irc_work_list = Unknown_list;
-      ls_order = -1
+      ls_order = -1;
+      available_before = None;
+      available_across = None
     }
 
   let compare (left : t) (right : t) : int = Int.compare left.id right.id
@@ -242,7 +242,9 @@ module Move = struct
       stack_offset = instr.stack_offset;
       id;
       irc_work_list = Unknown_list;
-      ls_order = -1
+      ls_order = -1;
+      available_before = instr.available_before;
+      available_across = instr.available_across
     }
 
   let to_string = function Plain -> "move" | Load -> "load" | Store -> "store"
@@ -251,6 +253,10 @@ end
 let same_reg_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
   Int.equal (Proc.register_class reg1) (Proc.register_class reg2)
+
+let same_stack_class : Reg.t -> Reg.t -> bool =
+ fun reg1 reg2 ->
+  Int.equal (Proc.stack_slot_class reg1.typ) (Proc.stack_slot_class reg2.typ)
 
 let make_temporary :
     same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
@@ -314,6 +320,7 @@ module Substitution = struct
   let apply_set : t -> Reg.Set.t -> Reg.Set.t =
    fun subst set -> Reg.Set.map (fun reg -> apply_reg subst reg) set
 
+  (* CR mshinwell: Apply substitution to [Iname_for_debugger] registers. *)
   let apply_instruction_in_place : t -> _ Cfg.instruction -> unit =
    fun subst instr ->
     apply_array_in_place subst instr.arg;
@@ -340,6 +347,17 @@ module Substitution = struct
         | Some subst -> apply_block_in_place subst block)
 end
 
+let remove_prologue : Cfg.basic_block -> bool =
+ fun block ->
+  let removed = ref false in
+  DLL.filter_left block.body ~f:(fun instr ->
+      match instr.Cfg.desc with
+      | Cfg.Prologue ->
+        removed := true;
+        false
+      | _ -> true);
+  !removed
+
 let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -349,10 +367,22 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   in
   if not prologue_required
   then
-    (* note: `Cfgize` has put the prologue in the entry block *)
-    let block = Cfg.get_block_exn cfg cfg.entry_label in
-    DLL.filter_left block.body ~f:(fun instr ->
-        match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
+    (* note: `Cfgize` has put the prologue in the entry block or its
+       successor. *)
+    let entry_block = Cfg.get_block_exn cfg cfg.entry_label in
+    let removed = remove_prologue entry_block in
+    if not removed
+    then
+      match entry_block.terminator.desc with
+      | Always label ->
+        let block = Cfg.get_block_exn cfg label in
+        let removed = remove_prologue block in
+        assert removed
+      | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+      | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
+      | Poll_and_jump _ ->
+        assert false
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->
@@ -479,14 +509,19 @@ let insert_block :
     Misc.fatal_errorf
       "Cannot insert a block after block %a: it has no successors" Label.print
       predecessor_block.start;
-  let dbg, fdo, live, stack_offset =
+  let dbg, fdo, live, stack_offset, available_before, available_across =
     match DLL.last body with
     | None ->
       ( Debuginfo.none,
         Fdo_info.none,
         Reg.Set.empty,
-        predecessor_block.stack_offset )
-    | Some { dbg; fdo; live; stack_offset; _ } -> dbg, fdo, live, stack_offset
+        predecessor_block.stack_offset,
+        None,
+        None )
+    | Some
+        { dbg; fdo; live; stack_offset; available_before; available_across; _ }
+      ->
+      dbg, fdo, live, stack_offset, available_before, available_across
   in
   let copy (i : Cfg.basic Cfg.instruction) : Cfg.basic Cfg.instruction =
     { i with id = next_instruction_id () }
@@ -521,7 +556,9 @@ let insert_block :
               stack_offset;
               id = next_instruction_id ();
               irc_work_list = Unknown_list;
-              ls_order = -1
+              ls_order = -1;
+              available_before;
+              available_across
             };
           (* The [predecessor_block] is the only predecessor. *)
           predecessors = Label.Set.singleton predecessor_block.start;
@@ -529,7 +566,8 @@ let insert_block :
           exn = None;
           can_raise = false;
           is_trap_handler = false;
-          dead = predecessor_block.dead
+          dead = predecessor_block.dead;
+          cold = predecessor_block.cold
         }
       in
       Cfg_with_layout.add_block cfg_with_layout block

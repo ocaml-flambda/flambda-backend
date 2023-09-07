@@ -32,6 +32,7 @@
     arg_helper
     clflags
     debug
+    language_extension_kernel
     language_extension
     profile
     consistbl
@@ -42,6 +43,7 @@
     location
     longident
     docstrings
+    printast
     syntaxerr
     jane_syntax_parsing
     jane_syntax
@@ -55,6 +57,7 @@
     shape
     layouts
     primitive
+    mode
     types
     btype
     lazy_backtrack
@@ -74,6 +77,7 @@
     meta
     symtable
     asttypes
+    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -85,6 +89,7 @@
     linkage_name)
   (modules_without_implementation
     asttypes
+    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -111,6 +116,7 @@
 (copy_files ../../utils/arg_helper.ml)
 (copy_files ../../utils/clflags.ml)
 (copy_files ../../utils/debug.ml)
+(copy_files ../../utils/language_extension_kernel.ml)
 (copy_files ../../utils/language_extension.ml)
 (copy_files ../../utils/profile.ml)
 (copy_files ../../utils/consistbl.ml)
@@ -126,6 +132,7 @@
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
+(copy_files ../../parsing/printast.ml)
 (copy_files ../../parsing/syntaxerr.ml)
 (copy_files ../../parsing/jane_syntax_parsing.ml)
 (copy_files ../../parsing/jane_syntax.ml)
@@ -139,6 +146,7 @@
 (copy_files ../../typing/layouts.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/mode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -168,6 +176,7 @@
 (copy_files ../../utils/arg_helper.mli)
 (copy_files ../../utils/clflags.mli)
 (copy_files ../../utils/debug.mli)
+(copy_files ../../utils/language_extension_kernel.mli)
 (copy_files ../../utils/language_extension.mli)
 (copy_files ../../utils/profile.mli)
 (copy_files ../../utils/consistbl.mli)
@@ -183,6 +192,7 @@
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
+(copy_files ../../parsing/printast.mli)
 (copy_files ../../parsing/syntaxerr.mli)
 (copy_files ../../parsing/jane_syntax_parsing.mli)
 (copy_files ../../parsing/jane_syntax.mli)
@@ -196,6 +206,7 @@
 (copy_files ../../typing/layouts.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/mode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
@@ -217,6 +228,7 @@
 
 ; .mli-only:
 (copy_files ../../parsing/asttypes.mli)
+(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/parsetree.mli)
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
@@ -267,6 +279,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension_kernel.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
@@ -278,6 +291,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
@@ -288,6 +302,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Layouts.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -339,6 +354,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension_kernel.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
@@ -351,6 +367,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax_parsing.cmx
@@ -360,6 +377,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Layouts.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

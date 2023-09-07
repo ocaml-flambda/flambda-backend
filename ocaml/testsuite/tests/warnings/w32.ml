@@ -69,3 +69,14 @@ module H (X : sig val x : int end) = X
 module type S = sig
   module F:  sig val x : int end -> sig end
 end
+
+(* Nominal type comparison *)
+
+module Nominal = struct
+  module type S = sig type t val x : int end
+
+  module F(X:S) = struct type t = X.t end
+  module M : S = struct type t = int let x = 1 end
+
+  module N = F(M)
+end

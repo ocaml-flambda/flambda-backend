@@ -43,7 +43,7 @@ type error =
 
 exception Error of Location.t * error
 
-(* CR layouts v2: This is used as part of the "void safety check" in the case of
+(* CR layouts v7: This is used as part of the "void safety check" in the case of
    [Tstr_eval], where we want to allow any sort (see comment on that case of
    typemod).  Remove when we remove the safety check.
 
@@ -131,7 +131,10 @@ let rec apply_coercion loc strict restr arg =
   | Tcoerce_functor(cc_arg, cc_res) ->
       let param = Ident.create_local "funarg" in
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
-      apply_coercion_result loc strict arg [param, Lambda.layout_module] [carg] cc_res
+      apply_coercion_result loc strict arg
+        [{name = param; layout = Lambda.layout_module;
+          attributes = Lambda.default_param_attribute; mode = alloc_heap}]
+        [carg] cc_res
   | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
       Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode:pc_poly_mode None
   | Tcoerce_alias (env, path, cc) ->
@@ -148,7 +151,11 @@ and apply_coercion_result loc strict funct params args cc_res =
     let param = Ident.create_local "funarg" in
     let arg = apply_coercion loc Alias cc_arg (Lvar param) in
     apply_coercion_result loc strict funct
-      ((param, Lambda.layout_module) :: params) (arg :: args) cc_res
+      ({ name = param;
+         layout = Lambda.layout_module;
+         attributes = Lambda.default_param_attribute;
+         mode = alloc_heap } :: params)
+      (arg :: args) cc_res
   | _ ->
       name_lambda strict funct Lambda.layout_functor
         (fun id ->
@@ -300,7 +307,8 @@ let init_shape id modl =
   let rec init_shape_mod subid loc env mty =
     match Mtype.scrape env mty with
       Mty_ident _
-    | Mty_alias _ ->
+    | Mty_alias _
+    | Mty_strengthen _ ->
         raise (Initialization_failure
                 (Unsafe {reason=Unsafe_module_binding;loc;subid}))
     | Mty_signature sg ->
@@ -559,7 +567,12 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     List.fold_left (fun (params, body) (param, loc, arg_coercion) ->
         let param' = Ident.rename param in
         let arg = apply_coercion loc Alias arg_coercion (Lvar param') in
-        let params = (param', Lambda.layout_module) :: params in
+        let params = {
+          name = param';
+          layout = Lambda.layout_module;
+          attributes = Lambda.default_param_attribute;
+          mode = alloc_heap
+        } :: params in
         let body = Llet (Alias, Lambda.layout_module, param, arg, body) in
         params, body)
       ([], transl_module ~scopes res_coercion body_path body)

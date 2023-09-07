@@ -64,7 +64,7 @@ let arg b = function
   | Reg16 x -> print_reg b string_of_reg16 x
   | Reg32 x -> print_reg b string_of_reg32 x
   | Reg64 x -> print_reg b string_of_reg64 x
-  | Regf x  -> print_reg b string_of_registerf x
+  | Regf x  -> print_reg b string_of_regf x
   | Mem addr -> arg_mem b addr
   | Mem64_RIP (_, s, displ) -> bprintf b "%s%a(%%rip)" s opt_displ displ
 
@@ -98,8 +98,8 @@ let suf arg =
   | DWORD | REAL8 -> "l"
   | QWORD -> "q"
   | REAL4 -> "s"
-  | NONE -> ""
-  | OWORD | NEAR | PROC -> assert false
+  | VEC128 | NONE -> ""
+  | NEAR | PROC -> assert false
 
 let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
@@ -143,46 +143,6 @@ let print_instr b = function
   | CVTTSD2SI (arg1, arg2) -> i2_s b "cvttsd2si" arg1 arg2
   | DEC arg -> i1_s b "dec" arg
   | DIVSD (arg1, arg2) -> i2 b "divsd" arg1 arg2
-  | FABS -> i0 b "fabs"
-  | FADD arg -> i1_s b "fadd" arg
-  | FADDP (arg1, arg2)  -> i2 b "faddp" arg1 arg2
-  | FCHS -> i0 b "fchs"
-  | FCOMP arg -> i1_s b "fcomp" arg
-  | FCOMPP -> i0 b "fcompp"
-  | FCOS -> i0 b "fcos"
-  | FDIV arg -> i1_s b "fdiv" arg
-  | FDIVP (Regf (ST 0), arg2)  -> i2 b "fdivrp" (Regf (ST 0)) arg2 (* bug *)
-  | FDIVP (arg1, arg2)  -> i2 b "fdivp" arg1 arg2
-  | FDIVR arg -> i1_s b "fdivr" arg
-  | FDIVRP (Regf (ST 0), arg2)  -> i2 b "fdivp" (Regf (ST 0)) arg2 (* bug *)
-  | FDIVRP (arg1, arg2)  -> i2 b "fdivrp" arg1 arg2
-  | FILD arg -> i1_s b "fild" arg
-  | FISTP arg -> i1_s b "fistp" arg
-  | FLD (Mem {typ=REAL4; _} as arg) -> i1 b "flds" arg
-  | FLD arg -> i1 b "fldl" arg
-  | FLD1 -> i0 b "fld1"
-  | FLDCW arg -> i1 b "fldcw" arg
-  | FLDLG2 -> i0 b "fldlg2"
-  | FLDLN2 -> i0 b "fldln2"
-  | FLDZ -> i0 b "fldz"
-  | FMUL arg -> i1_s b "fmul" arg
-  | FMULP (arg1, arg2)  -> i2 b "fmulp" arg1 arg2
-  | FNSTCW arg -> i1 b "fnstcw" arg
-  | FNSTSW arg -> i1 b "fnstsw" arg
-  | FPATAN -> i0 b "fpatan"
-  | FPTAN -> i0 b "fptan"
-  | FSIN -> i0 b "fsin"
-  | FSQRT -> i0 b "fsqrt"
-  | FSTP (Mem {typ=REAL4; _} as arg) -> i1 b "fstps" arg
-  | FSTP arg -> i1 b "fstpl" arg
-  | FSUB arg -> i1_s b "fsub" arg
-  | FSUBP (Regf (ST 0), arg2)  -> i2 b "fsubrp" (Regf (ST 0)) arg2 (* bug *)
-  | FSUBP (arg1, arg2)  -> i2 b "fsubp" arg1 arg2
-  | FSUBR arg -> i1_s b "fsubr" arg
-  | FSUBRP (Regf (ST 0), arg2) -> i2 b "fsubp" (Regf (ST 0)) arg2 (* bug *)
-  | FSUBRP (arg1, arg2)  -> i2 b "fsubrp" arg1 arg2
-  | FXCH arg -> i1 b "fxch" arg
-  | FYL2X -> i0 b "fyl2x"
   | HLT -> i0 b "hlt"
   | IDIV arg -> i1_s b "idiv" arg
   | IMUL (arg, None) -> i1_s b "imul" arg
@@ -204,6 +164,7 @@ let print_instr b = function
       i2 b "movabsq" arg1 arg2
   | MOV (arg1, arg2) -> i2_s b "mov" arg1 arg2
   | MOVAPD (arg1, arg2) -> i2 b "movapd" arg1 arg2
+  | MOVUPD (arg1, arg2) -> i2 b "movupd" arg1 arg2
   | MOVD (arg1, arg2) -> i2 b "movd" arg1 arg2
   | MOVQ (arg1, arg2) -> i2 b "movq" arg1 arg2
   | MOVLPD (arg1, arg2) -> i2 b "movlpd" arg1 arg2
@@ -245,6 +206,22 @@ let print_instr b = function
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2_s b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
+  | CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
+  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" (Imm (Int64.of_int shuf)) arg1 arg2
+  | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
+  | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
+  | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
+  | DIVPS (arg1, arg2) -> i2 b "divps" arg1 arg2
+  | MAXPS (arg1, arg2) -> i2 b "maxps" arg1 arg2
+  | MINPS (arg1, arg2) -> i2 b "minps" arg1 arg2
+  | RCPPS (arg1, arg2) -> i2 b "rcpps" arg1 arg2
+  | SQRTPS (arg1, arg2) -> i2 b "sqrtps" arg1 arg2
+  | RSQRTPS (arg1, arg2) -> i2 b "rsqrtps" arg1 arg2
+  | MOVHLPS (arg1, arg2) -> i2 b "movhlps" arg1 arg2
+  | MOVLHPS (arg1, arg2) -> i2 b "movlhps" arg1 arg2
+  | UNPCKHPS (arg1, arg2) -> i2 b "unpckhps" arg1 arg2
+  | UNPCKLPS (arg1, arg2) -> i2 b "unpcklps" arg1 arg2
+  | MOVMSKPS (arg1, arg2) -> i2 b "movmskps" arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
@@ -305,9 +282,9 @@ let print_line b = function
   | NewLabel (s, _) -> bprintf b "%s:" s
   | NewLine -> ()
   | Quad n -> bprintf b "\t.quad\t%a" cst n
-  | Section ([".data" ], _, _) -> bprintf b "\t.data"
-  | Section ([".text" ], _, _) -> bprintf b "\t.text"
-  | Section (name, flags, args) ->
+  | Section ([".data" ], _, _, _) -> bprintf b "\t.data"
+  | Section ([".text" ], _, _, _) -> bprintf b "\t.text"
+  | Section (name, flags, args, _delayed) ->
       bprintf b "\t.section %s" (String.concat "," name);
       begin match flags with
       | None -> ()

@@ -8,7 +8,10 @@ module List = ListLabels
 
 let fatal = Misc.fatal_errorf
 
-let debug = false
+(* CR-soon xclerc for xclerc: switch back to `false`. *)
+let debug = true
+
+type doms = Label.t Label.Tbl.t
 
 type doms = Label.t Label.Tbl.t
 
@@ -311,6 +314,7 @@ let is_dominating t left right = is_dominating t.doms left right
 
 let is_strictly_dominating t left right =
   is_strictly_dominating t.doms left right
+
 
 let find_dominance_frontier t label =
   match Label.Tbl.find_opt t.dominance_frontiers label with

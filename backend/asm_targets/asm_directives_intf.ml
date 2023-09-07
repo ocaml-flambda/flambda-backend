@@ -46,6 +46,7 @@ module type Arg = sig
       | NONE
       | DWORD
       | QWORD
+      | VEC128
 
     val file : file_num:int -> file_name:string -> unit
 
@@ -56,7 +57,8 @@ module type Arg = sig
 
     val label : ?data_type:data_type -> string -> unit
 
-    val section : string list -> string option -> string list -> unit
+    val section :
+      ?delayed:bool -> string list -> string option -> string list -> unit
 
     val text : unit -> unit
 
@@ -91,7 +93,8 @@ module type S = sig
       they are necessary so that references (e.g. DW_FORM_ref_addr /
       DW_FORM_sec_offset when emitting DWARF) to places that are currently at
       the start of these sections get relocated correctly when those places
-      become not at the start (e.g. during linking). *)
+      become not at the start (e.g. during linking).
+  *)
   val switch_to_section : Asm_section.t -> unit
 
   (** Called at the beginning of the assembly generation and only if the dwarf

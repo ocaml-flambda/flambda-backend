@@ -8,11 +8,11 @@
 (* CR layouts v5: eliminate various restructions about how void is used from
    this file. *)
 
-type t_void [@@void]
+type t_void : void
 
 type void_rec = { v : t_void } [@@unboxed];;
 [%%expect{|
-type t_void [@@void]
+type t_void : void
 type void_rec = { v : t_void; } [@@unboxed]
 |}]
 
@@ -885,7 +885,7 @@ Error: Unbound value test8
 
 (***********************************)
 (* Test 9: voids in let rec groups *)
-(* CR layouts v2: hard to do much interesting here, considering the restrictions
+(* CR layouts v2.5: hard to do much interesting here, considering the restrictions
    on non-function let-recs.  Revisit when we have more interesting functions?
 *)
 let () = r := []

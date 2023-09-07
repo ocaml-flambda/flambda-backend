@@ -168,10 +168,16 @@ class virtual selector_generic : object
     environment -> Reg.t array list -> unit
   method insert_endregions_until :
     environment -> suffix:Region_stack.t -> Region_stack.t -> unit
-  method emit_expr :
-    environment -> Cmm.expression -> Reg.t array option
-  method emit_expr_aux :
-    environment -> Cmm.expression -> (Reg.t array * Region_stack.t) option
+  method emit_expr
+     : environment
+    -> Cmm.expression
+    -> bound_name:Backend_var.With_provenance.t option
+    -> Reg.t array option
+  method emit_expr_aux
+     : environment
+    -> Cmm.expression
+    -> bound_name:Backend_var.With_provenance.t option
+    -> (Reg.t array * Region_stack.t) option
   method emit_tail : environment -> Cmm.expression -> unit
 
   (* [contains_calls] is declared as a reference instance variable,

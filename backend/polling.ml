@@ -179,7 +179,7 @@ let add_poll i =
   Mach.instr_cons_debug (Iop (Ipoll { return_label = None })) [||] [||] i.dbg i
 
 let instr_body handler_safe i =
-  let add_unsafe_handler ube (k, _trap_stack, _) =
+  let add_unsafe_handler ube (k, _trap_stack, _, _) =
     match handler_safe k with
     | Safe -> ube
     | Unsafe -> Int.Set.add k ube
@@ -201,9 +201,9 @@ let instr_body handler_safe i =
         match rc with
         | Cmm.Recursive -> List.fold_left add_unsafe_handler ube hdl
         | Cmm.Nonrecursive -> ube in
-      let instr_handler (k, trap_stack, i0) =
+      let instr_handler (k, trap_stack, i0, is_cold) =
         let i1 = instr ube' i0 in
-        (k, trap_stack, i1) in
+        (k, trap_stack, i1, is_cold) in
       (* Since we are only interested in unguarded _back_ edges, we don't
          use [ube'] for instrumenting [body], but just [ube] instead. *)
       let body = instr ube body in
@@ -241,13 +241,13 @@ let find_poll_alloc_or_calls instr =
       | Iop(Icall_ind | Icall_imm _ |
             Itailcall_ind | Itailcall_imm _ ) -> Some (Function_call, i.dbg)
       | Iop(Iextcall { alloc = true }) -> Some (External_call, i.dbg)
-      | Iop(Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ |
+      | Iop(Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ |
             Iconst_symbol _ | Iextcall { alloc = false } | Istackoffset _ |
             Iload _ | Istore _ | Iintop _ | Iintop_imm _ | Iintop_atomic _ |
             Ifloatofint | Iintoffloat | Inegf | Iabsf | Iaddf | Isubf |
             Imulf | Idivf | Iopaque | Ispecific _ | Ibeginregion | Iendregion |
-            Icsel _ | Icompf _ | Iname_for_debugger _ | Iprobe _ |
-            Iprobe_is_enabled _ | Ivalueofint | Iintofvalue)-> None
+            Icsel _ | Icompf _ | Iname_for_debugger _ | Iprobe _ | Iscalarcast _ |
+            Iprobe_is_enabled _ | Ivalueofint | Iintofvalue | Ivectorcast _)-> None
       | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _ |
         Itrywith _ | Iraise _ -> None
     in

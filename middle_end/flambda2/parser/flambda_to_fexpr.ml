@@ -354,6 +354,8 @@ let name env n =
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 
+let vec128 v = v |> Vector_types.Vec128.Bit_pattern.to_bits
+
 let targetint i = i |> Targetint_32_64.to_int64
 
 let const c : Fexpr.const =
@@ -367,6 +369,8 @@ let const c : Fexpr.const =
   | Naked_float f -> Naked_float (f |> float)
   | Naked_int32 i -> Naked_int32 i
   | Naked_int64 i -> Naked_int64 i
+  | Naked_vec128 bits ->
+    Naked_vec128 (Vector_types.Vec128.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
@@ -421,6 +425,7 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
   | Boxed_nativeint -> Boxed_nativeint
+  | Boxed_vec128 -> Boxed_vec128
   | Tagged_immediate -> Tagged_immediate
   | Variant { consts; non_consts } -> variant_subkind consts non_consts
   | Float_array -> Float_array
@@ -533,8 +538,9 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
-  | Int_as_pointer | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup ->
+  | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
+  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
+  | Get_header ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -575,6 +581,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_get_alignment align -> Bigarray_get_alignment align
   | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -689,6 +696,7 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
   | Boxed_int32 i -> Boxed_int32 (or_variable Fun.id env i)
   | Boxed_int64 i -> Boxed_int64 (or_variable Fun.id env i)
   | Boxed_nativeint i -> Boxed_nativeint (or_variable targetint env i)
+  | Boxed_vec128 i -> Boxed_vec128 (or_variable vec128 env i)
   | Immutable_float_block elements ->
     Immutable_float_block (List.map (or_variable float env) elements)
   | Immutable_float_array elements ->

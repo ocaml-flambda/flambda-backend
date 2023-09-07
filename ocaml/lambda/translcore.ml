@@ -43,8 +43,8 @@ let layout_must_be_value loc layout =
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
-(* CR layouts v2: In the places where this is used, we will want to allow
-   #float, but not void yet (e.g., the left of a semicolon and loop bodies).  we
+(* CR layouts v7: In the places where this is used, we will want to allow
+   float#, but not void yet (e.g., the left of a semicolon and loop bodies).  we
    still default to value before checking for void, to allow for sort variables
    arising in situations like
 
@@ -242,7 +242,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = wrap_bindings bindings exp}]
   | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
-      let mode = Value_mode.of_alloc arg_mode in
+      let mode = Mode.Value.of_alloc arg_mode in
       let param = Typecore.name_cases "param" cases in
       let desc =
         {val_type = pat.pat_type; val_kind = Val_reg;
@@ -261,7 +261,8 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
             ({exp with exp_type = pat.pat_type; exp_env = env; exp_desc =
               Texp_ident
                 (Path.Pident param, mknoloc (Longident.Lident name),
-                 desc, Id_value)},
+                 desc, Id_value,
+                 (Mode.Value.uniqueness mode, Mode.Value.linearity mode))},
              arg_sort,
              cases, partial) }
       in
@@ -297,7 +298,7 @@ let event_function ~scopes exp lam =
 let assert_failed ~scopes exp =
   let slot =
     transl_extension_path Loc_unknown
-      Env.initial_safe_string Predef.path_assert_failure
+      (Lazy.force Env.initial_safe_string) Predef.path_assert_failure
   in
   let loc = exp.exp_loc in
   let (fname, line, char) =
@@ -346,7 +347,7 @@ let can_apply_primitive p pmode pos args =
     else if pos <> Typedtree.Tail then true
     else begin
       let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
-      is_heap_mode (transl_alloc_mode return_mode)
+      is_heap_mode (transl_locality_mode return_mode)
     end
   end
 
@@ -370,7 +371,7 @@ and transl_exp1 ~scopes ~in_new_scope sort e =
 
 and transl_exp0 ~in_new_scope ~scopes sort e =
   match e.exp_desc with
-  | Texp_ident(path, _, desc, kind) ->
+  | Texp_ident(path, _, desc, kind, _) ->
       transl_ident (of_location ~scopes e.exp_loc)
         e.exp_env e.exp_type path desc kind
   | Texp_constant cst ->
@@ -388,8 +389,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_function ~scopes e alloc_mode param arg_mode arg_sort ret_sort
         cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
-                                       Id_prim pmode);
-                exp_type = prim_type; } as funct, oargs, pos, alloc_mode)
+                                       Id_prim pmode, _);
+                exp_type = prim_type; } as funct, oargs, pos, ap_mode)
     when can_apply_primitive p pmode pos oargs ->
       let rec cut_args prim_repr oargs =
         match prim_repr, oargs with
@@ -419,19 +420,19 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
-        let mode = transl_alloc_mode alloc_mode in
+        let mode = transl_locality_mode ap_mode in
         let result_layout = layout_exp sort e in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs, position, alloc_mode) ->
+  | Texp_apply(funct, oargs, position, ap_mode) ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
-      let mode = transl_alloc_mode alloc_mode in
+      let mode = transl_locality_mode ap_mode in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised ~result_layout
            ~position ~mode (transl_exp ~scopes Sort.for_function funct)
@@ -519,7 +520,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, _, lbl, alloc_mode) ->
+  | Texp_field(arg, _, lbl, _, alloc_mode) ->
       let targ = transl_exp ~scopes Sort.for_record arg in
       let sem =
         match lbl.lbl_mut with
@@ -648,9 +649,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   event_before ~scopes ifso (transl_exp ~scopes sort ifso),
                   lambda_unit,
                   Lambda.layout_unit)
-  | Texp_sequence(expr1, sort, expr2) ->
-      sort_must_not_be_void expr1.exp_loc expr1.exp_type sort;
-      Lsequence(transl_exp ~scopes sort expr1,
+  | Texp_sequence(expr1, sort', expr2) ->
+      sort_must_not_be_void expr1.exp_loc expr1.exp_type sort';
+      Lsequence(transl_exp ~scopes sort' expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes sort expr2))
   | Texp_while {wh_body; wh_body_sort; wh_cond} ->
       sort_must_not_be_void wh_body.exp_loc wh_body.exp_type wh_body_sort;
@@ -819,7 +820,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             typechecker enforces that e has layout value.  *)
          let scopes = enter_lazy ~scopes in
          let fn = lfunction ~kind:(Curried {nlocal=0})
-                            ~params:[Ident.create_local "param", Lambda.layout_unit]
+                            ~params:[{ name = Ident.create_local "param";
+                                       layout = Lambda.layout_unit;
+                                       attributes = Lambda.default_param_attribute;
+                                       mode = alloc_heap}]
                             ~return:Lambda.layout_lazy_contents
                             ~attr:default_function_attribute
                             ~loc:(of_location ~scopes e.exp_loc)
@@ -860,7 +864,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | _ ->
           let oid = Ident.create_local "open" in
           let body, _ =
-            (* CR layouts v2: Currently we only allow values at the top of a
+            (* CR layouts v5: Currently we only allow values at the top of a
                module.  When that changes, some adjustments may be needed
                here. *)
             List.fold_left (fun (body, pos) id ->
@@ -900,7 +904,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            (We could probably calculate the layouts of these variables here
            rather than requiring them all to be value, but that would be even
            more hacky.) *)
-        (* CR layouts v2: if we get close to releasing other layout somebody
+        (* CR layouts v2.5: if we get close to releasing other layout somebody
            actually might put in a probe, check with the middle-end team about
            the status of fixing this. *)
         let path = Path.Pident id in
@@ -940,7 +944,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~kind:(Curried {nlocal=0})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun v -> v, layout_probe_arg) param_idents)
+          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
           ~return:return_layout
           ~body
           ~loc:(of_location ~scopes exp.exp_loc)
@@ -1140,7 +1144,13 @@ and transl_apply ~scopes
             | Alloc_heap -> true
           in
           let layout_arg = layout_of_sort (to_location loc) sort_arg in
-          lfunction ~kind:(Curried {nlocal}) ~params:[id_arg, layout_arg]
+          let params = [{
+              name = id_arg;
+              layout = layout_arg;
+              attributes = Lambda.default_param_attribute;
+              mode = arg_mode
+            }] in
+          lfunction ~kind:(Curried {nlocal}) ~params
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
         in
@@ -1162,11 +1172,11 @@ and transl_apply ~scopes
   build_apply lam [] loc position mode args
 
 and transl_curried_function
-      ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc repr ~region
+      ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc repr ~region
       ~curry partial warnings (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
   let rec loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc
-            ~arity ~region ~curry partial warnings (param:Ident.t) cases =
+            ~arity ~region ~curry ~arg_mode partial warnings (param:Ident.t) cases =
     match curry, cases with
       More_args {partial_mode},
       [{c_lhs=pat; c_guard=None;
@@ -1175,7 +1185,7 @@ and transl_curried_function
                    { arg_label = _; param = param'; cases = cases';
                      partial = partial'; region = region';
                      curry = curry';
-                     warnings = warnings'; arg_sort; ret_sort };
+                     warnings = warnings'; arg_mode = arg_mode'; arg_sort; ret_sort };
                exp_env; exp_type; exp_loc }}]
       when arity < max_arity ->
       (* Lfunctions must have local returns after the first local arg/ret *)
@@ -1189,7 +1199,7 @@ and transl_curried_function
           let arg_layout =
             function_arg_layout exp_env exp_loc arg_sort exp_type
           in
-          loop ~scopes ~arg_sort ~arg_layout ~return_sort:ret_sort
+          loop ~scopes ~arg_sort ~arg_layout ~arg_mode:arg_mode' ~return_sort:ret_sort
             ~return_layout exp_loc ~arity:(arity + 1) ~region:region'
             ~curry:curry' partial' warnings' param' cases'
         in
@@ -1204,7 +1214,15 @@ and transl_curried_function
              assert (nlocal = List.length params);
              Curried {nlocal = nlocal + 1}
         in
-        ((fnkind, (param, arg_layout) :: params, return_layout, region),
+        let arg_mode = transl_alloc_mode arg_mode in
+        let params = {
+          name = param ;
+          layout = arg_layout ;
+          attributes = Lambda.default_param_attribute ;
+          mode = arg_mode
+        } :: params
+        in
+        ((fnkind, params, return_layout, region),
          Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
            None (Lvar param) [pat, body] partial)
       else begin
@@ -1217,19 +1235,19 @@ and transl_curried_function
             Warnings.restore prev
         | Partial -> ()
         end;
-        transl_tupled_function ~scopes ~arg_sort ~arg_layout
+        transl_tupled_function ~scopes ~arg_sort ~arg_layout ~arg_mode
           ~return_sort:ret_sort ~return_layout ~arity ~region ~curry loc repr
           partial param cases
       end
     | curry, cases ->
-      transl_tupled_function ~scopes ~arg_sort ~arg_layout ~return_sort
+      transl_tupled_function ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort
         ~return_layout ~arity ~region ~curry loc repr partial param cases
   in
-  loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc ~arity:1
+  loop ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc ~arity:1
     ~region ~curry partial warnings param cases
 
 and transl_tupled_function
-      ~scopes ~arg_layout ~arg_sort ~return_sort ~return_layout ~arity ~region
+      ~scopes ~arg_layout ~arg_sort ~arg_mode ~return_sort ~return_layout ~arity ~region
       ~curry loc repr partial (param:Ident.t) cases =
   let partial_mode =
     match curry with
@@ -1260,9 +1278,14 @@ and transl_tupled_function
                  Argument should be a tuple, but couldn't get the kinds"
         in
         let tparams =
-          List.map (fun kind -> Ident.create_local "param", kind) kinds
+          List.map (fun kind -> {
+                name = Ident.create_local "param";
+                layout = kind;
+                attributes = Lambda.default_param_attribute;
+                mode = alloc_heap
+              }) kinds
         in
-        let params = List.map fst tparams in
+        let params = List.map (fun p -> p.name) tparams in
         let body =
           Matching.for_tupled_function ~scopes ~return_layout loc params
             (transl_tupled_cases ~scopes return_sort pats_expr_list) partial
@@ -1270,14 +1293,14 @@ and transl_tupled_function
         let region = region || not (may_allocate_in_region body) in
         ((Tupled, tparams, return_layout, region), body)
     with Matching.Cannot_flatten ->
-      transl_function0 ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout
+      transl_function0 ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout
         loc ~region ~partial_mode repr partial param cases
       end
-  | _ -> transl_function0 ~scopes ~arg_sort ~arg_layout ~return_sort
+  | _ -> transl_function0 ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort
            ~return_layout loc ~region ~partial_mode repr partial param cases
 
 and transl_function0
-      ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc ~region
+      ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc ~region
       ~partial_mode repr partial (param:Ident.t) cases =
     let body =
       Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
@@ -1290,7 +1313,13 @@ and transl_function0
         | Alloc_local -> 1
         | Alloc_heap -> 0
     in
-    ((Curried {nlocal}, [param, arg_layout], return_layout, region), body)
+    let arg_mode = transl_alloc_mode arg_mode in
+    ((Curried {nlocal},
+      [{ name = param;
+         layout = arg_layout;
+         attributes = Lambda.default_param_attribute;
+         mode = arg_mode}],
+      return_layout, region), body)
 
 and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
       cases partial warnings region curry =
@@ -1307,7 +1336,7 @@ and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
          let return_layout =
            function_return_layout e.exp_env e.exp_loc return_sort e.exp_type
          in
-         transl_curried_function ~arg_sort ~arg_layout ~return_sort
+         transl_curried_function ~arg_sort ~arg_layout ~arg_mode ~return_sort
            ~return_layout ~scopes e.exp_loc repr ~region ~curry partial warnings
            param pl)
   in
@@ -1411,14 +1440,14 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   then begin
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
-    (* CR layouts v2: currently we raise if a non-value field is detected.
+    (* CR layouts v5: currently we raise if a non-value field is detected.
        relax that. *)
     let init_id = Ident.create_local "init" in
     let lv =
       Array.mapi
         (fun i (lbl, definition) ->
            match definition with
-           | Kept typ ->
+           | Kept (typ, _) ->
                let field_kind =
                  must_be_value (layout env lbl.lbl_loc Sort.for_record_field typ)
                in
@@ -1498,12 +1527,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
        of the copy *)
     let copy_id = Ident.create_local "newrecord" in
     let update_field cont (lbl, definition) =
-      (* CR layouts v2: remove this check to allow non-value fields.  Even
+      (* CR layouts v5: remove this check to allow non-value fields.  Even
          in the current version we can reasonably skip it because if we built
          the init record, we must have already checked for void. *)
       layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
       match definition with
-      | Kept _type -> cont
+      | Kept (_type, _uu) -> cont
       | Overridden (_lid, expr) ->
           let upd =
             match repres with
@@ -1712,13 +1741,14 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
           | Some (lhs, _) -> Typeopt.function_arg_layout env loc param_sort lhs
     in
     let return_layout = layout_exp case_sort case.c_rhs in
-    let curry = More_args { partial_mode = Alloc_mode.global } in
+    let curry = More_args { partial_mode = Mode.Alloc.legacy } in
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
-             ~return_sort:case_sort ~return_layout case.c_rhs.exp_loc repr
-             ~region:true ~curry partial warnings param [case])
+             ~arg_mode:Mode.Alloc.legacy ~return_sort:case_sort
+             ~return_layout case.c_rhs.exp_loc repr ~region:true ~curry partial
+             warnings param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

@@ -37,6 +37,8 @@ let rec value_kind0 ppf kind =
   | Pboxedintval Pnativeint -> Format.pp_print_string ppf ":nativeint"
   | Pboxedintval Pint32 -> Format.pp_print_string ppf ":int32"
   | Pboxedintval Pint64 -> Format.pp_print_string ppf ":int64"
+  | Pboxedvectorval (Pvec128 ty) ->
+    Format.fprintf ppf ":%s" (vec128_name ty)
   | Pvariant { consts; non_consts } ->
     Format.fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -60,12 +62,15 @@ let layout (layout : Lambda.layout) =
   | Punboxed_int Pint32 -> ":unboxed_int32"
   | Punboxed_int Pint64 -> ":unboxed_int64"
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"
+  | Punboxed_vector (Pvec128 ty) ->
+    Format.sprintf ":unboxed_%s" (Lambda.vec128_name ty)
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
   | Uconst_int32 x -> fprintf ppf "%ldl" x
   | Uconst_int64 x -> fprintf ppf "%LdL" x
   | Uconst_nativeint x -> fprintf ppf "%ndn" x
+  | Uconst_vec128 {high; low} -> fprintf ppf "vec128[%016Lx:%016Lx]"  high low
   | Uconst_block (tag, l) ->
       fprintf ppf "block(%i" tag;
       List.iter (fun u -> fprintf ppf ",%a" uconstant u) l;

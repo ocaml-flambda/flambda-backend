@@ -25,11 +25,13 @@
 %{
 
 open Asttypes
+open Jane_asttypes
 open Longident
 open Parsetree
 open Ast_helper
 open Docstrings
 open Docstrings.WithMenhir
+module N_ary = Jane_syntax.N_ary_functions
 
 let mkloc = Location.mkloc
 let mknoloc = Location.mknoloc
@@ -47,8 +49,8 @@ let ghost_loc (startpos, endpos) = {
 }
 
 let mktyp ~loc ?attrs d = Typ.mk ~loc:(make_loc loc) ?attrs d
-let mkpat ~loc d = Pat.mk ~loc:(make_loc loc) d
-let mkexp ~loc d = Exp.mk ~loc:(make_loc loc) d
+let mkpat ~loc ?attrs d = Pat.mk ~loc:(make_loc loc) ?attrs d
+let mkexp ~loc ?attrs d = Exp.mk ~loc:(make_loc loc) ?attrs d
 let mkmty ~loc ?attrs d = Mty.mk ~loc:(make_loc loc) ?attrs d
 let mksig ~loc d = Sig.mk ~loc:(make_loc loc) d
 let mkmod ~loc ?attrs d = Mod.mk ~loc:(make_loc loc) ?attrs d
@@ -114,7 +116,7 @@ let mkpatvar ~loc name =
 (* See commentary about ghost locations at the declaration of Location.t *)
 let ghexp ~loc d = Exp.mk ~loc:(ghost_loc loc) d
 let ghpat ~loc d = Pat.mk ~loc:(ghost_loc loc) d
-let ghtyp ~loc d = Typ.mk ~loc:(ghost_loc loc) d
+let ghtyp ~loc ?attrs d = Typ.mk ~loc:(ghost_loc loc) ?attrs d
 let ghloc ~loc d = { txt = d; loc = ghost_loc loc }
 let ghstr ~loc d = Str.mk ~loc:(ghost_loc loc) d
 let ghsig ~loc d = Sig.mk ~loc:(ghost_loc loc) d
@@ -130,57 +132,143 @@ let neg_string f =
 let mkuminus ~oploc name arg =
   match name, arg.pexp_desc with
   | "-", Pexp_constant(Pconst_integer (n,m)) ->
-      Pexp_constant(Pconst_integer(neg_string n,m))
+      Pexp_constant(Pconst_integer(neg_string n,m)), arg.pexp_attributes
   | ("-" | "-."), Pexp_constant(Pconst_float (f, m)) ->
-      Pexp_constant(Pconst_float(neg_string f, m))
+      Pexp_constant(Pconst_float(neg_string f, m)), arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
   match name, desc with
   | "+", Pexp_constant(Pconst_integer _)
-  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc
+  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc, arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
-
-
-let local_ext_loc loc = mkloc "extension.local" loc
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
   Attr.mk ~loc name payload
 
+let local_ext_loc loc = mkloc "extension.local" loc
+let unique_ext_loc loc = mkloc "extension.unique" loc
+let once_ext_loc loc = mkloc "extension.once" loc
+
 let local_attr loc =
   mk_attr ~loc (local_ext_loc loc) (PStr [])
 
+let unique_attr loc =
+  mk_attr ~loc (unique_ext_loc loc) (PStr [])
+
+let once_attr loc =
+  mk_attr ~loc (once_ext_loc loc) (PStr [])
+
 let local_extension loc =
-  Exp.mk ~loc:Location.none
-    (Pexp_extension(local_ext_loc loc, PStr []))
+  Exp.mk (Pexp_extension(local_ext_loc loc, PStr []))
+
+let unique_extension loc =
+  Exp.mk (Pexp_extension(unique_ext_loc loc, PStr []))
+
+let once_extension loc =
+  Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
 
 let mkexp_stack ~loc ~kwd_loc exp =
-  ghexp ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
+  Exp.mk ~loc (Pexp_apply(local_extension kwd_loc, [Nolabel, exp]))
+
+let mkexp_unique ~loc ~kwd_loc exp =
+  Exp.mk ~loc (Pexp_apply(unique_extension kwd_loc, [Nolabel, exp]))
+
+let mkexp_once ~loc ~kwd_loc exp =
+  Exp.mk ~loc (Pexp_apply(once_extension kwd_loc, [Nolabel, exp]))
 
 let mkpat_stack pat loc =
-  {pat with ppat_attributes = local_attr loc :: pat.ppat_attributes}
+  {pat with
+   ppat_attributes = local_attr (make_loc loc) :: pat.ppat_attributes}
+
+let mkpat_unique pat loc =
+  {pat with
+   ppat_attributes = unique_attr (make_loc loc) :: pat.ppat_attributes}
+
+let mkpat_once pat loc =
+  {pat with
+   ppat_attributes = once_attr (make_loc loc) :: pat.ppat_attributes}
 
 let mktyp_stack typ loc =
-  {typ with ptyp_attributes = local_attr loc :: typ.ptyp_attributes}
+  {typ with
+   ptyp_attributes = local_attr (make_loc loc) :: typ.ptyp_attributes}
+
+let mktyp_unique typ loc =
+  {typ with
+   ptyp_attributes = unique_attr (make_loc loc) :: typ.ptyp_attributes}
+
+let mktyp_once typ loc =
+  {typ with
+   ptyp_attributes = once_attr (make_loc loc) :: typ.ptyp_attributes}
 
 let wrap_exp_stack exp loc =
-  {exp with pexp_attributes = local_attr loc :: exp.pexp_attributes}
+  {exp with
+   pexp_attributes = local_attr (make_loc loc) :: exp.pexp_attributes}
 
-let mkexp_local_if p ~loc ~kwd_loc exp =
-  if p then mkexp_stack ~loc ~kwd_loc exp else exp
+let wrap_exp_unique exp loc =
+  {exp with
+   pexp_attributes = unique_attr (make_loc loc) :: exp.pexp_attributes}
 
-let mkpat_local_if p pat loc =
-  if p then mkpat_stack pat (make_loc loc) else pat
+let wrap_exp_once exp loc =
+  {exp with
+   pexp_attributes = once_attr (make_loc loc) :: exp.pexp_attributes}
 
-let mktyp_local_if p typ loc =
-  if p then mktyp_stack typ (make_loc loc) else typ
+type mode_annotation = N_ary.mode_annotation =
+  | Local
+  | Unique
+  | Once
 
-let wrap_exp_local_if p exp loc =
-  if p then wrap_exp_stack exp (make_loc loc) else exp
+(** [loc] is the location to be used for the whole expression including the
+    extension node.  The extension node will always have the location [kwd_loc]. *)
+let exp_with_mode ~loc ~kwd_loc flag exp =
+  match flag with
+  | Local -> mkexp_stack exp ~loc ~kwd_loc
+  | Unique -> mkexp_unique exp ~loc ~kwd_loc
+  | Once -> mkexp_once exp ~loc ~kwd_loc
+
+let exp_with_modes loc modes exp =
+  List.fold_left
+    (fun exp mode -> exp_with_mode mode.txt exp ~loc ~kwd_loc:mode.loc)
+    exp modes
+
+let mkexp_with_mode loc (flag, kwd_loc) exp =
+  let loc = make_loc loc in
+  exp_with_mode ~loc ~kwd_loc:(make_loc kwd_loc) flag exp
+
+(** [loc] is a location covering all the modes and the expression, and will be
+  used as for all the nested expressions. It is imprecise and taken as ghost. *)
+let ghexp_with_modes loc modes exp =
+  let loc = ghost_loc loc in
+  let modes = List.map (fun (mode, loc) -> mkloc mode (make_loc loc)) modes in
+  exp_with_modes loc modes exp
+
+let mkpat_with_mode = function
+  | Local -> mkpat_stack
+  | Unique -> mkpat_unique
+  | Once -> mkpat_once
+
+let mkpat_with_modes flags pat =
+  List.fold_left (fun pat (flag, loc) -> mkpat_with_mode flag pat loc) pat flags
+
+let mktyp_with_mode = function
+  | Local -> mktyp_stack
+  | Unique -> mktyp_unique
+  | Once -> mktyp_once
+
+let mktyp_with_modes flags typ =
+  List.fold_left (fun typ (flag, loc) -> mktyp_with_mode flag typ loc) typ flags
+
+let wrap_exp_with_mode = function
+  | Local -> wrap_exp_stack
+  | Unique -> wrap_exp_unique
+  | Once -> wrap_exp_once
+
+let wrap_exp_with_modes flags exp =
+  List.fold_left (fun exp (flag, loc) -> wrap_exp_with_mode flag exp loc) exp flags
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -270,11 +358,13 @@ let rec mktailpat nilloc = let open Location in function
 let mkstrexp e attrs =
   { pstr_desc = Pstr_eval (e, attrs); pstr_loc = e.pexp_loc }
 
-let mkexp_constraint ~loc e (t1, t2) =
-  match t1, t2 with
-  | Some t, None -> mkexp ~loc (Pexp_constraint(e, t))
-  | _, Some t -> mkexp ~loc (Pexp_coerce(e, t1, t))
-  | None, None -> assert false
+let mkexp_desc_constraint e t =
+  match t with
+  | N_ary.Pconstraint t -> Pexp_constraint(e, t)
+  | N_ary.Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
+
+let mkexp_constraint ~loc e t =
+  mkexp ~loc (mkexp_desc_constraint e t)
 
 let mkexp_opt_constraint ~loc e = function
   | None -> e
@@ -350,11 +440,13 @@ end
 
 let ppat_iarray loc elts =
   Jane_syntax.Immutable_arrays.pat_of
-    ~loc:(make_loc loc) ~attrs:[]
+    ~loc:(make_loc loc)
     (Iapat_immutable_array elts)
 
-let expecting loc nonterm =
-    raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
+let expecting_loc (loc : Location.t) (nonterm : string) =
+    raise Syntaxerr.(Error(Expecting(loc, nonterm)))
+let expecting (loc : Lexing.position * Lexing.position) nonterm =
+     expecting_loc (make_loc loc) nonterm
 
 (* Using the function [not_expecting] in a semantic action means that this
    syntactic form is recognized by the parser but is in fact incorrect. This
@@ -505,23 +597,19 @@ let lapply ~loc p1 p2 =
   else raise (Syntaxerr.Error(
                   Syntaxerr.Applicative_path (make_loc loc)))
 
-(* [loc_map] could be [Location.map]. *)
-let loc_map (f : 'a -> 'b) (x : 'a Location.loc) : 'b Location.loc =
-  { x with txt = f x.txt }
-
 let make_ghost x =
   if x.loc.loc_ghost
   then x (* Save an allocation *)
   else { x with loc = Location.ghostify x.loc }
 
 let loc_last (id : Longident.t Location.loc) : string Location.loc =
-  loc_map Longident.last id
+  Location.map Longident.last id
 
 let loc_lident (id : string Location.loc) : Longident.t Location.loc =
-  loc_map (fun x -> Lident x) id
+  Location.map (fun x -> Lident x) id
 
 let exp_of_longident lid =
-  let lid = loc_map (fun id -> Lident (Longident.last id)) lid in
+  let lid = Location.map (fun id -> Lident (Longident.last id)) lid in
   Exp.mk ~loc:lid.loc (Pexp_ident lid)
 
 let exp_of_label lbl =
@@ -531,16 +619,26 @@ let pat_of_label lbl =
   Pat.mk ~loc:lbl.loc  (Ppat_var (loc_last lbl))
 
 let mk_newtypes ~loc newtypes exp =
-  let mkexp = mkexp ~loc in
-  List.fold_right (fun newtype exp -> mkexp (Pexp_newtype (newtype, exp)))
-    newtypes exp
+  let mk_one (name, layout) exp =
+    match layout with
+    | None -> mkexp ~loc (Pexp_newtype (name, exp))
+    | Some layout ->
+      Jane_syntax.Layouts.expr_of ~loc:(make_loc loc)
+        (Lexp_newtype (name, layout, exp))
+  in
+  List.fold_right mk_one newtypes exp
 
 let wrap_type_annotation ~loc newtypes core_type body =
-  let mkexp, ghtyp = mkexp ~loc, ghtyp ~loc in
   let mk_newtypes = mk_newtypes ~loc in
-  let exp = mkexp(Pexp_constraint(body,core_type)) in
+  let exp = mkexp ~loc (Pexp_constraint(body,core_type)) in
   let exp = mk_newtypes newtypes exp in
-  (exp, ghtyp(Ptyp_poly(newtypes, Typ.varify_constructors newtypes core_type)))
+  let inner_type = Typ.varify_constructors (List.map fst newtypes) core_type in
+  let ltyp =
+    Jane_syntax.Layouts.Ltyp_poly { bound_vars = newtypes; inner_type }
+  in
+  (exp,
+     Jane_syntax.Layouts.type_of
+       ~loc:(Location.ghostify (make_loc loc)) ltyp)
 
 let wrap_exp_attrs ~loc body (ext, attrs) =
   let ghexp = ghexp ~loc in
@@ -550,8 +648,8 @@ let wrap_exp_attrs ~loc body (ext, attrs) =
   | None -> body
   | Some id -> ghexp(Pexp_extension (id, PStr [mkstrexp body []]))
 
-let mkexp_attrs ~loc d attrs =
-  wrap_exp_attrs ~loc (mkexp ~loc d) attrs
+let mkexp_attrs ~loc d ext_attrs =
+  wrap_exp_attrs ~loc (mkexp ~loc d) ext_attrs
 
 let wrap_typ_attrs ~loc typ (ext, attrs) =
   (* todo: keep exact location for the entire attribute *)
@@ -705,6 +803,63 @@ let class_of_let_bindings ~loc lbs body =
     assert (lbs.lbs_extension = None);
     mkclass ~loc (Pcl_let (lbs.lbs_rec, List.rev bindings, body))
 
+(* If all the parameters are [Pparam_newtype x], then return [Some xs] where
+   [xs] is the corresponding list of values [x]. This function is optimized for
+   the common case, where a list of parameters contains at least one value
+   parameter.
+*)
+let all_params_as_newtypes =
+  let open N_ary in
+  let is_newtype { pparam_desc; _ } =
+    match pparam_desc with
+    | Pparam_newtype _ -> true
+    | Pparam_val _ -> false
+  in
+  let as_newtype { pparam_desc; _ } =
+    match pparam_desc with
+    | Pparam_newtype (x, layout) -> Some (x, layout)
+    | Pparam_val _ -> None
+  in
+  fun params ->
+    if List.for_all is_newtype params
+    then Some (List.filter_map as_newtype params)
+    else None
+
+(* Given a construct [fun (type a b c) : t -> e], we construct
+   [Pexp_newtype(a, Pexp_newtype(b, Pexp_newtype(c, Pexp_constraint(e, t))))]
+   rather than a [Pexp_function].
+*)
+let mkghost_newtype_function_body newtypes body_constraint body ~loc =
+  let wrapped_body =
+    match body_constraint with
+    | None -> body
+    | Some { N_ary.type_constraint; mode_annotations } ->
+        let loc = { body.pexp_loc with loc_ghost = true } in
+        let body = Exp.mk (mkexp_desc_constraint body type_constraint) ~loc in
+        exp_with_modes loc mode_annotations body
+  in
+  mk_newtypes ~loc newtypes wrapped_body
+
+let n_ary_function expr ~attrs ~loc =
+  wrap_exp_attrs ~loc (N_ary.expr_of expr ~loc:(make_loc loc)) attrs
+
+let mkfunction ~loc ~attrs params body_constraint body =
+  match body with
+  | N_ary.Pfunction_cases _ ->
+      n_ary_function (params, body_constraint, body) ~loc ~attrs
+  | N_ary.Pfunction_body body_exp -> begin
+    (* If all the params are newtypes, then we don't create a function node;
+       we create a newtype node. *)
+      match all_params_as_newtypes params with
+      | None -> n_ary_function (params, body_constraint, body) ~loc ~attrs
+      | Some newtypes ->
+          wrap_exp_attrs
+            ~loc
+            (mkghost_newtype_function_body newtypes body_constraint body_exp
+               ~loc)
+            attrs
+    end
+
 (* Alternatively, we could keep the generic module type in the Parsetree
    and extract the package type during type-checking. In that case,
    the assertions below should be turned into explicit checks. *)
@@ -754,18 +909,19 @@ let mk_directive ~loc name arg =
       pdir_loc = make_loc loc;
     }
 
-let check_layout loc id =
-  begin
-    match id with
-    | ("any" | "value" | "void" | "immediate64" | "immediate") -> ()
-    | _ -> expecting loc "layout"
-  end;
-  let loc = make_loc loc in
-  Attr.mk ~loc (mkloc id loc) (PStr [])
+let check_layout ~loc id : const_layout =
+  match id with
+  | "any" -> Any
+  | "value" -> Value
+  | "void" -> Void
+  | "immediate64" -> Immediate64
+  | "immediate" -> Immediate
+  | "float64" -> Float64
+  | _ -> expecting_loc loc "layout"
 
 (* Unboxed literals *)
 
-(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+(* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts
@@ -773,19 +929,18 @@ let unboxed_literals_extension = Language_extension.Layouts
 module Constant : sig
   type t = private
     | Value of constant
-    | Unboxed of Jane_syntax.Unboxed_constants.t
+    | Unboxed of Jane_syntax.Layouts.constant
 
   type loc := Lexing.position * Lexing.position
 
   val value : Parsetree.constant -> t
-  val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
+  val unboxed : loc:loc -> Jane_syntax.Layouts.constant -> t
   val to_expression : loc:loc -> t -> expression
   val to_pattern : loc:loc -> t -> pattern
-  val assert_is_value : loc:loc -> where:string -> t -> constant
 end = struct
   type t =
     | Value of constant
-    | Unboxed of Jane_syntax.Unboxed_constants.t
+    | Unboxed of Jane_syntax.Layouts.constant
 
   let value x = Value x
 
@@ -801,20 +956,15 @@ end = struct
     | Value const_value ->
         mkexp ~loc (Pexp_constant const_value)
     | Unboxed const_unboxed ->
-      Jane_syntax.Unboxed_constants.expr_of
-        ~loc:(make_loc loc) ~attrs:[] const_unboxed
+      Jane_syntax.Layouts.expr_of ~loc:(make_loc loc)
+        (Lexp_constant const_unboxed)
 
   let to_pattern ~loc : t -> pattern = function
     | Value const_value ->
         mkpat ~loc (Ppat_constant const_value)
     | Unboxed const_unboxed ->
-      Jane_syntax.Unboxed_constants.pat_of
-        ~loc:(make_loc loc) ~attrs:[] const_unboxed
-
-  let assert_is_value ~loc ~where : t -> Parsetree.constant = function
-    | Value x -> x
-    | Unboxed _ ->
-        not_expecting loc (Printf.sprintf "unboxed literal %s" where)
+      Jane_syntax.Layouts.pat_of
+        ~loc:(make_loc loc) (Lpat_constant const_unboxed)
 end
 
 type sign = Positive | Negative
@@ -948,6 +1098,7 @@ let unboxed_float_type sloc tys =
 %token NONREC                 "nonrec"
 %token OBJECT                 "object"
 %token OF                     "of"
+%token ONCE                   "once_"
 %token OPEN                   "open"
 %token <string> OPTLABEL      "?label:" (* just an example *)
 %token OR                     "or"
@@ -986,6 +1137,7 @@ let unboxed_float_type sloc tys =
 %token TYPE                   "type"
 %token <string> UIDENT        "UIdent" (* just an example *)
 %token UNDERSCORE             "_"
+%token UNIQUE                 "unique_"
 %token VAL                    "val"
 %token VIRTUAL                "virtual"
 %token WHEN                   "when"
@@ -1180,6 +1332,9 @@ The precedences must be listed from low to high.
 %inline mk_directive_arg(symb): symb
     { mk_directive_arg ~loc:$sloc $1 }
 
+%inline mktyp_jane_syntax_ltyp(symb): symb
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) $1 }
+
 /* Generic definitions */
 
 (* [iloption(X)] recognizes either nothing or [X]. Assuming [X] produces
@@ -1219,6 +1374,26 @@ reversed_nonempty_llist(X):
 
 %inline nonempty_llist(X):
   xs = rev(reversed_nonempty_llist(X))
+    { xs }
+
+(* [reversed_nonempty_concat(X)] recognizes a nonempty sequence of [X]s (each of
+    which is a list), and produces an OCaml list of their concatenation in
+    reverse order -- that is, the last element of the last list in the input text
+    appears first in the list.
+*)
+reversed_nonempty_concat(X):
+  x = X
+    { List.rev x }
+| xs = reversed_nonempty_concat(X) x = X
+    { List.rev_append x xs }
+
+(* [nonempty_concat(X)] recognizes a nonempty sequence of [X]s
+  (each of which is a list), and produces an OCaml list of their concatenation
+  in direct order -- that is, the first element of the first list in the input
+  text appears first in the list.
+*)
+%inline nonempty_concat(X):
+  xs = rev(reversed_nonempty_concat(X))
     { xs }
 
 (* [reversed_separated_nonempty_llist(separator, X)] recognizes a nonempty list
@@ -1874,6 +2049,9 @@ module_type:
         { Pmty_extension $1 }
     )
     { $1 }
+  | module_type WITH mkrhs(mod_ext_longident)
+      { Jane_syntax.Strengthen.mty_of ~loc:(make_loc $sloc)
+          { mty = $1; mod_id = $3 } }
 ;
 (* A signature, which appears between SIG and END (among other places),
    is a list of signature elements. *)
@@ -2246,7 +2424,7 @@ method_:
           let loc = ($startpos($6), $endpos($8)) in
           ghexp ~loc (Pexp_poly($8, Some $6)) in
         ($4, $3, Cfk_concrete ($1, poly_exp)), $2 }
-  | override_flag attributes private_flag mkrhs(label) COLON TYPE lident_list
+  | override_flag attributes private_flag mkrhs(label) COLON TYPE newtypes
     DOT core_type EQUAL seq_expr
       { let poly_exp_loc = ($startpos($7), $endpos($11)) in
         let poly_exp =
@@ -2437,43 +2615,65 @@ class_type_declarations:
 
 /* Core expressions */
 
-seq_expr:
-  | expr        %prec below_SEMI  { $1 }
-  | expr SEMI                     { $1 }
-  | mkexp(expr SEMI seq_expr
+%inline or_function(EXPR):
+  | EXPR
+      { $1 }
+  | FUNCTION ext_attributes match_cases
+      { let loc = make_loc $sloc in
+        let cases = $3 in
+        mkfunction [] None (Pfunction_cases (cases, loc, []))
+          ~loc:$sloc ~attrs:$2
+      }
+;
+
+(* [fun_seq_expr] (and [fun_expr]) are legal expression bodies of a function.
+   [seq_expr] (and [expr]) are expressions that appear in other contexts
+   (e.g. subexpressions of the expression body of a function).
+   [fun_seq_expr] can't be a bare [function _ -> ...]. [seq_expr] can.
+   This distinction exists because [function _ -> ...] is parsed as a *function
+   cases* body of a function, not an expression body. This so functions can be
+   parsed with the intended arity.
+*)
+fun_seq_expr:
+  | fun_expr    %prec below_SEMI  { $1 }
+  | fun_expr SEMI                 { $1 }
+  | mkexp(fun_expr SEMI seq_expr
     { Pexp_sequence($1, $3) })
     { $1 }
-  | expr SEMI PERCENT attr_id seq_expr
+  | fun_expr SEMI PERCENT attr_id seq_expr
     { let seq = mkexp ~loc:$sloc (Pexp_sequence ($1, $5)) in
       let payload = PStr [mkstrexp seq []] in
       mkexp ~loc:$sloc (Pexp_extension ($4, payload)) }
 ;
+seq_expr:
+  | or_function(fun_seq_expr) { $1 }
+;
 labeled_simple_pattern:
-    QUESTION LPAREN optional_local label_let_pattern opt_default RPAREN
-      { (Optional (fst $4), $5, mkpat_local_if $3 (snd $4) $loc($3)) }
+    QUESTION LPAREN mode_flags label_let_pattern opt_default RPAREN
+      { (Optional (fst $4), $5, mkpat_with_modes $3 (snd $4) ) }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
-  | OPTLABEL LPAREN optional_local let_pattern opt_default RPAREN
-      { (Optional $1, $5, mkpat_local_if $3 $4 $loc($3)) }
+  | OPTLABEL LPAREN mode_flags let_pattern opt_default RPAREN
+      { (Optional $1, $5, mkpat_with_modes $3 $4) }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
-  | TILDE LPAREN optional_local label_let_pattern RPAREN
+  | TILDE LPAREN mode_flags label_let_pattern RPAREN
       { (Labelled (fst $4), None,
-         mkpat_local_if $3 (snd $4) $loc($3)) }
+         mkpat_with_modes $3 (snd $4) ) }
   | TILDE label_var
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
       { (Labelled $1, None, $2) }
-  | LABEL LPAREN LOCAL pattern RPAREN
-      { (Labelled $1, None, mkpat_stack $4 (make_loc $loc($3))) }
+  | LABEL LPAREN mode_flag+ pattern RPAREN
+      { (Labelled $1, None, mkpat_with_modes $3 $4 ) }
   | simple_pattern
       { (Nolabel, None, $1) }
-  | LPAREN LOCAL let_pattern RPAREN
-      { (Nolabel, None, mkpat_stack $3 (make_loc $loc($2))) }
+  | LPAREN mode_flag+ let_pattern RPAREN
+      { (Nolabel, None, mkpat_with_modes $2 $3 ) }
   | LABEL LPAREN poly_pattern RPAREN
       { (Labelled $1, None, $3) }
-  | LABEL LPAREN LOCAL poly_pattern RPAREN
-      { (Labelled $1, None, mkpat_stack $4 (make_loc $loc($2))) }
+  | LABEL LPAREN mode_flag+ poly_pattern RPAREN
+      { (Labelled $1, None, mkpat_with_modes $3 $4) }
   | LPAREN poly_pattern RPAREN
       { (Nolabel, None, $2) }
 ;
@@ -2497,7 +2697,10 @@ label_let_pattern:
         lab,
         mkpat ~loc:$sloc (Ppat_constraint (pat, cty)) }
   | x = label_var COLON
-          cty = mktyp (vars = typevar_list DOT ty = core_type { Ptyp_poly(vars, ty) })
+          cty = mktyp_jane_syntax_ltyp (bound_vars = typevar_list
+                                        DOT
+                                        inner_type = core_type
+                  { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } })
       { let lab, pat = x in
         lab,
         mkpat ~loc:$sloc (Ppat_constraint (pat, cty)) }
@@ -2519,8 +2722,10 @@ let_pattern:
     mkpat(
       pat = pattern
       COLON
-      cty = mktyp(vars = typevar_list DOT ty = core_type
-              { Ptyp_poly(vars, ty) })
+      cty = mktyp_jane_syntax_ltyp(bound_vars = typevar_list
+                                   DOT
+                                   inner_type = core_type
+              { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } })
         { Ppat_constraint(pat, cty) })
       { $1 }
 ;
@@ -2545,12 +2750,25 @@ let_pattern:
 
 %inline qualified_dotop: ioption(DOT mod_longident {$2}) DOTOP { $1, $2 };
 
-expr:
+fun_expr:
     simple_expr %prec below_HASH
       { $1 }
   | expr_attrs
       { let desc, attrs = $1 in
         mkexp_attrs ~loc:$sloc desc attrs }
+    /* Cf #5939: we used to accept (fun p when e0 -> e) */
+  | FUN ext_attributes fun_params preceded(COLON, atomic_type)?
+      MINUSGREATER fun_body
+      { let body_constraint =
+          Option.map
+            (fun x : N_ary.function_constraint ->
+              { type_constraint = Pconstraint x
+              ; mode_annotations = []
+              })
+          $4
+        in
+        mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2
+      }
   | mkexp(expr_)
       { $1 }
   | let_bindings(ext) IN seq_expr
@@ -2561,7 +2779,7 @@ expr:
         let pbop_loc = make_loc $sloc in
         let let_ = {pbop_op; pbop_pat; pbop_exp; pbop_loc} in
         mkexp ~loc:$sloc (Pexp_letop{ let_; ands; body}) }
-  | expr COLONCOLON expr
+  | fun_expr COLONCOLON expr
       { mkexp_cons ~loc:$sloc $loc($2) (ghexp ~loc:$sloc (Pexp_tuple[$1;$3])) }
   | mkrhs(label) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
@@ -2571,16 +2789,19 @@ expr:
     { mk_indexop_expr builtin_indexing_operators ~loc:$sloc $1 }
   | indexop_expr(qualified_dotop, expr_semi_list, LESSMINUS v=expr {Some v})
     { mk_indexop_expr user_indexing_operators ~loc:$sloc $1 }
-  | expr attribute
+  | fun_expr attribute
       { Exp.attr $1 $2 }
 /* BEGIN AVOID */
   | UNDERSCORE
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
-  | LOCAL seq_expr
-     { mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
+  | mode_flag seq_expr
+     { mkexp_with_mode $sloc $1 $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
+;
+%inline expr:
+  | or_function(fun_expr) { $1 }
 ;
 %inline expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
@@ -2591,13 +2812,6 @@ expr:
       { let open_loc = make_loc ($startpos($2), $endpos($5)) in
         let od = Opn.mk $5 ~override:$3 ~loc:open_loc in
         Pexp_open(od, $7), $4 }
-  | FUNCTION ext_attributes match_cases
-      { Pexp_function $3, $2 }
-  | FUN ext_attributes labeled_simple_pattern fun_def
-      { let (l,o,p) = $3 in
-        Pexp_fun(l, o, p, $4), $2 }
-  | FUN ext_attributes LPAREN TYPE lident_list RPAREN fun_def
-      { (mk_newtypes ~loc:$sloc $5 $7).pexp_desc, $2 }
   | MATCH ext_attributes seq_expr WITH match_cases
       { Pexp_match($3, $5), $2 }
   | TRY ext_attributes seq_expr WITH match_cases
@@ -2617,6 +2831,12 @@ expr:
       { Pexp_assert $3, $2 }
   | LAZY ext_attributes simple_expr %prec below_HASH
       { Pexp_lazy $3, $2 }
+  | subtractive expr %prec prec_unary_minus
+      { let desc, attrs = mkuminus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
+  | additive expr %prec prec_unary_plus
+      { let desc, attrs = mkuplus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
 ;
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
@@ -2627,12 +2847,8 @@ expr:
       { Pexp_construct($1, Some $2) }
   | name_tag simple_expr %prec below_HASH
       { Pexp_variant($1, Some $2) }
-  | e1 = expr op = op(infix_operator) e2 = expr
+  | e1 = fun_expr op = op(infix_operator) e2 = expr
       { mkinfix e1 op e2 }
-  | subtractive expr %prec prec_unary_minus
-      { mkuminus ~oploc:$loc($1) $1 $2 }
-  | additive expr %prec prec_unary_plus
-      { mkuplus ~oploc:$loc($1) $1 $2 }
 ;
 
 simple_expr:
@@ -2664,7 +2880,7 @@ simple_expr:
           ~loc:$sloc
           (fun ~loc elts ->
              Jane_syntax.Immutable_arrays.expr_of
-               ~loc:(make_loc loc) ~attrs:[]
+               ~loc:(make_loc loc)
                (Iaexp_immutable_array elts))
         $1
       }
@@ -2708,9 +2924,12 @@ comprehension_clause_binding:
      We have to have that as a separate rule here because it moves the [local_]
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes LOCAL pattern IN expr
-      { Jane_syntax.Comprehensions.
+      { let expr =
+          mkexp_stack $5 ~kwd_loc:(make_loc $loc($2)) ~loc:(ghost_loc $sloc)
+        in
+        Jane_syntax.Comprehensions.
           { pattern    = $3
-          ; iterator   = In (mkexp_stack ~loc:$sloc ~kwd_loc:($loc($2)) $5)
+          ; iterator   = In expr
           ; attributes = $1
           }
       }
@@ -2738,7 +2957,7 @@ comprehension_clause:
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) ~attrs:[] $1 }
+    { Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1 }
 ;
 
 %inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
@@ -2882,39 +3101,40 @@ labeled_simple_expr:
 let_binding_body_no_punning:
     let_ident strict_binding
       { ($1, $2) }
-  | optional_local let_ident type_constraint EQUAL seq_expr
+  | mode_flags let_ident type_constraint EQUAL seq_expr
       { let v = $2 in (* PR#7344 *)
         let t =
           match $3 with
-            Some t, None -> t
-          | _, Some t -> t
-          | _ -> assert false
+          | N_ary.Pconstraint t -> t
+          | N_ary.Pcoerce (_, t) -> t
         in
         let loc = Location.(t.ptyp_loc.loc_start, t.ptyp_loc.loc_end) in
-        let local_loc = $loc($1) in
         let typ = ghtyp ~loc (Ptyp_poly([],t)) in
         let patloc = ($startpos($2), $endpos($3)) in
         let pat =
-          mkpat_local_if $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
-            local_loc
+          mkpat_with_modes $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
         in
         let exp =
-          mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1))
-            (wrap_exp_local_if $1 (mkexp_constraint ~loc:$sloc $5 $3)
-               local_loc)
+          ghexp_with_modes $sloc $1
+            (wrap_exp_with_modes $1 (mkexp_constraint ~loc:$sloc $5 $3))
         in
         (pat, exp) }
-  | optional_local let_ident COLON poly(core_type) EQUAL seq_expr
+  | mode_flags let_ident COLON poly(core_type) EQUAL seq_expr
       { let patloc = ($startpos($2), $endpos($4)) in
-        let pat =
-          mkpat_local_if $1
-            (ghpat ~loc:patloc
-               (Ppat_constraint($2, ghtyp ~loc:($loc($4)) $4)))
-            $loc($1)
+        let bound_vars, inner_type = $4 in
+        let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
+        let typ_loc = Location.ghostify (make_loc $loc($4)) in
+        let typ =
+          Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let exp = mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1)) $6 in
+        let pat =
+          mkpat_with_modes $1
+            (ghpat ~loc:patloc
+               (Ppat_constraint($2, typ)))
+        in
+        let exp = ghexp_with_modes $sloc $1 $6 in
         (pat, exp) }
-  | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
+  | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       { let exp, poly =
           wrap_type_annotation ~loc:$sloc $4 $6 $8 in
         let loc = ($startpos($1), $endpos($6)) in
@@ -2924,8 +3144,8 @@ let_binding_body_no_punning:
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
       { let loc = ($startpos($1), $endpos($3)) in
         (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
-  | LOCAL let_ident local_strict_binding
-      { ($2, mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $3) }
+  | mode_flag+ let_ident strict_binding_modes
+    { ($2, ghexp_with_modes $sloc $1 ($3 $1)) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
@@ -2990,33 +3210,42 @@ letop_bindings:
         let and_ = {pbop_op; pbop_pat; pbop_exp; pbop_loc} in
         let_pat, let_exp, and_ :: rev_ands }
 ;
-fun_binding:
-    strict_binding
-      { $1 }
-  | type_constraint EQUAL seq_expr
-      { mkexp_constraint ~loc:$sloc $3 $1 }
-;
-strict_binding:
+strict_binding_modes:
     EQUAL seq_expr
-      { $2 }
-  | labeled_simple_pattern fun_binding
-      { let (l, o, p) = $1 in ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2)) }
-  | LPAREN TYPE lident_list RPAREN fun_binding
-      { mk_newtypes ~loc:$sloc $3 $5 }
+      { fun _ -> $2 }
+  | fun_params type_constraint? EQUAL fun_body
+    { fun mode_annotations ->
+        let mode_annotations =
+          List.map
+            (fun (mode, loc) -> mkloc mode (make_loc loc))
+            mode_annotations
+        in
+        let constraint_ : N_ary.function_constraint option =
+          match $2 with
+          | None -> None
+          | Some type_constraint -> Some { type_constraint; mode_annotations }
+        in
+        let exp = mkfunction $1 constraint_ $4 ~loc:$sloc ~attrs:(None, []) in
+        { exp with pexp_loc = { exp.pexp_loc with loc_ghost = true } }
+    }
 ;
-local_fun_binding:
-    local_strict_binding
-      { $1 }
-  | type_constraint EQUAL seq_expr
-      { wrap_exp_stack (mkexp_constraint ~loc:$sloc $3 $1) (make_loc $sloc) }
+%inline strict_binding:
+  strict_binding_modes
+    {$1 []}
 ;
-local_strict_binding:
-    EQUAL seq_expr
-      { $2 }
-  | labeled_simple_pattern local_fun_binding
-      { let (l, o, p) = $1 in ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2)) }
-  | LPAREN TYPE lident_list RPAREN local_fun_binding
-      { mk_newtypes ~loc:$sloc $3 $5 }
+fun_body:
+  | FUNCTION ext_attributes match_cases
+      { let ext, attrs = $2 in
+        match ext with
+        | None -> N_ary.Pfunction_cases ($3, make_loc $sloc, attrs)
+        | Some _ ->
+          (* function%foo extension nodes interrupt the arity *)
+          let cases = N_ary.Pfunction_cases ($3, make_loc $sloc, []) in
+          let function_ = mkfunction [] None cases ~loc:$sloc ~attrs:$2 in
+          N_ary.Pfunction_body function_
+      }
+  | fun_seq_expr
+      { N_ary.Pfunction_body $1 }
 ;
 %inline match_cases:
   xs = preceded_or_separated_nonempty_llist(BAR, match_case)
@@ -3030,21 +3259,39 @@ match_case:
   | pattern MINUSGREATER DOT
       { Exp.case $1 (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
 ;
-fun_def:
-    MINUSGREATER seq_expr
-      { $2 }
-  | mkexp(COLON atomic_type MINUSGREATER seq_expr
-      { Pexp_constraint ($4, $2) })
-      { $1 }
-/* Cf #5939: we used to accept (fun p when e0 -> e) */
-  | labeled_simple_pattern fun_def
-      {
-       let (l,o,p) = $1 in
-       ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2))
+fun_param_as_list:
+  | LPAREN TYPE ty_params = newtypes RPAREN
+      { (* We desugar (type a b c) to (type a) (type b) (type c).
+            If we do this desugaring, the loc for each parameter is a ghost.
+        *)
+        let loc =
+          match ty_params with
+          | [] | [_] -> make_loc $sloc
+          | _ :: _ :: _ -> ghost_loc $sloc
+        in
+        List.map
+          (fun (newtype, layout) ->
+             { N_ary.pparam_loc = loc;
+               pparam_desc = Pparam_newtype (newtype, layout)
+             })
+          ty_params
       }
-  | LPAREN TYPE lident_list RPAREN fun_def
-      { mk_newtypes ~loc:$sloc $3 $5 }
+  | LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN
+      { [ { N_ary.pparam_loc = make_loc $sloc;
+            pparam_desc = Pparam_newtype ($3, Some $5)
+          }
+        ]
+      }
+  | labeled_simple_pattern
+      { let a, b, c = $1 in
+        [ { N_ary.pparam_loc = make_loc $sloc;
+            pparam_desc = Pparam_val (a, b, c)
+          }
+        ]
+      }
 ;
+fun_params:
+  | nonempty_concat(fun_param_as_list) { $1 }
 %inline expr_comma_list:
   es = separated_nontrivial_llist(COMMA, expr)
     { es }
@@ -3090,12 +3337,23 @@ record_expr_content:
     { es }
 ;
 type_constraint:
-    COLON core_type                             { (Some $2, None) }
-  | COLON core_type COLONGREATER core_type      { (Some $2, Some $4) }
-  | COLONGREATER core_type                      { (None, Some $2) }
+    COLON core_type                             { N_ary.Pconstraint $2 }
+  | COLON core_type COLONGREATER core_type      { N_ary.Pcoerce (Some $2, $4) }
+  | COLONGREATER core_type                      { N_ary.Pcoerce (None, $2) }
   | COLON error                                 { syntax_error() }
   | COLONGREATER error                          { syntax_error() }
 ;
+
+(* the thing between the [type] and the [.] in
+   [let : type <<here>>. 'a -> 'a = ...] *)
+newtypes: (* : (string with_loc * layout_annotation option) list *)
+  newtype+
+    { $1 }
+
+newtype: (* : string with_loc * layout_annotation option *)
+    mkrhs(LIDENT)                     { $1, None }
+  | LPAREN name=mkrhs(LIDENT) COLON layout=layout_annotation RPAREN
+      { name, Some layout }
 
 /* Patterns */
 
@@ -3193,11 +3451,8 @@ simple_pattern_not_ident:
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant DOTDOT signed_constant
-      { let where = "in a pattern interval" in
-        Ppat_interval
-          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
-           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
+  | signed_value_constant DOTDOT signed_value_constant
+      { Ppat_interval ($1, $3) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag
@@ -3371,6 +3626,7 @@ generic_type_declaration(flag, kind):
   flag = flag
   params = type_parameters
   id = mkrhs(LIDENT)
+  layout = layout_attr?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3380,7 +3636,7 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       (flag, ext),
-      Type.mk id ~params ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
+      Type.mk id ~params ?layout ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
     }
 ;
 %inline generic_and_type_declaration(kind):
@@ -3388,6 +3644,7 @@ generic_type_declaration(flag, kind):
   attrs1 = attributes
   params = type_parameters
   id = mkrhs(LIDENT)
+  layout = layout_attr?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3397,7 +3654,7 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let text = symbol_text $symbolstartpos in
-      Type.mk id ~params ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
+      Type.mk id ~params ?layout ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
     }
 ;
 %inline constraints:
@@ -3450,14 +3707,37 @@ type_parameters:
       { ps }
 ;
 
-layout:
-  ident { check_layout $loc($1) $1 }
+layout_annotation: (* : layout_annotation *)
+  ident { let loc = make_loc $sloc in
+          mkloc (check_layout ~loc $1) loc }
+;
+
+layout_string: (* : string with_loc *)
+  (* the [check_layout] just ensures this is the name of a layout *)
+  ident { let loc = make_loc $sloc in
+          ignore (check_layout ~loc $1 : const_layout);
+          mkloc $1 loc }
+;
+
+layout_attr:
+  COLON
+  layout=layout_string
+    { Attr.mk ~loc:layout.loc layout (PStr []) }
+;
+
+%inline type_param_with_layout:
+  name=tyvar_name_or_underscore
+  attrs=attributes
+  COLON
+  layout=layout_annotation
+    { Jane_syntax.Core_type.core_type_of ~loc:(make_loc $sloc) ~attrs
+        (Jtyp_layout (Ltyp_var { name; layout })) }
 ;
 
 parenthesized_type_parameter:
     type_parameter { $1 }
-  | type_variance type_variable COLON layout
-      { {$2 with ptyp_attributes = [$4]}, $1 }
+  | type_variance type_param_with_layout
+    { $2, $1 }
 ;
 
 type_parameter:
@@ -3465,13 +3745,20 @@ type_parameter:
       { {$2 with ptyp_attributes = $3}, $1 }
 ;
 
-type_variable:
+%inline type_variable:
   mktyp(
     QUOTE tyvar = ident
       { Ptyp_var tyvar }
   | UNDERSCORE
       { Ptyp_any }
   ) { $1 }
+;
+
+%inline tyvar_name_or_underscore:
+    QUOTE ident
+      { Some $2 }
+  | UNDERSCORE
+      { None }
 ;
 
 type_variance:
@@ -3522,8 +3809,9 @@ generic_constructor_declaration(opening):
 %inline constructor_declaration(opening):
   d = generic_constructor_declaration(opening)
     {
-      let cid, vars, args, res, attrs, loc, info = d in
-      Type.constructor cid ~vars ~args ?res ~attrs ~loc ~info
+      let cid, vars_layouts, args, res, attrs, loc, info = d in
+      Jane_syntax.Layouts.constructor_declaration_of
+        cid ~vars_layouts ~args ~res ~attrs ~loc ~info
     }
 ;
 str_exception_declaration:
@@ -3551,18 +3839,26 @@ sig_exception_declaration:
   vars_args_res = generalized_constructor_arguments
   attrs2 = attributes
   attrs = post_item_attributes
-    { let vars, args, res = vars_args_res in
+    { let vars_layouts, args, res = vars_args_res in
       let loc = make_loc ($startpos, $endpos(attrs2)) in
       let docs = symbol_docs $sloc in
-      Te.mk_exception ~attrs
-        (Te.decl id ~vars ~args ?res ~attrs:(attrs1 @ attrs2) ~loc ~docs)
-      , ext }
+      let ext_ctor =
+        Jane_syntax.Extension_constructor.extension_constructor_of
+          ~loc ~name:id ~attrs:(attrs1 @ attrs2) ~docs
+          (Jext_layout (Lext_decl (vars_layouts, args, res)))
+      in
+      Te.mk_exception ~attrs ext_ctor, ext }
 ;
 %inline let_exception_declaration:
     mkrhs(constr_ident) generalized_constructor_arguments attributes
-      { let vars, args, res = $2 in
-        Te.decl $1 ~vars ~args ?res ~attrs:$3 ~loc:(make_loc $sloc) }
+      { let vars_layouts, args, res = $2 in
+        Jane_syntax.Extension_constructor.extension_constructor_of
+            ~loc:(make_loc $sloc)
+            ~name:$1
+            ~attrs:$3
+            (Jext_layout (Lext_decl (vars_layouts, args, res))) }
 ;
+
 generalized_constructor_arguments:
     /*empty*/                     { ([],Pcstr_tuple [],None) }
   | OF constructor_arguments      { ([],$2,None) }
@@ -3652,8 +3948,10 @@ label_declaration_semi:
 %inline extension_constructor_declaration(opening):
   d = generic_constructor_declaration(opening)
     {
-      let cid, vars, args, res, attrs, loc, info = d in
-      Te.decl cid ~vars ~args ?res ~attrs ~loc ~info
+      let name, vars_layouts, args, res, attrs, loc, info = d in
+      Jane_syntax.Extension_constructor.extension_constructor_of
+        ~loc ~attrs ~info ~name
+          (Jext_layout (Lext_decl(vars_layouts, args, res)))
     }
 ;
 extension_constructor_rebind(opening):
@@ -3707,23 +4005,28 @@ with_type_binder:
 
 /* Polymorphic types */
 
-%inline typevar:
-  QUOTE mkrhs(ident)
-    { $2 }
+%inline typevar: (* : string with_loc * layout_annotation option *)
+    QUOTE mkrhs(ident)
+      { ($2, None) }
+    | LPAREN QUOTE tyvar=mkrhs(ident) COLON layout=layout_annotation RPAREN
+      { (tyvar, Some layout) }
 ;
 %inline typevar_list:
+  (* : (string with_loc * layout_annotation option) list *)
   nonempty_llist(typevar)
     { $1 }
 ;
 %inline poly(X):
   typevar_list DOT X
-    { Ptyp_poly($1, $3) }
+    { ($1, $3) }
 ;
 possibly_poly(X):
   X
     { $1 }
-| mktyp(poly(X))
-    { $1 }
+| poly(X)
+    { let bound_vars, inner_type = $1 in
+      Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc)
+        (Ltyp_poly { bound_vars; inner_type }) }
 ;
 %inline poly_type:
   possibly_poly(core_type)
@@ -3765,8 +4068,16 @@ alias_type:
   | mktyp(
       ty = alias_type AS QUOTE tyvar = ident
         { Ptyp_alias(ty, tyvar) }
-    )
-    { $1 }
+   )
+   { $1 }
+  | aliased_type = alias_type AS
+             LPAREN
+             name = tyvar_name_or_underscore
+             COLON
+             layout = layout_annotation
+             RPAREN
+        { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc)
+              (Ltyp_alias { aliased_type; name; layout }) }
 ;
 
 (* Function types include:
@@ -3786,25 +4097,24 @@ function_type:
 strict_function_type:
   | mktyp(
       label = arg_label
-      local = optional_local
+      unique_local = mode_flags
       domain = extra_rhs(param_type)
       MINUSGREATER
       codomain = strict_function_type
-        { Ptyp_arrow(label, mktyp_local_if local domain $loc(local), codomain) }
+        { Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
     )
     { $1 }
   | mktyp(
       label = arg_label
-      arg_local = optional_local
+      arg_unique_local = mode_flags
       domain = extra_rhs(param_type)
       MINUSGREATER
-      ret_local = optional_local
+      ret_unique_local = mode_flags
       codomain = tuple_type
       %prec MINUSGREATER
         { Ptyp_arrow(label,
-            mktyp_local_if arg_local domain $loc(arg_local),
-            mktyp_local_if ret_local (maybe_curry_typ codomain $loc(codomain))
-              $loc(ret_local)) }
+            mktyp_with_modes arg_unique_local domain ,
+            mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain))) }
     )
     { $1 }
 ;
@@ -3816,16 +4126,22 @@ strict_function_type:
   | /* empty */
       { Nolabel }
 ;
-%inline optional_local:
-  | /* empty */
-    { false }
-  | LOCAL
-    { true }
+%inline mode_flag:
+   | LOCAL
+       { (Local, $sloc) }
+   | UNIQUE
+       { (Unique, $sloc) }
+   | ONCE
+       { (Once, $sloc) }
+;
+%inline mode_flags:
+   | flags = iloption(mode_flag+)
+       { flags }
 ;
 %inline param_type:
-  | mktyp(
-    LPAREN vars = typevar_list DOT ty = core_type RPAREN
-      { Ptyp_poly(vars, ty) }
+  | mktyp_jane_syntax_ltyp(
+    LPAREN bound_vars = typevar_list DOT inner_type = core_type RPAREN
+      { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } }
     )
     { $1 }
   | ty = tuple_type
@@ -3874,6 +4190,10 @@ atomic_type:
               let hash_end = snd $loc($3) in
               unboxed_float_type (ident_start, hash_end) tys
           | _ ->
+            (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
+               code. When we support unboxed types other than float, we should
+               consider moving this check into the typechecker.
+            *)
               not_expecting $sloc "Unboxed type other than float#"
         }
     | tys = actual_type_parameters
@@ -3906,7 +4226,13 @@ atomic_type:
         { Ptyp_extension $1 }
   )
   { $1 } /* end mktyp group */
-;
+  | LPAREN QUOTE name=ident COLON layout=layout_annotation RPAREN
+      { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+        Ltyp_var { name = Some name; layout } }
+  | LPAREN UNDERSCORE COLON layout=layout_annotation RPAREN
+      { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
+        Ltyp_var { name = None; layout } }
+
 
 (* This is the syntax of the actual type parameters in an application of
    a type constructor, such as int, int list, or (int, bool) Hashtbl.t.
@@ -3925,7 +4251,6 @@ atomic_type:
       { [ty] }
   | LPAREN tys = separated_nontrivial_llist(COMMA, core_type) RPAREN
       { tys }
-;
 
 %inline package_type: module_type
       { let (lid, cstrs, attrs) = package_type_of_module_type $1 in
@@ -4007,31 +4332,35 @@ meth_list:
 
 /* Constants */
 
-constant:
-  | INT               { let (n, m) = $1 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | CHAR              { Constant.value (Pconst_char $1) }
+value_constant:
+  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
+  | CHAR              { Pconst_char $1 }
   | STRING            { let (s, strloc, d) = $1 in
-                        Constant.value (Pconst_string (s, strloc, d)) }
-  | FLOAT             { let (f, m) = $1 in
-                        Constant.value (Pconst_float (f, m)) }
+                        Pconst_string (s, strloc, d) }
+  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+;
+unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
   | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
+constant:
+    value_constant    { Constant.value $1 }
+  | unboxed_constant  { $1 }
+;
+signed_value_constant:
+    value_constant    { $1 }
+  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
+  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
+  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
+  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+;
 signed_constant:
-    constant          { $1 }
-  | MINUS INT         { let (n, m) = $2 in
-                        Constant.value (Pconst_integer("-" ^ n, m)) }
-  | MINUS FLOAT       { let (f, m) = $2 in
-                        Constant.value (Pconst_float("-" ^ f, m)) }
-  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
-  | PLUS INT          { let (n, m) = $2 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | PLUS FLOAT        { let (f, m) = $2 in
-                        Constant.value (Pconst_float(f, m)) }
-  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT   { unboxed_float $sloc Positive $2 }
+    signed_value_constant { Constant.value $1 }
+  | unboxed_constant      { $1 }
+  | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT      { unboxed_float $sloc Negative $2 }
+  | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT       { unboxed_float $sloc Positive $2 }
 ;
 
 /* Identifiers and long identifiers */
@@ -4124,6 +4453,7 @@ label_longident:
 type_longident:
     mk_longident(mod_ext_longident, LIDENT)  { $1 }
 ;
+
 mod_longident:
     mk_longident(mod_longident, UIDENT)  { $1 }
 ;

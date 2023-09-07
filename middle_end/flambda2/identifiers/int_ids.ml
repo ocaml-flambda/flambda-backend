@@ -48,6 +48,7 @@ module Const_data = struct
     | Naked_int32 of Int32.t
     | Naked_int64 of Int64.t
     | Naked_nativeint of Targetint_32_64.t
+    | Naked_vec128 of Vector_types.Vec128.Bit_pattern.t
 
   let flags = const_flags
 
@@ -86,6 +87,11 @@ module Const_data = struct
           Flambda_colours.naked_number
           Targetint_32_64.print n
           Flambda_colours.pop
+      | Naked_vec128 (v) ->
+        Format.fprintf ppf "%t#vec128[%a]%t"
+          Flambda_colours.naked_number
+          Vector_types.Vec128.Bit_pattern.print v
+          Flambda_colours.pop
 
     let compare t1 t2 =
       match t1, t2 with
@@ -97,6 +103,8 @@ module Const_data = struct
       | Naked_int32 n1, Naked_int32 n2 -> Int32.compare n1 n2
       | Naked_int64 n1, Naked_int64 n2 -> Int64.compare n1 n2
       | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.compare n1 n2
+      | Naked_vec128 v1, Naked_vec128 v2 ->
+        Vector_types.Vec128.Bit_pattern.compare v1 v2
       | Naked_immediate _, _ -> -1
       | _, Naked_immediate _ -> 1
       | Tagged_immediate _, _ -> -1
@@ -107,6 +115,8 @@ module Const_data = struct
       | _, Naked_int32 _ -> 1
       | Naked_int64 _, _ -> -1
       | _, Naked_int64 _ -> 1
+      | Naked_vec128 _, _ -> -1
+      | _, Naked_vec128 _ -> 1
 
     let equal t1 t2 =
       if t1 == t2
@@ -121,8 +131,11 @@ module Const_data = struct
         | Naked_int32 n1, Naked_int32 n2 -> Int32.equal n1 n2
         | Naked_int64 n1, Naked_int64 n2 -> Int64.equal n1 n2
         | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.equal n1 n2
+        | Naked_vec128 v1, Naked_vec128 v2 ->
+          Vector_types.Vec128.Bit_pattern.equal v1 v2
         | ( ( Naked_immediate _ | Tagged_immediate _ | Naked_float _
-            | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ ),
+            | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+              ),
             _ ) ->
           false
 
@@ -134,6 +147,7 @@ module Const_data = struct
       | Naked_int32 n -> Hashtbl.hash n
       | Naked_int64 n -> Hashtbl.hash n
       | Naked_nativeint n -> Targetint_32_64.hash n
+      | Naked_vec128 v -> Vector_types.Vec128.Bit_pattern.hash v
   end)
 end
 
@@ -264,6 +278,8 @@ module Const = struct
 
   let naked_nativeint i = create (Naked_nativeint i)
 
+  let naked_vec128 i = create (Naked_vec128 i)
+
   let const_true = tagged_immediate Targetint_31_63.bool_true
 
   let const_false = tagged_immediate Targetint_31_63.bool_false
@@ -364,10 +380,13 @@ module Variable = struct
     let print ppf t =
       let cu = compilation_unit t in
       if Compilation_unit.equal cu (Compilation_unit.get_current_exn ())
-      then Format.fprintf ppf "%s/%d" (name t) (name_stamp t)
+      then
+        Format.fprintf ppf "%s/%d%s" (name t) (name_stamp t)
+          (if user_visible t then "UV" else "N")
       else
-        Format.fprintf ppf "%a.%s/%d" Compilation_unit.print cu (name t)
+        Format.fprintf ppf "%a.%s/%d%s" Compilation_unit.print cu (name t)
           (name_stamp t)
+          (if user_visible t then "UV" else "N")
   end
 
   include T0

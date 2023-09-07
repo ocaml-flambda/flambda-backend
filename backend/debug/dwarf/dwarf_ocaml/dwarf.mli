@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2013--2018 Jane Street Group LLC                           *)
+(*   Copyright 2013--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -32,9 +32,19 @@ val create :
   code_end:Asm_symbol.t ->
   t
 
-val dwarf_for_fundecl : t -> Dwarf_concrete_instances.fundecl -> unit
+type fundecl = private
+  { fun_end_label : Cmm.label;
+    fundecl : Linear.fundecl
+  }
+
+val dwarf_for_fundecl :
+  t -> Linear.fundecl -> fun_end_label:Cmm.label -> fundecl
 
 (** Write the DWARF information to the assembly file. This should only be called
     once all (in)constants and function declarations have been passed to the
     above functions. *)
-val emit : t -> unit
+val emit :
+  t -> basic_block_sections:bool -> binary_backend_available:bool -> unit
+
+val emit_delayed :
+  t -> basic_block_sections:bool -> binary_backend_available:bool -> unit

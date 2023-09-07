@@ -251,7 +251,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         (access_safety safety) (access_size size)
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Pint_as_pointer m -> fprintf ppf "int_as_pointer.%s" (alloc_kind m)
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
@@ -259,3 +259,4 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbox_int (bi, m) ->
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pget_header m -> fprintf ppf "get_header.%s" (alloc_kind m)

@@ -18,6 +18,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Addr
   | Int
   | Float
+  | Vec128
 
 type machtype = machtype_component array
 
@@ -26,10 +27,11 @@ let typ_val = [|Val|]
 let typ_addr = [|Addr|]
 let typ_int = [|Int|]
 let typ_float = [|Float|]
+let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float
+      Addr     Float     Vec128
        ^
        |
       Val
@@ -56,8 +58,11 @@ let lub_component comp1 comp2 =
   | Addr, Addr -> Addr
   | Addr, Val -> Addr
   | Float, Float -> Float
-  | (Int | Addr | Val), Float
-  | Float, (Int | Addr | Val) ->
+  | Vec128, Vec128 -> Vec128
+  | (Int | Addr | Val), (Float | Vec128)
+  | (Float | Vec128), (Int | Addr | Val)
+  | Float, Vec128
+  | Vec128, Float ->
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
 
@@ -73,8 +78,11 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
-  | (Int | Addr | Val), Float
-  | Float, (Int | Addr | Val) ->
+  | Vec128, Vec128 -> true
+  | (Int | Addr | Val), (Float | Vec128)
+  | (Float | Vec128), (Int | Addr | Val)
+  | Float, Vec128
+  | Vec128, Float ->
     assert false
 
 type exttype =
@@ -82,12 +90,14 @@ type exttype =
   | XInt32
   | XInt64
   | XFloat
+  | XVec128
 
 let machtype_of_exttype = function
   | XInt -> typ_int
   | XInt32 -> typ_int
   | XInt64 -> if Arch.size_int = 4 then [|Int;Int|] else typ_int
   | XFloat -> typ_float
+  | XVec128 -> typ_vec128
 
 let machtype_of_exttype_list xtl =
   Array.concat (List.map machtype_of_exttype xtl)
@@ -182,8 +192,16 @@ type memory_chunk =
   | Word_val
   | Single
   | Double
+  | Onetwentyeight
 
-and operation =
+type vector_cast =
+  | Bits128
+
+type scalar_cast =
+  | V128_to_scalar of Primitive.vec128_type
+  | V128_of_scalar of Primitive.vec128_type
+
+type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
       { func: string;
@@ -214,6 +232,8 @@ and operation =
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
+  | Cvectorcast of vector_cast
+  | Cscalarcast of scalar_cast
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
@@ -225,6 +245,7 @@ and operation =
 type kind_for_unboxing =
   | Any
   | Boxed_integer of Lambda.boxed_integer
+  | Boxed_vector of Lambda.boxed_vector
   | Boxed_float
 
 type is_global = Global | Local
@@ -238,12 +259,15 @@ type symbol =
   { sym_name : string;
     sym_global : is_global }
 
+type vec128_bits = { low : int64; high: int64 }
+
 let global_symbol sym_name = { sym_name; sym_global = Global }
 
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
+  | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
@@ -262,7 +286,7 @@ type expression =
   | Ccatch of
       rec_flag
         * (static_label * (Backend_var.With_provenance.t * machtype) list
-          * expression * Debuginfo.t) list
+          * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
@@ -298,6 +322,7 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
+  | Cvec128 of vec128_bits
   | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int
@@ -307,8 +332,8 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-let ccatch (i, ids, e1, e2, dbg, kind) =
-  Ccatch(Nonrecursive, [i, ids, e2, dbg], e1, kind)
+let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
+  Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
 
 let reset () =
   label_counter := init_label
@@ -328,7 +353,7 @@ let iter_shallow_tail f = function
       Array.iter (fun (e, _dbg) -> f e) el;
       true
   | Ccatch(_rec_flag, handlers, body, _value_kind) ->
-      List.iter (fun (_, _, h, _dbg) -> f h) handlers;
+      List.iter (fun (_, _, h, _dbg, _) -> f h) handlers;
       f body;
       true
   | Ctrywith(e1, _kind, _id, e2, _dbg, _value_kind) ->
@@ -342,6 +367,7 @@ let iter_shallow_tail f = function
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
+  | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _
   | Cassign _
@@ -371,7 +397,9 @@ let map_shallow_tail ?kind f = function
       Cswitch(e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg',
               Option.value kind ~default:kind_before)
   | Ccatch(rec_flag, handlers, body, kind_before) ->
-      let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
+      let map_h (n, ids, handler, dbg, is_cold) =
+        (n, ids, f handler, dbg, is_cold)
+      in
       Ccatch(rec_flag, List.map map_h handlers, f body,
              Option.value kind ~default:kind_before)
   | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
@@ -384,6 +412,7 @@ let map_shallow_tail ?kind f = function
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
+  | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _
   | Cassign _
@@ -427,7 +456,7 @@ let iter_shallow f = function
   | Cswitch (_e, _ia, ea, _dbg, _value_kind) ->
       Array.iter (fun (e, _) -> f e) ea
   | Ccatch (_rf, hl, body, _value_kind) ->
-      let iter_h (_n, _ids, handler, _dbg) = f handler in
+      let iter_h (_n, _ids, handler, _dbg, _is_cold) = f handler in
       List.iter iter_h hl; f body
   | Cexit (_n, el, _traps) ->
       List.iter f el
@@ -440,6 +469,7 @@ let iter_shallow f = function
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
+  | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _ ->
       ()
@@ -464,7 +494,9 @@ let map_shallow f = function
   | Cswitch (e, ia, ea, dbg, kind) ->
       Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg, kind)
   | Ccatch (rf, hl, body, kind) ->
-      let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
+      let map_h (n, ids, handler, dbg, is_cold) =
+        (n, ids, f handler, dbg, is_cold)
+      in
       Ccatch (rf, List.map map_h hl, f body, kind)
   | Cexit (n, el, traps) ->
       Cexit (n, List.map f el, traps)
@@ -477,6 +509,7 @@ let map_shallow f = function
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
+  | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _
     as c ->
@@ -488,10 +521,12 @@ let equal_machtype_component left right =
   | Addr, Addr -> true
   | Int, Int -> true
   | Float, Float -> true
-  | Val, (Addr | Int | Float)
-  | Addr, (Val | Int | Float)
-  | Int, (Val | Addr | Float)
-  | Float, (Val | Addr | Int) ->
+  | Vec128, Vec128 -> true
+  | Val, (Addr | Int | Float | Vec128)
+  | Addr, (Val | Int | Float | Vec128)
+  | Int, (Val | Addr | Float | Vec128)
+  | Float, (Val | Addr | Int | Vec128)
+  | Vec128, (Val | Addr | Int | Float) ->
     false
 
 let equal_exttype left right =
@@ -500,10 +535,12 @@ let equal_exttype left right =
   | XInt32, XInt32 -> true
   | XInt64, XInt64 -> true
   | XFloat, XFloat -> true
-  | XInt, (XInt32 | XInt64 | XFloat)
-  | XInt32, (XInt | XInt64 | XFloat)
-  | XInt64, (XInt | XInt32 | XFloat)
-  | XFloat, (XInt | XInt32 | XInt64) ->
+  | XVec128, XVec128 -> true
+  | XInt, (XInt32 | XInt64 | XFloat | XVec128)
+  | XInt32, (XInt | XInt64 | XFloat | XVec128)
+  | XInt64, (XInt | XInt32 | XFloat | XVec128)
+  | XFloat, (XInt | XInt32 | XInt64 | XVec128)
+  | XVec128, (XInt | XInt32 | XInt64 | XFloat) ->
     false
 
 let equal_float_comparison left right =
@@ -542,26 +579,40 @@ let equal_memory_chunk left right =
   | Word_val, Word_val -> true
   | Single, Single -> true
   | Double, Double -> true
+  | Onetwentyeight, Onetwentyeight -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                   | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                   | Onetwentyeight)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                 | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                 | Onetwentyeight)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                      | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                      | Onetwentyeight)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                    | Onetwentyeight)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                        | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                        | Onetwentyeight)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double)
+                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
+                      | Onetwentyeight)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double)
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
+              | Onetwentyeight)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double)
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
+              | Onetwentyeight)
   | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double)
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
+            | Onetwentyeight)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single) ->
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Onetwentyeight)
+  | Onetwentyeight, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Double) ->
     false
 
 let equal_integer_comparison left right =

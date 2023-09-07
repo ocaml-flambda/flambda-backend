@@ -1184,10 +1184,10 @@ end = struct
       | Value_int i -> TG.this_tagged_immediate i
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
-      | Block_approximation (fields, alloc_mode) ->
+      | Block_approximation (tag, fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
-        MTC.immutable_block ~is_unique:false Tag.zero
-          ~field_kind:Flambda_kind.value ~fields alloc_mode
+        MTC.immutable_block ~is_unique:false tag ~field_kind:Flambda_kind.value
+          ~fields alloc_mode
       | Closure_approximation
           { code_id;
             function_slot;
@@ -1308,14 +1308,14 @@ end = struct
               match Reg_width_const.descr const with
               | Tagged_immediate i -> VA.Value_int i
               | Naked_immediate _ | Naked_float _ | Naked_int32 _
-              | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ ->
                 VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
           match head with
           | Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_nativeint _ | String _ | Array _ ->
+          | Boxed_vec128 _ | Boxed_nativeint _ | String _ | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
             match TG.Row_like_for_closures.get_singleton by_function_slot with
@@ -1349,15 +1349,15 @@ end = struct
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some ((_tag, _size), fields, alloc_mode) ->
+              | Some ((tag, _size), fields, alloc_mode) ->
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
                 in
-                Block_approximation (Array.of_list fields, alloc_mode)
+                Block_approximation (tag, Array.of_list fields, alloc_mode)
             else Value_unknown))
       | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_nativeint _ | Rec_info _ | Region _ ->
+      | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
         assert false
     in
     let symbol_ty, _binding_time_and_mode =

@@ -63,7 +63,7 @@ type item = private {
   dinfo_scopes: Scoped_location.scopes;
 }
 
-type t = item list
+type t
 
 type alloc_dbginfo_item =
   { alloc_words : int;
@@ -93,3 +93,7 @@ val compare : t -> t -> int
 val hash : t -> int
 
 val print_compact : Format.formatter -> t -> unit
+
+val to_list : t -> item list
+
+val length : t -> int

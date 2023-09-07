@@ -94,7 +94,7 @@ let rewrite_gen :
   let rewrite_instruction ~(direction : direction)
       ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
       (instr : _ Cfg.instruction) : unit =
-    let f (reg : Reg.t) : Reg.t =
+    let[@inline] rewrite_reg (reg : Reg.t) : Reg.t =
       if Utils.is_spilled reg
       then (
         let spilled =
@@ -135,13 +135,16 @@ let rewrite_gen :
         temp)
       else reg
     in
+    let rewrite_array (arr : Reg.t array) : unit =
+      let len = Array.length arr in
+      for i = 0 to pred len do
+        let reg = Array.unsafe_get arr i in
+        Array.unsafe_set arr i (rewrite_reg reg)
+      done
+    in
     match direction with
-    | Load_before_cell _ | Load_after_list _ ->
-      if array_contains_spilled instr.arg
-      then instr.arg <- Array.map instr.arg ~f
-    | Store_after_cell _ | Store_before_list _ ->
-      if array_contains_spilled instr.res
-      then instr.res <- Array.map instr.res ~f
+    | Load_before_cell _ | Load_after_list _ -> rewrite_array instr.arg
+    | Store_after_cell _ | Store_before_list _ -> rewrite_array instr.res
   in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun label block ->
@@ -252,19 +255,17 @@ let postlude :
      cfg_with_infos ->
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   (* note: slots need to be updated before prologue removal *)
-  if Lazy.force stack_slots_optim
-  then
-    Profile.record ~accumulate:true "stack_slots_optimize"
-      (fun () ->
-        Regalloc_stack_slots.optimize (State.stack_slots state) cfg_with_infos)
-      ();
+  Profile.record ~accumulate:true "stack_slots_optimize"
+    (fun () ->
+      Regalloc_stack_slots.optimize (State.stack_slots state) cfg_with_infos)
+    ();
   Regalloc_stack_slots.update_cfg_with_layout (State.stack_slots state)
     cfg_with_layout;
   if Utils.debug
   then
     Array.iteri (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
-      ~f:(fun reg_class num_stack_slots ->
-        Utils.log ~indent:1 "stack_slots[%d]=%d" reg_class num_stack_slots);
+      ~f:(fun stack_class num_stack_slots ->
+        Utils.log ~indent:1 "stack_slots[%d]=%d" stack_class num_stack_slots);
   remove_prologue_if_not_required cfg_with_layout;
   update_live_fields cfg_with_layout (Cfg_with_infos.liveness cfg_with_infos);
   f ();

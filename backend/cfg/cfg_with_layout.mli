@@ -103,6 +103,8 @@ val dump : Format.formatter -> t -> msg:string -> unit
     [Random.State.bool]. *)
 val reorder_blocks_random : ?random_state:Random.State.t -> t -> unit
 
+val reorder_blocks : comparator:(Label.t -> Label.t -> int) -> t -> unit
+
 val iter_instructions :
   t ->
   instruction:(Cfg.basic Cfg.instruction -> unit) ->

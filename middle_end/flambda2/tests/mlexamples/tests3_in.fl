@@ -1,5 +1,8 @@
-let $camlTests3__string16 = "index out of bounds" in
-let code size(102)
+let $camlTests3__string14 = "index out of bounds" in
+let $camlTests3__block16 =
+  Block 0 ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string14)
+in
+let code size(88)
       foo_0 (arr : any array, f, i : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -12,11 +15,7 @@ let code size(102)
     where k5 =
       cont k3
     where k4 =
-      let exn_bucket =
-        %Block 0
-          ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string16)
-      in
-      cont k1 pop(regular k1) (exn_bucket)
+      cont k1 pop(regular k1) ($camlTests3__block16)
     where k3 =
       ((let cond_result = %is_flat_float_array arr in
         switch cond_result
@@ -40,11 +39,7 @@ let code size(102)
          where k4 =
            cont k2
          where k3 =
-           let exn_bucket =
-             %Block 0
-               ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string16)
-           in
-           cont k1 pop(regular k1) (exn_bucket)
+           cont k1 pop(regular k1) ($camlTests3__block16)
          where k2 =
            ((let cond_result = %is_flat_float_array arr in
              switch cond_result
@@ -55,7 +50,7 @@ let code size(102)
                 cont k2 (ifnot_result)
               where k3 =
                 let prim = %unbox_float apply_result in
-                let ifso_result = %array_set float arr.(i) <-& prim in
+                let ifso_result = %array_set float arr.(i) <- prim in
                 cont k2 (ifso_result)
               where k2 (if_then_else_result) =
                 cont k (if_then_else_result)))

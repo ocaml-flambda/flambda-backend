@@ -57,7 +57,8 @@ type constant =
 type data_type =
   | NONE
   | REAL4 | REAL8 (* floating point values *)
-  | BYTE | WORD | DWORD | QWORD | OWORD (* integer values *)
+  | BYTE | WORD | DWORD | QWORD (* integer values *)
+  | VEC128 (* vector values (float & integer) *)
   | NEAR | PROC
 
 type reg64 =
@@ -67,8 +68,7 @@ type reg64 =
 type reg8h =
   | AH | BH | CH | DH
 
-
-type registerf = XMM of int | TOS | ST of int
+type regf = XMM of int
 
 type arch = X64 | X86
 
@@ -102,7 +102,7 @@ type arg =
   | Reg16 of reg64
   | Reg32 of reg64
   | Reg64 of reg64
-  | Regf of registerf
+  | Regf of regf
 
   | Mem of addr
   | Mem64_RIP of data_type * string * int
@@ -130,40 +130,6 @@ type instruction =
   | CVTTSD2SI of arg * arg
   | DEC of arg
   | DIVSD of arg * arg
-  | FABS
-  | FADD of arg
-  | FADDP of arg * arg
-  | FCHS
-  | FCOMP of arg
-  | FCOMPP
-  | FCOS
-  | FDIV of arg
-  | FDIVP of arg * arg
-  | FDIVR of arg
-  | FDIVRP of arg * arg
-  | FILD of arg
-  | FISTP of arg
-  | FLD of arg
-  | FLD1
-  | FLDCW of arg
-  | FLDLG2
-  | FLDLN2
-  | FLDZ
-  | FMUL of arg
-  | FMULP of arg * arg
-  | FNSTCW of arg
-  | FNSTSW of arg
-  | FPATAN
-  | FPTAN
-  | FSIN
-  | FSQRT
-  | FSTP of arg
-  | FSUB of arg
-  | FSUBP of arg * arg
-  | FSUBR of arg
-  | FSUBRP of arg * arg
-  | FXCH of arg
-  | FYL2X
   | HLT
   | IDIV of arg
   | IMUL of arg * arg option
@@ -179,6 +145,7 @@ type instruction =
   | MINSD of arg * arg
   | MOV of arg * arg
   | MOVAPD of arg * arg
+  | MOVUPD of arg * arg
   | MOVD of arg * arg
   | MOVQ of arg * arg
   | MOVLPD of arg * arg
@@ -215,6 +182,22 @@ type instruction =
   | XCHG of arg * arg
   | XOR of arg * arg
   | XORPD of arg * arg
+  | CMPPS of float_condition * arg * arg
+  | SHUFPS of int * arg * arg
+  | ADDPS of arg * arg
+  | SUBPS of arg * arg
+  | MULPS of arg * arg
+  | DIVPS of arg * arg
+  | MAXPS of arg * arg
+  | MINPS of arg * arg
+  | RCPPS of arg * arg
+  | SQRTPS of arg * arg
+  | RSQRTPS of arg * arg
+  | MOVHLPS of arg * arg
+  | MOVLHPS of arg * arg
+  | UNPCKHPS of arg * arg
+  | UNPCKLPS of arg * arg
+  | MOVMSKPS of arg * arg
 
 (* ELF specific *)
 type reloc_type =
@@ -240,7 +223,7 @@ type asm_line =
   | NewLabel of string * data_type
   | NewLine
   | Quad of constant
-  | Section of string list * string option * string list
+  | Section of string list * string option * string list * bool
   | Sleb128 of constant
   | Space of int
   | Uleb128 of constant

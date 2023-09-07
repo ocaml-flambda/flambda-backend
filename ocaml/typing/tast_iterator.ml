@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 type iterator =
@@ -32,6 +33,7 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
+    layout_annotation: iterator -> const_layout -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
@@ -229,7 +231,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
         | _, Overridden (_, exp) -> sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
-  | Texp_field (exp, _, _, _) -> sub.expr sub exp
+  | Texp_field (exp, _, _, _, _) -> sub.expr sub exp
   | Texp_setfield (exp1, _,  _, _, exp2) ->
       sub.expr sub exp1;
       sub.expr sub exp2
@@ -350,6 +352,7 @@ let module_type sub {mty_desc; mty_env; _} =
       sub.module_type sub mtype;
       List.iter (fun (_, _, e) -> sub.with_constraint sub e) list
   | Tmty_typeof mexpr -> sub.module_expr sub mexpr
+  | Tmty_strengthen (mtype, _, _) -> sub.module_type sub mtype
 
 let with_constraint sub = function
   | Twith_type      decl -> sub.type_declaration sub decl
@@ -457,8 +460,8 @@ let class_type_field sub {ctf_desc; _} =
 let typ sub {ctyp_desc; ctyp_env; _} =
   sub.env sub ctyp_env;
   match ctyp_desc with
-  | Ttyp_any   -> ()
-  | Ttyp_var _ -> ()
+  | Ttyp_var (_, layout) ->
+      Option.iter (sub.layout_annotation sub) layout
   | Ttyp_arrow (_, ct1, ct2) ->
       sub.typ sub ct1;
       sub.typ sub ct2
@@ -466,9 +469,13 @@ let typ sub {ctyp_desc; ctyp_env; _} =
   | Ttyp_constr (_, _, list) ->  List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
   | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list
-  | Ttyp_alias (ct, _) -> sub.typ sub ct
+  | Ttyp_alias (ct, _, layout) ->
+    sub.typ sub ct;
+    Option.iter (sub.layout_annotation sub) layout
   | Ttyp_variant (list, _, _) -> List.iter (sub.row_field sub) list
-  | Ttyp_poly (_, ct) -> sub.typ sub ct
+  | Ttyp_poly (vars, ct) ->
+      List.iter (fun (_, l) -> Option.iter (sub.layout_annotation sub) l) vars;
+      sub.typ sub ct
   | Ttyp_package pack -> sub.package_type sub pack
 
 let class_structure sub {cstr_self; cstr_fields; _} =
@@ -512,6 +519,8 @@ let value_binding sub {vb_pat; vb_expr; _} =
 
 let env _sub _ = ()
 
+let layout_annotation _sub _ = ()
+
 let default_iterator =
   {
     binding_op;
@@ -528,6 +537,7 @@ let default_iterator =
     env;
     expr;
     extension_constructor;
+    layout_annotation;
     module_binding;
     module_coercion;
     module_declaration;

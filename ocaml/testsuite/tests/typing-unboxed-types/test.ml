@@ -94,7 +94,7 @@ Error: This type cannot be unboxed because
 (* let rec must be rejected *)
 type t10 = A of t10 [@@ocaml.unboxed] [@@value];;
 [%%expect{|
-type t10 = A of t10 [@@value] [@@unboxed]
+type t10 : value = A of t10 [@@unboxed]
 |}];;
 let rec x = A x;;
 [%%expect{|
@@ -283,7 +283,7 @@ in assert (f x = L 3.14);;
 (* Check for a potential infinite loop in the typing algorithm. *)
 type 'a t12 = M of 'a t12 [@@ocaml.unboxed] [@@value];;
 [%%expect{|
-type 'a t12 = M of 'a t12 [@@value] [@@unboxed]
+type 'a t12 : value = M of 'a t12 [@@unboxed]
 |}];;
 let f (a : int t12 array) = a.(0);;
 [%%expect{|
@@ -342,7 +342,7 @@ end = struct
   type t = A of int [@@ocaml.unboxed]
 end;;
 [%%expect{|
-module T : sig type t [@@immediate] end
+module T : sig type t : immediate end
 |}];;
 
 (* Another corner case *)
@@ -372,7 +372,7 @@ val h : f = {field = []}
 type 'a t [@@immediate];;
 type u = U : 'a t -> u [@@unboxed];;
 [%%expect{|
-type 'a t [@@immediate]
+type 'a t : immediate
 type u = U : 'a t -> u [@@unboxed]
 |}];;
 

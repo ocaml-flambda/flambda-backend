@@ -63,8 +63,8 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout_coherence_check of type_expr * Layout.Violation.t
-  | Layout_update_check of Path.t * Layout.Violation.t
+  | Layout_mismatch_of_type of type_expr * Layout.Violation.t
+  | Layout_mismatch_of_path of Path.t * Layout.Violation.t
   | Layout_sort of
       { lloc : layout_sort_loc
       ; typ : type_expr
@@ -72,6 +72,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
+  | Float64_in_block of type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -84,13 +85,13 @@ open Typedtree
 
 exception Error of Location.t * error
 
-let layout_of_attributes ~legacy_immediate ~reason attrs =
-  match Layout.of_attributes ~legacy_immediate ~reason attrs with
+let layout_of_attributes ~legacy_immediate ~context attrs =
+  match Layout.of_attributes ~legacy_immediate ~context attrs with
   | Ok l -> l
   | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
-let layout_of_attributes_default ~legacy_immediate ~reason ~default attrs =
-  match Layout.of_attributes_default ~legacy_immediate ~reason ~default attrs with
+let layout_of_attributes_default ~legacy_immediate ~context ~default attrs =
+  match Layout.of_attributes_default ~legacy_immediate ~context ~default attrs with
   | Ok l -> l
   | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
@@ -103,13 +104,18 @@ let get_unboxed_from_attributes sdecl =
   | false, true -> Some true
   | false, false -> None
 
-(* Used for layout error reporting *)
-(* CR aspectorzabusky: This feels like it must exist somewhere *)
-let parameter_name sty = match sty.ptyp_desc with
-  | Ptyp_any -> "_"
-  | Ptyp_var name -> "'" ^ name
-  | _ -> Misc.fatal_error
-           "Type parameter was neither [Ptyp_any] nor [Ptyp_var _]"
+(* [make_params] creates sort variables - these can be defaulted away (as in
+   transl_type_decl) or unified with existing sort-variable-free types (as in
+   transl_with_constraint). *)
+let make_params env path params =
+  TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
+  let make_param (sty, v) =
+    try
+      (transl_type_param env path sty, v)
+    with Already_bound ->
+      raise(Error(sty.ptyp_loc, Repeated_parameter))
+  in
+    List.map make_param params
 
 (* Enter all declared types in the environment as abstract types *)
 
@@ -188,56 +194,28 @@ let enter_type rec_flag env sdecl (id, uid) =
      layout of the variable put in manifests here is updated when constraints
      are checked and then unified with the real manifest and checked against the
      kind. *)
-  let layout =
+  let type_layout =
     (* We set ~legacy_immediate to true because we're looking at a declaration
        that was already allowed to be [@@immediate] *)
     layout_of_attributes_default
-      ~legacy_immediate:true ~reason:(Type_declaration path)
+      ~legacy_immediate:true ~context:(Type_declaration path)
       ~default:(Layout.any ~why:Initial_typedecl_env)
       sdecl.ptype_attributes
   in
+  let type_params =
+    List.map (fun (param, _) ->
+        let name = get_type_param_name param in
+        let layout = get_type_param_layout path param in
+        Btype.newgenvar ?name layout)
+      sdecl.ptype_params
+  in
   let decl =
-    { type_params =
-        (* CR layouts: At the moment, we're defaulting type parameters in
-           recursive type declarations to layout value.  We could probably allow
-           (Sort 'l) and default to value if it's not determined by use.
-
-           Richard supplies the following example:
-
-           (* setup: *)
-           type t_void [@@void]
-           type ('a : void) void_t
-
-           (* case 1: *)
-           type 'b t = 'b void_t * t2
-           and t2 = t_void void_t
-
-           (* case 2: *)
-           type 'b t = 'b void_t * t2
-           and t2 = t_void t
-
-           Case 1 is accepted and case 2 is rejected, which isn't the end of the
-           world, but could perhaps be improved.
-        *)
-        (* CR layouts v2: Actually, RAE thinks this is just wrong now, because
-           make_params defaults to a sort variable and this defaults to value.
-           I'm worried that the value here will propagate somewhere and then
-           conflict with an inferred e.g. float64 somewhere. *)
-        List.map
-          (fun (param, _) ->
-             let layout =
-               layout_of_attributes_default ~legacy_immediate:false
-                 ~reason:(Type_parameter (path, parameter_name param))
-                 ~default:(Layout.value ~why:Type_argument)
-                 param.ptyp_attributes
-             in
-             Btype.newgenvar layout)
-          sdecl.ptype_params;
+    { type_params;
       type_arity = arity;
       type_kind = Type_abstract;
-      type_layout = layout;
+      type_layout;
       type_private = sdecl.ptype_private;
-      type_manifest = Some (Ctype.newvar layout);
+      type_manifest = Some (Ctype.newvar type_layout);
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -280,6 +258,14 @@ let update_type temp_env env id loc =
         raise (Error(loc, Type_clash (env, err)))
 
 (* Determine if a type's values are represented by floats at run-time. *)
+(* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
+   unboxed floats the same as a float record?
+
+   reisenberg: Yes. And actually a record mixing floats and unboxed floats is
+   also a float-record, and should be made to work. We'll have to make sure to
+   add the boxing operations in the right spot at projections, but that should
+   be possible.
+*)
 let is_float env ty =
   match get_desc (Ctype.get_unboxed_type_approximation env ty) with
     Tconstr(p, _, _) -> Path.same p Predef.path_float
@@ -289,6 +275,9 @@ let is_float env ty =
 let is_fixed_type sd =
   let rec has_row_var sty =
     match sty.ptyp_desc with
+      (* CR layouts upstreaming: The Ptyp_alias case also covers the case for a
+         layout annotation, conveniently. When upstreaming layouts, this
+         function will need a case for layout-annotation aliases. *)
       Ptyp_alias (sty, _) -> has_row_var sty
     | Ptyp_class _
     | Ptyp_object (_, Open)
@@ -338,29 +327,6 @@ let set_private_row env loc p decl =
 
 (* Translate one type declaration *)
 
-(* [make_params] creates sort variables - these can be defaulted away (as in
-   transl_type_decl) or unified with existing sort-variable-free types (as in
-   transl_with_constraint). *)
-let make_params env path params =
-  (* Our choice for now is that if you want a parameter of layout any, you have
-     to ask for it with an annotation.  Some restriction here seems necessary
-     for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
-     have layout any).  But it might be possible to infer any in some cases. *)
-  let make_param (sty, v) =
-    try
-      let layout =
-        layout_of_attributes_default ~legacy_immediate:false
-          ~reason:(Type_parameter (path, parameter_name sty))
-          ~default:(Layout.of_new_sort_var ~why:Unannotated_type_parameter)
-          sty.ptyp_attributes
-      in
-      (transl_type_param env sty layout, v)
-    with Already_bound ->
-      raise(Error(sty.ptyp_loc, Repeated_parameter))
-  in
-    List.map make_param params
-
-
 let transl_global_flags loc attrs =
   let transl_global_flag loc (r : (bool,unit) result) =
     match r with
@@ -386,7 +352,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type env ?univars ~closed Global arg in
+         let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
@@ -419,7 +385,7 @@ let transl_labels env univars closed lbls =
 
 let transl_types_gf env univars closed tyl =
   let mk arg =
-    let cty = transl_simple_type env ?univars ~closed Global arg in
+    let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
     (cty, gf)
   in
@@ -442,28 +408,42 @@ let transl_constructor_arguments env univars closed = function
    type declaration to compute accurate layouts in the presence of recursively
    defined types. It is updated later by [update_constructor_arguments_layouts]
 *)
-let make_constructor env loc type_path type_params svars sargs sret_type =
+let make_constructor
+      env loc ~cstr_path ~type_path type_params (svars : _ Either.t)
+      sargs sret_type =
+  let tvars = match svars with
+    | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
+    | Right vars_layouts ->
+      List.map (fun (v, l) -> v.txt, Option.map Location.get_txt l) vars_layouts
+  in
   match sret_type with
   | None ->
       let args, targs =
         transl_constructor_arguments env None true sargs
       in
-        targs, None, args, None
+        tvars, targs, None, args, None
   | Some sret_type -> TyVarEnv.with_local_scope begin fun () ->
       (* if it's a generalized constructor we must work in a narrowed
          context so as to not introduce any new constraints *)
       TyVarEnv.reset ();
       let univars, closed =
         match svars with
-        | [] -> None, false
-        | vs ->
+        | Left [] | Right [] -> None, false
+        | Left vars_only ->
            Ctype.begin_def();
-           Some (TyVarEnv.make_poly_univars (List.map (fun v -> v.txt) vs)), true
+           Some (TyVarEnv.make_poly_univars vars_only), true
+        | Right vars_layouts ->
+           Ctype.begin_def();
+           Some (TyVarEnv.make_poly_univars_layouts
+                   ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
+                   vars_layouts), true
       in
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = transl_simple_type env ?univars ~closed Global sret_type in
+      let tret_type = 
+        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type 
+      in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
       begin match get_desc ret_type with
@@ -495,7 +475,7 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
          Btype.iter_type_expr_cstr_args set_level args;
          set_level ret_type;
       end;
-      targs, Some tret_type, args, Some ret_type
+      tvars, targs, Some tret_type, args, Some ret_type
   end
 
 let verify_unboxed_attr unboxed_attr sdecl =
@@ -617,12 +597,13 @@ let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
   TyVarEnv.reset ();
   Ctype.begin_def ();
-  let tparams = make_params env (Pident id) sdecl.ptype_params in
+  let path = Path.Pident id in
+  let tparams = make_params env path sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->
-      transl_simple_type env ~closed:false Global sty,
-      transl_simple_type env ~closed:false Global sty', loc)
+      transl_simple_type env ~closed:false Mode.Alloc.Const.legacy sty,
+      transl_simple_type env ~closed:false Mode.Alloc.Const.legacy sty', loc)
     sdecl.ptype_cstrs
   in
   let unboxed_attr = get_unboxed_from_attributes sdecl in
@@ -639,14 +620,14 @@ let transl_declaration env sdecl (id, uid) =
   let layout_annotation =
     (* We set legacy_immediate to true because you were already allowed to write
        [@@immediate] on declarations.  *)
-    layout_of_attributes ~legacy_immediate:true ~reason:(Type_declaration (Pident id))
+    layout_of_attributes ~legacy_immediate:true ~context:(Type_declaration path)
       sdecl.ptype_attributes
   in
   let (tman, man) = match sdecl.ptype_manifest with
       None -> None, None
     | Some sty ->
       let no_row = not (is_fixed_type sdecl) in
-      let cty = transl_simple_type env ~closed:no_row Global sty in
+      let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
   let any = Layout.any ~why:Initial_typedecl_env in
@@ -678,25 +659,35 @@ let transl_declaration env sdecl (id, uid) =
           raise(Error(sdecl.ptype_loc, Too_many_constructors));
         let make_cstr scstr =
           let name = Ident.create_local scstr.pcd_name.txt in
-          let targs, tret_type, args, ret_type =
-            make_constructor env scstr.pcd_loc (Path.Pident id) params
-                             scstr.pcd_vars scstr.pcd_args scstr.pcd_res
+          let svars, attributes =
+            match Jane_syntax.Layouts.of_constructor_declaration scstr with
+            | None ->
+              Either.Left scstr.pcd_vars,
+              scstr.pcd_attributes
+            | Some (vars_layouts, attributes) ->
+              Either.Right vars_layouts,
+              attributes
+          in
+          let tvars, targs, tret_type, args, ret_type =
+            make_constructor env scstr.pcd_loc
+              ~cstr_path:(Path.Pident name) ~type_path:path params
+              svars scstr.pcd_args scstr.pcd_res
           in
           let tcstr =
             { cd_id = name;
               cd_name = scstr.pcd_name;
-              cd_vars = scstr.pcd_vars;
+              cd_vars = tvars;
               cd_args = targs;
               cd_res = tret_type;
               cd_loc = scstr.pcd_loc;
-              cd_attributes = scstr.pcd_attributes }
+              cd_attributes = attributes }
           in
           let cstr =
             { Types.cd_id = name;
               cd_args = args;
               cd_res = ret_type;
               cd_loc = scstr.pcd_loc;
-              cd_attributes = scstr.pcd_attributes;
+              cd_attributes = attributes;
               cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
           in
             tcstr, cstr
@@ -807,7 +798,6 @@ let transl_declaration env sdecl (id, uid) =
       typ_kind = tkind;
       typ_private = sdecl.ptype_private;
       typ_attributes = sdecl.ptype_attributes;
-      typ_layout_annotation = layout_annotation;
     }
 
 (* Generalize a type declaration *)
@@ -840,9 +830,14 @@ let rec check_constraints_rec env loc visited ty =
            *already* violate the constraints -- we need to report a problem with
            the unexpanded types, or we get errors that talk about the same type
            twice.  This is generally true for constraint errors. *)
-        try Ctype.matches ~expand_error_trace:false env ty ty'
-        with Ctype.Matches_failure (env, err) ->
+        match Ctype.matches ~expand_error_trace:false env ty ty' with
+        | Unification_failure err ->
           raise (Error(loc, Constraint_failed (env, err)))
+        | Layout_mismatch { original_layout; inferred_layout; ty } ->
+          raise (Error(loc, Layout_mismatch_of_type (ty,
+                              (Layout.Violation.of_ (Not_a_sublayout
+                                 (original_layout, inferred_layout))))))
+        | All_good -> ()
       end;
       List.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
@@ -992,7 +987,7 @@ let check_coherence env loc dpath decl =
     begin match Layout.sub_with_history layout' decl.type_layout with
     | Ok layout' -> { decl with type_layout = layout' }
     | Error v ->
-      raise (Error (loc, Layout_coherence_check (ty,v)))
+      raise (Error (loc, Layout_mismatch_of_type (ty,v)))
     end
   | { type_manifest = None } -> decl
 
@@ -1010,11 +1005,20 @@ let check_abbrev env sdecl (id, decl) =
    same issue as with arrows. *)
 let check_representable ~why env loc lloc typ =
   match Ctype.type_sort ~why env typ with
-  (* CR layouts: This is not the right place to default to value.  Some callers
-     of this do need defaulting, because they, for example, immediately check
-     if the sort is immediate or void.  But we should do that in those places,
-     or as part of our higher-level defaulting story. *)
-  | Ok s -> Sort.default_to_value s
+  (* CR layouts v3: This is a convenient place to rule out [float#] in
+     structures for now, as it is called on all the types in declared blocks in
+     kinds, and only them.  But when we have a real mixed block restriction, it
+     can't be done here because we're just looking at one type.  *)
+  (* CR layouts v2.5: This rules out float# in [@@unboxed] types.  No real need
+     to rule that out - I just haven't had time to write tests for it yet. *)
+  | Ok s -> begin
+      match Sort.get_default_value s with
+      (* All calls to this are part of [update_decl_layout], which happens after
+         all the defaulting, so we don't expect this actually defaults the
+         sort - we just want the [const]. *)
+      | Void | Value -> ()
+      | Float64 -> raise (Error (loc, Float64_in_block typ))
+    end
   | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
 
 (* The [update_x_layouts] functions infer more precise layouts in the type kind,
@@ -1086,7 +1090,7 @@ let update_decl_layout env dpath decl =
       let layout = Layout.for_boxed_record ~all_void in
       lbls, rep, layout
     | _, Record_float ->
-      (* CR layouts v2: When we have an unboxed float layout, does it make
+      (* CR layouts v2.5: When we have an unboxed float layout, does it make
          sense to use that here?  The use of value feels inaccurate, but I think
          the code that would look at first looks at the rep. *)
       let lbls =
@@ -1158,7 +1162,8 @@ let update_decl_layout env dpath decl =
   if new_layout != decl.type_layout then
     begin match Layout.sub new_layout decl.type_layout with
     | Ok () -> ()
-    | Error err -> raise(Error(decl.type_loc, Layout_update_check (dpath,err)))
+    | Error err ->
+      raise(Error(decl.type_loc, Layout_mismatch_of_path (dpath,err)))
     end;
   new_decl
 
@@ -1494,6 +1499,8 @@ let transl_type_decl env rec_flag sdecl_list =
         raise (Error (loc, Type_clash (new_env, err))))
       checks)
     delayed_layout_checks;
+  (* Check that constraints are enforced *)
+  List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Check that all type variables are closed; this also defaults any remaining
      sort variables. Defaulting must happen before update_decls_layout,
      Typedecl_seperability.update_decls, and add_types_to_env, all of which need
@@ -1507,8 +1514,6 @@ let transl_type_decl env rec_flag sdecl_list =
          Some ty -> raise(Error(sdecl.ptype_loc, Unbound_type_var(ty,decl)))
        | None   -> ())
     sdecl_list tdecls;
-  (* Check that constraints are enforced *)
-  List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Add type properties to declarations *)
   let decls =
     try
@@ -1538,36 +1543,46 @@ let transl_type_decl env rec_flag sdecl_list =
   (final_decls, final_env)
 
 (* Translating type extensions *)
-let transl_extension_constructor_jst ~scope:_ _env _type_path _type_params
-      _typext_params _priv _id _attrs : Jane_syntax.Extension_constructor.t -> _ =
-  function
-  | _ -> .
+let transl_extension_constructor_decl
+      env type_path typext_params loc id svars sargs sret_type =
+  let tvars, targs, tret_type, args, ret_type =
+    make_constructor env loc
+      ~cstr_path:(Pident id) ~type_path typext_params
+      svars sargs sret_type
+  in
+  let num_args =
+    match targs with
+    | Cstr_tuple args -> List.length args
+    | Cstr_record _ -> 1
+  in
+  let layouts = Array.make num_args (Layout.any ~why:Dummy_layout) in
+  let args, constant =
+    update_constructor_arguments_layouts env loc args layouts
+  in
+  args, layouts, constant, ret_type,
+  Text_decl(tvars, targs, tret_type)
+
+let transl_extension_constructor_jst env type_path _type_params
+      typext_params _priv loc id _attrs :
+  Jane_syntax.Extension_constructor.t -> _ = function
+  | Jext_layout (Lext_decl(vars_layouts, args, res)) ->
+    transl_extension_constructor_decl
+      env type_path typext_params loc id (Right vars_layouts) args res
 
 let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
+  let loc = sext.pext_loc in
   let args, arg_layouts, constant, ret_type, kind =
     match Jane_syntax.Extension_constructor.of_ast sext with
     | Some (jext, attrs) ->
       transl_extension_constructor_jst
-        ~scope env type_path type_params typext_params priv id attrs jext
+        env type_path type_params typext_params priv loc id attrs jext
     | None ->
     match sext.pext_kind with
       Pext_decl(svars, sargs, sret_type) ->
-        let targs, tret_type, args, ret_type =
-          make_constructor env sext.pext_loc type_path typext_params
-            svars sargs sret_type
-        in
-        let num_args =
-          match targs with
-          | Cstr_tuple args -> List.length args
-          | Cstr_record _ -> 1
-        in
-        let layouts = Array.make num_args (Layout.any ~why:Dummy_layout) in
-        let args, constant =
-          update_constructor_arguments_layouts env sext.pext_loc args layouts
-        in
-          args, layouts, constant, ret_type, Text_decl(svars, targs, tret_type)
+      transl_extension_constructor_decl
+        env type_path typext_params loc id (Left svars) sargs sret_type
     | Pext_rebind lid ->
         let usage : Env.constructor_usage =
           if priv = Public then Env.Exported else Env.Exported_private
@@ -1735,7 +1750,9 @@ let transl_type_extension extend env loc styext =
   | None -> ()
   | Some err -> raise (Error(loc, Extension_mismatch (type_path, env, err)))
   end;
-  let ttype_params = make_params env type_path styext.ptyext_params in
+  let ttype_params =
+    make_params env type_path styext.ptyext_params
+  in
   let type_params = List.map (fun (cty, _) -> cty.ctyp_type) ttype_params in
   List.iter2 (Ctype.unify_var env)
     (Ctype.instance_list type_decl.type_params)
@@ -1862,6 +1879,18 @@ let native_repr_of_type env kind ty =
     Some (Unboxed_integer Pint64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
+    Some (Unboxed_vector (Pvec128 Int8x16))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
+    Some (Unboxed_vector (Pvec128 Int16x8))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
+    Some (Unboxed_vector (Pvec128 Int32x4))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
+    Some (Unboxed_vector (Pvec128 Int64x2))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
+    Some (Unboxed_vector (Pvec128 Float32x4))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
+    Some (Unboxed_vector (Pvec128 Float64x2))
   | _ ->
     None
 
@@ -1897,7 +1926,7 @@ let make_native_repr env core_type sort ty ~global_repr =
     end
 
 let prim_const_mode m =
-  match Types.Alloc_mode.check_const m with
+  match Mode.Locality.check_const m with
   | Some Global -> Prim_global
   | Some Local -> Prim_local
   | None -> assert false
@@ -1931,10 +1960,11 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
-      else prim_const_mode marg
+      else prim_const_mode (Mode.Alloc.locality marg)
     in
     let repr_args, repr_res =
-      parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
+      parse_native_repr_attributes env ct2 t2
+        (prim_const_mode (Mode.Alloc.locality mret)) ~global_repr
     in
     ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
@@ -2067,8 +2097,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let arity = List.length params in
   let constraints =
     List.map (fun (ty, ty', loc) ->
-      let cty = transl_simple_type env ~closed:false Global ty in
-      let cty' = transl_simple_type env ~closed:false Global ty' in
+      let cty = transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty in
+      let cty' = transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty' in
       (* Note: We delay the unification of those constraints
          after the unification of parameters, so that clashing
          constraints report an error on the constraint location
@@ -2080,7 +2110,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let (tman, man) =  match sdecl.ptype_manifest with
       None -> None, None
     | Some sty ->
-        let cty = transl_simple_type env ~closed:no_row Global sty in
+        let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
         Some cty, Some cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two
@@ -2119,7 +2149,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     if arity_ok && man <> None then
       sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_layout
     else
-      (* CR layouts v2: this is a gross hack.  See the comments in the
+      (* CR layouts: this is a gross hack.  See the comments in the
          [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
       let layout = Layout.value ~why:Package_hack in
         (* Layout.(of_attributes ~default:value sdecl.ptype_attributes) *)
@@ -2180,12 +2210,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_variance = new_type_variance;
       type_separability = new_type_separability;
     } in
-  let layout_annotation =
-    layout_of_attributes
-      ~legacy_immediate:false
-      ~reason:(With_constraint sdecl.ptype_name.txt)
-      sdecl.ptype_attributes
-  in
   Ctype.end_def();
   generalize_decl new_sig_decl;
   {
@@ -2199,7 +2223,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
-    typ_layout_annotation = layout_annotation;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -2233,21 +2256,18 @@ let approx_type_decl sdecl_list =
   List.map
     (fun sdecl ->
        let id = Ident.create_scoped ~scope sdecl.ptype_name.txt in
+       let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
        let layout =
          (* We set legacy_immediate to true because you were already allowed
             to write [@@immediate] on declarations. *)
          layout_of_attributes_default ~legacy_immediate:true
-           ~reason:(Type_declaration (Pident id))
+           ~context:(Type_declaration path)
            ~default:(Layout.value ~why:Default_type_layout)
            sdecl.ptype_attributes
        in
        let params =
-         List.map (fun (styp,_) ->
-           layout_of_attributes_default ~legacy_immediate:false
-             ~reason:(Type_parameter (Pident id, parameter_name styp))
-             ~default:(Layout.value ~why:Type_argument)
-             styp.ptyp_attributes)
+         List.map (fun (param, _) -> get_type_param_layout path param)
            sdecl.ptype_params
        in
        (id, abstract_type_decl ~injective layout params))
@@ -2307,11 +2327,6 @@ let explain_unbound_single ppf tv ty =
         | _ -> Btype.newgenty (Ttuple[]))
         "case" (fun (lab,_) -> "`" ^ lab ^ " of ")
   | _ -> trivial ty
-
-
-let tys_of_constr_args = function
-  | Types.Cstr_tuple tl -> List.map fst tl
-  | Types.Cstr_record lbls -> List.map (fun l -> l.Types.ld_type) lbls
 
 let report_error ppf = function
   | Repeated_parameter ->
@@ -2502,7 +2517,7 @@ let report_error ppf = function
       fprintf ppf "Too many [@@unboxed]/[@@untagged] attributes"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-                   Only float, int32, int64 and nativeint can be unboxed.@]"
+                   Only float, int32, int64, nativeint, and vector primitives can be unboxed.@]"
   | Cannot_unbox_or_untag_type Untagged ->
       fprintf ppf "@[Don't know how to untag this type.@ \
                    Only int can be untagged.@]"
@@ -2512,12 +2527,12 @@ let report_error ppf = function
          a direct argument or result of the primitive,@ \
          it should not occur deeply into its type.@]"
         (match kind with Unboxed -> "@unboxed" | Untagged -> "@untagged")
-  | Layout_update_check (dpath,v) ->
+  | Layout_mismatch_of_path (dpath,v) ->
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
     let offender ppf = fprintf ppf "Type %s" (Ident.name (Path.head dpath)) in
     Layout.Violation.report_with_offender ~offender ppf v
-  | Layout_coherence_check (ty,v) ->
+  | Layout_mismatch_of_type (ty,v) ->
     let offender ppf = fprintf ppf "Type %a" Printtyp.type_expr ty in
     Layout.Violation.report_with_offender ~offender ppf v
   | Layout_sort {lloc; typ; err} ->
@@ -2535,6 +2550,11 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Layout.Violation.report_with_name ~name:val_name) err
+  | Float64_in_block typ ->
+    fprintf ppf
+      "@[Type %a has layout float64.@ Types of this layout are not yet \
+       allowed in blocks (like records or variants).@]"
+      Printtyp.type_expr typ
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->
@@ -2543,7 +2563,7 @@ let report_error ppf = function
             fprintf ppf "an unnamed existential variable"
         | Some str ->
             fprintf ppf "the existential variable %a"
-              Pprintast.tyvar str in
+              Printast.tyvar str in
       fprintf ppf "@[This type cannot be unboxed because@ \
                    it might contain both float and non-float values,@ \
                    depending on the instantiation of %a.@ \

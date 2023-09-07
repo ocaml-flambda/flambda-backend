@@ -14,22 +14,22 @@ type t =
 
 let[@inline] make () =
   let stack_slots = Reg.Tbl.create 128 in
-  let num_stack_slots = Array.make Proc.num_register_classes 0 in
+  let num_stack_slots = Array.make Proc.num_stack_slot_classes 0 in
   { stack_slots; num_stack_slots }
 
-let[@inline] size_for_all_reg_classes t =
+let[@inline] size_for_all_stack_classes t =
   Array.fold_left t.num_stack_slots ~f:( + ) ~init:0
 
-let[@inline] get_and_incr t ~reg_class =
-  let res = t.num_stack_slots.(reg_class) in
-  t.num_stack_slots.(reg_class) <- succ res;
+let[@inline] get_and_incr t ~stack_class =
+  let res = t.num_stack_slots.(stack_class) in
+  t.num_stack_slots.(stack_class) <- succ res;
   res
 
 let[@inline] get_or_create t reg =
   match Reg.Tbl.find_opt t.stack_slots reg with
   | Some slot -> slot
   | None ->
-    let res = get_and_incr t ~reg_class:(Proc.register_class reg) in
+    let res = get_and_incr t ~stack_class:(Proc.stack_slot_class reg.Reg.typ) in
     Reg.Tbl.replace t.stack_slots reg res;
     res
 
@@ -47,12 +47,12 @@ let[@inline] update_cfg_with_layout t cfg_with_layout =
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  for reg_class = 0 to pred Proc.num_register_classes do
-    fun_num_stack_slots.(reg_class) <- t.num_stack_slots.(reg_class)
+  for stack_class = 0 to pred Proc.num_stack_slot_classes do
+    fun_num_stack_slots.(stack_class) <- t.num_stack_slots.(stack_class)
   done
 
 (** The optimization below is conceptually fairly close to what linscan does:
-   - for each register class / stack slot couple, we compute the interval of
+   - for each stack slot class / stack slot couple, we compute the interval of
      uses;
    - we re-assign slots by putting in the same "bucket" slots whose
      intervals do not overlap.
@@ -138,7 +138,7 @@ module Intervals : sig
   type slots = t
 
   type t = Interval.t array array
-  (* first index is register class, second index is slot index *)
+  (* first index is stack slot class, second index is slot index *)
 
   val build_from_cfg : slots -> Cfg_with_infos.t -> t
 
@@ -148,14 +148,14 @@ with type slots := t = struct
   type t = Interval.t array array
 
   let make slots =
-    Array.init Proc.num_register_classes ~f:(fun reg_class ->
-        Array.init slots.num_stack_slots.(reg_class) ~f:(fun _ ->
+    Array.init Proc.num_stack_slot_classes ~f:(fun stack_class ->
+        Array.init slots.num_stack_slots.(stack_class) ~f:(fun _ ->
             { Interval.start = Point.dummy; end_ = Point.dummy }))
 
   let visit_reg (t : t) (point : Point.t) (reg : Reg.t) : unit =
     apply_reg_stack_local reg ~f:(fun slot_index ->
-        let reg_class = Proc.register_class reg in
-        let interval = t.(reg_class).(slot_index) in
+        let stack_class = Proc.stack_slot_class reg.typ in
+        let interval = t.(stack_class).(slot_index) in
         if interval.start == Point.dummy then interval.start <- point;
         interval.end_ <- point)
 
@@ -194,10 +194,10 @@ with type slots := t = struct
     intervals
 
   let print ppf t =
-    Array.iteri t ~f:(fun reg_class intervals ->
+    Array.iteri t ~f:(fun stack_class intervals ->
         Array.iteri intervals ~f:(fun slot_index interval ->
-            Format.fprintf ppf "reg_class=%d slot_index=%d -> %a\n" reg_class
-              slot_index Interval.print interval))
+            Format.fprintf ppf "stack_class=%d slot_index=%d -> %a\n"
+              stack_class slot_index Interval.print interval))
 end
 
 module Int = Numbers.Int
@@ -211,13 +211,13 @@ module Buckets : sig
 
   val contains_empty : t -> bool
 
-  val find_bucket : t -> reg_class:int -> slot_index:slot -> int option
+  val find_bucket : t -> stack_class:int -> slot_index:slot -> int option
 
   val print : Format.formatter -> t -> unit
 end
 with type slots := t = struct
   type t = Interval.t Int.Tbl.t array array
-  (* first index is register class, second index is bucket index, table key is
+  (* first index is stack slot class, second index is bucket index, table key is
      slot index *)
 
   let does_not_fit (bucket : Interval.t Int.Tbl.t) (interval : Interval.t) :
@@ -232,13 +232,13 @@ with type slots := t = struct
 
   let build_from_intervals slots intervals =
     let buckets =
-      Array.init Proc.num_register_classes ~f:(fun reg_class ->
-          let num_slots = slots.num_stack_slots.(reg_class) in
+      Array.init Proc.num_stack_slot_classes ~f:(fun stack_class ->
+          let num_slots = slots.num_stack_slots.(stack_class) in
           Array.init num_slots ~f:(fun _ -> Int.Tbl.create num_slots))
     in
-    Array.iteri intervals ~f:(fun reg_class intervals ->
+    Array.iteri intervals ~f:(fun stack_class intervals ->
         Array.iteri intervals ~f:(fun slot_index interval ->
-            let buckets = buckets.(reg_class) in
+            let buckets = buckets.(stack_class) in
             let bucket_index = ref 0 in
             while
               !bucket_index < Array.length buckets
@@ -259,8 +259,8 @@ with type slots := t = struct
           let last_bucket = buckets.(len - 1) in
           Int.Tbl.length last_bucket = 0)
 
-  let find_bucket t ~reg_class ~slot_index =
-    let buckets = t.(reg_class) in
+  let find_bucket t ~stack_class ~slot_index =
+    let buckets = t.(stack_class) in
     let len = Array.length buckets in
     let bucket_index = ref 0 in
     while
@@ -272,9 +272,9 @@ with type slots := t = struct
     if !bucket_index < len then Some !bucket_index else None
 
   let print ppf t =
-    Array.iteri t ~f:(fun reg_class buckets ->
+    Array.iteri t ~f:(fun stack_class buckets ->
         Array.iteri buckets ~f:(fun bucket_index bucket ->
-            Format.fprintf ppf "reg_class=%d bucket_index=%d\n" reg_class
+            Format.fprintf ppf "stack_class=%d bucket_index=%d\n" stack_class
               bucket_index;
             Int.Tbl.iter
               (fun slot_index interval ->
@@ -284,7 +284,7 @@ with type slots := t = struct
 end
 
 let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
-  if size_for_all_reg_classes t > 0
+  if size_for_all_stack_classes t > 0
   then (
     (* First, compute the intervals for all stack slots *)
     let intervals = Intervals.build_from_cfg t cfg_with_infos in
@@ -299,36 +299,38 @@ let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
     (* Finally, if so, reassign the slot indices *)
     if optimized
     then (
-      let max_bucket_indices = Array.make Proc.num_register_classes (-1) in
+      let max_bucket_indices = Array.make Proc.num_stack_slot_classes (-1) in
       List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
           apply_reg_stack_local reg ~f:(fun slot_index ->
-              let reg_class = Proc.register_class reg in
-              match Buckets.find_bucket buckets ~reg_class ~slot_index with
+              let stack_class = Proc.stack_slot_class reg.typ in
+              match Buckets.find_bucket buckets ~stack_class ~slot_index with
               | None ->
-                fatal "slot %d (reg_class=%d) has in not in any of the buckets"
-                  slot_index reg_class
+                fatal "slot %d (stack_class=%d) is not in any of the buckets"
+                  slot_index stack_class
               | Some bucket_index ->
                 if debug
                 then
                   Format.eprintf
                     "changing the slot index of %a (class %d): %d ~> %d\n%!"
-                    Printmach.reg reg reg_class slot_index bucket_index;
+                    Printmach.reg reg stack_class slot_index bucket_index;
                 reg.loc <- Stack (Local bucket_index);
-                max_bucket_indices.(reg_class)
-                  <- Stdlib.Int.max max_bucket_indices.(reg_class) bucket_index;
+                max_bucket_indices.(stack_class)
+                  <- Stdlib.Int.max
+                       max_bucket_indices.(stack_class)
+                       bucket_index;
                 if Reg.Tbl.mem t.stack_slots reg
                 then Reg.Tbl.replace t.stack_slots reg bucket_index));
-      for reg_class = 0 to pred Proc.num_register_classes do
-        let old_value = t.num_stack_slots.(reg_class) in
-        let new_value = succ max_bucket_indices.(reg_class) in
+      for stack_class = 0 to pred Proc.num_stack_slot_classes do
+        let old_value = t.num_stack_slots.(stack_class) in
+        let new_value = succ max_bucket_indices.(stack_class) in
         if new_value > old_value
         then
           fatal "more slots are now used for class %d (before: %d, after: %d)"
-            reg_class old_value new_value;
+            stack_class old_value new_value;
         if debug
         then
-          Format.eprintf "reg_class %d has %d fewer slots (%d ~> %d)\n%!"
-            reg_class (old_value - new_value) old_value new_value;
-        t.num_stack_slots.(reg_class) <- new_value
+          Format.eprintf "stack_class %d has %d fewer slots (%d ~> %d)\n%!"
+            stack_class (old_value - new_value) old_value new_value;
+        t.num_stack_slots.(stack_class) <- new_value
       done;
       Cfg_with_infos.invalidate_liveness cfg_with_infos))

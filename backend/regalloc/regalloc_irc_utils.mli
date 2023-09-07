@@ -64,24 +64,11 @@ end
 
 val is_move_instruction : Instruction.t -> bool
 
-val all_precolored_regs : Reg.t array
+val all_precolored_regs : unit -> Reg.Set.t
 
 val k : Reg.t -> int
 
 val update_register_locations : unit -> unit
-
-(* CR-soon xclerc for xclerc: remove this module. *)
-module Split_mode : sig
-  type t =
-    | Off
-    | Naive
-
-  val all : t list
-
-  val to_string : t -> string
-
-  val value : t Lazy.t
-end
 
 module Spilling_heuristics : sig
   type t =

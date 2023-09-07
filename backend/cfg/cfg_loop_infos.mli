@@ -36,7 +36,7 @@ type loop_depths = int Label.Map.t
 
 val compute_loop_depths : Cfg.t -> header_map -> loop_depths
 
-type t =
+type t = private
   { back_edges : Edge.t list;
     loops : loops;
     header_map : header_map;

@@ -37,7 +37,7 @@ let omega_list = Patterns.omega_list
 
 let extra_pat =
   make_pat
-    (Tpat_var (Ident.create_local "+", mknoloc "+", Value_mode.max_mode))
+    (Tpat_var (Ident.create_local "+", mknoloc "+", Mode.Value.max_mode))
     Ctype.none Env.empty
 
 
@@ -930,7 +930,7 @@ let build_other ext env =
           make_pat
             (Tpat_var (Ident.create_local "*extension*",
                        {txt="*extension*"; loc = d.pat_loc},
-                       Value_mode.max_mode))
+                       Mode.Value.max_mode))
             Ctype.none Env.empty
       | Construct _ ->
           begin match ext with
@@ -1919,7 +1919,7 @@ module Conv = struct
             | Immutable ->
                 let ppat =
                   Jane_syntax.Immutable_arrays.pat_of
-                    ~loc:pat.pat_loc ~attrs:[] (Iapat_immutable_array pats)
+                    ~loc:pat.pat_loc (Iapat_immutable_array pats)
                 in
                 ppat.ppat_desc, ppat.ppat_attributes
           in
@@ -2438,7 +2438,7 @@ let all_rhs_idents exp =
   let open Tast_iterator in
   let expr_iter iter exp =
     match exp.exp_desc with
-    | Texp_ident (path, _lid, _descr, _kind) ->
+    | Texp_ident (path, _lid, _descr, _kind, _mode) ->
       List.iter (fun id -> ids := Ident.Set.add id !ids) (Path.heads path)
     (* Use default iterator methods for rest of match.*)
     | _ -> Tast_iterator.default_iterator.expr iter exp

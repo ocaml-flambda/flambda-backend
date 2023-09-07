@@ -180,7 +180,7 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
               maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
             else maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
           | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-          | Naked_nativeint _ ->
+          | Naked_vec128 _ | Naked_nativeint _ ->
             maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
         in
         Simple.pattern_match arg ~const ~name:(fun _ ~coercion:_ ->

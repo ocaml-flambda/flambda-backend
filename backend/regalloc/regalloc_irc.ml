@@ -89,8 +89,9 @@ let build : State.t -> Cfg_with_infos.t -> unit =
         let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
         Reg.Set.iter
           (fun reg1 ->
-            Array.iter (filter_fp Proc.destroyed_at_raise) ~f:(fun reg2 ->
-                State.add_edge state reg1 reg2))
+            Array.iter
+              (filter_fp (Proc.destroyed_at_raise ()))
+              ~f:(fun reg2 -> State.add_edge state reg1 reg2))
           (Reg.Set.remove Proc.loc_exn_bucket live.before))
 
 let make_work_list : State.t -> unit =
@@ -525,6 +526,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     state
     ~f:(fun () ->
       update_register_locations ();
-      Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0))
+      Reg.Set.iter (fun reg -> reg.Reg.degree <- 0) (all_precolored_regs ()))
     cfg_with_infos;
   cfg_with_infos

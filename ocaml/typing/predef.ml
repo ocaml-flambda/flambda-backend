@@ -33,7 +33,6 @@ let ident_int = ident_create "int"
 and ident_char = ident_create "char"
 and ident_bytes = ident_create "bytes"
 and ident_float = ident_create "float"
-and ident_float_unboxed = ident_create "float#"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
 and ident_exn = ident_create "exn"
@@ -48,14 +47,19 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+and ident_unboxed_float = ident_create "float#"
+
+and ident_int8x16 = ident_create "int8x16"
+and ident_int16x8 = ident_create "int16x8"
+and ident_int32x4 = ident_create "int32x4"
+and ident_int64x2 = ident_create "int64x2"
+and ident_float32x4 = ident_create "float32x4"
+and ident_float64x2 = ident_create "float64x2"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
-(* CR layouts v2: we need to look through all the places where [path_float] is
-   checked and add a corresponding check for [path_float_unboxed]. *)
-and path_float_unboxed = Pident ident_float_unboxed
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit
 and path_exn = Pident ident_exn
@@ -70,12 +74,19 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+and path_unboxed_float = Pident ident_unboxed_float
+
+and path_int8x16 = Pident ident_int8x16
+and path_int16x8 = Pident ident_int16x8
+and path_int32x4 = Pident ident_int32x4
+and path_int64x2 = Pident ident_int64x2
+and path_float32x4 = Pident ident_float32x4
+and path_float64x2 = Pident ident_float64x2
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
-and type_float_unboxed = newgenty (Tconstr(path_float_unboxed, [], ref Mnil))
 and type_bool = newgenty (Tconstr(path_bool, [], ref Mnil))
 and type_unit = newgenty (Tconstr(path_unit, [], ref Mnil))
 and type_exn = newgenty (Tconstr(path_exn, [], ref Mnil))
@@ -91,6 +102,14 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
+
+and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
+and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
+and type_int32x4 = newgenty (Tconstr(path_int32x4, [], ref Mnil))
+and type_int64x2 = newgenty (Tconstr(path_int64x2, [], ref Mnil))
+and type_float32x4 = newgenty (Tconstr(path_float32x4, [], ref Mnil))
+and type_float64x2 = newgenty (Tconstr(path_float64x2, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -214,7 +233,7 @@ let common_initial_env add_type add_extension empty_env =
   in
   let variant constrs layouts = Type_variant (constrs, Variant_boxed layouts) in
   empty_env
-  (* Predefined types - alphabetical order *)
+  (* Predefined types *)
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
@@ -231,7 +250,6 @@ let common_initial_env add_type add_extension empty_env =
        ~layout:(Layout.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
-  |> add_type ident_float_unboxed
   |> add_type ident_floatarray
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
@@ -258,6 +276,8 @@ let common_initial_env add_type add_extension empty_env =
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_string
+  |> add_type ident_unboxed_float
+       ~layout:(Layout.float64 ~why:(Primitive ident_unboxed_float))
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)
@@ -290,6 +310,16 @@ let build_initial_env add_type add_exception empty_env =
   let safe_string = add_type ident_bytes common in
   let unsafe_string = add_type ident_bytes ~manifest:type_string common in
   (safe_string, unsafe_string)
+
+let add_simd_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
+  |> add_type ident_int8x16
+  |> add_type ident_int16x8
+  |> add_type ident_int32x4
+  |> add_type ident_int64x2
+  |> add_type ident_float32x4
+  |> add_type ident_float64x2
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

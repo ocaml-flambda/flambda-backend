@@ -21,6 +21,8 @@ let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
 
+let cfg_peephole_optimize = ref false   (* -[no-]cfg-peephole-optimize *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
 
@@ -29,7 +31,13 @@ let dasm_comments = ref false (* -dasm-comments *)
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let dump_checkmach = ref false          (* -dcheckmach *)
-let default_checkmach_details_cutoff = 20
+
+type checkmach_details_cutoff =
+  | Keep_all
+  | At_most of int
+  | No_details
+
+let default_checkmach_details_cutoff = At_most 20
 let checkmach_details_cutoff = ref default_checkmach_details_cutoff
                                        (* -checkmach-details-cutoff n *)
 
@@ -48,6 +56,8 @@ type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
 let dump_inlining_paths = ref false
+let davail = ref false
+let dranges = ref false
 
 let opt_level = ref Default
 

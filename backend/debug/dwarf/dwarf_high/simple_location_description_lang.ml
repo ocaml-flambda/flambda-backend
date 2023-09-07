@@ -43,6 +43,14 @@ module Lvalue = struct
     in
     OB.address_of_stack_slot ~offset_in_bytes
 
+  let in_domainstate_slot ~offset_in_words
+      ~domainstate_ptr_dwarf_register_number =
+    let offset_in_bytes =
+      Targetint.mul offset_in_words Targetint.size_in_bytes_as_targetint
+    in
+    OB.address_of_domainstate_slot ~offset_in_bytes
+      ~domainstate_ptr_dwarf_register_number
+
   let in_symbol_field symbol ~field =
     let offset_in_bytes =
       Targetint.mul field Targetint.size_in_bytes_as_targetint
@@ -109,6 +117,12 @@ module Rvalue = struct
       Targetint.mul offset_in_words Targetint.size_in_bytes_as_targetint
     in
     OB.contents_of_stack_slot ~offset_in_bytes
+
+  let in_domainstate_slot ~offset_in_words =
+    let offset_in_bytes =
+      Targetint.mul offset_in_words Targetint.size_in_bytes_as_targetint
+    in
+    OB.contents_of_domainstate_slot ~offset_in_bytes
 
   let read_field ~block ~field =
     let offset_in_bytes =

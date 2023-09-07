@@ -17,7 +17,11 @@
 
 (copy_files# backend/debug/*.ml{,i})
 
+(copy_files# backend/debug/dwarf/dwarf_ocaml/*.ml{,i})
+
 (copy_files# backend/internal_assembler/*.ml{,i})
+
+(copy_files# backend/peephole/*.ml{,i})
 
 (copy_files# backend/regalloc/*.ml{,i})
 
@@ -193,12 +197,17 @@
   linscan
   liveness
   mach
+  peephole_optimize
+  peephole_rules
+  peephole_utils
   polling
   printcmm
   printlinear
   printmach
   checkmach
   proc
+  simd
+  simd_selection
   reg
   reload
   reloadgen
@@ -266,11 +275,24 @@
   linear_format
   cfg_format
   ;; asmcomp/debug/
-  reg_availability_set
-  compute_ranges_intf
+  available_ranges_vars
   available_regs
-  reg_with_debug_info
   compute_ranges
+  compute_ranges_intf
+  is_parameter
+  reg_availability_set
+  reg_with_debug_info
+  stack_reg_offset
+  ;; asmcomp/debug/dwarf/dwarf_ocaml
+  ;; This code has a lot of dependencies into ocamloptcomp, so we just
+  ;; build it as part of that library.
+  dwarf
+  dwarf_compilation_unit
+  dwarf_concrete_instances
+  dwarf_name_laundry
+  dwarf_reg_locations
+  dwarf_state
+  dwarf_variables_and_parameters
   ;; driver/
   opterrors
   optcompile
@@ -288,9 +310,10 @@
   flambda_backend_utils
   flambda2_identifiers
   flambda2_cmx
-  dwarf_ocaml
   compiler_owee
-  gc_timings))
+  gc_timings
+  dwarf_low
+  dwarf_high))
 
 (library
  (name flambda_backend_common)
@@ -348,7 +371,8 @@
   (backend bisect_ppx))
  (flags
   (:standard -principal))
- (ocamlopt_flags (:standard -runtime-variant nnp))
+ (ocamlopt_flags
+  (:standard -runtime-variant nnp))
  (libraries
   flambda_backend_driver
   memtrace
@@ -397,7 +421,6 @@
    %{dep:backend/asm_targets/asm_targets.a}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.a}
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
-   %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
    %{dep:utils/flambda_backend_utils.a}
    %{dep:middle_end/flambda2/import/flambda2_import.a}
@@ -434,7 +457,6 @@
    %{dep:backend/asm_targets/asm_targets.cma}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cma}
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
-   %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
    %{dep:utils/flambda_backend_utils.cma}
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
@@ -471,7 +493,6 @@
    %{dep:backend/asm_targets/asm_targets.cmxa}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cmxa}
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
-   %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
    %{dep:utils/flambda_backend_utils.cmxa}
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
@@ -519,7 +540,6 @@
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs_native.a)
-
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
@@ -541,8 +561,7 @@
    backend/asm_targets/.asm_targets.objs/byte/asm_targets.{cmi,cmo,cmt})
   (glob_files_rec
    backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx)
-  (glob_files
-   middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
+  (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
   (glob_files
    middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})
   (glob_files
@@ -555,28 +574,23 @@
   backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/native/dwarf_flags.cmx
   (glob_files
    backend/debug/dwarf/dwarf_low/.dwarf_low.objs/byte/*.{cmi,cmo,cmt})
-  (glob_files
-   backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/*.cmx)
   (glob_files
    backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/*.{cmi,cmo,cmt})
-  (glob_files
-   backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/*.cmx)
-  (glob_files
-   backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/*.{cmi,cmo,cmt})
-  (glob_files
-   backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/*.cmx)
-  (glob_files
-   external/owee/.compiler_owee.objs/byte/*.{cmi,cmo,cmt,cmti})
-  (glob_files
-   external/owee/.compiler_owee.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/*.cmx)
+  (glob_files external/owee/.compiler_owee.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files external/owee/.compiler_owee.objs/native/*.cmx)
   (glob_files
    external/gc-timings/.gc_timings.objs/byte/gc_timings.{cmi,cmti})
   external/gc-timings/.gc_timings.objs/native/gc_timings.cmx)
  (action
-  (with-stdout-to compiler-libs-installation.sexp
+  (with-stdout-to
+   compiler-libs-installation.sexp
    (run tools/gen_compiler_libs_installation.exe %{deps}))))
 
 (install
  (section lib)
  (package ocaml)
- (files (include compiler-libs-installation.sexp)))
+ (files
+  (include compiler-libs-installation.sexp)))

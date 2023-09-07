@@ -1,3 +1,5 @@
+include Language_extension_kernel
+
 (* operations we want on every extension level *)
 module type Extension_level = sig
   type t
@@ -18,7 +20,7 @@ module Unit = struct
 end
 
 module Maturity = struct
-  type t = Stable | Beta | Alpha
+  type t = maturity = Stable | Beta | Alpha
 
   let compare t1 t2 =
     let rank = function
@@ -39,84 +41,32 @@ module Maturity = struct
     | Alpha -> "_alpha"
 end
 
-type maturity = Maturity.t = Stable | Beta | Alpha
-
-(* Remember to update [all] when changing this type. *)
-type _ t =
-  | Comprehensions : unit t
-  | Local : unit t
-  | Include_functor : unit t
-  | Polymorphic_parameters : unit t
-  | Immutable_arrays : unit t
-  | Module_strengthening : unit t
-  | Layouts : Maturity.t t
-
-type exist =
-  Pack : _ t -> exist
-
-let all : exist list =
-  [ Pack Comprehensions
-  ; Pack Local
-  ; Pack Include_functor
-  ; Pack Polymorphic_parameters
-  ; Pack Immutable_arrays
-  ; Pack Module_strengthening
-  ; Pack Layouts
-  ]
-
-type extn_pair =
-  | Pair : 'a t * 'a -> extn_pair
-
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
   | Local -> (module Unit)
+  | Unique -> (module Unit)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
   | Immutable_arrays -> (module Unit)
   | Module_strengthening -> (module Unit)
   | Layouts -> (module Maturity)
+  | SIMD -> (module Unit)
+
+type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
+type exist = Exist.t = Pack : _ t -> exist
 
 (**********************************)
 (* string conversions *)
 
-let to_string : type a. a t -> string = function
-  | Comprehensions -> "comprehensions"
-  | Local -> "local"
-  | Include_functor -> "include_functor"
-  | Polymorphic_parameters -> "polymorphic_parameters"
-  | Immutable_arrays -> "immutable_arrays"
-  | Module_strengthening -> "module_strengthening"
-  | Layouts -> "layouts"
-
-(* converts full extension names, like "layouts_alpha" to a pair of
-   an extension and its setting *)
-let pair_of_string extn_name : extn_pair option =
-  match String.lowercase_ascii extn_name with
-  | "comprehensions" -> Some (Pair (Comprehensions, ()))
-  | "local" -> Some (Pair (Local, ()))
-  | "include_functor" -> Some (Pair (Include_functor, ()))
-  | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
-  | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
-  | "module_strengthening" -> Some (Pair (Module_strengthening, ()))
-  | "layouts" -> Some (Pair (Layouts, (Stable : Maturity.t)))
-  | "layouts_beta" -> Some (Pair (Layouts, (Beta : Maturity.t)))
-  | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : Maturity.t)))
-  | _ -> None
+let to_command_line_string : type a. a t -> a -> string = fun extn level ->
+  let (module Ops) = get_level_ops extn in
+  to_string extn ^ Ops.to_command_line_suffix level
 
 let pair_of_string_exn extn_name = match pair_of_string extn_name with
   | Some pair -> pair
   | None ->
     raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn_name))
-
-let of_string extn_name =
-  let pack (Pair (extn, _) : extn_pair) = Pack extn in
-  Option.map pack (pair_of_string extn_name)
-
-let maturity_to_string = function
-  | Alpha -> "alpha"
-  | Beta -> "beta"
-  | Stable -> "stable"
 
 (************************************)
 (* equality *)
@@ -124,37 +74,20 @@ let maturity_to_string = function
 let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b with
   | Comprehensions, Comprehensions -> Some Refl
   | Local, Local -> Some Refl
+  | Unique, Unique -> Some Refl
   | Include_functor, Include_functor -> Some Refl
   | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
   | Immutable_arrays, Immutable_arrays -> Some Refl
   | Module_strengthening, Module_strengthening -> Some Refl
   | Layouts, Layouts -> Some Refl
-  | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
-     Immutable_arrays | Module_strengthening | Layouts), _ -> None
+  | SIMD, SIMD -> Some Refl
+  | (Comprehensions | Local | Unique | Include_functor | Polymorphic_parameters |
+     Immutable_arrays | Module_strengthening | Layouts | SIMD), _ -> None
 
 let equal a b = Option.is_some (equal_t a b)
 
 (*****************************)
 (* extension universes *)
-
-(* We'll do this in a more principled way later. *)
-(* CR layouts: Note that layouts is only "mostly" erasable, because of annoying
-   interactions with the pre-layouts [@@immediate] attribute like:
-
-     type ('a : immediate) t = 'a [@@immediate]
-
-   But we've decided to punt on this issue in the short term.
-*)
-let is_erasable : type a. a t -> bool = function
-  | Local
-  | Layouts ->
-      true
-  | Comprehensions
-  | Include_functor
-  | Polymorphic_parameters
-  | Immutable_arrays
-  | Module_strengthening ->
-      false
 
 module Universe : sig
   val is_allowed : 'a t -> bool
@@ -271,18 +204,17 @@ let set extn ~enabled =
 let enable extn value = set_worker extn (Some value)
 let disable extn = set_worker extn None
 
+(* This is similar to [Misc.protect_refs], but we don't have values to set
+   [extensions] to. *)
+let with_temporary_extensions f =
+  let current_extensions = !extensions in
+  Fun.protect ~finally:(fun () -> extensions := current_extensions) f
+
 (* It might make sense to ban [set], [enable], [disable],
    [only_erasable_extensions], and [disallow_extensions] inside [f], but it's
    not clear that it's worth the hassle *)
 let with_set_worker extn value f =
-  (* This is similar to [Misc.protect_refs], but we don't have values to set
-     [extensions] to. *)
-  let current_extensions = !extensions in
-  Fun.protect
-    ~finally:(fun () -> extensions := current_extensions)
-    (fun () ->
-       set_worker extn value;
-       f ())
+  with_temporary_extensions (fun () -> set_worker extn value; f ())
 
 let with_set extn ~enabled =
   with_set_worker extn (if enabled then Some () else None)
@@ -298,13 +230,17 @@ let disable_of_string_exn extn_name = match pair_of_string_exn extn_name with
 let disable_all () =
   extensions := []
 
-let enable_maximal () =
-  Universe.check_maximal ();
+let unconditionally_enable_maximal_without_checks () =
   let maximal_pair (Pack extn) =
     let (module Ops) = get_level_ops extn in
     Pair (extn, Ops.max_value)
   in
-  extensions := List.map maximal_pair all
+  extensions := List.map maximal_pair Exist.all
+
+let enable_maximal () =
+  Universe.check_maximal ();
+  (* It's safe to call this here because we've confirmed that we can. *)
+  unconditionally_enable_maximal_without_checks ()
 
 let restrict_to_erasable_extensions () =
   let changed = Universe.set Only_erasable in
@@ -338,17 +274,23 @@ let is_enabled extn =
   in
   check !extensions
 
+let get_command_line_string_if_enabled extn =
+  let rec find = function
+    | [] -> None
+    | (Pair (e, v) :: _) when equal e extn -> Some (to_command_line_string e v)
+    | (_ :: es) -> find es
+  in
+  find !extensions
+
+(********************************************)
+(* existentially packed extension *)
 
 module Exist = struct
-  type 'a extn = 'a t
-  type t = exist =
-    | Pack : 'a extn -> t
+  include Exist
 
   let to_command_line_strings (Pack extn) =
     let (module Ops) = get_level_ops extn in
-    List.map
-      (fun level -> to_string extn ^ Ops.to_command_line_suffix level)
-      Ops.all
+    List.map (to_command_line_string extn) Ops.all
 
   let to_string : t -> string = function
     | Pack extn -> to_string extn
@@ -358,6 +300,31 @@ module Exist = struct
 
   let is_erasable : t -> bool = function
     | Pack extn -> is_erasable extn
+end
 
-  let all = all
+(********************************************)
+(* Special functionality for [Pprintast] *)
+
+module For_pprintast = struct
+  type printer_exporter =
+    { print_with_maximal_extensions :
+        'a. (Format.formatter -> 'a -> unit) -> (Format.formatter -> 'a -> unit)
+    }
+
+  let can_still_define_printers = ref true
+
+  let make_printer_exporter () =
+    if !can_still_define_printers then begin
+      can_still_define_printers := false;
+      { print_with_maximal_extensions = fun pp fmt item ->
+          with_temporary_extensions (fun () ->
+            (* It's safe to call this here without validating that the
+               extensions are enabled, because the [Pprintast] printers should
+               always print Jane syntax. *)
+            unconditionally_enable_maximal_without_checks ();
+            pp fmt item)
+      }
+    end else
+      Misc.fatal_error
+        "Only Pprintast may use [Language_extension.For_pprintast]"
 end

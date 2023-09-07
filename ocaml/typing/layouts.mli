@@ -24,6 +24,8 @@ module Sort : sig
       (** No run time representation at all *)
     | Value
       (** Standard ocaml value representation *)
+    | Float64
+      (** Unboxed 64-bit floats *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -41,6 +43,7 @@ module Sort : sig
 
   val void : t
   val value : t
+  val float64 : t
 
   (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
@@ -146,9 +149,13 @@ module Layout : sig
 
   type annotation_context =
     | Type_declaration of Path.t
-    | Type_parameter of Path.t * string
+    | Type_parameter of Path.t * string option
     | With_constraint of string
     | Newtype_declaration of string
+    | Constructor_type_parameter of Path.t * string
+    | Univar of string
+    | Type_variable of string
+    | Type_wildcard of Location.t
 
    type value_creation_reason =
     | Class_let_binding
@@ -183,6 +190,7 @@ module Layout : sig
     | Structure_element
     | Debug_printer_argument
     | V1_safety_check
+    | Captured_in_object
     | Unknown of string  (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =
@@ -212,6 +220,9 @@ module Layout : sig
          unified to correct levels *)
     | Type_expression_call
 
+  type float64_creation_reason =
+    | Primitive of Ident.t
+
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Value_creation of value_creation_reason
@@ -219,6 +230,7 @@ module Layout : sig
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
 
@@ -273,12 +285,13 @@ module Layout : sig
 
   (** Constant layouts are used both for user-written annotations and within
       the type checker when we know a layout has no variables *)
-  type const = Asttypes.const_layout =
+  type const = Jane_asttypes.const_layout =
     | Any
     | Value
     | Void
     | Immediate64
     | Immediate
+    | Float64
   val string_of_const : const -> string
   val equal_const : const -> const -> bool
 
@@ -300,6 +313,10 @@ module Layout : sig
   (** We know for sure that values of types of this layout are always immediate *)
   val immediate : why:immediate_creation_reason -> t
 
+  (** This is the layout of unboxed 64-bit floats.  They have sort Float64. *)
+  val float64 : why:float64_creation_reason -> t
+
+
   (******************************)
   (* construction *)
 
@@ -309,20 +326,33 @@ module Layout : sig
   val of_sort : why:concrete_layout_reason -> sort -> t
   val of_const : why:creation_reason -> const -> t
 
+  (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
+     is rerouted away from the new annotations mechanism *)
+  val of_annotation :
+    ?legacy_immediate:bool ->
+    context:annotation_context ->
+    Jane_asttypes.layout_annotation ->
+    t
+
+  val of_annotation_option_default :
+    ?legacy_immediate:bool ->
+    default:t -> context:annotation_context ->
+    Jane_asttypes.layout_annotation option -> t
+
   (** Find a layout in attributes.  Returns error if a disallowed layout is
       present, but always allows immediate attributes if ~legacy_immediate is
       true.  See comment on [Builtin_attributes.layout].  *)
   val of_attributes :
-    legacy_immediate:bool -> reason:annotation_context -> Parsetree.attributes ->
-    (t option, const Location.loc) result
+    legacy_immediate:bool -> context:annotation_context -> Parsetree.attributes ->
+    (t option, Jane_asttypes.layout_annotation) result
 
   (** Find a layout in attributes, defaulting to ~default.  Returns error if a
       disallowed layout is present, but always allows immediate if
       ~legacy_immediate is true.  See comment on [Builtin_attributes.layout]. *)
   val of_attributes_default :
-    legacy_immediate:bool -> reason:annotation_context ->
+    legacy_immediate:bool -> context:annotation_context ->
     default:t -> Parsetree.attributes ->
-    (t, const Location.loc) result
+    (t, Jane_asttypes.layout_annotation) result
 
   (** Choose an appropriate layout for a boxed record type, given whether
       all of its fields are [void]. *)

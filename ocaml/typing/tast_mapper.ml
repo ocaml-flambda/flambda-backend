@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 (* TODO: add 'methods' for location, attribute, extension,
@@ -37,6 +38,7 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
+    layout_annotation: mapper -> const_layout -> const_layout;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;
@@ -201,11 +203,14 @@ let type_exception sub x =
   in
   {x with tyexn_constructor}
 
+let var_layout sub (v, l) = v, Option.map (sub.layout_annotation sub) l
+
 let extension_constructor sub x =
   let ext_kind =
     match x.ext_kind with
       Text_decl(v, ctl, cto) ->
-        Text_decl(v, constructor_args sub ctl, Option.map (sub.typ sub) cto)
+        Text_decl(List.map (var_layout sub) v,
+                  constructor_args sub ctl, Option.map (sub.typ sub) cto)
     | Text_rebind _ as d -> d
   in
   {x with ext_kind}
@@ -332,7 +337,7 @@ let expr sub x =
         Texp_variant (l, Option.map (fun (e, am) -> (sub.expr sub e, am)) expo)
     | Texp_record { fields; representation; extended_expression; alloc_mode } ->
         let fields = Array.map (function
-            | label, Kept t -> label, Kept t
+            | label, Kept (t, uu) -> label, Kept (t, uu)
             | label, Overridden (lid, exp) ->
                 label, Overridden (lid, sub.expr sub exp))
             fields
@@ -342,8 +347,8 @@ let expr sub x =
           extended_expression = Option.map (sub.expr sub) extended_expression;
           alloc_mode
         }
-    | Texp_field (exp, lid, ld, am) ->
-        Texp_field (sub.expr sub exp, lid, ld, am)
+    | Texp_field (exp, lid, ld, mode, am) ->
+        Texp_field (sub.expr sub exp, lid, ld, mode, am)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
@@ -526,6 +531,8 @@ let module_type sub x =
         )
     | Tmty_typeof mexpr ->
         Tmty_typeof (sub.module_expr sub mexpr)
+    | Tmty_strengthen (mtype, p, lid) ->
+        Tmty_strengthen (sub.module_type sub mtype, p, lid)
   in
   {x with mty_desc; mty_env}
 
@@ -689,8 +696,9 @@ let typ sub x =
   let ctyp_env = sub.env sub x.ctyp_env in
   let ctyp_desc =
     match x.ctyp_desc with
-    | Ttyp_any
-    | Ttyp_var _ as d -> d
+    | Ttyp_var (_,None) as d -> d
+    | Ttyp_var (s, Some layout) ->
+        Ttyp_var (s, Some (sub.layout_annotation sub layout))
     | Ttyp_arrow (label, ct1, ct2) ->
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list -> Ttyp_tuple (List.map (sub.typ sub) list)
@@ -704,12 +712,13 @@ let typ sub x =
            lid,
            List.map (sub.typ sub) list
           )
-    | Ttyp_alias (ct, s) ->
-        Ttyp_alias (sub.typ sub ct, s)
+    | Ttyp_alias (ct, s, layout) ->
+        Ttyp_alias (sub.typ sub ct, s,
+                    Option.map (sub.layout_annotation sub) layout)
     | Ttyp_variant (list, closed, labels) ->
         Ttyp_variant (List.map (sub.row_field sub) list, closed, labels)
-    | Ttyp_poly (sl, ct) ->
-        Ttyp_poly (sl, sub.typ sub ct)
+    | Ttyp_poly (vars, ct) ->
+        Ttyp_poly (List.map (var_layout sub) vars, sub.typ sub ct)
     | Ttyp_package pack ->
         Ttyp_package (sub.package_type sub pack)
   in
@@ -779,6 +788,8 @@ let value_binding sub x =
 
 let env _sub x = x
 
+let layout_annotation _sub l = l
+
 let default =
   {
     binding_op;
@@ -795,6 +806,7 @@ let default =
     env;
     expr;
     extension_constructor;
+    layout_annotation;
     module_binding;
     module_coercion;
     module_declaration;

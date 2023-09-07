@@ -24,3 +24,4 @@ let of_descr (descr : Descr.t) =
   | Naked_int32 i -> naked_int32 i
   | Naked_int64 i -> naked_int64 i
   | Naked_nativeint i -> naked_nativeint i
+  | Naked_vec128 v -> naked_vec128 v

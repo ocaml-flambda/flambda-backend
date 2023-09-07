@@ -62,6 +62,7 @@ module S = struct
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
     | Const_float of int64
     | Const_symbol of Cmm.symbol
+    | Const_vec128 of Cmm.vec128_bits
     | Stackoffset of int
     | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
@@ -84,6 +85,8 @@ module S = struct
     | Intoffloat
     | Valueofint
     | Intofvalue
+    | Vectorcast of Cmm.vector_cast
+    | Scalarcast of Cmm.scalar_cast
     | Probe_is_enabled of { name : string }
     | Opaque
     | Begin_region
@@ -92,8 +95,9 @@ module S = struct
     | Name_for_debugger of
         { ident : Ident.t;
           which_parameter : int option;
-          provenance : unit option;
-          is_assignment : bool
+          provenance : Backend_var.Provenance.t option;
+          is_assignment : bool;
+          regs : Reg.t array
         }
 
   type bool_test =
@@ -143,7 +147,9 @@ module S = struct
       mutable stack_offset : int;
       id : int;
       mutable irc_work_list : irc_work_list;
-      mutable ls_order : int
+      mutable ls_order : int;
+      mutable available_before : Reg_availability_set.t option;
+      mutable available_across : Reg_availability_set.t option
     }
 
   (* [basic] instruction cannot raise *)
