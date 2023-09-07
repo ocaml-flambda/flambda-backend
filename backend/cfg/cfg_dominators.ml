@@ -116,8 +116,8 @@ let build_order : Cfg.t -> stack -> order =
   let order = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
   Stack.iter
     (fun (block : Cfg.basic_block) ->
-       let label = block.start in
-       Label.Tbl.replace order label (Label.Tbl.length order))
+      let label = block.start in
+      Label.Tbl.replace order label (Label.Tbl.length order))
     stack;
   order
 
@@ -152,14 +152,14 @@ let compute_doms : Cfg.t -> doms =
   let doms = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
   Label.Tbl.replace doms cfg.entry_label cfg.entry_label;
   let stack = reverse_post_order cfg in
-  let order = build_order cfg stack  in
+  let order = build_order cfg stack in
   let changed = ref true in
   while !changed do
     changed := false;
     Stack.iter
       (fun (block : Cfg.basic_block) ->
-         let label = block.start in
-         if not (Label.equal label cfg.entry_label)
+        let label = block.start in
+        if not (Label.equal label cfg.entry_label)
         then (
           let new_idom = ref None in
           let predecessor_labels = Cfg.predecessor_labels block in
