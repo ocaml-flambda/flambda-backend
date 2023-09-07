@@ -101,25 +101,24 @@ let iter_blocks_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
     Cfg.iter_blocks cfg ~f:(fun label block ->
         if not (Label.Set.mem label !marked) then f block)
 
-(* CR-soon xclerc for xclerc: we could compute the stack once, and use
-   `Stack.copy` when we need to iterate. *)
-let reverse_post_order : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
- fun cfg ~f ->
-  let stack : Cfg.basic_block Stack.t = Stack.create () in
+type stack = Cfg.basic_block Stack.t
+
+let reverse_post_order : Cfg.t -> stack =
+ fun cfg ->
+  let stack : stack = Stack.create () in
   iter_blocks_dfs cfg ~f:(fun block -> Stack.push block stack);
-  while not (Stack.is_empty stack) do
-    let block : Cfg.basic_block = Stack.pop stack in
-    f block
-  done
+  stack
 
 type order = int Label.Tbl.t
 
-let build_order : Cfg.t -> order =
- fun cfg ->
+let build_order : Cfg.t -> stack -> order =
+ fun cfg stack ->
   let order = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
-  reverse_post_order cfg ~f:(fun (block : Cfg.basic_block) ->
-      let label = block.start in
-      Label.Tbl.replace order label (Label.Tbl.length order));
+  Stack.iter
+    (fun (block : Cfg.basic_block) ->
+       let label = block.start in
+       Label.Tbl.replace order label (Label.Tbl.length order))
+    stack;
   order
 
 (* See Figure 3 in the cited article. The only difference is the comparison,
@@ -152,13 +151,15 @@ let compute_doms : Cfg.t -> doms =
  fun cfg ->
   let doms = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
   Label.Tbl.replace doms cfg.entry_label cfg.entry_label;
-  let order = build_order cfg in
+  let stack = reverse_post_order cfg in
+  let order = build_order cfg stack  in
   let changed = ref true in
   while !changed do
     changed := false;
-    reverse_post_order cfg ~f:(fun (block : Cfg.basic_block) ->
-        let label = block.start in
-        if not (Label.equal label cfg.entry_label)
+    Stack.iter
+      (fun (block : Cfg.basic_block) ->
+         let label = block.start in
+         if not (Label.equal label cfg.entry_label)
         then (
           let new_idom = ref None in
           let predecessor_labels = Cfg.predecessor_labels block in
@@ -184,6 +185,7 @@ let compute_doms : Cfg.t -> doms =
               then (
                 Label.Tbl.replace doms label new_idom;
                 changed := true))))
+      stack
   done;
   if debug then invariant_doms cfg doms;
   doms
