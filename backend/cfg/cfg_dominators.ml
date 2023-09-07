@@ -13,8 +13,6 @@ let debug = true
 
 type doms = Label.t Label.Tbl.t
 
-type doms = Label.t Label.Tbl.t
-
 type dominance_frontiers = Label.Set.t Label.Tbl.t
 
 type dominator_tree =
@@ -314,7 +312,6 @@ let is_dominating t left right = is_dominating t.doms left right
 
 let is_strictly_dominating t left right =
   is_strictly_dominating t.doms left right
-
 
 let find_dominance_frontier t label =
   match Label.Tbl.find_opt t.dominance_frontiers label with
