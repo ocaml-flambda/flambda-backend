@@ -910,9 +910,11 @@ let fundecl :
      terminator simplification. *)
   Profile.record ~accumulate:true "optimizations"
     (fun () ->
-      if simplify_terminators then Merge_straightline_blocks.run cfg_with_layout;
-      Eliminate_dead_code.run_dead_block cfg_with_layout;
-      if simplify_terminators then Simplify_terminator.run cfg)
+       if simplify_terminators then begin
+         Merge_straightline_blocks.run cfg_with_layout;
+         Simplify_terminator.run cfg
+       end;
+      Eliminate_dead_code.run_dead_block cfg_with_layout)
     ();
   Cfg_with_layout.reorder_blocks
     ~comparator:(fun label1 label2 ->
