@@ -3127,23 +3127,23 @@ module Generic_fns_tbl = struct
       let arity n = List.init n (fun _ -> [| Val |]) in
       let result = [| Val |] in
       let tuplify =
-        Seq.init max_tuplify (fun n -> Lambda.Tupled, arity n, result)
+        Seq.init (max_tuplify + 1) (fun n -> Lambda.Tupled, arity n, result)
       in
       let curry =
-        Seq.init (Lambda.max_arity ()) (fun n ->
-            Seq.init (Lambda.max_arity ()) (fun nlocal ->
+        Seq.init (Lambda.max_arity () + 1) (fun n ->
+            Seq.init (Lambda.max_arity () + 1) (fun nlocal ->
                 Lambda.Curried { nlocal }, arity n, result))
         |> Seq.concat
       in
       let send =
-        Seq.init max_send (fun n ->
+        Seq.init (max_send + 1) (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
       in
       let apply =
-        Seq.init max_apply (fun n ->
+        Seq.init (max_apply + 1) (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
