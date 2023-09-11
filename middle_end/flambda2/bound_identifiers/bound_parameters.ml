@@ -23,6 +23,8 @@ let print ppf t =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space BP.print)
     t
 
+let equal t1 t2 = List.equal BP.equal t1 t2
+
 let empty = []
 
 let create params =

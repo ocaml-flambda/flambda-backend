@@ -164,6 +164,7 @@ module Flambda2 : sig
       val can_inline_recursive_functions : bool
       val max_function_simplify_run : int
       val shorten_symbol_names : bool
+      val cont_lifting_budget : int
     end
 
     type flags = {
@@ -175,6 +176,7 @@ module Flambda2 : sig
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
       shorten_symbol_names : bool;
+      cont_lifting_budget : int;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -187,6 +189,7 @@ module Flambda2 : sig
     val can_inline_recursive_functions : bool or_default ref
     val max_function_simplify_run : int or_default ref
     val shorten_symbol_names : bool or_default ref
+    val cont_lifting_budget : int or_default ref
   end
 
   module Debug : sig

@@ -225,6 +225,8 @@ module Typing_env : sig
 
   val free_names_transitive : t -> flambda_type -> Name_occurrences.t
 
+  val bump_current_level_scope : t -> t
+
   module Alias_set : sig
     type t
 
