@@ -48,6 +48,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
     DA.map_denv dacc ~f:(fun denv ->
         DE.set_do_not_rebuild_terms_and_disable_inlining denv)
   in
+  let dacc = DA.with_are_lifting_conts dacc Are_lifting_conts.no_lifting in
   (* CR-someday poechsel: [Inlining_transforms.inline] is preparing the body for
      inlining. Right know it may be called twice (once there and once in
      [simplify_apply_expr]) on the same apply expr. It should be possible to

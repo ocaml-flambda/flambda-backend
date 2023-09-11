@@ -62,7 +62,10 @@ let [@ocamlformat "disable"] print ppf = function
 
 let empty = Empty
 
-let is_empty = function Empty -> true | Non_empty _ -> false
+let is_empty = function
+  | Empty -> true
+  | Non_empty { extra_params = _; extra_args } ->
+    Apply_cont_rewrite_id.Map.is_empty extra_args
 
 let add t ~invalids ~extra_param ~extra_args =
   (* Note: there can be some overlap between the invalid ids and the keys of the
@@ -166,3 +169,24 @@ let extra_params = function
 let extra_args = function
   | Empty -> Apply_cont_rewrite_id.Map.empty
   | Non_empty { extra_args; _ } -> extra_args
+
+let init_with_params_only extra_params =
+  Non_empty { extra_params; extra_args = Apply_cont_rewrite_id.Map.empty }
+
+let add_args_for_all_params t apply_cont_rewrite_id new_args =
+  let error () =
+    Misc.fatal_errorf "Mismatched number of extra params and extra args"
+  in
+  match t with
+  | Empty -> ( match new_args with [] -> t | _ :: _ -> error ())
+  | Non_empty { extra_params; extra_args } ->
+    if not
+         (List.compare_lengths new_args (Bound_parameters.to_list extra_params)
+         = 0)
+    then error ()
+    else
+      let extra_args =
+        Apply_cont_rewrite_id.Map.add apply_cont_rewrite_id
+          (Or_invalid.Ok new_args) extra_args
+      in
+      Non_empty { extra_params; extra_args }
