@@ -545,3 +545,26 @@ Line 3, characters 15-40:
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type 'a has layout value, which is not a sublayout of immediate.
 |}]
+
+(****************************************************)
+(* Test 35: check bad layout error in filter_arrow *)
+
+module M35_1 : sig
+  val x : string
+end = struct
+  type ('a : immediate) t = 'a
+
+  let f : 'a t -> 'a = fun x y z -> x
+
+  let x = f (assert false)
+
+end;;
+
+[%%expect {|
+Line 6, characters 23-37:
+6 |   let f : 'a t -> 'a = fun x y z -> x
+                           ^^^^^^^^^^^^^^
+Error: This expression has type 'a -> 'b
+       but an expression was expected of type 'a -> 'b
+       'a -> 'b has layout value, which is not a sublayout of immediate.
+|}]
