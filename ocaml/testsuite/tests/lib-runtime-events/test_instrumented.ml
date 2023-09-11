@@ -41,7 +41,7 @@ let reset cursor =
 let loop n cursor =
   Gc.full_major ();
   reset cursor;
-  let minors_before = Gc.((quick_stat ()).minor_collections) in
+  let minors_before = Sys.opaque_identity (Gc.((quick_stat ()).minor_collections)) in
   for a = 1 to n do
     list_ref := (Sys.opaque_identity(ref 42)) :: !list_ref
   done;

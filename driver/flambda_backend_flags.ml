@@ -143,7 +143,6 @@ module Flambda2 = struct
     join_depth : int;
     function_result_types : function_result_types;
     meet_algorithm : meet_algorithm;
-
     unicode : bool;
   }
 
@@ -211,6 +210,7 @@ module Flambda2 = struct
       let can_inline_recursive_functions = false
       let max_function_simplify_run = 2
       let shorten_symbol_names = false
+      let cont_lifting_budget = 0
     end
 
     type flags = {
@@ -221,7 +221,8 @@ module Flambda2 = struct
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
-      shorten_symbol_names : bool
+      shorten_symbol_names : bool;
+      cont_lifting_budget : int;
     }
 
     let default = {
@@ -233,6 +234,7 @@ module Flambda2 = struct
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
       max_function_simplify_run = Default.max_function_simplify_run;
       shorten_symbol_names = Default.shorten_symbol_names;
+      cont_lifting_budget = Default.cont_lifting_budget;
     }
 
     let oclassic = {
@@ -259,6 +261,7 @@ module Flambda2 = struct
     let can_inline_recursive_functions = ref Default
     let max_function_simplify_run = ref Default
     let shorten_symbol_names = ref Default
+    let cont_lifting_budget = ref Default
   end
 
   module Debug = struct

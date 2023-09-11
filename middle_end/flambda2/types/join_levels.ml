@@ -303,13 +303,15 @@ let join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
   in
   (* Having calculated which equations to propagate, the resulting level can now
      be constructed. *)
-  construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
-    ~params
+  ( construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
+      ~params,
+    Name_occurrences.fold_names allowed ~init:Name.Set.empty
+      ~f:(fun names name -> Name.Set.add name names) )
 
 let n_way_join ~env_at_fork envs_with_levels ~params
     ~extra_lifted_consts_in_use_envs ~extra_allowed_names =
   match envs_with_levels with
-  | [] -> TEL.empty
+  | [] -> TEL.empty, Name.Set.empty
   | envs_with_levels ->
     join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
       ~extra_allowed_names
@@ -324,9 +326,13 @@ let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params ~cut_after
       ts_and_use_ids
   in
   let params = Bound_parameters.to_list params in
-  let level =
+  let level, alias_candidates =
     n_way_join ~env_at_fork:definition_typing_env after_cuts ~params
       ~extra_lifted_consts_in_use_envs ~extra_allowed_names
   in
-  TE.add_env_extension_from_level definition_typing_env level
-    ~meet_type:(Meet_and_join.meet_type ())
+  let result_env =
+    TE.add_env_extension_from_level definition_typing_env level
+      ~meet_type:(Meet_and_join.meet_type ())
+  in
+  TE.compute_joined_aliases result_env alias_candidates
+    (List.map (fun (env_at_use, _, _, _) -> env_at_use) after_cuts)

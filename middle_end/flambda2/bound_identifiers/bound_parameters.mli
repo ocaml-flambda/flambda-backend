@@ -30,6 +30,8 @@ val is_empty : t -> bool
 
 val same_number : t -> t -> bool
 
+val equal : t -> t -> bool
+
 val arity : t -> [> ] Flambda_arity.t
 
 val check_no_duplicates : t -> unit

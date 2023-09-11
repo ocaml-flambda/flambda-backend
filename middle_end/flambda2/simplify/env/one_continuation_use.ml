@@ -26,10 +26,12 @@ type t =
 
 let create kind ~env_at_use:env id ~arg_types = { id; kind; arg_types; env }
 
-let [@ocamlformat "disable"] print ppf { env = _; id = _; kind = _; arg_types; } =
+let [@ocamlformat "disable"] print ppf { env = _; id; kind = _; arg_types; } =
   Format.fprintf ppf "@[<hov 1>(\
+      @[<hov 1>(id %a)@]@ \
       @[<hov 1>(arg_types@ %a)@]@ \
       )@]"
+    Apply_cont_rewrite_id.print id
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Flambda2_types.print)
     arg_types
 

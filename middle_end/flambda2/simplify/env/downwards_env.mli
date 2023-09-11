@@ -67,6 +67,8 @@ val enter_set_of_closures : t -> t
 
 val increment_continuation_scope : t -> t
 
+val bump_current_level_scope : t -> t
+
 val get_continuation_scope : t -> Scope.t
 
 val typing_env : t -> Flambda2_types.Typing_env.t
@@ -211,3 +213,15 @@ val loopify_state : t -> Loopify_state.t
 val set_loopify_state : Loopify_state.t -> t -> t
 
 val with_code_age_relation : Code_age_relation.t -> t -> t
+
+val defined_variables_by_scope : t -> Lifted_cont_params.t list
+
+val enter_continuation_handler : Lifted_cont_params.t -> t -> t
+
+val variables_defined_in_current_continuation : t -> Lifted_cont_params.t
+
+val cost_of_lifting_continuations_out_of_current_one : t -> int
+
+val add_lifting_cost : int -> t -> t
+
+val denv_for_lifted_continuation : denv_for_join:t -> denv:t -> t
