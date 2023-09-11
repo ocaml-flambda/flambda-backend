@@ -12,8 +12,8 @@ type t_any : any
 type t_value : value
 type t_immediate : immediate;;
 
-(********************************************************)
-(* Test 1: constructor arguments may be values or voids *)
+(***************************************************)
+(* Test 1: constructor arguments may have any sort *)
 type t1_void = T1_void of t_void
 type t1_value = T1_value of t_value
 type t1_immediate = T1_immediate of t_immediate
