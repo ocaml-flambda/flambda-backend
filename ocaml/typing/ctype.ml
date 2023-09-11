@@ -3857,8 +3857,6 @@ let filter_arrow env t l ~force_tpoly =
   match get_desc t with
     Tvar { layout } ->
       let t', arrow_desc = function_type (get_level t) in
-      link_type t t';
-
       begin match constrain_type_layout env t' layout with
       | Ok _ -> ()
       | Error err ->
@@ -3868,7 +3866,7 @@ let filter_arrow env t l ~force_tpoly =
                        env
                        [Diff {got = t'; expected = t}; Bad_layout (t',err)])))
       end;
-
+      link_type t t';
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
