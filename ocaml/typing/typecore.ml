@@ -7685,6 +7685,8 @@ and type_let
   (l, new_env)
 
 and type_andops env sarg sands expected_sort expected_ty =
+  (* Pass arguments to [loop] to avoid allocating closure; [env] and [let_sarg]
+     get passed down unchanged. *)
   let rec loop env let_sarg rev_sands expected_sort expected_ty =
     match rev_sands with
     | [] ->
