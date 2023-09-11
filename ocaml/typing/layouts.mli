@@ -82,7 +82,6 @@ module Sort : sig
      sorts in the code. *)
   val for_class_arg : t
   val for_instance_var : t
-  val for_bop_exp : t
   val for_lazy_body : t
   val for_tuple_element : t
   val for_record : t
