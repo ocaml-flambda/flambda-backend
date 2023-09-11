@@ -3858,7 +3858,17 @@ let filter_arrow env t l ~force_tpoly =
     Tvar { layout } ->
       let t', arrow_desc = function_type (get_level t) in
       link_type t t';
-      constrain_type_layout_exn env Unify t' layout;
+
+      begin match constrain_type_layout env t' layout with
+      | Ok _ -> ()
+      | Error err ->
+        raise (Filter_arrow_failed
+                 (Unification_error
+                    (expand_to_unification_error
+                       env
+                       [Diff {got = t'; expected = t}; Bad_layout (t',err)])))
+      end;
+
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
