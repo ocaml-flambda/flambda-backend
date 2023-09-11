@@ -71,8 +71,7 @@ end = struct
     let definitions_at_beginning = ref definitions_at_beginning in
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     let stack = Stack.create () in
-    Cfg_dominators.iter_breadth_dominator_tree
-      doms.Cfg_dominators.dominator_tree ~f:(fun (label : Label.t) ->
+    Cfg_dominators.iter_breadth_dominator_tree doms ~f:(fun (label : Label.t) ->
         Stack.push label stack;
         let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
         match Label.Map.find_opt label !definitions_at_beginning with
