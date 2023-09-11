@@ -35,3 +35,6 @@ val add_extra_params_and_args :
   Continuation_extra_params_and_args.t ->
   Unboxing_types.decision ->
   Continuation_extra_params_and_args.t
+
+val compute_extra_params_in_unspecified_order :
+  Bound_parameters.t -> Unboxing_types.decision -> Bound_parameters.t

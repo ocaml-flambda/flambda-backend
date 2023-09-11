@@ -94,6 +94,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   |> DA.with_used_value_slots ~used_value_slots
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
+  |> DA.reset_continuation_lifting_budget
 
 let extract_accumulators_from_function outer_dacc ~dacc_after_body
     ~uacc_after_upwards_traversal =

@@ -476,3 +476,81 @@ let add_extra_params_and_args extra_params_and_args decision =
       EPA.add extra_params_and_args ~extra_param ~extra_args:epa.args
   in
   aux extra_params_and_args decision
+
+(* Extracting just the extra params *)
+(* ******************************** *)
+
+let compute_extra_params_in_unspecified_order extra_params decision =
+  let rec aux extra_params (decision : U.decision) =
+    match decision with
+    | Do_not_unbox _ -> extra_params
+    | Unbox (Unique_tag_and_size { tag = _; fields }) ->
+      List.fold_left
+        (fun extra_params ({ epa; decision; kind } : U.field_decision) ->
+          let extra_param = BP.create epa.param kind in
+          let extra_params = Bound_parameters.cons extra_param extra_params in
+          aux extra_params decision)
+        extra_params fields
+    | Unbox (Closure_single_entry { function_slot = _; vars_within_closure }) ->
+      Value_slot.Map.fold
+        (fun _ ({ epa; decision; kind } : U.field_decision) extra_params ->
+          let extra_param = BP.create epa.param kind in
+          let extra_params = Bound_parameters.cons extra_param extra_params in
+          aux extra_params decision)
+        vars_within_closure extra_params
+    | Unbox (Variant { tag; const_ctors; fields_by_tag }) ->
+      let extra_params =
+        Tag.Scannable.Map.fold
+          (fun _ block_fields extra_params ->
+            List.fold_left
+              (fun extra_params ({ epa; decision; kind } : U.field_decision) ->
+                let extra_param = BP.create epa.param kind in
+                let extra_params =
+                  Bound_parameters.cons extra_param extra_params
+                in
+                aux extra_params decision)
+              extra_params block_fields)
+          fields_by_tag extra_params
+      in
+      let extra_params =
+        match const_ctors with
+        | Zero -> extra_params
+        | At_least_one { is_int; ctor = Do_not_unbox _; _ } ->
+          let extra_param =
+            BP.create is_int.param K.With_subkind.naked_immediate
+          in
+          Bound_parameters.cons extra_param extra_params
+        | At_least_one { is_int; ctor = Unbox (Number (Naked_immediate, ctor)) }
+          ->
+          let extra_params =
+            Bound_parameters.cons
+              (BP.create is_int.param K.With_subkind.naked_immediate)
+              extra_params
+          in
+          Bound_parameters.cons
+            (BP.create ctor.param K.With_subkind.naked_immediate)
+            extra_params
+        | At_least_one
+            { ctor =
+                Unbox
+                  ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
+                  | Number
+                      ( ( Naked_float | Naked_int32 | Naked_int64 | Naked_vec128
+                        | Naked_nativeint ),
+                        _ ) );
+              is_int = _
+            } ->
+          Misc.fatal_errorf
+            "Trying to unbox the constant constructor of a variant with a kind \
+             other than Naked_immediate."
+      in
+      let extra_param = BP.create tag.param K.With_subkind.naked_immediate in
+      Bound_parameters.cons extra_param extra_params
+    | Unbox (Number (naked_number_kind, epa)) ->
+      let kind_with_subkind =
+        K.With_subkind.of_naked_number_kind naked_number_kind
+      in
+      let extra_param = BP.create epa.param kind_with_subkind in
+      Bound_parameters.cons extra_param extra_params
+  in
+  aux extra_params decision

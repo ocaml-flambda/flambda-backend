@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
+(*         Guillaume Bury and Nathanaëlle Courant, OCamlPro               *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2020 OCamlPro SAS                                    *)
@@ -14,32 +14,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Simplify_import
+(* These are use primarily by the continuation lifting process. During that
+   process, lifted continuations need to have new parameters. While the lifting
+   can rewrite some of the uses of lifted continuations, rewriting all of them
+   (particularly inside the bodies of lifted continuations) woudl exhibit bad
+   complexity. *)
+type extra_args =
+  { added_args : Simple.t list;
+    after_nth_arg : int
+  }
 
-module Decisions : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-end
-
-val make_do_not_unbox_decisions : Bound_parameters.t -> Decisions.t
-
-type continuation_arg_types =
-  | Recursive
-  | Non_recursive of Continuation_uses.arg_types_by_use_id
-
-val make_decisions :
-  continuation_arg_types:continuation_arg_types ->
-  DE.t ->
-  Bound_parameters.t ->
-  T.t list ->
-  DE.t * Decisions.t
-
-val compute_extra_params_and_args :
-  Decisions.t ->
-  arg_types_by_use_id:Continuation_uses.arg_types_by_use_id ->
-  EPA.t ->
-  EPA.t
-
-val compute_extra_params_in_unspecified_order :
-  Decisions.t -> Bound_parameters.t
+type t = extra_args Continuation.Map.t

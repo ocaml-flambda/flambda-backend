@@ -46,7 +46,12 @@ type t =
     get_imported_code : unit -> Exported_code.t;
     all_code : Code.t Code_id.Map.t;
     inlining_history_tracker : Inlining_history.Tracker.t;
-    loopify_state : Loopify_state.t
+    loopify_state : Loopify_state.t;
+    continuation_stack : Continuation.t list;
+    variables_defined_in_current_continuation : Lifted_cont_params.t;
+    number_of_continuations_defined_in_current_continuation : int
+        (* CR gbury: maybe rename Lifted_cont_params -> Indexed_bound_parameters
+           ? *)
   }
 
 let print_debuginfo ppf dbg =
@@ -62,7 +67,9 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
-                loopify_state
+                loopify_state; continuation_stack;
+                variables_defined_in_current_continuation;
+                number_of_continuations_defined_in_current_continuation;
               } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(round@ %d)@]@ \
@@ -80,7 +87,10 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
-      @[<hov 1>(loopify_state@ %a)@]\
+      @[<hov 1>(loopify_state@ %a)@]@ \
+      @[<hov 1>(continuation_stack@ %a)@]@ \
+      @[<hov 1>(variables_defined_in_current_continuation@ %a)@]@ \
+      @[<hov 1>(number_of_continuations_defined_in_current_continuation %d)@]\
       )@]"
     round
     TE.print typing_env
@@ -98,12 +108,15 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
     Loopify_state.print loopify_state
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Continuation.print) continuation_stack
+    Lifted_cont_params.print variables_defined_in_current_continuation
+    number_of_continuations_defined_in_current_continuation
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~propagating_float_consts
     ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation
-    ~toplevel_my_region =
+    ~toplevel_my_region ~dummy_toplevel_cont =
   let typing_env = TE.create ~resolver ~get_imported_names in
   let typing_env =
     TE.add_definition typing_env
@@ -128,8 +141,13 @@ let create ~round ~(resolver : resolver)
     get_imported_code;
     inlining_history_tracker =
       Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
-    loopify_state = Loopify_state.do_not_loopify
+    loopify_state = Loopify_state.do_not_loopify;
+    continuation_stack = [dummy_toplevel_cont];
+    variables_defined_in_current_continuation = Lifted_cont_params.empty;
+    number_of_continuations_defined_in_current_continuation = 0
   }
+
+let continuation_stack t = t.continuation_stack
 
 let all_code t = t.all_code
 
@@ -171,6 +189,9 @@ let set_inlining_history_tracker inlining_history_tracker t =
 let increment_continuation_scope t =
   { t with typing_env = TE.increment_scope t.typing_env }
 
+let bump_current_level_scope t =
+  { t with typing_env = TE.bump_current_level_scope t.typing_env }
+
 let enter_set_of_closures
     { round;
       typing_env;
@@ -189,7 +210,10 @@ let enter_set_of_closures
       get_imported_code;
       all_code;
       inlining_history_tracker;
-      loopify_state = _
+      loopify_state = _;
+      continuation_stack = _;
+      variables_defined_in_current_continuation = _;
+      number_of_continuations_defined_in_current_continuation = _
     } =
   { round;
     typing_env = TE.closure_env typing_env;
@@ -208,7 +232,10 @@ let enter_set_of_closures
     get_imported_code;
     all_code;
     inlining_history_tracker;
-    loopify_state = Loopify_state.do_not_loopify
+    loopify_state = Loopify_state.do_not_loopify;
+    continuation_stack = [];
+    variables_defined_in_current_continuation = Lifted_cont_params.empty;
+    number_of_continuations_defined_in_current_continuation = 0
   }
 
 let define_variable t var kind =
@@ -568,4 +595,64 @@ let set_loopify_state loopify_state t = { t with loopify_state }
 let with_code_age_relation code_age_relation t =
   { t with
     typing_env = TE.with_code_age_relation t.typing_env code_age_relation
+  }
+
+let enter_continuation cont lifted_params t =
+  { t with
+    continuation_stack = cont :: t.continuation_stack;
+    variables_defined_in_current_continuation = lifted_params;
+    number_of_continuations_defined_in_current_continuation = 0
+  }
+
+let variables_defined_in_current_continuation t =
+  t.variables_defined_in_current_continuation
+
+let add_variable_defined_in_current_continuation t bound_param =
+  { t with
+    variables_defined_in_current_continuation =
+      Lifted_cont_params.new_param t.variables_defined_in_current_continuation
+        bound_param
+  }
+
+let number_of_continuations_defined_in_current_continuation t =
+  t.number_of_continuations_defined_in_current_continuation
+
+let add_continuation_defined_in_current_continuation t =
+  { t with
+    number_of_continuations_defined_in_current_continuation =
+      t.number_of_continuations_defined_in_current_continuation + 1
+  }
+
+let denv_for_lifted_continuation ~denv_for_join ~denv =
+  (* At this point, we are lifting a continuation k' with handler [handlers],
+     out of a continuation k, and: - [denv_for_join] is the denv just before the
+     letk for k - [denv] is the denv just before the letk for k'
+
+     And we need to decide which parts of denv to use to simplify the handlers
+     of k' after there are lifted out from the handler of k. *)
+  { typing_env = denv_for_join.typing_env;
+    inlined_debuginfo = denv.inlined_debuginfo;
+    can_inline = denv.can_inline;
+    inlining_state = denv.inlining_state;
+    at_unit_toplevel = denv_for_join.at_unit_toplevel;
+    variables_defined_at_toplevel = denv_for_join.variables_defined_at_toplevel;
+    cse = denv_for_join.cse;
+    comparison_results = denv_for_join.comparison_results;
+    all_code = denv.all_code;
+    inlining_history_tracker = denv.inlining_history_tracker;
+    continuation_stack = denv_for_join.continuation_stack;
+    variables_defined_in_current_continuation =
+      denv_for_join.variables_defined_in_current_continuation;
+    number_of_continuations_defined_in_current_continuation =
+      denv_for_join.number_of_continuations_defined_in_current_continuation;
+    (* These should not matter, both denvs should have the same value of these
+       fields *)
+    round = denv.round;
+    propagating_float_consts = denv.propagating_float_consts;
+    unit_toplevel_return_continuation = denv.unit_toplevel_return_continuation;
+    unit_toplevel_exn_continuation = denv.unit_toplevel_exn_continuation;
+    do_not_rebuild_terms = denv.do_not_rebuild_terms;
+    closure_info = denv.closure_info;
+    get_imported_code = denv.get_imported_code;
+    loopify_state = denv.loopify_state
   }

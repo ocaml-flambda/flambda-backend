@@ -25,6 +25,7 @@ type simplify_result =
   }
 
 let run ~cmx_loader ~round ~code_slot_offsets unit =
+  let dummy_toplevel_cont = Continuation.create () in
   let return_continuation = FU.return_continuation unit in
   let exn_continuation = FU.exn_continuation unit in
   let toplevel_my_region = FU.toplevel_my_region unit in
@@ -37,6 +38,7 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
       ~propagating_float_consts:(Flambda_features.float_const_prop ())
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation ~toplevel_my_region
+      ~dummy_toplevel_cont
   in
   (* CR gbury: only compute closure offsets if this is the last round. (same
      remark for the cmx contents) *)

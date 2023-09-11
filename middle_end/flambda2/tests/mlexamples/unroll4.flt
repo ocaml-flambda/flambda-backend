@@ -117,44 +117,43 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
   (let untagged = %untag_imm p in
    switch untagged
      | 0 -> k2
-     | 1 -> k3)
-    where k3 =
+     | 1 -> k3_2)
+    where k3_2 =
       let prim = %phys_eq (n, 0) in
+      switch prim
+        | 0 -> k2_2
+        | 1 -> k3_1
+    where k3_1 =
+      apply inlined(hint) inlining_state(depth(10)) k (0) -> k * k1
+    where k2_2 =
+      let Psubint = n - 1 in
+      let prim = %phys_eq (Psubint, 0) in
+      switch prim
+        | 0 -> k2_1 (Psubint)
+        | 1 -> k3
+    where k3 =
+      apply inlined(hint) inlining_state(depth(20)) k (1) -> k * k1
+    where k2_1 (Psubint) =
+      let Psubint_1 = Psubint in
+      let Psubint_2 = Psubint_1 - 1 in
+      let prim = %phys_eq (Psubint_2, 0) in
       (switch prim
-         | 0 -> k3
-         | 1 -> k4
-         where k4 =
-           apply inlined(hint) inlining_state(depth(10)) k (0) -> k * k1
+         | 0 -> k2_1
+         | 1 -> k3
          where k3 =
-           let Psubint = n - 1 in
-           let prim_1 = %phys_eq (Psubint, 0) in
+           apply inlined(hint) inlining_state(depth(30)) k (0) -> k * k1
+         where k2_1 =
+           let Psubint_3 = Psubint_2 - 1 in
+           let prim_1 = %phys_eq (Psubint_3, 0) in
            (switch prim_1
-              | 0 -> k3
-              | 1 -> k4
-              where k4 =
-                apply inlined(hint) inlining_state(depth(20)) k (1) -> k * k1
+              | 0 -> k2_1
+              | 1 -> k3
               where k3 =
-                let Psubint_1 = Psubint - 1 in
-                let prim_2 = %phys_eq (Psubint_1, 0) in
-                (switch prim_2
-                   | 0 -> k3
-                   | 1 -> k4
-                   where k4 =
-                     apply inlined(hint) inlining_state(depth(30))
-                       k (0) -> k * k1
-                   where k3 =
-                     let Psubint_2 = Psubint_1 - 1 in
-                     let prim_3 = %phys_eq (Psubint_2, 0) in
-                     (switch prim_3
-                        | 0 -> k3
-                        | 1 -> k4
-                        where k4 =
-                          apply inlined(hint) inlining_state(depth(40))
-                            k (1) -> k * k1
-                        where k3 =
-                          let Psubint_3 = Psubint_2 - 1 in
-                          apply direct(odd_2_1) inlining_state(depth(40))
-                            odd ~ depth 0 -> unroll 0 4 (Psubint_3) -> k * k1))))
+                apply inlined(hint) inlining_state(depth(40)) k (1) -> k * k1
+              where k2_1 =
+                let Psubint_4 = Psubint_3 - 1 in
+                apply direct(odd_2_1) inlining_state(depth(40))
+                  odd ~ depth 0 -> unroll 0 4 (Psubint_4) -> k * k1))
     where k2 =
       let prim = %phys_eq (n, 0) in
       (switch prim
@@ -191,47 +190,54 @@ let code inline(always) loopify(never) size(1) newer_version_of(k_3)
 in
 let $camlUnroll4__k_5 = closure k_3_1 @k in
 apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
-  $camlUnroll4__k_5 (0) -> k * error
-  where k (one_is_even : imm tagged) =
-    ((let code rec loopify(never) size(18) newer_version_of(even_1_1)
-            even_1_2 (n : imm tagged)
-              my_closure my_region my_depth
-              -> k1 * k2 =
-        let prim = %phys_eq (n, 0) in
-        switch prim
-          | 0 -> k3
-          | 1 -> k1 (1)
-          where k3 =
-            let Psubint = n - 1 in
-            apply direct(odd_2_2) inlining_state(depth(1))
-              $camlUnroll4__odd_9 ~ depth my_depth -> succ my_depth
-                (Psubint)
-                -> k1 * k2
-      and code rec loopify(never) size(18) newer_version_of(odd_2_1)
-            odd_2_2 (n : imm tagged) my_closure my_region my_depth -> k1 * k2 =
-        let prim = %phys_eq (n, 0) in
-        switch prim
-          | 0 -> k3
-          | 1 -> k1 (0)
-          where k3 =
-            let Psubint = n - 1 in
-            apply direct(even_1_2) inlining_state(depth(1))
-              $camlUnroll4__even_8 ~ depth my_depth -> succ my_depth
-                (Psubint)
-                -> k1 * k2
-      and $camlUnroll4__even_8 =
-        closure even_1_2 @even
-      and $camlUnroll4__odd_9 =
-        closure odd_2_2 @odd
-        with { k = $camlUnroll4__k_5 }
-      in
-      apply direct(odd_2_2) inlining_state(depth(41))
-        $camlUnroll4__odd_9 ~ depth 0 -> unroll 0 4 (0) -> k * error)
-       where k (four_is_odd : imm tagged) =
-         let $camlUnroll4 =
-           Block 0 ($camlUnroll4__parity_is_4,
-                    $camlUnroll4__k_5,
-                    one_is_even,
-                    four_is_odd)
-         in
-         cont done ($camlUnroll4))
+  $camlUnroll4__k_5 (0) -> k1_1 * error
+  where k1_1 (one_is_even : imm tagged) =
+    let code rec loopify(never) size(18) newer_version_of(even_1_1)
+          even_1_1_1 (n : imm tagged)
+            my_closure my_region my_depth
+            -> k * k1_1 =
+      let prim = %phys_eq (n, 0) in
+      switch prim
+        | 0 -> k2_1
+        | 1 -> k (1)
+        where k2_1 =
+          let Psubint = n - 1 in
+          apply direct(odd_2_1_1) inlining_state(depth(1))
+            $camlUnroll4__odd_9 ~ depth my_depth -> succ my_depth
+              (Psubint)
+              -> k * k1_1
+    and code rec loopify(never) size(18) newer_version_of(odd_2_1)
+          odd_2_1_1 (n : imm tagged)
+            my_closure my_region my_depth
+            -> k * k1_1 =
+      let prim = %phys_eq (n, 0) in
+      switch prim
+        | 0 -> k2_1
+        | 1 -> k (0)
+        where k2_1 =
+          let Psubint = n - 1 in
+          apply direct(even_1_1_1) inlining_state(depth(1))
+            $camlUnroll4__even_8 ~ depth my_depth -> succ my_depth
+              (Psubint)
+              -> k * k1_1
+    and $camlUnroll4__even_8 =
+      closure even_1_1_1 @even_1
+    and $camlUnroll4__odd_9 =
+      closure odd_2_1_1 @odd_1
+      with { k_1 = $camlUnroll4__k_5 }
+    in
+    cont k2 (one_is_even)
+  where k2 (one_is_even) =
+    (apply direct(odd_2_1_1) inlining_state(depth(41))
+       $camlUnroll4__odd_9 ~ depth 0 -> unroll 0 4 (0) -> k * error
+       where k (param) =
+         cont k1 (param, one_is_even))
+  where k1 (four_is_odd : imm tagged, one_is_even) =
+    let one_is_even_1 = one_is_even in
+    let $camlUnroll4 =
+      Block 0 ($camlUnroll4__parity_is_4,
+               $camlUnroll4__k_5,
+               one_is_even_1,
+               four_is_odd)
+    in
+    cont done ($camlUnroll4)

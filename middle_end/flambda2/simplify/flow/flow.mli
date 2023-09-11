@@ -19,6 +19,9 @@ module Acc : sig
   (** printing *)
   val print : Format.formatter -> t -> unit
 
+  (** TMP *)
+  val current_continuation : t -> Continuation.t
+
   (* {2 Creation and updates} *)
 
   (** Empty uses *)

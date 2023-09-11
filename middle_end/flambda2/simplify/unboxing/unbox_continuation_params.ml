@@ -148,3 +148,11 @@ let compute_extra_params_and_args
       arg_types_by_use_id decisions
   in
   extra_params_and_args
+
+let compute_extra_params_in_unspecified_order
+    ({ decisions; rewrite_ids_seen = _ } : Decisions.t) =
+  List.fold_left
+    (fun extra_params (_, decision) ->
+      Unboxing_epa.compute_extra_params_in_unspecified_order extra_params
+        decision)
+    Bound_parameters.empty decisions

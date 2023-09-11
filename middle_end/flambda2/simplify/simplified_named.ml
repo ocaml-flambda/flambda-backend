@@ -83,3 +83,20 @@ let print ppf { named; _ } = Named.print ppf (to_named named)
 let cost_metrics { cost_metrics; _ } = cost_metrics
 
 let update_cost_metrics cost_metrics t = { t with cost_metrics }
+
+let kind ~tenv { named; _ } =
+  let module K = Flambda_kind in
+  match named with
+  | Simple simple ->
+    Simple.pattern_match' simple
+      ~var:(fun var ~coercion:_ ->
+        let var_type =
+          Flambda2_types.Typing_env.find tenv (Name.var var) None
+        in
+        K.With_subkind.anything (Flambda2_types.kind var_type))
+      ~const:(fun const -> Reg_width_const.kind const)
+      ~symbol:(fun _symbol ~coercion:_ -> K.With_subkind.any_value)
+  | Prim (prim, _) ->
+    K.With_subkind.anything (Flambda_primitive.result_kind' prim)
+  | Set_of_closures _ -> K.With_subkind.any_value
+  | Rec_info _ -> K.With_subkind.rec_info

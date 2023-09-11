@@ -25,10 +25,13 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
   let dacc =
-    DA.map_flow_acc dacc
-      ~f:
-        (Flow.Acc.init_toplevel ~dummy_toplevel_cont
-           (Bound_parameters.append params implicit_params))
+    DA.with_are_lifting_conts dacc Not_lifting
+    |> DA.map_denv
+         ~f:(DE.enter_continuation dummy_toplevel_cont Lifted_cont_params.empty)
+    |> DA.map_flow_acc
+         ~f:
+           (Flow.Acc.init_toplevel ~dummy_toplevel_cont
+              (Bound_parameters.append params implicit_params))
   in
   let expr, uacc =
     simplify dacc ~down_to_up:(fun dacc ~rebuild ->

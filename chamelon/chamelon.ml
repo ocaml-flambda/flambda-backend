@@ -150,6 +150,7 @@ let main () =
         one_file_minimize c (Smap.singleton output_file !input_str) output_file
       in
       input_str := Smap.find output_file a;
+      update_single (output_file ^ ".tmp") !input_str;
       has_changed := b
     done;
     let a, _ =

@@ -599,26 +599,24 @@ apply direct(length_2_1)
                     (apply break_here (a) -> k1_1 * k1
                        where k1_1 (param) =
                          let unboxed_field = %untag_imm param in
-                         cont k2 (unboxed_field)
-                       where k2 (unboxed_field : imm) =
+                         cont k2_1 (unboxed_field)
+                       where k2_1 (unboxed_field : imm) =
                          let naked_immediate = unboxed_field in
-                         (switch naked_immediate
-                            | 0 -> k2
-                            | 1 -> k3
-                            where k3 =
-                              let Pmakeblock =
-                                %Block 0 &my_region (acc_1, l_1)
-                              in
-                              cont k (Pmakeblock)
-                            where k2 =
-                              apply direct(find_span_6_1 &my_region)
-                                ($camlLocal__find_span_14 ~ depth my_depth -> succ my_depth
-                                 : _ ->
-                                   [ 0 of [ 0 | 0 of val * val ] *
-                                       [ 0 | 0 of val * val ] ]
-                                 )
-                                  (break_here, l_1, acc_1)
-                                  -> k * k1))
+                         switch naked_immediate
+                           | 0 -> k2
+                           | 1 -> k3
+                       where k3 =
+                         let Pmakeblock = %Block 0 &my_region (acc_1, l_1) in
+                         cont k (Pmakeblock)
+                       where k2 =
+                         apply direct(find_span_6_1 &my_region)
+                           ($camlLocal__find_span_14 ~ depth my_depth -> succ my_depth
+                            : _ ->
+                              [ 0 of [ 0 | 0 of val * val ] *
+                                  [ 0 | 0 of val * val ] ]
+                            )
+                             (break_here, l_1, acc_1)
+                             -> k * k1)
               in
               let code loopify(never) size(9) newer_version_of(is_even_7)
                     is_even_7_1 (i : imm tagged)

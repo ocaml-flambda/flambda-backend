@@ -360,6 +360,12 @@ let mk_no_flambda2_expert_shorten_symbol_names f =
     \     default except for classic mode)"
 ;;
 
+let mk_flambda2_expert_cont_lifting_budget f =
+  "-flambda2-expert-cont-lifting-budget", Arg.Int f,
+  Printf.sprintf " Set the limit of extra parameters introduced\n\
+    \ when lifting continuations (per function)"
+;;
+
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
   "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
   Printf.sprintf " Check that concrete\n\
@@ -680,6 +686,7 @@ module type Flambda_backend_options = sig
   val flambda2_expert_max_function_simplify_run : int -> unit
   val flambda2_expert_shorten_symbol_names : unit -> unit
   val no_flambda2_expert_shorten_symbol_names : unit -> unit
+  val flambda2_expert_cont_lifting_budget : int -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -813,6 +820,8 @@ struct
       F.flambda2_expert_shorten_symbol_names;
     mk_no_flambda2_expert_shorten_symbol_names
       F.no_flambda2_expert_shorten_symbol_names;
+    mk_flambda2_expert_cont_lifting_budget
+      F.flambda2_expert_cont_lifting_budget;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -989,6 +998,8 @@ module Flambda_backend_options_impl = struct
     Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set true
   let no_flambda2_expert_shorten_symbol_names () =
     Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set false
+  let flambda2_expert_cont_lifting_budget budget =
+    Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set budget
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =

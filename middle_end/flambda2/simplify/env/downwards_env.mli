@@ -39,6 +39,7 @@ val create :
   unit_toplevel_exn_continuation:Continuation.t ->
   unit_toplevel_return_continuation:Continuation.t ->
   toplevel_my_region:Variable.t ->
+  dummy_toplevel_cont:Continuation.t ->
   t
 
 val all_code : t -> Code.t Code_id.Map.t
@@ -65,6 +66,8 @@ val unit_toplevel_exn_continuation : t -> Continuation.t
 val enter_set_of_closures : t -> t
 
 val increment_continuation_scope : t -> t
+
+val bump_current_level_scope : t -> t
 
 val get_continuation_scope : t -> Scope.t
 
@@ -212,3 +215,17 @@ val loopify_state : t -> Loopify_state.t
 val set_loopify_state : Loopify_state.t -> t -> t
 
 val with_code_age_relation : Code_age_relation.t -> t -> t
+
+val continuation_stack : t -> Continuation.t list
+
+val enter_continuation : Continuation.t -> Lifted_cont_params.t -> t -> t
+
+val variables_defined_in_current_continuation : t -> Lifted_cont_params.t
+
+val add_variable_defined_in_current_continuation : t -> Bound_parameter.t -> t
+
+val number_of_continuations_defined_in_current_continuation : t -> int
+
+val add_continuation_defined_in_current_continuation : t -> t
+
+val denv_for_lifted_continuation : denv_for_join:t -> denv:t -> t

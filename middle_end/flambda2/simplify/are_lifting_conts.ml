@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
+(*                        Guillaume Bury, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2019 OCamlPro SAS                                    *)
@@ -14,36 +14,34 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module DE = Downwards_env
-module T = Flambda2_types
-
 type t =
-  { id : Apply_cont_rewrite_id.t;
-    kind : Continuation_use_kind.t;
-    arg_types : T.t list;
-    env : DE.t
-  }
+  | Not_lifting
+  | Analyzing of
+      { continuation : Continuation.t;
+        uses : Continuation_uses.t
+      }
+  | Lifting_out_of of { continuation : Continuation.t }
 
-let create kind ~env_at_use:env id ~arg_types = { id; kind; arg_types; env }
+let no_lifting : t = Not_lifting
 
-let [@ocamlformat "disable"] print ppf { env = _; id; kind = _; arg_types; } =
-  Format.fprintf ppf "@[<hov 1>(\
-      @[<hov 1>(id %a)@]@ \
-      @[<hov 1>(arg_types@ %a)@]@ \
+let think_about_lifting_out_of continuation uses =
+  Analyzing { continuation; uses }
+
+let lift_continuations_out_of continuation : t = Lifting_out_of { continuation }
+
+let [@ocamlformat "disable"] print ppf t =
+  match t with
+  | Not_lifting ->
+    Format.fprintf ppf "Not_lifting"
+  | Lifting_out_of { continuation; } ->
+    Format.fprintf ppf "@[<hov>(lifting_out_of@ \
+        @[<hov 1>(continuation@ %a)@]\
       )@]"
-    Apply_cont_rewrite_id.print id
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space Flambda2_types.print)
-    arg_types
-
-let id t = t.id
-
-let use_kind t = t.kind
-
-let arg_types t = t.arg_types
-
-let env_at_use t = t.env
-
-let mark_non_inlinable t =
-  match t.kind with
-  | Inlinable -> { t with kind = Non_inlinable { escaping = false } }
-  | Non_inlinable _ -> t
+      Continuation.print continuation
+  | Analyzing { continuation; uses; } ->
+    Format.fprintf ppf "@[<hov>(analysing@ \
+        @[<hov 1>(continuation@ %a)@]@ \
+        @[<hov 1>(uses@ %a)@]\
+      )@]"
+      Continuation.print continuation
+      Continuation_uses.print uses

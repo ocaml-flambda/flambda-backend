@@ -39,3 +39,14 @@ let is_tagged_immediate t =
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Naked_vec128 _ ->
     None
+
+let kind (t : t) =
+  let module K = Flambda_kind.With_subkind in
+  match descr t with
+  | Tagged_immediate _ -> K.tagged_immediate
+  | Naked_immediate _ -> K.naked_immediate
+  | Naked_float _ -> K.naked_float
+  | Naked_int32 _ -> K.naked_int32
+  | Naked_int64 _ -> K.naked_int64
+  | Naked_nativeint _ -> K.naked_nativeint
+  | Naked_vec128 _ -> K.naked_vec128
