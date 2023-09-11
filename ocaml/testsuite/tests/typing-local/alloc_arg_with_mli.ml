@@ -74,7 +74,10 @@ end
 module M1 = struct
   let[@inline never] take_unrestricted { a; b } = a + b
 
-  (* At the moment, this allocates in the without-mli case, but not for a
+  (* Note [Inference affects allocation in mli-less files]
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+     At the moment, this allocates in the without-mli case, but not for a
      fundamental reason: when the type signature is inferred, the inferred
      types and thus mode variables are reused. Instead, we could create new
      copies of types with fresh mode variables related by submoding.
