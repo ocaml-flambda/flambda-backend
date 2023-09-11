@@ -3130,9 +3130,12 @@ module Generic_fns_tbl = struct
         Seq.init (max_tuplify + 1) (fun n -> Lambda.Tupled, arity n, result)
       in
       let curry =
-        Seq.init (Lambda.max_arity () + 1) (fun n ->
-            Seq.init (Lambda.max_arity () + 1) (fun nlocal ->
-                Lambda.Curried { nlocal }, arity n, result))
+        Seq.init
+          (Lambda.max_arity () + 1)
+          (fun n ->
+            Seq.init
+              (Lambda.max_arity () + 1)
+              (fun nlocal -> Lambda.Curried { nlocal }, arity n, result))
         |> Seq.concat
       in
       let send =
