@@ -5879,7 +5879,10 @@ and type_expect_
       let ty_result =
         newvar (Layout.of_sort ~why:Function_result op_result_sort)
       in
-      let ty_andops = newvar (Layout.of_new_sort_var ~why:Function_argument) in
+      let sort_andops = Sort.new_var () in
+      let ty_andops =
+        newvar (Layout.of_sort ~why:Function_argument sort_andops)
+      in
       let ty_op =
         newty (Tarrow(arrow_desc, newmono ty_andops,
           newty (Tarrow(arrow_desc, newmono ty_func,
@@ -5897,8 +5900,8 @@ and type_expect_
         generalize_structure ty_func_result;
         generalize_structure ty_result
       end;
-      let exp, ands =
-        type_andops env slet.pbop_exp sands ty_andops
+      let exp, exp_sort, ands =
+        type_andops env slet.pbop_exp sands sort_andops ty_andops
       in
       let body_env = Env.add_escape_lock Letop env in
       let body_env = Env.add_share_lock Letop body_env in
@@ -5922,6 +5925,7 @@ and type_expect_
           bop_op_type = op_type;
           bop_op_return_sort = op_result_sort;
           bop_exp = exp;
+          bop_exp_sort = exp_sort;
           bop_loc = slet.pbop_loc; }
       in
       let warnings = Warnings.backup () in
@@ -7685,19 +7689,24 @@ and type_let
   let new_env = add_module_variables new_env mvs in
   (l, new_env)
 
-and type_andops env sarg sands expected_ty =
-  let rec loop env let_sarg rev_sands expected_ty =
+and type_andops env sarg sands expected_sort expected_ty =
+  (* Pass arguments to [loop] to avoid allocating closure; [env] and [let_sarg]
+     get passed down unchanged. *)
+  let rec loop env let_sarg rev_sands expected_sort expected_ty =
     match rev_sands with
     | [] ->
         type_expect env mode_legacy let_sarg
           (mk_expected expected_ty),
+        expected_sort,
         []
     | { pbop_op = sop; pbop_exp = sexp; pbop_loc = loc; _ } :: rest ->
         if !Clflags.principal then begin_def ();
         let op_path, op_desc = type_binding_op_ident env sop in
         let op_type = op_desc.val_type in
-        let ty_arg = newvar (Layout.of_new_sort_var ~why:Function_argument) in
-        let ty_rest = newvar (Layout.of_new_sort_var ~why:Function_argument) in
+        let sort_arg = Sort.new_var () in
+        let ty_arg = newvar (Layout.of_sort ~why:Function_argument sort_arg) in
+        let sort_rest = Sort.new_var () in
+        let ty_rest = newvar (Layout.of_sort ~why:Function_argument sort_rest) in
         let op_result_sort = Sort.new_var () in
         let ty_result =
           newvar (Layout.of_sort ~why:Function_result op_result_sort)
@@ -7720,7 +7729,9 @@ and type_andops env sarg sands expected_ty =
           generalize_structure ty_arg;
           generalize_structure ty_result
         end;
-        let let_arg, rest = loop env let_sarg rest ty_rest in
+        let let_arg, sort_let_arg, rest =
+          loop env let_sarg rest sort_rest ty_rest
+        in
         let exp =
           type_expect env mode_legacy sexp (mk_expected ty_arg)
         in
@@ -7736,12 +7747,15 @@ and type_andops env sarg sands expected_ty =
             bop_op_type = op_type;
             bop_op_return_sort = op_result_sort;
             bop_exp = exp;
+            bop_exp_sort = sort_arg;
             bop_loc = loc }
         in
-        let_arg, andop :: rest
+        let_arg, sort_let_arg, andop :: rest
   in
-  let let_arg, rev_ands = loop env sarg (List.rev sands) expected_ty in
-  let_arg, List.rev rev_ands
+  let let_arg, sort_let_arg, rev_ands =
+    loop env sarg (List.rev sands) expected_sort expected_ty
+  in
+  let_arg, sort_let_arg, List.rev rev_ands
 
 (* Can be re-inlined when we upstream immutable arrays *)
 and type_generic_array

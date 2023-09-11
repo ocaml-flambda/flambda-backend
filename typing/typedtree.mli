@@ -431,6 +431,7 @@ and binding_op =
        It is always an instance of [bop_op_val.val_type] *)
     bop_op_return_sort : Layouts.sort;
     bop_exp : expression;
+    bop_exp_sort : Layouts.sort;
     bop_loc : Location.t;
   }
 

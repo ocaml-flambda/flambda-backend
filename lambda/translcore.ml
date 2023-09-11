@@ -1696,8 +1696,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
           transl_ident (of_location ~scopes and_.bop_op_name.loc) env
             and_.bop_op_type and_.bop_op_path and_.bop_op_val Id_value
         in
-        let exp = transl_exp ~scopes Sort.for_bop_exp and_.bop_exp in
-        let right_layout = layout_exp Sort.for_bop_exp and_.bop_exp in
+        let exp = transl_exp ~scopes and_.bop_exp_sort and_.bop_exp in
+        let right_layout = layout_exp and_.bop_exp_sort and_.bop_exp in
         let result_layout =
           function2_return_layout env and_.bop_loc and_.bop_op_return_sort
             and_.bop_op_type
@@ -1724,8 +1724,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       let_.bop_op_type let_.bop_op_path let_.bop_op_val Id_value
   in
   let exp =
-    loop (layout_exp Sort.for_bop_exp let_.bop_exp)
-      (transl_exp ~scopes Sort.for_bop_exp let_.bop_exp) ands
+    loop (layout_exp let_.bop_exp_sort let_.bop_exp)
+      (transl_exp ~scopes let_.bop_exp_sort let_.bop_exp) ands
   in
   let func =
     let arg_layout =
