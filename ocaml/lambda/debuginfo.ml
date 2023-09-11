@@ -272,3 +272,6 @@ let print_compact ppf { dbg; } = print_compact ppf dbg
 let to_list { dbg; } = dbg
 
 let length { dbg; } = List.length dbg
+
+let merge ~into:{ dbg = dbg1 } { dbg = _dbg2; } =
+  { dbg = dbg1 }

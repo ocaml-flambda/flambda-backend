@@ -97,3 +97,5 @@ val print_compact : Format.formatter -> t -> unit
 val to_list : t -> item list
 
 val length : t -> int
+
+val merge : into:t -> t -> t
