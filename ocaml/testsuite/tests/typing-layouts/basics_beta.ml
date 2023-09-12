@@ -2,6 +2,7 @@
    flags = "-extension layouts_beta"
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_value : value
 type t_imm   : immediate
@@ -73,7 +74,10 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type imm_id.
 |}];;
 
 let id_for_imms (x : 'a imm_id) = x
@@ -93,7 +97,10 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type imm_id.
 |}]
 
 (************************************)
@@ -106,7 +113,10 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}];;
 
 type s4 = string t4
@@ -117,7 +127,10 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}]
 
 type s4 = int t4
@@ -147,7 +160,10 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       s5 has layout value, which is not a sublayout of immediate.
+       The layout of s5 is value, because
+         it equals the primitive value type string.
+       But the layout of s5 must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}]
 (* CR layouts v2.9: improve error, which requires layout histories *)
 
@@ -210,7 +226,11 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because all of the following:
+           used as a function argument
+           an unannotated universal variable
+       But the layout of 'a must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
 
 let o6 = object
@@ -223,7 +243,11 @@ Line 3, characters 4-34:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because all of the following:
+           used as a function argument
+           an unannotated universal variable
+       But the layout of 'a must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -241,7 +265,10 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
-       int * int has layout value, which is not a sublayout of immediate.
+       The layout of int * int is value, because
+         a tuple type.
+       But the layout of int * int must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t7.
 |}]
 
 (**********************************************************)
@@ -296,7 +323,11 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type string is not compatible with the type string
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because all of the following:
+           of the annotation on 'a in the declaration of the type t
+           of the annotation on 'a in the declaration of the type t
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -333,7 +364,11 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type string t = string is not compatible with the type string
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because all of the following:
+           of the annotation on 'a in the declaration of the type t
+           of the annotation on 'a in the declaration of the type t
 |}]
 
 (**************************************************************)
@@ -543,5 +578,11 @@ type ('a : immediate) t2_imm
 Line 3, characters 15-40:
 3 | type s = { f : ('a : value) . 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type 'a has layout value, which is not a sublayout of immediate.
+Error: The layout of Type 'a is value, because all of the following:
+           used as a function argument
+           appears as an unannotated type parameter
+           of the annotation on the universal variable a
+       But the layout of Type 'a must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t2_imm.
+
 |}]

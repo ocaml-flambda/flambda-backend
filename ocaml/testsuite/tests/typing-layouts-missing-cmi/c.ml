@@ -11,6 +11,7 @@ module = "b.ml"
 script = "rm -f a.cmi"
 ***** expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 (* CR layouts v2.5: The commented out code in this file uses void, but could
    use any non-value layout. *)
@@ -45,8 +46,10 @@ Line 1, characters 12-19:
                 ^^^^^^^
 Error: This type B.b_value = A.a_value should be an instance of type
          ('a : immediate)
-       B.b_value has an unknown layout,
-         which might not be a sublayout of immediate.
+       The layout of B.b_value is value, because
+         imported from another compilation unit.
+       But the layout of B.b_value must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type imm_arg.
        No .cmi file found containing A.a_value.
        Hint: Adding "a" to your dependencies might help.
 |}];;

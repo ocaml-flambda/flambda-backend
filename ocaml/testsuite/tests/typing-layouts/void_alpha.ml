@@ -2,6 +2,8 @@
    flags = "-extension layouts_alpha"
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
+
 (* CR layouts v5: when we add the ability to make actual void types, eliminate
    the uses of Obj.magic from this file *)
 
@@ -74,7 +76,11 @@ Lines 13-21, characters 8-3:
 21 |   }
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       void_rec has layout void, which is not a sublayout of value.
+       The layout of void_rec is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of void_rec must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -134,7 +140,11 @@ Lines 3-11, characters 9-3:
 11 |   }
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       void_rec has layout void, which is not a sublayout of value.
+       The layout of void_rec is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of void_rec must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -220,7 +230,11 @@ Lines 17-35, characters 10-27:
 35 |        b2 = (cons_r 1; b2)}
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -431,7 +445,11 @@ Line 5, characters 4-6:
         ^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -475,7 +493,11 @@ Lines 3-11, characters 26-24:
 11 |    b2 = (cons_r 2; {v})}
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -502,7 +524,11 @@ Lines 1-3, characters 26-32:
 3 |   (x, V b2.v, V b1.v, z, V a1.v)
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       void_rec has layout void, which is not a sublayout of value.
+       The layout of void_rec is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of void_rec must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -611,7 +637,11 @@ Lines 1-13, characters 31-24:
 13 |   | exception Ex3 _ -> 6
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -650,7 +680,11 @@ Lines 1-13, characters 31-24:
 13 |   | exception Ex3 _ -> 6
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -688,7 +722,11 @@ Lines 1-12, characters 31-24:
 12 |   | exception Ex3 _ -> 6
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -726,7 +764,11 @@ Lines 1-12, characters 31-24:
 12 |   | exception Ex3 _ -> 6
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -805,7 +847,11 @@ Lines 8-18, characters 21-29:
 18 |   cons_r uivrh.uivrh_x; uivrh
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -852,7 +898,11 @@ Lines 5-11, characters 10-7:
 11 |     end
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -918,7 +968,11 @@ Lines 3-11, characters 22-11:
 11 |   (y, V v')
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -960,7 +1014,11 @@ Lines 3-12, characters 22-23:
 12 |   (x, V v1, V v2, V v3)
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         to be value for the V1 safety check.
+
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after

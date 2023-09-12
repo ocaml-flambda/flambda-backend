@@ -2,6 +2,7 @@
    flags = "-extension layouts_alpha"
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 (* Tests for layouts in algebraic datatypes *)
 
@@ -49,7 +50,11 @@ Line 1, characters 15-31:
 1 | type t2_any1 = T2_any1 of t_any
                    ^^^^^^^^^^^^^^^^
 Error: Constructor argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_1, because
+         used as constructor field 0.
+
 |}];;
 
 type t2_any2 = T2_any2 of t_immediate * t_any
@@ -58,7 +63,11 @@ Line 1, characters 15-45:
 1 | type t2_any2 = T2_any2 of t_immediate * t_any
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Constructor argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_2, because
+         used as constructor field 1.
+
 |}];;
 
 type t2_any3 = T2_any3 of t_any * t_value
@@ -67,7 +76,11 @@ Line 1, characters 15-41:
 1 | type t2_any3 = T2_any3 of t_any * t_value
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Constructor argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_3, because
+         used as constructor field 0.
+
 |}];;
 
 type 'a t1_constraint = T1_con of 'a constraint 'a = 'b t1_constraint'
@@ -77,7 +90,10 @@ Line 2, characters 0-29:
 2 | and 'b t1_constraint' = t_any
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       'b t1_constraint' has layout any, which is not representable.
+       The layout of 'b t1_constraint' is any, because
+         of the annotation on the declaration of the type t_any.
+       But the layout of 'b t1_constraint' must be a sublayout of '_representable_layout_4, because
+         appears as an unannotated type parameter.
 |}]
 (* CR layouts errors: this error is blamed on the wrong piece *)
 
@@ -135,7 +151,11 @@ Line 1, characters 17-26:
 1 | type t4_any1 = { x : t_any }
                      ^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_5, because
+         used in the declaration of the record field "x/341".
+
 |}];;
 
 type t4_any2 = { x : t_immediate; y : t_any }
@@ -144,7 +164,11 @@ Line 1, characters 34-43:
 1 | type t4_any2 = { x : t_immediate; y : t_any }
                                       ^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_6, because
+         used in the declaration of the record field "y/344".
+
 |}];;
 
 type t4_any3 =  { x : t_any; y : t_value }
@@ -153,7 +177,11 @@ Line 1, characters 18-28:
 1 | type t4_any3 =  { x : t_any; y : t_value }
                       ^^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_7, because
+         used in the declaration of the record field "x/346".
+
 |}];;
 
 type t4_cany1 = C of { x : t_any }
@@ -162,7 +190,11 @@ Line 1, characters 23-32:
 1 | type t4_cany1 = C of { x : t_any }
                            ^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_8, because
+         used in the declaration of the record field "x/350".
+
 |}];;
 
 type t4_cany2 = C of { x : t_immediate; y : t_any }
@@ -171,7 +203,11 @@ Line 1, characters 40-49:
 1 | type t4_cany2 = C of { x : t_immediate; y : t_any }
                                             ^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_9, because
+         used in the declaration of the record field "y/354".
+
 |}];;
 
 type t4_cany3 = C of { x : t_any; y : t_value }
@@ -180,7 +216,11 @@ Line 1, characters 23-33:
 1 | type t4_cany3 = C of { x : t_any; y : t_value }
                            ^^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_10, because
+         used in the declaration of the record field "x/357".
+
 |}];;
 
 (*********************************************************)
@@ -211,7 +251,11 @@ Line 1, characters 11-24:
 1 | type t5 += T5_7 of t_any
                ^^^^^^^^^^^^^
 Error: Constructor argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_11, because
+         used as constructor field 0.
+
 |}];;
 
 type t5 += T5_8 of t_immediate * t_any
@@ -220,7 +264,11 @@ Line 1, characters 11-38:
 1 | type t5 += T5_8 of t_immediate * t_any
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Constructor argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_12, because
+         used as constructor field 1.
+
 |}];;
 
 type t5 += T5_9 of t_any * t_value
@@ -229,7 +277,11 @@ Line 1, characters 11-34:
 1 | type t5 += T5_9 of t_any * t_value
                ^^^^^^^^^^^^^^^^^^^^^^^
 Error: Constructor argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_13, because
+         used as constructor field 0.
+
 |}];;
 
 type t5 += T5_11 of { x : t_value }
@@ -260,7 +312,11 @@ Line 1, characters 39-48:
 1 | type t5 += T5_17 of { x : t_immediate; y : t_any }
                                            ^^^^^^^^^
 Error: Record element types must have a representable layout.
-        t_any has layout any, which is not representable.
+        The layout of t_any is any, because
+          of the annotation on the declaration of the type t_any.
+       But the layout of t_any must be a sublayout of '_representable_layout_14, because
+         used in the declaration of the record field "y/387".
+
 |}];;
 
 (**************************************************************************)
@@ -283,7 +339,10 @@ Line 8, characters 32-36:
                                     ^^^^
 Error: This expression has type float but an expression was expected of type
          ('a : immediate)
-       float has layout value, which is not a sublayout of immediate.
+       The layout of float is value, because
+         it equals the primitive value type float.
+       But the layout of float must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type s6.
 |}];;
 
 (*****************************************************)

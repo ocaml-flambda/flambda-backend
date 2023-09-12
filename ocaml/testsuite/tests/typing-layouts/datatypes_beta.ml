@@ -2,6 +2,7 @@
    flags = "-extension layouts_beta"
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 (* Tests for layouts in algebraic datatypes *)
 
@@ -79,7 +80,10 @@ Line 8, characters 32-36:
                                     ^^^^
 Error: This expression has type float but an expression was expected of type
          ('a : immediate)
-       float has layout value, which is not a sublayout of immediate.
+       The layout of float is value, because
+         it equals the primitive value type float.
+       But the layout of float must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type s6.
 |}];;
 
 (*****************************************************)

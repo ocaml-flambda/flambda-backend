@@ -1,6 +1,7 @@
 (* TEST
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 module type S = sig type t [@@immediate] end;;
 module F (M : S) : S = M;;
@@ -143,7 +144,11 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type string has layout value, which is not a sublayout of immediate.
+Error: The layout of Type string is value, because
+         it equals the primitive value type string.
+       But the layout of Type string must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (variant) *)
@@ -154,7 +159,11 @@ end;;
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type t has layout value, which is not a sublayout of immediate.
+Error: The layout of Type t is value, because
+         a boxed variant.
+       But the layout of Type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t/2.
+
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (record) *)
@@ -165,7 +174,11 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type t has layout value, which is not a sublayout of immediate.
+Error: The layout of Type t is value, because
+         a boxed record.
+       But the layout of Type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t/3.
+
 |}];;
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
@@ -177,7 +190,11 @@ end;;
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type t has layout value, which is not a sublayout of immediate.
+Error: The layout of Type t is value, because
+         the default layout for an abstract type.
+       But the layout of Type t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type s.
+
 |}];;
 
 (* Can't ascribe to an immediate type signature with a non-immediate type *)
@@ -198,7 +215,11 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         it equals the primitive value type string.
+       But the layout of the first must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}];;
 
 (* Same as above but with explicit signature *)
@@ -214,7 +235,11 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         it equals the primitive value type string.
+       But the layout of the first must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}];;
 
 (* Can't use a non-immediate type even if mutually recursive *)
@@ -226,7 +251,11 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type s has layout value, which is not a sublayout of immediate.
+Error: The layout of Type s is value, because
+         it equals the primitive value type string.
+       But the layout of Type s must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t/2.
+
 |}];;
 
 
