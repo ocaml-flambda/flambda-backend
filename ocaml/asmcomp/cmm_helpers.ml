@@ -947,10 +947,11 @@ let unique_arity_identifier (arity : Cmm.machtype list) =
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
 
+let result_layout_suffix result =
+  match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
+
 let send_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
+  let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   "caml_send" ^ unique_arity_identifier arity ^ res ^ suff
 
@@ -1018,9 +1019,7 @@ let make_checkbound dbg = function
 (* Record application and currying functions *)
 
 let apply_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
+  let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
@@ -1037,9 +1036,7 @@ let curry_function_sym function_kind arity result =
   | Lambda.Curried { nlocal } ->
     "caml_curry"
     ^ unique_arity_identifier arity
-    ^ (match result with
-      | [| Val |] -> ""
-      | _ -> "_R" ^ machtype_identifier result)
+    ^ result_layout_suffix result
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
   | Lambda.Tupled -> (
     if List.exists (function [| Val |] -> false | _ -> true) arity
@@ -1048,8 +1045,7 @@ let curry_function_sym function_kind arity result =
         "tuplify_function is currently unsupported if arity contains non-values";
     "caml_tuplify"
     ^ Int.to_string (List.length arity)
-    ^
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result)
+    ^ result_layout_suffix result)
 
 (* Big arrays *)
 
@@ -2256,10 +2252,7 @@ let tuplify_function arity return =
   in
   let fun_name =
     "caml_tuplify" ^ Int.to_string arity
-    ^
-    match return with
-    | [| Val |] -> ""
-    | _ -> "_R" ^ machtype_identifier return
+    ^ result_layout_suffix return
   in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
