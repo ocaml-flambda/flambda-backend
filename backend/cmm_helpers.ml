@@ -1283,7 +1283,7 @@ let curry_function_sym_name function_kind arity result =
     ^ unique_arity_identifier arity
     ^ result_layout_suffix result
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
-  | Lambda.Tupled -> (
+  | Lambda.Tupled ->
     if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
     then
       Misc.fatal_error
@@ -1295,7 +1295,7 @@ let curry_function_sym_name function_kind arity result =
       result;
     "caml_tuplify"
     ^ Int.to_string (List.length arity)
-    ^ result_layout_suffix result)
+    ^ result_layout_suffix result
 
 let curry_function_sym function_kind arity result =
   { sym_name = curry_function_sym_name function_kind arity result;
@@ -2743,8 +2743,7 @@ let tuplify_function arity return =
   in
   let fun_name =
     global_symbol
-      ("caml_tuplify" ^ Int.to_string arity
-      ^ result_layout_suffix return)
+      ("caml_tuplify" ^ Int.to_string arity ^ result_layout_suffix return)
   in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction

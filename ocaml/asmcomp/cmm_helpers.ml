@@ -1038,14 +1038,14 @@ let curry_function_sym function_kind arity result =
     ^ unique_arity_identifier arity
     ^ result_layout_suffix result
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
-  | Lambda.Tupled -> (
+  | Lambda.Tupled ->
     if List.exists (function [| Val |] -> false | _ -> true) arity
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
     "caml_tuplify"
     ^ Int.to_string (List.length arity)
-    ^ result_layout_suffix result)
+    ^ result_layout_suffix result
 
 (* Big arrays *)
 
