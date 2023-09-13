@@ -106,7 +106,6 @@ Error: This type float# should be an instance of type ('a : value)
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
            a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
            used as a function result
            an object
            an object field
@@ -123,7 +122,6 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
            a type argument defaulted to have layout value
            used as a function result
            an object
@@ -142,7 +140,6 @@ Error: This type float# should be an instance of type ('a : value)
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
            a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
            used as a function result
            an object
            an object field
@@ -159,7 +156,6 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
            a type argument defaulted to have layout value
            used as a function result
            an object
@@ -181,7 +177,6 @@ Error: This type float# should be an instance of type ('a : value)
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
            a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
            used as a function result
            an object
            an object field
@@ -198,7 +193,6 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
            a type argument defaulted to have layout value
            used as a function result
            an object
@@ -217,7 +211,6 @@ Error: This type float# should be an instance of type ('a : value)
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
            a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
            used as a function result
            an object
            an object field
@@ -234,7 +227,6 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
            a type argument defaulted to have layout value
            used as a function result
            an object

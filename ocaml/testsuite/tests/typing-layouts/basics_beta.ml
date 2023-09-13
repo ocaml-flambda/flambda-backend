@@ -325,9 +325,8 @@ Error: Signature mismatch:
        The type string is not compatible with the type string
        The layout of string is value, because
          it equals the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because all of the following:
-           of the annotation on 'a in the declaration of the type t
-           of the annotation on 'a in the declaration of the type t
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t.
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -366,9 +365,8 @@ Error: Signature mismatch:
        The type string t = string is not compatible with the type string
        The layout of string is value, because
          it equals the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because all of the following:
-           of the annotation on 'a in the declaration of the type t
-           of the annotation on 'a in the declaration of the type t
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t.
 |}]
 
 (**************************************************************)

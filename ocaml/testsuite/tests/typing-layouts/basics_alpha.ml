@@ -768,9 +768,8 @@ Error: Signature mismatch:
        The type string is not compatible with the type string
        The layout of string is value, because
          it equals the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because all of the following:
-           of the annotation on 'a in the declaration of the type t
-           of the annotation on 'a in the declaration of the type t
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t.
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -809,9 +808,8 @@ Error: Signature mismatch:
        The type string t = string is not compatible with the type string
        The layout of string is value, because
          it equals the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because all of the following:
-           of the annotation on 'a in the declaration of the type t
-           of the annotation on 'a in the declaration of the type t
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t.
 |}]
 
 (**************************************************************)
@@ -846,9 +844,8 @@ Error: This expression has type ('a : value)
        but an expression was expected of type t_void
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           an object field
-           an object field
+       But the layout of t_void must be a sublayout of value, because
+         an object field.
 |}];;
 
 module M11_3 = struct
@@ -1141,9 +1138,8 @@ Error: This expression has type ('a : value)
        but an expression was expected of type t_void
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
+       But the layout of t_void must be a sublayout of value, because
+         a type argument defaulted to have layout value.
 |}];;
 
 (* list *)
@@ -1185,9 +1181,8 @@ Error: This expression has type ('a : value)
        but an expression was expected of type t_void
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
+       But the layout of t_void must be a sublayout of value, because
+         a type argument defaulted to have layout value.
 |}];;
 
 (* array *)
@@ -1468,8 +1463,6 @@ Error: This expression has type t_void but an expression was expected of type
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because all of the following:
            a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
-           a type argument defaulted to have layout value
            bound by a `let`
 |}]
 
@@ -1722,9 +1715,8 @@ Error: This pattern matches values of type t_void
        but a pattern was expected which matches values of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           a tuple element
-           a tuple element
+       But the layout of t_void must be a sublayout of value, because
+         a tuple element.
 |}]
 
 let ( let* ) x f = ()
@@ -1745,9 +1737,8 @@ Error: This pattern matches values of type t_float64
        but a pattern was expected which matches values of type ('a : value)
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
-       But the layout of t_float64 must be a sublayout of value, because all of the following:
-           a tuple element
-           a tuple element
+       But the layout of t_float64 must be a sublayout of value, because
+         a tuple element.
 |}]
 
 
@@ -1773,11 +1764,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because all of the following:
-           used as a function argument
-           used as a function argument
            used as an argument in an external declaration
-           used as an argument in an external declaration
-           used as a function argument
            used as a function argument
 |}]
 
@@ -1807,7 +1794,6 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because all of the following:
-           used as a function argument
            used as a function result
            used as a function argument
 |}]
