@@ -1275,6 +1275,9 @@ let apply_function_sym arity result mode =
   Compilenv.need_apply_fun arity result mode;
   global_symbol (apply_function_name arity result mode)
 
+let tuplify_function_name arity result =
+  "caml_tuplify" ^ Int.to_string arity ^ result_layout_suffix result
+
 let curry_function_sym_name function_kind arity result =
   match function_kind with
   | Lambda.Curried { nlocal } ->
@@ -1293,9 +1296,7 @@ let curry_function_sym_name function_kind arity result =
     Compilenv.need_curry_fun function_kind
       (List.map (fun _ -> [| Val |]) arity)
       result;
-    "caml_tuplify"
-    ^ Int.to_string (List.length arity)
-    ^ result_layout_suffix result
+    tuplify_function_name (List.length arity) result
 
 let curry_function_sym function_kind arity result =
   { sym_name = curry_function_sym_name function_kind arity result;
@@ -2741,10 +2742,7 @@ let tuplify_function arity return =
       get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
       :: access_components (i + 1)
   in
-  let fun_name =
-    global_symbol
-      ("caml_tuplify" ^ Int.to_string arity ^ result_layout_suffix return)
-  in
+  let fun_name = global_symbol (tuplify_function_name arity return) in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;

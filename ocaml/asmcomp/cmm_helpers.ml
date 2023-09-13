@@ -1030,6 +1030,9 @@ let apply_function_sym arity result mode =
   Compilenv.need_apply_fun arity result mode;
   apply_function_name arity result mode
 
+let tuplify_function_name arity result =
+  "caml_tuplify" ^ Int.to_string arity ^ result_layout_suffix result
+
 let curry_function_sym function_kind arity result =
   Compilenv.need_curry_fun function_kind arity result;
   match function_kind with
@@ -1043,9 +1046,7 @@ let curry_function_sym function_kind arity result =
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
-    "caml_tuplify"
-    ^ Int.to_string (List.length arity)
-    ^ result_layout_suffix result
+    tuplify_function_name (List.length arity) result
 
 (* Big arrays *)
 
@@ -2250,10 +2251,7 @@ let tuplify_function arity return =
     else get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
          :: access_components(i+1)
   in
-  let fun_name =
-    "caml_tuplify" ^ Int.to_string arity
-    ^ result_layout_suffix return
-  in
+  let fun_name = tuplify_function_name arity return in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
    {fun_name;
