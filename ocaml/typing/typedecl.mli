@@ -121,8 +121,16 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
+<<<<<<< HEAD
   | Non_value_in_sig of Jkind.Violation.t * string
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+  | Non_value_in_sig of Jkind.Violation.t * string
+  | Float64_in_block of type_expr * jkind_sort_loc
+=======
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
+  | Float64_in_block of type_expr * jkind_sort_loc
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string

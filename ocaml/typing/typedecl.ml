@@ -80,8 +80,16 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
+<<<<<<< HEAD
   | Non_value_in_sig of Jkind.Violation.t * string
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+  | Non_value_in_sig of Jkind.Violation.t * string
+  | Float64_in_block of type_expr * jkind_sort_loc
+=======
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
+  | Float64_in_block of type_expr * jkind_sort_loc
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -1220,6 +1228,20 @@ let update_decl_jkind env dpath decl =
     end;
   new_decl
 
+let update_decls_jkind_reason decls =
+  List.map
+    (fun (id, decl) ->
+       let reason = Jkind.(Generalized (Some id, decl.type_loc)) in
+       let update_generalized ty = Ctype.update_generalized_ty_jkind_reason ty reason in
+       List.iter update_generalized decl.type_params;
+       Btype.iter_type_expr_kind update_generalized decl.type_kind;
+       Option.iter update_generalized decl.type_manifest;
+       let new_decl = {decl with type_jkind =
+                                   Jkind.(update_reason decl.type_jkind reason)} in
+       (id, new_decl)
+    )
+    decls
+
 let update_decls_jkind env decls =
   List.map
     (fun (id, decl) -> (id, update_decl_jkind env (Pident id) decl))
@@ -1778,6 +1800,7 @@ let transl_type_decl env rec_flag sdecl_list =
       |> Typedecl_variance.update_decls env sdecl_list
       |> Typedecl_separability.update_decls env
       |> update_decls_jkind new_env
+      |> update_decls_jkind_reason
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))
@@ -2273,7 +2296,7 @@ let transl_value_decl env loc valdecl =
                 (Jkind.value ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
-    raise(Error(cty.ctyp_loc, Non_value_in_sig(err, valdecl.pval_name.txt)))
+    raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
   end;
   let ty = cty.ctyp_type in
   let v =
@@ -2318,6 +2341,8 @@ let transl_value_decl env loc valdecl =
     Env.enter_value valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
+  let reason = Jkind.Generalized (Some id, loc) in
+  Ctype.update_generalized_ty_jkind_reason ty reason;
   let desc =
     {
      val_id = id;
@@ -2900,10 +2925,10 @@ let report_error ppf = function
   | Jkind_mismatch_of_path (dpath,v) ->
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
-    let offender ppf = fprintf ppf "Type %s" (Ident.name (Path.head dpath)) in
+    let offender ppf = fprintf ppf "type %s" (Ident.name (Path.head dpath)) in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_mismatch_of_type (ty,v) ->
-    let offender ppf = fprintf ppf "Type %a" Printtyp.type_expr ty in
+    let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_sort {kloc; typ; err} ->
     let s =
@@ -2913,15 +2938,24 @@ let report_error ppf = function
       | Unboxed_record -> "Unboxed record element"
       | External -> "External"
     in
-    fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
+    fprintf ppf "@[%s types must have a representable layout.@ %a@]" s
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
-  | Non_value_in_sig (err, val_name) ->
+  | Non_value_in_sig (err, val_name, ty) ->
+    let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
+<<<<<<< HEAD
       val_name (Jkind.Violation.report_with_name ~name:val_name) err
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+      val_name (Jkind.Violation.report_with_name ~name:val_name) err
+  | Float64_in_block (typ, lloc) ->
+=======
+      val_name (Jkind.Violation.report_with_offender ~offender) err
+  | Float64_in_block (typ, lloc) ->
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))
     let struct_desc =
       match lloc with
       | Cstr_tuple -> "Variants"

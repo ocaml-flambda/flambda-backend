@@ -2,7 +2,7 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_jkind = Jkind.value ~why:Type_argument
+let dummy_jkind = Jkind.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.legacy
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 

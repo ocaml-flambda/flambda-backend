@@ -1633,6 +1633,7 @@ Error: This type signature for foo33 is not a value type.
 (****************************************************)
 (* Test 34: Layout clash in polymorphic record type *)
 
+<<<<<<< HEAD
 type ('a : immediate) t2_imm
 
 type s = { f : ('a : value) . 'a -> 'a u }
@@ -2101,3 +2102,22 @@ let rec f : ('a : any). unit -> 'a -> 'a = fun () -> f ()
 [%%expect{|
 val f : ('a : any). unit -> 'a -> 'a = <fun>
 |}]
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+(* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
+   type parameter.  Bring back here when we have one enabled by default. *)
+=======
+(* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
+   type parameter.  Bring back here when we have one enabled by default. *)
+
+(***************************************************)
+(* Test 35: check bad layout error in filter_arrow *)
+
+(* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
+   type parameter.  Bring back here when we have one enabled by default. *)
+
+(****************************************************)
+(* Test 36: unannotated type parameter defaults to layout value *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))

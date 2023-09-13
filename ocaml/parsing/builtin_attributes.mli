@@ -192,6 +192,7 @@ val has_once : Parsetree.attributes -> (bool, unit) result
     [unique_], and [once_] mode annotation attributes from let-bindings to both
     the let-bound expression and its pattern.
 *)
+<<<<<<< HEAD
 val mode_annotation_attributes_filter : Attributes_filter.t
 
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
@@ -208,3 +209,23 @@ val jkind_attribute_of_string : string -> jkind_attribute option
    as the attribute mechanism predates layouts.
 *)
 val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
+   turn on layouts by default). *)
+val jkind : legacy_immediate:bool -> Parsetree.attributes ->
+  (Jane_asttypes.jkind_annotation option,
+   Jane_asttypes.jkind_annotation) result
+=======
+(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
+   turn on layouts by default). *)
+val jkind : legacy_immediate:bool -> Parsetree.attributes ->
+  (Jane_asttypes.jkind_annotation option,
+   Jane_asttypes.jkind_annotation) result
+
+(** Finds the first "error_message" attribute, marks it as used, and returns its
+    string payload. Returns [None] if no such attribute is present.
+
+    There should be at most one "error_message" attribute, additional ones are sliently
+    ignored. **)
+val error_message_attr : Parsetree.attributes -> string option
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))

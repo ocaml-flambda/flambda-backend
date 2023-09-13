@@ -722,6 +722,7 @@ File "w53.ml", line 356, characters 17-22:
 356 |   let f2 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
                        ^^^^^
 Warning 53 [misplaced-attribute]: the "boxed" attribute cannot appear in this context
+<<<<<<< HEAD
 
 File "w53.ml", line 360, characters 21-28:
 360 |   type 'a t1 = 'a [@@builtin] (* rejected *)
@@ -922,3 +923,54 @@ File "w53.ml", line 427, characters 58-81:
 427 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
                                                                 ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+=======
+File "w53.ml", line 360, characters 21-34:
+360 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
+                           ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 361, characters 19-32:
+361 |   type s1 = Foo1 [@error_message ""] (* rejected *)
+                         ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 362, characters 17-30:
+362 |   val x : int [@@error_message ""] (* rejected *)
+                       ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 364, characters 22-35:
+364 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+                            ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 364, characters 51-64:
+364 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+                                                         ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 366, characters 39-52:
+366 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+                                             ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 370, characters 21-34:
+370 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
+                           ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 371, characters 19-32:
+371 |   type s1 = Foo1 [@error_message ""] (* rejected *)
+                         ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 372, characters 22-35:
+372 |   let x : int = 42 [@@error_message ""] (* rejected *)
+                            ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 374, characters 22-35:
+374 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+                            ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 374, characters 51-64:
+374 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+                                                         ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+File "w53.ml", line 376, characters 39-52:
+376 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+                                             ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))

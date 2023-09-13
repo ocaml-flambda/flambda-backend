@@ -102,10 +102,15 @@ let builtin_attrs =
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
   ; "unaliasable"; "ocaml.unaliasable"
+<<<<<<< HEAD
   ; "builtin"; "ocaml.builtin"
   ; "no_effects"; "ocaml.no_effects"
   ; "no_coeffects"; "ocaml.no_coeffects"
   ; "only_generative_effects"; "ocaml.only_generative_effects";
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+=======
+  ; "error_message"; "ocaml.error_message"
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
@@ -696,3 +701,18 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
+
+let error_message_attr l =
+  let inner x =
+    match x.attr_name.txt with
+    | "ocaml.error_message"|"error_message" ->
+      begin match string_of_payload x.attr_payload with
+      | Some _ as r ->
+        mark_used x.attr_name;
+        r
+      | None -> warn_payload x.attr_loc x.attr_name.txt
+                  "error_message attribute expects a string argument";
+        None
+      end
+    | _ -> None in
+  List.find_map inner l

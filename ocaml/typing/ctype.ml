@@ -2056,13 +2056,13 @@ let rec constrain_type_jkind ~fixed env ty jkind fuel =
       match Jkind.sub jkind_bound jkind with
       | Ok () as ok -> ok
       | Error _ as err when fuel < 0 -> err
-      | Error violation ->
+      | Error _ ->
         begin match unbox_once env ty with
         | Final_result ty -> constrain_unboxed ty
         | Stepped ty ->
             constrain_type_jkind ~fixed env ty jkind (fuel - 1)
         | Missing missing_cmi_for ->
-          Error (Jkind.Violation.record_missing_cmi ~missing_cmi_for violation)
+          Error Jkind.(Violation.of_ ~missing_cmi:missing_cmi_for (Not_a_subjkind (update_reason jkind_bound (Missing_cmi missing_cmi_for), jkind)))
         end
     end
   | Tpoly (ty, _) -> constrain_type_jkind ~fixed env ty jkind fuel
@@ -2138,6 +2138,25 @@ let unification_jkind_check env ty jkind =
   | Perform_checks -> constrain_type_jkind_exn env Unify ty jkind
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
+
+let update_generalized_ty_jkind_reason ty reason =
+  let rec inner ty =
+    let level = get_level ty in
+    if level = generic_level && try_mark_node ty then begin
+      begin match get_desc ty with
+      | Tvar ({ jkind; _ } as r) ->
+        let new_jkind = Jkind.(update_reason jkind reason) in
+        set_type_desc ty (Tvar {r with jkind = new_jkind})
+      | Tunivar ({ jkind; _ } as r) ->
+        let new_jkind = Jkind.(update_reason jkind reason) in
+        set_type_desc ty (Tunivar {r with jkind = new_jkind})
+      | _ -> ()
+      end;
+      iter_type_expr inner ty
+    end
+  in
+  inner ty;
+  unmark_type ty
 
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
@@ -3866,7 +3885,7 @@ let filter_arrow env t l ~force_tpoly =
               (* CR layouts v5: Change the Jkind.value when option can
                  hold non-values. *)
               (Tconstr(Predef.path_option,
-                       [newvar2 level (Jkind.value ~why:Type_argument)],
+                       [newvar2 level Predef.option_argument_jkind],
                        ref Mnil))
           else
             newvar2 level k_arg

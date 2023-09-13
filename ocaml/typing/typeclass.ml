@@ -1506,14 +1506,14 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Jkind.value ~why:Type_argument))
+  Predef.type_option (Btype.newgenvar Predef.option_argument_jkind)
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
@@ -1532,7 +1532,7 @@ let rec approx_description ct =
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1546,8 +1546,10 @@ let rec approx_description ct =
 
 let temp_abbrev loc arity uid =
   let params = ref [] in
-  for _i = 1 to arity do
-    params := Ctype.newvar (Jkind.value ~why:Type_argument) :: !params
+  for i = 1 to arity do
+    params := Ctype.newvar (Jkind.value ~why:(
+      Type_argument {parent_path = Path.Pident id; position = i; arity})
+    ) :: !params
   done;
   let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
   let ty_td =
@@ -1653,6 +1655,7 @@ let class_infos define_class kind
       in
       let params = List.map (fun (cty, _) -> cty.ctyp_type) ci_params in
 
+<<<<<<< HEAD
       (* Allow self coercions (only for class declarations) *)
       let coercion_locs = ref [] in
 
@@ -1675,6 +1678,39 @@ let class_infos define_class kind
       List.iter (Ctype.limited_generalize sign.csig_self_row) params;
       Ctype.limited_generalize_class_type sign.csig_self_row typ;
     end
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+  (* Introduce class parameters *)
+  let ci_params =
+    let make_param (sty, v) =
+      try
+        let param = transl_type_param env (Pident ty_id) sty in
+        (* CR layouts: we require class type parameters to be values, but
+           we should lift this restriction. Doing so causes bad error messages
+           today, so we wait for tomorrow. *)
+        Ctype.unify env param.ctyp_type
+          (Ctype.newvar (Jkind.value ~why:Class_argument));
+        (param, v)
+      with Already_bound ->
+        raise(Error(sty.ptyp_loc, env, Repeated_parameter))
+    in
+      List.map make_param cl.pci_params
+=======
+  (* Introduce class parameters *)
+  let ci_params =
+    let make_param (sty, v) =
+      try
+        let param = transl_type_param env (Pident ty_id) sty in
+        (* CR layouts: we require class type parameters to be values, but
+           we should lift this restriction. Doing so causes bad error messages
+           today, so we wait for tomorrow. *)
+        Ctype.unify env param.ctyp_type
+          (Ctype.newvar (Jkind.value ~why:Class_type_argument));
+        (param, v)
+      with Already_bound ->
+        raise(Error(sty.ptyp_loc, env, Repeated_parameter))
+    in
+      List.map make_param cl.pci_params
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))
   in
   (* Check the abbreviation for the object type *)
   let (obj_params', obj_type) = Ctype.instance_class params typ in

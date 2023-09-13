@@ -185,7 +185,7 @@ type concrete_jkind_reason =
   | Match
   | Constructor_declaration of int
   | Label_declaration of Ident.t
-  | Unannotated_type_parameter
+  | Unannotated_type_parameter of Path.t
   | Record_projection
   | Record_assignment
   | Let_binding
@@ -193,6 +193,7 @@ type concrete_jkind_reason =
   | Function_result
   | Structure_item_expression
   | V1_safety_check
+    (* CR layouts: Remove V1_safety_check when it's no longer used *)
   | External_argument
   | External_result
   | Statement
@@ -202,12 +203,12 @@ type concrete_jkind_reason =
 type annotation_context =
   | Type_declaration of Path.t
   | Type_parameter of Path.t * string option
-  | With_constraint of string
   | Newtype_declaration of string
   | Constructor_type_parameter of Path.t * string
   | Univar of string
   | Type_variable of string
   | Type_wildcard of Location.t
+  | With_error_message of string * annotation_context
 
 type value_creation_reason =
   | Class_let_binding
@@ -222,7 +223,8 @@ type value_creation_reason =
   | Boxed_variant
   | Extensible_variant
   | Primitive of Ident.t
-  | Type_argument (* CR layouts: Should this take a Path.t? *)
+  | Type_argument of {parent_path: Path.t; position: int; arity: int}
+  (* [position] is 1-indexed *)
   | Tuple
   | Row_variable
   | Polymorphic_variant
@@ -238,7 +240,8 @@ type value_creation_reason =
   | Existential_type_variable
   | Array_element
   | Lazy_expression
-  | Class_argument
+  | Class_type_argument
+  | Class_term_argument
   | Structure_element
   | Debug_printer_argument
   | V1_safety_check
@@ -252,14 +255,24 @@ type immediate_creation_reason =
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
   | Gc_ignorable_check
-  | Value_kind
+  (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
 type immediate64_creation_reason =
   | Local_mode_cross_check
+  (* CR layouts v2.8: Remove Local_mode_cross_check after the check uses modal kinds *)
   | Gc_ignorable_check
+  (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
   | Separability_check
 
+<<<<<<< HEAD
 type void_creation_reason = V1_safety_check
+||||||| parent of 114ab8b0 (Enable layout histories (#1823))
+type void_creation_reason =
+  | V1_safety_check
+=======
+(* CR layouts v5: make new void_creation_reasons *)
+type void_creation_reason = |
+>>>>>>> 114ab8b0 (Enable layout histories (#1823))
 
 type any_creation_reason =
   | Missing_cmi of Path.t
@@ -283,6 +296,7 @@ type bits64_creation_reason = Primitive of Ident.t
 
 type creation_reason =
   | Annotated of annotation_context * Location.t
+  | Missing_cmi of Path.t
   | Value_creation of value_creation_reason
   | Immediate_creation of immediate_creation_reason
   | Immediate64_creation of immediate64_creation_reason
@@ -294,6 +308,9 @@ type creation_reason =
   | Bits64_creation of bits64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
+  | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
+  (* [position] is 1-indexed *)
+  | Generalized of Ident.t option * Location.t
 
 type interact_reason =
   | Gadt_equation of Path.t
@@ -308,10 +325,9 @@ module Violation : sig
 
   type t
 
-  val of_ : violation -> t
+  (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-  (** Mark a [t] as having arisen from a missing cmi *)
-  val record_missing_cmi : missing_cmi_for:Path.t -> t -> t
+  val of_ : ?missing_cmi:Path.t -> violation -> t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
@@ -503,6 +519,12 @@ val format_history :
 (** Provides the [Printtyp.path] formatter back up the dependency chain to
     this module. *)
 val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
+
+(******************************)
+(* history *)
+
+val has_imported_history : t -> bool
+val update_reason : t -> creation_reason -> t
 
 (******************************)
 (* relations *)
