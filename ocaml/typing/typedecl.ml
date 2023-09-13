@@ -1019,7 +1019,9 @@ let check_representable ~why ~allow_float env loc lloc typ =
          sort - we just want the [const]. *)
       | Void | Value -> ()
       | Float64 when allow_float -> ()
-      | Float64 -> raise (Error (loc, Float64_in_block typ))
+      (* CR layouts v2.5: If we want to hold back [float#] records from the
+         maturity progression of [float64], we can add a check here. *)
+      | Float64 -> raise (Error (loc, Float64_in_block (typ, lloc)))
     end
   | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
 
@@ -1069,10 +1071,6 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
     layouts.(0) <- Layout.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
-(* For tracking what types appear in record blocks. *)
-type has_values = Has_values | No_values
-type has_float64s = Has_float64s | No_float64s
-
 (* This function updates layout stored in kinds with more accurate layouts.
    It is called after the circularity checks and the delayed layout checks
    have happened, so we can fully compute layouts of types.
@@ -1083,6 +1081,12 @@ type has_float64s = Has_float64s | No_float64s
    See Note [Default layouts in transl_declaration].
 *)
 let update_decl_layout env dpath decl =
+  let open struct
+    (* For tracking what types appear in record blocks. *)
+    type has_values = Has_values | No_values
+    type has_float64s = Has_float64s | No_float64s
+  end in
+
   (* returns updated labels, updated rep, and updated layout *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
