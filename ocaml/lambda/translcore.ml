@@ -54,17 +54,17 @@ let sort_must_not_be_void loc ty sort =
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 
 (* This is `Lambda.must_be_value` for the special case of record fields, where
-   we allow the unboxed float layout and pretend it's a normal `Pvalue
-   Pfloatval`.  The compiler already has legacy support for that using
-   (incorrect) value kind `Pfloatval` for their fields.
-
-   CR layouts v5: eliminate this hack.
+   we allow the unboxed float layout.  Its result is never actually used in that
+   case - it would be fine to return garbage.
 *)
 let record_field_kind l =
   match l with
   | Punboxed_float -> Pfloatval
   | _ -> must_be_value l
 
+(* CR layouts v5: This function is only used for sanity checking the
+   typechecker.  When we allow arbitrary layouts in structures, it will have
+   outlived its usefulness and should be deleted. *)
 let check_record_field_sort loc sort repres =
   match Sort.get_default_value sort, repres with
   | Value, _ -> ()

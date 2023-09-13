@@ -38,7 +38,7 @@ type locality_mode = private
   | Alloc_heap
   | Alloc_local
 
-(** For now we don't have strong update, and thus uniqueness is irrelavent in
+(** For now we don't have strong update, and thus uniqueness is irrelevent in
     middle and back-end; in the future this will be extended with uniqueness *)
 type alloc_mode = locality_mode
 
@@ -81,11 +81,15 @@ type region_close =
   | Rc_nontail        (* do not close region, must not TCO *)
   | Rc_close_at_apply (* close region and tail call *)
 
+(* CR layouts v5: When we add more blocks of non-scannable values, consider
+   whether some of the primitives specific to ufloat records
+   ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
+   generalized, rather than just adding new primitives. *)
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-    (* Globals *)
+  (* Globals *)
   | Pgetglobal of Compilation_unit.t
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t

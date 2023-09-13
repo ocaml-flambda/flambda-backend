@@ -785,6 +785,9 @@ type label_description =
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+(* CR layouts v5: once we allow [any] in record fields, change [lbl_layout] to
+   be a [sort option].  This will allow a fast path for representability checks
+   at record construction, and currently only the sort is used anyway. *)
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.

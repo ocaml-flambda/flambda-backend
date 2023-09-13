@@ -1395,6 +1395,12 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
+(* [primitive_may_allocate] treats projecting an unboxed float from a float
+   record as non-allocating, which is a lie for the bytecode backend (where
+   unboxed floats are boxed).  But it's only used for stack allocation, which
+   doesn't happen in bytecode.  If that changes, or if we want to use this for
+   another purpose in bytecode, it will need to be revised.
+*)
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray

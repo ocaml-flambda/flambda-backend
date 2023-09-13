@@ -114,6 +114,9 @@ let layout_must_be_value loc layout =
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
+(* CR layouts v5: This function is only used for sanity checking the
+   typechecker.  When we allow arbitrary layouts in structures, it will have
+   outlived its usefulness and should be deleted. *)
 let check_record_field_layout lbl =
   match Layout.(get_default_value lbl.lbl_layout), lbl.lbl_repres with
   | (Value | Immediate | Immediate64), _ -> ()

@@ -1030,8 +1030,8 @@ let check_representable ~why ~allow_float env loc lloc typ =
 (* [update_label_layouts] additionally returns whether all the layouts
    were void *)
 let update_label_layouts env loc lbls named =
-  (* "named" distinguishes between top-level records (for which we need to
-     update the kind with the layouts) and inlined records *)
+  (* [named] is [Some layouts] for top-level records (we will update the
+     layouts) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
      void.  just needs a bit of refactoring in translcore *)
   let update =

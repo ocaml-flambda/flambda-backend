@@ -217,4 +217,22 @@ let result_layout (p : primitive) =
   | Pccall {prim_native_repr_res = (_, repr_res); _} ->
     Lambda.layout_of_native_repr repr_res
   | Pufloatfield _ -> Lambda.Punboxed_float
-  | _ -> Lambda.layout_any_value
+  | Pread_symbol _ | Pmakeblock _ | Pmakeufloatblock _ | Pfield _
+  | Pfield_computed | Psetfield _ | Psetfield_computed _ | Pfloatfield _
+  | Psetfloatfield _ | Psetufloatfield _ | Pduprecord _ | Praise _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
+  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+  | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
+  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+  | Parrayrefs _ | Parraysets _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
+  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
+  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
+  | Pasrbint _ | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+  | Pstring_load _ | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _
+  | Pbigstring_set _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque
+  | Pprobe_is_enabled _ | Pbox_float _ | Pbox_int _ | Pget_header _
+    -> Lambda.layout_any_value
