@@ -1,0 +1,5 @@
+type t_void : void
+File "_none_", line 1:
+Error: Non-value sort void detected in [translmod] in type t_void:
+       Please report this error to the Jane Street compilers team.
+

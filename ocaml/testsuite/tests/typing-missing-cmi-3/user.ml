@@ -116,3 +116,8 @@ let g : bool Middle.is_int -> 'a = function _ -> .
 val f : 'a Middle.is_int -> 'a -> int = <fun>
 val g : bool Middle.is_int -> 'a = <fun>
 |}]
+
+let f (x: Middle.u) = x
+[%%expect {|
+val f : Middle.u -> Middle.u = <fun>
+|}]

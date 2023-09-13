@@ -67,7 +67,10 @@ Line 1, characters 34-36:
                                       ^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type ('b : float64)
-       'a has layout float64, which does not overlap with value.
+       The layout of 'a is float64, because
+         of the definition of t at line 2, characters 2-23.
+       But the layout of 'a must overlap with value, because
+         the type argument of list has layout value.
 |}];;
 
 module type S1f'' = S1f with type s = t_float64;;
@@ -76,7 +79,10 @@ module type S1f'' = S1f with type s = t_float64;;
 Line 1, characters 29-47:
 1 | module type S1f'' = S1f with type s = t_float64;;
                                  ^^^^^^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64, which is not a sublayout of value.
+Error: The layout of type t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of type t_float64 must be a sublayout of value, because
+         of the definition of s at line 3, characters 2-8.
 |}]
 
 module type S1_2 = sig
@@ -179,7 +185,10 @@ Line 5, characters 25-30:
                              ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-25.
 |}]
 
 (******************************************************************)
@@ -253,7 +262,10 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type Bar3.t has layout value, which is not a sublayout of immediate.
+Error: The layout of type Bar3.t is value, because
+         of the annotation on the declaration of the type t.
+       But the layout of type Bar3.t must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-29.
 |}];;
 
 module rec Foo3 : sig
@@ -288,7 +300,10 @@ Line 2, characters 27-29:
 2 |   type 'a t = 'a Bar3f.t * 'a list
                                ^^
 Error: This type ('a : float64) should be an instance of type ('b : value)
-       'a has layout float64, which does not overlap with value.
+       The layout of 'a is float64, because
+         of the annotation on 'a in the declaration of the type t.
+       But the layout of 'a must overlap with value, because
+         the type argument of list has layout value.
 |}];;
 
 type t3f : float64
@@ -313,7 +328,10 @@ Line 12, characters 11-18:
 12 |   type s = Foo3f.t t
                 ^^^^^^^
 Error: This type Foo3f.t should be an instance of type ('a : float64)
-       Foo3f.t has layout value, which is not a sublayout of float64.
+       The layout of Foo3f.t is value, because
+         an abstract type has the value layout by default.
+       But the layout of Foo3f.t must be a sublayout of float64, because
+         of the definition of t at line 10, characters 2-23.
 |}];;
 
 (* Previous example works with annotation *)
@@ -365,7 +383,10 @@ Line 2, characters 12-16:
 2 | type t4f' = M4.s t4_float64;;
                 ^^^^
 Error: This type M4.s should be an instance of type ('a : float64)
-       M4.s has layout value, which is not a sublayout of float64.
+       The layout of M4.s is value, because
+         of the definition of s at line 2, characters 2-21.
+       But the layout of M4.s must be a sublayout of float64, because
+         of the definition of t4_float64 at line 1, characters 0-30.
 |}]
 
 module F4'(X : sig type t : immediate end) = struct
@@ -392,7 +413,10 @@ Line 1, characters 10-15:
 1 | type t4 = M4'.s t4_float64;;
               ^^^^^
 Error: This type M4'.s should be an instance of type ('a : float64)
-       M4'.s has layout immediate, which is not a sublayout of float64.
+       The layout of M4'.s is immediate, because
+         of the definition of s at line 2, characters 2-45.
+       But the layout of M4'.s must be a sublayout of float64, because
+         of the definition of t4_float64 at line 1, characters 0-30.
 |}];;
 
 
@@ -423,7 +447,10 @@ Line 14, characters 17-23:
                       ^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of f at line 3, characters 2-20.
 |}]
 
 module type S3_2 = sig
@@ -436,7 +463,10 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: Type string has layout value, which is not a sublayout of immediate.
+Error: The layout of type string is value, because
+         it is the primitive value type string.
+       But the layout of type string must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}]
 
 (*****************************************)
@@ -472,7 +502,10 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : float64
-       the first has layout value, which is not a sublayout of float64.
+       The layout of the first is value, because
+         it's a type declaration in a first-class module.
+       But the layout of the first must be a sublayout of float64, because
+         of the definition of t at line 2, characters 2-18.
 |}];;
 
 module type S6_3 = sig
@@ -488,7 +521,10 @@ Line 6, characters 33-34:
 6 |   val m : (module S6_3 with type t = t_float64)
                                      ^
 Error: Signature package constraint types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's a type declaration in a first-class module.
 |}];;
 
 module type S6_5 = sig
@@ -509,7 +545,10 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         it's a type declaration in a first-class module.
+       But the layout of the first must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
 module type S6_6' = sig
@@ -526,7 +565,10 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         it's a type declaration in a first-class module.
+       But the layout of the first must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
 (* CR layouts: S6_6'' should be fixed *)
@@ -544,7 +586,10 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         it's a type declaration in a first-class module.
+       But the layout of the first must be a sublayout of immediate, because
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
 (*****************************************)
@@ -570,7 +615,10 @@ Line 1, characters 28-33:
 1 | module type S = sig val x : t_any end
                                 ^^^^^
 Error: This type signature for x is not a value type.
-       x has layout any, which is not a sublayout of value.
+       The layout of type t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of type t_any must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}]
 
 (****************************************************************)
@@ -663,6 +711,9 @@ Line 4, characters 29-39:
 4 |   let print_one () = X.print (X.one ())
                                  ^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       X.t has layout any, which is not representable.
+       The layout of X.t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of X.t must be representable, because
+         it's the type of a function argument.
 |}]
 

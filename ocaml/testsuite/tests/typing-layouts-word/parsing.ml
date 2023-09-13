@@ -43,7 +43,10 @@ Line 1, characters 9-19:
 1 | type t = nativeint# list;;
              ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let f (_ : nativeint# list) = ();;
@@ -52,7 +55,10 @@ Line 1, characters 11-21:
 1 | let f (_ : nativeint# list) = ();;
                ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C of nativeint# list;;
@@ -61,7 +67,10 @@ Line 1, characters 14-24:
 1 | type t = C of nativeint# list;;
                   ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C : nativeint# list -> t;;
@@ -70,7 +79,10 @@ Line 1, characters 13-23:
 1 | type t = C : nativeint# list -> t;;
                  ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* Syntax: nativeint#c
@@ -89,7 +101,10 @@ Line 1, characters 9-19:
 1 | type t = nativeint#c;;
              ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : nativeint#c) = ();;
@@ -98,7 +113,10 @@ Line 1, characters 11-21:
 1 | let f (_ : nativeint#c) = ();;
                ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of nativeint#c;;
@@ -107,7 +125,10 @@ Line 1, characters 14-24:
 1 | type t = C of nativeint#c;;
                   ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : nativeint#c -> t;;
@@ -116,7 +137,10 @@ Line 1, characters 13-23:
 1 | type t = C : nativeint#c -> t;;
                  ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: nativeint# c
@@ -128,7 +152,10 @@ Line 1, characters 9-19:
 1 | type t = nativeint# c;;
              ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : nativeint# c) = ();;
@@ -137,7 +164,10 @@ Line 1, characters 11-21:
 1 | let f (_ : nativeint# c) = ();;
                ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of nativeint# c;;
@@ -146,7 +176,10 @@ Line 1, characters 14-24:
 1 | type t = C of nativeint# c;;
                   ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : nativeint# c -> t;;
@@ -155,7 +188,10 @@ Line 1, characters 13-23:
 1 | type t = C : nativeint# c -> t;;
                  ^^^^^^^^^^
 Error: This type nativeint# should be an instance of type ('a : value)
-       nativeint# has layout word, which is not a sublayout of value.
+       The layout of nativeint# is word, because
+         it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: nativeint #c
