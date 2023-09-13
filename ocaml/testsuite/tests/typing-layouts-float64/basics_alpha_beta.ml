@@ -206,7 +206,7 @@ Line 1, characters 14-27:
 1 | type t5_3 = { x : t_float64 } [@@unboxed];;
                   ^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Unboxed records may not yet contain types of this layout.
 |}];;
 
 type t5_4 = A of t_float64;;
@@ -215,7 +215,7 @@ Line 1, characters 12-26:
 1 | type t5_4 = A of t_float64;;
                 ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t5_5 = A of int * t_float64;;
@@ -224,7 +224,7 @@ Line 1, characters 12-32:
 1 | type t5_5 = A of int * t_float64;;
                 ^^^^^^^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t5_6 = A of t_float64 [@@unboxed];;
@@ -233,7 +233,7 @@ Line 1, characters 12-26:
 1 | type t5_6 = A of t_float64 [@@unboxed];;
                 ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type ('a : float64) t5_7 = A of int
@@ -244,7 +244,7 @@ Line 2, characters 27-34:
 2 | type ('a : float64) t5_8 = A of 'a;;
                                ^^^^^^^
 Error: Type 'a has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}]
 
 type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
@@ -518,7 +518,7 @@ Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}]
 
 type t11_1 += B of float#;;
@@ -527,7 +527,7 @@ Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
 Error: Type float# has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -543,7 +543,7 @@ Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
 Error: Type 'a has layout float64.
-       This layout is not yet allowed in blocks (except for all-float64 records).
+       Variants may not yet contain types of this layout.
 |}]
 
 (***************************************)

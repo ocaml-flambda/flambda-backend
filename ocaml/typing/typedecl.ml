@@ -72,7 +72,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
-  | Float64_in_block of type_expr
+  | Float64_in_block of type_expr * layout_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -2579,11 +2579,18 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Layout.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block typ ->
+  | Float64_in_block (typ, lloc) ->
+    let struct_desc =
+      match lloc with
+      | Cstr_tuple -> "Variants"
+      | Record -> "Unboxed records"
+        (* [Record] always means unboxed record here, because illegal boxed records
+           get rejected with the [Mixed_block] error instead. *)
+      | External -> assert false
+    in
     fprintf ppf
-      "@[Type %a has layout float64.@ This layout is not yet allowed in blocks \
-       (except for all-float64 records).@]"
-      Printtyp.type_expr typ
+      "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
+      Printtyp.type_expr typ struct_desc
   | Mixed_block  ->
     fprintf ppf
       "@[Records may not contain both unboxed floats and normal values.@]"
