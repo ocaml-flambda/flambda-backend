@@ -37,6 +37,8 @@ type bar = B.b_value value_arg
 type boz = B.b_imm value_arg
 |}];;
 
+(* CR layouts v2.9: the error message below is unreviewed *)
+
 (* These should not *)
 type err1 = b_value imm_arg;;
 [%%expect {|
@@ -45,8 +47,10 @@ Line 1, characters 12-19:
                 ^^^^^^^
 Error: This type B.b_value = A.a_value should be an instance of type
          ('a : immediate)
-       B.b_value has an unknown layout,
-         which might not be a sublayout of immediate.
+       The layout of B.b_value is value, because
+         imported from another compilation unit.
+       But the layout of B.b_value must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type imm_arg.
        No .cmi file found containing A.a_value.
        Hint: Adding "a" to your dependencies might help.
 |}];;

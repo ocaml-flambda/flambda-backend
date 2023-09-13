@@ -2,6 +2,7 @@
    flags = "-extension layouts_beta"
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_value : value
 type t_imm   : immediate
@@ -82,7 +83,14 @@ Error: Signature mismatch:
        is not included in
          type ('a : immediate) t = 'a list
        The type ('a : value) is not equal to the type ('a0 : immediate)
-       because their layouts are different.
+       because their layouts are different.'a value, because all of the following:
+                                               a type argument defaulted to have layout value
+                                               appears as an unannotated type parameter
+                                           'a immediate, because
+                                             of the annotation on 'a
+                                                                  in the declaration of the type
+                                                                  t.
+
 |}]
 
 module M1_2''' : S1_2 = struct
@@ -104,7 +112,14 @@ Error: Signature mismatch:
          type ('a : immediate) t
        Their parameters differ:
        The type ('a : value) is not equal to the type ('a0 : immediate)
-       because their layouts are different.
+       because their layouts are different.'a value, because all of the following:
+                                               a type argument defaulted to have layout value
+                                               appears as an unannotated type parameter
+                                           'a immediate, because
+                                             of the annotation on 'a
+                                                                  in the declaration of the type
+                                                                  t.
+
 |}]
 
 (************************************************************************)
@@ -145,7 +160,11 @@ Line 5, characters 25-30:
                              ^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because all of the following:
+           of the annotation on 'a in the declaration of the type s2'
+           of the annotation on 'a in the declaration of the type t
 |}]
 
 (******************************************************************)
@@ -201,7 +220,11 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type Bar3.t has layout value, which is not a sublayout of immediate.
+Error: The layout of Type Bar3.t is value, because
+         of the annotation on the declaration of the type t.
+       But the layout of Type Bar3.t must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t/2.
+
 |}];;
 
 module rec Foo3 : sig
@@ -312,7 +335,10 @@ Line 14, characters 17-23:
                       ^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t.
 |}]
 
 module type S3_2 = sig
@@ -325,7 +351,11 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: Type string has layout value, which is not a sublayout of immediate.
+Error: The layout of Type string is value, because
+         it equals the primitive value type string.
+       But the layout of Type string must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}]
 
 (*****************************************)
@@ -362,7 +392,11 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         used as an element in a first-class module.
+       But the layout of the first must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}];;
 
 module type S6_6' = sig
@@ -379,7 +413,11 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         used as an element in a first-class module.
+       But the layout of the first must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}];;
 
 (* CR layouts: S6_6'' should be fixed *)
@@ -397,7 +435,11 @@ Error: In this `with' constraint, the new definition of t
          type t
        is not included in
          type t : immediate
-       the first has layout value, which is not a sublayout of immediate.
+       The layout of the first is value, because
+         used as an element in a first-class module.
+       But the layout of the first must be a sublayout of immediate, because
+         of the annotation on the declaration of the type t.
+
 |}];;
 
 (*****************************************)

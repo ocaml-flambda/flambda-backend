@@ -613,7 +613,7 @@ module Layout = struct
      may want to change these to experiment / debug. *)
 
   (* should we print histories at all? *)
-  let display_histories = false
+  let display_histories = true
 
   (* should we print histories in a way users can understand?
      The alternative is to print out all the data, which may be useful

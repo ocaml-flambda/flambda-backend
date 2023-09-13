@@ -3,6 +3,8 @@ File "baz.ml", line 1, characters 8-18:
             ^^^^^^^^^^
 Error: This expression has type 'a Foo.t
        but an expression was expected of type ('b : '_representable_layout_1)
-       'a Foo.t has an unknown layout, which might not be representable.
-       No .cmi file found containing Foo.t.
+       The layout of 'a Foo.t is any, because
+         a missing .cmi file for Foo.t.
+       But the layout of 'a Foo.t must be a sublayout of '_representable_layout_1, because
+         bound by a `let`. No .cmi file found containing Foo.t.
        Hint: Adding "foo" to your dependencies might help.

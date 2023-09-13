@@ -2,6 +2,7 @@
    flags = "-extension layouts_beta"
    * expect
 *)
+(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_value : value
 type t_imm : immediate
@@ -55,7 +56,10 @@ Line 1, characters 8-36:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
-       int list has layout value, which is not a sublayout of immediate.
+       The layout of int list is value, because
+         a boxed variant.
+       But the layout of int list must be a sublayout of immediate, because
+         of the annotation on the type variable a.
 |}]
 (* CR layouts: error message could be phrased better *)
 
@@ -98,7 +102,10 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t2_imm.
 |}]
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -217,7 +224,10 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on the universal variable a.
 |}]
 
 let r = { field = fun x -> x }
@@ -250,7 +260,12 @@ Line 2, characters 18-55:
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because all of the following:
+           used as a function result
+           used as a function argument
+           an unannotated universal variable
+       But the layout of 'a must be a sublayout of immediate, because
+         of the annotation on the abstract type declaration for a.
 |}]
 (* CR layouts v1.5: that's a pretty awful error message *)
 
@@ -264,7 +279,13 @@ type ('a : immediate) t_imm
 Line 3, characters 15-39:
 3 | type s = { f : ('a : value). 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type 'a has layout value, which is not a sublayout of immediate.
+Error: The layout of Type 'a is value, because all of the following:
+           used as a function argument
+           appears as an unannotated type parameter
+           of the annotation on the universal variable a
+       But the layout of Type 'a must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t_imm.
+
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard
    to improve, because it comes from re-checking typedtree, where we don't
@@ -295,7 +316,10 @@ Line 1, characters 29-36:
 Error: This pattern matches values of type a
        but a pattern was expected which matches values of type
          ('a : '_representable_layout_1)
-       a has layout any, which is not representable.
+       The layout of a is any, because
+         of the annotation on the abstract type declaration for a.
+       But the layout of a must be a sublayout of '_representable_layout_1, because
+         used as a function argument.
 |}]
 
 (****************************************)
@@ -389,7 +413,10 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it equals the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on the universal variable a.
 |}]
 
 (**************************************)
@@ -491,7 +518,12 @@ Line 1, characters 37-53:
                                          ^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because all of the following:
+           used as a function result
+           used as a function argument
+           of the annotation on the universal variable a
+       But the layout of 'a must be a sublayout of immediate, because
+         of the annotation on the universal variable a.
 |}]
 
 type (_ : value) g =
