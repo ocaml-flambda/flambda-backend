@@ -144,3 +144,6 @@ Test 10, float# records in recursive groups.
   b: 42.00
   c: -7.30
   d: -8.40
+Test 11, heterogeneous polymorphic equality.
+  equal: true
+  unequal: false

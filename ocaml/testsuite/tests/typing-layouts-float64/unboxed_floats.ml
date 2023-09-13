@@ -459,4 +459,19 @@ let _ =
   print_t9 t10_1;
   print_t9 t10_2
 
+(***********************************************)
+(* Test 11: Heterogeneous polymorphic equality *)
 
+type ex = Ex : 'a -> ex
+
+type t11_u = { xu : float#; yu : float# }
+type t11_b = { xb : float; yb : float }
+
+let ru = { xu = Float_u.of_float 3.14; yu = Float_u.of_float 42.0 }
+let rb = { xb = 3.14; yb = 42.0 }
+let rb' = { xb = 3.14; yb = 42.1 }
+
+let _ =
+  Printf.printf "Test 11, heterogeneous polymorphic equality.\n";
+  Printf.printf "  equal: %b\n" (Ex ru = Ex rb);
+  Printf.printf "  unequal: %b\n" (Ex ru = Ex rb');
