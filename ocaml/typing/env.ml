@@ -2616,13 +2616,8 @@ let open_signature
 
 (* Read a signature from a file *)
 let read_signature modname filename ~add_binding =
-  let mda =
-    read_pers_mod modname filename ~add_binding
-  in
-  let md = Subst.Lazy.force_module_decl mda.mda_declaration in
-  match md.md_type with
-  | Mty_signature sg -> sg
-  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+  let mty = read_pers_mod modname filename ~add_binding in
+  Subst.Lazy.force_signature mty
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
