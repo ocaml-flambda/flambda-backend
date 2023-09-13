@@ -68,6 +68,7 @@ type 'a sig_reader =
   Subst.Lazy.signature
   -> Compilation_unit.Name.t
   -> Shape.Uid.t
+  -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
   -> 'a
@@ -75,7 +76,7 @@ type 'a sig_reader =
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
 val read : 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> 'a
+  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
 val find : 'a t -> 'a sig_reader
   -> Compilation_unit.Name.t -> 'a
 

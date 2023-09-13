@@ -279,6 +279,10 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal _ -> false
     | Parameter -> true
   in
+  (* CR-someday lmaurer: Consider moving this check into
+     [acknowledge_pers_struct]. It makes more sense to flag these errors when
+     the identifier is in source, rather than, say, a signature we're reading
+     from a file, especially if it's our own .mli. *)
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
       error (Illegal_import_of_parameter(modname, filename))
@@ -344,18 +348,17 @@ type 'a sig_reader =
   Subst.Lazy.signature
   -> Compilation_unit.Name.t
   -> Shape.Uid.t
+  -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
-let process_pers_struct penv modname import val_of_pers_sig =
+let acknowledge_pers_struct penv modname import val_of_pers_sig =
+  let {persistent_structures; _} = penv in
   let impl = import.imp_impl in
   let sign = import.imp_sign in
   let flags = import.imp_flags in
-  let binding =
-    (* This binding should be seen as provisional: _if_ this gets added to the
-       environment, this is what it will be bound to *)
-    make_binding penv impl in
+  let binding = make_binding penv impl in
   let address : Address.t =
     match binding with
     | Static unit -> Aunit unit
@@ -364,26 +367,24 @@ let process_pers_struct penv modname import val_of_pers_sig =
     match binding with
     | Static unit -> Shape.Uid.of_compilation_unit_id unit
   in
-  let pm = val_of_pers_sig sign modname uid ~address ~flags in
+  let shape =
+    match binding with
+    | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+  in
+  let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps = { ps_import = import;
              ps_binding = binding;
            } in
-  (ps, pm)
-
-let bind_pers_struct penv modname ps pm =
-  let {persistent_structures; _} = penv in
-  Hashtbl.add persistent_structures modname (ps, pm)
-
-let acknowledge_pers_struct penv modname import val_of_pers_sig =
-  let ps, pm = process_pers_struct penv modname import val_of_pers_sig in
-  bind_pers_struct penv modname ps pm;
+  Hashtbl.add persistent_structures modname (ps, pm);
   (ps, pm)
 
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   let import = read_import penv ~check modname filename in
-  let ps, pm = process_pers_struct penv modname import val_of_pers_sig in
-  if add_binding then bind_pers_struct penv modname ps pm;
-  (ps, pm)
+  if add_binding then
+    ignore
+      (acknowledge_pers_struct penv modname import val_of_pers_sig
+       : _ pers_struct_info);
+  import.imp_sign
 
 let find_pers_struct penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
@@ -442,7 +443,7 @@ let check_pers_struct penv f ~loc name =
         Location.prerr_warning loc warn
 
 let read penv f modname filename ~add_binding =
-  snd (read_pers_struct penv f true modname filename ~add_binding)
+  read_pers_struct penv f true modname filename ~add_binding
 
 let find penv f name =
   snd (find_pers_struct penv f true name)
