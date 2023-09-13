@@ -3857,8 +3857,16 @@ let filter_arrow env t l ~force_tpoly =
   match get_desc t with
     Tvar { layout } ->
       let t', arrow_desc = function_type (get_level t) in
+      begin match constrain_type_layout env t' layout with
+      | Ok _ -> ()
+      | Error err ->
+        raise (Filter_arrow_failed
+                 (Unification_error
+                    (expand_to_unification_error
+                       env
+                       [Bad_layout (t',err)])))
+      end;
       link_type t t';
-      constrain_type_layout_exn env Unify t' layout;
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
@@ -4363,8 +4371,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         moregen_occur env (get_level t1) t2;
         update_scope_for Moregen (get_scope t1) t2;
         occur_for Moregen env t1 t2;
-        link_type t1 t2;
-        constrain_type_layout_exn env Moregen t2 layout
+        constrain_type_layout_exn env Moregen t2 layout;
+        link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
     | _ ->
@@ -4379,8 +4387,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
             (Tvar { layout }, _) when may_instantiate inst_nongen t1' ->
               moregen_occur env (get_level t1') t2;
               update_scope_for Moregen (get_scope t1') t2;
-              link_type t1' t2;
-              constrain_type_layout_exn env Moregen t2 layout
+              constrain_type_layout_exn env Moregen t2 layout;
+              link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
