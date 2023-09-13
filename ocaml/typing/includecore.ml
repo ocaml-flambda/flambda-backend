@@ -362,6 +362,10 @@ let report_record_mismatch first second decl env ppf err =
         (choose ord first second) decl
         "uses unboxed float representation"
   | Ufloat_representation ord ->
+      (* CR layouts: This case should unreachable now.  But it may be reachable
+         when we allow [any] types in structure declarations, using an example
+         like the "unboxed float representation" one in
+         [typing-unboxed-types/test.ml].  Add a test then. *)
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses float# representation"
