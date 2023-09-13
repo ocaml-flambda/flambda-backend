@@ -443,8 +443,8 @@ module Layout = struct
         Language_extension.maturity =
     match context, layout with
     | _, Value -> Stable
-    | _, (Immediate | Immediate64 | Any) -> Beta
-    | _, (Void | Float64) -> Alpha
+    | _, (Immediate | Immediate64 | Any | Float64) -> Beta
+    | _, Void -> Alpha
 
   (******************************)
   (* construction *)

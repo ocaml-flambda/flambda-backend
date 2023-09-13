@@ -1,6 +1,8 @@
 (* TEST
-   flags = "-extension layouts_alpha"
    * expect
+     flags = "-extension layouts_alpha"
+   * expect
+     flags = "-extension layouts_beta"
 *)
 
 (* This file contains typing tests for the layout [float64].
@@ -320,7 +322,7 @@ type f7_4 = [ `A of t_float64 ];;
 Line 1, characters 20-29:
 1 | type f7_4 = [ `A of t_float64 ];;
                         ^^^^^^^^^
-Error: Polymorpic variant constructor argument types must have layout value.
+Error: Polymorphic variant constructor argument types must have layout value.
         t_float64 has layout float64, which is not a sublayout of value.
 |}];;
 
