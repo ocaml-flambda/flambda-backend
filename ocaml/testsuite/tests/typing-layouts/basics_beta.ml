@@ -486,7 +486,7 @@ Error: Signature mismatch:
          val x : ('a : immediate). 'a
        is not included in
          val x : string
-       The type string is not compatible with the type string
+       The type ('a : immediate) is not compatible with the type string
        string has layout value, which is not a sublayout of immediate.
 |}];;
 
@@ -523,7 +523,8 @@ Error: Signature mismatch:
          val x : ('a : immediate). 'a t
        is not included in
          val x : string
-       The type string t = string is not compatible with the type string
+       The type 'a t = ('a : immediate) is not compatible with the type
+         string
        string has layout value, which is not a sublayout of immediate.
 |}]
 
@@ -1319,4 +1320,19 @@ Line 3, characters 15-40:
 3 | type s = { f : ('a : value) . 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type 'a has layout value, which is not a sublayout of immediate.
+|}]
+
+(****************************************************)
+(* Test 35: check bad layout error in filter_arrow *)
+
+type ('a : immediate) t35 = 'a
+let f35 : 'a t35 = fun () -> ()
+
+[%%expect {|
+type ('a : immediate) t35 = 'a
+Line 2, characters 19-31:
+2 | let f35 : 'a t35 = fun () -> ()
+                       ^^^^^^^^^^^^
+Error:
+       'a -> 'b has layout value, which is not a sublayout of immediate.
 |}]
