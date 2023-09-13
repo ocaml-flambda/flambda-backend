@@ -823,6 +823,7 @@ module Layout = struct
 
        INVARIANT: the creation_reasons within a list all are reasons for
        the layout they are paired with.
+       INVARIANT: the creation_reasons do not store duplicates
        INVARIANT: L is a sublayout of all the Li in a flattened_history.
        INVARIANT: If Li and Lj are stored in different entries in a
        flattened_history, then not (Li <= Lj) and not (Lj <= Li).
@@ -846,9 +847,11 @@ module Layout = struct
         let layout_desc = get_internal layout in
         let rec go acc = function
           | ((key, value) as row) :: rest ->
+            let is_unseen reason = List.fold_left (fun acc r -> acc && not (r = reason)) true value in
             begin match sub_desc layout_desc key with
             | Sub -> go acc rest
-            | Equal -> (key, reason :: value) :: acc @ rest
+            | Equal when is_unseen reason -> (key, reason :: value) :: acc @ rest
+            | Equal -> row :: acc @ rest
             | Not_sub -> go (row :: acc) rest
             end
           | [] -> (layout_desc, [reason]) :: acc
