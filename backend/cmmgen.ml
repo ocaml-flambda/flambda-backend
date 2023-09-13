@@ -200,6 +200,8 @@ let rec expr_size env = function
       expr_size env body
   | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
       RHS_block (mode, List.length args)
+  | Uprim(Pmakeufloatblock (_, mode), args, _) ->
+      RHS_floatblock (mode, List.length args)
   | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
       RHS_block (mode, List.length args)
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
