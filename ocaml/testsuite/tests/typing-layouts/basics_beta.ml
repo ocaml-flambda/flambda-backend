@@ -295,7 +295,7 @@ Error: Signature mismatch:
          val x : ('a : immediate). 'a
        is not included in
          val x : string
-       The type string is not compatible with the type string
+       The type ('a : immediate) is not compatible with the type string
        string has layout value, which is not a sublayout of immediate.
 |}];;
 
@@ -332,7 +332,8 @@ Error: Signature mismatch:
          val x : ('a : immediate). 'a t
        is not included in
          val x : string
-       The type string t = string is not compatible with the type string
+       The type 'a t = ('a : immediate) is not compatible with the type
+         string
        string has layout value, which is not a sublayout of immediate.
 |}]
 
