@@ -342,6 +342,7 @@ type 'a sig_reader =
   Subst.Lazy.signature
   -> Compilation_unit.Name.t
   -> Shape.Uid.t
+  -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
   -> 'a
@@ -362,7 +363,11 @@ let process_pers_struct penv modname import val_of_pers_sig =
     match binding with
     | Static unit -> Shape.Uid.of_compilation_unit_id unit
   in
-  let pm = val_of_pers_sig sign modname uid ~address ~flags in
+  let shape =
+    match binding with
+    | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+  in
+  let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps = { ps_import = import;
              ps_binding = binding;
            } in

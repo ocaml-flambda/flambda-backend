@@ -68,6 +68,7 @@ type 'a sig_reader =
   Subst.Lazy.signature
   -> Compilation_unit.Name.t
   -> Shape.Uid.t
+  -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
   -> 'a
