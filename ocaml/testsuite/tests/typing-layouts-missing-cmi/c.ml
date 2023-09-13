@@ -11,7 +11,6 @@ module = "b.ml"
 script = "rm -f a.cmi"
 ***** expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 (* CR layouts v2.5: The commented out code in this file uses void, but could
    use any non-value layout. *)
@@ -37,6 +36,8 @@ type foo = B.b_imm imm_arg
 type bar = B.b_value value_arg
 type boz = B.b_imm value_arg
 |}];;
+
+(* CR layouts v2.9: the error message below is unreviewed *)
 
 (* These should not *)
 type err1 = b_value imm_arg;;
