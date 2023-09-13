@@ -557,7 +557,6 @@ type ('a : immediate) t35 = 'a
 Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
-Error: This expression has type 'b -> 'c
-       but an expression was expected of type ('a : immediate)
+Error:
        'a -> 'b has layout value, which is not a sublayout of immediate.
 |}]

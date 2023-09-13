@@ -3864,7 +3864,7 @@ let filter_arrow env t l ~force_tpoly =
                  (Unification_error
                     (expand_to_unification_error
                        env
-                       [Diff {got = t'; expected = t}; Bad_layout (t',err)])))
+                       [Bad_layout (t',err)])))
       end;
       link_type t t';
       arrow_desc
