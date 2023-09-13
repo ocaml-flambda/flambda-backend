@@ -7,11 +7,32 @@ val mkTarrow :
   Asttypes.arg_label * type_expr * type_expr * commutable -> type_desc
 
 type apply_arg
+type texp_function_param_identifier
+type texp_function_cases_identifier
+
+val texp_function_cases_identifier_defaults : texp_function_cases_identifier
+val texp_function_param_identifier_defaults : texp_function_param_identifier
+
+type texp_function_param = {
+  arg_label : Asttypes.arg_label;
+  pattern : pattern;
+  param : Ident.t;
+  partial : partial;
+  param_identifier : texp_function_param_identifier;
+}
+
+type texp_function_body =
+  | Function_body of expression
+  | Function_cases of {
+      cases : value case list;
+      param : Ident.t;
+      partial : partial;
+      function_cases_identifier : texp_function_cases_identifier;
+    }
 
 type texp_function = {
-  arg_label : Asttypes.arg_label;
-  param : Ident.t;
-  cases : value case list;
+  params : texp_function_param list;
+  body : texp_function_body;
 }
 
 type texp_ident_identifier

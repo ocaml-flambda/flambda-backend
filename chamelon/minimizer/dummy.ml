@@ -135,20 +135,22 @@ let dummy1_str_it_desc =
           ~vb_expr:
             (exp_desc_to_exp
                (mkTexp_function
-                  {
-                    arg_label = Nolabel;
-                    param = create_local "()";
-                    cases =
-                      [
-                        {
-                          c_lhs = any_pat;
-                          c_guard = None;
-                          c_rhs =
-                            exp_desc_to_exp
-                              (Texp_assert (exp_desc_to_exp false_expr));
-                        };
-                      ];
-                  }))
+                  (Function_compat.cases_view_to_function
+                     {
+                       arg_label = Nolabel;
+                       param = create_local "()";
+                       partial = Total;
+                       cases =
+                         [
+                           {
+                             c_lhs = any_pat;
+                             c_guard = None;
+                             c_rhs =
+                               exp_desc_to_exp
+                                 (Texp_assert (exp_desc_to_exp false_expr));
+                           };
+                         ];
+                     })))
           ~vb_attributes:[ inline_never ];
       ] )
 

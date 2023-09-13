@@ -37,34 +37,38 @@ let rec fun_wrapper arg_list acc_id depth path_fun n =
   else
     let id_arg = create_local ("arg" ^ string_of_int n) in
     mkTexp_function
-      {
-        arg_label = Nolabel;
-        param = id_arg;
-        cases =
-          [
-            {
-              c_lhs =
-                {
-                  pat_desc =
-                    mkTpat_var
-                      ( id_arg,
-                        { txt = "arg" ^ string_of_int n; loc = Location.none }
-                      );
-                  pat_loc = Location.none;
-                  pat_extra = [];
-                  pat_env = Env.empty;
-                  pat_attributes = [];
-                  pat_type = dummy_type_expr;
-                };
-              c_guard = None;
-              c_rhs =
-                exp_desc_to_exp
-                  (fun_wrapper arg_list
-                     (if n = 1 then acc_id else id_arg :: acc_id)
-                     (depth - 1) path_fun (n + 1));
-            };
-          ];
-      }
+      (Function_compat.cases_view_to_function
+         {
+           arg_label = Nolabel;
+           param = id_arg;
+           partial = Total;
+           cases =
+             [
+               {
+                 c_lhs =
+                   {
+                     pat_desc =
+                       mkTpat_var
+                         ( id_arg,
+                           {
+                             txt = "arg" ^ string_of_int n;
+                             loc = Location.none;
+                           } );
+                     pat_loc = Location.none;
+                     pat_extra = [];
+                     pat_env = Env.empty;
+                     pat_attributes = [];
+                     pat_type = dummy_type_expr;
+                   };
+                 c_guard = None;
+                 c_rhs =
+                   exp_desc_to_exp
+                     (fun_wrapper arg_list
+                        (if n = 1 then acc_id else id_arg :: acc_id)
+                        (depth - 1) path_fun (n + 1));
+               };
+             ];
+         })
 
 let string_label = function
   | Nolabel -> "Nolabel"
@@ -118,8 +122,12 @@ let find_unused_arg_mapper e =
       Tast_mapper.default with
       expr =
         (fun mapper e ->
-          match e.exp_desc with
-          | Texp_function ({ cases = vc_l; _ } as f) ->
+          match view_texp e.exp_desc with
+          | Texp_function (f, f_id) ->
+              let ({ cases = vc_l; _ } as f_as_cases
+                    : Function_compat.cases_view) =
+                Function_compat.function_to_cases_view f
+              in
               incr depth;
               if List.length vc_l = 1 && not !is_modified then
                 let vc = List.hd vc_l in
@@ -130,24 +138,25 @@ let find_unused_arg_mapper e =
                     ignore (mapper_used.expr mapper_used vc.c_rhs);
                     if not !is_used then (
                       is_modified := true;
-                      arg_label := f.arg_label;
+                      arg_label := f_as_cases.arg_label;
                       vc.c_rhs)
                     else (
-                      arg := f.arg_label :: !arg;
+                      arg := f_as_cases.arg_label :: !arg;
                       {
                         e with
                         exp_desc =
-                          Texp_function
-                            {
-                              f with
-                              cases =
-                                [
-                                  {
-                                    vc with
-                                    c_rhs = mapper.expr mapper vc.c_rhs;
-                                  };
-                                ];
-                            };
+                          mkTexp_function ~id:f_id
+                            (Function_compat.cases_view_to_function
+                               {
+                                 f_as_cases with
+                                 cases =
+                                   [
+                                     {
+                                       vc with
+                                       c_rhs = mapper.expr mapper vc.c_rhs;
+                                     };
+                                   ];
+                               });
                       })
                 | _ -> e
               else e
