@@ -946,7 +946,7 @@ end = struct
 
   let assert_unboxed_literals ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
 
   let unboxed ~loc x =
     assert_unboxed_literals ~loc:(make_loc loc);
@@ -991,7 +991,7 @@ let unboxed_float sloc sign (f, m) =
 
 let assert_unboxed_float_type ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
 
 let unboxed_float_type sloc tys =
   assert_unboxed_float_type ~loc:(make_loc sloc);

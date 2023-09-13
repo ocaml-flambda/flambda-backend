@@ -30,10 +30,10 @@ Line 1, characters 14-18:
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-(***************************************************)
-(* Test 1: constructor arguments may have any sort *)
+(********************************************************)
+(* Test 1: constructor arguments may be values or voids *)
 
-(* CR layouts v2.5: Needs non-value layout - moved to [datatypes_alpha.ml] *)
+(* CR layouts v5: Needs void - moved to [datatypes_alpha.ml] *)
 
 (************************************)
 (* Test 2: but not the "any" layout *)
@@ -85,9 +85,12 @@ Error: This expression has type float but an expression was expected of type
 (*****************************************************)
 (* Test 7: Recursive propagation of immediacy checks *)
 
-(* CR layouts: copy test from datatypes_alpha with float64 when available *)
+(* CR layouts v5: copy test from datatypes_alpha when non-values can go in
+   general datatype declarations. *)
 
 (***********************************************************************)
 (* Test 8: Type parameters in the presence of recursive concrete usage *)
 
-(* CR layouts: copy test from datatypes_alpha with float64 when available *)
+(* CR layouts v5: copy test from datatypes_alpha when non-values can go in
+   general datatype declarations. *)
+
