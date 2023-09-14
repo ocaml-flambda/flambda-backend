@@ -3068,54 +3068,69 @@ module Generic_fns_tbl = struct
 
     let max_send = 20
 
-    let max_apply = 404
-
     let max_tuplify = 100
 
     let considered_as_small_threshold = 20
 
+    type classify =
+      | Small
+      | Big of int
+      | Evict
+
+    let classify_to_bool = function Small | Big _ -> true | Evict -> false
+
+    let keep l = if l <= considered_as_small_threshold then Small else Big l
+
     let is_curry (kind, arity, result) =
       if not (check_result result)
-      then false
+      then Evict
       else
         match kind with
         | Lambda.Tupled ->
           let l = len_arity arity in
-          2 <= l && l <= considered_as_small_threshold
+          if 2 <= l && l <= considered_as_small_threshold then keep l else Evict
         | Lambda.Curried { nlocal } ->
           let l = len_arity arity in
           let in_bounds = 2 <= l && l <= Lambda.max_arity () in
           if not in_bounds
-          then false
+          then Evict
           else if nlocal = 0
-          then true
+          then keep l
           else if nlocal = 1
-          then true
+          then keep l
           else if nlocal = l
-          then true
+          then keep l
           else if l <= considered_as_small_threshold
-          then true
-          else false
+          then keep nlocal
+          else Evict
 
     let is_send (arity, result, alloc) =
       if not (check_result result)
-      then false
+      then Evict
       else
         match alloc with
-        | Lambda.Alloc_local -> len_arity arity = 0
-        | Lambda.Alloc_heap -> len_arity arity <= max_send
+        | Lambda.Alloc_local ->
+          if len_arity arity = 0 then Small else Big (len_arity arity)
+        | Lambda.Alloc_heap ->
+          let l = len_arity arity in
+          if l <= max_send then keep l else Evict
 
     let is_apply (arity, result, alloc) =
       if not (check_result result)
-      then false
+      then Evict
       else
         match alloc with
         | Lambda.Alloc_local ->
           let l = len_arity arity in
-          2 <= l && l <= considered_as_small_threshold
+          if 2 <= l && l <= considered_as_small_threshold then keep l else Evict
         | Lambda.Alloc_heap ->
           let l = len_arity arity in
-          2 <= l && l <= max_apply
+          if 2 <= l && l <= Lambda.max_arity () then keep l else Evict
+
+    type ('a, 'b, 'c) fn =
+      | Curry of 'a
+      | Send of 'b
+      | Apply of 'c
 
     let gen () =
       (* [is_curry], [is_send] and [is_apply] are also used to determine if a
@@ -3128,7 +3143,7 @@ module Generic_fns_tbl = struct
          automatically derive a good search space in the future as the filters
          might become more complexed with unboxed types. *)
       assert (considered_as_small_threshold <= max_tuplify);
-      assert (considered_as_small_threshold <= max_apply);
+      assert (considered_as_small_threshold <= Lambda.max_arity ());
       assert (considered_as_small_threshold <= max_send);
       assert (considered_as_small_threshold <= Lambda.max_arity ());
       let arity n = List.init n (fun _ -> [| Val |]) in
@@ -3153,37 +3168,76 @@ module Generic_fns_tbl = struct
         |> Seq.concat
       in
       let apply =
-        Seq.init (max_apply + 1) (fun n ->
+        Seq.init (Lambda.max_arity ()) (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
       in
-      let t = make () in
-      add_uncached t
-        Cmx_format.
-          { curry_fun =
-              Seq.filter is_curry (Seq.append tuplify curry) |> List.of_seq;
-            send_fun = Seq.filter is_send send |> List.of_seq;
-            apply_fun = Seq.filter is_apply apply |> List.of_seq
-          };
-      t
+      let classify seq =
+        Seq.filter_map
+          (function
+            | Evict, _ -> None
+            | Small, f -> Some ("common", f)
+            | Big arity, (Curry _ as f) ->
+              Some ("curry_" ^ string_of_int arity, f)
+            | Big arity, (Send _ as f) -> Some ("send_" ^ string_of_int arity, f)
+            | Big arity, (Apply _ as f) ->
+              Some ("apply_" ^ string_of_int arity, f))
+          seq
+      in
+      let curry_fns =
+        Seq.append tuplify curry
+        |> Seq.map (fun f -> is_curry f, Curry f)
+        |> classify
+      in
+      let send_fns = Seq.map (fun f -> is_send f, Send f) send |> classify in
+      let apply_fns =
+        Seq.map (fun f -> is_apply f, Apply f) apply |> classify
+      in
+      let fns = Seq.concat (List.to_seq [curry_fns; send_fns; apply_fns]) in
+      let partitions = Hashtbl.create 256 in
+      Seq.iter
+        (fun (partition, fn) ->
+          let t : Cmx_format.generic_fns =
+            match Hashtbl.find_opt partitions partition with
+            | Some s -> s
+            | None ->
+              { Cmx_format.curry_fun = []; send_fun = []; apply_fun = [] }
+          in
+          let t =
+            match fn with
+            | Curry f -> { t with curry_fun = f :: t.curry_fun }
+            | Send f -> { t with send_fun = f :: t.send_fun }
+            | Apply f -> { t with apply_fun = f :: t.apply_fun }
+          in
+          Hashtbl.replace partitions partition t)
+        fns;
+      let ret = Hashtbl.create 256 in
+      Hashtbl.iter
+        (fun key data ->
+          let t : t = make () in
+          add_uncached t data;
+          Hashtbl.replace ret key t)
+        partitions;
+      ret
   end
 
   let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
+    let not_ x = not (Precomputed.classify_to_bool x) in
     if !Flambda_backend_flags.use_cached_generic_functions
     then (
       List.iter
         (fun f ->
-          if not (Precomputed.is_curry f) then Hashtbl.replace t.curry f ())
+          if not_ (Precomputed.is_curry f) then Hashtbl.replace t.curry f ())
         curry_fun;
       List.iter
         (fun f ->
-          if not (Precomputed.is_apply f) then Hashtbl.replace t.apply f ())
+          if not_ (Precomputed.is_apply f) then Hashtbl.replace t.apply f ())
         apply_fun;
       List.iter
         (fun f ->
-          if not (Precomputed.is_send f) then Hashtbl.replace t.send f ())
+          if not_ (Precomputed.is_send f) then Hashtbl.replace t.send f ())
         send_fun)
     else add_uncached t f
 
