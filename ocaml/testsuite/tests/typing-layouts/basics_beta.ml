@@ -7,21 +7,15 @@ type t_value : value
 type t_imm   : immediate
 type t_imm64 : immediate64
 type t_float64 : float64;;
+type t_any   : any;;
 
 [%%expect{|
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
+type t_any : any
 |}]
-
-type t_any   : any;;
-[%%expect{|
-Line 1, characters 15-18:
-1 | type t_any   : any;;
-                   ^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
-|}];;
 
 type t_void  : void;;
 [%%expect{|
@@ -34,8 +28,76 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (************************************************************)
 (* Test 1: Disallow non-representable function args/returns *)
 
-(* CR layouts v3: moved to layouts alpha.  Bring here when we have
-   non-representable layouts in beta. *)
+module type S1 = sig
+  val f : int -> t_any
+end;;
+[%%expect {|
+Line 2, characters 17-22:
+2 |   val f : int -> t_any
+                     ^^^^^
+Error: Function return types must have a representable layout.
+        t_any has layout any, which is not representable.
+|}];;
+
+module type S1 = sig
+  val f : t_any -> int
+end;;
+[%%expect {|
+Line 2, characters 10-15:
+2 |   val f : t_any -> int
+              ^^^^^
+Error: Function argument types must have a representable layout.
+        t_any has layout any, which is not representable.
+|}];;
+
+module type S1 = sig
+  type t : any
+
+  type 'a s = 'a -> int constraint 'a = t
+end;;
+[%%expect{|
+Line 4, characters 35-41:
+4 |   type 'a s = 'a -> int constraint 'a = t
+                                       ^^^^^^
+Error: The type constraints are not consistent.
+       Type ('a : '_representable_layout_1) is not compatible with type t
+       t has layout any, which is not representable.
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type 'a s = int -> 'a constraint 'a = t
+end;;
+[%%expect{|
+Line 4, characters 35-41:
+4 |   type 'a s = int -> 'a constraint 'a = t
+                                       ^^^^^^
+Error: The type constraints are not consistent.
+       Type ('a : '_representable_layout_2) is not compatible with type t
+       t has layout any, which is not representable.
+|}]
+
+let f1 () : t_any = assert false;;
+[%%expect{|
+Line 1, characters 20-32:
+1 | let f1 () : t_any = assert false;;
+                        ^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_3)
+       t_any has layout any, which is not representable.
+|}];;
+
+let f1 (x : t_any) = ();;
+[%%expect{|
+Line 1, characters 7-18:
+1 | let f1 (x : t_any) = ();;
+           ^^^^^^^^^^^
+Error: This pattern matches values of type t_any
+       but a pattern was expected which matches values of type
+         ('a : '_representable_layout_4)
+       t_any has layout any, which is not representable.
+|}];;
 
 (*****************************************************)
 (* Test 2: Permit representable function arg/returns *)
@@ -1302,9 +1364,15 @@ Error: This expression has type t_float64
 (******************************************************)
 (* Test 33: Externals must have representable types *)
 
-(* CR layouts v5: This test moved to [basics_alpha.ml] as it needs a
-   non-representable layout.  Bring it back here when we can mention [t_any] in
-   [-extension layouts_beta]. *)
+external foo33 : t_any = "foo33";;
+
+[%%expect{|
+Line 1, characters 17-22:
+1 | external foo33 : t_any = "foo33";;
+                     ^^^^^
+Error: This type signature for foo33 is not a value type.
+       foo33 has layout any, which is not a sublayout of value.
+|}]
 
 (****************************************************)
 (* Test 34: Layout clash in polymorphic record type *)
