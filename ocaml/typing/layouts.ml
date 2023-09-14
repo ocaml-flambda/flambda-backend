@@ -814,82 +814,46 @@ module Layout = struct
       | Sublayout ->
         fprintf ppf "sublayout check"
 
-    (* a flattened_history describes the history of a layout L. That
-       layout has been constrained to be a sublayout of layouts L1..Ln.
-       Each element in a flattened_history includes a layout desc Li and the
-       set of circumstances that gave rise to a constraint of that layout.
-       Any layouts Lk such that an Li < Lk doesn't contribute to the choice
-       of L and is thus omitted from a flattened_history.
+    (* CR layouts v2.9: An older implementation of format_flattened_history existed
+       which displays more information not limited to one layout and one creation_reason
+       around commit 66a832d70bf61d9af3b0ec6f781dcf0a188b324d in main.
 
-       INVARIANT: the creation_reasons within a list all are reasons for
-       the layout they are paired with.
-       INVARIANT: the creation_reasons do not store duplicates
-       INVARIANT: L is a sublayout of all the Li in a flattened_history.
-       INVARIANT: If Li and Lj are stored in different entries in a
-       flattened_history, then not (Li <= Lj) and not (Lj <= Li).
-       This implies that no two elements in a flattened_history have the
-       same layout in them.
-       INVARIANT: no list in this structure is empty
+       Consider revisiting that if the current implementation becomes insufficient. *)
 
-       Both levels of list are unordered.
-
-       Because a flattened_history stores [desc]s, it should be discarded
-       promptly after use.
-
-       This type could be more efficient in several ways, but there is
-       little incentive to do so. *)
-    type flattened_row = desc * creation_reason list
-    type flattened_history = flattened_row list
-
-    (* first arg is the layout L whose history we are flattening *)
-    let flatten_history : internal -> history -> flattened_history =
-      let add layout reason =
-        let layout_desc = get_internal layout in
-        let rec go acc = function
-          | ((key, value) as row) :: rest ->
-            let is_unseen reason = List.fold_left (fun acc r -> acc && not (r = reason)) true value in
-            begin match sub_desc layout_desc key with
-            | Sub -> go acc rest
-            | Equal when is_unseen reason -> (key, reason :: value) :: acc @ rest
-            | Equal -> row :: acc @ rest
-            | Not_sub -> go (row :: acc) rest
-            end
-          | [] -> (layout_desc, [reason]) :: acc
-        in
-        go []
-      in
-      let rec history acc internal = function
+    let get_creation_reason : internal -> history -> creation_reason option =
+      let rec history key internal = function
         | Interact { reason = _
                    ; lhs_layout
                    ; lhs_history
                    ; rhs_layout
                    ; rhs_history } ->
-          let fh1 = history acc lhs_layout lhs_history in
-          let fh2 = history fh1 rhs_layout rhs_history in
-          fh2
+          begin match history key lhs_layout lhs_history with
+          | Some _ as r -> r
+          | None -> history key rhs_layout rhs_history
+          end
         | Creation reason ->
-          add internal reason acc
+          let layout_desc = get_internal internal in
+          begin match sub_desc layout_desc key with
+          | Equal -> Some reason
+          | _ -> None
+          end
       in
       fun internal hist ->
-      history [] internal hist
+        history (get_internal internal) internal hist
 
-    let format_flattened_row ppf (lay, reasons) =
-      fprintf ppf "%a, because" format_desc lay;
-      match reasons with
-      | [reason] -> fprintf ppf "@ %a." format_creation_reason reason
-      | _ ->
-          fprintf ppf " all of the following:@ @[<v 2>  %a@]"
-            (pp_print_list format_creation_reason) reasons
 
     let format_flattened_history ~intro ppf t =
-      let fh = flatten_history t.layout t.history in
-      fprintf ppf "@[<v 2>%t " intro;
-      begin match fh with
-      | [row] -> format_flattened_row ppf row
-      | _ -> fprintf ppf "a sublayout of all of the following:@ @[<v 2>  %a@]"
-               (pp_print_list format_flattened_row) fh
+      let lay = get_internal t.layout in
+      fprintf ppf "@[<v 2>%t %a"
+        intro
+        format_desc lay;
+      begin match get_creation_reason t.layout t.history with
+      | None -> ()
+      | Some reason ->
+        fprintf ppf ", because@ %a" format_creation_reason reason
       end;
-      fprintf ppf "@]@;"
+      fprintf ppf ".@]@;"
+
 
     (* this isn't really formatted for user consumption *)
     let format_history_tree ~intro ppf t =
