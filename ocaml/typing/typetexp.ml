@@ -1373,7 +1373,7 @@ let report_error env ppf = function
       | Package_constraint -> "Signature package constraint"
       | Object_field -> "Object field"
     in
-    fprintf ppf "@[%s types must have layout value.@ \ %a@]"
+    fprintf ppf "@[%s types must have layout value.@ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Non_sort {vloc; typ; err} ->
@@ -1382,7 +1382,7 @@ let report_error env ppf = function
       | Fun_arg -> "Function argument"
       | Fun_ret -> "Function return"
     in
-    fprintf ppf "@[%s types must have a representable layout.@ \ %a@]"
+    fprintf ppf "@[%s types must have a representable layout.@ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Bad_layout_annot(ty, violation) ->

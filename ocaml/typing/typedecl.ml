@@ -441,8 +441,8 @@ let make_constructor
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = 
-        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type 
+      let tret_type =
+        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type
       in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
@@ -2542,7 +2542,7 @@ let report_error ppf = function
       | Record -> "Record element"
       | External -> "External"
     in
-    fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
+    fprintf ppf "@[%s types must have a representable layout.@ %a@]" s
       (Layout.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Layout_empty_record ->
