@@ -6,20 +6,14 @@
 type t_value : value
 type t_imm   : immediate
 type t_imm64 : immediate64
-type t_float64 : float64;;
+type t_float64 : float64
+type t_any   : any;;
 [%%expect {|
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
-|}];;
-
-type t_any   : any;;
-[%%expect{|
-Line 1, characters 15-18:
-1 | type t_any   : any;;
-                   ^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+type t_any : any
 |}];;
 
 type t_void  : void;;
@@ -560,5 +554,16 @@ module F : sig end -> sig end
 (****************************************)
 (* Test 8: [val]s must be representable *)
 
-(* CR layouts v2.5: Bring a float64 version of this test over when we allow
-   [t_any] in beta *)
+module type S = sig val x : t_any end
+
+module M = struct
+  let x : t_void = assert false
+end
+
+[%%expect{|
+Line 1, characters 28-33:
+1 | module type S = sig val x : t_any end
+                                ^^^^^
+Error: This type signature for x is not a value type.
+       x has layout any, which is not a sublayout of value.
+|}]
