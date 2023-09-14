@@ -2132,6 +2132,8 @@ let is_immediate64 env ty =
   else
     perform_check ()
 
+(* We will require Int63 to be [global many unique] on 32-bit platforms, so
+   this is fine *)
 let is_immediate = is_immediate64
 
 let mode_cross env (ty : type_expr) =
