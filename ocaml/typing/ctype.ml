@@ -2117,7 +2117,7 @@ let unification_layout_check env ty layout =
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
 
-let is_always_global env ty =
+let is_immediate64 env ty =
   let perform_check () =
     Result.is_ok (check_type_layout env ty
                     (Layout.immediate64 ~why:Local_mode_cross_check))
@@ -2132,8 +2132,11 @@ let is_always_global env ty =
   else
     perform_check ()
 
+let is_immediate = is_immediate64
+
 let mode_cross env (ty : type_expr) =
-  is_principal ty && is_always_global env ty
+  (* immediates can cross all mode axes: locality, uniqueness and linearity *)
+  is_principal ty && is_immediate env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
@@ -5353,7 +5356,7 @@ let rec build_subtype env (visited : transient_expr list)
             runtime values, and easier to cross modes (and thus making the
             mode-crossing more complete). *)
           let t1 = if posi then t1 else t1' in
-          if is_always_global env t1 then
+          if is_immediate env t1 then
             Mode.Alloc.newvar (), Changed
           else
             build_submode (not posi) a
@@ -5573,7 +5576,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        if not (is_always_global env t2) then
+        if not (is_immediate env t2) then
           subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)
