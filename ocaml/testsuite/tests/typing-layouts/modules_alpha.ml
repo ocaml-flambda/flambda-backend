@@ -40,9 +40,8 @@ Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type ('b : void)
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
-       But the layout of 'a must overlap with value, because all of the following:
-           a type argument defaulted to have layout value
-           appears as an unannotated type parameter
+       But the layout of 'a must overlap with value, because
+         appears as an unannotated type parameter.
 |}];;
 
 module type S1'' = S1 with type s = t_void;;
@@ -95,9 +94,8 @@ Error: Signature mismatch:
        is not included in
          type ('a : immediate) t = 'a list
        The type ('a : value) is not equal to the type ('a0 : immediate)
-       because their layouts are different.'a value, because all of the following:
-                                               a type argument defaulted to have layout value
-                                               appears as an unannotated type parameter
+       because their layouts are different.'a value, because
+                                             appears as an unannotated type parameter.
                                            'a immediate, because
                                              of the annotation on 'a
                                                                   in the declaration of the type
@@ -145,9 +143,8 @@ Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The layout of string is value, because
          it equals the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because all of the following:
-           of the annotation on 'a in the declaration of the type s2'
-           of the annotation on 'a in the declaration of the type t
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t.
 |}]
 
 (******************************************************************)

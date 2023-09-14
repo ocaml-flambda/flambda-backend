@@ -72,9 +72,8 @@ Error: The type constraints are not consistent.
        Type ('a : '_representable_layout_3) is not compatible with type t
        The layout of t is any, because
          of the annotation on the declaration of the type t.
-       But the layout of t must be a sublayout of '_representable_layout_3, because all of the following:
-           used as a function argument
-           appears as an unannotated type parameter
+       But the layout of t must be a sublayout of '_representable_layout_3, because
+         appears as an unannotated type parameter.
 |}]
 
 module type S1 = sig
@@ -90,9 +89,8 @@ Error: The type constraints are not consistent.
        Type ('a : '_representable_layout_4) is not compatible with type t
        The layout of t is any, because
          of the annotation on the declaration of the type t.
-       But the layout of t must be a sublayout of '_representable_layout_4, because all of the following:
-           used as a function result
-           appears as an unannotated type parameter
+       But the layout of t must be a sublayout of '_representable_layout_4, because
+         appears as an unannotated type parameter.
 |}]
 
 let f1 () : t_any = assert false;;
@@ -382,9 +380,8 @@ Lines 4-5, characters 33-22:
 5 |   | Void5 x -> Void5 x
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type void5
+       The layout of 'a is void, because
+         of the annotation on 'a in the declaration of the type void5.
        But the layout of 'a must be a sublayout of value, because
          to be value for the V1 safety check.
 
@@ -399,9 +396,8 @@ Line 1, characters 12-15:
 Error: This type int should be an instance of type ('a : void)
        The layout of int is immediate, because
          it equals the primitive immediate type int.
-       But the layout of int must be a sublayout of void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type void5
+       But the layout of int must be a sublayout of void, because
+         of the annotation on 'a in the declaration of the type void5.
 |}];;
 
 let h5' (x : int any5) = Void5 x
@@ -413,9 +409,8 @@ Error: This expression has type int any5
        but an expression was expected of type ('a : void)
        The layout of int any5 is value, because
          a boxed variant.
-       But the layout of int any5 must be a sublayout of void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type void5
+       But the layout of int any5 must be a sublayout of void, because
+         of the annotation on 'a in the declaration of the type void5.
 |}];;
 
 (* disallowed - tries to return void *)
@@ -429,9 +424,8 @@ Lines 1-3, characters 6-16:
 3 |   | Void5 x -> x..
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type void5
+       The layout of 'a is void, because
+         of the annotation on 'a in the declaration of the type void5.
        But the layout of 'a must be a sublayout of value, because
          to be value for the V1 safety check.
 
@@ -460,9 +454,8 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
-       The layout of 'a is value, because all of the following:
-           used as a function argument
-           an unannotated universal variable
+       The layout of 'a is value, because
+         an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
@@ -477,9 +470,8 @@ Line 3, characters 4-34:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
-       The layout of 'a is value, because all of the following:
-           used as a function argument
-           an unannotated universal variable
+       The layout of 'a is value, because
+         an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
@@ -555,9 +547,8 @@ Line 4, characters 13-19:
 Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           a field of a polymorphic variant
-           appears as an unannotated type parameter
+       But the layout of t_void must be a sublayout of value, because
+         appears as an unannotated type parameter.
 |}];;
 
 module M8_4 = struct
@@ -571,9 +562,8 @@ Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type void_unboxed_record
        The layout of void_unboxed_record is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of void_unboxed_record must be a sublayout of value, because all of the following:
-           a field of a polymorphic variant
-           appears as an unannotated type parameter
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         appears as an unannotated type parameter.
 |}];;
 
 module type S8_5 = sig
@@ -674,9 +664,8 @@ Line 4, characters 13-19:
 Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           a tuple element
-           appears as an unannotated type parameter
+       But the layout of t_void must be a sublayout of value, because
+         appears as an unannotated type parameter.
 |}];;
 
 module M9_6 = struct
@@ -690,9 +679,8 @@ Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type void_unboxed_record
        The layout of void_unboxed_record is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of void_unboxed_record must be a sublayout of value, because all of the following:
-           a tuple element
-           appears as an unannotated type parameter
+       But the layout of void_unboxed_record must be a sublayout of value, because
+         appears as an unannotated type parameter.
 |}];;
 
 module type S9_7 = sig
@@ -825,9 +813,8 @@ Line 5, characters 4-7:
 5 |     t.v # baz11
         ^^^
 Error: Methods must have layout value.
-       The layout of This expression is void, because all of the following:
-           used in the declaration of the record field "v/447"
-           of the annotation on 'a in the declaration of the type t
+       The layout of This expression is void, because
+         of the annotation on 'a in the declaration of the type t.
        But the layout of This expression must overlap with value, because
          an object.
 
@@ -859,9 +846,8 @@ Line 4, characters 12-33:
                 ^^^^^^^^^^^^^^^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type t
+       The layout of 'a is void, because
+         of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must be a sublayout of value, because
          to be value for the V1 safety check.
 
@@ -908,9 +894,8 @@ Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_void
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           an object field
-           appears as an unannotated type parameter
+       But the layout of t_void must be a sublayout of value, because
+         appears as an unannotated type parameter.
 |}];;
 
 (*******************************************************************)
@@ -987,9 +972,8 @@ Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
-       The layout of 'a is value, because all of the following:
-           appears as an unannotated type parameter
-           a term-level argument to a class constructor
+       The layout of 'a is value, because
+         a term-level argument to a class constructor.
        But the layout of 'a must overlap with void, because
          of the annotation on 'a in the declaration of the type t.
 |}];;
@@ -1007,12 +991,10 @@ Line 6, characters 29-31:
 6 |       method void_id (A a) : 'a t = a
                                  ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
-       The layout of 'a is value, because all of the following:
-           appears as an unannotated type parameter
-           a term-level argument to a class constructor
-       But the layout of 'a must overlap with void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type t
+       The layout of 'a is value, because
+         a term-level argument to a class constructor.
+       But the layout of 'a must overlap with void, because
+         of the annotation on 'a in the declaration of the type t.
 |}];;
 
 module type S12_6 = sig
@@ -1029,12 +1011,10 @@ Line 5, characters 4-6:
 5 |     'a t ->
         ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
-       The layout of 'a is value, because all of the following:
-           appears as an unannotated type parameter
-           a term-level argument to a class constructor
-       But the layout of 'a must overlap with void, because all of the following:
-           used as constructor field 0
-           of the annotation on 'a in the declaration of the type t
+       The layout of 'a is value, because
+         a term-level argument to a class constructor.
+       But the layout of 'a must overlap with void, because
+         of the annotation on 'a in the declaration of the type t.
 |}];;
 
 module type S12_7 = sig
@@ -1369,24 +1349,8 @@ Lines 5-7, characters 6-20:
 7 |   g (failwith "foo")..
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because all of the following:
-           used in the declaration of the record field "y/607"
-           of the annotation on 'a in the declaration of the type r
-       But the layout of 'a must be a sublayout of value, because
-         to be value for the V1 safety check.
-
-|}, Principal{|
-type t_void : void
-type ('a : void) r = { x : int; y : 'a; }
-Lines 5-7, characters 6-20:
-5 | ......() =
-6 |   let rec g { x = x ; y = y } : _ r = g { x; y } in
-7 |   g (failwith "foo")..
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because all of the following:
-           used in the declaration of the record field "y/609"
-           of the annotation on 'a in the declaration of the type r
+       The layout of 'a is void, because
+         of the annotation on 'a in the declaration of the type r.
        But the layout of 'a must be a sublayout of value, because
          to be value for the V1 safety check.
 
@@ -1461,9 +1425,8 @@ Error: This expression has type t_void but an expression was expected of type
          ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           a type argument defaulted to have layout value
-           bound by a `let`
+       But the layout of t_void must be a sublayout of value, because
+         bound by a `let`.
 |}]
 
 (*********************************************************)
@@ -1763,9 +1726,8 @@ Error: This expression has type t_void but an expression was expected of type
          ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           used as an argument in an external declaration
-           used as a function argument
+       But the layout of t_void must be a sublayout of value, because
+         used as a function argument.
 |}]
 
 (**************************************)
@@ -1793,9 +1755,8 @@ Error: This expression has type t_void but an expression was expected of type
          ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because all of the following:
-           used as a function result
-           used as a function argument
+       But the layout of t_void must be a sublayout of value, because
+         used as a function argument.
 |}]
 
 (**************************************************)

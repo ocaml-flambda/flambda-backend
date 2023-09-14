@@ -226,9 +226,8 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
-       The layout of 'a is value, because all of the following:
-           used as a function argument
-           an unannotated universal variable
+       The layout of 'a is value, because
+         an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
@@ -243,9 +242,8 @@ Line 3, characters 4-34:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
-       The layout of 'a is value, because all of the following:
-           used as a function argument
-           an unannotated universal variable
+       The layout of 'a is value, because
+         an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
@@ -576,10 +574,8 @@ type ('a : immediate) t2_imm
 Line 3, characters 15-40:
 3 | type s = { f : ('a : value) . 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type 'a is value, because all of the following:
-           used as a function argument
-           appears as an unannotated type parameter
-           of the annotation on the universal variable a
+Error: The layout of Type 'a is value, because
+         of the annotation on the universal variable a.
        But the layout of Type 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t2_imm.
 

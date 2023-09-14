@@ -5,8 +5,7 @@ Error: This expression has type M.a but an expression was expected of type
          ('a : value)
        The layout of M.a is any, because
          a missing .cmi file for M.a.
-       But the layout of M.a must be a sublayout of value, because all of the following:
-           used as a function argument
-           imported from another compilation unit 
+       But the layout of M.a must be a sublayout of value, because
+         imported from another compilation unit. 
        No .cmi file found containing M.a.
        Hint: Adding "m" to your dependencies might help.

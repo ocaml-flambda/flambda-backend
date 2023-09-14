@@ -260,10 +260,8 @@ Line 2, characters 18-55:
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       The layout of 'a is value, because all of the following:
-           used as a function result
-           used as a function argument
-           an unannotated universal variable
+       The layout of 'a is value, because
+         an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on the abstract type declaration for a.
 |}]
@@ -279,10 +277,8 @@ type ('a : immediate) t_imm
 Line 3, characters 15-39:
 3 | type s = { f : ('a : value). 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type 'a is value, because all of the following:
-           used as a function argument
-           appears as an unannotated type parameter
-           of the annotation on the universal variable a
+Error: The layout of Type 'a is value, because
+         of the annotation on the universal variable a.
        But the layout of Type 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t_imm.
 
@@ -518,10 +514,8 @@ Line 1, characters 37-53:
                                          ^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       The layout of 'a is value, because all of the following:
-           used as a function result
-           used as a function argument
-           of the annotation on the universal variable a
+       The layout of 'a is value, because
+         of the annotation on the universal variable a.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on the universal variable a.
 |}]
