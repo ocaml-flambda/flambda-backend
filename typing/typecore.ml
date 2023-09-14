@@ -1281,7 +1281,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
       end
   | Tpat_constant _ ->
       let mode =
-        if Ctype.is_always_global !env p.pat_type
+        if Ctype.is_immediate !env p.pat_type
         then Value.newvar ()
         else mode
       in
@@ -6042,6 +6042,10 @@ and type_expect_
 
 and type_ident env ?(recarg=Rejected) lid =
   let (path, desc, mode, reason) = Env.lookup_value ~loc:lid.loc lid.txt env in
+  (* Mode crossing here is needed only because of the strange behaviour of
+  [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
+  identifiers would be mode crossed when being added to the environment. *)
+  let mode = mode_cross_to_min env desc.val_type mode in
   let is_recarg =
     match get_desc desc.val_type with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
