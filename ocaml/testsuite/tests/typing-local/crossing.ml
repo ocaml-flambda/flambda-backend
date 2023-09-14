@@ -345,7 +345,7 @@ val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
 |}]
 
-(* This test needs the snapshotting in is_always_global to prevent a type error
+(* This test needs the snapshotting in [is_immediate] to prevent a type error
    from the use of the gadt equation in the inner scope. *)
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a }
@@ -436,4 +436,15 @@ Line 1, characters 12-39:
 1 | let _ = bar (foo' :> local_ int -> int)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type int -> local_ int is not a subtype of local_ int -> int
+|}]
+
+(* Mode crossing at identifiers - in the following, x and y are added to the
+environment at mode local, but they cross to global when they are refered to
+again. Note that ref is polymorphic and thus doesn't trigger crossing. *)
+let foo () =
+  let x, y = local_ (42, 24) in
+  let _ = ref x, ref y in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
 |}]

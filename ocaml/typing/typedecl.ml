@@ -441,8 +441,8 @@ let make_constructor
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = 
-        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type 
+      let tret_type =
+        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type
       in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
@@ -935,7 +935,7 @@ let check_constraints env sdecl (_, decl) =
    [type_layout] with what we computed.
 
    CR layouts: if easy, factor out the shared backtracking logic from here
-   and is_always_global.
+   and is_immediate.
 *)
 let check_coherence env loc dpath decl =
   match decl with
