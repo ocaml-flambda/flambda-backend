@@ -2336,17 +2336,45 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
+let split_two_halves ~len l =
+  let rec aux len first_halve l =
+    if len = 0
+    then List.rev first_halve, l
+    else
+      match l with
+      | [] -> List.rev first_halve, []
+      | x :: l -> aux (len - 1) (x :: first_halve) l
+  in
+  aux len [] l
+
+let split_arity_for_apply arity args =
+  if List.length arity >= Lambda.max_arity ()
+  then
+    let a1, a2 = split_two_halves ~len:(Lambda.max_arity ()) arity in
+    let args1, args2 = split_two_halves ~len:(Lambda.max_arity ()) args in
+    (a1, args1), Some (a2, args2)
+  else (arity, args), None
+
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
   let ty = Extended_machtype.to_machtype extended_ty in
-  let really_call_caml_apply clos args =
-    let cargs =
-      Cconst_symbol (apply_function_sym extended_args_type extended_ty mode, dbg)
-      :: args
-      @ [clos]
+  let rec really_call_caml_apply ~arity ~clos ~args =
+    let gen ~clos ~arity ~result ~args ~ty =
+      let cargs =
+        (Cconst_symbol (apply_function_sym arity result mode, dbg) :: args)
+        @ [clos]
+      in
+      Cop (Capply (ty, pos), cargs, dbg)
     in
-    Cop (Capply (ty, pos), cargs, dbg)
+    (* The compiler clamps all arity to [Lambda.max_arity ()]. This means that
+       generating a caml to [caml_applyN] with N greater than this bound has
+       little sense and we can instead call caml_apply several times. *)
+    match split_arity_for_apply arity args with
+    | (arity, args), None -> gen ~arity ~result:extended_ty ~ty ~args ~clos
+    | (arity, args), Some (arity', args') ->
+      bind "result" (gen ~clos ~arity ~args ~result:[| Val |] ~ty:[| Val |])
+        (fun clos -> really_call_caml_apply ~arity:arity' ~args:args' ~clos)
   in
   if !Flambda_backend_flags.caml_apply_inline_fast_path
   then
@@ -2375,10 +2403,10 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                     (get_field_gen mut clos 2 dbg :: args) @ [clos],
                     dbg ),
                 dbg,
-                really_call_caml_apply clos args,
+                really_call_caml_apply ~arity:extended_args_type ~clos ~args,
                 dbg,
                 Any )))
-  else really_call_caml_apply clos args
+  else really_call_caml_apply ~arity:extended_args_type ~clos ~args
 
 let generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
