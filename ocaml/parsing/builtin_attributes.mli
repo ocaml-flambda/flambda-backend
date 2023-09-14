@@ -193,7 +193,7 @@ val has_once : Parsetree.attributes -> (bool, unit) result
      and [value].
    - If the [Layouts_beta] extension is on, this behaves like the previous case
      regardless of the value of [~legacy_immediate], except that it allows
-     [float64].
+     [float64] and [any].
    - If the [Layouts_alpha] extension is on, this can return any layout and
      never errors.
 

@@ -14,12 +14,8 @@ type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
-Line 5, characters 13-16:
-5 | type t_any : any;;
-                 ^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+type t_any : any
 |}]
-(* CR layouts v1.5: the above test should be accepted; fix. *)
 
 type t_void : void;;
 
