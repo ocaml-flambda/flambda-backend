@@ -219,7 +219,7 @@ let rec expr_size env = function
       assert false
   | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz + 1)
-  | Uprim (Pduprecord (Record_float, sz), _, _) ->
+  | Uprim (Pduprecord ((Record_float | Record_ufloat), sz), _, _) ->
       RHS_floatblock (Lambda.alloc_heap, sz)
   | Uprim (Pccall { prim_name; _ }, closure::_, _)
         when prim_name = "caml_check_value_is_closure" ->
