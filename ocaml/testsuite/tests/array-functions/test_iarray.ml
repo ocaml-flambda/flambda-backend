@@ -1,5 +1,4 @@
 (* TEST
-   flags = "-extension immutable_arrays"
 *)
 
 module Iarray = Stdlib__Iarray
