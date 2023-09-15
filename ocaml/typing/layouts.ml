@@ -814,7 +814,7 @@ module Layout = struct
       | Sublayout ->
         fprintf ppf "sublayout check"
 
-    (* CR layouts v2.9: An older implementation of format_flattened_history existed
+    (* CR layouts: An older implementation of format_flattened_history existed
        which displays more information not limited to one layout and one creation_reason
        around commit 66a832d70bf61d9af3b0ec6f781dcf0a188b324d in main.
 
