@@ -316,8 +316,15 @@ let rec print_compact ppf t =
 
 let print_compact ppf { dbg; } = print_compact ppf dbg
 
-let merge ~into:{ dbg = dbg1 } { dbg = _dbg2; } =
-  { dbg = dbg1 }
+let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
+      { dbg = dbg2; assume_zero_alloc = a2 } =
+  (* Keep the first [dbg] info to match existing behavior.
+     When assume_zero_alloc is only on one of the inputs but not both, keep [dbg]
+     from the other.
+  *)
+  { dbg = if a1 && not a2 then dbg2 else dbg1;
+    assume_zero_alloc = a1 && a2
+  }
 
 let assume_zero_alloc t = t.assume_zero_alloc
 
