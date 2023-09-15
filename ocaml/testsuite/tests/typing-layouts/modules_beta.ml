@@ -84,7 +84,7 @@ Error: Signature mismatch:
          type ('a : immediate) t = 'a list
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.'a value, because
-                                             appears as an unannotated type parameter.
+                                             a type argument defaulted to have layout value.
                                            'a immediate, because
                                              of the annotation on 'a
                                                                   in the declaration of the type
@@ -112,7 +112,7 @@ Error: Signature mismatch:
        Their parameters differ:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.'a value, because
-                                             appears as an unannotated type parameter.
+                                             a type argument defaulted to have layout value.
                                            'a immediate, because
                                              of the annotation on 'a
                                                                   in the declaration of the type

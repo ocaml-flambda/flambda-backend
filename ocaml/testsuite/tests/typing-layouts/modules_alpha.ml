@@ -41,7 +41,7 @@ Error: The type constraints are not consistent.
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value, because
-         appears as an unannotated type parameter.
+         a type argument defaulted to have layout value.
 |}];;
 
 module type S1'' = S1 with type s = t_void;;
@@ -95,7 +95,7 @@ Error: Signature mismatch:
          type ('a : immediate) t = 'a list
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.'a value, because
-                                             appears as an unannotated type parameter.
+                                             a type argument defaulted to have layout value.
                                            'a immediate, because
                                              of the annotation on 'a
                                                                   in the declaration of the type

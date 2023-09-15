@@ -191,7 +191,7 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
        The layout of 'a is float64, because
          of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value, because
-         appears as an unannotated type parameter.
+         a tuple element.
 |}]
 
 (****************************************************)
@@ -726,7 +726,7 @@ Error: This expression has type ('a : value)
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
        But the layout of t_float64 must be a sublayout of value, because
-         used as a function argument.
+         captured in an object.
 |}];;
 
 let f12_14 (m1 : t_float64) (m2 : t_float64) = object

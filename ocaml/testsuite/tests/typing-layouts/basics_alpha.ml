@@ -548,7 +548,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         appears as an unannotated type parameter.
+         a field of a polymorphic variant.
 |}];;
 
 module M8_4 = struct
@@ -563,7 +563,7 @@ Error: The type constraints are not consistent.
        The layout of void_unboxed_record is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of void_unboxed_record must be a sublayout of value, because
-         appears as an unannotated type parameter.
+         a field of a polymorphic variant.
 |}];;
 
 module type S8_5 = sig
@@ -665,7 +665,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         appears as an unannotated type parameter.
+         a tuple element.
 |}];;
 
 module M9_6 = struct
@@ -680,7 +680,7 @@ Error: The type constraints are not consistent.
        The layout of void_unboxed_record is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of void_unboxed_record must be a sublayout of value, because
-         appears as an unannotated type parameter.
+         a tuple element.
 |}];;
 
 module type S9_7 = sig
@@ -895,7 +895,7 @@ Error: The type constraints are not consistent.
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         appears as an unannotated type parameter.
+         an object field.
 |}];;
 
 (*******************************************************************)
@@ -1426,7 +1426,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         bound by a `let`.
+         a type argument defaulted to have layout value.
 |}]
 
 (*********************************************************)
