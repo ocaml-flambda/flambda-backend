@@ -412,10 +412,7 @@ end = struct
 
   let expected_value t =
     let res = if t.strict then Value.safe else Value.relaxed in
-    if t.never_returns_normally then
-      { res with nor = V.Bot }
-    else
-      res
+    if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
 
@@ -427,7 +424,8 @@ end = struct
           match c with
           | Check { property; strict; loc } when property = spec ->
             Some { strict; assume = false; never_returns_normally = false; loc }
-          | Assume { property; strict; never_returns_normally; loc; } when property = spec ->
+          | Assume { property; strict; never_returns_normally; loc }
+            when property = spec ->
             Some { strict; assume = true; never_returns_normally; loc }
           | Ignore_assert_all property when property = spec ->
             ignore_assert_all := true;
@@ -441,8 +439,12 @@ end = struct
     | [] ->
       if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
       then
-        Some { strict = false; assume = false; never_returns_normally = false;
-               loc = Debuginfo.to_location dbg }
+        Some
+          { strict = false;
+            assume = false;
+            never_returns_normally = false;
+            loc = Debuginfo.to_location dbg
+          }
       else None
     | [p] -> Some p
     | _ :: _ ->
