@@ -181,21 +181,22 @@ module Dbg = struct
       | _ :: _, [] -> 1
       | [], _ :: _ -> -1
       | d1 :: ds1, d2 :: ds2 ->
-        let c = String.compare d1.dinfo_file d2.dinfo_file in
-        if c <> 0 then c else
-          let c = compare d1.dinfo_line d2.dinfo_line in
-          if c <> 0 then c else
-            let c = compare d1.dinfo_char_end d2.dinfo_char_end in
-            if c <> 0 then c else
-              let c = compare d1.dinfo_char_start d2.dinfo_char_start in
-              if c <> 0 then c else
-                let c = compare d1.dinfo_start_bol d2.dinfo_start_bol in
-                if c <> 0 then c else
-                  let c = compare d1.dinfo_end_bol d2.dinfo_end_bol in
-                  if c <> 0 then c else
-                    let c = compare d1.dinfo_end_line d2.dinfo_end_line in
-                    if c <> 0 then c else
-                      loop ds1 ds2
+
+     let c = String.compare d1.dinfo_file d2.dinfo_file in
+       if c <> 0 then c else
+       let c = Int.compare d1.dinfo_line d2.dinfo_line in
+       if c <> 0 then c else
+       let c = Int.compare d1.dinfo_char_end d2.dinfo_char_end in
+       if c <> 0 then c else
+       let c = Int.compare d1.dinfo_char_start d2.dinfo_char_start in
+       if c <> 0 then c else
+       let c = Int.compare d1.dinfo_start_bol d2.dinfo_start_bol in
+       if c <> 0 then c else
+       let c = Int.compare d1.dinfo_end_bol d2.dinfo_end_bol in
+       if c <> 0 then c else
+       let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
+       if c <> 0 then c else
+       loop ds1 ds2
     in
     loop (List.rev dbg1) (List.rev dbg2)
 
