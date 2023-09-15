@@ -2336,22 +2336,11 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let split_two_halves ~len l =
-  let rec aux len first_halve l =
-    if len = 0
-    then List.rev first_halve, l
-    else
-      match l with
-      | [] -> List.rev first_halve, []
-      | x :: l -> aux (len - 1) (x :: first_halve) l
-  in
-  aux len [] l
-
 let split_arity_for_apply arity args =
-  if List.length arity >= Lambda.max_arity ()
+  if List.compare_length_with arity (Lambda.max_arity ()) >= 0
   then
-    let a1, a2 = split_two_halves ~len:(Lambda.max_arity ()) arity in
-    let args1, args2 = split_two_halves ~len:(Lambda.max_arity ()) args in
+    let a1, a2 = Misc.Stdlib.List.split_at (Lambda.max_arity ()) arity in
+    let args1, args2 = Misc.Stdlib.List.split_at (Lambda.max_arity ()) args in
     (a1, args1), Some (a2, args2)
   else (arity, args), None
 
