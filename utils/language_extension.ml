@@ -177,6 +177,7 @@ let default_extensions : extn_pair list =
   [ Pair (Local, ())
   ; Pair (Include_functor, ())
   ; Pair (Polymorphic_parameters, ())
+  ; Pair (Immutable_arrays, ())
   ]
 let extensions : extn_pair list ref = ref default_extensions
 
