@@ -234,3 +234,8 @@ module Params = struct
   let[@zero_alloc] test13 () =
     test12 ~d:42 ()
 end
+
+let[@zero_alloc assume][@inline always] test40 x = (x,x)
+
+let[@zero_alloc] test41 b x =
+  if b then test40 (x+1) else test40 (x*2)
