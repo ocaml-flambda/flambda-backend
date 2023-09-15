@@ -827,9 +827,15 @@ module Layout = struct
                    ; lhs_history
                    ; rhs_layout
                    ; rhs_history } ->
-          begin match history key lhs_layout lhs_history with
-          | Some _ as r -> r
-          | None -> history key rhs_layout rhs_history
+          let lhs_reason = history key lhs_layout lhs_history in
+          let rhs_reason = history key rhs_layout rhs_history in
+          begin match lhs_reason, rhs_reason with
+          | None, r
+          | r, None -> r
+          (* Prefer other creation_reasons over Concrete_creation *)
+          | r, Some (Concrete_creation _)
+          | Some (Concrete_creation _), r -> r
+          | r, _ -> r
           end
         | Creation reason ->
           let layout_desc = get_internal internal in
