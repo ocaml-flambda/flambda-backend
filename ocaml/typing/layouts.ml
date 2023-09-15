@@ -820,43 +820,15 @@ module Layout = struct
 
        Consider revisiting that if the current implementation becomes insufficient. *)
 
-    let get_creation_reason : internal -> history -> creation_reason option =
-      let rec history key internal = function
-        | Interact { reason = _
-                   ; lhs_layout
-                   ; lhs_history
-                   ; rhs_layout
-                   ; rhs_history } ->
-          let lhs_reason = history key lhs_layout lhs_history in
-          let rhs_reason = history key rhs_layout rhs_history in
-          begin match lhs_reason, rhs_reason with
-          | None, r
-          | r, None -> r
-          (* Prefer other creation_reasons over Concrete_creation *)
-          | r, Some (Concrete_creation _)
-          | Some (Concrete_creation _), r -> r
-          | r, _ -> r
-          end
-        | Creation reason ->
-          let layout_desc = get_internal internal in
-          begin match sub_desc layout_desc key with
-          | Equal -> Some reason
-          | _ -> None
-          end
-      in
-      fun internal hist ->
-        history (get_internal internal) internal hist
-
-
     let format_flattened_history ~intro ppf t =
       let lay = get_internal t.layout in
       fprintf ppf "@[<v 2>%t %a"
         intro
         format_desc lay;
-      begin match get_creation_reason t.layout t.history with
-      | None -> ()
-      | Some reason ->
+      begin match t.history with
+      | Creation reason ->
         fprintf ppf ", because@ %a" format_creation_reason reason
+      | _ -> assert false
       end;
       fprintf ppf ".@]@;"
 
@@ -988,8 +960,18 @@ module Layout = struct
   let equate = equate_or_equal ~allow_mutation:true
 
   let combine_histories reason lhs rhs =
-    Interact { reason; lhs_layout = lhs.layout; lhs_history = lhs.history;
-               rhs_layout = rhs.layout; rhs_history = rhs.history }
+    if flattened_histories
+    then begin match sub_desc (get_internal lhs.layout) (get_internal rhs.layout) with
+      | Sub -> lhs.history
+      | Not_sub -> rhs.history
+      | Equal -> begin match lhs.history, rhs.history with
+        (* Prefer other creation_reasons over Concrete_creation *)
+        | h, Creation (Concrete_creation _)
+        | Creation (Concrete_creation _), h -> h
+        | h, _ -> h
+        end
+    end else Interact { reason; lhs_layout = lhs.layout; lhs_history = lhs.history;
+                        rhs_layout = rhs.layout; rhs_history = rhs.history }
 
   let intersection ~reason l1 l2 =
     match l1.layout, l2.layout with
