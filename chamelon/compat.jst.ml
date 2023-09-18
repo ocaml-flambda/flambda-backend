@@ -43,6 +43,7 @@ type texp_function_param = {
   pattern : pattern;
   param : Ident.t;
   partial : partial;
+  optional_default : expression option;
   param_identifier : texp_function_param_identifier;
 }
 
@@ -98,10 +99,21 @@ let mkTexp_function ?(id = texp_function_defaults)
     {
       params =
         List.map
-          (fun { arg_label; pattern; param; partial; param_identifier = id } ->
+          (fun {
+                 arg_label;
+                 pattern;
+                 param;
+                 partial;
+                 param_identifier = id;
+                 optional_default;
+               } ->
             {
               fp_arg_label = arg_label;
-              fp_kind = Tparam_pat pattern;
+              fp_kind =
+                (match optional_default with
+                | None -> Tparam_pat pattern
+                | Some default ->
+                    Tparam_optional_default (pattern, default, id.param_sort));
               fp_param = param;
               fp_partial = partial;
               fp_sort = id.param_sort;
@@ -170,50 +182,51 @@ let view_texp (e : expression_desc) =
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
   | Texp_tuple (args, mode) -> Texp_tuple (args, mode)
-  | Texp_function { params; body; alloc_mode; region; ret_sort } -> (
-      let exception Unviewable_function in
-      try
-        let params =
-          List.map
-            (fun param ->
+  | Texp_function { params; body; alloc_mode; region; ret_sort } ->
+      let params =
+        List.map
+          (fun param ->
+            let pattern, optional_default =
               match param.fp_kind with
-              | Tparam_optional_default _ -> raise Unviewable_function
-              | Tparam_pat pattern ->
-                  {
-                    arg_label = param.fp_arg_label;
-                    param = param.fp_param;
-                    partial = param.fp_partial;
-                    pattern;
-                    param_identifier =
-                      {
-                        param_sort = param.fp_sort;
-                        param_mode = param.fp_mode;
-                        param_curry = param.fp_curry;
-                        param_newtypes = param.fp_newtypes;
-                      };
-                  })
-            params
-        in
-        let body =
-          match body with
-          | Tfunction_body body -> Function_body body
-          | Tfunction_cases cases ->
-              Function_cases
+              | Tparam_optional_default (pattern, optional_default, _) ->
+                  (pattern, Some optional_default)
+              | Tparam_pat pattern -> (pattern, None)
+            in
+            {
+              arg_label = param.fp_arg_label;
+              param = param.fp_param;
+              partial = param.fp_partial;
+              pattern;
+              optional_default;
+              param_identifier =
                 {
-                  cases = cases.fc_cases;
-                  param = cases.fc_param;
-                  partial = cases.fc_partial;
-                  function_cases_identifier =
-                    {
-                      last_arg_mode = cases.fc_arg_mode;
-                      last_arg_sort = cases.fc_arg_sort;
-                      last_arg_exp_extra = cases.fc_exp_extra;
-                      last_arg_attributes = cases.fc_attributes;
-                    };
-                }
-        in
-        Texp_function ({ params; body }, { alloc_mode; region; ret_sort })
-      with Unviewable_function -> O e)
+                  param_sort = param.fp_sort;
+                  param_mode = param.fp_mode;
+                  param_curry = param.fp_curry;
+                  param_newtypes = param.fp_newtypes;
+                };
+            })
+          params
+      in
+      let body =
+        match body with
+        | Tfunction_body body -> Function_body body
+        | Tfunction_cases cases ->
+            Function_cases
+              {
+                cases = cases.fc_cases;
+                param = cases.fc_param;
+                partial = cases.fc_partial;
+                function_cases_identifier =
+                  {
+                    last_arg_mode = cases.fc_arg_mode;
+                    last_arg_sort = cases.fc_arg_sort;
+                    last_arg_exp_extra = cases.fc_exp_extra;
+                    last_arg_attributes = cases.fc_attributes;
+                  };
+              }
+      in
+      Texp_function ({ params; body }, { alloc_mode; region; ret_sort })
   | Texp_sequence (e1, sort, e2) -> Texp_sequence (e1, e2, sort)
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e

@@ -12,11 +12,17 @@ open Compat
     compatibility layer.)
 *)
 
+type cases_view_identifier =
+  | Cases of texp_function_cases_identifier
+  | Param of texp_function_param_identifier
+
 type cases_view = {
   arg_label : Asttypes.arg_label;
   param : Ident.t;
   cases : value case list;
   partial : partial;
+  optional_default : expression option;
+  cases_view_identifier : cases_view_identifier;
 }
 
 val cases_view_to_function : cases_view -> texp_function

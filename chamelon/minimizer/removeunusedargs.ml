@@ -42,6 +42,8 @@ let rec fun_wrapper arg_list acc_id depth path_fun n =
            arg_label = Nolabel;
            param = id_arg;
            partial = Total;
+           optional_default = None;
+           cases_view_identifier = Param texp_function_param_identifier_defaults;
            cases =
              [
                {

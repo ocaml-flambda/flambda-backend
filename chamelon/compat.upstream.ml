@@ -34,6 +34,7 @@ type texp_function_param = {
   pattern : pattern;
   param : Ident.t;
   partial : partial;
+  optional_default : expression option;
   param_identifier : texp_function_param_identifier;
 }
 
@@ -72,7 +73,15 @@ let mk_exp ed =
 let mkTexp_function ?id:(() = ()) ({ params; body } : texp_function) =
   let exp =
     List.fold_right
-      (fun { arg_label; pattern; param; partial; param_identifier = () } acc ->
+      (fun {
+             arg_label;
+             pattern;
+             param;
+             partial;
+             optional_default;
+             param_identifier = ();
+           } acc ->
+        assert (Option.is_none optional_default);
         mk_exp
           (Texp_function
              {
@@ -135,6 +144,7 @@ let rec view_texp (e : expression_desc) =
                 partial;
                 param;
                 pattern = c_lhs;
+                optional_default = None;
                 param_identifier = ();
               }
             in

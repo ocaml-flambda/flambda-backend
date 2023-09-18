@@ -140,6 +140,9 @@ let dummy1_str_it_desc =
                        arg_label = Nolabel;
                        param = create_local "()";
                        partial = Total;
+                       optional_default = None;
+                       cases_view_identifier =
+                         Param texp_function_param_identifier_defaults;
                        cases =
                          [
                            {

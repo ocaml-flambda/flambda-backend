@@ -18,6 +18,10 @@ type texp_function_param = {
   pattern : pattern;
   param : Ident.t;
   partial : partial;
+  optional_default : expression option;
+      (** The optional argument's default value. If [optional_default] is present,
+      [arg_label] must be [Optional], and [pattern] matches values of type [t]
+      if the parameter type is [t option]. *)
   param_identifier : texp_function_param_identifier;
 }
 
