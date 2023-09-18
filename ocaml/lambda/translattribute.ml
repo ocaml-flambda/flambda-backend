@@ -251,11 +251,13 @@ let parse_property_attribute attr property =
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
       parse_ids_payload txt loc
         ~default:Default_check
-        ~empty:(Check { property; strict = false; loc; } )
+        ~empty:(Check { property; strict = false; opt = false; loc; } )
         [
           ["assume"],
           Assume { property; strict = false; never_returns_normally = false; loc; };
-          ["strict"], Check { property; strict = true; loc; };
+          ["strict"], Check { property; strict = true; opt = false; loc; };
+          ["opt"], Check { property; strict = false; opt = true; loc; };
+          ["opt"; "strict"; ], Check { property; strict = true; opt = true; loc; };
           ["assume"; "strict"],
           Assume { property; strict = true; never_returns_normally = false; loc; };
           ["assume"; "never_returns_normally"],

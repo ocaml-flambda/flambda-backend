@@ -509,6 +509,7 @@ type check_attribute =
   | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;

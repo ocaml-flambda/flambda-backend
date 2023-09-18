@@ -401,6 +401,7 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
