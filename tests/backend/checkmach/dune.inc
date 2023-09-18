@@ -528,3 +528,53 @@
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps test_never_returns_normally.output test_never_returns_normally.output.corrected)
  (action (diff test_never_returns_normally.output test_never_returns_normally.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail22.output.corrected)
+ (deps (:ml fail22.ml) filter.sh)
+ (action
+   (with-outputs-to fail22.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check-opt -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail22.output fail22.output.corrected)
+ (action (diff fail22.output fail22.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (targets fail23.output.corrected)
+ (deps (:ml fail23.ml) filter.sh)
+ (action
+   (with-outputs-to fail23.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check-opt -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps fail23.output fail23.output.corrected)
+ (action (diff fail23.output fail23.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_zero_alloc_opt1.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check-opt -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_zero_alloc_opt2.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check-opt -dcse -dcheckmach -dump-into-file -O3)))

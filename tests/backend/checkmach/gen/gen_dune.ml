@@ -8,11 +8,12 @@ let () =
       {|(enabled_if (= %{context_name} "main"))|}
   in
   let buf = Buffer.create 1000 in
-  let print_test ~flambda_only ~deps =
+  let print_test ?(extra_flags="-zero-alloc-check") ~flambda_only deps =
     let enabled_if = enabled_if flambda_only in
     let subst = function
       | "enabled_if" -> enabled_if
       | "deps" -> deps
+      | "extra_flags" -> extra_flags
       | _ -> "assert false"
     in
     Buffer.clear buf;
@@ -22,11 +23,11 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ~cutoff ~flambda_only ~extra_dep ~exit_code name =
+  let print_test_expected_output ?(extra_flags="-zero-alloc-check") ~cutoff ~flambda_only ~extra_dep ~exit_code name =
     let enabled_if = enabled_if flambda_only in
     let ml_deps =
       let s =
@@ -42,6 +43,7 @@ let () =
       | "ml_deps" -> ml_deps
       | "exit_code" -> string_of_int exit_code
       | "cutoff" -> string_of_int cutoff
+      | "extra_flags" -> extra_flags
       | _ -> assert false
     in
     Buffer.clear buf;
@@ -56,7 +58,7 @@ let () =
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff ${cutoff} -O3))
+          ${extra_flags} -checkmach-details-cutoff ${cutoff} -O3))
     (run "./filter.sh")
    ))))
 
@@ -69,9 +71,9 @@ let () =
     Buffer.output_buffer Out_channel.stdout buf
   in
   let default_cutoff = 20 in
-  print_test ~flambda_only:false ~deps:"s.ml t.ml";
-  print_test ~flambda_only:false ~deps:"t5.ml test_assume.ml";
-  print_test ~flambda_only:true ~deps:"test_flambda.ml";
+  print_test ~flambda_only:false "s.ml t.ml";
+  print_test ~flambda_only:false "t5.ml test_assume.ml";
+  print_test ~flambda_only:true "test_flambda.ml";
 
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail1";
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail2";
@@ -109,13 +111,17 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None
     ~exit_code:0 "t6";
   (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
-  print_test ~flambda_only:false ~deps:"t7.ml";
+  print_test ~flambda_only:false "t7.ml";
   (* Check that compiler generated stubs are ignored with [@@@zero_alloc all] *)
-  print_test ~flambda_only:false ~deps:"test_stub_dep.ml test_stub.ml";
+  print_test ~flambda_only:false "test_stub_dep.ml test_stub.ml";
   (* flambda2 generates an indirect call but we don't yet have a way to exclude it
      without excluding closure. *)
-  print_test ~flambda_only:true ~deps:"t1.ml";
+  print_test ~flambda_only:true "t1.ml";
   (* closure does not delete dead functions *)
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check-opt" ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail22";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check-opt" ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail23";
+  print_test ~extra_flags:"-zero-alloc-check-opt" ~flambda_only:false "test_zero_alloc_opt1.ml";
+  print_test ~extra_flags:"-zero-alloc-check-opt" ~flambda_only:false "test_zero_alloc_opt2.ml";
   ()

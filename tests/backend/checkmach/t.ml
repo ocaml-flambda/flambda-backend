@@ -254,5 +254,7 @@ end
 
 
 module Opt = struct
+  (* passes because -zero-alloc-check-opt is not provided. *)
   let[@zero_alloc opt] test x = x,x
+  let[@zero_alloc opt strict] test x = x,x
 end
