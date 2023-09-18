@@ -2540,7 +2540,7 @@ and type_pat_aux
         let ty_var, mode = solve_Ppat_alias ~refine ~mode:alloc_mode.mode env q in
         let mode = mode_cross_to_min !env expected_ty mode in
         let id =
-          enter_variable ~is_as_variable:true tps loc name mode
+          enter_variable ~is_as_variable:true tps name.loc name mode
             ty_var sp.ppat_attributes
         in
         rvp k {
