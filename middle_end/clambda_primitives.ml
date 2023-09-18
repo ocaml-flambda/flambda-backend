@@ -210,4 +210,6 @@ let result_layout (p : primitive) =
   match p with
   | Punbox_float -> Lambda.Punboxed_float
   | Punbox_int bi -> Lambda.Punboxed_int bi
+  | Pccall {prim_native_repr_res = (_, repr_res); _} ->
+    Lambda.layout_of_native_repr repr_res
   | _ -> Lambda.layout_any_value

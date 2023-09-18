@@ -1487,6 +1487,18 @@ let structured_constant_layout = function
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
+let layout_of_native_repr : Primitive.native_repr -> _ = function
+  | Untagged_int ->  layout_int
+  | Unboxed_vector v -> layout_boxed_vector v
+  | Unboxed_float -> layout_boxed_float
+  | Unboxed_integer bi -> layout_boxedint bi
+  | Same_as_ocaml_repr s ->
+    begin match s with
+    | Value -> layout_any_value
+    | Float64 -> layout_unboxed_float
+    | Void -> assert false
+    end
+
 let primitive_result_layout (p : primitive) =
   match p with
   | Popaque layout | Pobj_magic layout -> layout
@@ -1504,17 +1516,7 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
   | Punbox_float -> Punboxed_float
-  | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
-  | Pccall { prim_native_repr_res = _, Unboxed_vector v; _} -> layout_boxed_vector v
-  | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_boxed_float
-  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr s; _} ->
-      begin match s with
-      | Value -> layout_any_value
-      | Float64 -> layout_unboxed_float
-      | Void -> assert false
-      end
-  | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
-      layout_boxedint bi
+  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
