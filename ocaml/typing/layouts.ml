@@ -602,8 +602,9 @@ module Layout = struct
 
     let report_missing_cmi ppf = function
       | Some p ->
-        fprintf ppf "@,No .cmi file found containing %a." !printtyp_path p;
-        missing_cmi_hint ppf p
+        fprintf ppf "@,@[No .cmi file found containing %a.%a@]"
+          !printtyp_path p
+          missing_cmi_hint p
       | None -> ()
   end
 
@@ -830,7 +831,7 @@ module Layout = struct
         fprintf ppf ", because@ %a" format_creation_reason reason
       | _ -> assert false
       end;
-      fprintf ppf ".@]@;"
+      fprintf ppf ".@]"
 
 
     (* this isn't really formatted for user consumption *)
@@ -911,7 +912,7 @@ module Layout = struct
           | Not_a_sublayout _ -> "be a sublayout of"
           | No_intersection _ -> "overlap with"
         in
-        fprintf ppf "%a%a"
+        fprintf ppf "@[<v>%a@;%a@]"
           (format_history ~intro:(dprintf "The layout of %a is" pp_former former)) l1
           (format_history ~intro:(dprintf "But the layout of %a must %s" pp_former former connective)) l2;
       end else begin
