@@ -1663,3 +1663,9 @@ let array_set_kind mode = function
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+
+let is_check_enabled ~opt property =
+  match property with
+  | Zero_alloc ->
+    (!Clflags.zero_alloc_check && not opt) ||
+    (!Clflags.zero_alloc_check_opt && opt)
