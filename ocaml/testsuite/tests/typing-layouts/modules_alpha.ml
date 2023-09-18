@@ -41,7 +41,7 @@ Error: The type constraints are not consistent.
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value, because
-         a type argument default to layout value.
+         a type argument defaults to layout value.
 |}];;
 
 module type S1'' = S1 with type s = t_void;;
@@ -50,10 +50,10 @@ module type S1'' = S1 with type s = t_void;;
 Line 1, characters 27-42:
 1 | module type S1'' = S1 with type s = t_void;;
                                ^^^^^^^^^^^^^^^
-Error: The layout of Type t_void is void, because
+Error: The layout of type t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of Type t_void must be a sublayout of value, because
-         an abstract type has default layout value.
+       But the layout of type t_void must be a sublayout of value, because
+         an abstract type has the value layout by default.
 |}]
 
 module type S1_2 = sig
@@ -95,7 +95,7 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
        The layout of 'a is value, because
-         a type argument default to layout value.
+         a type argument defaults to layout value.
        The layout of 'a is immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -196,9 +196,9 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type Bar3.t is value, because
+Error: The layout of type Bar3.t is value, because
          of the annotation on the declaration of the type t.
-       But the layout of Type Bar3.t must be a sublayout of immediate, because
+       But the layout of type Bar3.t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
 |}];;
 
@@ -237,7 +237,7 @@ Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value, because
-         a type argument default to layout value.
+         a type argument defaults to layout value.
 |}];;
 
 (* One downside of the current approach - this could be allowed, but isn't.  You
@@ -266,7 +266,7 @@ Line 12, characters 11-17:
                 ^^^^^^
 Error: This type Foo3.t should be an instance of type ('a : void)
        The layout of Foo3.t is value, because
-         an abstract type has default layout value.
+         an abstract type has the value layout by default.
        But the layout of Foo3.t must be a sublayout of void, because
          of the annotation on 'a in the declaration of the type t.
 |}];;
@@ -397,9 +397,9 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: The layout of Type string is value, because
+Error: The layout of type string is value, because
          it equals the primitive value type string.
-       But the layout of Type string must be a sublayout of immediate, because
+       But the layout of type string must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}]
 

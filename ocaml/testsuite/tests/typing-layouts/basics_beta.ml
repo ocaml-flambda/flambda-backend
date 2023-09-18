@@ -574,8 +574,8 @@ type ('a : immediate) t2_imm
 Line 3, characters 15-40:
 3 | type s = { f : ('a : value) . 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type 'a is value, because
+Error: The layout of type 'a is value, because
          of the annotation on the universal variable a.
-       But the layout of Type 'a must be a sublayout of immediate, because
+       But the layout of type 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t2_imm.
 |}]

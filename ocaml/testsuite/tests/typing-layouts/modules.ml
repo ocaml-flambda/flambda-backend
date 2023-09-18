@@ -133,9 +133,9 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type Bar3.t is value, because
+Error: The layout of type Bar3.t is value, because
          of the annotation on the declaration of the type t.
-       But the layout of Type Bar3.t must be a sublayout of immediate, because
+       But the layout of type Bar3.t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
 |}];;
 
@@ -182,9 +182,9 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: The layout of Type string is value, because
+Error: The layout of type string is value, because
          it equals the primitive value type string.
-       But the layout of Type string must be a sublayout of immediate, because
+       But the layout of type string must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}]
 
