@@ -169,7 +169,7 @@ module Layout : sig
     | Boxed_variant
     | Extensible_variant
     | Primitive of Ident.t
-    | Type_argument (* CR layouts: Should this take a Path.t? *)
+    | Type_argument of Path.t
     | Tuple
     | Row_variable
     | Polymorphic_variant

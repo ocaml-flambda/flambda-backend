@@ -2,7 +2,7 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_layout = Layouts.Layout.value ~why:Type_argument
+let dummy_layout = Layouts.Layout.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.legacy
 let mkTvar name = Tvar { name; layout = dummy_layout }
 

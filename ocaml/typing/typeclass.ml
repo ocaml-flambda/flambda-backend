@@ -1504,7 +1504,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Layout.value ~why:Type_argument))
+  Predef.type_option (Btype.newgenvar (Layout.value ~why:(Type_argument Predef.path_option)))
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
@@ -1545,7 +1545,7 @@ let rec approx_description ct =
 let temp_abbrev loc env id arity uid =
   let params = ref [] in
   for _i = 1 to arity do
-    params := Ctype.newvar (Layout.value ~why:Type_argument) :: !params
+    params := Ctype.newvar (Layout.value ~why:(Type_argument (Path.Pident id))) :: !params
   done;
   let ty = Ctype.newobj (Ctype.newvar (Layout.value ~why:Object)) in
   let env =
