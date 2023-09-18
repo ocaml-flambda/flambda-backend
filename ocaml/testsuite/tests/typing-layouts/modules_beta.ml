@@ -85,7 +85,7 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
        The layout of 'a is value, because
-         a type argument defaults to layout value.
+         a type argument of list defaults to layout value.
        The layout of 'a is immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -111,7 +111,7 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
        The layout of 'a is value, because
-         a type argument defaults to layout value.
+         a type argument of list defaults to layout value.
        The layout of 'a is immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]

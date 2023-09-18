@@ -7,7 +7,7 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t0.
        But the layout of 'a must overlap with value, because
-         a type argument defaults to layout value.
+         a type argument of list defaults to layout value.
 Line 2, characters 11-15:
 2 | type ('a : valu) t0 = 'a list;;
                ^^^^
