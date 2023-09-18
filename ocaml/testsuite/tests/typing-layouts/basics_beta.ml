@@ -227,7 +227,7 @@ Line 2, characters 2-32:
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
        The layout of 'a is value, because
-         an unannotated universal variable.
+         it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
@@ -243,7 +243,7 @@ Line 3, characters 4-34:
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
        The layout of 'a is value, because
-         an unannotated universal variable.
+         it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t6_imm.
 |}];;
@@ -264,7 +264,7 @@ Line 3, characters 12-21:
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
        The layout of int * int is value, because
-         a tuple type.
+         it's a tuple type.
        But the layout of int * int must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t7.
 |}]
@@ -578,5 +578,4 @@ Error: The layout of Type 'a is value, because
          of the annotation on the universal variable a.
        But the layout of Type 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t2_imm.
-
 |}]

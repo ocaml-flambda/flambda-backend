@@ -137,7 +137,6 @@ Error: The layout of Type Bar3.t is value, because
          of the annotation on the declaration of the type t.
        But the layout of Type Bar3.t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
-
 |}];;
 
 module rec Foo3 : sig
@@ -187,7 +186,6 @@ Error: The layout of Type string is value, because
          it equals the primitive value type string.
        But the layout of Type string must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}]
 
 (*****************************************)
@@ -226,10 +224,9 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         used as an element in a first-class module.
+         it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}];;
 
 module type S6_6' = sig
@@ -247,10 +244,9 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         used as an element in a first-class module.
+         it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}];;
 
 (* CR layouts: this is broken because of the package with-type hack.  It was
@@ -272,10 +268,9 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         used as an element in a first-class module.
+         it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}];;
 
 (*****************************************)
