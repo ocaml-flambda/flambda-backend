@@ -2530,10 +2530,10 @@ let report_error ppf = function
   | Layout_mismatch_of_path (dpath,v) ->
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
-    let offender ppf = fprintf ppf "Type %s" (Ident.name (Path.head dpath)) in
+    let offender ppf = fprintf ppf "type %s" (Ident.name (Path.head dpath)) in
     Layout.Violation.report_with_offender ~offender ppf v
   | Layout_mismatch_of_type (ty,v) ->
-    let offender ppf = fprintf ppf "Type %a" Printtyp.type_expr ty in
+    let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     Layout.Violation.report_with_offender ~offender ppf v
   | Layout_sort {lloc; typ; err} ->
     let s =

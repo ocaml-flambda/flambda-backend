@@ -744,7 +744,7 @@ module Layout = struct
       | Extensible_variant -> fprintf ppf "it's an extensible variant"
       | Primitive id ->
         fprintf ppf "it equals the primitive value type %s" (Ident.name id)
-      | Type_argument -> fprintf ppf "a type argument default to layout value"
+      | Type_argument -> fprintf ppf "a type argument defaults to layout value"
       | Tuple -> fprintf ppf "it's a tuple type"
       | Row_variable -> fprintf ppf "it's a row variable"
       | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant"
@@ -757,7 +757,7 @@ module Layout = struct
       | Univar -> fprintf ppf "it's an unannotated universal variable"
       | Polymorphic_variant_field -> fprintf ppf "it's a field of a polymorphic variant"
       | Default_type_layout ->
-        fprintf ppf "an abstract type has default layout value"
+        fprintf ppf "an abstract type has the value layout by default"
       | Float_record_field ->
         fprintf ppf "it's a field of a float record"
       | Existential_type_variable ->
