@@ -287,5 +287,6 @@ val print_arguments : string -> unit
 val reset_arguments : unit -> unit
 
 val zero_alloc_check : bool ref
+val zero_alloc_check_opt : bool ref
 val zero_alloc_check_assert_all : bool ref
 
