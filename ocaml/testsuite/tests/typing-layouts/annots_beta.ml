@@ -57,7 +57,7 @@ Line 1, characters 8-36:
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
        The layout of int list is value, because
-         a boxed variant.
+         it's a boxed variant.
        But the layout of int list must be a sublayout of immediate, because
          of the annotation on the type variable a.
 |}]
@@ -261,7 +261,7 @@ Line 2, characters 18-55:
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
        The layout of 'a is value, because
-         an unannotated universal variable.
+         it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on the abstract type declaration for a.
 |}]
@@ -277,11 +277,10 @@ type ('a : immediate) t_imm
 Line 3, characters 15-39:
 3 | type s = { f : ('a : value). 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type 'a is value, because
+Error: The layout of type 'a is value, because
          of the annotation on the universal variable a.
-       But the layout of Type 'a must be a sublayout of immediate, because
+       But the layout of type 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t_imm.
-
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard
    to improve, because it comes from re-checking typedtree, where we don't
@@ -315,7 +314,7 @@ Error: This pattern matches values of type a
        The layout of a is any, because
          of the annotation on the abstract type declaration for a.
        But the layout of a must be a sublayout of '_representable_layout_1, because
-         used as a function argument.
+         it's used as a function argument.
 |}]
 
 (****************************************)

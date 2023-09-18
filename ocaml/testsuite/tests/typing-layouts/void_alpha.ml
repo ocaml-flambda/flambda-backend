@@ -79,8 +79,7 @@ Error: Non-value detected in [value_kind].
        The layout of void_rec is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of void_rec must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -143,8 +142,7 @@ Error: Non-value detected in [value_kind].
        The layout of void_rec is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of void_rec must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -233,8 +231,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -448,8 +445,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -496,8 +492,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -527,8 +522,7 @@ Error: Non-value detected in [value_kind].
        The layout of void_rec is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of void_rec must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -640,8 +634,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -683,8 +676,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -725,8 +717,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -767,8 +758,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -850,8 +840,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -901,8 +890,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -971,8 +959,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -1017,8 +1004,7 @@ Error: Non-value detected in [value_kind].
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         to be value for the V1 safety check.
-
+         it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after

@@ -47,7 +47,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a type argument defaulted to have layout value.
+         a type argument defaults to layout value.
 |}];;
 
 let f (_ : float# list) = ();;
@@ -59,7 +59,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a type argument defaulted to have layout value.
+         a type argument defaults to layout value.
 |}];;
 
 type t = C of float# list;;
@@ -71,7 +71,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a type argument defaulted to have layout value.
+         a type argument defaults to layout value.
 |}];;
 
 type t = C : float# list -> t;;
@@ -83,7 +83,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a type argument defaulted to have layout value.
+         a type argument defaults to layout value.
 |}];;
 
 (* Syntax: float#c
@@ -105,7 +105,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 let f (_ : float#c) = ();;
@@ -117,7 +117,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 type t = C of float#c;;
@@ -129,7 +129,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 type t = C : float#c -> t;;
@@ -141,7 +141,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 (* Syntax: float# c
@@ -156,7 +156,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 let f (_ : float# c) = ();;
@@ -168,7 +168,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 type t = C of float# c;;
@@ -180,7 +180,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 type t = C : float# c -> t;;
@@ -192,7 +192,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive value type float#.
        But the layout of float# must be a sublayout of value, because
-         a term-level argument to a class constructor.
+         it's a term-level argument to a class constructor.
 |}];;
 
 (* Syntax: float #c

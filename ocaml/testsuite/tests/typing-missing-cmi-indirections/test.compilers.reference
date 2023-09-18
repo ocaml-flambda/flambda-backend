@@ -3,8 +3,8 @@ File "client.ml", line 2, characters 0-19:
     ^^^^^^^^^^^^^^^^^^^
 Error: 
        The layout of alias is any, because
-         a dummy layout used in checking mutually recursive datatypes.
+         a dummy layout of any is used to check mutually recursive datatypes.
        But the layout of alias must be a sublayout of value, because
-         a type argument defaulted to have layout value. 
+         a type argument defaults to layout value.
        No .cmi file found containing Missing.t.
        Hint: Adding "missing" to your dependencies might help.

@@ -144,11 +144,10 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type string is value, because
+Error: The layout of type string is value, because
          it equals the primitive value type string.
-       But the layout of Type string must be a sublayout of immediate, because
+       But the layout of type string must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (variant) *)
@@ -159,11 +158,10 @@ end;;
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type t is value, because
-         a boxed variant.
-       But the layout of Type t must be a sublayout of immediate, because
+Error: The layout of type t is value, because
+         it's a boxed variant.
+       But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
-
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (record) *)
@@ -174,11 +172,10 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type t is value, because
-         a boxed record.
-       But the layout of Type t must be a sublayout of immediate, because
+Error: The layout of type t is value, because
+         it's a boxed record.
+       But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/3.
-
 |}];;
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
@@ -190,11 +187,10 @@ end;;
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type t is value, because
-         the default layout for an abstract type.
-       But the layout of Type t must be a sublayout of immediate, because
+Error: The layout of type t is value, because
+         an abstract type has the value layout by default.
+       But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type s.
-
 |}];;
 
 (* Can't ascribe to an immediate type signature with a non-immediate type *)
@@ -219,7 +215,6 @@ Error: Signature mismatch:
          it equals the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}];;
 
 (* Same as above but with explicit signature *)
@@ -239,7 +234,6 @@ Error: Signature mismatch:
          it equals the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
-
 |}];;
 
 (* Can't use a non-immediate type even if mutually recursive *)
@@ -251,11 +245,10 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of Type s is value, because
+Error: The layout of type s is value, because
          it equals the primitive value type string.
-       But the layout of Type s must be a sublayout of immediate, because
+       But the layout of type s must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
-
 |}];;
 
 
