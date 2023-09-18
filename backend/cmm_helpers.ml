@@ -3157,7 +3157,9 @@ module Generic_fns_tbl = struct
         |> Seq.concat
       in
       let apply =
-        Seq.init (Lambda.max_arity () + 1) (fun n ->
+        Seq.init
+          (Lambda.max_arity () + 1)
+          (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
