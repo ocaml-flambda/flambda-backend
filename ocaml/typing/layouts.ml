@@ -634,34 +634,34 @@ module Layout = struct
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
       | Match ->
-        fprintf ppf "matched on"
+        fprintf ppf "it's pattern matched on"
       | Constructor_declaration idx ->
-        fprintf ppf "used as constructor field %d" idx
+        fprintf ppf "it's used as constructor field %d" idx
       | Label_declaration lbl ->
-        fprintf ppf "used in the declaration of the record field \"%a\""
+        fprintf ppf "it's used in the declaration of the record field \"%a\""
           Ident.print lbl
       | Unannotated_type_parameter ->
-        fprintf ppf "appears as an unannotated type parameter"
+        fprintf ppf "it appears as an unannotated type parameter"
       | Record_projection ->
-        fprintf ppf "used as the record in a projection"
+        fprintf ppf "it's used as the record in a projection"
       | Record_assignment ->
-        fprintf ppf "used as the record in an assignment"
+        fprintf ppf "it's used as the record in an assignment"
       | Let_binding ->
-        fprintf ppf "bound by a `let`"
+        fprintf ppf "it's bound by a `let`"
       | Function_argument ->
-        fprintf ppf "used as a function argument"
+        fprintf ppf "it's used as a function argument"
       | Function_result ->
-        fprintf ppf "used as a function result"
+        fprintf ppf "it's used as a function result"
       | Structure_item_expression ->
-        fprintf ppf "used in an expression in a structure"
+        fprintf ppf "it's used in an expression in a structure"
       | V1_safety_check ->
-        fprintf ppf "part of the v1 safety check"
+        fprintf ppf "it's part of the v1 safety check"
       | External_argument ->
-        fprintf ppf "used as an argument in an external declaration"
+        fprintf ppf "it's used as an argument in an external declaration"
       | External_result ->
-        fprintf ppf "used as the result of an external declaration"
+        fprintf ppf "it's used as the result of an external declaration"
       | Statement ->
-        fprintf ppf "used as a statement"
+        fprintf ppf "it's used as a statement"
 
     let format_annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
@@ -691,30 +691,30 @@ module Layout = struct
 
     let format_any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p ->
-         fprintf ppf "a missing .cmi file for %a" !printtyp_path p
+         fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
       | Wildcard ->
-         fprintf ppf "a _ in a type"
+        fprintf ppf "there's a _ in the type"
       | Unification_var ->
-         fprintf ppf "a fresh unification variable"
+         fprintf ppf "it's a fresh unification variable"
       | Initial_typedecl_env ->
-         fprintf ppf "a dummy layout used in checking mutually recursive datatypes"
+         fprintf ppf "a dummy layout of any is used to check mutually recursive datatypes"
       | Dummy_layout ->
-         fprintf ppf "@[a dummy layout that should have been overwritten;@ \
-                      Please notify the Jane Street compilers group if you see this output."
+         fprintf ppf "@[it's assigned a dummy layout that should have been overwritten;@ \
+                      Please notify the Jane Street compilers group if you see this output.@]"
       (* CR layouts: Improve output or remove this constructor ^^ *)
       | Type_expression_call ->
-         fprintf ppf "a call to [type_expression] via the ocaml API"
+         fprintf ppf "there's a call to [type_expression] via the ocaml API"
 
     let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
       function
       | Empty_record ->
-         fprintf ppf "a record containing all void elements"
+         fprintf ppf "it's a record containing all void elements"
       | Enumeration ->
-         fprintf ppf "an enumeration variant (all constructors are constant)"
+         fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Primitive id ->
          fprintf ppf "it equals the primitive immediate type %s" (Ident.name id)
       | Immediate_polymorphic_variant ->
-         fprintf ppf "an immediate polymorphic variant"
+         fprintf ppf "it's an immediate polymorphic variant"
       | Gc_ignorable_check ->
          fprintf ppf "the check to see whether a value can be ignored by GC"
       | Value_kind ->
@@ -730,56 +730,56 @@ module Layout = struct
          fprintf ppf "the check that a type is definitely not `float`"
 
     let format_value_creation_reason ppf : value_creation_reason -> _ = function
-      | Class_let_binding -> fprintf ppf "let-bound in a class expression"
-      | Tuple_element -> fprintf ppf "a tuple element"
-      | Probe -> fprintf ppf "a probe"
-      | Package_hack -> fprintf ppf "used as an element in a first-class module"
-      | Object -> fprintf ppf "an object"
-      | Instance_variable -> fprintf ppf "an instance variable"
-      | Object_field -> fprintf ppf "an object field"
-      | Class_field -> fprintf ppf "an class field"
-      | Boxed_record -> fprintf ppf "a boxed record"
-      | Boxed_variant -> fprintf ppf "a boxed variant"
-      | Extensible_variant -> fprintf ppf "an extensible variant"
+      | Class_let_binding -> fprintf ppf "it's let-bound in a class expression"
+      | Tuple_element -> fprintf ppf "it's a tuple element"
+      | Probe -> fprintf ppf "it's a probe"
+      | Package_hack -> fprintf ppf "it's used as an element in a first-class module"
+      | Object -> fprintf ppf "it's an object"
+      | Instance_variable -> fprintf ppf "it's an instance variable"
+      | Object_field -> fprintf ppf "it's an object field"
+      | Class_field -> fprintf ppf "it's an class field"
+      | Boxed_record -> fprintf ppf "it's a boxed record"
+      | Boxed_variant -> fprintf ppf "it's a boxed variant"
+      | Extensible_variant -> fprintf ppf "it's an extensible variant"
       | Primitive id ->
         fprintf ppf "it equals the primitive value type %s" (Ident.name id)
-      | Type_argument -> fprintf ppf "a type argument defaulted to have layout value"
-      | Tuple -> fprintf ppf "a tuple type"
-      | Row_variable -> fprintf ppf "a row variable"
-      | Polymorphic_variant -> fprintf ppf "a polymorphic variant"
-      | Arrow -> fprintf ppf "a function type"
-      | Tfield -> fprintf ppf "an internal Tfield type (you shouldn't see this)"
-      | Tnil -> fprintf ppf "an internal Tnil type (you shouldn't see this)"
-      | First_class_module -> fprintf ppf "a first-class module type"
+      | Type_argument -> fprintf ppf "a type argument default to layout value"
+      | Tuple -> fprintf ppf "it's a tuple type"
+      | Row_variable -> fprintf ppf "it's a row variable"
+      | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant"
+      | Arrow -> fprintf ppf "it's a function type"
+      | Tfield -> fprintf ppf "it's an internal Tfield type (you shouldn't see this)"
+      | Tnil -> fprintf ppf "it's an internal Tnil type (you shouldn't see this)"
+      | First_class_module -> fprintf ppf "it's a first-class module type"
       | Separability_check ->
         fprintf ppf "the check that a type is definitely not `float`"
-      | Univar -> fprintf ppf "an unannotated universal variable"
-      | Polymorphic_variant_field -> fprintf ppf "a field of a polymorphic variant"
+      | Univar -> fprintf ppf "it's an unannotated universal variable"
+      | Polymorphic_variant_field -> fprintf ppf "it's a field of a polymorphic variant"
       | Default_type_layout ->
-        fprintf ppf "the default layout for an abstract type"
+        fprintf ppf "an abstract type has default layout value"
       | Float_record_field ->
-        fprintf ppf "a field of a float record"
+        fprintf ppf "it's a field of a float record"
       | Existential_type_variable ->
-        fprintf ppf "an unannotated existential type variable"
+        fprintf ppf "it's an unannotated existential type variable"
       | Array_element ->
-        fprintf ppf "an array element"
+        fprintf ppf "it's an array element"
       | Lazy_expression ->
-        fprintf ppf "a lazy expression"
+        fprintf ppf "it's a lazy expression"
       | Class_argument ->
-        fprintf ppf "a term-level argument to a class constructor"
+        fprintf ppf "it's a term-level argument to a class constructor"
       | Structure_element ->
-         fprintf ppf "stored in a module structure"
+         fprintf ppf "it's stored in a module structure"
       | Debug_printer_argument ->
-         fprintf ppf "used as the argument to a debugger printer function"
+         fprintf ppf "it's used as the argument to a debugger printer function"
       | V1_safety_check ->
-          fprintf ppf "to be value for the V1 safety check"
-      | Captured_in_object -> fprintf ppf "captured in an object"
+          fprintf ppf "it has to be value for the V1 safety check"
+      | Captured_in_object -> fprintf ppf "it's captured in an object"
       | Unknown s -> fprintf ppf "unknown @[(please alert the Jane Street@;\
                        compilers team with this message: %s)@]" s
 
 
     let format_void_creation_reason ppf : void_creation_reason -> _ = function
-      | V1_safety_check -> fprintf ppf "check to make sure there are no voids"
+      | V1_safety_check -> fprintf ppf "the check to make sure there are no voids"
         (* CR layouts: remove this when we remove its uses *)
 
     let format_float64_creation_reason ppf : float64_creation_reason -> _ = function
@@ -804,7 +804,7 @@ module Layout = struct
       | Concrete_creation concrete ->
          format_concrete_layout_reason ppf concrete
       | Imported ->
-         fprintf ppf "imported from another compilation unit"
+         fprintf ppf "it's imported from another compilation unit"
 
     let format_interact_reason ppf = function
       | Gadt_equation name ->
