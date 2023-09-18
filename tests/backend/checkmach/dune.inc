@@ -511,7 +511,7 @@
  (action (diff test_warning199.output test_warning199.output.corrected)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (targets test_never_returns_normally.output.corrected)
  (deps (:ml test_never_returns_normally.ml) filter.sh)
  (action
@@ -525,6 +525,6 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps test_never_returns_normally.output test_never_returns_normally.output.corrected)
  (action (diff test_never_returns_normally.output test_never_returns_normally.output.corrected)))
