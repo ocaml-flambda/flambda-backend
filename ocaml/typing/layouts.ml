@@ -963,7 +963,7 @@ module Layout = struct
     if flattened_histories
     then begin match sub_desc (get_internal lhs.layout) (get_internal rhs.layout) with
       | Sub -> lhs.history
-      | Not_sub -> rhs.history
+      | Not_sub -> rhs.history  (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
       | Equal -> begin match lhs.history, rhs.history with
         (* Prefer other creation_reasons over Concrete_creation *)
         | h, Creation (Concrete_creation _)
