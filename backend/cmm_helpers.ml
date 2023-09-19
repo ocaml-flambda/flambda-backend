@@ -3059,7 +3059,11 @@ module Generic_fns_tbl = struct
     }
 
   module Precomputed = struct
-    let check_result = function [| Val |] -> true | _ -> false
+    let has_singleton_layout_value = function [| Val |] -> true | _ -> false
+
+    let only_concerns_values ~arity ~result =
+      has_singleton_layout_value result
+      && List.for_all has_singleton_layout_value arity
 
     let len_arity arity =
       List.fold_left
@@ -3075,7 +3079,8 @@ module Generic_fns_tbl = struct
     let considered_as_small_threshold = 20
 
     let is_curry (kind, arity, result) =
-      if not (check_result result)
+      (* For now we don't cache generic functions involving unboxed types *)
+      if not (only_concerns_values ~arity ~result)
       then false
       else
         match kind with
@@ -3098,7 +3103,8 @@ module Generic_fns_tbl = struct
           else false
 
     let is_send (arity, result, alloc) =
-      if not (check_result result)
+      (* For now we don't cache generic functions involving unboxed types *)
+      if not (only_concerns_values ~arity ~result)
       then false
       else
         match alloc with
@@ -3106,7 +3112,8 @@ module Generic_fns_tbl = struct
         | Lambda.Alloc_heap -> len_arity arity <= max_send
 
     let is_apply (arity, result, alloc) =
-      if not (check_result result)
+      (* For now we don't cache generic functions involving unboxed types *)
+      if not (only_concerns_values ~arity ~result)
       then false
       else
         match alloc with
@@ -3128,7 +3135,6 @@ module Generic_fns_tbl = struct
          automatically derive a good search space in the future as the filters
          might become more complexed with unboxed types. *)
       assert (considered_as_small_threshold <= max_tuplify);
-      assert (considered_as_small_threshold <= max_apply);
       assert (considered_as_small_threshold <= max_send);
       assert (considered_as_small_threshold <= Lambda.max_arity ());
       let arity n = List.init n (fun _ -> [| Val |]) in
@@ -3153,7 +3159,9 @@ module Generic_fns_tbl = struct
         |> Seq.concat
       in
       let apply =
-        Seq.init (max_apply + 1) (fun n ->
+        Seq.init
+          (Lambda.max_arity () + 1)
+          (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
