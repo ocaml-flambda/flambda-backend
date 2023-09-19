@@ -16,6 +16,7 @@
 
 open! Simplify_import
 module TE = Flambda2_types.Typing_env
+module TI = Targetint_31_63
 module Alias_set = TE.Alias_set
 
 [@@@ocaml.warning "-37"]
@@ -217,65 +218,66 @@ type must_untag_lookup_table_result =
 (* Recognise sufficiently-large Switch expressions where all of the arms provide
    a single argument to a unique destination. These expressions can be compiled
    using lookup tables, which dramatically reduces code size. *)
-let recognize_switch_with_single_arg_to_same_destination ~arms =
+let recognize_switch_with_single_arg_to_same_destination0 ~arms =
   let module TI = Targetint_31_63 in
-  (* Switch must be large enough *)
+  let check_arm discr dest dest_and_args_rev_and_expected_discr =
+    let dest' = Apply_cont.continuation dest in
+    match dest_and_args_rev_and_expected_discr with
+    | None -> None
+    | Some (expected_dest, args_rev, expected_discr) -> (
+      match expected_dest with
+      | Some expected_dest when not (Continuation.equal dest' expected_dest) ->
+        (* All arms must go to the same continuation. *)
+        None
+      | _ when not (TI.equal discr expected_discr) ->
+        (* Discriminants must be 0..(num_arms-1) (note that it is possible to
+           have Switches that do not satisfy this criterion in Flambda 2) *)
+        None
+      | Some _ | None -> (
+        match Apply_cont.to_one_arg_without_trap_action dest with
+        | None ->
+          (* The destination continuations must have single constant arguments.
+             Trap actions are forbidden. *)
+          None
+        | Some arg ->
+          Simple.pattern_match arg
+            ~name:(fun _ ~coercion:_ ->
+              (* Aliases should have been followed by now. *) None)
+            ~const:(fun const ->
+              let expected_discr = TI.add TI.one expected_discr in
+              Some (Some dest', const :: args_rev, expected_discr))))
+  in
+  match TI.Map.fold check_arm arms (Some (None, [], TI.zero)) with
+  | None | Some (None, _, _) | Some (_, [], _) -> None
+  | Some (Some dest, args_rev, _) -> (
+    let args = List.rev args_rev in
+    assert (List.compare_length_with args 1 >= 0);
+    (* For the moment just do this for things that can be put in scannable
+       blocks. *)
+    let[@inline] check_args prover must_untag_lookup_table_result =
+      let args' = List.filter_map prover args in
+      if List.compare_lengths args args' = 0
+      then Some (dest, must_untag_lookup_table_result, args')
+      else None
+    in
+    (* All arguments must be of an appropriate kind and the same kind. *)
+    match Reg_width_const.descr (List.hd args) with
+    | Naked_immediate _ ->
+      check_args Reg_width_const.is_naked_immediate Must_untag
+    | Tagged_immediate _ ->
+      (* Note that even though the [Reg_width_const] is specifying a tagged
+         immediate, the value which we store inside values of that type is still
+         a normal untagged [Targetint_31_63.t]. *)
+      check_args Reg_width_const.is_tagged_immediate Leave_as_tagged_immediate
+    | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+    | Naked_vec128 _ ->
+      None)
+
+let recognize_switch_with_single_arg_to_same_destination ~arms =
+  (* Switch must be large enough. *)
   if TI.Map.cardinal arms < 3
   then None
-  else
-    let check_arm discr dest dest_and_args_rev_and_expected_discr =
-      let dest' = Apply_cont.continuation dest in
-      match dest_and_args_rev_and_expected_discr with
-      | None -> None
-      | Some (expected_dest, args_rev, expected_discr) -> (
-        (* All arms must go to the same continuation, with no trap actions *)
-        match expected_dest with
-        | Some expected_dest when not (Continuation.equal dest' expected_dest)
-          ->
-          None
-        | Some _ | None -> (
-          if (* Discriminants must be 0..(num_arms-1) (note that it is possible
-                to have Switches that do not satisfy this criterion in Flambda
-                2) *)
-             not (TI.equal discr expected_discr)
-          then None
-          else
-            match Apply_cont.to_one_arg_without_trap_action dest with
-            | None -> None
-            | Some arg ->
-              (* Continuations must have single constant arguments *)
-              Simple.pattern_match arg
-                ~name:(fun _ ~coercion:_ ->
-                  (* Aliases should have been followed by now. *) None)
-                ~const:(fun const ->
-                  let expected_discr = TI.add TI.one expected_discr in
-                  Some (Some dest', const :: args_rev, expected_discr))))
-    in
-    match TI.Map.fold check_arm arms (Some (None, [], TI.zero)) with
-    | None | Some (None, _, _) | Some (_, [], _) -> None
-    | Some (Some dest, args_rev, _) -> (
-      let args = List.rev args_rev in
-      assert (List.compare_length_with args 1 >= 0);
-      (* For the moment just do this for things that can be put in scannable
-         blocks. *)
-      let[@inline] check_args prover must_untag_lookup_table_result =
-        let args' = List.filter_map prover args in
-        if List.compare_lengths args args' = 0
-        then Some (dest, must_untag_lookup_table_result, args')
-        else None
-      in
-      match Reg_width_const.descr (List.hd args) with
-      (* All arguments must be of the same kind *)
-      | Naked_immediate _ ->
-        check_args Reg_width_const.is_naked_immediate Must_untag
-      | Tagged_immediate _ ->
-        (* Note that even though the [Reg_width_const] is specifying a tagged
-           immediate, the value which we store inside values of that type is
-           still a normal untagged [Targetint_31_63.t]. *)
-        check_args Reg_width_const.is_tagged_immediate Leave_as_tagged_immediate
-      | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-      | Naked_vec128 _ ->
-        None)
+  else recognize_switch_with_single_arg_to_same_destination0 ~arms
 
 let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result dbg =
@@ -299,18 +301,16 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   in
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
+  let access_kind : P.Block_access_kind.t =
+    Values
+      { tag = Known tag;
+        size = Known (Targetint_31_63.of_int num_consts);
+        field_kind = Immediate
+      }
+  in
   let load_from_block =
     Named.create_prim
-      (Binary
-         ( Block_load
-             ( Values
-                 { tag = Known tag;
-                   size = Known (Targetint_31_63.of_int num_consts);
-                   field_kind = Immediate
-                 },
-               Immutable ),
-           block,
-           tagged_scrutinee ))
+      (Binary (Block_load (access_kind, Immutable), block, tagged_scrutinee))
       dbg
   in
   let arg_var = Variable.create "arg" in
@@ -338,13 +338,11 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       match must_untag_lookup_table_result with
       | Leave_as_tagged_immediate -> body
       | Must_untag ->
-        let bound =
-          Bound_pattern.singleton (Bound_var.create final_arg_var NM.normal)
-        in
+        let bound = BPt.singleton (BV.create final_arg_var NM.normal) in
         let untag_arg = Named.create_prim (Unary (Untag_immediate, arg)) dbg in
         RE.create_let rebuilding bound untag_arg ~body ~free_names_of_body
     in
-    let bound = Bound_pattern.singleton (Bound_var.create arg_var NM.normal) in
+    let bound = BPt.singleton (BV.create arg_var NM.normal) in
     RE.create_let rebuilding bound load_from_block ~body ~free_names_of_body
   in
   (* CR mshinwell: should adjust benefit *)
