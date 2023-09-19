@@ -4,7 +4,9 @@
  (ocamlopt_flags (:standard -linscan -Oclassic)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if 
+  (and (= %{context_name} "main")
+       (= %{system} "linux")))
  (target t.output)
  (deps t.exe)
  (action (with-outputs-to t.output (progn
@@ -13,7 +15,9 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if 
+  (and (= %{context_name} "main")
+       (= %{system} "linux")))
  (action (diff t.expected t.output)))
 
 ;; t.ml was created using cinaps
