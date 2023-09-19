@@ -279,6 +279,7 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
 
 let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result dbg =
+  let rebuilding = UA.are_rebuilding_terms uacc in
   let tag = Tag.Scannable.zero in
   let num_consts = List.length consts in
   let block_sym =
@@ -288,19 +289,13 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       (Linkage_name.of_string (Variable.unique_name var))
   in
   let uacc =
-    let fields =
-      List.map
-        (fun const -> Field_of_static_block.Tagged_immediate const)
-        consts
-    in
+    let fields = List.map Field_of_static_block.tagged_immediate consts in
     UA.add_lifted_constant uacc
-      (Lifted_constant.create_definition
-         (Lifted_constant.Definition.block_like
+      (LC.create_definition
+         (LC.Definition.block_like
             (DA.denv dacc_before_switch)
             block_sym T.any_block ~symbol_projections:Variable.Map.empty
-            (Rebuilt_static_const.create_block
-               (UA.are_rebuilding_terms uacc)
-               tag Immutable ~fields)))
+            (RSC.create_block rebuilding tag Immutable ~fields)))
   in
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
@@ -347,14 +342,10 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
           Bound_pattern.singleton (Bound_var.create final_arg_var NM.normal)
         in
         let untag_arg = Named.create_prim (Unary (Untag_immediate, arg)) dbg in
-        RE.create_let
-          (UA.are_rebuilding_terms uacc)
-          bound untag_arg ~body ~free_names_of_body
+        RE.create_let rebuilding bound untag_arg ~body ~free_names_of_body
     in
     let bound = Bound_pattern.singleton (Bound_var.create arg_var NM.normal) in
-    RE.create_let
-      (UA.are_rebuilding_terms uacc)
-      bound load_from_block ~body ~free_names_of_body
+    RE.create_let rebuilding bound load_from_block ~body ~free_names_of_body
   in
   (* CR mshinwell: should adjust benefit *)
   let uacc =
