@@ -323,7 +323,11 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             List.filter_map
               (fun arg ->
                 match Reg_width_const.descr arg with
-                | Tagged_immediate ti -> Some ti
+                | Tagged_immediate ti ->
+                  (* Note that the representation of the [t] argument to
+                     [Naked_immediate] is a normal target integer, it is not
+                     tagged. *)
+                  Some ti
                 | Naked_immediate _ | Naked_float _ | Naked_int32 _
                 | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
                   None)
