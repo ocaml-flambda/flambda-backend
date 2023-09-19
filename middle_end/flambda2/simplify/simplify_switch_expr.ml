@@ -226,6 +226,7 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
     let dest_and_args_rev_and_expected_discr =
       TI.Map.fold
         (fun discr dest dest_and_args_rev_and_expected_discr ->
+          let dest' = Apply_cont.continuation dest in
           match dest_and_args_rev_and_expected_discr with
           | None -> None
           | Some (expected_dest, args_rev, expected_discr) -> (
@@ -233,10 +234,7 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
                actions *)
             match expected_dest with
             | Some expected_dest
-              when not
-                     (Continuation.equal
-                        (Apply_cont.continuation dest)
-                        expected_dest) ->
+              when not (Continuation.equal dest' expected_dest) ->
               None
             | Some _ | None -> (
               if (* Discriminants must be 0..(num_arms-1) (note that it is
@@ -254,7 +252,7 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
                       (* Aliases should have been followed by now. *) None)
                     ~const:(fun const ->
                       Some
-                        ( Some (Apply_cont.continuation dest),
+                        ( Some dest',
                           const :: args_rev,
                           TI.add TI.one expected_discr )))))
         arms
