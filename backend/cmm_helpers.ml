@@ -3071,6 +3071,8 @@ module Generic_fns_tbl = struct
 
     let max_send = 20
 
+    let max_apply = 404
+
     let max_tuplify = 100
 
     let considered_as_small_threshold = 20
@@ -3132,7 +3134,7 @@ module Generic_fns_tbl = struct
          automatically derive a good search space in the future as the filters
          might become more complexed with unboxed types. *)
       assert (considered_as_small_threshold <= max_tuplify);
-      assert (considered_as_small_threshold <= Lambda.max_arity ());
+      assert (considered_as_small_threshold <= max_apply);
       assert (considered_as_small_threshold <= max_send);
       assert (considered_as_small_threshold <= Lambda.max_arity ());
       let arity n = List.init n (fun _ -> [| Val |]) in
@@ -3158,7 +3160,7 @@ module Generic_fns_tbl = struct
       in
       let apply =
         Seq.init
-          (Lambda.max_arity () + 1)
+          (max_apply + 1)
           (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
