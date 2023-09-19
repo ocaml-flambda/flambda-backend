@@ -425,4 +425,4 @@ let of_int t = t
 
 let to_int t = t
 
-let evaluate ~args:_ t = float_of_int t
+let evaluate ~args:_ t = float_of_int (max 0 t)
