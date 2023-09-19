@@ -6,8 +6,7 @@
 (rule
  (enabled_if 
   (and (= %{context_name} "main")
-       (= %{system} "linux")
-       (= %{architecture} "amd64")))
+       (= %{system} "linux")))
  (target t.output)
  (deps t.exe)
  (action (with-outputs-to t.output (progn
@@ -18,8 +17,7 @@
  (alias   runtest)
  (enabled_if 
   (and (= %{context_name} "main")
-       (= %{system} "linux")
-       (= %{architecture} "amd64")))
+       (= %{system} "linux")))
  (action (diff t.expected t.output)))
 
 ;; t.ml was created using cinaps
