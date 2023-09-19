@@ -67,15 +67,19 @@ let main filename =
   Compmisc.init_path ();
   let file_prefix = Filename.remove_extension filename ^ ext_lib in
   let genfns_partitions = Cmm_helpers.Generic_fns_tbl.Precomputed.gen () in
-  let objects =
-    Hashtbl.fold (fun name partition objs ->
-      let output_name = Filename.temp_file ("cached-generated-" ^ name) "" in
-      cached_generic_functions unix ~ppf_dump:Format.std_formatter output_name partition
-      :: objs
-    ) genfns_partitions []
-  in
-  ignore (Ccomp.create_archive file_prefix objects : int);
-  List.iter remove_file objects
+  let objects = ref [] in
+  Fun.protect
+    ~finally:(fun () -> List.iter remove_file !objects)
+    (fun () ->
+       Hashtbl.iter (fun name partition ->
+         let output_name = Filename.temp_file ("cached-generated-" ^ name) "" in
+         let obj =
+           cached_generic_functions
+             unix ~ppf_dump:Format.std_formatter output_name partition
+         in
+         objects := obj :: !objects
+       ) genfns_partitions;
+       ignore (Ccomp.create_archive file_prefix !objects : int))
 
 let arg_usage =
   Printf.sprintf "%s FILE : Generate an obj file containing cached generatic functions named FILE" Sys.argv.(0)
