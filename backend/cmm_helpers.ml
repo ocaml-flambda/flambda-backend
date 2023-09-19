@@ -3115,7 +3115,7 @@ module Generic_fns_tbl = struct
           2 <= l && l <= considered_as_small_threshold
         | Lambda.Alloc_heap ->
           let l = len_arity arity in
-          2 <= l && l <= Lambda.max_arity ()
+          2 <= l && l <= max_apply
 
     let gen () =
       (* [is_curry], [is_send] and [is_apply] are also used to determine if a
