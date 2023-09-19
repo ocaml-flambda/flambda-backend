@@ -212,7 +212,7 @@ let find_cse_simple dacc required_names prim =
 
 type must_untag_lookup_table_result =
   | Must_untag
-  | Leave_as_naked_immediate
+  | Leave_as_tagged_immediate
 
 (* Recognise sufficiently-large Switch expressions where all of the arms provide
    a single argument to a unique destination. These expressions can be compiled
@@ -272,7 +272,7 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
         (* Note that even though the [Reg_width_const] is specifying a tagged
            immediate, the value which we store inside values of that type is
            still a normal untagged [Targetint_31_63.t]. *)
-        check_args Reg_width_const.is_tagged_immediate Leave_as_naked_immediate
+        check_args Reg_width_const.is_tagged_immediate Leave_as_tagged_immediate
       | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
       | Naked_vec128 _ ->
         None)
@@ -409,7 +409,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               | Must_untag ->
                 let final_arg_var = Variable.create "final_arg" in
                 final_arg_var, Simple.var final_arg_var
-              | Leave_as_naked_immediate -> arg_var, arg
+              | Leave_as_tagged_immediate -> arg_var, arg
             in
             (* Note that, unlike for the untagging of normal Switch scrutinees,
                there's no problem with CSE and Data_flow here. The reason is
@@ -425,7 +425,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               let body =
                 let body = RE.create_apply_cont apply_cont in
                 match must_untag_lookup_table_result with
-                | Leave_as_naked_immediate -> body
+                | Leave_as_tagged_immediate -> body
                 | Must_untag ->
                   let bound =
                     Bound_pattern.singleton
