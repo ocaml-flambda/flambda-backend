@@ -309,33 +309,16 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         match Reg_width_const.descr (List.hd args) with
         (* All arguments must be of the same kind *)
         | Naked_immediate _ ->
-          let args' =
-            List.filter_map
-              (fun arg ->
-                match Reg_width_const.descr arg with
-                | Naked_immediate ni -> Some ni
-                | Tagged_immediate _ | Naked_float _ | Naked_int32 _
-                | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-                  None)
-              args
-          in
+          let args' = List.filter_map Reg_width_const.is_naked_immediate args in
           if List.compare_lengths args args' = 0
           then Some (dest, Must_untag, args')
           else None
         | Tagged_immediate _ ->
           let args' =
-            List.filter_map
-              (fun arg ->
-                match Reg_width_const.descr arg with
-                | Tagged_immediate ti ->
-                  (* Note that the representation of the [t] argument to
-                     [Naked_immediate] is a normal target integer, it is not
-                     tagged. *)
-                  Some ti
-                | Naked_immediate _ | Naked_float _ | Naked_int32 _
-                | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-                  None)
-              args
+            (* Note that even though the [Reg_width_const] is specifying a
+               tagged immediate, the value which we store inside values of that
+               type is still a normal untagged [Targetint_31_63.t]. *)
+            List.filter_map Reg_width_const.is_tagged_immediate args
           in
           if List.compare_lengths args args' = 0
           then Some (dest, Leave_as_naked_immediate, args')
