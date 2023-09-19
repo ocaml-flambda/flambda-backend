@@ -749,6 +749,14 @@ let rec choice ctx t =
           | other -> other
         in
         { apply with ap_tailcall } in
+      (* The call will not be in tail position, so the close-on-apply flag must
+         not be set. *)
+      let ap_region_close =
+        match apply.ap_region_close with
+        | Rc_close_at_apply -> Rc_normal
+        | (Rc_normal | Rc_nontail) as reg_close -> reg_close
+      in
+      let apply = { apply with ap_region_close } in
       { (Choice.lambda (Lapply apply)) with
         direct = (fun () -> Lapply apply_no_bailout);
       }
