@@ -316,7 +316,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               args
           in
           if List.compare_lengths args args' = 0
-          then Some (dest, false, args')
+          then Some (dest, true, args')
           else None
         | Tagged_immediate _ ->
           let args' =
@@ -330,7 +330,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               args
           in
           if List.compare_lengths args args' = 0
-          then Some (dest, true, args')
+          then Some (dest, false, args')
           else None
         | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
         | Naked_vec128 _ ->
@@ -365,7 +365,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       let[@inline] normal_case uacc =
         match switch_is_single_arg_to_same_destination with
         | None -> normal_case0 uacc
-        | Some (dest, must_tag, consts) -> (
+        | Some (dest, must_untag_lookup_table_result, consts) -> (
           assert (List.length consts = Targetint_31_63.Map.cardinal arms);
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
           match
@@ -417,10 +417,14 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             let arg_var = Variable.create "arg" in
             let arg = Simple.var arg_var in
             let final_arg_var =
-              if must_tag then arg_var else Variable.create "final_arg"
+              if must_untag_lookup_table_result
+              then Variable.create "final_arg"
+              else arg_var
             in
             let final_arg =
-              if must_tag then arg else Simple.var final_arg_var
+              if must_untag_lookup_table_result
+              then Simple.var final_arg_var
+              else arg
             in
             (* CR mshinwell: check about potential CSE problem as before, but
                this probably isn't relevant since the primitive this time is on
@@ -434,7 +438,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             let expr =
               let body =
                 let body = RE.create_apply_cont apply_cont in
-                if must_tag
+                if not must_untag_lookup_table_result
                 then body
                 else
                   let bound =
