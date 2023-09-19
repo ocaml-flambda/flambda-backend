@@ -431,9 +431,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
                 final_arg_var, Simple.var final_arg_var
               | Leave_as_naked_immediate -> arg_var, arg
             in
-            (* CR mshinwell: check about potential CSE problem as before, but
-               this probably isn't relevant since the primitive this time is on
-               a fresh var *)
+            (* Note that, unlike for the untagging of normal Switch scrutinees,
+               there's no problem with CSE and Data_flow here. The reason is
+               that in this case the generated primitive always names a fresh
+               variable, so it will never be eligible for CSE. *)
             (* CR mshinwell: we could probably expose the actual integer counts
                of continuations in [Name_occurrences] and then try to inline out
                [dest]. This might happen anyway in the backend though so this
