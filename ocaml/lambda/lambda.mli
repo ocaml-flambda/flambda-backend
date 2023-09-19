@@ -309,6 +309,14 @@ val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
 val must_be_value : layout -> value_kind
 
+(* This is the layout of ocaml values used as arguments to or returned from
+   primitives for this [native_repr].  So the legacy [Unboxed_float] - which is
+   a float that is unboxed before being passed to a C function - is mapped to
+   [layout_any_value], while [Same_as_ocaml_repr Float64] is mapped to
+   [layout_unboxed_float].
+*)
+val layout_of_native_repr : Primitive.native_repr -> layout
+
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
