@@ -239,7 +239,9 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
                         expected_dest) ->
               None
             | Some _ | None -> (
-              if (* Discriminants must be 0..(num_arms-1) *)
+              if (* Discriminants must be 0..(num_arms-1) (note that it is
+                    possible to have Switches that do not satisfy this criterion
+                    in Flambda 2) *)
                  not (TI.equal discr expected_discr)
               then None
               else
