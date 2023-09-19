@@ -3076,7 +3076,7 @@ module Generic_fns_tbl = struct
     let considered_as_small_threshold = 20
 
     let is_curry (kind, arity, result) =
-      (* For now we don't cache generic functions involving unboxed typs *)
+      (* For now we don't cache generic functions involving unboxed types *)
       if not (only_concerns_values ~arity ~result)
       then false
       else
@@ -3100,7 +3100,7 @@ module Generic_fns_tbl = struct
           else false
 
     let is_send (arity, result, alloc) =
-      (* For now we don't cache generic functions involving unboxed typs *)
+      (* For now we don't cache generic functions involving unboxed types *)
       if not (only_concerns_values ~arity ~result)
       then false
       else
@@ -3109,7 +3109,7 @@ module Generic_fns_tbl = struct
         | Lambda.Alloc_heap -> len_arity arity <= max_send
 
     let is_apply (arity, result, alloc) =
-      (* For now we don't cache generic functions involving unboxed typs *)
+      (* For now we don't cache generic functions involving unboxed types *)
       if not (only_concerns_values ~arity ~result)
       then false
       else
