@@ -219,9 +219,8 @@ type must_untag_lookup_table_result =
    a single argument to a unique destination. These expressions can be compiled
    using lookup tables, which dramatically reduces code size. *)
 let recognize_switch_with_single_arg_to_same_destination0 ~arms =
-  let module TI = Targetint_31_63 in
   let check_arm discr dest dest_and_args_rev_and_expected_discr =
-    let dest' = Apply_cont.continuation dest in
+    let dest' = AC.continuation dest in
     match dest_and_args_rev_and_expected_discr with
     | None -> None
     | Some (expected_dest, args_rev, expected_discr) -> (
@@ -231,10 +230,10 @@ let recognize_switch_with_single_arg_to_same_destination0 ~arms =
         None
       | _ when not (TI.equal discr expected_discr) ->
         (* Discriminants must be 0..(num_arms-1) (note that it is possible to
-           have Switches that do not satisfy this criterion in Flambda 2) *)
+           have Switches that do not satisfy this criterion in Flambda 2). *)
         None
       | Some _ | None -> (
-        match Apply_cont.to_one_arg_without_trap_action dest with
+        match AC.to_one_arg_without_trap_action dest with
         | None ->
           (* The destination continuations must have single constant arguments.
              Trap actions are forbidden. *)
@@ -280,7 +279,8 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
   else recognize_switch_with_single_arg_to_same_destination0 ~arms
 
 let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
-    ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result dbg =
+    ~original ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result
+    dbg =
   let rebuilding = UA.are_rebuilding_terms uacc in
   let tag = Tag.Scannable.zero in
   let num_consts = List.length consts in
@@ -332,6 +332,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
      important for now. *)
   let apply_cont = Apply_cont.create dest ~args:[final_arg] ~dbg in
   let free_names_of_body = Apply_cont.free_names apply_cont in
+  let untag_arg_prim : P.t = Unary (Untag_immediate, arg) in
   let expr =
     let body =
       let body = RE.create_apply_cont apply_cont in
@@ -339,22 +340,36 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       | Leave_as_tagged_immediate -> body
       | Must_untag ->
         let bound = BPt.singleton (BV.create final_arg_var NM.normal) in
-        let untag_arg = Named.create_prim (Unary (Untag_immediate, arg)) dbg in
+        let untag_arg = Named.create_prim untag_arg_prim dbg in
         RE.create_let rebuilding bound untag_arg ~body ~free_names_of_body
     in
     let bound = BPt.singleton (BV.create arg_var NM.normal) in
     RE.create_let rebuilding bound load_from_block ~body ~free_names_of_body
   in
-  (* CR mshinwell: should adjust benefit *)
+  let extra_free_names =
+    NO.union
+      (Named.free_names load_from_block)
+      (NO.remove_var free_names_of_body ~var:final_arg_var)
+  in
+  let increase_in_code_size =
+    (* Very likely negative. *)
+    Code_size.( - )
+      (Code_size.( + )
+         (Code_size.apply_cont apply_cont)
+         (match must_untag_lookup_table_result with
+         | Must_untag -> Code_size.prim untag_arg_prim
+         | Leave_as_tagged_immediate -> Code_size.zero))
+      (Code_size.switch original)
+  in
   let uacc =
-    UA.add_free_names uacc
-      (NO.union
-         (Named.free_names load_from_block)
-         (NO.remove_var free_names_of_body ~var:final_arg_var))
+    UA.add_free_names uacc extra_free_names
+    (* CR mshinwell: it seems we need to fix [Cost_metrics] so we can note that
+       we have *added* operations here (load, maybe untagging). *)
+    |> UA.notify_added ~code_size:increase_in_code_size
   in
   expr, uacc
 
-let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
+let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
   let new_let_conts, arms, mergeable_arms, identity_arms, not_arms =
     Targetint_31_63.Map.fold (rebuild_arm uacc) arms
@@ -440,7 +455,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
           | None -> normal_case0 uacc
           | Some tagged_scrutinee ->
             rebuild_switch_with_single_arg_to_same_destination uacc
-              ~dacc_before_switch ~tagged_scrutinee ~dest ~consts
+              ~dacc_before_switch ~original ~tagged_scrutinee ~dest ~consts
               ~must_untag_lookup_table_result dbg)
       in
       match switch_merged with
@@ -456,6 +471,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         match switch_is_identity with
         | Some dest -> (
           let uacc =
+            (* CR mshinwell: it seems like this should be registering the
+               potentially significant reduction in code size -- likewise in
+               other cases here. Plus the fact that some operations are
+               *added*. *)
             UA.notify_removed ~operation:Removed_operations.branch uacc
           in
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
@@ -581,8 +600,8 @@ let simplify_switch0 dacc switch ~down_to_up =
   in
   down_to_up dacc
     ~rebuild:
-      (rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
-         ~dacc_before_switch)
+      (rebuild_switch ~original:switch ~arms ~condition_dbg ~scrutinee
+         ~scrutinee_ty ~dacc_before_switch)
 
 let simplify_switch ~simplify_let ~simplify_function_body dacc switch
     ~down_to_up =
