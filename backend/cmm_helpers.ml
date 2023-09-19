@@ -3059,10 +3059,11 @@ module Generic_fns_tbl = struct
     }
 
   module Precomputed = struct
-    let has_layout_value = function [| Val |] -> true | _ -> false
+    let has_singleton_layout_value = function [| Val |] -> true | _ -> false
 
     let only_concerns_values ~arity ~result =
-      has_layout_value result && List.for_all has_layout_value arity
+      has_singleton_layout_value result
+      && List.for_all has_singleton_layout_value arity
 
     let len_arity arity =
       List.fold_left
@@ -3159,9 +3160,7 @@ module Generic_fns_tbl = struct
         |> Seq.concat
       in
       let apply =
-        Seq.init
-          (max_apply + 1)
-          (fun n ->
+        Seq.init (max_apply + 1) (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
