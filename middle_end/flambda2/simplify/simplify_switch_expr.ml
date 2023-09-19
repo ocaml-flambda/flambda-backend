@@ -210,6 +210,10 @@ let find_cse_simple dacc required_names prim =
       filter_and_choose_alias required_names
         (find_all_aliases (DA.typing_env dacc) simple))
 
+type must_untag_lookup_table_result =
+  | Must_untag
+  | Leave_as_naked_immediate
+
 let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
   let new_let_conts, arms, mergeable_arms, identity_arms, not_arms =
@@ -316,7 +320,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               args
           in
           if List.compare_lengths args args' = 0
-          then Some (dest, true, args')
+          then Some (dest, Must_untag, args')
           else None
         | Tagged_immediate _ ->
           let args' =
@@ -334,7 +338,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               args
           in
           if List.compare_lengths args args' = 0
-          then Some (dest, false, args')
+          then Some (dest, Leave_as_naked_immediate, args')
           else None
         | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
         | Naked_vec128 _ ->
@@ -420,15 +424,12 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             in
             let arg_var = Variable.create "arg" in
             let arg = Simple.var arg_var in
-            let final_arg_var =
-              if must_untag_lookup_table_result
-              then Variable.create "final_arg"
-              else arg_var
-            in
-            let final_arg =
-              if must_untag_lookup_table_result
-              then Simple.var final_arg_var
-              else arg
+            let final_arg_var, final_arg =
+              match must_untag_lookup_table_result with
+              | Must_untag ->
+                let final_arg_var = Variable.create "final_arg" in
+                final_arg_var, Simple.var final_arg_var
+              | Leave_as_naked_immediate -> arg_var, arg
             in
             (* CR mshinwell: check about potential CSE problem as before, but
                this probably isn't relevant since the primitive this time is on
@@ -442,9 +443,9 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             let expr =
               let body =
                 let body = RE.create_apply_cont apply_cont in
-                if not must_untag_lookup_table_result
-                then body
-                else
+                match must_untag_lookup_table_result with
+                | Leave_as_naked_immediate -> body
+                | Must_untag ->
                   let bound =
                     Bound_pattern.singleton
                       (Bound_var.create final_arg_var NM.normal)
