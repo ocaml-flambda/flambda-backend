@@ -214,6 +214,78 @@ type must_untag_lookup_table_result =
   | Must_untag
   | Leave_as_naked_immediate
 
+(* Recognise sufficiently-large Switch expressions where all of the arms provide
+   a single argument to a unique destination. These expressions can be compiled
+   using lookup tables, which dramatically reduces code size. *)
+let recognize_switch_with_single_arg_to_same_destination ~arms =
+  let module TI = Targetint_31_63 in
+  (* Switch must be large enough *)
+  if TI.Map.cardinal arms < 3
+  then None
+  else
+    let dest_and_args_rev_and_expected_discr =
+      TI.Map.fold
+        (fun discr dest dest_and_args_rev_and_expected_discr ->
+          match dest_and_args_rev_and_expected_discr with
+          | None -> None
+          | Some (expected_dest, args_rev, expected_discr) -> (
+            (* All arms must go to the same continuation, with no trap
+               actions *)
+            match expected_dest with
+            | Some expected_dest
+              when not
+                     (Continuation.equal
+                        (Apply_cont.continuation dest)
+                        expected_dest) ->
+              None
+            | Some _ | None -> (
+              if (* Discriminants must be 0..(num_arms-1) *)
+                 not (TI.equal discr expected_discr)
+              then None
+              else
+                match Apply_cont.to_one_arg_without_trap_action dest with
+                | None -> None
+                | Some arg ->
+                  (* Continuations must have single constant arguments *)
+                  Simple.pattern_match arg
+                    ~name:(fun _ ~coercion:_ ->
+                      (* Aliases should have been followed by now. *) None)
+                    ~const:(fun const ->
+                      Some
+                        ( Some (Apply_cont.continuation dest),
+                          const :: args_rev,
+                          TI.add TI.one expected_discr )))))
+        arms
+        (Some (None, [], TI.zero))
+    in
+    match dest_and_args_rev_and_expected_discr with
+    | None | Some (None, _, _) | Some (_, [], _) -> None
+    | Some (Some dest, args_rev, _) -> (
+      let args = List.rev args_rev in
+      assert (List.compare_length_with args 1 >= 0);
+      (* For the moment just do this for things that can be put in scannable
+         blocks. *)
+      match Reg_width_const.descr (List.hd args) with
+      (* All arguments must be of the same kind *)
+      | Naked_immediate _ ->
+        let args' = List.filter_map Reg_width_const.is_naked_immediate args in
+        if List.compare_lengths args args' = 0
+        then Some (dest, Must_untag, args')
+        else None
+      | Tagged_immediate _ ->
+        let args' =
+          (* Note that even though the [Reg_width_const] is specifying a tagged
+             immediate, the value which we store inside values of that type is
+             still a normal untagged [Targetint_31_63.t]. *)
+          List.filter_map Reg_width_const.is_tagged_immediate args
+        in
+        if List.compare_lengths args args' = 0
+        then Some (dest, Leave_as_naked_immediate, args')
+        else None
+      | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+      | Naked_vec128 _ ->
+        None)
+
 let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
   let new_let_conts, arms, mergeable_arms, identity_arms, not_arms =
@@ -259,73 +331,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
   let switch_is_single_arg_to_same_destination =
-    let module TI = Targetint_31_63 in
-    (* Switch must be large enough *)
-    if TI.Map.cardinal arms < 3
-    then None
-    else
-      let dest_and_args_rev_and_expected_discr =
-        TI.Map.fold
-          (fun discr dest dest_and_args_rev_and_expected_discr ->
-            match dest_and_args_rev_and_expected_discr with
-            | None -> None
-            | Some (expected_dest, args_rev, expected_discr) -> (
-              (* All arms must go to the same continuation, with no trap
-                 actions *)
-              match expected_dest with
-              | Some expected_dest
-                when not
-                       (Continuation.equal
-                          (Apply_cont.continuation dest)
-                          expected_dest) ->
-                None
-              | Some _ | None -> (
-                if (* Discriminants must be 0..(num_arms-1) *)
-                   not (TI.equal discr expected_discr)
-                then None
-                else
-                  match Apply_cont.to_one_arg_without_trap_action dest with
-                  | None -> None
-                  | Some arg ->
-                    (* Continuations must have single constant arguments *)
-                    Simple.pattern_match arg
-                      ~name:(fun _ ~coercion:_ ->
-                        (* Aliases should have been followed by now. *) None)
-                      ~const:(fun const ->
-                        Some
-                          ( Some (Apply_cont.continuation dest),
-                            const :: args_rev,
-                            TI.add TI.one expected_discr )))))
-          arms
-          (Some (None, [], TI.zero))
-      in
-      match dest_and_args_rev_and_expected_discr with
-      | None | Some (None, _, _) | Some (_, [], _) -> None
-      | Some (Some dest, args_rev, _) -> (
-        let args = List.rev args_rev in
-        assert (List.compare_length_with args 1 >= 0);
-        (* For the moment just do this for things that can be put in scannable
-           blocks. *)
-        match Reg_width_const.descr (List.hd args) with
-        (* All arguments must be of the same kind *)
-        | Naked_immediate _ ->
-          let args' = List.filter_map Reg_width_const.is_naked_immediate args in
-          if List.compare_lengths args args' = 0
-          then Some (dest, Must_untag, args')
-          else None
-        | Tagged_immediate _ ->
-          let args' =
-            (* Note that even though the [Reg_width_const] is specifying a
-               tagged immediate, the value which we store inside values of that
-               type is still a normal untagged [Targetint_31_63.t]. *)
-            List.filter_map Reg_width_const.is_tagged_immediate args
-          in
-          if List.compare_lengths args args' = 0
-          then Some (dest, Leave_as_naked_immediate, args')
-          else None
-        | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-        | Naked_vec128 _ ->
-          None)
+    recognize_switch_with_single_arg_to_same_destination ~arms
   in
   let body, uacc =
     if Targetint_31_63.Map.cardinal arms < 1
