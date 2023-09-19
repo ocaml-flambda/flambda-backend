@@ -3170,7 +3170,7 @@ module Generic_fns_tbl = struct
       let category prefix arity =
         let l = len_arity arity in
         if l <= considered_as_small_threshold
-        then "common"
+        then "small"
         else prefix ^ string_of_int l
       in
       let module SMap = Misc.Stdlib.String.Map in
