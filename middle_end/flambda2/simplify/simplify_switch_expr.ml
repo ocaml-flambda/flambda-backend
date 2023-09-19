@@ -258,23 +258,21 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
       assert (List.compare_length_with args 1 >= 0);
       (* For the moment just do this for things that can be put in scannable
          blocks. *)
+      let[@inline] check_args prover must_untag_lookup_table_result =
+        let args' = List.filter_map prover args in
+        if List.compare_lengths args args' = 0
+        then Some (dest, must_untag_lookup_table_result, args')
+        else None
+      in
       match Reg_width_const.descr (List.hd args) with
       (* All arguments must be of the same kind *)
       | Naked_immediate _ ->
-        let args' = List.filter_map Reg_width_const.is_naked_immediate args in
-        if List.compare_lengths args args' = 0
-        then Some (dest, Must_untag, args')
-        else None
+        check_args Reg_width_const.is_naked_immediate Must_untag
       | Tagged_immediate _ ->
-        let args' =
-          (* Note that even though the [Reg_width_const] is specifying a tagged
-             immediate, the value which we store inside values of that type is
-             still a normal untagged [Targetint_31_63.t]. *)
-          List.filter_map Reg_width_const.is_tagged_immediate args
-        in
-        if List.compare_lengths args args' = 0
-        then Some (dest, Leave_as_naked_immediate, args')
-        else None
+        (* Note that even though the [Reg_width_const] is specifying a tagged
+           immediate, the value which we store inside values of that type is
+           still a normal untagged [Targetint_31_63.t]. *)
+        check_args Reg_width_const.is_tagged_immediate Leave_as_naked_immediate
       | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
       | Naked_vec128 _ ->
         None)
