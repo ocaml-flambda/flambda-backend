@@ -223,42 +223,35 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
   if TI.Map.cardinal arms < 3
   then None
   else
-    let dest_and_args_rev_and_expected_discr =
-      TI.Map.fold
-        (fun discr dest dest_and_args_rev_and_expected_discr ->
-          let dest' = Apply_cont.continuation dest in
-          match dest_and_args_rev_and_expected_discr with
-          | None -> None
-          | Some (expected_dest, args_rev, expected_discr) -> (
-            (* All arms must go to the same continuation, with no trap
-               actions *)
-            match expected_dest with
-            | Some expected_dest
-              when not (Continuation.equal dest' expected_dest) ->
-              None
-            | Some _ | None -> (
-              if (* Discriminants must be 0..(num_arms-1) (note that it is
-                    possible to have Switches that do not satisfy this criterion
-                    in Flambda 2) *)
-                 not (TI.equal discr expected_discr)
-              then None
-              else
-                match Apply_cont.to_one_arg_without_trap_action dest with
-                | None -> None
-                | Some arg ->
-                  (* Continuations must have single constant arguments *)
-                  Simple.pattern_match arg
-                    ~name:(fun _ ~coercion:_ ->
-                      (* Aliases should have been followed by now. *) None)
-                    ~const:(fun const ->
-                      Some
-                        ( Some dest',
-                          const :: args_rev,
-                          TI.add TI.one expected_discr )))))
-        arms
-        (Some (None, [], TI.zero))
+    let check_arm discr dest dest_and_args_rev_and_expected_discr =
+      let dest' = Apply_cont.continuation dest in
+      match dest_and_args_rev_and_expected_discr with
+      | None -> None
+      | Some (expected_dest, args_rev, expected_discr) -> (
+        (* All arms must go to the same continuation, with no trap actions *)
+        match expected_dest with
+        | Some expected_dest when not (Continuation.equal dest' expected_dest)
+          ->
+          None
+        | Some _ | None -> (
+          if (* Discriminants must be 0..(num_arms-1) (note that it is possible
+                to have Switches that do not satisfy this criterion in Flambda
+                2) *)
+             not (TI.equal discr expected_discr)
+          then None
+          else
+            match Apply_cont.to_one_arg_without_trap_action dest with
+            | None -> None
+            | Some arg ->
+              (* Continuations must have single constant arguments *)
+              Simple.pattern_match arg
+                ~name:(fun _ ~coercion:_ ->
+                  (* Aliases should have been followed by now. *) None)
+                ~const:(fun const ->
+                  let expected_discr = TI.add TI.one expected_discr in
+                  Some (Some dest', const :: args_rev, expected_discr))))
     in
-    match dest_and_args_rev_and_expected_discr with
+    match TI.Map.fold check_arm arms (Some (None, [], TI.zero)) with
     | None | Some (None, _, _) | Some (_, [], _) -> None
     | Some (Some dest, args_rev, _) -> (
       let args = List.rev args_rev in
