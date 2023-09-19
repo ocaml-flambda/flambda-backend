@@ -277,6 +277,94 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
       | Naked_vec128 _ ->
         None)
 
+let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
+    ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result dbg =
+  let tag = Tag.Scannable.zero in
+  let num_consts = List.length consts in
+  let block_sym =
+    let var = Variable.create "switch_block" in
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.of_string (Variable.unique_name var))
+  in
+  let uacc =
+    let fields =
+      List.map
+        (fun const -> Field_of_static_block.Tagged_immediate const)
+        consts
+    in
+    UA.add_lifted_constant uacc
+      (Lifted_constant.create_definition
+         (Lifted_constant.Definition.block_like
+            (DA.denv dacc_before_switch)
+            block_sym T.any_block ~symbol_projections:Variable.Map.empty
+            (Rebuilt_static_const.create_block
+               (UA.are_rebuilding_terms uacc)
+               tag Immutable ~fields)))
+  in
+  (* CR mshinwell: consider sharing the constants *)
+  let block = Simple.symbol block_sym in
+  let load_from_block =
+    Named.create_prim
+      (Binary
+         ( Block_load
+             ( Values
+                 { tag = Known tag;
+                   size = Known (Targetint_31_63.of_int num_consts);
+                   field_kind = Immediate
+                 },
+               Immutable ),
+           block,
+           tagged_scrutinee ))
+      dbg
+  in
+  let arg_var = Variable.create "arg" in
+  let arg = Simple.var arg_var in
+  let final_arg_var, final_arg =
+    match must_untag_lookup_table_result with
+    | Must_untag ->
+      let final_arg_var = Variable.create "final_arg" in
+      final_arg_var, Simple.var final_arg_var
+    | Leave_as_tagged_immediate -> arg_var, arg
+  in
+  (* Note that, unlike for the untagging of normal Switch scrutinees, there's no
+     problem with CSE and Data_flow here. The reason is that in this case the
+     generated primitive always names a fresh variable, so it will never be
+     eligible for CSE. *)
+  (* CR mshinwell: we could probably expose the actual integer counts of
+     continuations in [Name_occurrences] and then try to inline out [dest]. This
+     might happen anyway in the backend though so this probably isn't that
+     important for now. *)
+  let apply_cont = Apply_cont.create dest ~args:[final_arg] ~dbg in
+  let free_names_of_body = Apply_cont.free_names apply_cont in
+  let expr =
+    let body =
+      let body = RE.create_apply_cont apply_cont in
+      match must_untag_lookup_table_result with
+      | Leave_as_tagged_immediate -> body
+      | Must_untag ->
+        let bound =
+          Bound_pattern.singleton (Bound_var.create final_arg_var NM.normal)
+        in
+        let untag_arg = Named.create_prim (Unary (Untag_immediate, arg)) dbg in
+        RE.create_let
+          (UA.are_rebuilding_terms uacc)
+          bound untag_arg ~body ~free_names_of_body
+    in
+    let bound = Bound_pattern.singleton (Bound_var.create arg_var NM.normal) in
+    RE.create_let
+      (UA.are_rebuilding_terms uacc)
+      bound load_from_block ~body ~free_names_of_body
+  in
+  (* CR mshinwell: should adjust benefit *)
+  let uacc =
+    UA.add_free_names uacc
+      (NO.union
+         (Named.free_names load_from_block)
+         (NO.remove_var free_names_of_body ~var:final_arg_var))
+  in
+  expr, uacc
+
 let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
   let new_let_conts, arms, mergeable_arms, identity_arms, not_arms =
@@ -362,97 +450,9 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
           with
           | None -> normal_case0 uacc
           | Some tagged_scrutinee ->
-            let tag = Tag.Scannable.zero in
-            let num_consts = List.length consts in
-            let block_sym =
-              let var = Variable.create "switch_block" in
-              Symbol.create
-                (Compilation_unit.get_current_exn ())
-                (Linkage_name.of_string (Variable.unique_name var))
-            in
-            let uacc =
-              let fields =
-                List.map
-                  (fun const -> Field_of_static_block.Tagged_immediate const)
-                  consts
-              in
-              UA.add_lifted_constant uacc
-                (Lifted_constant.create_definition
-                   (Lifted_constant.Definition.block_like
-                      (DA.denv dacc_before_switch)
-                      block_sym T.any_block
-                      ~symbol_projections:Variable.Map.empty
-                      (Rebuilt_static_const.create_block
-                         (UA.are_rebuilding_terms uacc)
-                         tag Immutable ~fields)))
-            in
-            (* CR mshinwell: consider sharing the constants *)
-            let block = Simple.symbol block_sym in
-            let load_from_block =
-              Named.create_prim
-                (Binary
-                   ( Block_load
-                       ( Values
-                           { tag = Known tag;
-                             size = Known (Targetint_31_63.of_int num_consts);
-                             field_kind = Immediate
-                           },
-                         Immutable ),
-                     block,
-                     tagged_scrutinee ))
-                dbg
-            in
-            let arg_var = Variable.create "arg" in
-            let arg = Simple.var arg_var in
-            let final_arg_var, final_arg =
-              match must_untag_lookup_table_result with
-              | Must_untag ->
-                let final_arg_var = Variable.create "final_arg" in
-                final_arg_var, Simple.var final_arg_var
-              | Leave_as_tagged_immediate -> arg_var, arg
-            in
-            (* Note that, unlike for the untagging of normal Switch scrutinees,
-               there's no problem with CSE and Data_flow here. The reason is
-               that in this case the generated primitive always names a fresh
-               variable, so it will never be eligible for CSE. *)
-            (* CR mshinwell: we could probably expose the actual integer counts
-               of continuations in [Name_occurrences] and then try to inline out
-               [dest]. This might happen anyway in the backend though so this
-               probably isn't that important for now. *)
-            let apply_cont = Apply_cont.create dest ~args:[final_arg] ~dbg in
-            let free_names_of_body = Apply_cont.free_names apply_cont in
-            let expr =
-              let body =
-                let body = RE.create_apply_cont apply_cont in
-                match must_untag_lookup_table_result with
-                | Leave_as_tagged_immediate -> body
-                | Must_untag ->
-                  let bound =
-                    Bound_pattern.singleton
-                      (Bound_var.create final_arg_var NM.normal)
-                  in
-                  let untag_arg =
-                    Named.create_prim (Unary (Untag_immediate, arg)) dbg
-                  in
-                  RE.create_let
-                    (UA.are_rebuilding_terms uacc)
-                    bound untag_arg ~body ~free_names_of_body
-              in
-              let bound =
-                Bound_pattern.singleton (Bound_var.create arg_var NM.normal)
-              in
-              RE.create_let
-                (UA.are_rebuilding_terms uacc)
-                bound load_from_block ~body ~free_names_of_body
-            in
-            (* CR mshinwell: should adjust benefit *)
-            let uacc =
-              UA.add_free_names uacc
-                (NO.union
-                   (Named.free_names load_from_block)
-                   (NO.remove_var free_names_of_body ~var:final_arg_var))
-            in
-            expr, uacc)
+            rebuild_switch_with_single_arg_to_same_destination uacc
+              ~dacc_before_switch ~tagged_scrutinee ~dest ~consts
+              ~must_untag_lookup_table_result dbg)
       in
       match switch_merged with
       | Some (dest, args) ->
