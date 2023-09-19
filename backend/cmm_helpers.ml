@@ -3159,15 +3159,59 @@ module Generic_fns_tbl = struct
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
       in
-      let t = make () in
-      add_uncached t
-        Cmx_format.
-          { curry_fun =
-              Seq.filter is_curry (Seq.append tuplify curry) |> List.of_seq;
-            send_fun = Seq.filter is_send send |> List.of_seq;
-            apply_fun = Seq.filter is_apply apply |> List.of_seq
-          };
-      t
+      let category prefix arity =
+        let l = len_arity arity in
+        if l <= considered_as_small_threshold
+        then "small"
+        else prefix ^ string_of_int l
+      in
+      let module SMap = Misc.Stdlib.String.Map in
+      let map_of_seq_multi seq =
+        Seq.fold_left
+          (fun tbl (key, elt) ->
+            SMap.update key
+              (function None -> Some [elt] | Some s -> Some (elt :: s))
+              tbl)
+          SMap.empty seq
+      in
+      let curry_fns =
+        Seq.append tuplify curry |> Seq.filter is_curry
+        |> Seq.map (fun ((_, arity, _) as f) -> category "curry_" arity, f)
+        |> map_of_seq_multi
+        |> SMap.map (fun curry_fun ->
+               { Cmx_format.curry_fun; send_fun = []; apply_fun = [] })
+      in
+      let send_fns =
+        Seq.filter is_send send
+        |> Seq.map (fun ((arity, _, _) as f) -> category "send_" arity, f)
+        |> map_of_seq_multi
+        |> SMap.map (fun send_fun ->
+               { Cmx_format.send_fun; curry_fun = []; apply_fun = [] })
+      in
+      let apply_fns =
+        Seq.filter is_apply apply
+        |> Seq.map (fun ((arity, _, _) as f) -> category "apply_" arity, f)
+        |> map_of_seq_multi
+        |> SMap.map (fun apply_fun ->
+               { Cmx_format.apply_fun; send_fun = []; curry_fun = [] })
+      in
+      let out = Hashtbl.create 100 in
+      let add f =
+        SMap.iter
+          (fun key x ->
+            let t =
+              match Hashtbl.find_opt out key with
+              | None ->
+                let t = make () in
+                Hashtbl.add out key t;
+                t
+              | Some t -> t
+            in
+            add_uncached t x)
+          f
+      in
+      List.iter add [curry_fns; send_fns; apply_fns];
+      out
   end
 
   let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
