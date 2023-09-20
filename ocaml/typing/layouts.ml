@@ -798,7 +798,7 @@ module Layout = struct
 
     let format_float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id ->
-        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+        fprintf ppf "it equals the primitive float64 type %s" (Ident.name id)
 
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
