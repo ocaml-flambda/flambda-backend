@@ -866,7 +866,7 @@ let crc_of_unit penv name =
       | None -> assert false
       | Some crc -> crc
 
-let imports {imported_units;  crc_units; _} =
+let imports {imported_units; crc_units; _} =
   let imports =
     Consistbl.extract (CU.Name.Set.elements !imported_units)
       crc_units
