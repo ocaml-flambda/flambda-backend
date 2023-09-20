@@ -730,6 +730,9 @@ let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
   let shape =
     match binding with
     | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+    | Local ident ->
+        (* FIXME This is probably wrong for non-parameter modules *)
+        Shape.var uid ident
   in
   let pm = val_of_pers_sig sign global_name uid ~filename ~shape ~address ~flags in
   let ps = { ps_name_info = pers_name;
