@@ -211,51 +211,82 @@ let relative_history t = t.relative_history
 
 let position t = t.position
 
+let free_names_of_region_variable t =
+  (* In some cases, [t.region] is not treated as a free variable, in order to
+     stop begin/end region pairs being kept live unnecessarily. Note that those
+     pairs won't actually be deleted even if there are no remaining uses of the
+     region variable, in order to be robust against a subsequent simplification
+     reworking an [Apply] such that the region becomes required again. Instead
+     we keep track of whether the begin/end region pairs are used, and do the
+     actual deletion in [To_cmm]. *)
+  let call_needs_region =
+    match t.call_kind with
+    | Function
+        { function_call =
+            Direct { code_id = _; contains_no_escaping_local_allocs };
+          alloc_mode = _
+        } ->
+      (* Note that the [alloc_mode] doesn't affect the decision here. *)
+      not contains_no_escaping_local_allocs
+    | Function { function_call = Indirect_known_arity; alloc_mode = _ }
+    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
+    | Method _
+    | C_call { alloc = true; is_c_builtin = _ } ->
+      true
+    | C_call { alloc = false; is_c_builtin = _ } ->
+      (* These cannot allocate locally as access to the domainstate pointer is
+         required for such. *)
+      false
+  in
+  if call_needs_region
+  then Name_occurrences.singleton_variable t.region Name_mode.normal
+  else Name_occurrences.empty
+
 let free_names_without_exn_continuation
-    { callee;
-      continuation;
-      exn_continuation = _;
-      args;
-      args_arity = _;
-      return_arity = _;
-      call_kind;
-      dbg = _;
-      inlined = _;
-      inlining_state = _;
-      probe = _;
-      position = _;
-      relative_history = _;
-      region
-    } =
+    ({ callee;
+       continuation;
+       exn_continuation = _;
+       args;
+       args_arity = _;
+       return_arity = _;
+       call_kind;
+       dbg = _;
+       inlined = _;
+       inlining_state = _;
+       probe = _;
+       position = _;
+       relative_history = _;
+       region = _
+     } as t) =
   Name_occurrences.union_list
     [ Simple.free_names callee;
       Result_continuation.free_names continuation;
       Simple.List.free_names args;
       Call_kind.free_names call_kind;
-      Name_occurrences.singleton_variable region Name_mode.normal ]
+      free_names_of_region_variable t ]
 
 let free_names_except_callee
-    { callee = _;
-      continuation;
-      exn_continuation;
-      args;
-      args_arity = _;
-      return_arity = _;
-      call_kind;
-      dbg = _;
-      inlined = _;
-      inlining_state = _;
-      probe = _;
-      position = _;
-      relative_history = _;
-      region
-    } =
+    ({ callee = _;
+       continuation;
+       exn_continuation;
+       args;
+       args_arity = _;
+       return_arity = _;
+       call_kind;
+       dbg = _;
+       inlined = _;
+       inlining_state = _;
+       probe = _;
+       position = _;
+       relative_history = _;
+       region = _
+     } as t) =
   Name_occurrences.union_list
     [ Result_continuation.free_names continuation;
       Exn_continuation.free_names exn_continuation;
       Simple.List.free_names args;
       Call_kind.free_names call_kind;
-      Name_occurrences.singleton_variable region Name_mode.normal ]
+      free_names_of_region_variable t ]
 
 let free_names t =
   Name_occurrences.union

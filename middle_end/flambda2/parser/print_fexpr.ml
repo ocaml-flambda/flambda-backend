@@ -351,7 +351,11 @@ let static_data_binding ppf { symbol = s; defining_expr = sp } =
   Format.fprintf ppf "%a =@ %a" symbol s static_data sp
 
 let nullop ppf (o : nullop) =
-  Format.pp_print_string ppf @@ match o with Begin_region -> "%begin_region"
+  Format.pp_print_string ppf
+  @@
+  match o with
+  | Begin_region { definitely_unused = true } -> "%begin_region_unused"
+  | Begin_region { definitely_unused = false } -> "%begin_region"
 
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
@@ -509,12 +513,15 @@ let unop ppf u =
   in
   match (u : unop) with
   | Array_length -> str "%array_length"
-  | Begin_try_region -> str "%begin_try_region"
+  | Begin_try_region { definitely_unused = true } ->
+    str "%begin_try_region_unused"
+  | Begin_try_region { definitely_unused = false } -> str "%begin_try_region"
   | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
-  | End_region -> str "%end_region"
+  | End_region { definitely_unused = true } -> str "%end_region_unused"
+  | End_region { definitely_unused = false } -> str "%end_region"
   | Get_tag -> str "%get_tag"
   | Int_arith (i, o) ->
     Format.fprintf ppf "@[<2>%%int_arith %a%a@]"

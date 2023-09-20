@@ -191,7 +191,7 @@ let split_direct_over_application apply
           (Bound_pattern.singleton
              (Bound_var.create (Variable.create "unit") Name_mode.normal))
           (Named.create_prim
-             (Unary (End_region, Simple.var region))
+             (Unary (End_region { definitely_unused = false }, Simple.var region))
              (Apply.dbg apply))
           ~body:call_return_continuation
           ~free_names_of_body:(Known call_return_continuation_free_names)
@@ -252,7 +252,9 @@ let split_direct_over_application apply
   | Some (region, _) ->
     Let.create
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
-      (Named.create_prim (Nullary Begin_region) (Apply.dbg apply))
+      (Named.create_prim
+         (Nullary (Begin_region { definitely_unused = false }))
+         (Apply.dbg apply))
       ~body:both_applications
       ~free_names_of_body:
         (Known

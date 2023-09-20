@@ -601,11 +601,11 @@ type nullary_primitive =
   | Invalid of K.t
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
-  | Begin_region
+  | Begin_region of { definitely_unused : bool }
   | Enter_inlined_apply of { dbg : Debuginfo.t }
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
   | Enter_inlined_apply _ ->
     false
 
@@ -615,23 +615,25 @@ let compare_nullary_primitive p1 p2 =
   | Optimised_out k1, Optimised_out k2 -> K.compare k1 k2
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
-  | Begin_region, Begin_region -> 0
+  | ( Begin_region { definitely_unused = definitely_unused1 },
+      Begin_region { definitely_unused = definitely_unused2 } ) ->
+    Bool.compare definitely_unused1 definitely_unused2
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
     Debuginfo.compare dbg1 dbg2
   | ( Invalid _,
-      ( Optimised_out _ | Probe_is_enabled _ | Begin_region
+      ( Optimised_out _ | Probe_is_enabled _ | Begin_region _
       | Enter_inlined_apply _ ) ) ->
     -1
-  | Optimised_out _, (Probe_is_enabled _ | Begin_region | Enter_inlined_apply _)
-    ->
+  | ( Optimised_out _,
+      (Probe_is_enabled _ | Begin_region _ | Enter_inlined_apply _) ) ->
     -1
   | Optimised_out _, Invalid _ -> 1
-  | Probe_is_enabled _, (Begin_region | Enter_inlined_apply _) -> -1
+  | Probe_is_enabled _, (Begin_region _ | Enter_inlined_apply _) -> -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | Begin_region, Enter_inlined_apply _ -> -1
-  | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
+  | Begin_region _, Enter_inlined_apply _ -> -1
+  | Begin_region _, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
   | ( Enter_inlined_apply _,
-      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ) ->
+      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -646,7 +648,10 @@ let print_nullary_primitive ppf p =
       Flambda_colours.pop
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
-  | Begin_region -> Format.pp_print_string ppf "Begin_region"
+  | Begin_region { definitely_unused = false } ->
+    Format.pp_print_string ppf "Begin_region"
+  | Begin_region { definitely_unused = true } ->
+    Format.pp_print_string ppf "Begin_region[unused]"
   | Enter_inlined_apply { dbg } ->
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
       Debuginfo.print_compact dbg
@@ -656,7 +661,7 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Invalid k -> Singleton k
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
-  | Begin_region -> Singleton K.region
+  | Begin_region _ -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
 
 let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
@@ -675,7 +680,10 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
     (* This doesn't really have effects, but we want to make sure it never gets
        moved around. *)
     Arbitrary_effects, Has_coeffects, Strict
-  | Begin_region -> effects_and_coeffects_of_begin_region
+  | Begin_region { definitely_unused = _ } ->
+    (* This primitive only becomes pure if [definitely_unused = true] during
+       [To_cmm]. *)
+    effects_and_coeffects_of_begin_region
   | Enter_inlined_apply _ ->
     (* This doesn't really have effects, but without effects, these primitives
        get deleted during lambda_to_flambda. *)
@@ -683,7 +691,7 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
   | Enter_inlined_apply _ ->
     Neither
 
@@ -727,8 +735,8 @@ type unary_primitive =
       }
   | Is_boxed_float
   | Is_flat_float_array
-  | Begin_try_region
-  | End_region
+  | Begin_try_region of { definitely_unused : bool }
+  | End_region of { definitely_unused : bool }
   | Obj_dup
   | Get_header
 
@@ -761,7 +769,10 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | Begin_try_region | End_region | Obj_dup -> false
+  | Begin_try_region { definitely_unused = _ }
+  | End_region { definitely_unused = _ }
+  | Obj_dup ->
+    false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -788,8 +799,8 @@ let compare_unary_primitive p1 p2 =
     | Project_value_slot _ -> 19
     | Is_boxed_float -> 20
     | Is_flat_float_array -> 21
-    | Begin_try_region -> 22
-    | End_region -> 23
+    | Begin_try_region _ -> 22
+    | End_region _ -> 23
     | Obj_dup -> 24
     | Get_header -> 25
   in
@@ -869,7 +880,7 @@ let compare_unary_primitive p1 p2 =
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
-      | Begin_try_region | End_region | Obj_dup | Get_header ),
+      | Begin_try_region _ | End_region _ | Obj_dup | Get_header ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -920,8 +931,14 @@ let print_unary_primitive ppf p =
       K.With_subkind.print kind
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
-  | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
-  | End_region -> Format.pp_print_string ppf "End_region"
+  | Begin_try_region { definitely_unused = false } ->
+    Format.pp_print_string ppf "Begin_try_region"
+  | Begin_try_region { definitely_unused = true } ->
+    Format.pp_print_string ppf "Begin_try_region[unused]"
+  | End_region { definitely_unused = false } ->
+    Format.pp_print_string ppf "End_region"
+  | End_region { definitely_unused = true } ->
+    Format.pp_print_string ppf "End_region[unused]"
   | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
   | Get_header -> Format.pp_print_string ppf "Get_header"
 
@@ -945,8 +962,8 @@ let arg_kind_of_unary_primitive p =
   | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
   | Is_flat_float_array ->
     K.value
-  | Begin_try_region -> K.region
-  | End_region -> K.region
+  | Begin_try_region _ -> K.region
+  | End_region _ -> K.region
   | Obj_dup -> K.value
   | Get_header -> K.value
 
@@ -972,8 +989,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
   | Project_value_slot { kind; _ } -> Singleton (K.With_subkind.kind kind)
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
-  | Begin_try_region -> Singleton K.region
-  | End_region -> Singleton K.value
+  | Begin_try_region _ -> Singleton K.region
+  | End_region _ -> Singleton K.value
   | Obj_dup -> Singleton K.value
   | Get_header -> Singleton K.naked_nativeint
 
@@ -1052,12 +1069,13 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Is_boxed_float | Is_flat_float_array ->
     (* Tags on heap blocks are immutable. *)
     No_effects, No_coeffects, Strict
-  | Begin_try_region -> effects_and_coeffects_of_begin_region
-  | End_region ->
-    (* These can't be [Only_generative_effects] or the primitives would get
-       deleted without regard to prior uses of the region. Instead there are
-       special cases in [Simplify_let_expr] and [Expr_builder] for this
-       primitive. *)
+  | Begin_try_region { definitely_unused = _ } ->
+    (* This primitive only becomes pure if [definitely_unused = true] during
+       [To_cmm]. *)
+    effects_and_coeffects_of_begin_region
+  | End_region { definitely_unused = _ } ->
+    (* This primitive only becomes pure if [definitely_unused = true] during
+       [To_cmm]. *)
     Arbitrary_effects, Has_coeffects, Strict
   | Obj_dup ->
     ( Only_generative_effects Mutable (* Mutable is conservative *),
@@ -1077,7 +1095,7 @@ let unary_classify_for_printing p =
   | Box_number _ | Tag_immediate -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
-  | Begin_try_region | End_region -> Neither
+  | Begin_try_region _ | End_region _ -> Neither
   | Get_header -> Neither
 
 let free_names_unary_primitive p =
@@ -1098,7 +1116,7 @@ let free_names_unary_primitive p =
   | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region _ | End_region _
   | Obj_dup | Get_header ->
     Name_occurrences.empty
 
@@ -1113,7 +1131,7 @@ let apply_renaming_unary_primitive p renaming =
   | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region _ | End_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
     p
 
@@ -1125,7 +1143,7 @@ let ids_for_export_unary_primitive p =
   | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region _ | End_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
     Ids_for_export.empty
 
@@ -1711,10 +1729,12 @@ end)
 let equal t1 t2 = compare t1 t2 = 0
 
 let free_names t =
-  match t with
+  match[@ocaml.warning "-fragile-match"] t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
       | Enter_inlined_apply _ ) ->
+    Name_occurrences.empty
+  | Unary (Begin_try_region { definitely_unused = true }, _) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1740,7 +1760,7 @@ let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
       | Enter_inlined_apply _ ) ->
     t
   | Unary (prim, x0) ->
@@ -1770,7 +1790,7 @@ let apply_renaming t renaming =
 let ids_for_export t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
       | Enter_inlined_apply _ ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
@@ -2044,15 +2064,22 @@ module Without_args = struct
     | Variadic prim -> effects_and_coeffects_of_variadic_primitive prim
 end
 
+let is_begin_region t =
+  match t with
+  | Nullary (Begin_region _) | Unary (Begin_try_region _, _) -> true
+  | _ -> false
+  [@@ocaml.warning "-fragile-match"]
+
 let is_begin_or_end_region t =
   match t with
-  | Nullary Begin_region | Unary ((Begin_try_region | End_region), _) -> true
+  | Nullary (Begin_region _) | Unary ((Begin_try_region _ | End_region _), _) ->
+    true
   | _ -> false
   [@@ocaml.warning "-fragile-match"]
 
 let is_end_region t =
   match t with
-  | Unary (End_region, region) -> (
+  | Unary (End_region _, region) -> (
     match Simple.must_be_var region with
     | Some (region, _coercion) -> Some region
     | None ->

@@ -98,6 +98,7 @@ let code loopify(never) size(1) newer_version_of(needs_try_region_2)
         my_closure my_region my_depth
         -> k * k1
         : imm tagged =
+  let try_region = %begin_try_region_unused my_region in
   let Popaque = %Opaque 42 in
   cont k (1)
 in

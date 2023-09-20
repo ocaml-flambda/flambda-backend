@@ -225,7 +225,7 @@ type nullary_primitive =
           let-binding. *)
   | Probe_is_enabled of { name : string }
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
-  | Begin_region
+  | Begin_region of { definitely_unused : bool }
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
@@ -317,10 +317,10 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
-  | Begin_try_region
+  | Begin_try_region of { definitely_unused : bool }
       (** Starting delimiter of local allocation region, when used for a "try"
           body, accepting the parent region as argument. *)
-  | End_region
+  | End_region of { definitely_unused : bool }
       (** Ending delimiter of local allocation region, accepting a region name. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
@@ -526,6 +526,9 @@ val equal_binary_primitive : binary_primitive -> binary_primitive -> bool
 val equal_ternary_primitive : ternary_primitive -> ternary_primitive -> bool
 
 val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
+
+(** This includes both [Begin_region] and [Begin_try_region]. *)
+val is_begin_region : t -> bool
 
 val is_begin_or_end_region : t -> bool
 

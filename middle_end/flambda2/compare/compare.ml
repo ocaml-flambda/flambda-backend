@@ -288,9 +288,13 @@ let subst_field env (field : Field_of_static_block.t) =
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
-  | Function { function_call = Direct code_id; alloc_mode } ->
+  | Function
+      { function_call = Direct { code_id; contains_no_escaping_local_allocs };
+        alloc_mode
+      } ->
     let code_id = subst_code_id env code_id in
-    Call_kind.direct_function_call code_id alloc_mode
+    Call_kind.direct_function_call code_id ~contains_no_escaping_local_allocs
+      alloc_mode
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -918,9 +922,16 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     else Different { approximant = call_kind1 }
   in
   match call_kind1, call_kind2 with
-  | ( Function { function_call = Direct code_id1; alloc_mode = alloc_mode1 },
-      Function { function_call = Direct code_id2; alloc_mode = alloc_mode2 } )
-    ->
+  | ( Function
+        { function_call =
+            Direct { code_id = code_id1; contains_no_escaping_local_allocs = _ };
+          alloc_mode = alloc_mode1
+        },
+      Function
+        { function_call =
+            Direct { code_id = code_id2; contains_no_escaping_local_allocs = _ };
+          alloc_mode = alloc_mode2
+        } ) ->
     compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () ->
         if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
         then Equivalent

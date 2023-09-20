@@ -507,7 +507,7 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
-  | Begin_region -> Begin_region
+  | Begin_region { definitely_unused } -> Begin_region { definitely_unused }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
@@ -519,8 +519,9 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | Begin_try_region -> Begin_try_region
-  | End_region -> End_region
+  | Begin_try_region { definitely_unused } ->
+    Begin_try_region { definitely_unused }
+  | End_region { definitely_unused } -> End_region { definitely_unused }
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)

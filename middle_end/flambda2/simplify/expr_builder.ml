@@ -75,7 +75,9 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
 
 type keep_binding_decision =
   | Delete_binding
-  | Keep_binding of Name_mode.t
+  (* [Keep_binding] can be used to slightly alter the defining expression, but
+     note that the free names need to stay the same. *)
+  | Keep_binding of Named.t * Name_mode.t
 
 let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
     ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
@@ -120,72 +122,123 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         Name_occurrences.print free_names_of_body
         (RE.print (UA.are_rebuilding_terms uacc))
         body;
-    let is_end_region =
-      match defining_expr with
-      | Prim (prim, _) -> P.is_end_region prim
-      | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ -> None
+    let is_begin_region =
+      match[@ocaml.warning "-fragile-match"] defining_expr with
+      | Prim (Nullary (Begin_region _), dbg) ->
+        Some
+          ( (fun ~definitely_unused ->
+              P.Nullary (Begin_region { definitely_unused })),
+            dbg )
+      | Prim (Unary (Begin_try_region _, region), dbg) ->
+        Some
+          ( (fun ~definitely_unused ->
+              P.Unary (Begin_try_region { definitely_unused }, region)),
+            dbg )
+      | Prim _ | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ ->
+        None
     in
-    let is_end_region_for_unused_region, is_end_region_for_used_region =
-      match is_end_region with
-      | None -> false, false
-      | Some region ->
-        let is_used = Name.Set.mem (Name.var region) (UA.required_names uacc) in
-        not is_used, is_used
-    in
-    if is_end_region_for_used_region
-       || (not is_end_region_for_unused_region)
-          && not (Named.at_most_generative_effects defining_expr)
-    then (
-      if not (Name_mode.is_normal declared_name_mode)
-      then
-        Misc.fatal_errorf
-          "Cannot [Let]-bind non-normal variable(s) to a [Named] that has more \
-           than generative effects:@ %a@ =@ %a"
-          Bound_pattern.print bound_vars Named.print defining_expr;
-      bound_vars, Keep_binding Name_mode.normal, Nothing_deleted_at_runtime)
-    else
-      let is_depth =
-        match defining_expr with
-        | Rec_info _ -> true
-        | Simple _ | Prim _ | Set_of_closures _ | Static_consts _ -> false
-      in
-      let has_uses = Name_mode.Or_absent.is_present greatest_name_mode in
-      let can_phantomise =
-        (not is_depth)
-        && Bound_pattern.exists_all_bound_vars bound_vars ~f:(fun bound_var ->
-               Variable.user_visible (VB.var bound_var))
-      in
-      let will_delete_binding =
-        if is_end_region_for_unused_region
-        then true
-        else
-          (* CR-someday mshinwell: This should detect whether there is any
-             provenance info associated with the variable. If there isn't, the
-             [Let] can be deleted even if debugging information is being
-             generated. *)
-          not (has_uses || (generate_phantom_lets && can_phantomise))
-      in
-      if will_delete_binding
-      then bound_vars, Delete_binding, Defining_expr_deleted_at_compile_time
-      else
-        let name_mode =
-          match greatest_name_mode with
-          | Absent -> Name_mode.phantom
-          | Present name_mode -> name_mode
+    match is_begin_region with
+    | Some (make_prim, dbg) ->
+      let bound_var = Bound_pattern.must_be_singleton bound_vars in
+      let prim : P.t =
+        (* Mark [Begin_region] and [Begin_try_region] primitives according to
+           whether they are actually needed. We don't delete them here -- see
+           note in apply_expr.ml. *)
+        let definitely_unused =
+          not
+            (Name.Set.mem
+               (Name.var (Bound_var.var bound_var))
+               (UA.required_names uacc))
         in
-        assert (Name_mode.can_be_in_terms name_mode);
-        let bound_vars = Bound_pattern.with_name_mode bound_vars name_mode in
-        if Name_mode.is_normal name_mode
-        then bound_vars, Keep_binding name_mode, Nothing_deleted_at_runtime
+        make_prim ~definitely_unused
+      in
+      let defining_expr = Named.create_prim prim dbg in
+      ( bound_vars,
+        Keep_binding (defining_expr, Name_mode.normal),
+        Nothing_deleted_at_runtime )
+    | None -> (
+      let is_end_region =
+        match defining_expr with
+        | Prim (prim, dbg) -> (
+          match P.is_end_region prim with
+          | None -> None
+          | Some region -> Some (region, dbg))
+        | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ -> None
+      in
+      match is_end_region with
+      | Some (region, dbg) ->
+        let prim : P.t =
+          (* Similarly to the begin-region cases above, except in this case we
+             look at the argument of the primitive (the region) rather than the
+             bound name (whose value will just be ignored). *)
+          let definitely_unused =
+            not (Name.Set.mem (Name.var region) (UA.required_names uacc))
+          in
+          Unary (End_region { definitely_unused }, Simple.var region)
+        in
+        let defining_expr = Named.create_prim prim dbg in
+        ( bound_vars,
+          Keep_binding (defining_expr, Name_mode.normal),
+          Nothing_deleted_at_runtime )
+      | None ->
+        if not (Named.at_most_generative_effects defining_expr)
+        then (
+          if not (Name_mode.is_normal declared_name_mode)
+          then
+            Misc.fatal_errorf
+              "Cannot [Let]-bind non-normal variable(s) to a [Named] that has \
+               more than generative effects:@ %a@ =@ %a"
+              Bound_pattern.print bound_vars Named.print defining_expr;
+          ( bound_vars,
+            Keep_binding (defining_expr, Name_mode.normal),
+            Nothing_deleted_at_runtime ))
         else
-          (* CR lmaurer for poechsel: This seems to suggest (and the code toward
-             the end of [make_new_let_bindings] seems to assume) that we're
-             phantomising the binding right now, but in fact it may have been
-             phantom already if there has already been a simplifier pass.
-             Presumably this will cause double-counting of deleted code, which
-             is to say, the second pass will get as much credit for phantomising
-             as the first one did. *)
-          bound_vars, Keep_binding name_mode, Defining_expr_deleted_at_runtime
+          let is_depth =
+            match defining_expr with
+            | Rec_info _ -> true
+            | Simple _ | Prim _ | Set_of_closures _ | Static_consts _ -> false
+          in
+          let has_uses = Name_mode.Or_absent.is_present greatest_name_mode in
+          let can_phantomise =
+            (not is_depth)
+            && Bound_pattern.exists_all_bound_vars bound_vars
+                 ~f:(fun bound_var -> Variable.user_visible (VB.var bound_var))
+          in
+          let will_delete_binding =
+            (* CR-someday mshinwell: This should detect whether there is any
+               provenance info associated with the variable. If there isn't, the
+               [Let] can be deleted even if debugging information is being
+               generated. *)
+            not (has_uses || (generate_phantom_lets && can_phantomise))
+          in
+          if will_delete_binding
+          then bound_vars, Delete_binding, Defining_expr_deleted_at_compile_time
+          else
+            let name_mode =
+              match greatest_name_mode with
+              | Absent -> Name_mode.phantom
+              | Present name_mode -> name_mode
+            in
+            assert (Name_mode.can_be_in_terms name_mode);
+            let bound_vars =
+              Bound_pattern.with_name_mode bound_vars name_mode
+            in
+            if Name_mode.is_normal name_mode
+            then
+              ( bound_vars,
+                Keep_binding (defining_expr, name_mode),
+                Nothing_deleted_at_runtime )
+            else
+              (* CR lmaurer for poechsel: This seems to suggest (and the code
+                 toward the end of [make_new_let_bindings] seems to assume) that
+                 we're phantomising the binding right now, but in fact it may
+                 have been phantom already if there has already been a
+                 simplifier pass. Presumably this will cause double-counting of
+                 deleted code, which is to say, the second pass will get as much
+                 credit for phantomising as the first one did. *)
+              ( bound_vars,
+                Keep_binding (defining_expr, name_mode),
+                Defining_expr_deleted_at_runtime ))
   in
   (* CR-someday mshinwell: When leaving behind phantom lets, maybe we should
      turn the defining expressions into simpler ones by using the type, if
@@ -195,7 +248,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
      in Simplify_named, check. *)
   match keep_binding with
   | Delete_binding -> body, uacc, let_creation_result
-  | Keep_binding name_mode ->
+  | Keep_binding (defining_expr, name_mode) ->
     let is_phantom = Name_mode.is_phantom name_mode in
     let free_names_of_body = UA.name_occurrences uacc in
     let free_names_of_defining_expr =

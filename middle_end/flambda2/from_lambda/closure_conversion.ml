@@ -794,17 +794,19 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
   | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       match try_region_parent with
-      | None -> Nullary Begin_region
+      | None -> Nullary (Begin_region { definitely_unused = false })
       | Some try_region_parent ->
         let try_region_parent = find_simple_from_id env try_region_parent in
-        Unary (Begin_try_region, Simple try_region_parent)
+        Unary
+          ( Begin_try_region { definitely_unused = false },
+            Simple try_region_parent )
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
   | End_region id ->
     let named = find_simple_from_id env id in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Unary (End_region, Simple named)
+      Unary (End_region { definitely_unused = false }, Simple named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
@@ -901,7 +903,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
       | Simple simple ->
         let body_env = Env.add_simple_to_substitute env id simple kind in
         body acc body_env
-      | Prim ((Nullary Begin_region | Unary (End_region, _)), _)
+      | Prim ((Nullary (Begin_region _) | Unary (End_region _, _)), _)
         when not (Flambda_features.stack_allocation_enabled ()) ->
         (* We use [body_env] to ensure the region variables are still in the
            environment, to avoid lookup errors, even though the [Let] won't be
@@ -2210,7 +2212,9 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         Let_with_acc.create acc
           (Bound_pattern.singleton
              (Bound_var.create (Variable.create "unit") Name_mode.normal))
-          (Named.create_prim (Unary (End_region, Simple.var region)) apply_dbg)
+          (Named.create_prim
+             (Unary (End_region { definitely_unused = false }, Simple.var region))
+             apply_dbg)
           ~body:call_return_continuation
       in
       Let_cont_with_acc.build_non_recursive acc after_over_application
@@ -2233,7 +2237,9 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
   | Some (region, _) ->
     Let_with_acc.create acc
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
-      (Named.create_prim (Nullary Begin_region) apply_dbg)
+      (Named.create_prim
+         (Nullary (Begin_region { definitely_unused = false }))
+         apply_dbg)
       ~body:both_applications
 
 type call_args_split =

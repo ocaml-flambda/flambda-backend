@@ -372,19 +372,21 @@ let init_or_assign _env (ia : Fexpr.init_or_assign) :
   | Assignment alloc -> Assignment (alloc_mode_for_assignments alloc)
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
-  match nullop with Begin_region -> Begin_region
+  match nullop with
+  | Begin_region { definitely_unused } -> Begin_region { definitely_unused }
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
-  | Begin_try_region -> Begin_try_region
+  | Begin_try_region { definitely_unused } ->
+    Begin_try_region { definitely_unused }
   | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
-  | End_region -> End_region
+  | End_region { definitely_unused } -> End_region { definitely_unused }
   | Get_tag -> Get_tag
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array

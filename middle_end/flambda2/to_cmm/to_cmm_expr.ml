@@ -447,7 +447,16 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
   | Singleton _, Prim (Nullary (Enter_inlined_apply { dbg }), _) ->
     let env = Env.enter_inlined_apply env dbg in
     expr env res body
-  | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
+  | ( Singleton _,
+      Prim
+        ( ( Nullary (Begin_region { definitely_unused = true })
+          | Unary (Begin_try_region { definitely_unused = true }, _)
+          | Unary (End_region { definitely_unused = true }, _) ),
+          _dbg ) ) ->
+    expr env res body
+  | ( Singleton v,
+      Prim ((Unary (End_region { definitely_unused = false }, _) as p), dbg) )
+    ->
     (* CR gbury: this is a hack to prevent moving of expressions past an
        End_region. We have to do this manually because we currently have effects
        and coeffects that are not precise enough. Particularly, an immutable
