@@ -1001,7 +1001,11 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let args = List.map (simple env) (Apply_expr.args app) in
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
-    | Function { function_call = Direct code_id; alloc_mode } ->
+    | Function
+        { function_call =
+            Direct { code_id; contains_no_escaping_local_allocs = _ };
+          alloc_mode
+        } ->
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)

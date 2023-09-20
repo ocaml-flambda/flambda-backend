@@ -431,7 +431,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       Misc.Stdlib.List.split_at (List.length args) param_modes
     in
     let call_kind =
-      Call_kind.direct_function_call callee's_code_id apply_alloc_mode
+      Call_kind.direct_function_call callee's_code_id
+        ~contains_no_escaping_local_allocs apply_alloc_mode
     in
     let open struct
       (* An argument or the callee, with information about its entry in the
@@ -701,16 +702,20 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
         EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild)
   | Ok callee's_code_id ->
-    let call_kind =
-      Call_kind.direct_function_call callee's_code_id apply_alloc_mode
-    in
-    let apply = Apply.with_call_kind apply call_kind in
     let callee's_code_or_metadata =
       DE.find_code_exn (DA.denv dacc) callee's_code_id
     in
     let callee's_code_metadata =
       Code_or_metadata.code_metadata callee's_code_or_metadata
     in
+    let call_kind =
+      Call_kind.direct_function_call callee's_code_id
+        ~contains_no_escaping_local_allocs:
+          (Code_metadata.contains_no_escaping_local_allocs
+             callee's_code_metadata)
+        apply_alloc_mode
+    in
+    let apply = Apply.with_call_kind apply call_kind in
     let params_arity = Code_metadata.params_arity callee's_code_metadata in
     (* A function declaration with [is_tupled = true] must be treated specially:
 
@@ -898,7 +903,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
         func_decl_type ) ->
     let callee's_code_id_from_call_kind =
       match call with
-      | Direct code_id -> Some code_id
+      | Direct { code_id; contains_no_escaping_local_allocs = _ } ->
+        Some code_id
       | Indirect_unknown_arity | Indirect_known_arity -> None
     in
     let callee's_code_id_from_type = T.Function_type.code_id func_decl_type in

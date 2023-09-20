@@ -950,7 +950,12 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | Some { ret_arity; _ } -> arity ret_arity
         in
         let alloc = alloc_mode_for_types alloc in
-        Call_kind.direct_function_call code_id alloc, params_arity, return_arity
+        (* CR mshinwell: provide control over
+           [contains_no_escaping_local_allocs] *)
+        ( Call_kind.direct_function_call code_id
+            ~contains_no_escaping_local_allocs:true alloc,
+          params_arity,
+          return_arity )
       | Function (Indirect alloc) -> (
         let alloc = alloc_mode_for_types alloc in
         match arities with

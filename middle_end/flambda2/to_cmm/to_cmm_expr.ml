@@ -113,7 +113,11 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let args_ty = List.map C.extended_machtype_of_kind args_arity in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
-  | Function { function_call = Direct code_id; alloc_mode = _ } -> (
+  | Function
+      { function_call =
+          Direct { code_id; contains_no_escaping_local_allocs = _ };
+        alloc_mode = _
+      } -> (
     let code_metadata = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity code_metadata in
     if not (C.check_arity params_arity args)

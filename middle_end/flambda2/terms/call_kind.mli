@@ -18,9 +18,12 @@
 
 module Function_call : sig
   type t = private
-    | Direct of Code_id.t
-        (** The [code_id] uniquely determines the function symbol that
+    | Direct of
+        { code_id : Code_id.t;
+              (** The [code_id] uniquely determines the function symbol that
             must be called. *)
+          contains_no_escaping_local_allocs : bool
+        }
     | Indirect_unknown_arity
     | Indirect_known_arity
 end
@@ -59,7 +62,11 @@ include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val direct_function_call : Code_id.t -> Alloc_mode.For_types.t -> t
+val direct_function_call :
+  Code_id.t ->
+  contains_no_escaping_local_allocs:bool ->
+  Alloc_mode.For_types.t ->
+  t
 
 val indirect_function_call_unknown_arity : Alloc_mode.For_types.t -> t
 

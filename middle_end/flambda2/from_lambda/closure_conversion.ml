@@ -1139,17 +1139,19 @@ let close_exact_or_unknown_apply acc env
       ( acc,
         match (callee_approx : Env.value_approximation option) with
         | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
-          let is_tupled =
-            let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.is_tupled meta
-          in
+          let meta = Code_or_metadata.code_metadata code_or_meta in
+          let is_tupled = Code_metadata.is_tupled meta in
           if is_tupled
           then
             (* CR keryan : We could do better here since we know the arity, but
                we would have to untuple the arguments and we lack information
                for now *)
             Call_kind.indirect_function_call_unknown_arity mode
-          else Call_kind.direct_function_call code_id mode
+          else
+            Call_kind.direct_function_call code_id
+              ~contains_no_escaping_local_allocs:
+                (Code_metadata.contains_no_escaping_local_allocs meta)
+              mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
         | Some
             ( Value_unknown | Value_symbol _ | Value_int _

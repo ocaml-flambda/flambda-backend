@@ -18,14 +18,20 @@ let fprintf = Format.fprintf
 
 module Function_call = struct
   type t =
-    | Direct of Code_id.t
+    | Direct of
+        { code_id : Code_id.t;
+          contains_no_escaping_local_allocs : bool
+        }
     | Indirect_unknown_arity
     | Indirect_known_arity
 
   let print ppf call =
     match call with
-    | Direct code_id ->
-      fprintf ppf "@[<hov 1>(Direct %a)@]" Code_id.print code_id
+    | Direct { code_id; contains_no_escaping_local_allocs } ->
+      fprintf ppf
+        "@[<hov 1>(Direct@ @[<hov 1>(code_id %a)@]@ @[<hov \
+         1>(contains_no_escaping_local_allocs %b)@])@]"
+        Code_id.print code_id contains_no_escaping_local_allocs
     | Indirect_unknown_arity -> fprintf ppf "Indirect_unknown_arity"
     | Indirect_known_arity -> fprintf ppf "Indirect_known_arity"
 end
@@ -90,8 +96,11 @@ let [@ocamlformat "disable"] print ppf t =
       alloc
       is_c_builtin
 
-let direct_function_call code_id alloc_mode =
-  Function { function_call = Direct code_id; alloc_mode }
+let direct_function_call code_id ~contains_no_escaping_local_allocs alloc_mode =
+  Function
+    { function_call = Direct { code_id; contains_no_escaping_local_allocs };
+      alloc_mode
+    }
 
 let indirect_function_call_unknown_arity alloc_mode =
   Function { function_call = Indirect_unknown_arity; alloc_mode }
@@ -105,7 +114,11 @@ let c_call ~alloc ~is_c_builtin = C_call { alloc; is_c_builtin }
 
 let free_names t =
   match t with
-  | Function { function_call = Direct code_id; alloc_mode = _ } ->
+  | Function
+      { function_call =
+          Direct { code_id; contains_no_escaping_local_allocs = _ };
+        alloc_mode = _
+      } ->
     Name_occurrences.singleton_code_id code_id Name_mode.normal
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function { function_call = Indirect_known_arity; alloc_mode = _ }
@@ -115,11 +128,19 @@ let free_names t =
 
 let apply_renaming t renaming =
   match t with
-  | Function { function_call = Direct code_id; alloc_mode } ->
+  | Function
+      { function_call = Direct { code_id; contains_no_escaping_local_allocs };
+        alloc_mode
+      } ->
     let code_id' = Renaming.apply_code_id renaming code_id in
     if code_id == code_id'
     then t
-    else Function { function_call = Direct code_id'; alloc_mode }
+    else
+      Function
+        { function_call =
+            Direct { code_id = code_id'; contains_no_escaping_local_allocs };
+          alloc_mode
+        }
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function { function_call = Indirect_known_arity; alloc_mode = _ }
   | C_call { alloc = _; is_c_builtin = _ } ->
@@ -130,7 +151,11 @@ let apply_renaming t renaming =
 
 let ids_for_export t =
   match t with
-  | Function { function_call = Direct code_id; alloc_mode = _ } ->
+  | Function
+      { function_call =
+          Direct { code_id; contains_no_escaping_local_allocs = _ };
+        alloc_mode = _
+      } ->
     Ids_for_export.add_code_id Ids_for_export.empty code_id
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function { function_call = Indirect_known_arity; alloc_mode = _ }
