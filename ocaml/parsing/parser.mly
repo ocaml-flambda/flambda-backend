@@ -154,32 +154,34 @@ let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
   Attr.mk ~loc name payload
 
-module Local_syntax_category = struct
+module Mode_syntax_category = struct
   type _ t =
     | Type : core_type t
     | Expression : expression t
     | Pattern : pattern t
-    | Synthesized_constraint : expression t
 end
 
-let local_if : type ast. ast Local_syntax_category.t -> _ -> _ -> ast -> ast =
-  fun cat is_local sloc x ->
-  if is_local then
-    let make : loc:_ -> ast = match cat with
-      | Type       -> Jane_syntax.Local.type_of (Ltyp_local x)
-      | Expression -> Jane_syntax.Local.expr_of (Lexp_local x)
-      | Pattern    -> Jane_syntax.Local.pat_of  (Lpat_local x)
-      | Synthesized_constraint ->
-        Jane_syntax.Local.expr_of (Lexp_constrain_local x)
-    in
-    make ~loc:(make_loc sloc)
-  else
-    x
+let wrap_in_mode
+      (type ast) (cat : ast Mode_syntax_category.t) loc mode (ast : ast)
+  : ast =
+  let make : loc:_ -> ast = match cat with
+    | Type       -> Jane_syntax.Modes.type_of (Mtyp_mode (mode, ast))
+    | Expression -> Jane_syntax.Modes.expr_of (Mexp_mode (mode, ast))
+    | Pattern    -> Jane_syntax.Modes.pat_of  (Mpat_mode (mode, ast))
+  in
+  make ~loc
+
+let wrap_in_modes cat loc_modes ast =
+  List.fold_left
+    (fun ast { txt = mode; loc } -> wrap_in_mode cat loc mode ast)
+    ast loc_modes
 
 let global_if global_flag sloc carg =
   match global_flag with
   | Global ->
-      Jane_syntax.Local.constr_arg_of ~loc:(make_loc sloc) (Lcarg_global carg)
+      Jane_syntax.Modes.constr_arg_of
+        ~loc:(make_loc sloc)
+        (Mcarg_modality (Global, carg))
   | Nothing ->
       carg
 
@@ -705,7 +707,7 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
     | Some { N_ary.type_constraint; mode_annotations } ->
         let loc = { body.pexp_loc with loc_ghost = true } in
         let body = Exp.mk (mkexp_desc_constraint body type_constraint) ~loc in
-        exp_with_modes loc mode_annotations body
+        wrap_in_modes Expression mode_annotations body
   in
   mk_newtypes ~loc newtypes wrapped_body
 
@@ -2519,33 +2521,27 @@ seq_expr:
 ;
 labeled_simple_pattern:
     QUESTION LPAREN mode_flags label_let_pattern opt_default RPAREN
-      { (Optional (fst $4), $5, local_if Pattern $3 $loc($3) (snd $4)) }
+      { (Optional (fst $4), $5, wrap_in_modes Pattern $3 (snd $4)) }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
   | OPTLABEL LPAREN mode_flags let_pattern opt_default RPAREN
-      { (Optional $1, $5, local_if Pattern $3 $loc($3) $4) }
+      { (Optional $1, $5, wrap_in_modes Pattern $3 $4) }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
   | TILDE LPAREN mode_flags label_let_pattern RPAREN
-      { (Labelled (fst $4), None,
-         local_if Pattern $3 $loc($3) (snd $4)) }
+      { (Labelled (fst $4), None, wrap_in_modes Pattern $3 (snd $4)) }
   | TILDE label_var
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
       { (Labelled $1, None, $2) }
   | LABEL LPAREN mode_flag+ pattern RPAREN
-      { (Labelled $1, None,
-         Jane_syntax.Local.pat_of ~loc:(make_loc $loc($3)) (Lpat_local $4) ) }
+      { (Labelled $1, None, wrap_in_modes Pattern $3 $4) }
   | simple_pattern
       { (Nolabel, None, $1) }
   | LPAREN mode_flag+ let_pattern RPAREN
-      { (Nolabel, None,
-         Jane_syntax.Local.pat_of ~loc:(make_loc $loc($2)) (Lpat_local $3)) }
-  | LABEL LPAREN poly_pattern RPAREN
-      { (Labelled $1, None, $3) }
-  | LABEL LPAREN mode_flag+ poly_pattern RPAREN
-      { (Labelled $1, None,
-         Jane_syntax.Local.pat_of ~loc:(make_loc $loc($2)) (Lpat_local $4)) }
+      { (Nolabel, None, wrap_in_modes Pattern $2 $3) }
+  | LABEL LPAREN mode_flags poly_pattern RPAREN
+      { (Labelled $1, None, wrap_in_modes Pattern $3 $4) }
   | LPAREN poly_pattern RPAREN
       { (Nolabel, None, $2) }
 ;
@@ -2668,9 +2664,9 @@ fun_expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode_flag seq_expr
-     { Jane_syntax.Local.expr_of ~loc:(make_loc $sloc) (Lexp_local $2) }
+     { wrap_in_mode Expression (make_loc $sloc) $1.txt $2 }
   | EXCLAVE seq_expr
-     { Jane_syntax.Local.expr_of ~loc:(make_loc $sloc) (Lexp_exclave $2) }
+     { Jane_syntax.Modes.expr_of ~loc:(make_loc $sloc) (Mexp_exclave $2) }
 ;
 %inline expr:
   | or_function(fun_expr) { $1 }
@@ -2803,10 +2799,8 @@ comprehension_clause_binding:
      want that [int] to be [local_].  But we can parse [[e for local_ x in xs]].
      We have to have that as a separate rule here because it moves the [local_]
      over to the RHS of the binding, so we need everything to be visible. *)
-  | attributes LOCAL pattern IN expr
-      { let expr =
-          Jane_syntax.Local.expr_of ~loc:(make_loc $sloc) (Lexp_local $5)
-        in
+  | attributes mode_flag+ pattern IN expr
+      { let expr = wrap_in_modes Expression $2 $5 in
         Jane_syntax.Comprehensions.
           { pattern    = $3
           ; iterator   = In expr
@@ -2992,14 +2986,16 @@ let_binding_body_no_punning:
         let typ = ghtyp ~loc (Ptyp_poly([],t)) in
         let patloc = ($startpos($2), $endpos($3)) in
         let pat =
-          local_if Pattern $1 local_loc
+          wrap_in_modes Pattern $1
             (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
         in
         let exp =
-          local_if Expression $1 $sloc
+          wrap_in_modes Expression $1
             (mkexp_constraint
               ~loc:$sloc
-              (local_if Synthesized_constraint $1 $sloc $5)
+              (* ASZ: Do I need the Synthesized_constraint stuff? *)
+              (* (local_if Synthesized_constraint $1 $sloc $5) *)
+              $5
               $3)
         in
         (pat, exp) }
@@ -3012,11 +3008,10 @@ let_binding_body_no_punning:
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
         let pat =
-          local_if Pattern $1 $loc($1)
-            (ghpat ~loc:patloc
-               (Ppat_constraint($2, ghtyp ~loc:($loc($4)) $4)))
+          wrap_in_modes Pattern $1
+            (ghpat ~loc:patloc (Ppat_constraint($2, typ)))
         in
-        let exp = local_if Expression $1 $sloc $6 in
+        let exp = wrap_in_modes Expression $1 $6 in
         (pat, exp) }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       { let exp, poly =
@@ -3029,7 +3024,7 @@ let_binding_body_no_punning:
       { let loc = ($startpos($1), $endpos($3)) in
         (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
   | mode_flag+ let_ident strict_binding_modes
-      { ($2, Jane_syntax.Local.expr_of ~loc:(make_loc $sloc) (Lexp_local $3)) }
+      { ($2, wrap_in_modes Expression $1 ($3 $1)) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
@@ -3099,11 +3094,6 @@ strict_binding_modes:
       { fun _ -> $2 }
   | fun_params type_constraint? EQUAL fun_body
     { fun mode_annotations ->
-        let mode_annotations =
-          List.map
-            (fun (mode, loc) -> mkloc mode (make_loc loc))
-            mode_annotations
-        in
         let constraint_ : N_ary.function_constraint option =
           match $2 with
           | None -> None
@@ -3617,8 +3607,8 @@ layout_attr:
   attrs=attributes
   COLON
   layout=layout_annotation
-    { Jane_syntax.Core_type.ast_of ~loc:(make_loc $sloc) ~attrs
-        (Jtyp_layout (Ltyp_var { name; layout })) }
+    { Jane_syntax.Core_type.ast_of ~loc:(make_loc $sloc)
+        (Jtyp_layout (Ltyp_var { name; layout }), attrs) }
 ;
 
 parenthesized_type_parameter:
@@ -3998,7 +3988,7 @@ strict_function_type:
       codomain = strict_function_type
         { Ptyp_arrow(
             label,
-            local_if Type local $loc(mode) domain, codomain) }
+            wrap_in_modes Type mode domain, codomain) }
     )
     { $1 }
   | mktyp(
@@ -4010,8 +4000,8 @@ strict_function_type:
       codomain = tuple_type
       %prec MINUSGREATER
         { Ptyp_arrow(label,
-            local_if Type arg_mode $loc(arg_mode) domain,
-            local_if Type ret_mode $loc(ret_mode)
+            wrap_in_modes Type arg_mode domain,
+            wrap_in_modes Type ret_mode
               (Jane_syntax.Builtin.mark_curried
                  ~loc:(make_loc $loc(codomain)) codomain)) }
     )
@@ -4025,13 +4015,17 @@ strict_function_type:
   | /* empty */
       { Nolabel }
 ;
-%inline mode_flag:
+%inline mode_flag_:
    | LOCAL
-       { (Local, $sloc) }
+       { Jane_syntax.Modes.Local }
    | UNIQUE
-       { (Unique, $sloc) }
+       { Jane_syntax.Modes.Unique }
    | ONCE
-       { (Once, $sloc) }
+       { Jane_syntax.Modes.Once }
+;
+%inline mode_flag:
+   | mode_flag_
+       { mkrhs $1 $sloc }
 ;
 %inline mode_flags:
    | flags = iloption(mode_flag+)

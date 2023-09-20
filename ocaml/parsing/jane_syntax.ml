@@ -286,10 +286,6 @@ module Local = struct
   type nonrec expression =
     | Lexp_local of expression
     | Lexp_exclave of expression
-    | Lexp_constrain_local of expression
-      (* Invariant: [Lexp_constrain_local] is the direct child of a
-         [Pexp_constraint] or [Pexp_coerce] node.  For more, see the [.mli]
-         file. *)
 
   type nonrec pattern = Lpat_local of pattern
   (* Invariant: [Lpat_local] is always the outermost part of a pattern. *)
@@ -337,18 +333,12 @@ module Local = struct
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
         Expression.make_jane_syntax feature ["exclave"] expr)
-    | Lexp_constrain_local expr ->
-      (* See Note [Wrapping with make_entire_jane_syntax] *)
-      Expression.make_entire_jane_syntax ~loc feature (fun () ->
-        Expression.make_jane_syntax feature ["constrain_local"] expr)
 
   let of_expr expr =
     let expr, subparts = Expression.match_jane_syntax feature expr in
     match subparts with
     | ["local"] -> Lexp_local expr
     | ["exclave"] -> Lexp_exclave expr
-    | ["constrain_local"] ->
-      Lexp_constrain_local expr
     | _ -> Expression.raise_partial_match feature expr subparts
 
   let pat_of ~loc = function
@@ -372,9 +362,6 @@ module Unique = struct
   type expression =
     | Uexp_unique of Parsetree.expression
     | Uexp_once of Parsetree.expression
-    | Uexp_constrain_unique of Parsetree.expression
-    | Uexp_constrain_once of Parsetree.expression
-    (* Invariants: As [Lexp_constrain_local] *)
 
   type pattern =
     | Upat_unique of Parsetree.pattern (** [unique_ PAT] *)
@@ -404,19 +391,13 @@ module Unique = struct
       | Uexp_unique expr ->
         Expression.make_jane_syntax feature ["unique"] expr
       | Uexp_once expr ->
-        Expression.make_jane_syntax feature ["once"] expr
-      | Uexp_constrain_unique expr ->
-        Expression.make_jane_syntax feature ["constrain_unique"] expr
-      | Uexp_constrain_once expr ->
-        Expression.make_jane_syntax feature ["constrain_local"] expr)
+        Expression.make_jane_syntax feature ["once"] expr)
 
   let of_expr expr =
     let expr, subparts = Expression.match_jane_syntax feature expr in
     match subparts with
     | ["unique"] -> Uexp_unique expr
     | ["once"] -> Uexp_once expr
-    | ["constrain_unique"] -> Uexp_constrain_unique expr
-    | ["constrain_local"] -> Uexp_constrain_once expr
     | _ -> Expression.raise_partial_match feature expr subparts
 
   let pat_of ~loc upat =
@@ -454,7 +435,6 @@ module Modes = struct
   type expression =
     | Mexp_mode of mode * Parsetree.expression
     | Mexp_exclave of Parsetree.expression
-    | Mexp_constrain of mode * Parsetree.expression
 
   type pattern =
     | Mpat_mode of mode * Parsetree.pattern
@@ -492,23 +472,14 @@ module Modes = struct
       end
     | Mexp_exclave expr ->
       Local.expr_of ~loc (Lexp_exclave expr)
-    | Mexp_constrain (mode, expr) ->
-      begin match mode with
-      | Local -> Local.expr_of ~loc (Lexp_constrain_local expr)
-      | Unique -> Unique.expr_of ~loc (Uexp_constrain_unique expr)
-      | Once -> Unique.expr_of ~loc (Uexp_constrain_once expr)
-      end
 
   let of_local_expr : Local.expression -> _ = function
     | Lexp_local expr -> Mexp_mode (Local, expr)
     | Lexp_exclave expr -> Mexp_exclave expr
-    | Lexp_constrain_local expr -> Mexp_constrain (Local, expr)
 
   let of_unique_expr : Unique.expression -> _ = function
     | Uexp_unique expr -> Mexp_mode (Unique, expr)
     | Uexp_once expr -> Mexp_mode (Once, expr)
-    | Uexp_constrain_unique expr -> Mexp_constrain (Unique, expr)
-    | Uexp_constrain_once expr -> Mexp_constrain (Once, expr)
 
   let pat_of ~loc = function
     | Mpat_mode (mode, pat) ->

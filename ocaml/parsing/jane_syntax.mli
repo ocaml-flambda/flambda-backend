@@ -81,19 +81,6 @@ module Modes : sig
     (** [MODE EXPR], e.g. [local_ EXPR] or [unique_ EXPR] *)
     | Mexp_exclave of Parsetree.expression
     (** [exclave_ EXPR] *)
-    | Mexp_constrain of mode * Parsetree.expression
-    (** This represents the shadow mode that is inserted on the right-hand side
-        of a [let MODE f : t = e in ...] binding; the contents of this
-        constructor are the [e] on the RHS.  This enables [e] to be correctly
-        checked at the appropriate mode.
-
-        Invariant: [Mexp_constrain] occurs as the direct child of a
-        [Pexp_constraint] or [Pexp_coerce] node.
-
-        We don't inline the definition of [Pexp_constraint] or [Pexp_coerce]
-        here because nroberts's (@ncik-roberts's) forthcoming syntactic
-        function arity parsing patch handles this case more directly, and we
-        don't want to double the amount of work we're doing. *)
 
   type pattern =
     | Mpat_mode of mode * Parsetree.pattern
