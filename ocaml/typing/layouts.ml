@@ -564,6 +564,13 @@ module Layout = struct
 
   (***********************************)
   (* layout histories *)
+  let has_imported_history t =
+    match t with
+    | {history = Creation Imported; } -> true
+    | _ -> false
+
+  let update_reason t reason =
+    {t with history = Creation reason}
 
   let printtyp_path = ref (fun _ _ -> assert false)
   let set_printtyp_path f = printtyp_path := f

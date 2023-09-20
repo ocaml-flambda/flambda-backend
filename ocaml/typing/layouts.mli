@@ -413,6 +413,12 @@ module Layout : sig
   val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 
   (******************************)
+  (* history *)
+
+  val has_imported_history : t -> bool
+  val update_reason : t -> creation_reason -> t
+
+  (******************************)
   (* relations *)
 
   (** This checks for equality, and sets any variables to make two layouts
