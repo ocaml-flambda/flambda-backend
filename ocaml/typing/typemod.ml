@@ -3425,11 +3425,18 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
 
-let type_interface modulename env ast =
+let type_interface sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
   end;
-  transl_signature env ast
+  let sg = transl_signature env ast in
+  let arg_type =
+    !Clflags.as_argument_for
+    |> Option.map Compilation_unit.Name.of_string
+  in
+  ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
+          : Typedtree.secondary_interface option);
+  sg
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
