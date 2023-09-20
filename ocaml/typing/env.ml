@@ -638,8 +638,7 @@ and module_data =
   { mda_declaration : Subst.Lazy.module_declaration;
     mda_components : module_components;
     mda_address : address_lazy;
-    mda_shape: Shape.t;
-    mda_filename : Misc.filepath option }
+    mda_shape: Shape.t; }
 
 and module_entry =
   | Mod_local of module_data
@@ -927,7 +926,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let read_sign_of_cmi sign name uid ~filename ~shape ~address:addr ~flags =
+let read_sign_of_cmi sign name uid ~shape ~address:addr ~flags =
   let id = Ident.create_global name in
   let path = Pident id in
   let alerts =
@@ -945,7 +944,6 @@ let read_sign_of_cmi sign name uid ~filename ~shape ~address:addr ~flags =
   let mda_address = Lazy_backtrack.create_forced addr in
   let mda_declaration = md in
   let mda_shape = shape in
-  let mda_filename = Some filename in
   let mda_components =
     let mty = md.md_type in
     components_of_module ~alerts ~uid:md.md_uid
@@ -957,7 +955,6 @@ let read_sign_of_cmi sign name uid ~filename ~shape ~address:addr ~flags =
     mda_components;
     mda_address;
     mda_shape;
-    mda_filename;
   }
 
 let persistent_env : module_data Persistent_env.t ref =
@@ -1319,14 +1316,6 @@ let find_hash_type path env =
       tda.tda_declaration
   | Papply _ ->
       raise Not_found
-
-let find_global_name name =
-  let mda = find_pers_mod name in
-  let decl = Subst.Lazy.force_module_decl mda.mda_declaration in
-  match decl.md_type, mda.mda_filename with
-  | Mty_signature sg, Some filename -> sg, filename
-  | (Mty_ident _ | Mty_functor (_, _) | Mty_alias _ | Mty_signature _), _ ->
-      assert false
 
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty
@@ -1890,8 +1879,7 @@ let rec components_of_module_maker
               { mda_declaration = md';
                 mda_components = comps;
                 mda_address = addr;
-                mda_shape = shape;
-                mda_filename = None }
+                mda_shape = shape; }
             in
             c.comp_modules <-
               NameMap.add (Ident.name id) mda c.comp_modules;
@@ -2169,8 +2157,7 @@ and store_module ?(update_summary=true) ~check
     { mda_declaration = md;
       mda_components = comps;
       mda_address = addr;
-      mda_shape = shape;
-      mda_filename = None }
+      mda_shape = shape }
   in
   let summary =
     if not update_summary then env.summary

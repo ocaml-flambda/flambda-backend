@@ -122,8 +122,6 @@ val find_module_address: Path.t -> t -> address
 val find_class_address: Path.t -> t -> address
 val find_constructor_address: Path.t -> t -> address
 
-val find_global_name: Global.Name.t -> signature * Misc.filepath
-
 val shape_of_path:
   namespace:Shape.Sig_component_kind.t -> t -> Path.t -> Shape.t
 

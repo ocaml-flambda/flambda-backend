@@ -692,7 +692,6 @@ type 'a sig_reader =
   Subst.Lazy.signature
   -> Global.Name.t
   -> Shape.Uid.t
-  -> filename:string
   -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
@@ -705,7 +704,6 @@ let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
   let sign = pers_name.pn_sign in
   let impl = import.imp_impl in
   let module_block_layout = import.imp_module_block_layout in
-  let filename = import.imp_filename in
   let flags = import.imp_flags in
   let binding = make_binding penv global impl in
   let address : Address.t =
@@ -734,7 +732,7 @@ let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
         (* FIXME This is probably wrong for non-parameter modules *)
         Shape.var uid ident
   in
-  let pm = val_of_pers_sig sign global_name uid ~filename ~shape ~address ~flags in
+  let pm = val_of_pers_sig sign global_name uid ~shape ~address ~flags in
   let ps = { ps_name_info = pers_name;
              ps_binding = binding;
            } in

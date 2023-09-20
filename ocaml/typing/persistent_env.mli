@@ -97,7 +97,6 @@ type 'a sig_reader =
   Subst.Lazy.signature
   -> Global.Name.t
   -> Shape.Uid.t
-  -> filename:string
   -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
