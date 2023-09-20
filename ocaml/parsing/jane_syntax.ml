@@ -280,6 +280,8 @@ module Local = struct
   type constructor_argument = Lcarg_global of core_type
 
   type nonrec core_type = Ltyp_local of core_type
+  (* Invariant: [Ltyp_local] is only used in arrow types and has no attributes.
+     For more, see the [.mli] file. *)
 
   type nonrec expression =
     | Lexp_local of expression
@@ -355,6 +357,173 @@ module Local = struct
       Pattern.make_entire_jane_syntax ~loc feature (fun () -> pat)
 
   let of_pat pat = Lpat_local pat
+end
+
+(** Uniqueness modes *)
+module Unique = struct
+  let feature : Feature.t = Language_extension Unique
+
+  type nonrec core_type =
+    | Utyp_unique of core_type
+    | Utyp_once of core_type
+  (* Invariant: These are only used in arrow types and have no attributes.  For
+     more, see the [.mli] file. *)
+
+  type expression =
+    | Uexp_unique of Parsetree.expression
+    | Uexp_once of Parsetree.expression
+    | Uexp_constrain_unique of Parsetree.expression
+    | Uexp_constrain_once of Parsetree.expression
+    (* Invariants: As [Lexp_constrain_local] *)
+
+  type pattern =
+    | Upat_unique of Parsetree.pattern (** [unique_ PAT] *)
+    | Upat_once of Parsetree.pattern (** [once_ PAT] *)
+  (* Invariant: These are always the outermost part of a pattern. *)
+
+  let type_of ~loc utyp =
+    (* See Note [Wrapping with make_entire_jane_syntax] *)
+    Core_type.make_entire_jane_syntax ~loc feature (fun () ->
+      match utyp with
+      | Utyp_unique typ ->
+        Core_type.make_jane_syntax feature ["type"; "unique"] typ
+      | Utyp_once typ ->
+        Core_type.make_jane_syntax feature ["type"; "once"] typ)
+
+  let of_type typ =
+    let typ, subparts = Core_type.match_jane_syntax feature typ in
+    match subparts with
+    | ["type"; "unique"] -> Utyp_unique typ
+    | ["type"; "once"] -> Utyp_once typ
+    | _ -> Core_type.raise_partial_match feature typ subparts
+
+  let expr_of ~loc uexpr =
+    (* See Note [Wrapping with make_entire_jane_syntax] *)
+    Expression.make_entire_jane_syntax ~loc feature (fun () ->
+      match uexpr with
+      | Uexp_unique expr ->
+        Expression.make_jane_syntax feature ["unique"] expr
+      | Uexp_once expr ->
+        Expression.make_jane_syntax feature ["once"] expr
+      | Uexp_constrain_unique expr ->
+        Expression.make_jane_syntax feature ["constrain_unique"] expr
+      | Uexp_constrain_once expr ->
+        Expression.make_jane_syntax feature ["constrain_local"] expr)
+
+  let of_expr expr =
+    let expr, subparts = Expression.match_jane_syntax feature expr in
+    match subparts with
+    | ["unique"] -> Uexp_unique expr
+    | ["once"] -> Uexp_once expr
+    | ["constrain_unique"] -> Uexp_constrain_unique expr
+    | ["constrain_local"] -> Uexp_constrain_once expr
+    | _ -> Expression.raise_partial_match feature expr subparts
+
+  let pat_of ~loc upat =
+    (* See Note [Wrapping with make_entire_jane_syntax] *)
+    Pattern.make_entire_jane_syntax ~loc feature (fun () ->
+      match upat with
+      | Upat_unique pat ->
+        Pattern.make_jane_syntax feature ["pattern"; "unique"] pat
+      | Upat_once pat ->
+        Pattern.make_jane_syntax feature ["pattern"; "once"] pat)
+
+  let of_pat pat =
+    let pat, subparts = Pattern.match_jane_syntax feature pat in
+    match subparts with
+    | ["pattern"; "unique"] -> Upat_unique pat
+    | ["pattern"; "once"] -> Upat_once pat
+    | _ -> Pattern.raise_partial_match feature pat subparts
+end
+
+module Modes = struct
+  type mode =
+    | Local
+    | Unique
+    | Once
+
+  type modality =
+    | Global
+
+  type core_type =
+    | Mtyp_mode of mode * Parsetree.core_type
+
+  type constructor_argument =
+    | Mcarg_modality of modality * Parsetree.core_type
+
+  type expression =
+    | Mexp_mode of mode * Parsetree.expression
+    | Mexp_exclave of Parsetree.expression
+    | Mexp_constrain of mode * Parsetree.expression
+
+  type pattern =
+    | Mpat_mode of mode * Parsetree.pattern
+
+  let type_of ~loc = function
+    | Mtyp_mode (mode, typ) ->
+      begin match mode with
+      | Local -> Local.type_of ~loc (Ltyp_local typ)
+      | Unique -> Unique.type_of ~loc (Utyp_unique typ)
+      | Once -> Unique.type_of ~loc (Utyp_once typ)
+      end
+
+  let of_local_type : Local.core_type -> _ = function
+    | Ltyp_local typ -> Mtyp_mode (Local, typ)
+
+  let of_unique_type : Unique.core_type -> _ = function
+    | Utyp_unique typ -> Mtyp_mode (Unique, typ)
+    | Utyp_once typ -> Mtyp_mode (Once, typ)
+
+  let constr_arg_of ~loc = function
+    | Mcarg_modality (modality, carg) ->
+      begin match modality with
+      | Global -> Local.constr_arg_of ~loc (Lcarg_global carg)
+      end
+
+  let of_local_constr_arg : Local.constructor_argument -> _ = function
+    | Lcarg_global carg -> Mcarg_modality (Global, carg)
+
+  let expr_of ~loc = function
+    | Mexp_mode (mode, expr) ->
+      begin match mode with
+      | Local -> Local.expr_of ~loc (Lexp_local expr)
+      | Unique -> Unique.expr_of ~loc (Uexp_unique expr)
+      | Once -> Unique.expr_of ~loc (Uexp_once expr)
+      end
+    | Mexp_exclave expr ->
+      Local.expr_of ~loc (Lexp_exclave expr)
+    | Mexp_constrain (mode, expr) ->
+      begin match mode with
+      | Local -> Local.expr_of ~loc (Lexp_constrain_local expr)
+      | Unique -> Unique.expr_of ~loc (Uexp_constrain_unique expr)
+      | Once -> Unique.expr_of ~loc (Uexp_constrain_once expr)
+      end
+
+  let of_local_expr : Local.expression -> _ = function
+    | Lexp_local expr -> Mexp_mode (Local, expr)
+    | Lexp_exclave expr -> Mexp_exclave expr
+    | Lexp_constrain_local expr -> Mexp_constrain (Local, expr)
+
+  let of_unique_expr : Unique.expression -> _ = function
+    | Uexp_unique expr -> Mexp_mode (Unique, expr)
+    | Uexp_once expr -> Mexp_mode (Once, expr)
+    | Uexp_constrain_unique expr -> Mexp_constrain (Unique, expr)
+    | Uexp_constrain_once expr -> Mexp_constrain (Once, expr)
+
+  let pat_of ~loc = function
+    | Mpat_mode (mode, pat) ->
+      begin match mode with
+      | Local -> Local.pat_of ~loc (Lpat_local pat)
+      | Unique -> Unique.pat_of ~loc (Upat_unique pat)
+      | Once -> Unique.pat_of ~loc (Upat_once pat)
+      end
+
+  let of_local_pat : Local.pattern -> _ = function
+    | Lpat_local pat -> Mpat_mode (Local, pat)
+
+  let of_unique_pat : Unique.pattern -> _ = function
+    | Upat_unique pat -> Mpat_mode (Unique, pat)
+    | Upat_once pat -> Mpat_mode (Once, pat)
 end
 
 (** Layout annotations' encoding as attribute payload, used in both n-ary
@@ -443,7 +612,7 @@ end = struct
 end
 
 module Mode_annotation = struct
-  type t =
+  type t = Modes.mode =
     | Local
     | Unique
     | Once
@@ -738,7 +907,7 @@ module N_ary_functions = struct
     ; pparam_loc : Location.t
     }
 
-  type mode_annotation = Mode_annotation.t =
+  type mode_annotation = Modes.mode =
     | Local
     | Unique
     | Once
@@ -1583,40 +1752,47 @@ end
 
 module Core_type = struct
   type t =
-    | Jtyp_local of Local.core_type
+    | Jtyp_modes of Modes.core_type
     | Jtyp_layout of Layouts.core_type
 
   let of_ast_internal (feat : Feature.t) typ = match feat with
-    | Language_extension Local -> Some (Jtyp_local (Local.of_type typ))
-    | Language_extension Layouts -> Some (Jtyp_layout (Layouts.of_type typ))
-    | _ -> None
+    | Language_extension Local ->
+      Some (Jtyp_modes (Modes.of_local_type (Local.of_type typ)))
+    | Language_extension Unique ->
+      Some (Jtyp_modes (Modes.of_unique_type (Unique.of_type typ)))
+    | Language_extension Layouts ->
+      Some (Jtyp_layout (Layouts.of_type typ))
+    | _ ->
+      None
 
   let of_ast = Core_type.make_of_ast ~of_ast_internal
 
   let ast_of ~loc (jtyp, attrs) =
     Core_type.add_attributes attrs @@
     match jtyp with
-    | Jtyp_local x -> Local.type_of ~loc x
+    | Jtyp_modes x -> Modes.type_of ~loc x
     | Jtyp_layout x -> Layouts.type_of ~loc x
 end
 
 module Constructor_argument = struct
   type t =
-    | Jcarg_local of Local.constructor_argument
+    | Jcarg_modes of Modes.constructor_argument
 
   let of_ast_internal (feat : Feature.t) carg = match feat with
-    | Language_extension Local -> Some (Jcarg_local (Local.of_constr_arg carg))
-    | _ -> None
+    | Language_extension Local ->
+      Some (Jcarg_modes (Modes.of_local_constr_arg (Local.of_constr_arg carg)))
+    | _ ->
+      None
 
   let of_ast = Constructor_argument.make_of_ast ~of_ast_internal
 
   let ast_of ~loc jcarg = match jcarg with
-    | Jcarg_local x -> Local.constr_arg_of ~loc x
+    | Jcarg_modes x -> Modes.constr_arg_of ~loc x
 end
 
 module Expression = struct
   type t =
-    | Jexp_local of Local.expression
+    | Jexp_modes of Modes.expression
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
@@ -1624,7 +1800,9 @@ module Expression = struct
 
   let of_ast_internal (feat : Feature.t) expr = match feat with
     | Language_extension Local ->
-      Some (Jexp_local (Local.of_expr expr))
+      Some (Jexp_modes (Modes.of_local_expr (Local.of_expr expr)))
+    | Language_extension Unique ->
+      Some (Jexp_modes (Modes.of_unique_expr (Unique.of_expr expr)))
     | Language_extension Comprehensions ->
       Some (Jexp_comprehension (Comprehensions.of_expr expr))
     | Language_extension Immutable_arrays ->
@@ -1643,22 +1821,24 @@ module Expression = struct
   let ast_of ~loc (jexp, attrs) =
     Expression.add_attributes attrs @@
     match jexp with
-    | Jexp_local            x -> Local.expr_of             ~loc x
-    | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc x
-    | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc x
-    | Jexp_layout           x -> Layouts.expr_of           ~loc x
-    | Jexp_n_ary_function   x -> N_ary_functions.expr_of   ~loc x
+    | Jexp_modes           x -> Modes.expr_of            ~loc x
+    | Jexp_comprehension   x -> Comprehensions.expr_of   ~loc x
+    | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc x
+    | Jexp_layout          x -> Layouts.expr_of          ~loc x
+    | Jexp_n_ary_function  x -> N_ary_functions.expr_of  ~loc x
 end
 
 module Pattern = struct
   type t =
-    | Jpat_local           of Local.pattern
+    | Jpat_modes of Modes.pattern
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
 
   let of_ast_internal (feat : Feature.t) pat = match feat with
     | Language_extension Local ->
-      Some (Jpat_local (Local.of_pat pat))
+      Some (Jpat_modes (Modes.of_local_pat (Local.of_pat pat)))
+    | Language_extension Unique ->
+      Some (Jpat_modes (Modes.of_unique_pat (Unique.of_pat pat)))
     | Language_extension Immutable_arrays ->
       Some (Jpat_immutable_array (Immutable_arrays.of_pat pat))
     | Language_extension Layouts ->
@@ -1670,7 +1850,7 @@ module Pattern = struct
   let ast_of ~loc (jpat, attrs) =
     Pattern.add_attributes attrs @@
     match jpat with
-    | Jpat_local x -> Local.pat_of ~loc x
+    | Jpat_modes x -> Modes.pat_of ~loc x
     | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc x
     | Jpat_layout x -> Layouts.pat_of ~loc x
 end

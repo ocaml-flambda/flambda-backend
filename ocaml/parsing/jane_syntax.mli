@@ -47,37 +47,47 @@ module Builtin : sig
   val non_syntax_attributes : Parsetree.attributes -> Parsetree.attributes
 end
 
-(** The ASTs for locality modes *)
-module Local : sig
-  type core_type = Ltyp_local of Parsetree.core_type
-  (** [local_ TYPE]
+(** The ASTs for modes *)
+module Modes : sig
+  type mode =
+    | Local (** [local_] *)
+    | Unique (** [unique_] *)
+    | Once (** [once_] *)
 
-      Invariant: Only used in arrow types (e.g., [local_ a -> local_ b]), and
+  type modality =
+    | Global (** [global_] *)
+
+  type core_type =
+    | Mtyp_mode of mode * Parsetree.core_type
+  (** [MODE TYPE], e.g. [local_ string] or [unique_ float list].
+
+      Invariant: Only used in arrow types (e.g., [local_ a -> unique_ b]), and
       has no attributes (the inner [core_type] can).
 
-      The other part of locality that shows up in types is the marking of what's
-      curried (i.e., represented with explicit parentheses in the source); this
-      is represented by the [Builtin.mark_curried] machinery, which see. *)
+      The other part of the mode machinery that shows up in types is the marking
+      of what's curried (i.e., represented with explicit parentheses in the
+      source); this is represented by the [Builtin.mark_curried] machinery,
+      which see. *)
 
   type constructor_argument =
-    | Lcarg_global of Parsetree.core_type
-    (** [global_ TYPE]
+    | Mcarg_modality of modality * Parsetree.core_type
+    (** [MODALITY TYPE], e.g. [global_ TYPE].
 
         E.g.: [type t = { x : global_ string }] or
         [type t = C of global_ string]. *)
 
   type expression =
-    | Lexp_local of Parsetree.expression
-    (** [local_ EXPR] *)
-    | Lexp_exclave of Parsetree.expression
+    | Mexp_mode of mode * Parsetree.expression
+    (** [MODE EXPR], e.g. [local_ EXPR] or [unique_ EXPR] *)
+    | Mexp_exclave of Parsetree.expression
     (** [exclave_ EXPR] *)
-    | Lexp_constrain_local of Parsetree.expression
-    (** This represents the shadow [local_] that is inserted on the right-hand
-        side of a [let local_ f : t = e in ...] binding; the contents of this
+    | Mexp_constrain of mode * Parsetree.expression
+    (** This represents the shadow mode that is inserted on the right-hand side
+        of a [let MODE f : t = e in ...] binding; the contents of this
         constructor are the [e] on the RHS.  This enables [e] to be correctly
-        checked at the local mode.
+        checked at the appropriate mode.
 
-        Invariant: [Lexp_constrain_local] occurs as the direct child of a
+        Invariant: [Mexp_constrain] occurs as the direct child of a
         [Pexp_constraint] or [Pexp_coerce] node.
 
         We don't inline the definition of [Pexp_constraint] or [Pexp_coerce]
@@ -86,10 +96,10 @@ module Local : sig
         don't want to double the amount of work we're doing. *)
 
   type pattern =
-    | Lpat_local of Parsetree.pattern
-    (** [local_ PAT]
+    | Mpat_mode of mode * Parsetree.pattern
+    (** [MODE PAT], e.g. [local_ PAT] or [unique_ PAT].
 
-        Invariant: [Lpat_local] is always the outermost part of a pattern. *)
+        Invariant: [Mpat_mode] is always the outermost part of a pattern. *)
 
   val type_of : loc:Location.t -> core_type -> Parsetree.core_type
   val constr_arg_of :
@@ -224,7 +234,7 @@ module N_ary_functions : sig
       has a type constraint on the body, e.g.
       [let local_ f x : int -> int = ...].
   *)
-  type mode_annotation =
+  type mode_annotation = Modes.mode =
     | Local
     | Unique
     | Once
@@ -454,7 +464,7 @@ module type AST = sig
   val of_ast : ast -> t option
 
   (** The dual of [of_ast], only used by [Ast_mapper].  This is built up from
-      the various [FEATURE.CATEGORY_of] functions, such as [Local.type_of],
+      the various [FEATURE.CATEGORY_of] functions, such as [Modes.type_of],
       which you should prefer. *)
   val ast_of : loc:Location.t -> t -> ast
 end
@@ -465,7 +475,7 @@ end
 (** Novel syntax in types *)
 module Core_type : sig
   type t =
-    | Jtyp_local of Local.core_type
+    | Jtyp_modes of Modes.core_type
     | Jtyp_layout of Layouts.core_type
 
   include AST
@@ -479,7 +489,7 @@ end
     the inner type. *)
 module Constructor_argument : sig
   type t =
-    | Jcarg_local of Local.constructor_argument
+    | Jcarg_modes of Modes.constructor_argument
 
   include AST
     with type t := t
@@ -489,7 +499,7 @@ end
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =
-    | Jexp_local of Local.expression
+    | Jexp_modes of Modes.expression
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
@@ -503,7 +513,7 @@ end
 (** Novel syntax in patterns *)
 module Pattern : sig
   type t =
-    | Jpat_local           of Local.pattern
+    | Jpat_modes of Modes.pattern
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
 
