@@ -82,9 +82,13 @@ let escaping_by_alias ~(dom : Dominator_graph.alias_map)
       Variable.Set.union escaping new_escaping)
     dom_graph.graph Variable.Set.empty
 
-let names_escaping_from_mutable_prim (prim : T.Mutable_prim.t) =
+let names_escaping_from_mutable_prim ~(result_required : bool)
+    (prim : T.Mutable_prim.t) =
   match prim with
-  | Make_block { fields; _ } -> Simple.List.free_names fields
+  | Make_block { fields; _ } ->
+    if result_required
+    then Simple.List.free_names fields
+    else Name_occurrences.empty
   | Block_set { value; _ } -> Simple.free_names value
   | Is_int _ | Get_tag _ | Block_load _ -> Name_occurrences.empty
 
@@ -148,8 +152,13 @@ let escaping_by_use_for_one_continuation ~required_names
   in
   let escaping =
     List.fold_left
-      (fun escaping T.Mutable_let_prim.{ prim; _ } ->
-        add_name_occurrences (names_escaping_from_mutable_prim prim) escaping)
+      (fun escaping T.Mutable_let_prim.{ prim; bound_var; _ } ->
+        let result_required =
+          Name.Set.mem (Name.var bound_var) required_names
+        in
+        add_name_occurrences
+          (names_escaping_from_mutable_prim ~result_required prim)
+          escaping)
       escaping elt.mutable_let_prims_rev
   in
   escaping
