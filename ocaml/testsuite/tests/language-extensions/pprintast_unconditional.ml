@@ -74,6 +74,7 @@ module Example = struct
                          ; ptype_attributes = []
                          ; ptype_loc = loc
                          }
+  let tyvar            = "no_tyvars_require_extensions"
 end
 
 let print_test_header name =
@@ -144,6 +145,8 @@ end = struct
 
   let string_of_expression = test_string_of "string_of_expression" string_of_expression Example.expression
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
+
+  let tyvar = test "tyvar" tyvar Example.tyvar
 end
 
 
