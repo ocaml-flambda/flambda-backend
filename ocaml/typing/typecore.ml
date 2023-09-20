@@ -3016,7 +3016,8 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   (* CR layouts v5: value restriction here to be relaxed *)
   if is_optional l then
     unify_pat (ref val_env) pat
-      (type_option (newvar (Layout.value ~why:(Type_argument Predef.path_option))));
+      (type_option
+         (newvar (Layout.value ~why:(Imported_type_argument Predef.path_option))));
   let pvs = tps.tps_pattern_variables in
   if !Clflags.principal then begin
     Ctype.end_def ();
@@ -3795,7 +3796,8 @@ let rec approx_type env sty =
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
-      if is_optional p then newvar (Layout.value ~why:(Type_argument Predef.path_option))
+      if is_optional p
+      then newvar (Layout.value ~why:(Imported_type_argument Predef.path_option))
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
         let arg_ty =
@@ -3813,7 +3815,8 @@ let rec approx_type env sty =
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
       let arg =
         if is_optional p
-        then type_option (newvar (Layout.value ~why:(Type_argument Predef.path_option)))
+        then type_option
+               (newvar (Layout.value ~why:(Imported_type_argument Predef.path_option)))
         else newvar (Layout.of_new_sort_var ~why:Function_argument)
       in
       let ret = approx_type env sty in
@@ -6806,7 +6809,8 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       if is_optional lbl then
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
-          (type_option(newvar (Layout.value ~why:(Type_argument Predef.path_option))));
+          (type_option
+             (newvar (Layout.value ~why:(Imported_type_argument Predef.path_option))));
       (lbl, Arg (arg, expected_mode.mode, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
@@ -7992,7 +7996,7 @@ and type_comprehension_expr
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
-        (Layout.Type_argument Predef.path_list)
+        (Layout.Imported_type_argument Predef.path_list)
     | Cexp_array_comprehension (amut, comp) ->
         let container_type = match amut with
           | Mutable   -> Predef.type_array

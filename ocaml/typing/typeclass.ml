@@ -1504,7 +1504,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Layout.value ~why:(Type_argument Predef.path_option)))
+  Predef.type_option
+    (Btype.newgenvar (Layout.value ~why:(Imported_type_argument Predef.path_option)))
 
 let rec approx_declaration cl =
   match cl.pcl_desc with

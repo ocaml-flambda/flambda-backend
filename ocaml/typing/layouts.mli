@@ -170,6 +170,7 @@ module Layout : sig
     | Extensible_variant
     | Primitive of Ident.t
     | Type_argument of Path.t
+    | Imported_type_argument of Path.t
     | Tuple
     | Row_variable
     | Polymorphic_variant

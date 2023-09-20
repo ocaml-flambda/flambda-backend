@@ -3828,7 +3828,8 @@ let filter_arrow env t l ~force_tpoly =
               (* CR layouts v5: Change the Layout.value when option can
                  hold non-values. *)
               (Tconstr(Predef.path_option,
-                       [newvar2 level (Layout.value ~why:(Type_argument Predef.path_option))],
+                       [newvar2 level (Layout.value ~why:(Imported_type_argument
+                                                            Predef.path_option))],
                        ref Mnil))
           else
             newvar2 level l_arg
