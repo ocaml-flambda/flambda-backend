@@ -670,6 +670,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Variadic
         (Make_block (Naked_floats, mutability, mode), List.map unbox_float args)
     ]
+  | Pmakeufloatblock (mutability, mode), _ ->
+    let args = List.flatten args in
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    let mutability = Mutability.from_lambda mutability in
+    [Variadic (Make_block (Naked_floats, mutability, mode), args)]
   | Pmakearray (array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -714,7 +719,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           { tag = Tag.Scannable.zero;
             length = Targetint_31_63.of_int num_fields
           }
-      | Record_float ->
+      | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
       | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
         Values
@@ -999,6 +1004,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ box_float mode
         (Binary (Block_load (block_access, mutability), arg, Simple field))
         ~current_region ]
+  | Pufloatfield (field, sem), [[arg]] ->
+    let imm = Targetint_31_63.of_int field in
+    check_non_negative_imm imm "Pufloatfield";
+    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let mutability = convert_field_read_semantics sem in
+    let block_access : P.Block_access_kind.t =
+      Naked_floats { size = Unknown }
+    in
+    [Binary (Block_load (block_access, mutability), arg, Simple field)]
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -1025,6 +1039,17 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           block,
           Simple field,
           unbox_float value ) ]
+  | Psetufloatfield (field, initialization_or_assignment), [[block]; [value]] ->
+    let imm = Targetint_31_63.of_int field in
+    check_non_negative_imm imm "Psetufloatfield";
+    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let block_access : P.Block_access_kind.t =
+      Naked_floats { size = Unknown }
+    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
+    [ Ternary
+        (Block_set (block_access, init_or_assign), block, Simple field, value)
+    ]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
@@ -1284,7 +1309,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pget_header _ ),
+      | Pget_header _ | Pufloatfield _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1298,8 +1323,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbytes_load_32 _ | Pbytes_load_64 _ | Pisout | Paddbint _ | Psubbint _
       | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
       | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Pbintcomp _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _
+      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
+      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Parrayrefu
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
       | Parrayrefs

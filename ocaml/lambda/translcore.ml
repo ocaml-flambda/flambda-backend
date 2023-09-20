@@ -31,17 +31,12 @@ type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
-  | Non_value_layout of Layout.Violation.t
+  | Illegal_record_field of Sort.const
   | Void_sort of type_expr
 
 exception Error of Location.t * error
 
 let use_dup_for_constant_mutable_arrays_bigger_than = 4
-
-let layout_must_be_value loc layout =
-  match Layout.(sub layout (value ~why:V1_safety_check)) with
-  | Ok _ -> ()
-  | Error e -> raise (Error (loc, Non_value_layout e))
 
 (* CR layouts v7: In the places where this is used, we will want to allow
    float#, but not void yet (e.g., the left of a semicolon and loop bodies).  we
@@ -57,6 +52,28 @@ let sort_must_not_be_void loc ty sort =
   if Sort.is_void_defaulting sort then raise (Error (loc, Void_sort ty))
 
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
+
+(* This is `Lambda.must_be_value` for the special case of record fields, where
+   we allow the unboxed float layout.  Its result is never actually used in that
+   case - it would be fine to return garbage.
+*)
+let record_field_kind l =
+  match l with
+  | Punboxed_float -> Pfloatval
+  | _ -> must_be_value l
+
+(* CR layouts v5: This function is only used for sanity checking the
+   typechecker.  When we allow arbitrary layouts in structures, it will have
+   outlived its usefulness and should be deleted. *)
+let check_record_field_sort loc sort repres =
+  match Sort.get_default_value sort, repres with
+  | Value, _ -> ()
+  | Float64, Record_ufloat -> ()
+  | Float64, (Record_boxed _ | Record_inlined _
+             | Record_unboxed | Record_float) ->
+    raise (Error (loc, Illegal_record_field Float64))
+  | Void, _ ->
+    raise (Error (loc, Illegal_record_field Void))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -516,13 +533,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, _, lbl, _, alloc_mode) ->
+  | Texp_field(arg, id, lbl, _, alloc_mode) ->
       let targ = transl_exp ~scopes Sort.for_record arg in
       let sem =
         match lbl.lbl_mut with
         | Immutable -> Reads_agree
         | Mutable -> Reads_vary
       in
+      let lbl_sort = Layout.sort_of_layout lbl.lbl_layout in
+      check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
       begin match lbl.lbl_repres with
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, sem), [targ],
@@ -532,12 +551,20 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           let mode = transl_alloc_mode (Option.get alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
+        | Record_ufloat ->
+          Lprim (Pufloatfield (lbl.lbl_pos, sem), [targ],
+                 of_location ~scopes e.exp_loc)
         | Record_inlined (_, Variant_extensible) ->
           Lprim (Pfield (lbl.lbl_pos + 1, sem), [targ],
                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
-      layout_must_be_value id.loc lbl.lbl_layout;
+      (* CR layouts v2.5: When we allow `any` in record fields and check
+         representability on construction, [sort_of_layout] will be unsafe here.
+         Probably we should add a sort to `Texp_setfield` in the typed tree,
+         then. *)
+      let lbl_sort = Layout.sort_of_layout lbl.lbl_layout in
+      check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
       let mode =
         Assignment (transl_modify_mode arg_mode)
       in
@@ -549,11 +576,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
           assert false
         | Record_float -> Psetfloatfield (lbl.lbl_pos, mode)
+        | Record_ufloat -> Psetufloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Variant_extensible) ->
           Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
       in
       Lprim(access, [transl_exp ~scopes Sort.for_record arg;
-                     transl_exp ~scopes Sort.for_record_field newval],
+                     transl_exp ~scopes lbl_sort newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
@@ -1448,16 +1476,20 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   then begin
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
-    (* CR layouts v5: currently we raise if a non-value field is detected.
-       relax that. *)
+    (* CR layouts v5: allow non-value fields beyond just float# *)
     let init_id = Ident.create_local "init" in
     let lv =
       Array.mapi
         (fun i (lbl, definition) ->
+           (* CR layouts v2.5: When we allow `any` in record fields and check
+              representability on construction, [sort_of_layout] will be unsafe
+              here.  Probably we should add sorts to record construction in the
+              typed tree, then. *)
+           let lbl_sort = Layout.sort_of_layout lbl.lbl_layout in
            match definition with
            | Kept (typ, _) ->
                let field_kind =
-                 must_be_value (layout env lbl.lbl_loc Sort.for_record_field typ)
+                 record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
                in
                let sem =
                  match lbl.lbl_mut with
@@ -1474,15 +1506,15 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  | Record_float ->
                     (* This allocation is always deleted,
                        so it's simpler to leave it Alloc_heap *)
-                    Pfloatfield (i, sem, alloc_heap) in
+                    Pfloatfield (i, sem, alloc_heap)
+                 | Record_ufloat -> Pufloatfield (i, sem)
+               in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
                field_kind
            | Overridden (_lid, expr) ->
-               let field_kind =
-                 must_be_value (layout_exp Sort.for_record_field expr)
-               in
-               transl_exp ~scopes Sort.for_record_field expr, field_kind)
+               let field_kind = record_field_kind (layout_exp lbl_sort expr) in
+               transl_exp ~scopes lbl_sort expr, field_kind)
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
@@ -1502,6 +1534,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
+        | Record_ufloat ->
+            (* CR layouts v2.5: When we add unboxed float literals, we may need
+               to do something here.  (Currrently this case isn't reachable for
+               `float#` records because `extact_constant` will have raised
+               `Not_constant`.) *)
+            raise Not_constant
         | Record_inlined (_, Variant_extensible)
         | Record_inlined (Extension _, _) ->
             raise Not_constant
@@ -1517,6 +1555,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
             Lprim(Pmakefloatblock (mut, Option.get mode), ll, loc)
+        | Record_ufloat ->
+            Lprim(Pmakeufloatblock (mut, Option.get mode), ll, loc)
         | Record_inlined (Extension (path, _), Variant_extensible) ->
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
@@ -1535,10 +1575,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
        of the copy *)
     let copy_id = Ident.create_local "newrecord" in
     let update_field cont (lbl, definition) =
-      (* CR layouts v5: remove this check to allow non-value fields.  Even
-         in the current version we can reasonably skip it because if we built
-         the init record, we must have already checked for void. *)
-      layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
+      (* CR layouts v5: allow more unboxed types here. *)
+      let lbl_sort = Layout.sort_of_layout lbl.lbl_layout in
+      check_record_field_sort lbl.lbl_loc lbl_sort lbl.lbl_repres;
       match definition with
       | Kept (_type, _uu) -> cont
       | Overridden (_lid, expr) ->
@@ -1551,13 +1590,15 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 assert false
             | Record_float ->
                 Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)
+            | Record_ufloat ->
+                Psetufloatfield (lbl.lbl_pos, Assignment modify_heap)
             | Record_inlined (_, Variant_extensible) ->
                 let pos = lbl.lbl_pos + 1 in
                 let ptr = maybe_pointer expr in
                 Psetfield(pos, ptr, Assignment modify_heap)
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
-                                transl_exp ~scopes Sort.for_record_field expr],
+                                transl_exp ~scopes lbl_sort expr],
                           of_location ~scopes loc),
                     cont)
     in
@@ -1574,7 +1615,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
-  let return_layout = layout_exp arg_sort e in
+  let return_layout = layout_exp return_sort e in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
         ({ c_lhs; c_guard; c_rhs } as case) =
     if c_rhs.exp_desc = Texp_unreachable then acc else
@@ -1810,11 +1851,11 @@ let report_error ppf = function
   | Bad_probe_layout id ->
       fprintf ppf "Variables in probe handlers must have layout value, \
                    but %s in this handler does not." (Ident.name id)
-  | Non_value_layout err ->
+  | Illegal_record_field c ->
       fprintf ppf
-        "Non-value detected in translation:@ Please report this error to \
-         the Jane Street compilers team.@ %a"
-        (Layout.Violation.report_with_name ~name:"This expression") err
+        "Sort %a detected where value was expected in a record field:@ Please \
+         report this error to the Jane Street compilers team."
+        Sort.format (Sort.of_const c)
   | Void_sort ty ->
       fprintf ppf
         "Void detected in translation for type %a:@ Please report this error \

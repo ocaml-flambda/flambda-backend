@@ -28,6 +28,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakeblock (tag, mutability, shape, mode)
   | Pmakefloatblock (mutability, mode) ->
       Pmakearray (Pfloatarray, mutability, mode)
+  | Pmakeufloatblock (mutability, mode) ->
+      Pmakeufloatblock (mutability, mode)
   | Pfield (field, _sem) -> Pfield (field, Pvalue Pgenval)
   | Pfield_computed _sem -> Pfield_computed
   | Psetfield (field, imm_or_pointer, init_or_assign) ->
@@ -37,6 +39,9 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pfloatfield (field, _sem, mode) -> Pfloatfield (field, mode)
   | Psetfloatfield (field, init_or_assign) ->
       Psetfloatfield (field, init_or_assign)
+  | Pufloatfield (field, _sem) -> Pufloatfield field
+  | Psetufloatfield (field, init_or_assign) ->
+      Psetufloatfield (field, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
   | Pccall prim -> Pccall prim
   | Praise kind -> Praise kind

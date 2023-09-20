@@ -713,7 +713,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
-  | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
+  | (Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _), []
+    ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
       match prim with
@@ -729,33 +730,35 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
             "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
+      | Pmakeufloatblock _ ->
+        Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
       | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
       | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
       | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
-      | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
-      | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
-      | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat
-      | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-      | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu
-      | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs
-      | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-      | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _
-      | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
-      | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
-      | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
-      | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _
-      | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
-      | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
-      | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-      | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _
-      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
-      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pget_header _ ->
+      | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
+      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
+      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
+      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
+      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
+      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
+      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
+      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
+      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
+      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
+      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
+      | Pbbswap _ | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _
+      | Pobj_dup | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _
+      | Pbox_int _ | Pget_header _ ->
         (* Inconsistent with outer match *)
         assert false
     in

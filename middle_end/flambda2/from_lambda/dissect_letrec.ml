@@ -121,7 +121,7 @@ end
 type block_type =
   | Normal of int
   (* tag *)
-  | Boxed_float
+  | Flat_float_record
 
 type block =
   { block_type : block_type;
@@ -269,7 +269,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
   | Lprim (Pmakefloatblock (_, mode), args, _) -> (
     assert_not_local ~lam mode;
     match current_let with
-    | Some cl -> build_block cl (List.length args) Boxed_float lam letrec
+    | Some cl -> build_block cl (List.length args) Flat_float_record lam letrec
     | None -> dead_code lam letrec)
   | Lprim (Pduprecord (kind, size), args, _) -> (
     match current_let with
@@ -285,7 +285,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         build_block cl size (Normal runtime_tag) arg letrec
       | Record_inlined (Extension _, Variant_extensible) ->
         build_block cl (size + 1) (Normal 0) arg letrec
-      | Record_float -> build_block cl size Boxed_float arg letrec
+      | Record_float | Record_ufloat ->
+        build_block cl size Flat_float_record arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->
@@ -568,7 +569,7 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
         let fn =
           match block_type with
           | Normal _tag -> "caml_alloc_dummy"
-          | Boxed_float -> "caml_alloc_dummy_float"
+          | Flat_float_record -> "caml_alloc_dummy_float"
         in
         let desc = Primitive.simple_on_values ~name:fn ~arity:1 ~alloc:true in
         let size : lambda = Lconst (Const_base (Const_int size)) in

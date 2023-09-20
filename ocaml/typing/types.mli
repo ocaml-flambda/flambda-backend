@@ -523,7 +523,10 @@ and record_representation =
      contains it and the tag of the relevant constructor of that variant. *)
   | Record_boxed of layout array
   | Record_float (* All fields are floats *)
-
+  | Record_ufloat
+  (* All fields are [float#]s.  Same runtime representation as [Record_float],
+     but operations on these (e.g., projection, update) work with unboxed floats
+     rather than boxed floats. *)
 
 (* For unboxed variants, we record the layout of the mandatory single argument.
    For boxed variants, we record the layouts for the arguments of each
@@ -782,6 +785,9 @@ type label_description =
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+(* CR layouts v5: once we allow [any] in record fields, change [lbl_layout] to
+   be a [sort option].  This will allow a fast path for representability checks
+   at record construction, and currently only the sort is used anyway. *)
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.

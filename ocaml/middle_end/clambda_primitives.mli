@@ -38,12 +38,15 @@ type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * layout
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
+  | Pufloatfield of int
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
   | Pccall of Primitive.description

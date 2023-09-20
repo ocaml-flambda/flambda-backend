@@ -38,7 +38,7 @@ type locality_mode = private
   | Alloc_heap
   | Alloc_local
 
-(** For now we don't have strong update, and thus uniqueness is irrelavent in 
+(** For now we don't have strong update, and thus uniqueness is irrelevant in
     middle and back-end; in the future this will be extended with uniqueness *)
 type alloc_mode = locality_mode
 
@@ -81,23 +81,30 @@ type region_close =
   | Rc_nontail        (* do not close region, must not TCO *)
   | Rc_close_at_apply (* close region and tail call *)
 
+(* CR layouts v5: When we add more blocks of non-scannable values, consider
+   whether some of the primitives specific to ufloat records
+   ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
+   generalized, rather than just adding new primitives. *)
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-    (* Globals *)
+  (* Globals *)
   | Pgetglobal of Compilation_unit.t
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
+  | Pufloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
   | Pccall of Primitive.description
@@ -698,7 +705,15 @@ val is_heap_mode : alloc_mode -> bool
 val primitive_may_allocate : primitive -> alloc_mode option
   (** Whether and where a primitive may allocate.
       [Some Alloc_local] permits both options: that is, primitives that
-      may allocate on both the GC heap and locally report this value. *)
+      may allocate on both the GC heap and locally report this value.
+
+      This treats projecting an unboxed float from a float record as
+      non-allocating, which is a lie for the bytecode backend (where unboxed
+      floats are boxed).  Presently this function is only used for stack
+      allocation, which doesn't happen in bytecode.  If that changes, or if we
+      want to use this for another purpose in bytecode, it will need to be
+      revised.
+  *)
 
 (***********************)
 (* For static failures *)
