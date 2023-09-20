@@ -1021,7 +1021,8 @@ let transl_implementation_plain_block compilation_unit impl =
             body, size
         | _ :: _ ->
             wrap_toplevel_functor_in_struct body, 1
-      in Translcore.declare_probe_handlers body, size)
+      in
+      Translcore.declare_probe_handlers body, size)
   in
   { compilation_unit;
     main_module_block_size = size;

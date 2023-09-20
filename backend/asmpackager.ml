@@ -238,7 +238,7 @@ let build_package_cmx members cmxfile =
             ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::
             filter (Asmlink.extract_crc_interfaces ());
       ui_imports_cmx =
-          filter (Asmlink.extract_crc_implementations());
+          filter(Asmlink.extract_crc_implementations());
       ui_runtime_params = []; (* open modules not supported with packs *)
       ui_generic_fns =
         { curry_fun =
