@@ -120,7 +120,7 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
          like those in id_switch.ml can be simplified by only using
          [mergeable_arms]. Then remove [identity_arms]. *)
       let maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms =
-        let arms = Targetint_31_63.Map.add arm action arms in
+        let arms = TI.Map.add arm action arms in
         (* Check to see if this arm may be merged with others. *)
         if Option.is_some (Apply_cont.trap_action action)
         then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
@@ -164,18 +164,14 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
         let[@inline always] const arg =
           match Reg_width_const.descr arg with
           | Tagged_immediate arg ->
-            if Targetint_31_63.equal arm arg
+            if TI.equal arm arg
             then
-              let identity_arms =
-                Targetint_31_63.Map.add arm action identity_arms
-              in
+              let identity_arms = TI.Map.add arm action identity_arms in
               maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
-            else if Targetint_31_63.equal arm Targetint_31_63.bool_true
-                    && Targetint_31_63.equal arg Targetint_31_63.bool_false
-                    || Targetint_31_63.equal arm Targetint_31_63.bool_false
-                       && Targetint_31_63.equal arg Targetint_31_63.bool_true
+            else if (TI.equal arm TI.bool_true && TI.equal arg TI.bool_false)
+                    || (TI.equal arm TI.bool_false && TI.equal arg TI.bool_true)
             then
-              let not_arms = Targetint_31_63.Map.add arm action not_arms in
+              let not_arms = TI.Map.add arm action not_arms in
               maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
             else maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
           | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -187,7 +183,7 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
   | New_wrapper new_let_cont ->
     let new_let_conts = new_let_cont :: new_let_conts in
     let action = Apply_cont.goto new_let_cont.cont in
-    let arms = Targetint_31_63.Map.add arm action arms in
+    let arms = TI.Map.add arm action arms in
     new_let_conts, arms, Not_mergeable, identity_arms, not_arms
 
 let filter_and_choose_alias required_names alias_set =
@@ -264,7 +260,7 @@ let recognize_switch_with_single_arg_to_same_destination0 ~arms =
     | Tagged_immediate _ ->
       (* Note that even though the [Reg_width_const] is specifying a tagged
          immediate, the value which we store inside values of that type is still
-         a normal untagged [Targetint_31_63.t]. *)
+         a normal untagged [TI.t]. *)
       check_args Reg_width_const.is_tagged_immediate Leave_as_tagged_immediate
     | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
     | Naked_vec128 _ ->
@@ -302,7 +298,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   let access_kind : P.Block_access_kind.t =
     Values
       { tag = Known tag;
-        size = Known (Targetint_31_63.of_int num_consts);
+        size = Known (TI.of_int num_consts);
         field_kind = Immediate
       }
   in
@@ -370,12 +366,8 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
 let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
   let new_let_conts, arms, mergeable_arms, identity_arms, not_arms =
-    Targetint_31_63.Map.fold (rebuild_arm uacc) arms
-      ( [],
-        Targetint_31_63.Map.empty,
-        No_arms,
-        Targetint_31_63.Map.empty,
-        Targetint_31_63.Map.empty )
+    TI.Map.fold (rebuild_arm uacc) arms
+      ([], TI.Map.empty, No_arms, TI.Map.empty, TI.Map.empty)
   in
   let switch_merged =
     match mergeable_arms with
@@ -391,23 +383,23 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       else None
   in
   let switch_is_identity =
-    let arm_discrs = Targetint_31_63.Map.keys arms in
-    let identity_arms_discrs = Targetint_31_63.Map.keys identity_arms in
-    if not (Targetint_31_63.Set.equal arm_discrs identity_arms_discrs)
+    let arm_discrs = TI.Map.keys arms in
+    let identity_arms_discrs = TI.Map.keys identity_arms in
+    if not (TI.Set.equal arm_discrs identity_arms_discrs)
     then None
     else
-      Targetint_31_63.Map.data identity_arms
+      TI.Map.data identity_arms
       |> List.map Apply_cont.continuation
       |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
   let switch_is_boolean_not =
-    let arm_discrs = Targetint_31_63.Map.keys arms in
-    let not_arms_discrs = Targetint_31_63.Map.keys not_arms in
-    if (not (Targetint_31_63.Set.equal arm_discrs Targetint_31_63.all_bools))
-       || not (Targetint_31_63.Set.equal arm_discrs not_arms_discrs)
+    let arm_discrs = TI.Map.keys arms in
+    let not_arms_discrs = TI.Map.keys not_arms in
+    if (not (TI.Set.equal arm_discrs TI.all_bools))
+       || not (TI.Set.equal arm_discrs not_arms_discrs)
     then None
     else
-      Targetint_31_63.Map.data not_arms
+      TI.Map.data not_arms
       |> List.map Apply_cont.continuation
       |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
@@ -415,7 +407,7 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     recognize_switch_with_single_arg_to_same_destination ~arms
   in
   let body, uacc =
-    if Targetint_31_63.Map.cardinal arms < 1
+    if TI.Map.cardinal arms < 1
     then
       let uacc = UA.notify_removed ~operation:Removed_operations.branch uacc in
       RE.create_invalid Zero_switch_arms, uacc
@@ -430,7 +422,7 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         in
         if Flambda_features.check_invariants ()
            && Simple.is_const scrutinee
-           && Targetint_31_63.Map.cardinal arms > 1
+           && TI.Map.cardinal arms > 1
         then
           Misc.fatal_errorf
             "[Switch] with constant scrutinee (type: %a) should have been \
@@ -444,7 +436,7 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         match switch_is_single_arg_to_same_destination with
         | None -> normal_case0 uacc
         | Some (dest, must_untag_lookup_table_result, consts) -> (
-          assert (List.length consts = Targetint_31_63.Map.cardinal arms);
+          assert (List.length consts = TI.Map.cardinal arms);
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
           match
             find_cse_simple dacc_before_switch (UA.required_names uacc)
@@ -567,9 +559,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
              (Apply_cont.continuation action)
              args)
     in
-    let arms =
-      Targetint_31_63.Map.add arm (action, rewrite_id, arity, env_at_use) arms
-    in
+    let arms = TI.Map.add arm (action, rewrite_id, arity, env_at_use) arms in
     arms, dacc
 
 let simplify_switch0 dacc switch ~down_to_up =
@@ -581,13 +571,12 @@ let simplify_switch0 dacc switch ~down_to_up =
   let dacc_before_switch = dacc in
   let typing_env_at_use = DA.typing_env dacc in
   let arms, dacc =
-    Targetint_31_63.Map.fold
+    TI.Map.fold
       (simplify_arm ~typing_env_at_use ~scrutinee_ty)
-      (Switch.arms switch)
-      (Targetint_31_63.Map.empty, dacc)
+      (Switch.arms switch) (TI.Map.empty, dacc)
   in
   let dacc =
-    if Targetint_31_63.Map.cardinal arms <= 1
+    if TI.Map.cardinal arms <= 1
     then dacc
     else
       DA.map_flow_acc dacc
