@@ -24,10 +24,8 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's imported from another compilation unit.
+         the type argument of imported type A.t has layout value.
 |}]
-(* CR layouts: See how this error message can be improved. It should look more
-   like the one below. Exception here is raised from [unify_exp] in [type_expect_]. *)
 
 type t_void : void
 type t = t_void A.t

@@ -679,27 +679,21 @@ and transl_type_aux env policy mode styp =
         (fun (sty, cty) ty' ->
            let get_reason layout = match Layout.get layout with
              | Const Value -> Layout.(Value_creation (Imported_type_argument path))
+             (* CR layouts: Add more cases here when type params of imported types can
+                have non-value layout *)
              | _ -> Layout.Imported
            in
-           let rec handle_err err =
-             begin match Types.get_desc ty' with
-               | Tvar {layout; _} when Layout.has_imported_history layout ->
-                 (* In the case of a Tvar with imported layout history, the error message
-                    produced is not very helpful.
-                    To improve this, we would like a better layout reason to be included
-                    in the error trace: Imported_type_argument with path to parent type.
-                    However, the type Errortrace.unification_error can't be unpacked and
-                    modified directly, so we will have to re-raise a new exception.
-                    This should have no performance impact in the success case. *)
-                 let reason = get_reason layout in
-                 Types.set_var_layout ty' (Layout.update_reason layout reason);
-                 (try unify_param env ty' cty.ctyp_type with Unify err -> handle_err err);
-                 assert false (* The line above should always raise. *)
-               | _ ->
-                 let err = Errortrace.swap_unification_error err in
-                 raise (Error(sty.ptyp_loc, env, Type_mismatch err))
-             end
-           in try unify_param env ty' cty.ctyp_type with Unify err -> handle_err err
+           begin match Types.get_desc ty' with
+           | Tvar {layout; _} when Layout.has_imported_history layout ->
+             (* In case of a Tvar with imported layout history, we can improve
+                the layout reason using the in scope [path] to the parent type. *)
+             let reason = get_reason layout in
+             Types.set_var_layout ty' (Layout.update_reason layout reason)
+           | _ -> ()
+           end;
+           try unify_param env ty' cty.ctyp_type with Unify err ->
+             let err = Errortrace.swap_unification_error err in
+             raise (Error(sty.ptyp_loc, env, Type_mismatch err))
         )
         (List.combine stl args) params;
       let constr =
