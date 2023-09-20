@@ -75,6 +75,7 @@ type import = {
   imp_arg_for : Compilation_unit.Name.t option;
   imp_impl : Impl.t;
   imp_sign : Subst.Lazy.signature;
+  imp_module_block_layout : Cmi_format.module_block_layout;
   imp_filename : string;
   imp_crcs : Import_info.Intf.t array;
   imp_flags : Cmi_format.pers_flags list;
@@ -251,6 +252,7 @@ let acknowledge_import penv ~check modname pers_sig =
     (* Freshen identifiers bound by signature *)
     Subst.Lazy.signature Make_local Subst.identity cmi.cmi_sign
   in
+  let module_block_layout = Cmi_format.module_block_layout cmi in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
   List.iter
@@ -301,6 +303,7 @@ let acknowledge_import penv ~check modname pers_sig =
                  imp_arg_for = arg_for;
                  imp_impl = impl;
                  imp_sign = sign;
+                 imp_module_block_layout = module_block_layout;
                  imp_filename = filename;
                  imp_crcs = crcs;
                  imp_flags = flags;
@@ -357,11 +360,19 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let {persistent_structures; _} = penv in
   let impl = import.imp_impl in
   let sign = import.imp_sign in
+  let module_block_layout = import.imp_module_block_layout in
   let flags = import.imp_flags in
   let binding = make_binding penv impl in
   let address : Address.t =
     match binding with
-    | Static unit -> Aunit unit
+    | Static unit ->
+        begin
+          match module_block_layout with
+          | Single_block -> Aunit unit
+          | Full_module_and_argument_form ->
+              (* We're accessing the full module *)
+              Adot (Aunit unit, 0)
+        end
   in
   let uid =
     match binding with
