@@ -1031,7 +1031,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's imported from another compilation unit.
+         the type argument of imported type Lazy.t has layout value.
 |}];;
 
 let x13 (VV v) = lazy v;;
@@ -1073,7 +1073,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of option defaults to layout value.
+         the type argument of imported type option has layout value.
 |}];;
 
 let x13 (VV v) = Some v;;
@@ -1086,7 +1086,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of option defaults to layout value.
+         the type argument of imported type option has layout value.
 |}];;
 
 let x13 v =
@@ -1102,7 +1102,7 @@ Error: This expression has type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of option defaults to layout value.
+         the type argument of imported type option has layout value.
 |}];;
 
 (* list *)
@@ -1116,7 +1116,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of list defaults to layout value.
+         the type argument of imported type list has layout value.
 |}];;
 
 let x13 (VV v) = [v];;
@@ -1129,7 +1129,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of list defaults to layout value.
+         the type argument of imported type list has layout value.
 |}];;
 
 let x13 v =
@@ -1145,7 +1145,7 @@ Error: This expression has type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of list defaults to layout value.
+         the type argument of imported type list has layout value.
 |}];;
 
 (* array *)
@@ -1159,7 +1159,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of array defaults to layout value.
+         the type argument of imported type array has layout value.
 |}];;
 
 let x13 (VV v) = [| v |];;
@@ -1210,7 +1210,7 @@ Error:
        The layout of foo14 is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of foo14 must be a sublayout of value, because
-         a type argument of list defaults to layout value.
+         the type argument of imported type list has layout value.
 |}];;
 
 (****************************************************)
@@ -1408,7 +1408,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument of option defaults to layout value.
+         the type argument of imported type option has layout value.
 |}]
 
 (*********************************************************)

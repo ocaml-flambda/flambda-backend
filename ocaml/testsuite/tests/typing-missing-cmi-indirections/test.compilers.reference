@@ -5,6 +5,6 @@ Error:
        The layout of alias is any, because
          a dummy layout of any is used to check mutually recursive datatypes.
        But the layout of alias must be a sublayout of value, because
-         a type argument of list defaults to layout value.
+         the type argument of imported type list has layout value.
        No .cmi file found containing Missing.t.
        Hint: Adding "missing" to your dependencies might help.
