@@ -97,6 +97,7 @@ let current_unit =
     ui_implements_param = None;
     ui_imports_cmi = [];
     ui_imports_cmx = [];
+    ui_runtime_params = [];
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
@@ -153,6 +154,7 @@ let read_unit_info filename =
       ui_implements_param = uir.uir_implements_param;
       ui_imports_cmi = uir.uir_imports_cmi |> Array.to_list;
       ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
+      ui_runtime_params = uir.uir_runtime_params |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
       ui_checks = Checks.of_raw uir.uir_checks;
@@ -359,6 +361,7 @@ let write_unit_info info filename =
     uir_implements_param = info.ui_implements_param;
     uir_imports_cmi = Array.of_list info.ui_imports_cmi;
     uir_imports_cmx = Array.of_list info.ui_imports_cmx;
+    uir_runtime_params = Array.of_list info.ui_runtime_params;
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
     uir_checks = Checks.to_raw info.ui_checks;
@@ -380,6 +383,8 @@ let save_unit_info filename =
   current_unit.ui_implements_param <-
     !Clflags.as_argument_for
     |> Option.map Compilation_unit.Name.of_string;
+  current_unit.ui_runtime_params <-
+    Env.locally_bound_imports () |> List.map fst;
   write_unit_info current_unit filename
 
 let snapshot () = !structured_constants

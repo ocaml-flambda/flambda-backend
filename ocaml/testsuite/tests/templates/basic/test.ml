@@ -4,7 +4,9 @@ readonly_files = "\
   bad_arg_impl.ml bad_arg_impl.reference \
   bad_arg_intf.mli bad_arg_intf.reference \
   bad_ref_direct.ml bad_ref_direct.reference \
+  bad_ref_indirect.ml bad_ref_indirect.reference \
   monoid.mli \
+  monoid_utils.ml monoid_utils.mli \
   string_monoid.ml string_monoid.mli \
   test_direct_access.ml test_direct_access.reference \
 "
@@ -51,4 +53,14 @@ all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo
 output = "test_direct_access.output"
 ******** check-program-output
 reference = "test_direct_access.reference"
+********* ocamlc.byte
+flags = "-parameter Monoid"
+module = "monoid_utils.mli monoid_utils.ml"
+********** ocamlc.byte
+flags = ""
+module = "bad_ref_indirect.ml"
+compiler_output = "bad_ref_indirect.output"
+ocamlc_byte_exit_status = "2"
+*********** check-ocamlc.byte-output
+compiler_reference = "bad_ref_indirect.reference"
 *)

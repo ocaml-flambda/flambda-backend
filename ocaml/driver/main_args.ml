@@ -730,6 +730,12 @@ let mk_match_context_rows f =
   "<n>  (advanced, see manual section %d.%d.)" chapter section
 ;;
 
+let mk_parameter f =
+  "-parameter", Arg.String f,
+  "<module name> Registers the imported interface as a parameter for this \n\
+                 open module."
+;;
+
 let mk_as_parameter f =
   "-as-parameter", Arg.Unit f,
   "<module name> Compiles the interface as a parameter for an open module."
@@ -1090,6 +1096,7 @@ module type Compiler_options = sig
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
+  val _parameter : string -> unit
   val _plugin : string -> unit
   val _pp : string -> unit
   val _principal : unit -> unit
@@ -1319,6 +1326,7 @@ struct
     mk_output_complete_obj F._output_complete_obj;
     mk_output_complete_exe F._output_complete_exe;
     mk_pack_byt F._pack;
+    mk_parameter F._parameter;
     mk_pp F._pp;
     mk_ppx F._ppx;
     mk_plugin F._plugin;
@@ -1537,6 +1545,7 @@ struct
     mk_output_complete_obj F._output_complete_obj;
     mk_p F._p;
     mk_pack_opt F._pack;
+    mk_parameter F._parameter;
     mk_plugin F._plugin;
     mk_pp F._pp;
     mk_ppx F._ppx;
@@ -2037,6 +2046,7 @@ module Default = struct
     let _o s = output_name := (Some s)
     let _opaque = set opaque
     let _pack = set make_package
+    let _parameter s = parameters := !parameters @ [ s ]
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
     let _runtime_variant s = runtime_variant := s

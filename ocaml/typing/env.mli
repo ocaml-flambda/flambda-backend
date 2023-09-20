@@ -434,6 +434,9 @@ val save_signature_with_imports:
         (* Arguments: signature, module name, module kind,
            file name, imported units with their CRCs. *)
 
+(* Register a module as a parameter to this unit. *)
+val register_parameter: Compilation_unit.Name.t -> unit
+
 (* Register a module as a parameter unit, though not necessarily a parameter to
    this unit. It is unnecessary (but harmless) to call both this and
    [register_parameter]. *)
@@ -447,6 +450,14 @@ val imports: unit -> Import_info.t list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Import_info.t array -> unit
+
+(* Return the set of imports represented as parameters, along with the
+   local variable representing each *)
+val locally_bound_imports: unit -> (Compilation_unit.Name.t * Ident.t) list
+
+(* Return the list of parameters registered to be exported from the current
+   unit, in alphabetical order *)
+val exported_parameters: unit -> Compilation_unit.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool

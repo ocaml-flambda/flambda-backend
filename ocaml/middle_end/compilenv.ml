@@ -84,6 +84,7 @@ let current_unit =
     ui_implements_param = None;
     ui_imports_cmi = [| |];
     ui_imports_cmx = [| |];
+    ui_runtime_params = [];
     ui_curry_fun = [];
     ui_apply_fun = [];
     ui_send_fun = [];
@@ -99,6 +100,7 @@ let reset compilation_unit =
   current_unit.ui_implements_param <- None;
   current_unit.ui_imports_cmi <- [| |];
   current_unit.ui_imports_cmx <- [| |];
+  current_unit.ui_runtime_params <- [];
   current_unit.ui_curry_fun <- [];
   current_unit.ui_apply_fun <- [];
   current_unit.ui_send_fun <- [];
@@ -279,6 +281,8 @@ let save_unit_info filename =
   current_unit.ui_implements_param <-
     !Clflags.as_argument_for
     |> Option.map Compilation_unit.Name.of_string;
+  current_unit.ui_runtime_params <-
+    Env.locally_bound_imports () |> List.map fst;
   write_unit_info current_unit filename
 
 let snapshot () = !structured_constants

@@ -49,6 +49,10 @@ type error =
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of CU.Name.t * filepath
   | Not_compiled_as_parameter of CU.Name.t * filepath
+  | Imported_module_has_unset_parameter of
+      { imported : CU.Name.t;
+        parameter : CU.Name.t;
+      }
 
 exception Error of error
 let error err = raise (Error err)
@@ -72,6 +76,7 @@ type can_load_cmis =
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
+  imp_params : Compilation_unit.Name.t list;
   imp_arg_for : Compilation_unit.Name.t option;
   imp_impl : Impl.t;
   imp_sign : Subst.Lazy.signature;
@@ -88,6 +93,7 @@ type import_info =
   | Found of import
 
 type binding =
+  | Local of Ident.t (* Bound to a runtime parameter *)
   | Static of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
@@ -95,9 +101,11 @@ type binding =
 type pers_struct = {
   ps_import: import;
   ps_binding: binding;
-} [@@ocaml.warning "-unused-field"]
+}
 
 type 'a pers_struct_info = pers_struct * 'a
+
+module Param_set = CU.Name.Set
 
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
@@ -106,6 +114,7 @@ type 'a t = {
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : CU.Name.Set.t ref;
+  exported_params : Param_set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -116,6 +125,7 @@ let empty () = {
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
   param_imports = ref CU.Name.Set.empty;
+  exported_params = ref Param_set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -127,6 +137,7 @@ let clear penv =
     imported_units;
     imported_opaque_units;
     param_imports;
+    exported_params;
     crc_units;
     can_load_cmis;
   } = penv in
@@ -135,6 +146,7 @@ let clear penv =
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
   param_imports := CU.Name.Set.empty;
+  exported_params := Param_set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -178,6 +190,10 @@ let register_parameter_import ({param_imports; _} as penv) import =
   end;
   param_imports := CU.Name.Set.add import !param_imports
 
+let register_exported_parameter ({exported_params; _} as penv) modname =
+  register_parameter_import penv modname;
+  exported_params := Param_set.add modname !exported_params
+
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
@@ -206,8 +222,18 @@ let check_consistency penv imp =
     | (Known _ | Unknown_argument), _ ->
       error (Inconsistent_import(name, auth, source))
 
+let is_exported_parameter {exported_params; _} name =
+  Param_set.mem name !exported_params
+
 let is_registered_parameter_import {param_imports; _} import =
   CU.Name.Set.mem import !param_imports
+
+let is_registered_parameter penv name =
+  is_registered_parameter_import penv name
+
+let is_unexported_parameter penv name =
+  is_registered_parameter penv name
+  && not (is_exported_parameter penv name)
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -246,6 +272,7 @@ let acknowledge_import penv ~check modname pers_sig =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let found_name = cmi.cmi_name in
   let kind = cmi.cmi_kind in
+  let params = cmi.cmi_params in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let sign =
@@ -300,6 +327,7 @@ let acknowledge_import penv ~check modname pers_sig =
   in
   let {imports;} = penv in
   let import = { imp_is_param = is_param;
+                 imp_params = params;
                  imp_arg_for = arg_for;
                  imp_impl = impl;
                  imp_sign = sign;
@@ -338,14 +366,26 @@ let find_import penv ~check modname =
           add_import penv modname;
           acknowledge_import penv ~check modname psig
 
-let make_binding _penv (impl : Impl.t) : binding =
-  let unit =
-    match impl with
-    | Known unit -> unit
-    | Unknown_argument ->
-        Misc.fatal_errorf "Can't bind a parameter statically"
-  in
-  Static unit
+(* Enforce the subset rule: we can only refer to a module if that module's
+   parameters are also our parameters. *)
+let check_for_unset_parameters penv modname import =
+  (* A hidden argument specifies that the importing module should forward a
+     parameter to the imported module. Therefore it's the hidden arguments that
+     we need to check. *)
+  List.iter
+    (fun param ->
+       if not (is_exported_parameter penv param) then
+         error (Imported_module_has_unset_parameter {
+             imported = modname;
+             parameter = param;
+           }))
+    import.imp_params
+
+let make_binding _penv modname (impl : Impl.t) : binding =
+  match impl with
+  | Known unit -> Static unit
+  | Unknown_argument ->
+      Local (Ident.create_local_binding_for_global (CU.Name.to_string modname))
 
 type 'a sig_reader =
   Subst.Lazy.signature
@@ -358,13 +398,15 @@ type 'a sig_reader =
 
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let {persistent_structures; _} = penv in
-  let impl = import.imp_impl in
   let sign = import.imp_sign in
+  let impl = import.imp_impl in
   let module_block_layout = import.imp_module_block_layout in
   let flags = import.imp_flags in
-  let binding = make_binding penv impl in
+  check_for_unset_parameters penv modname import;
+  let binding = make_binding penv modname impl in
   let address : Address.t =
     match binding with
+    | Local id -> Alocal id
     | Static unit ->
         begin
           match module_block_layout with
@@ -375,17 +417,30 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
         end
   in
   let uid =
+    (* The uid neeeds to include the either the pack prefix, if it's packed, or
+       the arguments, if it has any. It cannot have both. *)
     match binding with
+    | Local _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
     | Static unit -> Shape.Uid.of_compilation_unit_id unit
   in
   let shape =
     match binding with
     | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+    | Local ident ->
+        (* FIXME This is probably wrong for non-parameter modules *)
+        Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps = { ps_import = import;
              ps_binding = binding;
            } in
+  if is_unexported_parameter penv modname then begin
+    (* This module has no binding, since it's a parameter that we're aware of
+       (perhaps because it was the name of an argument in an instance name)
+       but it's not a parameter to this module. *)
+    let filename = ps.ps_import.imp_filename in
+    raise (Error (Illegal_import_of_parameter (modname, filename)))
+  end;
   Hashtbl.add persistent_structures modname (ps, pm);
   (ps, pm)
 
@@ -449,6 +504,7 @@ let check_pers_struct penv f ~loc name =
               describe_prefix prefix
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
+        | Imported_module_has_unset_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -515,6 +571,22 @@ let imports {imported_units; crc_units; _} =
       Import_info.Intf.create cu_name cu ~crc)
     imports
 
+let local_ident penv modname =
+  match find_info_in_cache penv modname with
+  | Some ({ ps_binding = Local local_ident; _ }, _) -> Some local_ident
+  | Some ({ ps_binding = Static _; _ }, _)
+  | None -> None
+
+let locally_bound_imports ({persistent_structures; _} as penv) =
+  persistent_structures
+  |> Hashtbl.to_seq_keys
+  |> Seq.filter_map
+       (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
+  |> List.of_seq
+
+let exported_parameters {exported_params; _} =
+  Param_set.elements !exported_params
+
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
 
@@ -541,11 +613,16 @@ let make_cmi penv modname kind sign alerts =
       [Alerts alerts];
     ]
   in
+  let params =
+    (* Needs to be consistent with [Translmod] *)
+    exported_parameters penv
+  in
   let crcs = imports penv in
   {
     cmi_name = modname;
     cmi_kind = kind;
     cmi_sign = sign;
+    cmi_params = params;
     cmi_crcs = Array.of_list crcs;
     cmi_flags = flags
   }
@@ -626,6 +703,17 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
+  | Imported_module_has_unset_parameter
+        { imported = modname; parameter = param } ->
+      fprintf ppf
+        "@[<hov>The module %a@ has parameter %a.@ \
+         %a is not declared as a parameter for the current unit (-parameter %a)@ \
+         and therefore %a@ is not accessible.@]"
+        CU.Name.print modname
+        CU.Name.print param
+        CU.Name.print param
+        CU.Name.print param
+        CU.Name.print modname
 
 let () =
   Location.register_error_of_exn

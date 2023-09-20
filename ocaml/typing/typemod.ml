@@ -3217,6 +3217,22 @@ let () =
   type_module_type_of_fwd := type_module_type_of
 
 
+(* File-level details *)
+
+let type_params params ~exported =
+  List.iter
+    (fun param_name ->
+       if exported then begin
+         let param = Compilation_unit.Name.of_string param_name in
+         Env.register_parameter param
+       end else begin
+         let import = Compilation_unit.Name.of_string param_name in
+         Env.register_parameter_import import
+       end
+    )
+    params
+
+
 (* Typecheck an implementation file *)
 
 let gen_annot outputprefix sourcefile annots =
@@ -3266,6 +3282,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
+      type_params !Clflags.parameters ~exported:true;
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
@@ -3429,6 +3446,7 @@ let type_interface sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
   end;
+  type_params !Clflags.parameters ~exported:true;
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
