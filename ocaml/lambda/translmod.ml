@@ -952,8 +952,8 @@ let add_parameters lam params =
       params
   in
   let inline =
-    (* We want to inline the functor so that [-subst] compiles away the function
-       call and actually substitutes. *)
+    (* We want to inline the functor so that [-instantiate] compiles away the
+       function call and actually substitutes. *)
     Always_inline
   in
   lfunction ~kind:(Curried { nlocal = 0 }) ~params ~return:(Pvalue Pgenval)
