@@ -770,13 +770,8 @@ typing/env.cmo : \
     utils/local_store.cmi \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
-<<<<<<< HEAD
     typing/layouts.cmi \
     utils/language_extension.cmi \
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-=======
-    utils/language_extension.cmi \
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     typing/ident.cmi \
     typing/datarepr.cmi \
     utils/compilation_unit.cmi \
@@ -802,13 +797,8 @@ typing/env.cmx : \
     utils/local_store.cmx \
     utils/load_path.cmx \
     utils/lazy_backtrack.cmx \
-<<<<<<< HEAD
     typing/layouts.cmx \
     utils/language_extension.cmx \
-||||||| parent of 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
-=======
-    utils/language_extension.cmx \
->>>>>>> 5d807a3b9 (Use `Jane_syntax` for `local_`, `global_`, `exclave_`, etc.)
     typing/ident.cmx \
     typing/datarepr.cmx \
     utils/compilation_unit.cmx \

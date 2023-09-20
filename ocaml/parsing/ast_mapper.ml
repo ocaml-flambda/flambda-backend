@@ -541,7 +541,7 @@ module E = struct
   module L = Jane_syntax.Local
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
-  module L = Jane_syntax.Layouts
+  module Lay = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
 
   let map_lexp sub : L.expression -> L.expression = function
@@ -580,13 +580,13 @@ module E = struct
     | Iaexp_immutable_array elts ->
       Iaexp_immutable_array (List.map (sub.expr sub) elts)
 
-  let map_unboxed_constant_exp _sub : L.constant -> L.constant = function
+  let map_unboxed_constant_exp _sub : Lay.constant -> Lay.constant = function
     (* We can't reasonably call [sub.constant] because it might return a kind
        of constant we don't know how to unbox.
     *)
     | (Float _ | Integer _) as x -> x
 
-  let map_layout_exp sub : L.expression -> L.expression = function
+  let map_layout_exp sub : Lay.expression -> Lay.expression = function
     | Lexp_constant x -> Lexp_constant (map_unboxed_constant_exp sub x)
     | Lexp_newtype (str, layout, inner_expr) ->
       let str = map_loc sub str in
@@ -748,7 +748,7 @@ module P = struct
 
   module L = Jane_syntax.Local
   module IA = Jane_syntax.Immutable_arrays
-  module L = Jane_syntax.Layouts
+  module Lay = Jane_syntax.Layouts
 
   let map_lpat sub : L.pattern -> L.pattern = function
     | Lpat_local pat -> Lpat_local (sub.pat sub pat)
@@ -757,7 +757,7 @@ module P = struct
     | Iapat_immutable_array elts ->
       Iapat_immutable_array (List.map (sub.pat sub) elts)
 
-  let map_unboxed_constant_pat _sub : L.constant -> L.constant = function
+  let map_unboxed_constant_pat _sub : Lay.constant -> Lay.constant = function
     (* We can't reasonably call [sub.constant] because it might return a kind
        of constant we don't know how to unbox.
     *)

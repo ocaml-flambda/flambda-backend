@@ -3120,18 +3120,6 @@ strict_binding_modes:
     {$1 []}
 ;
 
-(* ASZ PR *)
-local_fun_binding:
-    local_strict_binding
-      { $1 }
-  | type_constraint EQUAL seq_expr
-      { mkexp_constraint
-          ~loc:$sloc
-          (Jane_syntax.Local.expr_of
-             ~loc:(make_loc $sloc)
-             (Lexp_constrain_local $3))
-          $1 }
-;
 fun_body:
   | FUNCTION ext_attributes match_cases
       { let ext, attrs = $2 in
@@ -3629,7 +3617,7 @@ layout_attr:
   attrs=attributes
   COLON
   layout=layout_annotation
-    { Jane_syntax.Core_type.core_type_of ~loc:(make_loc $sloc) ~attrs
+    { Jane_syntax.Core_type.ast_of ~loc:(make_loc $sloc) ~attrs
         (Jtyp_layout (Ltyp_var { name; layout })) }
 ;
 
@@ -4004,24 +3992,26 @@ function_type:
 strict_function_type:
   | mktyp(
       label = arg_label
-      unique_local = mode_flags
+      mode = mode_flags
       domain = extra_rhs(param_type)
       MINUSGREATER
       codomain = strict_function_type
-        { Ptyp_arrow(label, local_if Type local $loc(local) domain, codomain) }
+        { Ptyp_arrow(
+            label,
+            local_if Type local $loc(mode) domain, codomain) }
     )
     { $1 }
   | mktyp(
       label = arg_label
-      arg_unique_local = mode_flags
+      arg_mode = mode_flags
       domain = extra_rhs(param_type)
       MINUSGREATER
-      ret_unique_local = mode_flags
+      ret_mode = mode_flags
       codomain = tuple_type
       %prec MINUSGREATER
         { Ptyp_arrow(label,
-            local_if Type arg_local $loc(arg_local) domain,
-            local_if Type ret_local $loc(ret_local)
+            local_if Type arg_mode $loc(arg_mode) domain,
+            local_if Type ret_mode $loc(ret_mode)
               (Jane_syntax.Builtin.mark_curried
                  ~loc:(make_loc $loc(codomain)) codomain)) }
     )

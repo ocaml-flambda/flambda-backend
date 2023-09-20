@@ -399,11 +399,16 @@ end
 
 (******************************************************************************)
 module Error = struct
+  (** The reason an attribute or extension isn't allowed to have a payload *)
+  type illegal_payload_reason =
+    | Introduction
+    | Unexpected
+
   (** An error triggered when desugaring a language extension from an OCaml
       AST; should always be fatal *)
   type error =
-    | Introduction_has_payload of
-        Embedding_syntax.t * Embedded_name.t * payload
+    | Illegal_payload of
+        illegal_payload_reason * Embedding_syntax.t * Embedded_name.t * payload
     | Unknown_extension of Embedding_syntax.t * Erasability.t * string
     | Disabled_extension :
         { ext : _ Language_extension.t
@@ -435,13 +440,20 @@ let assert_extension_enabled
 ;;
 
 let report_error ~loc = function
-  | Introduction_has_payload (what, name, _payload) ->
-       Location.errorf
-            ~loc
-            "@[Modular syntax %s are not allowed to have a payload,@ \
-             but %a does@]"
-          (Embedding_syntax.name_plural what)
-          Embedded_name.pp_quoted_name name
+  | Illegal_payload (reason, what, name, _payload) ->
+    let error_fmt : _ format6 = match reason with
+        | Introduction ->
+          "Modular syntax introduction %s are not allowed to have a payload,@ \
+           but %a does"
+        | Unexpected ->
+          "The modular syntax %s %a is not allowed to have a payload,@ \
+           but does."
+      in
+      Location.errorf
+        ~loc
+        ("@[" ^^ error_fmt ^^ "@]")
+        (Embedding_syntax.name_plural what)
+        Embedded_name.pp_quoted_name name
   | Unknown_extension (what, erasability, name) ->
       let embedded_name = { Embedded_name.erasability; components = [name] } in
       Location.errorf
@@ -547,8 +559,10 @@ module type AST_internal = sig
       the body.  If the embedded term is malformed in any way, raises an error;
       if the input isn't an embedding of one of our novel syntactic features,
       returns [None].  Partial inverse of [make_jane_syntax]. *)
-  val match_jane_syntax :
-    ast -> (Embedded_name.t * Location.t * Parsetree.payload * ast with_attributes) option
+  val match_jane_syntax
+    :  ast
+    -> (Embedded_name.t * Location.t * Parsetree.payload * ast with_attributes)
+         option
 end
 
 module type AST_with_attributes_internal = sig
@@ -566,12 +580,13 @@ end
 (* Parses the embedded name from an embedding, raising if the embedding is
    malformed. Malformed means that NAME is missing; i.e., the attribute is just
    [[@jane]] or [[@jane.ERASABILITY]], and similarly for extension nodes. *)
-let parse_embedding_exn ~loc ~name ~embedding_syntax =
+let parse_embedding_exn ~loc ~name ~payload ~embedding_syntax =
   let raise_error err = raise (Error (loc, err)) in
   match Embedded_name.of_string name with
   | Some (Ok name) when Embedded_name.is_marker name -> None
-  | Some (Ok name) -> Some name
-  | Some (Error err) -> raise_error (Misnamed_embedding (err, name, embedding_syntax))
+  | Some (Ok name) -> Some (loc, name, payload)
+  | Some (Error err) ->
+    raise_error (Misnamed_embedding (err, name, embedding_syntax))
   | None -> None
 
 (** Extracts the last attribute (in list order) that was inserted by the Jane
@@ -582,12 +597,12 @@ let parse_embedding_exn ~loc ~name ~embedding_syntax =
 let find_and_remove_jane_syntax_attribute =
   Util.find_map_last_and_split
     ~f:(fun { attr_name = { txt = name; loc }; attr_payload = payload } ->
-          parse_embedding_exn ~loc ~payload ~name ~embedding_syntax:Attribute)
+          parse_embedding_exn ~loc ~name ~payload ~embedding_syntax:Attribute)
 
 module Desugaring_error = struct
   type error =
     | Wrong_embedding of Embedded_name.t
-    | Bad_embedding of string list
+    | Bad_embedding of string list * payload option
     | Non_embedding
     | Unexpected_attributes of attributes
 
@@ -607,7 +622,7 @@ module Desugaring_error = struct
       Location.errorf ~loc
         "Tried to desugar a non-embedded expression as part of a %a"
         report_term_for_feature feature
-    | Bad_embedding subparts ->
+    | Bad_embedding (subparts, _payload) ->
       Location.errorf ~loc
         "Unknown, unexpected, or malformed embedded %a at %a"
         report_term_for_feature
@@ -672,7 +687,7 @@ module Make_with_attribute
     let match_jane_syntax ast =
       match find_and_remove_jane_syntax_attribute (attributes ast) with
       | None -> None
-      | Some (inner_attrs, name, loc, payload, outer_attrs) ->
+      | Some (inner_attrs, (loc, name, payload), outer_attrs) ->
         Some (name, loc, payload, (set_attributes ast inner_attrs, outer_attrs))
 end
 
@@ -756,15 +771,16 @@ struct
   let match_jane_syntax ast =
     match match_extension_use ast with
     | None -> None
-    | Some (({txt = name; loc = ext_loc}, ext_payload), body) ->
+    | Some (({txt = name; loc}, payload), body) ->
       match
         parse_embedding_exn
-          ~loc:ext_loc
+          ~loc
           ~name
+          ~payload
           ~embedding_syntax
       with
       | None -> None
-      | Some name -> Some (name, ext_loc, ext_payload, body)
+      | Some (loc, name, payload) -> Some (name, loc, payload, body)
 end
 
 (********************************************************)
@@ -944,7 +960,7 @@ module Constructor_declaration0 = Make_with_attribute(struct
   let with_location pcd loc = { pcd with pcd_loc = loc }
 
   let attributes pcd = pcd.pcd_attributes
-  let with_attributes pcd pcd_attributes = { pcd with pcd_attributes }
+  let set_attributes pcd pcd_attributes = { pcd with pcd_attributes }
 end)
 
 (******************************************************************************)
@@ -959,7 +975,11 @@ module type AST = sig
   val make_entire_jane_syntax :
     loc:Location.t -> Feature.t -> (unit -> ast) -> ast
   val match_jane_syntax : Feature.t -> ast -> ast * string list
+  val match_payload_jane_syntax :
+    Feature.t -> ast -> ast * string list * payload
   val raise_partial_match : Feature.t -> ast -> string list -> _
+  val raise_partial_payload_match :
+    Feature.t -> ast -> string list -> payload -> _
   val make_of_ast
     :  of_ast_internal:(Feature.t -> ast -> 'a option)
     -> (ast -> ('a with_attributes) option)
@@ -1047,8 +1067,10 @@ struct
           begin match payload with
           | PStr [] -> ()
           | _ -> raise_error syntax_loc
-                   (Introduction_has_payload
-                      (AST.embedding_syntax, embedded_name, payload))
+                   (Illegal_payload (Introduction,
+                                     AST.embedding_syntax,
+                                     embedded_name,
+                                     payload))
           end;
           match Feature.of_component name with
           | Ok feat -> Some begin
@@ -1072,35 +1094,52 @@ struct
     in
     of_ast
 
-  let match_jane_syntax feature ast =
+  let match_general_jane_syntax feature ast =
+    let loc = location ast in
     let raise_error err =
-      raise (Desugaring_error.Error(location ast, feature, err))
+      raise (Desugaring_error.Error(loc, feature, err))
     in
     match AST.match_jane_syntax ast with
-    | Some (embedded_name, ast_attrs) -> begin
+    | Some (embedded_name, _loc, payload, ast_attrs) -> begin
         let ast' =
-          Handle_attributes.assert_no_attributes
-            ~loc:(location ast) ~feature ast_attrs
+          Handle_attributes.assert_no_attributes ~loc ~feature ast_attrs
         in
         match Embedded_name.components embedded_name with
         | extension_string :: subparts
           when String.equal
                  extension_string
-                 (Feature.extension_component feature) -> ast', subparts
+                 (Feature.extension_component feature)
+          ->
+            ast', subparts, payload, embedded_name
         | _ -> raise_error (Wrong_embedding embedded_name)
       end
     | None -> raise_error Non_embedding
 
-  let raise_partial_match feature ast subparts =
+  let match_payload_jane_syntax feature ast =
+    let ast', subparts, payload, _ = match_general_jane_syntax feature ast in
+    ast', subparts, payload
+
+  let match_jane_syntax feature ast =
+    match match_general_jane_syntax feature ast with
+    | ast', subparts, PStr [], _ ->
+        ast', subparts
+    | _, _, payload, embedded_name ->
+        raise (Error(
+          location ast,
+          Illegal_payload
+            (Unexpected, AST.embedding_syntax, embedded_name, payload)))
+
+  let raise_partial_general_match feature ast subparts opt_payload =
     raise (Desugaring_error.Error(location ast,
                                   feature,
-                                  Bad_embedding subparts))
-end
+                                  Bad_embedding (subparts, opt_payload)))
 
-let make_jane_syntax_attribute feature trailing_components payload =
-  make_jane_syntax_attribute
-    (Embedded_name.of_feature feature trailing_components)
-    payload
+  let raise_partial_match feature ast subparts =
+    raise_partial_general_match feature ast subparts None
+
+  let raise_partial_payload_match feature ast subparts payload =
+    raise_partial_general_match feature ast subparts (Some payload)
+end
 
 module Make_extension_ast
     (AST : AST_internal with type 'ast with_attributes := 'ast)

@@ -59,11 +59,12 @@ let iterator =
   let jtyp _self loc (jty : Jane_syntax.Core_type.t) =
     match jty with
     | Jtyp_local (Ltyp_local _) -> misplaced_local loc
+    | Jtyp_layout _ -> ()
   in
   let typ_without_local ty =
     match Jane_syntax.Core_type.of_ast ty with
     | Some (Jtyp_local (Ltyp_local ty), []) -> ty
-    | None -> ty
+    | Some (Jtyp_layout _, _) | None -> ty
     | Some (Jtyp_local (Ltyp_local _), _::_) ->
         local_with_attributes ty.ptyp_loc
   in

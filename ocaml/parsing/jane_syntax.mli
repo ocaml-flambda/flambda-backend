@@ -471,9 +471,6 @@ module Core_type : sig
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.core_type
-
-  val core_type_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.core_type
 end
 
 (** Novel syntax in constructor arguments; this isn't a core AST type, but
@@ -523,9 +520,6 @@ module Module_type : sig
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.module_type
-
-  val mty_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.module_type
 end
 
 (** Novel syntax in signature items *)

@@ -178,7 +178,10 @@ module type AST = sig
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost].  The list of components should be nonempty; if it's empty, you
       probably want [make_entire_jane_syntax] instead, and this function should
-      be called within its callback.  The inverse of [match_jane_syntax].
+      be called within its callback.  If [payload] is specified, includes it in
+      the embedding, where it can be recovered by later analysis.  The inverse
+      of [match_jane_syntax] or, if the [payload] is specified,
+      [match_payload_jane_syntax].
 
       For example, to embed the different terms in the [-extension local]
       expression AST, we write:
@@ -221,6 +224,8 @@ module type AST = sig
               Ast_helper.Exp.array elts)
       ]}
 
+      This outermost node cannot carry extra payload information.
+
       For any usage where there are multiple possible terms to embed in the same
       syntactic category, you will also need to call [make_jane_syntax], which
       see. *)
@@ -235,7 +240,9 @@ module type AST = sig
       This should only be used when the list of components will be nonempty; the
       outermost embedded term (as created by [make_entire_jane_syntax]) will be
       handled by [make_of_ast].  Will raise an exception if this wasn't an
-      embedded term.  The inverse of [make_jane_syntax].
+      embedded term.  The inverse of [make_jane_syntax] when the [payload] was
+      unspecified, raising an exception if it sees a payload; to extract the
+      payload, see [match_payload_jane_syntax].
 
       This is usually followed by a match on the result to turn the result back
       into a node from the feature-specific AST; in the failing case, an error
@@ -255,9 +262,24 @@ module type AST = sig
   *)
   val match_jane_syntax : Feature.t -> ast -> ast * string list
 
+  (** As [make_jane_syntax], but extracts the embedded payload as well.  If you
+      want not to use payloads, stick with [make_jane_syntax] instead. *)
+  val match_payload_jane_syntax
+    :  Feature.t
+    -> ast
+    -> ast * string list * Parsetree.payload
+
   (** Raise an error indicating that a [match_jane_syntax] call produced an
       invalid embedding for the specified feature. *)
   val raise_partial_match : Feature.t -> ast -> string list -> _
+
+  (** As [raise_partial_match], but for [match_payload_jane_syntax]. *)
+  val raise_partial_payload_match
+    :  Feature.t
+    -> ast
+    -> string list
+    -> Parsetree.payload
+    -> _
 
   (** How to attach attributes to the result of [make_of_ast].  Will either
       return a pair (see [AST_with_attributes]) or will simply be equal to ['a]
@@ -327,7 +349,7 @@ module Extension_constructor :
   AST_with_attributes with type ast = Parsetree.extension_constructor
 
 module Constructor_declaration :
-  AST with type ast = Parsetree.constructor_declaration
+  AST_with_attributes with type ast = Parsetree.constructor_declaration
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location

@@ -454,7 +454,7 @@ let transl_type_param_jst env loc attrs path :
        Layout.of_annotation ~context:(Type_parameter (path, name)) annot
      in
      transl_type_param_var env loc attrs name layout (Some annot.txt)
-  | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _) ->
+  | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _) | Jtyp_local (Ltyp_local _) ->
     Misc.fatal_error "non-type-variable in transl_type_param_jst"
 
 let transl_type_param env path styp =

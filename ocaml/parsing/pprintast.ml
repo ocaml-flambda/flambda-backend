@@ -438,7 +438,7 @@ and core_type1_jane_syntax ctxt f : Jane_syntax.Core_type.t -> _ = function
          does *)
   | Jtyp_layout (Ltyp_var { name; layout }) ->
       pp f "(%a@;:@;%a)" tyvar_option name layout_annotation layout
-  | Jtyp_layout () -> paren true (core_type_jane_syntax ctxt attrs) f x
+  | Jtyp_layout _ as jty -> paren true (core_type_jane_syntax ctxt) f jty
 
 and core_type_jane_syntax ctxt f : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_local (Ltyp_local ty) -> local_type core_type ctxt f ty
@@ -447,7 +447,7 @@ and core_type_jane_syntax ctxt f : Jane_syntax.Core_type.t -> _ = function
         (core_type1 ctxt) aliased_type
         tyvar_option name
         layout_annotation layout
-  | Jtyp_layout () -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
+  | Jtyp_layout _ as jty -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt) jty
 
 and tyvar_option f = function
   | None -> pp f "_"
@@ -636,7 +636,7 @@ and label_exp ctxt f (l,opt,p) =
             punned ~is_local:false
           else
             non_punned ~is_local:(Some lp)
-      | Some ((Jpat_immutable_array _ | Jpat_unboxed_constant _), _) ->
+      | Some ((Jpat_immutable_array _ | Jpat_layout _), _) ->
           non_punned ~is_local:None
       | None ->
       if is_punned p then
@@ -650,7 +650,7 @@ and label_exp ctxt f (l,opt,p) =
       | Some (Jpat_local (Lpat_local lp), []) when is_punned lp ->
           pp f "~(local_ %s)" l
       | Some
-          ( (Jpat_local _ | Jpat_immutable_array _ | Jpat_unboxed_constant _)
+          ( (Jpat_local _ | Jpat_layout _ | Jpat_immutable_array _)
           , _
           )
         ->
@@ -1454,7 +1454,7 @@ and pp_print_pexp_function ctxt sep f x =
         layout_annotation lay
         (pp_print_pexp_function ctxt sep) e
   | Some (jst, attrs) ->
-      pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
+      pp f "%s@;%a" sep (jane_syntax_expression ctxt attrs ~parens:false) jst
   | None ->
   if x.pexp_attributes <> [] then pp f "%s@;%a" sep (expression ctxt) x
   else
@@ -1941,7 +1941,7 @@ and directive_argument f x =
 and jane_syntax_expression
       ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
   if attrs <> [] then
-    pp f "((%a)@,%a)" (jane_syntax_expr ctxt [] ~parens:false) jexp
+    pp f "((%a)@,%a)" (jane_syntax_expression ctxt [] ~parens:false) jexp
       (attributes ctxt) attrs
   else match jexp with
   | Jexp_local x -> local_expr ctxt f x
@@ -1967,15 +1967,17 @@ and jane_syntax_simple_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
   let needs_parens =
     attrs = [] &&
     match jexp with
-    | Jexp_local (Lexp_local _ | Lexp_exclave _ | Lexp_constrain_local _) ->
-      true
+    | Jexp_local (Lexp_local _ | Lexp_exclave _ | Lexp_constrain_local _)
+    | Jexp_layout (Lexp_newtype _)
+    | Jexp_n_ary_function _ ->
+      false
     | Jexp_comprehension ( Cexp_list_comprehension _
                          | Cexp_array_comprehension _ )
     | Jexp_immutable_array (Iaexp_immutable_array _)
-    | Jexp_unboxed_constant (Float _ | Integer _) ->
+    | Jexp_layout (Lexp_constant _) ->
       false
   in
-  paren needs_parens (jane_syntax_expression ctxt attrs) f jexp
+  jane_syntax_expression ctxt attrs f jexp ~parens:needs_parens
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with

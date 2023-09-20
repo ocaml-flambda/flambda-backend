@@ -458,7 +458,7 @@ module E = struct
   module L = Jane_syntax.Local
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
-  module L = Jane_syntax.Layouts
+  module Lay = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
 
   let iter_local_exp sub : L.expression -> _ = function
@@ -496,7 +496,7 @@ module E = struct
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
 
-  let iter_layout_exp sub : L.expression -> _ = function
+  let iter_layout_exp sub : Lay.expression -> _ = function
     | Lexp_constant _ -> iter_constant
     | Lexp_newtype (_str, layout, inner_expr) ->
       iter_loc_txt sub sub.layout_annotation layout;

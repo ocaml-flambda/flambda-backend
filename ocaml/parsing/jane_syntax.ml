@@ -24,7 +24,7 @@ module type Extension = sig
   val feature : Feature.t
 end
 
-module Ast_of (AST : AST)
+module Ast_of (AST : AST with type 'a with_attributes := 'a * attributes)
               (Ext : Extension) : sig
   (* Wrap a bit of AST with a jane-syntax annotation *)
   val wrap_jane_syntax :
@@ -35,76 +35,6 @@ module Ast_of (AST : AST)
 end = struct
   let wrap_jane_syntax suffixes ?payload to_be_wrapped =
     AST.make_jane_syntax Ext.feature suffixes ?payload to_be_wrapped
-end
-
-module Of_ast (Ext : Extension) : sig
-  module Desugaring_error : sig
-    type error =
-      | Not_this_embedding of Embedded_name.t
-      | Non_embedding
-  end
-
-  type unwrapped := string list * payload * attributes
-
-  (* Find and remove a jane-syntax attribute marker, returning an error
-     if the attribute name does not have the right format or extension. *)
-  val unwrap_jane_syntax_attributes :
-    attributes -> (unwrapped, Desugaring_error.error) result
-
-  (* The same as [unwrap_jane_syntax_attributes], except throwing
-     an exception instead of returning an error.
-  *)
-  val unwrap_jane_syntax_attributes_exn :
-    loc:Location.t -> attributes -> unwrapped
-end = struct
-
-  let extension_string = Feature.extension_component Ext.feature
-
-  module Desugaring_error = struct
-    type error =
-      | Not_this_embedding of Embedded_name.t
-      | Non_embedding
-
-    let report_error ~loc = function
-      | Not_this_embedding name ->
-          Location.errorf ~loc
-            "Tried to desugar the embedded term %a@ \
-             as belonging to the %s extension"
-            Embedded_name.pp_quoted_name name extension_string
-      | Non_embedding ->
-          Location.errorf ~loc
-            "Tried to desugar a non-embedded expression@ \
-             as belonging to the %s extension"
-            extension_string
-
-    exception Error of Location.t * error
-
-    let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) ->
-            Some (report_error ~loc err)
-          | _ -> None)
-
-    let raise ~loc err =
-      raise (Error(loc, err))
-  end
-
-  let unwrap_jane_syntax_attributes attrs : (_, Desugaring_error.error) result =
-    match find_and_remove_jane_syntax_attribute attrs with
-    | Some (ext_name, _loc, payload, attrs) -> begin
-        match Jane_syntax_parsing.Embedded_name.components ext_name with
-        | extension_occur :: names
-             when String.equal extension_occur extension_string ->
-           Ok (names, payload, attrs)
-        | _ -> Error (Not_this_embedding ext_name)
-      end
-    | None -> Error Non_embedding
-
-  let unwrap_jane_syntax_attributes_exn ~loc attrs =
-    match unwrap_jane_syntax_attributes attrs with
-    | Ok x -> x
-    | Error error -> Desugaring_error.raise ~loc error
 end
 
 (******************************************************************************)
@@ -543,7 +473,6 @@ module Comprehensions = struct
   end
 
   module Ast_of = Ast_of (Expression) (Ext)
-  module Of_ast = Of_ast (Ext)
 
   include Ext
 
@@ -593,7 +522,7 @@ module Comprehensions = struct
      v}
   *)
 
-  let comprehension_expr = Expression.make_jane_syntax feature
+  (* let comprehension_expr = Expression.make_jane_syntax feature *)
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in [expr_of]. *)
@@ -794,7 +723,6 @@ module N_ary_functions = struct
   end
 
   module Ast_of = Ast_of (Expression) (Ext)
-  module Of_ast = Of_ast (Ext)
   open Ext
 
   type function_body =
@@ -1009,18 +937,16 @@ module N_ary_functions = struct
   *)
 
   let expand_n_ary_expr expr =
-    match Of_ast.unwrap_jane_syntax_attributes expr.pexp_attributes with
-    | Error (Not_this_embedding _ | Non_embedding) -> None
-    | Ok (suffix, payload, attributes) ->
-        let attribute_node =
-          match Attribute_node.of_suffix suffix, payload with
-          | No_payload t, PStr [] -> Some t
-          | Payload f, payload -> Some (f payload ~loc:expr.pexp_loc)
-          | No_payload _, payload ->
-              Desugaring_error.raise expr (Has_payload payload)
-          | Unknown_suffix, _ -> None
-        in
-        Option.map (fun x -> x, attributes) attribute_node
+    match Expression.match_payload_jane_syntax feature expr with
+    | expr, suffix, payload -> begin
+        match Attribute_node.of_suffix suffix, payload with
+        | No_payload t, PStr [] -> Some t
+        | Payload f, payload -> Some (f payload ~loc:expr.pexp_loc)
+        | No_payload _, payload ->
+            Desugaring_error.raise expr (Has_payload payload)
+        | Unknown_suffix, _ -> None
+      end
+    | exception _ -> None
 
   let require_function_cases expr ~arity_attribute =
     match expr.pexp_desc with
@@ -1029,7 +955,7 @@ module N_ary_functions = struct
 
   let constraint_modes expr : mode_annotation loc list =
     match expand_n_ary_expr expr with
-    | Some (Mode_constraint modes, _) -> modes
+    | Some (Mode_constraint modes) -> modes
     | _ -> []
 
   let check_constraint expr =
@@ -1105,29 +1031,23 @@ module N_ary_functions = struct
        [Layout_annotation] attribute.
     *)
     let rec extract_next_fun_param expr ~layout
-        : (function_param * attributes) option * continue_or_stop
+        : function_param option * continue_or_stop
       =
       match expand_n_ary_expr expr with
       | None -> begin
           match check_param expr.pexp_desc expr.pexp_loc ~layout with
           | Some (param, body) ->
-              Some (param, expr.pexp_attributes), Continue body
+              Some param, Continue body
           | None ->
               None, Stop (None, Pfunction_body expr)
         end
-      | Some (Top_level, _) -> None, Stop (None, Pfunction_body expr)
-      | Some (Layout_annotation next_layout, unconsumed_attributes) ->
-          extract_next_fun_param
-            { expr with pexp_attributes = unconsumed_attributes }
-            ~layout:(Some next_layout)
-      | Some (Mode_constraint _, _unconsumed_attributes) ->
-          (* We need not pass through any unconsumed attributes, as
-              [Mode_constraint _] isn't the outermost Jane Syntax node:
-              [extract_fun_params] took in [Pexp_fun] or [Pexp_newtype].
-          *)
+      | Some Top_level -> None, Stop (None, Pfunction_body expr)
+      | Some (Layout_annotation next_layout) ->
+          extract_next_fun_param expr ~layout:(Some next_layout)
+      | Some (Mode_constraint _) ->
           let function_constraint, body = require_constraint expr in
           None, Stop (Some function_constraint, Pfunction_body body)
-      | Some (Fun_then after_fun as arity_attribute, unconsumed_attributes) ->
+      | Some (Fun_then after_fun as arity_attribute) ->
           let param, body =
             require_param expr.pexp_desc expr.pexp_loc ~arity_attribute ~layout
           in
@@ -1149,7 +1069,7 @@ module N_ary_functions = struct
                 in
                 Stop (Some function_constraint, function_body)
           in
-          Some (param, unconsumed_attributes), continue_or_stop
+          Some param, continue_or_stop
     in
     let rec loop expr ~rev_params =
       let next_param, continue_or_stop =
@@ -1158,7 +1078,7 @@ module N_ary_functions = struct
       let rev_params =
         match next_param with
         | None -> rev_params
-        | Some (x, _) -> x :: rev_params
+        | Some x -> x :: rev_params
       in
       match continue_or_stop with
       | Continue body -> loop body ~rev_params
@@ -1172,12 +1092,11 @@ module N_ary_functions = struct
         | _ ->
             Misc.fatal_error "called on something that isn't a newtype or fun"
       end;
-      let unconsumed_attributes =
-        match extract_next_fun_param expr ~layout:None with
-        | Some (_, attributes), _ -> attributes
-        | None, _ -> Desugaring_error.raise expr Parameterless_function
-      in
-      loop expr ~rev_params:[], unconsumed_attributes
+      begin match extract_next_fun_param expr ~layout:None with
+      | Some _, _ -> ()
+      | None, _ -> Desugaring_error.raise expr Parameterless_function
+      end;
+      loop expr ~rev_params:[]
 
   (* Returns remaining unconsumed attributes on outermost expression *)
   let of_expr =
@@ -1194,9 +1113,7 @@ module N_ary_functions = struct
     *)
     let rec remove_top_level_attributes expr =
       match expand_n_ary_expr expr with
-      | Some (Top_level, unconsumed_attributes) ->
-          remove_top_level_attributes
-            { expr with pexp_attributes = unconsumed_attributes }
+      | Some Top_level -> remove_top_level_attributes expr
       | _ -> expr
     in
     fun expr ->
@@ -1207,7 +1124,7 @@ module N_ary_functions = struct
           let n_ary =
             function_without_additional_params cases None expr.pexp_loc
           in
-          Some (n_ary, expr.pexp_attributes)
+          Some n_ary
       | _ -> begin
           match check_constraint expr with
           | Some (constraint_, { pexp_desc = Pexp_function cases }) ->
@@ -1215,7 +1132,7 @@ module N_ary_functions = struct
                 function_without_additional_params cases (Some constraint_)
                   expr.pexp_loc
               in
-              Some (n_ary, expr.pexp_attributes)
+              Some n_ary
           | _ -> None
         end
 
@@ -1352,8 +1269,6 @@ module Layouts = struct
 
   include Ext
 
-  module Of_ast = Of_ast (Ext)
-
   type constant =
     | Float of string * char option
     | Integer of string * char
@@ -1385,29 +1300,10 @@ module Layouts = struct
 
   module Desugaring_error = struct
     type error =
-      | Unexpected_wrapped_type of Parsetree.core_type
-      | Unexpected_wrapped_ext of Parsetree.extension_constructor
-      | Unexpected_attribute of string list
       | No_integer_suffix
       | Unexpected_constant of Parsetree.constant
-      | Unexpected_wrapped_expr of Parsetree.expression
-      | Unexpected_wrapped_pat of Parsetree.pattern
 
     let report_error ~loc = function
-      | Unexpected_wrapped_type typ ->
-        Location.errorf ~loc
-          "Layout attribute on wrong core type:@;%a"
-          (Printast.core_type 0) typ
-      | Unexpected_wrapped_ext ext ->
-        Location.errorf ~loc
-          "Layout attribute on wrong extension constructor:@;%a"
-          (Printast.extension_constructor 0) ext
-      | Unexpected_attribute names ->
-        Location.errorf ~loc
-          "Layout extension does not understand these attribute names:@;[%a]"
-          (Format.pp_print_list
-             ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-             Format.pp_print_text) names
       | No_integer_suffix ->
         Location.errorf ~loc
           "All unboxed integers require a suffix to determine their size."
@@ -1415,14 +1311,6 @@ module Layouts = struct
         Location.errorf ~loc
           "Unexpected unboxed constant:@ %a"
           (Printast.constant) c
-      | Unexpected_wrapped_expr expr ->
-        Location.errorf ~loc
-          "Layout attribute on wrong expression:@;%a"
-          (Printast.expression 0) expr
-      | Unexpected_wrapped_pat pat ->
-        Location.errorf ~loc
-          "Layout attribute on wrong pattern:@;%a"
-          (Printast.pattern 0) pat
 
     exception Error of Location.t * error
 
@@ -1475,25 +1363,17 @@ module Layouts = struct
 
   let of_expr expr =
     let loc = expr.pexp_loc in
-    let names, payload, attributes =
-      Of_ast.unwrap_jane_syntax_attributes_exn ~loc expr.pexp_attributes
+    let expr, subparts, payload =
+      Expression.match_payload_jane_syntax feature expr
     in
-    let lexpr = match names with
-      | [ "unboxed" ] ->
-        begin match expr.pexp_desc with
-        | Pexp_constant const -> Lexp_constant (of_constant ~loc const)
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_expr expr)
-        end
-      | [ "newtype" ] ->
+    match subparts, expr.pexp_desc, payload with
+    | [ "unboxed" ], Pexp_constant const, PStr [] ->
+        Lexp_constant (of_constant ~loc const)
+    | [ "newtype" ], Pexp_newtype (name, inner_expr), payload ->
         let layout = Decode.from_payload ~loc payload in
-        begin match expr.pexp_desc with
-        | Pexp_newtype (name, inner_expr) ->
-          Lexp_newtype (name, layout, inner_expr)
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_expr expr)
-        end
-      | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
-    in
-    lexpr, attributes
+        Lexp_newtype (name, layout, inner_expr)
+    | _ ->
+	      Expression.raise_partial_payload_match feature expr subparts payload
 
   (*******************************************************)
   (* Encoding patterns *)
@@ -1511,11 +1391,9 @@ module Layouts = struct
 
   let of_pat pat =
     let loc = pat.ppat_loc in
-    let lpat = match pat.ppat_desc with
-      | Ppat_constant const -> Lpat_constant (of_constant ~loc const)
-      | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_pat pat)
-    in
-    lpat, pat.ppat_attributes
+    match pat.ppat_desc with
+    | Ppat_constant const -> Lpat_constant (of_constant ~loc const)
+    | _ -> Pattern.raise_partial_match feature pat []
 
   (*******************************************************)
   (* Encoding types *)
@@ -1561,51 +1439,36 @@ module Layouts = struct
 
   let of_type typ =
     let loc = typ.ptyp_loc in
-    let names, payload, attributes =
-      Of_ast.unwrap_jane_syntax_attributes_exn ~loc typ.ptyp_attributes
+    let typ, subparts, payload =
+      Core_type.match_payload_jane_syntax feature typ
     in
-    let lty = match names with
-      | [ "var" ] ->
+    match subparts, typ.ptyp_desc, payload with
+    | [ "var" ], _, _ ->
         let layout = Decode.from_payload ~loc payload in
-        begin match typ.ptyp_desc with
-        | Ptyp_any ->
-          Ltyp_var { name = None; layout }
-        | Ptyp_var name ->
-          Ltyp_var { name = Some name; layout }
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ)
-        end
-
-      | [ "poly" ] ->
-        begin match typ.ptyp_desc with
-        | Ptyp_poly (var_names, inner_type) ->
-          let bound_vars =
-            Decode.bound_vars_from_vars_and_payload ~loc var_names payload
-          in
-          Ltyp_poly { bound_vars; inner_type }
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ)
-        end
-
-      | [ "alias"; "anon" ] ->
+        let name = match typ.ptyp_desc with
+          | Ptyp_any -> None
+          | Ptyp_var name -> Some name
+          | _ ->
+              Core_type.raise_partial_payload_match feature typ subparts payload
+        in
+        Ltyp_var { name; layout }
+    | [ "poly" ], Ptyp_poly (var_names, inner_type), PStr [] ->
+        let bound_vars =
+          Decode.bound_vars_from_vars_and_payload ~loc var_names payload
+        in
+        Ltyp_poly { bound_vars; inner_type }
+    | [ "alias"; "anon" ], _, _ ->
         let layout = Decode.from_payload ~loc payload in
-        Ltyp_alias { aliased_type = { typ with ptyp_attributes = attributes }
+        Ltyp_alias { aliased_type = typ
                    ; name = None
                    ; layout }
-
-      | [ "alias"; "named" ] ->
+    | [ "alias"; "named" ], Ptyp_alias (inner_type, name), _ ->
         let layout = Decode.from_payload ~loc payload in
-        begin match typ.ptyp_desc with
-        | Ptyp_alias (inner_typ, name) ->
-          Ltyp_alias { aliased_type = inner_typ
-                     ; name = Some name
-                     ; layout }
-
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ)
-        end
-
-      | _ ->
-        Desugaring_error.raise ~loc (Unexpected_attribute names)
-    in
-    lty, attributes
+        Ltyp_alias { aliased_type = inner_type
+                   ; name = Some name
+                   ; layout }
+    | _ ->
+	      Core_type.raise_partial_payload_match feature typ subparts payload
 
   (*******************************************************)
   (* Encoding extension constructor *)
@@ -1642,24 +1505,18 @@ module Layouts = struct
 
   let of_extension_constructor ext =
     let loc = ext.pext_loc in
-    let names, payload, attributes =
-      Of_ast.unwrap_jane_syntax_attributes_exn ~loc ext.pext_attributes
+    let ext, subparts, payload =
+      Extension_constructor.match_payload_jane_syntax feature ext
     in
-    let lext = match names with
-      | [ "ext" ] ->
-        begin match ext.pext_kind with
-        | Pext_decl (var_names, args, res) ->
-          let bound_vars =
-            Decode.bound_vars_from_vars_and_payload ~loc var_names payload
-          in
-          Lext_decl (bound_vars, args, res)
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_ext ext)
-        end
-
-      | _ ->
-        Desugaring_error.raise ~loc (Unexpected_attribute names)
-    in
-    lext, attributes
+    match subparts, ext.pext_kind with
+    | [ "ext" ], Pext_decl (var_names, args, res) ->
+        let bound_vars =
+          Decode.bound_vars_from_vars_and_payload ~loc var_names payload
+        in
+        Lext_decl (bound_vars, args, res)
+    | _ ->
+        Extension_constructor.raise_partial_payload_match
+          feature ext subparts payload
 
   (*********************************************************)
   (* Constructing a [constructor_declaration] with layouts *)
@@ -1693,17 +1550,20 @@ module Layouts = struct
     match feat with
     | Language_extension Layouts ->
       let loc = ctor_decl.pcd_loc in
-      let names, payload, attributes =
-        Of_ast.unwrap_jane_syntax_attributes_exn ~loc ctor_decl.pcd_attributes
+      let ctor_decl, subparts, payload =
+        Constructor_declaration.match_payload_jane_syntax feature ctor_decl
       in
-      let vars_layouts = match names with
-        | [ "vars" ] ->
-          Decode.bound_vars_from_vars_and_payload
-            ~loc ctor_decl.pcd_vars payload
-        | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
-      in
-      Some (vars_layouts, attributes)
-    | _ -> None
+      begin match subparts with
+      | [ "vars" ] ->
+        Some
+          (Decode.bound_vars_from_vars_and_payload
+             ~loc ctor_decl.pcd_vars payload)
+      | _ ->
+        Constructor_declaration.raise_partial_payload_match
+          feature ctor_decl subparts payload
+      end
+    | _ ->
+      None
 
   let of_constructor_declaration =
     Constructor_declaration.make_of_ast
@@ -1737,6 +1597,7 @@ module Core_type = struct
     Core_type.add_attributes attrs @@
     match jtyp with
     | Jtyp_local x -> Local.type_of ~loc x
+    | Jtyp_layout x -> Layouts.type_of ~loc x
 end
 
 module Constructor_argument = struct
@@ -1769,10 +1630,10 @@ module Expression = struct
     | Language_extension Immutable_arrays ->
       Some (Jexp_immutable_array (Immutable_arrays.of_expr expr))
     | Language_extension Layouts ->
-      Some (Jexp_layout (Layouts.of_expr expr), attrs)
+      Some (Jexp_layout (Layouts.of_expr expr))
     | Builtin -> begin
         match N_ary_functions.of_expr expr with
-        | Some (expr, attrs) -> Some (Jexp_n_ary_function expr, attrs)
+        | Some expr -> Some (Jexp_n_ary_function expr)
         | None -> None
       end
     | _ -> None
@@ -1785,7 +1646,6 @@ module Expression = struct
     | Jexp_local            x -> Local.expr_of             ~loc x
     | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc x
     | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc x
-    | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc x
     | Jexp_layout           x -> Layouts.expr_of           ~loc x
     | Jexp_n_ary_function   x -> N_ary_functions.expr_of   ~loc x
 end
@@ -1802,7 +1662,7 @@ module Pattern = struct
     | Language_extension Immutable_arrays ->
       Some (Jpat_immutable_array (Immutable_arrays.of_pat pat))
     | Language_extension Layouts ->
-      Some (Jpat_unboxed_constant (Layouts.of_pat pat))
+      Some (Jpat_layout (Layouts.of_pat pat))
     | _ -> None
 
   let of_ast = Pattern.make_of_ast ~of_ast_internal
@@ -1870,17 +1730,19 @@ module Extension_constructor = struct
 
   let of_ast_internal (feat : Feature.t) ext = match feat with
     | Language_extension Layouts ->
-      let ext, attrs = Layouts.of_extension_constructor ext in
-      Some (Jext_layout ext, attrs)
-    | _ -> None
+      Some (Jext_layout (Layouts.of_extension_constructor ext))
+    | _ ->
+      None
 
   let of_ast = Extension_constructor.make_of_ast ~of_ast_internal
 
-  let ast_of ~loc ~name ~attrs ?info ?docs t =
+  let extension_constructor_of ~loc ~name ~attrs ?info ?docs t =
     let ext_ctor =
       match t with
       | Jext_layout lext ->
           Layouts.extension_constructor_of ~loc ~name ?info ?docs lext
     in
     Extension_constructor.add_attributes attrs ext_ctor
+
+  let ast_of ~loc:_ = assert false
 end
