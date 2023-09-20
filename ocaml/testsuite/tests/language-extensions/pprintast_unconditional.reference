@@ -51,6 +51,8 @@ string_of_expression: [x for x = 1 to 10]
 
 string_of_structure: include functor F
 
+tyvar: 'no_tyvars_require_extensions
+
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 ##### Extensions disallowed
@@ -105,6 +107,8 @@ type_declaration:  local_ ('a : value) -> unit
 string_of_expression: [x for x = 1 to 10]
 
 string_of_structure: include functor F
+
+tyvar: 'no_tyvars_require_extensions
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
