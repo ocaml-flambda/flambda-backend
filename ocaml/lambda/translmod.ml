@@ -1637,8 +1637,8 @@ let transl_store_structure_gen
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes sort expr)
       | str ->
-          transl_store_structure ~scopes get_primary_module_block
-            (global_path module_name) map prims aliases str
+        transl_store_structure ~scopes get_primary_module_block
+          (global_path module_name) map prims aliases str
     in
     Translcore.declare_probe_handlers expr
   in
