@@ -67,13 +67,14 @@ let equal x y =
   | Ignore_assert_all p1, Ignore_assert_all p2 -> Property.equal p1 p2
   | ( Check { property = p1; strict = s1; loc = loc1 },
       Check { property = p2; strict = s2; loc = loc2 } ) ->
-    Property.equal p1 p2 && Bool.equal s1 s2 && loc1 = loc2
+    Property.equal p1 p2 && Bool.equal s1 s2 && Location.compare loc1 loc2 = 0
   | ( Assume
         { property = p1; strict = s1; never_returns_normally = n1; loc = loc1 },
       Assume
         { property = p2; strict = s2; never_returns_normally = n2; loc = loc2 }
     ) ->
-    Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal n1 n2 && loc1 = loc2
+    Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal n1 n2
+    && Location.compare loc1 loc2 = 0
   | (Default_check | Ignore_assert_all _ | Check _ | Assume _), _ -> false
 
 let is_default : t -> bool = function
