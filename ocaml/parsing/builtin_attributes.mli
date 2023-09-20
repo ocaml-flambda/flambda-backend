@@ -170,10 +170,6 @@ val is_explicitly_curried : Parsetree.attributes -> bool
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
-val has_unique: Parsetree.attributes -> (bool,unit) result
-
-val has_once : Parsetree.attributes -> (bool, unit) result
-
 (* [layout] gets the layout in the attributes if one is present.  It is the
    central point at which the layout extension flags are checked.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.

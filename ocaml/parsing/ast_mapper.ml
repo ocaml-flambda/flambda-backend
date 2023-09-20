@@ -122,16 +122,17 @@ end
 module CA_jst = struct
   (* Constructor arguments -- Jane syntax specific *)
 
-  let map_local sub
-    : Jane_syntax.Local.constructor_argument ->
-      Jane_syntax.Local.constructor_argument =
+  let map_modes sub
+    : Jane_syntax.Modes.constructor_argument ->
+      Jane_syntax.Modes.constructor_argument =
     function
-    | Lcarg_global typ -> Lcarg_global (sub.typ sub typ)
+    | Mcarg_modality (modality, typ) ->
+      Mcarg_modality (modality, sub.typ sub typ)
 
   let map sub
     : Jane_syntax.Constructor_argument.t -> Jane_syntax.Constructor_argument.t =
     function
-    | Jcarg_local lcarg -> Jcarg_local (map_local sub lcarg)
+    | Jcarg_modes mcarg -> Jcarg_modes (map_modes sub mcarg)
 end
 
 module T = struct
@@ -163,9 +164,9 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
-  let map_local sub
-      : Jane_syntax.Local.core_type -> Jane_syntax.Local.core_type = function
-    | Ltyp_local typ -> Ltyp_local (sub.typ sub typ)
+  let map_modes sub
+      : Jane_syntax.Modes.core_type -> Jane_syntax.Modes.core_type = function
+    | Mtyp_mode (mode, typ) -> Mtyp_mode (mode, sub.typ sub typ)
 
   let var_layout sub (name, layout_opt) =
     let name = map_loc sub name in
@@ -193,7 +194,7 @@ module T = struct
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
-    | Jtyp_local lty -> Jtyp_local (map_local sub lty)
+    | Jtyp_modes lty -> Jtyp_modes (map_modes sub lty)
     | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
 
   let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
@@ -538,16 +539,15 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  module L = Jane_syntax.Local
+  module M = Jane_syntax.Modes
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
-  module Lay = Jane_syntax.Layouts
+  module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
 
-  let map_lexp sub : L.expression -> L.expression = function
-    | Lexp_local expr -> Lexp_local (sub.expr sub expr)
-    | Lexp_exclave expr -> Lexp_exclave (sub.expr sub expr)
-    | Lexp_constrain_local expr -> Lexp_constrain_local (sub.expr sub expr)
+  let map_mexp sub : M.expression -> M.expression = function
+    | Mexp_mode (mode, expr) -> Mexp_mode (mode, sub.expr sub expr)
+    | Mexp_exclave expr -> Mexp_exclave (sub.expr sub expr)
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -580,13 +580,13 @@ module E = struct
     | Iaexp_immutable_array elts ->
       Iaexp_immutable_array (List.map (sub.expr sub) elts)
 
-  let map_unboxed_constant_exp _sub : Lay.constant -> Lay.constant = function
+  let map_unboxed_constant_exp _sub : L.constant -> L.constant = function
     (* We can't reasonably call [sub.constant] because it might return a kind
        of constant we don't know how to unbox.
     *)
     | (Float _ | Integer _) as x -> x
 
-  let map_layout_exp sub : Lay.expression -> Lay.expression = function
+  let map_layout_exp sub : L.expression -> L.expression = function
     | Lexp_constant x -> Lexp_constant (map_unboxed_constant_exp sub x)
     | Lexp_newtype (str, layout, inner_expr) ->
       let str = map_loc sub str in
@@ -639,7 +639,7 @@ module E = struct
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
-    | Jexp_local x -> Jexp_local (map_lexp sub x)
+    | Jexp_modes x -> Jexp_modes (map_mexp sub x)
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
@@ -746,25 +746,25 @@ end
 module P = struct
   (* Patterns *)
 
-  module L = Jane_syntax.Local
+  module M = Jane_syntax.Modes
   module IA = Jane_syntax.Immutable_arrays
-  module Lay = Jane_syntax.Layouts
+  module L = Jane_syntax.Layouts
 
-  let map_lpat sub : L.pattern -> L.pattern = function
-    | Lpat_local pat -> Lpat_local (sub.pat sub pat)
+  let map_mpat sub : M.pattern -> M.pattern = function
+    | Mpat_mode (mode, pat) -> Mpat_mode (mode, sub.pat sub pat)
 
   let map_iapat sub : IA.pattern -> IA.pattern = function
     | Iapat_immutable_array elts ->
       Iapat_immutable_array (List.map (sub.pat sub) elts)
 
-  let map_unboxed_constant_pat _sub : Lay.constant -> Lay.constant = function
+  let map_unboxed_constant_pat _sub : L.constant -> L.constant = function
     (* We can't reasonably call [sub.constant] because it might return a kind
        of constant we don't know how to unbox.
     *)
     | Float _ | Integer _ as x -> x
 
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
-    | Jpat_local x -> Jpat_local (map_lpat sub x)
+    | Jpat_modes x -> Jpat_modes (map_mpat sub x)
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
     | Jpat_layout (Lpat_constant x) ->
         Jpat_layout (Lpat_constant (map_unboxed_constant_pat sub x))

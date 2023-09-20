@@ -100,11 +100,11 @@ let iter_loc_txt sub f { loc; txt } =
 module CA_jst = struct
   (* Constructor arguments -- Jane syntax specific *)
 
-  let iter_local sub : Jane_syntax.Local.constructor_argument -> _ = function
-    | Lcarg_global typ -> sub.typ sub typ
+  let iter_modes sub : Jane_syntax.Modes.constructor_argument -> _ = function
+    | Mcarg_modality (_modality, typ) -> sub.typ sub typ
 
   let iter sub : Jane_syntax.Constructor_argument.t -> _ = function
-    | Jcarg_local lcarg -> iter_local sub lcarg
+    | Jcarg_modes mcarg -> iter_modes sub mcarg
 end
 
 module T = struct
@@ -132,8 +132,8 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let iter_local sub : Jane_syntax.Local.core_type -> _ = function
-    | Ltyp_local ty -> sub.typ sub ty
+  let iter_modes sub : Jane_syntax.Modes.core_type -> _ = function
+    | Mtyp_mode (_mode, ty) -> sub.typ sub ty
 
   let layout_annotation sub =
     iter_loc_txt sub sub.layout_annotation
@@ -153,7 +153,7 @@ module T = struct
       iter_loc_txt sub sub.layout_annotation layout
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
-    | Jtyp_local lty -> iter_local sub lty
+    | Jtyp_modes lty -> iter_modes sub lty
     | Jtyp_layout typ -> iter_jst_layout sub typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
@@ -455,16 +455,15 @@ let iter_constant = ()
 module E = struct
   (* Value expressions for the core language *)
 
-  module L = Jane_syntax.Local
+  module M = Jane_syntax.Modes
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
-  module Lay = Jane_syntax.Layouts
+  module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
 
-  let iter_local_exp sub : L.expression -> _ = function
-    | Lexp_local expr -> sub.expr sub expr
-    | Lexp_exclave expr -> sub.expr sub expr
-    | Lexp_constrain_local expr -> sub.expr sub expr
+  let iter_modes_exp sub : M.expression -> _ = function
+    | Mexp_mode (_mode, expr) -> sub.expr sub expr
+    | Mexp_exclave expr -> sub.expr sub expr
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -496,7 +495,7 @@ module E = struct
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
 
-  let iter_layout_exp sub : Lay.expression -> _ = function
+  let iter_layout_exp sub : L.expression -> _ = function
     | Lexp_constant _ -> iter_constant
     | Lexp_newtype (_str, layout, inner_expr) ->
       iter_loc_txt sub sub.layout_annotation layout;
@@ -539,7 +538,7 @@ module E = struct
       iter_function_body sub body
 
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
-    | Jexp_local local_exp -> iter_local_exp sub local_exp
+    | Jexp_modes modes_exp -> iter_modes_exp sub modes_exp
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
@@ -638,18 +637,18 @@ end
 module P = struct
   (* Patterns *)
 
-  module L = Jane_syntax.Local
+  module M = Jane_syntax.Modes
   module IA = Jane_syntax.Immutable_arrays
 
-  let iter_lpat sub : L.pattern -> _ = function
-    | Lpat_local pat -> sub.pat sub pat
+  let iter_mpat sub : M.pattern -> _ = function
+    | Mpat_mode (_mode, pat) -> sub.pat sub pat
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
-    | Jpat_local lpat -> iter_lpat sub lpat
+    | Jpat_modes mpat -> iter_mpat sub mpat
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_layout (Lpat_constant _) -> iter_constant
 

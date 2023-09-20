@@ -28,10 +28,10 @@ let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
 let empty_comprehension loc = err loc "Comprehension with no clauses"
 let no_val_params loc = err loc "Functions must have a value parameter."
-let misplaced_local loc =
-  err loc "\"local_\" cannot occur outside of an arrow type"
-let local_with_attributes loc =
-  err loc "\"local_ t\" cannot have attributes"
+let misplaced_mode loc =
+  err loc "modes cannot occur outside of an arrow type"
+let mode_with_attributes loc =
+  err loc "mode-annotated types cannot have attributes"
 
 let non_jane_syntax_function loc =
   err loc "Functions must be constructed using Jane Street syntax."
@@ -58,15 +58,15 @@ let iterator =
   in
   let jtyp _self loc (jty : Jane_syntax.Core_type.t) =
     match jty with
-    | Jtyp_local (Ltyp_local _) -> misplaced_local loc
+    | Jtyp_modes (Mtyp_mode _) -> misplaced_mode loc
     | Jtyp_layout _ -> ()
   in
   let typ_without_local ty =
     match Jane_syntax.Core_type.of_ast ty with
-    | Some (Jtyp_local (Ltyp_local ty), []) -> ty
+    | Some (Jtyp_modes (Mtyp_mode (_, ty)), []) -> ty
     | Some (Jtyp_layout _, _) | None -> ty
-    | Some (Jtyp_local (Ltyp_local _), _::_) ->
-        local_with_attributes ty.ptyp_loc
+    | Some (Jtyp_modes (Mtyp_mode _), _::_) ->
+        mode_with_attributes ty.ptyp_loc
   in
   let typ self ty =
     begin match Jane_syntax.Core_type.of_ast ty, ty.ptyp_desc with
@@ -127,7 +127,7 @@ let iterator =
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
-    | Jexp_local _
+    | Jexp_modes _
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout _
