@@ -38,7 +38,7 @@ type locality_mode = private
   | Alloc_heap
   | Alloc_local
 
-(** For now we don't have strong update, and thus uniqueness is irrelevent in
+(** For now we don't have strong update, and thus uniqueness is irrelevant in
     middle and back-end; in the future this will be extended with uniqueness *)
 type alloc_mode = locality_mode
 
@@ -705,7 +705,15 @@ val is_heap_mode : alloc_mode -> bool
 val primitive_may_allocate : primitive -> alloc_mode option
   (** Whether and where a primitive may allocate.
       [Some Alloc_local] permits both options: that is, primitives that
-      may allocate on both the GC heap and locally report this value. *)
+      may allocate on both the GC heap and locally report this value.
+
+      This treats projecting an unboxed float from a float record as
+      non-allocating, which is a lie for the bytecode backend (where unboxed
+      floats are boxed).  Presently this function is only used for stack
+      allocation, which doesn't happen in bytecode.  If that changes, or if we
+      want to use this for another purpose in bytecode, it will need to be
+      revised.
+  *)
 
 (***********************)
 (* For static failures *)
