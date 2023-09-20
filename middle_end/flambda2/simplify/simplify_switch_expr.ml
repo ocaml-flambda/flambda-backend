@@ -19,8 +19,6 @@ module TE = Flambda2_types.Typing_env
 module TI = Targetint_31_63
 module Alias_set = TE.Alias_set
 
-[@@@ocaml.warning "-37"]
-
 type mergeable_arms =
   | No_arms
   | Mergeable of
