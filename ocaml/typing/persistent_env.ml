@@ -255,9 +255,9 @@ let import_crcs penv ~source crcs =
     let name = Import_info.Intf.name import_info in
     match Impl.and_crc_of_import_info import_info with
     | None -> ()
-    | Some (impl, crc) ->
+    | Some (unit, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name impl crc source
+        Consistbl.check crc_units name unit crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv imp =
@@ -405,18 +405,18 @@ let find_import penv ~check modname =
   | Found imp -> imp
   | Missing -> raise Not_found
   | exception Not_found ->
-    match can_load_cmis penv with
-    | Cannot_load_cmis _ -> raise Not_found
-    | Can_load_cmis ->
-        let psig =
-          match !Persistent_signature.load ~unit_name:modname with
-          | Some psig -> psig
-          | None ->
-            Hashtbl.add imports modname Missing;
-            raise Not_found
-        in
-        add_import penv modname;
-        acknowledge_import penv ~check modname psig
+      match can_load_cmis penv with
+      | Cannot_load_cmis _ -> raise Not_found
+      | Can_load_cmis ->
+          let psig =
+            match !Persistent_signature.load ~unit_name:modname with
+            | Some psig -> psig
+            | None ->
+                Hashtbl.add imports modname Missing;
+                raise Not_found
+          in
+          add_import penv modname;
+          acknowledge_import penv ~check modname psig
 
 let remember_global { globals; _ } global ~mentioned_by =
   if Global.has_arguments global then
@@ -697,7 +697,7 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
-let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
+let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   let {persistent_structures; _} = penv in
   let import = pers_name.pn_import in
   let global = pers_name.pn_global in
@@ -722,7 +722,7 @@ let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
     (* The uid neeeds to include the either the pack prefix, if it's packed, or
        the arguments, if it has any. It cannot have both. *)
     match binding with
-    | Local _ -> (* no pack prefix *) Shape.Uid.of_global_name global_name
+    | Local _ -> (* no pack prefix *) Shape.Uid.of_global_name modname
     | Static unit -> Shape.Uid.of_compilation_unit_id unit
   in
   let shape =
@@ -732,19 +732,19 @@ let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
         (* FIXME This is probably wrong for non-parameter modules *)
         Shape.var uid ident
   in
-  let pm = val_of_pers_sig sign global_name uid ~shape ~address ~flags in
+  let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps = { ps_name_info = pers_name;
              ps_binding = binding;
            } in
-  if is_unexported_parameter penv global_name then begin
+  if is_unexported_parameter penv modname then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
        but it's not a parameter to this module. *)
-    let modname = CU.Name.of_head_of_global_name global_name in
+    let modname = CU.Name.of_head_of_global_name modname in
     let filename = ps.ps_name_info.pn_import.imp_filename in
     raise (Error (Illegal_import_of_parameter (modname, filename)))
   end;
-  Hashtbl.add persistent_structures global_name (ps, pm);
+  Hashtbl.add persistent_structures modname (ps, pm);
   (ps, pm)
 
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
