@@ -41,9 +41,14 @@ end = struct
     let equal t1 t2 = compare t1 t2 = 0
 
     let rec print ppf ({ head; args } : t) =
-      Format.fprintf ppf "@[<hov 1>%s%a@]"
-        head
-        (pp_concat print_arg_pair) args
+      match args with
+      | [] ->
+          (* Preserve simple non-wrapping behaviour in atomic case *)
+          Format.fprintf ppf "%s" head
+      | _ ->
+          Format.fprintf ppf "@[<hov 1>%s%a@]"
+            head
+            (pp_concat print_arg_pair) args
     and print_arg_pair ppf (name, arg) =
       Format.fprintf ppf "[%a:%a]" print name print arg
 
