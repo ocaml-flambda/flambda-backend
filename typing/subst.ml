@@ -439,6 +439,7 @@ let record_representation ~prepare_layout loc = function
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_layout loc) lays)
   | Record_float -> Record_float
+  | Record_ufloat -> Record_ufloat
 
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;

@@ -85,7 +85,6 @@ module Sort : sig
   val for_lazy_body : t
   val for_tuple_element : t
   val for_record : t
-  val for_record_field : t
   val for_constructor_arg : t
   val for_block_element : t
   val for_array_get_result : t

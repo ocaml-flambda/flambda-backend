@@ -212,6 +212,7 @@ let record_rep ppf r = match r with
   | Record_boxed _ -> fprintf ppf "boxed"
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
+  | Record_ufloat -> fprintf ppf "ufloat"
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -275,6 +276,15 @@ let primitive ppf = function
   | Pmakefloatblock (Mutable, mode) ->
      fprintf ppf "make%sfloatblock Mutable"
         (alloc_mode mode)
+  | Pmakeufloatblock (Immutable, mode) ->
+      fprintf ppf "make%sufloatblock Immutable"
+        (alloc_mode mode)
+  | Pmakeufloatblock (Immutable_unique, mode) ->
+     fprintf ppf "make%sufloatblock Immutable_unique"
+        (alloc_mode mode)
+  | Pmakeufloatblock (Mutable, mode) ->
+     fprintf ppf "make%sufloatblock Mutable"
+        (alloc_mode mode)
   | Pfield (n, sem) ->
       fprintf ppf "field%a %i" field_read_semantics sem n
   | Pfield_computed sem ->
@@ -310,6 +320,9 @@ let primitive ppf = function
   | Pfloatfield (n, sem, mode) ->
       fprintf ppf "floatfield%a%s %i"
         field_read_semantics sem (alloc_mode mode) n
+  | Pufloatfield (n, sem) ->
+      fprintf ppf "ufloatfield%a %i"
+        field_read_semantics sem n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -319,6 +332,15 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfloatfield%s %i" init n
+  | Psetufloatfield (n, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
@@ -495,12 +517,15 @@ let name_of_primitive = function
   | Pgetpredef _ -> "Pgetpredef"
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
+  | Pmakeufloatblock _ -> "Pmakeufloatblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
   | Psetfield_computed _ -> "Psetfield_computed"
   | Pfloatfield _ -> "Pfloatfield"
   | Psetfloatfield _ -> "Psetfloatfield"
+  | Pufloatfield _ -> "Pufloatfield"
+  | Psetufloatfield _ -> "Psetufloatfield"
   | Pduprecord _ -> "Pduprecord"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"

@@ -878,6 +878,7 @@ let rec choice ctx t =
     | Pfield _ | Pfield_computed _
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
+    | Pufloatfield _ | Psetufloatfield _
     | Pccall _
     | Praise _
     | Pnot
@@ -907,6 +908,7 @@ let rec choice ctx t =
 
     (* we don't handle all-float records *)
     | Pmakefloatblock _
+    | Pmakeufloatblock _
 
     | Pobj_dup
     | Pobj_magic _

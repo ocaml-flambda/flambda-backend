@@ -162,6 +162,8 @@ let rec expr_size env = function
       expr_size env body
   | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
       RHS_block (mode, List.length args)
+  | Uprim(Pmakeufloatblock (_, mode), args, _) ->
+      RHS_floatblock (mode, List.length args)
   | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
       RHS_block (mode, List.length args)
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
@@ -179,7 +181,7 @@ let rec expr_size env = function
       assert false
   | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz + 1)
-  | Uprim (Pduprecord (Record_float, sz), _, _) ->
+  | Uprim (Pduprecord ((Record_float | Record_ufloat), sz), _, _) ->
       RHS_floatblock (Lambda.alloc_heap, sz)
   | Uprim (Pccall { prim_name; _ }, closure::_, _)
         when prim_name = "caml_check_value_is_closure" ->
@@ -537,10 +539,13 @@ let rec transl env e =
       begin match (simplif_primitive prim, args) with
       | (Pread_symbol sym, []) ->
           Cconst_symbol (sym, dbg)
-      | (Pmakeblock _, []) ->
+      | ((Pmakeblock _ | Pmakeufloatblock _), []) ->
           assert false
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
           make_alloc ~mode dbg tag (List.map (transl env) args)
+      | (Pmakeufloatblock(_mut, mode), args) ->
+          make_float_alloc ~mode dbg Obj.double_array_tag
+            (List.map (transl env) args)
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
       | (Pduparray (kind, _), [Uprim (Pmakearray (kind', _, _), args, _dbg)]) ->
@@ -632,6 +637,7 @@ let rec transl env e =
          | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
+         | Pufloatfield _ | Psetufloatfield (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
          | Pcompare_ints | Pcompare_floats | Pcompare_bints _
          | Poffsetref _ | Pfloatcomp _ | Parraylength _
@@ -900,6 +906,8 @@ and transl_prim_1 env p arg dbg =
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
+  | Pufloatfield n ->
+      get_field env Punboxed_float (transl env arg) n dbg
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
@@ -969,7 +977,9 @@ and transl_prim_1 env p arg dbg =
     | Pstringrefu | Pstringrefs | Pbytesrefu | Pbytessetu
     | Pbytesrefs | Pbytessets | Pisout | Pread_symbol _
     | Pmakeblock (_, _, _, _) | Psetfield (_, _, _) | Psetfield_computed (_, _)
+    | Pmakeufloatblock (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
+    | Psetufloatfield (_, _)
     | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Pmakearray (_, _, _)
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
@@ -994,7 +1004,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       let ptr = transl env arg1 in
       let float_val = transl_unbox_float dbg env arg2 in
       setfloatfield n init ptr float_val dbg
-
+  | Psetufloatfield (n, init) ->
+      let ptr = transl env arg1 in
+      let float_val = transl env arg2 in
+      setfloatfield n init ptr float_val dbg
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
@@ -1150,7 +1163,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
-  | Pfloatfield _
+  | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
   | Pmakearray (_, _, _) | Pduparray (_, _) | Parraylength _ | Parraysetu _
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _, _)
@@ -1208,6 +1221,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
+  | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Pmakearray (_, _, _)

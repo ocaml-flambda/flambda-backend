@@ -72,7 +72,8 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
-  | Float64_in_block of type_expr
+  | Float64_in_block of type_expr * layout_sort_loc
+  | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -1003,7 +1004,7 @@ let check_abbrev env sdecl (id, decl) =
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~why env loc lloc typ =
+let check_representable ~why ~allow_float env loc lloc typ =
   match Ctype.type_sort ~why env typ with
   (* CR layouts v3: This is a convenient place to rule out [float#] in
      structures for now, as it is called on all the types in declared blocks in
@@ -1017,7 +1018,10 @@ let check_representable ~why env loc lloc typ =
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 -> raise (Error (loc, Float64_in_block typ))
+      | Float64 when allow_float -> ()
+      (* CR layouts v2.5: If we want to hold back [float#] records from the
+         maturity progression of [float64], we can add a check here. *)
+      | Float64 -> raise (Error (loc, Float64_in_block (typ, lloc)))
     end
   | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
 
@@ -1028,8 +1032,8 @@ let check_representable ~why env loc lloc typ =
 (* [update_label_layouts] additionally returns whether all the layouts
    were void *)
 let update_label_layouts env loc lbls named =
-  (* "named" distinguishes between top-level records (for which we need to
-     update the kind with the layouts) and inlined records *)
+  (* [named] is [Some layouts] for top-level records (we will update the
+     layouts) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
      void.  just needs a bit of refactoring in translcore *)
   let update =
@@ -1040,7 +1044,7 @@ let update_label_layouts env loc lbls named =
   let lbls =
     List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
       check_representable ~why:(Label_declaration ld_id)
-        env ld_loc Record ld_type;
+        ~allow_float:(Option.is_some named) env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
       update idx ld_layout;
       {lbl with ld_layout}
@@ -1058,7 +1062,7 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx)
+      check_representable ~why:(Constructor_declaration idx) ~allow_float:false
         env loc Cstr_tuple ty;
       layouts.(idx) <- Ctype.type_layout env ty) tys;
     cd_args, Array.for_all Layout.is_void_defaulting layouts
@@ -1077,17 +1081,41 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
    See Note [Default layouts in transl_declaration].
 *)
 let update_decl_layout env dpath decl =
+  let open struct
+    (* For tracking what types appear in record blocks. *)
+    type has_values = Has_values | No_values
+    type has_float64s = Has_float64s | No_float64s
+  end in
+
   (* returns updated labels, updated rep, and updated layout *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~why:(Label_declaration ld_id)
+      check_representable ~why:(Label_declaration ld_id) ~allow_float:false
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
       [{lbl with ld_layout}], Record_unboxed, ld_layout
     | _, Record_boxed layouts ->
       let lbls, all_void = update_label_layouts env loc lbls (Some layouts) in
       let layout = Layout.for_boxed_record ~all_void in
+      let has_values, has_floats =
+        Array.fold_left
+          (fun (values, floats) layout ->
+             match Layout.get_default_value layout with
+             | Value | Immediate64 | Immediate -> (Has_values, floats)
+             | Float64 -> (values, Has_float64s)
+             | Void -> (values, floats)
+             | Any -> assert false)
+          (No_values, No_float64s) layouts
+      in
+      let rep =
+        match has_values, has_floats with
+        | Has_values, Has_float64s -> raise (Error (loc, Mixed_block))
+        | Has_values, No_float64s -> rep
+        | No_values, Has_float64s -> Record_ufloat
+        | No_values, No_float64s ->
+          Misc.fatal_error "Typedecl.update_record_kind: empty record"
+      in
       lbls, rep, layout
     | _, Record_float ->
       (* CR layouts v2.5: When we have an unboxed float layout, does it make
@@ -1099,7 +1127,8 @@ let update_decl_layout env dpath decl =
           lbls
       in
       lbls, rep, Layout.value ~why:Boxed_record
-    | (([] | (_ :: _)), Record_unboxed | _, Record_inlined _) -> assert false
+    | (([] | (_ :: _)), Record_unboxed
+      | _, (Record_inlined _ | Record_ufloat)) -> assert false
   in
 
   (* returns updated constructors, updated rep, and updated layout *)
@@ -1110,13 +1139,13 @@ let update_decl_layout env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             check_representable ~why:(Constructor_declaration 0)
-              env cd_loc Cstr_tuple ty;
+              ~allow_float:false env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
             cstrs, Variant_unboxed, layout
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~why:(Label_declaration ld_id)
-              env ld_loc Record ld_type;
+              ~allow_float:false env ld_loc Record ld_type;
             let ld_layout = Ctype.type_layout env ld_type in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_layout }] }],
@@ -2550,11 +2579,21 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Layout.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block typ ->
+  | Float64_in_block (typ, lloc) ->
+    let struct_desc =
+      match lloc with
+      | Cstr_tuple -> "Variants"
+      | Record -> "Unboxed records"
+        (* [Record] always means unboxed record here, because illegal boxed records
+           get rejected with the [Mixed_block] error instead. *)
+      | External -> assert false
+    in
     fprintf ppf
-      "@[Type %a has layout float64.@ Types of this layout are not yet \
-       allowed in blocks (like records or variants).@]"
-      Printtyp.type_expr typ
+      "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
+      Printtyp.type_expr typ struct_desc
+  | Mixed_block  ->
+    fprintf ppf
+      "@[Records may not contain both unboxed floats and normal values.@]"
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

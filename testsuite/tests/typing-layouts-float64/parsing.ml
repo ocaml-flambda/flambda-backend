@@ -23,7 +23,7 @@ Line 1, characters 9-20:
 1 | type t = C of float#;;
              ^^^^^^^^^^^
 Error: Type float# has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t = C : float# -> t;;
@@ -32,7 +32,7 @@ Line 1, characters 9-24:
 1 | type t = C : float# -> t;;
              ^^^^^^^^^^^^^^^
 Error: Type float# has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 (* float# works as an argument to normal type constructors, not just classes,

@@ -213,7 +213,6 @@ module Sort = struct
   let for_probe_body = value
   let for_poly_variant = value
   let for_record = value
-  let for_record_field = value
   let for_constructor_arg = value
   let for_object = value
   let for_lazy_body = value
