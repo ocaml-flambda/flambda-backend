@@ -240,7 +240,7 @@ let pat
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 id id (sub.pat sub)) l, closed)
     | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
-    | Tpat_alias (p, id, s, m) -> Tpat_alias (sub.pat sub p, id, s, m)
+    | Tpat_alias (p, id, s, uid, m) -> Tpat_alias (sub.pat sub p, id, s, uid, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
     | Tpat_value p ->
        (as_computation_pattern (sub.pat sub (p :> pattern))).pat_desc
