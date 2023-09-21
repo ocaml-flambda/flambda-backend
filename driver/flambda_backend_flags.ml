@@ -366,7 +366,7 @@ let opt_flag_handler : Clflags.Opt_flag_handler.t =
 
 let use_cached_generic_functions = ref false
 let cached_generic_functions_path =
-  ref (Filename.concat Config.standard_library ("cached-generic-functions" ^ Config.ext_obj))
+  ref (Filename.concat Config.standard_library ("cached-generic-functions" ^ Config.ext_lib))
 
 let () =
   if Clflags.is_flambda2 () then set_o2 ()
