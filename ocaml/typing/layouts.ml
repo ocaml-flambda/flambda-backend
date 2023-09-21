@@ -852,7 +852,12 @@ module Layout = struct
         format_desc lay;
       begin match t.history with
       | Creation reason ->
-        fprintf ppf ", because@ %a" format_creation_reason reason
+        fprintf ppf ", because@ %a" format_creation_reason reason;
+        begin match reason, lay with
+        | Concrete_creation _, Const Value ->
+          fprintf ppf " (defaulted to layout value)"
+        | _ -> ()
+        end
       | _ -> assert false
       end;
       fprintf ppf ".@]"
