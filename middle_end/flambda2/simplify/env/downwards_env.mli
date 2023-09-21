@@ -166,7 +166,11 @@ val add_cse :
 
 val find_cse : t -> Flambda_primitive.Eligible_for_cse.t -> Simple.t option
 
+val find_comparison_result : t -> Variable.t -> Comparison_result.t option
+
 val cse : t -> Common_subexpression_elimination.t
+
+val comparison_results : t -> Comparison_result.t Variable.Map.t
 
 val with_cse : t -> Common_subexpression_elimination.t -> t
 
