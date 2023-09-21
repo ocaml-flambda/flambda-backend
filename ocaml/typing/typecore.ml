@@ -8370,8 +8370,8 @@ let escaping_hint failure_reason submode_reason
   begin match failure_reason, context with
   | `Locality, Some Return ->
       [ Location.msg
-          "@[Hint: Cannot return local value without an explicit@ \
-           \"local_\" annotation@]" ]
+          "@[Hint: Cannot return local value without an@ \
+           \"exclave_\" annotation@]" ]
   | `Locality, Some Tailcall_argument ->
       [ Location.msg
           "@[Hint: This argument cannot be local, because this is a tail call@]" ]
