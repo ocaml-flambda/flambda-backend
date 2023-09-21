@@ -476,7 +476,10 @@ let add_cse t prim ~bound_to =
   let cse = CSE.add t.cse prim ~bound_to scope in
   let comparison_results =
     let prim = Flambda_primitive.Eligible_for_cse.to_primitive prim in
-    match Comparison_result.create ~prim, Simple.must_be_var bound_to with
+    match
+      ( Comparison_result.create ~prim t.comparison_results,
+        Simple.must_be_var bound_to )
+    with
     | None, _ | _, None -> t.comparison_results
     | Some comp, Some (var, _) -> Variable.Map.add var comp t.comparison_results
   in
@@ -484,7 +487,8 @@ let add_cse t prim ~bound_to =
 
 let find_cse t prim = CSE.find t.cse prim
 
-let find_comparison_result t var = Variable.Map.find_opt var t.comparison_results
+let find_comparison_result t var =
+  Variable.Map.find_opt var t.comparison_results
 
 let with_cse t cse = { t with cse }
 

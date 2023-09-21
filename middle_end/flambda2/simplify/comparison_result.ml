@@ -14,58 +14,65 @@
 
 module P = Flambda_primitive
 
-type comparison_kind =
-  | Int of { kind : Flambda_kind.Standard_int.t; sign : P.signed_or_unsigned }
-  | Float
+type tagged_or_untagged =
+  | Tagged
+  | Untagged
 
 type t =
-{ lhs : Simple.t;
-  rhs : Simple.t;
-  comp : comparison_kind;
-}
+  { lhs : Simple.t;
+    rhs : Simple.t;
+    kind : Flambda_kind.Standard_int.t;
+    sign : P.signed_or_unsigned;
+    tagged_or_untagged : tagged_or_untagged
+  }
 
-let create ~(prim : P.t) : t option =
+let create ~(prim : P.t) comparison_results : t option =
   match[@warning "-fragile-match"] prim with
-  | Binary (Int_comp (kind, Yielding_int_like_compare_functions sign),
-     lhs, rhs)->
-    Some { lhs; rhs; comp = Int { kind; sign } }
-  | Binary (Float_comp (Yielding_int_like_compare_functions ()),
-     lhs, rhs)->
-    Some { lhs; rhs; comp = Float }
+  | Binary (Int_comp (kind, Yielding_int_like_compare_functions sign), lhs, rhs)
+    ->
+    Some { lhs; rhs; kind; sign; tagged_or_untagged = Untagged }
+  | Unary (Tag_immediate, arg) -> (
+    match Simple.must_be_var arg with
+    | None -> None
+    | Some (var, _) -> (
+      match Variable.Map.find_opt var comparison_results with
+      | None -> None
+      | Some { lhs; rhs; kind; sign; tagged_or_untagged = Untagged } ->
+        Some { lhs; rhs; kind; sign; tagged_or_untagged = Tagged }
+      | Some { tagged_or_untagged = Tagged; _ } ->
+        Misc.fatal_error "Tagging of an already tagged result"))
   | _ -> None
 
-let print_kind ppf ckind =
-  match ckind with
-  | Float -> Format.fprintf ppf "float"
-  | Int { kind; sign } ->
-    let prefix = match sign with Signed -> "" | Unsigned -> "u" in
-    Format.fprintf ppf "%s%a"
-      prefix
-      Flambda_kind.Standard_int.print_lowercase kind
-
-let [@ocamlformat "disable"] print ppf { lhs; rhs; comp } =
+let [@ocamlformat "disable"] print ppf
+    { lhs; rhs; kind; sign; tagged_or_untagged } =
+  let prefix = match sign with Signed -> "" | Unsigned -> "u" in
+  let result =
+    match tagged_or_untagged with
+    | Tagged -> "tagged"
+    | Untagged -> "untagged"
+  in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(lhs@ %a)@]@ \
       @[<hov 1>(rhs@ %a)@]@ \
-      @[<hov 1>(kind@ %a)@]@ \
+      @[<hov 1>(kind@ %s%a -> %s)@]@ \
       )@]"
     Simple.print lhs
     Simple.print rhs
-    print_kind comp
+    prefix Flambda_kind.Standard_int.print_lowercase kind result
 
-let convert_result_compared_to_zero { lhs; rhs; comp } (op : _ P.comparison) : P.t =
-  let fix_sign new_val : _ P.comparison =
+let convert_result_compared_to_tagged_zero
+    { lhs; rhs; kind; sign; tagged_or_untagged } (op : _ P.comparison) : P.t =
+  (match tagged_or_untagged with
+  | Tagged -> ()
+  | Untagged -> Misc.fatal_error "Comparing untagged result with tagged zero");
+  let new_op : _ P.comparison =
     match op with
     | Eq -> Eq
     | Neq -> Neq
-    | Lt _ -> Lt new_val
-    | Gt _ -> Gt new_val
-    | Le _ -> Le new_val
-    | Ge _ -> Ge new_val
+    | Lt _ -> Lt sign
+    | Gt _ -> Gt sign
+    | Le _ -> Le sign
+    | Ge _ -> Ge sign
   in
-  let prim : P.binary_primitive=
-    match comp with
-    | Float -> Float_comp (Yielding_bool (fix_sign ()))
-    | Int { kind; sign } -> Int_comp (kind, Yielding_bool (fix_sign sign))
-  in
+  let prim : P.binary_primitive = Int_comp (kind, Yielding_bool new_op) in
   Binary (prim, lhs, rhs)

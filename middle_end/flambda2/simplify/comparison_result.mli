@@ -14,9 +14,9 @@
 
 type t
 
-val create : prim:Flambda_primitive.t -> t option
+val create : prim:Flambda_primitive.t -> t Variable.Map.t -> t option
 
 val print : Format.formatter -> t -> unit
 
-val convert_result_compared_to_zero :
+val convert_result_compared_to_tagged_zero :
   t -> 'a Flambda_primitive.comparison -> Flambda_primitive.t
