@@ -246,7 +246,8 @@ let recognize_switch_with_single_arg_to_same_destination0 ~arms =
     let args = List.rev args_rev in
     assert (List.compare_length_with args 1 >= 0);
     (* For the moment just do this for things that can be put in scannable
-       blocks. *)
+       blocks (which might then need untagging depending on how they appeared in
+       the original [Switch]). *)
     let[@inline] check_args prover must_untag_lookup_table_result =
       let args' = List.filter_map prover args in
       if List.compare_lengths args args' = 0
@@ -302,11 +303,10 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
         field_kind = Immediate
       }
   in
-  let load_from_block =
-    Named.create_prim
-      (Binary (Block_load (access_kind, Immutable), block, tagged_scrutinee))
-      dbg
+  let load_from_block_prim : P.t =
+    Binary (Block_load (access_kind, Immutable), block, tagged_scrutinee)
   in
+  let load_from_block = Named.create_prim load_from_block_prim dbg in
   let arg_var = Variable.create "arg" in
   let arg = Simple.var arg_var in
   let final_arg_var, final_arg =
@@ -349,10 +349,12 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     (* Very likely negative. *)
     Code_size.( - )
       (Code_size.( + )
-         (Code_size.apply_cont apply_cont)
-         (match must_untag_lookup_table_result with
-         | Must_untag -> Code_size.prim untag_arg_prim
-         | Leave_as_tagged_immediate -> Code_size.zero))
+         (Code_size.prim load_from_block_prim)
+         (Code_size.( + )
+            (Code_size.apply_cont apply_cont)
+            (match must_untag_lookup_table_result with
+            | Must_untag -> Code_size.prim untag_arg_prim
+            | Leave_as_tagged_immediate -> Code_size.zero)))
       (Code_size.switch original)
   in
   let uacc =
