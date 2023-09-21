@@ -928,6 +928,7 @@ let finalize_variants p =
 type pattern_variable =
   {
     pv_id: Ident.t;
+    pv_uid: Uid.t;
     pv_mode: Value.t;
     pv_type: type_expr;
     pv_loc: Location.t;
@@ -1028,12 +1029,12 @@ let iter_pattern_variables_type f : pattern_variable list -> unit =
 
 let add_pattern_variables ?check ?check_as env pv =
   List.fold_right
-    (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes} env ->
+    (fun {pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes} env ->
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes;
-          val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+          val_uid = pv_uid
          } env
     )
     pv env
@@ -1106,14 +1107,16 @@ let enter_variable
     end else
       Ident.create_local name.txt
   in
+  let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
   tps.tps_pattern_variables <-
     {pv_id = id;
+     pv_uid;
      pv_mode = mode;
      pv_type = ty;
      pv_loc = loc;
      pv_as_var = is_as_variable;
      pv_attributes = attrs} :: tps.tps_pattern_variables;
-  id
+  id, pv_uid
 
 let sort_pattern_variables vs =
   List.sort
@@ -1188,7 +1191,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
   let build_as_type env p =
     fst (build_as_type_and_mode ~refine ~mode env p) in
   match p.pat_desc with
-    Tpat_alias(p1,_, _, _) -> build_as_type_and_mode ~refine ~mode env p1
+    Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode ~refine ~mode env p1
   | Tpat_tuple pl ->
       let tyl = List.map (build_as_type env) pl in
       newty (Ttuple tyl), mode
@@ -1594,7 +1597,8 @@ let split_cases env cases =
    so [enter_variable] can be called, depending on the usage. *)
 let type_for_loop_like_index ~error ~loc ~env ~param ~any ~var =
   match param.ppat_desc with
-  | Ppat_any -> any (Ident.create_local "_for")
+  | Ppat_any ->
+    any (Ident.create_local "_for", Uid.mk ~current_unit:(Env.get_unit_name ()))
   | Ppat_var name ->
       var ~name
           ~pv_mode:Value.min_mode
@@ -1623,10 +1627,11 @@ let type_for_loop_index ~loc ~env ~param =
           ->
             let check s = Warnings.Unused_for_index s in
             let pv_id = Ident.create_local txt in
+            let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
             let pv =
-              { pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes }
+              { pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes }
             in
-            pv_id, add_pattern_variables ~check ~check_as:check env [pv])
+            (pv_id, pv_uid), add_pattern_variables ~check ~check_as:check env [pv])
 
 let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
   type_for_loop_like_index
@@ -1639,14 +1644,14 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
        for duplicates or anything else. *)
     ~any:Fun.id
     ~var:(fun ~name ~pv_mode ~pv_type ~pv_loc ~pv_as_var ~pv_attributes ->
-            enter_variable
-              ~is_as_variable:pv_as_var
-              tps
-              pv_loc
-              name
-              pv_mode
-              pv_type
-              pv_attributes)
+          enter_variable
+            ~is_as_variable:pv_as_var
+            tps
+            pv_loc
+            name
+            pv_mode
+            pv_type
+            pv_attributes)
 
 
 (* Type paths *)
@@ -2495,14 +2500,14 @@ and type_pat_aux
   | Ppat_var name ->
       let ty = instance expected_ty in
       let alloc_mode = mode_cross_to_min !env expected_ty alloc_mode.mode in
-      let id = (* PR#7330 *)
+      let id, uid = (* PR#7330 *)
         if name.txt = "*extension*" then
-          Ident.create_local name.txt
+          Ident.create_local name.txt, Uid.internal_not_actually_unique
         else
           enter_variable tps loc name alloc_mode ty sp.ppat_attributes
       in
       rvp k {
-        pat_desc = Tpat_var (id, name, alloc_mode);
+        pat_desc = Tpat_var (id, name, uid, alloc_mode);
         pat_loc = loc; pat_extra=[];
         pat_type = ty;
         pat_attributes = sp.ppat_attributes;
@@ -2524,10 +2529,10 @@ and type_pat_aux
           (* We're able to pass ~is_module:true here without an error because
              [Ppat_unpack] is a case identified by [may_contain_modules]. See
              the comment on [may_contain_modules]. *)
-          let id = enter_variable tps loc v alloc_mode.mode
-                     t ~is_module:true sp.ppat_attributes in
+          let id, uid = enter_variable tps loc v alloc_mode.mode
+                          t ~is_module:true sp.ppat_attributes in
           rvp k {
-            pat_desc = Tpat_var (id, v, alloc_mode.mode);
+            pat_desc = Tpat_var (id, v, uid, alloc_mode.mode);
             pat_loc = sp.ppat_loc;
             pat_extra=[Tpat_unpack, loc, sp.ppat_attributes];
             pat_type = t;
@@ -2539,12 +2544,12 @@ and type_pat_aux
       type_pat tps Value sq expected_ty (fun q ->
         let ty_var, mode = solve_Ppat_alias ~refine ~mode:alloc_mode.mode env q in
         let mode = mode_cross_to_min !env expected_ty mode in
-        let id =
+        let id, uid =
           enter_variable ~is_as_variable:true tps name.loc name mode
             ty_var sp.ppat_attributes
         in
         rvp k {
-          pat_desc = Tpat_alias(q, id, name, mode);
+          pat_desc = Tpat_alias(q, id, name, uid, mode);
           pat_loc = loc; pat_extra=[];
           pat_type = q.pat_type;
           pat_attributes = sp.ppat_attributes;
@@ -3024,20 +3029,19 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   end;
   let (pv, val_env, met_env) =
     List.fold_right
-      (fun {pv_id; pv_type; pv_loc; pv_as_var; pv_attributes}
+      (fun {pv_id; pv_uid; pv_type; pv_loc; pv_as_var; pv_attributes}
         (pv, val_env, met_env) ->
          let check s =
            if pv_as_var then Warnings.Unused_var s
            else Warnings.Unused_var_strict s in
          let id' = Ident.rename pv_id in
-         let val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
          let val_env =
           Env.add_value pv_id
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
             ; val_loc = pv_loc
-            ; val_uid
+            ; val_uid = pv_uid
             }
             val_env
          in
@@ -3047,7 +3051,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
             ; val_loc = pv_loc
-            ; val_uid
+            ; val_uid = pv_uid
             }
             met_env
          in
@@ -4361,8 +4365,8 @@ let rec name_pattern default = function
     [] -> Ident.create_local default
   | p :: rem ->
     match p.pat_desc with
-      Tpat_var (id, _, _) -> id
-    | Tpat_alias(_, id, _, _) -> id
+      Tpat_var (id, _, _, _) -> id
+    | Tpat_alias(_, id, _, _, _) -> id
     | _ -> name_pattern default rem
 
 let name_cases default lst =
@@ -5342,7 +5346,8 @@ and type_expect_
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
       let env = Env.add_share_lock For_loop env in
-      let for_id, new_env =
+      (* When we'll want to add Uid to for loops, we can take it from here. *)
+      let (for_id, _for_uid), new_env =
         type_for_loop_index ~loc ~env ~param
       in
       let new_env = Env.add_region_lock new_env in
@@ -6728,7 +6733,9 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         in
         let exp_env = Env.add_value ~mode id desc env in
         let uu = unique_use ~loc:sarg.pexp_loc ~env mode mode in
-        {pat_desc = Tpat_var (id, mknoloc name, mode); pat_type = ty;pat_extra=[];
+        {pat_desc = Tpat_var (id, mknoloc name, desc.val_uid, mode);
+         pat_type = ty;
+         pat_extra=[];
          pat_attributes = [];
          pat_loc = Location.none; pat_env = env},
         {exp_type = ty; exp_loc = Location.none; exp_env = exp_env;
@@ -8108,7 +8115,9 @@ and type_comprehension_iterator
       in
       let start = tbound ~explanation:Comprehension_for_start start in
       let stop  = tbound ~explanation:Comprehension_for_stop  stop  in
-      let ident =
+      (* When we'll want to add Uid to comprehension bindings,
+         we can take it from here. *)
+      let (ident, _uid) =
         type_comprehension_for_range_iterator_index
           tps
           ~loc

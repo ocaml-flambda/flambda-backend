@@ -147,12 +147,12 @@ let view_texp (e : expression_desc) =
 type tpat_var_identifier = Value.t
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
-  Tpat_var (ident, name, mode)
+  Tpat_var (ident, name, Uid.internal_not_actually_unique, mode)
 
 type tpat_alias_identifier = Value.t
 
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
-  Tpat_alias (p, ident, name, mode)
+  Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
 type tpat_array_identifier = Asttypes.mutable_flag
 
@@ -175,8 +175,8 @@ type 'a matched_pattern_desc =
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
-  | Tpat_var (ident, name, mode) -> Tpat_var (ident, name, mode)
-  | Tpat_alias (p, ident, name, mode) -> Tpat_alias (p, ident, name, mode)
+  | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
+  | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
   | Tpat_array (mut, l) -> Tpat_array (l, mut)
   | _ -> O p
 

@@ -24,6 +24,8 @@
 open Asttypes
 open Jane_asttypes
 
+module Uid = Shape.Uid
+
 (* Value expressions for the core language *)
 
 type partial = Partial | Total
@@ -89,10 +91,11 @@ and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
         (** _ *)
-  | Tpat_var : Ident.t * string loc * Mode.Value.t -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
         (** x *)
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * Mode.Value.t -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.t
+        -> value pattern_desc
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
@@ -964,7 +967,7 @@ val exists_pattern: (pattern -> bool) -> pattern -> bool
 
 val let_bound_idents: value_binding list -> Ident.t list
 val let_bound_idents_full:
-    value_binding list -> (Ident.t * string loc * Types.type_expr) list
+    value_binding list -> (Ident.t * string loc * Types.type_expr * Uid.t) list
 val let_bound_idents_with_modes_and_sorts:
   value_binding list
   -> (Ident.t * (Location.t * Mode.Value.t * Layouts.sort) list) list
