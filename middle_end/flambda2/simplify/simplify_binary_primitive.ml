@@ -1085,10 +1085,10 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     | Some (Binary (new_prim, new_arg1, new_arg2) as new_original_prim) -> (
       let min_name_mode = Bound_var.name_mode result_var in
       let arg1_ty_opt =
-        S.simplify_simple_if_in_scope dacc arg1 ~min_name_mode
+        S.simplify_simple_if_in_scope dacc new_arg1 ~min_name_mode
       in
       let arg2_ty_opt =
-        S.simplify_simple_if_in_scope dacc arg2 ~min_name_mode
+        S.simplify_simple_if_in_scope dacc new_arg2 ~min_name_mode
       in
       match arg1_ty_opt, arg2_ty_opt with
       | Some new_arg1_ty, Some new_arg2_ty ->
