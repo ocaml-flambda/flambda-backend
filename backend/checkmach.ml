@@ -403,13 +403,16 @@ end = struct
   type t =
     { strict : bool;  (** strict or relaxed? *)
       assume : bool;
+      never_returns_normally : bool;
       loc : Location.t
           (** Source location of the annotation, used for error messages. *)
     }
 
   let get_loc t = t.loc
 
-  let expected_value t = if t.strict then Value.safe else Value.relaxed
+  let expected_value t =
+    let res = if t.strict then Value.safe else Value.relaxed in
+    if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
 
@@ -419,12 +422,15 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check { property; strict; assume; loc } when property = spec ->
-            Some { strict; assume; loc }
+          | Check { property; strict; loc } when property = spec ->
+            Some { strict; assume = false; never_returns_normally = false; loc }
+          | Assume { property; strict; never_returns_normally; loc }
+            when property = spec ->
+            Some { strict; assume = true; never_returns_normally; loc }
           | Ignore_assert_all property when property = spec ->
             ignore_assert_all := true;
             None
-          | Ignore_assert_all _ | Check _ | Reduce_code_size | No_CSE
+          | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)
         codegen_options
@@ -433,7 +439,12 @@ end = struct
     | [] ->
       if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
       then
-        Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
+        Some
+          { strict = false;
+            assume = false;
+            never_returns_normally = false;
+            loc = Debuginfo.to_location dbg
+          }
       else None
     | [p] -> Some p
     | _ :: _ ->

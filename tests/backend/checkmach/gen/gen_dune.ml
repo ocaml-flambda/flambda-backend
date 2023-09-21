@@ -117,4 +117,5 @@ let () =
   print_test ~flambda_only:true ~deps:"t1.ml";
   (* closure does not delete dead functions *)
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
   ()

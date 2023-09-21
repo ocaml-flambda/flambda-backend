@@ -391,11 +391,13 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
-               assume: bool;
-               (* [assume=true] assume without checking that the
-                  property holds *)
                loc: Location.t;
              }
+  | Assume of { property: property;
+                strict: bool;
+                loc: Location.t;
+                never_returns_normally: bool;
+              }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)

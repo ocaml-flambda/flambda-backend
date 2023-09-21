@@ -251,11 +251,17 @@ let parse_property_attribute attr property =
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
       parse_ids_payload txt loc
         ~default:Default_check
-        ~empty:(Check { property; strict = false; assume = false; loc; } )
+        ~empty:(Check { property; strict = false; loc; } )
         [
-          ["assume"], Check { property; strict = false; assume = true; loc; };
-          ["strict"], Check { property; strict = true; assume = false; loc; };
-          ["assume"; "strict"], Check { property; strict = true; assume = true; loc; };
+          ["assume"],
+          Assume { property; strict = false; never_returns_normally = false; loc; };
+          ["strict"], Check { property; strict = true; loc; };
+          ["assume"; "strict"],
+          Assume { property; strict = true; never_returns_normally = false; loc; };
+          ["assume"; "never_returns_normally"],
+          Assume { property; strict = false; never_returns_normally = true; loc; };
+          ["assume"; "strict"; "never_returns_normally"],
+          Assume { property; strict = true; never_returns_normally = true; loc; };
           ["ignore"], Ignore_assert_all property
         ]
         payload
@@ -303,15 +309,15 @@ let get_property_attribute l p =
   (match attr, res with
    | None, Default_check -> ()
    | _, Default_check -> ()
-   | None, (Check _ | Ignore_assert_all _ ) -> assert false
+   | None, (Check _ | Assume _ | Ignore_assert_all _) -> assert false
    | Some _, Ignore_assert_all _ -> ()
-   | Some attr, Check { assume; _ } ->
+   | Some _, Assume _ -> ()
+   | Some attr, Check _ ->
      if !Clflags.zero_alloc_check && !Clflags.native_code then
        (* The warning for unchecked functions will not trigger if the check is requested
           through the [@@@zero_alloc all] top-level annotation rather than through the
           function annotation [@zero_alloc]. *)
-       if not assume then
-         Builtin_attributes.register_property attr.attr_name);
+       Builtin_attributes.register_property attr.attr_name);
    res
 
 let get_poll_attribute l =
@@ -414,7 +420,8 @@ let assume_zero_alloc attributes =
   match parse_property_attribute attr p with
   | Default_check -> false
   | Ignore_assert_all _ -> false
-  | Check { property = Zero_alloc; assume } -> assume
+  | Assume { property = Zero_alloc; _ } -> true
+  | Check { property = Zero_alloc; _ } -> false
 
 let assume_zero_alloc attributes =
   (* This function is used for "look-ahead" to find attributes
@@ -428,9 +435,12 @@ let add_check_attribute expr loc attributes =
     | Zero_alloc -> "zero_alloc"
   in
   let to_string = function
-    | Check { property; strict; assume; loc = _} ->
-      Printf.sprintf "%s %s%s"
-        (if assume then "assume" else "assert")
+    | Check { property; strict; loc = _} ->
+      Printf.sprintf "assert %s%s"
+        (to_string property)
+        (if strict then " strict" else "")
+    | Assume { property; strict; loc = _} ->
+      Printf.sprintf "assume %s%s"
         (to_string property)
         (if strict then " strict" else "")
     | Ignore_assert_all property ->
@@ -441,11 +451,13 @@ let add_check_attribute expr loc attributes =
   | Lfunction({ attr = { stub = false } as attr; } as funct) ->
     begin match get_property_attribute attributes Zero_alloc with
     | Default_check -> expr
-    | (Ignore_assert_all p | Check { property = p; _ }) as check ->
+    | (Ignore_assert_all p | Check { property = p; _ } | Assume { property = p; _ })
+      as check ->
       begin match attr.check with
       | Default_check -> ()
       | Ignore_assert_all p'
-      | Check { property = p'; strict = _; assume = _; loc = _; } ->
+      | Assume { property = p'; strict = _; loc = _; }
+      | Check { property = p'; strict = _; loc = _; } ->
         if p = p' then
           Location.prerr_warning loc
             (Warnings.Duplicated_attribute (to_string check));

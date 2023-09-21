@@ -17,10 +17,15 @@ end
 type t =
   | Default_check
   | Ignore_assert_all of Property.t
+  | Assume of
+      { property : Property.t;
+        strict : bool;
+        never_returns_normally : bool;
+        loc : Location.t
+      }
   | Check of
       { property : Property.t;
         strict : bool;
-        assume : bool;
         loc : Location.t
       }
 
