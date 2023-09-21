@@ -44,7 +44,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       (* This happens in the stub case, where we are only simplifying code, not
          a set of closures. *)
       DE.add_variable denv
-        (Bound_var.create my_closure NM.normal)
+        (Bound_var.create my_closure Flambda_uid.internal_not_actually_unique
+           NM.normal)
         (T.unknown K.value)
     | Some function_slot -> (
       match
@@ -60,15 +61,22 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       | name ->
         let name = Bound_name.name name in
         DE.add_variable denv
-          (Bound_var.create my_closure NM.normal)
+          (Bound_var.create my_closure Flambda_uid.internal_not_actually_unique
+             NM.normal)
           (T.alias_type_of K.value (Simple.name name)))
   in
   let denv =
-    let my_region = Bound_var.create my_region Name_mode.normal in
+    let my_region =
+      Bound_var.create my_region Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     DE.add_variable denv my_region (T.unknown K.region)
   in
   let denv =
-    let my_depth = Bound_var.create my_depth Name_mode.normal in
+    let my_depth =
+      Bound_var.create my_depth Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     DE.add_variable denv my_depth (T.unknown K.rec_info)
   in
   let denv =
@@ -169,10 +177,13 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       ~implicit_params:
         (Bound_parameters.create
            [ Bound_parameter.create my_closure
-               Flambda_kind.With_subkind.any_value;
-             Bound_parameter.create my_region Flambda_kind.With_subkind.region;
+               Flambda_kind.With_subkind.any_value
+               Flambda_uid.internal_not_actually_unique;
+             (* CR tnowak: maybe? verify those three *)
+             Bound_parameter.create my_region Flambda_kind.With_subkind.region
+               Flambda_uid.internal_not_actually_unique;
              Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
-           ])
+               Flambda_uid.internal_not_actually_unique ])
       ~loopify_state ~params
   with
   | body, uacc ->
@@ -335,7 +346,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       (fun i kind_with_subkind ->
         BP.create
           (Variable.create ("result" ^ string_of_int i))
-          kind_with_subkind)
+          kind_with_subkind
+          Flambda_uid.internal_not_actually_unique (* CR tnowak: verify *))
       (Flambda_arity.unarized_components result_arity)
     |> Bound_parameters.create
   in

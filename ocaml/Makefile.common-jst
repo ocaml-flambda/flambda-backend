@@ -64,7 +64,7 @@ boot_targets = \
   $(boot_ocamlobjinfo)
 
 boot-compiler: _build/_bootinstall
-	$(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
+	~/.opam/4.14.1/bin/dune build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force

@@ -256,17 +256,27 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
       ~body ~is_exn_handler:false ~is_cold:false
   | If_then_else (cond, ifso, ifnot) ->
     let cond_result = Variable.create "cond_result" in
-    let cond_result_pat = Bound_var.create cond_result Name_mode.normal in
+    let cond_result_pat =
+      Bound_var.create cond_result Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     let ifso_cont = Continuation.create () in
     let ifso_result = Variable.create "ifso_result" in
-    let ifso_result_pat = Bound_var.create ifso_result Name_mode.normal in
+    let ifso_result_pat =
+      Bound_var.create ifso_result Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     let ifnot_cont = Continuation.create () in
     let ifnot_result = Variable.create "ifnot_result" in
-    let ifnot_result_pat = Bound_var.create ifnot_result Name_mode.normal in
+    let ifnot_result_pat =
+      Bound_var.create ifnot_result Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     let join_point_cont = Continuation.create () in
     let result_var = Variable.create "if_then_else_result" in
     let result_param =
       Bound_parameter.create result_var Flambda_kind.With_subkind.any_value
+        Flambda_uid.internal_not_actually_unique
     in
     bind_rec acc exn_cont ~register_const0 cond dbg @@ fun acc cond ->
     let compute_cond_and_switch acc =
@@ -332,7 +342,9 @@ and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
   | Simple s -> cont acc s
   | Prim p ->
     let var = Variable.create "prim" in
-    let var' = VB.create var Name_mode.normal in
+    let var' =
+      VB.create var Flambda_uid.internal_not_actually_unique Name_mode.normal
+    in
     let cont acc (named : Named.t) =
       let acc, body = cont acc (Simple.var var) in
       Let_with_acc.create acc (Bound_pattern.singleton var') named ~body

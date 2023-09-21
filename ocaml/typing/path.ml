@@ -121,9 +121,15 @@ let is_constructor_typath p =
   | Regular _ -> false
   | _ -> true
 
-module T = struct
-  type nonrec t = t
-  let compare = compare
-end
-module Set = Set.Make(T)
-module Map = Map.Make(T)
+include Identifiable.Make(
+    struct
+      type nonrec t = t
+      let compare = compare
+      let print = print
+      let hash (x : t) = Hashtbl.hash x
+      let equal (x : t) y = x = y
+      let output oc t =
+        let fmt = Format.formatter_of_out_channel oc in
+        print fmt t
+    end
+    )

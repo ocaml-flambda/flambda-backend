@@ -142,7 +142,10 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
   let expr =
     List.fold_right
       (fun (v, defining_expr) body ->
-        let var_bind = Bound_var.create v Name_mode.normal in
+        let var_bind =
+          Bound_var.create v Flambda_uid.internal_not_actually_unique
+            Name_mode.normal
+        in
         Let.create
           (Bound_pattern.singleton var_bind)
           defining_expr ~body ~free_names_of_body:Unknown
@@ -285,8 +288,9 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
               let denv =
                 List.fold_left2
                   (fun denv kind result ->
+                    let result_var, result_uid = BP.var_and_uid result in
                     DE.add_variable denv
-                      (VB.create (BP.var result) NM.in_types)
+                      (VB.create result_var result_uid NM.in_types)
                       (T.unknown_with_subkind kind))
                   denv result_arity results
               in
@@ -440,7 +444,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       List.map
         (fun kind ->
           let param = Variable.create "param" in
-          Bound_parameter.create param kind)
+          Bound_parameter.create param kind
+            Flambda_uid.internal_not_actually_unique (* CR tnowak: verify *))
         (Flambda_arity.unarize remaining_param_arity)
       |> Bound_parameters.create
     in
@@ -532,7 +537,11 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           match applied_value with
           | Const _ | Symbol _ -> expr, cost_metrics, free_names
           | In_closure { var; value_slot; value = _ } ->
-            let arg = VB.create var Name_mode.normal in
+            (* CR tnowak: verify *)
+            let arg =
+              VB.create var Flambda_uid.internal_not_actually_unique
+                Name_mode.normal
+            in
             let kind = Value_slot.kind value_slot in
             let prim =
               P.Unary
@@ -624,7 +633,10 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     Apply_cont.create apply_continuation ~args:[Simple.var wrapper_var] ~dbg
   in
   let expr =
-    let wrapper_var = VB.create wrapper_var Name_mode.normal in
+    let wrapper_var =
+      VB.create wrapper_var Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     let bound_vars = [wrapper_var] in
     let bound = Bound_pattern.set_of_closures bound_vars in
     let body =

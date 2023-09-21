@@ -235,13 +235,15 @@ let operation' ?(print_reg = reg) op arg ppf res =
     fprintf ppf "%s->scalar %a"
       (Primitive.vec128_name ty) reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
-  | Iname_for_debugger { ident; which_parameter; regs = r } ->
-    fprintf ppf "%a holds the value of %a%s"
+  | Iname_for_debugger { ident; which_parameter; regs = r; provenance } ->
+    fprintf ppf "%a holds the value of %a%s (provenance=%a)"
       regs r
       V.print ident
       (match which_parameter with
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
+      (Format.pp_print_option V.Provenance.print)
+      provenance
   | Ibeginregion -> fprintf ppf "beginregion"
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->

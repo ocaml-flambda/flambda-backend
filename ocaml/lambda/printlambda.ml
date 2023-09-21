@@ -751,8 +751,9 @@ let rec lam ppf = function
             List.iter (fun (p : Lambda.lparam) ->
                 (* Make sure we change this once there are attributes *)
                 let No_attributes = p.attributes in
-                fprintf ppf "@ %a%s%a"
-                  Ident.print p.name (alloc_kind p.mode) layout p.layout) params
+                fprintf ppf "@ %a%s%a,uid=%a"
+                  Ident.print p.name (alloc_kind p.mode) layout p.layout
+                  Uid.print p.var_uid) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
@@ -772,7 +773,7 @@ let rec lam ppf = function
         function_attribute attr return_kind (rmode, return) lam body
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
-        | Llet(str,_,_,_,_) ->
+        | Llet(str,_,_,_,_,_) ->
            begin match str with
              Alias -> "a" | Strict -> "" | StrictOpt -> "o"
            end
@@ -781,11 +782,11 @@ let rec lam ppf = function
         end
       in
       let rec letbody ~sp = function
-        | Llet(_, k, id, arg, body)
-        | Lmutlet(k, id, arg, body) as l ->
+        | Llet(_, k, id, uid, arg, body)
+        | Lmutlet(k, id, uid, arg, body) as l ->
            if sp then fprintf ppf "@ ";
-           fprintf ppf "@[<2>%a =%s%a@ %a@]"
-             Ident.print id (let_kind l) layout k lam arg;
+           fprintf ppf "@[<2>%a,uid=%a =%s%a@ %a@]"
+             Ident.print id Uid.print uid (let_kind l) layout k lam arg;
            letbody ~sp:true body
         | expr -> expr in
       fprintf ppf "@[<2>(let@ @[<hv 1>(";
@@ -795,9 +796,9 @@ let rec lam ppf = function
       let bindings ppf id_arg_list =
         let spc = ref false in
         List.iter
-          (fun (id, l) ->
+          (fun (id, uid, l) ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<2>%a@ %a@]" Ident.print id lam l)
+            fprintf ppf "@[<2>%a@,uid=%a %a@]" Ident.print id Uid.print uid lam l)
           id_arg_list in
       fprintf ppf
         "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam body
@@ -853,7 +854,7 @@ let rec lam ppf = function
         lam lbody i
         (fun ppf vars ->
            List.iter
-             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x layout k)
+             (fun (x, uid, k) -> fprintf ppf " %a%a,uid=%a" Ident.print x layout k Uid.print uid)
              vars
         )
         vars

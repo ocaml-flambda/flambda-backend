@@ -3310,8 +3310,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             let annots = Cmt_format.Implementation str in
             Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
               annots (Some sourcefile) initial_env None (Some shape);
-            Cms_format.save_cms (outputprefix ^ ".cms") modulename
-              (Some sourcefile) (Some shape);
+            (match !Clflags.native_code with
+            | true -> ()
+            | false -> Cms_format.save_cms (outputprefix ^ ".cms") modulename
+              (Some sourcefile) (Some shape));
             gen_annot outputprefix sourcefile annots);
           { structure = str;
             coercion;
@@ -3346,8 +3348,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               let annots = Cmt_format.Implementation str in
               Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
                 annots (Some sourcefile) initial_env (Some cmi) (Some shape);
-              Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-                (Some sourcefile) (Some shape);
+              (match !Clflags.native_code with
+               | true -> ()
+               | false -> Cms_format.save_cms  (outputprefix ^ ".cms") modulename
+                (Some sourcefile) (Some shape));
               gen_annot outputprefix sourcefile annots)
           end;
           { structure = str;
@@ -3366,16 +3370,22 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           in
           Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
             annots (Some sourcefile) initial_env None None;
-          Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-            (Some sourcefile) None;
+          (match !Clflags.native_code with
+           | true -> ()
+           | false ->
+            Cms_format.save_cms  (outputprefix ^ ".cms") modulename
+              (Some sourcefile) None);
           gen_annot outputprefix sourcefile annots)
       )
 
 let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None;
-  Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
-    (Some source_file) None
+  (match !Clflags.native_code with
+   | true -> ()
+   | false ->
+     Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
+       (Some source_file) None)
 
 let type_interface env ast =
   transl_signature env ast
@@ -3465,8 +3475,11 @@ let package_units initial_env objfiles cmifile modulename =
     in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
-    Cms_format.save_cms  (prefix ^ ".cms") modulename
-      None (Some shape);
+    (match !Clflags.native_code with
+     | true -> ()
+     | false ->
+      Cms_format.save_cms  (prefix ^ ".cms") modulename
+        None (Some shape));
     cc
   end else begin
     (* Determine imports *)
@@ -3486,9 +3499,12 @@ let package_units initial_env objfiles cmifile modulename =
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (sign, objfiles)) None initial_env
-        (Some cmi) (Some shape);
-      Cms_format.save_cms (prefix ^ ".cms")  modulename
-        None (Some shape);
+         (Some cmi) (Some shape);
+      (match !Clflags.native_code with
+       | true -> ()
+       | false ->
+        Cms_format.save_cms (prefix ^ ".cms")  modulename
+          None (Some shape));
     end;
     Tcoerce_none
   end

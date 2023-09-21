@@ -337,6 +337,71 @@ let set_private_row env loc p decl =
 
 (* Translate one type declaration *)
 
+let rec split_type_path_at_compilation_unit (path : Path.t) =
+  match path with
+  | Pident _ | Papply _ -> None, path
+  | Pdot (Pident i, s) ->
+    if Ident.is_global i
+    then Some (Ident.name i), Path.Pident (Ident.create_local s)
+    else None, path
+  | Pdot (path, s) ->
+    let comp_unit, path = split_type_path_at_compilation_unit path in
+    comp_unit, Path.Pdot (path, s)
+
+module Shape_reduce = Shape.Make_reduce(struct
+    type env = (*Shape.t Ident.Tbl.t*) unit
+
+    let fuel = 10
+
+    let read_unit_shape ~unit_name =
+      let filename = String.uncapitalize_ascii unit_name in
+      match Load_path.find_uncap (filename ^ ".cms") with
+      | exception Not_found -> None
+      | fn ->
+        (* CR tnowak: exception? *)
+        let cms_infos = Cms_format.read fn in
+        cms_infos.cms_impl_shape
+
+    (* CR tnowak: understand this function *)
+    let find_shape _env _ident = (*Ident.Tbl.find env ident*) Shape.dummy_mod
+  end)
+
+let debug = false
+
+let uid_of_path ~env path =
+  if debug then Format.eprintf "uid_of_path path=%a\n" Path.print path;
+  let compilation_unit, _path = split_type_path_at_compilation_unit path in
+  match compilation_unit with
+  | None ->
+    if debug then Format.eprintf "I'm in this root\n";
+    (match (Env.find_type path env) with
+      | exception Not_found -> if debug then Format.eprintf "None0\n"; None
+      | type_ -> let uid = type_.type_uid in
+        if debug then Format.eprintf "uid = %a\n" Uid.print uid;
+        Some uid
+    )
+  | Some compilation_unit ->
+    let filename = String.uncapitalize_ascii compilation_unit in
+    match Load_path.find_uncap (filename ^ ".cms") with
+    | exception Not_found -> if debug then Format.eprintf "None1\n"; None
+    | fn ->
+      (* CR tnowak: exception? *)
+      let cms_infos = Cms_format.read fn in
+      match cms_infos.cms_impl_shape with
+      | None -> if debug then Format.eprintf "None2\n"; None
+      | Some shape ->
+        let shape =
+          (* CR tnowak: that might be wrong? *)
+          Shape.of_path
+            ~find_shape:(fun _sig_comp_kind ident ->
+              assert (Ident.name ident = compilation_unit); shape)
+            ~namespace:Type path
+        in
+        let shape = Shape_reduce.reduce () shape in
+        match shape.uid with
+        | None -> if debug then Format.eprintf "None3\n"; None
+        | Some uid -> if debug then Format.eprintf "got it uid=%a\n" Uid.print uid; Some uid
+
 let transl_global_flags loc attrs =
   let transl_global_flag loc (r : (bool,unit) result) =
     match r with
@@ -1579,6 +1644,10 @@ let transl_type_decl env rec_flag sdecl_list =
   in
   (* Compute the final environment with variance and immediacy *)
   let final_env = add_types_to_env decls env in
+  (* Save the declarations in [Type_shape] for debug info. *)
+   List.iter (fun (id, decl) ->
+     Type_shape.add_to_type_decls (Pident id) decl (uid_of_path ~env:final_env)
+   ) decls;
   (* Check re-exportation *)
   let decls = List.map2 (check_abbrev final_env) sdecl_list decls in
   (* Keep original declaration *)

@@ -85,7 +85,8 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     C.bound_parameters env
       (Bound_parameters.create
          [ Bound_parameter.create (Variable.create "*ret*")
-             Flambda_kind.With_subkind.any_value ])
+             Flambda_kind.With_subkind.any_value
+             Flambda_uid.internal_not_actually_unique (* CR tnowak: verify *) ])
   in
   let return_cont, env =
     Env.add_jump_cont env
@@ -95,7 +96,8 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   (* See comment in [To_cmm_set_of_closures] about binding [my_region] *)
   let env, toplevel_region_var =
     Env.create_bound_parameter env
-      (Flambda_unit.toplevel_my_region flambda_unit)
+      ( Flambda_unit.toplevel_my_region flambda_unit,
+        Flambda_uid.internal_not_actually_unique (* CR tnowak: verify *) )
   in
   let r =
     R.create ~reachable_names

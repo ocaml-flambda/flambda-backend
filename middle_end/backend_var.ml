@@ -16,6 +16,8 @@
 
 include Ident
 
+module Uid = Flambda2_identifiers.Flambda_uid
+
 type backend_var = t
 
 let name_for_debugger t =
@@ -35,9 +37,10 @@ module Provenance = struct
     module_path : Path.t;
     location : Debuginfo.t;
     original_ident : Ident.t;
+    uid : Uid.t
   }
 
-  let print ppf { module_path; location; original_ident; } =
+  let print ppf { module_path; location; original_ident; uid } =
     let printf fmt = Format.fprintf ppf fmt in
     printf "@[<hov 1>(";
     printf "@[<hov 1>(module_path@ %a)@]@ "
@@ -45,19 +48,22 @@ module Provenance = struct
     if !Clflags.locations then
       printf "@[<hov 1>(location@ %a)@]@ "
         Debuginfo.print_compact location;
-    printf "@[<hov 1>(original_ident@ %a)@]"
-      Ident.print original_ident;
+    printf "@[<hov 1>(original_ident@ %a,uid=%a)@]"
+      Ident.print original_ident
+      Uid.print uid;
     printf ")@]"
 
-  let create ~module_path ~location ~original_ident =
+  let create ~module_path ~location ~original_ident ~uid =
     { module_path;
       location;
       original_ident;
+      uid
     }
 
   let module_path t = t.module_path
   let location t = t.location
   let original_ident t = t.original_ident
+  let uid t = t.uid
 
   let equal t1 t2 = Stdlib.compare t1 t2 = 0
 end

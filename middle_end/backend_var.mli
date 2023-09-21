@@ -19,6 +19,8 @@
 
 include module type of struct include Ident end
 
+module Uid = Flambda2_identifiers.Flambda_uid
+
 type backend_var = t
 
 val name_for_debugger : t -> string
@@ -31,11 +33,13 @@ module Provenance : sig
      : module_path:Path.t
     -> location:Debuginfo.t
     -> original_ident:Ident.t
+    -> uid:Uid.t
     -> t
 
   val module_path : t -> Path.t
   val location : t -> Debuginfo.t
   val original_ident : t -> Ident.t
+  val uid : t -> Uid.t
 
   val print : Format.formatter -> t -> unit
 

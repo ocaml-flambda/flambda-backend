@@ -800,7 +800,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         | Some [exn_exp; _] -> event_after loc exn_exp (Lvar vexn)
         | Some _ -> assert false
       in
-      Llet(Strict, Lambda.layout_block, vexn, exn,
+      Llet(Strict, Lambda.layout_block, vexn, Uid.internal_not_actually_unique, exn,
            Lsequence(Lprim(Pccall caml_restore_raw_backtrace,
                            [Lvar vexn; bt],
                            loc),
@@ -908,6 +908,7 @@ let transl_primitive loc p env ty ~poly_mode path =
           let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
           { name = Ident.create_local "prim";
+            var_uid = Uid.internal_not_actually_unique; (* CR tnowak: verify *)
             layout = arg_layout;
             attributes = Lambda.default_param_attribute;
             mode = arg_mode }

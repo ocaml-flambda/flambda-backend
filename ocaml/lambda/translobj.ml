@@ -97,10 +97,12 @@ let transl_label_init_general f =
          let const =
            Lprim (Popaque layout, [Lconst c], Debuginfo.Scoped_location.Loc_unknown)
          in
+         (* CR tnowak: verify *)
+         let uid = Uid.internal_not_actually_unique in
          (* CR ncourant: this *should* not be too precise for the moment,
             but we should take care, or fix the underlying cause that led
             us to using [Popaque]. *)
-         Llet(Alias, layout, id, const, expr))
+         Llet(Alias, layout, id, uid, const, expr))
       consts expr
   in
   (*let expr =
@@ -116,6 +118,7 @@ let transl_label_init_flambda f =
   assert(Config.flambda || Config.flambda2);
   let method_cache_id = Ident.create_local "method_cache" in
   method_cache := Lvar method_cache_id;
+  let uid = Uid.internal_not_actually_unique in
   (* Calling f (usually Translmod.transl_struct) requires the
      method_cache variable to be initialised to be able to generate
      method accesses. *)
@@ -123,7 +126,7 @@ let transl_label_init_flambda f =
   let expr =
     if !method_count = 0 then expr
     else
-      Llet (Strict, Lambda.layout_array Pgenarray, method_cache_id,
+      Llet (Strict, Lambda.layout_array Pgenarray, method_cache_id, uid,
         Lprim (Pccall prim_makearray,
                [int !method_count; int 0],
                Loc_unknown),
@@ -191,7 +194,8 @@ let oo_wrap env req f x =
                         [lambda_unit; lambda_unit; lambda_unit],
                         Loc_unknown)
                 in
-                Llet(StrictOpt, Lambda.layout_class, id,
+                let uid = Uid.internal_not_actually_unique in
+                Llet(StrictOpt, Lambda.layout_class, id, uid,
                      Lprim (Popaque Lambda.layout_class, [cl], Loc_unknown),
                      lambda))
              lambda !classes
