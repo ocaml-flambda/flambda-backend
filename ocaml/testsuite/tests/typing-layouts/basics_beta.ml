@@ -579,3 +579,9 @@ Error: The layout of type 'a is value, because
        But the layout of type 'a must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t2_imm.
 |}]
+
+(****************************************************)
+(* Test 35: unannotated type parameter defaults to layout value *)
+
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)

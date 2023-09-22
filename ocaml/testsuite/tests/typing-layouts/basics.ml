@@ -328,3 +328,10 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
    type parameter.  Bring back here when we have one enabled by default. *)
+
+
+(****************************************************)
+(* Test 35: unannotated type parameter defaults to layout value *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)

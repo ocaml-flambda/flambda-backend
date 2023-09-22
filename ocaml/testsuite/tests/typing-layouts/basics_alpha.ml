@@ -902,10 +902,13 @@ Line 3, characters 11-12:
                ^
 Error: Variables bound in a class must have layout value.
        The layout of v is void, because
-         it's bound by a `let`.
+         it's bound by a `let`, defaulted to layout void.
        But the layout of v must be a sublayout of value, because
          it's let-bound in a class expression.
 |}];;
+(* CR layouts v2.9: The part about defaulting here is incorrect.
+   It's due to the logic in Pcl_let using sorts directly instead of
+   layouts. *)
 
 (* Hits the Cfk_concrete case of Pcf_val *)
 module M12_2 = struct
@@ -1709,7 +1712,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's used as a function argument (defaulted to layout value).
+         it's used as a function argument, defaulted to layout value.
 |}]
 
 (**************************************)
@@ -1738,7 +1741,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's used as a function argument (defaulted to layout value).
+         it's used as a function argument, defaulted to layout value.
 |}]
 
 (**************************************************)
@@ -1817,5 +1820,5 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it appears as an unannotated type parameter (defaulted to layout value).
+         it appears as an unannotated type parameter, defaulted to layout value.
 |}]
