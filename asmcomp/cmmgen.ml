@@ -126,6 +126,7 @@ let get_field env layout ptr n dbg =
     | Punboxed_float -> Double
     | Punboxed_vector _ ->
       Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+    | Punboxed_product _ -> Misc.fatal_error "TODO"
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -1334,6 +1335,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   end
   | Pvalue kind ->
       transl_let_value env str kind id exp transl_body
+  | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler

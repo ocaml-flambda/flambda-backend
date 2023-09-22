@@ -922,6 +922,7 @@ module Extended_machtype = struct
     | Punboxed_vector _ ->
       Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | Pvalue _ -> typ_val
+    | Punboxed_product _ -> failwith "TODO"
 end
 
 let machtype_of_layout layout =
@@ -3281,7 +3282,7 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ -> Any
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ -> Any
   | Pvalue (Pboxedvectorval _)
   | Punboxed_vector _ ->
     Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."

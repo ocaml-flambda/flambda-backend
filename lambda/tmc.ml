@@ -910,6 +910,9 @@ let rec choice ctx t =
     | Pmakefloatblock _
     | Pmakeufloatblock _
 
+    (* nor unboxed products *)
+    | Pmake_unboxed_product _ | Punboxed_product_field _
+
     | Pobj_dup
     | Pobj_magic _
     | Pprobe_is_enabled _

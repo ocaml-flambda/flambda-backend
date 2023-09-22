@@ -145,6 +145,9 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * layout list
   (* Force lazy values *)
   (* External call *)
   | Pccall of Primitive.description
@@ -267,6 +270,7 @@ and layout =
   | Punboxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
@@ -384,7 +388,7 @@ let equal_layout x y =
   | Pbottom, Pbottom -> true
   | _, _ -> false
 
-let compatible_layout x y =
+let rec compatible_layout x y =
   match x, y with
   | Pbottom, _
   | _, Pbottom -> true
@@ -393,9 +397,13 @@ let compatible_layout x y =
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
   | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector_size bi1 bi2
+  | Punboxed_product layouts1, Punboxed_product layouts2 ->
+      List.compare_lengths layouts1 layouts2 = 0
+      && List.for_all2 compatible_layout layouts1 layouts2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ -> false
+  | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _), _ ->
+      false
 
 let must_be_value layout =
   match layout with
@@ -707,6 +715,7 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 let layout_probe_arg = Pvalue Pgenval
+let layout_unboxed_product layouts = Punboxed_product layouts
 
 (* CR ncourant: use [Ptop] or remove this as soon as possible. *)
 let layout_top = layout_any_value
@@ -1413,6 +1422,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
+  | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
   | Pccall p ->
      if not p.prim_alloc then None
      else begin match p.prim_native_repr_res with
@@ -1510,6 +1520,7 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     end
 
 let primitive_result_layout (p : primitive) =
+  assert !Clflags.native_code;
   match p with
   | Popaque layout | Pobj_magic layout -> layout
   | Pbytes_to_string | Pbytes_of_string -> layout_string
@@ -1524,6 +1535,8 @@ let primitive_result_layout (p : primitive) =
   | Pmakeufloatblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
+  | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
+  | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
