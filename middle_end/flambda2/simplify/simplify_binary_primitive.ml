@@ -1068,6 +1068,9 @@ let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
           match op with
           | Eq -> Eq
           | Neq -> Neq
+          (* Note that this is not handling a negation of an inequality, it is
+             simply a pattern match for when the inequality appears the other
+             way around. So e.g. [Lt] maps to [Gt], not [Ge]. *)
           | Lt s -> Gt s
           | Gt s -> Lt s
           | Le s -> Ge s

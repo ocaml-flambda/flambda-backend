@@ -477,7 +477,7 @@ let add_cse t prim ~bound_to =
   let comparison_results =
     let prim = Flambda_primitive.Eligible_for_cse.to_primitive prim in
     match
-      ( Comparison_result.create ~prim t.comparison_results,
+      ( Comparison_result.create ~prim ~comparison_results:t.comparison_results,
         Simple.must_be_var bound_to )
     with
     | None, _ | _, None -> t.comparison_results
