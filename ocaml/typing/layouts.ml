@@ -854,8 +854,9 @@ module Layout = struct
       | Creation reason ->
         fprintf ppf ", because@ %a" format_creation_reason reason;
         begin match reason, lay with
-        | Concrete_creation _, Const Value ->
-          fprintf ppf " (defaulted to layout value)"
+        | Concrete_creation _, Const _ ->
+          fprintf ppf ", defaulted to layout %a"
+            format_desc lay
         | _ -> ()
         end
       | _ -> assert false
