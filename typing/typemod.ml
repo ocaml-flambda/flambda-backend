@@ -590,7 +590,7 @@ let merge_constraint initial_env loc sg lid constr =
                 (fun _ -> Btype.newgenvar (Layout.any ~why:Dummy_layout))
                 sdecl.ptype_params;
             type_arity = arity;
-            type_kind = Type_abstract;
+            type_kind = Type_abstract Abstract_def;
             type_layout = Layout.value ~why:(Unknown "merge_constraint");
             type_private = Private;
             type_manifest = None;
