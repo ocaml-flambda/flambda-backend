@@ -163,6 +163,8 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+let option_argument_layout = Layout.value ~why:(Type_argument path_option)
+
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract)
@@ -274,7 +276,7 @@ let common_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| Layout.value ~why:(Type_argument path_option) |] |])
+           [| [| |]; [| option_argument_layout |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_string
   |> add_type ident_unboxed_float

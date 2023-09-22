@@ -3017,7 +3017,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   if is_optional l then
     unify_pat (ref val_env) pat
       (type_option
-         (newvar (Layout.value ~why:(Type_argument Predef.path_option))));
+         (newvar Predef.option_argument_layout));
   let pvs = tps.tps_pattern_variables in
   if !Clflags.principal then begin
     Ctype.end_def ();
@@ -3797,7 +3797,7 @@ let rec approx_type env sty =
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
       if is_optional p
-      then newvar (Layout.value ~why:(Type_argument Predef.path_option))
+      then newvar Predef.option_argument_layout
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
         let arg_ty =
@@ -3816,7 +3816,7 @@ let rec approx_type env sty =
       let arg =
         if is_optional p
         then type_option
-               (newvar (Layout.value ~why:(Type_argument Predef.path_option)))
+               (newvar Predef.option_argument_layout)
         else newvar (Layout.of_new_sort_var ~why:Function_argument)
       in
       let ret = approx_type env sty in
@@ -6810,7 +6810,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
           (type_option
-             (newvar (Layout.value ~why:(Type_argument Predef.path_option))));
+             (newvar Predef.option_argument_layout));
       (lbl, Arg (arg, expected_mode.mode, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->

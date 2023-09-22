@@ -1505,7 +1505,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 
 let var_option =
   Predef.type_option
-    (Btype.newgenvar (Layout.value ~why:(Type_argument Predef.path_option)))
+    (Btype.newgenvar Predef.option_argument_layout)
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
