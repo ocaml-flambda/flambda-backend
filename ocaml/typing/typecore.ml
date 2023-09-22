@@ -1513,8 +1513,10 @@ let build_or_pat env loc lid =
   (* CR layouts: the use of value here is wrong:
      there could be other layouts in a polymorphic variant argument;
      see Test 24 in tests/typing-layouts/basics_alpha.ml *)
-  let tyl = List.map (fun _ -> newvar (Layout.value ~why:(Type_argument path)))
-              decl.type_params in
+  let arity = List.length decl.type_params in
+  let tyl = List.mapi (fun i _ ->
+    newvar (Layout.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
+  ) decl.type_params in
   let row0 =
     let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
     match get_desc ty with
@@ -7996,7 +7998,7 @@ and type_comprehension_expr
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
-        (Layout.Type_argument Predef.path_list)
+        (Layout.Type_argument {parent_path=Predef.path_list;position=1;arity=1})
     | Cexp_array_comprehension (amut, comp) ->
         let container_type = match amut with
           | Mutable   -> Predef.type_array

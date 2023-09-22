@@ -1545,8 +1545,10 @@ let rec approx_description ct =
 
 let temp_abbrev loc env id arity uid =
   let params = ref [] in
-  for _i = 1 to arity do
-    params := Ctype.newvar (Layout.value ~why:(Type_argument (Path.Pident id))) :: !params
+  for i = 1 to arity do
+    params := Ctype.newvar (Layout.value ~why:(
+      Type_argument {parent_path = Path.Pident id; position = i; arity})
+    ) :: !params
   done;
   let ty = Ctype.newobj (Ctype.newvar (Layout.value ~why:Object)) in
   let env =

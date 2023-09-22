@@ -262,7 +262,7 @@ module Layout = struct
     | Boxed_variant
     | Extensible_variant
     | Primitive of Ident.t
-    | Type_argument of Path.t
+    | Type_argument of {parent_path: Path.t; position: int; arity: int}
     | Tuple
     | Row_variable
     | Polymorphic_variant
@@ -751,8 +751,14 @@ module Layout = struct
       | Extensible_variant -> fprintf ppf "it's an extensible variant"
       | Primitive id ->
         fprintf ppf "it equals the primitive value type %s" (Ident.name id)
-      | Type_argument parent_path ->
-        fprintf ppf "the type argument of %a has layout value"
+      | Type_argument {parent_path; position; arity} ->
+        (match arity, position with
+         | 1, _ -> fprintf ppf "the type argument of %a has layout value"
+         | _, 1 -> fprintf ppf "the first type argument of %a has layout value"
+         | _, 2 -> fprintf ppf "the second type argument of %a has layout value"
+         | _, 3 -> fprintf ppf "the third type argument of %a has layout value"
+         | _ -> fprintf ppf "the type argument at position %d of %a has layout value"
+                  position)
           !printtyp_path parent_path
       | Tuple -> fprintf ppf "it's a tuple type"
       | Row_variable -> fprintf ppf "it's a row variable"
@@ -1139,8 +1145,9 @@ module Layout = struct
       | Boxed_variant -> fprintf ppf "Boxed_variant"
       | Extensible_variant -> fprintf ppf "Extensible_variant"
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-      | Type_argument parent_path ->
-        fprintf ppf "Type_argument of %a" !printtyp_path parent_path
+      | Type_argument {parent_path; position; arity} ->
+        fprintf ppf "Type_argument (pos %d, arity %d) of %a"
+          position arity !printtyp_path parent_path
       | Tuple -> fprintf ppf "Tuple"
       | Row_variable -> fprintf ppf "Row_variable"
       | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"

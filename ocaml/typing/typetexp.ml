@@ -675,13 +675,16 @@ and transl_type_aux env policy mode styp =
         | Some ty ->
             if get_level ty = Btype.generic_level then unify_var else unify
       in
-      List.iter2
-        (fun (sty, cty) ty' ->
+      let arity = List.length params in
+      List.iteri
+        (fun idx ((sty, cty), ty') ->
            let get_reason layout = match Layout.get layout with
-             | Const Value -> Layout.(Value_creation (Type_argument path))
+             | Const Value ->
+               Layout.(Value_creation
+                         (Type_argument {parent_path = path; position = idx + 1; arity}))
              (* CR layouts: Add more cases here when type params of imported types can
                 have non-value layout *)
-             | _ -> Layout.Imported
+             | _ -> assert false
            in
            begin match Types.get_desc ty' with
            | Tvar {layout; _} when Layout.has_imported_history layout ->
@@ -695,7 +698,7 @@ and transl_type_aux env policy mode styp =
              let err = Errortrace.swap_unification_error err in
              raise (Error(sty.ptyp_loc, env, Type_mismatch err))
         )
-        (List.combine stl args) params;
+        (List.combine (List.combine stl args) params);
       let constr =
         newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
       ctyp (Ttyp_constr (path, lid, args)) constr
