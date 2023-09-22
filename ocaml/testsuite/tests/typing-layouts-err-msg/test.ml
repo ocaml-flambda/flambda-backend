@@ -12,11 +12,12 @@ module = "a.ml"
 #load "a.cmo";;
 module B = A
 type t_void : void
-
+type t_value : value
 
 [%%expect{|
 module B = A
 type t_void : void
+type t_value : value
 |}]
 
 let f (x : t_void): 'a A.t = x
@@ -88,17 +89,70 @@ Error: This expression has type t_void but an expression was expected of type
          the first type argument of A.t2 has layout value.
 |}]
 
-type t = (t_void, t_void) A.t2
+type t = (t_void, t_value) A.t2
 
 [%%expect{|
 Line 1, characters 10-16:
-1 | type t = (t_void, t_void) A.t2
+1 | type t = (t_void, t_value) A.t2
               ^^^^^^
 Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
          the first type argument of A.t2 has layout value.
+|}]
+
+type t = (t_value, t_void, t_void, t_void, t_void) A.t5
+
+[%%expect{|
+Line 1, characters 19-25:
+1 | type t = (t_value, t_void, t_void, t_void, t_void) A.t5
+                       ^^^^^^
+Error: This type t_void should be an instance of type ('a : value)
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         the second type argument of A.t5 has layout value.
+|}]
+
+type t = (t_value, t_value, t_void, t_void, t_void) A.t5
+
+[%%expect{|
+Line 1, characters 28-34:
+1 | type t = (t_value, t_value, t_void, t_void, t_void) A.t5
+                                ^^^^^^
+Error: This type t_void should be an instance of type ('a : value)
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         the third type argument of A.t5 has layout value.
+|}]
+
+type t = (t_value, t_value, t_value, t_void, t_void) A.t5
+
+[%%expect{|
+Line 1, characters 37-43:
+1 | type t = (t_value, t_value, t_value, t_void, t_void) A.t5
+                                         ^^^^^^
+Error: This type t_void should be an instance of type ('a : value)
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument at position 4 of A.t5 has layout value.
+|}]
+
+
+type t = (t_value, t_value, t_value, t_value, t_void) A.t5
+
+[%%expect{|
+Line 1, characters 46-52:
+1 | type t = (t_value, t_value, t_value, t_value, t_void) A.t5
+                                                  ^^^^^^
+Error: This type t_void should be an instance of type ('a : value)
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         the type argument at position 5 of A.t5 has layout value.
 |}]
 
 let f (x: t_void) = A.f x
