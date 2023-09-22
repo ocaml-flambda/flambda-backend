@@ -90,7 +90,7 @@ Error:
        The layout of 'b t1_constraint' is any, because
          of the annotation on the declaration of the type t_any.
        But the layout of 'b t1_constraint' must be a sublayout of '_representable_layout_4, because
-         it appears as an unannotated type parameter.
+         it instantiates an unannotated type parameter.
 |}]
 (* CR layouts errors: this error is blamed on the wrong piece *)
 

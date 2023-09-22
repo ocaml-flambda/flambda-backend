@@ -71,7 +71,7 @@ Error: The type constraints are not consistent.
        The layout of t is any, because
          of the annotation on the declaration of the type t.
        But the layout of t must be a sublayout of '_representable_layout_3, because
-         it appears as an unannotated type parameter.
+         it instantiates an unannotated type parameter.
 |}]
 
 module type S1 = sig
@@ -88,7 +88,7 @@ Error: The type constraints are not consistent.
        The layout of t is any, because
          of the annotation on the declaration of the type t.
        But the layout of t must be a sublayout of '_representable_layout_4, because
-         it appears as an unannotated type parameter.
+         it instantiates an unannotated type parameter.
 |}]
 
 let f1 () : t_any = assert false;;
@@ -1820,5 +1820,5 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it appears as an unannotated type parameter, defaulted to layout value.
+         it instantiates an unannotated type parameter, defaulted to layout value.
 |}]
