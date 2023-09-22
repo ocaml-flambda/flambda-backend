@@ -238,7 +238,7 @@ module Inlining = struct
     | Some (Closure_approximation { code; _ }) ->
       let metadata = Code_or_metadata.code_metadata code in
       let fun_params_length =
-        Code_metadata.params_arity metadata |> Flambda_arity.cardinal
+        Code_metadata.params_arity metadata |> Flambda_arity.num_params
       in
       if (not (Code_or_metadata.code_present code))
          || fun_params_length > List.length (Apply_expr.args apply)
@@ -467,7 +467,10 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       ((_, repr) : Primitive.mode * Primitive.native_repr) =
     match repr with
     | Same_as_ocaml_repr sort ->
-      K.With_subkind.(kind (from_lambda (Typeopt.layout_of_const_sort sort)))
+      K.With_subkind.(
+        kind
+          (from_lambda_values_and_unboxed_numbers_only
+             (Typeopt.layout_of_const_sort sort)))
     | Unboxed_float -> K.naked_float
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
@@ -478,11 +481,11 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let param_arity =
     List.map kind_of_primitive_native_repr prim_native_repr_args
     |> List.map K.With_subkind.anything
-    |> Flambda_arity.create
+    |> Flambda_arity.create_singletons
   in
   let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
   let return_arity =
-    Flambda_arity.create [K.With_subkind.anything return_kind]
+    Flambda_arity.create_singletons [K.With_subkind.anything return_kind]
   in
   let call_kind =
     Call_kind.c_call ~alloc:prim_alloc ~is_c_builtin:prim_c_builtin
@@ -758,7 +761,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
       | Pbbswap _ | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _
       | Pobj_dup | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _
-      | Pbox_int _ | Pget_header _ ->
+      | Pbox_int _ | Pmake_unboxed_product _ | Punboxed_product_field _
+      | Pget_header _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -1126,6 +1130,7 @@ let close_exact_or_unknown_apply acc env
        mode;
        region_close;
        region;
+       args_arity;
        return_arity
      } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
@@ -1169,7 +1174,7 @@ let close_exact_or_unknown_apply acc env
     close_exn_continuation acc env exn_continuation
   in
   let acc, args_with_arity = find_simples_and_arity acc env args in
-  let args, args_arity = List.split args_with_arity in
+  let args, _split_args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
   let probe = Probe.from_lambda probe in
   let position =
@@ -1179,9 +1184,7 @@ let close_exact_or_unknown_apply acc env
   in
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
-      apply_exn_continuation ~args
-      ~args_arity:(Flambda_arity.create args_arity)
-      ~return_arity ~call_kind
+      apply_exn_continuation ~args ~args_arity ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
@@ -1593,7 +1596,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
          (Exn_continuation.exn_handler exn_continuation)
   in
   let closure_info, acc = Acc.pop_closure_info acc in
-  let params_arity = Bound_parameters.arity params in
+  let params_arity = Function_decl.params_arity decl in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
@@ -1725,10 +1728,7 @@ let close_functions acc external_env ~current_region function_declarations =
         let function_slot = Function_decl.function_slot decl in
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
-        let params_arity =
-          List.map (fun (p : Function_decl.param) -> p.kind) params
-          |> Flambda_arity.create
-        in
+        let params_arity = Function_decl.params_arity decl in
         let param_modes =
           List.map
             (fun (p : Function_decl.param) ->
@@ -2035,8 +2035,9 @@ let close_let_rec acc env ~function_declarations
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
-    approx ~provided ~missing_arity ~missing_param_modes ~result_arity
-    ~first_complex_local_param ~contains_no_escaping_local_allocs =
+    approx ~provided ~provided_arity ~missing_arity ~missing_param_modes
+    ~result_arity ~arity ~first_complex_local_param
+    ~contains_no_escaping_local_allocs =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
   let wrapper_id = Ident.create_local ("partial_" ^ Ident.name apply.func) in
@@ -2045,7 +2046,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (Compilation_unit.get_current_exn ())
       ~name:(Ident.name wrapper_id) K.With_subkind.any_value
   in
-  let num_provided = List.length provided in
+  let num_provided = Flambda_arity.num_params provided_arity in
   let params =
     List.mapi
       (fun n (kind, mode) : Function_decl.param ->
@@ -2054,8 +2055,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
           attributes = Lambda.default_param_attribute;
           mode = Alloc_mode.For_types.to_lambda mode
         })
-      (List.combine (Flambda_arity.to_list missing_arity) missing_param_modes)
+      (List.combine (Flambda_arity.unarize missing_arity) missing_param_modes)
   in
+  let params_arity = missing_arity in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
     IR.{ exn_handler = Continuation.create (); extra_args = [] }
@@ -2073,6 +2075,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       { apply with
         kind = Function;
         args = all_args;
+        args_arity = arity;
         continuation = return_continuation;
         exn_continuation;
         inlined = Lambda.Default_inlined;
@@ -2117,10 +2120,11 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         ~kind:
           (Lambda.Curried
              { nlocal =
-                 Flambda_arity.cardinal missing_arity
+                 Flambda_arity.num_params missing_arity
                  - first_complex_local_param
              })
-        ~params ~return:result_arity ~return_continuation ~exn_continuation
+        ~params ~params_arity ~removed_params:Ident.Set.empty
+        ~return:result_arity ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
         ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
@@ -2197,7 +2201,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.to_list apply.return_arity)
+          (Flambda_arity.unarized_components apply.return_arity)
       in
       let handler acc =
         let acc, call_return_continuation =
@@ -2241,14 +2245,16 @@ type call_args_split =
   | Exact of IR.simple list
   | Partial_app of
       { provided : IR.simple list;
-        missing_arity : Flambda_arity.t;
+        provided_arity : [`Complex] Flambda_arity.t;
+        missing_arity : [`Complex] Flambda_arity.t;
         missing_param_modes : Alloc_mode.For_types.t list;
-        result_arity : Flambda_arity.t
+        result_arity : [`Unarized] Flambda_arity.t
       }
   | Over_app of
       { full : IR.simple list;
+        provided_arity : [`Complex] Flambda_arity.t;
         remaining : IR.simple list;
-        remaining_arity : Flambda_arity.t
+        remaining_arity : [`Complex] Flambda_arity.t
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
@@ -2284,10 +2290,19 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         param_modes,
         first_complex_local_param,
         contains_no_escaping_local_allocs ) -> (
-    let acc, args_with_arities = find_simples_and_arity acc env apply.args in
-    let args_arity = List.map snd args_with_arities in
+    let acc, _ = find_simples_and_arity acc env apply.args in
     let split_args =
-      let arity = Flambda_arity.to_list params_arity in
+      let non_unarized_arity, arity =
+        let arity =
+          if is_tupled
+          then
+            Flambda_arity.create_singletons
+              [ Flambda_kind.With_subkind.block Tag.zero
+                  (Flambda_arity.unarize params_arity) ]
+          else params_arity
+        in
+        arity, Flambda_arity.unarize arity
+      in
       let split args arity =
         let rec cut n l =
           if n <= 0
@@ -2299,33 +2314,38 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
               let before, after = cut (n - 1) t in
               h :: before, after
         in
-        let args_l = List.length args in
-        let arity_l = List.length arity in
+        let args_l = Flambda_arity.num_params apply.args_arity in
+        let arity_l = Flambda_arity.num_params non_unarized_arity in
         if args_l = arity_l
         then Exact args
         else if args_l < arity_l
         then
-          let _provided_arity, missing_arity = cut args_l arity in
-          let _provided_modes, missing_param_modes = cut args_l param_modes in
+          let missing_arity =
+            Flambda_arity.partially_apply non_unarized_arity
+              ~num_non_unarized_params_provided:args_l
+          in
+          let _provided_modes, missing_param_modes =
+            cut (List.length args) param_modes
+          in
           Partial_app
             { provided = args;
-              missing_arity = Flambda_arity.create missing_arity;
+              provided_arity = apply.args_arity;
+              missing_arity;
               missing_param_modes;
               result_arity
             }
         else
-          let full, remaining = cut arity_l args in
-          let _, remaining_arity = cut arity_l args_arity in
+          let full, remaining = cut (List.length arity) args in
+          let remaining_arity =
+            Flambda_arity.partially_apply apply.args_arity
+              ~num_non_unarized_params_provided:arity_l
+          in
           Over_app
             { full;
+              provided_arity = non_unarized_arity;
               remaining;
-              remaining_arity = Flambda_arity.create remaining_arity
+              remaining_arity
             }
-      in
-      let arity =
-        if is_tupled
-        then [Flambda_kind.With_subkind.block Tag.zero arity]
-        else arity
       in
       split apply.args arity
     in
@@ -2334,8 +2354,13 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       close_exact_or_unknown_apply acc env
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
-    | Partial_app { provided; missing_arity; missing_param_modes; result_arity }
-      ->
+    | Partial_app
+        { provided;
+          provided_arity;
+          missing_arity;
+          missing_param_modes;
+          result_arity
+        } ->
       (match apply.inlined with
       | Always_inlined | Unroll _ ->
         Location.prerr_warning
@@ -2345,9 +2370,10 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
                inlined_attribute_on_partial_application_msg Inlined))
       | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
-        ~missing_arity ~missing_param_modes ~result_arity
-        ~first_complex_local_param ~contains_no_escaping_local_allocs
-    | Over_app { full; remaining; remaining_arity } ->
+        ~provided_arity ~missing_arity ~missing_param_modes ~result_arity
+        ~arity:params_arity ~first_complex_local_param
+        ~contains_no_escaping_local_allocs
+    | Over_app { full; provided_arity; remaining; remaining_arity } ->
       let full_args_call apply_continuation ~region acc =
         let mode =
           if contains_no_escaping_local_allocs
@@ -2357,10 +2383,12 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         close_exact_or_unknown_apply acc env
           { apply with
             args = full;
+            args_arity = provided_arity;
             continuation = apply_continuation;
             mode;
             return_arity =
-              Flambda_arity.create [Flambda_kind.With_subkind.any_value]
+              Flambda_arity.create_singletons
+                [Flambda_kind.With_subkind.any_value]
           }
           (Some approx) ~replace_region:(Some region)
       in

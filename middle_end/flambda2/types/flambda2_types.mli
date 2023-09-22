@@ -23,7 +23,7 @@ type flambda_type = t
 
 val print : Format.formatter -> t -> unit
 
-val arity_of_list : t list -> Flambda_arity.t
+val arity_of_list : t list -> [`Unarized] Flambda_arity.t
 
 val apply_renaming : t -> Renaming.t -> t
 
@@ -523,10 +523,7 @@ val kind : t -> Flambda_kind.t
 val get_alias_exn : t -> Simple.t
 
 (** For each of the kinds in an arity, create an "unknown" type. *)
-val unknown_types_from_arity : Flambda_arity.t -> t list
-
-(** For each of the kinds in an arity, create an "bottom" type. *)
-val bottom_types_from_arity : Flambda_arity.t -> t list
+val unknown_types_from_arity : [`Unarized] Flambda_arity.t -> t list
 
 (** Whether the given type says that a term of that type can never be
     constructed (in other words, it is [Invalid]). *)

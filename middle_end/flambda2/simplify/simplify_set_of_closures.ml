@@ -336,7 +336,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         BP.create
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
-      (Flambda_arity.to_list result_arity)
+      (Flambda_arity.unarized_components result_arity)
     |> Bound_parameters.create
   in
   let { params;
@@ -731,7 +731,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       Cost_metrics.
         { cost_metrics = Code_metadata.cost_metrics code_metadata;
           params_arity =
-            Flambda_arity.cardinal (Code_metadata.params_arity code_metadata)
+            Flambda_arity.num_params (Code_metadata.params_arity code_metadata)
         }
     in
     Simplified_named.create_with_known_free_names ~find_code_characteristics

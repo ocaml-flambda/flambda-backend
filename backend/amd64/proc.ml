@@ -734,6 +734,7 @@ let operation_supported = function
   | Ccheckbound
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
+  | Ctuple_field _
     -> true
 
 let trap_size_in_bytes = 16

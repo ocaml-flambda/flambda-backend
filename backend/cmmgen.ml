@@ -164,6 +164,8 @@ let get_field env layout ptr n dbg =
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
     | Punboxed_vector (Pvec128 _) -> Onetwentyeight
+    | Punboxed_product _ ->
+      Misc.fatal_error "Unboxed products cannot be stored as fields for now."
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -617,6 +619,8 @@ let rec transl env e =
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
+      | (Pmake_unboxed_product layouts, args) ->
+          Ctuple (List.map (transl env) args)
       | (Pread_symbol sym, []) ->
           Cconst_symbol (global_symbol sym, dbg)
       | ((Pmakeblock _ | Pmakeufloatblock _), []) ->
@@ -728,7 +732,7 @@ let rec transl env e =
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-         | Pbbswap _ | Pget_header _), _)
+         | Punboxed_product_field _ | Pbbswap _ | Pget_header _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
       end
@@ -1044,6 +1048,9 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Punboxed_product_field (field, layouts) ->
+    let layouts = Array.of_list (List.map machtype_of_layout layouts) in
+    Cop (Ctuple_field (field, layouts), [transl env arg], dbg)
   | Pget_header m ->
       box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | (Pfield_computed | Psequand | Psequor
@@ -1063,7 +1070,9 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
-    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
+    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _
+    | Pmake_unboxed_product _
+    )
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
         Printclambda_primitives.primitive p
@@ -1245,7 +1254,9 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
+  | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1307,7 +1318,9 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
+  | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1384,7 +1397,8 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
        there may be constant closures inside that need lifting out. *)
     let _cbody : expression = transl_body env in
     cexp
-  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ -> begin
+  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _ ->
+    begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with
@@ -1393,7 +1407,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
       | Mutable ->
         let typ = machtype_of_layout layout in
         Clet_mut(id, typ, cexp, cbody)
-  end
+    end
   | Pvalue kind ->
     transl_let_value env str kind id exp transl_body
 

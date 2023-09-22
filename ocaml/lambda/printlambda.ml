@@ -119,14 +119,20 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let layout ppf layout =
-  match layout with
-  | Pvalue k -> value_kind ppf k
+let rec layout is_top ppf layout_ =
+  match layout_ with
+  | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
+  | Punboxed_product layouts ->
+    fprintf ppf "@[<hov 1>[%a]@]"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout false))
+      layouts
+
+let layout ppf layout_ = layout true ppf layout_
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -145,6 +151,7 @@ let return_kind ppf (mode, kind) =
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
+  | Punboxed_product _ -> fprintf ppf ": %a" layout kind
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
@@ -342,6 +349,12 @@ let primitive ppf = function
       in
       fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+  | Pmake_unboxed_product layouts ->
+      fprintf ppf "make_unboxed_product [%a]"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+  | Punboxed_product_field (n, layouts) ->
+      fprintf ppf "unboxed_product_field %d [%a]" n
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -527,6 +540,8 @@ let name_of_primitive = function
   | Pufloatfield _ -> "Pufloatfield"
   | Psetufloatfield _ -> "Psetufloatfield"
   | Pduprecord _ -> "Pduprecord"
+  | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
+  | Punboxed_product_field _ -> "Punboxed_product_field"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"
   | Psequand -> "Psequand"
