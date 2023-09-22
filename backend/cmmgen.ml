@@ -1397,7 +1397,8 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
        there may be constant closures inside that need lifting out. *)
     let _cbody : expression = transl_body env in
     cexp
-  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _ -> begin
+  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _ ->
+    begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with
@@ -1406,7 +1407,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
       | Mutable ->
         let typ = machtype_of_layout layout in
         Clet_mut(id, typ, cexp, cbody)
-  end
+    end
   | Pvalue kind ->
     transl_let_value env str kind id exp transl_body
 

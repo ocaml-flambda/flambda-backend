@@ -877,8 +877,8 @@ end = struct
               ( Naked_immediate | Naked_float | Naked_int32 | Naked_int64
               | Naked_nativeint ) ->
             1, true
-          (* flambda only supports 64-bits for now, so naked numbers can only be
-             of size 1 *)
+          (* flambda2 only supports 64-bit targets for now, so naked numbers can
+             only be of size 1 *)
           | Naked_number Naked_vec128 -> 2, true
           | Value -> (
             match[@ocaml.warning "-4"]

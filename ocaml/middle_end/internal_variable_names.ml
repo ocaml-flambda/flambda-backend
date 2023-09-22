@@ -454,12 +454,9 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbox_int _ -> pbox_int
   | Parray_of_iarray -> parray_of_iarray
   | Parray_to_iarray -> parray_to_iarray
-<<<<<<< HEAD
   | Pget_header _ -> pget_header
-=======
   | Pmake_unboxed_product _ -> pmake_unboxed_product
   | Punboxed_product_field _ -> punboxed_product_field
->>>>>>> 8a1a967a5 (Unarization)
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -577,9 +574,6 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbox_int _ -> pbox_int_arg
   | Parray_of_iarray -> parray_of_iarray_arg
   | Parray_to_iarray -> parray_to_iarray_arg
-<<<<<<< HEAD
   | Pget_header _ -> pget_header_arg
-=======
   | Pmake_unboxed_product _ -> pmake_unboxed_product_arg
   | Punboxed_product_field _ -> punboxed_product_field_arg
->>>>>>> 8a1a967a5 (Unarization)

@@ -1027,6 +1027,8 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
         CC.close_apply acc ccenv
           { apply with continuation = wrapper_cont; region }
       in
+      (* CR mshinwell: Think about DWARF support for unboxed products, here and
+         elsewhere. *)
       let params =
         List.map2
           (fun return_value_component kind ->

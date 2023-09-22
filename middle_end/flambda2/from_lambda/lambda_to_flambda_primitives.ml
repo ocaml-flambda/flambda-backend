@@ -645,7 +645,7 @@ let bbswap bi si mode arg ~current_region : H.expr_primitive =
            ( Int_arith (si, Swap_byte_endianness),
              Prim (Unary (Unbox_number bi, arg)) )) )
 
-let opaque layout arg middle_end_only : H.expr_primitive list =
+let opaque layout arg ~middle_end_only : H.expr_primitive list =
   let kinds = Flambda_arity.unarize (Flambda_arity.from_lambda_list [layout]) in
   if List.compare_lengths kinds arg <> 0
   then
@@ -688,8 +688,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     if n < 0 || n >= Array.length layouts_array
     then Misc.fatal_errorf "Invalid field index %d for Punboxed_product_field" n;
     let field_arity_component =
-      (* N.B. The arity of the field being projected, bound to [id], may in
-         itself be an unboxed product. *)
+      (* N.B. The arity of the field being projected may in itself be an unboxed
+         product. *)
       layouts_array.(n) |> Flambda_arity.Component_for_creation.from_lambda
     in
     let field_arity = Flambda_arity.create [field_arity_component] in
@@ -749,8 +749,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                 ( Make_array (Naked_floats, mutability, mode),
                   List.map unbox_float args ),
               Variadic (Make_array (Values, mutability, mode), args) ) ]))
-  | Popaque layout, [arg] -> opaque layout arg false
-  | Pobj_magic layout, [arg] -> opaque layout arg true
+  | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
+  | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
