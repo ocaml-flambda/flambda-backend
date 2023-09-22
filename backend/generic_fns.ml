@@ -48,6 +48,21 @@ module Tbl0 = struct
 end
 
 module Cache = struct
+  type send =
+    Cmm.machtype_component array list
+    * Cmm.machtype_component array
+    * Lambda.locality_mode
+
+  type apply =
+    Cmm.machtype_component array list
+    * Cmm.machtype_component array
+    * Lambda.locality_mode
+
+  type curry =
+    Lambda.function_kind
+    * Cmm.machtype_component array list
+    * Cmm.machtype_component array
+
   let has_singleton_layout_value = function [| Val |] -> true | _ -> false
 
   let only_concerns_values ~arity ~result =
@@ -111,6 +126,73 @@ module Cache = struct
         let l = len_arity arity in
         2 <= l && l <= Lambda.max_arity ()
 
+  let partition prefix arity =
+    let l = len_arity arity in
+    if l <= considered_as_small_threshold
+    then "small"
+    else prefix ^ string_of_int l
+
+  let partition_curry (_, arity, _) = partition "curry" arity
+
+  let partition_send (arity, _, _) = partition "send" arity
+
+  let partition_apply (arity, _, _) = partition "apply" arity
+
+  module SMap = Misc.Stdlib.String.Map
+
+  let arity n = List.init n (fun _ -> [| Val |])
+
+  let result = [| Val |]
+
+  let all_curry () =
+    let tuplify =
+      Seq.init (max_tuplify + 1) (fun n -> Lambda.Tupled, arity n, result)
+    in
+    let curry =
+      Seq.init
+        (Lambda.max_arity () + 1)
+        (fun n ->
+          Seq.init
+            (Lambda.max_arity () + 1)
+            (fun nlocal -> Lambda.Curried { nlocal }, arity n, result))
+      |> Seq.concat
+    in
+    Seq.append tuplify curry |> Seq.filter mem_curry
+    |> Seq.map (fun f -> partition_curry f, f)
+    |> SMap.of_seq_multi
+    |> SMap.map (fun curry_fun ->
+           { Cmx_format.curry_fun; send_fun = []; apply_fun = [] })
+
+  let all_send () =
+    let send =
+      Seq.init (max_send + 1) (fun n ->
+          Seq.cons
+            (arity n, result, Lambda.alloc_local)
+            (Seq.return (arity n, result, Lambda.alloc_heap)))
+      |> Seq.concat
+    in
+    Seq.filter mem_send send
+    |> Seq.map (fun f -> partition_send f, f)
+    |> SMap.of_seq_multi
+    |> SMap.map (fun send_fun ->
+           { Cmx_format.send_fun; curry_fun = []; apply_fun = [] })
+
+  let all_apply () =
+    let apply =
+      Seq.init
+        (Lambda.max_arity () + 1)
+        (fun n ->
+          Seq.cons
+            (arity n, result, Lambda.alloc_local)
+            (Seq.return (arity n, result, Lambda.alloc_heap)))
+      |> Seq.concat
+    in
+    Seq.filter mem_apply apply
+    |> Seq.map (fun f -> partition_apply f, f)
+    |> SMap.of_seq_multi
+    |> SMap.map (fun apply_fun ->
+           { Cmx_format.apply_fun; send_fun = []; curry_fun = [] })
+
   let all () =
     (* [is_curry], [is_send] and [is_apply] are also used to determine if a
        generate function was cached. When we generate the cached generated
@@ -124,72 +206,9 @@ module Cache = struct
     assert (considered_as_small_threshold <= max_tuplify);
     assert (considered_as_small_threshold <= max_send);
     assert (considered_as_small_threshold <= Lambda.max_arity ());
-    let arity n = List.init n (fun _ -> [| Val |]) in
-    let result = [| Val |] in
-    let tuplify =
-      Seq.init (max_tuplify + 1) (fun n -> Lambda.Tupled, arity n, result)
-    in
-    let curry =
-      Seq.init
-        (Lambda.max_arity () + 1)
-        (fun n ->
-          Seq.init
-            (Lambda.max_arity () + 1)
-            (fun nlocal -> Lambda.Curried { nlocal }, arity n, result))
-      |> Seq.concat
-    in
-    let send =
-      Seq.init (max_send + 1) (fun n ->
-          Seq.cons
-            (arity n, result, Lambda.alloc_local)
-            (Seq.return (arity n, result, Lambda.alloc_heap)))
-      |> Seq.concat
-    in
-    let apply =
-      Seq.init
-        (Lambda.max_arity () + 1)
-        (fun n ->
-          Seq.cons
-            (arity n, result, Lambda.alloc_local)
-            (Seq.return (arity n, result, Lambda.alloc_heap)))
-      |> Seq.concat
-    in
-    let category prefix arity =
-      let l = len_arity arity in
-      if l <= considered_as_small_threshold
-      then "small"
-      else prefix ^ string_of_int l
-    in
-    let module SMap = Misc.Stdlib.String.Map in
-    let map_of_seq_multi seq =
-      Seq.fold_left
-        (fun tbl (key, elt) ->
-          SMap.update key
-            (function None -> Some [elt] | Some s -> Some (elt :: s))
-            tbl)
-        SMap.empty seq
-    in
-    let curry_fns =
-      Seq.append tuplify curry |> Seq.filter mem_curry
-      |> Seq.map (fun ((_, arity, _) as f) -> category "curry_" arity, f)
-      |> map_of_seq_multi
-      |> SMap.map (fun curry_fun ->
-             { Cmx_format.curry_fun; send_fun = []; apply_fun = [] })
-    in
-    let send_fns =
-      Seq.filter mem_send send
-      |> Seq.map (fun ((arity, _, _) as f) -> category "send_" arity, f)
-      |> map_of_seq_multi
-      |> SMap.map (fun send_fun ->
-             { Cmx_format.send_fun; curry_fun = []; apply_fun = [] })
-    in
-    let apply_fns =
-      Seq.filter mem_apply apply
-      |> Seq.map (fun ((arity, _, _) as f) -> category "apply_" arity, f)
-      |> map_of_seq_multi
-      |> SMap.map (fun apply_fun ->
-             { Cmx_format.apply_fun; send_fun = []; curry_fun = [] })
-    in
+    let curry_fns = all_curry () in
+    let send_fns = all_send () in
+    let apply_fns = all_apply () in
     let out = Hashtbl.create 100 in
     let add f =
       SMap.iter
