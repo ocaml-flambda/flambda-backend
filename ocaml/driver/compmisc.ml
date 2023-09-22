@@ -41,7 +41,8 @@ let init_path ?(dir="") () =
     List.rev_map (Misc.expand_directory Config.standard_library)
       !Clflags.hidden_include_dirs
   in
-  Load_path.init ~visible ~hidden;
+  let hidden_subdirs = List.rev !Clflags.hidden_include_subdirs in
+  Load_path.init ~visible ~hidden ~hidden_subdirs;
   Env.reset_cache ~preserve_persistent_env:false
 
 (* Return the initial environment in which compilation proceeds. *)

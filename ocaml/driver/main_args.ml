@@ -171,6 +171,12 @@ let mk_H f =
   "<dir>  Add <dir> to the list of \"hidden\" include directories\n\
  \     (Like -I, but the program can not directly reference these dependencies)"
 
+let mk_hsubdirs f =
+  "-hsubdirs", Arg.String f,
+  "<dir>  When a file can not be found in the `-I` or `-H` directories,\n\
+ \     subdirectories of <dir> will be searched using a heuristic based on the\n\
+ \     name of the file."
+
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
 ;;
@@ -996,6 +1002,7 @@ module type Common_options = sig
   val _alert : string -> unit
   val _I : string -> unit
   val _H : string -> unit
+  val _hsubdirs : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -1282,6 +1289,7 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
+    mk_hsubdirs F._hsubdirs;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1382,6 +1390,7 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
+    mk_hsubdirs F._hsubdirs;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
@@ -1486,6 +1495,7 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
+    mk_hsubdirs F._hsubdirs;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1627,6 +1637,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_compact F._compact;
     mk_I F._I;
     mk_H F._H;
+    mk_hsubdirs F._hsubdirs;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1738,6 +1749,7 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
+    mk_hsubdirs F._hsubdirs;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1880,6 +1892,8 @@ module Default = struct
     include Common
     let _I dir = include_dirs := dir :: (!include_dirs)
     let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
+    let _hsubdirs dir =
+      hidden_include_subdirs := dir :: (!hidden_include_subdirs)
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
     let _dparsetree = set dump_parsetree
@@ -2130,6 +2144,11 @@ module Default = struct
       (* placeholder:
          Odoc_global.hidden_include_dirs :=
            (s :: (!Odoc_global.hidden_include_dirs))
+      *) ()
+    let _hsubdirs(_:string) =
+      (* placeholder:
+         Odoc_global.hidden_include_subdirs :=
+           (s :: (!Odoc_global.hidden_include_subdirs))
       *) ()
     let _impl (_:string) =
       (* placeholder:

@@ -283,7 +283,8 @@ let set_paths () =
       hidden
     ]
   in
-  Load_path.init ~visible ~hidden;
+  let hidden_subdirs = List.rev !Clflags.hidden_include_subdirs in
+  Load_path.init ~visible ~hidden ~hidden_subdirs;
   Dll.add_path (visible @ hidden)
 
 let initialize_toplevel_env () =
