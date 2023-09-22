@@ -47,7 +47,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
-         the type argument of imported type list has layout value.
+         the type argument of list has layout value.
 |}];;
 
 let f (_ : float# list) = ();;
@@ -59,7 +59,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
-         the type argument of imported type list has layout value.
+         the type argument of list has layout value.
 |}];;
 
 type t = C of float# list;;
@@ -71,7 +71,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
-         the type argument of imported type list has layout value.
+         the type argument of list has layout value.
 |}];;
 
 type t = C : float# list -> t;;
@@ -83,7 +83,7 @@ Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
          it equals the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
-         the type argument of imported type list has layout value.
+         the type argument of list has layout value.
 |}];;
 
 (* Syntax: float#c
