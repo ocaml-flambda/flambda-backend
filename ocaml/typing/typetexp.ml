@@ -678,7 +678,7 @@ and transl_type_aux env policy mode styp =
       List.iter2
         (fun (sty, cty) ty' ->
            let get_reason layout = match Layout.get layout with
-             | Const Value -> Layout.(Value_creation (Imported_type_argument path))
+             | Const Value -> Layout.(Value_creation (Type_argument path))
              (* CR layouts: Add more cases here when type params of imported types can
                 have non-value layout *)
              | _ -> Layout.Imported

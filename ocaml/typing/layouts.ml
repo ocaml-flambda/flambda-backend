@@ -263,7 +263,6 @@ module Layout = struct
     | Extensible_variant
     | Primitive of Ident.t
     | Type_argument of Path.t
-    | Imported_type_argument of Path.t
     | Tuple
     | Row_variable
     | Polymorphic_variant
@@ -755,9 +754,6 @@ module Layout = struct
       | Type_argument parent_path ->
         fprintf ppf "the type argument of %a has layout value"
           !printtyp_path parent_path
-      | Imported_type_argument parent_path ->
-        fprintf ppf "the type argument of imported type %a has layout value"
-          !printtyp_path parent_path
       | Tuple -> fprintf ppf "it's a tuple type"
       | Row_variable -> fprintf ppf "it's a row variable"
       | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant"
@@ -1145,8 +1141,6 @@ module Layout = struct
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
       | Type_argument parent_path ->
         fprintf ppf "Type_argument of %a" !printtyp_path parent_path
-      | Imported_type_argument parent_path ->
-        fprintf ppf "Imported_type_argument of %a" !printtyp_path parent_path
       | Tuple -> fprintf ppf "Tuple"
       | Row_variable -> fprintf ppf "Row_variable"
       | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"

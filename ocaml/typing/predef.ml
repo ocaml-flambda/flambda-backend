@@ -195,7 +195,7 @@ let common_initial_env add_type add_extension empty_env =
         ?(kind=fun _ -> Type_abstract)
         ?(layout=Layout.value ~why:(Primitive type_ident))
       ~variance ~separability env =
-    let param = newgenvar (Layout.value ~why:(Imported_type_argument
+    let param = newgenvar (Layout.value ~why:(Type_argument
                                                 (Path.Pident type_ident))) in
     let decl =
       {type_params = [param];
@@ -265,7 +265,7 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| [| |]; [| Layout.value ~why:(Imported_type_argument path_list);
+           [| [| |]; [| Layout.value ~why:(Type_argument path_list);
                         Layout.value ~why:Boxed_variant |] |] )
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_nativeint
@@ -274,7 +274,7 @@ let common_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| Layout.value ~why:(Imported_type_argument path_option) |] |])
+           [| [| |]; [| Layout.value ~why:(Type_argument path_option) |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_string
   |> add_type ident_unboxed_float
