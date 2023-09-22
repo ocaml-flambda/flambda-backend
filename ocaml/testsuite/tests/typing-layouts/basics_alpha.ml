@@ -1709,7 +1709,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's used as a function argument.
+         it's used as a function argument (defaulted to layout value).
 |}]
 
 (**************************************)
@@ -1738,7 +1738,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's used as a function argument.
+         it's used as a function argument (defaulted to layout value).
 |}]
 
 (**************************************************)
@@ -1801,3 +1801,21 @@ Error: This type signature for foo33 is not a value type.
 (* Test 34: Layout clash in polymorphic record type *)
 
 (* tested elsewhere *)
+
+(****************************************************)
+(* Test 35: unannotated type parameter defaults to layout value *)
+type 'a t35 = 'a
+let f35 (x: t_void): 'a t35 = x
+
+[%%expect{|
+type 'a t35 = 'a
+Line 2, characters 30-31:
+2 | let f35 (x: t_void): 'a t35 = x
+                                  ^
+Error: This expression has type t_void but an expression was expected of type
+         'a t35 = ('a : value)
+       The layout of t_void is void, because
+         of the annotation on the declaration of the type t_void.
+       But the layout of t_void must be a sublayout of value, because
+         it appears as an unannotated type parameter (defaulted to layout value).
+|}]

@@ -405,7 +405,7 @@ Error: This expression has type t_float64
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
        But the layout of t_float64 must be a sublayout of value, because
-         it's used as a function result.
+         it's used as a function result (defaulted to layout value).
 |}];;
 
 let x8_2 = id_value (make_t_float64_id ());;
@@ -418,7 +418,7 @@ Error: This expression has type 'a t_float64_id = ('a : float64)
        The layout of 'a t_float64_id is float64, because
          of the annotation on 'a in the declaration of the type t_float64_id.
        But the layout of 'a t_float64_id must overlap with value, because
-         it's used as a function result.
+         it's used as a function result (defaulted to layout value).
 |}];;
 
 let x8_3 = id_value (make_floatu ());;
@@ -431,7 +431,7 @@ Error: This expression has type float# but an expression was expected of type
        The layout of float# is float64, because
          it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
-         it's used as a function result.
+         it's used as a function result (defaulted to layout value).
 |}];;
 
 (*************************************)
