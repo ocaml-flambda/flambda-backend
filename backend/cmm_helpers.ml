@@ -134,7 +134,13 @@ let pack_closure_info ~arity ~startenv ~is_last =
 let closure_info' ~arity ~startenv ~is_last =
   let arity =
     match arity with
-    | Lambda.Tupled, l -> -List.length l
+    | Lambda.Tupled, l ->
+      let n = List.length l in
+      (* Sanity check: tupled function should not have arity 1/-1, especially
+         considering that unary function have a slightly different call
+         convention. *)
+      assert (n <> 1);
+      -n
     | Lambda.Curried _, l -> List.length l
   in
   pack_closure_info ~arity ~startenv ~is_last
@@ -2342,6 +2348,7 @@ let split_arity_for_apply arity args =
   else (arity, args), None
 
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
+  assert (List.length args <> 1);
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
   let ty = Extended_machtype.to_machtype extended_ty in
@@ -2400,7 +2407,7 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
     bind "fun" clos (fun clos ->
         Cop
           ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_gen mut clos 0 dbg; arg; clos],
+            [get_field_gen mut clos 0 dbg; clos; arg],
             dbg ))
   | _ -> call_caml_apply result args_type mut clos args pos mode dbg
 
@@ -2589,8 +2596,8 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
         Cop
           ( Capply (result, Rc_normal),
             [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-              Cvar arg;
-              Cvar clos ],
+              Cvar clos;
+              Cvar arg ],
             dbg () )
       in
       match region with
@@ -2620,8 +2627,8 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           Cop
             ( Capply (typ_val, Rc_normal),
               [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-                Cvar arg;
-                Cvar clos ],
+                Cvar clos;
+                Cvar arg ],
               dbg () ),
           app_fun newclos args )
   in
@@ -2631,7 +2638,6 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
     | Some reg ->
       Clet (VP.create reg, Cop (Cbeginregion, [], dbg ()), app_fun clos args)
   in
-  let all_args = args @ [clos] in
   ( args,
     clos,
     if List.compare_length_with arity 1 = 0
@@ -2651,7 +2657,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           Cop
             ( Capply (result, Rc_normal),
               get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-              :: List.map (fun s -> Cvar s) all_args,
+              :: List.map (fun s -> Cvar s) (args @ [clos]),
               dbg () ),
           dbg (),
           code,
@@ -2726,7 +2732,12 @@ let send_function (arity, result, mode) =
 
 let apply_function (arity, result, mode) =
   let args, clos, body = apply_function_body arity result mode in
-  let all_args = List.combine args arity @ [clos, typ_val] in
+  let args = List.combine args arity in
+  let all_args =
+    if List.compare_length_with args 1 = 0
+    then (clos, typ_val) :: args
+    else args @ [clos, typ_val]
+  in
   let fun_name = global_symbol (apply_function_name arity result mode) in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
@@ -2739,7 +2750,7 @@ let apply_function (arity, result, mode) =
     }
 
 (* Generate tuplifying functions:
- *    (defun caml_tuplifyN (arg clos)
+ *    (defun caml_tuplifyN (clos arg)
  *      (app clos.direct #0(arg) ... #N-1(arg) clos))
  *)
 
@@ -2763,7 +2774,7 @@ let tuplify_function arity return =
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;
-      fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
+      fun_args = [VP.create clos, typ_val; VP.create arg, typ_val];
       fun_body =
         Cop
           ( Capply (return, Rc_normal),
@@ -2908,7 +2919,7 @@ let final_curry_function nlocal arity result =
   Cfunction
     { fun_name;
       fun_args =
-        [VP.create last_arg, List.hd args_type; VP.create last_clos, typ_val];
+        [VP.create last_clos, typ_val; VP.create last_arg, List.hd args_type];
       fun_body =
         make_curry_apply result narity (List.tl args_type) [Cvar last_arg]
           last_clos (narity - 1);
@@ -2943,8 +2954,10 @@ let intermediate_curry_functions ~nlocal ~arity result =
       Cfunction
         { fun_name = global_symbol name2;
           fun_args =
-            List.map (fun (arg, t) -> VP.create arg, [| t |]) args
-            @ [VP.create clos, typ_val];
+            (* These are actually 1-argument functions that directly deconstruct
+               their only argument *)
+            (VP.create clos, typ_val)
+            :: List.map (fun (arg, t) -> VP.create arg, [| t |]) args;
           fun_body =
             Cop
               ( Calloc mode,
@@ -2978,13 +2991,14 @@ let intermediate_curry_functions ~nlocal ~arity result =
         }
       ::
       (if has_nary
-      then
+      then (
         let direct_args =
           List.mapi
             (fun i ty ->
               V.create_local (Printf.sprintf "arg%d" (i + num + 2)), ty)
             remaining_args
         in
+        assert (List.length remaining_args > 1);
         let fun_args =
           List.map
             (fun (arg, ty) -> VP.create arg, ty)
@@ -3008,7 +3022,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
               fun_poll = Default_poll
             }
         in
-        [cf]
+        [cf])
       else [])
       @ loop (arg_type :: accumulated_args) remaining_args (num + 1)
   in
@@ -4388,7 +4402,9 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
       ~body:
         (Cop
            ( Capply (Extended_machtype.to_machtype ty, pos),
-             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
+             (* Note: unary functions (and only them) take their closure as
+                first argument *)
+             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); Cvar v; arg],
              dbg ))
   | args ->
     call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg

@@ -712,9 +712,9 @@ CFI_STARTPROC
         PUSH_CALLEE_SAVE_REGS
     /* Initial loading of arguments */
         movq    C_ARG_1, %r14      /* Caml_state */
-        movq    C_ARG_2, %rbx      /* closure */
-        movq    0(C_ARG_3), %rax   /* argument */
-        movq    0(%rbx), %r12      /* code pointer */
+        movq    C_ARG_2, %rax      /* closure */
+        movq    0(C_ARG_3), %rbx   /* argument */
+        movq    0(%rax), %r12      /* code pointer */
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback_asm))
