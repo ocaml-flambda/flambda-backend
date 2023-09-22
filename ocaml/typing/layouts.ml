@@ -659,7 +659,7 @@ module Layout = struct
         fprintf ppf "it's used in the declaration of the record field \"%a\""
           Ident.print lbl
       | Unannotated_type_parameter ->
-        fprintf ppf "it appears as an unannotated type parameter"
+        fprintf ppf "it instantiates an unannotated type parameter"
       | Record_projection ->
         fprintf ppf "it's used as the record in a projection"
       | Record_assignment ->
