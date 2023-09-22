@@ -275,7 +275,7 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   let units = List.map (fun (info,_,_) -> info) units_list in
   List.iter compile_phrase
     (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions false units));
+      (Generic_fns.compile false units));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
     Runtimedef.builtin_exceptions;
@@ -312,7 +312,7 @@ let make_shared_startup_file ~ppf_dump units =
   Emit.begin_assembly ();
   List.iter compile_phrase
     (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions true (List.map fst units)));
+      (Generic_fns.compile true (List.map fst units)));
   compile_phrase (Cmm_helpers.plugin_header units);
   compile_phrase
     (Cmm_helpers.global_table (List.map (fun (ui,_) -> ui.ui_unit) units));

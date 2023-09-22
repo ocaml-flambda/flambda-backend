@@ -30,21 +30,19 @@ open Config
 
 module CU = Compilation_unit
 
-let make_cached_generic_functions unix ~ppf_dump genfns =
-  Location.input_name := "caml_cached_generic_functions"; (* set name of "current" input *)
+let make_cached_generic_functions unix ~ppf_dump ~id genfns =
+  Location.input_name := "caml_cached_generic_functions_" ^ id; (* set name of "current" input *)
   let startup_comp_unit =
-    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions")
+    CU.create CU.Prefix.empty (CU.Name.of_string ("_cached_generic_functions_" ^ id))
   in
   Compilenv.reset startup_comp_unit;
   Emit.begin_assembly unix;
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Profile.record_call "genfns" (fun () ->
-  List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions false genfns)));
-  Emit.end_assembly ()
+    List.iter compile_phrase (Generic_fns.compile ~shared:true genfns));
+ Emit.end_assembly ()
 
-let cached_generic_functions unix ~ppf_dump output_name genfns =
+let cached_generic_functions unix ~ppf_dump ~id output_name genfns =
   Profile.record_call output_name (fun () ->
     let startup = output_name ^ ext_asm in
     Profile.record_call "compile_unit" (fun () ->
@@ -55,7 +53,7 @@ let cached_generic_functions unix ~ppf_dump output_name genfns =
         ~may_reduce_heap:true
         ~ppf_dump
         (fun () ->
-          make_cached_generic_functions unix ~ppf_dump genfns);
+          make_cached_generic_functions unix ~ppf_dump ~id genfns);
       obj_filename
     );
   )
@@ -66,7 +64,7 @@ let main filename =
   Clflags.use_linscan := true;
   Compmisc.init_path ();
   let file_prefix = Filename.remove_extension filename ^ ext_lib in
-  let genfns_partitions = Cmm_helpers.Generic_fns_tbl.Precomputed.gen () in
+  let genfns_partitions = Generic_fns.Cache.all () in
   let objects = ref [] in
   Fun.protect
     ~finally:(fun () -> List.iter remove_file !objects)
@@ -75,7 +73,7 @@ let main filename =
          let output_name = Filename.temp_file ("cached-generated-" ^ name) "" in
          let obj =
            cached_generic_functions
-             unix ~ppf_dump:Format.std_formatter output_name partition
+             unix ~ppf_dump:Format.std_formatter ~id:name output_name partition
          in
          objects := obj :: !objects
        ) genfns_partitions;
