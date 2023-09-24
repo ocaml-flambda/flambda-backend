@@ -2,9 +2,11 @@
   include runtime_events
   include unix
   set OCAML_RUNTIME_EVENTS_PRESERVE = "1"
-  * libunix
-  ** bytecode
-  ** native *)
+  * skip
+  reason = "OCaml 5 only"
+  ** libunix
+  *** bytecode
+  *** native *)
 
   (* this tests the preservation of ring buffers after termination *)
 
