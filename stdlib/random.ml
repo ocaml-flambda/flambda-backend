@@ -262,7 +262,11 @@ let self_init () = full_init (random_seed())
 
 (* Splitting *)
 
+(* BACKPORT BEGIN
 let split () = State.split (Domain.DLS.get random_key)
+*)
+let split () = State.split default
+(* BACKPORT END *)
 
 (* Manipulating the current state. *)
 
