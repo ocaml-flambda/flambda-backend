@@ -107,9 +107,19 @@ and rev_static_const_or_code =
   | Static_const of Static_const.t
 
 and rev_code =
-  { params_and_body : Flambda.Function_params_and_body.t;
+  { params_and_body : rev_params_and_body;
     free_names_of_params_and_body : Name_occurrences.t;
     code_metadata : Code_metadata.t
+  }
+
+and rev_params_and_body =
+  { return_continuation : Continuation.t;
+    exn_continuation : Continuation.t;
+    params : Bound_parameters.t;
+    body : rev_expr;
+    my_closure : Variable.t;
+    my_region : Variable.t;
+    my_depth : Variable.t
   }
 
 and rev_set_of_closures =
@@ -201,11 +211,8 @@ let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
         let static_const_or_code :
             Flambda.static_const_or_code -> rev_static_const_or_code = function
           | Code code ->
-            let params_and_body = Code.params_and_body code in
-            let code_metadata = Code.code_metadata code in
-            let free_names_of_params_and_body = Code0.free_names code in
-            Code
-              { params_and_body; code_metadata; free_names_of_params_and_body }
+            let code = traverse_code code in
+            Code code
           | Deleted_code -> Deleted_code
           | Static_const static_const -> Static_const static_const
         in
@@ -221,6 +228,35 @@ let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
             { bound_pattern = bp; defining_expr = named; parent = dacc.parent }
         in
         traverse { parent = let_acc } body)
+
+and traverse_code (code : Code.t) : rev_code =
+  let params_and_body = Code.params_and_body code in
+  let code_metadata = Code.code_metadata code in
+  let free_names_of_params_and_body = Code0.free_names code in
+  Flambda.Function_params_and_body.pattern_match params_and_body
+    ~f:(fun
+         ~return_continuation
+         ~exn_continuation
+         params
+         ~body
+         ~my_closure
+         ~is_my_closure_used:_
+         ~my_region
+         ~my_depth
+         ~free_names_of_body:_
+       ->
+      let body = traverse { parent = Up } body in
+      let params_and_body =
+        { return_continuation;
+          exn_continuation;
+          params;
+          body;
+          my_closure;
+          my_region;
+          my_depth
+        }
+      in
+      { params_and_body; code_metadata; free_names_of_params_and_body })
 
 and traverse_cont_handler :
     type a. Flambda.Continuation_handler.t -> (cont_handler -> a) -> a =
@@ -239,6 +275,27 @@ let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
   rebuild_holed holed_expr (RE.from_expr ~expr ~free_names)
 
+and rebuild_function_params_and_body (params_and_body : rev_params_and_body) :
+    Flambda.function_params_and_body =
+  let { return_continuation;
+        exn_continuation;
+        params;
+        body;
+        my_closure;
+        my_region;
+        my_depth
+      } =
+    params_and_body
+  in
+  let body = rebuild_expr body in
+  let params_and_body =
+    Flambda.Function_params_and_body.create ~return_continuation
+      ~exn_continuation params ~body:body.expr
+      ~free_names_of_body:(Known body.free_names) ~my_closure ~my_region
+      ~my_depth
+  in
+  params_and_body
+
 and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   match rev_expr with
   | Up -> hole
@@ -255,6 +312,9 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
                   code_metadata;
                   free_names_of_params_and_body
                 } ->
+              let params_and_body =
+                rebuild_function_params_and_body params_and_body
+              in
               let code =
                 Code.create_with_metadata ~params_and_body ~code_metadata
                   ~free_names_of_params_and_body
