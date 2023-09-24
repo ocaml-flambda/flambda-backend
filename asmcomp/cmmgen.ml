@@ -116,8 +116,21 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-let get_field env layout ptr n dbg =
+(* BACKPORT
+(* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
+let min_mut x y =
+  match x,y with
+  | Immutable,_ | _,Immutable -> Immutable
+  | Mutable,Mutable -> Mutable
+*)
+
+(* BACKPORT BEGIN
+let get_field env mut ptr n dbg =
+  let mut = min_mut mut (mut_from_env env ptr) in
+*)
+let get_field env _mut ptr n dbg =
   let mut = mut_from_env env ptr in
+(* BACKPORT END *)
   let memory_chunk =
     match layout with
     | Pvalue Pintval | Punboxed_int _ -> Word_int

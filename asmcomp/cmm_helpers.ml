@@ -702,8 +702,17 @@ let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
 
 let get_header ptr dbg =
-  (* header loads are mutable because laziness changes tags. *)
-  Cop(mk_load_mut Word_int,
+  (* Headers can be mutated when forcing a lazy value. However, for all
+     purposes that the mutability tag currently serves in the compiler, header
+     loads can be marked as [Immutable], since the runtime should ensure that
+     there is no data race on headers. This saves performance with
+     ThreadSanitizer instrumentation by avoiding to instrument header loads. *)
+  Cop(
+(* BACKPORT BEGIN
+    mk_load_immut Word_int,
+*)
+    mk_load_mut Word_int,
+(* BACKPORT END *)
     [Cop(Cadda, [ptr; Cconst_int(-size_int, dbg)], dbg)], dbg)
 
 let get_header_masked ptr dbg =
@@ -720,9 +729,14 @@ let get_tag ptr dbg =
   if Proc.word_addressed then           (* If byte loads are slow *)
     Cop(Cand, [get_header ptr dbg; Cconst_int (255, dbg)], dbg)
   else                                  (* If byte loads are efficient *)
-    (* header loads are mutable because laziness changes tags. *)
-    Cop(mk_load_mut Byte_unsigned,
-        [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
+    (* Same comment as [get_header] above *)
+    Cop(
+(* BACKPORT BEGIN
+      mk_load_immut Byte_unsigned,
+*)
+      mk_load_mut Byte_unsigned,
+(* BACKPORT END *)
+      [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
 
 let get_size ptr dbg =
   Cop(Clsr, [get_header_masked ptr dbg; Cconst_int (10, dbg)], dbg)
