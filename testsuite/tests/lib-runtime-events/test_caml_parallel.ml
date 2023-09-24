@@ -1,5 +1,7 @@
 (* TEST
 include runtime_events
+* skip
+reason = "OCaml 5 only"
 *)
 open Runtime_events
 
