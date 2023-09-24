@@ -82,7 +82,7 @@ type rev_expr_holed =
   | Up
   | Let of
       { bound_pattern : Bound_pattern.t;
-        defining_expr : Flambda.named;
+        defining_expr : rev_named;
         parent : rev_expr_holed
       }
   | Let_cont of
@@ -95,6 +95,10 @@ type rev_expr_holed =
         handlers : cont_handler Continuation.Map.t;
         parent : rev_expr_holed
       }
+
+and rev_named =
+  | Named of Flambda.named
+  | Set_of_closures of Set_of_closures.t
 
 and cont_handler =
   { bound_parameters : Bound_parameters.t;
@@ -166,14 +170,18 @@ let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
              Continuation.Map.empty)
       : rev_expr)
   | Let let_expr ->
+    let named =
+      match Flambda.Let_expr.defining_expr let_expr with
+      | Set_of_closures set_of_closures -> Set_of_closures set_of_closures
+      (* TODO set_of_closures in Static_consts *)
+      | (Simple _ | Prim _ | Static_consts _ | Rec_info _) as defining_expr ->
+        Named defining_expr
+    in
     Flambda.Let_expr.pattern_match let_expr ~f:(fun bp ~body ->
         ignore bp;
         let let_acc =
           Let
-            { bound_pattern = bp;
-              defining_expr = Flambda.Let_expr.defining_expr let_expr;
-              parent = dacc.parent
-            }
+            { bound_pattern = bp; defining_expr = named; parent = dacc.parent }
         in
         traverse { parent = let_acc } body)
 
@@ -199,7 +207,14 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   | Up -> hole
   | Let let_ ->
     let subexpr =
-      RE.create_let let_.bound_pattern let_.defining_expr ~body:hole
+      match let_.defining_expr with
+      | Named defining_expr ->
+        RE.create_let let_.bound_pattern defining_expr ~body:hole
+      | Set_of_closures set_of_closures ->
+        let defining_expr =
+          Flambda.Named.create_set_of_closures set_of_closures
+        in
+        RE.create_let let_.bound_pattern defining_expr ~body:hole
     in
     rebuild_holed let_.parent subexpr
   | Let_cont { cont; parent; handler } ->
