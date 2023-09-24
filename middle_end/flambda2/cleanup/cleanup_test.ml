@@ -1,3 +1,83 @@
+module Rebuilt_expr = struct
+  type continuation_handler =
+    { handler : Flambda.Continuation_handler.t;
+      free_names : Name_occurrences.t
+    }
+
+  type continuation_handlers =
+    { handlers : Flambda.Continuation_handler.t Continuation.Map.t;
+      free_names : Name_occurrences.t
+    }
+
+  type t =
+    { expr : Flambda.Expr.t;
+      free_names : Name_occurrences.t
+    }
+
+  let create_let bound_pattern defining_expr ~body =
+    let free_names =
+      Name_occurrences.diff
+        (Name_occurrences.union
+           (Flambda.Named.free_names defining_expr)
+           body.free_names)
+        ~without:(Bound_pattern.free_names bound_pattern)
+    in
+    let let_expr =
+      Flambda.Let_expr.create bound_pattern defining_expr ~body:body.expr
+        ~free_names_of_body:(Known body.free_names)
+    in
+    let expr = Flambda.Expr.create_let let_expr in
+    { expr; free_names }
+
+  let create_continuation_handler bound_parameters ~handler ~is_exn_handler
+      ~is_cold =
+    let free_names =
+      Name_occurrences.diff handler.free_names
+        ~without:(Bound_parameters.free_names bound_parameters)
+    in
+    let handler =
+      Flambda.Continuation_handler.create bound_parameters ~handler:handler.expr
+        ~free_names_of_handler:(Known handler.free_names) ~is_exn_handler
+        ~is_cold
+    in
+    { handler; free_names }
+
+  let create_continuation_handlers handlers =
+    Continuation.Map.fold
+      (fun cont (handler : continuation_handler) { handlers; free_names } ->
+        let handlers = Continuation.Map.add cont handler.handler handlers in
+        let free_names = Name_occurrences.union free_names handler.free_names in
+        { handlers; free_names })
+      handlers
+      { handlers = Continuation.Map.empty; free_names = Name_occurrences.empty }
+
+  let create_non_recursive_let_cont cont (cont_handler : continuation_handler)
+      ~body =
+    let expr =
+      Flambda.Let_cont_expr.create_non_recursive cont cont_handler.handler
+        ~body:body.expr ~free_names_of_body:(Known body.free_names)
+    in
+    let free_names =
+      Name_occurrences.union body.free_names cont_handler.free_names
+    in
+    { expr; free_names }
+
+  let create_recursive_let_cont ~invariant_params handlers ~body =
+    let handlers = create_continuation_handlers handlers in
+    let expr =
+      Flambda.Let_cont_expr.create_recursive ~invariant_params handlers.handlers
+        ~body:body.expr
+    in
+    let free_names =
+      Name_occurrences.union body.free_names handlers.free_names
+    in
+    { expr; free_names }
+
+  let from_expr ~expr ~free_names = { expr; free_names }
+end
+
+module RE = Rebuilt_expr
+
 type rev_expr_holed =
   | Up
   | Let of
@@ -23,7 +103,11 @@ and cont_handler =
     expr : rev_expr
   }
 
-and rev_expr = Flambda.Expr.t * rev_expr_holed
+and rev_expr =
+  { expr : Flambda.Expr.t;
+    holed_expr : rev_expr_holed;
+    free_names : Name_occurrences.t
+  }
 
 type dacc = { parent : rev_expr_holed }
 
@@ -31,7 +115,23 @@ type handlers = cont_handler Continuation.Map.t
 
 let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
-  | Invalid _ | Switch _ | Apply_cont _ | Apply _ -> expr, dacc.parent
+  | Invalid _ ->
+    { expr; holed_expr = dacc.parent; free_names = Name_occurrences.empty }
+  | Switch switch ->
+    { expr;
+      holed_expr = dacc.parent;
+      free_names = Flambda.Switch.free_names switch
+    }
+  | Apply_cont apply_cont ->
+    { expr;
+      holed_expr = dacc.parent;
+      free_names = Flambda.Apply_cont.free_names apply_cont
+    }
+  | Apply apply ->
+    { expr;
+      holed_expr = dacc.parent;
+      free_names = Flambda.Apply.free_names apply
+    }
   | Let_cont let_cont ->
     (match let_cont with
      | Non_recursive
@@ -90,32 +190,27 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler)
 
-let rec rebuild_expr (rev_expr : rev_expr) : Flambda.Expr.t =
-  let e, holed = rev_expr in
-  rebuild_holed holed e
+let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
+  let { expr; holed_expr; free_names } = rev_expr in
+  rebuild_holed holed_expr (RE.from_expr ~expr ~free_names)
 
-and rebuild_holed (rev_expr : rev_expr_holed) (hole : Flambda.Expr.t) :
-    Flambda.Expr.t =
+and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   match rev_expr with
   | Up -> hole
   | Let let_ ->
-    let let_expr =
-      Flambda.Let_expr.create let_.bound_pattern let_.defining_expr ~body:hole
-        ~free_names_of_body:Unknown (* TODO *)
+    let subexpr =
+      RE.create_let let_.bound_pattern let_.defining_expr ~body:hole
     in
-    let subexpr = Flambda.Expr.create_let let_expr in
     rebuild_holed let_.parent subexpr
   | Let_cont { cont; parent; handler } ->
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
       let handler = rebuild_expr expr in
-      Flambda.Continuation_handler.create bound_parameters ~handler
-        ~free_names_of_handler:Unknown (* TODO *)
-        ~is_exn_handler ~is_cold
+      RE.create_continuation_handler bound_parameters ~handler ~is_exn_handler
+        ~is_cold
     in
     let let_cont_expr =
-      Flambda.Let_cont_expr.create_non_recursive cont cont_handler ~body:hole
-        ~free_names_of_body:Unknown (* TODO *)
+      RE.create_non_recursive_let_cont cont cont_handler ~body:hole
     in
     rebuild_holed parent let_cont_expr
   | Let_cont_rec { parent; handlers; invariant_params } ->
@@ -124,14 +219,12 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : Flambda.Expr.t) :
         (fun handler ->
           let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
           let handler = rebuild_expr expr in
-          Flambda.Continuation_handler.create bound_parameters ~handler
-            ~free_names_of_handler:Unknown (* TODO *)
+          RE.create_continuation_handler bound_parameters ~handler
             ~is_exn_handler ~is_cold)
         handlers
     in
     let let_cont_expr =
-      Flambda.Let_cont_expr.create_recursive ~invariant_params handlers
-        ~body:hole
+      RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
     in
     rebuild_holed parent let_cont_expr
 
@@ -146,5 +239,5 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
 
 let run (unit : Flambda_unit.t) =
   let holed = traverse { parent = Up } (Flambda_unit.body unit) in
-  let expr = rebuild_expr holed in
-  unit_with_body unit expr
+  let rebuilt_expr = rebuild_expr holed in
+  unit_with_body unit rebuilt_expr.expr
