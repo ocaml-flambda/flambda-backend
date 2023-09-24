@@ -227,7 +227,7 @@ let probes = make
 
 let naked_pointers = make
   ~name:"naked_pointers"
-  ~description:"Pass if the runtime system supports naked pointers"
+  ~description:"[BACKPORT] Pass if the runtime system supports naked pointers"
   (Actions_helpers.pass_or_skip (Ocamltest_config.naked_pointers)
      "Runtime system supports naked pointers"
      "Runtime system does not support naked pointers")
@@ -366,6 +366,7 @@ let _ =
     arch_power;
     function_sections;
     frame_pointers;
+    naked_pointers;
     file_exists;
     copy;
     probes;
