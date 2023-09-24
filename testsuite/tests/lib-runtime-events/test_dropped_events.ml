@@ -2,9 +2,11 @@
    include runtime_events
    include unix
    set OCAMLRUNPARAM = "e=6"
-   * libunix
-   ** native
-   ** bytecode
+   * skip
+   reason = "OCaml 5 only"
+   ** libunix
+   *** native
+   *** bytecode
 *)
 
 type Runtime_events.User.tag += Ev
