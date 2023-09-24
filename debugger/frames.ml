@@ -53,7 +53,11 @@ let selected_event_is_before () =
 let rec move_up frame_count event =
   if frame_count <= 0 then event else begin
     let (sp, pc) = up_frame event.ev_ev.ev_stacksize in
+(* BACKPORT BEGIN
     if sp = Sp.null then raise Not_found;
+*)
+    if sp < Sp.null then raise Not_found;
+(* BACKPORT END *)
     move_up (frame_count - 1) (any_event_at_pc pc)
   end
 
@@ -113,7 +117,11 @@ let do_backtrace action =
       begin try
         while action (Some !event) do
           let (sp, pc) = up_frame !event.ev_ev.ev_stacksize in
+(* BACKPORT BEGIN
           if sp = Sp.null then raise Exit;
+*)
+          if sp < Sp.null then raise Exit;
+(* BACKPORT END *)
           event := any_event_at_pc pc
         done
       with Exit -> ()
