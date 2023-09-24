@@ -98,7 +98,13 @@ type rev_expr_holed =
 
 and rev_named =
   | Named of Flambda.named
-  | Set_of_closures of Set_of_closures.t
+  | Set_of_closures of rev_set_of_closures
+
+and rev_set_of_closures =
+  { value_slots : Simple.t Value_slot.Map.t;
+    function_decls : Function_declarations.t;
+    alloc_mode : Alloc_mode.For_allocations.t
+  }
 
 and cont_handler =
   { bound_parameters : Bound_parameters.t;
@@ -172,7 +178,12 @@ let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
   | Let let_expr ->
     let named =
       match Flambda.Let_expr.defining_expr let_expr with
-      | Set_of_closures set_of_closures -> Set_of_closures set_of_closures
+      | Set_of_closures set_of_closures ->
+        let function_decls = Set_of_closures.function_decls set_of_closures in
+        let value_slots = Set_of_closures.value_slots set_of_closures in
+        let alloc_mode = Set_of_closures.alloc_mode set_of_closures in
+        let set_of_closures = { function_decls; value_slots; alloc_mode } in
+        Set_of_closures set_of_closures
       (* TODO set_of_closures in Static_consts *)
       | (Simple _ | Prim _ | Static_consts _ | Rec_info _) as defining_expr ->
         Named defining_expr
@@ -210,7 +221,10 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
       match let_.defining_expr with
       | Named defining_expr ->
         RE.create_let let_.bound_pattern defining_expr ~body:hole
-      | Set_of_closures set_of_closures ->
+      | Set_of_closures { value_slots; alloc_mode; function_decls } ->
+        let set_of_closures =
+          Set_of_closures.create ~value_slots alloc_mode function_decls
+        in
         let defining_expr =
           Flambda.Named.create_set_of_closures set_of_closures
         in
