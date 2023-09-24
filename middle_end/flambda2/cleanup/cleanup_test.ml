@@ -99,6 +99,18 @@ type rev_expr_holed =
 and rev_named =
   | Named of Flambda.named
   | Set_of_closures of rev_set_of_closures
+  | Static_consts of rev_static_const_or_code list
+
+and rev_static_const_or_code =
+  | Code of rev_code
+  | Deleted_code
+  | Static_const of Static_const.t
+
+and rev_code =
+  { params_and_body : Flambda.Function_params_and_body.t;
+    free_names_of_params_and_body : Name_occurrences.t;
+    code_metadata : Code_metadata.t
+  }
 
 and rev_set_of_closures =
   { value_slots : Simple.t Value_slot.Map.t;
@@ -176,7 +188,7 @@ let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
              Continuation.Map.empty)
       : rev_expr)
   | Let let_expr ->
-    let named =
+    let named : rev_named =
       match Flambda.Let_expr.defining_expr let_expr with
       | Set_of_closures set_of_closures ->
         let function_decls = Set_of_closures.function_decls set_of_closures in
@@ -184,9 +196,23 @@ let rec traverse (dacc : dacc) (expr : Flambda.Expr.t) =
         let alloc_mode = Set_of_closures.alloc_mode set_of_closures in
         let set_of_closures = { function_decls; value_slots; alloc_mode } in
         Set_of_closures set_of_closures
+      | Static_consts group ->
+        let group = Flambda.Static_const_group.to_list group in
+        let static_const_or_code :
+            Flambda.static_const_or_code -> rev_static_const_or_code = function
+          | Code code ->
+            let params_and_body = Code.params_and_body code in
+            let code_metadata = Code.code_metadata code in
+            let free_names_of_params_and_body = Code0.free_names code in
+            Code
+              { params_and_body; code_metadata; free_names_of_params_and_body }
+          | Deleted_code -> Deleted_code
+          | Static_const static_const -> Static_const static_const
+        in
+        let group = List.map static_const_or_code group in
+        Static_consts group
       (* TODO set_of_closures in Static_consts *)
-      | (Simple _ | Prim _ | Static_consts _ | Rec_info _) as defining_expr ->
-        Named defining_expr
+      | (Simple _ | Prim _ | Rec_info _) as defining_expr -> Named defining_expr
     in
     Flambda.Let_expr.pattern_match let_expr ~f:(fun bp ~body ->
         ignore bp;
@@ -218,17 +244,37 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   | Up -> hole
   | Let let_ ->
     let subexpr =
-      match let_.defining_expr with
-      | Named defining_expr ->
-        RE.create_let let_.bound_pattern defining_expr ~body:hole
-      | Set_of_closures { value_slots; alloc_mode; function_decls } ->
-        let set_of_closures =
-          Set_of_closures.create ~value_slots alloc_mode function_decls
-        in
-        let defining_expr =
+      let defining_expr =
+        match let_.defining_expr with
+        | Named defining_expr -> defining_expr
+        | Static_consts group ->
+          let static_const_or_code = function
+            | Deleted_code -> Flambda.Static_const_or_code.deleted_code
+            | Code
+                { params_and_body;
+                  code_metadata;
+                  free_names_of_params_and_body
+                } ->
+              let code =
+                Code.create_with_metadata ~params_and_body ~code_metadata
+                  ~free_names_of_params_and_body
+              in
+              Flambda.Static_const_or_code.create_code code
+            | Static_const static_const ->
+              Flambda.Static_const_or_code.create_static_const static_const
+          in
+          let group =
+            Flambda.Static_const_group.create
+              (List.map static_const_or_code group)
+          in
+          Flambda.Named.create_static_consts group
+        | Set_of_closures { value_slots; alloc_mode; function_decls } ->
+          let set_of_closures =
+            Set_of_closures.create ~value_slots alloc_mode function_decls
+          in
           Flambda.Named.create_set_of_closures set_of_closures
-        in
-        RE.create_let let_.bound_pattern defining_expr ~body:hole
+      in
+      RE.create_let let_.bound_pattern defining_expr ~body:hole
     in
     rebuild_holed let_.parent subexpr
   | Let_cont { cont; parent; handler } ->
