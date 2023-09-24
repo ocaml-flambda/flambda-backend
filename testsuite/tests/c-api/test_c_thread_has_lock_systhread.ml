@@ -1,9 +1,11 @@
 (* TEST
    modules = "test_c_thread_has_lock_cstubs.c"
-   * hassysthreads
+   * skip
+   reason = "OCaml 5 only"
+   ** hassysthreads
    include systhreads
-   ** bytecode
-   ** native
+   *** bytecode
+   *** native
 *)
 
 external test_with_lock : unit -> bool = "with_lock"
