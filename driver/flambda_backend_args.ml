@@ -598,6 +598,14 @@ let mk_dflow f =
   "-dflow", Arg.Unit f, " Dump debug info for the flow computation (Flambda 2 only)"
 ;;
 
+let mk_dsimplify f =
+  "-dsimplify", Arg.Unit f, " Print Flambda 2 terms after simplify (Flambda 2 only)"
+;;
+
+let mk_dreaper f =
+  "-dreaper", Arg.Unit f, " Dump debug info for the reaper pass (Flambda 2 only)"
+;;
+
 module Debugging = Dwarf_flags
 
 (* CR mshinwell: These help texts should show the default values. *)
@@ -795,6 +803,8 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
+  val dsimplify : unit -> unit
+  val dreaper : unit -> unit
   val use_cached_generic_functions : unit -> unit
   val cached_generic_functions_path : string -> unit
 end
@@ -956,6 +966,8 @@ struct
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
     mk_dflow F.dflow;
+    mk_dsimplify F.dsimplify;
+    mk_dreaper F.dreaper;
     mk_use_cached_generic_functions F.use_cached_generic_functions;
     mk_cached_generic_functions_path F.cached_generic_functions_path;
   ]
@@ -1206,6 +1218,8 @@ module Flambda_backend_options_impl = struct
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
   let dflow = set' Flambda2.Dump.flow
+  let dsimplify = set' Flambda2.Dump.simplify
+  let dreaper = set' Flambda2.Dump.reaper
   let use_cached_generic_functions = set' Flambda_backend_flags.use_cached_generic_functions
   let cached_generic_functions_path file = Flambda_backend_flags.cached_generic_functions_path := file
 end

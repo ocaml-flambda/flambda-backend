@@ -198,6 +198,8 @@ module Flambda2 = struct
     let slot_offsets = ref false
     let freshen = ref false
     let flow = ref false
+    let simplify = ref false
+    let reaper = ref false
   end
 
   module Expert = struct

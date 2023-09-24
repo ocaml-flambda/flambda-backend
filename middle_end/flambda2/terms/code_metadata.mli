@@ -124,6 +124,8 @@ val with_newer_version_of : Code_id.t option -> t -> t
 
 val with_cost_metrics : Cost_metrics.t -> t -> t
 
+val with_is_my_closure_used : bool -> t -> t
+
 val print : Format.formatter -> t -> unit
 
 (** [free_names] does not return occurrences of value slots inside the

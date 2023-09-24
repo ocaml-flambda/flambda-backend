@@ -219,6 +219,8 @@ let with_newer_version_of newer_version_of t = { t with newer_version_of }
 
 let with_cost_metrics cost_metrics t = { t with cost_metrics }
 
+let with_is_my_closure_used is_my_closure_used t = { t with is_my_closure_used }
+
 module Option = struct
   include Option
 

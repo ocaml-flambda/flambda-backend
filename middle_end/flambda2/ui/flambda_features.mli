@@ -79,6 +79,10 @@ val dump_slot_offsets : unit -> bool
 
 val dump_flow : unit -> bool
 
+val dump_simplify : unit -> bool
+
+val dump_reaper : unit -> bool
+
 val freshen_when_printing : unit -> bool
 
 module Inlining : sig

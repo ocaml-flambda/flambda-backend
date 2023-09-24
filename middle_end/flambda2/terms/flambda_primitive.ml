@@ -2258,6 +2258,14 @@ let args t =
   | Ternary (_, x0, x1, x2) -> [x0; x1; x2]
   | Variadic (_, xs) -> xs
 
+let map_args f t =
+  match t with
+  | Nullary _ -> t
+  | Unary (p, x0) -> Unary (p, f x0)
+  | Binary (p, x0, x1) -> Binary (p, f x0, f x1)
+  | Ternary (p, x0, x1, x2) -> Ternary (p, f x0, f x1, f x2)
+  | Variadic (p, xs) -> Variadic (p, List.map f xs)
+
 let result_kind (t : t) =
   match t with
   | Nullary prim -> result_kind_of_nullary_primitive prim
