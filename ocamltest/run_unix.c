@@ -349,7 +349,9 @@ int run_command(const command_settings *settings)
       myperror("fork");
       return -1;
     case 0: /* child process */
+#if 0
       caml_atfork_hook();
+#endif
       exit( run_command_child(settings) );
     default:
       return run_command_parent(settings, child_pid);
