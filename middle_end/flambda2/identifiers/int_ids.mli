@@ -252,6 +252,27 @@ module Code_id_or_symbol : sig
     t -> code_id:(Code_id.t -> 'a) -> symbol:(Symbol.t -> 'a) -> 'a
 end
 
+module Code_id_or_name : sig
+  type t = private Table_by_int_id.Id.t
+
+  include Container_types.S with type t := t
+
+  val code_id : Code_id.t -> t
+
+  val name : Name.t -> t
+
+  val var : Variable.t -> t
+
+  val symbol : Symbol.t -> t
+
+  val pattern_match :
+    t ->
+    code_id:(Code_id.t -> 'a) ->
+    var:(Variable.t -> 'a) ->
+    symbol:(Symbol.t -> 'a) ->
+    'a
+end
+
 val initialise : unit -> unit
 
 val reset : unit -> unit

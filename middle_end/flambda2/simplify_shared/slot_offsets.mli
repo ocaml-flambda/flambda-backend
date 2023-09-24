@@ -91,6 +91,7 @@ module Layout : sig
           function_slot : Function_slot.t;
           last_function_slot : bool
         }
+    | Dummy_function_slot of { last_function_slot : bool }
   (**)
 
   (** Alias for complete layouts. The list is sorted according to offsets (in
