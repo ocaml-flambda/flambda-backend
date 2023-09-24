@@ -89,7 +89,14 @@ let frame_size env =                     (* includes return address *)
        + 8 * (env.f.fun_num_stack_slots.(0) + env.f.fun_num_stack_slots.(1))
        + 8
        + (if fp then 8 else 0))
-    in Misc.align sz 16
+    in
+(* BACKPORT BEGIN *)
+    Misc.align
+(* BACKPORT END *)
+      sz
+(* BACKPORT BEGIN *)
+      16
+(* BACKPORT END *)
   end else
     env.stack_offset + 8
 
