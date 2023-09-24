@@ -2,8 +2,10 @@
    * skip
 
 
-* frame_pointers
-** native
+* skip
+reason - "OCaml 5 only"
+** frame_pointers
+*** native
 
 readonly_files = "fp_backtrace.c stack_realloc_.c"
 all_modules = "${readonly_files} stack_realloc.ml"
