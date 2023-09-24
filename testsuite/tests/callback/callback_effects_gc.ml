@@ -1,6 +1,8 @@
 (* TEST
    ocamlrunparam += ",s=512"
-   * native
+   * skip
+   reason = "OCaml 5 only"
+   ** native
 *)
 
 let count = ref 0
