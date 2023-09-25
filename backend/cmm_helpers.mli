@@ -1299,9 +1299,11 @@ val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 val make_tuple : expression list -> expression
 
 (* Generated functions *)
-val curry_function : Lambda.function_kind * Cmm.machtype list * Cmm.machtype ->
-                     Cmm.phrase list
+val curry_function :
+  Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
 
-val send_function : Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+val send_function :
+  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
 
-val apply_function : Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+val apply_function :
+  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
