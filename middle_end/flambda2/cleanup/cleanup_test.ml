@@ -193,7 +193,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let cont_handler =
             Flambda.Non_recursive_let_cont_handler.handler handler
           in
-          traverse_cont_handler cont_handler (fun handler ->
+          traverse_cont_handler dacc cont_handler (fun handler ->
               let denv =
                 { parent = Let_cont { cont; handler; parent = denv.parent } }
               in
@@ -204,7 +204,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         ~f:(fun ~invariant_params ~body handlers ->
           Continuation.Map.fold
             (fun cont handler k ->
-              traverse_cont_handler handler
+              let dacc = Dacc.todo () in
+              traverse_cont_handler dacc handler
                 (fun (handler : cont_handler) handlers ->
                   k (Continuation.Map.add cont handler handlers)))
             (Flambda.Continuation_handlers.to_map handlers)
@@ -282,15 +283,14 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code =
       { params_and_body; code_metadata; free_names_of_params_and_body })
 
 and traverse_cont_handler :
-    type a. Flambda.Continuation_handler.t -> (cont_handler -> a) -> a =
- fun cont_handler k ->
+    type a. dacc -> Flambda.Continuation_handler.t -> (cont_handler -> a) -> a =
+ fun dacc cont_handler k ->
   let is_exn_handler =
     Flambda.Continuation_handler.is_exn_handler cont_handler
   in
   let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
   Flambda.Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
-      let dacc = Dacc.todo () in
       let expr, _dacc = traverse { parent = Up } dacc handler in
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler)
