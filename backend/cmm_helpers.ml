@@ -2334,6 +2334,15 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
+let split_arity_for_apply arity args =
+  let max_arity = Lambda.max_arity () in
+  if List.compare_length_with arity max_arity > 0
+  then
+    let a1, a2 = Misc.Stdlib.List.split_at max_arity arity in
+    let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
+    (a1, args1), Some (a2, args2)
+  else (arity, args), None
+
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
@@ -2378,7 +2387,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                 Any )))
   else really_call_caml_apply clos args
 
-let generic_apply mut clos args args_type result (pos, mode) dbg =
+let rec generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
   | [arg] ->
     bind "fun" clos (fun clos ->
@@ -2386,7 +2395,19 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
           ( Capply (Extended_machtype.to_machtype result, pos),
             [get_field_gen mut clos 0 dbg; arg; clos],
             dbg ))
-  | _ -> call_caml_apply result args_type mut clos args pos mode dbg
+  | _ ->
+    begin
+    (* The compiler clamps all arity to [Lambda.max_arity ()]. This means that
+        generating a caml to [caml_applyN] with N greater than this bound has
+        little sense and we can instead call caml_apply several times. *)
+    match split_arity_for_apply args_type args with
+    | (arity, args), None ->
+      call_caml_apply result arity mut clos args pos mode dbg
+    | (arity, args), Some (arity', args') ->
+      bind "result"
+        (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
+        (fun clos -> generic_apply mut clos args' arity' result (pos, mode) dbg)
+    end
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
