@@ -2395,11 +2395,10 @@ let rec generic_apply mut clos args args_type result (pos, mode) dbg =
           ( Capply (Extended_machtype.to_machtype result, pos),
             [get_field_gen mut clos 0 dbg; arg; clos],
             dbg ))
-  | _ ->
-    begin
+  | _ -> (
     (* The compiler clamps all arity to [Lambda.max_arity ()]. This means that
-        generating a caml to [caml_applyN] with N greater than this bound has
-        little sense and we can instead call caml_apply several times. *)
+       generating a caml to [caml_applyN] with N greater than this bound has
+       little sense and we can instead call caml_apply several times. *)
     match split_arity_for_apply args_type args with
     | (arity, args), None ->
       call_caml_apply result arity mut clos args pos mode dbg
@@ -2407,7 +2406,7 @@ let rec generic_apply mut clos args args_type result (pos, mode) dbg =
       bind "result"
         (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
         (fun clos -> generic_apply mut clos args' arity' result (pos, mode) dbg)
-    end
+    )
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
