@@ -160,7 +160,7 @@ let print_general_infos print_name name crc defines implements_param iter_cmi
     match implements_param with
     | None -> ()
     | Some arg_type ->
-      printf "Parameter implemented: %a\n" Compilation_unit.Name.output arg_type
+      printf "Parameter implemented: %a\n" Global.Name.output arg_type
   in
   printf "Interfaces imported:\n";
   iter_cmi print_intf_import;

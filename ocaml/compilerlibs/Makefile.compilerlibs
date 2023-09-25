@@ -48,6 +48,7 @@ UTILS = \
   utils/domainstate.cmo \
   utils/binutils.cmo \
   utils/target_system.cmo \
+  utils/global.cmo \
   typing/ident.cmo \
   utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo \
   utils/import_info.cmo \

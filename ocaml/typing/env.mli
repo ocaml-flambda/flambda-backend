@@ -418,9 +418,8 @@ val reset_cache_toplevel: unit -> unit
 val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
-(* Read, save a signature to/from a file *)
-val read_signature:
-  Compilation_unit.Name.t -> filepath -> add_binding:bool -> signature
+(* Read, save a signature to/from a file. *)
+val read_signature: Global.Name.t -> filepath -> add_binding:bool -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
@@ -435,7 +434,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
-val register_parameter: Compilation_unit.Name.t -> unit
+val register_parameter: Global.Name.t -> unit
 
 (* Register a module as a parameter unit, though not necessarily a parameter to
    this unit. It is unnecessary (but harmless) to call both this and
@@ -453,11 +452,11 @@ val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as parameters, along with the
    local variable representing each *)
-val locally_bound_imports: unit -> (Compilation_unit.Name.t * Ident.t) list
+val locally_bound_imports: unit -> (Global.Name.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
-val exported_parameters: unit -> Compilation_unit.Name.t list
+val exported_parameters: unit -> Global.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -471,8 +470,7 @@ val is_parameter_unit: Compilation_unit.Name.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter:
-  Compilation_unit.Name.t -> Compilation_unit.Name.t option
+val implemented_parameter: Global.Name.t -> Global.Name.t option
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

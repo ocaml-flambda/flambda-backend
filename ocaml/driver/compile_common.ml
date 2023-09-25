@@ -87,7 +87,7 @@ let emit_signature info ast tsg =
       else
         let cmi_arg_for =
           match !Clflags.as_argument_for with
-          | Some arg_type -> Some (Compilation_unit.Name.of_string arg_type)
+          | Some arg_type -> Some (Global.Name.create arg_type [])
           | None -> None
         in
         Normal { cmi_impl = info.module_name; cmi_arg_for }

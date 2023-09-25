@@ -36,8 +36,8 @@ type error = private
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Compilation_unit.Name.t;
-        parameter : Compilation_unit.Name.t;
+      { imported : Global.Name.t;
+        parameter : Global.Name.t;
   }
 
 exception Error of error
@@ -66,11 +66,11 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
+val fold : 'a t -> (Global.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Compilation_unit.Name.t
+  -> Global.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:Address.t
@@ -80,14 +80,12 @@ type 'a sig_reader =
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
 val read : 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
-val find : 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> 'a
+  -> Global.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
+val find : 'a t -> 'a sig_reader -> Global.Name.t -> 'a
 
-val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
+val find_in_cache : 'a t -> Global.Name.t -> 'a option
 
-val check : 'a t -> 'a sig_reader
-  -> loc:Location.t -> Compilation_unit.Name.t -> unit
+val check : 'a t -> 'a sig_reader -> loc:Location.t -> Global.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter and thus is expected
    to have been compiled as such. It may or may not be a parameter to _this_
@@ -96,12 +94,12 @@ val check : 'a t -> 'a sig_reader
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
 (* Declare a parameter to this module. Calls [register_parameter_import]. *)
-val register_exported_parameter : 'a t -> Compilation_unit.Name.t -> unit
+val register_exported_parameter : 'a t -> Global.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> Compilation_unit.Name.t -> bool
+val looked_up : 'a t -> Global.Name.t -> bool
 
 (* [is_imported penv md] checks if [md] has been successfully
    imported in the environment [penv] *)
@@ -121,8 +119,7 @@ val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
-val implemented_parameter : 'a t -> Compilation_unit.Name.t
-  -> Compilation_unit.Name.t option
+val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -148,11 +145,11 @@ val imports : 'a t -> Import_info.t list
 
 (* Return the list of imported modules (including parameters) that must be bound
    as parameters in a toplevel functor *)
-val locally_bound_imports : 'a t -> (Compilation_unit.Name.t * Ident.t) list
+val locally_bound_imports : 'a t -> (Global.Name.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
-val exported_parameters : 'a t -> Compilation_unit.Name.t list
+val exported_parameters : 'a t -> Global.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t

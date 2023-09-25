@@ -519,6 +519,13 @@ val output_of_print :
     Note that naively using [Format.formatter_of_out_channel] typechecks but
     doesn't work because it fails to flush the formatter. *)
 
+val to_string_of_print :
+  (Format.formatter -> 'a -> unit) -> 'a -> string
+(** [to_string_of_print print] produces a string conversion function from a
+    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
+    when the output may be large, since [to_string] functions don't usually
+    return embedded newlines. *)
+
 
 type filepath = string
 

@@ -149,11 +149,11 @@ type error =
   | Cannot_implement_parameter of Misc.filepath
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
-  | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Compilation_unit.Name.t
+  | Argument_for_non_parameter of Global.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global.Name.t
   | Inconsistent_argument_types of {
-      new_arg_type: Compilation_unit.Name.t option;
-      old_arg_type: Compilation_unit.Name.t option;
+      new_arg_type: Global.Name.t option;
+      old_arg_type: Global.Name.t option;
       old_source_file: Misc.filepath;
     }
 
