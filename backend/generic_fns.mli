@@ -10,13 +10,28 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Cmm_helpers
+
+module Partition : sig
+  type t
+
+  module Set : Stdlib.Set.S with type elt = t
+
+  val to_cu : t -> Compilation_unit.t
+
+  val to_string : t -> string
+
+  val name : t -> string
+end
+
 (** Generate generic functions *)
 module Tbl : sig
   type t
 
   val make : unit -> t
 
-  val add : t -> Cmx_format.generic_fns -> unit
+  val add :
+    imports:Partition.Set.t -> t -> Cmx_format.generic_fns -> Partition.Set.t
 
   val of_fns : Cmx_format.generic_fns -> t
 
@@ -45,13 +60,9 @@ module Cache : sig
 
   val mem_curry : curry -> bool
 
-  val partition_send : send -> string
-
-  val partition_apply : apply -> string
-
-  val partition_curry : curry -> string
-
-  val all : unit -> (string, Tbl.t) Hashtbl.t
+  val all : unit -> (Partition.t, Tbl.t) Hashtbl.t
 end
 
 val compile : shared:bool -> Tbl.t -> Cmm.phrase list
+
+val imported_units : Partition.Set.t -> Compilation_unit.t list
