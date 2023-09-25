@@ -30,7 +30,6 @@ type t =
 and global = Global.Name.t = private
   { head: string; args: (global * global) list }
 
-
 (* A stamp of 0 denotes a persistent identifier *)
 
 let currentstamp = s_ref 0
@@ -99,7 +98,6 @@ let unique_toplevel_name = function
   | Global name
   | Predef { name; _ } -> name
   | Instance g -> global_name g
-
 
 let equal i1 i2 =
   match i1, i2 with

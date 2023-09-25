@@ -2663,16 +2663,16 @@ let persistent_structures_of_dir dir =
   |> String.Set.of_seq
 
 (* Save a signature to a file *)
-let save_signature_with_transform
-    cmi_transform ~alerts sg import kind filename =
+let save_signature_with_transform cmi_transform ~alerts sg modname kind
+      filename =
   Btype.cleanup_abbrev ();
   Subst.reset_additional_action_type_id ();
   let sg = Subst.Lazy.of_signature sg
     |> Subst.Lazy.signature Make_local
-      (Subst.with_additional_action Prepare_for_saving Subst.identity)
+        (Subst.with_additional_action Prepare_for_saving Subst.identity)
   in
   let cmi =
-    Persistent_env.make_cmi !persistent_env import kind sg alerts
+    Persistent_env.make_cmi !persistent_env modname kind sg alerts
     |> cmi_transform in
   Persistent_env.save_cmi !persistent_env
     { Persistent_env.Persistent_signature.filename; cmi };
