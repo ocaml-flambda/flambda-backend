@@ -232,6 +232,7 @@ module Layout : sig
     | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
+    | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
 
   type interact_reason =
     | Gadt_equation of Path.t

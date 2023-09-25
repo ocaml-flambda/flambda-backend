@@ -332,6 +332,8 @@ module Layout = struct
     | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
+    | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
+
 
   type interact_reason =
     | Gadt_equation of Path.t
@@ -821,6 +823,15 @@ module Layout = struct
          format_concrete_layout_reason ppf concrete
       | Imported ->
          fprintf ppf "it's imported from another compilation unit"
+      | Imported_type_argument {parent_path; position; arity} ->
+        (match arity, position with
+         | 1, _ -> fprintf ppf "the type argument of %a has this layout"
+         | _, 1 -> fprintf ppf "the first type argument of %a has this layout"
+         | _, 2 -> fprintf ppf "the second type argument of %a has this layout"
+         | _, 3 -> fprintf ppf "the third type argument of %a has this layout"
+         | _ -> fprintf ppf "the type argument at position %d of %a has this layout"
+                  position)
+          !printtyp_path parent_path
 
     let format_interact_reason ppf = function
       | Gadt_equation name ->
@@ -1197,6 +1208,9 @@ module Layout = struct
          fprintf ppf "Concrete_creation %a" concrete_layout_reason concrete
       | Imported ->
          fprintf ppf "Imported"
+      | Imported_type_argument {parent_path; position; arity}  ->
+           fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a"
+           position arity !printtyp_path parent_path
 
     let interact_reason ppf = function
       | Gadt_equation p ->
