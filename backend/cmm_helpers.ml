@@ -2387,6 +2387,15 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                 Any )))
   else really_call_caml_apply clos args
 
+let might_split_call_caml_apply ~recurse result arity mut clos args pos mode dbg =
+  match split_arity_for_apply arity args with
+    | (arity, args), None ->
+      call_caml_apply result arity mut clos args pos mode dbg
+    | (arity, args), Some (arity', args') ->
+      bind "result"
+        (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
+        (fun clos -> recurse clos args' arity')
+
 let rec generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
   | [arg] ->
@@ -2395,18 +2404,11 @@ let rec generic_apply mut clos args args_type result (pos, mode) dbg =
           ( Capply (Extended_machtype.to_machtype result, pos),
             [get_field_gen mut clos 0 dbg; arg; clos],
             dbg ))
-  | _ -> (
-    (* The compiler clamps all arity to [Lambda.max_arity ()]. This means that
-       generating a caml to [caml_applyN] with N greater than this bound has
-       little sense and we can instead call caml_apply several times. *)
-    match split_arity_for_apply args_type args with
-    | (arity, args), None ->
-      call_caml_apply result arity mut clos args pos mode dbg
-    | (arity, args), Some (arity', args') ->
-      bind "result"
-        (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
-        (fun clos -> generic_apply mut clos args' arity' result (pos, mode) dbg)
-    )
+  | _ ->
+    might_split_call_caml_apply
+      ~recurse:(fun clos args args_type ->
+        generic_apply mut clos args args_type result (pos, mode) dbg)
+      result args_type mut clos args pos mode dbg
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
@@ -4382,7 +4384,7 @@ let store ~dbg kind init ~addr ~new_value =
 let direct_call ~dbg ty pos f_code_sym args =
   Cop (Capply (ty, pos), f_code_sym :: args, dbg)
 
-let indirect_call ~dbg ty pos alloc_mode f args_type args =
+let rec indirect_call ~dbg ty pos alloc_mode f args_type args =
   match args_type with
   | [_] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
@@ -4395,7 +4397,11 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
              (load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v) :: args)
              @ [Cvar v],
              dbg ))
-  | _ -> call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
+  | _ ->
+    might_split_call_caml_apply
+      ~recurse:(fun f args args_type ->
+        indirect_call ~dbg ty pos alloc_mode f args_type args)
+      ty args_type Asttypes.Mutable f args pos alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
   (* the single-argument case is already optimized by indirect_call *)
