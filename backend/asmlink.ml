@@ -480,12 +480,12 @@ let call_linker file_list_rev startup_file output_name =
                  && Filename.check_suffix output_name Config.ext_dll
   and main_obj_runtime = !Clflags.output_complete_object
   in
-  let files = startup_file :: (List.rev file_list_rev) in
-  let files =
+  let file_list_rev =
     if !Flambda_backend_flags.use_cached_generic_functions then
-      !Flambda_backend_flags.cached_generic_functions_path :: files
-    else files
+      !Flambda_backend_flags.cached_generic_functions_path :: file_list_rev
+    else file_list_rev
   in
+  let files = startup_file :: (List.rev file_list_rev) in
   let files, c_lib =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),
