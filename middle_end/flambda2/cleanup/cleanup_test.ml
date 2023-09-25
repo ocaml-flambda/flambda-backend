@@ -220,29 +220,32 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               traverse denv dacc body)
             Continuation.Map.empty))
   | Let let_expr ->
-    let named : rev_named =
+    let (named, dacc) : rev_named * dacc =
       match Flambda.Let_expr.defining_expr let_expr with
       | Set_of_closures set_of_closures ->
         let function_decls = Set_of_closures.function_decls set_of_closures in
         let value_slots = Set_of_closures.value_slots set_of_closures in
         let alloc_mode = Set_of_closures.alloc_mode set_of_closures in
         let set_of_closures = { function_decls; value_slots; alloc_mode } in
-        Set_of_closures set_of_closures
+        Set_of_closures set_of_closures, dacc
       | Static_consts group ->
         let group = Flambda.Static_const_group.to_list group in
         let static_const_or_code :
-            Flambda.static_const_or_code -> rev_static_const_or_code = function
+            dacc ->
+            Flambda.static_const_or_code ->
+            dacc * rev_static_const_or_code =
+         fun dacc -> function
           | Code code ->
-            let dacc = Dacc.todo () in
-            let code = traverse_code dacc code in
-            Code code
-          | Deleted_code -> Deleted_code
-          | Static_const static_const -> Static_const static_const
+            let code, dacc = traverse_code dacc code in
+            dacc, Code code
+          | Deleted_code -> dacc, Deleted_code
+          | Static_const static_const -> dacc, Static_const static_const
         in
-        let group = List.map static_const_or_code group in
-        Static_consts group
+        let dacc, group = List.fold_left_map static_const_or_code dacc group in
+        Static_consts group, dacc
       (* TODO set_of_closures in Static_consts *)
-      | (Simple _ | Prim _ | Rec_info _) as defining_expr -> Named defining_expr
+      | (Simple _ | Prim _ | Rec_info _) as defining_expr ->
+        Named defining_expr, dacc
     in
     Flambda.Let_expr.pattern_match let_expr ~f:(fun bp ~body ->
         ignore bp;
@@ -250,10 +253,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           Let
             { bound_pattern = bp; defining_expr = named; parent = denv.parent }
         in
-        let dacc = Dacc.todo () in
         traverse { parent = let_acc } dacc body)
 
-and traverse_code (dacc : dacc) (code : Code.t) : rev_code =
+and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
@@ -269,7 +271,7 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code =
          ~my_depth
          ~free_names_of_body:_
        ->
-      let body, _dacc = traverse { parent = Up } dacc body in
+      let body, dacc = traverse { parent = Up } dacc body in
       let params_and_body =
         { return_continuation;
           exn_continuation;
@@ -280,7 +282,7 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code =
           my_depth
         }
       in
-      { params_and_body; code_metadata; free_names_of_params_and_body })
+      { params_and_body; code_metadata; free_names_of_params_and_body }, dacc)
 
 and traverse_cont_handler :
     type a. dacc -> Flambda.Continuation_handler.t -> (cont_handler -> a) -> a =
