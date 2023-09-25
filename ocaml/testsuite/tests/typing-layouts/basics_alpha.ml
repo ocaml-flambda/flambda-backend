@@ -1031,7 +1031,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument of Lazy.t has layout value.
+         the type argument of Lazy.t has this layout.
 |}];;
 
 let x13 (VV v) = lazy v;;

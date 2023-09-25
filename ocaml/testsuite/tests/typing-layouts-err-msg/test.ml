@@ -31,7 +31,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument of A.t has layout value.
+         the type argument of A.t has this layout.
 |}]
 
 type t = t_void A.t
@@ -44,7 +44,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument of A.t has layout value.
+         the type argument of A.t has this layout.
 |}]
 
 
@@ -59,7 +59,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument of B.t has layout value.
+         the type argument of B.t has this layout.
 |}]
 
 type t = t_void B.t
@@ -72,7 +72,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument of B.t has layout value.
+         the type argument of B.t has this layout.
 |}]
 
 let f (x : t_void): ('a, 'b) A.t2 = x
@@ -86,7 +86,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the first type argument of A.t2 has layout value.
+         the first type argument of A.t2 has this layout.
 |}]
 
 type t = (t_void, t_value) A.t2
@@ -99,7 +99,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the first type argument of A.t2 has layout value.
+         the first type argument of A.t2 has this layout.
 |}]
 
 type t = (t_value, t_void, t_void, t_void, t_void) A.t5
@@ -112,7 +112,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the second type argument of A.t5 has layout value.
+         the second type argument of A.t5 has this layout.
 |}]
 
 type t = (t_value, t_value, t_void, t_void, t_void) A.t5
@@ -125,7 +125,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the third type argument of A.t5 has layout value.
+         the third type argument of A.t5 has this layout.
 |}]
 
 type t = (t_value, t_value, t_value, t_void, t_void) A.t5
@@ -138,7 +138,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument at position 4 of A.t5 has layout value.
+         the type argument at position 4 of A.t5 has this layout.
 |}]
 
 
@@ -152,7 +152,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         the type argument at position 5 of A.t5 has layout value.
+         the type argument at position 5 of A.t5 has this layout.
 |}]
 
 let f (x: t_void) = A.f x
