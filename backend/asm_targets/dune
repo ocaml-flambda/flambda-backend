@@ -3,6 +3,7 @@
 (library
   (name asm_targets)
   (wrapped true)
-  (flags (:standard -principal))
+  ; FIXME Fix warning 27
+  (flags (:standard -w -27-70))
   (libraries ocamlcommon dwarf_flags)
 )

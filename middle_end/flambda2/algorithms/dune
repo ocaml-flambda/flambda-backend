@@ -4,8 +4,6 @@
  (name flambda2_algorithms)
  (wrapped true)
  (instrumentation (backend bisect_ppx))
- (flags
-  (:standard -principal))
  (ocamlopt_flags
   (:standard -O3))
  (libraries ocamlcommon))
