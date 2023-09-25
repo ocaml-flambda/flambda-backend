@@ -25,6 +25,8 @@ open Lambda
 type error =
     Non_value_layout of type_expr * Layout.Violation.t option
   | Non_value_sort of Sort.t * type_expr
+  | Sort_without_extension of
+      Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Sort.t
 
 exception Error of Location.t * error
@@ -565,7 +567,8 @@ let layout env loc sort ty =
   | Value -> Lambda.Pvalue (value_kind env loc ty)
   | Float64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_float
-  | Float64 -> raise (Error (loc, Non_value_sort (Sort.float64,ty)))
+  | Float64 ->
+    raise (Error (loc, Sort_without_extension (Sort.float64, Beta, Some ty)))
   | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
 
 let layout_of_sort loc sort =
@@ -573,7 +576,8 @@ let layout_of_sort loc sort =
   | Value -> Lambda.Pvalue Pgenval
   | Float64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_float
-  | Float64 -> raise (Error (loc, Non_value_sort_unknown_ty Sort.float64))
+  | Float64 ->
+    raise (Error (loc, Sort_without_extension (Sort.float64, Beta, None)))
   | Void -> raise (Error (loc, Non_value_sort_unknown_ty Sort.void))
 
 let layout_of_const_sort (s : Layouts.Sort.const) =
@@ -681,6 +685,18 @@ let report_error ppf = function
         "Non-value layout %a detected in [layout_of_sort]@ Please report this \
          error to the Jane Street compilers team."
         Sort.format sort
+  | Sort_without_extension (sort, maturity, ty) ->
+      fprintf ppf "Non-value layout %a detected" Sort.format sort;
+      begin match ty with
+      | None -> ()
+      | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
+      end;
+      fprintf ppf
+        ",@ but this requires extension %s, which is not enabled.@ \
+         If you intended to use this layout, please add this flag to your \
+         build file.@ \
+         Otherwise, please report this error to the Jane Street compilers team."
+        (Language_extension.to_command_line_string Layouts maturity)
 
 let () =
   Location.register_error_of_exn
