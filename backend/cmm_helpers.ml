@@ -2387,14 +2387,15 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                 Any )))
   else really_call_caml_apply clos args
 
-let might_split_call_caml_apply ~recurse result arity mut clos args pos mode dbg =
+let might_split_call_caml_apply ~recurse result arity mut clos args pos mode dbg
+    =
   match split_arity_for_apply arity args with
-    | (arity, args), None ->
-      call_caml_apply result arity mut clos args pos mode dbg
-    | (arity, args), Some (arity', args') ->
-      bind "result"
-        (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
-        (fun clos -> recurse clos args' arity')
+  | (arity, args), None ->
+    call_caml_apply result arity mut clos args pos mode dbg
+  | (arity, args), Some (arity', args') ->
+    bind "result"
+      (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
+      (fun clos -> recurse clos args' arity')
 
 let rec generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
