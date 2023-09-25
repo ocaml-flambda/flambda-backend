@@ -250,3 +250,14 @@ Line 1, characters 9-26:
 Error: The type constructor float# expects 0 argument(s),
        but is here applied to 2 argument(s)
 |}];;
+
+(*******************)
+(* Hint for #float *)
+type t = #float;;
+[%%expect {|
+Line 1, characters 10-15:
+1 | type t = #float;;
+              ^^^^^
+Error: Unbound class type float
+Hint: Did you mean float#?
+|}]
