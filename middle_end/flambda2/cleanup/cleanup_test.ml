@@ -146,13 +146,32 @@ module Dacc : sig
 
   val empty : t
 
+  val let_ : t -> t
+  val let_cont : t -> t
+  val let_rec_cont : t -> t
+  val func : t -> t
+
+  val let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
+
+  val pp : Format.formatter -> t -> unit
+
   val todo : unit -> t
 end = struct
-  type t = unit
+  type t = { let_ : int; let_cont : int; let_rec_cont : int; func : int }
 
-  let todo x = x
+  let pp ppf t =
+    Format.fprintf ppf "let : %i@ let_cont : %i@ let_rec_cont : %i@ func : %i" t.let_ t.let_cont t.let_rec_cont t.func
 
-  let empty = ()
+  let empty = { let_ = 0; let_cont = 0; let_rec_cont = 0; func = 0 }
+
+  let let_ t = { t with let_ = t.let_ + 1 }
+  let let_cont t = { t with let_cont = t.let_cont + 1 }
+  let let_rec_cont t = { t with let_rec_cont = t.let_rec_cont + 1 }
+  let func t = { t with func = t.func + 1 }
+
+  let let_dependency _pat _fv t = t
+
+  let todo _ = empty
 end
 
 type dacc = Dacc.t
@@ -186,10 +205,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         free_names = Flambda.Apply.free_names apply
       },
       dacc )
-  | Let_cont let_cont -> (
+  | Let_cont let_cont -> begin
     match let_cont with
     | Non_recursive
         { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
+      let dacc = Dacc.let_cont dacc in
       Flambda.Non_recursive_let_cont_handler.pattern_match handler
         ~f:(fun cont ~body ->
           let cont_handler =
@@ -199,30 +219,32 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               let denv =
                 { parent = Let_cont { cont; handler; parent = denv.parent } }
               in
-              let dacc = Dacc.todo () in
               traverse denv dacc body))
-    | Recursive handlers ->
+    | Recursive handlers -> begin
+      let dacc = Dacc.let_rec_cont dacc in
+      (* Warning non tail rec on traverse_cont_handler, probably OK *)
       Flambda.Recursive_let_cont_handlers.pattern_match handlers
         ~f:(fun ~invariant_params ~body handlers ->
-          Continuation.Map.fold
-            (fun cont handler (k: tt) : tt ->
-              let dacc = Dacc.todo () in
-              traverse_cont_handler dacc handler
-                (fun (handler : cont_handler) dacc handlers ->
-                  k (Continuation.Map.add cont handler handlers)))
-            (Flambda.Continuation_handlers.to_map handlers)
-            (fun (handlers : handlers) : (rev_expr * dacc) ->
-              let denv =
-                { parent =
-                    Let_cont_rec
-                      { invariant_params; handlers; parent = denv.parent }
-                }
-              in
-              let dacc = Dacc.todo () in
-              traverse denv dacc body)
-            Continuation.Map.empty) :
-      rev_expr * dacc  )
+          let dacc, handlers =
+            Continuation.Map.fold
+              (fun cont handler (dacc, handlers) ->
+                traverse_cont_handler dacc handler
+                  (fun (handler : cont_handler) dacc ->
+                    dacc, Continuation.Map.add cont handler handlers))
+              (Flambda.Continuation_handlers.to_map handlers)
+              (dacc, Continuation.Map.empty)
+          in
+          let denv =
+            { parent =
+                Let_cont_rec
+                  { invariant_params; handlers; parent = denv.parent }
+            }
+          in
+          traverse denv dacc body)
+    end
+  end
   | Let let_expr ->
+    let dacc = Dacc.let_ dacc in
     let (named, dacc) : rev_named * dacc =
       match Flambda.Let_expr.defining_expr let_expr with
       | Set_of_closures set_of_closures ->
@@ -259,6 +281,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         traverse { parent = let_acc } dacc body)
 
 and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
+  let dacc = Dacc.func dacc in
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
@@ -288,7 +311,8 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
       { params_and_body; code_metadata; free_names_of_params_and_body }, dacc)
 
 and traverse_cont_handler :
-    type a. dacc -> Flambda.Continuation_handler.t -> (cont_handler -> dacc -> a) -> a =
+    type a.
+    dacc -> Flambda.Continuation_handler.t -> (cont_handler -> dacc -> a) -> a =
  fun dacc cont_handler k ->
   let is_exn_handler =
     Flambda.Continuation_handler.is_exn_handler cont_handler
@@ -408,8 +432,10 @@ let run (unit : Flambda_unit.t) =
     Profile.record_call ~accumulate:false "down" (fun () ->
         traverse { parent = Up } dacc (Flambda_unit.body unit))
   in
-  let size = Obj.reachable_words (Obj.repr holed) in
-  Format.printf "CLEANUP %i@." (size / 1000);
+  Profile.record_call ~accumulate:false "size" (fun () ->
+      let size = Obj.reachable_words (Obj.repr holed) in
+      Format.printf "CLEANUP %i@." (size / 1000));
+  Format.printf "DACC %a@." Dacc.pp _dacc;
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr holed)
   in
