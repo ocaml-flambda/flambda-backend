@@ -83,9 +83,6 @@ let print_global_name_binding global =
 
 let print_line name = printf "\t%s\n" name
 
-let print_unit_line name =
-  printf "\t%a\n" Compilation_unit.output name
-
 let print_global_line glob =
   printf "\t%a\n" Global.Name.output glob
 
@@ -111,7 +108,7 @@ let print_cmo_infos cu =
    | [||] -> ()
    | params ->
      print_string "Runtime parameters:\n";
-     Array.iter print_global_line cu.cu_runtime_params
+     Array.iter print_global_line params
   in
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
