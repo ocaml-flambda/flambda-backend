@@ -89,7 +89,7 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       propagate_substitution state cfg substs block subst
   in
-  Cfg_dominators.iter_breadth_dominator_tree
+  Cfg_dominators.iter_breadth_dominator_forest
     (Cfg_with_infos.dominators cfg_with_infos)
     ~f:compute_substitution_for_block;
   substs
@@ -412,7 +412,7 @@ let split_at_destruction_points :
   then (
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     log_dominance_frontier ~indent:1 (Cfg_with_infos.cfg cfg_with_infos) doms;
-    log_dominator_tree ~indent:1 (Cfg_dominators.dominator_tree doms));
+    log_dominator_forest ~indent:1 (Cfg_dominators.dominator_forest doms));
   match Label.Map.is_empty (State.definitions_at_beginning state) with
   | true ->
     log ~indent:1 "renaming_infos is empty (no new names introduced)";
