@@ -80,6 +80,10 @@ let print_impl_import import =
 
 let print_line name = printf "\t%s\n" name
 
+let print_global_line glob =
+  (* Type will change soon for parameterised libraries *)
+  printf "\t%a\n" Compilation_unit.Name.output glob
+
 let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
 
@@ -128,7 +132,7 @@ let print_cmi_infos name crcs kind =
     match kind with
     | Normal { cmi_arg_for = Some arg_for; _ } ->
       printf "Argument for parameter:\n";
-      printf "\t%a\n" Compilation_unit.Name.output arg_for;
+      print_global_line arg_for
     | Normal _ | Parameter ->
       ()
   end;
