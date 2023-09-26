@@ -124,6 +124,14 @@ let print_cmi_infos name crcs kind =
     | Parameter -> true
   in
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
+  begin
+    match kind with
+    | Normal { cmi_arg_for = Some arg_for; _ } ->
+      printf "Argument for parameter:\n";
+      printf "\t%a\n" Compilation_unit.Name.output arg_for;
+    | Normal _ | Parameter ->
+      ()
+  end;
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
