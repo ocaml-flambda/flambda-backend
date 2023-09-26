@@ -74,8 +74,11 @@ module IR : sig
 
   type switch =
     { numconsts : int;
-      consts : (int * Continuation.t * trap_action option * simple list) list;
-      failaction : (Continuation.t * trap_action option * simple list) option
+      consts :
+        (int * Continuation.t * Debuginfo.t * trap_action option * simple list)
+        list;
+      failaction :
+        (Continuation.t * Debuginfo.t * trap_action option * simple list) option
     }
 
   val print_simple : Format.formatter -> simple -> unit

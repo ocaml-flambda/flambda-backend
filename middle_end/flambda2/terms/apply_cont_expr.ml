@@ -86,8 +86,8 @@ include Container_types.Make (struct
 
   let hash _ = Misc.fatal_error "Not yet implemented"
 
-  let compare { k = k1; args = args1; trap_action = trap_action1; dbg = _ }
-      { k = k2; args = args2; trap_action = trap_action2; dbg = _ } =
+  let compare { k = k1; args = args1; trap_action = trap_action1; dbg = dbg1 }
+      { k = k2; args = args2; trap_action = trap_action2; dbg = dbg2 } =
     let c = Continuation.compare k1 k2 in
     if c <> 0
     then c
@@ -95,7 +95,9 @@ include Container_types.Make (struct
       let c = Misc.Stdlib.List.compare Simple.compare args1 args2 in
       if c <> 0
       then c
-      else Option.compare Trap_action.compare trap_action1 trap_action2
+      else
+        let c = Option.compare Trap_action.compare trap_action1 trap_action2 in
+        if c <> 0 then c else Debuginfo.compare dbg1 dbg2
 
   let equal t1 t2 = compare t1 t2 = 0
 end)

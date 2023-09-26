@@ -923,7 +923,11 @@ and switch env res switch =
   let make_arm ~must_tag_discriminant env res (d, action) =
     let d = prepare_discriminant ~must_tag:must_tag_discriminant d in
     let cmm_action, action_free_vars, res = apply_cont env res action in
-    (d, cmm_action, action_free_vars, Apply_cont.debuginfo action), res
+    ( ( d,
+        cmm_action,
+        action_free_vars,
+        Env.add_inlined_debuginfo env (Apply_cont.debuginfo action) ),
+      res )
   in
   match Targetint_31_63.Map.cardinal arms with
   (* Binary case: if-then-else *)
@@ -945,6 +949,13 @@ and switch env res switch =
           (Backend_var.Set.union else_free_vars then_free_vars)
       in
       let cmm, free_vars =
+        let then_dbg, else_dbg =
+          if Debuginfo.is_none then_dbg
+          then else_dbg, else_dbg
+          else if Debuginfo.is_none else_dbg
+          then then_dbg, then_dbg
+          else then_dbg, else_dbg
+        in
         wrap (C.ite ~dbg scrutinee ~then_dbg ~then_ ~else_dbg ~else_) free_vars
       in
       cmm, free_vars, res
@@ -956,6 +967,13 @@ and switch env res switch =
       let free_vars =
         Backend_var.Set.union scrutinee_free_vars
           (Backend_var.Set.union if_x_free_vars if_not_free_vars)
+      in
+      let if_x_dbg, if_not_dbg =
+        if Debuginfo.is_none if_x_dbg
+        then if_not_dbg, if_not_dbg
+        else if Debuginfo.is_none if_not_dbg
+        then if_x_dbg, if_x_dbg
+        else if_x_dbg, if_not_dbg
       in
       let expr =
         C.ite ~dbg
