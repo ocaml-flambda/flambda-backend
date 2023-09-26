@@ -81,12 +81,11 @@ let print_impl_import import =
 let print_line name = printf "\t%s\n" name
 
 let print_global_line glob =
-  (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Compilation_unit.Name.output glob
+  printf "\t%a\n" Global.Name.output glob
 
 let print_global_as_name_line glob =
   (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Compilation_unit.Name.output glob
+  printf "\t%a\n" Global.Name.output glob
 
 let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
