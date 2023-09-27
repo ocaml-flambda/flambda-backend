@@ -54,6 +54,21 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     Cmm.typ_int
   | Region | Rec_info -> assert false
 
+let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
+  match Flambda_kind.With_subkind.kind kind with
+  | Value -> (
+    match Flambda_kind.With_subkind.subkind kind with
+    | Tagged_immediate -> Extended_machtype.typ_tagged_int
+    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+    | Variant _ | Float_block _ | Float_array | Immediate_array | Value_array
+    | Generic_array ->
+      Extended_machtype.typ_val)
+  | Naked_number Naked_float -> Extended_machtype.typ_float
+  | Naked_number Naked_int64 -> Extended_machtype.typ_int64
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+    Extended_machtype.typ_any_int
+  | Region | Rec_info -> assert false
+
 let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     =
   match Flambda_kind.With_subkind.kind kind with
@@ -88,23 +103,19 @@ let nativeint_of_targetint t =
   | Int32 i -> Nativeint.of_int32 i
   | Int64 i -> Int64.to_nativeint i
 
-let symbol_from_linkage_name ~dbg ln =
-  symbol_from_string ~dbg (Linkage_name.to_string ln)
-
-let symbol ~dbg sym = symbol_from_linkage_name ~dbg (Symbol.linkage_name sym)
-
 let name0 ?consider_inlining_effectful_expressions env res name =
   Name.pattern_match name
     ~var:(fun v ->
       To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env
         res v)
     ~symbol:(fun s ->
+      let sym = To_cmm_result.symbol res s in
       (* CR mshinwell: fix debuginfo? *)
       To_cmm_env.
         { env;
           res;
           expr =
-            { cmm = symbol ~dbg:Debuginfo.none s;
+            { cmm = symbol ~dbg:Debuginfo.none sym;
               free_vars = Backend_var.Set.empty;
               effs = Ece.pure_can_be_duplicated
             }
@@ -137,10 +148,10 @@ let simple ?consider_inlining_effectful_expressions ~dbg env res s =
             }
         })
 
-let name_static name =
+let name_static res name =
   Name.pattern_match name
     ~var:(fun v -> `Var v)
-    ~symbol:(fun s -> `Data [symbol_address (Symbol.linkage_name_as_string s)])
+    ~symbol:(fun s -> `Data [symbol_address (To_cmm_result.symbol res s)])
 
 let const_static cst =
   match Reg_width_const.descr cst with
@@ -155,9 +166,9 @@ let const_static cst =
   | Naked_int64 i -> [cint (Int64.to_nativeint i)]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
 
-let simple_static s =
+let simple_static res s =
   Simple.pattern_match s
-    ~name:(fun n ~coercion:_ -> name_static n)
+    ~name:(fun n ~coercion:_ -> name_static res n)
     ~const:(fun c -> `Data (const_static c))
 
 let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
@@ -201,7 +212,7 @@ let invalid res ~message =
       in
       let res =
         Cmm_helpers.emit_string_constant
-          (Symbol.linkage_name_as_string message_sym, Global)
+          (To_cmm_result.symbol res message_sym)
           message []
         |> To_cmm_result.add_archive_data_items res
       in
@@ -214,7 +225,7 @@ let invalid res ~message =
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
       "caml_flambda2_invalid" Cmm.typ_void
-      [symbol ~dbg message_sym]
+      [symbol ~dbg (To_cmm_result.symbol res message_sym)]
   in
   call_expr, res
 
@@ -235,17 +246,18 @@ let make_update env res dbg kind ~symbol var ~index ~prev_updates =
   in
   env, res, Some update
 
-let check_arity arity args =
-  Flambda_arity.With_subkinds.cardinal arity = List.length args
+let check_arity arity args = Flambda_arity.cardinal arity = List.length args
 
-let machtype_of_return_arity arity =
-  (* Functions that never return have arity 0. In that case, we use the most
-     restrictive machtype to ensure that the return value of the function is not
-     used. *)
-  match Flambda_arity.With_subkinds.to_list arity with
-  | [] -> Cmm.typ_void
-  (* Regular functions with a single return value *)
-  | [k] -> machtype_of_kind k
-  | _ ->
-    (* CR gbury: update when unboxed tuples are used *)
-    Misc.fatal_errorf "Functions are currently limited to a single return value"
+let extended_machtype_of_return_arity arity =
+  match Flambda_arity.to_list arity with
+  | [] ->
+    (* Functions that never return have arity 0. In that case, we use the most
+       restrictive machtype to ensure that the return value of the function is
+       not used. *)
+    Extended_machtype.typ_void
+  | [k] ->
+    (* Regular functions with a single return value *)
+    extended_machtype_of_kind k
+  | arity ->
+    (* Functions returning multiple values *)
+    List.map extended_machtype_of_kind arity |> Array.concat

@@ -95,7 +95,9 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
         let flow_result =
           Flow.Analysis.analyze data_flow ~speculative:true
             ~print_name:"speculative" ~code_age_relation:Code_age_relation.empty
-            ~used_value_slots:Unknown ~return_continuation:function_return_cont
+            ~used_value_slots:Unknown
+            ~code_ids_to_never_delete:Code_id.Set.empty
+            ~return_continuation:function_return_cont
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         in
         let uenv =
@@ -106,8 +108,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
           UE.add_function_return_or_exn_continuation
             (UE.create (DA.are_rebuilding_terms dacc))
             (Exn_continuation.exn_handler exn_continuation)
-            (Flambda_arity.With_subkinds.create
-               [Flambda_kind.With_subkind.any_value])
+            (Flambda_arity.create [Flambda_kind.With_subkind.any_value])
         in
         let uenv =
           match Apply.continuation apply with
@@ -188,21 +189,12 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
   let inlined = Apply.inlined apply in
   match inlined with
   | Never_inlined -> Never_inlined_attribute
-  | Default_inlined | Unroll _ | Always_inlined | Hint_inlined -> (
+  | Default_inlined | Unroll _ | Always_inlined _ | Hint_inlined -> (
     let code_or_metadata =
       DE.find_code_exn (DA.denv dacc) (FT.code_id function_type)
     in
     if not (Code_or_metadata.code_present code_or_metadata)
     then Missing_code
-    else if Loopify_attribute.was_loopified
-              (Code_metadata.loopify
-                 (Code_or_metadata.code_metadata code_or_metadata))
-            &&
-            match inlined with
-            | Unroll _ -> true
-            | Never_inlined | Default_inlined | Always_inlined | Hint_inlined ->
-              false
-    then Unroll_attribute_used_with_loopified_function
     else
       (* The unrolling process is rather subtle, but it boils down to two steps:
 
@@ -257,7 +249,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
             else
               might_inline dacc ~apply ~code_or_metadata ~function_type
                 ~simplify_expr ~return_arity
-          | Unroll unroll_to ->
+          | Unroll (unroll_to, _) ->
             if Simplify_rec_info_expr.can_unroll dacc rec_info
             then
               (* This sets off step 1 in the comment above; see
@@ -265,4 +257,4 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
                  handled. *)
               Attribute_unroll unroll_to
             else Unrolling_depth_exceeded
-          | Always_inlined | Hint_inlined -> Attribute_always))
+          | Always_inlined _ | Hint_inlined -> Attribute_always))

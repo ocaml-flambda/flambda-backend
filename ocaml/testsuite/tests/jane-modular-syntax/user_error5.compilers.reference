@@ -1,0 +1,4 @@
+File "user_error5.ml", line 21, characters 30-34:
+21 | let _unnamed_extension = () [@jane];;
+                                   ^^^^
+Error: Cannot have an attribute named [@jane]: Missing erasability and feature components

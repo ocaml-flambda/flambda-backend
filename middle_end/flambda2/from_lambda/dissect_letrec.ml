@@ -279,13 +279,17 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         | [arg] -> arg
         | _ -> Misc.fatal_error "Dissect_letrec.prepare_letrec duprecord"
       in
-      match kind with
-      | Types.Record_regular -> build_block cl size (Normal 0) arg letrec
-      | Types.Record_inlined tag -> build_block cl size (Normal tag) arg letrec
-      | Types.Record_extension _ ->
+      match[@ocaml.warning "fragile-match"] kind with
+      | Record_boxed _ -> build_block cl size (Normal 0) arg letrec
+      | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
+        build_block cl size (Normal runtime_tag) arg letrec
+      | Record_inlined (Extension _, Variant_extensible) ->
         build_block cl (size + 1) (Normal 0) arg letrec
-      | Types.Record_unboxed _ -> assert false
-      | Types.Record_float -> build_block cl size Boxed_float arg letrec)
+      | Record_float -> build_block cl size Boxed_float arg letrec
+      | Record_inlined (Extension _, _)
+      | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
+      | Record_unboxed ->
+        Misc.fatal_errorf "Unexpected record kind:@ %a" Printlambda.lambda lam)
     | None -> dead_code lam letrec)
   | Lconst const -> (
     match current_let with
@@ -532,9 +536,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
   | Lregion (body, _) ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
     { letrec with needs_region = true }
+  | Lexclave _ ->
+    Misc.fatal_errorf
+      "Cannot yet handle Lexclave directly under let rec with Flambda 2:@ %a"
+      Printlambda.lambda lam
   [@@ocaml.warning "-fragile-match"]
 
-let dissect_letrec ~bindings ~body =
+let dissect_letrec ~bindings ~body ~free_vars_kind =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
   let letrec =
     List.fold_right
@@ -567,19 +575,7 @@ let dissect_letrec ~bindings ~body =
         id, Lprim (Pccall desc, [size], Loc_unknown))
       letrec.blocks
   in
-  let real_body = body in
-  let bound_ids_freshening =
-    List.map (fun (bound_id, _) -> bound_id, Ident.rename bound_id) bindings
-    |> Ident.Map.of_list
-  in
-  let cont = next_raise_count () in
-  let body =
-    if not letrec.needs_region
-    then body
-    else
-      let args = List.map (fun (bound_id, _) -> Lvar bound_id) bindings in
-      Lstaticraise (cont, args)
-  in
+  let body = if not letrec.needs_region then body else Lexclave body in
   let effects_then_body = lsequence (letrec.effects, body) in
   let functions =
     match letrec.functions with
@@ -610,29 +606,32 @@ let dissect_letrec ~bindings ~body =
       with_preallocations letrec.consts
   in
   let substituted = Lambda.rename letrec.substitution with_constants in
-  let body_layout = Lambda.layout_top in
-  if not letrec.needs_region
-  then substituted
-  else
-    Lstaticcatch
-      ( Lregion (Lambda.rename bound_ids_freshening substituted, body_layout),
-        ( cont,
-          List.map
-            (fun (bound_id, _) -> bound_id, Lambda.layout_letrec)
-            bindings ),
-        real_body,
-        body_layout )
+  if letrec.needs_region
+  then
+    let body_layout =
+      let bindings =
+        Ident.Map.map (fun _ -> Lambda.layout_letrec)
+        @@ Ident.Map.of_list bindings
+      in
+      let free_vars_kind id : Lambda.layout option =
+        try Some (Ident.Map.find id bindings)
+        with Not_found -> free_vars_kind id
+      in
+      Lambda.compute_expr_layout free_vars_kind body
+    in
+    Lregion (substituted, body_layout)
+  else substituted
 
 type dissected =
   | Dissected of Lambda.lambda
   | Unchanged
 
-let dissect_letrec ~bindings ~body =
+let dissect_letrec ~bindings ~body ~free_vars_kind =
   let is_a_function = function _, Lfunction _ -> true | _, _ -> false in
   if List.for_all is_a_function bindings
   then Unchanged
   else
-    try Dissected (dissect_letrec ~bindings ~body)
+    try Dissected (dissect_letrec ~bindings ~body ~free_vars_kind)
     with Bug ->
       Misc.fatal_errorf "let-rec@.%a@." Printlambda.lambda
         (Lletrec (bindings, body))

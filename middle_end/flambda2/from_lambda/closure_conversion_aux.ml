@@ -39,7 +39,7 @@ module IR = struct
     | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
-          args : simple list;
+          args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
           region : Ident.t
@@ -64,7 +64,7 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return_arity : Flambda_arity.With_subkinds.t
+      return_arity : Flambda_arity.t
     }
 
   type switch =
@@ -92,7 +92,10 @@ module IR = struct
     | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf arg ->
+             fprintf ppf "@[<2>(%a)@]"
+               (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
+               arg))
         args
 end
 
@@ -330,7 +333,8 @@ module Acc = struct
       shareable_constants : Symbol.t Static_const.Map.t;
       symbol_approximations : Env.value_approximation Symbol.Map.t;
       approximation_for_external_symbol : Symbol.t -> Env.value_approximation;
-      code : Code.t Code_id.Map.t;
+      code_in_reverse_order : Code.t list;
+      code_map : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       continuation_applications : continuation_application Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
@@ -418,7 +422,8 @@ module Acc = struct
         (if Flambda_features.classic_mode ()
         then approximation_loader cmx_loader
         else fun _symbol -> Value_approximation.Value_unknown);
-      code = Code_id.Map.empty;
+      code_in_reverse_order = [];
+      code_map = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
@@ -434,7 +439,13 @@ module Acc = struct
 
   let shareable_constants t = t.shareable_constants
 
-  let code t = t.code
+  let code t =
+    (* This only gets called once *)
+    List.rev t.code_in_reverse_order
+    |> List.map (fun code -> Code.code_id code, code)
+    |> Code_id.Lmap.of_list
+
+  let code_map t = t.code_map
 
   let free_names t = t.free_names
 
@@ -502,7 +513,10 @@ module Acc = struct
   let symbol_approximations t = t.symbol_approximations
 
   let add_code ~code_id ~code t =
-    { t with code = Code_id.Map.add code_id code t.code }
+    { t with
+      code_map = Code_id.Map.add code_id code t.code_map;
+      code_in_reverse_order = code :: t.code_in_reverse_order
+    }
 
   let add_free_names free_names t =
     { t with free_names = Name_occurrences.union free_names t.free_names }
@@ -663,7 +677,7 @@ module Function_decls = struct
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : (Ident.t * Flambda_kind.With_subkind.t) list;
-        return : Flambda_arity.With_subkinds.t;
+        return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -924,13 +938,12 @@ module Let_with_acc = struct
         | Simple simple -> Code_size.simple simple |> Cost_metrics.from_size
         | Static_consts _consts -> Cost_metrics.zero
         | Set_of_closures set_of_closures ->
-          let code_mapping = Acc.code acc in
+          let code_mapping = Acc.code_map acc in
           Cost_metrics.set_of_closures
             ~find_code_characteristics:(fun code_id ->
               let code = Code_id.Map.find code_id code_mapping in
               { cost_metrics = Code.cost_metrics code;
-                params_arity =
-                  Flambda_arity.With_subkinds.cardinal (Code.params_arity code)
+                params_arity = Flambda_arity.cardinal (Code.params_arity code)
               })
             set_of_closures
         | Rec_info _ -> Cost_metrics.zero

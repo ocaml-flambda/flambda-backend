@@ -65,7 +65,8 @@ native_toplevel/                @mshinwell
 
 ocaml/asmcomp/                  @gretay-js @xclerc
 ocaml/runtime/                  @stedolan
-ocaml/typing/                   @lpw25 @antalsz
+ocaml/typing/                   @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan
+ocaml/testsuite/tests/          @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @gretay-js @xclerc @lukemaurer
 
 scripts/                        @mshinwell
 

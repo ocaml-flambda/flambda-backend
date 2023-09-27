@@ -51,8 +51,19 @@ let main unix argv ppf ~flambda2 =
     (* Avoid getting too close to the edge just in case we've mismeasured
        the boxes for some reason. *)
     let columns = columns - 5 in
-    Format.pp_set_margin Format.std_formatter columns;
-    Format.pp_set_margin Format.err_formatter columns);
+    let set_geometry ppf =
+      Format.pp_set_margin ppf columns;
+      (* Make sure the max indent is at least 3/4 of the total width. Without
+         this, output can be unreadable no matter how wide your screen is. Note
+         that [Format.pp_set_margin] already messes with the max indent
+         sometimes, so we want to check [Format.pp_get_max_indent] rather than
+         make assumptions. *)
+      let desired_max_indent = columns * 3 / 4 in
+      if Format.pp_get_max_indent ppf () < desired_max_indent then
+        Format.pp_set_max_indent ppf desired_max_indent
+    in
+    set_geometry Format.std_formatter;
+    set_geometry Format.err_formatter);
   match
     Compenv.warnings_for_discarded_params := true;
     Compenv.set_extra_params

@@ -173,11 +173,10 @@ and operation =
   | Copaque
   | Cbeginregion | Cendregion
 
-type value_kind =
-  | Vval of Lambda.value_kind (* Valid OCaml values *)
-  | Vint (* Untagged integers and off-heap pointers *)
-  | Vaddr (* Derived pointers *)
-  | Vfloat (* Unboxed floating-point numbers *)
+type kind_for_unboxing =
+  | Any
+  | Boxed_integer of Lambda.boxed_integer
+  | Boxed_float
 
 type expression =
     Cconst_int of int * Debuginfo.t
@@ -195,19 +194,19 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * value_kind
+      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Ccatch of
       rec_flag
         * (int * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
-        * expression * value_kind
+        * expression * kind_for_unboxing
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Cregion of expression
-  | Ctail of expression
+  | Cexclave of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -268,14 +267,10 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
-  | Cregion e ->
-      f e;
-      true
-  | Ctail e ->
-      f e;
-      true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
+  | Cregion _
+  | Cexclave _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -314,12 +309,10 @@ let map_shallow_tail ?kind f = function
   | Ctrywith(e1, id, e2, dbg, kind_before) ->
       Ctrywith(f e1, id, f e2, dbg,
               Option.value kind ~default:kind_before)
-  | Cregion e ->
-      Cregion(f e)
-  | Ctail e ->
-      Ctail(f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
+  | Cregion _
+  | Cexclave _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -331,6 +324,8 @@ let map_shallow_tail ?kind f = function
 
 let map_tail ?kind f =
   let rec loop = function
+    | Cregion _
+    | Cexclave _
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _
@@ -372,7 +367,7 @@ let iter_shallow f = function
       f e1; f e2
   | Cregion e ->
       f e
-  | Ctail e ->
+  | Cexclave e ->
       f e
   | Cconst_int _
   | Cconst_natint _
@@ -409,8 +404,8 @@ let map_shallow f = function
       Ctrywith (f e1, id, f e2, dbg, value_kind)
   | Cregion e ->
       Cregion (f e)
-  | Ctail e ->
-      Ctail (f e)
+  | Cexclave e ->
+      Cexclave (f e)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

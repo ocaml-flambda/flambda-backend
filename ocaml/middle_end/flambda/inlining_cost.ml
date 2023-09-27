@@ -44,13 +44,13 @@ let prim_size (prim : Clambda_primitives.primitive) args =
   | Pmakearray _ -> 5 + List.length args
   | Parraylength Pgenarray -> 6
   | Parraylength _ -> 2
-  | Parrayrefu Pgenarray -> 12
+  | Parrayrefu (Pgenarray_ref _) -> 12
   | Parrayrefu _ -> 2
-  | Parraysetu Pgenarray -> 16
+  | Parraysetu (Pgenarray_set _) -> 16
   | Parraysetu _ -> 4
-  | Parrayrefs Pgenarray -> 18
+  | Parrayrefs (Pgenarray_ref _) -> 18
   | Parrayrefs _ -> 8
-  | Parraysets Pgenarray -> 22
+  | Parraysets (Pgenarray_set _) -> 22
   | Parraysets _ -> 10
   | Pbigarrayref (_, ndims, _, _) -> 4 + ndims * 6
   | Pbigarrayset (_, ndims, _, _) -> 4 + ndims * 6
@@ -123,7 +123,7 @@ let lambda_smaller' lam ~than:threshold =
       size := !size + 4; lambda_size body
     | Region body ->
       size := !size + 2; lambda_size body
-    | Tail body ->
+    | Exclave body ->
       lambda_size body
   and lambda_named_size (named : Flambda.named) =
     if !size > threshold then raise Exit;
@@ -276,7 +276,7 @@ module Benefit = struct
     | If_then_else _ | While _ | For _ -> b := remove_branch !b
     | Apply _ | Send _ -> b := remove_call !b
     | Let _ | Let_mutable _ | Let_rec _ | Proved_unreachable | Var _
-    | Region _ | Tail _ | Static_catch _ -> ()
+    | Region _ | Exclave _ | Static_catch _ -> ()
 
   let remove_code_helper_named b (named : Flambda.named) =
     match named with

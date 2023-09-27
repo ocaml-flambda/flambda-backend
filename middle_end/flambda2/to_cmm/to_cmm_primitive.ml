@@ -138,16 +138,15 @@ let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
-  | Assignment Heap -> C.addr_array_set arr index new_value dbg
-  | Assignment (Local _) -> C.addr_array_set_local arr index new_value dbg
+  | Assignment Heap -> C.addr_array_set_heap arr index new_value dbg
+  | Assignment Local -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) ~arr
-    ~index ~new_value =
+let array_set ~dbg (kind : P.Array_set_kind.t) ~arr ~index ~new_value =
   let expr =
     match kind with
     | Immediates -> C.int_array_set arr index new_value dbg
-    | Values -> addr_array_store init ~arr ~index ~new_value dbg
+    | Values init -> addr_array_store init ~arr ~index ~new_value dbg
     | Naked_floats -> C.float_array_set arr index new_value dbg
   in
   C.return_unit dbg expr
@@ -657,8 +656,8 @@ let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
   | Block_set (block_access, init) ->
     block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
-  | Array_set (array_kind, init) ->
-    array_set ~dbg array_kind init ~arr:x ~index:y ~new_value:z
+  | Array_set array_set_kind ->
+    array_set ~dbg array_set_kind ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->

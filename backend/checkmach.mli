@@ -35,14 +35,62 @@ val record_unit_info : Format.formatter -> unit
 
 (** Analyzes the function, performs all checks that are enabled, and accumulates
     the results. *)
-val fundecl : Format.formatter -> Mach.fundecl -> Mach.fundecl
+val fundecl :
+  Format.formatter ->
+  future_funcnames:Misc.Stdlib.String.Set.t ->
+  Mach.fundecl ->
+  Mach.fundecl
 
-type error =
-  | Annotation of
-      { fun_name : string;
-        check : string
-      }
+(** When the check fails, [Witness.t] represents an instruction that does
+    not satisfy the property. *)
+module Witness : sig
+  type kind =
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo
+        }
+    | Indirect_call
+    | Indirect_tailcall
+    | Direct_call of { callee : string }
+    | Direct_tailcall of { callee : string }
+    | Missing_summary of { callee : string }
+    | Forward_call of { callee : string }
+    | Extcall of { callee : string }
+    | Arch_specific
+    | Probe of
+        { name : string;
+          handler_code_sym : string
+        }
 
-exception Error of Location.t * error
+  type t =
+    { dbg : Debuginfo.t;
+      kind : kind
+    }
+end
 
-val report_error : Format.formatter -> error -> unit
+module Witnesses : sig
+  type t
+
+  val is_empty : t -> bool
+
+  val iter : t -> f:(Witness.t -> unit) -> unit
+
+  (** The witnesses are classified into which path they may appear on. If a witness
+      appears on both a path to a normal and an excpetional return, it will only appear in
+      [nor] component. *)
+  type components =
+    { nor : t;  (** on a path from function entry to a normal return  *)
+      exn : t;  (** on a path from function entry to an exceptionall return  *)
+      div : t  (** on a path from function entry that may diverge *)
+    }
+end
+
+(**   Iterate over all function symbols with their witnesses. This function can be called
+      at any time, but the complete information is only available after a call to
+      [record_unit_info].  To get all witnesses for all functions, and not only for
+      functions annotated with [@zero_alloc], set
+      [Flambda_backend_flags.checkmach_details_cutoff] to a negative value before calls to
+      [fundecl].  Used by compiler_hooks. *)
+type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
+
+val iter_witnesses : iter_witnesses

@@ -83,7 +83,7 @@ let rec iterator ~scope rebuild_env =
         let annot =
           try
             let desc = Env.find_value path env in
-            let dloc = desc.Types.val_loc in
+            let dloc = desc.Subst.Lazy.val_loc in
             if dloc.Location.loc_ghost then Annot.Iref_external
             else Annot.Iref_internal dloc
           with Not_found ->
@@ -95,7 +95,7 @@ let rec iterator ~scope rebuild_env =
         bind_bindings exp.exp_loc bindings
     | Texp_let (Nonrecursive, bindings, body) ->
         bind_bindings body.exp_loc bindings
-    | Texp_match (_, f1, _) ->
+    | Texp_match (_, _, f1, _) ->
         bind_cases f1
     | Texp_function { cases = f; }
     | Texp_try (_, f) ->

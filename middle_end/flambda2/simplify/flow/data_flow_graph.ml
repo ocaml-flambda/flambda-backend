@@ -140,11 +140,12 @@ module Reachable = struct
               older_queue older_enqueued name_queue name_enqueued)
         else
           let older_enqueued = Code_id.Set.add dst older_enqueued in
+          Queue.push dst older_queue;
           reachable_older_code_ids t code_id_queue code_id_enqueued older_queue
             older_enqueued name_queue name_enqueued)
 end
 
-let empty code_age_relation is_toplevel =
+let empty code_age_relation is_toplevel ~code_ids_to_never_delete =
   { code_age_relation;
     is_toplevel;
     name_to_name = Name.Map.empty;
@@ -152,7 +153,7 @@ let empty code_age_relation is_toplevel =
     code_id_to_name = Code_id.Map.empty;
     code_id_to_code_id = Code_id.Map.empty;
     unconditionally_used = Name.Set.empty;
-    code_id_unconditionally_used = Code_id.Set.empty
+    code_id_unconditionally_used = code_ids_to_never_delete
   }
 
 let print ppf
@@ -410,7 +411,7 @@ let add_continuation_info map ~return_continuation ~exn_continuation
     apply_cont_args t
 
 let create ~return_continuation ~exn_continuation ~code_age_relation
-    ~used_value_slots map =
+    ~used_value_slots ~code_ids_to_never_delete map =
   (* Build the dependencies using the regular params and args of continuations,
      and the let-bindings in continuations handlers. *)
   let is_toplevel =
@@ -423,7 +424,7 @@ let create ~return_continuation ~exn_continuation ~code_age_relation
       (add_continuation_info map ~return_continuation ~exn_continuation
          ~used_value_slots)
       map
-      (empty code_age_relation is_toplevel)
+      (empty code_age_relation is_toplevel ~code_ids_to_never_delete)
   in
   t
 

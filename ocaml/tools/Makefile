@@ -83,10 +83,10 @@ ocamldep.opt$(EXE): $(call byte2native, $(OCAMLDEP))
 # The profiler
 
 OCAMLPROF=config.cmo build_path_prefix_map.cmo misc.cmo identifiable.cmo \
-  numbers.cmo arg_helper.cmo clflags.cmo terminfo.cmo \
+  numbers.cmo arg_helper.cmo clflags.cmo debug.cmo terminfo.cmo \
   warnings.cmo location.cmo longident.cmo docstrings.cmo \
   syntaxerr.cmo ast_helper.cmo \
-  language_extension.cmo extensions_parsing.cmo extensions.cmo \
+  language_extension.cmo jane_syntax_parsing.cmo jane_syntax.cmo \
    ast_iterator.cmo builtin_attributes.cmo \
   camlinternalMenhirLib.cmo parser.cmo \
   pprintast.cmo \

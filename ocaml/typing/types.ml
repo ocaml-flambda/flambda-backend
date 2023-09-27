@@ -16,6 +16,7 @@
 (* Representation of types and declarations *)
 
 open Asttypes
+open Layouts
 
 (* Type expressions for the core language *)
 
@@ -28,7 +29,7 @@ type transient_expr =
 and type_expr = transient_expr
 
 and type_desc =
-    Tvar of string option
+  | Tvar of { name : string option; layout : layout }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of type_expr list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
@@ -38,7 +39,7 @@ and type_desc =
   | Tlink of type_expr
   | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
-  | Tunivar of string option
+  | Tunivar of { name : string option; layout : layout }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
@@ -119,15 +120,7 @@ module Vars = Misc.Stdlib.String.Map
 
 (* Value descriptions *)
 
-type value_description =
-  { val_type: type_expr;                (* Type of the value *)
-    val_kind: value_kind;
-    val_loc: Location.t;
-    val_attributes: Parsetree.attributes;
-    val_uid: Uid.t;
-  }
-
-and value_kind =
+type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
@@ -217,6 +210,7 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
+    type_layout: layout;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -232,25 +226,28 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {immediate : Type_immediacy.t}
+    Type_abstract
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
+and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
+                       runtime_tag: int}   (* The runtime tag *)
+        | Extension of Path.t * layout array
+
 and record_representation =
-    Record_regular                      (* All fields are boxed / tagged *)
-  | Record_float                        (* All fields are floats *)
-  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension of Path.t          (* Inlined record under extension *)
+  | Record_unboxed
+  | Record_inlined of tag * variant_representation
+  | Record_boxed of layout array
+  | Record_float
 
 and variant_representation =
-    Variant_regular          (* Constant or boxed constructors *)
-  | Variant_unboxed          (* One unboxed single-field constructor *)
+  | Variant_unboxed
+  | Variant_boxed of layout array array
+  | Variant_extensible
 
 and global_flag =
   | Global
-  | Nonlocal
   | Unrestricted
 
 and label_declaration =
@@ -259,6 +256,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
+    ld_layout : layout;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -282,6 +280,8 @@ type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
+    ext_arg_layouts: layout array;
+    ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
     ext_loc: Location.t;
@@ -328,23 +328,48 @@ type visibility =
   | Exported
   | Hidden
 
-type module_type =
+type rec_status =
+  Trec_not                   (* first in a nonrecursive group *)
+| Trec_first                 (* first in a recursive group *)
+| Trec_next                  (* not first in a recursive/nonrecursive group *)
+
+type ext_status =
+  Text_first                     (* first constructor of an extension *)
+| Text_next                      (* not first constructor of an extension *)
+| Text_exception                 (* an exception *)
+
+type module_presence =
+  | Mp_present
+  | Mp_absent
+
+module type Wrap = sig
+  type 'a t
+end
+
+module type Wrapped = sig
+  type 'a wrapped
+
+  type value_description =
+    { val_type: type_expr wrapped;                (* Type of the value *)
+      val_kind: value_kind;
+      val_loc: Location.t;
+      val_attributes: Parsetree.attributes;
+      val_uid: Uid.t;
+    }
+
+  type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
 
-and functor_parameter =
+  and functor_parameter =
   | Unit
   | Named of Ident.t option * module_type
 
-and module_presence =
-  | Mp_present
-  | Mp_absent
+  and signature = signature_item list wrapped
 
-and signature = signature_item list
-
-and signature_item =
+  and signature_item =
     Sig_value of Ident.t * value_description * visibility
   | Sig_type of Ident.t * type_declaration * rec_status * visibility
   | Sig_typext of Ident.t * extension_constructor * ext_status * visibility
@@ -354,7 +379,7 @@ and signature_item =
   | Sig_class of Ident.t * class_declaration * rec_status * visibility
   | Sig_class_type of Ident.t * class_type_declaration * rec_status * visibility
 
-and module_declaration =
+  and module_declaration =
   {
     md_type: module_type;
     md_attributes: Parsetree.attributes;
@@ -362,24 +387,85 @@ and module_declaration =
     md_uid: Uid.t;
   }
 
-and modtype_declaration =
+  and modtype_declaration =
   {
     mtd_type: module_type option;  (* Note: abstract *)
     mtd_attributes: Parsetree.attributes;
     mtd_loc: Location.t;
     mtd_uid: Uid.t;
   }
+end
 
-and rec_status =
-    Trec_not                   (* first in a nonrecursive group *)
-  | Trec_first                 (* first in a recursive group *)
-  | Trec_next                  (* not first in a recursive/nonrecursive group *)
+module Make_wrapped(Wrap : Wrap) = struct
+  (* Avoid repeating everything in Wrapped *)
+  module rec M : Wrapped with type 'a wrapped = 'a Wrap.t = M
+  include M
+end
 
-and ext_status =
-    Text_first                     (* first constructor of an extension *)
-  | Text_next                      (* not first constructor of an extension *)
-  | Text_exception                 (* an exception *)
+module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
+  open From
+  type mapper =
+    {
+      map_signature: mapper -> signature -> To.signature;
+      map_type_expr: mapper -> type_expr wrapped -> type_expr To.wrapped
+    }
 
+  let signature m = m.map_signature m
+
+  let rec module_type m = function
+    | Mty_ident p -> To.Mty_ident p
+    | Mty_alias p -> To.Mty_alias p
+    | Mty_functor (parm,mty) ->
+        To.Mty_functor (functor_parameter m parm, module_type m mty)
+    | Mty_signature sg -> To.Mty_signature (signature m sg)
+
+  and functor_parameter m = function
+      | Unit -> To.Unit
+      | Named (id,mty) -> To.Named (id, module_type m mty)
+
+  let value_description m {val_type; val_kind; val_attributes; val_loc; val_uid} =
+    To.{
+      val_type = m.map_type_expr m val_type;
+      val_kind;
+      val_attributes;
+      val_loc;
+      val_uid
+    }
+
+  let module_declaration m {md_type; md_attributes; md_loc; md_uid} =
+    To.{
+      md_type = module_type m md_type;
+      md_attributes;
+      md_loc;
+      md_uid;
+    }
+
+  let modtype_declaration m {mtd_type; mtd_attributes; mtd_loc; mtd_uid} =
+    To.{
+      mtd_type = Option.map (module_type m) mtd_type;
+      mtd_attributes;
+      mtd_loc;
+      mtd_uid;
+    }
+
+  let signature_item m = function
+    | Sig_value (id,vd,vis) ->
+        To.Sig_value (id, value_description m vd, vis)
+    | Sig_type (id,td,rs,vis) ->
+        To.Sig_type (id,td,rs,vis)
+    | Sig_module (id,pres,md,rs,vis) ->
+        To.Sig_module (id, pres, module_declaration m md, rs, vis)
+    | Sig_modtype (id,mtd,vis) ->
+        To.Sig_modtype (id, modtype_declaration m mtd, vis)
+    | Sig_typext (id,ec,es,vis) ->
+        To.Sig_typext (id,ec,es,vis)
+    | Sig_class (id,cd,rs,vis) ->
+        To.Sig_class (id,cd,rs,vis)
+    | Sig_class_type (id,ctd,rs,vis) ->
+        To.Sig_class_type (id,ctd,rs,vis)
+end
+
+include Make_wrapped(struct type 'a t = 'a end)
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
@@ -389,8 +475,11 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
+    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
-    cstr_tag: constructor_tag;          (* Tag for heap blocks *)
+    cstr_tag: tag;                      (* Tag for heap blocks *)
+    cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
@@ -401,58 +490,62 @@ type constructor_description =
     cstr_uid: Uid.t;
    }
 
-and constructor_tag =
-    Cstr_constant of int                (* Constant constructor (an int) *)
-  | Cstr_block of int                   (* Regular constructor (a block) *)
-  | Cstr_unboxed                        (* Constructor of an unboxed type *)
-  | Cstr_extension of Path.t * bool     (* Extension constructor
-                                           true if a constant false if a block*)
-
 let equal_tag t1 t2 =
   match (t1, t2) with
-  | Cstr_constant i1, Cstr_constant i2 -> i2 = i1
-  | Cstr_block i1, Cstr_block i2 -> i2 = i1
-  | Cstr_unboxed, Cstr_unboxed -> true
-  | Cstr_extension (path1, b1), Cstr_extension (path2, b2) ->
-      Path.same path1 path2 && b1 = b2
-  | (Cstr_constant _|Cstr_block _|Cstr_unboxed|Cstr_extension _), _ -> false
+  | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
+    i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
+  | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
+  | (Ordinary _ | Extension _), _ -> false
+
+let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Variant_unboxed, Variant_unboxed ->
+      true
+  | Variant_boxed lays1, Variant_boxed lays2 ->
+      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Layout.equal) lays1 lays2
+  | Variant_extensible, Variant_extensible ->
+      true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+      false
+
+let equal_record_representation r1 r2 = match r1, r2 with
+  | Record_unboxed, Record_unboxed ->
+      true
+  | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
+      equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
+  | Record_boxed lays1, Record_boxed lays2 ->
+      Misc.Stdlib.Array.equal Layout.equal lays1 lays2
+  | Record_float, Record_float ->
+      true
+  | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float), _ ->
+      false
 
 let may_equal_constr c1 c2 =
   c1.cstr_arity = c2.cstr_arity
   && (match c1.cstr_tag,c2.cstr_tag with
-     | Cstr_extension _,Cstr_extension _ ->
+     | Extension _, Extension _ ->
          (* extension constructors may be rebindings of each other *)
          true
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
-let item_visibility = function
-  | Sig_value (_, _, vis)
-  | Sig_type (_, _, _, vis)
-  | Sig_typext (_, _, _, vis)
-  | Sig_module (_, _, _, _, vis)
-  | Sig_modtype (_, _, vis)
-  | Sig_class (_, _, _, vis)
-  | Sig_class_type (_, _, _, vis) -> vis
-
-let kind_abstract = Type_abstract { immediate = Unknown }
-
 let decl_is_abstract decl =
   match decl.type_kind with
-  | Type_abstract _ -> true
+  | Type_abstract -> true
   | Type_record _ | Type_variant _ | Type_open -> false
 
 let find_unboxed_type decl =
   match decl.type_kind with
-    Type_record ([{ld_type = arg; _}], Record_unboxed _)
+    Type_record ([{ld_type = arg; _}], Record_unboxed)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
   | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed) ->
     Some arg
-  | Type_record (_, ( Record_regular | Record_float | Record_inlined _
-                    | Record_extension _ | Record_unboxed _ ))
-  | Type_variant (_, ( Variant_regular | Variant_unboxed ))
-  | Type_abstract _ | Type_open ->
+  | Type_record (_, ( Record_inlined _ | Record_unboxed
+                    | Record_boxed _ | Record_float ))
+  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
+                     | Variant_extensible ))
+  | Type_abstract | Type_open ->
     None
 
 type label_description =
@@ -461,14 +554,18 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
     lbl_global: global_flag;        (* Is this a global field? *)
+    lbl_layout : layout;                (* Layout of the argument *)
     lbl_pos: int;                       (* Position in block *)
+    lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for this record *)
+    lbl_repres: record_representation;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
-   }
+  }
+
+let lbl_pos_void = -1
 
 let rec bound_value_identifiers = function
     [] -> []
@@ -612,11 +709,16 @@ module Transient_expr = struct
   let set_desc ty d = ty.desc <- d
   let set_stub_desc ty d =
     (match ty.desc with
-    | Tvar None -> ()
+    | Tvar {name = None; _} -> ()
     | _ -> assert false);
     ty.desc <- d
   let set_level ty lv = ty.level <- lv
   let set_scope ty sc = ty.scope <- sc
+  let set_var_layout ty layout' =
+    match ty.desc with
+    | Tvar { name; _ } ->
+      set_desc ty (Tvar { name; layout = layout' })
+    | _ -> assert false
   let coerce ty = ty
   let repr = repr
   let type_expr ty = ty
@@ -797,13 +899,17 @@ let link_type ty ty' =
   (* Name is a user-supplied name for this unification variable (obtained
    * through a type annotation for instance). *)
   match desc, ty'.desc with
-    Tvar name, Tvar name' ->
+    Tvar { name }, Tvar { name = name'; layout = layout' } ->
       begin match name, name' with
-      | Some _, None -> log_type ty'; Transient_expr.set_desc ty' (Tvar name)
+      | Some _, None ->
+        log_type ty';
+        Transient_expr.set_desc ty' (Tvar { name; layout = layout' })
       | None, Some _ -> ()
       | Some _, Some _ ->
-          if ty.level < ty'.level then
-            (log_type ty'; Transient_expr.set_desc ty' (Tvar name))
+        if ty.level < ty'.level then begin
+          log_type ty';
+          Transient_expr.set_desc ty' (Tvar { name; layout = layout' })
+        end
       | None, None   -> ()
       end
   | _ -> ()
@@ -832,6 +938,10 @@ let set_scope ty scope =
     if ty.id <= !last_snapshot then log_change (Cscope (ty, ty.scope));
     Transient_expr.set_scope ty scope
   end
+let set_var_layout ty layout =
+  let ty = repr ty in
+  log_type ty;
+  Transient_expr.set_var_layout ty layout
 let set_univar rty ty =
   log_change (Cuniv (rty, !rty)); rty := Some ty
 let set_name nm v =

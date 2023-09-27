@@ -99,28 +99,28 @@ let poll_insertion = %%POLL_INSERTION%%
 (* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
    magic numbers ending in 5xx. (The AST remains
    compatible, so use upstream numbers) *)
-let exec_magic_number = "Caml1999X502"
+let exec_magic_number = "Caml1999X508"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
-and cmi_magic_number = "Caml1999I503"
-and cmo_magic_number = "Caml1999O503"
-and cma_magic_number = "Caml1999A503"
+and cmi_magic_number = "Caml1999I509"
+and cmo_magic_number = "Caml1999O509"
+and cma_magic_number = "Caml1999A509"
 and cmx_magic_number =
   if flambda || flambda2 then
-    "Caml2021y505"
+    "Caml2021y511"
   else
-    "Caml2021Y505"
+    "Caml2021Y511"
 and cmxa_magic_number =
   if flambda || flambda2 then
-    "Caml2021z505"
+    "Caml2021z511"
   else
-    "Caml2021Z505"
+    "Caml2021Z511"
 and ast_impl_magic_number = "Caml1999M031"
 and ast_intf_magic_number = "Caml1999N031"
-and cmxs_magic_number = "Caml1999D504"
-and cmt_magic_number = "Caml1999T503"
-and cms_magic_number = "Caml1999S501"
-and linear_magic_number = "Caml1999L503"
-and cfg_magic_number = "Caml2021G503"
+and cmxs_magic_number = "Caml1999D510"
+and cmt_magic_number = "Caml1999T509"
+and cms_magic_number = "Caml1999S507"
+and linear_magic_number = "Caml1999L509"
+and cfg_magic_number = "Caml2021G509"
 
 let interface_suffix = ref ".mli"
 

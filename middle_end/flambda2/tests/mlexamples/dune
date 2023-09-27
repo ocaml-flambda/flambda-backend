@@ -18,5 +18,6 @@
          tests6
          tests7
          tests11
-         tests14))
+         tests14
+         tests15))
    (diff generated-rules.inc generated-rules.inc.new))))

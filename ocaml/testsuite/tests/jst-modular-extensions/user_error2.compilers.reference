@@ -1,4 +1,0 @@
-File "user_error2.ml", line 21, characters 46-65:
-21 | let _malformed_extensions_wrong_arguments = [%extension.something] "two" "arguments";;
-                                                   ^^^^^^^^^^^^^^^^^^^
-Error: Uninterpreted extension 'extension.something'.

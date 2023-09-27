@@ -80,6 +80,8 @@ val list_remove: 'a -> 'a list -> 'a list
            element equal to [x] removed. *)
 val split_last: 'a list -> 'a list * 'a
         (* Return the last element and the other elements of the given list. *)
+val last : 'a list -> 'a option
+        (* Return the last element of a list if it's nonempty *)
 
 type ref_and_value = R : 'a ref * 'a -> ref_and_value
 
@@ -165,6 +167,9 @@ module Stdlib : sig
   module Option : sig
     type 'a t = 'a option
 
+    (* short circuits if the first argument really is a [Some] *)
+    val first_some : 'a option -> (unit -> 'a option) -> 'a option
+
     val print
        : (Format.formatter -> 'a -> unit)
       -> Format.formatter
@@ -182,6 +187,10 @@ module Stdlib : sig
         and the element itself as second argument. *)
 
     val all_somes : 'a option array -> 'a array option
+
+    val equal : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool
+    (** Compare two arrays for equality, using the supplied predicate for
+        element equality *)
   end
 
   module String : sig
@@ -722,3 +731,8 @@ module Magic_number : sig
 
   val all_kinds : kind list
 end
+
+(** Propositional equality *)
+type (_, _) eq = Refl : ('a, 'a) eq
+
+

@@ -85,5 +85,10 @@
   (section lib)
   (package ocaml))
 
+(library
+  (name debug_printers)
+  (modes byte)
+  (libraries ocamlcommon)
+  (modules debug_printers))
 
 ; ocamlcp, ocamloptp and ocamlprof are not currently supported.

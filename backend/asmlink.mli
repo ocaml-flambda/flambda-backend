@@ -24,7 +24,9 @@ val link: (module Compiler_owee.Unix_intf.S) -> ppf_dump:formatter ->
 val link_shared: (module Compiler_owee.Unix_intf.S) ->
   ppf_dump:formatter -> string list -> string -> unit
 
-val call_linker_shared: string list -> string -> unit
+val call_linker_shared: ?native_toplevel:bool -> string list -> string -> unit
+
+val cached_generic_functions : (module Compiler_owee.Unix_intf.S) -> ppf_dump:formatter -> string -> unit
 
 val reset : unit -> unit
 val check_consistency: filepath -> Cmx_format.unit_infos -> Digest.t -> unit

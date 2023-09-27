@@ -46,8 +46,16 @@ type closed_flag = Closed | Open
 
 type global_flag =
   | Global
-  | Nonlocal
   | Nothing
+
+(* constant layouts are parsed as layout annotations, and also used
+   in the type checker as already-inferred (i.e. non-variable) layouts *)
+type const_layout =
+  | Any
+  | Value
+  | Void
+  | Immediate64
+  | Immediate
 
 type label = string
 

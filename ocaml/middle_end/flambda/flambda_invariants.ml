@@ -242,7 +242,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       loop env e2
     | Region e ->
       loop env e
-    | Tail e ->
+    | Exclave e ->
       loop env e
     | Proved_unreachable -> ()
   and loop_named env (named : Flambda.named) =

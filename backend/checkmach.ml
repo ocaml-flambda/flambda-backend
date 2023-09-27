@@ -27,297 +27,908 @@
 
 module String = Misc.Stdlib.String
 
-type error =
-  | Annotation of
-      { fun_name : string;
-        check : string
+module Witness = struct
+  type kind =
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo
+        }
+    | Indirect_call
+    | Indirect_tailcall
+    | Direct_call of { callee : string }
+    | Direct_tailcall of { callee : string }
+    | Missing_summary of { callee : string }
+    | Forward_call of { callee : string }
+    | Extcall of { callee : string }
+    | Arch_specific
+    | Probe of
+        { name : string;
+          handler_code_sym : string
+        }
+
+  type t =
+    { dbg : Debuginfo.t;
+      kind : kind
+    }
+
+  let create dbg kind = { dbg; kind }
+
+  let compare { dbg = dbg1; kind = kind1 } { dbg = dbg2; kind = kind2 } =
+    (* compare by [dbg] first to print the errors in the order they appear in
+       the source file. *)
+    let c = Debuginfo.compare dbg1 dbg2 in
+    if c <> 0 then c else Stdlib.compare kind1 kind2
+
+  let print_kind ppf kind =
+    let open Format in
+    match kind with
+    | Alloc { bytes; dbginfo = _ } -> fprintf ppf "allocate %d bytes" bytes
+    | Indirect_call -> fprintf ppf "indirect call"
+    | Indirect_tailcall -> fprintf ppf "indirect tailcall"
+    | Direct_call { callee } -> fprintf ppf "direct call %s" callee
+    | Direct_tailcall { callee : string } ->
+      fprintf ppf "direct tailcall %s" callee
+    | Missing_summary { callee } -> fprintf ppf "missing summary for %s" callee
+    | Forward_call { callee } ->
+      fprintf ppf "foward call or tailcall (conservatively handled) %s" callee
+    | Extcall { callee } -> fprintf ppf "external call to %s" callee
+    | Arch_specific -> fprintf ppf "arch specific operation"
+    | Probe { name; handler_code_sym } ->
+      fprintf ppf "probe %s handler %s" name handler_code_sym
+
+  let get_alloc_dbginfo kind =
+    match kind with
+    | Alloc { bytes = _; dbginfo } -> Some dbginfo
+    | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
+    | Missing_summary _ | Forward_call _ | Extcall _ | Arch_specific | Probe _
+      ->
+      None
+
+  let print ppf { kind; dbg } =
+    Format.fprintf ppf "%a %a" print_kind kind Debuginfo.print_compact dbg
+
+  let print_error component t : Location.msg list =
+    let mkloc pp dbg suffix =
+      let loc = Debuginfo.to_location dbg in
+      Location.mkloc
+        (fun ppf ->
+          pp ppf;
+          (* Show inlined locations. If dbg has only one item, it will already
+             be shown as [loc]. *)
+          if List.length t.dbg > 1
+          then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg;
+          if not (String.equal "" component)
+          then Format.fprintf ppf " on a path to %s" component;
+          Format.fprintf ppf "%s" suffix)
+        loc
+    in
+    let pp_kind ppf = print_kind ppf t.kind in
+    match get_alloc_dbginfo t.kind with
+    | None | Some [] | Some [_] -> [mkloc pp_kind t.dbg ""]
+    | Some alloc_dbginfo ->
+      (* One Ialloc is a result of comballoc, print details of each location. *)
+      let suffix =
+        Printf.sprintf " combining %d allocations below"
+          (List.length alloc_dbginfo)
+      in
+      let details =
+        List.map
+          (fun (item : Debuginfo.alloc_dbginfo_item) ->
+            let pp_alloc ppf =
+              Format.fprintf ppf "allocate %d words" item.alloc_words
+            in
+            mkloc pp_alloc item.alloc_dbg "")
+          alloc_dbginfo
+      in
+      mkloc pp_kind t.dbg suffix :: details
+end
+
+module Witnesses : sig
+  type t
+
+  val empty : t
+
+  val is_empty : t -> bool
+
+  val iter : t -> f:(Witness.t -> unit) -> unit
+
+  val join : t -> t -> t
+
+  val create : Witness.kind -> Debuginfo.t -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val elements : t -> Witness.t list
+
+  type components =
+    { nor : t;
+      exn : t;
+      div : t
+    }
+
+  val simplify : components -> components
+end = struct
+  include Set.Make (Witness)
+
+  (* CR gyorsh: consider using Flambda_backend_flags.checkmach_details_cutoff to
+     limit the size of this set. The downside is that it won't get tested as
+     much. Only keep witnesses for functions that need checking. *)
+  let join = union
+
+  let create kind dbg = singleton (Witness.create dbg kind)
+
+  let iter t ~f = iter f t
+
+  let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
+
+  type components =
+    { nor : t;
+      exn : t;
+      div : t
+    }
+
+  let simplify { nor; exn; div } =
+    { div =
+        (* don't print diverge witnesses unless they are the only ones. *)
+        (if is_empty nor && is_empty exn then div else empty);
+      nor;
+      (* only print the exn witnesses that are not also nor witnesses. *)
+      exn = diff exn nor
+    }
+end
+
+(** Abstract value for each component of the domain. *)
+module V : sig
+  type t =
+    | Top of Witnesses.t  (** Property may not hold on some paths. *)
+    | Safe  (** Property holds on all paths.  *)
+    | Bot  (** Not reachable. *)
+
+  val lessequal : t -> t -> bool
+
+  val join : t -> t -> t
+
+  val transform : Witnesses.t -> t -> t
+
+  val replace_witnesses : Witnesses.t -> t -> t
+
+  val diff_witnesses : expected:t -> actual:t -> Witnesses.t
+
+  val get_witnesses : t -> Witnesses.t
+
+  val is_not_safe : t -> bool
+
+  val print : witnesses:bool -> Format.formatter -> t -> unit
+end = struct
+  type t =
+    | Top of Witnesses.t
+    | Safe
+    | Bot
+
+  let join c1 c2 =
+    match c1, c2 with
+    | Bot, Bot -> Bot
+    | Safe, Safe -> Safe
+    | Top w1, Top w2 -> Top (Witnesses.join w1 w2)
+    | Safe, Bot | Bot, Safe -> Safe
+    | Top w1, Bot | Top w1, Safe | Bot, Top w1 | Safe, Top w1 -> Top w1
+
+  let lessequal v1 v2 =
+    match v1, v2 with
+    | Bot, Bot -> true
+    | Safe, Safe -> true
+    | Top _, Top _ -> true
+    | Bot, Safe -> true
+    | Bot, Top _ -> true
+    | Safe, Top _ -> true
+    | Top _, (Bot | Safe) -> false
+    | Safe, Bot -> false
+
+  (** abstract transformer (backward analysis) for a statement that violates the property
+      but doesn't alter control flow. *)
+  let transform w = function
+    | Bot ->
+      (* if a return is unreachable from the program location immediately after
+         the statement, then return is unreachable from the program location
+         immediately before the statement. *)
+      Bot
+    | Safe -> Top w
+    | Top w' -> Top (Witnesses.join w w')
+
+  let replace_witnesses w t = match t with Top _ -> Top w | Bot | Safe -> t
+
+  let get_witnesses t =
+    match t with Top w -> w | Bot | Safe -> Witnesses.empty
+
+  let diff_witnesses ~expected ~actual =
+    if lessequal actual expected
+    then Witnesses.empty
+    else (
+      assert (expected = Safe);
+      match actual with Bot | Safe -> assert false | Top w -> w)
+
+  let is_not_safe = function Top _ -> true | Safe | Bot -> false
+
+  let print ~witnesses ppf = function
+    | Bot -> Format.fprintf ppf "bot"
+    | Top w ->
+      Format.fprintf ppf "top";
+      if witnesses then Format.fprintf ppf " (%a)" Witnesses.print w
+    | Safe -> Format.fprintf ppf "safe"
+end
+
+(** Abstract value associated with each program location in a function. *)
+module Value : sig
+  type t =
+    { nor : V.t;
+          (** Property about
+              all paths from this program location that may reach a Normal Return  *)
+      exn : V.t;
+          (** Property about all paths from this program point that may reach a Return with
+          Exception *)
+      div : V.t
+          (** Property about all paths from this program point that may diverge.  *)
+    }
+
+  val lessequal : t -> t -> bool
+
+  val join : t -> t -> t
+
+  val top : Witnesses.t -> t
+
+  val bot : t
+
+  val normal_return : t
+
+  val exn_escape : t
+
+  val diverges : t
+
+  val safe : t
+
+  val relaxed : t
+
+  val print : witnesses:bool -> Format.formatter -> t -> unit
+
+  val transform : Witnesses.t -> t -> t
+
+  val replace_witnesses : Witnesses.t -> t -> t
+
+  val get_witnesses : t -> Witnesses.components
+
+  val diff_witnesses : expected:t -> actual:t -> Witnesses.components
+end = struct
+  (** Lifts V to triples  *)
+  type t =
+    { nor : V.t;
+      exn : V.t;
+      div : V.t
+    }
+
+  let bot = { nor = V.Bot; exn = V.Bot; div = V.Bot }
+
+  let lessequal v1 v2 =
+    V.lessequal v1.nor v2.nor && V.lessequal v1.exn v2.exn
+    && V.lessequal v1.div v2.div
+
+  let join v1 v2 =
+    { nor = V.join v1.nor v2.nor;
+      exn = V.join v1.exn v2.exn;
+      div = V.join v1.div v2.div
+    }
+
+  let transform w v =
+    { nor = V.transform w v.nor;
+      exn = V.transform w v.exn;
+      div = V.transform w v.div
+    }
+
+  let replace_witnesses w t =
+    { nor = V.replace_witnesses w t.nor;
+      exn = V.replace_witnesses w t.exn;
+      div = V.replace_witnesses w t.div
+    }
+
+  let diff_witnesses ~expected ~actual =
+    { Witnesses.nor = V.diff_witnesses ~expected:expected.nor ~actual:actual.nor;
+      Witnesses.exn = V.diff_witnesses ~expected:expected.exn ~actual:actual.exn;
+      Witnesses.div = V.diff_witnesses ~expected:expected.div ~actual:actual.div
+    }
+
+  let get_witnesses t =
+    { Witnesses.nor = V.get_witnesses t.nor;
+      Witnesses.exn = V.get_witnesses t.exn;
+      Witnesses.div = V.get_witnesses t.div
+    }
+
+  let normal_return = { bot with nor = V.Safe }
+
+  let exn_escape = { bot with exn = V.Safe }
+
+  let diverges = { bot with div = V.Safe }
+
+  let safe = { nor = V.Safe; exn = V.Safe; div = V.Safe }
+
+  let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
+
+  let relaxed =
+    { nor = V.Safe; exn = V.Top Witnesses.empty; div = V.Top Witnesses.empty }
+
+  let print ~witnesses ppf { nor; exn; div } =
+    let pp = V.print ~witnesses in
+    Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" pp nor pp exn pp div
+end
+
+(**  Representation of user-provided annotations as abstract values *)
+module Annotation : sig
+  type t
+
+  val get_loc : t -> Location.t
+
+  val find :
+    Cmm.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t option
+
+  val expected_value : t -> Value.t
+
+  val is_assume : t -> bool
+
+  val report_error : exn -> Location.error option
+
+  exception
+    Invalid of
+      { a : t;
+        fun_name : string;
+        fun_dbg : Debuginfo.t;
+        property : Cmm.property;
+        witnesses : Witnesses.components
+      }
+end = struct
+  (**
+   ***************************************************************************
+   *  [Strict] statically guarantees that all paths through the function satisfy
+   *  all of the following conditions:
+   *   - property holds on all primitive operations (e.g., no heap allocation)
+   *   - no indirect calls (incl. no indirect tailcalls)
+   *   - all direct calls (incl. tailcalls and probes) are to functions that
+   *     satisfy the same conditions, i.e., they are [Strict].
+   *
+   *  [Relaxed] is the same as [Strict] on all paths that end in a normal return
+   *  from a function, but no restrictions on diverging executions or
+   *  on when a function returns with a [raise] with backtrace, which is treated
+   *  as an error return (whereas [raise_no_trace] is treated as normal control flow
+   *  and is subject to [Strict] requirements).
+   *
+   *****************************************************************************)
+
+  type t =
+    { strict : bool;  (** strict or relaxed? *)
+      assume : bool;
+      loc : Location.t
+          (** Source location of the annotation, used for error messages. *)
+    }
+
+  let get_loc t = t.loc
+
+  let expected_value t = if t.strict then Value.safe else Value.relaxed
+
+  let is_assume t = t.assume
+
+  let find codegen_options spec fun_name dbg =
+    let ignore_assert_all = ref false in
+    let a =
+      List.filter_map
+        (fun (c : Cmm.codegen_option) ->
+          match c with
+          | Check { property; strict; assume; loc } when property = spec ->
+            Some { strict; assume; loc }
+          | Ignore_assert_all property when property = spec ->
+            ignore_assert_all := true;
+            None
+          | Ignore_assert_all _ | Check _ | Reduce_code_size | No_CSE
+          | Use_linscan_regalloc ->
+            None)
+        codegen_options
+    in
+    match a with
+    | [] ->
+      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
+      then
+        Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
+      else None
+    | [p] -> Some p
+    | _ :: _ ->
+      Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
+        Debuginfo.print_compact dbg fun_name ()
+
+  exception
+    Invalid of
+      { a : t;
+        fun_name : string;
+        fun_dbg : Debuginfo.t;
+        property : Cmm.property;
+        witnesses : Witnesses.components
       }
 
-exception Error of Location.t * error
+  let print_error ppf t ~fun_name ~fun_dbg ~property =
+    Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
+      (Printcmm.property_to_string property)
+      (if t.strict then " strict" else "")
+      (fun_dbg
+      |> List.map (fun dbg ->
+             Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+      |> String.concat ",")
+      fun_name
 
-module Value = struct
-  type t =
-    | Pass
-    | Fail
-    | Unknown
+  let print_witnesses w : Location.msg list =
+    let { Witnesses.nor; exn; div } = Witnesses.simplify w in
+    let f t component =
+      t |> Witnesses.elements
+      |> List.map (Witness.print_error component)
+      |> List.concat
+    in
+    let l =
+      List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
+    in
+    let cutoff = !Flambda_backend_flags.checkmach_details_cutoff in
+    let len = List.length l in
+    if cutoff < 0 || len < cutoff
+    then l
+    else if cutoff = 0
+    then (* don't even print the dots *)
+      []
+    else
+      let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
+      let details, _ = Misc.Stdlib.List.split_at cutoff l in
+      details @ [print_dots]
 
-  let to_string = function
-    | Pass -> "pass"
-    | Fail -> "fail"
-    | Unknown -> "unknown"
+  let report_error = function
+    | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
+      let sub = print_witnesses witnesses in
+      Some
+        (Location.error_of_printer ~loc:a.loc ~sub
+           (print_error ~fun_name ~fun_dbg ~property)
+           a)
+    | _ -> None
 end
 
 module Func_info = struct
+  (* Fields are mutable: [annotation] changes when a call appears before the
+     declaration. [value] and [unresolved_callers] change to track and update
+     dependencies as the compilation unit is scanned. *)
   type t =
     { name : string;  (** function name *)
-      mutable loc : Location.t option;
-          (** Source location for error messages. *)
+      mutable dbg : Debuginfo.t;  (** debug info associated with the function *)
       mutable value : Value.t;  (** the result of the check *)
-      mutable callers : string list;
-          (** unresolved dependencies. if not empty then value is Unknown. *)
-      mutable in_current_unit : bool;
-          (** is the function known to be defined in the current unit? *)
-      mutable annotated : bool  (** is the function annotated *)
+      mutable annotation : Annotation.t option;
+          (** [value] must be lessequal than the expected value
+          if there is user-defined annotation on this function. *)
+      mutable unresolved_callers : String.Set.t;  (** direct callers  *)
+      mutable unresolved_callees : Witnesses.t String.Map.t
+          (** direct callees  *)
     }
 
-  let create name value =
+  let create name =
     { name;
-      loc = None;
-      value;
-      callers = [];
-      in_current_unit = false;
-      annotated = false
+      dbg = Debuginfo.none;
+      value = Value.bot;
+      annotation = None;
+      unresolved_callers = String.Set.empty;
+      unresolved_callees = String.Map.empty
     }
+
+  let is_resolved t = String.Map.is_empty t.unresolved_callees
+
+  let print ~witnesses ~msg ppf t =
+    let open Format in
+    let print_names ppf set =
+      pp_print_seq
+        ~pp_sep:(fun ppf () -> pp_print_char ppf ' ')
+        pp_print_string ppf set
+    in
+    fprintf ppf "%s %s %a@,(unresolved callees: %a)@,(unresolved callers: %a)@."
+      msg t.name (Value.print ~witnesses) t.value print_names
+      (t.unresolved_callees |> String.Map.to_seq |> Seq.map (fun (k, _) -> k))
+      print_names
+      (String.Set.to_seq t.unresolved_callers)
 end
 
 module type Spec = sig
-  (** Which check is it? Used in error messages. *)
-  val name : string
-
   (** Is the check enabled? *)
   val enabled : unit -> bool
 
-  (** Record that the callee passed the check. *)
-  val add_callee : string -> Cmx_format.checks -> unit
+  (** [get_value_opt f] returns the value recorded for function [f] in [Compilenv],
+      either because the check passed or because of user-defined "assume" annotation.
+      If [f] was compiled with checks disabled, returns None.
+  *)
+  val get_value_opt : string -> Value.t option
 
-  (** Does the callee pass the check (i.e., satisfies the conditions such as no
-      allocation)? Returns [true] if the callee passed the check or the callee
-      is annotated to be skipped by this check. *)
-  val check_callee : string -> Cmx_format.checks -> bool
+  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
+  val set_value : string -> Value.t -> unit
 
-  (** returns true when the check passes. *)
-  val check_specific : Arch.specific_operation -> bool
+  (** Summary of target specific operations. *)
+  val transform_specific : Witnesses.t -> Arch.specific_operation -> Value.t
 
-  val annotation : Cmm.property
+  val property : Cmm.property
 end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
    functions. *)
 
+(** Information about functions that we have seen so far in the current compilation
+      unit. *)
+module Unit_info : sig
+  (** mutable state *)
+  type t
+
+  val create : unit -> t
+
+  val reset : t -> unit
+
+  val find_opt : t -> string -> Func_info.t option
+
+  (** [join_value t name v] name must be in the current compilation unit,
+      and previously recorded.  *)
+  val join_value : t -> string -> Value.t -> unit
+
+  (** [add_value t name v] name must be in the current compilation unit
+      and have not been recorded yet.  *)
+  val add_value : t -> string -> Value.t -> unit
+
+  (** [record_deps t ~caller ~callees] caller and callees must be in the current
+      compilation unit.  *)
+  val record_deps :
+    t -> caller:string -> callees:Witnesses.t String.Map.t -> unit
+
+  (** [cleanup_deps] remove resolved dependencies starting from [name]. *)
+  val cleanup_deps : t -> string -> unit
+
+  val record_annotation :
+    t -> string -> Debuginfo.t -> Annotation.t option -> unit
+
+  val resolve_all : t -> unit
+
+  val iter : t -> f:(Func_info.t -> unit) -> unit
+
+  val should_keep_witnesses : bool -> bool
+end = struct
+  (** map function name to the information about it *)
+  type t = Func_info.t String.Tbl.t
+
+  let create () = String.Tbl.create 17
+
+  let reset t = String.Tbl.reset t
+
+  let get_exn t name : Func_info.t = String.Tbl.find t name
+
+  let find_opt t name = String.Tbl.find_opt t name
+
+  let get_or_create t name : Func_info.t =
+    match String.Tbl.find_opt t name with
+    | None ->
+      let func_info = Func_info.create name in
+      String.Tbl.replace t name func_info;
+      func_info
+    | Some func_info -> func_info
+
+  let should_keep_witnesses keep =
+    if !Flambda_backend_flags.checkmach_details_cutoff < 0
+    then true
+    else if !Flambda_backend_flags.checkmach_details_cutoff = 0
+    then false
+    else keep
+
+  (* fixpoint backward propogation of function summaries along the recorded
+     dependency edges. *)
+  let rec propagate t (func_info : Func_info.t) =
+    let unresolved_callers = func_info.unresolved_callers in
+    let value = func_info.value in
+    let value =
+      (* conservative use of summaries for unresolved dependencies *)
+      let w =
+        if should_keep_witnesses true
+        then
+          Witnesses.create
+            (Forward_call { callee = func_info.name })
+            Debuginfo.none
+        else Witnesses.empty
+      in
+      let v = V.join value.nor value.exn |> V.replace_witnesses w in
+      { Value.nor = v; exn = v; div = value.div }
+    in
+    String.Set.iter
+      (replace_witnesses_and_propagate t ~value ~callee:func_info.name)
+      unresolved_callers
+
+  and replace_witnesses_and_propagate t ~(value : Value.t) ~callee name =
+    let func_info = get_exn t name in
+    match String.Map.find_opt callee func_info.unresolved_callees with
+    | None ->
+      Misc.fatal_errorf "missing witnesses for unresolved_callee %s of %s"
+        callee name
+    | Some w ->
+      let v = V.replace_witnesses w value.nor in
+      let value = { value with nor = v; exn = v } in
+      join_and_propagate t ~value name
+
+  and join_and_propagate t ~value name =
+    let func_info = get_exn t name in
+    let new_value = Value.join func_info.value value in
+    let old_value = func_info.value in
+    (* propagate witnesses *)
+    func_info.value <- new_value;
+    if not (Value.lessequal new_value old_value) then propagate t func_info
+
+  let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
+
+  let resolve_all t = iter t ~f:(propagate t)
+
+  let add_value t name value =
+    let (_ : Func_info.t) = get_or_create t name in
+    join_and_propagate t name ~value
+
+  let join_value t name value = join_and_propagate t name ~value
+
+  let record_annotation t name dbg annotation =
+    let func_info = get_or_create t name in
+    if Option.is_some func_info.annotation
+    then Misc.fatal_errorf "Duplicate symbol %s" name;
+    func_info.dbg <- dbg;
+    func_info.annotation <- annotation
+
+  let record_deps t ~caller ~callees =
+    let func_info = get_exn t caller in
+    if not (String.Map.is_empty func_info.unresolved_callees)
+    then Misc.fatal_errorf "Unexpected unresolved callees for %s" caller;
+    func_info.unresolved_callees <- callees;
+    String.Map.iter
+      (fun callee _ ->
+        let func_info = get_or_create t callee in
+        func_info.unresolved_callers
+          <- String.Set.add caller func_info.unresolved_callers)
+      callees
+
+  let rec cleanup_deps t name =
+    (* optimization: clean up unresolved *)
+    let func_info = get_exn t name in
+    let unresolved_callees_except_self =
+      String.Map.remove name func_info.unresolved_callees
+    in
+    if String.Map.is_empty unresolved_callees_except_self
+    then (
+      (* remove all resolved deps *)
+      let unresolved_callers = func_info.unresolved_callers in
+      func_info.unresolved_callers <- String.Set.empty;
+      let changed_callers =
+        String.Set.filter
+          (fun caller ->
+            let caller_info : Func_info.t = get_exn t caller in
+            if String.Map.mem name caller_info.unresolved_callees
+            then (
+              caller_info.unresolved_callees
+                <- String.Map.remove name caller_info.unresolved_callees;
+              true)
+            else false)
+          unresolved_callers
+      in
+      (* propagate *)
+      String.Set.iter (cleanup_deps t) changed_callers)
+end
+
 (** Check one function. *)
 module Analysis (S : Spec) : sig
-  val fundecl : Format.formatter -> Mach.fundecl -> unit
+  val fundecl :
+    Mach.fundecl ->
+    future_funcnames:String.Set.t ->
+    Unit_info.t ->
+    Format.formatter ->
+    unit
 
-  val reset_unit_info : unit -> unit
-
-  val record_unit_info : Format.formatter -> Cmx_format.checks -> unit
+  val record_unit : Unit_info.t -> Format.formatter -> unit
 end = struct
-  (** Information about functions that we have seen so far for the current
-      compilation unit. *)
-  module Unit_info : sig
-    (** mutable state *)
-    type t
-
-    val create : unit -> t
-
-    val reset : t -> unit
-
-    (** Resolve all dependencies, record all names associated with Pass, and
-        check all annotated names. *)
-    val resolve_all : Format.formatter -> t -> Cmx_format.checks -> unit
-
-    val is_fail : t -> string -> bool
-
-    val get_value : t -> string -> Value.t option
-
-    val add_value : Format.formatter -> t -> string -> Value.t -> unit
-
-    val add_dep : t -> callee:string -> caller:string -> unit
-
-    val in_current_unit : t -> string -> Debuginfo.t -> unit
-
-    val annotated : t -> string -> unit
-  end = struct
-    (** map function name to the information about it *)
-    type t = (string, Func_info.t) Hashtbl.t
-
-    let create () : (string, Func_info.t) Hashtbl.t = Hashtbl.create 17
-
-    let reset t = Hashtbl.reset t
-
-    let is_fail t name =
-      match Hashtbl.find_opt t name with
-      | None -> false
-      | Some (func_info : Func_info.t) -> (
-        match func_info.value with Fail -> true | Pass | Unknown -> false)
-
-    let in_current_unit t name dbg =
-      let func_info : Func_info.t =
-        match Hashtbl.find_opt t name with
-        | None ->
-          let func_info = Func_info.create name Unknown in
-          Hashtbl.replace t name func_info;
-          func_info
-        | Some func_info -> func_info
-      in
-      func_info.in_current_unit <- true;
-      match func_info.loc with
-      | None -> func_info.loc <- Some (Debuginfo.to_location dbg)
-      | Some _ -> Misc.fatal_errorf "Duplicate symbol name %s" name
-
-    let record t name value =
-      match Hashtbl.find_opt t name with
-      | None ->
-        let func_info = Func_info.create name value in
-        Hashtbl.replace t name func_info
-      | Some (old : Func_info.t) ->
-        if old.value = value
-        then ()
-        else if old.value = Value.Unknown
-        then old.value <- value
-        else
-          Misc.fatal_errorf
-            "Checkmach %s record: can't set %s to %s, already set to %s" S.name
-            name (Value.to_string value)
-            (Value.to_string old.value)
-
-    (* Resolve everything that depends on [callee]. *)
-    let rec resolve ppf t callee (value : Value.t) =
-      record t callee value;
-      match Hashtbl.find_opt t callee with
-      | None -> assert false
-      | Some (func_info : Func_info.t) -> (
-        match value with
-        | Unknown ->
-          Misc.fatal_errorf "Checkmach %s: can't resolve %s to Unknown" S.name
-            callee
-        | Pass ->
-          (* If [callee] passes the check and has a caller that depends on it,
-             we can resolve the [caller] to Pass only when it does not depend on
-             any other callees, but we don't keep the information about reverse
-             dependencies, so we just leave the dependency edge. *)
-          func_info.callers <- []
-        | Fail ->
-          (* If [callee] fails the check, all its callers fail the check. *)
-          let callers = func_info.callers in
-          func_info.callers <- [];
-          List.iter
-            (fun caller ->
-              if !Flambda_backend_flags.dump_checkmach && not (is_fail t caller)
-              then
-                Format.fprintf ppf
-                  "*** check %s failed in %s: callee %s resolved to fail\n"
-                  S.name caller callee;
-              resolve ppf t caller Value.Fail)
-            callers)
-
-    (* [resolve_all] makes 3 passes *)
-    let resolve_all ppf t checks =
-      (* Resolve functions not defined in the current unit as [Fail]. If they
-         were [Pass], they would not have been recorded. *)
-      Hashtbl.iter
-        (fun callee (func_info : Func_info.t) ->
-          if not func_info.in_current_unit then resolve ppf t callee Fail)
-        t;
-      (* Record all remaining [Unknown] as [Pass].
-
-         If there is a call from [f] to [g], and we have seen the definitions of
-         [f] and [g], then if [g] failed the check, we would have already
-         removed the dependency and recorded both [f] and [g] as [Fail].
-         Therefore, either [g] passed the check or there is a cycle of
-         dependencies involving [f]. For all functions in the dependency cycle,
-         we have already determined that they don't have any forbidden
-         instructions directly. Therefore the entire cycle passes the check.*)
-      Hashtbl.iter
-        (fun _callee (func_info : Func_info.t) ->
-          match func_info.value with
-          | Unknown ->
-            func_info.value <- Pass;
-            func_info.callers <- []
-          | Pass | Fail -> assert (List.length func_info.callers = 0))
-        t;
-      (* Check annotations. Return all function names associated with Pass. *)
-      if S.enabled ()
-      then
-        Hashtbl.iter
-          (fun _callee (func_info : Func_info.t) ->
-            if func_info.in_current_unit
-            then
-              match func_info.value with
-              | Unknown -> assert false
-              | Pass -> S.add_callee func_info.name checks
-              | Fail ->
-                if func_info.annotated
-                then
-                  raise
-                    (Error
-                       ( Option.get func_info.loc,
-                         Annotation
-                           { fun_name = func_info.name; check = S.name } )))
-          t
-
-    let add_dep t ~callee ~caller =
-      record t callee Unknown;
-      record t caller Unknown;
-      let func_info : Func_info.t = Hashtbl.find t callee in
-      if not (List.mem caller func_info.callers)
-      then func_info.callers <- caller :: func_info.callers
-
-    let add_value ppf t name value = resolve ppf t name value
-
-    let get_value t name =
-      match Hashtbl.find_opt t name with
-      | None -> None
-      | Some (func_info : Func_info.t) -> Some func_info.value
-
-    let annotated t name =
-      let func_info : Func_info.t = Hashtbl.find t name in
-      func_info.annotated <- true
-  end
-
-  let unit_info = Unit_info.create ()
-
-  let reset_unit_info () = Unit_info.reset unit_info
-
-  let record_unit_info ppf_dump checks =
-    Unit_info.resolve_all ppf_dump unit_info checks
-
+  (** Information about the current function under analysis. *)
   type t =
     { ppf : Format.formatter;
-      fun_name : string;
-      mutable unresolved_dependencies : bool
+      current_fun_name : string;
+      future_funcnames : String.Set.t;
+          (** functions defined later in the same compilation unit  *)
+      mutable unresolved_deps : Witnesses.t String.Map.t;
+          (** must be the current compilation unit.  *)
+      unit_info : Unit_info.t;
+      mutable keep_witnesses : bool
     }
 
-  let report t ~msg ~desc dbg =
+  let create ppf current_fun_name future_funcnames unit_info =
+    { ppf;
+      current_fun_name;
+      future_funcnames;
+      unresolved_deps = String.Map.empty;
+      unit_info;
+      keep_witnesses = false
+    }
+
+  let analysis_name = Printcmm.property_to_string S.property
+
+  let report' ppf v ~current_fun_name ~msg ~desc dbg =
     if !Flambda_backend_flags.dump_checkmach
     then
-      Format.fprintf t.ppf "*** check %s %s in %s: %s %a\n" S.name msg
-        t.fun_name desc Debuginfo.print_compact dbg
+      Format.fprintf ppf "*** check %s %s in %s: %s with %a (%a)\n"
+        analysis_name msg current_fun_name desc
+        (Value.print ~witnesses:true)
+        v Debuginfo.print_compact dbg
 
-  exception Bail
+  let report t v ~msg ~desc dbg =
+    report' t.ppf v ~msg ~desc ~current_fun_name:t.current_fun_name dbg
 
-  let report_fail t desc dbg =
-    report t ~msg:"failed" ~desc dbg;
-    Unit_info.add_value t.ppf unit_info t.fun_name Fail;
-    if not !Flambda_backend_flags.dump_checkmach then raise_notrace Bail
+  let report_fail t d desc dbg = report t d ~msg:"failed" ~desc dbg
 
-  let check_call t callee ~desc dbg =
-    if String.begins_with ~prefix:"caml_apply" callee
-       (* This check is only an optimization, to keep dependencies small. *)
-       (* The prefix check is conservative (not everything that begins with
-          caml_apply is a compiler-generated symbol). *)
-       (* CR-someday gyorsh: propagate information about caml_apply from cmm to
-          mach instead of reverse-engineering it from the symbol name. *)
-    then report_fail t desc dbg
-    else if not (S.check_callee callee Compilenv.cached_checks)
+  let is_future_funcname t callee = String.Set.mem callee t.future_funcnames
+
+  let check t (r : Value.t) msg dbg =
+    if V.is_not_safe r.nor then report_fail t r (msg ^ " nor") dbg;
+    if V.is_not_safe r.exn then report_fail t r (msg ^ " exn") dbg;
+    if V.is_not_safe r.div then report_fail t r (msg ^ " div") dbg;
+    r
+
+  let report_unit_info ~msg ppf unit_info =
+    if !Flambda_backend_flags.dump_checkmach
     then
-      match Unit_info.get_value unit_info callee with
-      | Some Pass -> ()
-      | None | Some Unknown ->
-        if Unit_info.is_fail unit_info t.fun_name
-        then report t ~msg:"verbose" ~desc dbg
-        else (
-          Unit_info.add_dep unit_info ~callee ~caller:t.fun_name;
-          t.unresolved_dependencies <- true;
-          report t ~msg:"unknown" ~desc dbg)
-      | Some Fail -> report_fail t desc dbg
+      let msg = Printf.sprintf "%s %s:" analysis_name msg in
+      Unit_info.iter unit_info ~f:(Func_info.print ~witnesses:true ppf ~msg)
 
-  (** Returns [false] when the check fails (e.g., allocation or indirect call
-      found). *)
-  let check_operation t (op : Mach.operation) dbg =
+  let report_func_info ~msg ppf func_info =
+    if !Flambda_backend_flags.dump_checkmach
+    then
+      let msg = Printf.sprintf "%s %s:" analysis_name msg in
+      Func_info.print ~witnesses:true ppf ~msg func_info
+
+  let record_unit unit_info ppf =
+    report_unit_info ppf unit_info ~msg:"before resolve_all";
+    Unit_info.resolve_all unit_info;
+    let record (func_info : Func_info.t) =
+      (match func_info.annotation with
+      | None -> ()
+      | Some a ->
+        Builtin_attributes.mark_property_checked analysis_name
+          (Annotation.get_loc a);
+        let expected_value = Annotation.expected_value a in
+        if (not (Annotation.is_assume a))
+           && S.enabled ()
+           && not (Value.lessequal func_info.value expected_value)
+        then
+          (* CR-soon gyorsh: keeping track of all the witnesses until the end of
+             the compilation unit will be expensive. For functions that do not
+             have any dependencies, we can check annotations earlier, as soon as
+             the function is analyzed, or as soon as its dependencies are
+             resolved, print the error, and remove the witnesses from the stored
+             values. *)
+          (* CR gyorsh: we can add error recovering mode where we sets the
+             expected value as the actual value and continue analysis of other
+             functions. *)
+          let witnesses =
+            Value.diff_witnesses ~expected:expected_value
+              ~actual:func_info.value
+          in
+          raise
+            (Annotation.Invalid
+               { a;
+                 fun_name = func_info.name;
+                 fun_dbg = func_info.dbg;
+                 property = S.property;
+                 witnesses
+               }));
+      report_func_info ~msg:"record" ppf func_info;
+      S.set_value func_info.name func_info.value
+    in
+    Unit_info.iter unit_info ~f:record
+
+  let record_unit unit_info ppf =
+    Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
+      (fun () -> record_unit unit_info ppf)
+
+  let update_deps t v dep w desc dbg =
+    match dep with
+    | Some callee ->
+      let f old =
+        match old with
+        | None -> Some w
+        | Some old_w -> Some (Witnesses.join w old_w)
+      in
+      t.unresolved_deps <- String.Map.update callee f t.unresolved_deps;
+      report t v ~msg:"unresolved" ~desc dbg
+    | None -> report t v ~msg:"resolved" ~desc dbg
+
+  let[@inline always] create_witnesses t kind dbg =
+    if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
+
+  (* [find_callee] returns the value associated with the callee and a new
+     dependency to record if there is one. *)
+  let find_callee t callee dbg =
+    match Unit_info.find_opt t.unit_info callee with
+    | None ->
+      if is_future_funcname t callee
+      then (
+        (* The callee is defined later in the file. We have not seen any calls
+           to it yet. *)
+        (* CR-soon gyorsh: Returning Safe is sound because the value of the
+           callee, when it becomes available, will be joined to the final value
+           of the caller (the current function). Analysis result depends on the
+           order of functions in the file. To address it, use more precise
+           function summaries. *)
+        let v = Value.safe in
+        Unit_info.add_value t.unit_info callee v;
+        v, Some callee)
+      else
+        (* Callee is not defined in the current compilation unit. *)
+        let v =
+          match S.get_value_opt callee with
+          | None ->
+            let w = create_witnesses t (Missing_summary { callee }) dbg in
+            let v = Value.top w in
+            report t v ~msg:"callee compiled without checks" ~desc:callee
+              Debuginfo.none;
+            v
+          | Some v -> v
+        in
+        v, None
+    | Some callee_info ->
+      (* Callee defined earlier in the same compilation unit, or we have already
+         seen a call to this callee earlier in the same compilation unit
+         (possibly in the same function), but haven't finished analysis of the
+         callee's definition yet. *)
+      (* If callee is not fully resolved, add it to dependencies. *)
+      let dep =
+        if is_future_funcname t callee
+           || not (Func_info.is_resolved callee_info)
+        then Some callee
+        else None
+      in
+      let v =
+        if String.equal t.current_fun_name callee
+        then (
+          (* self-call, conservative *)
+          let v = Value.join callee_info.value Value.safe in
+          Unit_info.add_value t.unit_info callee v;
+          v)
+        else callee_info.value
+      in
+      v, dep
+
+  let transform_return ~(effect : V.t) dst =
+    match effect with
+    | V.Bot -> Value.bot
+    | V.Safe -> dst
+    | V.Top w -> Value.transform w dst
+
+  let transform_diverge ~(effect : V.t) (dst : Value.t) =
+    let div = V.join effect dst.div in
+    { dst with div }
+
+  let transform t ~next ~exn ~(effect : Value.t) desc dbg =
+    let next = transform_return ~effect:effect.nor next in
+    let exn = transform_return ~effect:effect.exn exn in
+    report t next ~msg:"transform new next" ~desc dbg;
+    report t exn ~msg:"transform new exn" ~desc dbg;
+    let r = Value.join next exn in
+    report t r ~msg:"transform join" ~desc dbg;
+    let r = transform_diverge ~effect:effect.div r in
+    report t r ~msg:"transform_call result" ~desc dbg;
+    check t r desc dbg
+
+  let transform_call t ~next ~exn callee w ~desc dbg =
+    report t next ~msg:"transform_call next" ~desc dbg;
+    report t exn ~msg:"transform_call exn" ~desc dbg;
+    let callee_value, new_dep = find_callee t callee dbg in
+    update_deps t callee_value new_dep w desc dbg;
+    (* Abstract witnesses of a call to the single witness for the callee name.
+       Summary of tailcall self won't be affected because it is set to Safe not
+       Top by [find_callee]. *)
+    let callee_value = Value.replace_witnesses w callee_value in
+    transform t ~next ~exn ~effect:callee_value desc dbg
+
+  let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
     | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+    | Ifloatofint | Iintoffloat
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
@@ -326,155 +937,238 @@ end = struct
         ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
         | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
     | Icsel _ | Iname_for_debugger _ ->
-      assert (Mach.operation_is_pure op)
+      assert (Mach.operation_is_pure op);
+      assert (not (Mach.operation_can_raise op));
+      next
+    | Ivalueofint | Iintofvalue ->
+      assert (not (Mach.operation_can_raise op));
+      next
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
     | Iintop_atomic _ ->
-      ()
-    | Istore _ -> ()
+      assert (not (Mach.operation_can_raise op));
+      next
+    | Istore _ ->
+      assert (not (Mach.operation_can_raise op));
+      next
     | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
-      report_fail t "checkbound" dbg
-    | Ialloc { mode = Alloc_local; _ } -> ()
-    | Ialloc { mode = Alloc_heap; _ } -> report_fail t "allocation" dbg
-    | Ipoll _ ->
-      (* Polling points may trigger finalisers, signal handlers or memprof
-         callbacks, but any allocations done therein don't count towards the
-         calling function being "allocating". *)
-      ()
-    | Iprobe { name; handler_code_sym } ->
+      (* does not allocate even when it raises because checkbound exception is
+         static. *)
+      transform t ~next ~exn ~effect:Value.safe "checkbound" dbg
+    | Ipoll _
+    (* Ignore poll points even though they may trigger an allocations, because
+       otherwise all loops would be considered allocating when poll insertion is
+       enabled. [@poll error] should be used instead. *)
+    | Ialloc { mode = Alloc_local; _ } ->
+      assert (not (Mach.operation_can_raise op));
+      next
+    | Ialloc { mode = Alloc_heap; bytes; dbginfo } ->
+      assert (not (Mach.operation_can_raise op));
+      let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
+      let r = Value.transform w next in
+      check t r "heap allocation" dbg
+    | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
-      check_call t handler_code_sym ~desc dbg
-    | Icall_ind -> report_fail t "indirect call" dbg
-    | Itailcall_ind -> report_fail t "indirect tailcall" dbg
-    | Icall_imm { func } ->
-      check_call t func ~desc:("direct call to " ^ func) dbg
-    | Itailcall_imm { func } ->
-      check_call t func ~desc:("direct tailcall to " ^ func) dbg
-    | Iextcall { alloc = false; _ } -> ()
+      let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
+      transform_call t ~next ~exn handler_code_sym w ~desc dbg
+    | Icall_ind ->
+      let w = create_witnesses t Indirect_call dbg in
+      let effect = Value.top w in
+      transform t ~next ~exn ~effect "indirect call" dbg
+    | Itailcall_ind ->
+      (* Sound to ignore [next] and [exn] because the call never returns. *)
+      let w = create_witnesses t Indirect_tailcall dbg in
+      let effect = Value.top w in
+      transform t ~next:Value.normal_return ~exn:Value.exn_escape ~effect
+        "indirect tailcall" dbg
+    | Icall_imm { func = { sym_name = func; _ } } ->
+      let w = create_witnesses t (Direct_call { callee = func }) dbg in
+      transform_call t ~next ~exn func w ~desc:("direct call to " ^ func) dbg
+    | Itailcall_imm { func = { sym_name = func; _ } } ->
+      (* Sound to ignore [next] and [exn] because the call never returns. *)
+      let w = create_witnesses t (Direct_tailcall { callee = func }) dbg in
+      transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func w
+        ~desc:("direct tailcall to " ^ func)
+        dbg
+    | Iextcall { alloc = false; returns = true; _ } ->
+      (* Sound to ignore [exn] because external call marked as noalloc does not
+         raise. *)
+      next
+    | Iextcall { alloc = false; returns = false; _ } ->
+      (* Sound to ignore [next] and [exn] because the call never returns or
+         raises. *)
+      Value.bot
     | Iextcall { func; alloc = true; _ } ->
-      report_fail t ("external call to " ^ func) dbg
+      let w = create_witnesses t (Extcall { callee = func }) dbg in
+      let effect = Value.top w in
+      transform t ~next ~exn ~effect ("external call to " ^ func) dbg
     | Ispecific s ->
-      if not (S.check_specific s)
-      then report_fail t "Arch.specific_operation" dbg
+      let w = create_witnesses t Arch_specific dbg in
+      transform t ~next ~exn ~effect:(S.transform_specific w s)
+        "Arch.specific_operation" dbg
 
-  (** Returns [true] when [i] is post-dominated by a raise. If [i] is not, then
-      checks [i] for the property in [S]. *)
-  let rec check_instr_exn t (i : Mach.instruction) raise_after =
-    match (i.desc : Mach.instruction_desc) with
-    | Iend -> raise_after
-    | Iop op ->
-      let raise_after = check_instr_exn t i.next raise_after in
-      if not raise_after then check_operation t op i.dbg;
-      raise_after
-    | Iifthenelse (_c, ifso, ifnot) ->
-      let raise_after = check_instr_exn t i.next raise_after in
-      let raise_after_ifso = check_instr_exn t ifso raise_after in
-      let raise_after_ifnot = check_instr_exn t ifnot raise_after in
-      raise_after_ifso && raise_after_ifnot
-    | Iswitch (_index, cases) ->
-      let raise_after = check_instr_exn t i.next raise_after in
-      Array.for_all (fun case -> check_instr_exn t case raise_after) cases
-    | Icatch (_rec, _ts, handlers, body) ->
-      (* conservative *)
-      let raise_after = check_instr_exn t i.next raise_after in
-      let _ = check_instr_exn t body raise_after in
-      List.iter
-        (fun (_n, _ts, handler) -> check_instr_exn t handler false |> ignore)
-        handlers;
-      false
-    | Itrywith (body, _kind, (_ts, handler)) ->
-      (* conservative *)
-      let _ = check_instr_exn t i.next raise_after in
-      let _ = check_instr_exn t body false in
-      let _ = check_instr_exn t handler false in
-      false
-    | Iraise _ -> false
-    | Ireturn _ -> false
-    | Iexit _ -> false
+  module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
-  let debug t expected =
-    match Unit_info.get_value unit_info t.fun_name with
-    | None -> assert false
-    | Some v ->
-      (* just checking for consistency with the recorded value *)
-      if not (v = expected)
-      then
-        Misc.fatal_errorf
-          "Checkmach %s: Wrong result for %s, expected %s, found %s" S.name
-          t.fun_name (Value.to_string expected) (Value.to_string v)
+  let check_instr t body =
+    let transfer (i : Mach.instruction) ~next ~exn =
+      match i.desc with
+      | Ireturn _ -> Value.normal_return
+      | Iop op -> transform_operation t op ~next ~exn i.dbg
+      | Iraise Raise_notrace ->
+        (* [raise_notrace] is typically used for control flow, not for
+           indicating an error. Therefore, we do not ignore any allocation on
+           paths to it. The following conservatively assumes that normal and exn
+           Returns are reachable. *)
+        Value.join exn Value.safe
+      | Iraise (Raise_reraise | Raise_regular) -> exn
+      | Iend -> next
+      | Iexit _ ->
+        report t next ~msg:"transform" ~desc:"iexit" i.dbg;
+        next
+      | Iifthenelse _ | Iswitch _ -> next
+      | Icatch (_rc, _ts, _, _body) ->
+        report t next ~msg:"transform" ~desc:"catch" i.dbg;
+        next
+      | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) ->
+        report t next ~msg:"transform" ~desc:"try-with" i.dbg;
+        next
+    in
+    (* By default, backward analysis does not check the property on paths that
+       diverge (non-terminating loops that do not reach normal or exceptional
+       return). All loops must go through an (Iexit label) instruction or a
+       recursive function call. If (Iexit label) is not backward reachable from
+       the function's Normal or Exceptional Return, either the loop diverges or
+       the Iexit instruction is not reachable from function entry.
 
-  let fundecl ppf (f : Mach.fundecl) =
-    if S.enabled ()
-    then
-      Profile.record_call ~accumulate:true ("check " ^ S.name) (fun () ->
-          let fun_name = f.fun_name in
-          let t = { ppf; fun_name; unresolved_dependencies = false } in
-          Unit_info.in_current_unit unit_info fun_name f.fun_dbg;
-          if List.mem (Cmm.Assume S.annotation) f.fun_codegen_options
-          then (
-            report t ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
-            Unit_info.add_value t.ppf unit_info fun_name Pass)
-          else (
-            (try
-               let _ = check_instr_exn t f.fun_body false in
-               if (not t.unresolved_dependencies)
-                  && not (Unit_info.is_fail unit_info t.fun_name)
-               then (
-                 report t ~msg:"passed" ~desc:"fundecl" f.fun_dbg;
-                 Unit_info.add_value t.ppf unit_info fun_name Pass)
-             with Bail -> debug t Fail);
-            if List.mem (Cmm.Assert S.annotation) f.fun_codegen_options
-            then Unit_info.annotated unit_info fun_name))
+       To check divergent loops, the initial value of "div" component of all
+       Iexit labels of recurisve Icatch handlers is set to "Safe" instead of
+       "Bot". *)
+    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer
+      body
+    |> fst
+
+  let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
+    let check () =
+      let fun_name = f.fun_name in
+      let t = create ppf fun_name future_funcnames unit_info in
+      let a =
+        Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
+      in
+      Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
+      let really_check ~keep_witnesses =
+        t.keep_witnesses <- Unit_info.should_keep_witnesses keep_witnesses;
+        let res = check_instr t f.fun_body in
+        let msg =
+          if String.Map.is_empty t.unresolved_deps
+          then "finished"
+          else "unresolved deps"
+        in
+        report t res ~msg ~desc:"fundecl" f.fun_dbg;
+        if not t.keep_witnesses
+        then (
+          let { Witnesses.nor; exn; div } = Value.get_witnesses res in
+          assert (Witnesses.is_empty nor);
+          assert (Witnesses.is_empty exn);
+          assert (Witnesses.is_empty div));
+        report_unit_info ppf unit_info ~msg:"before record deps";
+        Unit_info.record_deps unit_info ~callees:t.unresolved_deps
+          ~caller:fun_name;
+        report_unit_info ppf unit_info ~msg:"after record deps";
+        Unit_info.join_value unit_info fun_name res;
+        report_unit_info ppf unit_info ~msg:"after join value";
+        Unit_info.cleanup_deps unit_info fun_name;
+        report_unit_info ppf unit_info ~msg:"after cleanup_deps"
+      in
+      match a with
+      | Some a when Annotation.is_assume a ->
+        let expected_value = Annotation.expected_value a in
+        report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
+        Unit_info.join_value unit_info fun_name expected_value
+      | None -> really_check ~keep_witnesses:false
+      | Some a ->
+        let expected_value = Annotation.expected_value a in
+        report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
+        (* Only keep witnesses for functions that need checking. *)
+        really_check ~keep_witnesses:true
+    in
+    Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
 
-module Spec_alloc : Spec = struct
-  let name = "noalloc"
+(** Check that functions do not allocate on the heap (local allocations are ignored) *)
+module Spec_zero_alloc : Spec = struct
+  let property = Cmm.Zero_alloc
 
-  let enabled () = !Flambda_backend_flags.alloc_check
+  let enabled () = !Clflags.zero_alloc_check
 
-  let check_callee s (checks : Cmx_format.checks) =
-    String.Set.mem s checks.ui_noalloc_functions
+  (* Compact the mapping from function name to Value.t to reduce size of Checks
+     in cmx and memory consumption Compilenv. Different components have
+     different frequencies of Top/Bot. The most likely value is encoded as None
+     (i.e., not stored). *)
+  let encode (v : V.t) = match v with Top _ -> 0 | Safe -> 1 | Bot -> 2
 
-  let add_callee s (checks : Cmx_format.checks) =
-    if not (check_callee s checks)
-    then
-      checks.ui_noalloc_functions
-        <- String.Set.add s checks.ui_noalloc_functions
+  (* Witnesses are not used across functions and not stored in cmx. Witnesses
+     that appear in a function's summary are only used for error messages about
+     that function, not about its callers. Witnesses from the summary of a
+     callee are ignored, and replaced by the name of the callee. *)
+  let decoded_witness = Witnesses.empty
 
-  let check_specific s = not (Arch.operation_allocates s)
+  let decode = function
+    | 0 -> V.Top decoded_witness
+    | 1 -> V.Safe
+    | 2 -> V.Bot
+    | n -> Misc.fatal_errorf "Checkmach cannot decode %d" n
 
-  let annotation = Cmm.Noalloc
+  let encode (v : Value.t) : Checks.value =
+    let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
+    if c = 0 then None else Some c
+
+  let decode : Checks.value -> Value.t = function
+    | None -> Value.top decoded_witness
+    | Some d ->
+      if d = 0 then Misc.fatal_error "Checkmach unexpected 0 encoding";
+      let nor = decode (d land 3) in
+      let exn = decode ((d lsr 2) land 3) in
+      let div = decode ((d lsr 4) land 3) in
+      { nor; exn; div }
+
+  let set_value s (v : Value.t) =
+    let checks = (Compilenv.current_unit_infos ()).ui_checks in
+    Checks.set_value checks s (encode v)
+
+  let get_value_opt s =
+    let checks = Compilenv.cached_checks in
+    match Checks.get_value checks s with
+    | None -> None
+    | Some (c : Checks.value) -> Some (decode c)
+
+  let transform_specific w s =
+    (* Conservatively assume that operation can return normally. *)
+    let nor = if Arch.operation_allocates s then V.Top w else V.Safe in
+    let exn = if Arch.operation_can_raise s then nor else V.Bot in
+    (* Assume that the operation does not diverge. *)
+    let div = V.Bot in
+    { Value.nor; exn; div }
 end
 
-(***************************************************************************
- *   Statically checks that the input function satisfies the following
- *   - no allocations on the heap (local allocations are ignored)
- *   - no indirect calls (incl. no indirect tailcalls)
- *   - all direct calls (incl. tailcalls and probes) are to functions the
- *     satisfy the same conditions.
- *****************************************************************************)
-module Check_alloc = Analysis (Spec_alloc)
+module Check_zero_alloc = Analysis (Spec_zero_alloc)
 
-let fundecl ppf_dump fd =
-  Check_alloc.fundecl ppf_dump fd;
+(** Information about the current unit. *)
+let unit_info = Unit_info.create ()
+
+let fundecl ppf_dump ~future_funcnames fd =
+  Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
   fd
 
-let reset_unit_info () =
-  Check_alloc.reset_unit_info ();
-  ()
+let reset_unit_info () = Unit_info.reset unit_info
 
 let record_unit_info ppf_dump =
-  let checks = (Compilenv.current_unit_infos ()).ui_checks in
-  Check_alloc.record_unit_info ppf_dump checks;
-  Compilenv.cache_checks checks
+  Check_zero_alloc.record_unit unit_info ppf_dump;
+  Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
-(* Error report *)
+type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
 
-let report_error ppf = function
-  | Annotation { fun_name; check } ->
-    Format.fprintf ppf "Annotation check for %s failed on function %s" check
-      fun_name
+let iter_witnesses f =
+  Unit_info.iter unit_info ~f:(fun func_info ->
+      f func_info.name
+        (Value.get_witnesses func_info.value |> Witnesses.simplify))
 
-let () =
-  Location.register_error_of_exn (function
-    | Error (loc, err) -> Some (Location.error_of_printer ~loc report_error err)
-    | _ -> None)
+let () = Location.register_error_of_exn Annotation.report_error

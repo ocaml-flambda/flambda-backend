@@ -77,23 +77,11 @@ val need_send_fun:
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 
-module Checks : sig
-  type t = Cmx_format.checks  (* mutable state *)
-
-  val create : unit -> t
-
-  val reset : t -> unit
-
-  val merge : t -> into:t -> unit
-        (* [merge_checks c ~into] modifies [into] by adding
-           information from [src]. *)
-end
-
-val cached_checks : Cmx_format.checks
+val cached_checks : Checks.t
         (* Return cached information about functions
            (from other complication units) that satisfy certain properties. *)
 
-val cache_checks : Cmx_format.checks -> unit
+val cache_checks : Checks.t -> unit
         (* [cache_checks c] adds [c] to [cached_checks] *)
 
 val new_const_symbol : unit -> string

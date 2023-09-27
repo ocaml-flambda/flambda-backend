@@ -52,6 +52,15 @@ Successfully typechecked "[x for x = 1 to 10]"
 # "comprehensions" extension disabled locally via [with_set] and also globally [comprehensions enabled]:
 Successfully typechecked "[x for x = 1 to 10]"
 
+# Enable two layouts [comprehensions enabled]:
+Succeeded
+
+# Disable layouts [comprehensions enabled]:
+Succeeded
+
+# Enable two layouts, in reverse order [comprehensions enabled]:
+Succeeded
+
 # can disallow extensions while extensions are enabled [comprehensions disabled]:
 Succeeded at disallowing all extensions
 

@@ -282,6 +282,14 @@ let join_modes rm1 am2 =
   | _, Oam_unknown -> Oam_unknown
   | Oam_global, Oam_global -> Oam_global
 
+let print_out_layout ppf = function
+  | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
+  | Olay_var v     -> fprintf ppf "%s" v
+
+let print_out_layout_option ppf = function
+  | None -> ()
+  | Some lay -> fprintf ppf "@ : %a" print_out_layout lay
+
 let rec print_out_type_0 mode ppf =
   function
   | Otyp_alias (ty, s) ->
@@ -398,6 +406,10 @@ and print_out_type_3 mode ppf =
   | Otyp_attribute (t, attr) ->
       fprintf ppf "@[<1>(%a [@@%s])@]"
         (print_out_type_0 mode) t attr.oattr_name
+  | Otyp_layout_annot (t, lay) ->
+    fprintf ppf "@[<1>(%a@ :@ %a)@]"
+      (print_out_type_0 mode) t
+      print_out_layout lay
 and print_out_type ppf typ =
   print_out_type_0 Oam_global ppf typ
 and print_simple_out_type ppf typ =
@@ -446,7 +458,6 @@ and print_out_label ppf (name, mut_or_gbl, arg) =
       match mut_or_gbl with
       | Ogom_mutable -> "mutable "
       | Ogom_global -> "global_ "
-      | Ogom_nonlocal -> "nonlocal_ "
       | Ogom_immutable -> ""
     in
     fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
@@ -456,8 +467,6 @@ and print_out_label ppf (name, mut_or_gbl, arg) =
     | Ogom_immutable -> fprintf ppf "@[%s :@ %a@];" name print_out_type arg
     | Ogom_global -> fprintf ppf "@[%s :@ %a@];" name print_out_type
                        (Otyp_attribute (arg, {oattr_name="global"}))
-    | Ogom_nonlocal -> fprintf ppf "@[%s :@ %a@];" name print_out_type
-                       (Otyp_attribute (arg, {oattr_name="nonlocal"}))
 
 let out_label = ref print_out_label
 
@@ -468,19 +477,28 @@ let out_type = ref print_out_type
 let print_type_parameter ppf s =
   if s = "_" then fprintf ppf "_" else pr_var ppf s
 
-let type_parameter ppf (ty, (var, inj)) =
+let type_parameter ~in_parens ppf
+      { oparam_name = ty; oparam_variance = var;
+        oparam_injectivity = inj; oparam_layout = lay } =
   let open Asttypes in
-  fprintf ppf "%s%s%a"
+  let format_string : _ format = "%s%s%a%a" in
+  let format_string : _ format = match lay with
+    | Some _ when not in_parens -> "(" ^^ format_string ^^ ")"
+    | _ -> format_string
+  in
+  fprintf ppf format_string
     (match var with Covariant -> "+" | Contravariant -> "-" | NoVariance ->  "")
     (match inj with Injective -> "!" | NoInjectivity -> "")
     print_type_parameter ty
+    print_out_layout_option lay
 
 let print_out_class_params ppf =
   function
     [] -> ()
   | tyl ->
       fprintf ppf "@[<1>[%a]@]@ "
-        (print_list type_parameter (fun ppf -> fprintf ppf ", "))
+        (print_list (type_parameter ~in_parens:true)
+           (fun ppf -> fprintf ppf ", "))
         tyl
 
 let rec print_out_class_type ppf =
@@ -718,10 +736,12 @@ and print_out_type_decl kwd ppf td =
   let type_defined ppf =
     match td.otype_params with
       [] -> pp_print_string ppf td.otype_name
-    | [param] -> fprintf ppf "@[%a@ %s@]" type_parameter param td.otype_name
+    | [param] -> fprintf ppf "@[%a@ %s@]"
+                   (type_parameter ~in_parens:false) param td.otype_name
     | _ ->
         fprintf ppf "@[(@[%a)@]@ %s@]"
-          (print_list type_parameter (fun ppf -> fprintf ppf ",@ "))
+          (print_list (type_parameter ~in_parens:true)
+             (fun ppf -> fprintf ppf ",@ "))
           td.otype_params
           td.otype_name
   in
@@ -742,11 +762,10 @@ and print_out_type_decl kwd ppf td =
     Asttypes.Private -> fprintf ppf " private"
   | Asttypes.Public -> ()
   in
-  let print_immediate ppf =
-    match td.otype_immediate with
-    | Unknown -> ()
-    | Always -> fprintf ppf " [%@%@immediate]"
-    | Always_on_64bits -> fprintf ppf " [%@%@immediate64]"
+  let print_layout ppf =
+    match td.otype_layout with
+    | None -> ()
+    | Some lay -> fprintf ppf " [%@%@%s]" (Layouts.Layout.string_of_const lay)
   in
   let print_unboxed ppf =
     if td.otype_unboxed then fprintf ppf " [%@%@unboxed]" else ()
@@ -776,7 +795,7 @@ and print_out_type_decl kwd ppf td =
     print_name_params
     print_out_tkind ty
     print_constraints
-    print_immediate
+    print_layout
     print_unboxed
 
 and print_simple_out_gf_type ppf (ty, gf) =
@@ -789,14 +808,6 @@ and print_simple_out_gf_type ppf (ty, gf) =
       print_simple_out_type ppf ty
     end else begin
       print_out_type ppf (Otyp_attribute (ty, {oattr_name="global"}))
-    end
-  | Ogf_nonlocal ->
-    if locals_enabled then begin
-      pp_print_string ppf "nonlocal_";
-      pp_print_space ppf ();
-      print_simple_out_type ppf ty
-    end else begin
-      print_out_type ppf (Otyp_attribute (ty, {oattr_name="nonlocal"}))
     end
   | Ogf_unrestricted ->
     print_simple_out_type ppf ty

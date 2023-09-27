@@ -33,7 +33,7 @@ type simplify_toplevel =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
+  return_arity:Flambda_arity.t ->
   exn_continuation:Continuation.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
@@ -41,7 +41,7 @@ type simplify_function_body =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
+  return_arity:Flambda_arity.t ->
   exn_continuation:Continuation.t ->
   loopify_state:Loopify_state.t ->
   params:Bound_parameters.t ->
@@ -96,13 +96,13 @@ let split_direct_over_application apply
   let callee's_params_arity =
     Code_metadata.params_arity callee's_code_metadata
   in
-  let arity = Flambda_arity.With_subkinds.cardinal callee's_params_arity in
+  let arity = Flambda_arity.cardinal callee's_params_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
   let _, remaining_arity =
     Misc.Stdlib.List.split_at arity
-      (Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list)
+      (Apply.args_arity apply |> Flambda_arity.to_list)
   in
   assert (List.compare_lengths remaining_args remaining_arity = 0);
   let func_var = Variable.create "full_apply" in
@@ -142,13 +142,13 @@ let split_direct_over_application apply
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
-      ~args_arity:(Flambda_arity.With_subkinds.create remaining_arity)
+      ~args_arity:(Flambda_arity.create remaining_arity)
       ~return_arity:(Apply.return_arity apply)
       ~call_kind:
         (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
-      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~probe:(Apply.probe apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
       ~region
   in
@@ -170,7 +170,7 @@ let split_direct_over_application apply
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.With_subkinds.to_list (Apply.return_arity apply))
+          (Flambda_arity.to_list (Apply.return_arity apply))
       in
       let call_return_continuation, call_return_continuation_free_names =
         match Apply.continuation apply with
@@ -235,7 +235,7 @@ let split_direct_over_application apply
       ~call_kind:(Call_kind.direct_function_call callee's_code_id alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
-      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~probe:(Apply.probe apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
       ~region:current_region
   in
@@ -364,7 +364,8 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       | Known_result false | Need_meet -> Ok array_kind
       | Known_result true | Invalid -> Bottom))
 
-let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
+let add_symbol_projection dacc ~projected_from projection ~projection_bound_to
+    ~kind =
   if DE.at_unit_toplevel (DA.denv dacc)
   then dacc
   else
@@ -372,7 +373,7 @@ let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
     Simple.pattern_match' projected_from
       ~const:(fun _ -> dacc)
       ~symbol:(fun symbol_projected_from ~coercion:_ ->
-        let proj = SP.create symbol_projected_from projection in
+        let proj = SP.create symbol_projected_from projection kind in
         let var = Bound_var.var projection_bound_to in
         DA.map_denv dacc ~f:(fun denv -> DE.add_symbol_projection denv var proj))
       ~var:(fun _ ~coercion:_ -> dacc)
