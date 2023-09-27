@@ -178,15 +178,6 @@ end
 
 include T0
 
-    (* CR lmaurer: Delete {v
-let rec equal_as_name
-    { head; visible_args; hidden_args = _ }
-      ({ head = name_head; args = name_args } : Name.t) =
-  String.equal head name_head
-  && list_similar equal_as_name_pair visible_args name_args
-and equal_as_name_pair (name1, value1) (name2, value2) =
-  Name.equal name1 name2 && equal_as_name value1 value2
-v} *)
 let to_string = print |> Misc.to_string_of_print
 
 let all_args t = t.visible_args @ t.hidden_args

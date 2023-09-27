@@ -59,13 +59,6 @@ val to_string : t -> string
 
 val to_name : t -> Name.t
 
-(* CR lmaurer: Delete
-      {v
-(** A shortcut for [equal (to_name t) name] (without converting). Note that this
-    ignores hidden arguments, so it's subtly different from saying that [t] and
-    [name] have the same information. *)
-val equal_as_name : t -> Name.t -> bool
-v} *)
 val all_args : t -> (Name.t * t) list
 
 (** A map from parameter names to their values. Hidden arguments aren't relevant
