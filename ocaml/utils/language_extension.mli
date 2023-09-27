@@ -1,12 +1,14 @@
-(** Language extensions provided by ocaml-jst *)
+(** Language extensions provided by the Jane Street version of the OCaml
+    compiler.
+*)
 
 (** A setting for extensions that track multiple maturity levels *)
-type maturity = Stable | Beta | Alpha
+type maturity = Language_extension_kernel.maturity = Stable | Beta | Alpha
 
 (** The type of language extensions. An ['a t] is an extension that can either
     be off or be set to have any value in ['a], so a [unit t] can be either on
     or off, while a [maturity t] can have different maturity settings. *)
-type _ t =
+type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
   | Local : unit t
   | Include_functor : unit t
@@ -14,12 +16,13 @@ type _ t =
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
+  | SIMD : unit t
 
 (** Existentially packed language extension *)
 module Exist : sig
   type 'a extn = 'a t (* this is removed from the sig by the [with] below;
                          ocamldoc doesn't like [:=] in sigs *)
-  type t =
+  type t = Language_extension_kernel.Exist.t =
     | Pack : 'a extn -> t
 
   val to_string : t -> string
@@ -50,9 +53,14 @@ val is_erasable : 'a t -> bool
 
 (** Print and parse language extensions; parsing is case-insensitive *)
 val to_string : 'a t -> string
+val to_command_line_string : 'a t -> 'a -> string
 val of_string : string -> Exist.t option
 
 val maturity_to_string : maturity -> string
+
+(** Get the command line string enabling the given extension, if it's
+    enabled; otherwise None *)
+val get_command_line_string_if_enabled : 'a t -> string option
 
 (** Enable and disable according to command-line strings; these raise
     an exception if the input string is invalid. *)

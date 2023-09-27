@@ -415,7 +415,6 @@ let reset () =
   frame_descriptors := []
 
 let binary_backend_available = ref false
-let create_asm_file = ref true
 
 let reduce_heap_size ~reset =
   let _minor, _promoted, major_words = Gc.counters () in
@@ -434,8 +433,6 @@ let reduce_heap_size ~reset =
   end
 
 module Dwarf_helpers = struct
-  open Dwarf_ocaml
-
   let dwarf = ref None
   let sourcefile_for_dwarf = ref None
 
@@ -481,24 +478,18 @@ module Dwarf_helpers = struct
     | true, _, _
     | false, _, _ -> ()
 
-  let emit_dwarf () = Option.iter Dwarf_ocaml.Dwarf.emit !dwarf
+  let emit_dwarf () =
+    Option.iter (Dwarf.emit
+        ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
+        ~binary_backend_available:!binary_backend_available)
+      !dwarf
 
-  let record_dwarf_for_fundecl ~fun_name fun_dbg =
+  let record_dwarf_for_fundecl fundecl =
     match !dwarf with
     | None -> None
     | Some dwarf ->
-      let label = Cmm.new_label () in
-      let fun_end_label =
-        Asm_targets.Asm_label.create_int Text label
-      in
-      let fundecl : Dwarf_concrete_instances.fundecl =
-        { fun_name;
-          fun_dbg;
-          fun_end_label;
-        }
-      in
-      Dwarf.dwarf_for_fundecl dwarf fundecl;
-      Some label
+      let fun_end_label = Cmm.new_label () in
+      Some (Dwarf.dwarf_for_fundecl dwarf fundecl ~fun_end_label)
 end
 
 let report_error ppf = function
@@ -510,4 +501,3 @@ let report_error ppf = function
   | Inconsistent_probe_init (name, dbg) ->
     Format.fprintf ppf "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a"
       name Debuginfo.print_compact dbg
-

@@ -24,7 +24,10 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     fdo: Fdo_info.t;
-    live: Reg.Set.t }
+    live: Reg.Set.t;
+    available_before: Reg_availability_set.t option;
+    available_across: Reg_availability_set.t option;
+  }
 
 and instruction_desc =
   | Lprologue
@@ -46,7 +49,9 @@ and instruction_desc =
 val has_fallthrough :  instruction_desc -> bool
 val end_instr: instruction
 val instr_cons:
-  instruction_desc -> Reg.t array -> Reg.t array -> instruction -> instruction
+  instruction_desc -> Reg.t array -> Reg.t array -> instruction
+  -> available_before:Reg_availability_set.t option
+  -> available_across:Reg_availability_set.t option -> instruction
 val invert_test: Mach.test -> Mach.test
 
 type fundecl =

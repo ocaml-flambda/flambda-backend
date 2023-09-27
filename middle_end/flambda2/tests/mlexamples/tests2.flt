@@ -58,12 +58,5 @@ and code rec loopify(never) size(21) newer_version_of(f_0)
            let Paddint = 1 + apply_result in
            cont k (Paddint))
 in
-apply direct(f_0_1) inlining_state(depth(10))
-  ($camlTests2__f_1 ~ depth unroll 10 0 -> unroll 9 1 : _ -> imm tagged)
-    (4)
-    &toplevel
-    -> k * error
-  where k (apply_result : imm tagged) =
-    let Paddint = 1 + apply_result in
-    let $camlTests2 = Block 0 ($camlTests2__f_1, Paddint) in
-    cont done ($camlTests2)
+let $camlTests2 = Block 0 ($camlTests2__f_1, 47) in
+cont done ($camlTests2)

@@ -1,3 +1,5 @@
+include Language_extension_kernel
+
 (* operations we want on every extension level *)
 module type Extension_level = sig
   type t
@@ -18,7 +20,7 @@ module Unit = struct
 end
 
 module Maturity = struct
-  type t = Stable | Beta | Alpha
+  type t = maturity = Stable | Beta | Alpha
 
   let compare t1 t2 =
     let rank = function
@@ -39,34 +41,6 @@ module Maturity = struct
     | Alpha -> "_alpha"
 end
 
-type maturity = Maturity.t = Stable | Beta | Alpha
-
-(* Remember to update [all] when changing this type. *)
-type _ t =
-  | Comprehensions : unit t
-  | Local : unit t
-  | Include_functor : unit t
-  | Polymorphic_parameters : unit t
-  | Immutable_arrays : unit t
-  | Module_strengthening : unit t
-  | Layouts : Maturity.t t
-
-type exist =
-  Pack : _ t -> exist
-
-let all : exist list =
-  [ Pack Comprehensions
-  ; Pack Local
-  ; Pack Include_functor
-  ; Pack Polymorphic_parameters
-  ; Pack Immutable_arrays
-  ; Pack Module_strengthening
-  ; Pack Layouts
-  ]
-
-type extn_pair =
-  | Pair : 'a t * 'a -> extn_pair
-
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
@@ -76,47 +50,22 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Immutable_arrays -> (module Unit)
   | Module_strengthening -> (module Unit)
   | Layouts -> (module Maturity)
+  | SIMD -> (module Unit)
+
+type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
+type exist = Exist.t = Pack : _ t -> exist
 
 (**********************************)
 (* string conversions *)
 
-let to_string : type a. a t -> string = function
-  | Comprehensions -> "comprehensions"
-  | Local -> "local"
-  | Include_functor -> "include_functor"
-  | Polymorphic_parameters -> "polymorphic_parameters"
-  | Immutable_arrays -> "immutable_arrays"
-  | Module_strengthening -> "module_strengthening"
-  | Layouts -> "layouts"
-
-(* converts full extension names, like "layouts_alpha" to a pair of
-   an extension and its setting *)
-let pair_of_string extn_name : extn_pair option =
-  match String.lowercase_ascii extn_name with
-  | "comprehensions" -> Some (Pair (Comprehensions, ()))
-  | "local" -> Some (Pair (Local, ()))
-  | "include_functor" -> Some (Pair (Include_functor, ()))
-  | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
-  | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
-  | "module_strengthening" -> Some (Pair (Module_strengthening, ()))
-  | "layouts" -> Some (Pair (Layouts, (Stable : Maturity.t)))
-  | "layouts_beta" -> Some (Pair (Layouts, (Beta : Maturity.t)))
-  | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : Maturity.t)))
-  | _ -> None
+let to_command_line_string : type a. a t -> a -> string = fun extn level ->
+  let (module Ops) = get_level_ops extn in
+  to_string extn ^ Ops.to_command_line_suffix level
 
 let pair_of_string_exn extn_name = match pair_of_string extn_name with
   | Some pair -> pair
   | None ->
     raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn_name))
-
-let of_string extn_name =
-  let pack (Pair (extn, _) : extn_pair) = Pack extn in
-  Option.map pack (pair_of_string extn_name)
-
-let maturity_to_string = function
-  | Alpha -> "alpha"
-  | Beta -> "beta"
-  | Stable -> "stable"
 
 (************************************)
 (* equality *)
@@ -129,32 +78,14 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b 
   | Immutable_arrays, Immutable_arrays -> Some Refl
   | Module_strengthening, Module_strengthening -> Some Refl
   | Layouts, Layouts -> Some Refl
+  | SIMD, SIMD -> Some Refl
   | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
-     Immutable_arrays | Module_strengthening | Layouts), _ -> None
+     Immutable_arrays | Module_strengthening | Layouts | SIMD), _ -> None
 
 let equal a b = Option.is_some (equal_t a b)
 
 (*****************************)
 (* extension universes *)
-
-(* We'll do this in a more principled way later. *)
-(* CR layouts: Note that layouts is only "mostly" erasable, because of annoying
-   interactions with the pre-layouts [@@immediate] attribute like:
-
-     type ('a : immediate) t = 'a [@@immediate]
-
-   But we've decided to punt on this issue in the short term.
-*)
-let is_erasable : type a. a t -> bool = function
-  | Local
-  | Layouts ->
-      true
-  | Comprehensions
-  | Include_functor
-  | Polymorphic_parameters
-  | Immutable_arrays
-  | Module_strengthening ->
-      false
 
 module Universe : sig
   val is_allowed : 'a t -> bool
@@ -304,7 +235,7 @@ let enable_maximal () =
     let (module Ops) = get_level_ops extn in
     Pair (extn, Ops.max_value)
   in
-  extensions := List.map maximal_pair all
+  extensions := List.map maximal_pair Exist.all
 
 let restrict_to_erasable_extensions () =
   let changed = Universe.set Only_erasable in
@@ -338,17 +269,23 @@ let is_enabled extn =
   in
   check !extensions
 
+let get_command_line_string_if_enabled extn =
+  let rec find = function
+    | [] -> None
+    | (Pair (e, v) :: _) when equal e extn -> Some (to_command_line_string e v)
+    | (_ :: es) -> find es
+  in
+  find !extensions
+
+(********************************************)
+(* existentially packed extension *)
 
 module Exist = struct
-  type 'a extn = 'a t
-  type t = exist =
-    | Pack : 'a extn -> t
+  include Exist
 
   let to_command_line_strings (Pack extn) =
     let (module Ops) = get_level_ops extn in
-    List.map
-      (fun level -> to_string extn ^ Ops.to_command_line_suffix level)
-      Ops.all
+    List.map (to_command_line_string extn) Ops.all
 
   let to_string : t -> string = function
     | Pack extn -> to_string extn
@@ -358,6 +295,4 @@ module Exist = struct
 
   let is_erasable : t -> bool = function
     | Pack extn -> is_erasable extn
-
-  let all = all
 end

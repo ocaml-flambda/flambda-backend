@@ -138,7 +138,7 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
     let handlers =
       Continuation.Map.singleton cont
         (Continuation_handler.create params ~handler:expr
-           ~free_names_of_handler:Unknown ~is_exn_handler:false)
+           ~free_names_of_handler:Unknown ~is_exn_handler:false ~is_cold:false)
     in
     simplify_toplevel_common dacc
       (fun dacc ->

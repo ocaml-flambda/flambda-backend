@@ -17,6 +17,7 @@
 
 open Types
 open Misc
+open Layouts
 
 val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
 
@@ -59,8 +60,15 @@ type address =
 type t
 
 val empty: t
-val initial_safe_string: t
-val initial_unsafe_string: t
+
+(* These environments are lazy so that they may depend on the enabled
+   extensions, typically adjusted via command line flags.  If extensions are
+   changed after these environments are forced, they may be inaccurate.  This
+   could happen, for example, if extensions are adjusted via the
+   compiler-libs. *)
+val initial_safe_string: t Lazy.t
+val initial_unsafe_string: t Lazy.t
+
 val diff: t -> t -> Ident.t list
 
 type type_descr_kind =
@@ -199,6 +207,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_used_in_closure of Longident.t * escaping_context option
   | Local_value_used_in_exclave of Longident.t
+  | Non_value_used_in_object of Longident.t * type_expr * Layout.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -397,6 +406,7 @@ val enter_unbound_module : string -> module_unbound_reason -> t -> t
 val add_lock : ?escaping_context:escaping_context -> Types.alloc_mode -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
+val add_unboxed_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)
 val reset_cache: preserve_persistent_env:bool -> unit
@@ -409,8 +419,11 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.t -> filepath -> signature
-        (* Arguments: module name, file name. Results: signature. *)
+val read_signature:
+  Compilation_unit.t -> filepath -> add_binding:bool -> signature
+        (* Arguments: module name, file name, [add_binding] flag.
+           Results: signature. If [add_binding] is true, creates an entry for
+           the module in the environment. *)
 val save_signature:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
   -> Cmi_format.cmi_infos_lazy
@@ -491,10 +504,15 @@ val scrape_alias:
     (t -> Subst.Lazy.module_type -> Subst.Lazy.module_type) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
+(* Forward declaration to break mutual recursion with Ctype. *)
+val constrain_type_layout:
+  (t -> type_expr -> layout -> (unit, Layout.Violation.t) result) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_longident: (Format.formatter -> Longident.t -> unit) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_path: (Format.formatter -> Path.t -> unit) ref
+(* Forward declaration to break mutual recursion with Printtyp. *)
+val print_type_expr: (Format.formatter -> Types.type_expr -> unit) ref
 
 
 (** Folds *)

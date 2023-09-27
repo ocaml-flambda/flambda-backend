@@ -56,6 +56,8 @@ let[@inline] release_expired_intervals state ~pos =
 
 let[@inline] active state ~reg_class = state.active.(reg_class)
 
+let[@inline] active_classes state = state.active
+
 let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =
@@ -97,7 +99,7 @@ let rec is_in_a_range ls_order (l : Range.t list) : bool =
   | hd :: tl ->
     (ls_order >= hd.begin_ && ls_order <= hd.end_) || is_in_a_range ls_order tl
 
-let[@inline] invariant_intervals state cfg_with_liveness =
+let[@inline] invariant_intervals state cfg_with_infos =
   if ls_debug && Lazy.force ls_invariants
   then (
     (match state.intervals with [] -> () | hd :: tl -> check_intervals hd tl);
@@ -142,7 +144,7 @@ let[@inline] invariant_intervals state cfg_with_liveness =
         instr.live
     in
     Cfg_with_layout.iter_instructions
-      (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+      (Cfg_with_infos.cfg_with_layout cfg_with_infos)
       ~instruction:check_instr ~terminator:check_instr)
 
 let invariant_active_field (reg_class : int) (field_name : string)

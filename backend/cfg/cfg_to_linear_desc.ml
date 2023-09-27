@@ -15,6 +15,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Const_int n -> Iconst_int n
       | Const_float n -> Iconst_float n
       | Const_symbol n -> Iconst_symbol n
+      | Const_vec128 bits -> Iconst_vec128 bits
       | Stackoffset n -> Istackoffset n
       | Load (c, m, i) -> Iload (c, m, i)
       | Store (c, m, b) -> Istore (c, m, b)
@@ -38,8 +39,9 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Specific op -> Ispecific op
       | Begin_region -> Ibeginregion
       | End_region -> Iendregion
-      | Name_for_debugger { ident; which_parameter; provenance; is_assignment }
-        ->
-        Iname_for_debugger { ident; which_parameter; provenance; is_assignment }
+      | Name_for_debugger
+          { ident; which_parameter; provenance; is_assignment; regs } ->
+        Iname_for_debugger
+          { ident; which_parameter; provenance; is_assignment; regs }
     in
     Lop op

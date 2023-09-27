@@ -784,10 +784,12 @@ module Analyser =
               []
               arg_list
           in
-          let param_types = List.map (fun e -> e.Typedtree.exp_type) param_exps in
+          let param_types =
+            List.map (fun (e, _) -> e.Typedtree.exp_type) param_exps
+          in
           let params_code =
             List.map
-              (fun e -> get_string_of_file
+              (fun (e, _) -> get_string_of_file
                   e.exp_loc.Location.loc_start.Lexing.pos_cnum
                   e.exp_loc.Location.loc_end.Lexing.pos_cnum)
               param_exps

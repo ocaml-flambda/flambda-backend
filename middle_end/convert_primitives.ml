@@ -140,7 +140,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
-  | Pint_as_pointer -> Pint_as_pointer
+  | Pint_as_pointer m -> Pint_as_pointer m
   | Popaque _ -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
   | Pobj_dup ->
@@ -152,8 +152,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~effects:Only_generative_effects
       ~coeffects:Has_coeffects
       ~native_name:"caml_obj_dup"
-      ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr]
-      ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr))
+      ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Layouts.Sort.Value]
+      ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr Layouts.Sort.Value))
   | Punbox_float -> Punbox_float
   | Pbox_float m -> Pbox_float m
   | Punbox_int bi -> Punbox_int bi

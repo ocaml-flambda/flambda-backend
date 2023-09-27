@@ -105,6 +105,7 @@ let rec value_kind ppf = function
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -114,6 +115,7 @@ and value_kind' ppf = function
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -124,6 +126,7 @@ let layout ppf layout =
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
+  | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -135,10 +138,13 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
+  | Pvalue (Pboxedvectorval (Pvec128 v)) ->
+    fprintf ppf ": %s%s@ " smode (vec128_name v)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
+  | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
@@ -148,6 +154,7 @@ let field_kind ppf = function
   | Pfloatval -> pp_print_string ppf "float"
   | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
+  | Pboxedvectorval (Pvec128 v) -> pp_print_string ppf (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -464,7 +471,7 @@ let primitive ppf = function
      else fprintf ppf "bigarray.array1.set64"
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
   | Popaque _ -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
@@ -580,7 +587,7 @@ let name_of_primitive = function
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
-  | Pint_as_pointer -> "Pint_as_pointer"
+  | Pint_as_pointer _ -> "Pint_as_pointer"
   | Popaque _ -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
@@ -660,7 +667,7 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
-let apply_probe ppf = function
+let apply_probe ppf : probe -> unit = function
   | None -> ()
   | Some {name} -> fprintf ppf " (probe %s)" name
 
@@ -695,16 +702,22 @@ let rec lam ppf = function
         match kind with
         | Curried {nlocal} ->
             fprintf ppf "@ {nlocal = %d}" nlocal;
-            List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param layout k) params
+            List.iter (fun (p : Lambda.lparam) ->
+                (* Make sure we change this once there are attributes *)
+                let No_attributes = p.attributes in
+                fprintf ppf "@ %a%s%a"
+                  Ident.print p.name (alloc_kind p.mode) layout p.layout) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
             List.iter
-              (fun (param, k) ->
-                if !first then first := false else fprintf ppf ",@ ";
-                Ident.print ppf param;
-                layout ppf k)
+              (fun (p : Lambda.lparam) ->
+                 (* Make sure we change this once there are attributes *)
+                 let No_attributes = p.attributes in
+                 if !first then first := false else fprintf ppf ",@ ";
+                 Ident.print ppf p.name;
+                 Format.fprintf ppf "%s" (alloc_kind p.mode);
+                 layout ppf p.layout)
               params;
             fprintf ppf ")" in
       let rmode = if region then alloc_heap else alloc_local in

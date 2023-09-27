@@ -265,7 +265,7 @@ let measure_alloc f =
   (* NB: right-to-left evaluation order gets this right *)
   let baseline_allocation = Gc.allocated_bytes() -. Gc.allocated_bytes() in
   let before = Gc.allocated_bytes () in
-  let result = f () in
+  let result = (f[@inlined never]) () in
   let after = Gc.allocated_bytes () in
   (after -. before) -. baseline_allocation, result
 

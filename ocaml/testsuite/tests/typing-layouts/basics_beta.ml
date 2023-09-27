@@ -3,29 +3,29 @@
    * expect
 *)
 
-type t_value [@@value]
-type t_imm   [@@immediate]
-type t_imm64 [@@immediate64];;
+type t_value : value
+type t_imm   : immediate
+type t_imm64 : immediate64;;
 
 [%%expect{|
-type t_value [@@value]
-type t_imm [@@immediate]
-type t_imm64 [@@immediate64]
+type t_value : value
+type t_imm : immediate
+type t_imm64 : immediate64
 |}]
 
-type t_any   [@@any];;
+type t_any   : any;;
 [%%expect{|
-Line 1, characters 13-20:
-1 | type t_any   [@@any];;
-                 ^^^^^^^
+Line 1, characters 15-18:
+1 | type t_any   : any;;
+                   ^^^
 Error: Layout any is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-type t_void  [@@void];;
+type t_void  : void;;
 [%%expect{|
-Line 1, characters 13-21:
-1 | type t_void  [@@void];;
-                 ^^^^^^^^
+Line 1, characters 15-19:
+1 | type t_void  : void;;
+                   ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
@@ -38,7 +38,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (*****************************************************)
 (* Test 2: Permit representable function arg/returns *)
 
-(* CR layouts v2: much of this test moved to basics_alpha.  Add #float versions
+(* CR layouts v2.5: much of this test moved to basics_alpha.  Add float# versions
    and bring them here. *)
 module type S = sig
   val f1 : t_value -> t_value
@@ -51,7 +51,7 @@ module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
 
 (**************************************)
 (* Test 3: basic annotated parameters *)
-type 'a [@immediate] imm_id = 'a
+type ('a : immediate) imm_id = 'a
 
 [%%expect{|
 type ('a : immediate) imm_id = 'a
@@ -81,7 +81,7 @@ let id_for_imms (x : 'a imm_id) = x
 let three = id_for_imms 3
 let true_ = id_for_imms true;;
 [%%expect{|
-val id_for_imms : 'a imm_id -> 'a imm_id = <fun>
+val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id = <fun>
 val three : int imm_id = 3
 val true_ : bool imm_id = true
 |}]
@@ -98,7 +98,7 @@ Error: This expression has type string but an expression was expected of type
 
 (************************************)
 (* Test 4: parameters and recursion *)
-type 'a [@immediate] t4
+type ('a : immediate) t4
 and s4 = string t4;;
 
 [%%expect{|
@@ -110,7 +110,7 @@ Error: This type string should be an instance of type ('a : immediate)
 |}];;
 
 type s4 = string t4
-and 'a [@immediate] t4;;
+and ('a : immediate) t4;;
 
 [%%expect{|
 Line 1, characters 10-16:
@@ -121,7 +121,7 @@ Error: This type string should be an instance of type ('a : immediate)
 |}]
 
 type s4 = int t4
-and 'a [@immediate] t4;;
+and ('a : immediate) t4;;
 
 [%%expect{|
 type s4 = int t4
@@ -129,7 +129,7 @@ and ('a : immediate) t4
 |}]
 
 type s4 = s5 t4
-and 'a [@immediate] t4
+and ('a : immediate) t4
 and s5 = int;;
 
 [%%expect{|
@@ -139,7 +139,7 @@ and s5 = int
 |}]
 
 type s4 = s5 t4
-and 'a [@immediate] t4
+and ('a : immediate) t4
 and s5 = string;;
 
 [%%expect{|
@@ -149,42 +149,36 @@ Line 3, characters 0-15:
 Error:
        s5 has layout value, which is not a sublayout of immediate.
 |}]
-(* CR layouts v2: improve error, which requires layout histories *)
+(* CR layouts v2.9: improve error, which requires layout histories *)
 
-(* CR layouts: bring [@any] and [@void] bits back here from [basics_alpha.ml] when we allow
+(* CR layouts: bring [: any] and [: void] bits back here from [basics_alpha.ml] when we allow
    them in beta. *)
-type 'a [@any] t4 = 'a
+type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
-Line 1, characters 8-14:
-1 | type 'a [@any] t4 = 'a
-            ^^^^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+type ('a : any) t4 = 'a
+and s4 = string t4
 |}];;
 
 type s4 = string t4
-and 'a [@any] t4;;
+and ('a : any) t4;;
 [%%expect{|
-Line 2, characters 7-13:
-2 | and 'a [@any] t4;;
-           ^^^^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+type s4 = string t4
+and ('a : any) t4
 |}];;
 
-type 'a [@void] void4 = Void4  of 'a;;
+type ('a : void) void4 = Void4  of 'a;;
 [%%expect{|
-Line 1, characters 8-15:
-1 | type 'a [@void] void4 = Void4  of 'a;;
-            ^^^^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Line 1, characters 11-15:
+1 | type ('a : void) void4 = Void4  of 'a;;
+               ^^^^
+Error: Layout void is more experimental than allowed by -extension layouts_beta.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-type 'a [@any] any4 = Any4 of 'a
+type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-Line 1, characters 8-14:
-1 | type 'a [@any] any4 = Any4 of 'a
-            ^^^^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)
@@ -238,7 +232,7 @@ Error: This method has type 'b -> unit which is less general than
 (*****************************************)
 (* Test 7: the layout check in unify_var *)
 
-type 'a [@immediate] t7 = Foo7 of 'a
+type ('a : immediate) t7 = Foo7 of 'a
 
 type t7' = (int * int) t7;;
 [%%expect{|
@@ -290,10 +284,17 @@ Lines 3-9, characters 6-3:
 9 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type ('a : immediate) t = 'a val f : 'a t -> 'a val x : 'a end
+         sig
+           type ('a : immediate) t = 'a
+           val f : ('a : immediate). 'a t -> 'a
+           val x : ('a : immediate). 'a
+         end
        is not included in
          sig val x : string end
-       Values do not match: val x : 'a is not included in val x : string
+       Values do not match:
+         val x : ('a : immediate). 'a
+       is not included in
+         val x : string
        The type string is not compatible with the type string
        string has layout value, which is not a sublayout of immediate.
 |}];;
@@ -322,12 +323,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a : immediate) t = 'a
-           val f : 'a t -> 'a t
-           val x : 'a t
+           val f : ('a : immediate). 'a t -> 'a t
+           val x : ('a : immediate). 'a t
          end
        is not included in
          sig val x : string end
-       Values do not match: val x : 'a t is not included in val x : string
+       Values do not match:
+         val x : ('a : immediate). 'a t
+       is not included in
+         val x : string
        The type string t = string is not compatible with the type string
        string has layout value, which is not a sublayout of immediate.
 |}]
@@ -335,7 +339,7 @@ Error: Signature mismatch:
 (**************************************************************)
 (* Test 11: objects are values and methods take/return values *)
 
-(* CR layouts v2: These tests moved to [basics_alpha.ml] as they need a
+(* CR layouts v2.5: These tests moved to [basics_alpha.ml] as they need a
    non-value sort.  Bring back here when we have one (and update to use that
    sort instead of void). *)
 module M11_1 = struct
@@ -348,20 +352,21 @@ end;;
 Line 2, characters 13-17:
 2 |   type ('a : void) t = { x : int; v : 'a }
                  ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by -extension layouts_beta.
+       You must enable -extension layouts_alpha to use this feature.
 |}]
 
 (*******************************************************************)
 (* Test 12: class parameters and bound vars must have layout value *)
 
-(* CR layouts v2: These tests moved to [basics_alpha.ml] as they need a
+(* CR layouts v2.5: These tests moved to [basics_alpha.ml] as they need a
    non-value sort.  Bring back here when we have one (and update to use that
    sort instead of void). *)
 
 (***********************************************************)
 (* Test 13: built-in type constructors work only on values *)
 
-(* CR layouts v2: These tests moved to [basics_alpha.ml] as they need a
+(* CR layouts v2.5: These tests moved to [basics_alpha.ml] as they need a
    non-value sort.  Bring back here when we have one (and update to use that
    sort instead of void). *)
 
@@ -374,26 +379,26 @@ type t14 = foo14 list
 and foo14 = string
 |}];;
 
-(* CR layouts v2: Part of this test moved to [basics_alpha.ml] as it needs a
+(* CR layouts v2.5: Part of this test moved to [basics_alpha.ml] as it needs a
    non-value sort.  Bring back here when we have one. *)
 
 (****************************************************)
 (* Test 15: Type aliases need not have layout value *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (********************************************************)
 (* Test 16: seperability: [msig_of_external_type] logic *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
-type 'a t_void_16 [@@void];;
+type 'a t_void_16 : void;;
 [%%expect{|
-Line 1, characters 18-26:
-1 | type 'a t_void_16 [@@void];;
-                      ^^^^^^^^
+Line 1, characters 20-24:
+1 | type 'a t_void_16 : void;;
+                        ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
@@ -429,19 +434,19 @@ val f18 : 'a -> 'a = <fun>
 (********************************)
 (* Test 19: non-value coercions *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (********************************************)
 (* Test 20: Non-value bodies for let module *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**********************************)
 (* Test 21: Non-value unpack body *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (***************************************************************)
@@ -450,60 +455,60 @@ val f18 : 'a -> 'a = <fun>
 (* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
-type t_void [@@void];;
+type t_void : void;;
 [%%expect{|
-Line 1, characters 12-20:
-1 | type t_void [@@void];;
-                ^^^^^^^^
+Line 1, characters 14-18:
+1 | type t_void : void;;
+                  ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 (********************************************************************)
 (* Test 23: checking the error message from impossible GADT matches *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (*****************************************************)
 (* Test 24: Polymorphic parameter with exotic layout *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**************************************************)
 (* Test 25: Optional parameter with exotic layout *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (*********************************************************)
 (* Test 26: Inferring an application to an exotic layout *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (******************************************)
 (* Test 27: Exotic layouts in approx_type *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (************************************)
 (* Test 28: Exotic layouts in letop *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (*******************************************)
 (* Test 29: [external]s default to [value] *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**************************************)
 (* Test 30: [val]s default to [value] *)
 
-(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
 
 (**************************************************)
@@ -517,3 +522,26 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
+
+(******************************************************)
+(* Test 33: Externals must have representable types *)
+
+(* CR layouts v5: This test moved to [basics_alpha.ml] as it needs a
+   non-representable layout.  Bring it back here when we can mention [t_any] in
+   [-extension layouts_beta]. *)
+
+(****************************************************)
+(* Test 34: Layout clash in polymorphic record type *)
+
+type ('a : immediate) t2_imm
+
+type s = { f : ('a : value) . 'a -> 'a u }
+and 'a u = 'a t2_imm
+
+[%%expect {|
+type ('a : immediate) t2_imm
+Line 3, characters 15-40:
+3 | type s = { f : ('a : value) . 'a -> 'a u }
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type 'a has layout value, which is not a sublayout of immediate.
+|}]

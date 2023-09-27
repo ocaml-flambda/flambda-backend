@@ -351,10 +351,13 @@ let create_ocaml_prefix_name name =
   let spec = AS.create (Ocaml_specific Prefix_name) Strp in
   AV.create spec (V.indirect_string ~comment:"prefix name" name)
 
+let linker_dir_sep = '\001'
+
+let mangle_linker_dirs dirs =
+  String.concat (Printf.sprintf "%c" linker_dir_sep) dirs
+
 let create_ocaml_linker_dirs dirs =
-  let dirs =
-    Dwarf_name_laundry.mangle_linker_dirs (Misc.Stdlib.String.Set.elements dirs)
-  in
+  let dirs = mangle_linker_dirs (Misc.Stdlib.String.Set.elements dirs) in
   let spec = AS.create (Ocaml_specific Linker_dirs) Strp in
   AV.create spec (V.indirect_string ~comment:"linker dirs" dirs)
 

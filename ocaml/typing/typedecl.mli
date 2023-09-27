@@ -50,8 +50,7 @@ val transl_with_constraint:
 val abstract_type_decl:
     injective:bool -> layout -> layout list -> type_declaration
 val approx_type_decl:
-    Parsetree.type_declaration list ->
-                                  (Ident.t * type_declaration) list
+    Parsetree.type_declaration list -> (Ident.t * type_declaration) list
 val check_recmod_typedecl:
     Env.t -> Location.t -> Ident.t list -> Path.t -> type_declaration -> unit
 
@@ -66,7 +65,7 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a layout representability requirement in errors. *)
-type layout_sort_loc = Cstr_tuple | Record
+type layout_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -102,8 +101,8 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout_coherence_check of type_expr * Layout.Violation.t
-  | Layout_update_check of Path.t * Layout.Violation.t
+  | Layout_mismatch_of_type of type_expr * Layout.Violation.t
+  | Layout_mismatch_of_path of Path.t * Layout.Violation.t
   | Layout_sort of
       { lloc : layout_sort_loc
       ; typ : type_expr
@@ -111,6 +110,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
+  | Float64_in_block of type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed

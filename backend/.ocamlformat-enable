@@ -12,5 +12,7 @@ asm_targets/**/*.ml
 asm_targets/**/*.mli
 debug/**/*.ml
 debug/**/*.mli
+peephole/**/*.ml
+peephole/**/*.mli
 regalloc/**/*.ml
 regalloc/**/*.mli

@@ -137,7 +137,7 @@ let preserve_tailcall_for_prim = function
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pprobe_is_enabled _ | Pobj_dup
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -526,7 +526,7 @@ let comp_primitive p args =
   | Pbigstring_set_64(_) -> Kccall("caml_ba_uint8_set64", 3)
   | Pbswap16 -> Kccall("caml_bswap16", 1)
   | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
-  | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
+  | Pint_as_pointer _ -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
   | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
@@ -632,7 +632,7 @@ let rec comp_expr env exp sz cont =
       let lbl = new_label() in
       let fv = Ident.Set.elements(free_variables exp) in
       let to_compile =
-        { params = List.map fst params; body = body; label = lbl;
+        { params = List.map (fun p -> p.name) params; body = body; label = lbl;
           free_vars = fv; num_defs = 1; rec_vars = []; rec_pos = 0 } in
       Stack.push to_compile functions_to_compile;
       comp_args env (List.map (fun n -> Lvar n) fv) sz
@@ -655,7 +655,7 @@ let rec comp_expr env exp sz cont =
           | (_id, Lfunction{params; body}) :: rem ->
               let lbl = new_label() in
               let to_compile =
-                { params = List.map fst params; body = body; label = lbl;
+                { params = List.map (fun p -> p.name) params; body = body; label = lbl;
                   free_vars = fv; num_defs = ndecl; rec_vars = rec_idents;
                   rec_pos = pos} in
               Stack.push to_compile functions_to_compile;
@@ -797,7 +797,7 @@ let rec comp_expr env exp sz cont =
       comp_expr env (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
   | Lprim (Pduparray _, [arg], loc) ->
       let prim_obj_dup =
-        Primitive.simple ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+        Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
       in
       comp_expr env (Lprim (Pccall prim_obj_dup, [arg], loc)) sz cont
   | Lprim (Pduparray _, _, _) ->

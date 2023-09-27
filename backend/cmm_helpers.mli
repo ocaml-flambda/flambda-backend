@@ -210,6 +210,11 @@ val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
 
+(** Vector boxing and unboxing *)
+val box_vec128 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+
+val unbox_vec128 : Debuginfo.t -> expression -> expression
+
 (** Complex number creation and access *)
 val box_complex : Debuginfo.t -> expression -> expression -> expression
 
@@ -372,6 +377,7 @@ module Extended_machtype_component : sig
     | Tagged_int
     | Any_int
     | Float
+    | Vec128
 end
 
 module Extended_machtype : sig
@@ -388,6 +394,8 @@ module Extended_machtype : sig
   val typ_float : t
 
   val typ_void : t
+
+  val typ_vec128 : t
 
   (** Conversion from a normal Cmm machtype. *)
   val of_machtype : machtype -> t
@@ -942,6 +950,9 @@ val emit_int64_constant : symbol -> int64 -> data_item list -> data_item list
 val emit_nativeint_constant :
   symbol -> nativeint -> data_item list -> data_item list
 
+val emit_vec128_constant :
+  symbol -> Cmm.vec128_bits -> data_item list -> data_item list
+
 val emit_float_array_constant :
   symbol -> float list -> data_item list -> data_item list
 
@@ -987,6 +998,9 @@ val int32 : dbg:Debuginfo.t -> int32 -> expression
 
 (** Create a constant int expression from an int64. *)
 val int64 : dbg:Debuginfo.t -> int64 -> expression
+
+(** Create a constant vec128 expression from two int64s. *)
+val vec128 : dbg:Debuginfo.t -> Cmm.vec128_bits -> expression
 
 (** Create a constant int expression from a nativeint. *)
 val nativeint : dbg:Debuginfo.t -> Nativeint.t -> expression
@@ -1039,13 +1053,14 @@ val trywith :
 (** Opaque type for static handlers. *)
 type static_handler
 
-(** [handler id vars body] creates a static handler for exit number [id],
+(** [handler id vars body is_cold] creates a static handler for exit number [id],
     binding variables [vars] in [body]. *)
 val handler :
   dbg:Debuginfo.t ->
   Lambda.static_label ->
   (Backend_var.With_provenance.t * Cmm.machtype) list ->
   Cmm.expression ->
+  bool ->
   static_handler
 
 (** [cexit id args] creates the cmm expression for static to a static handler
@@ -1232,6 +1247,9 @@ val cint : nativeint -> data_item
 
 (** Static float. *)
 val cfloat : float -> data_item
+
+(** Static 128-bit vector. *)
+val cvec128 : Cmm.vec128_bits -> data_item
 
 (** Static symbol. *)
 val symbol_address : symbol -> data_item

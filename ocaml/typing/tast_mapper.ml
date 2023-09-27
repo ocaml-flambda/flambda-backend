@@ -37,6 +37,7 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
+    layout_annotation: mapper -> const_layout -> const_layout;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;
@@ -201,11 +202,14 @@ let type_exception sub x =
   in
   {x with tyexn_constructor}
 
+let var_layout sub (v, l) = v, Option.map (sub.layout_annotation sub) l
+
 let extension_constructor sub x =
   let ext_kind =
     match x.ext_kind with
       Text_decl(v, ctl, cto) ->
-        Text_decl(v, constructor_args sub ctl, Option.map (sub.typ sub) cto)
+        Text_decl(List.map (var_layout sub) v,
+                  constructor_args sub ctl, Option.map (sub.typ sub) cto)
     | Text_rebind _ as d -> d
   in
   {x with ext_kind}
@@ -298,19 +302,17 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { arg_label; param; cases;
-                      partial; region; curry; warnings; arg_mode; alloc_mode } ->
+    | Texp_function { arg_label; param; cases; partial; region; curry;
+                      warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
         let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases;
-                        partial; region; curry; warnings; arg_mode; alloc_mode }
+        Texp_function { arg_label; param; cases; partial; region; curry;
+                        warnings; arg_mode; arg_sort; ret_sort; alloc_mode }
     | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
-            | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
-            | (lbl, Omitted o) ->
-                let o' = { o with ty_env = sub.env sub o.ty_env } in
-                (lbl, Omitted o'))
+            | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
+            | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
           pos, am
         )
@@ -375,7 +377,7 @@ let expr sub x =
     | Texp_while wh ->
         Texp_while { wh_cond = sub.expr sub wh.wh_cond;
                      wh_body = sub.expr sub wh.wh_body;
-                     wh_body_layout = wh.wh_body_layout
+                     wh_body_sort = wh.wh_body_sort
                    }
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
@@ -424,12 +426,15 @@ let expr sub x =
         Texp_object (sub.class_structure sub cl, sl)
     | Texp_pack mexpr ->
         Texp_pack (sub.module_expr sub mexpr)
-    | Texp_letop {let_; ands; param; body; partial; warnings} ->
+    | Texp_letop {let_; ands; param; param_sort; body; body_sort; partial;
+                  warnings} ->
         Texp_letop{
           let_ = sub.binding_op sub let_;
           ands = List.map (sub.binding_op sub) ands;
           param;
+          param_sort;
           body = sub.case sub body;
+          body_sort;
           partial;
           warnings
         }
@@ -621,7 +626,7 @@ let class_expr sub x =
         Tcl_apply (
           sub.class_expr sub cl,
           List.map (function
-            | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
+            | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             args
         )
@@ -688,8 +693,9 @@ let typ sub x =
   let ctyp_env = sub.env sub x.ctyp_env in
   let ctyp_desc =
     match x.ctyp_desc with
-    | Ttyp_any
-    | Ttyp_var _ as d -> d
+    | Ttyp_var (_,None) as d -> d
+    | Ttyp_var (s, Some layout) ->
+        Ttyp_var (s, Some (sub.layout_annotation sub layout))
     | Ttyp_arrow (label, ct1, ct2) ->
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list -> Ttyp_tuple (List.map (sub.typ sub) list)
@@ -703,12 +709,13 @@ let typ sub x =
            lid,
            List.map (sub.typ sub) list
           )
-    | Ttyp_alias (ct, s) ->
-        Ttyp_alias (sub.typ sub ct, s)
+    | Ttyp_alias (ct, s, layout) ->
+        Ttyp_alias (sub.typ sub ct, s,
+                    Option.map (sub.layout_annotation sub) layout)
     | Ttyp_variant (list, closed, labels) ->
         Ttyp_variant (List.map (sub.row_field sub) list, closed, labels)
-    | Ttyp_poly (sl, ct) ->
-        Ttyp_poly (sl, sub.typ sub ct)
+    | Ttyp_poly (vars, ct) ->
+        Ttyp_poly (List.map (var_layout sub) vars, sub.typ sub ct)
     | Ttyp_package pack ->
         Ttyp_package (sub.package_type sub pack)
   in
@@ -778,6 +785,8 @@ let value_binding sub x =
 
 let env _sub x = x
 
+let layout_annotation _sub l = l
+
 let default =
   {
     binding_op;
@@ -794,6 +803,7 @@ let default =
     env;
     expr;
     extension_constructor;
+    layout_annotation;
     module_binding;
     module_coercion;
     module_declaration;

@@ -1,4 +1,4 @@
-let $camlTests14__first_const56 = Block 0 () in
+let $camlTests14__first_const55 = Block 0 () in
 let code size(5)
       set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in

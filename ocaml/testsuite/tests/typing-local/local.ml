@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension immutable_arrays"
    * expect *)
 
 let leak n =
@@ -636,6 +637,16 @@ Error: This value escapes its region
         Adding 1 more argument will make the value non-local
 |}]
 
+(* The fixed version. Note that in the printed type, local returning is implicit
+    *)
+let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
+  fun f -> local_ f ~foo:"hello"
+[%%expect{|
+val bug4_fixed : local_ (string -> foo:string -> unit) -> string -> unit =
+  <fun>
+|}]
+
+
 let bug4' () =
   let local_ f arg ~foo = () in
   let local_ perm ~foo = f ~foo in
@@ -763,7 +774,7 @@ val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
 Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
                         ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 
@@ -1383,6 +1394,39 @@ let foo () =
 val foo : unit -> int = <fun>
 |}]
 
+(* tail-calling local-returning functions make the current function
+   local-returning as well; mode-crossing is irrelavent here. Whether or not the
+   function actually allocates in parent-region is also irrelavent here, but we
+   allocate just to demonstrate the potential leaking. *)
+let foo () = local_
+  let _ = local_ (52, 24) in
+  42
+[%%expect{|
+val foo : unit -> local_ int = <fun>
+|}]
+
+let bar () =
+  let _x = 52 in
+  foo ()
+[%%expect{|
+val bar : unit -> local_ int = <fun>
+|}]
+
+(* if not at tail, then not affected *)
+let bar' () =
+  let _x = foo () in
+  52
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
+(* nontail attribute works as well *)
+let bar' () =
+  foo () [@nontail]
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
 (* Parameter modes must be matched by the type *)
 
 let foo : 'a -> unit = fun (local_ x) -> ()
@@ -1406,7 +1450,7 @@ let foo : unit -> string = fun () -> local_ "hello"
 Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
                                ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
@@ -2466,38 +2510,98 @@ Line 3, characters 24-26:
 Error: This value escapes its region
 |}]
 
+(* Test of array.*)
 
-(* test of arrays *)
-(* as elements of arrays are mutable *)
-(* it is only safe for them to be at global mode *)
-(* cf: similarly reference cell can contain only global values *)
+(* Immutable arrays are like tuples or normal record: local array contains local
+elements, both at construction and at projection; global array contains global
+elements. *)
 
-(* on construction of array, we ensure elements are global *)
-
-let f (local_ x : string) =
-  [|x; "foo"|]
+(* constructing global iarray from local elements is rejected *)
+let f (local_ x : string) = ref [: x; "foo" :]
 [%%expect{|
-Line 2, characters 4-5:
-2 |   [|x; "foo"|]
-        ^
+Line 1, characters 35-36:
+1 | let f (local_ x : string) = ref [: x; "foo" :]
+                                       ^
 Error: This value escapes its region
 |}]
 
-let f (x : string) =
-  [|x; "foo"|]
+(* constructing local iarray from local elements is fine *)
+let f (local_ x : string) = local_ [:x; "foo":]
 [%%expect{|
-val f : string -> string array = <fun>
+val f : local_ string -> local_ string iarray = <fun>
 |}]
 
+(* constructing global iarray from global elements is fine *)
+let f (x : string) = ref [:x; "foo":]
+[%%expect{|
+val f : string -> string iarray ref = <fun>
+|}]
 
-(* on pattern matching of array,
-   elements are strengthened to global
-  even if array itself is local *)
+(* projecting out of local array gives local elements *)
+let f (local_ a : string iarray) =
+  match a with
+  | [: x; _ :] -> ref x
+  | _ -> ref "foo"
+[%%expect{|
+Line 3, characters 22-23:
+3 |   | [: x; _ :] -> ref x
+                          ^
+Error: This value escapes its region
+|}]
+
+(* a test that was passing type check *)
+let unsafe_globalize (local_ s : string) : string =
+  match local_ [:s:] with
+  | [:s':] -> s'
+  | _ -> assert false
+[%%expect{|
+Line 3, characters 14-16:
+3 |   | [:s':] -> s'
+                  ^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+let f (local_ a : string iarray) =
+  match a with
+  | [: x; _ :] -> x
+  | _ -> "foo"
+[%%expect{|
+val f : local_ string iarray -> local_ string = <fun>
+|}]
+
+(* projecting out of global iarray gives global elements *)
+let f (a : string iarray) =
+  match a with
+  | [: x :] -> ref x
+  | _ -> ref "foo"
+[%%expect{|
+val f : string iarray -> string ref = <fun>
+|}]
+
+(* Mutable array, like references, is dangerous. They must contain global
+    elements regardless of the array's mode. *)
+
+(* constructing local array from local elements is rejected *)
+let f (local_ x : string) = local_ [| x |]
+[%%expect{|
+Line 1, characters 38-39:
+1 | let f (local_ x : string) = local_ [| x |]
+                                          ^
+Error: This value escapes its region
+|}]
+
+(* constructing local array from global elements is allowed *)
+let f (x : string) = local_ [| x |]
+[%%expect{|
+val f : string -> local_ string array = <fun>
+|}]
+
+(* projecting out of local array gives global elements *)
 let f (local_ a : string array) =
   match a with
-  | [| x; _ |] -> ref x
+  | [| x |] -> ref x
   | _ -> ref "foo"
-
 [%%expect{|
 val f : local_ string array -> string ref = <fun>
 |}]

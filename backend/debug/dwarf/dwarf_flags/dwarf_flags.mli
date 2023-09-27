@@ -64,3 +64,5 @@ val default_gdwarf_format : dwarf_format
 val default_ddebug_invariants : bool
 
 val ddebug_invariants : bool ref
+
+val gdwarf_may_alter_codegen : bool ref

@@ -77,6 +77,7 @@ let rec merge_blocks (removed : Label.Set.t)
             b1_block.terminator <- b2_block.terminator;
             b1_block.exn <- b2_block.exn;
             b1_block.can_raise <- b2_block.can_raise;
+            b1_block.cold <- b1_block.cold || b2_block.cold;
             (* modify b2 *)
             b2_block.predecessors <- Label.Set.empty;
             Label.Set.iter

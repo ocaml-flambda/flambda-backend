@@ -95,7 +95,7 @@ let check_for_module_symbol t symbol =
 let defines_a_symbol data =
   match (data : Cmm.data_item) with
   | Cdefine_symbol _ -> true
-  | Cint8 _ | Cint16 _ | Cint32 _ | Cint _ | Csingle _ | Cdouble _
+  | Cint8 _ | Cint16 _ | Cint32 _ | Cint _ | Csingle _ | Cdouble _ | Cvec128 _
   | Csymbol_address _ | Cstring _ | Cskip _ | Calign _ ->
     false
 

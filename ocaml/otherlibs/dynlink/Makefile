@@ -82,6 +82,7 @@ COMPILERLIBS_SOURCES=\
   utils/load_path.ml \
   utils/clflags.ml \
   utils/debug.ml \
+  utils/language_extension_kernel.ml \
   utils/language_extension.ml \
   utils/profile.ml \
   utils/consistbl.ml \
@@ -97,6 +98,7 @@ COMPILERLIBS_SOURCES=\
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
+  parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
   parsing/jane_syntax_parsing.ml \
@@ -107,9 +109,9 @@ COMPILERLIBS_SOURCES=\
   parsing/attr_helper.ml \
   parsing/pprintast.ml \
   typing/path.ml \
-  typing/primitive.ml \
   typing/shape.ml \
   typing/layouts.ml \
+  typing/primitive.ml \
   typing/types.ml \
   typing/btype.ml \
   typing/subst.ml \

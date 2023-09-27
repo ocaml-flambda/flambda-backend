@@ -126,14 +126,7 @@ let extra_args_for_const_ctor_of_variant
     (const_ctors_decision : U.const_ctors_decision) ~typing_env_at_use
     rewrite_id variant_arg : U.const_ctors_decision =
   match const_ctors_decision with
-  | Zero -> (
-    match variant_arg with
-    | Not_a_constant_constructor -> const_ctors_decision
-    | Maybe_constant_constructor _ ->
-      Misc.fatal_errorf
-        "The unboxed variant parameter was determined to have no constant \
-         cases when deciding to unbox it (using the parameter type), but at \
-         the use site, it is a constant constructor.")
+  | Zero -> const_ctors_decision
   | At_least_one { ctor = Do_not_unbox reason; is_int } ->
     let is_int =
       Extra_param_and_args.update_param_args is_int rewrite_id
@@ -159,8 +152,9 @@ let extra_args_for_const_ctor_of_variant
           Unbox
             ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
             | Number
-                ((Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint), _)
-              );
+                ( ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
+                  | Naked_vec128 ),
+                  _ ) );
         is_int = _
       } ->
     Misc.fatal_errorf
@@ -240,6 +234,9 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
       rewrite_id ~typing_env_at_use arg_being_unboxed
   | Unbox (Number (Naked_immediate, epa)) ->
     compute_extra_arg_for_number Naked_immediate Unboxers.Immediate.unboxer epa
+      rewrite_id ~typing_env_at_use arg_being_unboxed
+  | Unbox (Number (Naked_vec128, epa)) ->
+    compute_extra_arg_for_number Naked_vec128 Unboxers.Vec128.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed
 
 and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
@@ -460,7 +457,7 @@ let add_extra_params_and_args extra_params_and_args decision =
                 Unbox
                   ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
                   | Number
-                      ( ( Naked_float | Naked_int32 | Naked_int64
+                      ( ( Naked_float | Naked_int32 | Naked_int64 | Naked_vec128
                         | Naked_nativeint ),
                         _ ) );
               is_int = _

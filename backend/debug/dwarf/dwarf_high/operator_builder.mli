@@ -29,6 +29,16 @@ val address_of_stack_slot : offset_in_bytes:Targetint.t -> Dwarf_operator.t list
 val contents_of_stack_slot :
   offset_in_bytes:Targetint.t -> Dwarf_operator.t list
 
+val address_of_domainstate_slot :
+  offset_in_bytes:Targetint.t ->
+  domainstate_ptr_dwarf_register_number:int ->
+  Dwarf_operator.t list
+
+val contents_of_domainstate_slot :
+  offset_in_bytes:Targetint.t ->
+  domainstate_ptr_dwarf_register_number:int ->
+  Dwarf_operator.t list
+
 val value_of_symbol : symbol:Asm_symbol.t -> Dwarf_operator.t
 
 val signed_int_const : Targetint.t -> Dwarf_operator.t

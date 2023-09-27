@@ -22,6 +22,10 @@ let apply_funct = "apply_funct"
 let block_symbol = "block_symbol"
 let block_symbol_get = "block_symbol_get"
 let block_symbol_get_field = "block_symbol_get_field"
+let boxed_in_closure = "boxed_in_closure"
+let boxing_closure = "boxing_closure"
+let boxing_closure_field = "boxing_closure_field"
+let boxing_set_of_closures = "boxing_set_of_closures"
 let closure = "closure"
 let cond = "cond"
 let cond_sequor = "cond_sequor"
@@ -300,6 +304,7 @@ let switch = "switch"
 let symbol = "symbol"
 let symbol_field = "symbol_field"
 let symbol_field_block = "symbol_field_block"
+let symbol_field_closure = "symbol_field_closure"
 let the_dead_constant = "the_dead_constant"
 let toplevel_substitution_named = "toplevel_substitution_named"
 let unbox_free_vars_of_closures = "unbox_free_vars_of_closures"
@@ -428,7 +433,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbigstring_set_64 _ -> pbigstring_set_64
   | Pbswap16 -> pbswap16
   | Pbbswap _ -> pbbswap
-  | Pint_as_pointer -> pint_as_pointer
+  | Pint_as_pointer _ -> pint_as_pointer
   | Popaque _ -> popaque
   | Pprobe_is_enabled _ -> pprobe_is_enabled
   | Pobj_dup -> pobj_dup
@@ -542,7 +547,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbigstring_set_64 _ -> pbigstring_set_64_arg
   | Pbswap16 -> pbswap16_arg
   | Pbbswap _ -> pbbswap_arg
-  | Pint_as_pointer -> pint_as_pointer_arg
+  | Pint_as_pointer _ -> pint_as_pointer_arg
   | Popaque _ -> popaque_arg
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
   | Pobj_dup -> pobj_dup_arg

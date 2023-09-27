@@ -18,7 +18,7 @@ val log_body_and_terminator :
   liveness ->
   unit
 
-val log_cfg_with_liveness : indent:int -> Cfg_with_liveness.t -> unit
+val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
 
 module Color : sig
   type t = int
@@ -64,7 +64,7 @@ end
 
 val is_move_instruction : Instruction.t -> bool
 
-val all_precolored_regs : Reg.t array
+val all_precolored_regs : unit -> Reg.Set.t
 
 val k : Reg.t -> int
 

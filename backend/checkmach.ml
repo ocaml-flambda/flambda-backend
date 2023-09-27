@@ -469,17 +469,23 @@ end = struct
     let l =
       List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
     in
-    let cutoff = !Flambda_backend_flags.checkmach_details_cutoff in
     let len = List.length l in
-    if cutoff < 0 || len < cutoff
-    then l
-    else if cutoff = 0
-    then (* don't even print the dots *)
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> l
+    | No_details ->
+      (* don't even print the dots *)
+      assert (len = 0);
       []
-    else
-      let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
-      let details, _ = Misc.Stdlib.List.split_at cutoff l in
-      details @ [print_dots]
+    | At_most cutoff ->
+      let print_with_dots l =
+        let dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
+        l @ [dots]
+      in
+      if len <= cutoff
+      then l
+      else
+        let details, _ = Misc.Stdlib.List.split_at cutoff l in
+        print_with_dots details
 
   let report_error = function
     | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
@@ -610,11 +616,10 @@ end = struct
     | Some func_info -> func_info
 
   let should_keep_witnesses keep =
-    if !Flambda_backend_flags.checkmach_details_cutoff < 0
-    then true
-    else if !Flambda_backend_flags.checkmach_details_cutoff = 0
-    then false
-    else keep
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> true
+    | No_details -> false
+    | At_most _ -> keep
 
   (* fixpoint backward propogation of function summaries along the recorded
      dependency edges. *)
@@ -927,8 +932,8 @@ end = struct
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-    | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat
+    | Iconst_vec128 _ | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf
+    | Imulf | Idivf | Ifloatofint | Iintoffloat
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
@@ -936,11 +941,11 @@ end = struct
     | Iintop
         ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
         | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-    | Icsel _ | Iname_for_debugger _ ->
+    | Icsel _ ->
       assert (Mach.operation_is_pure op);
       assert (not (Mach.operation_can_raise op));
       next
-    | Ivalueofint | Iintofvalue ->
+    | Iname_for_debugger _ | Ivalueofint | Iintofvalue ->
       assert (not (Mach.operation_can_raise op));
       next
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion

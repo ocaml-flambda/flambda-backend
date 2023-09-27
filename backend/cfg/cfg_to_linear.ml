@@ -31,12 +31,20 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let to_linear_instr ?(like : _ Cfg.instruction option) desc ~next :
     L.instruction =
-  let arg, res, dbg, live, fdo =
+  let arg, res, dbg, live, fdo, available_before, available_across =
     match like with
-    | None -> [||], [||], Debuginfo.none, Reg.Set.empty, Fdo_info.none
-    | Some like -> like.arg, like.res, like.dbg, like.live, like.fdo
+    | None ->
+      [||], [||], Debuginfo.none, Reg.Set.empty, Fdo_info.none, None, None
+    | Some like ->
+      ( like.arg,
+        like.res,
+        like.dbg,
+        like.live,
+        like.fdo,
+        like.available_before,
+        like.available_across )
   in
-  { desc; next; arg; res; dbg; live; fdo }
+  { desc; next; arg; res; dbg; live; fdo; available_before; available_across }
 
 let basic_to_linear (i : _ Cfg.instruction) ~next =
   let desc = Cfg_to_linear_desc.from_basic i.desc in
