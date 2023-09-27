@@ -6,6 +6,8 @@ checks.ml
 checks.mli
 checkmach.ml
 checkmach.mli
+checkmach_types.ml
+checkmach_types.mli
 cfg/**/*.ml
 cfg/**/*.mli
 asm_targets/**/*.ml

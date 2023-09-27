@@ -46,7 +46,9 @@ type _ pass =
   | Cmm : Cmm.phrase list pass
 
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
-  | Check_allocations : Checkmach.iter_witnesses pass
+  | Check_allocations : Checkmach_types.iter_witnesses pass
+
+  | Imported_compilation_unit : (Compilation_unit.t * string) pass
 
 (* Register a new hook for [pass]. *)
 val register : 'a pass -> ('a -> unit) -> unit
