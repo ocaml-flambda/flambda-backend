@@ -3161,11 +3161,9 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
   | Some arg_module ->
       (* Accessing the argument type's module (which is of course a parameter
          unit) has the side effect of importing it, so we need to be sure it's
-         understood to be a parameter. *)
-      ignore (
-        Env.read_as_parameter
-          Location.none
-          (Compilation_unit.name arg_module) : Types.module_type);
+         understood to be _a_ parameter. However, it's not a parameter of
+         _this_ module, so we set [exported] to false. *)
+      Env.register_parameter arg_module ~exported:false;
       let arg_sig, arg_filename = Env.find_compilation_unit arg_module in
       if not (Env.is_parameter_unit (Compilation_unit.name arg_module)) then
         raise (Error (Location.none, env,

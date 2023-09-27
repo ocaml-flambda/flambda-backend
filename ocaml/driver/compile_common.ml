@@ -85,10 +85,9 @@ let typecheck_against_secondary_intf info sg =
       let arg_type = arg_type |> Compilation_unit.of_string in
       (* Accessing the argument type's module (which is of course a parameter
          unit) has the side effect of importing it, so we need to be sure it's
-         understood to be a parameter. *)
-      ignore (
-        Env.read_as_parameter Location.none
-          (Compilation_unit.name arg_type) : Types.module_type);
+         understood to be _a_ parameter. However, it's not a parameter of
+         _this_ module, so we set [exported] to false. *)
+      Env.register_parameter arg_type ~exported:false;
       let arg_sg, _filepath = Env.find_compilation_unit arg_type in
       ignore (Includemod.signatures info.env ~mark:Mark_both sg arg_sg);
       Some arg_sg
