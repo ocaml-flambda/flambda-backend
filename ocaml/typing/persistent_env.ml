@@ -414,7 +414,7 @@ let rec global_name_of_compilation_unit cu : Global.Name.t =
          global_name_of_compilation_unit value)
       (CU.instance_arguments cu)
   in
-  { head; args }
+  Global.Name.create head args
 
 let rec acknowledge_pers_struct
       penv ~check modname pers_sig (val_of_pers_sig : _ sig_reader)
@@ -523,7 +523,7 @@ and compute_global penv val_of_pers_sig modname ~params ~instance_args ~check =
   if CU.is_packed modname then
     (* CR lmaurer: Yuck. *)
     (* Just make something up; this won't be used anyway *)
-    Global.{ head = CU.name_as_string modname; args = []; params = [] }
+    Global.create (CU.name_as_string modname) [] ~params:[]
   else if CU.is_instance modname then
     (* This just came from a .cmi, which should never be an instance *)
     Misc.fatal_errorf "Expected non-instance modname, got %a" CU.print modname
@@ -542,8 +542,8 @@ and compute_global penv val_of_pers_sig modname ~params ~instance_args ~check =
     in
     let modname_string = modname |> CU.name_as_string in
     let param_globals = params |> List.map global_arg_of_param in
-    let global_without_args : Global.t =
-      { head = modname_string; args = []; params = param_globals }
+    let global_without_args =
+      Global.create modname_string [] ~params:param_globals
     in
     let instance_arg_globals = instance_args |> List.map global_of_arg in
     let subst : Global.subst = Global.Name.Map.of_list instance_arg_globals in

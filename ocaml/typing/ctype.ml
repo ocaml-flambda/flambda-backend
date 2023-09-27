@@ -5747,7 +5747,18 @@ let check_decl_immediate env decl imm =
     | Error _, Some ty -> check_type_immediate env ty imm
 
 let is_always_global env ty =
-  Result.is_ok (check_type_immediate env ty Always_on_64bits)
+  let perform_check () =
+    Result.is_ok (check_type_immediate env ty Always_on_64bits)
+  in
+  if !Clflags.principal || Env.has_local_constraints env then
+    (* We snapshot to keep this pure; see the mode crossing test that mentions
+       snapshotting for an example. *)
+    let snap = Btype.snapshot () in
+    let result = perform_check () in
+    Btype.backtrack snap;
+    result
+  else
+    perform_check ()
 
 (* For use with ocamldebug *)
 type global_state =

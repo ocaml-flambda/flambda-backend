@@ -27,7 +27,8 @@ type t =
          predefined identifiers is always unique. *)
   | Instance of global
       (* must have non-empty [args] *)
-and global = Global.Name.t = { head: string; args: (global * global) list }
+and global = Global.Name.t = private
+  { head: string; args: (global * global) list }
 
 
 (* A stamp of 0 denotes a persistent identifier *)
@@ -56,7 +57,7 @@ let create_global glob =
   | _ -> Instance glob
 
 let create_instance head args =
-  create_global { head; args }
+  create_global (Global.Name.create head args)
 
 let global_name g = Format.asprintf "%a" Global.Name.print g
 
@@ -160,7 +161,7 @@ let is_instance = function
   | _ -> false
 
 let to_global = function
-  | Global head -> Some { head; args = [] }
+  | Global head -> Some (Global.Name.create head [])
   | Instance g -> Some g
   | _ -> None
 

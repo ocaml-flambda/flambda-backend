@@ -9,7 +9,7 @@ M{X:X}{Y:Y{X:X}} { (X A) } = M[X:A]{Y:Y[X:A]}
 M{X:X}{Y:Y{X:X}} { (X A) (Y B) } = M[X:A][Y:B]
 X { (I Unit) } = X
 Y{X:X} { (I Unit) } = Y{X:X}
-Print{I:I}{Conv[O:String]:Conv[O:String]{I:I}}
+Print{Conv[O:String]:Conv[O:String]{I:I}}{I:I}
   { (I Unit) }
   =
   Print[I:Unit]{Conv[O:String]:Conv[I:Unit][O:String]}

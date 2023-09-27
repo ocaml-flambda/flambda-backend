@@ -68,3 +68,9 @@ val wrap_inlined_body_for_exn_extra_args :
     is_exn_handler:bool ->
     'expr_with_acc) ->
   'expr_with_acc
+
+type attribute_kind =
+  | Inlined
+  | Unrolled
+
+val inlined_attribute_on_partial_application_msg : attribute_kind -> string

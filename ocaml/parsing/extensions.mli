@@ -86,10 +86,7 @@ module Strengthen : sig
 end
 
 module Instances : sig
-  type instance = Global.Name.t = {
-    head : string;
-    args : (instance * instance) list
-  }
+  type instance = Global.Name.t
 
   type module_expr =
     | Imod_instance of instance

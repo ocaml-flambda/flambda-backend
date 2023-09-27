@@ -43,9 +43,15 @@ let module_declarations : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 let uid_to_loc : Location.t Types.Uid.Tbl.t ref =
   s_table Types.Uid.Tbl.create 16
 
-let register_uid uid loc = Types.Uid.Tbl.add !uid_to_loc uid loc
+let uid_to_attributes : Parsetree.attribute list Types.Uid.Tbl.t ref =
+  s_table Types.Uid.Tbl.create 16
+
+let register_uid uid ~loc ~attributes =
+  Types.Uid.Tbl.add !uid_to_loc uid loc;
+  Types.Uid.Tbl.add !uid_to_attributes uid attributes
 
 let get_uid_to_loc_tbl () = !uid_to_loc
+let get_uid_to_attributes_tbl () = !uid_to_attributes
 
 type constructor_usage = Positive | Pattern | Exported_private | Exported
 type constructor_usages =
@@ -2718,7 +2724,7 @@ let save_signature_with_transform
     (* CR lmaurer: Yuck. Duplicating some logic here. *)
     if Compilation_unit.is_packed modname then
       (* This won't matter anyway *)
-      { head; args = []; params = [] }
+      Global.create head [] ~params:[]
     else
       let params =
         List.map
@@ -2730,7 +2736,7 @@ let save_signature_with_transform
              (glob |> Global.to_name, glob))
           cmi.cmi_params
       in
-      { head; params; args = [] }
+      Global.create head [] ~params
   in
   let pm = save_sign_of_cmi
       { Persistent_env.Persistent_signature.cmi; filename } ~local_ident ~global

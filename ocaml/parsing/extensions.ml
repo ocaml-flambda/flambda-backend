@@ -323,7 +323,7 @@ module Strengthen = struct
 end
 
 module Instances = struct
-  type instance = Global.Name.t = {
+  type instance = Global.Name.t = private {
     head : string;
     args : (instance * instance) list
   }
@@ -376,7 +376,7 @@ module Instances = struct
     match gather_args mexpr with
     | Pmod_ident i, args ->
         let args = List.map instances_of_arg_pair args in
-        {head = head_of_ident i; args}
+        Global.Name.create (head_of_ident i) args
     | _ -> failwith "Malformed instance identifier"
   and instances_of_arg_pair (n, v) =
     instance_of_module_expr n, instance_of_module_expr v
