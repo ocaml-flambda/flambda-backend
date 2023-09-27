@@ -435,11 +435,10 @@ and subst_apply env apply =
   let inlining_state = Apply_expr.inlining_state apply in
   let relative_history = Apply_expr.relative_history apply in
   let position = Apply_expr.position apply in
-  let region = Apply_expr.region apply in
   let args_arity = Apply_expr.args_arity apply in
   let return_arity = Apply_expr.return_arity apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inlined ~inlining_state ~probe:None ~position ~relative_history ~region
+    ~inlined ~inlining_state ~probe:None ~position ~relative_history
     ~args_arity ~return_arity
   |> Expr.create_apply
 
@@ -913,7 +912,7 @@ let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   let compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f : _ Comparison.t =
-    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
     then f ()
     else Different { approximant = call_kind1 }
   in
@@ -937,7 +936,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
   | ( Method { kind = kind1; obj = obj1; alloc_mode = alloc_mode1 },
       Method { kind = kind2; obj = obj2; alloc_mode = alloc_mode2 } ) ->
-    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
     then
       pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
         (kind1, obj1) (kind2, obj2)
@@ -1006,7 +1005,6 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
-            ~region:(Apply_expr.region apply1)
             ~args_arity:(Apply_expr.args_arity apply1)
             ~return_arity:(Apply_expr.return_arity apply1)
           |> Expr.create_apply
