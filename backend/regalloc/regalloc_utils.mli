@@ -12,11 +12,9 @@ val find_param_value : string -> string option
 
 val bool_of_param : ?guard:bool * string -> string -> bool Lazy.t
 
-val stack_slots_optim : bool Lazy.t
-
 val validator_debug : bool Lazy.t
 
-type liveness = Cfg_with_liveness.liveness
+type liveness = Cfg_with_infos.liveness
 
 type log_function =
   { log :
@@ -67,12 +65,12 @@ val make_log_body_and_terminator :
   liveness ->
   unit
 
-val make_log_cfg_with_liveness :
+val make_log_cfg_with_infos :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
   term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
   indent:int ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   unit
 
 module Move : sig
@@ -93,6 +91,8 @@ module Move : sig
 end
 
 val same_reg_class : Reg.t -> Reg.t -> bool
+
+val same_stack_class : Reg.t -> Reg.t -> bool
 
 val make_temporary :
   same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t
@@ -131,7 +131,7 @@ val update_live_fields : Cfg_with_layout.t -> liveness -> unit
    [flat] is true, the same weight is given to all uses; if [flat] is false, the
    information about loops is computed and used to give more weight to uses
    inside (nested) loops. *)
-val update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit
+val update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit
 
 val check_length : string -> 'a array -> int -> unit
 

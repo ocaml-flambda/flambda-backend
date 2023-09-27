@@ -37,7 +37,7 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
             match Reg_width_const.descr const with
             | Tagged_immediate imm -> F.Tagged_immediate imm
             | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-            | Naked_nativeint _ ->
+            | Naked_vec128 _ | Naked_nativeint _ ->
               Misc.fatal_errorf
                 "Expected a constant of kind [Value] but got %a (dbg %a)"
                 Reg_width_const.print const Debuginfo.print_compact dbg))
@@ -54,6 +54,7 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   | Boxed_int32 i -> RSC.create_boxed_int32 art (Const i)
   | Boxed_int64 i -> RSC.create_boxed_int64 art (Const i)
   | Boxed_nativeint i -> RSC.create_boxed_nativeint art (Const i)
+  | Boxed_vec128 v -> RSC.create_boxed_vec128 art (Const v)
   | Immutable_float_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_float_array art fields

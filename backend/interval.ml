@@ -108,7 +108,7 @@ let insert_destroyed_at_oper intervals instr pos =
     update_interval_position_by_array intervals destroyed pos Result
 
 let insert_destroyed_at_raise intervals pos =
-  let destroyed = Proc.destroyed_at_raise in
+  let destroyed = Proc.destroyed_at_raise () in
   if Array.length destroyed > 0 then
     update_interval_position_by_array intervals destroyed pos Result
 
@@ -150,7 +150,7 @@ let build_intervals fd =
         walk_instruction i.next
     | Icatch(_, _ts, handlers, body) ->
         insert_destroyed_at_oper intervals i !pos;
-        List.iter (fun (_, _, i) -> walk_instruction i) handlers;
+        List.iter (fun (_, _, i, _) -> walk_instruction i) handlers;
         walk_instruction body;
         walk_instruction i.next
     | Iexit _ ->

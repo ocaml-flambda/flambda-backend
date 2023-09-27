@@ -45,7 +45,7 @@ method! class_of_operation op =
   | Icompf _
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _ | Iintop_atomic _

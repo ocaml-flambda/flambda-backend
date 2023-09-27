@@ -632,6 +632,14 @@ let mk_verbose f =
   "-verbose", Arg.Unit f, " Print calls to external commands"
 ;;
 
+let mk_verbose_types f =
+  "-verbose-types", Arg.Unit f, " Print detailed information within types"
+;;
+
+let mk_no_verbose_types f =
+  "-no-verbose-types", Arg.Unit f,
+  " Omit expert information within types (default)"
+
 let mk_version f =
   "-version", Arg.Unit f, " Print version and exit"
 ;;
@@ -1025,6 +1033,8 @@ module type Common_options = sig
   val _unboxed_types : unit -> unit
   val _no_unboxed_types : unit -> unit
   val _unsafe_string : unit -> unit
+  val _verbose_types : unit -> unit
+  val _no_verbose_types : unit -> unit
   val _version : unit -> unit
   val _vnum : unit -> unit
   val _w : string -> unit
@@ -1342,6 +1352,8 @@ struct
     mk_use_runtime_2 F._use_runtime;
     mk_v F._v;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_vmthread F._vmthread;
@@ -1418,6 +1430,8 @@ struct
     mk_no_unboxed_types F._no_unboxed_types;
     mk_unsafe F._unsafe;
     mk_unsafe_string F._unsafe_string;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_no_version F._no_version;
@@ -1562,6 +1576,8 @@ struct
     mk_unsafe_string F._unsafe_string;
     mk_v F._v;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_vnum F._vnum;
@@ -1684,6 +1700,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_unsafe F._unsafe;
     mk_unsafe_string F._unsafe_string;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_no_version F._no_version;
@@ -1770,6 +1788,8 @@ struct
     mk_unsafe_string F._unsafe_string;
     mk_v F._v;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_vmthread F._vmthread;
@@ -1843,6 +1863,7 @@ module Default = struct
     let _no_strict_formats = clear strict_formats
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
+    let _no_verbose_types = clear verbose_types
     let _disable_all_extensions = Language_extension.disallow_extensions
     let _only_erasable_extensions =
       Language_extension.restrict_to_erasable_extensions
@@ -1860,6 +1881,7 @@ module Default = struct
     let _strict_sequence = set strict_sequence
     let _unboxed_types = set unboxed_types
     let _unsafe_string = set unsafe_string
+    let _verbose_types = set verbose_types
     let _w s =
       Warnings.parse_options false s |> Option.iter Location.(prerr_alert none)
     let _debug_ocaml = set debug_ocaml

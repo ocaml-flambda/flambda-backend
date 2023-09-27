@@ -52,6 +52,7 @@ type operation =
   | Ireload
   | Iconst_int of nativeint
   | Iconst_float of int64
+  | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
   | Icall_ind
   | Icall_imm of { func : Cmm.symbol; }
@@ -78,7 +79,8 @@ type operation =
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
+      provenance : Backend_var.Provenance.t option; is_assignment : bool;
+      regs : Reg.t array }
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
@@ -100,7 +102,7 @@ and instruction_desc =
   | Ireturn of Cmm.trap_action list
   | Iifthenelse of test * instruction * instruction
   | Iswitch of int array * instruction array
-  | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction) list * instruction
+  | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction * bool) list * instruction
   | Iexit of int * Cmm.trap_action list
   | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
@@ -168,14 +170,14 @@ let rec instr_iter f i =
           instr_iter f i.next
       | Icatch(_, _ts, handlers, body) ->
           instr_iter f body;
-          List.iter (fun (_n, _ts, handler) -> instr_iter f handler) handlers;
+          List.iter (fun (_n, _ts, handler, _is_cold) -> instr_iter f handler) handlers;
           instr_iter f i.next
       | Iexit _ -> ()
       | Itrywith(body, _kind, (_ts, handler)) ->
           instr_iter f body; instr_iter f handler; instr_iter f i.next
       | Iraise _ -> ()
       | Iop (Imove | Ispill | Ireload
-            | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+            | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
@@ -206,9 +208,9 @@ let operation_is_pure = function
   | Icompf _
   | Icsel _
   | Ifloatofint | Iintoffloat
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-  | Iload (_, _, _) | Iname_for_debugger _
-    -> true
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Iload (_, _, _) -> true
+  | Iname_for_debugger _ -> false
 
 
 let operation_can_raise op =
@@ -226,7 +228,7 @@ let operation_can_raise op =
   | Icompf _
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
@@ -254,7 +256,7 @@ let free_conts_for_handlers fundecl =
       | Icatch (_rec_flag, _ts, handlers, body) ->
         let conts = S.union next_conts (free_conts body) in
         let conts =
-          List.fold_left (fun conts (nfail, ts, i) ->
+          List.fold_left (fun conts (nfail, ts, i, _is_cold) ->
             let rec add_exn_conts conts = function
               | Uncaught -> conts
               | Generic_trap ts -> add_exn_conts conts ts
@@ -265,7 +267,7 @@ let free_conts_for_handlers fundecl =
             S.union conts free)
             conts handlers
         in
-        List.fold_left (fun conts (nfail, _ts, _i) ->
+        List.fold_left (fun conts (nfail, _ts, _i, _is_cold) ->
           S.remove nfail conts)
           conts handlers
       | Iexit (nfail, _) -> S.add nfail next_conts

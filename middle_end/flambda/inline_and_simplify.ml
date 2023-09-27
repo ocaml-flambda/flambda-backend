@@ -678,7 +678,7 @@ and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambd
   match reg_close, mode with
   | (Rc_normal | Rc_nontail), Alloc_heap -> r
   | Rc_close_at_apply, _
-  | _, Alloc_local -> R.set_region_use r true
+  | _, Alloc_local -> R.set_region_used r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
@@ -777,10 +777,13 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
                 ~function_decls ~lhs_of_application ~closure_id_being_applied
                 ~function_decl ~value_set_of_closures ~dbg ~reg_close ~mode
                 ~inlined_requested ~specialise_requested ~result_layout
-            else if nargs > 0 && nargs < arity then
+            else if nargs > 0 && nargs < arity then begin
+              assert(Lambda.compatible_layout Lambda.layout_function
+                       result_layout);
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-                ~inlined_requested ~specialise_requested ~result_layout
+                ~inlined_requested ~specialise_requested
+            end
             else
               Misc.fatal_errorf "Function with arity %d when simplifying \
                   application expression: %a"
@@ -809,7 +812,7 @@ and simplify_full_application env r ~function_decls ~lhs_of_application
 
 and simplify_partial_application env r ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-      ~inlined_requested ~specialise_requested ~result_layout
+      ~inlined_requested ~specialise_requested
   =
   let arity = A.function_arity function_decl in
   assert (arity > List.length args);
@@ -867,10 +870,9 @@ and simplify_partial_application env r ~lhs_of_application
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
-        result_layout;
+        result_layout = function_decl.A.return_layout;
       }
     in
-    assert(Lambda.compatible_layout function_decl.A.return_layout result_layout);
     let closure_variable =
       Variable.rename ~debug_info:(Closure_id.debug_info closure_id_being_applied)
         (Closure_id.unwrap closure_id_being_applied)
@@ -972,7 +974,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
   | Set_of_closures set_of_closures -> begin
     let r =
       match set_of_closures.alloc_mode with
-      | Alloc_local -> R.set_region_use r true
+      | Alloc_local -> R.set_region_used r
       | Alloc_heap -> r
     in
     let set_of_closures, r, first_freshening =
@@ -1068,7 +1070,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
       let tree = Flambda.Prim (prim, args, dbg) in
       let r =
         if Semantics_of_primitives.may_locally_allocate prim then
-          R.set_region_use r true
+          R.set_region_used r
         else r
       in
       begin match prim, args, args_approxs with
@@ -1457,16 +1459,17 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
   | Region (Exclave body) ->
      simplify env r body
   | Region body ->
-     let use_outer_region = R.may_use_region r in
-     let r = R.set_region_use r false in
+     let r = R.enter_region r in
      let body, r = simplify env r body in
      let use_inner_region = R.may_use_region r in
-     let r = R.set_region_use r use_outer_region in
+     let r = R.leave_region r in
      if use_inner_region then Region body, r
      else body, r
   | Exclave body ->
-     let r = R.set_region_use r true in
+     let r = R.set_region_used r in
+     let exclave, r = R.enter_exclave r in
      let body, r = simplify env r body in
+     let r = R.leave_exclave r exclave in
      Exclave body, r
   | Proved_unreachable -> tree, ret r A.value_bottom
 

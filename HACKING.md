@@ -206,31 +206,114 @@ something like:
 
 ## Using the OCaml debugger to debug the compiler
 
-Run `make debug`. This completes three steps:
+First, run `make debug`. This completes three steps:
 
 1. `make install`
 2. Sets up the `ocaml/tools/debug_printers` script so that you can `source
    ocaml/tools/debug_printers` during a debugging session to see
-   otherwise-abstract variable values.
-3. Symlinks `./ocamlc` to point to the bytecode compiler. This is convenient for
-   emacs integration, because emacs looks for sources starting in the directory
-   containing the executable.
-   
-To actually run the debugger from emacs (other workflows are possible; just
-tweak these instructions):
+   otherwise-abstract variable values.  This script is automatically loaded by
+   the debugger due to the `.ocamldebug` file at the root of the compiler repo.
+3. Symlinks `./ocamlc` and `./ocamlopt` to point to the bytecode versions of
+   those compilers. This is convenient for emacs integration, because emacs
+   looks for sources starting in the directory containing the executable.
 
-1. Run `M-x camldebug RET`
-2. Choose the `ocamlc` symlink in the root of the repo.
-3. Choose the arguments to pass to `ocamlc`, likely a full path to a test `.ml`
-   file.
-4. Choose the built `ocamldebug`, in your install directory.
-5. Set any breakpoints you want. The easiest way is to navigate to the line
-   where you want the breakpoint and use `C-x C-a C-b` in emacs.
-6. Install the debug printers, with `source ocaml/tools/debug_printers`.
-7. `run` to your breakpoint.
+Then it's time to run the debugger itself.  The recommended workflow is to add
+the elisp below to your emacs init file, and then use the command
+`ocamldebug-ocamlc` to debug `ocamlc` or the command `ocamldebug-ocamlopt` to
+debug `ocamlopt`.
+
+```
+;; directly inspired by the ocamldebug implementation in ocamldebug.el
+(require 'ocamldebug)
+(defun ocamldebug-ocaml (cmd)
+  "Runs ocamldebug on the provided command"
+  (interactive)
+  (let* ((ocaml-dir (expand-file-name
+                     (locate-dominating-file (buffer-file-name) ".git")))
+         (pgm-path (file-name-concat ocaml-dir cmd))
+         (comint-name (concat "ocamldebug-" cmd))
+         (buffer-name (concat "*" comint-name "*"))
+         (ocamldebug-command-name
+          (file-name-concat ocaml-dir "_build/install/main/bin/ocamldebug")))
+    (unless (file-exists-p ocamldebug-command-name)
+      (error "No debugger found; run `make debug` first."))
+    (pop-to-buffer buffer-name)
+    (unless (comint-check-proc buffer-name)
+      (setq default-directory ocaml-dir)
+      (setq ocamldebug-debuggee-args
+            (read-from-minibuffer (format "Args for ocamlc: ")
+                                  ocamldebug-debuggee-args))
+      (let* ((cmo-top-dir (file-name-concat ocaml-dir "_build/main"))
+             (find-cmo-cmd (concat "find "
+                                   cmo-top-dir
+                                   " -name '*.cmo' -type f -printf '%h\n' | sort -u"))
+             (cmo-dirs (shell-command-to-string find-cmo-cmd)))
+        (setq cmo-dir-list (split-string cmo-dirs "\n" t)))
+      (let* ((user-args (split-string-shell-command ocamldebug-debuggee-args))
+             (includes (mapcan (lambda (dir) (list "-I" dir)) cmo-dir-list))
+             (args (append (list
+                             comint-name
+                             ocamldebug-command-name
+                             nil
+                             "-emacs"
+                             "-cd" default-directory)
+                           includes
+                           (list pgm-path)
+                           user-args)))
+        (apply #'make-comint args)
+        (set-process-filter (get-buffer-process (current-buffer))
+                            #'ocamldebug-filter)
+        (set-process-sentinel (get-buffer-process (current-buffer))
+                              #'ocamldebug-sentinel)
+        (ocamldebug-mode)))
+    (ocamldebug-set-buffer)))
+(defun ocamldebug-ocamlc ()
+  "Runs ocamldebug on the ocamlc built from the source file in the active buffer"
+  (interactive)
+  (ocamldebug-ocaml "ocamlc"))
+(defun ocamldebug-ocamlopt ()
+  "Runs ocamldebug on the ocamlopt built from the source file in the active buffer"
+  (interactive)
+  (ocamldebug-ocaml "ocamlopt"))
+```
+
+These commands will prompt you for the arguments to be passed to the compiler.
+Usually this includes the location of a test `.ml` file to be compiled (note
+that `~` will not be expanded, so using a full path is often necessary).
+Compiler command line flags may also be passed this way (e.g., `-extension`
+flags).
+
+Once at the ocamldebugger's `(ocd)` prompt, you are ready to set breakpoints
+in relevant compiler source files with `C-x C-a C-b` and `run` the debugger.
 
 See [the manual section](https://v2.ocaml.org/manual/debugger.html) for more
 information about the debugger.
+
+### Alternative debugger workflow
+
+Rather than using our elisp above, you can instead manually invoke the
+ocamldebug emacs mode as follows:
+
+1. Run `M-x camldebug RET`
+2. Choose the `ocamlc` or `ocamlopt` symlink in the root of the repo.
+3. Choose the arguments to pass to the compiler, likely a full path to a test
+   `.ml` file.
+4. Choose the built `ocamldebug`, in your install directory.
+5. Set any breakpoints you want. The easiest way is to navigate to the line
+   where you want the breakpoint and use `C-x C-a C-b` in emacs.
+6. Add relevant directories to `ocamldebug`'s search path.  (If you skip this,
+   printing any value may produce `Cannot find module Misc.` or similar
+   errors).  If debugging `ocamlc`, run:
+   ```
+   (ocd) directory _build/main/ocaml/.ocamlcommon.objs/byte
+   ```
+   If debugging `ocamlopt`, you'll need various additional directories depending
+   on your middle end.  You can find the right directories by searching for cmo
+   files corresponding to the module named in the error message.
+7. `run` to your breakpoint.
+
+The elisp `ocamldebug-ocaml{c,opt}` functions automate steps 1, 2, 4, 6, and 7,
+above.
 
 ## Getting the compilation command for a stdlib file
 

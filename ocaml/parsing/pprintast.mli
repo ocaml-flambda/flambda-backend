@@ -49,7 +49,3 @@ val structure_item: Format.formatter -> Parsetree.structure_item -> unit
 val signature_item: Format.formatter -> Parsetree.signature_item -> unit
 val binding: Format.formatter -> Parsetree.value_binding -> unit
 val payload: Format.formatter -> Parsetree.payload -> unit
-
-val tyvar: Format.formatter -> string -> unit
-  (** Print a type variable name, taking care of the special treatment
-      required for the single quote character in second position. *)

@@ -548,27 +548,12 @@ let all_sets_of_closures_map program =
           set_of_closures !r);
   !r
 
-let substitute_read_symbol_field_for_variables
-    (substitution : (Symbol.t * int list) Variable.Map.t)
+let substitute_named_for_variables
+    (substitution : Flambda.named Variable.Map.t)
     (expr : Flambda.t) =
   let bind var fresh_var (expr:Flambda.t) : Flambda.t =
-    let symbol, path = Variable.Map.find var substitution in
-    let rec make_named (path:int list) : Flambda.named =
-      match path with
-      | [] -> Symbol symbol
-      | [i] -> Read_symbol_field (symbol, i)
-      | h :: t ->
-          let block_name = Internal_variable_names.symbol_field_block in
-          let block = Variable.create block_name in
-          let field_name = Internal_variable_names.get_symbol_field in
-          let field = Variable.create field_name in
-          Expr (
-            Flambda.create_let block (make_named t)
-              (Flambda.create_let field
-                 (Prim (Pfield (h, Pvalue Pgenval), [block], Debuginfo.none))
-                 (Var field)))
-    in
-    Flambda.create_let fresh_var (make_named path) expr
+    let named = Variable.Map.find var substitution in
+    Flambda.create_let fresh_var named expr
   in
   let substitute_named bindings (named:Flambda.named) : Flambda.named =
     let sb to_substitute =

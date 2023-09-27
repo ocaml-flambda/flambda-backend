@@ -255,18 +255,23 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
         { ident = left_ident;
           which_parameter = left_which_parameter;
           provenance = left_provenance;
-          is_assignment = left_is_assignment
+          is_assignment = left_is_assignment;
+          regs = left_regs
         },
       Name_for_debugger
         { ident = right_ident;
           which_parameter = right_which_parameter;
           provenance = right_provenance;
-          is_assignment = right_is_assignment
+          is_assignment = right_is_assignment;
+          regs = right_regs
         } )
     when Ident.same left_ident right_ident
          && Option.equal Int.equal left_which_parameter right_which_parameter
-         && Option.equal Unit.equal left_provenance right_provenance
-         && Bool.equal left_is_assignment right_is_assignment ->
+         && Option.equal Backend_var.Provenance.equal left_provenance
+              right_provenance
+         && Bool.equal left_is_assignment right_is_assignment
+         && List.equal Reg.same (Array.to_list left_regs)
+              (Array.to_list right_regs) ->
     ()
   | _ -> different location "operation"
  [@@ocaml.warning "-4"]

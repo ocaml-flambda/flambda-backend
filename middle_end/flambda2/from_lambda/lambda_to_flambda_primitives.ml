@@ -429,6 +429,8 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
     fun arg -> H.Unary (Box_number (Naked_int64, alloc_mode), Prim arg)
   | Naked_number Naked_nativeint ->
     fun arg -> H.Unary (Box_number (Naked_nativeint, alloc_mode), Prim arg)
+  | Naked_number Naked_vec128 ->
+    fun arg -> H.Unary (Box_number (Naked_vec128, alloc_mode), Prim arg)
   | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 
@@ -449,6 +451,8 @@ let bigarray_unbox_or_untag_value_to_store kind =
     fun arg -> H.Prim (Unary (Unbox_number Naked_int64, arg))
   | Naked_number Naked_nativeint ->
     fun arg -> H.Prim (Unary (Unbox_number Naked_nativeint, arg))
+  | Naked_number Naked_vec128 ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_vec128, arg))
   | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 

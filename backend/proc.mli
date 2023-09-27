@@ -21,13 +21,19 @@ val word_addressed: bool
 (* Registers available for register allocation *)
 val num_register_classes: int
 val register_class: Reg.t -> int
-val register_class_tag: int -> string
 val num_available_registers: int array
 val first_available_register: int array
-val register_name: int -> string
-val phys_reg: int -> Reg.t
+val register_name: Cmm.machtype_component -> int -> string
+val phys_reg: Cmm.machtype_component -> int -> Reg.t
 val rotate_registers: bool
-val all_phys_regs : Reg.t array
+val precolored_regs : unit -> Reg.Set.t
+
+(* The number of stack slot classes may differ from the number of register classes.
+   On x86, we use the same class for floating point and SIMD vector registers,
+   but they take up different amounts of space on the stack. *)
+val num_stack_slot_classes: int
+val stack_slot_class: Cmm.machtype_component -> int
+val stack_class_tag: int -> string
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
@@ -55,7 +61,7 @@ val max_register_pressure: Mach.operation -> int array
 
 (* Registers destroyed by operations *)
 val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
-val destroyed_at_raise: Reg.t array
+val destroyed_at_raise: unit -> Reg.t array
 val destroyed_at_reloadretaddr : Reg.t array
 val destroyed_at_pushtrap : Reg.t array
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array
@@ -66,10 +72,32 @@ val is_destruction_point : Cfg_intf.S.terminator -> bool
 val regs_are_volatile: Reg.t array -> bool
 
 (* Info for laying out the stack frame *)
+
+val initial_stack_offset : int
+val trap_frame_size_in_bytes : int
+
 val frame_required :
   fun_contains_calls:bool ->
-  fun_num_stack_slots: int array ->
+  fun_num_stack_slots:int array ->
   bool
+
+val frame_size :
+  stack_offset:int ->
+  fun_contains_calls:bool ->
+  fun_num_stack_slots:int array ->
+  int
+
+type slot_offset = private
+  | Bytes_relative_to_stack_pointer of int
+  | Bytes_relative_to_domainstate_pointer of int
+
+val slot_offset :
+  Reg.stack_location ->
+  stack_class:int ->
+  stack_offset:int ->
+  fun_contains_calls:bool ->
+  fun_num_stack_slots:int array ->
+  slot_offset
 
 (* Function prologues *)
 val prologue_required :
@@ -85,6 +113,9 @@ val dwarf_register_numbers : reg_class:int -> int array
 
 (** The DWARF register number corresponding to the stack pointer. *)
 val stack_ptr_dwarf_register_number : int
+
+(** The DWARF register number corresponding to the domainstate pointer. *)
+val domainstate_ptr_dwarf_register_number : int
 
 (* Calling the assembler *)
 val assemble_file: string -> string -> int

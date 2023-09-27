@@ -293,11 +293,18 @@ module Function_decls : sig
   module Function_decl : sig
     type t
 
+    type param =
+      { name : Ident.t;
+        kind : Flambda_kind.With_subkind.t;
+        attributes : Lambda.parameter_attribute;
+        mode : Lambda.alloc_mode
+      }
+
     val create :
       let_rec_ident:Ident.t option ->
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
-      params:(Ident.t * Flambda_kind.With_subkind.t) list ->
+      params:param list ->
       return:Flambda_arity.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
@@ -308,7 +315,7 @@ module Function_decls : sig
       free_idents_of_body:Ident.Set.t ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
-      num_trailing_local_params:int ->
+      first_complex_local_param:int ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -318,7 +325,7 @@ module Function_decls : sig
 
     val kind : t -> Lambda.function_kind
 
-    val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
+    val params : t -> param list
 
     val return : t -> Flambda_arity.t
 
@@ -350,7 +357,7 @@ module Function_decls : sig
 
     val closure_alloc_mode : t -> Lambda.alloc_mode
 
-    val num_trailing_local_params : t -> int
+    val first_complex_local_param : t -> int
 
     val contains_no_escaping_local_allocs : t -> bool
 
@@ -408,7 +415,7 @@ module Let_cont_with_acc : sig
     Acc.t ->
     invariant_params:Bound_parameters.t ->
     handlers:
-      ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool)
+      ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool * bool)
       Continuation.Map.t ->
     body:(Acc.t -> Expr_with_acc.t) ->
     Expr_with_acc.t
@@ -420,5 +427,6 @@ module Let_cont_with_acc : sig
     handler:(Acc.t -> Expr_with_acc.t) ->
     body:(Acc.t -> Expr_with_acc.t) ->
     is_exn_handler:bool ->
+    is_cold:bool ->
     Expr_with_acc.t
 end

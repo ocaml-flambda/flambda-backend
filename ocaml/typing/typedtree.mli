@@ -171,8 +171,8 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string
-        (** fun (type t) ->  *)
+  | Texp_newtype of string * const_layout option
+        (** fun (type t : immediate) ->  *)
 
 and fun_curry_state =
   | More_args of { partial_mode : Types.alloc_mode }
@@ -214,6 +214,8 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Types.alloc_mode;
+      arg_sort : Layouts.sort;
+      ret_sort : Layouts.sort;
       alloc_mode : Types.alloc_mode}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
@@ -303,15 +305,11 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * Layouts.layout * expression
-    (* CR layouts v5: The layout above is only used for the void sanity check now.
-       Remove it at an appropriate time. *)
+  | Texp_sequence of expression * Layouts.sort * expression
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_layout : Layouts.layout
-      (* CR layouts v5: The layout above is only used for the void sanity check
-         now.  Remove it at an appropriate time. *)
+      wh_body_sort : Layouts.sort
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -320,9 +318,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_layout : Layouts.layout;
-      (* CR layouts v5: The layout above is only used for the void sanity check
-         now.  Remove it at an appropriate time. *)
+      for_body_sort : Layouts.sort;
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
     (** [alloc_mode] is the allocation mode of the result *)
@@ -343,7 +339,9 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
+      param_sort : Layouts.sort;
       body : value case;
+      body_sort : Layouts.sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -416,6 +414,7 @@ and binding_op =
     bop_op_type : Types.type_expr;
     (* This is the type at which the operator was used.
        It is always an instance of [bop_op_val.val_type] *)
+    bop_op_return_sort : Layouts.sort;
     bop_exp : expression;
     bop_loc : Location.t;
   }
@@ -428,12 +427,9 @@ and omitted_parameter =
   { mode_closure : Types.alloc_mode;
     mode_arg : Types.alloc_mode;
     mode_ret : Types.alloc_mode;
-    (* CR ncourant: actually, we only need this to be able to compute the layout
-       in [Translcore], change this when merging with the front-end. *)
-    ty_arg : Types.type_expr;
-    ty_env : Env.t}
+    sort_arg : Layouts.sort }
 
-and apply_arg = (expression, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Layouts.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)
@@ -719,16 +715,15 @@ and core_type =
    }
 
 and core_type_desc =
-    Ttyp_any
-  | Ttyp_var of string
+  | Ttyp_var of string option * const_layout option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string
+  | Ttyp_alias of core_type * string option * const_layout option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of string list * core_type
+  | Ttyp_poly of (string * Asttypes.const_layout option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -780,7 +775,6 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
-    typ_layout_annotation: Layouts.layout option;
    }
 
 and type_kind =
@@ -804,7 +798,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: string loc list;
+     cd_vars: (string * const_layout option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -844,7 +838,9 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of string loc list * constructor_arguments * core_type option
+    Text_decl of (string * const_layout option) list *
+                 constructor_arguments *
+                 core_type option
   | Text_rebind of Path.t * Longident.t loc
 
 and class_type =

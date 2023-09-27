@@ -203,9 +203,9 @@ let initial_env ~loc ~safe_string ~initially_opened_module
     ~open_implicit_modules =
   let env =
     if safe_string then
-      Env.initial_safe_string
+      Lazy.force Env.initial_safe_string
     else
-      Env.initial_unsafe_string
+      Lazy.force Env.initial_unsafe_string
   in
   let open_module env m =
     let open Asttypes in
@@ -513,21 +513,30 @@ let check_well_formed_module env loc context mty =
 let () = Env.check_well_formed_module := check_well_formed_module
 
 let type_decl_is_alias sdecl = (* assuming no explicit constraint *)
+  let eq_vars x y =
+    match Jane_syntax.Core_type.of_ast x, Jane_syntax.Core_type.of_ast y with
+    (* a layout annotation on either type variable might mean this definition
+       is not an alias. Example: {v
+         type ('a : value) t
+         type ('a : immediate) t2 = ('a : immediate) t
+       v}
+       But the only way to know that t2 isn't an alias is to look at
+       layouts in the environment, which is hard to do here. So we
+       conservatively say that any layout annotations block alias
+       detection.
+    *)
+    | (Some _, _) | (_, Some _) -> false
+    | None, None ->
+    match x.ptyp_desc, y.ptyp_desc with
+    | Ptyp_var sx, Ptyp_var sy -> sx = sy
+    | _, _ -> false
+  in
   match sdecl.ptype_manifest with
   | Some {ptyp_desc = Ptyp_constr (lid, stl)}
        when List.length stl = List.length sdecl.ptype_params ->
-     begin
-       match
-         List.iter2 (fun x (y, _) ->
-             match x, y with
-               {ptyp_desc=Ptyp_var sx}, {ptyp_desc=Ptyp_var sy}
-                  when sx = sy -> ()
-             | _, _ -> raise Exit)
-           stl sdecl.ptype_params;
-       with
-       | exception Exit -> None
-       | () -> Some lid
-     end
+    if List.for_all2 (fun x (y, _) -> eq_vars x y) stl sdecl.ptype_params
+    then Some lid
+    else None
   | _ -> None
 ;;
 
@@ -3521,7 +3530,8 @@ let package_units initial_env objfiles cmifile modulename =
            Env.read_signature global_name (pref ^ ".cmi") ~add_binding:false
          in
          if Filename.check_suffix f ".cmi" &&
-            not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
+            not(Mtype.no_code_needed_sig (Lazy.force Env.initial_safe_string)
+                  sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,

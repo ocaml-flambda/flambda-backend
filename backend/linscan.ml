@@ -72,7 +72,7 @@ let rec release_expired_inactive ci pos = function
 (* Allocate a new stack slot to the interval. *)
 
 let allocate_stack_slot num_stack_slots i =
-  let cl = Proc.register_class i.reg in
+  let cl = Proc.stack_slot_class i.reg.typ in
   let ss = num_stack_slots.(cl) in
   num_stack_slots.(cl) <- succ ss;
   i.reg.loc <- Stack(Local ss);
@@ -189,7 +189,7 @@ let allocate_registers() =
     };
   done;
   (* Reset the stack slot counts *)
-  let num_stack_slots = Array.make Proc.num_register_classes 0 in
+  let num_stack_slots = Array.make Proc.num_stack_slot_classes 0 in
   (* Add all fixed intervals (sorted by end position) *)
   List.iter
     (fun i ->

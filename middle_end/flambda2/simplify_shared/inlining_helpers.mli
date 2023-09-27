@@ -66,6 +66,7 @@ val wrap_inlined_body_for_exn_extra_args :
     handler:('acc -> 'expr_with_acc) ->
     body:('acc -> 'expr_with_acc) ->
     is_exn_handler:bool ->
+    is_cold:bool ->
     'expr_with_acc) ->
   'expr_with_acc
 

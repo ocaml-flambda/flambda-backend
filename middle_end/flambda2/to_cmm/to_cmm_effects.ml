@@ -96,6 +96,7 @@ let cont_is_known_to_have_exactly_one_occurrence k (num : _ Or_unknown.t) =
 let classify_continuation_handler k handler ~num_free_occurrences
     ~is_applied_with_traps : continuation_handler_classification =
   if (not (Continuation_handler.is_exn_handler handler))
+     && (not (Continuation_handler.is_cold handler))
      && (not is_applied_with_traps)
      && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
   then May_inline

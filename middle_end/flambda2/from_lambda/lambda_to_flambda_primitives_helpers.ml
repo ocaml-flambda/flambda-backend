@@ -227,17 +227,18 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
           in
           Let_cont_with_acc.build_non_recursive acc condition_passed_cont
             ~handler_params:Bound_parameters.empty
-            ~handler:condition_passed_expr ~body ~is_exn_handler:false)
+            ~handler:condition_passed_expr ~body ~is_exn_handler:false
+            ~is_cold:false)
         prim_apply_cont validity_conditions
     in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc failure_cont
         ~handler_params:Bound_parameters.empty ~handler:failure_handler_expr
-        ~body:check_validity_conditions ~is_exn_handler:false
+        ~body:check_validity_conditions ~is_exn_handler:false ~is_cold:true
     in
     Let_cont_with_acc.build_non_recursive acc primitive_cont
       ~handler_params:Bound_parameters.empty ~handler:primitive_handler_expr
-      ~body ~is_exn_handler:false
+      ~body ~is_exn_handler:false ~is_cold:false
   | If_then_else (cond, ifso, ifnot) ->
     let cond_result = Variable.create "cond_result" in
     let cond_result_pat = Bound_var.create cond_result Name_mode.normal in
@@ -298,16 +299,16 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifnot_cont
         ~handler_params:Bound_parameters.empty ~handler:ifnot_handler_expr
-        ~body:compute_cond_and_switch ~is_exn_handler:false
+        ~body:compute_cond_and_switch ~is_exn_handler:false ~is_cold:false
     in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifso_cont
         ~handler_params:Bound_parameters.empty ~handler:ifso_handler_expr ~body
-        ~is_exn_handler:false
+        ~is_exn_handler:false ~is_cold:false
     in
     Let_cont_with_acc.build_non_recursive acc join_point_cont
       ~handler_params:(Bound_parameters.create [result_param])
-      ~handler:join_handler_expr ~body ~is_exn_handler:false
+      ~handler:join_handler_expr ~body ~is_exn_handler:false ~is_cold:false
 
 and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
     (dbg : Debuginfo.t) (cont : Acc.t -> Simple.t -> Expr_with_acc.t) :

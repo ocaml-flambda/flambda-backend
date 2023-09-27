@@ -24,7 +24,7 @@ val log_substitutions : indent:int -> Substitution.map -> unit
 
 val log_stack_subst : indent:int -> Substitution.t -> unit
 
-val live_at_block_beginning : Cfg_with_liveness.t -> Label.t -> Reg.Set.t
+val live_at_block_beginning : Cfg_with_infos.t -> Label.t -> Reg.Set.t
 
 type destruction_kind =
   | Destruction_on_all_paths

@@ -4,7 +4,7 @@ open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let live_before :
-    type a. a Cfg.instruction -> Cfg_with_liveness.liveness -> Reg.Set.t =
+    type a. a Cfg.instruction -> Cfg_with_infos.liveness -> Reg.Set.t =
  fun instr liveness ->
   match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
   | None -> fatal "no liveness information for instruction %d" instr.id
@@ -28,12 +28,11 @@ let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
       changed := !changed || is_deadcode;
       not is_deadcode)
 
-let run cfg_with_liveness =
-  let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
+let run cfg_with_infos =
+  let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let changed = ref false in
-  Cfg.iter_blocks (Cfg_with_liveness.cfg cfg_with_liveness)
-    ~f:(fun _label block ->
+  Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun _label block ->
       remove_deadcode block.body changed liveness
         (live_before block.terminator liveness));
-  if !changed then Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
-  cfg_with_liveness
+  if !changed then Cfg_with_infos.invalidate_liveness cfg_with_infos;
+  cfg_with_infos

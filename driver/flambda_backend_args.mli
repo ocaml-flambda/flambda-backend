@@ -23,6 +23,7 @@ module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
+  val davail : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
@@ -30,6 +31,9 @@ module type Flambda_backend_options = sig
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
+
+  val cfg_peephole_optimize : unit -> unit
+  val no_cfg_peephole_optimize : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -119,6 +123,8 @@ module type Debugging_options = sig
   val no_restrict_to_upstream_dwarf : unit -> unit
   val dwarf_for_startup_file : unit -> unit
   val no_dwarf_for_startup_file : unit -> unit
+  val gdwarf_may_alter_codegen : unit -> unit
+  val no_gdwarf_may_alter_codegen : unit -> unit
 end
 
 (** Command line arguments required for ocamlopt. *)

@@ -325,7 +325,9 @@ let rec class_type_field env sign self_scope ctf =
                  Ctype.newvar (Layout.value ~why:Object_field)
                in
                add_method loc env lab priv virt expected_ty sign;
-               let returned_cty = ctyp Ttyp_any (Ctype.newty Tnil) env loc in
+               let returned_cty =
+                 ctyp (Ttyp_var (None, None)) (Ctype.newty Tnil) env loc
+               in
                delayed_meth_specs :=
                  Warnings.mk_lazy (fun () ->
                    let cty = transl_simple_type_univars env sty' in
@@ -999,8 +1001,8 @@ and class_fields_second_pass cl_num sign met_env fields =
 and class_structure cl_num virt self_scope final val_env met_env loc
   { pcstr_self = spat; pcstr_fields = str } =
   (* Environment for substructures *)
-  let val_env = Env.add_lock Alloc_mode.global val_env in
-  let met_env = Env.add_lock Alloc_mode.global met_env in
+  let val_env = Env.add_lock Alloc_mode.global (Env.add_unboxed_lock val_env) in
+  let met_env = Env.add_lock Alloc_mode.global (Env.add_unboxed_lock met_env) in
   let par_env = met_env in
 
   (* Location of self. Used for locations of self arguments *)
@@ -1280,16 +1282,24 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
             let use_arg sarg l' =
               Arg (
                 if not optional || Btype.is_optional l' then
-                  type_argument val_env sarg ty ty0
+                  let arg = type_argument val_env sarg ty ty0 in
+                  arg, Sort.value
                 else
                   let ty' = extract_option_type val_env ty
                   and ty0' = extract_option_type val_env ty0 in
                   let arg = type_argument val_env sarg ty' ty0' in
-                  option_some val_env arg Value_mode.global
+                  option_some val_env arg Value_mode.global,
+                  (* CR layouts v5: Change the sort when options can hold
+                     non-values. *)
+                  Sort.value
               )
             in
             let eliminate_optional_arg () =
-              Arg (option_none val_env ty0 Location.none)
+              Arg (option_none val_env ty0 Location.none,
+                   (* CR layouts v5: Change the sort when options can hold
+                      non-values. *)
+                   Sort.value
+                  )
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
@@ -1324,7 +1334,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Alloc_mode.global in
                       let mode_arg = Alloc_mode.global in
                       let mode_ret = Alloc_mode.global in
-                      Omitted { mode_closure; mode_arg; mode_ret; ty_arg = ty; ty_env = val_env }
+                      let sort_arg = Sort.value in
+                      Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
                     end
             in
             let omitted =
@@ -1604,7 +1615,13 @@ let class_infos define_class kind
   let ci_params =
     let make_param (sty, v) =
       try
-          (transl_type_param env sty (Layout.value ~why:Class_argument), v)
+        let param = transl_type_param env (Pident ty_id) sty in
+        (* CR layouts: we require class type parameters to be values, but
+           we should lift this restriction. Doing so causes bad error messages
+           today, so we wait for tomorrow. *)
+        Ctype.unify env param.ctyp_type
+          (Ctype.newvar (Layout.value ~why:Class_argument));
+        (param, v)
       with Already_bound ->
         raise(Error(sty.ptyp_loc, env, Repeated_parameter))
     in

@@ -26,9 +26,7 @@ val log_renaming_info : indent:int -> t -> unit
      (this set contains the original name of the registers which need
       a phi, i.e. if we need to insert `x = phi(x', x'')` then the set
       contains `x`). *)
-val make : Cfg_with_liveness.t -> next_instruction_id:Instruction.id -> t
-
-val dominators : t -> Cfg_dominators.t
+val make : Cfg_with_infos.t -> next_instruction_id:Instruction.id -> t
 
 val destructions_at_end : t -> destructions_at_end
 

@@ -85,6 +85,7 @@ val binary_annotations_cms : bool ref
 val use_threads : bool ref
 val noassert : bool ref
 val verbose : bool ref
+val verbose_types : bool ref
 val noprompt : bool ref
 val nopromptcont : bool ref
 val init_file : string option ref

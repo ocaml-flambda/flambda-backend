@@ -24,6 +24,8 @@ module Sort : sig
       (** No run time representation at all *)
     | Value
       (** Standard ocaml value representation *)
+    | Float64
+      (** Unboxed 64-bit floats *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -41,6 +43,7 @@ module Sort : sig
 
   val void : t
   val value : t
+  val float64 : t
 
   (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
@@ -49,6 +52,8 @@ module Sort : sig
   (** This checks for equality, and sets any variables to make two sorts
       equal, if possible *)
   val equate : t -> t -> bool
+
+  val equal_const : const -> const -> bool
 
   val format : Format.formatter -> t -> unit
 
@@ -59,10 +64,47 @@ module Sort : sig
       variable is unfilled. *)
   val is_void_defaulting : t -> bool
 
+  (** [get_default_value] extracts the sort as a `const`.  If it's a variable,
+      it is set to [value] first. *)
+  val get_default_value : t -> const
+
   module Debug_printers : sig
     val t : Format.formatter -> t -> unit
     val var : Format.formatter -> var -> unit
   end
+
+  (* CR layouts: These are sorts for the types of ocaml expressions that are
+     currently required to be values, but for which we expect to relax that
+     restriction in versions 2 and beyond.  Naming them makes it easy to find
+     where in the translation to lambda they are assume to be value. *)
+  (* CR layouts: add similarly named layouts and use those names everywhere (not
+     just the translation to lambda) rather than writing specific layouts and
+     sorts in the code. *)
+  val for_class_arg : t
+  val for_instance_var : t
+  val for_bop_exp : t
+  val for_lazy_body : t
+  val for_tuple_element : t
+  val for_record : t
+  val for_record_field : t
+  val for_constructor_arg : t
+  val for_block_element : t
+  val for_array_get_result : t
+  val for_array_element : t
+  val for_list_element : t
+
+  (** These are sorts for the types of ocaml expressions that we expect will
+      always be "value".  These names are used in the translation to lambda to
+      make the code clearer. *)
+  val for_function : t
+  val for_probe_body : t
+  val for_poly_variant : t
+  val for_object : t
+  val for_initializer : t
+  val for_method : t
+  val for_module : t
+  val for_predef_value : t (* Predefined value types, e.g. int and string *)
+  val for_tuple : t
 end
 
 type sort = Sort.t
@@ -101,12 +143,19 @@ module Layout : sig
     | Function_result
     | Structure_item_expression
     | V1_safety_check
+    | External_argument
+    | External_result
+    | Statement
 
   type annotation_context =
     | Type_declaration of Path.t
-    | Type_parameter of Path.t * string
+    | Type_parameter of Path.t * string option
     | With_constraint of string
     | Newtype_declaration of string
+    | Constructor_type_parameter of Path.t * string
+    | Univar of string
+    | Type_variable of string
+    | Type_wildcard of Location.t
 
    type value_creation_reason =
     | Class_let_binding
@@ -141,6 +190,7 @@ module Layout : sig
     | Structure_element
     | Debug_printer_argument
     | V1_safety_check
+    | Captured_in_object
     | Unknown of string  (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =
@@ -170,6 +220,9 @@ module Layout : sig
          unified to correct levels *)
     | Type_expression_call
 
+  type float64_creation_reason =
+    | Primitive of Ident.t
+
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Value_creation of value_creation_reason
@@ -177,6 +230,7 @@ module Layout : sig
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
 
@@ -237,6 +291,7 @@ module Layout : sig
     | Void
     | Immediate64
     | Immediate
+    | Float64
   val string_of_const : const -> string
   val equal_const : const -> const -> bool
 
@@ -258,6 +313,10 @@ module Layout : sig
   (** We know for sure that values of types of this layout are always immediate *)
   val immediate : why:immediate_creation_reason -> t
 
+  (** This is the layout of unboxed 64-bit floats.  They have sort Float64. *)
+  val float64 : why:float64_creation_reason -> t
+
+
   (******************************)
   (* construction *)
 
@@ -267,18 +326,28 @@ module Layout : sig
   val of_sort : why:concrete_layout_reason -> sort -> t
   val of_const : why:creation_reason -> const -> t
 
+  (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
+     is rerouted away from the new annotations mechanism *)
+  val of_annotation :
+    ?legacy_immediate:bool -> context:annotation_context -> Asttypes.layout_annotation -> t
+
+  val of_annotation_option_default :
+    ?legacy_immediate:bool ->
+    default:t -> context:annotation_context ->
+    Asttypes.layout_annotation option -> t
+
   (** Find a layout in attributes.  Returns error if a disallowed layout is
       present, but always allows immediate attributes if ~legacy_immediate is
       true.  See comment on [Builtin_attributes.layout].  *)
   val of_attributes :
-    legacy_immediate:bool -> reason:annotation_context -> Parsetree.attributes ->
+    legacy_immediate:bool -> context:annotation_context -> Parsetree.attributes ->
     (t option, const Location.loc) result
 
   (** Find a layout in attributes, defaulting to ~default.  Returns error if a
       disallowed layout is present, but always allows immediate if
       ~legacy_immediate is true.  See comment on [Builtin_attributes.layout]. *)
   val of_attributes_default :
-    legacy_immediate:bool -> reason:annotation_context ->
+    legacy_immediate:bool -> context:annotation_context ->
     default:t -> Parsetree.attributes ->
     (t, const Location.loc) result
 

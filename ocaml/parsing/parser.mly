@@ -47,8 +47,8 @@ let ghost_loc (startpos, endpos) = {
 }
 
 let mktyp ~loc ?attrs d = Typ.mk ~loc:(make_loc loc) ?attrs d
-let mkpat ~loc d = Pat.mk ~loc:(make_loc loc) d
-let mkexp ~loc d = Exp.mk ~loc:(make_loc loc) d
+let mkpat ~loc ?attrs d = Pat.mk ~loc:(make_loc loc) ?attrs d
+let mkexp ~loc ?attrs d = Exp.mk ~loc:(make_loc loc) ?attrs d
 let mkmty ~loc ?attrs d = Mty.mk ~loc:(make_loc loc) ?attrs d
 let mksig ~loc d = Sig.mk ~loc:(make_loc loc) d
 let mkmod ~loc ?attrs d = Mod.mk ~loc:(make_loc loc) ?attrs d
@@ -114,7 +114,7 @@ let mkpatvar ~loc name =
 (* See commentary about ghost locations at the declaration of Location.t *)
 let ghexp ~loc d = Exp.mk ~loc:(ghost_loc loc) d
 let ghpat ~loc d = Pat.mk ~loc:(ghost_loc loc) d
-let ghtyp ~loc d = Typ.mk ~loc:(ghost_loc loc) d
+let ghtyp ~loc ?attrs d = Typ.mk ~loc:(ghost_loc loc) ?attrs d
 let ghloc ~loc d = { txt = d; loc = ghost_loc loc }
 let ghstr ~loc d = Str.mk ~loc:(ghost_loc loc) d
 let ghsig ~loc d = Sig.mk ~loc:(ghost_loc loc) d
@@ -130,19 +130,19 @@ let neg_string f =
 let mkuminus ~oploc name arg =
   match name, arg.pexp_desc with
   | "-", Pexp_constant(Pconst_integer (n,m)) ->
-      Pexp_constant(Pconst_integer(neg_string n,m))
+      Pexp_constant(Pconst_integer(neg_string n,m)), arg.pexp_attributes
   | ("-" | "-."), Pexp_constant(Pconst_float (f, m)) ->
-      Pexp_constant(Pconst_float(neg_string f, m))
+      Pexp_constant(Pconst_float(neg_string f, m)), arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
   match name, desc with
   | "+", Pexp_constant(Pconst_integer _)
-  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc
+  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc, arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 
 let local_ext_loc loc = mkloc "extension.local" loc
@@ -353,8 +353,10 @@ let ppat_iarray loc elts =
     ~loc:(make_loc loc) ~attrs:[]
     (Iapat_immutable_array elts)
 
-let expecting loc nonterm =
-    raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
+let expecting_loc (loc : Location.t) (nonterm : string) =
+    raise Syntaxerr.(Error(Expecting(loc, nonterm)))
+let expecting (loc : Lexing.position * Lexing.position) nonterm =
+     expecting_loc (make_loc loc) nonterm
 
 (* Using the function [not_expecting] in a semantic action means that this
    syntactic form is recognized by the parser but is in fact incorrect. This
@@ -505,23 +507,19 @@ let lapply ~loc p1 p2 =
   else raise (Syntaxerr.Error(
                   Syntaxerr.Applicative_path (make_loc loc)))
 
-(* [loc_map] could be [Location.map]. *)
-let loc_map (f : 'a -> 'b) (x : 'a Location.loc) : 'b Location.loc =
-  { x with txt = f x.txt }
-
 let make_ghost x =
   if x.loc.loc_ghost
   then x (* Save an allocation *)
   else { x with loc = Location.ghostify x.loc }
 
 let loc_last (id : Longident.t Location.loc) : string Location.loc =
-  loc_map Longident.last id
+  Location.map Longident.last id
 
 let loc_lident (id : string Location.loc) : Longident.t Location.loc =
-  loc_map (fun x -> Lident x) id
+  Location.map (fun x -> Lident x) id
 
 let exp_of_longident lid =
-  let lid = loc_map (fun id -> Lident (Longident.last id)) lid in
+  let lid = Location.map (fun id -> Lident (Longident.last id)) lid in
   Exp.mk ~loc:lid.loc (Pexp_ident lid)
 
 let exp_of_label lbl =
@@ -531,16 +529,26 @@ let pat_of_label lbl =
   Pat.mk ~loc:lbl.loc  (Ppat_var (loc_last lbl))
 
 let mk_newtypes ~loc newtypes exp =
-  let mkexp = mkexp ~loc in
-  List.fold_right (fun newtype exp -> mkexp (Pexp_newtype (newtype, exp)))
-    newtypes exp
+  let mk_one (name, layout) exp =
+    match layout with
+    | None -> mkexp ~loc (Pexp_newtype (name, exp))
+    | Some layout ->
+      Jane_syntax.Layouts.expr_of ~loc:(make_loc loc) ~attrs:[]
+        (Lexp_newtype (name, layout, exp))
+  in
+  List.fold_right mk_one newtypes exp
 
 let wrap_type_annotation ~loc newtypes core_type body =
-  let mkexp, ghtyp = mkexp ~loc, ghtyp ~loc in
   let mk_newtypes = mk_newtypes ~loc in
-  let exp = mkexp(Pexp_constraint(body,core_type)) in
+  let exp = mkexp ~loc (Pexp_constraint(body,core_type)) in
   let exp = mk_newtypes newtypes exp in
-  (exp, ghtyp(Ptyp_poly(newtypes, Typ.varify_constructors newtypes core_type)))
+  let inner_type = Typ.varify_constructors (List.map fst newtypes) core_type in
+  let ltyp =
+    Jane_syntax.Layouts.Ltyp_poly { bound_vars = newtypes; inner_type }
+  in
+  (exp,
+     Jane_syntax.Layouts.type_of
+       ~loc:(Location.ghostify (make_loc loc)) ~attrs:[] ltyp)
 
 let wrap_exp_attrs ~loc body (ext, attrs) =
   let ghexp = ghexp ~loc in
@@ -550,8 +558,8 @@ let wrap_exp_attrs ~loc body (ext, attrs) =
   | None -> body
   | Some id -> ghexp(Pexp_extension (id, PStr [mkstrexp body []]))
 
-let mkexp_attrs ~loc d attrs =
-  wrap_exp_attrs ~loc (mkexp ~loc d) attrs
+let mkexp_attrs ~loc d ext_attrs =
+  wrap_exp_attrs ~loc (mkexp ~loc d) ext_attrs
 
 let wrap_typ_attrs ~loc typ (ext, attrs) =
   (* todo: keep exact location for the entire attribute *)
@@ -754,18 +762,19 @@ let mk_directive ~loc name arg =
       pdir_loc = make_loc loc;
     }
 
-let check_layout loc id =
-  begin
-    match id with
-    | ("any" | "value" | "void" | "immediate64" | "immediate") -> ()
-    | _ -> expecting loc "layout"
-  end;
-  let loc = make_loc loc in
-  Attr.mk ~loc (mkloc id loc) (PStr [])
+let check_layout ~loc id : const_layout =
+  match id with
+  | "any" -> Any
+  | "value" -> Value
+  | "void" -> Void
+  | "immediate64" -> Immediate64
+  | "immediate" -> Immediate
+  | "float64" -> Float64
+  | _ -> expecting_loc loc "layout"
 
 (* Unboxed literals *)
 
-(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+(* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts
@@ -773,19 +782,18 @@ let unboxed_literals_extension = Language_extension.Layouts
 module Constant : sig
   type t = private
     | Value of constant
-    | Unboxed of Jane_syntax.Unboxed_constants.t
+    | Unboxed of Jane_syntax.Layouts.constant
 
   type loc := Lexing.position * Lexing.position
 
   val value : Parsetree.constant -> t
-  val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
+  val unboxed : loc:loc -> Jane_syntax.Layouts.constant -> t
   val to_expression : loc:loc -> t -> expression
   val to_pattern : loc:loc -> t -> pattern
-  val assert_is_value : loc:loc -> where:string -> t -> constant
 end = struct
   type t =
     | Value of constant
-    | Unboxed of Jane_syntax.Unboxed_constants.t
+    | Unboxed of Jane_syntax.Layouts.constant
 
   let value x = Value x
 
@@ -801,20 +809,15 @@ end = struct
     | Value const_value ->
         mkexp ~loc (Pexp_constant const_value)
     | Unboxed const_unboxed ->
-      Jane_syntax.Unboxed_constants.expr_of
-        ~loc:(make_loc loc) ~attrs:[] const_unboxed
+      Jane_syntax.Layouts.expr_of
+        ~loc:(make_loc loc) ~attrs:[] (Lexp_constant const_unboxed)
 
   let to_pattern ~loc : t -> pattern = function
     | Value const_value ->
         mkpat ~loc (Ppat_constant const_value)
     | Unboxed const_unboxed ->
-      Jane_syntax.Unboxed_constants.pat_of
-        ~loc:(make_loc loc) ~attrs:[] const_unboxed
-
-  let assert_is_value ~loc ~where : t -> Parsetree.constant = function
-    | Value x -> x
-    | Unboxed _ ->
-        not_expecting loc (Printf.sprintf "unboxed literal %s" where)
+      Jane_syntax.Layouts.pat_of
+        ~loc:(make_loc loc) ~attrs:[] (Lpat_constant const_unboxed)
 end
 
 type sign = Positive | Negative
@@ -1179,6 +1182,9 @@ The precedences must be listed from low to high.
 
 %inline mk_directive_arg(symb): symb
     { mk_directive_arg ~loc:$sloc $1 }
+
+%inline mktyp_jane_syntax_ltyp(symb): symb
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) ~attrs:[] $1 }
 
 /* Generic definitions */
 
@@ -2246,7 +2252,7 @@ method_:
           let loc = ($startpos($6), $endpos($8)) in
           ghexp ~loc (Pexp_poly($8, Some $6)) in
         ($4, $3, Cfk_concrete ($1, poly_exp)), $2 }
-  | override_flag attributes private_flag mkrhs(label) COLON TYPE lident_list
+  | override_flag attributes private_flag mkrhs(label) COLON TYPE newtypes
     DOT core_type EQUAL seq_expr
       { let poly_exp_loc = ($startpos($7), $endpos($11)) in
         let poly_exp =
@@ -2497,7 +2503,10 @@ label_let_pattern:
         lab,
         mkpat ~loc:$sloc (Ppat_constraint (pat, cty)) }
   | x = label_var COLON
-          cty = mktyp (vars = typevar_list DOT ty = core_type { Ptyp_poly(vars, ty) })
+          cty = mktyp_jane_syntax_ltyp (bound_vars = typevar_list
+                                        DOT
+                                        inner_type = core_type
+                  { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } })
       { let lab, pat = x in
         lab,
         mkpat ~loc:$sloc (Ppat_constraint (pat, cty)) }
@@ -2519,8 +2528,10 @@ let_pattern:
     mkpat(
       pat = pattern
       COLON
-      cty = mktyp(vars = typevar_list DOT ty = core_type
-              { Ptyp_poly(vars, ty) })
+      cty = mktyp_jane_syntax_ltyp(bound_vars = typevar_list
+                                   DOT
+                                   inner_type = core_type
+              { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } })
         { Ppat_constraint(pat, cty) })
       { $1 }
 ;
@@ -2571,6 +2582,12 @@ expr:
     { mk_indexop_expr builtin_indexing_operators ~loc:$sloc $1 }
   | indexop_expr(qualified_dotop, expr_semi_list, LESSMINUS v=expr {Some v})
     { mk_indexop_expr user_indexing_operators ~loc:$sloc $1 }
+  | FUN ext_attributes LPAREN TYPE newtypes RPAREN fun_def
+    { let loc = $sloc in
+      wrap_exp_attrs ~loc (mk_newtypes ~loc $5 $7) $2 }
+  | FUN ext_attributes LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN fun_def
+    { let loc = $sloc in
+      wrap_exp_attrs ~loc (mk_newtypes ~loc:$sloc [$5, Some $7] $9) $2 }
   | expr attribute
       { Exp.attr $1 $2 }
 /* BEGIN AVOID */
@@ -2596,8 +2613,6 @@ expr:
   | FUN ext_attributes labeled_simple_pattern fun_def
       { let (l,o,p) = $3 in
         Pexp_fun(l, o, p, $4), $2 }
-  | FUN ext_attributes LPAREN TYPE lident_list RPAREN fun_def
-      { (mk_newtypes ~loc:$sloc $5 $7).pexp_desc, $2 }
   | MATCH ext_attributes seq_expr WITH match_cases
       { Pexp_match($3, $5), $2 }
   | TRY ext_attributes seq_expr WITH match_cases
@@ -2617,6 +2632,12 @@ expr:
       { Pexp_assert $3, $2 }
   | LAZY ext_attributes simple_expr %prec below_HASH
       { Pexp_lazy $3, $2 }
+  | subtractive expr %prec prec_unary_minus
+      { let desc, attrs = mkuminus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
+  | additive expr %prec prec_unary_plus
+      { let desc, attrs = mkuplus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
 ;
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
@@ -2629,10 +2650,6 @@ expr:
       { Pexp_variant($1, Some $2) }
   | e1 = expr op = op(infix_operator) e2 = expr
       { mkinfix e1 op e2 }
-  | subtractive expr %prec prec_unary_minus
-      { mkuminus ~oploc:$loc($1) $1 $2 }
-  | additive expr %prec prec_unary_plus
-      { mkuplus ~oploc:$loc($1) $1 $2 }
 ;
 
 simple_expr:
@@ -2906,15 +2923,21 @@ let_binding_body_no_punning:
         (pat, exp) }
   | optional_local let_ident COLON poly(core_type) EQUAL seq_expr
       { let patloc = ($startpos($2), $endpos($4)) in
+        let bound_vars, inner_type = $4 in
+        let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
+        let typ_loc = Location.ghostify (make_loc $loc($4)) in
+        let typ =
+          Jane_syntax.Layouts.type_of ~loc:typ_loc ~attrs:[] ltyp
+        in
         let pat =
           mkpat_local_if $1
             (ghpat ~loc:patloc
-               (Ppat_constraint($2, ghtyp ~loc:($loc($4)) $4)))
+               (Ppat_constraint($2, typ)))
             $loc($1)
         in
         let exp = mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1)) $6 in
         (pat, exp) }
-  | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
+  | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       { let exp, poly =
           wrap_type_annotation ~loc:$sloc $4 $6 $8 in
         let loc = ($startpos($1), $endpos($6)) in
@@ -3001,8 +3024,10 @@ strict_binding:
       { $2 }
   | labeled_simple_pattern fun_binding
       { let (l, o, p) = $1 in ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2)) }
-  | LPAREN TYPE lident_list RPAREN fun_binding
+  | LPAREN TYPE newtypes RPAREN fun_binding
       { mk_newtypes ~loc:$sloc $3 $5 }
+  | LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN fun_binding
+      { mk_newtypes ~loc:$sloc [$3, Some $5] $7 }
 ;
 local_fun_binding:
     local_strict_binding
@@ -3015,8 +3040,10 @@ local_strict_binding:
       { $2 }
   | labeled_simple_pattern local_fun_binding
       { let (l, o, p) = $1 in ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2)) }
-  | LPAREN TYPE lident_list RPAREN local_fun_binding
+  | LPAREN TYPE newtypes RPAREN local_fun_binding
       { mk_newtypes ~loc:$sloc $3 $5 }
+  | LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN fun_binding
+      { mk_newtypes ~loc:$sloc [$3, Some $5] $7 }
 ;
 %inline match_cases:
   xs = preceded_or_separated_nonempty_llist(BAR, match_case)
@@ -3042,8 +3069,10 @@ fun_def:
        let (l,o,p) = $1 in
        ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2))
       }
-  | LPAREN TYPE lident_list RPAREN fun_def
+  | LPAREN TYPE newtypes RPAREN fun_def
       { mk_newtypes ~loc:$sloc $3 $5 }
+  | LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN fun_def
+      { mk_newtypes ~loc:$sloc [$3, Some $5] $7 }
 ;
 %inline expr_comma_list:
   es = separated_nontrivial_llist(COMMA, expr)
@@ -3096,6 +3125,17 @@ type_constraint:
   | COLON error                                 { syntax_error() }
   | COLONGREATER error                          { syntax_error() }
 ;
+
+(* the thing between the [type] and the [.] in
+   [let : type <<here>>. 'a -> 'a = ...] *)
+newtypes: (* : (string with_loc * layout_annotation option) list *)
+  newtype+
+    { $1 }
+
+newtype: (* : string with_loc * layout_annotation option *)
+    mkrhs(LIDENT)                     { $1, None }
+  | LPAREN name=mkrhs(LIDENT) COLON layout=layout_annotation RPAREN
+      { name, Some layout }
 
 /* Patterns */
 
@@ -3193,11 +3233,8 @@ simple_pattern_not_ident:
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant DOTDOT signed_constant
-      { let where = "in a pattern interval" in
-        Ppat_interval
-          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
-           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
+  | signed_value_constant DOTDOT signed_value_constant
+      { Ppat_interval ($1, $3) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag
@@ -3371,6 +3408,7 @@ generic_type_declaration(flag, kind):
   flag = flag
   params = type_parameters
   id = mkrhs(LIDENT)
+  layout = layout_attr?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3380,7 +3418,7 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       (flag, ext),
-      Type.mk id ~params ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
+      Type.mk id ~params ?layout ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
     }
 ;
 %inline generic_and_type_declaration(kind):
@@ -3388,6 +3426,7 @@ generic_type_declaration(flag, kind):
   attrs1 = attributes
   params = type_parameters
   id = mkrhs(LIDENT)
+  layout = layout_attr?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3397,7 +3436,7 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let text = symbol_text $symbolstartpos in
-      Type.mk id ~params ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
+      Type.mk id ~params ?layout ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
     }
 ;
 %inline constraints:
@@ -3450,14 +3489,37 @@ type_parameters:
       { ps }
 ;
 
-layout:
-  ident { check_layout $loc($1) $1 }
+layout_annotation: (* : layout_annotation *)
+  ident { let loc = make_loc $sloc in
+          mkloc (check_layout ~loc $1) loc }
+;
+
+layout_string: (* : string with_loc *)
+  (* the [check_layout] just ensures this is the name of a layout *)
+  ident { let loc = make_loc $sloc in
+          ignore (check_layout ~loc $1 : const_layout);
+          mkloc $1 loc }
+;
+
+layout_attr:
+  COLON
+  layout=layout_string
+    { Attr.mk ~loc:layout.loc layout (PStr []) }
+;
+
+%inline type_param_with_layout:
+  name=tyvar_name_or_underscore
+  attrs=attributes
+  COLON
+  layout=layout_annotation
+    { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) ~attrs
+        (Ltyp_var { name; layout }) }
 ;
 
 parenthesized_type_parameter:
     type_parameter { $1 }
-  | type_variance type_variable COLON layout
-      { {$2 with ptyp_attributes = [$4]}, $1 }
+  | type_variance type_param_with_layout
+    { $2, $1 }
 ;
 
 type_parameter:
@@ -3465,13 +3527,20 @@ type_parameter:
       { {$2 with ptyp_attributes = $3}, $1 }
 ;
 
-type_variable:
+%inline type_variable:
   mktyp(
     QUOTE tyvar = ident
       { Ptyp_var tyvar }
   | UNDERSCORE
       { Ptyp_any }
   ) { $1 }
+;
+
+%inline tyvar_name_or_underscore:
+    QUOTE ident
+      { Some $2 }
+  | UNDERSCORE
+      { None }
 ;
 
 type_variance:
@@ -3522,8 +3591,9 @@ generic_constructor_declaration(opening):
 %inline constructor_declaration(opening):
   d = generic_constructor_declaration(opening)
     {
-      let cid, vars, args, res, attrs, loc, info = d in
-      Type.constructor cid ~vars ~args ?res ~attrs ~loc ~info
+      let cid, vars_layouts, args, res, attrs, loc, info = d in
+      Jane_syntax.Layouts.constructor_declaration_of
+        cid ~vars_layouts ~args ~res ~attrs ~loc ~info
     }
 ;
 str_exception_declaration:
@@ -3551,18 +3621,26 @@ sig_exception_declaration:
   vars_args_res = generalized_constructor_arguments
   attrs2 = attributes
   attrs = post_item_attributes
-    { let vars, args, res = vars_args_res in
+    { let vars_layouts, args, res = vars_args_res in
       let loc = make_loc ($startpos, $endpos(attrs2)) in
       let docs = symbol_docs $sloc in
-      Te.mk_exception ~attrs
-        (Te.decl id ~vars ~args ?res ~attrs:(attrs1 @ attrs2) ~loc ~docs)
-      , ext }
+      let ext_ctor =
+        Jane_syntax.Layouts.extension_constructor_of
+          ~loc ~name:id ~attrs:(attrs1 @ attrs2) ~docs
+          (Lext_decl (vars_layouts, args, res))
+      in
+      Te.mk_exception ~attrs ext_ctor, ext }
 ;
 %inline let_exception_declaration:
     mkrhs(constr_ident) generalized_constructor_arguments attributes
-      { let vars, args, res = $2 in
-        Te.decl $1 ~vars ~args ?res ~attrs:$3 ~loc:(make_loc $sloc) }
+      { let vars_layouts, args, res = $2 in
+        Jane_syntax.Layouts.extension_constructor_of
+            ~loc:(make_loc $sloc)
+            ~name:$1
+            ~attrs:$3
+            (Lext_decl (vars_layouts, args, res)) }
 ;
+
 generalized_constructor_arguments:
     /*empty*/                     { ([],Pcstr_tuple [],None) }
   | OF constructor_arguments      { ([],$2,None) }
@@ -3652,8 +3730,9 @@ label_declaration_semi:
 %inline extension_constructor_declaration(opening):
   d = generic_constructor_declaration(opening)
     {
-      let cid, vars, args, res, attrs, loc, info = d in
-      Te.decl cid ~vars ~args ?res ~attrs ~loc ~info
+      let name, vars_layouts, args, res, attrs, loc, info = d in
+      Jane_syntax.Layouts.extension_constructor_of
+        ~loc ~attrs ~info ~name (Lext_decl(vars_layouts, args, res))
     }
 ;
 extension_constructor_rebind(opening):
@@ -3707,23 +3786,28 @@ with_type_binder:
 
 /* Polymorphic types */
 
-%inline typevar:
-  QUOTE mkrhs(ident)
-    { $2 }
+%inline typevar: (* : string with_loc * layout_annotation option *)
+    QUOTE mkrhs(ident)
+      { ($2, None) }
+    | LPAREN QUOTE tyvar=mkrhs(ident) COLON layout=layout_annotation RPAREN
+      { (tyvar, Some layout) }
 ;
 %inline typevar_list:
+  (* : (string with_loc * layout_annotation option) list *)
   nonempty_llist(typevar)
     { $1 }
 ;
 %inline poly(X):
   typevar_list DOT X
-    { Ptyp_poly($1, $3) }
+    { ($1, $3) }
 ;
 possibly_poly(X):
   X
     { $1 }
-| mktyp(poly(X))
-    { $1 }
+| poly(X)
+    { let bound_vars, inner_type = $1 in
+      Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) ~attrs:[]
+        (Ltyp_poly { bound_vars; inner_type }) }
 ;
 %inline poly_type:
   possibly_poly(core_type)
@@ -3765,8 +3849,16 @@ alias_type:
   | mktyp(
       ty = alias_type AS QUOTE tyvar = ident
         { Ptyp_alias(ty, tyvar) }
-    )
-    { $1 }
+   )
+   { $1 }
+  | aliased_type = alias_type AS
+             LPAREN
+             name = tyvar_name_or_underscore
+             COLON
+             layout = layout_annotation
+             RPAREN
+        { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) ~attrs:[]
+              (Ltyp_alias { aliased_type; name; layout }) }
 ;
 
 (* Function types include:
@@ -3823,9 +3915,9 @@ strict_function_type:
     { true }
 ;
 %inline param_type:
-  | mktyp(
-    LPAREN vars = typevar_list DOT ty = core_type RPAREN
-      { Ptyp_poly(vars, ty) }
+  | mktyp_jane_syntax_ltyp(
+    LPAREN bound_vars = typevar_list DOT inner_type = core_type RPAREN
+      { Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } }
     )
     { $1 }
   | ty = tuple_type
@@ -3874,6 +3966,10 @@ atomic_type:
               let hash_end = snd $loc($3) in
               unboxed_float_type (ident_start, hash_end) tys
           | _ ->
+            (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
+               code. When we support unboxed types other than float, we should
+               consider moving this check into the typechecker.
+            *)
               not_expecting $sloc "Unboxed type other than float#"
         }
     | tys = actual_type_parameters
@@ -3906,7 +4002,13 @@ atomic_type:
         { Ptyp_extension $1 }
   )
   { $1 } /* end mktyp group */
-;
+  | LPAREN QUOTE name=ident COLON layout=layout_annotation RPAREN
+      { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) ~attrs:[] @@
+        Ltyp_var { name = Some name; layout } }
+  | LPAREN UNDERSCORE COLON layout=layout_annotation RPAREN
+      { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) ~attrs:[] @@
+        Ltyp_var { name = None; layout } }
+
 
 (* This is the syntax of the actual type parameters in an application of
    a type constructor, such as int, int list, or (int, bool) Hashtbl.t.
@@ -3925,7 +4027,6 @@ atomic_type:
       { [ty] }
   | LPAREN tys = separated_nontrivial_llist(COMMA, core_type) RPAREN
       { tys }
-;
 
 %inline package_type: module_type
       { let (lid, cstrs, attrs) = package_type_of_module_type $1 in
@@ -4007,31 +4108,35 @@ meth_list:
 
 /* Constants */
 
-constant:
-  | INT               { let (n, m) = $1 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | CHAR              { Constant.value (Pconst_char $1) }
+value_constant:
+  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
+  | CHAR              { Pconst_char $1 }
   | STRING            { let (s, strloc, d) = $1 in
-                        Constant.value (Pconst_string (s, strloc, d)) }
-  | FLOAT             { let (f, m) = $1 in
-                        Constant.value (Pconst_float (f, m)) }
+                        Pconst_string (s, strloc, d) }
+  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+;
+unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
   | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
+constant:
+    value_constant    { Constant.value $1 }
+  | unboxed_constant  { $1 }
+;
+signed_value_constant:
+    value_constant    { $1 }
+  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
+  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
+  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
+  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+;
 signed_constant:
-    constant          { $1 }
-  | MINUS INT         { let (n, m) = $2 in
-                        Constant.value (Pconst_integer("-" ^ n, m)) }
-  | MINUS FLOAT       { let (f, m) = $2 in
-                        Constant.value (Pconst_float("-" ^ f, m)) }
-  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
-  | PLUS INT          { let (n, m) = $2 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | PLUS FLOAT        { let (f, m) = $2 in
-                        Constant.value (Pconst_float(f, m)) }
-  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT   { unboxed_float $sloc Negative $2 }
+    signed_value_constant { Constant.value $1 }
+  | unboxed_constant      { $1 }
+  | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT      { unboxed_float $sloc Negative $2 }
+  | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT       { unboxed_float $sloc Positive $2 }
 ;
 
 /* Identifiers and long identifiers */
@@ -4124,6 +4229,7 @@ label_longident:
 type_longident:
     mk_longident(mod_ext_longident, LIDENT)  { $1 }
 ;
+
 mod_longident:
     mk_longident(mod_longident, UIDENT)  { $1 }
 ;

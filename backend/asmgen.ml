@@ -293,11 +293,11 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
-          ++ Cfg_with_liveness.make
+          ++ Cfg_with_infos.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-            Regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+            Regalloc_validate.Description.create (Cfg_with_infos.cfg_with_layout cfg)
         in
         cfg
         ++ begin match regalloc with
@@ -305,9 +305,13 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
           | Upstream -> assert false
         end
-        ++ Cfg_with_liveness.cfg_with_layout
+        ++ Cfg_with_infos.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
+          (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness, otherwise
+             we would have to recompute it here. Recomputing it here breaks the CI because
+             the liveness_analysis algorithm does not work properly after register allocation. *)
+        ++ Profile.record ~accumulate:true "peephole_optimize_cfg" Peephole_optimize.peephole_optimize_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -403,7 +407,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
   reset ();
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
-  Emitaux.create_asm_file := create_asm;
+  X86_proc.create_asm_file := create_asm;
   Misc.try_finally
     ~exceptionally:(fun () -> remove_file obj_filename)
     (fun () ->

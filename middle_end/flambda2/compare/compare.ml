@@ -421,7 +421,8 @@ and subst_cont_handler env cont_handler =
   Continuation_handler.pattern_match cont_handler ~f:(fun params ~handler ->
       let handler = subst_expr env handler in
       Continuation_handler.create params ~handler ~free_names_of_handler:Unknown
-        ~is_exn_handler:(Continuation_handler.is_exn_handler cont_handler))
+        ~is_exn_handler:(Continuation_handler.is_exn_handler cont_handler)
+        ~is_cold:(Continuation_handler.is_cold cont_handler))
 
 and subst_apply env apply =
   let callee = subst_simple env (Apply_expr.callee apply) in
@@ -1272,12 +1273,19 @@ and cont_handlers env handler1 handler2 =
       |> Comparison.map ~f:(fun handler ->
              Continuation_handler.create params ~handler
                ~free_names_of_handler:Unknown
-               ~is_exn_handler:(Continuation_handler.is_exn_handler handler2))
+               ~is_exn_handler:(Continuation_handler.is_exn_handler handler2)
+               ~is_cold:(Continuation_handler.is_cold handler2))
       |> Comparison.add_condition
            ~cond:
              (Bool.equal
                 (Continuation_handler.is_exn_handler handler1)
                 (Continuation_handler.is_exn_handler handler2))
+           ~approximant:(fun () -> subst_cont_handler env handler1)
+      |> Comparison.add_condition
+           ~cond:
+             (Bool.equal
+                (Continuation_handler.is_cold handler1)
+                (Continuation_handler.is_cold handler2))
            ~approximant:(fun () -> subst_cont_handler env handler1))
   |> function
   | Ok comp -> comp

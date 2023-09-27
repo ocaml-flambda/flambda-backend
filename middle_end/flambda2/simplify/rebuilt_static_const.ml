@@ -126,6 +126,11 @@ let create_boxed_nativeint are_rebuilding or_var =
   then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
   else create_normal_non_code (SC.boxed_nativeint or_var)
 
+let create_boxed_vec128 are_rebuilding or_var =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
+  else create_normal_non_code (SC.boxed_vec128 or_var)
+
 let create_immutable_float_block are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding
   then
@@ -190,7 +195,7 @@ let map_set_of_closures t ~f =
                 (SC.set_of_closures set_of_closures);
             free_names = Set_of_closures.free_names set_of_closures
           }
-      | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+      | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Immutable_value_array _ | Empty_array | Mutable_string _
       | Immutable_string _ ->

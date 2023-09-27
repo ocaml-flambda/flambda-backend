@@ -48,6 +48,8 @@ module Int64 : Number_S
 
 module Nativeint : Number_S
 
+module Vec128 : Number_S
+
 module Field : sig
   val unboxing_prim :
     P.Block_access_kind.t -> block:Simple.t -> index:Targetint_31_63.t -> P.t

@@ -45,11 +45,14 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: Import_info.t array;
+    mutable ui_implements_param: Global.Name.t option;
+                                          (* If this is an argument unit, the
+                                             parameter it implements *)
+    mutable ui_imports_cmi: Import_info.Intf.t array;
                                           (* Interfaces imported *)
-    mutable ui_imports_cmx: Import_info.t array;
+    mutable ui_imports_cmx: Import_info.Impl.t array;
                                           (* Infos imported *)
-    mutable ui_runtime_params: Compilation_unit.t list;
+    mutable ui_runtime_params: Global.Name.t list;
                                           (* Implementation imports which are
                                              bound as parameters at runtime,
                                              including source-level parameters

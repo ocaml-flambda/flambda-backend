@@ -226,6 +226,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
        below *)
     let set_of_closures_var = Variable.create Names.set_of_closures in
+    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
     let set_of_closures =
       let decl =
         Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind ~mode
@@ -279,6 +280,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               let debug_info = Debuginfo.from_location loc in
               Variable.create_with_same_name_as_ident ~debug_info let_rec_ident
             in
+            let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
                 ~closure_bound_var ~kind ~mode ~region
@@ -623,6 +625,7 @@ and close_functions t external_env function_declarations : Flambda.named =
          Misc.fatal_error "Closure_conversion: Tupled Alloc_local function found"
     in
     let params = List.mapi (fun i (v, kind) ->
+        (* CR ncourant: actually now we have the alloc_mode in lambda, propagate it *)
       let alloc_mode =
         if i < nheap then Lambda.alloc_heap else Lambda.alloc_local
       in
@@ -699,6 +702,7 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
       let debug_info = Debuginfo.from_location loc in
       Variable.rename ~debug_info let_bound_var
     in
+    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind ~mode ~region
         ~params ~body ~attr ~loc ~return_layout:return

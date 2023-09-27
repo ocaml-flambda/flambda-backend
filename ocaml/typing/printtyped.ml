@@ -155,8 +155,20 @@ let arg_label i ppf = function
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
 
+let typevar_layout ~print_quote ppf (v, l) =
+  let pptv =
+    if print_quote
+    then Printast.tyvar
+    else fun ppf s -> fprintf ppf "%s" s
+  in
+  match l with
+  | None -> fprintf ppf " %a" pptv v
+  | Some lay -> fprintf ppf " (%a : %s)"
+                    pptv v
+                    (Printast.const_layout_to_string lay)
+
 let typevars ppf vs =
-  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
+  List.iter (typevar_layout ~print_quote:true ppf) vs
 ;;
 
 let layout_array i ppf layouts =
@@ -196,13 +208,17 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
+let layout_annotation i ppf layout =
+  line i ppf "%s" (Layouts.Layout.string_of_const layout)
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
   let i = i+1 in
   match x.ctyp_desc with
-  | Ttyp_any -> line i ppf "Ttyp_any\n";
-  | Ttyp_var (s) -> line i ppf "Ttyp_var %s\n" s;
+  | Ttyp_var (s, layout) ->
+      line i ppf "Ttyp_var %s\n" (Option.value ~default:"_" s);
+      option i layout_annotation ppf layout
   | Ttyp_arrow (l, ct1, ct2) ->
       line i ppf "Ttyp_arrow\n";
       arg_label i ppf l;
@@ -234,12 +250,13 @@ let rec core_type i ppf x =
   | Ttyp_class (li, _, l) ->
       line i ppf "Ttyp_class %a\n" fmt_path li;
       list i core_type ppf l;
-  | Ttyp_alias (ct, s) ->
-      line i ppf "Ttyp_alias \"%s\"\n" s;
+  | Ttyp_alias (ct, s, layout) ->
+      line i ppf "Ttyp_alias \"%s\"\n" (Option.value s ~default:"_");
       core_type i ppf ct;
+      option i layout_annotation ppf layout
   | Ttyp_poly (sl, ct) ->
       line i ppf "Ttyp_poly%a\n"
-        (fun ppf -> List.iter (fun x -> fprintf ppf " '%s" x)) sl;
+        (fun ppf -> List.iter (typevar_layout ~print_quote:true ppf)) sl;
       core_type i ppf ct;
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
@@ -335,8 +352,8 @@ and expression_extra i ppf (x,_,attrs) =
       line i ppf "Texp_poly\n";
       attributes i ppf attrs;
       option i core_type ppf cto;
-  | Texp_newtype s ->
-      line i ppf "Texp_newtype \"%s\"\n" s;
+  | Texp_newtype (s, lay) ->
+      line i ppf "Texp_newtype %a\n" (typevar_layout ~print_quote:false) (s, lay);
       attributes i ppf attrs;
 
 and alloc_mode i ppf m =
@@ -452,10 +469,10 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       option i expression ppf eo;
-  | Texp_sequence (e1, l, e2) ->
+  | Texp_sequence (e1, s, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
-      line i ppf "%a\n" Layouts.Layout.format l;
+      line i ppf "%a\n" Layouts.Sort.format s;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";
@@ -1061,7 +1078,7 @@ and record_field i ppf = function
 and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
-  (match e with Omitted _ -> () | Arg e -> expression (i+1) ppf e)
+  (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;

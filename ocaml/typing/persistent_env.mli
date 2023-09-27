@@ -104,6 +104,8 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
+(* If [add_binding] is false, reads the signature from the .cmi but does not
+   bind the module name in the environment. *)
 val read : 'a t
   -> 'a sig_reader
   -> Global.Name.t

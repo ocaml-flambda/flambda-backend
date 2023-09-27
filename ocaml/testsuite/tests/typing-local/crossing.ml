@@ -224,7 +224,7 @@ val f : unit -> local_ int = <fun>
 |}]
 
 let g : _ -> _ =
-  fun () -> f ()
+  fun () -> let x = f () in x
 [%%expect{|
 val g : unit -> int = <fun>
 |}]
@@ -236,11 +236,11 @@ val f : unit -> local_ string = <fun>
 |}]
 
 let g : _ -> _ =
-  fun () -> f ()
+  fun () -> let x = f () in x
 [%%expect{|
-Line 2, characters 12-16:
-2 |   fun () -> f ()
-                ^^^^
+Line 2, characters 28-29:
+2 |   fun () -> let x = f () in x
+                                ^
 Error: This value escapes its region
 |}]
 
@@ -339,7 +339,7 @@ let f : local_ _ -> M.t =
 let f : local_ _ -> t2 =
   fun x -> x
 [%%expect{|
-module M : sig type t [@@immediate] end
+module M : sig type t : immediate end
 type t2 = { x : int; } [@@unboxed]
 val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>

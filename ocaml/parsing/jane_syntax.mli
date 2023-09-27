@@ -110,14 +110,62 @@ module Strengthen : sig
     module_type -> Parsetree.module_type
 end
 
-(** The ASTs for unboxed literals, like #4.0 *)
-module Unboxed_constants : sig
-  type t =
+(** The ASTs for layouts and other unboxed-types features *)
+module Layouts : sig
+  type constant =
     | Float of string * char option
     | Integer of string * char
 
-  type expression = t
-  type pattern = t
+  type nonrec expression =
+    (* examples: [ #2.0 ] or [ #42L ] *)
+    (* This is represented as an attribute wrapping a [Pexp_constant] node. *)
+    | Lexp_constant of constant
+
+    (* [fun (type a : immediate) -> ...] *)
+    (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
+    | Lexp_newtype of
+        string Location.loc * Asttypes.layout_annotation * Parsetree.expression
+
+  type nonrec pattern =
+    (* examples: [ #2.0 ] or [ #42L ] *)
+    (* This is represented as an attribute wrapping a [Ppat_constant] node. *)
+    | Lpat_constant of constant
+
+  type nonrec core_type =
+    (* ['a : immediate] or [_ : float64] *)
+    (* This is represented by an attribute wrapping either a [Ptyp_any] or
+       a [Ptyp_var] node. *)
+    | Ltyp_var of { name : string option
+                  ; layout : Asttypes.layout_annotation }
+
+    (* [('a : immediate) 'b 'c ('d : value). 'a -> 'b -> 'c -> 'd] *)
+    (* This is represented by an attribute wrapping a [Ptyp_poly] node. *)
+    (* This is used instead of [Ptyp_poly] only where there is at least one
+       actual layout annotation. If there is a polytype with no layout
+       annotations at all, [Ptyp_poly] is used instead. This saves space in the
+       parsed representation and guarantees that we don't accidentally try to
+       require the layouts extension. *)
+    | Ltyp_poly of { bound_vars : (string Location.loc *
+                                   Asttypes.layout_annotation option) list
+                   ; inner_type : Parsetree.core_type }
+
+    (* [ty as ('a : immediate)] *)
+    (* This is represented by an attribute wrapping either a [Ptyp_alias] node
+       or, in the [ty as (_ : layout)] case, the annotated type itself, with no
+       intervening [type_desc]. *)
+    | Ltyp_alias of { aliased_type : Parsetree.core_type
+                    ; name : string option
+                    ; layout : Asttypes.layout_annotation }
+
+  type nonrec extension_constructor =
+    (* [ 'a ('b : immediate) ('c : float64). 'a * 'b * 'c -> exception ] *)
+    (* This is represented as an attribute on a [Pext_decl] node. *)
+    (* Like [Ltyp_poly], this is used only when there is at least one layout
+       annotation. Otherwise, we will have a [Pext_decl]. *)
+    | Lext_decl of (string Location.loc *
+                    Asttypes.layout_annotation option) list *
+                   Parsetree.constructor_arguments *
+                   Parsetree.core_type option
 
   val expr_of :
     loc:Location.t -> attrs:Parsetree.attributes ->
@@ -126,6 +174,37 @@ module Unboxed_constants : sig
   val pat_of :
     loc:Location.t -> attrs:Parsetree.attributes ->
     pattern -> Parsetree.pattern
+
+  val type_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    core_type -> Parsetree.core_type
+
+  val extension_constructor_of :
+    loc:Location.t ->
+    name:string Location.loc ->
+    attrs:Parsetree.attributes ->
+    ?info:Docstrings.info ->
+    ?docs:Docstrings.docs ->
+    extension_constructor ->
+    Parsetree.extension_constructor
+
+  (** See also [Ast_helper.Type.constructor], which is a direct inspiration for
+      the interface here. It's meant to be able to be a drop-in replacement.  *)
+  val constructor_declaration_of :
+    loc:Location.t -> attrs:Parsetree.attributes -> info:Docstrings.info ->
+    vars_layouts:(string Location.loc *
+                  Asttypes.layout_annotation option) list ->
+    args:Parsetree.constructor_arguments -> res:Parsetree.core_type option ->
+    string Location.loc -> Parsetree.constructor_declaration
+
+  (** Extract the layouts from a [constructor_declaration]; returns leftover
+      attributes along with the annotated variables. Unlike other pieces
+      of jane-syntax, users of this function will still have to process
+      the remaining pieces of the original [constructor_declaration]. *)
+  val of_constructor_declaration :
+    Parsetree.constructor_declaration ->
+    ((string Location.loc * Asttypes.layout_annotation option) list *
+     Parsetree.attributes) option
 end
 
 module Instances : sig
@@ -215,7 +294,8 @@ end
 
 (** Novel syntax in types *)
 module Core_type : sig
-  type t = |
+  type t =
+    | Jtyp_layout of Layouts.core_type
 
   include AST
     with type t := t * Parsetree.attributes
@@ -235,9 +315,9 @@ end
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =
-    | Jexp_comprehension    of Comprehensions.expression
-    | Jexp_immutable_array  of Immutable_arrays.expression
-    | Jexp_unboxed_constant of Unboxed_constants.expression
+    | Jexp_comprehension of Comprehensions.expression
+    | Jexp_immutable_array of Immutable_arrays.expression
+    | Jexp_layout of Layouts.expression
 
   include AST
     with type t := t * Parsetree.attributes
@@ -251,7 +331,7 @@ end
 module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
-    | Jpat_unboxed_constant of Unboxed_constants.pattern
+    | Jpat_layout of Layouts.pattern
 
   include AST
     with type t := t * Parsetree.attributes
@@ -289,10 +369,16 @@ end
 
 (** Novel syntax in extension constructors *)
 module Extension_constructor : sig
-  type t = |
+  type t =
+    | Jext_layout of Layouts.extension_constructor
 
   include AST with type t := t * Parsetree.attributes
                and type ast := Parsetree.extension_constructor
+
+  val extension_constructor_of :
+    loc:Location.t -> name:string Location.loc -> attrs:Parsetree.attributes ->
+    ?info:Docstrings.info -> ?docs:Docstrings.docs -> t ->
+    Parsetree.extension_constructor
 end
 
 (** Novel syntax in module expressions *)
