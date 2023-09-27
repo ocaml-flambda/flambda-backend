@@ -1,0 +1,58 @@
+let code gadt_match_3 deleted in
+let code nth_char_1 deleted in
+let code set_0 deleted in
+let code needs_try_region_2 deleted in
+let code loopify(never) size(5) newer_version_of(set_0)
+      set_0_1 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
+  let Psetfield = %block_set imm t.(0) <- 42 in
+  cont k (0)
+in
+let $camlTests14__set_4 = closure set_0_1 @set in
+let code loopify(never) size(6) newer_version_of(nth_char_1)
+      nth_char_1_1 (s, n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %string_load 8 (s, n) in
+  let Pstringrefu = %Tag_imm prim in
+  cont k (Pstringrefu)
+in
+let $camlTests14__nth_char_5 = closure nth_char_1_1 @nth_char in
+let code loopify(never) size(1) newer_version_of(needs_try_region_2)
+      needs_try_region_2_1 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let Popaque = %Opaque 42 in
+  cont k (1)
+in
+let $camlTests14__needs_try_region_6 =
+  closure needs_try_region_2_1 @needs_try_region
+in
+let code loopify(never) size(23) newer_version_of(gadt_match_3)
+      gadt_match_3_1 (x : [ 0 |1 | 0 of imm tagged ], n)
+        my_closure my_region my_depth
+        -> k * k1 =
+  (let prim = %is_int x in
+   switch prim
+     | 0 -> k3
+     | 1 -> k4)
+    where k4 =
+      let untagged = %untag_imm x in
+      switch untagged
+        | 0 -> k (n)
+        | 1 -> k2
+    where k3 =
+      invalid "Zero_switch_arms"
+    where k2 =
+      let Popaque = %Opaque n in
+      cont k (Popaque)
+in
+let $camlTests14__gadt_match_7 = closure gadt_match_3_1 @gadt_match in
+let $camlTests14 =
+  Block 0 ($camlTests14__set_4,
+           $camlTests14__nth_char_5,
+           $camlTests14__needs_try_region_6,
+           $camlTests14__gadt_match_7)
+in
+cont done ($camlTests14)

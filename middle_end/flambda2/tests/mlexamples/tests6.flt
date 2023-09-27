@@ -38,7 +38,7 @@ let code f_0 deleted in
 let `region` = %begin_region in
 let $camlTests6__f_1 =
   closure f_0_1 @f
-and code rec size(21) newer_version_of(f_0)
+and code rec loopify(never) size(21) newer_version_of(f_0)
       f_0_1 (x : imm tagged)
         my_closure my_region my_depth
         -> k * k1

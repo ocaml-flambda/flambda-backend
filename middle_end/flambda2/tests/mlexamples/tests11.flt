@@ -96,7 +96,7 @@ let code `anon-fn[tests11.ml:15,39--51]_3` deleted in
 let code `anon-fn[tests11.ml:15,2--70]_1` deleted in
 let code bar_0 deleted in
 let code map_foo_4 deleted in
-let code size(1) newer_version_of(`anon-fn[tests11.ml:15,39--51]_3`)
+let code loopify(never) size(1) newer_version_of(`anon-fn[tests11.ml:15,39--51]_3`)
       `anon-fn[tests11.ml:15,39--51]_3_1` (x)
         my_closure my_region my_depth
         -> k * k1 =
@@ -106,7 +106,7 @@ let $`camlTests11__anon-fn[tests11.ml:15,39--51]_7` =
   closure `anon-fn[tests11.ml:15,39--51]_3_1`
     @`anon-fn[tests11.ml:15,39--51]`
 in
-let code size(1) newer_version_of(`anon-fn[tests11.ml:15,52--67]_2`)
+let code loopify(never) size(1) newer_version_of(`anon-fn[tests11.ml:15,52--67]_2`)
       `anon-fn[tests11.ml:15,52--67]_2_1` (param : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -117,7 +117,7 @@ let $`camlTests11__anon-fn[tests11.ml:15,52--67]_6` =
   closure `anon-fn[tests11.ml:15,52--67]_2_1`
     @`anon-fn[tests11.ml:15,52--67]`
 in
-let code size(7) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1`)
+let code loopify(never) size(7) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1`)
       `anon-fn[tests11.ml:15,2--70]_1_1` (param : imm tagged)
         my_closure my_region my_depth
         -> k * k1 =
@@ -132,7 +132,7 @@ let code size(7) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1`)
       &my_region
       -> k * k1
 in
-let code size(16) newer_version_of(bar_0)
+let code loopify(never) size(16) newer_version_of(bar_0)
       bar_0_1 (map_foo) my_closure my_region my_depth -> k * k1 =
   let `anon-fn[tests11.ml:15,2--70]` =
     closure `anon-fn[tests11.ml:15,2--70]_1_1`
@@ -144,7 +144,7 @@ in
 let $camlTests11__bar_5 = closure bar_0_1 @bar in
 let $camlTests11__map_foo_8 =
   closure map_foo_4_1 @map_foo
-and code rec size(51) newer_version_of(map_foo_4)
+and code rec loopify(never) size(51) newer_version_of(map_foo_4)
       map_foo_4_1 (f, seq, param : imm tagged)
         my_closure my_region my_depth
         -> k * k1

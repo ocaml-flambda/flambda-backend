@@ -95,7 +95,13 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let layout ppf (Pvalue k) = value_kind ppf k
+let layout ppf layout =
+  match layout with
+  | Pvalue k -> value_kind ppf k
+  | Ptop -> fprintf ppf "[top]"
+  | Pbottom -> fprintf ppf "[bottom]"
+  | Punboxed_float -> fprintf ppf "[unboxed_float]"
+  | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -109,6 +115,10 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
+  | Punboxed_float -> fprintf ppf ": unboxed_float@ "
+  | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
+  | Ptop -> fprintf ppf ": top@ "
+  | Pbottom -> fprintf ppf ": bottom@ "
 
 let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"
@@ -441,6 +451,14 @@ let primitive ppf = function
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
   | Pobj_magic _ -> fprintf ppf "obj_magic"
+  | Punbox_float -> fprintf ppf "unbox_float"
+  | Pbox_float m -> fprintf ppf "box_float%s" (alloc_kind m)
+  | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pbox_int (bi, m) ->
+      fprintf ppf "box_%s%s" (boxed_integer_name bi) (alloc_kind m)
+
+  | Parray_to_iarray -> fprintf ppf "array_to_iarray"
+  | Parray_of_iarray -> fprintf ppf "array_of_iarray"
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -549,6 +567,12 @@ let name_of_primitive = function
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic _ -> "Pobj_magic"
+  | Punbox_float -> "Punbox_float"
+  | Pbox_float _ -> "Pbox_float"
+  | Punbox_int _ -> "Punbox_int"
+  | Pbox_int _ -> "Pbox_int"
+  | Parray_of_iarray -> "Parray_of_iarray"
+  | Parray_to_iarray -> "Parray_to_iarray"
 
 let check_attribute ppf check =
   let check_property = function
@@ -786,8 +810,6 @@ let rec lam ppf = function
        | Lev_after _  -> "after"
        | Lev_function -> "funct-body"
        | Lev_pseudo -> "pseudo"
-       | Lev_module_definition ident ->
-         Format.asprintf "module-defn(%a)" Ident.print ident
       in
       (* -dno-locations also hides the placement of debug events;
          this is good for the readability of the resulting output (usually

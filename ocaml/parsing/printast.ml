@@ -669,6 +669,7 @@ and module_type i ppf x =
   line i ppf "module_type %a\n" fmt_location x.pmty_loc;
   attributes i ppf x.pmty_attributes;
   let i = i+1 in
+  (* Print raw AST, without interpreting extensions *)
   match x.pmty_desc with
   | Pmty_ident li -> line i ppf "Pmty_ident %a\n" fmt_longident_loc li;
   | Pmty_alias li -> line i ppf "Pmty_alias %a\n" fmt_longident_loc li;

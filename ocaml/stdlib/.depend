@@ -23,12 +23,10 @@ stdlib__Arg.cmi : arg.mli \
 stdlib__Array.cmo : array.ml \
     stdlib.cmi \
     stdlib__Seq.cmi \
-    stdlib__Obj.cmi \
     stdlib__Array.cmi
 stdlib__Array.cmx : array.ml \
     stdlib.cmx \
     stdlib__Seq.cmx \
-    stdlib__Obj.cmx \
     stdlib__Array.cmi
 stdlib__Array.cmi : array.mli \
     stdlib.cmi \
@@ -436,13 +434,11 @@ stdlib__Hashtbl.cmi : hashtbl.mli \
 stdlib__Iarray.cmo : iarray.ml \
     stdlib.cmi \
     stdlib__Seq.cmi \
-    stdlib__Obj.cmi \
     stdlib__Array.cmi \
     stdlib__Iarray.cmi
 stdlib__Iarray.cmx : iarray.ml \
     stdlib.cmx \
     stdlib__Seq.cmx \
-    stdlib__Obj.cmx \
     stdlib__Array.cmx \
     stdlib__Iarray.cmi
 stdlib__Iarray.cmi : iarray.mli \

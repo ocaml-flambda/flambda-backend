@@ -239,6 +239,13 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
+  | Punbox_float
+  | Pbox_float of alloc_mode
+  | Punbox_int of boxed_integer
+  | Pbox_int of boxed_integer * alloc_mode
+  (* Jane Street extensions *)
+  | Parray_to_iarray
+  | Parray_of_iarray
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -255,7 +262,11 @@ and value_kind =
   | Parrayval of array_kind
 
 and layout =
+  | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
+  | Punboxed_int of boxed_integer
+  | Pbottom
 
 and block_shape =
   value_kind list option
@@ -316,14 +327,34 @@ let rec equal_value_kind x y =
   | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _), _ -> false
 
-let equal_layout (Pvalue x) (Pvalue y) = equal_value_kind x y
+let equal_layout x y =
+  match x, y with
+  | Pvalue x, Pvalue y -> equal_value_kind x y
+  | Ptop, Ptop -> true
+  | Pbottom, Pbottom -> true
+  | _, _ -> false
 
-let compatible_layout (Pvalue _) (Pvalue _) = true
+let compatible_layout x y =
+  match x, y with
+  | Pbottom, _
+  | _, Pbottom -> true
+  | Pvalue _, Pvalue _ -> true
+  | Punboxed_float, Punboxed_float -> true
+  | Punboxed_int bi1, Punboxed_int bi2 ->
+      equal_boxed_integer bi1 bi2
+  | Ptop, Ptop -> true
+  | Ptop, _ | _, Ptop -> false
+  | (Pvalue _ | Punboxed_float | Punboxed_int _), _ -> false
 
 let must_be_value layout =
   match layout with
   | Pvalue v -> v
-  (* | _ -> Misc.fatal_error "Layout is not a value" *)
+  | Pbottom ->
+      (* Here, we want to get the [value_kind] corresponding to
+         a [Pbottom] layout. Anything will do, we return [Pgenval]
+         as a default. *)
+      Pgenval
+  | _ -> Misc.fatal_error "Layout is not a value"
 
 type structured_constant =
     Const_base of constant
@@ -434,6 +465,8 @@ let equal_meth_kind x y =
 
 type shared_code = (int * int) list
 
+type static_label = int
+
 type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
@@ -461,8 +494,8 @@ type lambda =
   | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
-  | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
+  | Lstaticraise of static_label * lambda list
+  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
@@ -533,7 +566,6 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
   | Lev_pseudo
-  | Lev_module_definition of Ident.t
 
 type program =
   { compilation_unit : Compilation_unit.t;
@@ -599,10 +631,9 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 
-let layout_top = Pvalue Pgenval
-let layout_bottom =
-  (* CR pchambart: this should be an actual bottom *)
-  Pvalue Pgenval
+(* CR ncourant: use [Ptop] or remove this as soon as possible. *)
+let layout_top = layout_any_value
+let layout_bottom = Pbottom
 
 let default_function_attribute = {
   inline = Default_inline;
@@ -1275,7 +1306,9 @@ let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
 let primitive_may_allocate : primitive -> alloc_mode option = function
-  | Pbytes_to_string | Pbytes_of_string | Pignore -> None
+  | Pbytes_to_string | Pbytes_of_string
+  | Parray_to_iarray | Parray_of_iarray
+  | Pignore -> None
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
@@ -1353,6 +1386,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
+  | Punbox_float | Punbox_int _ -> None
+  | Pbox_float m | Pbox_int (_, m) -> Some m
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1381,7 +1416,9 @@ let primitive_result_layout (p : primitive) =
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
-  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ -> layout_float
+  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+  | Pbox_float _ -> layout_float
+  | Punbox_float -> Punboxed_float
   | Pccall _p ->
       (* CR ncourant: use native_repr *)
       layout_any_value
@@ -1411,8 +1448,9 @@ let primitive_result_layout (p : primitive) =
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
   | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
   | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
-  | Pbbswap (bi, _) ->
+  | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
+  | Punbox_int bi -> Punboxed_int bi
   | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _ ->
       layout_boxedint Pint32
   | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
@@ -1440,6 +1478,7 @@ let primitive_result_layout (p : primitive) =
   | Pint_as_pointer ->
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
+  | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
 
 let rec compute_expr_layout kinds lam =
   match lam with

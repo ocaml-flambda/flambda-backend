@@ -54,6 +54,7 @@ let keyword_table =
     "exn", KWD_EXN;
     "float", KWD_FLOAT;
     "halt_and_catch_fire", KWD_HCF;
+    "heap_or_local", KWD_HEAP_OR_LOCAL;
     "hint", KWD_HINT;
     "id", KWD_ID;
     "imm", KWD_IMM;
@@ -65,7 +66,11 @@ let keyword_table =
     "inlining_state", KWD_INLINING_STATE;
     "int32", KWD_INT32;
     "int64", KWD_INT64;
+    "invalid", KWD_INVALID;
+    "land", KWD_LAND;
     "let", KWD_LET;
+    "local", KWD_LOCAL;
+    "loopify", KWD_LOOPIFY;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;
@@ -88,6 +93,8 @@ let keyword_table =
     "switch", KWD_SWITCH;
     "tag", KWD_TAG;
     "tagged", KWD_TAGGED;
+    "tailrec", KWD_TAILREC;
+    "toplevel", KWD_TOPLEVEL;
     "tupled", KWD_TUPLED;
     "unit", KWD_UNIT;
     "unreachable", KWD_UNREACHABLE;
@@ -116,13 +123,17 @@ let prim_table =
     "array_load", PRIM_ARRAY_LOAD;
     "array_set", PRIM_ARRAY_SET;
     "begin_region", PRIM_BEGIN_REGION;
+    "begin_try_region", PRIM_BEGIN_TRY_REGION;
+    "bigstring_load", PRIM_BIGSTRING_LOAD;
     "Block", PRIM_BLOCK;
     "block_load", PRIM_BLOCK_LOAD;
+    "block_set", PRIM_BLOCK_SET;
     "Box_float", PRIM_BOX_FLOAT;
     "Box_int32", PRIM_BOX_INT32;
     "Box_int64", PRIM_BOX_INT64;
     "Box_nativeint", PRIM_BOX_NATIVEINT;
     "bytes_length", PRIM_BYTES_LENGTH;
+    "bytes_load", PRIM_BYTES_LOAD;
     "end_region", PRIM_END_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
@@ -137,6 +148,7 @@ let prim_table =
     "project_value_slot", PRIM_PROJECT_VALUE_SLOT;
     "project_function_slot", PRIM_PROJECT_FUNCTION_SLOT;
     "string_length", PRIM_STRING_LENGTH;
+    "string_load", PRIM_STRING_LOAD;
     "Tag_imm", PRIM_TAG_IMM;
     "unbox_float", PRIM_UNBOX_FLOAT;
     "unbox_int32", PRIM_UNBOX_INT32;
@@ -186,8 +198,9 @@ let oct_literal =
   '0' ['o' 'O'] ['0'-'7'] ['0'-'7' '_']*
 let bin_literal =
   '0' ['b' 'B'] ['0'-'1'] ['0'-'1' '_']*
+let sign = ['-']
 let int_literal =
-  decimal_literal | hex_literal | oct_literal | bin_literal
+  sign? (decimal_literal | hex_literal | oct_literal | bin_literal)
 let float_literal =
   ['0'-'9'] ['0'-'9' '_']*
   ('.' ['0'-'9' '_']* )?
@@ -244,13 +257,14 @@ rule token = parse
   | ">"  { GREATER }
   | "<=" { LESSEQUAL }
   | ">=" { GREATEREQUAL }
+  | "<>" { NOTEQUAL }
   | "?"  { QMARK }
   | "+." { PLUSDOT }
   | "-." { MINUSDOT }
   | "*." { STARDOT }
   | "/." { SLASHDOT }
   | "=." { EQUALDOT }
-  | "!=." { NOTEQUALDOT }
+  | "<>." { NOTEQUALDOT }
   | "<." { LESSDOT }
   | "<=." { LESSEQUALDOT }
   | "?." { QMARKDOT }

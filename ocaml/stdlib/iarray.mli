@@ -1,4 +1,19 @@
-(* CR aspectorzabusky: This needs a copyright header; should I copy [array.mli]? *)
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*               Antal Spector-Zabusky, Jane Street, New York             *)
+(*                                                                        *)
+(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
+(*     en Automatique.                                                    *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
 
 open! Stdlib
 
@@ -9,9 +24,6 @@ open! Stdlib
    If this file is iarray.mli, do not edit it directly -- edit
    iarrayLabels.mli instead.
  *)
-
-(* If you update any types in this module, you need to update iarray.ml as well;
-   it uses Obj.magic, so changes won't be detected. *)
 
 (** Operations on immutable arrays.  This module mirrors the API of [Array], but
     omits functions that assume mutability; in particular, it omits [copy] along

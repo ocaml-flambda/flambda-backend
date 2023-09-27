@@ -112,7 +112,9 @@ let preserve_tailcall_for_prim = function
     Popaque _ | Psequor | Psequand
   | Pobj_magic _ ->
       true
-  | Pbytes_to_string | Pbytes_of_string | Pignore
+  | Pbytes_to_string | Pbytes_of_string
+  | Parray_to_iarray | Parray_of_iarray
+  | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
@@ -121,6 +123,7 @@ let preserve_tailcall_for_prim = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
   | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -518,6 +521,8 @@ let comp_primitive p args =
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
+  | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
+  | Parray_of_iarray -> Kccall("caml_array_of_iarray", 1)
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
@@ -530,6 +535,7 @@ let comp_primitive p args =
   | Pmakeblock _
   | Pmakefloatblock _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -704,6 +710,10 @@ let rec comp_expr env exp sz cont =
         comp_init env sz decl_size
       end
   | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
@@ -1014,8 +1024,6 @@ let rec comp_expr env exp sz cont =
             let cont1 = add_event ev cont in
             comp_expr env lam sz cont1
           end
-      | Lev_module_definition _ ->
-          comp_expr env lam sz cont
       end
   | Lifused (_, exp) ->
       comp_expr env exp sz cont

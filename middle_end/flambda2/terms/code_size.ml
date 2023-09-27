@@ -309,6 +309,7 @@ let nullary_prim_size prim =
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
   | Begin_region -> 1
+  | Enter_inlined_apply _ -> 0
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with

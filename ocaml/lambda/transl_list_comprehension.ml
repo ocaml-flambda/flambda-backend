@@ -84,8 +84,8 @@ open Lambda_utils.Constants
           Nil)
          ]}
 
-    See [CamlinternalComprehension] the types and functions we desugar to, along
-    with some more documentation. *)
+    See [CamlinternalComprehension] for the types and functions we desugar to,
+    along with some more documentation. *)
 
 (** An implementation note: Many of the functions in this file need to translate
     expressions from Typedtree to Lambda; to avoid strange dependency ordering,
@@ -93,10 +93,10 @@ open Lambda_utils.Constants
     as a labeled argument, along with the necessary [scopes] labeled argument
     that it requires. *)
 
-(* CR aspectorzabusky: I couldn't get this to build if these were run as soon as
-   this file was processed *)
 (** The functions that are required to build the results of list comprehensions;
-    see the documentation for [CamlinternalComprehension] for more details. *)
+    see the documentation for [CamlinternalComprehension] for more details.
+    Because these are being looked up in the environment, we need to wait to
+    create them until that exists, hence [lazy]. *)
 let ( rev_list_to_list
     , rev_dlist_concat_map
     , rev_dlist_concat_iterate_up
@@ -136,7 +136,9 @@ type translated_iterator =
       ]}
       Once the "iterator arguments", which vary depending on the iterator, are
       applied to this function (see [arg_lets]), then it is simply waiting for
-      the body of the iterator (the final function argument). *)
+      the body of the iterator (the final function argument).  Lazy because it
+      holds a reference to a primitive, which has to be constructed lazily (see
+      above). *)
   ; arg_lets : Let_binding.t list
   (** The first-class let bindings that bind the arguments to the [builder]
       function that actually does the iteration.  These let bindings need to be
@@ -194,8 +196,6 @@ let iterator ~transl_exp ~scopes = function
       ; element
       ; element_kind = Typeopt.layout pattern.pat_env pattern.pat_type
       ; add_bindings =
-          (* CR aspectorzabusky: This has to be at [value_kind] [Pgenval],
-             right, since we don't know more specifically? *)
           Matching.for_let
             ~scopes pattern.pat_loc (Lvar element) pattern (Pvalue Pgenval)
       }
@@ -208,7 +208,8 @@ let iterator ~transl_exp ~scopes = function
     so bindings are just like iterators with a possible annotation.  As a
     result, this function is essentially the same as [iterator], which see. *)
 let binding ~transl_exp ~scopes { comp_cb_iterator; comp_cb_attributes = _ } =
-  (* CR aspectorzabusky: What do we do with attributes here? *)
+  (* No attributes are meaningful here; see the definition of
+     [comp_cb_attributes]. *)
   iterator ~transl_exp ~scopes comp_cb_iterator
 
 (** Translate all the bindings of a single [for ... and ...] clause (the

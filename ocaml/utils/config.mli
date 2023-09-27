@@ -126,6 +126,9 @@ val cmxs_magic_number: string
 val cmt_magic_number: string
 (** Magic number for compiled interface files *)
 
+val cms_magic_number: string
+(** Magic number for compiled shapes files *)
+
 val linear_magic_number: string
 (** Magic number for Linear internal representation files *)
 

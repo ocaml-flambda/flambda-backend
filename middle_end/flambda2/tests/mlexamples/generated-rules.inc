@@ -7,6 +7,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe local.flt)
+   (diff? local.flt local.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe local_in.fl)
+   (diff? local_in.fl local_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe local_out.fl)
+   (diff? local_out.fl local_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets local.flt.new local_in.fl.new local_out.fl.new)
+ (deps local.ml)
+ (action
+   (run ocamlopt -c local.ml -nopervasives -nostdlib
+        -drawfexpr-to local_in.fl.new
+        -dfexpr-to local_out.fl.new
+        -dflexpect-to local.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff local_in.fl local_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff local_out.fl local_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff local.flt local.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe tests0.flt)
    (diff? tests0.flt tests0.flt.corrected))))
 
@@ -45,6 +88,49 @@
 (rule
  (alias regen)
  (action (diff tests0.flt tests0.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe tests2.flt)
+   (diff? tests2.flt tests2.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests2_in.fl)
+   (diff? tests2_in.fl tests2_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests2_out.fl)
+   (diff? tests2_out.fl tests2_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests2.flt.new tests2_in.fl.new tests2_out.fl.new)
+ (deps tests2.ml)
+ (action
+   (run ocamlopt -c tests2.ml -nopervasives -nostdlib
+        -drawfexpr-to tests2_in.fl.new
+        -dfexpr-to tests2_out.fl.new
+        -dflexpect-to tests2.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests2_in.fl tests2_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests2_out.fl tests2_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests2.flt tests2.flt.new)))
 
 (rule
  (alias runtest)
@@ -265,6 +351,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe tests7.flt)
+   (diff? tests7.flt tests7.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests7_in.fl)
+   (diff? tests7_in.fl tests7_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests7_out.fl)
+   (diff? tests7_out.fl tests7_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests7.flt.new tests7_in.fl.new tests7_out.fl.new)
+ (deps tests7.ml)
+ (action
+   (run ocamlopt -c tests7.ml -nopervasives -nostdlib
+        -drawfexpr-to tests7_in.fl.new
+        -dfexpr-to tests7_out.fl.new
+        -dflexpect-to tests7.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests7_in.fl tests7_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests7_out.fl tests7_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests7.flt tests7.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe tests11.flt)
    (diff? tests11.flt tests11.flt.corrected))))
 
@@ -303,3 +432,46 @@
 (rule
  (alias regen)
  (action (diff tests11.flt tests11.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe tests14.flt)
+   (diff? tests14.flt tests14.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests14_in.fl)
+   (diff? tests14_in.fl tests14_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests14_out.fl)
+   (diff? tests14_out.fl tests14_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests14.flt.new tests14_in.fl.new tests14_out.fl.new)
+ (deps tests14.ml)
+ (action
+   (run ocamlopt -c tests14.ml -nopervasives -nostdlib
+        -drawfexpr-to tests14_in.fl.new
+        -dfexpr-to tests14_out.fl.new
+        -dflexpect-to tests14.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests14_in.fl tests14_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests14_out.fl tests14_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests14.flt tests14.flt.new)))

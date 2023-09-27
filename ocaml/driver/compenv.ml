@@ -252,6 +252,7 @@ let read_one_param ppf position name v =
   match name with
   | "g" -> set "g" [ Clflags.debug ] v
   | "bin-annot" -> set "bin-annot" [ Clflags.binary_annotations ] v
+  | "bin-annot-cms" -> set "bin-annot-cms" [ Clflags.binary_annotations_cms ] v
   | "afl-instrument" -> set "afl-instrument" [ Clflags.afl_instrument ] v
   | "afl-inst-ratio" ->
       int_setter ppf "afl-inst-ratio" afl_inst_ratio v
@@ -489,9 +490,9 @@ let read_one_param ppf position name v =
   | "dump-into-file" -> Clflags.dump_into_file := true
   | "dump-dir" -> Clflags.dump_dir := Some v
 
-  | "extension" -> Clflags.Extension.enable v
+  | "extension" -> Language_extension.(enable (of_string_exn v))
   | "disable-all-extensions" ->
-    if check_bool ppf name v then Clflags.Extension.disable_all ()
+    if check_bool ppf name v then Language_extension.disallow_extensions ()
 
   | _ ->
     if !warnings_for_discarded_params &&

@@ -48,7 +48,7 @@
  (name ocamlcommon)
  (wrapped false)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
+   -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
    -w -67
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
@@ -63,7 +63,7 @@
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys global
+   lazy_backtrack diffing diffing_with_keys language_extension global
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -76,12 +76,12 @@
    ident path primitive shape types btype oprint subst predef datarepr
    cmi_format persistent_env env type_immediacy errortrace
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
-   tast_iterator tast_mapper signature_group cmt_format untypeast
+   tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
    typecore
-   typeclass typemod typedecl_variance typedecl_properties typedecl_immediacy
-   typedecl_unboxed typedecl_separability cmt2annot
+   typeclass typemod typedecl_variance typedecl_properties
+   typedecl_separability cmt2annot
    ; manual update: mli only files
    annot outcometree
 
@@ -105,7 +105,7 @@
  (name ocamlbytecomp)
  (wrapped false)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
+   -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
@@ -123,7 +123,7 @@
  (name main)
  (modes byte)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
+   -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (libraries ocamlbytecomp ocamlcommon)
@@ -133,7 +133,7 @@
  (name main_native)
  (modes native)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
+   -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (libraries ocamlbytecomp ocamlcommon)
@@ -236,6 +236,7 @@
     (numbers.mli as compiler-libs/numbers.mli)
     (arg_helper.mli as compiler-libs/arg_helper.mli)
     (clflags.mli as compiler-libs/clflags.mli)
+    (language_extension.mli as compiler-libs/language_extension.mli)
     (profile.mli as compiler-libs/profile.mli)
     (terminfo.mli as compiler-libs/terminfo.mli)
     (ccomp.mli as compiler-libs/ccomp.mli)
@@ -292,6 +293,7 @@
     (tast_iterator.mli as compiler-libs/tast_iterator.mli)
     (tast_mapper.mli as compiler-libs/tast_mapper.mli)
     (cmt_format.mli as compiler-libs/cmt_format.mli)
+    (cms_format.mli as compiler-libs/cms_format.mli)
     (untypeast.mli as compiler-libs/untypeast.mli)
     (includemod.mli as compiler-libs/includemod.mli)
     (typetexp.mli as compiler-libs/typetexp.mli)
@@ -306,8 +308,6 @@
     (typemod.mli as compiler-libs/typemod.mli)
     (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)
     (typedecl_properties.mli as compiler-libs/typedecl_properties.mli)
-    (typedecl_immediacy.mli as compiler-libs/typedecl_immediacy.mli)
-    (typedecl_unboxed.mli as compiler-libs/typedecl_unboxed.mli)
     (typedecl_separability.mli as compiler-libs/typedecl_separability.mli)
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)

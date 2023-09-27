@@ -28,13 +28,14 @@ type expr_with_info =
 
 type cont =
   | Jump of
-      { cont : Cmm.label;
+      { cont : Lambda.static_label;
         param_types : Cmm.machtype list
       }
   | Inline of
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
-        handler_body : Flambda.Expr.t
+        handler_body : Flambda.Expr.t;
+        handler_body_inlined_debuginfo : Debuginfo.t
       }
 
 type extra_info = Untag of Cmm.expression
@@ -130,6 +131,8 @@ type t =
        This is relative to the flambda expression being currently translated,
        i.e. either the unit initialization code, or the body of a function. This
        information is reset when entering a new function. *)
+    inlined_debuginfo : Debuginfo.t;
+    (* Debuginfo corresponding to inlined functions. *)
     return_continuation : Continuation.t;
     (* The (non-exceptional) return continuation of the current context (used to
        determine which calls are tail-calls). *)
@@ -162,30 +165,7 @@ type translation_result =
     expr : expr_with_info
   }
 
-let create offsets functions_info ~trans_prim ~return_continuation
-    ~exn_continuation =
-  { return_continuation;
-    exn_continuation;
-    offsets;
-    functions_info;
-    trans_prim;
-    stages = [];
-    bindings = Variable.Map.empty;
-    inline_once_aliases = Variable.Map.empty;
-    vars_extra = Variable.Map.empty;
-    vars = Variable.Map.empty;
-    conts = Continuation.Map.empty;
-    exn_handlers = Continuation.Set.singleton exn_continuation;
-    exn_conts_extra_args = Continuation.Map.empty
-  }
-
-let enter_function_body env ~return_continuation ~exn_continuation =
-  create env.offsets env.functions_info ~trans_prim:env.trans_prim
-    ~return_continuation ~exn_continuation
-
-let return_continuation env = env.return_continuation
-
-let exn_continuation env = env.exn_continuation
+(* Printing *)
 
 let print_extra_info ppf = function
   | Untag e -> Format.fprintf ppf "Untag(%a)" Printcmm.expression e
@@ -248,6 +228,46 @@ let print_stages ppf stages =
 let print ppf t =
   Format.fprintf ppf "@[<hov 1>(@[<hov 1>(stages %a)@]@ )@]" print_stages
     t.stages
+
+(* Creation *)
+
+let create offsets functions_info ~trans_prim ~return_continuation
+    ~exn_continuation =
+  { return_continuation;
+    exn_continuation;
+    offsets;
+    functions_info;
+    trans_prim;
+    inlined_debuginfo = Debuginfo.none;
+    stages = [];
+    bindings = Variable.Map.empty;
+    inline_once_aliases = Variable.Map.empty;
+    vars_extra = Variable.Map.empty;
+    vars = Variable.Map.empty;
+    conts = Continuation.Map.empty;
+    exn_handlers = Continuation.Set.singleton exn_continuation;
+    exn_conts_extra_args = Continuation.Map.empty
+  }
+
+let enter_function_body env ~return_continuation ~exn_continuation =
+  create env.offsets env.functions_info ~trans_prim:env.trans_prim
+    ~return_continuation ~exn_continuation
+
+(* Debuginfo *)
+
+let enter_inlined_apply t dbg =
+  let inlined_debuginfo = Debuginfo.inline t.inlined_debuginfo dbg in
+  { t with inlined_debuginfo }
+
+let set_inlined_debuginfo t inlined_debuginfo = { t with inlined_debuginfo }
+
+let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
+
+(* Continuations *)
+
+let return_continuation env = env.return_continuation
+
+let exn_continuation env = env.exn_continuation
 
 (* Code and closures *)
 
@@ -317,17 +337,21 @@ let get_continuation env k =
       Continuation.print k
   | res -> res
 
-let new_cmm_continuation = Lambda.next_raise_count
-
 let add_jump_cont env k ~param_types =
-  let cont = new_cmm_continuation () in
+  let cont = Lambda.next_raise_count () in
   let conts = Continuation.Map.add k (Jump { param_types; cont }) env.conts in
   cont, { env with conts }
 
 let add_inline_cont env k ~handler_params ~handler_params_occurrences
     ~handler_body =
+  let handler_body_inlined_debuginfo = env.inlined_debuginfo in
   let info =
-    Inline { handler_params; handler_body; handler_params_occurrences }
+    Inline
+      { handler_params;
+        handler_body;
+        handler_params_occurrences;
+        handler_body_inlined_debuginfo
+      }
   in
   let conts = Continuation.Map.add k info env.conts in
   { env with conts }
@@ -336,7 +360,7 @@ let add_exn_handler env k arity =
   let env =
     { env with exn_handlers = Continuation.Set.add k env.exn_handlers }
   in
-  match Flambda_arity.to_list arity with
+  match Flambda_arity.With_subkinds.to_list arity with
   | [] -> Misc.fatal_error "Exception handlers must have at least one parameter"
   | [_] -> env, []
   | _ :: extra_args ->

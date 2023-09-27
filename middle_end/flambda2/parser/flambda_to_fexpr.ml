@@ -427,9 +427,7 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Immediate_array -> Immediate_array
   | Value_array -> Value_array
   | Generic_array -> Generic_array
-  | Float_block _ ->
-    Misc.fatal_errorf "TODO: Subkind %a" Flambda_kind.With_subkind.Subkind.print
-      k
+  | Float_block { num_fields } -> Float_block { num_fields }
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -476,20 +474,42 @@ let targetint_ocaml (i : Targetint_31_63.t) : Fexpr.targetint =
 let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
   match r with Recursive -> Recursive | Non_recursive -> Nonrecursive
 
+let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
+    Fexpr.alloc_mode_for_allocations =
+  match alloc with
+  | Heap -> Heap
+  | Local { region = r } ->
+    let r = Env.find_region_exn env r in
+    Local { region = r }
+
+let alloc_mode_for_types (alloc : Alloc_mode.For_types.t) :
+    Fexpr.alloc_mode_for_types =
+  match alloc with
+  | Heap -> Heap
+  | Heap_or_local -> Heap_or_local
+  | Local -> Local
+
+let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
+    Fexpr.init_or_assign =
+  match ia with
+  | Initialization -> Initialization
+  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
   | Begin_region -> Begin_region
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
 
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
   | Array_length -> Array_length
-  (* CR mshinwell: support local allocs in fexpr *)
-  | Box_number (bk, _alloc_mode) -> Box_number bk
+  | Box_number (bk, alloc) ->
+    Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
+  | Begin_try_region -> Begin_try_region
   | End_region -> End_region
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
@@ -508,32 +528,34 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Begin_try_region | Obj_dup ->
+  | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
+
+let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
+    Fexpr.block_access_kind =
+  let size (s : _ Or_unknown.t) =
+    match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
+  in
+  match bk with
+  | Values { field_kind; size = s; tag } ->
+    let size = s |> size in
+    let tag =
+      match tag with
+      | Unknown -> None
+      | Known tag -> Some (tag |> Tag.Scannable.to_int)
+    in
+    Values { field_kind; size; tag }
+  | Naked_floats { size = s } ->
+    let size = s |> size in
+    Naked_floats { size }
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
   | Array_load (ak, mut) -> Array_load (ak, mut)
   | Block_load (access_kind, mutability) ->
-    let size (s : _ Or_unknown.t) =
-      match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
-    in
-    let access_kind : Fexpr.block_access_kind =
-      match access_kind with
-      | Values { field_kind; size = s; tag } ->
-        let size = s |> size in
-        let tag =
-          match tag with
-          | Unknown -> None
-          | Known tag -> Some (tag |> Tag.Scannable.to_int)
-        in
-        Values { field_kind; size; tag }
-      | Naked_floats { size = s } ->
-        let size = s |> size in
-        Naked_floats { size }
-    in
+    let access_kind = block_access_kind access_kind in
     Block_load (access_kind, mutability)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
@@ -546,32 +568,27 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Int_shift (i, s) -> Int_shift (i, s)
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
-  | String_or_bigstring_load _ | Bigarray_load _ ->
+  | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
-let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
-    Fexpr.init_or_assign =
-  match ia with
-  | Initialization -> Initialization
-  | Assignment Heap -> Assignment Heap
-  | Assignment (Local { region = r }) ->
-    let r = Env.find_region_exn env r in
-    Assignment (Local { region = r })
-
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
   | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
-  | Block_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
 
-let varop (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
+let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
-  | Make_block (Values (tag, _), mutability, _alloc_mode) ->
-    Make_block (tag |> Tag.Scannable.to_int, mutability)
+  | Make_block (Values (tag, _), mutability, alloc) ->
+    let tag = tag |> Tag.Scannable.to_int in
+    let alloc = alloc_mode_for_allocations env alloc in
+    Make_block (tag, mutability, alloc)
   | Make_block (Naked_floats, _, _) | Make_array _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
@@ -585,11 +602,12 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
     Binary (binop op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
     Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
-  | Variadic (op, args) -> Variadic (varop op, List.map (simple env) args)
+  | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
 
 let value_slots env map =
   List.map
-    (fun (var, (value, kind)) ->
+    (fun (var, value) ->
+      let kind = Value_slot.kind var in
       if not
            (Flambda_kind.equal
               (Flambda_kind.With_subkind.kind kind)
@@ -601,7 +619,7 @@ let value_slots env map =
       { Fexpr.var; value })
     (map |> Value_slot.Map.bindings)
 
-let function_declaration env code_id function_slot : Fexpr.fun_decl =
+let function_declaration env code_id function_slot alloc : Fexpr.fun_decl =
   let code_id = Env.find_code_id_exn env code_id in
   let function_slot = Env.translate_function_slot env function_slot in
   (* Omit the function slot when possible *)
@@ -610,13 +628,15 @@ let function_declaration env code_id function_slot : Fexpr.fun_decl =
     then None
     else Some function_slot
   in
-  { code_id; function_slot }
+  let alloc = alloc |> alloc_mode_for_allocations env in
+  { code_id; function_slot; alloc }
 
 let set_of_closures env sc =
+  let alloc = Set_of_closures.alloc_mode sc in
   let fun_decls =
     List.map
       (fun (function_slot, fun_decl) ->
-        function_declaration env fun_decl function_slot)
+        function_declaration env fun_decl function_slot alloc)
       (Set_of_closures.function_decls sc
       |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
   in
@@ -780,6 +800,12 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
         then None
         else Some (Code.inline code)
       in
+      let loopify =
+        if Flambda2_terms.Loopify_attribute.equal (Code.loopify code)
+             Default_loopify_and_not_tailrec
+        then None
+        else Some (Code.loopify code)
+      in
       let is_tupled = Code.is_tupled code in
       let params_and_body =
         Flambda.Function_params_and_body.pattern_match
@@ -831,6 +857,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
           ret_arity;
           recursive;
           inline;
+          loopify;
           params_and_body;
           code_size;
           is_tupled
@@ -953,16 +980,18 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let args = List.map (simple env) (Apply_expr.args app) in
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
-    | Function { function_call = Direct code_id; alloc_mode = _ } ->
+    | Function { function_call = Direct code_id; alloc_mode } ->
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
-      Function (Direct { code_id; function_slot })
+      let alloc = alloc_mode_for_types alloc_mode in
+      Function (Direct { code_id; function_slot; alloc })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity;
-          alloc_mode = _
+          alloc_mode
         } ->
-      Function Indirect
+      let alloc = alloc_mode_for_types alloc_mode in
+      Function (Indirect alloc)
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in

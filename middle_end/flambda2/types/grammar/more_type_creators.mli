@@ -123,13 +123,14 @@ val closure_with_at_least_these_function_slots :
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  Variable.t Value_slot.Map.t ->
+  (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
   Type_grammar.t
 
 val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
+  value_slot_kind:Flambda_kind.With_subkind.t ->
   Type_grammar.t
 
 val type_for_const : Reg_width_const.t -> Type_grammar.t

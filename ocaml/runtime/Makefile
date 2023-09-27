@@ -76,6 +76,7 @@ ifeq "$(SUPPORTS_SHARED_LIBRARIES)" "true"
 BYTECODE_STATIC_LIBRARIES += libcamlrun_pic.$(A)
 BYTECODE_SHARED_LIBRARIES += libcamlrun_shared.$(SO)
 NATIVE_STATIC_LIBRARIES += libasmrun_pic.$(A)
+NATIVE_STATIC_LIBRARIES += libasmrunnnp.$(A)
 NATIVE_SHARED_LIBRARIES += libasmrun_shared.$(SO)
 endif
 endif
@@ -105,6 +106,8 @@ libasmruni_OBJECTS := $(NATIVE_C_SOURCES:.c=.ni.$(O)) $(ASM_OBJECTS)
 
 libasmrunpic_OBJECTS := $(NATIVE_C_SOURCES:.c=.npic.$(O)) \
   $(ASM_OBJECTS:.$(O)=_libasmrunpic.$(O))
+
+libasmrunnnp_OBJECTS := $(NATIVE_C_SOURCES:.c=.nnp.$(O)) $(ASM_OBJECTS)
 
 # General (non target-specific) assembler and compiler flags
 
@@ -310,6 +313,9 @@ libasmruni.$(A): $(libasmruni_OBJECTS)
 libasmrun_pic.$(A): $(libasmrunpic_OBJECTS)
 	$(call MKLIB,$@, $^)
 
+libasmrunnnp.$(A): $(libasmrunnnp_OBJECTS)
+	$(call MKLIB,$@, $^)
+
 libasmrun_shared.$(SO): $(libasmrunpic_OBJECTS)
 	$(MKDLL) -o $@ $^ $(NATIVECCLIBS)
 
@@ -335,6 +341,9 @@ libasmrun_shared.$(SO): $(libasmrunpic_OBJECTS)
 %.npic.$(O): OC_CFLAGS += $(SHAREDLIB_CFLAGS)
 %.npic.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 %.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
+
+%.nnp.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) -DNO_NAKED_POINTERS
+%.nnp.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) -DNO_NAKED_POINTERS
 
 # The major GC performs better with this flag on Intel processors
 # This is a workaround for an Intel CPU bug:
@@ -369,7 +378,7 @@ endef
 
 object_types := % %.b %.bd %.bi %.bpic
 ifneq "$(NATIVE_COMPILER)" "false"
-object_types += %.n %.nd %.ni %.np %.npic
+object_types += %.n %.nnp %.nd %.ni %.np %.npic
 endif
 
 $(foreach object_type, $(object_types), \
@@ -414,6 +423,7 @@ i386nt.obj: i386nt.asm domain_state32.inc
 DEP_FILES := $(addsuffix .b, $(basename $(BYTECODE_C_SOURCES) instrtrace))
 ifneq "$(NATIVE_COMPILER)" "false"
 DEP_FILES += $(addsuffix .n, $(basename $(NATIVE_C_SOURCES)))
+DEP_FILES += $(addsuffix .nnp, $(basename $(NATIVE_C_SOURCES)))
 endif
 DEP_FILES += $(addsuffix d, $(DEP_FILES)) \
              $(addsuffix i, $(DEP_FILES)) \

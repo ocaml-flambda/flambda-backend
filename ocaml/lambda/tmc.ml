@@ -858,6 +858,7 @@ let rec choice ctx t =
 
     (* in common cases we just return *)
     | Pbytes_to_string | Pbytes_of_string
+    | Parray_to_iarray | Parray_of_iarray
     | Pgetglobal _ | Psetglobal _ | Pgetpredef _
     | Pfield _ | Pfield_computed _
     | Psetfield _ | Psetfield_computed _
@@ -880,6 +881,8 @@ let rec choice ctx t =
     | Pisint _ | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+    | Punbox_float | Pbox_float _
+    | Punbox_int _ | Pbox_int _
 
     (* we don't handle array indices as destinations yet *)
     | (Pmakearray _ | Pduparray _)

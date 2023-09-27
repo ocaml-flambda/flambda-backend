@@ -109,6 +109,10 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
+type module_patterns_restriction =
+  | Modules_allowed of { scope : int }
+  | Modules_rejected
+
 val type_binding:
         Env.t -> rec_flag ->
           ?force_global:bool ->
@@ -129,7 +133,7 @@ val type_self_pattern:
         Env.t -> Parsetree.pattern ->
         Typedtree.pattern * pattern_variable list
 val check_partial:
-        ?lev:int -> Env.t -> type_expr ->
+        ?lev:int -> module_patterns_restriction -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
         Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression
@@ -239,7 +243,7 @@ type error =
   | Probe_name_undefined of string
   (* CR-soon mshinwell: Use an inlined record *)
   | Probe_is_enabled_format
-  | Extension_not_enabled of Clflags.Extension.t
+  | Extension_not_enabled of Language_extension.t
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -257,8 +261,10 @@ type error =
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
+  | Function_returns_local
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
+
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

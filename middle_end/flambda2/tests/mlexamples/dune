@@ -8,11 +8,15 @@
   (progn
    (with-stdout-to generated-rules.inc.new
     (run tools/gen_dune_rules.exe
+         local
          tests0
+         tests2
          tests3
          tests4
          tests4a
          tests5
          tests6
-         tests11))
+         tests7
+         tests11
+         tests14))
    (diff generated-rules.inc generated-rules.inc.new))))

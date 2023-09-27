@@ -101,7 +101,12 @@ module Env : sig
 
   type t
 
+  (** Create an environment marked as being at toplevel. *)
   val create : big_endian:bool -> t
+
+  val set_not_at_toplevel : t -> t
+
+  val at_toplevel : t -> bool
 
   val clear_local_bindings : t -> t
 
@@ -199,10 +204,7 @@ module Acc : sig
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
   val lifted_sets_of_closures :
-    t ->
-    ((Symbol.t * Env.value_approximation) Function_slot.Lmap.t
-    * Flambda.Set_of_closures.t)
-    list
+    t -> (Symbol.t Function_slot.Lmap.t * Flambda.Set_of_closures.t) list
 
   val shareable_constants : t -> Symbol.t Static_const.Map.t
 
@@ -217,7 +219,7 @@ module Acc : sig
   val add_declared_symbol : symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
   val add_lifted_set_of_closures :
-    symbols:(Symbol.t * Env.value_approximation) Function_slot.Lmap.t ->
+    symbols:Symbol.t Function_slot.Lmap.t ->
     set_of_closures:Flambda.Set_of_closures.t ->
     t ->
     t
@@ -278,6 +280,8 @@ module Acc : sig
   val add_symbol_approximation : t -> Symbol.t -> Env.value_approximation -> t
 
   val find_symbol_approximation : t -> Symbol.t -> Env.value_approximation
+
+  val symbol_approximations : t -> Env.value_approximation Symbol.Map.t
 end
 
 (** Used to represent information about a set of function declarations during

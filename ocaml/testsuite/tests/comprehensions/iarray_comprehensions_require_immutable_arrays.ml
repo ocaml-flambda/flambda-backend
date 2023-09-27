@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension comprehensions_experimental"
+   flags = "-extension comprehensions"
    ocamlc_byte_exit_status = "2"
    * setup-ocamlc.byte-build-env
    ** ocamlc.byte

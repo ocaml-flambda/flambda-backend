@@ -33,7 +33,8 @@ end
 
 (* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
-let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
+let bind_var_to_simple ~dbg_with_inlined:dbg env res v
+    ~num_normal_occurrences_of_bound_vars s =
   match Simple.must_be_var s with
   | Some (alias_of, _coercion) ->
     Env.add_alias env res ~var:v ~num_normal_occurrences_of_bound_vars ~alias_of
@@ -58,10 +59,9 @@ let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
 
 (* Helpers for the translation of [Apply] expressions. *)
 
-let translate_apply0 env res apply =
+let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let callee_simple = Apply.callee apply in
   let args = Apply.args apply in
-  let dbg = Apply.dbg apply in
   (* CR mshinwell: When we fix the problem that [prim_effects] and
      [prim_coeffects] are ignored for C calls, we need to take into account the
      effects/coeffects values currently ignored on the following two lines. At
@@ -94,12 +94,9 @@ let translate_apply0 env res apply =
     | Nontail -> Lambda.Rc_nontail
   in
   let args_arity =
-    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_arity
-    |> Flambda_arity.to_list
+    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list
   in
-  let return_arity =
-    Apply.return_arity apply |> Flambda_arity.With_subkinds.to_arity
-  in
+  let return_arity = Apply.return_arity apply in
   let args_ty = List.map C.machtype_of_kind args_arity in
   let return_ty = C.machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
@@ -167,14 +164,14 @@ let translate_apply0 env res apply =
     in
     let returns = Apply.returns apply in
     let wrap =
-      match Flambda_arity.to_list return_arity with
+      match Flambda_arity.With_subkinds.to_list return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
          whether C code that returns an int32 returns one that is sign extended
          or not. There is no need to wrap other return arities. Note that
          extcalls of arity 0 are allowed (these never return). *)
       | [] -> fun _dbg cmm -> cmm
       | [kind] -> (
-        match kind with
+        match Flambda_kind.With_subkind.kind kind with
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
             (Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint)
@@ -221,8 +218,10 @@ let translate_apply0 env res apply =
 (* CR mshinwell: Add first-class support in Cmm for the concept of an exception
    handler with extra arguments. *)
 let translate_apply env res apply =
-  let call, free_vars, env, res, effs = translate_apply0 env res apply in
-  let dbg = Apply.dbg apply in
+  let dbg = Env.add_inlined_debuginfo env (Apply.dbg apply) in
+  let call, free_vars, env, res, effs =
+    translate_apply0 ~dbg_with_inlined:dbg env res apply
+  in
   let k_exn = Apply.exn_continuation apply in
   let mut_vars =
     Exn_continuation.exn_handler k_exn |> Env.get_exn_extra_args env
@@ -261,7 +260,7 @@ let translate_apply env res apply =
 (* Exception continuations always receive the exception value in their first
    argument. Additionally, they may have extra arguments that are passed to the
    handler via mutable variables (expected to be spilled to the stack). *)
-let translate_raise env res apply exn_handler args =
+let translate_raise ~dbg_with_inlined:dbg env res apply exn_handler args =
   match args with
   | exn :: extra ->
     let raise_kind =
@@ -273,7 +272,6 @@ let translate_raise env res apply exn_handler args =
           "Apply_cont calls an exception handler without a Pop trap action:@ %a"
           Apply_cont.print apply
     in
-    let dbg = Apply_cont.debuginfo apply in
     let To_cmm_env.
           { env;
             res;
@@ -299,7 +297,8 @@ let translate_raise env res apply exn_handler args =
     Misc.fatal_errorf "Exception continuation %a has no arguments:@ \n%a"
       Continuation.print exn_handler Apply_cont.print apply
 
-let translate_jump_to_continuation env res apply types cont args =
+let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
+    cont args =
   if List.compare_lengths types args = 0
   then
     let trap_actions =
@@ -310,7 +309,6 @@ let translate_jump_to_continuation env res apply types cont args =
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
     in
-    let dbg = Apply_cont.debuginfo apply in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap (C.cexit cont args trap_actions) free_vars in
@@ -322,10 +320,10 @@ let translate_jump_to_continuation env res apply types cont args =
 
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
-let translate_jump_to_return_continuation env res apply return_cont args =
+let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
+    return_cont args =
   match args with
   | [return_value] -> (
-    let dbg = Apply_cont.debuginfo apply in
     let To_cmm_env.
           { env; res; expr = { cmm = return_value; free_vars; effs = _ } } =
       C.simple ~dbg env res return_value
@@ -373,6 +371,7 @@ let rec expr env res e : Cmm.expression * Backend_var.Set.t * To_cmm_result.t =
   | Invalid { message } -> invalid env res ~message
 
 and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
+  let dbg = Env.add_inlined_debuginfo env dbg in
   let v = Bound_var.var v in
   let effects_and_coeffects_of_prim =
     Flambda_primitive.effects_and_coeffects p
@@ -422,14 +421,20 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     let v = Bound_var.var v in
     (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
        these bindings should have been substituted out). *)
-    let dbg = Debuginfo.none in
+    (* CR gbury: once we get proper debuginfo here, remember to apply
+       Env.add_inlined_debuginfo to it *)
+    let dbg_with_inlined = Debuginfo.none in
     let env, res =
-      bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s
+      bind_var_to_simple ~dbg_with_inlined env res v
+        ~num_normal_occurrences_of_bound_vars s
     in
     expr env res body
   | Singleton _, Prim (p, _)
     when (not (Flambda_features.stack_allocation_enabled ()))
          && Flambda_primitive.is_begin_or_end_region p ->
+    expr env res body
+  | Singleton _, Prim (Nullary (Enter_inlined_apply { dbg }), _) ->
+    let env = Env.enter_inlined_apply env dbg in
     expr env res body
   | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
     (* CR gbury: this is a hack to prevent moving of expressions past an
@@ -545,7 +550,10 @@ and let_cont_not_inlined env res k handler body =
       let_cont_exn_handler env res k body vars handler free_vars_of_handler
         ~catch_id arity
     else
-      let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
+      (* CR mshinwell: fix debuginfo *)
+      (* CR gbury: once we get proper debuginfo here, remember to apply
+         Env.add_inlined_debuginfo to it *)
+      let dbg = Debuginfo.none in
       let body, free_vars_of_body, res = expr env res body in
       let free_vars =
         Backend_var.Set.union free_vars_of_body
@@ -593,28 +601,31 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
     Backend_var.Set.union free_vars_of_body
       (C.remove_vars_with_machtype free_vars_of_handler vars)
   in
-  let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
+  (* CR mshinwell: fix debuginfo *)
+  (* CR gbury: once we get proper debuginfo here, remember to apply
+     Env.add_inlined_debuginfo to it *)
+  let dbg = Debuginfo.none in
   let trywith =
     C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
   in
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =
     List.fold_left
-      (fun cmm (mut_var, (kind : K.t)) ->
+      (fun cmm (mut_var, kind) ->
         (* CR mshinwell: Fix [provenance] *)
         let mut_var =
           Backend_var.With_provenance.create ?provenance:None mut_var
         in
         let dummy_value =
-          match kind with
+          match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
           | Region | Rec_info ->
-            Misc.fatal_errorf "No dummy value available for kind %a" K.print
-              kind
+            Misc.fatal_errorf "No dummy value available for kind %a"
+              K.With_subkind.print kind
         in
         C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
       trywith mut_vars
@@ -660,7 +671,10 @@ and let_cont_rec env res invariant_params conts body =
       conts_to_handlers
       (Continuation.Map.empty, res)
   in
-  let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
+  (* CR mshinwell: fix debuginfo *)
+  (* CR gbury: once we get proper debuginfo here, remember to apply
+     Env.add_inlined_debuginfo to it *)
+  let dbg = Debuginfo.none in
   let body, free_vars_of_body, res = expr env res body in
   (* Setup the Cmm handlers for the Ccatch *)
   let handlers, free_vars =
@@ -681,7 +695,7 @@ and let_cont_rec env res invariant_params conts body =
 and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
-      let arity = Bound_parameters.arity params in
+      let arity = Bound_parameters.arity_with_subkinds params in
       let env, vars = C.bound_parameters env params in
       let expr, free_vars_of_handler, res = expr env res handler in
       vars, arity, expr, free_vars_of_handler, res)
@@ -735,8 +749,12 @@ and apply_expr env res apply =
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       let cmm, free_vars = wrap (C.cexit cont [call] []) free_vars in
       cmm, free_vars, res
-    | Inline { handler_params; handler_body = body; handler_params_occurrences }
-      -> (
+    | Inline
+        { handler_params;
+          handler_body = body;
+          handler_params_occurrences;
+          handler_body_inlined_debuginfo
+        } -> (
       (* Case 3 *)
       let handler_params = Bound_parameters.to_list handler_params in
       match handler_params with
@@ -749,22 +767,36 @@ and apply_expr env res apply =
             ~free_vars_of_defining_expr:free_vars
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
         in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
+        in
         expr env res body
       | _ :: _ -> unsupported ())
     | Jump _ -> unsupported ())
 
 and apply_cont env res apply_cont =
+  let dbg_with_inlined =
+    Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply_cont)
+  in
   let k = Apply_cont.continuation apply_cont in
   let args = Apply_cont.args apply_cont in
   if Env.is_exn_handler env k
-  then translate_raise env res apply_cont k args
+  then translate_raise ~dbg_with_inlined env res apply_cont k args
   else if Continuation.equal (Env.return_continuation env) k
-  then translate_jump_to_return_continuation env res apply_cont k args
+  then
+    translate_jump_to_return_continuation ~dbg_with_inlined env res apply_cont k
+      args
   else
     match Env.get_continuation env k with
     | Jump { param_types; cont } ->
-      translate_jump_to_continuation env res apply_cont param_types cont args
-    | Inline { handler_params; handler_body; handler_params_occurrences } ->
+      translate_jump_to_continuation ~dbg_with_inlined env res apply_cont
+        param_types cont args
+    | Inline
+        { handler_params;
+          handler_body;
+          handler_params_occurrences;
+          handler_body_inlined_debuginfo
+        } ->
       if Option.is_some (Apply_cont.trap_action apply_cont)
       then
         Misc.fatal_errorf "This [Apply_cont] should not have a trap action:@ %a"
@@ -777,12 +809,13 @@ and apply_cont env res apply_cont =
         let env, res =
           List.fold_left2
             (fun (env, res) param ->
-              bind_var_to_simple
-                ~dbg:(Apply_cont.debuginfo apply_cont)
-                env res
+              bind_var_to_simple ~dbg_with_inlined env res
                 (Bound_parameter.var param)
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
             (env, res) handler_params args
+        in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
         in
         expr env res handler_body
       else
@@ -794,7 +827,7 @@ and apply_cont env res apply_cont =
 
 and switch env res switch =
   let scrutinee = Switch.scrutinee switch in
-  let dbg = Switch.condition_dbg switch in
+  let dbg = Env.add_inlined_debuginfo env (Switch.condition_dbg switch) in
   let To_cmm_env.
         { env;
           res;
