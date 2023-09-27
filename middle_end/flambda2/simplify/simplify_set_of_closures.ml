@@ -199,7 +199,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     in
     if NO.mem_var free_names_of_body my_region &&
        Lambda.is_heap_mode (Code.result_mode code) then
-      Misc.fatal_errorf "Unexpected free my_region in code with heap result mode:\n"
+      Misc.fatal_errorf "Unexpected free my_region in code with heap result mode:\n%a"
         (RE.print (UA.are_rebuilding_terms uacc)) body;
     let free_names_of_code =
       free_names_of_body
