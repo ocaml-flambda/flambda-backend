@@ -56,8 +56,7 @@ let run ~cmx_loader ~round unit =
             Misc.fatal_errorf
               "Variable %a not expected to be free in whole-compilation-unit \
                term:@ %a"
-              Variable.print var Expr.print body
-          else Misc.fatal_errorf "toplevel_my_region is free")
+              Variable.print var Expr.print body)
         ~symbol:(fun _symbol -> ()));
   if not (LCS.is_empty (UA.lifted_constants uacc))
   then
