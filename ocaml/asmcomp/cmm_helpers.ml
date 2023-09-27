@@ -2489,7 +2489,7 @@ let default_apply =
   [ [typ_val; typ_val], typ_val, Lambda.alloc_heap;
     [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ]
 
-module Generic_fns.Tbl = struct
+module Generic_fns_tbl = struct
   type t =
     { curry : (Lambda.function_kind * machtype list * machtype, unit) Hashtbl.t;
       apply : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t;
@@ -2516,13 +2516,13 @@ module Generic_fns.Tbl = struct
 end
 
 let generic_functions shared units =
-  let tbl = Generic_fns.Tbl.make () in
-  if not shared then Generic_fns.Tbl.add tbl ([], default_apply, []);
+  let tbl = Generic_fns_tbl.make () in
+  if not shared then Generic_fns_tbl.add tbl ([], default_apply, []);
   List.iter (fun (ui : Cmx_format.unit_infos) ->
-      Generic_fns.Tbl.add tbl
+      Generic_fns_tbl.add tbl
         (ui.ui_curry_fun, ui.ui_apply_fun, ui.ui_send_fun)
     ) units;
-  let (curry, apply, send) = Generic_fns.Tbl.entries tbl in
+  let (curry, apply, send) = Generic_fns_tbl.entries tbl in
   List.concat_map curry_function curry
   @ List.map send_function send
   @ List.map apply_function apply

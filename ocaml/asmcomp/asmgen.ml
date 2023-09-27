@@ -203,7 +203,7 @@ let compile_genfuns ~ppf_dump f =
        | (Cfunction {fun_name = name}) as ph when f name ->
            compile_phrase ~ppf_dump ph
        | _ -> ())
-    (Generic_fns.compile true [Compilenv.current_unit_infos ()])
+    (Cmm_helpers.generic_functions true [Compilenv.current_unit_infos ()])
 
 let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
   reset ();
