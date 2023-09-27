@@ -48,15 +48,12 @@ let invariant_doms : Cfg.t -> doms -> unit =
     cfg.blocks;
   (* Check that (i) the immediate dominator is a strict dominator, and (ii)
      there is no other intermediate strict dominator - except for the entry
-     block. *)
+     block and unreachable blocks, which all have (by convention) themselves as
+     immediate dominators. *)
   Label.Tbl.iter
     (fun n idom_n ->
-      if Label.equal n cfg.entry_label
+      if not (Label.equal n idom_n)
       then (
-        if not (Label.equal idom_n cfg.entry_label)
-        then
-          fatal "Cfg_dominators.invariant_doms: invalid binding for entry label")
-      else (
         if not (is_strictly_dominating doms idom_n n)
         then
           fatal
