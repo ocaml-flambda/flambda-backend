@@ -355,12 +355,6 @@ let alloc_mode_for_allocations env (alloc : Fexpr.alloc_mode_for_allocations) =
     let r = find_region env r in
     Alloc_mode.For_allocations.local ~region:r
 
-let alloc_mode_for_types (alloc : Fexpr.alloc_mode_for_types) =
-  match alloc with
-  | Heap -> Alloc_mode.For_types.heap
-  | Heap_or_local -> Alloc_mode.For_types.unknown ()
-  | Local -> Alloc_mode.For_types.local ()
-
 let alloc_mode_for_assignments (alloc : Fexpr.alloc_mode_for_assignments) =
   match alloc with
   | Heap -> Alloc_mode.For_assignments.heap
@@ -888,18 +882,19 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let cost_metrics =
           Cost_metrics.from_size (Code_size.of_int code_size)
         in
-        (* CR ncourant: allow fexpr to specify param modes? *)
+        (* CR ncourant: allow fexpr to specify modes? *)
         let param_modes =
           List.map
             (fun _ -> Alloc_mode.For_types.heap)
             (Flambda_arity.unarize params_arity)
         in
+        let result_mode = Lambda.alloc_heap in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~param_modes
             ~first_complex_local_param:(Flambda_arity.num_params params_arity)
-            ~result_arity ~result_types:Unknown
+            ~result_arity ~result_types:Unknown ~result_mode
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~check:Default_check
               (* CR gyorsh: should [check] be set properly? *)
@@ -932,8 +927,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         continuation;
         exn_continuation;
         args;
-        arities;
-        region
+        arities
       } ->
     let continuation = find_result_cont env continuation in
     let call_kind, args_arity, return_arity =
@@ -952,10 +946,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             Flambda_arity.create_singletons [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        let alloc = alloc_mode_for_types alloc in
+        let alloc = alloc_mode_for_allocations env alloc in
         Call_kind.direct_function_call code_id alloc, params_arity, return_arity
       | Function (Indirect alloc) -> (
-        let alloc = alloc_mode_for_types alloc in
+        let alloc = alloc_mode_for_allocations env alloc in
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let params_arity = arity params_arity in
@@ -1007,7 +1001,6 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | None -> Inlining_state.default ~round:0
     in
     let exn_continuation = find_exn_cont env exn_continuation in
-    let region = find_region env region in
     let apply =
       Flambda.Apply.create
         ~callee:(Some (simple env func))
@@ -1015,7 +1008,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
         ~inlining_state ~probe:None ~position:Normal
-        ~relative_history:Inlining_history.Relative.empty ~region
+        ~relative_history:Inlining_history.Relative.empty
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)

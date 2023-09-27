@@ -712,6 +712,7 @@ module Function_decls = struct
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
         first_complex_local_param : int;
+        result_mode : Lambda.alloc_mode;
         contains_no_escaping_local_allocs : bool
       }
 
@@ -719,7 +720,7 @@ module Function_decls = struct
         ~removed_params ~return ~return_continuation ~exn_continuation
         ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
         ~free_idents_of_body recursive ~closure_alloc_mode
-        ~first_complex_local_param ~contains_no_escaping_local_allocs =
+        ~first_complex_local_param ~result_mode ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -742,6 +743,7 @@ module Function_decls = struct
         recursive;
         closure_alloc_mode;
         first_complex_local_param;
+        result_mode;
         contains_no_escaping_local_allocs
       }
 
@@ -788,6 +790,8 @@ module Function_decls = struct
     let closure_alloc_mode t = t.closure_alloc_mode
 
     let first_complex_local_param t = t.first_complex_local_param
+
+    let result_mode t = t.result_mode
 
     let contains_no_escaping_local_allocs t =
       t.contains_no_escaping_local_allocs

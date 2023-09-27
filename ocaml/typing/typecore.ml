@@ -7037,7 +7037,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
                                        partial = Total; region = false; curry;
                                        warnings = Warnings.backup ();
-                                       arg_mode = marg; arg_sort; ret_mode = Value_mode.regional_to_global_alloc ret_mode (* XXX check *); ret_sort;
+                                       arg_mode = marg; arg_sort; ret_mode = mret; ret_sort;
                                        alloc_mode } }
       in
       Location.prerr_warning texp.exp_loc

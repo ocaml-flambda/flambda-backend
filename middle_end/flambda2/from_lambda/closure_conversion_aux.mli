@@ -332,6 +332,7 @@ module Function_decls : sig
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
       first_complex_local_param:int ->
+      result_mode:Lambda.alloc_mode ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -376,6 +377,8 @@ module Function_decls : sig
     val closure_alloc_mode : t -> Lambda.alloc_mode
 
     val first_complex_local_param : t -> int
+
+    val result_mode : t -> Lambda.alloc_mode
 
     val contains_no_escaping_local_allocs : t -> bool
 

@@ -232,7 +232,7 @@ and expression_desc =
       warnings : Warnings.state;
       arg_mode : Mode.Alloc.t;
       arg_sort : Jkind.sort;
-      ret_mode : Types.alloc_mode;
+      ret_mode : Mode.Alloc.t;
       ret_sort : Jkind.sort;
       alloc_mode : Mode.Alloc.t}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].

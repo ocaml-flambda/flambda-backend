@@ -1002,7 +1002,7 @@ let transl_primitive loc p env ty ~poly_mode path =
        ~loc
        ~body
        ~mode:alloc_heap
-       ~ret_mode:(to_alloc_mode p.prim_native_repr_res) (* XXX check *)
+       ~ret_mode:(to_locality p.prim_native_repr_res)
        ~region
 
 let lambda_primitive_needs_event_after = function

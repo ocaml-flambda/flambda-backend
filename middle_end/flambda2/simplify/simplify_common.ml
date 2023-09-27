@@ -91,7 +91,7 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply
-    ~(apply_alloc_mode : Alloc_mode.For_types.t) ~current_region
+    ~(apply_alloc_mode : Alloc_mode.For_allocations.t)
     ~callee's_code_id ~callee's_code_metadata =
   let callee's_params_arity =
     Code_metadata.params_arity callee's_code_metadata
@@ -117,10 +117,10 @@ let split_direct_over_application apply
       (Flambda_arity.cardinal_unarized remaining_arity)
     = 0);
   let func_var = Variable.create "full_apply" in
-  let contains_no_escaping_local_allocs =
-    Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
+  let result_mode =
+    Code_metadata.result_mode callee's_code_metadata
   in
-  let needs_region =
+  let needs_region, inner_apply_alloc_mode, outer_apply_alloc_mode =
     (* If the function being called might do a local allocation that escapes,
        then we need a region for such function's return value, unless the
        allocation mode of the [Apply] is already [Local]. Note that we must not
@@ -129,17 +129,18 @@ let split_direct_over_application apply
        [End_region] primitive corresponding to such region) whilst the return
        value is still live (and with the caller expecting such value to have
        been allocated in their region). *)
-    match apply_alloc_mode, contains_no_escaping_local_allocs with
-    | Heap, false ->
-      Some (Variable.create "over_app_region", Continuation.create ())
-    | Heap, true | (Local | Heap_or_local), _ -> None
+    match apply_alloc_mode, result_mode with
+    | Heap, Alloc_local ->
+      let region = Variable.create "over_app_region" in
+      Some (region, Continuation.create ()),
+      Alloc_mode.For_allocations.local ~region,
+      Alloc_mode.For_allocations.heap
+    | Local _, Alloc_local ->
+      None, apply_alloc_mode, apply_alloc_mode
+    | (Heap | Local _), Alloc_heap ->
+      None, Alloc_mode.For_allocations.heap, apply_alloc_mode
   in
   let perform_over_application =
-    let region =
-      match needs_region with
-      | None -> current_region
-      | Some (region, _) -> region
-    in
     let continuation =
       (* If there is no need for a new region, then the second (over)
          application jumps directly to the return continuation of the original
@@ -157,12 +158,11 @@ let split_direct_over_application apply
       ~args:remaining_args ~args_arity:remaining_arity
       ~return_arity:(Apply.return_arity apply)
       ~call_kind:
-        (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
+        (Call_kind.indirect_function_call_unknown_arity outer_apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe:(Apply.probe apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
-      ~region
   in
   let perform_over_application_free_names =
     Apply.free_names perform_over_application
@@ -234,22 +234,16 @@ let split_direct_over_application apply
       ~is_exn_handler:false ~is_cold:false
   in
   let full_apply =
-    let alloc_mode =
-      if contains_no_escaping_local_allocs
-      then Alloc_mode.For_types.heap
-      else Alloc_mode.For_types.unknown ()
-    in
     Apply.create ~callee:(Apply.callee apply)
       ~continuation:(Return after_full_application)
       (Apply.exn_continuation apply)
       ~args:first_args ~args_arity:callee's_params_arity
       ~return_arity:(Code_metadata.result_arity callee's_code_metadata)
-      ~call_kind:(Call_kind.direct_function_call callee's_code_id alloc_mode)
+      ~call_kind:(Call_kind.direct_function_call callee's_code_id inner_apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe:(Apply.probe apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
-      ~region:current_region
   in
   let both_applications =
     Let_cont.create_non_recursive after_full_application

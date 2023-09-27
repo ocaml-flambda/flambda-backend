@@ -56,6 +56,8 @@ val modify_heap : modify_mode
 
 val modify_maybe_stack : modify_mode
 
+val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
+
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
      [Assignment Alloc_heap] is a mutation of a block that's definitely heap. *)

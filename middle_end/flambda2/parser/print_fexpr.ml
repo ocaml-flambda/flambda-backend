@@ -294,12 +294,6 @@ let alloc_mode_for_allocations_opt ppf (alloc : alloc_mode_for_allocations)
   | Heap -> ()
   | Local { region = r } -> pp_spaced ~space ppf "&%a" region r
 
-let alloc_mode_for_types_opt ppf (alloc : alloc_mode_for_types) ~space =
-  match alloc with
-  | Heap -> ()
-  | Heap_or_local -> pp_spaced ~space ppf "heap_or_local"
-  | Local -> pp_spaced ~space ppf "local"
-
 let init_or_assign ppf ia =
   match ia with
   | Initialization -> Format.pp_print_string ppf "="
@@ -631,12 +625,12 @@ let static_closure_binding ppf (scb : static_closure_binding) =
 
 let call_kind ~space ppf ck =
   match ck with
-  | Function (Indirect alloc) -> alloc_mode_for_types_opt ppf alloc ~space
+  | Function (Indirect alloc) -> alloc_mode_for_allocations_opt ppf alloc ~space
   | Function (Direct { code_id = c; function_slot = cl; alloc }) ->
     pp_spaced ~space ppf "@[direct(%a%a%a)@]" code_id c
       (pp_option ~space:Before (pp_like "@@%a" function_slot))
       cl
-      (alloc_mode_for_types_opt ~space:Before)
+      (alloc_mode_for_allocations_opt ~space:Before)
       alloc
   | C_call { alloc } ->
     let noalloc_kwd = if alloc then None else Some "noalloc" in
@@ -747,8 +741,7 @@ let rec expr scope ppf = function
         exn_continuation = ek;
         args;
         func;
-        arities;
-        region = r
+        arities
       } ->
     let pp_inlining_state ppf () =
       pp_option ~space:Before
@@ -756,13 +749,13 @@ let rec expr scope ppf = function
         ppf is
     in
     Format.fprintf ppf
-      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ &%a@ @[<hov>-> %a@ %a@]@]@]"
+      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ @[<hov>-> %a@ %a@]@]@]"
       (call_kind ~space:Before) kind
       (inlined_attribute_opt ~space:Before)
       inlined pp_inlining_state () func_name_with_optional_arities
       (func, arities)
       (simple_args ~space:Before ~omit_if_empty:true)
-      args region r result_continuation ret exn_continuation ek
+      args result_continuation ret exn_continuation ek
 
 and let_expr scope ppf : let_ -> unit = function
   | { bindings = first :: rest; body; value_slots = ces } ->

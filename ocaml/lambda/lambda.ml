@@ -70,6 +70,11 @@ include (struct
     if Config.stack_allocation then Modify_maybe_stack
     else Modify_heap
 
+  let equal_alloc_mode mode1 mode2 =
+    match mode1, mode2 with
+    | Alloc_local, Alloc_local | Alloc_heap, Alloc_heap -> true
+    | (Alloc_local | Alloc_heap), _ -> false
+
 end : sig
 
   type locality_mode = private
@@ -92,6 +97,7 @@ end : sig
 
   val join_mode : alloc_mode -> alloc_mode -> alloc_mode
 
+  val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
 end)
 
 let is_local_mode = function

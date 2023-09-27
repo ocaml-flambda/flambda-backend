@@ -497,13 +497,6 @@ let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
     Fexpr.alloc_mode_for_assignments =
   match alloc with Heap -> Heap | Local -> Local
 
-let alloc_mode_for_types (alloc : Alloc_mode.For_types.t) :
-    Fexpr.alloc_mode_for_types =
-  match alloc with
-  | Heap -> Heap
-  | Heap_or_local -> Heap_or_local
-  | Local -> Local
-
 let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
     Fexpr.init_or_assign =
   match ia with
@@ -1018,13 +1011,13 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
-      let alloc = alloc_mode_for_types alloc_mode in
+      let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Direct { code_id; function_slot; alloc })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity;
           alloc_mode
         } ->
-      let alloc = alloc_mode_for_types alloc_mode in
+      let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Indirect alloc)
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
@@ -1067,7 +1060,6 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       | Never_inlined -> Some Never_inlined
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
-  let region = Env.find_region_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -1076,8 +1068,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       call_kind;
       inlined;
       inlining_state;
-      arities;
-      region
+      arities
     }
 
 and apply_cont_expr env app_cont : Fexpr.expr =

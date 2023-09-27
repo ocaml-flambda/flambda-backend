@@ -224,11 +224,6 @@ type alloc_mode_for_allocations =
   | Heap
   | Local of { region : region }
 
-type alloc_mode_for_types =
-  | Heap
-  | Heap_or_local
-  | Local
-
 type alloc_mode_for_assignments =
   | Heap
   | Local
@@ -369,9 +364,9 @@ type function_call =
   | Direct of
       { code_id : code_id;
         function_slot : function_slot option;
-        alloc : alloc_mode_for_types
+        alloc : alloc_mode_for_allocations
       }
-  | Indirect of alloc_mode_for_types
+  | Indirect of alloc_mode_for_allocations
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
@@ -421,8 +416,7 @@ type apply =
     call_kind : call_kind;
     arities : function_arities option;
     inlined : inlined_attribute option;
-    inlining_state : inlining_state option;
-    region : region
+    inlining_state : inlining_state option
   }
 
 type size = int

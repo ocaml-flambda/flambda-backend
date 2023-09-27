@@ -1444,7 +1444,7 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     bindings_with_wrappers
 
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
-    ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
+    ({ kind; params; return; body; attr; loc; mode; ret_mode; region } : L.lfunction) :
     Function_decl.t =
   let first_complex_local_param =
     List.length params
@@ -1529,7 +1529,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ~params_arity ~removed_params ~return ~return_continuation:body_cont
     ~exn_continuation ~my_region ~body ~attr ~loc ~free_idents_of_body recursive
     ~closure_alloc_mode:mode ~first_complex_local_param
-    ~contains_no_escaping_local_allocs:region
+    ~contains_no_escaping_local_allocs:region ~result_mode:ret_mode
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =
