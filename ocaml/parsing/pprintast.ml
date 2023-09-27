@@ -1362,7 +1362,9 @@ and module_expr ctxt f x =
   if x.pmod_attributes <> [] then
     pp f "((%a)%a)" (module_expr ctxt) {x with pmod_attributes=[]}
       (attributes ctxt) x.pmod_attributes
-  else match x.pmod_desc with
+  else match Jane_syntax.Module_expr.of_ast x with
+    | Some ext -> extension_module_expr ctxt f ext
+    | None -> match x.pmod_desc with
     | Pmod_structure (s) ->
         pp f "@[<hv2>struct@;@[<0>%a@]@;<1 -2>end@]"
           (list (structure_item ctxt) ~sep:"@\n") s;
@@ -1960,6 +1962,23 @@ and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   match x with
   | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
   | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
+
+and extension_module_expr ctxt f (x : Jane_syntax.Module_expr.t) =
+  match x with
+  | Emod_instance i -> instance_module_expr ctxt f i
+
+and instance_module_expr ctxt f (x : Jane_syntax.Instances.module_expr) =
+  match x with
+  | Imod_instance i -> instance ctxt f i
+
+and instance ctxt f (x : Jane_syntax.Instances.instance) =
+  match x with
+  | { head; args = [] } -> pp f "%s" head
+  | { head; args } ->
+    pp f "@[<2>%s %a@]" head (list (instance_arg ctxt)) args
+
+and instance_arg ctxt f (param, value) =
+  pp f "@[<1>(%a)@;(%a)@]" (instance ctxt) param (instance ctxt) value
 
 let toplevel_phrase f x =
   match x with

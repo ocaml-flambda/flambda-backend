@@ -2282,6 +2282,10 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
+  match Jane_syntax.Module_expr.of_ast smod with
+    Some ext ->
+      type_module_extension_aux ~alias sttn env smod ext
+  | None ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path =
@@ -2419,6 +2423,14 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and type_module_extension_aux ~alias sttn env smod
+      : Jane_syntax.Module_expr.t -> _ =
+  function
+  | Emod_instance (Imod_instance glob) ->
+      ignore (alias, sttn, env, smod);
+      Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
+        Global.Name.print glob
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =

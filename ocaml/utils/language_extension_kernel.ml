@@ -10,6 +10,7 @@ type _ t =
   | Module_strengthening : unit t
   | Layouts : maturity t
   | SIMD : unit t
+  | Instances : unit t
 
 type 'a language_extension_kernel = 'a t
 
@@ -25,6 +26,7 @@ module Exist = struct
     ; Pack Module_strengthening
     ; Pack Layouts
     ; Pack SIMD
+    ; Pack Instances
     ]
 end
 
@@ -42,6 +44,7 @@ let to_string : type a. a t -> string = function
   | Module_strengthening -> "module_strengthening"
   | Layouts -> "layouts"
   | SIMD -> "simd"
+  | Instances -> "instances"
 
 (* converts full extension names, like "layouts_alpha" to a pair of
    an extension and its maturity. For extensions that don't take an
@@ -59,6 +62,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts_alpha" -> Some (Pair (Layouts, Alpha))
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
   | "simd" -> Some (Pair (SIMD, ()))
+  | "instances" -> Some (Pair (Instances, ()))
   | _ -> None
 
 let maturity_to_string = function
@@ -88,7 +92,8 @@ let is_erasable : type a. a t -> bool = function
   | Polymorphic_parameters
   | Immutable_arrays
   | Module_strengthening
-  | SIMD ->
+  | SIMD
+  | Instances ->
       false
 
 (* See the mli. *)

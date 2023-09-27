@@ -51,6 +51,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Module_strengthening -> (module Unit)
   | Layouts -> (module Maturity)
   | SIMD -> (module Unit)
+  | Instances -> (module Unit)
 
 type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 type exist = Exist.t = Pack : _ t -> exist
@@ -79,8 +80,10 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b 
   | Module_strengthening, Module_strengthening -> Some Refl
   | Layouts, Layouts -> Some Refl
   | SIMD, SIMD -> Some Refl
+  | Instances, Instances -> Some Refl
   | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
-     Immutable_arrays | Module_strengthening | Layouts | SIMD), _ -> None
+     Immutable_arrays | Module_strengthening | Layouts | SIMD |
+     Instances), _ -> None
 
 let equal a b = Option.is_some (equal_t a b)
 
@@ -175,6 +178,7 @@ let default_extensions : extn_pair list =
   [ Pair (Local, ())
   ; Pair (Include_functor, ())
   ; Pair (Polymorphic_parameters, ())
+  ; Pair (Instances, ())
   ]
 let extensions : extn_pair list ref = ref default_extensions
 
