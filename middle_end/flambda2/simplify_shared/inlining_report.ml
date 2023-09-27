@@ -176,8 +176,8 @@ module Context = struct
     let print_unrolling_depth ppf = function
       | None -> ()
       | Some (Some unroll) ->
-        Format.fprintf ppf "@[<h>Unrolling@ depth:@ %d@]@,@," unroll
-      | Some None -> Format.fprintf ppf "@[<h>Unrolling@ depth unknown@]@,@,"
+        Format.fprintf ppf "@[<h>Unrolling@ depth:@ %d@]@," unroll
+      | Some None -> Format.fprintf ppf "@[<h>Unrolling@ depth unknown@]@,"
     in
     let print_args ppf args =
       let table =
@@ -225,9 +225,9 @@ module Context = struct
               `String "Alloc";
               `String "Prim";
               `String "Branch";
-              `String "Direct call of indirect";
-              `String "Specialized poly compare";
-              `String "Requested inline" ];
+              `String "Indirect";
+              `String "Compare";
+              `String "Requested" ];
             [ `Int call;
               `Int alloc;
               `Int prim;
@@ -249,19 +249,20 @@ module Context = struct
     let print_depth ppf = function
       | None -> ()
       | Some c ->
-        Format.fprintf ppf "@[<h>Considered@ at@ inlining@ depth@ of@ %d@]@,@,"
-          c
+        Format.fprintf ppf "@[<h>Considered@ at@ inlining@ depth@ of@ %d@]@," c
     in
     let print_are_rebuilding_terms ppf t =
       Format.fprintf ppf
-        "@[<h>Considered@ with@ are_rebuilding_terms@ =@ %a@]@,@,"
+        "@[<h>Considered@ with@ are_rebuilding_terms@ =@ %a@]@,"
         Are_rebuilding_terms.print t
     in
-    print_are_rebuilding_terms ppf are_rebuilding_terms;
+    Format.fprintf ppf "@[<v>";
     print_args ppf args;
     print_cost_metrics ppf cost_metrics;
+    print_are_rebuilding_terms ppf are_rebuilding_terms;
     print_depth ppf depth;
-    print_unrolling_depth ppf unrolling_depth
+    print_unrolling_depth ppf unrolling_depth;
+    Format.fprintf ppf "@]"
 end
 
 module Decision_with_context = struct
@@ -274,17 +275,148 @@ module Decision_with_context = struct
       decision : decision
     }
 
-  let print_decision ppf = function
-    | Call c -> Call_site_inlining_decision_type.report ppf c
-    | Fundecl c -> Function_decl_inlining_decision_type.report ppf c
+  let table_of_removed_operations c =
+    let Removed_operations.
+          { call;
+            alloc;
+            prim;
+            branch;
+            direct_call_of_indirect;
+            specialized_poly_compare;
+            requested_inline
+          } =
+      Cost_metrics.removed c
+    in
+    [ [ `String "Call";
+        `String "Alloc";
+        `String "Prim";
+        `String "Branch";
+        `String "Indirect";
+        `String "Poly compare";
+        `String "Requested" ];
+      [ `Int call;
+        `Int alloc;
+        `Int prim;
+        `Int branch;
+        `Int direct_call_of_indirect;
+        `Int specialized_poly_compare;
+        `Int requested_inline ] ]
+    |> Table.create
 
-  let print ppf { context; decision } =
-    Format.fprintf ppf "@[<v>@[<h>Decision@ taken@ *%a*@]@," Pass.print
-      context.pass;
-    Format.fprintf ppf "@[<v 2>@,";
+  let print_fundecl_details ppf
+      (decision : Function_decl_inlining_decision_type.t) =
+    match decision with
+    | Not_yet_decided ->
+      Format.fprintf ppf "No@ decision@ has@ yet@ been@ made."
+    | Never_inline_attribute ->
+      Format.fprintf ppf "%a" Format.pp_print_text
+        "@[<hov>The@ function@ has@ an@ attribute@ preventing@ it@ from@ \
+         being@ inlinable.@]"
+    | Function_body_too_large large_function_size ->
+      Format.fprintf ppf
+        "@[<hov>The@ function's@ body@ is@ too@ large,@ more@ specifically,@ \
+         it@ is@ larger@ than@ the@ large@ function@ size:@ %a.@]"
+        Code_size.print large_function_size
+    | Stub -> Format.fprintf ppf "The@ function@ is@ a@ stub."
+    | Attribute_inline ->
+      Format.fprintf ppf
+        "@[<hov>The@ function@ has@ an@ attribute@ forcing@ it@ to@ be@ \
+         inlined@ when@ called.@]"
+    | Small_function { size; small_function_size } ->
+      Format.fprintf ppf
+        "@[<hov>TThe@ function's@ body@ is@ smaller@ than@ the@ threshold@ \
+         size@ for@ small@ functions:@ size=%a <= large@ function@ size=%a.@]"
+        Code_size.print size Code_size.print small_function_size
+    | Speculatively_inlinable { size; small_function_size; large_function_size }
+      ->
+      Format.fprintf ppf
+        "@[<hov>The@ function's@ body@ is@ between@ the@ threshold@ size@ for@ \
+         small@ functions and the@ threshold@ size@ for@ large@ functions:@ \
+         small@ function@ size=%a < size=%a < large@ function@ size=%a.@]"
+        Code_size.print small_function_size Code_size.print size Code_size.print
+        large_function_size
+    | Functor _ ->
+      Format.fprintf ppf
+        "@[<hov>This@ function@ is@ a@ functor@ and@ is@ available@ for@ \
+         inlining.@]"
+    | Recursive -> Format.fprintf ppf "This@ function@ is@ recursive."
+
+  let print_call_details fmt (decision : Call_site_inlining_decision_type.t) =
+    match decision with
+    | Missing_code ->
+      Format.fprintf fmt
+        "The@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)."
+    | Call_site_inlining_decision_type.Definition_says_not_to_inline ->
+      Format.fprintf fmt
+        "This@ function@ was@ deemed@ at@ the@ point@ of@ its@ definition@ to@ \
+         never@ be@ inlinable."
+    | Environment_says_never_inline ->
+      Format.fprintf fmt "The@ environment@ says@ never@ to@ inline."
+    | Argument_types_not_useful ->
+      Format.fprintf fmt
+        "There@ was@ no@ useful@ information@ about@ the@ arguments."
+    | Unrolling_depth_exceeded ->
+      Format.fprintf fmt "The@ maximum@ unrolling@ depth@ has@ been@ exceeded."
+    | Max_inlining_depth_exceeded ->
+      Format.fprintf fmt "The@ maximum@ inlining@ depth@ has@ been@ exceeded."
+    | Recursion_depth_exceeded ->
+      Format.fprintf fmt "The@ maximum@ recursion@ depth@ has@ been@ exceeded."
+    | Never_inlined_attribute ->
+      Format.fprintf fmt "The@ call@ has@ an@ attribute@ forbidding@ inlining."
+    | Attribute_always ->
+      Format.fprintf fmt "The@ call@ has@ an@ [@@inline always]@ attribute."
+    | Begin_unrolling n ->
+      Format.fprintf fmt "The@ call@ has@ an@ [@@unroll %d]@ attribute." n
+    | Continue_unrolling -> Format.fprintf fmt "The@ call@ is@ begin@ unrolled."
+    | Definition_says_inline { was_inline_always = _ } ->
+      Format.fprintf fmt
+        "@[<hov>This@ function@ was@ decided@ to@ be@ always@ inlined@ at@ \
+         its@ definition@ site (annotated@ by@ [@inlined always]@ or@ \
+         determined@ to@ be@ small@ enough).@]"
+    | Speculatively_not_inline { cost_metrics; evaluated_to; threshold } ->
+      Format.fprintf fmt
+        "@[<v>@[<hov>After@ speculation,@ the@ inlined@ body@ was@ mesured@ \
+         to@ have@ a@ code@ size@ of@ %a@]@,\
+         @[<hov>The@ following@ operations@ where@ removed:@,\
+         %a@]@;\
+         @;\
+         @[<hov>Overall@ the@ computed@ score@ of@ inlining@ this@ body@ was@ \
+         computed@ to@ be@ %f,@ which@ was@ larger@ than@ the@ threshold@ of@ \
+         %f.@]@]"
+        Code_size.print
+        (Cost_metrics.size cost_metrics)
+        Table.print
+        (table_of_removed_operations cost_metrics)
+        evaluated_to threshold
+    | Speculatively_inline { cost_metrics; evaluated_to; threshold } ->
+      Format.fprintf fmt
+        "@[<v>@[<hov>After@ speculation,@ the@ inlined@ body@ was@ mesured@ \
+         to@ have@ a@ code@ size@ of@ %a@]@,\
+         @[<hov>The@ following@ operations@ where@ removed:@,\
+         %a@]@;\
+         @;\
+         @[<hov>Overall@ the@ computed@ score@ of@ inlining@ this@ body@ was@ \
+         computed@ to@ be@ %f,@ which@ was@ smaller@ than@ the@ threshold@ of@ \
+         %f.@]@]"
+        Code_size.print
+        (Cost_metrics.size cost_metrics)
+        Table.print
+        (table_of_removed_operations cost_metrics)
+        evaluated_to threshold
+
+  let print_decision ppf = function
+    | Call c -> print_call_details ppf c
+    | Fundecl c -> print_fundecl_details ppf c
+
+  let print ~include_header ppf { context; decision } =
+    if include_header
+    then (
+      Format.fprintf ppf "@[<v>@[<h>Decision@ taken@ *%a*@]@," Pass.print
+        context.pass;
+      Format.fprintf ppf "@[<v 2>@,");
     Format.fprintf ppf "%a@,@[<h>%a@]@," Context.print context print_decision
       decision;
-    Format.fprintf ppf "@]@]"
+    if include_header then Format.fprintf ppf "@]@]"
 end
 
 type raw_decision =
@@ -590,7 +722,8 @@ module Inlining_tree = struct
       print_dbg dbg print_uid uid
 
   let print_decision_with_context ppf decision_with_context =
-    Format.fprintf ppf "@[%a@]@," Decision_with_context.print
+    Format.fprintf ppf "@[%a@]@,"
+      (Decision_with_context.print ~include_header:true)
       decision_with_context
 
   let print_decisions ppf decisions =

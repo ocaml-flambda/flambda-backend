@@ -47,7 +47,9 @@ module Decision_with_context : sig
       decision : decision
     }
 
-  val print : Format.formatter -> t -> unit
+  val print_decision : Format.formatter -> decision -> unit
+
+  val print : include_header:bool -> Format.formatter -> t -> unit
 end
 
 module Uid : sig

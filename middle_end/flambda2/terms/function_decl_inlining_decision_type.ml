@@ -74,40 +74,6 @@ let [@ocamlformat "disable"] print ppf t =
   | Recursive ->
     Format.fprintf ppf "Recursive"
 
-let report_decision ppf t =
-  match t with
-  | Not_yet_decided -> Format.fprintf ppf "no decision has yet been made"
-  | Never_inline_attribute ->
-    Format.fprintf ppf "%a" Format.pp_print_text
-      "the function has an attribute preventing its inlining"
-  | Function_body_too_large large_function_size ->
-    Format.fprintf ppf
-      "the@ function's@ body@ is@ too@ large,@ more@ specifically,@ it@ is@ \
-       larger@ than@ the@ large@ function@ size:@ %a"
-      Code_size.print large_function_size
-  | Stub -> Format.fprintf ppf "the@ function@ is@ a@ stub"
-  | Attribute_inline ->
-    Format.fprintf ppf
-      "the@ function@ has@ an@ attribute@ forcing@ its@ inlining"
-  | Small_function { size; small_function_size } ->
-    Format.fprintf ppf
-      "the@ function's@ body@ is@ smaller@ than@ the@ threshold@ size@ for@ \
-       small@ functions: size=%a <= large@ function@ size=%a"
-      Code_size.print size Code_size.print small_function_size
-  | Speculatively_inlinable { size; small_function_size; large_function_size }
-    ->
-    Format.fprintf ppf
-      "the@ function's@ body@ is@ between@ the@ threshold@ size@ for@ small@ \
-       functions and the@ threshold@ size@ for@ large@ functions: small@ \
-       function@ size=%a < size=%a < large@ function@ size=%a"
-      Code_size.print small_function_size Code_size.print size Code_size.print
-      large_function_size
-  | Functor _ ->
-    Format.fprintf ppf
-      "this@ function@ is@ a@ functor@ (so@ the@ large@ function@ threshold@ \
-       was@ not@ applied)"
-  | Recursive -> Format.fprintf ppf "this@ function@ is@ recursive"
-
 type inlining_behaviour =
   | Cannot_be_inlined
   | Must_be_inlined
@@ -120,15 +86,6 @@ let behaviour t =
     Cannot_be_inlined
   | Stub | Attribute_inline | Small_function _ -> Must_be_inlined
   | Functor _ | Speculatively_inlinable _ -> Could_possibly_be_inlined
-
-let report fmt t =
-  Format.fprintf fmt
-    "@[<v>The function %s be inlined at its use-sites@ because @[<hov>%a@]@]"
-    (match behaviour t with
-    | Cannot_be_inlined -> "cannot"
-    | Could_possibly_be_inlined -> "could"
-    | Must_be_inlined -> "must")
-    report_decision t
 
 let must_be_inlined t =
   match behaviour t with
