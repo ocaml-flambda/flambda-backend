@@ -80,6 +80,14 @@ let print_impl_import import =
 
 let print_line name = printf "\t%s\n" name
 
+let print_global_line glob =
+  (* Type will change soon for parameterised libraries *)
+  printf "\t%a\n" Compilation_unit.Name.output glob
+
+let print_global_as_name_line glob =
+  (* Type will change soon for parameterised libraries *)
+  printf "\t%a\n" Compilation_unit.Name.output glob
+
 let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
 
@@ -89,6 +97,13 @@ let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
+  let () =
+   match cu.cu_runtime_params with
+   | [||] -> ()
+   | params ->
+     print_string "Runtime parameters:\n";
+     Array.iter print_global_line params
+  in
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
   printf "Uses unsafe features: ";
@@ -115,7 +130,7 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs kind =
+let print_cmi_infos name crcs kind params =
   let open Cmi_format in
   printf "Unit name: %a\n" Compilation_unit.Name.output name;
   let is_param =
@@ -124,6 +139,16 @@ let print_cmi_infos name crcs kind =
     | Parameter -> true
   in
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
+  print_string "Parameters:\n";
+  List.iter print_global_as_name_line params;
+  begin
+    match kind with
+    | Normal { cmi_arg_for = Some arg_for; _ } ->
+      printf "Argument for parameter:\n";
+      print_global_line arg_for
+    | Normal _ | Parameter ->
+      ()
+  end;
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
@@ -150,8 +175,8 @@ let print_cms_infos cms =
   printf "Source file: %s\n"
     (match cms.cms_sourcefile with None -> "(none)" | Some f -> f)
 
-let print_general_infos print_name name crc defines implements_param iter_cmi
-    iter_cmx =
+let print_general_infos print_name name crc defines implements_param
+    runtime_params iter_cmi iter_cmx =
   printf "Name: %a\n" print_name name;
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
@@ -165,7 +190,15 @@ let print_general_infos print_name name crc defines implements_param iter_cmi
   printf "Interfaces imported:\n";
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
-  iter_cmx print_impl_import
+  iter_cmx print_impl_import;
+  let () =
+    match runtime_params with
+    | [||] -> ()
+    | _ ->
+      printf "Runtime parameters:\n";
+      Array.iter print_global_line runtime_params
+  in
+  ()
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -210,7 +243,7 @@ let print_generic_fns gfns =
 
 let print_cmx_infos (uir, sections, crc) =
   print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines
-    uir.uir_implements_param
+    uir.uir_implements_param uir.uir_runtime_params
     (fun f -> Array.iter f uir.uir_imports_cmi)
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
@@ -260,7 +293,7 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   lib.lib_units
   |> List.iter (fun u ->
          print_general_infos Compilation_unit.output u.li_name u.li_crc
-           u.li_defines None
+           u.li_defines None [||]
            (fun f ->
              B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
            (fun f ->
@@ -271,7 +304,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
       print_general_infos Compilation_unit.output ui.dynu_name ui.dynu_crc
-        ui.dynu_defines None
+        ui.dynu_defines None [||]
         (fun f -> Array.iter f ui.dynu_imports_cmi)
         (fun f -> Array.iter f ui.dynu_imports_cmx))
     header.dynu_units
@@ -359,7 +392,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | None -> ()
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
-          cmi.Cmi_format.cmi_kind
+          cmi.Cmi_format.cmi_kind cmi.Cmi_format.cmi_params
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt
