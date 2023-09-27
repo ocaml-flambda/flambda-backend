@@ -58,7 +58,7 @@
    debug profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys
+   lazy_backtrack diffing diffing_with_keys global
    language_extension_kernel language_extension
 
    ;; PARSING
