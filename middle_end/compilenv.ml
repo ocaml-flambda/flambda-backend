@@ -91,6 +91,7 @@ let read_unit_info filename =
     let first_section_offset = pos_in ic in
     seek_in ic (first_section_offset + uir.uir_sections_length);
     let crc = Digest.input ic in
+    let associated_source = (input_value ic : unit_infos_associated_source) in
     (* This consumes the channel *)
     let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     let export_info =
@@ -106,7 +107,7 @@ let read_unit_info filename =
       ui_export_info = export_info;
       ui_checks = Checks.of_raw uir.uir_checks;
       ui_force_link = uir.uir_force_link;
-      ui_impl_filename = uir.uir_impl_filename;
+      ui_impl_filename = associated_source.filename;
     }
     in
     (ui, crc)
@@ -255,7 +256,6 @@ let write_unit_info info filename =
     uir_force_link = info.ui_force_link;
     uir_section_toc = toc;
     uir_sections_length = total_length;
-    uir_impl_filename = info.ui_impl_filename;
   } in
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
@@ -264,6 +264,7 @@ let write_unit_info info filename =
   flush oc;
   let crc = Digest.file filename in
   Digest.output oc crc;
+  output_value oc { filename = info.ui_impl_filename };
   close_out oc
 
 let save_unit_info filename =

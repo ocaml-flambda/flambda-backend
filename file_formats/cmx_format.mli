@@ -59,6 +59,10 @@ type unit_infos =
     mutable ui_force_link: bool;         (* Always linked *)
     mutable ui_impl_filename : string; }
 
+type unit_infos_associated_source = {
+  filename : string
+}
+
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;
     uir_defines: Compilation_unit.t list;
@@ -72,7 +76,6 @@ type unit_infos_raw =
                                       relative to byte immediately after
                                       this record *)
     uir_sections_length: int;      (* Byte length of all sections *)
-    uir_impl_filename : string;
   }
 
 (* Each .a library has a matching .cmxa file that provides the following
