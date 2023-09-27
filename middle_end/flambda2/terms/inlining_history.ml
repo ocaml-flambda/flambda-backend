@@ -51,8 +51,9 @@ module Absolute = struct
       | Function { name; prev; _ } -> Format.fprintf ppf "%a%s" aux prev name
       | Class { name; prev } -> Format.fprintf ppf "%a%s#" aux prev name
       | Module { name; prev } -> Format.fprintf ppf "%a%s." aux prev name
-      | Call { prev; callee; _ } ->
-        Format.fprintf ppf "%a(calling %a)" aux prev print callee
+      | Call { prev; callee; dbg } ->
+        Format.fprintf ppf "%a(calling %a[%a])" aux prev print callee
+          Debuginfo.print_compact dbg
       | Inline { prev } -> Format.fprintf ppf "(%a inlined)" aux prev
     in
     aux ppf t
