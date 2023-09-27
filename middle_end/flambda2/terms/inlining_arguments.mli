@@ -51,3 +51,9 @@ val small_function_size : t -> int
 val large_function_size : t -> int
 
 val threshold : t -> float
+
+val is_oclassic : t -> bool
+
+val is_o2 : t -> bool
+
+val is_o3 : t -> bool
