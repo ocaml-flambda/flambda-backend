@@ -544,7 +544,7 @@ let unary_primitive env res dbg f arg =
       C.load ~dbg Word_int Mutable
         ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
-  | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
+  | Int_as_pointer _ -> None, res, C.int_as_pointer arg dbg
   | Opaque_identity { middle_end_only = true; kind = _ } -> None, res, arg
   | Opaque_identity { middle_end_only = false; kind = _ } ->
     None, res, C.opaque arg dbg
@@ -653,6 +653,7 @@ let binary_primitive env dbg f x y =
     binary_float_comp_primitive env dbg cmp x y
   | Float_comp (Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg x y
+  | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with

@@ -471,7 +471,7 @@ let primitive ppf = function
      else fprintf ppf "bigarray.array1.set64"
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
   | Popaque _ -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
@@ -587,7 +587,7 @@ let name_of_primitive = function
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
-  | Pint_as_pointer -> "Pint_as_pointer"
+  | Pint_as_pointer _ -> "Pint_as_pointer"
   | Popaque _ -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"

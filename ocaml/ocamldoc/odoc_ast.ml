@@ -298,11 +298,12 @@ module Analyser =
 
           in
          (* For optional parameters with a default value, a special treatment is required *)
-         (* we look if the name of the parameter we just add is "*opt*", which means
+         (* we look if the name of the parameter we just add starts with "*opt*", which means
             that there is a let param_name = ... in ... just right now *)
           let (p, next_exp) =
             match parameter with
-              Simple_name { sn_name = "*opt*" } ->
+              Simple_name { sn_name }
+                when String.starts_with ~prefix:"*opt*" sn_name ->
                 (
                  (
                   match func_body.exp_desc with
@@ -457,11 +458,12 @@ module Analyser =
                           pattern_param
                       in
                       (* For optional parameters with a default value, a special treatment is required. *)
-                      (* We look if the name of the parameter we just add is "*opt*", which means
+                      (* We look if the name of the parameter we just add starts with "*opt*", which means
                          that there is a let param_name = ... in ... just right now. *)
                       let (current_param, next_exp) =
                         match parameter with
-                          Simple_name { sn_name = "*opt*"} ->
+                          Simple_name { sn_name }
+                            when String.starts_with ~prefix:"*opt*" sn_name ->
                             (
                              (
                               match body.exp_desc with
@@ -726,7 +728,7 @@ module Analyser =
               a default value. In this case, we look for the good parameter pattern *)
            let (parameter, next_tt_class_exp) =
              match pat.Typedtree.pat_desc with
-               Typedtree.Tpat_var (ident, _, _) when Name.from_ident ident = "*opt*" ->
+               Typedtree.Tpat_var (ident, _, _) when String.starts_with (Name.from_ident ident) ~prefix:"*opt*" ->
                  (
                   (* there must be a Tcl_let just after *)
                   match tt_class_expr2.Typedtree.cl_desc with

@@ -538,7 +538,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
-  | Int_as_pointer | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
+  | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
   | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -580,6 +580,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_get_alignment align -> Bigarray_get_alignment align
   | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print

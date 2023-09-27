@@ -270,7 +270,7 @@ type unary_primitive =
   (* CR mshinwell/xclerc: Invariant check: dimension >= 0 *)
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
-  | Int_as_pointer
+  | Int_as_pointer of Alloc_mode.For_allocations.t
   | Opaque_identity of
       { middle_end_only : bool;
         kind : Flambda_kind.t
@@ -369,6 +369,7 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
+  | Bigarray_get_alignment of int
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

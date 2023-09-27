@@ -31,6 +31,7 @@ open Misc
 let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
   Clflags.native_code := true;
+  Clflags.use_linscan := true;
   Compmisc.init_path ();
   let file_prefix = Filename.remove_extension filename in
   Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
@@ -40,6 +41,7 @@ let arg_usage =
   Printf.sprintf "%s FILE : Generate an obj file containing cached generatic functions named FILE" Sys.argv.(0)
 
 let main () =
+  Memtrace.trace_if_requested ~context:"ocamlopt" ();
   Arg.parse_expand [] main arg_usage;
   exit 0
 

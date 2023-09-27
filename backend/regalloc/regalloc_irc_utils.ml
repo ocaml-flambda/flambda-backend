@@ -164,34 +164,6 @@ let update_register_locations : unit -> unit =
           then log ~indent:1 "updating %a to %d" Printmach.reg reg color;
           reg.Reg.loc <- Reg color))
 
-module Split_mode = struct
-  type t =
-    | Off
-    | Naive
-
-  let all = [Off; Naive]
-
-  let to_string = function Off -> "off" | Naive -> "naive"
-
-  let value =
-    let available_modes () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "IRC_SPLIT" with
-      | None ->
-        fatal "the IRC_SPLIT parameter is not set (possible values: %s)"
-          (available_modes ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "off" -> Off
-        | "naive" -> Naive
-        | _ ->
-          fatal "unknown split mode %S (possible values: %s)" id
-            (available_modes ())))
-end
-
 module Spilling_heuristics = struct
   type t =
     | Set_choose

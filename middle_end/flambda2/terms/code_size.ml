@@ -318,7 +318,7 @@ let unary_prim_size prim =
   | Array_length -> array_length_size
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
-  | Int_as_pointer -> 1
+  | Int_as_pointer _ -> 1
   | Opaque_identity _ -> 0
   | Int_arith (kind, op) -> unary_int_prim_size kind op
   | Float_arith _ -> 2
@@ -355,6 +355,7 @@ let binary_prim_size prim =
   | Float_arith op -> binary_float_arith_primitive op
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with

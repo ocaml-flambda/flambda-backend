@@ -122,7 +122,7 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer
+  | Pint_as_pointer of alloc_mode
   (* Inhibition of optimisation *)
   | Popaque
   (* Probes *)

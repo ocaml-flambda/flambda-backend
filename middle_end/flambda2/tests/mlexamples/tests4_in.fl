@@ -1,9 +1,9 @@
-let $camlTests4__float15 = 0x1.8p+1 in
-let $camlTests4__float22 = 0x0p+0 in
-let $camlTests4__int64100 = 3L in
-let $camlTests4__int32106 = 4l in
-let $camlTests4__int64115 = 0L in
-let $camlTests4__int32121 = 2l in
+let $camlTests4__float14 = 0x1.8p+1 in
+let $camlTests4__float21 = 0x0p+0 in
+let $camlTests4__int6499 = 3L in
+let $camlTests4__int32105 = 4l in
+let $camlTests4__int64114 = 0L in
+let $camlTests4__int32120 = 2l in
 let code size(51)
       pr2162_2_first_0 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
@@ -14,14 +14,14 @@ let code size(51)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float15 in
+      let prim = %unbox_float $camlTests4__float14 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 *. prim in
       let b = %Box_float prim_2 in
       let a = x * 2 in
       cont k2 (a, b)
     where k3 =
-      let prim = %unbox_float $camlTests4__float22 in
+      let prim = %unbox_float $camlTests4__float21 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 +. prim in
       let b = %Box_float prim_2 in
@@ -45,14 +45,14 @@ let code size(51)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float15 in
+      let prim = %unbox_float $camlTests4__float14 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 *. prim in
       let b = %Box_float prim_2 in
       let a = x * 2 in
       cont k2 (a, b)
     where k3 =
-      let prim = %unbox_float $camlTests4__float22 in
+      let prim = %unbox_float $camlTests4__float21 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 +. prim in
       let b = %Box_float prim_2 in
@@ -76,7 +76,7 @@ let code size(67)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float15 in
+      let prim = %unbox_float $camlTests4__float14 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 *. prim in
       let Pmulfloat = %Box_float prim_2 in
@@ -84,7 +84,7 @@ let code size(67)
       let Pmakeblock = %Block 0 (Pmulint, Pmulfloat) in
       cont k2 (Pmakeblock)
     where k3 =
-      let prim = %unbox_float $camlTests4__float22 in
+      let prim = %unbox_float $camlTests4__float21 in
       let prim_1 = %unbox_float y in
       let prim_2 = prim_1 +. prim in
       let Paddfloat = %Box_float prim_2 in
@@ -112,11 +112,11 @@ let code size(122)
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_int64 $camlTests4__int64100 in
+      let prim = %unbox_int64 $camlTests4__int6499 in
       let prim_1 = %unbox_int64 y in
       let prim_2 = %int_arith int64 prim_1 * prim in
       let Pmulbint = %Box_int64 prim_2 in
-      let prim_3 = %unbox_int32 $camlTests4__int32106 in
+      let prim_3 = %unbox_int32 $camlTests4__int32105 in
       let prim_4 = %unbox_int32 y' in
       let prim_5 = %int_arith int32 prim_4 * prim_3 in
       let Pmulbint_1 = %Box_int32 prim_5 in
@@ -125,11 +125,11 @@ let code size(122)
       let Pmakeblock_1 = %Block 0 (Pmulint, Pmakeblock) in
       cont k2 (Pmakeblock_1)
     where k3 =
-      let prim = %unbox_int64 $camlTests4__int64115 in
+      let prim = %unbox_int64 $camlTests4__int64114 in
       let prim_1 = %unbox_int64 y in
       let prim_2 = %int_arith int64 prim_1 + prim in
       let Paddbint = %Box_int64 prim_2 in
-      let Pmakeblock = %Block 0 ($camlTests4__int32121, Paddbint) in
+      let Pmakeblock = %Block 0 ($camlTests4__int32120, Paddbint) in
       let Pmakeblock_1 = %Block 0 (x, Pmakeblock) in
       cont k2 (Pmakeblock_1)
     where k2

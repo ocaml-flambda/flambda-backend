@@ -249,6 +249,14 @@ let checked_access ~dbg ~primitive ~conditions : H.expr_primitive =
       dbg
     }
 
+let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
+  Checked
+    { primitive;
+      validity_conditions = conditions;
+      failure = Address_was_misaligned;
+      dbg
+    }
+
 let check_bound_tagged tagged_index bound : H.expr_primitive =
   Binary
     ( Int_comp (I.Naked_immediate, Yielding_bool (Lt Unsigned)),
@@ -341,6 +349,14 @@ let bigstring_access_validity_condition ~size_int big_str access_size index :
   string_like_access_validity_condition index ~size_int ~access_size
     ~length:(bigarray_dim_bound big_str 1)
 
+let bigstring_alignment_validity_condition bstr alignment tagged_index :
+    H.expr_primitive =
+  Binary
+    ( Int_comp (I.Naked_immediate, Yielding_bool Eq),
+      Prim
+        (Binary (Bigarray_get_alignment alignment, bstr, untag_int tagged_index)),
+      Simple Simple.untagged_const_zero )
+
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
     string index =
   checked_access ~dbg ~primitive
@@ -349,6 +365,9 @@ let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
           access_size index ]
 
 let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
+  (* TODO(mslater): check alignment based on access size *)
+  ignore checked_alignment;
+  ignore bigstring_alignment_validity_condition;
   checked_access ~dbg ~primitive
     ~conditions:
       [bigstring_access_validity_condition ~size_int arg1 access_size arg2]
@@ -1102,7 +1121,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [bbswap Naked_int64 Naked_int64 mode arg ~current_region]
   | Pbbswap (Pnativeint, mode), [[arg]] ->
     [bbswap Naked_nativeint Naked_nativeint mode arg ~current_region]
-  | Pint_as_pointer, [[arg]] -> [Unary (Int_as_pointer, arg)]
+  | Pint_as_pointer mode, [[arg]] ->
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    [Unary (Int_as_pointer mode, arg)]
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> (
     let args =
       List.map
@@ -1256,7 +1277,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
       | Pintofbint _ | Pnegbint _ | Popaque _ | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
-      | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup
+      | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
         ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->

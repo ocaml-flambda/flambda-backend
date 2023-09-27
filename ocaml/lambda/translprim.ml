@@ -399,7 +399,7 @@ let lookup_primitive loc poly pos p =
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
     | "%bswap_native" -> Primitive ((Pbbswap(Pnativeint, mode)), 1)
-    | "%int_as_pointer" -> Primitive (Pint_as_pointer, 1)
+    | "%int_as_pointer" -> Primitive (Pint_as_pointer mode, 1)
     | "%opaque" -> Primitive (Popaque Lambda.layout_any_value, 1)
     | "%sys_argv" -> Sys_argv
     | "%send" -> Send (pos, Lambda.layout_any_value)
@@ -982,7 +982,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

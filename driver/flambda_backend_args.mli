@@ -24,6 +24,8 @@ module type Flambda_backend_options = sig
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
   val davail : unit -> unit
+  val dranges : unit -> unit
+  val ddebug_invariants : unit -> unit
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
@@ -125,6 +127,7 @@ module type Debugging_options = sig
   val no_dwarf_for_startup_file : unit -> unit
   val gdwarf_may_alter_codegen : unit -> unit
   val no_gdwarf_may_alter_codegen : unit -> unit
+  val gdwarf_max_function_complexity : int -> unit
 end
 
 (** Command line arguments required for ocamlopt. *)

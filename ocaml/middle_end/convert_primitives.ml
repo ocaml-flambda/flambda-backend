@@ -140,7 +140,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
-  | Pint_as_pointer -> Pint_as_pointer
+  | Pint_as_pointer m -> Pint_as_pointer m
   | Popaque _ -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
   | Pobj_dup ->
