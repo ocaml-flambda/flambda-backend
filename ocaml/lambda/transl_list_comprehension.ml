@@ -260,6 +260,7 @@ let rec translate_bindings
           ~loc
           ~mode:alloc_local
           ~region:false
+          ~ret_mode:alloc_local (* XXX check *)
           ~body:(add_bindings body)
       in
       let result =

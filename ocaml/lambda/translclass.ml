@@ -42,7 +42,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
   match kind, body with
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
-               body = body'; attr; loc}
+               body = body'; attr; loc; ret_mode}
     when List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
@@ -50,6 +50,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
                 ~attr
                 ~loc
                 ~mode:alloc_heap
+                ~ret_mode
                 ~region
   |  _ ->
       lfunction ~kind ~params ~return:return_layout
@@ -57,6 +58,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
                 ~mode:alloc_heap
+                ~ret_mode:alloc_heap
                 ~region
 
 let lapply ap =
@@ -226,6 +228,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~loc:(of_location ~scopes pat.pat_loc)
                    ~body
                    ~mode:alloc_heap
+                   ~ret_mode:alloc_heap (* XXX check *)
                    ~region:true
        in
        begin match obj_init with
@@ -514,6 +517,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~loc:(of_location ~scopes pat.pat_loc)
                   ~body
                   ~mode:alloc_heap
+                  ~ret_mode:alloc_heap (* XXX check *)
                   ~region:true
       in
       (path, path_lam,
@@ -875,6 +879,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~loc:Loc_unknown
                            ~return:layout_function
                            ~mode:alloc_heap
+                           ~ret_mode:alloc_heap (* XXX check *)
                            ~region:true
                            ~params:[lparam cla layout_table] ~body:cl_init) in
     Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
@@ -900,6 +905,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~loc:Loc_unknown
                           ~return:layout_function
                           ~mode:alloc_heap
+                          ~ret_mode:alloc_heap (* XXX check *)
                           ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
@@ -960,6 +966,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
+                   ~ret_mode:alloc_heap (* XXX check *)
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lcache lam =
@@ -985,6 +992,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~attr:default_function_attribute
          ~loc:Loc_unknown
          ~mode:alloc_heap
+         ~ret_mode:alloc_heap (* XXX check *)
          ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]

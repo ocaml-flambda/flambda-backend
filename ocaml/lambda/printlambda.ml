@@ -136,6 +136,7 @@ let layout ppf layout_ = layout true ppf layout_
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
+  fprintf ppf "(smode=%s)" smode;
   match kind with
   | Pvalue Pgenval when is_heap_mode mode -> ()
   | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
@@ -807,7 +808,7 @@ let rec lam ppf = function
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
         apply_probe ap.ap_probe
-  | Lfunction{kind; params; return; body; attr; mode; region} ->
+  | Lfunction{kind; params; return; body; attr; ret_mode; mode; region} ->
       let pr_params ppf params =
         match kind with
         | Curried {nlocal} ->
@@ -830,10 +831,9 @@ let rec lam ppf = function
                  layout ppf p.layout)
               params;
             fprintf ppf ")" in
-      let rmode = if region then alloc_heap else alloc_local in
-      fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
+      fprintf ppf "@[<2>(function%s%a@ %a%a(region=%b)%a)@]"
         (alloc_kind mode) pr_params params
-        function_attribute attr return_kind (rmode, return) lam body
+        function_attribute attr return_kind (ret_mode, return) region lam body
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->

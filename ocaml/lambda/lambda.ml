@@ -612,6 +612,7 @@ and lfunction =
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc: scoped_location;
     mode: alloc_mode;
+    ret_mode: alloc_mode;
     region: bool; }
 
 and lambda_while =
@@ -675,7 +676,7 @@ let max_arity () =
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
-let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
+let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
@@ -698,7 +699,7 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
      if not region then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
   end;
-  Lfunction { kind; params; return; body; attr; loc; mode; region }
+  Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region }
 
 let lambda_unit = Lconst const_unit
 
@@ -1272,9 +1273,9 @@ let shallow_map ~tail ~non_tail:f = function
         ap_specialised;
         ap_probe;
       }
-  | Lfunction { kind; params; return; body; attr; loc; mode; region } ->
+  | Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region } ->
       Lfunction { kind; params; return; body = f body; attr; loc;
-                  mode; region }
+                  mode; ret_mode; region }
   | Llet (str, layout, v, e1, e2) ->
       Llet (str, layout, v, f e1, tail e2)
   | Lmutlet (layout, v, e1, e2) ->

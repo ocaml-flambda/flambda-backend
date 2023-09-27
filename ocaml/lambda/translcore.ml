@@ -235,7 +235,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial;
                                         region; curry; warnings; arg_mode;
-                                        arg_sort; ret_sort; alloc_mode } }
+                                        arg_sort; ret_mode; ret_sort; alloc_mode } }
         as exp}] when bindings = [] || trivial_pat pat ->
       let cases =
         push_defaults exp.exp_loc bindings false arg_mode arg_sort cases partial
@@ -245,7 +245,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
         c_rhs={exp with exp_desc =
                           Texp_function { arg_label; param; cases; partial;
                                           region; curry; warnings; arg_mode;
-                                          arg_sort; ret_sort; alloc_mode }}}]
+                                          arg_sort; ret_mode; ret_sort; alloc_mode }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
@@ -396,8 +396,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_let ~scopes ~return_layout rec_flag pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes sort body))
   | Texp_function { arg_label = _; param; cases; partial; region; curry;
-                    warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
-      transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort ret_sort
+                    warnings; arg_mode; arg_sort; ret_mode; ret_sort; alloc_mode } ->
+      transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort ret_mode ret_sort
         cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode, _);
@@ -851,6 +851,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                             ~attr:default_function_attribute
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
+                            ~ret_mode:alloc_heap
                             ~region:true
                             ~body:(maybe_region_layout
                                      Lambda.layout_lazy_contents
@@ -974,6 +975,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
           ~mode:alloc_heap
+          ~ret_mode:alloc_heap
           ~region:true
       in
       let app =
@@ -1175,7 +1177,7 @@ and transl_apply ~scopes
               mode = arg_mode
             }] in
           lfunction ~kind:(Curried {nlocal}) ~params
-                    ~return:result_layout ~body ~mode ~region
+                    ~return:result_layout ~body ~mode ~ret_mode (* XXX check *) ~region
                     ~attr:default_stub_attribute ~loc
         in
         List.fold_right
@@ -1345,9 +1347,10 @@ and transl_function0
          mode = arg_mode}],
       return_layout, region), body)
 
-and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort return_sort
+and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort ret_mode return_sort
       cases partial warnings region curry =
   let mode = transl_alloc_mode alloc_mode in
+  let ret_mode = transl_alloc_mode ret_mode in
   let attrs =
     (* Collect attributes from the Pexp_newtype node for locally abstract types.
        Otherwise we'd ignore the attribute in, e.g.;
@@ -1387,7 +1390,7 @@ and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort r
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
-  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
+  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
   Translattribute.add_function_attributes lam e.exp_loc attrs
 
 (* Like transl_exp, but used when a new scope was just introduced. *)
@@ -1806,8 +1809,9 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
     let body = maybe_region_layout return body in
+    let ret_mode = alloc_heap in (* XXX fixme *)
     lfunction ~kind ~params ~return ~body ~attr ~loc
-              ~mode:alloc_heap ~region:true
+              ~mode:alloc_heap ~ret_mode ~region:true
   in
   Lapply{
     ap_loc = of_location ~scopes loc;

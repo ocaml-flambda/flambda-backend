@@ -6514,7 +6514,7 @@ and type_function
     exp_desc =
       Texp_function
         { arg_label; param; cases; partial; region; curry; warnings;
-          arg_mode; arg_sort; alloc_mode; ret_sort };
+          arg_mode; arg_sort; alloc_mode; ret_mode; ret_sort };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((arg_label,arg_mode,ret_mode),
@@ -7037,7 +7037,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
                                        partial = Total; region = false; curry;
                                        warnings = Warnings.backup ();
-                                       arg_mode = marg; arg_sort; ret_sort;
+                                       arg_mode = marg; arg_sort; ret_mode = Value_mode.regional_to_global_alloc ret_mode (* XXX check *); ret_sort;
                                        alloc_mode } }
       in
       Location.prerr_warning texp.exp_loc

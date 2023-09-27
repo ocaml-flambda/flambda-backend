@@ -1167,6 +1167,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                })
                ~loc
                ~mode:new_clos_mode
+               ~ret_mode
+               (* CR ncourant: this is incorrect, but the mode will not be used for anything *)
                ~region:fundesc.fun_region
                ~attr:default_function_attribute)
         in

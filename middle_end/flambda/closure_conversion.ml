@@ -41,10 +41,10 @@ let add_default_argument_wrappers lam =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
         Lfunction {kind; params; body = fbody; attr; loc;
-                   mode; region; return }, body) ->
+                   ret_mode; mode; region; return }, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return ~attr ~loc ~mode ~region
+          ~body:fbody ~return ~attr ~loc ~ret_mode ~mode ~region
       with
       | [fun_id, def] -> Llet (Alias, Lambda.layout_function, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
@@ -59,9 +59,9 @@ let add_default_argument_wrappers lam =
             (List.map
                (function
                  | (id, Lambda.Lfunction {kind; params; body; attr; loc;
-                                          mode; region; return }) ->
+                                          ret_mode; mode; region; return }) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return ~attr ~loc ~mode ~region
+                     ~return ~attr ~loc ~ret_mode ~mode ~region
                  | _ -> assert false)
                defs)
         in

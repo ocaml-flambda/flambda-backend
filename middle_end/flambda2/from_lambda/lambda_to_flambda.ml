@@ -1380,11 +1380,11 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
         match binding with
         | L.Lfunction
-            { kind; params; body = fbody; attr; loc; mode; region; return; _ }
+            { kind; params; body = fbody; attr; loc; ret_mode; mode; region; return; _ }
           -> (
           match
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc ~mode ~region
+              ~return ~attr ~loc ~ret_mode ~mode ~region
           with
           | [(id, L.Lfunction lfun)] -> [id, lfun]
           | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
