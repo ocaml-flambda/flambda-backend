@@ -98,19 +98,15 @@ type 'a sig_reader =
   -> Global.Name.t
   -> Shape.Uid.t
   -> filename:string
+  -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
-val read : 'a t
-  -> 'a sig_reader
-  -> Global.Name.t
-  -> filepath
-  -> add_binding:bool
-  -> 'a
-
+val read : 'a t -> 'a sig_reader
+  -> Global.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
 val find : 'a t -> 'a sig_reader -> Global.Name.t -> 'a
 
 val find_in_cache : 'a t -> Global.Name.t -> 'a option

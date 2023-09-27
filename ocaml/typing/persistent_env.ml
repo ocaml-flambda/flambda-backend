@@ -360,6 +360,10 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal _ -> false
     | Parameter -> true
   in
+  (* CR-someday lmaurer: Consider moving this check into
+     [acknowledge_pers_struct]. It makes more sense to flag these errors when
+     the identifier is in source, rather than, say, a signature we're reading
+     from a file, especially if it's our own .mli. *)
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
       error (Illegal_import_of_parameter(modname, filename))
@@ -689,11 +693,13 @@ type 'a sig_reader =
   -> Global.Name.t
   -> Shape.Uid.t
   -> filename:string
+  -> shape:Shape.t
   -> address:Address.t
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
-let process_pers_struct penv global_name pers_name val_of_pers_sig =
+let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
+  let {persistent_structures; _} = penv in
   let import = pers_name.pn_import in
   let global = pers_name.pn_global in
   let sign = pers_name.pn_sign in
@@ -701,10 +707,7 @@ let process_pers_struct penv global_name pers_name val_of_pers_sig =
   let module_block_layout = import.imp_module_block_layout in
   let filename = import.imp_filename in
   let flags = import.imp_flags in
-  let binding =
-    (* This binding should be seen as provisional: _if_ this gets added to the
-       environment, this is what it will be bound to *)
-    make_binding penv global impl in
+  let binding = make_binding penv global impl in
   let address : Address.t =
     match binding with
     | Local id -> Alocal id
@@ -724,14 +727,14 @@ let process_pers_struct penv global_name pers_name val_of_pers_sig =
     | Local _ -> (* no pack prefix *) Shape.Uid.of_global_name global_name
     | Static unit -> Shape.Uid.of_compilation_unit_id unit
   in
-  let pm = val_of_pers_sig sign global_name uid ~filename ~address ~flags in
+  let shape =
+    match binding with
+    | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
+  in
+  let pm = val_of_pers_sig sign global_name uid ~filename ~shape ~address ~flags in
   let ps = { ps_name_info = pers_name;
              ps_binding = binding;
            } in
-  (ps, pm)
-
-let bind_pers_struct penv global_name ps pm =
-  let {persistent_structures; _} = penv in
   if is_unexported_parameter penv global_name then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
@@ -740,18 +743,16 @@ let bind_pers_struct penv global_name ps pm =
     let filename = ps.ps_name_info.pn_import.imp_filename in
     raise (Error (Illegal_import_of_parameter (modname, filename)))
   end;
-  Hashtbl.add persistent_structures global_name (ps, pm)
-
-let acknowledge_pers_struct penv global_name pers_name val_of_pers_sig =
-  let ps, pm = process_pers_struct penv global_name pers_name val_of_pers_sig in
-  bind_pers_struct penv global_name ps pm;
+  Hashtbl.add persistent_structures global_name (ps, pm);
   (ps, pm)
 
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   let pers_name = read_pers_name penv check modname filename in
-  let ps, pm = process_pers_struct penv modname pers_name val_of_pers_sig in
-  if add_binding then bind_pers_struct penv modname ps pm;
-  (ps, pm)
+  if add_binding then
+    ignore
+      (acknowledge_pers_struct penv modname pers_name val_of_pers_sig
+       : _ pers_struct_info);
+  pers_name.pn_sign
 
 let find_pers_struct penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
@@ -818,7 +819,7 @@ let check_pers_struct penv f ~loc name =
         Location.prerr_warning loc warn
 
 let read penv f modname filename ~add_binding =
-  snd (read_pers_struct penv f true modname filename ~add_binding)
+  read_pers_struct penv f true modname filename ~add_binding
 
 let find penv f name =
   snd (find_pers_struct penv f true name)

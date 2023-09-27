@@ -927,7 +927,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let read_sign_of_cmi sign name uid ~filename ~address:addr ~flags =
+let read_sign_of_cmi sign name uid ~filename ~shape ~address:addr ~flags =
   let id = Ident.create_global name in
   let path = Pident id in
   let alerts =
@@ -944,10 +944,7 @@ let read_sign_of_cmi sign name uid ~filename ~address:addr ~flags =
   in
   let mda_address = Lazy_backtrack.create_forced addr in
   let mda_declaration = md in
-  let mda_shape =
-    (* CR lmaurer: This is a hack *)
-    Shape.for_persistent_unit (Format.asprintf "%a" Shape.Uid.print uid)
-  in
+  let mda_shape = shape in
   let mda_filename = Some filename in
   let mda_components =
     let mty = md.md_type in
@@ -2645,11 +2642,8 @@ let open_signature
 
 (* Read a signature from a file *)
 let read_signature modname filename ~add_binding =
-  let mda = read_pers_mod modname filename ~add_binding in
-  let md = Subst.Lazy.force_module_decl mda.mda_declaration in
-  match md.md_type with
-  | Mty_signature sg -> sg
-  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+  let mty = read_pers_mod modname filename ~add_binding in
+  Subst.Lazy.force_signature mty
 
 let register_parameter_import import =
   Persistent_env.register_parameter_import !persistent_env import
