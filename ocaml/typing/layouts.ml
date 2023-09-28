@@ -730,7 +730,7 @@ module Layout = struct
       | Enumeration ->
          fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Primitive id ->
-         fprintf ppf "it equals the primitive immediate type %s" (Ident.name id)
+         fprintf ppf "it is the primitive immediate type %s" (Ident.name id)
       | Immediate_polymorphic_variant ->
          fprintf ppf "it's an immediate polymorphic variant"
       | Gc_ignorable_check ->
@@ -760,7 +760,7 @@ module Layout = struct
       | Boxed_variant -> fprintf ppf "it's a boxed variant"
       | Extensible_variant -> fprintf ppf "it's an extensible variant"
       | Primitive id ->
-        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+        fprintf ppf "it is the primitive value type %s" (Ident.name id)
       | Type_argument {parent_path; position; arity} ->
         fprintf ppf "the %stype argument of %a has layout value"
           (format_position ~arity position)
@@ -805,7 +805,7 @@ module Layout = struct
 
     let format_float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id ->
-        fprintf ppf "it equals the primitive float64 type %s" (Ident.name id)
+        fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
 
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
