@@ -170,6 +170,7 @@ module Layout : sig
     | Extensible_variant
     | Primitive of Ident.t
     | Type_argument of {parent_path: Path.t; position: int; arity: int}
+    (* position is 1-indexed *)
     | Tuple
     | Row_variable
     | Polymorphic_variant
@@ -233,6 +234,7 @@ module Layout : sig
     | Concrete_creation of concrete_layout_reason
     | Imported
     | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
+    (* position is 1-indexed *)
 
   type interact_reason =
     | Gadt_equation of Path.t
