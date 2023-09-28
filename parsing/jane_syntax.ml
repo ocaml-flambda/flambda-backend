@@ -9,9 +9,10 @@ open Jane_syntax_parsing
 *)
 module Language_extension = struct
   include Language_extension_kernel
+
   include (
-    Language_extension
-    : Language_extension_kernel.Language_extension_for_jane_syntax)
+    Language_extension :
+      Language_extension_kernel.Language_extension_for_jane_syntax)
 end
 
 (* Suppress the unused module warning so it's easy to keep around the
@@ -25,11 +26,11 @@ module type Extension = sig
   val feature : Feature.t
 end
 
-module Ast_of (AST : AST)
-              (Ext : Extension) : sig
+module Ast_of (AST : AST) (Ext : Extension) : sig
   (* Wrap a bit of AST with a jane-syntax annotation *)
   val wrap_jane_syntax :
-    string list ->   (* these strings describe the bit of new syntax *)
+    string list ->
+    (* these strings describe the bit of new syntax *)
     ?payload:payload ->
     AST.ast ->
     AST.ast
@@ -58,7 +59,6 @@ module Of_ast (Ext : Extension) : sig
   val unwrap_jane_syntax_attributes_exn :
     loc:Location.t -> attributes -> unwrapped
 end = struct
-
   let extension_string = Feature.extension_component Ext.feature
 
   module Desugaring_error = struct
@@ -68,38 +68,34 @@ end = struct
 
     let report_error ~loc = function
       | Not_this_embedding name ->
-          Location.errorf ~loc
-            "Tried to desugar the embedded term %a@ \
-             as belonging to the %s extension"
-            Embedded_name.pp_quoted_name name extension_string
+        Location.errorf ~loc
+          "Tried to desugar the embedded term %a@ as belonging to the %s \
+           extension"
+          Embedded_name.pp_quoted_name name extension_string
       | Non_embedding ->
-          Location.errorf ~loc
-            "Tried to desugar a non-embedded expression@ \
-             as belonging to the %s extension"
-            extension_string
+        Location.errorf ~loc
+          "Tried to desugar a non-embedded expression@ as belonging to the %s \
+           extension"
+          extension_string
 
     exception Error of Location.t * error
 
     let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) ->
-            Some (report_error ~loc err)
-          | _ -> None)
+      Location.register_error_of_exn (function
+        | Error (loc, err) -> Some (report_error ~loc err)
+        | _ -> None)
 
-    let raise ~loc err =
-      raise (Error(loc, err))
+    let raise ~loc err = raise (Error (loc, err))
   end
 
   let unwrap_jane_syntax_attributes attrs : (_, Desugaring_error.error) result =
     match find_and_remove_jane_syntax_attribute attrs with
-    | Some (ext_name, _loc, payload, attrs) -> begin
-        match Jane_syntax_parsing.Embedded_name.components ext_name with
-        | extension_occur :: names
-             when String.equal extension_occur extension_string ->
-           Ok (names, payload, attrs)
-        | _ -> Error (Not_this_embedding ext_name)
-      end
+    | Some (ext_name, _loc, payload, attrs) -> (
+      match Jane_syntax_parsing.Embedded_name.components ext_name with
+      | extension_occur :: names
+        when String.equal extension_occur extension_string ->
+        Ok (names, payload, attrs)
+      | _ -> Error (Not_this_embedding ext_name))
     | None -> Error Non_embedding
 
   let unwrap_jane_syntax_attributes_exn ~loc attrs =
@@ -172,13 +168,17 @@ module type Payload_protocol = sig
 
   module Encode : sig
     val as_payload : t loc -> payload
+
     val list_as_payload : t loc list -> payload
+
     val option_list_as_payload : t loc option list -> payload
   end
 
   module Decode : sig
     val from_payload : loc:Location.t -> payload -> t loc
+
     val list_from_payload : loc:Location.t -> payload -> t loc list
+
     val option_list_from_payload :
       loc:Location.t -> payload -> t loc option list
   end
@@ -186,7 +186,9 @@ end
 
 module type Stringable = sig
   type t
+
   val of_string : string -> t option
+
   val to_string : t -> string
 
   (** For error messages: a name that can be used to identify the
@@ -196,26 +198,29 @@ module type Stringable = sig
   val indefinite_article_and_name : string * string
 end
 
-module Make_payload_protocol_of_stringable (Stringable : Stringable)
-  : Payload_protocol with type t := Stringable.t = struct
+module Make_payload_protocol_of_stringable (Stringable : Stringable) :
+  Payload_protocol with type t := Stringable.t = struct
   module Encode = struct
     let as_expr t_loc =
       let string = Stringable.to_string t_loc.txt in
-      Ast_helper.Exp.ident
-        (Location.mkloc (Longident.Lident string) t_loc.loc)
+      Ast_helper.Exp.ident (Location.mkloc (Longident.Lident string) t_loc.loc)
 
     let structure_item_of_expr expr =
       { pstr_desc = Pstr_eval (expr, []); pstr_loc = Location.none }
 
     let structure_item_of_none =
-      { pstr_desc = Pstr_attribute { attr_name = Location.mknoloc "none"
-                                   ; attr_payload = PStr []
-                                   ; attr_loc = Location.none }
-      ; pstr_loc = Location.none }
+      { pstr_desc =
+          Pstr_attribute
+            { attr_name = Location.mknoloc "none";
+              attr_payload = PStr [];
+              attr_loc = Location.none
+            };
+        pstr_loc = Location.none
+      }
 
     let as_payload t_loc =
       let expr = as_expr t_loc in
-      PStr [ structure_item_of_expr expr ]
+      PStr [structure_item_of_expr expr]
 
     let list_as_payload t_locs =
       let items =
@@ -225,7 +230,8 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable)
 
     let option_list_as_payload t_locs =
       let items =
-        List.map (function
+        List.map
+          (function
             | None -> structure_item_of_none
             | Some t_loc -> structure_item_of_expr (as_expr t_loc))
           t_locs
@@ -234,28 +240,22 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable)
   end
 
   module Desugaring_error = struct
-    type error =
-      | Unknown_payload of payload
+    type error = Unknown_payload of payload
 
     let report_error ~loc = function
       | Unknown_payload payload ->
         let indefinite_article, name = Stringable.indefinite_article_and_name in
-        Location.errorf ~loc
-          "Attribute payload does not name %s %s:@;%a"
-          indefinite_article name
-          (Printast.payload 0) payload
+        Location.errorf ~loc "Attribute payload does not name %s %s:@;%a"
+          indefinite_article name (Printast.payload 0) payload
 
     exception Error of Location.t * error
 
     let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) ->
-              Some (report_error ~loc err)
-          | _ -> None)
+      Location.register_error_of_exn (function
+        | Error (loc, err) -> Some (report_error ~loc err)
+        | _ -> None)
 
-    let raise ~loc err =
-      raise (Error(loc, err))
+    let raise ~loc err = raise (Error (loc, err))
   end
 
   module Decode = struct
@@ -265,12 +265,12 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable)
 
       let from_expr = function
         | { pexp_desc = Pexp_ident payload_lid; _ } ->
-            let t =
-              match Stringable.of_string (Longident.last payload_lid.txt) with
-              | None -> raise Unexpected
-              | Some t -> t
-            in
-            Location.mkloc t payload_lid.loc
+          let t =
+            match Stringable.of_string (Longident.last payload_lid.txt) with
+            | None -> raise Unexpected
+            | Some t -> t
+          in
+          Location.mkloc t payload_lid.loc
         | _ -> raise Unexpected
 
       let expr_of_structure_item = function
@@ -279,28 +279,29 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable)
 
       let is_none_structure_item = function
         | { pstr_desc = Pstr_attribute { attr_name = { txt = "none" } } } ->
-            true
+          true
         | _ -> false
 
       let from_payload payload =
         match payload with
-        | PStr [ item ] -> from_expr (expr_of_structure_item item)
+        | PStr [item] -> from_expr (expr_of_structure_item item)
         | _ -> raise Unexpected
 
       let list_from_payload payload =
         match payload with
         | PStr items ->
-            List.map (fun item -> from_expr (expr_of_structure_item item)) items
+          List.map (fun item -> from_expr (expr_of_structure_item item)) items
         | _ -> raise Unexpected
 
       let option_list_from_payload payload =
         match payload with
         | PStr items ->
-            List.map (fun item ->
-                if is_none_structure_item item
-                then None
-                else Some (from_expr (expr_of_structure_item item)))
-              items
+          List.map
+            (fun item ->
+              if is_none_structure_item item
+              then None
+              else Some (from_expr (expr_of_structure_item item)))
+            items
         | _ -> raise Unexpected
     end
 
@@ -358,12 +359,13 @@ module Layout_annotation : sig
     include module type of Decode
 
     val bound_vars_from_vars_and_payload :
-      loc:Location.t -> string Location.loc list -> payload ->
+      loc:Location.t ->
+      string Location.loc list ->
+      payload ->
       (string Location.loc * layout_annotation option) list
   end
 end = struct
-  module Protocol =
-    Make_payload_protocol_of_stringable (Stringable_const_layout)
+  module Protocol = Make_payload_protocol_of_stringable (Stringable_const_layout)
 
   (*******************************************************)
   (* Conversions with a payload *)
@@ -379,38 +381,35 @@ end = struct
 
       let report_error ~loc = function
         | Wrong_number_of_layouts (n, layouts) ->
-            Location.errorf ~loc
-              "Wrong number of layouts in an layout attribute;@;\
-              expecting %i but got this list:@;%a"
-              n
-              (Format.pp_print_list
-                (Format.pp_print_option
-                    ~none:(fun ppf () -> Format.fprintf ppf "None")
-                    Layouts_pprint.layout_annotation))
-              layouts
+          Location.errorf ~loc
+            "Wrong number of layouts in an layout attribute;@;\
+             expecting %i but got this list:@;\
+             %a"
+            n
+            (Format.pp_print_list
+               (Format.pp_print_option
+                  ~none:(fun ppf () -> Format.fprintf ppf "None")
+                  Layouts_pprint.layout_annotation))
+            layouts
 
       exception Error of Location.t * error
 
       let () =
-        Location.register_error_of_exn
-          (function
-            | Error(loc, err) ->
-                Some (report_error ~loc err)
-            | _ -> None)
+        Location.register_error_of_exn (function
+          | Error (loc, err) -> Some (report_error ~loc err)
+          | _ -> None)
 
-      let raise ~loc err =
-        raise (Error(loc, err))
+      let raise ~loc err = raise (Error (loc, err))
     end
 
     let bound_vars_from_vars_and_payload ~loc var_names payload =
       let layouts = option_list_from_payload ~loc payload in
-      try
-        List.combine var_names layouts
+      try List.combine var_names layouts
       with
       (* seems silly to check the length in advance when [combine] does *)
-        Invalid_argument _ ->
+      | Invalid_argument _ ->
         Desugaring_error.raise ~loc
-          (Wrong_number_of_layouts(List.length var_names, layouts))
+          (Wrong_number_of_layouts (List.length var_names, layouts))
   end
 end
 
@@ -421,21 +420,21 @@ module Mode_annotation = struct
     | Once
 
   include Make_payload_protocol_of_stringable (struct
-      type nonrec t = t
+    type nonrec t = t
 
-      let indefinite_article_and_name = "a", "mode"
+    let indefinite_article_and_name = "a", "mode"
 
-      let to_string = function
-        | Local -> "local"
-        | Unique -> "unique"
-        | Once -> "once"
+    let to_string = function
+      | Local -> "local"
+      | Unique -> "unique"
+      | Once -> "once"
 
-      let of_string = function
-        | "local" -> Some Local
-        | "unique" -> Some Unique
-        | "once" -> Some Once
-        | _ -> None
-    end)
+    let of_string = function
+      | "local" -> Some Local
+      | "unique" -> Some Unique
+      | "once" -> Some Once
+      | _ -> None
+  end)
 end
 
 (** List and array comprehensions *)
@@ -446,31 +445,33 @@ module Comprehensions = struct
 
   module Ast_of = Ast_of (Expression) (Ext)
   module Of_ast = Of_ast (Ext)
-
   include Ext
 
   type iterator =
-    | Range of { start     : expression
-               ; stop      : expression
-               ; direction : direction_flag }
+    | Range of
+        { start : expression;
+          stop : expression;
+          direction : direction_flag
+        }
     | In of expression
 
   type clause_binding =
-    { pattern    : pattern
-    ; iterator   : iterator
-    ; attributes : attribute list }
+    { pattern : pattern;
+      iterator : iterator;
+      attributes : attribute list
+    }
 
   type clause =
     | For of clause_binding list
     | When of expression
 
   type comprehension =
-    { body    : expression
-    ; clauses : clause list
+    { body : expression;
+      clauses : clause list
     }
 
   type expression =
-    | Cexp_list_comprehension  of comprehension
+    | Cexp_list_comprehension of comprehension
     | Cexp_array_comprehension of mutable_flag * comprehension
 
   (* The desugared-to-OCaml version of comprehensions is described by the
@@ -501,28 +502,25 @@ module Comprehensions = struct
 
   let expr_of_iterator = function
     | Range { start; stop; direction } ->
-        Ast_of.wrap_jane_syntax
-          [ "for"
-          ; "range"
-          ; match direction with
-            | Upto   -> "upto"
-            | Downto -> "downto" ]
-          (Ast_helper.Exp.tuple [start; stop])
-    | In seq ->
-        Ast_of.wrap_jane_syntax ["for"; "in"] seq
+      Ast_of.wrap_jane_syntax
+        [ "for";
+          "range";
+          (match direction with Upto -> "upto" | Downto -> "downto") ]
+        (Ast_helper.Exp.tuple [start; stop])
+    | In seq -> Ast_of.wrap_jane_syntax ["for"; "in"] seq
 
   let expr_of_clause_binding { pattern; iterator; attributes } =
     Ast_helper.Vb.mk ~attrs:attributes pattern (expr_of_iterator iterator)
 
-  let expr_of_clause clause rest = match clause with
+  let expr_of_clause clause rest =
+    match clause with
     | For iterators ->
-        Ast_of.wrap_jane_syntax
-          ["for"]
-          (Ast_helper.Exp.let_
-             Nonrecursive (List.map expr_of_clause_binding iterators)
-             rest)
+      Ast_of.wrap_jane_syntax ["for"]
+        (Ast_helper.Exp.let_ Nonrecursive
+           (List.map expr_of_clause_binding iterators)
+           rest)
     | When cond ->
-        Ast_of.wrap_jane_syntax ["when"] (Ast_helper.Exp.sequence cond rest)
+      Ast_of.wrap_jane_syntax ["when"] (Ast_helper.Exp.sequence cond rest)
 
   let expr_of_comprehension ~type_ { body; clauses } =
     (* We elect to wrap the body in a new AST node (here, [Pexp_lazy])
@@ -532,27 +530,24 @@ module Comprehensions = struct
        part of its contract is threading through the user-written attributes
        on the outermost node.
     *)
-    Ast_of.wrap_jane_syntax
-      type_
+    Ast_of.wrap_jane_syntax type_
       (Ast_helper.Exp.lazy_
-        (List.fold_right
-          expr_of_clause
-          clauses
-          (Ast_of.wrap_jane_syntax ["body"] body)))
+         (List.fold_right expr_of_clause clauses
+            (Ast_of.wrap_jane_syntax ["body"] body)))
 
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     Expression.make_entire_jane_syntax ~loc feature (fun () ->
-      match cexpr with
-      | Cexp_list_comprehension comp ->
+        match cexpr with
+        | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
-      | Cexp_array_comprehension (amut, comp) ->
+        | Cexp_array_comprehension (amut, comp) ->
           expr_of_comprehension
-            ~type_:[ "array"
-                   ; match amut with
-                     | Mutable   -> "mutable"
-                     | Immutable -> "immutable"
-                   ]
+            ~type_:
+              [ "array";
+                (match amut with
+                | Mutable -> "mutable"
+                | Immutable -> "immutable") ]
             comp)
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
@@ -567,35 +562,33 @@ module Comprehensions = struct
 
     let report_error ~loc = function
       | Has_payload payload ->
-          Location.errorf ~loc
-            "Comprehensions attribute has an unexpected payload:@;%a"
-            (Printast.payload 0) payload
+        Location.errorf ~loc
+          "Comprehensions attribute has an unexpected payload:@;%a"
+          (Printast.payload 0) payload
       | Bad_comprehension_embedding subparts ->
-          Location.errorf ~loc
-            "Unknown, unexpected, or malformed@ comprehension embedded term %a"
-            Embedded_name.pp_quoted_name
-            (Embedded_name.of_feature feature subparts)
+        Location.errorf ~loc
+          "Unknown, unexpected, or malformed@ comprehension embedded term %a"
+          Embedded_name.pp_quoted_name
+          (Embedded_name.of_feature feature subparts)
       | No_clauses ->
-          Location.errorf ~loc
-            "Tried to desugar a comprehension with no clauses"
+        Location.errorf ~loc "Tried to desugar a comprehension with no clauses"
 
     exception Error of Location.t * error
 
     let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) -> Some (report_error ~loc err)
-          | _ -> None)
+      Location.register_error_of_exn (function
+        | Error (loc, err) -> Some (report_error ~loc err)
+        | _ -> None)
 
-    let raise expr err = raise (Error(expr.pexp_loc, err))
+    let raise expr err = raise (Error (expr.pexp_loc, err))
   end
 
   (* Returns the expression node with the outermost Jane Syntax-related
      attribute removed. *)
   let expand_comprehension_extension_expr expr =
     let names, payload, attributes =
-      Of_ast.unwrap_jane_syntax_attributes_exn
-        ~loc:expr.pexp_loc expr.pexp_attributes
+      Of_ast.unwrap_jane_syntax_attributes_exn ~loc:expr.pexp_loc
+        expr.pexp_attributes
     in
     match payload with
     | PStr [] -> names, { expr with pexp_attributes = attributes }
@@ -603,44 +596,36 @@ module Comprehensions = struct
 
   let iterator_of_expr expr =
     match expand_comprehension_extension_expr expr with
-    | ["for"; "range"; "upto"],
-      { pexp_desc = Pexp_tuple [start; stop]; _ } ->
-        Range { start; stop; direction = Upto }
-    | ["for"; "range"; "downto"],
-      { pexp_desc = Pexp_tuple [start; stop]; _ } ->
-        Range { start; stop; direction = Downto }
-    | ["for"; "in"], seq ->
-        In seq
-    | bad, _ ->
-        Desugaring_error.raise expr (Bad_comprehension_embedding bad)
+    | ["for"; "range"; "upto"], { pexp_desc = Pexp_tuple [start; stop]; _ } ->
+      Range { start; stop; direction = Upto }
+    | ["for"; "range"; "downto"], { pexp_desc = Pexp_tuple [start; stop]; _ } ->
+      Range { start; stop; direction = Downto }
+    | ["for"; "in"], seq -> In seq
+    | bad, _ -> Desugaring_error.raise expr (Bad_comprehension_embedding bad)
 
   let clause_binding_of_vb { pvb_pat; pvb_expr; pvb_attributes; pvb_loc = _ } =
-    { pattern = pvb_pat
-    ; iterator = iterator_of_expr pvb_expr
-    ; attributes = pvb_attributes }
+    { pattern = pvb_pat;
+      iterator = iterator_of_expr pvb_expr;
+      attributes = pvb_attributes
+    }
 
   let add_clause clause comp = { comp with clauses = clause :: comp.clauses }
 
   let comprehension_of_expr =
     let rec raw_comprehension_of_expr expr =
       match expand_comprehension_extension_expr expr with
-      | ["for"], { pexp_desc = Pexp_let(Nonrecursive, iterators, rest); _ } ->
-          add_clause
-            (For (List.map clause_binding_of_vb iterators))
-            (raw_comprehension_of_expr rest)
-      | ["when"], { pexp_desc = Pexp_sequence(cond, rest); _ } ->
-          add_clause
-            (When cond)
-            (raw_comprehension_of_expr rest)
-      | ["body"], body ->
-          { body; clauses = [] }
-      | bad, _ ->
-          Desugaring_error.raise expr (Bad_comprehension_embedding bad)
+      | ["for"], { pexp_desc = Pexp_let (Nonrecursive, iterators, rest); _ } ->
+        add_clause
+          (For (List.map clause_binding_of_vb iterators))
+          (raw_comprehension_of_expr rest)
+      | ["when"], { pexp_desc = Pexp_sequence (cond, rest); _ } ->
+        add_clause (When cond) (raw_comprehension_of_expr rest)
+      | ["body"], body -> { body; clauses = [] }
+      | bad, _ -> Desugaring_error.raise expr (Bad_comprehension_embedding bad)
     in
     fun expr ->
       match raw_comprehension_of_expr expr with
-      | { body = _; clauses = [] } ->
-          Desugaring_error.raise expr No_clauses
+      | { body = _; clauses = [] } -> Desugaring_error.raise expr No_clauses
       | comp -> comp
 
   (* Returns remaining unconsumed attributes on outermost expression *)
@@ -649,27 +634,24 @@ module Comprehensions = struct
     let comp =
       match name, wrapper.pexp_desc with
       | ["list"], Pexp_lazy comp ->
-          Cexp_list_comprehension (comprehension_of_expr comp)
+        Cexp_list_comprehension (comprehension_of_expr comp)
       | ["array"; "mutable"], Pexp_lazy comp ->
-          Cexp_array_comprehension (Mutable, comprehension_of_expr comp)
+        Cexp_array_comprehension (Mutable, comprehension_of_expr comp)
       | ["array"; "immutable"], Pexp_lazy comp ->
-          (* assert_extension_enabled:
-            See Note [Check for immutable extension in comprehensions code] *)
-          assert_extension_enabled ~loc:expr.pexp_loc Immutable_arrays ();
-          Cexp_array_comprehension (Immutable, comprehension_of_expr comp)
-      | bad, _ ->
-          Desugaring_error.raise expr (Bad_comprehension_embedding bad)
+        (* assert_extension_enabled:
+           See Note [Check for immutable extension in comprehensions code] *)
+        assert_extension_enabled ~loc:expr.pexp_loc Immutable_arrays ();
+        Cexp_array_comprehension (Immutable, comprehension_of_expr comp)
+      | bad, _ -> Desugaring_error.raise expr (Bad_comprehension_embedding bad)
     in
     comp, wrapper.pexp_attributes
 end
 
 (** Immutable arrays *)
 module Immutable_arrays = struct
-  type nonrec expression =
-    | Iaexp_immutable_array of expression list
+  type nonrec expression = Iaexp_immutable_array of expression list
 
-  type nonrec pattern =
-    | Iapat_immutable_array of pattern list
+  type nonrec pattern = Iapat_immutable_array of pattern list
 
   let feature : Feature.t = Language_extension Immutable_arrays
 
@@ -677,10 +659,11 @@ module Immutable_arrays = struct
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
-        Ast_helper.Exp.array elts)
+          Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
-  let of_expr expr = match expr.pexp_desc with
+  let of_expr expr =
+    match expr.pexp_desc with
     | Pexp_array elts -> Iaexp_immutable_array elts, expr.pexp_attributes
     | _ -> failwith "Malformed immutable array expression"
 
@@ -688,10 +671,11 @@ module Immutable_arrays = struct
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Pattern.make_entire_jane_syntax ~loc feature (fun () ->
-        Ast_helper.Pat.array elts)
+          Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
-  let of_pat pat = match pat.ppat_desc with
+  let of_pat pat =
+    match pat.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts, pat.ppat_attributes
     | _ -> failwith "Malformed immutable array pattern"
 end
@@ -714,8 +698,8 @@ module N_ary_functions = struct
     | Pparam_newtype of string loc * layout_annotation option
 
   type function_param =
-    { pparam_desc : function_param_desc
-    ; pparam_loc : Location.t
+    { pparam_desc : function_param_desc;
+      pparam_loc : Location.t
     }
 
   type mode_annotation = Mode_annotation.t =
@@ -728,8 +712,8 @@ module N_ary_functions = struct
     | Pcoerce of core_type option * core_type
 
   type function_constraint =
-    { mode_annotations: mode_annotation loc list;
-      type_constraint: type_constraint;
+    { mode_annotations : mode_annotation loc list;
+      type_constraint : type_constraint
     }
 
   type expression =
@@ -769,43 +753,44 @@ module N_ary_functions = struct
 
     let to_suffix_and_payload = function
       | Top_level -> [], None
-      | Fun_then Cases -> [ "cases" ], None
-      | Fun_then Constraint_then_cases -> [ "constraint"; "cases" ], None
+      | Fun_then Cases -> ["cases"], None
+      | Fun_then Constraint_then_cases -> ["constraint"; "cases"], None
       | Mode_constraint mode_annotation ->
-          let payload =
-            Mode_annotation.Encode.list_as_payload mode_annotation
-          in
-          [ "mode_constraint" ], Some payload
+        let payload = Mode_annotation.Encode.list_as_payload mode_annotation in
+        ["mode_constraint"], Some payload
       | Layout_annotation layout_annotation ->
-          let payload = Layout_annotation.Encode.as_payload layout_annotation in
-          [ "layout_annotation" ], Some payload
+        let payload = Layout_annotation.Encode.as_payload layout_annotation in
+        ["layout_annotation"], Some payload
 
     let of_suffix suffix =
       match suffix with
       | [] -> No_payload Top_level
-      | [ "cases" ] -> No_payload (Fun_then Cases)
-      | [ "constraint"; "cases" ] -> No_payload (Fun_then Constraint_then_cases)
-      | [ "mode_constraint" ] ->
-          Payload (fun payload ~loc ->
-              let mode_annotations =
-                Mode_annotation.Decode.list_from_payload payload ~loc
-              in
-              List.iter (fun mode_annotation ->
+      | ["cases"] -> No_payload (Fun_then Cases)
+      | ["constraint"; "cases"] -> No_payload (Fun_then Constraint_then_cases)
+      | ["mode_constraint"] ->
+        Payload
+          (fun payload ~loc ->
+            let mode_annotations =
+              Mode_annotation.Decode.list_from_payload payload ~loc
+            in
+            List.iter
+              (fun mode_annotation ->
                 assert_extension_enabled ~loc
                   (match (mode_annotation.txt : mode_annotation) with
-                   | Local -> Local
-                   | Unique | Once -> Unique)
+                  | Local -> Local
+                  | Unique | Once -> Unique)
                   ())
-                mode_annotations;
-              Mode_constraint mode_annotations)
-      | [ "layout_annotation" ] ->
-          Payload (fun payload ~loc ->
-              assert_extension_enabled ~loc Layouts
-                (Stable : Language_extension.maturity);
-              let layout_annotation =
-                Layout_annotation.Decode.from_payload payload ~loc
-              in
-              Layout_annotation layout_annotation)
+              mode_annotations;
+            Mode_constraint mode_annotations)
+      | ["layout_annotation"] ->
+        Payload
+          (fun payload ~loc ->
+            assert_extension_enabled ~loc Layouts
+              (Stable : Language_extension.maturity);
+            let layout_annotation =
+              Layout_annotation.Decode.from_payload payload ~loc
+            in
+            Layout_annotation layout_annotation)
       | _ -> Unknown_suffix
 
     let format ppf t =
@@ -824,39 +809,38 @@ module N_ary_functions = struct
 
     let report_error ~loc = function
       | Has_payload payload ->
-          Location.errorf ~loc
-            "Syntactic arity attribute has an unexpected payload:@;%a"
-            (Printast.payload 0) payload
+        Location.errorf ~loc
+          "Syntactic arity attribute has an unexpected payload:@;%a"
+          (Printast.payload 0) payload
       | Expected_constraint_or_coerce ->
-          Location.errorf ~loc
-            "Expected a Pexp_constraint or Pexp_coerce node at this position."
+        Location.errorf ~loc
+          "Expected a Pexp_constraint or Pexp_coerce node at this position."
       | Expected_function_cases attribute ->
-          Location.errorf ~loc
-            "Expected a Pexp_function node in this position, as the enclosing \
-             Pexp_fun is annotated with %a."
-            Attribute_node.format attribute
+        Location.errorf ~loc
+          "Expected a Pexp_function node in this position, as the enclosing \
+           Pexp_fun is annotated with %a."
+          Attribute_node.format attribute
       | Expected_fun_or_newtype attribute ->
-          Location.errorf ~loc
-            "Only Pexp_fun or Pexp_newtype may carry the attribute %a."
-            Attribute_node.format attribute
+        Location.errorf ~loc
+          "Only Pexp_fun or Pexp_newtype may carry the attribute %a."
+          Attribute_node.format attribute
       | Expected_newtype_with_layout_annotation annotation ->
-          Location.errorf ~loc
-            "Only Pexp_newtype may carry the attribute %a."
-            Attribute_node.format (Attribute_node.Layout_annotation annotation)
+        Location.errorf ~loc "Only Pexp_newtype may carry the attribute %a."
+          Attribute_node.format (Attribute_node.Layout_annotation annotation)
       | Parameterless_function ->
-          Location.errorf ~loc
-            "The expression is a Jane Syntax encoding of a function with no \
-             parameters, which is an invalid expression."
+        Location.errorf ~loc
+          "The expression is a Jane Syntax encoding of a function with no \
+           parameters, which is an invalid expression."
 
     exception Error of Location.t * error
 
     let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) -> Some (report_error ~loc err)
-          | _ -> None)
+      Location.register_error_of_exn (function
+        | Error (loc, err) -> Some (report_error ~loc err)
+        | _ -> None)
 
     let raise_with_loc loc err = raise (Error (loc, err))
+
     let raise expr err = raise (Error (expr.pexp_loc, err))
   end
 
@@ -920,15 +904,15 @@ module N_ary_functions = struct
     match Of_ast.unwrap_jane_syntax_attributes expr.pexp_attributes with
     | Error (Not_this_embedding _ | Non_embedding) -> None
     | Ok (suffix, payload, attributes) ->
-        let attribute_node =
-          match Attribute_node.of_suffix suffix, payload with
-          | No_payload t, PStr [] -> Some t
-          | Payload f, payload -> Some (f payload ~loc:expr.pexp_loc)
-          | No_payload _, payload ->
-              Desugaring_error.raise expr (Has_payload payload)
-          | Unknown_suffix, _ -> None
-        in
-        Option.map (fun x -> x, attributes) attribute_node
+      let attribute_node =
+        match Attribute_node.of_suffix suffix, payload with
+        | No_payload t, PStr [] -> Some t
+        | Payload f, payload -> Some (f payload ~loc:expr.pexp_loc)
+        | No_payload _, payload ->
+          Desugaring_error.raise expr (Has_payload payload)
+        | Unknown_suffix, _ -> None
+      in
+      Option.map (fun x -> x, attributes) attribute_node
 
   let require_function_cases expr ~arity_attribute =
     match expr.pexp_desc with
@@ -943,11 +927,11 @@ module N_ary_functions = struct
   let check_constraint expr =
     match expr.pexp_desc with
     | Pexp_constraint (e, ty) ->
-        let mode_annotations = constraint_modes expr in
-        Some ({ mode_annotations; type_constraint = Pconstraint ty }, e)
+      let mode_annotations = constraint_modes expr in
+      Some ({ mode_annotations; type_constraint = Pconstraint ty }, e)
     | Pexp_coerce (e, ty1, ty2) ->
-        let mode_annotations = constraint_modes expr in
-        Some ({ mode_annotations; type_constraint = Pcoerce (ty1, ty2) }, e)
+      let mode_annotations = constraint_modes expr in
+      Some ({ mode_annotations; type_constraint = Pcoerce (ty1, ty2) }, e)
     | _ -> None
 
   let require_constraint expr =
@@ -958,39 +942,39 @@ module N_ary_functions = struct
   let check_param pexp_desc (pexp_loc : Location.t) ~layout =
     match pexp_desc, layout with
     | Pexp_fun (lbl, def, pat, body), None ->
-        let pparam_loc : Location.t =
-          { loc_ghost = true;
-            loc_start = pexp_loc.loc_start;
-            loc_end = pat.ppat_loc.loc_end;
-          }
-        in
-        let pparam_desc = Pparam_val (lbl, def, pat) in
-        Some ({ pparam_desc; pparam_loc }, body)
+      let pparam_loc : Location.t =
+        { loc_ghost = true;
+          loc_start = pexp_loc.loc_start;
+          loc_end = pat.ppat_loc.loc_end
+        }
+      in
+      let pparam_desc = Pparam_val (lbl, def, pat) in
+      Some ({ pparam_desc; pparam_loc }, body)
     | Pexp_newtype (newtype, body), layout ->
-        (* This imperfectly estimates where a newtype parameter ends: it uses
-           the end of the type name rather than the closing paren. The closing
-           paren location is not tracked anywhere in the parsetree. We don't
-           think merlin is affected.
-        *)
-        let pparam_loc : Location.t =
-          { loc_ghost = true;
-            loc_start = pexp_loc.loc_start;
-            loc_end = newtype.loc.loc_end;
-          }
-        in
-        let pparam_desc = Pparam_newtype (newtype, layout) in
-        Some ({ pparam_desc; pparam_loc }, body)
+      (* This imperfectly estimates where a newtype parameter ends: it uses
+         the end of the type name rather than the closing paren. The closing
+         paren location is not tracked anywhere in the parsetree. We don't
+         think merlin is affected.
+      *)
+      let pparam_loc : Location.t =
+        { loc_ghost = true;
+          loc_start = pexp_loc.loc_start;
+          loc_end = newtype.loc.loc_end
+        }
+      in
+      let pparam_desc = Pparam_newtype (newtype, layout) in
+      Some ({ pparam_desc; pparam_loc }, body)
     | _, None -> None
     | _, Some layout ->
-        Desugaring_error.raise_with_loc pexp_loc
-          (Expected_newtype_with_layout_annotation layout)
+      Desugaring_error.raise_with_loc pexp_loc
+        (Expected_newtype_with_layout_annotation layout)
 
   let require_param pexp_desc pexp_loc ~arity_attribute ~layout =
     match check_param pexp_desc pexp_loc ~layout with
     | Some x -> x
     | None ->
-        Desugaring_error.raise_with_loc pexp_loc
-          (Expected_fun_or_newtype arity_attribute)
+      Desugaring_error.raise_with_loc pexp_loc
+        (Expected_fun_or_newtype arity_attribute)
 
   (* Should only be called on [Pexp_fun] and [Pexp_newtype]. *)
   let extract_fun_params =
@@ -998,8 +982,7 @@ module N_ary_functions = struct
       type continue_or_stop =
         | Continue of Parsetree.expression
         | Stop of function_constraint option * function_body
-    end
-    in
+    end in
     (* Returns: the next parameter, together with whether there are possibly
        more parameters available ("Continue") or whether all parameters have
        been consumed ("Stop").
@@ -1012,52 +995,47 @@ module N_ary_functions = struct
        call to [extract_next_fun_param] in the event that it sees a
        [Layout_annotation] attribute.
     *)
-    let rec extract_next_fun_param expr ~layout
-        : (function_param * attributes) option * continue_or_stop
-      =
+    let rec extract_next_fun_param expr ~layout :
+        (function_param * attributes) option * continue_or_stop =
       match expand_n_ary_expr expr with
-      | None -> begin
-          match check_param expr.pexp_desc expr.pexp_loc ~layout with
-          | Some (param, body) ->
-              Some (param, expr.pexp_attributes), Continue body
-          | None ->
-              None, Stop (None, Pfunction_body expr)
-        end
+      | None -> (
+        match check_param expr.pexp_desc expr.pexp_loc ~layout with
+        | Some (param, body) ->
+          Some (param, expr.pexp_attributes), Continue body
+        | None -> None, Stop (None, Pfunction_body expr))
       | Some (Top_level, _) -> None, Stop (None, Pfunction_body expr)
       | Some (Layout_annotation next_layout, unconsumed_attributes) ->
-          extract_next_fun_param
-            { expr with pexp_attributes = unconsumed_attributes }
-            ~layout:(Some next_layout)
+        extract_next_fun_param
+          { expr with pexp_attributes = unconsumed_attributes }
+          ~layout:(Some next_layout)
       | Some (Mode_constraint _, _unconsumed_attributes) ->
-          (* We need not pass through any unconsumed attributes, as
-              [Mode_constraint _] isn't the outermost Jane Syntax node:
-              [extract_fun_params] took in [Pexp_fun] or [Pexp_newtype].
-          *)
-          let function_constraint, body = require_constraint expr in
-          None, Stop (Some function_constraint, Pfunction_body body)
-      | Some (Fun_then after_fun as arity_attribute, unconsumed_attributes) ->
-          let param, body =
-            require_param expr.pexp_desc expr.pexp_loc ~arity_attribute ~layout
-          in
-          let continue_or_stop =
-            match after_fun with
-            | Cases ->
-                let cases = require_function_cases body ~arity_attribute in
-                let function_body =
-                  Pfunction_cases
-                    (cases, body.pexp_loc, body.pexp_attributes)
-                in
-                Stop (None, function_body)
-            | Constraint_then_cases ->
-                let function_constraint, body = require_constraint body in
-                let cases = require_function_cases body ~arity_attribute in
-                let function_body =
-                  Pfunction_cases
-                    (cases, body.pexp_loc, body.pexp_attributes)
-                in
-                Stop (Some function_constraint, function_body)
-          in
-          Some (param, unconsumed_attributes), continue_or_stop
+        (* We need not pass through any unconsumed attributes, as
+            [Mode_constraint _] isn't the outermost Jane Syntax node:
+            [extract_fun_params] took in [Pexp_fun] or [Pexp_newtype].
+        *)
+        let function_constraint, body = require_constraint expr in
+        None, Stop (Some function_constraint, Pfunction_body body)
+      | Some ((Fun_then after_fun as arity_attribute), unconsumed_attributes) ->
+        let param, body =
+          require_param expr.pexp_desc expr.pexp_loc ~arity_attribute ~layout
+        in
+        let continue_or_stop =
+          match after_fun with
+          | Cases ->
+            let cases = require_function_cases body ~arity_attribute in
+            let function_body =
+              Pfunction_cases (cases, body.pexp_loc, body.pexp_attributes)
+            in
+            Stop (None, function_body)
+          | Constraint_then_cases ->
+            let function_constraint, body = require_constraint body in
+            let cases = require_function_cases body ~arity_attribute in
+            let function_body =
+              Pfunction_cases (cases, body.pexp_loc, body.pexp_attributes)
+            in
+            Stop (Some function_constraint, function_body)
+        in
+        Some (param, unconsumed_attributes), continue_or_stop
     in
     let rec loop expr ~rev_params =
       let next_param, continue_or_stop =
@@ -1071,15 +1049,13 @@ module N_ary_functions = struct
       match continue_or_stop with
       | Continue body -> loop body ~rev_params
       | Stop (function_constraint, body) ->
-          let params = List.rev rev_params in
-          params, function_constraint, body
+        let params = List.rev rev_params in
+        params, function_constraint, body
     in
     fun expr ->
-      begin match expr.pexp_desc with
-        | Pexp_newtype _ | Pexp_fun _ -> ()
-        | _ ->
-            Misc.fatal_error "called on something that isn't a newtype or fun"
-      end;
+      (match expr.pexp_desc with
+      | Pexp_newtype _ | Pexp_fun _ -> ()
+      | _ -> Misc.fatal_error "called on something that isn't a newtype or fun");
       let unconsumed_attributes =
         match extract_next_fun_param expr ~layout:None with
         | Some (_, attributes), _ -> attributes
@@ -1103,8 +1079,8 @@ module N_ary_functions = struct
     let rec remove_top_level_attributes expr =
       match expand_n_ary_expr expr with
       | Some (Top_level, unconsumed_attributes) ->
-          remove_top_level_attributes
-            { expr with pexp_attributes = unconsumed_attributes }
+        remove_top_level_attributes
+          { expr with pexp_attributes = unconsumed_attributes }
       | _ -> expr
     in
     fun expr ->
@@ -1112,20 +1088,19 @@ module N_ary_functions = struct
       match expr.pexp_desc with
       | Pexp_fun _ | Pexp_newtype _ -> Some (extract_fun_params expr)
       | Pexp_function cases ->
+        let n_ary =
+          function_without_additional_params cases None expr.pexp_loc
+        in
+        Some (n_ary, expr.pexp_attributes)
+      | _ -> (
+        match check_constraint expr with
+        | Some (constraint_, { pexp_desc = Pexp_function cases }) ->
           let n_ary =
-            function_without_additional_params cases None expr.pexp_loc
+            function_without_additional_params cases (Some constraint_)
+              expr.pexp_loc
           in
           Some (n_ary, expr.pexp_attributes)
-      | _ -> begin
-          match check_constraint expr with
-          | Some (constraint_, { pexp_desc = Pexp_function cases }) ->
-              let n_ary =
-                function_without_additional_params cases (Some constraint_)
-                  expr.pexp_loc
-              in
-              Some (n_ary, expr.pexp_attributes)
-          | _ -> None
-        end
+        | _ -> None)
 
   let n_ary_function_expr ext x =
     let suffix, payload = Attribute_node.to_suffix_and_payload ext in
@@ -1139,15 +1114,14 @@ module N_ary_functions = struct
         in
         match pparam_desc with
         | Pparam_val (label, default, pat) ->
-            (Ast_helper.Exp.fun_ label default pat body ~loc
-              [@alert "-prefer_jane_syntax"])
-        | Pparam_newtype (newtype, layout) ->
-            match layout with
-            | None -> Ast_helper.Exp.newtype newtype body ~loc
-            | Some layout ->
-                n_ary_function_expr
-                  (Layout_annotation layout)
-                  (Ast_helper.Exp.newtype newtype body ~loc)
+          Ast_helper.Exp.fun_ label default pat body ~loc
+          [@alert "-prefer_jane_syntax"]
+        | Pparam_newtype (newtype, layout) -> (
+          match layout with
+          | None -> Ast_helper.Exp.newtype newtype body ~loc
+          | Some layout ->
+            n_ary_function_expr (Layout_annotation layout)
+              (Ast_helper.Exp.newtype newtype body ~loc))
       in
       match after_fun_attribute with
       | None -> fun_
@@ -1156,17 +1130,17 @@ module N_ary_functions = struct
     fun ~loc (params, constraint_, function_body) ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
-        let body =
-          match function_body with
-          | Pfunction_body body -> body
-          | Pfunction_cases (cases, loc, attrs) ->
-              (Ast_helper.Exp.function_ cases ~loc ~attrs
-                 [@alert "-prefer_jane_syntax"])
-        in
-        let possibly_constrained_body =
-          match constraint_ with
-          | None -> body
-          | Some { mode_annotations; type_constraint } ->
+          let body =
+            match function_body with
+            | Pfunction_body body -> body
+            | Pfunction_cases (cases, loc, attrs) ->
+              Ast_helper.Exp.function_ cases ~loc ~attrs
+              [@alert "-prefer_jane_syntax"]
+          in
+          let possibly_constrained_body =
+            match constraint_ with
+            | None -> body
+            | Some { mode_annotations; type_constraint } -> (
               let constrained_body =
                 (* We can't call [Location.ghostify] here, as we need this file
                    to build with the upstream compiler; see Note [Buildable with
@@ -1178,14 +1152,13 @@ module N_ary_functions = struct
               in
               match mode_annotations with
               | _ :: _ as mode_annotations ->
-                  n_ary_function_expr
-                    (Mode_constraint mode_annotations)
-                    constrained_body
-              | [] -> constrained_body
-        in
-        match params with
-        | [] -> possibly_constrained_body
-        | params ->
+                n_ary_function_expr (Mode_constraint mode_annotations)
+                  constrained_body
+              | [] -> constrained_body)
+          in
+          match params with
+          | [] -> possibly_constrained_body
+          | params ->
             let init_params, last_param = Misc.split_last params in
             let after_fun_attribute : Attribute_node.after_fun option =
               match constraint_, function_body with
@@ -1203,31 +1176,31 @@ end
 
 (** [include functor] *)
 module Include_functor = struct
-  type signature_item =
-    | Ifsig_include_functor of include_description
+  type signature_item = Ifsig_include_functor of include_description
 
-  type structure_item =
-    | Ifstr_include_functor of include_declaration
+  type structure_item = Ifstr_include_functor of include_declaration
 
   let feature : Feature.t = Language_extension Include_functor
 
   let sig_item_of ~loc = function
     | Ifsig_include_functor incl ->
-        (* See Note [Wrapping with make_entire_jane_syntax] *)
-        Signature_item.make_entire_jane_syntax ~loc feature (fun () ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Signature_item.make_entire_jane_syntax ~loc feature (fun () ->
           Ast_helper.Sig.include_ incl)
 
-  let of_sig_item sigi = match sigi.psig_desc with
+  let of_sig_item sigi =
+    match sigi.psig_desc with
     | Psig_include incl -> Ifsig_include_functor incl
     | _ -> failwith "Malformed [include functor] in signature"
 
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
-        (* See Note [Wrapping with make_entire_jane_syntax] *)
-        Structure_item.make_entire_jane_syntax ~loc feature (fun () ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Structure_item.make_entire_jane_syntax ~loc feature (fun () ->
           Ast_helper.Str.include_ incl)
 
-  let of_str_item stri = match stri.pstr_desc with
+  let of_str_item stri =
+    match stri.pstr_desc with
     | Pstr_include incl -> Ifstr_include_functor incl
     | _ -> failwith "Malformed [include functor] in structure"
 end
@@ -1235,7 +1208,9 @@ end
 (** Module strengthening *)
 module Strengthen = struct
   type nonrec module_type =
-    { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
+    { mty : Parsetree.module_type;
+      mod_id : Longident.t Location.loc
+    }
 
   let feature : Feature.t = Language_extension Module_strengthening
 
@@ -1246,13 +1221,15 @@ module Strengthen = struct
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     Module_type.make_entire_jane_syntax ~loc feature (fun () ->
-      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
-        (Ast_helper.Mty.alias mod_id))
+        Ast_helper.Mty.functor_
+          (Named (Location.mknoloc None, mty))
+          (Ast_helper.Mty.alias mod_id))
 
   (* Returns remaining unconsumed attributes *)
-  let of_mty mty = match mty.pmty_desc with
-    | Pmty_functor(Named(_, mty), {pmty_desc = Pmty_alias mod_id}) ->
-       { mty; mod_id }, mty.pmty_attributes
+  let of_mty mty =
+    match mty.pmty_desc with
+    | Pmty_functor (Named (_, mty), { pmty_desc = Pmty_alias mod_id }) ->
+      { mty; mod_id }, mty.pmty_attributes
     | _ -> failwith "Malformed strengthened module type"
 end
 
@@ -1263,7 +1240,6 @@ module Layouts = struct
   end
 
   include Ext
-
   module Of_ast = Of_ast (Ext)
 
   type constant =
@@ -1274,22 +1250,28 @@ module Layouts = struct
     | Lexp_constant of constant
     | Lexp_newtype of string loc * layout_annotation * expression
 
-  type nonrec pattern =
-    | Lpat_constant of constant
+  type nonrec pattern = Lpat_constant of constant
 
   type nonrec core_type =
-    | Ltyp_var of { name : string option
-                  ; layout : layout_annotation }
-    | Ltyp_poly of { bound_vars : (string loc * layout_annotation option) list
-                   ; inner_type : core_type }
-    | Ltyp_alias of { aliased_type : core_type
-                    ; name : string option
-                    ; layout : layout_annotation }
+    | Ltyp_var of
+        { name : string option;
+          layout : layout_annotation
+        }
+    | Ltyp_poly of
+        { bound_vars : (string loc * layout_annotation option) list;
+          inner_type : core_type
+        }
+    | Ltyp_alias of
+        { aliased_type : core_type;
+          name : string option;
+          layout : layout_annotation
+        }
 
   type nonrec extension_constructor =
-    | Lext_decl of (string Location.loc * layout_annotation option) list *
-                   constructor_arguments *
-                   Parsetree.core_type option
+    | Lext_decl of
+        (string Location.loc * layout_annotation option) list
+        * constructor_arguments
+        * Parsetree.core_type option
 
   (*******************************************************)
   (* Pretty-printing *)
@@ -1315,40 +1297,35 @@ module Layouts = struct
        [Buildable with upstream] in jane_syntax.mli for details. *)
     let report_error ~loc = function
       | Unexpected_wrapped_type _typ ->
-        Location.errorf ~loc
-          "Layout attribute on wrong core type"
+        Location.errorf ~loc "Layout attribute on wrong core type"
       | Unexpected_wrapped_ext _ext ->
-        Location.errorf ~loc
-          "Layout attribute on wrong extension constructor"
+        Location.errorf ~loc "Layout attribute on wrong extension constructor"
       | Unexpected_attribute names ->
         Location.errorf ~loc
           "Layout extension does not understand these attribute names:@;[%a]"
           (Format.pp_print_list
              ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-             Format.pp_print_text) names
+             Format.pp_print_text)
+          names
       | No_integer_suffix ->
         Location.errorf ~loc
           "All unboxed integers require a suffix to determine their size."
       | Unexpected_constant _c ->
-        Location.errorf ~loc
-          "Unexpected unboxed constant"
+        Location.errorf ~loc "Unexpected unboxed constant"
       | Unexpected_wrapped_expr expr ->
-        Location.errorf ~loc
-          "Layout attribute on wrong expression:@;%a"
+        Location.errorf ~loc "Layout attribute on wrong expression:@;%a"
           (Printast.expression 0) expr
       | Unexpected_wrapped_pat _pat ->
-        Location.errorf ~loc
-          "Layout attribute on wrong pattern"
+        Location.errorf ~loc "Layout attribute on wrong pattern"
 
     exception Error of Location.t * error
 
     let () =
-      Location.register_error_of_exn
-        (function
-          | Error(loc, err) -> Some (report_error ~loc err)
-          | _ -> None)
+      Location.register_error_of_exn (function
+        | Error (loc, err) -> Some (report_error ~loc err)
+        | _ -> None)
 
-    let raise ~loc err = raise (Error(loc, err))
+    let raise ~loc err = raise (Error (loc, err))
   end
 
   module Encode = Layout_annotation.Encode
@@ -1364,8 +1341,7 @@ module Layouts = struct
   let of_constant ~loc = function
     | Pconst_float (x, suffix) -> Float (x, suffix)
     | Pconst_integer (x, Some suffix) -> Integer (x, suffix)
-    | Pconst_integer (_, None) ->
-      Desugaring_error.raise ~loc No_integer_suffix
+    | Pconst_integer (_, None) -> Desugaring_error.raise ~loc No_integer_suffix
     | const -> Desugaring_error.raise ~loc (Unexpected_constant const)
 
   (*******************************************************)
@@ -1374,17 +1350,16 @@ module Layouts = struct
   let expr_of ~loc expr =
     let module Ast_of = Ast_of (Expression) (Ext) in
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    Expression.make_entire_jane_syntax ~loc feature begin fun () ->
-      match expr with
-      | Lexp_constant c ->
-        let constant = constant_of c in
-        Ast_of.wrap_jane_syntax ["unboxed"] @@
-        Ast_helper.Exp.constant constant
-      | Lexp_newtype (name, layout, inner_expr) ->
-        let payload = Encode.as_payload layout in
-        Ast_of.wrap_jane_syntax ["newtype"] ~payload @@
-        Ast_helper.Exp.newtype name inner_expr
-    end
+    Expression.make_entire_jane_syntax ~loc feature (fun () ->
+        match expr with
+        | Lexp_constant c ->
+          let constant = constant_of c in
+          Ast_of.wrap_jane_syntax ["unboxed"]
+          @@ Ast_helper.Exp.constant constant
+        | Lexp_newtype (name, layout, inner_expr) ->
+          let payload = Encode.as_payload layout in
+          Ast_of.wrap_jane_syntax ["newtype"] ~payload
+          @@ Ast_helper.Exp.newtype name inner_expr)
 
   (*******************************************************)
   (* Desugaring expressions *)
@@ -1394,19 +1369,18 @@ module Layouts = struct
     let names, payload, attributes =
       Of_ast.unwrap_jane_syntax_attributes_exn ~loc expr.pexp_attributes
     in
-    let lexpr = match names with
-      | [ "unboxed" ] ->
-        begin match expr.pexp_desc with
+    let lexpr =
+      match names with
+      | ["unboxed"] -> (
+        match expr.pexp_desc with
         | Pexp_constant const -> Lexp_constant (of_constant ~loc const)
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_expr expr)
-        end
-      | [ "newtype" ] ->
+        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_expr expr))
+      | ["newtype"] -> (
         let layout = Decode.from_payload ~loc payload in
-        begin match expr.pexp_desc with
+        match expr.pexp_desc with
         | Pexp_newtype (name, inner_expr) ->
           Lexp_newtype (name, layout, inner_expr)
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_expr expr)
-        end
+        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_expr expr))
       | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
     in
     lexpr, attributes
@@ -1415,19 +1389,19 @@ module Layouts = struct
   (* Encoding patterns *)
 
   let pat_of ~loc t =
-    Pattern.make_entire_jane_syntax ~loc feature begin fun () ->
-      match t with
-      | Lpat_constant c ->
-        let constant = constant_of c in
-        Ast_helper.Pat.constant constant
-    end
+    Pattern.make_entire_jane_syntax ~loc feature (fun () ->
+        match t with
+        | Lpat_constant c ->
+          let constant = constant_of c in
+          Ast_helper.Pat.constant constant)
 
   (*******************************************************)
   (* Desugaring patterns *)
 
   let of_pat pat =
     let loc = pat.ppat_loc in
-    let lpat = match pat.ppat_desc with
+    let lpat =
+      match pat.ppat_desc with
       | Ppat_constant const -> Lpat_constant (of_constant ~loc const)
       | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_pat pat)
     in
@@ -1442,35 +1416,33 @@ module Layouts = struct
     let exception No_wrap_necessary of Parsetree.core_type in
     try
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      Core_type.make_entire_jane_syntax ~loc feature begin fun () ->
-        match typ with
-        | Ltyp_var { name; layout } ->
-          let payload = Encode.as_payload layout in
-          Type_of.wrap_jane_syntax ["var"] ~payload @@
-          begin match name with
-          | None -> Ast_helper.Typ.any ~loc ()
-          | Some name -> Ast_helper.Typ.var ~loc name
-          end
-        | Ltyp_poly { bound_vars; inner_type } ->
-          let var_names, layouts = List.split bound_vars in
-          (* Pass the loc because we don't want a ghost location here *)
-          let tpoly = Ast_helper.Typ.poly ~loc var_names inner_type in
-          if List.for_all Option.is_none layouts
-          then raise (No_wrap_necessary tpoly)
-          else
-            let payload = Encode.option_list_as_payload layouts in
-            Type_of.wrap_jane_syntax ["poly"] ~payload tpoly
-
-        | Ltyp_alias { aliased_type; name; layout } ->
-          let payload = Encode.as_payload layout in
-          let has_name, inner_typ = match name with
-            | None -> "anon", aliased_type
-            | Some name -> "named", Ast_helper.Typ.alias aliased_type name
-          in
-          Type_of.wrap_jane_syntax ["alias"; has_name] ~payload inner_typ
-      end
-    with
-      No_wrap_necessary result_type -> result_type
+      Core_type.make_entire_jane_syntax ~loc feature (fun () ->
+          match typ with
+          | Ltyp_var { name; layout } -> (
+            let payload = Encode.as_payload layout in
+            Type_of.wrap_jane_syntax ["var"] ~payload
+            @@
+            match name with
+            | None -> Ast_helper.Typ.any ~loc ()
+            | Some name -> Ast_helper.Typ.var ~loc name)
+          | Ltyp_poly { bound_vars; inner_type } ->
+            let var_names, layouts = List.split bound_vars in
+            (* Pass the loc because we don't want a ghost location here *)
+            let tpoly = Ast_helper.Typ.poly ~loc var_names inner_type in
+            if List.for_all Option.is_none layouts
+            then raise (No_wrap_necessary tpoly)
+            else
+              let payload = Encode.option_list_as_payload layouts in
+              Type_of.wrap_jane_syntax ["poly"] ~payload tpoly
+          | Ltyp_alias { aliased_type; name; layout } ->
+            let payload = Encode.as_payload layout in
+            let has_name, inner_typ =
+              match name with
+              | None -> "anon", aliased_type
+              | Some name -> "named", Ast_helper.Typ.alias aliased_type name
+            in
+            Type_of.wrap_jane_syntax ["alias"; has_name] ~payload inner_typ)
+    with No_wrap_necessary result_type -> result_type
 
   (*******************************************************)
   (* Desugaring types *)
@@ -1480,46 +1452,36 @@ module Layouts = struct
     let names, payload, attributes =
       Of_ast.unwrap_jane_syntax_attributes_exn ~loc typ.ptyp_attributes
     in
-    let lty = match names with
-      | [ "var" ] ->
+    let lty =
+      match names with
+      | ["var"] -> (
         let layout = Decode.from_payload ~loc payload in
-        begin match typ.ptyp_desc with
-        | Ptyp_any ->
-          Ltyp_var { name = None; layout }
-        | Ptyp_var name ->
-          Ltyp_var { name = Some name; layout }
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ)
-        end
-
-      | [ "poly" ] ->
-        begin match typ.ptyp_desc with
+        match typ.ptyp_desc with
+        | Ptyp_any -> Ltyp_var { name = None; layout }
+        | Ptyp_var name -> Ltyp_var { name = Some name; layout }
+        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ))
+      | ["poly"] -> (
+        match typ.ptyp_desc with
         | Ptyp_poly (var_names, inner_type) ->
           let bound_vars =
             Decode.bound_vars_from_vars_and_payload ~loc var_names payload
           in
           Ltyp_poly { bound_vars; inner_type }
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ)
-        end
-
-      | [ "alias"; "anon" ] ->
+        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ))
+      | ["alias"; "anon"] ->
         let layout = Decode.from_payload ~loc payload in
-        Ltyp_alias { aliased_type = { typ with ptyp_attributes = attributes }
-                   ; name = None
-                   ; layout }
-
-      | [ "alias"; "named" ] ->
+        Ltyp_alias
+          { aliased_type = { typ with ptyp_attributes = attributes };
+            name = None;
+            layout
+          }
+      | ["alias"; "named"] -> (
         let layout = Decode.from_payload ~loc payload in
-        begin match typ.ptyp_desc with
+        match typ.ptyp_desc with
         | Ptyp_alias (inner_typ, name) ->
-          Ltyp_alias { aliased_type = inner_typ
-                     ; name = Some name
-                     ; layout }
-
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ)
-        end
-
-      | _ ->
-        Desugaring_error.raise ~loc (Unexpected_attribute names)
+          Ltyp_alias { aliased_type = inner_typ; name = Some name; layout }
+        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ))
+      | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
     in
     lty, attributes
 
@@ -1534,24 +1496,21 @@ module Layouts = struct
     let exception No_wrap_necessary of Parsetree.extension_constructor in
     try
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-        Extension_constructor.make_entire_jane_syntax ~loc feature
-          begin fun () ->
-            match ext with
-            | Lext_decl (bound_vars, args, res) ->
-              let vars, layouts = List.split bound_vars in
-              let ext_ctor =
-                (* Pass ~loc here, because the constructor declaration is
-                   not a ghost *)
-                Ast_helper.Te.decl ~loc ~vars ~args ?info ?docs ?res name
-              in
-              if List.for_all Option.is_none layouts
-              then raise (No_wrap_necessary ext_ctor)
-              else
-                let payload = Encode.option_list_as_payload layouts in
-                Ext_ctor_of.wrap_jane_syntax ["ext"] ~payload ext_ctor
-          end
-    with
-      No_wrap_necessary ext_ctor -> ext_ctor
+      Extension_constructor.make_entire_jane_syntax ~loc feature (fun () ->
+          match ext with
+          | Lext_decl (bound_vars, args, res) ->
+            let vars, layouts = List.split bound_vars in
+            let ext_ctor =
+              (* Pass ~loc here, because the constructor declaration is
+                 not a ghost *)
+              Ast_helper.Te.decl ~loc ~vars ~args ?info ?docs ?res name
+            in
+            if List.for_all Option.is_none layouts
+            then raise (No_wrap_necessary ext_ctor)
+            else
+              let payload = Encode.option_list_as_payload layouts in
+              Ext_ctor_of.wrap_jane_syntax ["ext"] ~payload ext_ctor)
+    with No_wrap_necessary ext_ctor -> ext_ctor
 
   (*******************************************************)
   (* Desugaring extension constructor *)
@@ -1561,19 +1520,17 @@ module Layouts = struct
     let names, payload, attributes =
       Of_ast.unwrap_jane_syntax_attributes_exn ~loc ext.pext_attributes
     in
-    let lext = match names with
-      | [ "ext" ] ->
-        begin match ext.pext_kind with
+    let lext =
+      match names with
+      | ["ext"] -> (
+        match ext.pext_kind with
         | Pext_decl (var_names, args, res) ->
           let bound_vars =
             Decode.bound_vars_from_vars_and_payload ~loc var_names payload
           in
           Lext_decl (bound_vars, args, res)
-        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_ext ext)
-        end
-
-      | _ ->
-        Desugaring_error.raise ~loc (Unexpected_attribute names)
+        | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_ext ext))
+      | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
     in
     lext, attributes
 
@@ -1582,8 +1539,8 @@ module Layouts = struct
 
   module Ctor_decl_of = Ast_of (Constructor_declaration) (Ext)
 
-  let constructor_declaration_of ~loc ~attrs ~info ~vars_layouts ~args
-        ~res name =
+  let constructor_declaration_of ~loc ~attrs ~info ~vars_layouts ~args ~res name
+      =
     let vars, layouts = List.split vars_layouts in
     let ctor_decl =
       Ast_helper.Type.constructor ~loc ~info ~vars ~args ?res name
@@ -1593,17 +1550,15 @@ module Layouts = struct
       then ctor_decl
       else
         let payload = Encode.option_list_as_payload layouts in
-        Constructor_declaration.make_entire_jane_syntax ~loc feature
-          begin fun () ->
-            Ctor_decl_of.wrap_jane_syntax ["vars"] ~payload ctor_decl
-          end
+        Constructor_declaration.make_entire_jane_syntax ~loc feature (fun () ->
+            Ctor_decl_of.wrap_jane_syntax ["vars"] ~payload ctor_decl)
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
     | [] -> ctor_decl
     | _ :: _ as attrs ->
-        (* See Note [Outer attributes at end] *)
-        { ctor_decl with pcd_attributes = ctor_decl.pcd_attributes @ attrs }
+      (* See Note [Outer attributes at end] *)
+      { ctor_decl with pcd_attributes = ctor_decl.pcd_attributes @ attrs }
 
   let of_constructor_declaration_internal (feat : Feature.t) ctor_decl =
     match feat with
@@ -1612,10 +1567,11 @@ module Layouts = struct
       let names, payload, attributes =
         Of_ast.unwrap_jane_syntax_attributes_exn ~loc ctor_decl.pcd_attributes
       in
-      let vars_layouts = match names with
-        | [ "vars" ] ->
-          Decode.bound_vars_from_vars_and_payload
-            ~loc ctor_decl.pcd_vars payload
+      let vars_layouts =
+        match names with
+        | ["vars"] ->
+          Decode.bound_vars_from_vars_and_payload ~loc ctor_decl.pcd_vars
+            payload
         | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
       in
       Some (vars_layouts, attributes)
@@ -1623,7 +1579,7 @@ module Layouts = struct
 
   let of_constructor_declaration =
     Constructor_declaration.make_of_ast
-       ~of_ast_internal:of_constructor_declaration_internal
+      ~of_ast_internal:of_constructor_declaration_internal
 end
 
 (******************************************************************************)
@@ -1631,16 +1587,17 @@ end
 
 module type AST = sig
   type t
+
   type ast
 
   val of_ast : ast -> t option
 end
 
 module Core_type = struct
-  type t =
-    | Jtyp_layout of Layouts.core_type
+  type t = Jtyp_layout of Layouts.core_type
 
-  let of_ast_internal (feat : Feature.t) typ = match feat with
+  let of_ast_internal (feat : Feature.t) typ =
+    match feat with
     | Language_extension Layouts ->
       let typ, attrs = Layouts.of_type typ in
       Some (Jtyp_layout typ, attrs)
@@ -1649,23 +1606,19 @@ module Core_type = struct
   let of_ast = Core_type.make_of_ast ~of_ast_internal
 
   let core_type_of ~loc ~attrs t =
-    let core_type =
-      match t with
-      | Jtyp_layout x -> Layouts.type_of ~loc x
-    in
+    let core_type = match t with Jtyp_layout x -> Layouts.type_of ~loc x in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
     | [] -> core_type
     | _ :: _ as attrs ->
-        (* See Note [Outer attributes at end] *)
-        { core_type with ptyp_attributes = core_type.ptyp_attributes @ attrs }
+      (* See Note [Outer attributes at end] *)
+      { core_type with ptyp_attributes = core_type.ptyp_attributes @ attrs }
 end
 
 module Constructor_argument = struct
   type t = |
 
-  let of_ast_internal (feat : Feature.t) _carg = match feat with
-    | _ -> None
+  let of_ast_internal (feat : Feature.t) _carg = match feat with _ -> None
 
   let of_ast = Constructor_argument.make_of_ast ~of_ast_internal
 end
@@ -1675,9 +1628,10 @@ module Expression = struct
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
-    | Jexp_n_ary_function  of N_ary_functions.expression
+    | Jexp_n_ary_function of N_ary_functions.expression
 
-  let of_ast_internal (feat : Feature.t) expr = match feat with
+  let of_ast_internal (feat : Feature.t) expr =
+    match feat with
     | Language_extension Comprehensions ->
       let expr, attrs = Comprehensions.comprehension_expr_of_expr expr in
       Some (Jexp_comprehension expr, attrs)
@@ -1687,11 +1641,10 @@ module Expression = struct
     | Language_extension Layouts ->
       let expr, attrs = Layouts.of_expr expr in
       Some (Jexp_layout expr, attrs)
-    | Builtin -> begin
-        match N_ary_functions.of_expr expr with
-        | Some (expr, attrs) -> Some (Jexp_n_ary_function expr, attrs)
-        | None -> None
-      end
+    | Builtin -> (
+      match N_ary_functions.of_expr expr with
+      | Some (expr, attrs) -> Some (Jexp_n_ary_function expr, attrs)
+      | None -> None)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
@@ -1699,17 +1652,17 @@ module Expression = struct
   let expr_of ~loc ~attrs t =
     let expr =
       match t with
-      | Jexp_comprehension x   -> Comprehensions.expr_of   ~loc x
+      | Jexp_comprehension x -> Comprehensions.expr_of ~loc x
       | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc x
-      | Jexp_layout x          -> Layouts.expr_of          ~loc x
-      | Jexp_n_ary_function  x -> N_ary_functions.expr_of   ~loc x
+      | Jexp_layout x -> Layouts.expr_of ~loc x
+      | Jexp_n_ary_function x -> N_ary_functions.expr_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
     | [] -> expr
     | _ :: _ as attrs ->
-        (* See Note [Outer attributes at end] *)
-        { expr with pexp_attributes = expr.pexp_attributes @ attrs }
+      (* See Note [Outer attributes at end] *)
+      { expr with pexp_attributes = expr.pexp_attributes @ attrs }
 end
 
 module Pattern = struct
@@ -1717,7 +1670,8 @@ module Pattern = struct
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
 
-  let of_ast_internal (feat : Feature.t) pat = match feat with
+  let of_ast_internal (feat : Feature.t) pat =
+    match feat with
     | Language_extension Immutable_arrays ->
       let expr, attrs = Immutable_arrays.of_pat pat in
       Some (Jpat_immutable_array expr, attrs)
@@ -1738,15 +1692,15 @@ module Pattern = struct
     match attrs with
     | [] -> pat
     | _ :: _ as attrs ->
-        (* See Note [Outer attributes at end] *)
-        { pat with ppat_attributes = pat.ppat_attributes @ attrs }
+      (* See Note [Outer attributes at end] *)
+      { pat with ppat_attributes = pat.ppat_attributes @ attrs }
 end
 
 module Module_type = struct
-  type t =
-    | Jmty_strengthen of Strengthen.module_type
+  type t = Jmty_strengthen of Strengthen.module_type
 
-  let of_ast_internal (feat : Feature.t) mty = match feat with
+  let of_ast_internal (feat : Feature.t) mty =
+    match feat with
     | Language_extension Module_strengthening ->
       let mty, attrs = Strengthen.of_mty mty in
       Some (Jmty_strengthen mty, attrs)
@@ -1755,21 +1709,17 @@ module Module_type = struct
   let of_ast = Module_type.make_of_ast ~of_ast_internal
 
   let mty_of ~loc ~attrs t =
-    let mty =
-      match t with
-      | Jmty_strengthen x -> Strengthen.mty_of ~loc x
-    in
+    let mty = match t with Jmty_strengthen x -> Strengthen.mty_of ~loc x in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
     | [] -> mty
     | _ :: _ as attrs ->
-        (* See Note [Outer attributes at end] *)
-        { mty with pmty_attributes = mty.pmty_attributes @ attrs }
+      (* See Note [Outer attributes at end] *)
+      { mty with pmty_attributes = mty.pmty_attributes @ attrs }
 end
 
 module Signature_item = struct
-  type t =
-    | Jsig_include_functor of Include_functor.signature_item
+  type t = Jsig_include_functor of Include_functor.signature_item
 
   let of_ast_internal (feat : Feature.t) sigi =
     match feat with
@@ -1781,8 +1731,7 @@ module Signature_item = struct
 end
 
 module Structure_item = struct
-  type t =
-    | Jstr_include_functor of Include_functor.structure_item
+  type t = Jstr_include_functor of Include_functor.structure_item
 
   let of_ast_internal (feat : Feature.t) stri =
     match feat with
@@ -1794,10 +1743,10 @@ module Structure_item = struct
 end
 
 module Extension_constructor = struct
-  type t =
-    | Jext_layout of Layouts.extension_constructor
+  type t = Jext_layout of Layouts.extension_constructor
 
-  let of_ast_internal (feat : Feature.t) ext = match feat with
+  let of_ast_internal (feat : Feature.t) ext =
+    match feat with
     | Language_extension Layouts ->
       let ext, attrs = Layouts.of_extension_constructor ext in
       Some (Jext_layout ext, attrs)
@@ -1809,12 +1758,12 @@ module Extension_constructor = struct
     let ext_ctor =
       match t with
       | Jext_layout lext ->
-          Layouts.extension_constructor_of ~loc ~name ?info ?docs lext
+        Layouts.extension_constructor_of ~loc ~name ?info ?docs lext
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
     | [] -> ext_ctor
     | _ :: _ as attrs ->
-        (* See Note [Outer attributes at end] *)
-        { ext_ctor with pext_attributes = ext_ctor.pext_attributes @ attrs }
+      (* See Note [Outer attributes at end] *)
+      { ext_ctor with pext_attributes = ext_ctor.pext_attributes @ attrs }
 end

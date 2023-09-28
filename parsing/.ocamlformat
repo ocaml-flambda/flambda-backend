@@ -1,0 +1,21 @@
+# Please make a pull request to change this file.
+disable=true
+# There is an .ocamlformat-enable file in this directory.
+# Keep the remainder of this file in sync with other .ocamlformat files in this repo.
+assignment-operator=begin-line
+cases-exp-indent=2
+doc-comments=before
+dock-collection-brackets=false
+if-then-else=keyword-first
+module-item-spacing=sparse
+parens-tuple=multi-line-only
+sequence-blank-line=compact
+space-around-lists=false
+space-around-variants=false
+type-decl=sparse
+version=0.24.1
+
+# The existing comments are hand-formatted and lose a lot of readability
+# if we wrap them. We should either convert the comments we care about to
+# doc comments, or make this same setting change everywhere.
+wrap-comments=false

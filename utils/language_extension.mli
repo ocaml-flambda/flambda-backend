@@ -3,7 +3,10 @@
 *)
 
 (** A setting for extensions that track multiple maturity levels *)
-type maturity = Language_extension_kernel.maturity = Stable | Beta | Alpha
+type maturity = Language_extension_kernel.maturity =
+  | Stable
+  | Beta
+  | Alpha
 
 (** The type of language extensions. An ['a t] is an extension that can either
     be off or be set to have any value in ['a], so a [unit t] can be either on
@@ -21,13 +24,16 @@ type 'a t = 'a Language_extension_kernel.t =
 
 (** Existentially packed language extension *)
 module Exist : sig
-  type 'a extn = 'a t (* this is removed from the sig by the [with] below;
-                         ocamldoc doesn't like [:=] in sigs *)
-  type t = Language_extension_kernel.Exist.t =
-    | Pack : 'a extn -> t
+  type 'a extn = 'a t
+  (* this is removed from the sig by the [with] below; ocamldoc doesn't like
+     [:=] in sigs *)
+
+  type t = Language_extension_kernel.Exist.t = Pack : 'a extn -> t
 
   val to_string : t -> string
+
   val is_enabled : t -> bool
+
   val is_erasable : t -> bool
 
   (** Returns a list of all strings, like ["layouts_beta"], that
@@ -35,7 +41,8 @@ module Exist : sig
   val to_command_line_strings : t -> string list
 
   val all : t list
-end with type 'a extn := 'a t
+end
+with type 'a extn := 'a t
 
 (** Equality on language extensions *)
 val equal : 'a t -> 'b t -> bool
@@ -54,7 +61,9 @@ val is_erasable : 'a t -> bool
 
 (** Print and parse language extensions; parsing is case-insensitive *)
 val to_string : 'a t -> string
+
 val to_command_line_string : 'a t -> 'a -> string
+
 val of_string : string -> Exist.t option
 
 val maturity_to_string : maturity -> string
@@ -66,11 +75,14 @@ val get_command_line_string_if_enabled : 'a t -> string option
 (** Enable and disable according to command-line strings; these raise
     an exception if the input string is invalid. *)
 val enable_of_string_exn : string -> unit
+
 val disable_of_string_exn : string -> unit
 
 (** Enable and disable language extensions; these operations are idempotent *)
 val set : unit t -> enabled:bool -> unit
+
 val enable : 'a t -> 'a -> unit
+
 val disable : 'a t -> unit
 
 (** Check if a language extension is currently enabled (at any maturity level)
@@ -86,7 +98,9 @@ val is_at_least : 'a t -> 'a -> bool
     be rolled back when the function finishes, but this behavior may change;
     nest multiple [with_*] functions instead.  *)
 val with_set : unit t -> enabled:bool -> (unit -> unit) -> unit
+
 val with_enabled : 'a t -> 'a -> (unit -> unit) -> unit
+
 val with_disabled : 'a t -> (unit -> unit) -> unit
 
 (** Permanently restrict the allowable extensions to those that are
@@ -121,7 +135,7 @@ module For_pprintast : sig
       trying to print syntax from disabled extensions. *)
   type printer_exporter =
     { print_with_maximal_extensions :
-        'a. (Format.formatter -> 'a -> unit) -> (Format.formatter -> 'a -> unit)
+        'a. (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
     }
 
   (** Raises if called more than once ever. *)

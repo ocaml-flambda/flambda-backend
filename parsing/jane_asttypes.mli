@@ -25,7 +25,6 @@
 
 *)
 
-
 open Asttypes
 
 type global_flag =
