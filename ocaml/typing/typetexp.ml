@@ -681,7 +681,12 @@ and transl_type_aux env policy mode styp =
            begin match Types.get_desc ty' with
            | Tvar {layout; _} when Layout.has_imported_history layout ->
              (* In case of a Tvar with imported layout history, we can improve
-                the layout reason using the in scope [path] to the parent type. *)
+                the layout reason using the in scope [path] to the parent type.
+
+                Basic benchmarking suggests this change doesn't have that big
+                of a performance impact: compiling [types.ml] resulted in 13k
+                extra alloc (~0.01% increase) and building the core library had
+                no statistically significant increase in build time. *)
              let reason = Layout.Imported_type_argument
                             {parent_path = path; position = idx + 1; arity} in
              Types.set_var_layout ty' (Layout.update_reason layout reason)
