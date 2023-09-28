@@ -652,7 +652,7 @@ module Layout = struct
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
       | Match ->
-        fprintf ppf "it's pattern matched on"
+        fprintf ppf "it's matched against a pattern"
       | Constructor_declaration idx ->
         fprintf ppf "it's used as constructor field %d" idx
       | Label_declaration lbl ->
