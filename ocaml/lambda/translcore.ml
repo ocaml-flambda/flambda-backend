@@ -1806,7 +1806,7 @@ let report_error ppf = function
       fprintf ppf
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
-        (Layout.Violation.report_with_name ~name:"This expression") err
+        (Layout.Violation.report_with_name ~name:"this expression") err
   | Void_sort ty ->
       fprintf ppf
         "Void detected in translation for type %a:@ Please report this error \
