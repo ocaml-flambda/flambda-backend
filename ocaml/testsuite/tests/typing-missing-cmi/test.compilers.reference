@@ -6,6 +6,6 @@ Error: This expression has type M.a but an expression was expected of type
        The layout of M.a is any, because
          the .cmi file for M.a is missing.
        But the layout of M.a must be a sublayout of value, because
-         it's imported from another compilation unit.
+         of layout requirements from an imported definition.
        No .cmi file found containing M.a.
        Hint: Adding "m" to your dependencies might help.
