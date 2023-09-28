@@ -105,6 +105,15 @@ __m128i vectors_and_floats_and_ints(
 
 #define BUILTIN(name) void name() { assert(0); }
 
+BUILTIN(caml_sse2_float64_add);
+BUILTIN(caml_sse2_float64_sub);
+BUILTIN(caml_sse2_float64_mul);
+BUILTIN(caml_sse2_float64_div);
+BUILTIN(caml_sse2_float64_max);
+BUILTIN(caml_sse2_float64_min);
+BUILTIN(caml_sse2_float64_sqrt);
+BUILTIN(caml_sse41_float64_round);
+
 BUILTIN(caml_vec128_cast);
 
 BUILTIN(caml_float32x4_low_of_float);
@@ -552,6 +561,28 @@ int64_t int8_diffu(int64_t l, int64_t r) {
   return x > y ? x - y : y - x;
 }
 
+// Float64
+
+double float64_round(double f) {
+  __m128d v = _mm_set1_pd(f);
+  return _mm_cvtsd_f64(_mm_round_pd(v, 0));
+}
+double float64_sqrt(double f) {
+  __m128d v = _mm_set1_pd(f);
+  return _mm_cvtsd_f64(_mm_sqrt_pd(v));
+}
+double float64_min(double l, double r) {
+  __m128d lv = _mm_set1_pd(l);
+  __m128d rv = _mm_set1_pd(r);
+  return _mm_cvtsd_f64(_mm_min_pd(lv, rv));
+}
+double float64_max(double l, double r) {
+  __m128d lv = _mm_set1_pd(l);
+  __m128d rv = _mm_set1_pd(r);
+  return _mm_cvtsd_f64(_mm_max_pd(lv, rv));
+}
+
+
 // Float32
 
 int32_t int32_of_float(float f) {
@@ -607,8 +638,4 @@ FLOAT32_UNOP(cvt_i32, _mm_cvtps_epi32);
 int32_t float32_round(int32_t f) {
   __m128 v = _mm_set1_ps(float_of_int32(f));
   return _mm_extract_ps(_mm_round_ps(v, 0), 0);
-}
-double float64_round(double f) {
-  __m128d v = _mm_set1_pd(f);
-  return _mm_cvtsd_f64(_mm_round_pd(v, 0));
 }

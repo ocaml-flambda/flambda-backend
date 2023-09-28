@@ -88,6 +88,9 @@ let select_operation_sse op args =
 
 let select_operation_sse2 op args =
   match op with
+  | "caml_sse2_float64_max" -> Some (Max_sf64, args)
+  | "caml_sse2_float64_min" -> Some (Min_sf64, args)
+  | "caml_sse2_float64_sqrt" -> Some (Sqrt_sf64, args)
   | "caml_sse2_int8x16_add" -> Some (Add_i8, args)
   | "caml_sse2_int16x8_add" -> Some (Add_i16, args)
   | "caml_sse2_int32x4_add" -> Some (Add_i32, args)
@@ -313,6 +316,9 @@ let select_operation_sse41 op args =
     | "caml_sse41_float64x2_round" ->
       let i, args = extract_constant args 0 15 "caml_sse41_float64x2_round" in
       Some (Round_f64 (float_rounding_of_int i), args)
+    | "caml_sse41_float64_round" ->
+      let i, args = extract_constant args 0 15 "caml_sse41_float64_round" in
+      Some (Round_sf64 (float_rounding_of_int i), args)
     | "caml_sse41_int8x16_max" -> Some (Max_i8, args)
     | "caml_sse41_int32x4_max" -> Some (Max_i32, args)
     | "caml_sse41_int16x8_max_unsigned" -> Some (Max_u16, args)
@@ -335,7 +341,8 @@ let select_operation_sse42 op args =
   else
     match op with
     | "caml_sse42_int64x2_cmpgt" -> Some (Cmpgt_i64, args)
-    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" -> Some (Crc32_64, args)
+    | "caml_sse42_int64_crc" | "caml_sse42_int_untagged_crc" ->
+      Some (Crc32_64, args)
     | "caml_sse42_vec128_cmpestrm" ->
       let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrm" in
       Some (Cmpestrm i, args)
@@ -405,19 +412,19 @@ let register_behavior_sse = function
   | Movemask_32 -> R_to_R
 
 let register_behavior_sse2 = function
-  | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Adds_i8 | Adds_i16
-  | Adds_u8 | Adds_u16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
-  | Subs_i8 | Subs_i16 | Subs_u8 | Subs_u16 | Max_u8 | Max_i16 | Max_f64
-  | Min_u8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64 | And_bits | Andnot_bits
-  | Or_bits | Xor_bits | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16
-  | Cmpgt_i32 | Cmp_f64 _ | SLL_i16 | SLL_i32 | SLL_i64 | SRL_i16 | SRL_i32
-  | SRL_i64 | SRA_i16 | SRA_i32 | Avg_u8 | Avg_u16 | SAD_u8 | Shuffle_64 _
-  | Interleave_high_8 | Interleave_high_16 | Interleave_high_64
-  | Interleave_low_8 | Interleave_low_16 | Interleave_low_64 | I16_to_i8
-  | I32_to_i16 | I16_to_u8 | I32_to_u16 ->
+  | Max_sf64 | Min_sf64 | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64
+  | Adds_i8 | Adds_i16 | Adds_u8 | Adds_u16 | Sub_i8 | Sub_i16 | Sub_i32
+  | Sub_i64 | Sub_f64 | Subs_i8 | Subs_i16 | Subs_u8 | Subs_u16 | Max_u8
+  | Max_i16 | Max_f64 | Min_u8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64
+  | And_bits | Andnot_bits | Or_bits | Xor_bits | Cmpeq_i8 | Cmpeq_i16
+  | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32 | Cmp_f64 _ | SLL_i16 | SLL_i32
+  | SLL_i64 | SRL_i16 | SRL_i32 | SRL_i64 | SRA_i16 | SRA_i32 | Avg_u8 | Avg_u16
+  | SAD_u8 | Shuffle_64 _ | Interleave_high_8 | Interleave_high_16
+  | Interleave_high_64 | Interleave_low_8 | Interleave_low_16
+  | Interleave_low_64 | I16_to_i8 | I32_to_i16 | I16_to_u8 | I32_to_u16 ->
     R_RM_to_fst
   | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
-  | F64_to_f32 | F32_to_i32 | F32_to_f64 ->
+  | Sf64_to_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_sf64 ->
     RM_to_R
   | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
   | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
@@ -442,7 +449,7 @@ let register_behavior_sse41 = function
     R_RM_to_fst
   | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64
   | U8_zx_i16 | U8_zx_i32 | U8_zx_i64 | U16_zx_i32 | U16_zx_i64 | U32_zx_i64
-  | Round_f64 _ | Round_f32 _ | Minpos_u16 ->
+  | Round_f64 _ | Round_f32 _ | Round_sf64 _ | Minpos_u16 ->
     RM_to_R
   | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_XMM0_to_fst
   | Extract_i64 _ | Extract_i32 _ -> R_to_RM

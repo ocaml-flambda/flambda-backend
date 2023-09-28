@@ -581,13 +581,6 @@ let cond = function
   | Iunsigned Cle -> BE  | Iunsigned Cgt -> A
   | Iunsigned Clt -> B   | Iunsigned Cge -> AE
 
-let rounding_mode = function
-  | Half_to_even -> RoundNearest
-  | Down -> RoundDown
-  | Up -> RoundUp
-  | Towards_zero -> RoundTruncate
-  | Current -> RoundCurrent
-
 (* Output an = 0 or <> 0 test. *)
 
 let output_test_zero arg =
@@ -988,6 +981,9 @@ let emit_simd_instr op i =
   | SSE Interleave_low_32 -> I.unpcklps (arg i 1) (res i 0)
   | SSE Movemask_32 -> I.movmskps (arg i 0) (res i 0)
   | SSE (Shuffle_32 n) -> I.shufps n (arg i 1) (res i 0)
+  | SSE2 Max_sf64 -> I.maxsd (arg i 1) (res i 0)
+  | SSE2 Min_sf64 -> I.minsd (arg i 1) (res i 0)
+  | SSE2 Sqrt_sf64 -> I.sqrtsd (arg i 0) (res i 0)
   | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
   | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
   | SSE2 Add_i32 -> I.paddd (arg i 1) (res i 0)
@@ -1042,6 +1038,7 @@ let emit_simd_instr op i =
   | SSE2 I32_to_i16 -> I.packssdw (arg i 1) (res i 0)
   | SSE2 I16_to_u8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_u16 -> I.packusdw (arg i 1) (res i 0)
+  | SSE2 Sf64_to_i64 -> I.cvtsd2si (arg i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
@@ -1137,6 +1134,7 @@ let emit_simd_instr op i =
   | SSE41 Min_i32 -> I.pminsd (arg i 1) (res i 0)
   | SSE41 Min_u16 -> I.pminuw (arg i 1) (res i 0)
   | SSE41 Min_u32 -> I.pminud (arg i 1) (res i 0)
+  | SSE41 (Round_sf64 n) -> I.roundsd n (arg i 0) (res i 0)
   | SSE41 (Round_f64 n) -> I.roundpd n (arg i 0) (res i 0)
   | SSE41 (Round_f32 n) -> I.roundps n (arg i 0) (res i 0)
   | SSE41 (Multi_sad_u8 n) -> I.mpsadbw n (arg i 1) (res i 0)
@@ -1505,21 +1503,8 @@ let emit_instr fallthrough i =
       I.bswap (res32 i 0);
   | Lop(Ispecific(Ibswap { bitwidth = Sixtyfour })) ->
       I.bswap (res i 0)
-  | Lop(Ispecific Isqrtf) ->
-      if arg i 0 <> res i 0 then
-        I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
-      I.sqrtsd (arg i 0) (res i 0)
   | Lop(Ispecific(Ifloatsqrtf addr)) ->
-      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
-  | Lop(Ispecific Ifloat_iround) ->
-     I.cvtsd2si (arg i 0) (res i 0)
-  | Lop(Ispecific(Ifloat_round mode)) ->
-     I.roundsd (rounding_mode mode) (arg i 0) (res i 0)
-  | Lop(Ispecific Ifloat_min) ->
-     I.minsd (arg i 1) (res i 0)
-  | Lop(Ispecific Ifloat_max) ->
-     I.maxsd (arg i 1) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->

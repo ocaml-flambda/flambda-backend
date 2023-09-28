@@ -176,8 +176,7 @@ let unary_operation_argument_or_result_on_stack
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
-  | Op (Addf | Subf | Mulf | Divf)
-  | Op (Specific (Ifloat_min | Ifloat_max)) ->
+  | Op (Addf | Subf | Mulf | Divf) ->
     may_use_stack_operand_for_second_argument map instr
   | Op (Specific (Isimd op)) ->
     (match Simd_selection.register_behavior op with
@@ -218,7 +217,6 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     binary_operation map instr Result_can_be_on_stack
   | Op (Intop (Icomp _)) ->
     binary_operation map instr Result_cannot_be_on_stack
-  | Op (Specific (Ifloat_iround | Ifloat_round _))
   | Op (Intop_imm (Icomp _, _)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Intop_imm (Iadd, _)) ->
@@ -239,12 +237,12 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _  | Const_vec128 _ | Compf _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region )
-  | Op (Specific (Isqrtf | Isextend32 | Izextend32 | Ilea _
+  | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
                  | Ipause
                  | Iprefetch _
-                 | Ibswap _| Ifloatsqrtf _))
+                 | Ibswap _ | Ifloatsqrtf _))
   | Reloadretaddr
   | Pushtrap _
   | Poptrap

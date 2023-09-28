@@ -99,8 +99,6 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then let r = self#makereg arg.(0) in ([|r|],[|r|])
       else (arg, res)
-  | Ispecific Ifloat_iround
-  | Ispecific (Ifloat_round _)
   | Iintop_imm (Icomp _, _) ->
       (* The argument(s) can be either in register or on stack.
          The result must be in a register. *)
@@ -127,10 +125,6 @@ method! reload_operation op arg res =
          Irdpmc: result must be in register, arg.(0) already forced in reg. *)
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
-      else (arg, res)
-  | Ispecific(Ifloat_min | Ifloat_max) ->
-      if stackp arg.(0)
-      then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
   | Ispecific(Isimd op) ->
     (match Simd_selection.register_behavior op with
@@ -226,13 +220,12 @@ method! reload_operation op arg res =
     ([| self#makereg arg.(0) |], [| self#makereg res.(0) |])
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Iintop_atomic _
-  | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
+  | Ispecific  (Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
-               | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+               | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
                | Ipause
                | Ilfence | Isfence | Imfence
-               | Iprefetch _
-               | Ibswap _| Ifloatsqrtf _)
+               | Iprefetch _ | Ibswap _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Iconst_vec128 _|Icall_ind|Icall_imm _
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)

@@ -377,7 +377,10 @@ module Float64 = struct
 
     type t = float
 
-    external round : (t [@unboxed]) -> (t [@unboxed]) = "" "float64_round" [@@noalloc]
+    external c_round : (t [@unboxed]) -> (t [@unboxed]) = "" "float64_round" [@@noalloc]
+    external c_min : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float64_min" [@@noalloc]
+    external c_max : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float64_max" [@@noalloc]
+    external c_sqrt : (t [@unboxed]) -> (t [@unboxed]) = "" "float64_sqrt" [@@noalloc]
 
     let check_floats f =
         let open Float in
@@ -412,6 +415,21 @@ module Float64 = struct
               (if Random.bool () then Int64.float_of_bits f1 else Int64.(neg f1 |> float_of_bits))
         done
     ;;
+
+    module Tests = struct
+        external max : t -> t -> t = "" "caml_sse2_float64_max" [@@noalloc] [@@builtin] [@@unboxed]
+        external min : t -> t -> t = "" "caml_sse2_float64_min" [@@noalloc] [@@builtin] [@@unboxed]
+        external sqrt : t -> t = "" "caml_sse2_float64_sqrt" [@@noalloc] [@@builtin] [@@unboxed]
+        external round : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse41_float64_round"
+            [@@noalloc] [@@builtin]
+
+        let () =
+            check_floats (fun l r -> eqf (max l r) (c_max l r));
+            check_floats (fun l r -> eqf (min l r) (c_min l r));
+            check_floats (fun l _ -> eqf (sqrt l) (c_sqrt l));
+            check_floats (fun l _ -> eqf (round 0 l) (c_round l))
+        ;;
+    end
 end
 
 module Int64s = struct
@@ -1045,7 +1063,7 @@ module Float64x2 = struct
             failmsg := (fun () -> Printf.printf "roundf64 %f %f\n%!" f0 f1);
             let fv = to_float64x2 f0 f1 in
             let result = round 0 fv in
-            let expect = to_float64x2 (Float64.round f0) (Float64.round f1) in
+            let expect = to_float64x2 (Float64.c_round f0) (Float64.c_round f1) in
             eq (float64x2_low_int64 result) (float64x2_high_int64 result)
             (float64x2_low_int64 expect) (float64x2_high_int64 expect)
         )
