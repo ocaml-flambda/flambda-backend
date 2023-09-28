@@ -56,8 +56,8 @@ type sse_operation =
   | Shuffle_32 of int
 
 type sse2_operation =
+  | Cast_f64_i64
   | Sqrt_sf64
-  | Sf64_to_i64
   | Min_sf64
   | Max_sf64
   | Add_i8
@@ -268,7 +268,7 @@ let equal_operation_sse2 l r =
   | Min_sf64, Min_sf64
   | Max_sf64, Max_sf64
   | Sqrt_sf64, Sqrt_sf64
-  | Sf64_to_i64, Sf64_to_i64
+  | Cast_f64_i64, Cast_f64_i64
   | Add_i8, Add_i8
   | Add_i16, Add_i16
   | Add_i32, Add_i32
@@ -351,7 +351,7 @@ let equal_operation_sse2 l r =
     when l = r ->
     true
   | Cmp_f64 l, Cmp_f64 r when l = r -> true
-  | ( ( Sf64_to_i64 | Sqrt_sf64 | Min_sf64 | Max_sf64 | Add_i8 | Add_i16
+  | ( ( Cast_f64_i64 | Sqrt_sf64 | Min_sf64 | Max_sf64 | Add_i8 | Add_i16
       | Add_i32 | Add_i64 | Add_f64 | Adds_u8 | Adds_u16 | Adds_i8 | Adds_i16
       | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64 | Subs_u8 | Subs_u16
       | Subs_i8 | Subs_i16 | Max_u8 | Max_i16 | Max_f64 | Min_u8 | Min_i16
@@ -594,8 +594,8 @@ let print_operation_sse2 printreg op ppf arg =
   | Cmpgt_i8 -> fprintf ppf "cmpgt_i8 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmpgt_i16 -> fprintf ppf "cmpgt_i16 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmpgt_i32 -> fprintf ppf "cmpgt_i32 %a %a" printreg arg.(0) printreg arg.(1)
-  | Sf64_to_i64 ->
-    fprintf ppf "sf64_to_i64 %a %a" printreg arg.(0) printreg arg.(1)
+  | Cast_f64_i64 ->
+    fprintf ppf "cast_f64_i64 %a %a" printreg arg.(0) printreg arg.(1)
   | I32_to_f64 ->
     fprintf ppf "i32_to_f64 %a %a" printreg arg.(0) printreg arg.(1)
   | I32_to_f32 ->
@@ -805,7 +805,7 @@ let class_of_operation_sse = function
     Pure
 
 let class_of_operation_sse2 = function
-  | Sf64_to_i64 | Sqrt_sf64 | Min_sf64 | Max_sf64 | Add_i8 | Add_i16 | Add_i32
+  | Cast_f64_i64 | Sqrt_sf64 | Min_sf64 | Max_sf64 | Add_i8 | Add_i16 | Add_i32
   | Add_i64 | Add_f64 | Adds_i8 | Adds_i16 | Adds_u8 | Adds_u16 | Sub_i8
   | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64 | Subs_i8 | Subs_i16 | Subs_u8
   | Subs_u16 | Max_u8 | Max_i16 | Max_f64 | Min_u8 | Min_i16 | Min_f64 | Mul_f64

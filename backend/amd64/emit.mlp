@@ -1038,7 +1038,7 @@ let emit_simd_instr op i =
   | SSE2 I32_to_i16 -> I.packssdw (arg i 1) (res i 0)
   | SSE2 I16_to_u8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_u16 -> I.packusdw (arg i 1) (res i 0)
-  | SSE2 Sf64_to_i64 -> I.cvtsd2si (arg i 0) (res i 0)
+  | SSE2 Cast_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)

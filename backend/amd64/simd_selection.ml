@@ -424,7 +424,7 @@ let register_behavior_sse2 = function
   | Interleave_low_64 | I16_to_i8 | I32_to_i16 | I16_to_u8 | I32_to_u16 ->
     R_RM_to_fst
   | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
-  | Sf64_to_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_sf64 ->
+  | Cast_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_sf64 ->
     RM_to_R
   | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
   | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
