@@ -641,6 +641,12 @@ module Layout = struct
 
     open Format
 
+    let format_position ~arity position =
+      let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
+      match arity with
+      | 1 -> ""
+      | _ -> to_ordinal position ^ " "
+
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
       | Match ->
@@ -754,13 +760,8 @@ module Layout = struct
       | Primitive id ->
         fprintf ppf "it equals the primitive value type %s" (Ident.name id)
       | Type_argument {parent_path; position; arity} ->
-        (match arity, position with
-         | 1, _ -> fprintf ppf "the type argument of %a has layout value"
-         | _, 1 -> fprintf ppf "the first type argument of %a has layout value"
-         | _, 2 -> fprintf ppf "the second type argument of %a has layout value"
-         | _, 3 -> fprintf ppf "the third type argument of %a has layout value"
-         | _ -> fprintf ppf "the type argument at position %d of %a has layout value"
-                  position)
+        fprintf ppf "the %stype argument of %a has layout value"
+          (format_position ~arity position)
           !printtyp_path parent_path
       | Tuple -> fprintf ppf "it's a tuple type"
       | Row_variable -> fprintf ppf "it's a row variable"
@@ -824,13 +825,8 @@ module Layout = struct
       | Imported ->
          fprintf ppf "it's imported from another compilation unit"
       | Imported_type_argument {parent_path; position; arity} ->
-        (match arity, position with
-         | 1, _ -> fprintf ppf "the type argument of %a has this layout"
-         | _, 1 -> fprintf ppf "the first type argument of %a has this layout"
-         | _, 2 -> fprintf ppf "the second type argument of %a has this layout"
-         | _, 3 -> fprintf ppf "the third type argument of %a has this layout"
-         | _ -> fprintf ppf "the type argument at position %d of %a has this layout"
-                  position)
+        fprintf ppf "the %stype argument of %a has this layout"
+          (format_position ~arity position)
           !printtyp_path parent_path
 
     let format_interact_reason ppf = function
