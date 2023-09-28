@@ -38,7 +38,7 @@ Line 2, characters 29-30:
 Error: This expression has type [ `A | `B ]
        but an expression was expected of type 'a t = ('a : void)
        The layout of [ `A | `B ] is immediate, because
-         it's an immediate polymorphic variant.
+         it's an enumeration variant (all constructors are constant).
        But the layout of [ `A | `B ] must be a sublayout of void, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -135,7 +135,7 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the annotation on the declaration of the type t_any.
        But the layout of t_any must be a sublayout of '_representable_layout_1, because
-         it's pattern matched on.
+         it's matched against a pattern.
 |}]
 
 (* Type_wildcard *)
