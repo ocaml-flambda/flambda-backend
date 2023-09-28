@@ -732,7 +732,7 @@ module Layout = struct
       | Primitive id ->
          fprintf ppf "it is the primitive immediate type %s" (Ident.name id)
       | Immediate_polymorphic_variant ->
-         fprintf ppf "it's an immediate polymorphic variant"
+         fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Gc_ignorable_check ->
          fprintf ppf "the check to see whether a value can be ignored by GC"
       | Value_kind ->
