@@ -81,7 +81,7 @@ Line 8, characters 32-36:
 Error: This expression has type float but an expression was expected of type
          ('a : immediate)
        The layout of float is value, because
-         it equals the primitive value type float.
+         it is the primitive value type float.
        But the layout of float must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type s6.
 |}];;

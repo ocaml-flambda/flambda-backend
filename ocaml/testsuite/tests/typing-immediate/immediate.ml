@@ -145,7 +145,7 @@ Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}];;
@@ -212,7 +212,7 @@ Error: Signature mismatch:
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}];;
@@ -231,7 +231,7 @@ Error: Signature mismatch:
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}];;
@@ -246,7 +246,7 @@ Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type s is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of type s must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
 |}];;

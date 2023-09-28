@@ -45,7 +45,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          the type argument of list has layout value.
 |}];;
@@ -57,7 +57,7 @@ Line 1, characters 11-17:
                ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          the type argument of list has layout value.
 |}];;
@@ -69,7 +69,7 @@ Line 1, characters 14-20:
                   ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          the type argument of list has layout value.
 |}];;
@@ -81,7 +81,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          the type argument of list has layout value.
 |}];;
@@ -103,7 +103,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -115,7 +115,7 @@ Line 1, characters 11-17:
                ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -127,7 +127,7 @@ Line 1, characters 14-20:
                   ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -139,7 +139,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -154,7 +154,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -166,7 +166,7 @@ Line 1, characters 11-17:
                ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -178,7 +178,7 @@ Line 1, characters 14-20:
                   ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -190,7 +190,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This type float# should be an instance of type ('a : value)
        The layout of float# is float64, because
-         it equals the primitive float64 type float#.
+         it is the primitive float64 type float#.
        But the layout of float# must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;

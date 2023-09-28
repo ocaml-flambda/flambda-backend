@@ -103,7 +103,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t2_imm.
 |}]
@@ -225,7 +225,7 @@ Line 1, characters 24-31:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on the universal variable a.
 |}]
@@ -409,7 +409,7 @@ Line 1, characters 43-51:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on the universal variable a.
 |}]
