@@ -825,7 +825,7 @@ module Layout = struct
       | Concrete_creation concrete ->
          format_concrete_layout_reason ppf concrete
       | Imported ->
-         fprintf ppf "it's imported from another compilation unit"
+         fprintf ppf "of layout requirements from an imported definition"
       | Imported_type_argument {parent_path; position; arity} ->
         fprintf ppf "the %stype argument of %a has this layout"
           (format_position ~arity position)
