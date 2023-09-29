@@ -659,7 +659,7 @@ module Layout = struct
         fprintf ppf "it's used in the declaration of the record field \"%a\""
           Ident.print lbl
       | Unannotated_type_parameter ->
-        fprintf ppf "it appears as an unannotated type parameter"
+        fprintf ppf "it instantiates an unannotated type parameter"
       | Record_projection ->
         fprintf ppf "it's used as the record in a projection"
       | Record_assignment ->
@@ -852,7 +852,13 @@ module Layout = struct
         format_desc lay;
       begin match t.history with
       | Creation reason ->
-        fprintf ppf ", because@ %a" format_creation_reason reason
+        fprintf ppf ", because@ %a" format_creation_reason reason;
+        begin match reason, lay with
+        | Concrete_creation _, Const _ ->
+          fprintf ppf ", defaulted to layout %a"
+            format_desc lay
+        | _ -> ()
+        end
       | _ -> assert false
       end;
       fprintf ppf ".@]"
