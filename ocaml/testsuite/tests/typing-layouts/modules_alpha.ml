@@ -41,7 +41,7 @@ Error: The type constraints are not consistent.
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
 |}];;
 
 module type S1'' = S1 with type s = t_void;;
@@ -95,7 +95,7 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
        The layout of 'a is value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
        The layout of 'a is immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -139,7 +139,7 @@ Line 5, characters 25-30:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -237,7 +237,7 @@ Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
 |}];;
 
 (* One downside of the current approach - this could be allowed, but isn't.  You
@@ -382,7 +382,7 @@ Line 14, characters 17-23:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -398,7 +398,7 @@ Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
 Error: The layout of type string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}]

@@ -675,13 +675,28 @@ and transl_type_aux env policy mode styp =
         | Some ty ->
             if get_level ty = Btype.generic_level then unify_var else unify
       in
-      List.iter2
-        (fun (sty, cty) ty' ->
+      let arity = List.length params in
+      List.iteri
+        (fun idx ((sty, cty), ty') ->
+           begin match Types.get_desc ty' with
+           | Tvar {layout; _} when Layout.has_imported_history layout ->
+             (* In case of a Tvar with imported layout history, we can improve
+                the layout reason using the in scope [path] to the parent type.
+
+                Basic benchmarking suggests this change doesn't have that big
+                of a performance impact: compiling [types.ml] resulted in 13k
+                extra alloc (~0.01% increase) and building the core library had
+                no statistically significant increase in build time. *)
+             let reason = Layout.Imported_type_argument
+                            {parent_path = path; position = idx + 1; arity} in
+             Types.set_var_layout ty' (Layout.update_reason layout reason)
+           | _ -> ()
+           end;
            try unify_param env ty' cty.ctyp_type with Unify err ->
              let err = Errortrace.swap_unification_error err in
              raise (Error(sty.ptyp_loc, env, Type_mismatch err))
         )
-        (List.combine stl args) params;
+        (List.combine (List.combine stl args) params);
       let constr =
         newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
       ctyp (Ttyp_constr (path, lid, args)) constr

@@ -236,7 +236,7 @@ Line 1, characters 19-25:
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type imm_id.
 |}];;
@@ -259,7 +259,7 @@ Line 1, characters 33-46:
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type imm_id.
 |}]
@@ -275,7 +275,7 @@ Line 2, characters 9-15:
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -289,7 +289,7 @@ Line 1, characters 10-16:
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -322,7 +322,7 @@ Line 3, characters 0-15:
     ^^^^^^^^^^^^^^^
 Error:
        The layout of s5 is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of s5 must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -391,7 +391,7 @@ Line 1, characters 12-15:
                 ^^^
 Error: This type int should be an instance of type ('a : void)
        The layout of int is immediate, because
-         it equals the primitive immediate type int.
+         it is the primitive immediate type int.
        But the layout of int must be a sublayout of void, because
          of the annotation on 'a in the declaration of the type void5.
 |}];;
@@ -745,7 +745,7 @@ Error: Signature mismatch:
          val x : string
        The type string is not compatible with the type string
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}];;
@@ -785,7 +785,7 @@ Error: Signature mismatch:
          val x : string
        The type string t = string is not compatible with the type string
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]
@@ -1031,7 +1031,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's imported from another compilation unit.
+         the type argument of Lazy.t has this layout.
 |}];;
 
 let x13 (VV v) = lazy v;;
@@ -1073,7 +1073,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of option has layout value.
 |}];;
 
 let x13 (VV v) = Some v;;
@@ -1086,7 +1086,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of option has layout value.
 |}];;
 
 let x13 v =
@@ -1102,7 +1102,7 @@ Error: This expression has type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of option has layout value.
 |}];;
 
 (* list *)
@@ -1116,7 +1116,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
 |}];;
 
 let x13 (VV v) = [v];;
@@ -1129,7 +1129,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
 |}];;
 
 let x13 v =
@@ -1145,7 +1145,7 @@ Error: This expression has type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
 |}];;
 
 (* array *)
@@ -1159,7 +1159,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of array has layout value.
 |}];;
 
 let x13 (VV v) = [| v |];;
@@ -1210,7 +1210,7 @@ Error:
        The layout of foo14 is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of foo14 must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of list has layout value.
 |}];;
 
 (****************************************************)
@@ -1408,7 +1408,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         a type argument defaults to layout value.
+         the type argument of option has layout value.
 |}]
 
 (*********************************************************)

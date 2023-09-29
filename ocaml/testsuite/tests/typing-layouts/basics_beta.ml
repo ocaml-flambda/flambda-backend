@@ -75,7 +75,7 @@ Line 1, characters 19-25:
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type imm_id.
 |}];;
@@ -98,7 +98,7 @@ Line 1, characters 33-46:
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type imm_id.
 |}]
@@ -114,7 +114,7 @@ Line 2, characters 9-15:
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -128,7 +128,7 @@ Line 1, characters 10-16:
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -161,7 +161,7 @@ Line 3, characters 0-15:
     ^^^^^^^^^^^^^^^
 Error:
        The layout of s5 is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of s5 must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -322,7 +322,7 @@ Error: Signature mismatch:
          val x : string
        The type string is not compatible with the type string
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}];;
@@ -362,7 +362,7 @@ Error: Signature mismatch:
          val x : string
        The type string t = string is not compatible with the type string
        The layout of string is value, because
-         it equals the primitive value type string.
+         it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t.
 |}]

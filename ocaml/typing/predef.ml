@@ -163,6 +163,12 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+let option_argument_layout = Layout.value ~why:(
+  Type_argument {parent_path = path_option; position = 1; arity = 1})
+
+let list_argument_layout = Layout.value ~why:(
+  Type_argument {parent_path = path_list; position = 1; arity = 1})
+
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract)
@@ -195,7 +201,8 @@ let common_initial_env add_type add_extension empty_env =
         ?(kind=fun _ -> Type_abstract)
         ?(layout=Layout.value ~why:(Primitive type_ident))
       ~variance ~separability env =
-    let param = newgenvar (Layout.value ~why:Type_argument) in
+    let param = newgenvar (Layout.value ~why:(
+      Type_argument {parent_path = Path.Pident type_ident; position = 1; arity = 1})) in
     let decl =
       {type_params = [param];
        type_arity = 1;
@@ -264,7 +271,7 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| [| |]; [| Layout.value ~why:Type_argument;
+           [| [| |]; [| list_argument_layout;
                         Layout.value ~why:Boxed_variant |] |] )
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_nativeint
@@ -273,7 +280,7 @@ let common_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| Layout.value ~why:Type_argument |] |])
+           [| [| |]; [| option_argument_layout |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_string
   |> add_type ident_unboxed_float

@@ -262,7 +262,8 @@ module Layout = struct
     | Boxed_variant
     | Extensible_variant
     | Primitive of Ident.t
-    | Type_argument
+    | Type_argument of {parent_path: Path.t; position: int; arity: int}
+    (* [position] is 1-indexed *)
     | Tuple
     | Row_variable
     | Polymorphic_variant
@@ -332,6 +333,9 @@ module Layout = struct
     | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
+    | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
+    (* [position] is 1-indexed *)
+
 
   type interact_reason =
     | Gadt_equation of Path.t
@@ -563,6 +567,13 @@ module Layout = struct
 
   (***********************************)
   (* layout histories *)
+  let has_imported_history t =
+    match t with
+    | {history = Creation Imported; } -> true
+    | _ -> false
+
+  let update_reason t reason =
+    {t with history = Creation reason}
 
   let printtyp_path = ref (fun _ _ -> assert false)
   let set_printtyp_path f = printtyp_path := f
@@ -631,6 +642,12 @@ module Layout = struct
        actually look closely at error messages once this is activated *)
 
     open Format
+
+    let format_position ~arity position =
+      let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
+      match arity with
+      | 1 -> ""
+      | _ -> to_ordinal position ^ " "
 
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
@@ -713,7 +730,7 @@ module Layout = struct
       | Enumeration ->
          fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Primitive id ->
-         fprintf ppf "it equals the primitive immediate type %s" (Ident.name id)
+         fprintf ppf "it is the primitive immediate type %s" (Ident.name id)
       | Immediate_polymorphic_variant ->
          fprintf ppf "it's an immediate polymorphic variant"
       | Gc_ignorable_check ->
@@ -743,8 +760,11 @@ module Layout = struct
       | Boxed_variant -> fprintf ppf "it's a boxed variant"
       | Extensible_variant -> fprintf ppf "it's an extensible variant"
       | Primitive id ->
-        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
-      | Type_argument -> fprintf ppf "a type argument defaults to layout value"
+        fprintf ppf "it is the primitive value type %s" (Ident.name id)
+      | Type_argument {parent_path; position; arity} ->
+        fprintf ppf "the %stype argument of %a has layout value"
+          (format_position ~arity position)
+          !printtyp_path parent_path
       | Tuple -> fprintf ppf "it's a tuple type"
       | Row_variable -> fprintf ppf "it's a row variable"
       | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant"
@@ -785,7 +805,7 @@ module Layout = struct
 
     let format_float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id ->
-        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+        fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
 
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
@@ -806,6 +826,10 @@ module Layout = struct
          format_concrete_layout_reason ppf concrete
       | Imported ->
          fprintf ppf "it's imported from another compilation unit"
+      | Imported_type_argument {parent_path; position; arity} ->
+        fprintf ppf "the %stype argument of %a has this layout"
+          (format_position ~arity position)
+          !printtyp_path parent_path
 
     let format_interact_reason ppf = function
       | Gadt_equation name ->
@@ -1130,7 +1154,9 @@ module Layout = struct
       | Boxed_variant -> fprintf ppf "Boxed_variant"
       | Extensible_variant -> fprintf ppf "Extensible_variant"
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-      | Type_argument -> fprintf ppf "Type_argument"
+      | Type_argument {parent_path; position; arity} ->
+        fprintf ppf "Type_argument (pos %d, arity %d) of %a"
+          position arity !printtyp_path parent_path
       | Tuple -> fprintf ppf "Tuple"
       | Row_variable -> fprintf ppf "Row_variable"
       | Polymorphic_variant -> fprintf ppf "Polymorphic_variant"
@@ -1180,6 +1206,9 @@ module Layout = struct
          fprintf ppf "Concrete_creation %a" concrete_layout_reason concrete
       | Imported ->
          fprintf ppf "Imported"
+      | Imported_type_argument {parent_path; position; arity}  ->
+           fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a"
+           position arity !printtyp_path parent_path
 
     let interact_reason ppf = function
       | Gadt_equation p ->

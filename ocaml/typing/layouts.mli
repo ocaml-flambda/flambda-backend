@@ -169,7 +169,8 @@ module Layout : sig
     | Boxed_variant
     | Extensible_variant
     | Primitive of Ident.t
-    | Type_argument (* CR layouts: Should this take a Path.t? *)
+    | Type_argument of {parent_path: Path.t; position: int; arity: int}
+    (* [position] is 1-indexed *)
     | Tuple
     | Row_variable
     | Polymorphic_variant
@@ -232,6 +233,8 @@ module Layout : sig
     | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
+    | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
+    (* [position] is 1-indexed *)
 
   type interact_reason =
     | Gadt_equation of Path.t
@@ -410,6 +413,12 @@ module Layout : sig
   (** Provides the [Printtyp.path] formatter back up the dependency chain to
       this module. *)
   val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
+
+  (******************************)
+  (* history *)
+
+  val has_imported_history : t -> bool
+  val update_reason : t -> creation_reason -> t
 
   (******************************)
   (* relations *)
