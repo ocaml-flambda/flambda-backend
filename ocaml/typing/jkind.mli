@@ -39,13 +39,9 @@ module Sort : sig
 
   (** These are the constant sorts -- fully determined and without variables *)
   type const =
-    | Void
-      (** No run time representation at all *)
-    | Value
-      (** Standard ocaml value representation *)
-    | Float64
-      (** Unboxed 64-bit floats *)
-
+    | Void  (** No run time representation at all *)
+    | Value  (** Standard ocaml value representation *)
+    | Float64  (** Unboxed 64-bit floats *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -54,10 +50,13 @@ module Sort : sig
   val new_var : unit -> t
 
   val of_const : const -> t
+
   val of_var : var -> t
 
   val void : t
+
   val value : t
+
   val float64 : t
 
   (** These names are generated lazily and only when this function is called,
@@ -85,6 +84,7 @@ module Sort : sig
 
   module Debug_printers : sig
     val t : Format.formatter -> t -> unit
+
     val var : Format.formatter -> var -> unit
   end
 
@@ -96,27 +96,44 @@ module Sort : sig
      just the translation to lambda) rather than writing specific jkinds and
      sorts in the code. *)
   val for_class_arg : t
+
   val for_instance_var : t
+
   val for_lazy_body : t
+
   val for_tuple_element : t
+
   val for_record : t
+
   val for_constructor_arg : t
+
   val for_block_element : t
+
   val for_array_get_result : t
+
   val for_array_element : t
+
   val for_list_element : t
 
   (** These are sorts for the types of ocaml expressions that we expect will
       always be "value".  These names are used in the translation to lambda to
       make the code clearer. *)
   val for_function : t
+
   val for_probe_body : t
+
   val for_poly_variant : t
+
   val for_object : t
+
   val for_initializer : t
+
   val for_method : t
+
   val for_module : t
+
   val for_predef_value : t (* Predefined value types, e.g. int and string *)
+
   val for_tuple : t
 end
 
@@ -170,7 +187,7 @@ type annotation_context =
   | Type_variable of string
   | Type_wildcard of Location.t
 
- type value_creation_reason =
+type value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
@@ -204,7 +221,7 @@ type annotation_context =
   | Debug_printer_argument
   | V1_safety_check
   | Captured_in_object
-  | Unknown of string  (* CR layouts: get rid of these *)
+  | Unknown of string (* CR layouts: get rid of these *)
 
 type immediate_creation_reason =
   | Empty_record
@@ -219,8 +236,7 @@ type immediate64_creation_reason =
   | Gc_ignorable_check
   | Separability_check
 
-type void_creation_reason =
-  | V1_safety_check
+type void_creation_reason = V1_safety_check
 
 type any_creation_reason =
   | Missing_cmi of Path.t
@@ -233,8 +249,7 @@ type any_creation_reason =
        unified to correct levels *)
   | Type_expression_call
 
-type float64_creation_reason =
-  | Primitive of Ident.t
+type float64_creation_reason = Primitive of Ident.t
 
 type creation_reason =
   | Annotated of annotation_context * Location.t
@@ -276,17 +291,16 @@ module Violation : sig
   (* CR layouts: Having these options for printing a violation was a choice
      made based on the needs of expedient debugging during development, but
      probably should be rethought at some point. *)
+
   (** Prints a violation and the thing that had an unexpected jkind
       ([offender], which you supply an arbitrary printer for). *)
   val report_with_offender :
-    offender:(Format.formatter -> unit) ->
-    Format.formatter -> t -> unit
+    offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
 
   (** Like [report_with_offender], but additionally prints that the issue is
       that a representable jkind was expected. *)
   val report_with_offender_sort :
-    offender:(Format.formatter -> unit) ->
-    Format.formatter -> t -> unit
+    offender:(Format.formatter -> unit) -> Format.formatter -> t -> unit
 
   (** Simpler version of [report_with_offender] for when the thing that had an
       unexpected jkind is available as a string. *)
@@ -305,7 +319,9 @@ type const = Jane_asttypes.const_jkind =
   | Immediate64
   | Immediate
   | Float64
+
 val string_of_const : const -> string
+
 val equal_const : const -> const -> bool
 
 (** This jkind is the top of the jkind lattice. All types have jkind [any].
@@ -336,6 +352,7 @@ val float64 : why:float64_creation_reason -> t
 val of_new_sort_var : why:concrete_jkind_reason -> t
 
 val of_sort : why:concrete_jkind_reason -> sort -> t
+
 val of_const : why:creation_reason -> const -> t
 
 (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
@@ -348,22 +365,28 @@ val of_annotation :
 
 val of_annotation_option_default :
   ?legacy_immediate:bool ->
-  default:t -> context:annotation_context ->
-  Jane_asttypes.jkind_annotation option -> t
+  default:t ->
+  context:annotation_context ->
+  Jane_asttypes.jkind_annotation option ->
+  t
 
 (** Find a jkind in attributes.  Returns error if a disallowed jkind is
     present, but always allows immediate attributes if ~legacy_immediate is
     true.  See comment on [Builtin_attributes.jkind].  *)
 val of_attributes :
-  legacy_immediate:bool -> context:annotation_context -> Parsetree.attributes ->
+  legacy_immediate:bool ->
+  context:annotation_context ->
+  Parsetree.attributes ->
   (t option, Jane_asttypes.jkind_annotation) result
 
 (** Find a jkind in attributes, defaulting to ~default.  Returns error if a
     disallowed jkind is present, but always allows immediate if
     ~legacy_immediate is true.  See comment on [Builtin_attributes.jkind]. *)
 val of_attributes_default :
-  legacy_immediate:bool -> context:annotation_context ->
-  default:t -> Parsetree.attributes ->
+  legacy_immediate:bool ->
+  context:annotation_context ->
+  default:t ->
+  Parsetree.attributes ->
   (t, Jane_asttypes.jkind_annotation) result
 
 (** Choose an appropriate jkind for a boxed record type, given whether
@@ -409,6 +432,7 @@ val sort_of_jkind : t -> sort
 (* pretty printing *)
 
 val to_string : t -> string
+
 val format : Format.formatter -> t -> unit
 
 (** Format the history of this jkind: what interactions it has had and why
@@ -417,8 +441,7 @@ val format : Format.formatter -> t -> unit
 
     The [intro] is something like "The jkind of t is". *)
 val format_history :
-  intro:(Format.formatter -> unit) ->
-  Format.formatter -> t -> unit
+  intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
 
 (** Provides the [Printtyp.path] formatter back up the dependency chain to
     this module. *)
@@ -446,8 +469,7 @@ val equal : t -> t -> bool
     jkind argument.  That is, due to histories, this function is asymmetric;
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
-val intersection :
-  reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
+val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] returns [Ok ()] iff [t1] is a subjkind of
   of [t2].  The current hierarchy is:
