@@ -3266,6 +3266,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                           Interface_not_compiled sourceintf)) in
           let dclsig =
             Env.read_signature modulename intf_file ~add_binding:false in
+          (* FIXME This check is actually always false, since
+             [Env.is_parameter_unit] only checks whether the unit was passed to
+             [Env.register_parameter_import]. If the unit was mistakenly
+             compiled as a parameter, [Env.read_signature] will have already
+             raised an error. *)
           if Env.is_parameter_unit (Compilation_unit.name modulename) then
             error (Cannot_implement_parameter intf_file);
           let coercion, shape =
@@ -3652,7 +3657,8 @@ let report_error ~loc _env = function
   | Cannot_implement_parameter path ->
       Location.errorf ~loc
         "@[Interface %s@ found for this unit is flagged as a parameter.@ \
-         It cannot be implemented directly. Use -as-argument-for instead.@]"
+         It cannot be implemented directly. Recompile it without@ \
+         -as-parameter.@]"
         path
   | Cannot_pack_parameter ->
       Location.errorf ~loc

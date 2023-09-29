@@ -411,9 +411,6 @@ let is_imported {imported_units; _} s =
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
-let is_parameter_unit penv s =
-  is_registered_parameter_import penv s
-
 let make_cmi penv modname kind sign alerts =
   let flags =
     List.concat [
