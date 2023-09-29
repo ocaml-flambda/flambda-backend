@@ -7991,14 +7991,14 @@ and type_comprehension_expr
      - [{body = sbody; clauses}]:
          The actual comprehension to be translated. *)
   let comprehension_type, container_type, make_texp,
-      {body = sbody; clauses}, reason =
+      {body = sbody; clauses}, layout =
     match cexpr with
     | Cexp_list_comprehension comp ->
         List_comprehension,
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
-        (Layout.Type_argument {parent_path=Predef.path_list;position=1;arity=1})
+        Predef.list_argument_layout
     | Cexp_array_comprehension (amut, comp) ->
         let container_type = match amut with
           | Mutable   -> Predef.type_array
@@ -8008,13 +8008,13 @@ and type_comprehension_expr
         container_type,
         (fun tcomp -> Texp_array_comprehension (amut, tcomp)),
         comp,
-        Layout.Array_element
+        (* CR layouts v4: When this changes from [value], you will also have to
+           update the use of [transl_exp] in transl_array_comprehension.ml. See
+           a companion CR layouts v4 at the point of interest in that file. *)
+        Layout.value ~why:Layout.Array_element
   in
   if !Clflags.principal then begin_def ();
-  (* CR layouts v4: When this changes from [value], you will also have to
-     update the use of [transl_exp] in transl_array_comprehension.ml. See
-     a companion CR layouts v4 at the point of interest in that file. *)
-  let element_ty = newvar (Layout.value ~why:reason) in
+  let element_ty = newvar layout in
   unify_exp_types
     loc
     env
