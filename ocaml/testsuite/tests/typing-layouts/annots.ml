@@ -434,3 +434,6 @@ Line 1, characters 21-30:
 Error: Layout immediate is more experimental than allowed by -extension layouts.
        You must enable -extension layouts_beta to use this feature.
 |}]
+
+(************************************************************************)
+(* Test 11: Annotation on type parameter within constructor declaration *)

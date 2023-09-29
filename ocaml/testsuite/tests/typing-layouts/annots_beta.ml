@@ -559,3 +559,21 @@ type t = int as (_ : immediate)
 [%%expect {|
 type t = int
 |}]
+
+(************************************************************************)
+(* Test 11: Annotation on type parameter within constructor declaration *)
+
+(* CR layouts v2.9: Layout history should propagate
+   correctly for this test case. Relies on sort snapshot
+   backtracking for it to work. *)
+type _ g = A : ('a: float64) . 'a g
+let f (type a) (x : a g) = ()
+
+[%%expect{|
+type (_ : float64) g = A : ('a : float64). 'a g
+Line 2, characters 20-21:
+2 | let f (type a) (x : a g) = ()
+                        ^
+Error: This type a should be an instance of type ('a : float64)
+       a has layout value, which is not a sublayout of float64.
+|}]
