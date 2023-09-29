@@ -31,6 +31,13 @@ module Sort = struct
 
   and var = t option ref
 
+  (* recording changes *)
+  type change = var * t option
+
+  let change_log : (change -> unit) ref = ref (fun _ -> ())
+  let log_change change = !change_log change
+  let undo_change (v, t_op) = v := t_op
+
   let var_name : var -> string =
     let next_id = ref 1 in
     let named = ref [] in
@@ -58,6 +65,10 @@ module Sort = struct
 
   let new_var () = Var (ref None)
 
+  let set : var -> t option -> unit = fun v t_op ->
+    log_change (v, t_op);
+    v := t_op
+
   (* Post-condition: If the result is a [Var v], then [!v] is [None]. *)
   let rec get : t -> t = function
     | Const _ as t -> t
@@ -66,7 +77,7 @@ module Sort = struct
       | None -> t
       | Some s ->
         let result = get s in
-        if result != s then r := Some result;
+        if result != s then set r (Some result);
         (* path compression *)
         result)
 
@@ -86,11 +97,11 @@ module Sort = struct
     | Var r -> (
       match !r with
       | None ->
-        r := default_value;
+        set r default_value;
         Value
       | Some s ->
         let result = get_default_value s in
-        r := default result;
+        set r (default result);
         (* path compression *)
         result)
 
@@ -119,7 +130,7 @@ module Sort = struct
     match !v1 with
     | Some s1 -> equate_sort_const s1 c2
     | None ->
-      v1 := Some (of_const c2);
+      set v1 (Some (of_const c2));
       Equal_mutated_first
 
   and equate_var v1 s2 =
@@ -135,7 +146,7 @@ module Sort = struct
       | Some s1, _ -> swap_equate_result (equate_var v2 s1)
       | _, Some s2 -> equate_var v1 s2
       | None, None ->
-        v1 := Some (of_var v2);
+        set v1 (Some (of_var v2));
         Equal_mutated_first
 
   and equate_sort_const s1 c2 =
@@ -167,7 +178,7 @@ module Sort = struct
       match !v with
       (* CR layouts v5: this should probably default to void now *)
       | None ->
-        v := some_value;
+        set v some_value;
         false
       | Some s -> is_void_defaulting s)
     | Const Value -> false

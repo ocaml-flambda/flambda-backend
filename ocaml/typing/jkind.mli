@@ -82,6 +82,13 @@ module Sort : sig
       it is set to [value] first. *)
   val get_default_value : t -> const
 
+  type change
+
+  val change_log : (change -> unit) ref
+
+  (** Reset [t] to its earlier state. Used for snapshot backtracking. *)
+  val undo_change : change -> unit
+
   module Debug_printers : sig
     val t : Format.formatter -> t -> unit
 
