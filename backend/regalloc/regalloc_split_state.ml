@@ -611,10 +611,15 @@ let make cfg_with_infos ~next_instruction_id =
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end
   in
-  let destructions_at_end, definitions_at_beginning =
+  (* CR-soon xclerc for xclerc: reinstate the code commented out below. Moving
+     spills and reloads between blocks is not possible right now, because the
+     way substitutions are computed and propagated assumes definitions are "all
+     or nothing" (if definitions are present at the start of a node, all
+     registers that need a definition must be present). *)
+  (*let destructions_at_end, definitions_at_beginning =
     MoveSpillsAndReloads.optimize cfg_with_infos ~destructions_at_end
-      ~definitions_at_beginning
-  in
+    ~definitions_at_beginning in*)
+  let _ = MoveSpillsAndReloads.optimize in
   let phi_at_beginning =
     compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
   in
