@@ -31,11 +31,13 @@ module Sort = struct
 
   and var = t option ref
 
-  (* recording changes *)
+  (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change = var * t option
 
   let change_log : (change -> unit) ref = ref (fun _ -> ())
+
   let log_change change = !change_log change
+
   let undo_change (v, t_op) = v := t_op
 
   let var_name : var -> string =
@@ -65,7 +67,8 @@ module Sort = struct
 
   let new_var () = Var (ref None)
 
-  let set : var -> t option -> unit = fun v t_op ->
+  let set : var -> t option -> unit =
+   fun v t_op ->
     log_change (v, t_op);
     v := t_op
 
