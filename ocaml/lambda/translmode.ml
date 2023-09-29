@@ -7,7 +7,7 @@ let transl_locality_mode locality =
   | Local -> alloc_local
 
 let transl_alloc_mode mode =
-(* we only take the locality axis *)
+  (* we only take the locality axis *)
   transl_locality_mode (Alloc.locality mode)
 
 let transl_modify_mode locality =
