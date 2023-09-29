@@ -84,9 +84,9 @@ val ident_cons : Ident.t
 val ident_none : Ident.t
 val ident_some : Ident.t
 
-(* the layout used for optional function argument types *)
+(* The layout used for optional function argument types *)
 val option_argument_layout : Layouts.Layout.t
-(* the layout used for list argument types *)
+(* The layout used for list argument types *)
 val list_argument_layout : Layouts.Layout.t
 
 (* To build the initial environment. Since there is a nasty mutual

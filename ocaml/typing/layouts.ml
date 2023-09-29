@@ -263,7 +263,7 @@ module Layout = struct
     | Extensible_variant
     | Primitive of Ident.t
     | Type_argument of {parent_path: Path.t; position: int; arity: int}
-    (* position is 1-indexed *)
+    (* [position] is 1-indexed *)
     | Tuple
     | Row_variable
     | Polymorphic_variant
@@ -334,7 +334,7 @@ module Layout = struct
     | Concrete_creation of concrete_layout_reason
     | Imported
     | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
-    (* position is 1-indexed *)
+    (* [position] is 1-indexed *)
 
 
   type interact_reason =
