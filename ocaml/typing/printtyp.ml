@@ -1184,7 +1184,7 @@ let print_labels = ref true
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const Value -> None
-  | Const clay -> Some (Olay_const clay)
+  | Const jkind -> Some (Olay_const (Jkind.const_to_user_written_annotation jkind))
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
     then Some (Olay_var (Jkind.Sort.var_name v))
@@ -1655,7 +1655,10 @@ let rec tree_of_type_decl id decl =
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_jkind = Option.map (fun { txt } -> Olay_const txt) lay;
+      otype_jkind =
+        Option.map
+          (fun { txt } -> Olay_const (Builtin_attributes.jkind_to_parsetree txt))
+          lay;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2270,7 +2273,7 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> Olay_const clay
+            | Const clay -> Olay_const (Jkind.const_to_user_written_annotation clay)
             | Var v      -> Olay_var (Jkind.Sort.var_name v)
           in
           Otyp_jkind_annot (out, olay)

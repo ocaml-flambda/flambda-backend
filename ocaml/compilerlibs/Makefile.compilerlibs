@@ -63,6 +63,7 @@ PARSING = \
   parsing/printast.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
+  parsing/jane_asttypes.cmo \
   parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
   parsing/pprintast.cmo \
   parsing/ast_iterator.cmo \
@@ -77,7 +78,6 @@ PARSING = \
   parsing/depend.cmo
 PARSING_CMI = \
   parsing/asttypes.cmi \
-  parsing/jane_asttypes.cmi \
   parsing/parsetree.cmi
 
 TYPING = \

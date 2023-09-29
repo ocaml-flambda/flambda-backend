@@ -8,7 +8,7 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
 Line 2, characters 11-15:
 2 | type ('a : valu) t0 = 'a list;;
                ^^^^
-Error: Syntax error: layout expected.
+Error: Unknown layout valu
 type t = float#
 Line 2, characters 9-13:
 2 | type t = int#;;

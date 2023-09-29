@@ -51,7 +51,7 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags -linkall)
  (modules_without_implementation
-   annot asttypes jane_asttypes cmo_format outcometree parsetree debug_event)
+   annot asttypes cmo_format outcometree parsetree debug_event)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags

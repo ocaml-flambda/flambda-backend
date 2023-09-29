@@ -163,9 +163,11 @@ let typevar_jkind ~print_quote ppf (v, l) =
   in
   match l with
   | None -> fprintf ppf " %a" pptv v
-  | Some lay -> fprintf ppf " (%a : %a)"
-                    pptv v
-                    Jane_syntax.Layouts.Pprint.const_jkind lay
+  | Some lay ->
+      let lay = Jkind.const_to_user_written_annotation lay in
+      fprintf ppf " (%a : %a)"
+        pptv v
+        Jane_syntax.Layouts.Pprint.const_jkind lay
 
 let typevars ppf vs =
   List.iter (typevar_jkind ~print_quote:true ppf) vs

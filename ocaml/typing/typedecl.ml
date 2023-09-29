@@ -79,7 +79,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Jkind.const
+  | Layout_not_enabled of Builtin_attributes.jkind_annotation
 
 open Typedtree
 
@@ -413,6 +413,19 @@ let transl_constructor_arguments env univars closed = function
       Types.Cstr_record lbls',
       Cstr_record lbls
 
+let transl_constructor_type_parameters (svars : _ Either.t) ~cstr_path =
+  match svars with
+  | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
+  | Right vars_jkinds ->
+      List.map
+        (fun (v, l) ->
+           v.txt,
+           Option.map
+             (Jkind.const_of_user_written_annotation
+                ~context:(Constructor_type_parameter (cstr_path, v.txt)))
+             l)
+        vars_jkinds
+
 (* Note that [make_constructor] does not fill in the [ld_jkind] field of any
    computed record types, because it's called too early in the translation of a
    type declaration to compute accurate jkinds in the presence of recursively
@@ -421,16 +434,12 @@ let transl_constructor_arguments env univars closed = function
 let make_constructor
       env loc ~cstr_path ~type_path type_params (svars : _ Either.t)
       sargs sret_type =
-  let tvars = match svars with
-    | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
-    | Right vars_jkinds ->
-      List.map (fun (v, l) -> v.txt, Option.map Location.get_txt l) vars_jkinds
-  in
   match sret_type with
   | None ->
       let args, targs =
         transl_constructor_arguments env None true sargs
       in
+      let tvars = transl_constructor_type_parameters svars ~cstr_path in
         tvars, targs, None, args, None
   | Some sret_type -> TyVarEnv.with_local_scope begin fun () ->
       (* if it's a generalized constructor we must work in a narrowed
@@ -447,6 +456,11 @@ let make_constructor
            Some (TyVarEnv.make_poly_univars_jkinds
                    ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
                    vars_jkinds), true
+      in
+      let tvars =
+        match univars with
+        | None -> transl_constructor_type_parameters svars ~cstr_path
+        | Some univars -> TyVarEnv.ttyp_poly_arg univars
       in
       let args, targs =
         transl_constructor_arguments env univars closed sargs
@@ -2647,9 +2661,10 @@ let report_error ppf = function
                    To enable it, pass the '-extension local' flag@]"
   | Layout_not_enabled c ->
       fprintf ppf
-        "@[Layout %s is used here, but the appropriate layouts extension is \
+        "@[Layout %a is used here, but the appropriate layouts extension is \
          not enabled@]"
-        (Jkind.string_of_const c)
+        Jane_syntax.Layouts.Pprint.const_jkind
+        (Builtin_attributes.jkind_to_parsetree c)
 
 let () =
   Location.register_error_of_exn

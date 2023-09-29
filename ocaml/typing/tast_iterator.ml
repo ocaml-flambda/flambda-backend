@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Typedtree
 
 type iterator =
@@ -33,7 +32,7 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-    jkind_annotation: iterator -> const_jkind -> unit;
+    jkind_annotation: iterator -> Jkind.const -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;

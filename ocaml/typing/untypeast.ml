@@ -149,7 +149,8 @@ let attributes sub l = List.map (sub.attribute sub) l
 
 let var_jkind ~loc (var, jkind) =
   let add_loc x = mkloc x loc in
-  add_loc var, Option.map add_loc jkind
+  add_loc var,
+  Option.map (fun x -> add_loc (Jkind.const_to_user_written_annotation x)) jkind
 
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
@@ -427,6 +428,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
     | Texp_newtype (s, Some jkind) ->
+        let jkind = Jkind.const_to_user_written_annotation jkind in
         Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, add_loc jkind, sexp))
         |> add_jane_syntax_attributes
@@ -938,6 +940,7 @@ let core_type sub ct =
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
     | Ttyp_var (name, Some jkind) ->
+        let jkind = Jkind.const_to_user_written_annotation jkind in
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_var { name; jkind = mkloc jkind loc }) |>
         add_jane_syntax_attributes
@@ -955,6 +958,7 @@ let core_type sub ct =
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
     | Ttyp_alias (ct, s, Some jkind) ->
+        let jkind = Jkind.const_to_user_written_annotation jkind in
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
                         jkind = mkloc jkind loc }) |>
