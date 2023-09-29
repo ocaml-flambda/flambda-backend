@@ -14,8 +14,8 @@
 (**************************************************************************)
 
 open Asttypes
-open Layouts
 open Types
+open Layouts
 open Typedtree
 open Lambda
 open Translobj

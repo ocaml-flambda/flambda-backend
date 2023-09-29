@@ -16,8 +16,8 @@
 (** Analysis of interface files. *)
 
 open Asttypes
-open Layouts
 open Types
+open Layouts
 open Odoc_parameter
 open Odoc_value
 open Odoc_type

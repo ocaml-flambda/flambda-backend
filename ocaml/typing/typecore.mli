@@ -16,8 +16,8 @@
 (* Type inference for the core language *)
 
 open Asttypes
-open Layouts
 open Types
+open Layouts
 
 (* This variant is used for printing which type of comprehension something is
    found in; it's used by [type_forcing_context], which see. *)

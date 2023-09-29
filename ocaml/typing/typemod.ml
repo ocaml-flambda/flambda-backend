@@ -18,8 +18,8 @@ open Longident
 open Path
 open Asttypes
 open Parsetree
-open Layouts
 open Types
+open Layouts
 open Format
 
 let () = Includemod_errorprinter.register ()

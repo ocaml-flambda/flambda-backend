@@ -18,8 +18,8 @@
 open Format
 open Misc
 open Longident
-open Layouts
 open Types
+open Layouts
 open Toploop
 
 let error_fmt () =

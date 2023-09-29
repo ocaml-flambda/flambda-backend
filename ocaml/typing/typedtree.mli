@@ -229,8 +229,8 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Mode.Alloc.t;
-      arg_sort : Layouts.sort;
-      ret_sort : Layouts.sort;
+      arg_sort : Jkind.sort;
+      ret_sort : Jkind.sort;
       alloc_mode : Mode.Alloc.t}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
@@ -261,7 +261,7 @@ and expression_desc =
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
          *)
-  | Texp_match of expression * Layouts.sort * computation case list * partial
+  | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
             | P2 | exception P3 -> E2
@@ -323,11 +323,11 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * Layouts.sort * expression
+  | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_sort : Layouts.sort
+      wh_body_sort : Jkind.sort
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -336,7 +336,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_sort : Layouts.sort;
+      for_body_sort : Jkind.sort;
     }
   | Texp_send of expression * meth * apply_position * Mode.Alloc.t
     (** [alloc_mode] is the allocation mode of the result *)
@@ -357,9 +357,9 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
-      param_sort : Layouts.sort;
+      param_sort : Jkind.sort;
       body : value case;
-      body_sort : Layouts.sort;
+      body_sort : Jkind.sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -432,9 +432,9 @@ and binding_op =
     bop_op_type : Types.type_expr;
     (* This is the type at which the operator was used.
        It is always an instance of [bop_op_val.val_type] *)
-    bop_op_return_sort : Layouts.sort;
+    bop_op_return_sort : Jkind.sort;
     bop_exp : expression;
-    bop_exp_sort : Layouts.sort;
+    bop_exp_sort : Jkind.sort;
     bop_loc : Location.t;
   }
 
@@ -446,9 +446,9 @@ and omitted_parameter =
   { mode_closure : Mode.Alloc.t;
     mode_arg : Mode.Alloc.t;
     mode_ret : Mode.Alloc.t;
-    sort_arg : Layouts.sort }
+    sort_arg : Jkind.sort }
 
-and apply_arg = (expression * Layouts.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)
@@ -557,7 +557,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * Layouts.sort * attributes
+    Tstr_eval of expression * Jkind.sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list
@@ -586,7 +586,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
-    vb_sort: Layouts.sort;
+    vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -970,7 +970,7 @@ val let_bound_idents_full:
     value_binding list -> (Ident.t * string loc * Types.type_expr * Uid.t) list
 val let_bound_idents_with_modes_and_sorts:
   value_binding list
-  -> (Ident.t * (Location.t * Mode.Value.t * Layouts.sort) list) list
+  -> (Ident.t * (Location.t * Mode.Value.t * Jkind.sort) list) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:
@@ -983,8 +983,8 @@ val pat_bound_idents: 'k general_pattern -> Ident.t list
 val pat_bound_idents_with_types:
   'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
-  Layouts.sort -> 'k general_pattern
-  -> (Ident.t * string loc * Types.type_expr * Layouts.sort) list
+  Jkind.sort -> 'k general_pattern
+  -> (Ident.t * string loc * Types.type_expr * Jkind.sort) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:

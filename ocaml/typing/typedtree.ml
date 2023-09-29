@@ -17,8 +17,8 @@
 
 open Asttypes
 open Jane_asttypes
-open Layouts
 open Types
+open Layouts
 
 module Uid = Shape.Uid
 

@@ -17,8 +17,8 @@
 
 open Misc
 open Asttypes
-open Layouts
 open Types
+open Layouts
 open Btype
 open Errortrace
 

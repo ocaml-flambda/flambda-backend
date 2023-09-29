@@ -172,7 +172,7 @@ let typevars ppf vs =
 ;;
 
 let layout_array i ppf layouts =
-  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Layouts.Layout.format l)
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.Layout.format l)
     ppf layouts
 
 let tag ppf = let open Types in function
@@ -210,7 +210,7 @@ let attributes i ppf l =
   ) l
 
 let layout_annotation i ppf layout =
-  line i ppf "%s" (Layouts.Layout.string_of_const layout)
+  line i ppf "%s" (Jkind.Layout.string_of_const layout)
 
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
@@ -410,7 +410,7 @@ and expression i ppf x =
   | Texp_match (e, sort, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
-      line i ppf "%a\n" Layouts.Sort.format sort;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       list i case ppf l;
   | Texp_try (e, l) ->
       line i ppf "Texp_try\n";
@@ -466,7 +466,7 @@ and expression i ppf x =
   | Texp_sequence (e1, s, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
-      line i ppf "%a\n" Layouts.Sort.format s;
+      line i ppf "%a\n" Jkind.Sort.format s;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";
@@ -932,7 +932,7 @@ and structure_item i ppf x =
   | Tstr_eval (e, l, attrs) ->
       line i ppf "Tstr_eval\n";
       attributes i ppf attrs;
-      line i ppf "%a\n" Layouts.Sort.format l;
+      line i ppf "%a\n" Jkind.Sort.format l;
       expression i ppf e;
   | Tstr_value (rf, l) ->
       line i ppf "Tstr_value %a\n" fmt_rec_flag rf;
