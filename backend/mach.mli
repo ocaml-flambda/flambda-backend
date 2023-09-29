@@ -79,6 +79,8 @@ type operation =
   | Icsel of test
   | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
+  | Ivectorcast of Cmm.vector_cast
+  | Iscalarcast of Cmm.scalar_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }

@@ -67,6 +67,7 @@ let is_gc_ignorable kind =
   | Pvalue Pintval -> true
   | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _ |
             Pboxedvectorval _) -> false
+  | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 let split_closure_fv kinds fv =
   List.fold_right (fun id (not_scanned, scanned) ->

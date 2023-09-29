@@ -380,7 +380,7 @@ let in_pervasives p =
 let is_datatype decl=
   match decl.type_kind with
     Type_record _ | Type_variant _ | Type_open -> true
-  | Type_abstract -> false
+  | Type_abstract _ -> false
 
 
                   (**********************************************)
@@ -518,8 +518,8 @@ let remove_mode_and_layout_variables ty =
       | Tvar { layout } -> Layout.default_to_value layout
       | Tunivar { layout } -> Layout.default_to_value layout
       | Tarrow ((_,marg,mret),targ,tret,_) ->
-         let _ = Alloc_mode.constrain_lower marg in
-         let _ = Alloc_mode.constrain_lower mret in
+         let _ = Mode.Alloc.constrain_legacy marg in
+         let _ = Mode.Alloc.constrain_legacy mret in
          go targ; go tret
       | _ -> iter_type_expr go ty
     end
@@ -622,7 +622,7 @@ let closed_type_decl decl =
     List.iter mark_type decl.type_params;
     List.iter remove_mode_and_layout_variables decl.type_params;
     begin match decl.type_kind with
-      Type_abstract ->
+      Type_abstract _ ->
         ()
     | Type_variant (v, _rep) ->
         List.iter
@@ -802,7 +802,7 @@ let rec normalize_package_path env p =
   in
   match t with
   | Some (Mty_ident p) -> normalize_package_path env p
-  | Some (Mty_signature _ | Mty_functor _ | Mty_alias _) | None ->
+  | Some (Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) | None ->
       match p with
         Path.Pdot (p1, s) ->
           (* For module aliases *)
@@ -957,7 +957,7 @@ let rec lower_contravariant env var_level visited contra ty =
          try
            let typ = Env.find_type path env in
            typ.type_variance,
-           decl_is_abstract typ
+           type_kind_is_abstract typ
           with Not_found ->
             (* See testsuite/tests/typing-missing-cmi-2 for an example *)
             List.map (fun _ -> Variance.unknown) tyl,
@@ -1312,7 +1312,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope layout =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract;
+    type_kind = Type_abstract Abstract_def;
     type_layout = layout;
     type_private = Public;
     type_manifest = manifest;
@@ -1381,7 +1381,7 @@ let instance_parameterized_type_2 sch_args sch_lst sch =
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve layouts *)
 let map_kind f = function
-  | (Type_abstract | Type_open) as k -> k
+  | (Type_abstract _ | Type_open) as k -> k
   | Type_variant (cl, rep) ->
       Type_variant (
         List.map
@@ -1554,8 +1554,8 @@ let instance_label fixed lbl =
   )
 
 let prim_mode mvar = function
-  | Primitive.Prim_global, _ -> Alloc_mode.global
-  | Primitive.Prim_local, _ -> Alloc_mode.local
+  | Primitive.Prim_global, _ -> Mode.Locality.global
+  | Primitive.Prim_local, _ -> Mode.Locality.local
   | Primitive.Prim_poly, _ ->
     match mvar with
     | Some mvar -> mvar
@@ -1563,12 +1563,17 @@ let prim_mode mvar = function
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
-  | l :: locals, Tarrow ((lbl,_,mret),arg,ret,commu) ->
-     let marg = prim_mode (Some mvar) l in
-     let macc = Alloc_mode.join [marg; mret; macc] in
+  | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
+     let marg = Mode.Alloc.with_locality (prim_mode (Some mvar) l) marg in
+     let macc =
+       Mode.Alloc.join [mret;
+         Mode.Alloc.close_over marg;
+         Mode.Alloc.partial_apply macc
+       ]
+     in
      let mret =
        match locals with
-       | [] -> finalret
+       | [] -> Mode.Alloc.with_locality finalret mret
        | _ :: _ -> macc (* curried arrow *)
      in
      let ret = instance_prim_locals locals mvar macc finalret ret in
@@ -1581,10 +1586,10 @@ let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
-    let mode = Alloc_mode.newvar () in
+    let mode = Mode.Locality.newvar () in
     let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
-      mode Alloc_mode.global finalret ty,
+      mode Mode.Alloc.legacy finalret ty,
     Some mode
   else
     ty, None
@@ -1835,7 +1840,7 @@ let rec extract_concrete_typedecl env ty =
       begin match Env.find_type p env with
       | exception Not_found -> May_have_typedecl
       | decl ->
-          if not (decl_is_abstract decl) then Typedecl(p, p, decl)
+          if not (type_kind_is_abstract decl) then Typedecl(p, p, decl)
           else begin
             match try_expand_safe env ty with
             | exception Cannot_expand -> May_have_typedecl
@@ -2109,7 +2114,10 @@ let unification_layout_check env ty layout =
   | Delay_checks r -> r := (ty,layout) :: !r
   | Skip_checks -> ()
 
-let is_always_global env ty =
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
+
+let is_immediate64 env ty =
   let perform_check () =
     Result.is_ok (check_type_layout env ty
                     (Layout.immediate64 ~why:Local_mode_cross_check))
@@ -2123,6 +2131,14 @@ let is_always_global env ty =
     result
   else
     perform_check ()
+
+(* We will require Int63 to be [global many unique] on 32-bit platforms, so
+   this is fine *)
+let is_immediate = is_immediate64
+
+let mode_cross env (ty : type_expr) =
+  (* immediates can cross all mode axes: locality, uniqueness and linearity *)
+  is_principal ty && is_immediate env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
@@ -2168,7 +2184,7 @@ let generic_abbrev env path =
 let generic_private_abbrev env path =
   try
     match Env.find_type path env with
-      {type_kind = Type_abstract;
+      {type_kind = Type_abstract _;
        type_private = Private;
        type_manifest = Some body} ->
          get_level body = generic_level
@@ -2624,7 +2640,7 @@ let is_newtype env p =
   try
     let decl = Env.find_type p env in
     decl.type_expansion_scope <> Btype.lowest_level &&
-    decl_is_abstract decl &&
+    type_kind_is_abstract decl &&
     decl.type_private = Public
   with Not_found -> false
 
@@ -2652,14 +2668,14 @@ let non_aliasable p decl =
    appropriate platforms).
 
    CR layouts: the non_aliasable check could really be combined with the
-   decl_is_abstract check, and both could be guarded by ~for_layout_eqn, allowing
+   type_kind_is_abstract check, and both could be guarded by ~for_layout_eqn, allowing
    the refinement of layouts of data types.  Write some tests cases and make
    that change.
 *)
 let is_instantiable env ~for_layout_eqn p =
   try
     let decl = Env.find_type p env in
-    decl_is_abstract decl &&
+    type_kind_is_abstract decl &&
     decl.type_private = Public &&
     decl.type_arity = 0 &&
     decl.type_manifest = None &&
@@ -2846,9 +2862,9 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
           mcomp_variant_description type_pairs env v1 v2
       | Type_open, Type_open ->
           mcomp_list type_pairs env tl1 tl2
-      | Type_abstract, Type_abstract -> ()
-      | Type_abstract, _ when not (non_aliasable p1 decl)-> ()
-      | _, Type_abstract when not (non_aliasable p2 decl') -> ()
+      | Type_abstract _, Type_abstract _ -> ()
+      | Type_abstract _, _ when not (non_aliasable p1 decl)-> ()
+      | _, Type_abstract _ when not (non_aliasable p2 decl') -> ()
       | _ -> raise Incompatible
   with Not_found -> ()
 
@@ -3040,7 +3056,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
         match Env.find_type_by_name lid env' with
-        | (_, {type_arity = 0; type_kind = Type_abstract;
+        | (_, {type_arity = 0; type_kind = Type_abstract _;
                type_private = Public; type_manifest = Some t2}) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
@@ -3050,7 +3066,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                 else
                   raise Exit
             end
-        | (_, {type_arity = 0; type_kind = Type_abstract;
+        | (_, {type_arity = 0; type_kind = Type_abstract _;
                type_private = Public; type_manifest = None})
           when allow_absent ->
             complete nl fl2
@@ -3072,9 +3088,9 @@ let unify_package env unify_list lv1 p1 fl1 lv2 p2 fl2 =
   && !package_subtype env p2 fl2 p1 fl1 then () else raise Not_found
 
 let unify_alloc_mode_for tr_exn a b =
-  match Alloc_mode.equate a b with
+  match Mode.Alloc.equate a b with
   | Ok () -> ()
-  | Error () -> raise_unexplained_for tr_exn
+  | Error _ -> raise_unexplained_for tr_exn
 
 (* force unification in Reither when one side has a non-conjunctive type *)
 let rigid_variants = ref false
@@ -3785,10 +3801,10 @@ exception Filter_arrow_failed of filter_arrow_failure
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : alloc_mode;
+    arg_mode : Mode.Alloc.t;
     arg_sort : sort;
     ty_ret : type_expr;
-    ret_mode : alloc_mode;
+    ret_mode : Mode.Alloc.t;
     ret_sort : sort
   }
 
@@ -3826,8 +3842,8 @@ let filter_arrow env t l ~force_tpoly =
       end
     in
     let ty_ret = newvar2 level l_res in
-    let arg_mode = Alloc_mode.newvar () in
-    let ret_mode = Alloc_mode.newvar () in
+    let arg_mode = Mode.Alloc.newvar () in
+    let ret_mode = Mode.Alloc.newvar () in
     let t' =
       newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
     in
@@ -3846,8 +3862,16 @@ let filter_arrow env t l ~force_tpoly =
   match get_desc t with
     Tvar { layout } ->
       let t', arrow_desc = function_type (get_level t) in
+      begin match constrain_type_layout env t' layout with
+      | Ok _ -> ()
+      | Error err ->
+        raise (Filter_arrow_failed
+                 (Unification_error
+                    (expand_to_unification_error
+                       env
+                       [Bad_layout (t',err)])))
+      end;
       link_type t t';
-      constrain_type_layout_exn env Unify t' layout;
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
@@ -4330,13 +4354,13 @@ let relevant_pairs pairs v =
 let moregen_alloc_mode v a1 a2 =
   match
     match v with
-    | Invariant -> Alloc_mode.equate a1 a2
-    | Covariant -> Alloc_mode.submode a1 a2
-    | Contravariant -> Alloc_mode.submode a2 a1
+    | Invariant -> Mode.Alloc.equate a1 a2
+    | Covariant -> Mode.Alloc.submode a1 a2
+    | Contravariant -> Mode.Alloc.submode a2 a1
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
-  | Error () -> raise_unexplained_for Moregen
+  | Error _  -> raise_unexplained_for Moregen
 
 let may_instantiate inst_nongen t1 =
   let level = get_level t1 in
@@ -4352,8 +4376,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         moregen_occur env (get_level t1) t2;
         update_scope_for Moregen (get_scope t1) t2;
         occur_for Moregen env t1 t2;
-        link_type t1 t2;
-        constrain_type_layout_exn env Moregen t2 layout
+        constrain_type_layout_exn env Moregen t2 layout;
+        link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
     | _ ->
@@ -4368,8 +4392,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
             (Tvar { layout }, _) when may_instantiate inst_nongen t1' ->
               moregen_occur env (get_level t1') t2;
               update_scope_for Moregen (get_scope t1') t2;
-              link_type t1' t2;
-              constrain_type_layout_exn env Moregen t2 layout
+              constrain_type_layout_exn env Moregen t2 layout;
+              link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
@@ -5307,11 +5331,11 @@ let has_constr_row' env t =
 
 let build_submode posi m =
   if posi then begin
-    let m', changed = Alloc_mode.newvar_below m in
+    let m', changed = Mode.Alloc.newvar_below m in
     let c = if changed then Changed else Unchanged in
     m', c
   end else begin
-    let m', changed = Alloc_mode.newvar_above m in
+    let m', changed = Mode.Alloc.newvar_above m in
     let c = if changed then Changed else Unchanged in
     m', c
   end
@@ -5336,7 +5360,17 @@ let rec build_subtype env (visited : transient_expr list)
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
-        if level > 2 then build_submode (not posi) a else a, Unchanged
+        if level > 2 then begin
+          (* If posi, then t1' >= t1, and we pick t1; otherwise we pick t1'. In
+            either case we pick the smaller type which is the "real" type of
+            runtime values, and easier to cross modes (and thus making the
+            mode-crossing more complete). *)
+          let t1 = if posi then t1 else t1' in
+          if is_immediate env t1 then
+            Mode.Alloc.newvar (), Changed
+          else
+            build_submode (not posi) a
+          end else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged
@@ -5528,9 +5562,9 @@ let subtype_error ~env ~trace ~unification_trace =
                     ~unification_trace))
 
 let subtype_alloc_mode env trace a1 a2 =
-  match Alloc_mode.submode a1 a2 with
+  match Mode.Alloc.submode a1 a2 with
   | Ok () -> ()
-  | Error () -> subtype_error ~env ~trace ~unification_trace:[]
+  | Error _ -> subtype_error ~env ~trace ~unification_trace:[]
 
 let rec subtype_rec env trace t1 t2 cstrs =
   if eq_type t1 t2 then cstrs else
@@ -5552,7 +5586,10 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        subtype_alloc_mode env trace a2 a1;
+        if not (is_immediate env t2) then
+          subtype_alloc_mode env trace a2 a1;
+        (* RHS mode of arrow types indicates allocation in the parent region
+           and is not subject to mode crossing *)
         subtype_alloc_mode env trace r1 r2;
         subtype_rec
           env
@@ -6076,7 +6113,7 @@ let nondep_type_decl env mid is_covariant decl =
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
       try map_kind (nondep_type_rec env mid) decl.type_kind
-      with Nondep_cannot_erase _ when is_covariant -> Type_abstract
+      with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
     and tm, priv =
       match decl.type_manifest with
       | None -> None, decl.type_private

@@ -39,3 +39,21 @@ let () =
   (* M is unused, but no warning was emitted before 4.10. *)
   let module M = struct end in
   ()
+
+(* Nominal type comparisons *)
+
+module Nominal = struct
+  module type S = sig
+    module M : sig end
+    type t
+  end
+
+  module M : S = struct
+    module M = struct end
+    type t = int
+  end
+
+  module F(X:S) = struct type t = X.t end
+
+  module N = F(M)
+end

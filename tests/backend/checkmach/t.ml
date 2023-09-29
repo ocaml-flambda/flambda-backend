@@ -234,3 +234,20 @@ module Params = struct
   let[@zero_alloc] test13 () =
     test12 ~d:42 ()
 end
+
+let[@zero_alloc assume][@inline always] test40 x = (x,x)
+
+let[@zero_alloc] test41 b x =
+  if b then test40 (x+1) else test40 (x*2)
+
+
+module Never_returns_normally = struct
+  let[@inline never][@zero_alloc assume never_returns_normally] failwithf fmt =
+   Printf.ksprintf (fun s () -> failwith s) fmt
+
+  let[@inline never][@zero_alloc assume never_returns_normally] invalid_argf fmt =
+    Printf.ksprintf (fun s () -> invalid_arg s) fmt
+
+ let[@zero_alloc] foo x = failwithf "%d" x
+ let[@zero_alloc] bar x y = invalid_argf "%d" (x+y)
+end

@@ -151,10 +151,15 @@ let pseudoregs_for_operation op arg res =
      and the result is in edx (high) and eax (low).
      Make it simple and force the argument in rcx, and rax and rdx clobbered *)
     ([| rcx |], res)
-  | Ispecific (Ifloat_min | Ifloat_max)
-  | Ispecific Icrc32q ->
+  | Ispecific (Ifloat_min | Ifloat_max) ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
+  | Ispecific (Isimd op) ->
+    (match Simd_selection.register_behavior op with
+    | RM_to_R | R_to_R -> (arg, res)
+    | R_R_to_fst | R_RM_to_fst ->
+      (* arg.(0) and res.(0) must be the same *)
+      ([|res.(0); arg.(1)|], res))
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -170,6 +175,7 @@ let pseudoregs_for_operation op arg res =
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
+  | Ivectorcast _ | Iscalarcast _
   | Iconst_int _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
@@ -322,9 +328,6 @@ method! select_operation op args dbg =
       begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
       | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
-      | ("caml_int64_crc_unboxed", [|Int|]
-        | "caml_int_crc_untagged", [|Int|]) when !Arch.crc32_support ->
-          Ispecific Icrc32q, args
       | "caml_float_iround_half_to_even_unboxed", [|Int|] ->
          Ispecific Ifloat_iround, args
       | "caml_float_round_half_to_even_unboxed", [|Float|] ->
@@ -350,7 +353,9 @@ method! select_operation op args dbg =
       | "caml_memory_fence", ([|Val|] | [| |]) ->
          Ispecific Imfence, args
       | _ ->
-        super#select_operation op args dbg
+        (match Simd_selection.select_operation func args with
+         | Some (op, args) -> op, args
+         | None -> super#select_operation op args dbg)
       end
   (* Recognize store instructions *)
   | Cstore ((Word_int|Word_val as chunk), _init) ->

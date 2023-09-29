@@ -63,7 +63,7 @@ method reload_operation op arg res =
      res to be stack-allocated, but do something for
      stack-to-stack moves *)
   match op with
-    Imove | Ireload | Ispill | Iintofvalue | Ivalueofint ->
+    | Imove | Ireload | Ispill | Iintofvalue | Ivalueofint | Ivectorcast _ ->
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2
@@ -85,8 +85,7 @@ method reload_operation op arg res =
       (* arg = result, can be on stack or register *)
       assert (arg.(0).stamp = res.(0).stamp);
       (arg, res)
-  | _ ->
-      (self#makeregs arg, self#makeregs res)
+  | _ -> (self#makeregs arg, self#makeregs res)
 
 method reload_test _tst args =
   self#makeregs args

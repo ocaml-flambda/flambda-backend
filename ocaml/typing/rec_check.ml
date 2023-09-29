@@ -147,7 +147,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_let (rec_flag, vb, e) ->
         let env = classify_value_bindings rec_flag env vb in
         classify_expression env e
-    | Texp_ident (path, _, _, _) ->
+    | Texp_ident (path, _, _, _, _) ->
         classify_path env path
 
     (* non-binding cases *)
@@ -169,7 +169,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, _, _, _)
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _)
       when is_ref vd ->
         Static
     | Texp_apply (_, args, _, _)
@@ -225,7 +225,7 @@ let classify_expression : Typedtree.expression -> sd =
     let old_env = env in
     let add_value_binding env vb =
       match vb.vb_pat.pat_desc with
-      | Tpat_var (id, _loc, _mode) ->
+      | Tpat_var (id, _loc, _uid, _mode) ->
           let size = classify_expression old_env vb.vb_expr in
           Ident.add id size env
       | _ ->
@@ -534,7 +534,7 @@ let array_mode exp = match Typeopt.array_kind exp with
 *)
 let rec expression : Typedtree.expression -> term_judg =
   fun exp -> match exp.exp_desc with
-    | Texp_ident (pth, _, _, _) ->
+    | Texp_ident (pth, _, _, _, _) ->
       path pth
     | Texp_let (rec_flag, bindings, body) ->
       (*
@@ -583,7 +583,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, [_, Arg (arg, _)], _, _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -642,7 +642,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
         let field_mode = match rep with
-          | Record_float -> Dereference
+          | Record_float | Record_ufloat -> Dereference
           | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
         in
@@ -718,7 +718,7 @@ let rec expression : Typedtree.expression -> term_judg =
       join [
         expression e1 << Dereference
       ]
-    | Texp_field (e, _, _, _) ->
+    | Texp_field (e, _, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------
@@ -1227,8 +1227,8 @@ and pattern : type k . k general_pattern -> Env.t -> mode = fun pat env ->
 and is_destructuring_pattern : type k . k general_pattern -> bool =
   fun pat -> match pat.pat_desc with
     | Tpat_any -> false
-    | Tpat_var (_, _, _) -> false
-    | Tpat_alias (pat, _, _, _) -> is_destructuring_pattern pat
+    | Tpat_var (_, _, _, _) -> false
+    | Tpat_alias (pat, _, _, _, _) -> is_destructuring_pattern pat
     | Tpat_constant _ -> true
     | Tpat_tuple _ -> true
     | Tpat_construct _ -> true

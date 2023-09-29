@@ -634,6 +634,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Icompf c -> basic (Compf c)
     | Ifloatofint -> basic Floatofint
     | Iintoffloat -> basic Intoffloat
+    | Ivectorcast cast -> basic (Vectorcast cast)
+    | Iscalarcast cast -> basic (Scalarcast cast)
     | Iopaque -> basic Opaque
     | Ibeginregion -> basic Begin_region
     | Iendregion -> basic End_region

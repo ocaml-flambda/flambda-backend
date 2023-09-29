@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 type iterator =
@@ -182,7 +183,7 @@ let pat
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
   | Tpat_array (_, l) -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, _, _) -> sub.pat sub p
+  | Tpat_alias (p, _, _, _, _) -> sub.pat sub p
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)
   | Tpat_exception p -> sub.pat sub p
@@ -230,7 +231,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
         | _, Overridden (_, exp) -> sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
-  | Texp_field (exp, _, _, _) -> sub.expr sub exp
+  | Texp_field (exp, _, _, _, _) -> sub.expr sub exp
   | Texp_setfield (exp1, _,  _, _, exp2) ->
       sub.expr sub exp1;
       sub.expr sub exp2
@@ -351,6 +352,7 @@ let module_type sub {mty_desc; mty_env; _} =
       sub.module_type sub mtype;
       List.iter (fun (_, _, e) -> sub.with_constraint sub e) list
   | Tmty_typeof mexpr -> sub.module_expr sub mexpr
+  | Tmty_strengthen (mtype, _, _) -> sub.module_type sub mtype
 
 let with_constraint sub = function
   | Twith_type      decl -> sub.type_declaration sub decl

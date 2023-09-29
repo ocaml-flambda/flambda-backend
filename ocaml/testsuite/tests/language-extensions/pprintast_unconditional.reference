@@ -1,0 +1,119 @@
+##### All extensions enabled
+--------------------------------
+
+longident: No.Longidents.Require.extensions
+
+expression: [x for x = 1 to 10]
+
+pattern: [:_:]
+
+core_type: local_ ('a : value) -> unit
+
+signature: include functor F
+
+structure: include functor F
+
+module_expr: struct include functor F end
+
+toplevel_phrase: ;;#2.17
+
+top_phrase: 
+;;#2.17;;
+
+
+class_field: initializer [x for x = 1 to 10]
+
+class_type_field:
+  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+
+class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+
+class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+
+module_type: sig include functor F end
+
+structure_item: ;;[x for x = 1 to 10]
+
+signature_item: module M : sig include functor F end
+
+binding: [:_:] = [x for x = 1 to 10]
+
+payload: include functor F
+
+class_signature:
+  object (local_ ('a : value) -> unit)
+    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  end
+
+type_declaration:  local_ ('a : value) -> unit
+
+string_of_expression: [x for x = 1 to 10]
+
+string_of_structure: include functor F
+
+tyvar: 'no_tyvars_require_extensions
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+##### Extensions disallowed
+--------------------------------
+
+longident: No.Longidents.Require.extensions
+
+expression: [x for x = 1 to 10]
+
+pattern: [:_:]
+
+core_type: local_ ('a : value) -> unit
+
+signature: include functor F
+
+structure: include functor F
+
+module_expr: struct include functor F end
+
+toplevel_phrase: ;;#2.17
+
+top_phrase: 
+;;#2.17;;
+
+
+class_field: initializer [x for x = 1 to 10]
+
+class_type_field:
+  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+
+class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+
+class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+
+module_type: sig include functor F end
+
+structure_item: ;;[x for x = 1 to 10]
+
+signature_item: module M : sig include functor F end
+
+binding: [:_:] = [x for x = 1 to 10]
+
+payload: include functor F
+
+class_signature:
+  object (local_ ('a : value) -> unit)
+    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  end
+
+type_declaration:  local_ ('a : value) -> unit
+
+string_of_expression: [x for x = 1 to 10]
+
+string_of_structure: include functor F
+
+tyvar: 'no_tyvars_require_extensions
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+##### Calling [Language_extension.For_pprintast.make_printer_exporter ()]
+--------------------------------
+
+>> Fatal error: Only Pprintast may use [Language_extension.For_pprintast]
+Correctly raised a fatal error

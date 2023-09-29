@@ -171,8 +171,11 @@ val has_global: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
-(* [layout] gets the layout in the attributes if one is present.  It is the
-   central point at which the layout extension flags are checked.  We always
+val has_unique: Parsetree.attributes -> (bool,unit) result
+
+val has_once : Parsetree.attributes -> (bool, unit) result
+
+(* [layout] gets the layout in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.
    If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
    attributes even if the layouts extensions are disabled - this is used to
@@ -186,17 +189,23 @@ val tailcall : Parsetree.attributes ->
    - If no layout extensions are on and [~legacy_immediate] is false, this will
      always return [Ok None], [Ok (Some Value)], or [Error ...].
    - If no layout extensions are on and [~legacy_immediate] is true, this will
-     error on [void] or [any], but allow [immediate], [immediate64], and [value].
+     error on [void], [float64], or [any], but allow [immediate], [immediate64],
+     and [value].
    - If the [Layouts_beta] extension is on, this behaves like the previous case
-     regardless of the value of [~legacy_immediate].
+     regardless of the value of [~legacy_immediate], except that it allows
+     [float64] and [any].
    - If the [Layouts_alpha] extension is on, this can return any layout and
      never errors.
 
    Currently, the [Layouts] extension is ignored - it's no different than
    turning on no layout extensions.
+
+   This is not the only place the layouts extension level is checked.  If you're
+   changing what's allowed in a given level, you may also need to make changes
+   in the parser, Layouts.get_required_layouts_level, and Typeopt.
 *)
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
 val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Asttypes.layout_annotation option,
-   Asttypes.layout_annotation) result
+  (Jane_asttypes.layout_annotation option,
+   Jane_asttypes.layout_annotation) result

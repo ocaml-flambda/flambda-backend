@@ -38,12 +38,15 @@ type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * layout
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
+  | Pufloatfield of int
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
   | Pccall of Primitive.description
@@ -128,6 +131,7 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Pget_header of alloc_mode
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -166,6 +170,7 @@ and layout = Lambda.layout =
   | Punboxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape = Lambda.block_shape
@@ -210,4 +215,25 @@ let result_layout (p : primitive) =
   match p with
   | Punbox_float -> Lambda.Punboxed_float
   | Punbox_int bi -> Lambda.Punboxed_int bi
-  | _ -> Lambda.layout_any_value
+  | Pccall {prim_native_repr_res = (_, repr_res); _} ->
+    Lambda.layout_of_native_repr repr_res
+  | Pufloatfield _ -> Lambda.Punboxed_float
+  | Pread_symbol _ | Pmakeblock _ | Pmakeufloatblock _ | Pfield _
+  | Pfield_computed | Psetfield _ | Psetfield_computed _ | Pfloatfield _
+  | Psetfloatfield _ | Psetufloatfield _ | Pduprecord _ | Praise _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
+  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+  | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
+  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+  | Parrayrefs _ | Parraysets _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
+  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
+  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
+  | Pasrbint _ | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+  | Pstring_load _ | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _
+  | Pbigstring_set _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque
+  | Pprobe_is_enabled _ | Pbox_float _ | Pbox_int _ | Pget_header _
+    -> Lambda.layout_any_value

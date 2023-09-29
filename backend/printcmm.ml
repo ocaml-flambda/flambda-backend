@@ -227,6 +227,12 @@ let operation d = function
   | Cintoffloat -> "intoffloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
+  | Cvectorcast Bits128 ->
+    Printf.sprintf "vec128->vec128"
+  | Cscalarcast (V128_to_scalar ty) ->
+    Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
+  | Cscalarcast (V128_of_scalar ty) ->
+    Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
@@ -241,7 +247,8 @@ let operation d = function
   | Copaque -> "opaque"
   | Cbeginregion -> "beginregion"
   | Cendregion -> "endregion"
-
+  | Ctuple_field (field, _ty) ->
+    to_string "tuple_field %i" field
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
@@ -385,11 +392,15 @@ let codegen_option = function
   | Use_linscan_regalloc -> "linscan"
   | Ignore_assert_all property ->
     Printf.sprintf "ignore %s" (property_to_string property)
-  | Check { property; strict; assume; loc = _ } ->
-    Printf.sprintf "%s %s%s"
-      (if assume then "assume" else "assert")
+  | Assume { property; strict; never_returns_normally; loc = _ } ->
+    Printf.sprintf "assume_%s%s%s"
       (property_to_string property)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
+      (if strict then "_never_returns_normally" else "")
+  | Check { property; strict; loc = _ } ->
+    Printf.sprintf "assert_%s%s"
+      (property_to_string property)
+      (if strict then "_strict" else "")
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

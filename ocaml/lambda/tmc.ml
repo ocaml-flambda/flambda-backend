@@ -749,6 +749,14 @@ let rec choice ctx t =
           | other -> other
         in
         { apply with ap_tailcall } in
+      (* The call will not be in tail position, so the close-on-apply flag must
+         not be set. *)
+      let ap_region_close =
+        match apply.ap_region_close with
+        | Rc_close_at_apply -> Rc_normal
+        | (Rc_normal | Rc_nontail) as reg_close -> reg_close
+      in
+      let apply = { apply with ap_region_close } in
       { (Choice.lambda (Lapply apply)) with
         direct = (fun () -> Lapply apply_no_bailout);
       }
@@ -870,6 +878,7 @@ let rec choice ctx t =
     | Pfield _ | Pfield_computed _
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
+    | Pufloatfield _ | Psetufloatfield _
     | Pccall _
     | Praise _
     | Pnot
@@ -899,6 +908,10 @@ let rec choice ctx t =
 
     (* we don't handle all-float records *)
     | Pmakefloatblock _
+    | Pmakeufloatblock _
+
+    (* nor unboxed products *)
+    | Pmake_unboxed_product _ | Punboxed_product_field _
 
     | Pobj_dup
     | Pobj_magic _
@@ -921,6 +934,7 @@ let rec choice ctx t =
     | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
     | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+    | Pget_header _
     | Pctconst _
     | Pbswap16
     | Pbbswap _

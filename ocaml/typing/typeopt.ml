@@ -25,6 +25,8 @@ open Lambda
 type error =
     Non_value_layout of type_expr * Layout.Violation.t option
   | Non_value_sort of Sort.t * type_expr
+  | Sort_without_extension of
+      Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Sort.t
 
 exception Error of Location.t * error
@@ -125,7 +127,7 @@ let classify env ty : classification =
       else begin
         try
           match (Env.find_type p env).type_kind with
-          | Type_abstract ->
+          | Type_abstract _ ->
               Any
           | Type_record _ | Type_variant _ | Type_open ->
               Addr
@@ -368,7 +370,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
-        | Type_abstract ->
+        | Type_abstract _ ->
           num_nodes_visited,
           value_kind_of_value_layout decl.type_layout
         | Type_open -> num_nodes_visited, Pgenval
@@ -518,8 +520,16 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                  sort (we can get this info from the label.ld_layout).  For now
                  we rely on the layout check at the top of value_kind to rule
                  out void. *)
-              value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                label.ld_type
+              match rep with
+              | Record_float | Record_ufloat ->
+                (* We're using the `Pfloatval` value kind for unboxed floats.
+                   This is kind of a lie (there are unboxed floats in here, not
+                   boxed floats), but that was already happening here due to the
+                   float record optimization. *)
+                num_nodes_visited, Pfloatval
+              | Record_boxed _ | Record_inlined _ | Record_unboxed ->
+                value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                  label.ld_type
             in
             (is_mutable, num_nodes_visited), field)
           (false, num_nodes_visited) labels
@@ -531,9 +541,8 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           match rep with
           | Record_inlined (Ordinary {runtime_tag}, _) ->
             [runtime_tag, fields]
-          | Record_float ->
-            [ Obj.double_array_tag,
-              List.map (fun _ -> Pfloatval) fields ]
+          | Record_float | Record_ufloat ->
+            [ Obj.double_array_tag, fields ]
           | Record_boxed _ ->
             [0, fields]
           | Record_inlined (Extension _, _) ->
@@ -556,23 +565,25 @@ let value_kind env loc ty =
 let layout env loc sort ty =
   match Layouts.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue (value_kind env loc ty)
-  | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
+  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_float
-  | Float64 -> raise (Error (loc, Non_value_sort (Sort.float64,ty)))
+  | Float64 ->
+    raise (Error (loc, Sort_without_extension (Sort.float64, Beta, Some ty)))
   | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
 
 let layout_of_sort loc sort =
   match Layouts.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
+  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_float
-  | Float64 -> raise (Error (loc, Non_value_sort_unknown_ty Sort.float64))
+  | Float64 ->
+    raise (Error (loc, Sort_without_extension (Sort.float64, Beta, None)))
   | Void -> raise (Error (loc, Non_value_sort_unknown_ty Sort.void))
 
 let layout_of_const_sort (s : Layouts.Sort.const) =
   match s with
   | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
+  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_float
   | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
   | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"
@@ -630,7 +641,7 @@ let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
 
-let layout_union l1 l2 =
+let rec layout_union l1 l2 =
   match l1, l2 with
   | Pbottom, l
   | l, Pbottom -> l
@@ -641,7 +652,11 @@ let layout_union l1 l2 =
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
       Lambda.join_boxed_vector_layout vi1 vi2
-  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ ->
+  | Punboxed_product layouts1, Punboxed_product layouts2 ->
+      if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
+      else Punboxed_product (List.map2 layout_union layouts1 layouts2)
+  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _),
+    _ ->
       Ptop
 
 (* Error report *)
@@ -670,6 +685,18 @@ let report_error ppf = function
         "Non-value layout %a detected in [layout_of_sort]@ Please report this \
          error to the Jane Street compilers team."
         Sort.format sort
+  | Sort_without_extension (sort, maturity, ty) ->
+      fprintf ppf "Non-value layout %a detected" Sort.format sort;
+      begin match ty with
+      | None -> ()
+      | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
+      end;
+      fprintf ppf
+        ",@ but this requires extension %s, which is not enabled.@ \
+         If you intended to use this layout, please add this flag to your \
+         build file.@ \
+         Otherwise, please report this error to the Jane Street compilers team."
+        (Language_extension.to_command_line_string Layouts maturity)
 
 let () =
   Location.register_error_of_exn

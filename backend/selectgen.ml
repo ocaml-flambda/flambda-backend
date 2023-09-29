@@ -222,6 +222,10 @@ let oper_result_type = function
   | Cintoffloat -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
+  | Cvectorcast Bits128 -> typ_vec128
+  | Cscalarcast (V128_of_scalar _) -> typ_vec128
+  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) -> typ_float
+  | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
@@ -232,6 +236,7 @@ let oper_result_type = function
        naked pointer into the local allocation stack. *)
     typ_int
   | Cendregion -> typ_void
+  | Ctuple_field (field, fields_ty) -> fields_ty.(field)
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -531,7 +536,9 @@ method is_simple_expr = function
       | Cbswap _
       | Ccsel _
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
+      | Ctuple_field _
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
@@ -579,12 +586,14 @@ method effects_of exp =
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
+      | Ctuple_field _
       | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
       | Cbswap _
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
       | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
     in
@@ -713,6 +722,8 @@ method select_operation op args _dbg =
   | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
+  | (Cvectorcast cast, _) -> (Ivectorcast cast, args)
+  | (Cscalarcast cast, _) -> (Iscalarcast cast, args)
   | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
     let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
     let (addr, eloc) = self#select_addressing dst_size dst in
@@ -970,6 +981,21 @@ method emit_expr_aux (env:environment) exp ~bound_name :
       | Some (simple_args, env) ->
          let rs = self#emit_tuple env simple_args in
          ret (self#insert_op_debug env Iopaque dbg rs rs)
+      end
+  | Cop(Ctuple_field(field, fields_layout), [arg], dbg) ->
+      begin match self#emit_expr env arg ~bound_name:None with
+        None -> None
+      | Some loc_exp ->
+        let flat_size a =
+          Array.fold_left (fun acc t -> acc + Array.length t) 0 a
+        in
+        assert(Array.length loc_exp = flat_size fields_layout);
+        let before = Array.sub fields_layout 0 field in
+        let size_before = flat_size before in
+        let field_slice =
+          Array.sub loc_exp size_before (Array.length fields_layout.(field))
+        in
+        ret field_slice
       end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env args with

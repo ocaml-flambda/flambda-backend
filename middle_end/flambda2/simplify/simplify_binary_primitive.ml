@@ -985,7 +985,7 @@ let simplify_bigarray_get_alignment _align ~original_prim dacc ~original_term
     (P.result_kind' original_prim)
     ~original_term
 
-let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
+let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   let original_term = Named.create_prim original_prim dbg in
@@ -1031,3 +1031,80 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
       simplify_bigarray_get_alignment align ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
+
+let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
+  match prim with
+  | Block_load _ | Array_load _ | Int_arith _ | Int_shift _
+  | Int_comp (_, Yielding_int_like_compare_functions _)
+  | Float_arith _ | Float_comp _ | Phys_equal _ | String_or_bigstring_load _
+  | Bigarray_load _ | Bigarray_get_alignment _ ->
+    None
+  | Int_comp (kind, Yielding_bool op) -> (
+    match kind with
+    | Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint -> None
+    | Tagged_immediate -> (
+      let try_one_direction left right op =
+        Simple.pattern_match right
+          ~name:(fun _ ~coercion:_ -> None)
+          ~const:(fun const ->
+            match[@warning "-fragile-match"] Const.descr const with
+            | Tagged_immediate i when Targetint_31_63.(equal i zero) ->
+              Simple.pattern_match' left
+                ~const:(fun _ -> None)
+                ~symbol:(fun _ ~coercion:_ -> None)
+                ~var:(fun var ~coercion:_ ->
+                  match DE.find_comparison_result (DA.denv dacc) var with
+                  | None -> None
+                  | Some comp ->
+                    Some
+                      (Comparison_result.convert_result_compared_to_tagged_zero
+                         comp op))
+            | _ -> None)
+      in
+      match try_one_direction arg1 arg2 op with
+      | Some p -> Some p
+      | None ->
+        let op : _ P.comparison =
+          match op with
+          | Eq -> Eq
+          | Neq -> Neq
+          (* Note that this is not handling a negation of an inequality, it is
+             simply a pattern match for when the inequality appears the other
+             way around. So e.g. [Lt] maps to [Gt], not [Ge]. *)
+          | Lt s -> Gt s
+          | Gt s -> Lt s
+          | Le s -> Ge s
+          | Ge s -> Le s
+        in
+        try_one_direction arg2 arg1 op))
+
+let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
+    ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
+  let original_prim, prim, arg1, arg1_ty, arg2, arg2_ty =
+    match[@warning "-fragile-match"]
+      recover_comparison_primitive dacc prim ~arg1 ~arg2
+    with
+    | None -> original_prim, prim, arg1, arg1_ty, arg2, arg2_ty
+    | Some (Binary (new_prim, new_arg1, new_arg2) as new_original_prim) -> (
+      let min_name_mode = Bound_var.name_mode result_var in
+      let arg1_ty_opt =
+        S.simplify_simple_if_in_scope dacc new_arg1 ~min_name_mode
+      in
+      let arg2_ty_opt =
+        S.simplify_simple_if_in_scope dacc new_arg2 ~min_name_mode
+      in
+      match arg1_ty_opt, arg2_ty_opt with
+      | Some new_arg1_ty, Some new_arg2_ty ->
+        ( new_original_prim,
+          new_prim,
+          new_arg1,
+          new_arg1_ty,
+          new_arg2,
+          new_arg2_ty )
+      | None, _ | _, None -> original_prim, prim, arg1, arg1_ty, arg2, arg2_ty)
+    | Some other_prim ->
+      Misc.fatal_errorf "Recovered primitive %a is not a comparison"
+        Flambda_primitive.print other_prim
+  in
+  simplify_binary_primitive0 dacc original_prim prim ~arg1 ~arg1_ty ~arg2
+    ~arg2_ty dbg ~result_var

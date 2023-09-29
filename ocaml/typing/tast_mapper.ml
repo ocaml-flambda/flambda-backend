@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 (* TODO: add 'methods' for location, attribute, extension,
@@ -239,7 +240,7 @@ let pat
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 id id (sub.pat sub)) l, closed)
     | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
-    | Tpat_alias (p, id, s, m) -> Tpat_alias (sub.pat sub p, id, s, m)
+    | Tpat_alias (p, id, s, uid, m) -> Tpat_alias (sub.pat sub p, id, s, uid, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
     | Tpat_value p ->
        (as_computation_pattern (sub.pat sub (p :> pattern))).pat_desc
@@ -336,7 +337,7 @@ let expr sub x =
         Texp_variant (l, Option.map (fun (e, am) -> (sub.expr sub e, am)) expo)
     | Texp_record { fields; representation; extended_expression; alloc_mode } ->
         let fields = Array.map (function
-            | label, Kept t -> label, Kept t
+            | label, Kept (t, uu) -> label, Kept (t, uu)
             | label, Overridden (lid, exp) ->
                 label, Overridden (lid, sub.expr sub exp))
             fields
@@ -346,8 +347,8 @@ let expr sub x =
           extended_expression = Option.map (sub.expr sub) extended_expression;
           alloc_mode
         }
-    | Texp_field (exp, lid, ld, am) ->
-        Texp_field (sub.expr sub exp, lid, ld, am)
+    | Texp_field (exp, lid, ld, mode, am) ->
+        Texp_field (sub.expr sub exp, lid, ld, mode, am)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
@@ -530,6 +531,8 @@ let module_type sub x =
         )
     | Tmty_typeof mexpr ->
         Tmty_typeof (sub.module_expr sub mexpr)
+    | Tmty_strengthen (mtype, p, lid) ->
+        Tmty_strengthen (sub.module_type sub mtype, p, lid)
   in
   {x with mty_desc; mty_env}
 

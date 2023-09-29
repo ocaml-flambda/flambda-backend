@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Parsetree
 open Ast_helper
 
@@ -30,11 +31,7 @@ let mark_used t = Attribute_table.remove unused_attrs t
 (* [attr_order] is used to issue unused attribute warnings in the order the
    attributes occur in the file rather than the random order of the hash table
 *)
-let attr_order a1 a2 =
-  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
-  with
-  | 0 -> Int.compare a1.loc.loc_start.pos_lnum a2.loc.loc_start.pos_lnum
-  | n -> n
+let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
 let unchecked_properties = Attribute_table.create 1
 let mark_property_checked txt loc =
@@ -106,6 +103,7 @@ let builtin_attrs =
   ; "poll"; "ocaml.poll"
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
+  ; "unaliasable"; "ocaml.unaliasable"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
@@ -480,7 +478,9 @@ let layout ~legacy_immediate attrs =
      | Immediate | Immediate64 ->
         check  (legacy_immediate
              || Language_extension.(is_at_least Layouts Beta))
-     | Any | Void | Float64 ->
+     | Any | Float64 ->
+        check Language_extension.(is_at_least Layouts Beta)
+     | Void ->
         check Language_extension.(is_at_least Layouts Alpha)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
@@ -634,6 +634,21 @@ let has_local attr =
 
 let has_global attrs =
   check_local ["extension.global"] ["ocaml.global"; "global"] attrs
+
+let check_unique ext_names other_names attr =
+  if has_attribute ext_names attr then
+    if not (Language_extension.is_enabled Unique) then
+      Error ()
+    else
+      Ok true
+  else
+    Ok (has_attribute other_names attr)
+
+let has_unique attrs =
+  check_unique ["extension.unique"] ["ocaml.unique"; "unique"] attrs
+
+let has_once attr =
+  check_unique ["extension.once"] ["ocaml.once"; "once"] attr
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in

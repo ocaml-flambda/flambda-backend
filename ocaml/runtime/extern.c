@@ -261,9 +261,9 @@ static void extern_resize_position_table(void)
 
 /* Determine whether the given object [obj] is in the hash table.
    If so, set [*pos_out] to its position in the output and return 1.
-   If not, set [*h_out] to the hash value appropriate for
-   [extern_record_location] and return 0. */
-
+   If not, return 0.
+   Either way, set [*h_out] to the hash value appropriate for
+   [extern_record_location]. */
 Caml_inline int extern_lookup_position(value obj,
                                        uintnat * pos_out, uintnat * h_out)
 {
@@ -274,6 +274,7 @@ Caml_inline int extern_lookup_position(value obj,
       return 0;
     }
     if (pos_table.entries[h].obj == obj) {
+      *h_out = h;
       *pos_out = pos_table.entries[h].pos;
       return 1;
     }
@@ -281,18 +282,32 @@ Caml_inline int extern_lookup_position(value obj,
   }
 }
 
-/* Record the output position for the given object [obj]. */
+/* Record the given object [obj] in the hashmap, associated to the specified data [data]. */
 /* The [h] parameter is the index in the hash table where the object
    must be inserted.  It was determined during lookup. */
-
-static void extern_record_location(value obj, uintnat h)
+static void extern_record_location_with_data(value obj, uintnat h, uintnat data)
 {
   if (extern_flags & NO_SHARING) return;
   bitvect_set(pos_table.present, h);
   pos_table.entries[h].obj = obj;
-  pos_table.entries[h].pos = obj_counter;
+  pos_table.entries[h].pos = data;
   obj_counter++;
   if (obj_counter >= pos_table.threshold) extern_resize_position_table();
+}
+
+/* Record the output position for the given object [obj]. */
+/* The [h] parameter is the index in the hash table where the object
+   must be inserted.  It was determined during lookup. */
+static void extern_record_location(value obj, uintnat h)
+{
+  extern_record_location_with_data(obj, h, obj_counter);
+}
+
+/* Update the data associated with the given object [obj]. */
+static void extern_update_location_with_data(uintnat h, uintnat data)
+{
+  if (extern_flags & NO_SHARING) return;
+  pos_table.entries[h].pos = data;
 }
 
 /* To buffer the output */
@@ -1136,18 +1151,65 @@ CAMLexport void caml_serialize_block_float_8(void * data, intnat len)
 #endif
 }
 
-CAMLprim value caml_obj_reachable_words(value v)
-{
-  intnat size;
-  struct extern_item * sp;
-  uintnat h = 0;
-  uintnat pos;
+enum reachable_words_node_state {
+  /* This node is reachable from at least two distinct roots, so it doesn't
+   * have a unique owner and will be ignored in all future traversals. */
+  Shared = -1,
+  /* This node is one of the roots and has not been visited yet (i.e. the computation
+   * starting at that root still hasn't ran */
+  RootUnprocessed = -2,
+  /* This node is one of the roots and the computation for that root has already ran */
+  RootProcessed = -3,
+  /* Sentinel value for a state that should never be observed */
+  Invalid = -4,
+  /* States that are non-negative integers indicate that a node has only been visited
+   * starting from a single root. The state is then equal to the identifier of the
+   * root that we reached it from */
+};
 
-  obj_counter = 0;
-  extern_flags = 0;
-  extern_init_position_table();
+static void add_to_long_value(value *v, intnat x) {
+  *v = Val_long(Long_val(*v) + x);
+}
+
+/* Performs traversal through the OCaml object reachability graph to deterime
+   how much memory an object has access to.
+
+   Assumes that the position_table has already been initialized using
+   [reachable_words_init].  We can run this function multiple times
+   without clearing the position table to share data between runs starting
+   from different roots. Identifiers must be positive integers.
+
+   For each value node visited, we record its traversal status in the [pos] field
+   of its entry in [position_table.entries]. The statuses are described in detail
+   in the [reachable_words_node_state] enum.
+
+   Returns the total size of elements marked, that is ones that are reachable
+   from the current root and can be reached by at most one root from the ones
+   that already ran.
+
+   [shared_size] is incremented by the total size of elements that were newly
+   marked [Shared], that is ones that we just found out are reachable from at least
+   two roots.
+
+   If [sizes_by_root_id] is not [Val_unit], we expect it to be an OCaml array
+   with length equal to the number of roots. Then during the traversal we will
+   update the number of words uniquely reachable from each root.
+   That is, when we visit a node for the first time, we add its size to the
+   corresponding root identifier, and when we visit it for the second time, we
+   undo this addition. */
+intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_id,
+    intnat *shared_size) {
+  struct extern_item * sp;
+  intnat size;
+  uintnat mark = Invalid, new_mark;
+  value v = root;
+  uintnat h;
+  int previously_marked, should_traverse;
   sp = extern_stack;
   size = 0;
+
+  CAMLassert(identifier >= 0);
+
   while (1) {
     if (Is_long(v)) {
       /* Tagged integers contribute 0 to the size, nothing to do */
@@ -1157,36 +1219,76 @@ CAMLprim value caml_obj_reachable_words(value v)
          between major heap blocks and out-of-heap blocks,
          and the test above is always false,
          so we end up counting out-of-heap blocks too. */
-    } else if (extern_lookup_position(v, &pos, &h)) {
-      /* Already seen and counted, nothing to do */
     } else {
       header_t hd = Hd_val(v);
       tag_t tag = Tag_hd(hd);
       mlsize_t sz = Wosize_hd(hd);
+      intnat sz_with_header = 1 + sz;
       /* Infix pointer: go back to containing closure */
       if (tag == Infix_tag) {
         v = v - Infix_offset_hd(hd);
         continue;
       }
-      /* Remember that we've visited this block */
-      extern_record_location(v, h);
-      /* The block contributes to the total size */
-      size += 1 + sz;           /* header word included */
-      if (tag < No_scan_tag) {
-        /* i is the position of the first field to traverse recursively */
-        uintnat i =
-          tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
-        if (i < sz) {
-          if (i < sz - 1) {
-            /* Remember that we need to count fields i + 1 ... sz - 1 */
-            sp++;
-            if (sp >= extern_stack_limit) sp = extern_resize_stack(sp);
-            sp->v = &Field(v, i + 1);
-            sp->count = sz - i - 1;
+
+      previously_marked = extern_lookup_position(v, &mark, &h);
+      if (!previously_marked) {
+        /* All roots must have been marked by [reachable_words_mark_root] before
+         * calling this function so we can safely assign new_mark to
+         * identifier */
+        CAMLassert(v != root);
+        should_traverse = 1;
+        new_mark = identifier;
+      } else if (mark == RootUnprocessed && v == root) {
+        should_traverse = 1;
+        new_mark = RootProcessed;
+      } else if (mark == Shared || mark == RootUnprocessed || mark == RootProcessed) {
+        should_traverse = 0;
+      } else if (mark == identifier) {
+        should_traverse = 0;
+      } else {
+        CAMLassert(mark != Invalid);
+        /* mark is some other root's identifier */
+        should_traverse = 1;
+        new_mark = Shared;
+      }
+
+      if (should_traverse) {
+        if (!previously_marked) {
+          extern_record_location_with_data(v, h, new_mark);
+        } else {
+          extern_update_location_with_data(h, new_mark);
+        }
+
+        /* The block contributes to the total size */
+        size += sz_with_header;           /* header word included */
+        if (sizes_by_root_id != Val_unit) {
+          if (new_mark == Shared) {
+            /* mark is identifier of some other root that we counted this node
+             * as contributing to. Since it is evidently not uniquely reachable, we
+             * undo this contribution */
+            add_to_long_value(&Field(sizes_by_root_id, mark), -sz_with_header);
+            *shared_size += sz_with_header;
+          } else {
+            CAMLassert(new_mark == identifier || (v == root && new_mark == RootProcessed));
+            add_to_long_value(&Field(sizes_by_root_id, identifier), sz_with_header);
           }
-          /* Continue with field i */
-          v = Field(v, i);
-          continue;
+        }
+        if (tag < No_scan_tag) {
+          /* i is the position of the first field to traverse recursively */
+          uintnat i =
+            tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
+          if (i < sz) {
+            if (i < sz - 1) {
+              /* Remember that we need to count fields i + 1 ... sz - 1 */
+              sp++;
+              if (sp >= extern_stack_limit) sp = extern_resize_stack(sp);
+              sp->v = &Field(v, i + 1);
+              sp->count = sz - i - 1;
+            }
+            /* Continue with field i */
+            v = Field(v, i);
+            continue;
+          }
         }
       }
     }
@@ -1195,7 +1297,68 @@ CAMLprim value caml_obj_reachable_words(value v)
     v = *((sp->v)++);
     if (--(sp->count) == 0) sp--;
   }
+
+  return size;
+}
+
+void reachable_words_init()
+{
+  obj_counter = 0;
+  extern_flags = 0;
+  extern_init_position_table();
+}
+
+void reachable_words_mark_root(value v)
+{
+  uintnat h, mark;
+  extern_lookup_position(v, &mark, &h);
+  extern_record_location_with_data(v, h, RootUnprocessed);
+}
+
+void reachable_words_cleanup()
+{
   extern_free_stack();
   extern_free_position_table();
-  return Val_long(size);
+}
+
+CAMLprim value caml_obj_reachable_words(value v)
+{
+  CAMLparam1(v);
+  CAMLlocal1(size);
+
+  intnat shared_size = 0;
+
+  reachable_words_init();
+  reachable_words_mark_root(v);
+  size = Val_long(reachable_words_once(v, 0, Val_unit, &shared_size));
+  reachable_words_cleanup();
+
+  CAMLreturn(size);
+}
+
+CAMLprim value caml_obj_uniquely_reachable_words(value v)
+{
+  CAMLparam1(v);
+  CAMLlocal2(sizes_by_root_id, ret);
+
+  intnat length, shared_size;
+
+  length = Wosize_val(v);
+  sizes_by_root_id = caml_alloc(length, 0);
+  shared_size = 0;
+
+  reachable_words_init();
+  for (intnat i = 0; i < length; i++) {
+    reachable_words_mark_root(Field(v, i));
+    Field(sizes_by_root_id, i) = Val_int(0);
+  }
+  for (intnat i = 0; i < length; i++) {
+    reachable_words_once(Field(v, i), i, sizes_by_root_id, &shared_size);
+  }
+  reachable_words_cleanup();
+
+  ret = caml_alloc_small(2, 0);
+  Field(ret, 0) = sizes_by_root_id;
+  Field(ret, 1) = Val_long(shared_size);
+  CAMLreturn(ret);
 }

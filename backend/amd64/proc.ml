@@ -23,7 +23,7 @@ open Cmm
 open Reg
 open Mach
 
-let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD)
+let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD || !simd_regalloc)
 
 let fp = Config.with_frame_pointers
 
@@ -106,8 +106,8 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 1
   | Vec128 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     1
 
 let num_stack_slot_classes = 3
@@ -117,8 +117,8 @@ let stack_slot_class typ =
   | Val | Addr | Int -> 0
   | Float -> 1
   | Vec128 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     2
 
 let stack_class_tag c =
@@ -126,8 +126,8 @@ let stack_class_tag c =
   | 0 -> "i"
   | 1 -> "f"
   | 2 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     "x"
   | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
@@ -143,8 +143,8 @@ let register_name ty r =
   | Float ->
     float_reg_name.(r - first_available_register.(1))
   | Vec128 ->
-    if simd_regalloc_disabled () then
-      Misc.fatal_error "SIMD register allocation is not enabled.";
+    if simd_regalloc_disabled ()
+    then Misc.fatal_error "SIMD register allocation is not enabled.";
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -204,8 +204,9 @@ let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 let stack_slot slot ty =
   (match ty with
    | Float | Int | Addr | Val -> ()
-   | Vec128 -> if simd_regalloc_disabled () then
-     Misc.fatal_error "SIMD register allocation is not enabled.");
+   | Vec128 ->
+     if simd_regalloc_disabled ()
+     then Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location ty (Stack slot)
 
 (* Instruction selection *)
@@ -426,11 +427,12 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
+  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause
                  | Iprefetch _
                  | Ifloat_round _
+                 | Isimd _
                  | Ifloat_iround | Ifloat_min | Ifloat_max
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
@@ -447,6 +449,7 @@ let destroyed_at_oper = function
        | Icsel _
        | Ifloatofint | Iintoffloat
        | Ivalueofint | Iintofvalue
+       | Ivectorcast _ | Iscalarcast _
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
@@ -498,15 +501,17 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Csel _
        | Floatofint | Intoffloat
        | Valueofint | Intofvalue
+       | Vectorcast _
+       | Scalarcast _
        | Probe_is_enabled _
        | Opaque
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
                   | Ifloatarithmem _ | Ibswap _ | Isqrtf
-                  | Ifloatsqrtf _ | Ifloat_iround
+                  | Ifloatsqrtf _ | Ifloat_iround | Isimd _
                   | Ifloat_round _ | Ifloat_min | Ifloat_max
-                  | Isextend32 | Izextend32 | Icrc32q | Ipause
+                  | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _)
   | Poptrap | Prologue ->
@@ -534,7 +539,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Ifloatsqrtf _
                        | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Irdtsc | Irdpmc | Ipause | Isimd _
                        | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                               | Iprefetch _); _ } ->
@@ -547,7 +552,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
    spill registers that would spill anyway); we could also return `true`
    when `destroyed_at_terminator` returns `destroyed_at_c_call` for instance. *)
 (* note: keep this function in sync with `destroyed_at_terminator` above. *)
-let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Prim {op = Alloc _; _} ->
@@ -560,13 +565,16 @@ let is_destruction_point (terminator : Cfg_intf.S.terminator) =
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then true else false
+    if more_destruction_points then
+      true
+    else
+      if alloc then true else false
   | Call {op = Indirect | Direct _; _} ->
     true
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Ifloatsqrtf _
                        | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Irdtsc | Irdpmc | Ipause | Isimd _
                        | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                               | Iprefetch _); _ } ->
@@ -580,8 +588,8 @@ let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Icompf _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Icompf _ | Iscalarcast _
   | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -621,14 +629,14 @@ let max_register_pressure =
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
-             | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
-             | Ifloat_round _
+             | Ifloat_round _ | Isimd _
              | Ifloat_iround | Ifloat_min | Ifloat_max
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
@@ -724,7 +732,9 @@ let operation_supported = function
   | Ccmpf _
   | Craise _
   | Ccheckbound
+  | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
+  | Ctuple_field _
     -> true
 
 let trap_size_in_bytes = 16

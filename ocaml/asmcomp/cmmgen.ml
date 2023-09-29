@@ -126,6 +126,7 @@ let get_field env layout ptr n dbg =
     | Punboxed_float -> Double
     | Punboxed_vector _ ->
       Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+    | Punboxed_product _ -> Misc.fatal_error "TODO"
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -162,6 +163,8 @@ let rec expr_size env = function
       expr_size env body
   | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
       RHS_block (mode, List.length args)
+  | Uprim(Pmakeufloatblock (_, mode), args, _) ->
+      RHS_floatblock (mode, List.length args)
   | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
       RHS_block (mode, List.length args)
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
@@ -179,7 +182,7 @@ let rec expr_size env = function
       assert false
   | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz + 1)
-  | Uprim (Pduprecord (Record_float, sz), _, _) ->
+  | Uprim (Pduprecord ((Record_float | Record_ufloat), sz), _, _) ->
       RHS_floatblock (Lambda.alloc_heap, sz)
   | Uprim (Pccall { prim_name; _ }, closure::_, _)
         when prim_name = "caml_check_value_is_closure" ->
@@ -537,10 +540,13 @@ let rec transl env e =
       begin match (simplif_primitive prim, args) with
       | (Pread_symbol sym, []) ->
           Cconst_symbol (sym, dbg)
-      | (Pmakeblock _, []) ->
+      | ((Pmakeblock _ | Pmakeufloatblock _), []) ->
           assert false
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
           make_alloc ~mode dbg tag (List.map (transl env) args)
+      | (Pmakeufloatblock(_mut, mode), args) ->
+          make_float_alloc ~mode dbg Obj.double_array_tag
+            (List.map (transl env) args)
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
       | (Pduparray (kind, _), [Uprim (Pmakearray (kind', _, _), args, _dbg)]) ->
@@ -632,6 +638,7 @@ let rec transl env e =
          | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
+         | Pufloatfield _ | Psetufloatfield (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
          | Pcompare_ints | Pcompare_floats | Pcompare_bints _
          | Poffsetref _ | Pfloatcomp _ | Parraylength _
@@ -642,7 +649,7 @@ let rec transl env e =
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-         | Pbbswap _), _)
+         | Pbbswap _ | Pget_header _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
       end
@@ -900,6 +907,8 @@ and transl_prim_1 env p arg dbg =
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
+  | Pufloatfield n ->
+      get_field env Punboxed_float (transl env arg) n dbg
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
@@ -960,6 +969,8 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Pget_header m ->
+      box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
@@ -967,7 +978,9 @@ and transl_prim_1 env p arg dbg =
     | Pstringrefu | Pstringrefs | Pbytesrefu | Pbytessetu
     | Pbytesrefs | Pbytessets | Pisout | Pread_symbol _
     | Pmakeblock (_, _, _, _) | Psetfield (_, _, _) | Psetfield_computed (_, _)
+    | Pmakeufloatblock (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
+    | Psetufloatfield (_, _)
     | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Pmakearray (_, _, _)
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
@@ -992,7 +1005,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       let ptr = transl env arg1 in
       let float_val = transl_unbox_float dbg env arg2 in
       setfloatfield n init ptr float_val dbg
-
+  | Psetufloatfield (n, init) ->
+      let ptr = transl env arg1 in
+      let float_val = transl env arg2 in
+      setfloatfield n init ptr float_val dbg
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
@@ -1148,14 +1164,14 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
-  | Pfloatfield _
+  | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
   | Pmakearray (_, _, _) | Pduparray (_, _) | Parraylength _ | Parraysetu _
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _, _)
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1206,6 +1222,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
+  | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Pmakearray (_, _, _)
@@ -1216,7 +1233,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1318,6 +1335,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   end
   | Pvalue kind ->
       transl_let_value env str kind id exp transl_body
+  | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler

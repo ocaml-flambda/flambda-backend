@@ -184,7 +184,7 @@ let rec module_path s path =
 let modtype_path s path =
       match Path.Map.find path s.modtypes with
       | Mty_ident p -> p
-      | Mty_alias _ | Mty_signature _ | Mty_functor _ ->
+      | Mty_alias _ | Mty_signature _ | Mty_functor _| Mty_strengthen _ ->
          fatal_error "Subst.modtype_path"
       | exception Not_found ->
          match path with
@@ -439,13 +439,14 @@ let record_representation ~prepare_layout loc = function
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_layout loc) lays)
   | Record_float -> Record_float
+  | Record_ufloat -> Record_ufloat
 
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
-        Type_abstract -> Type_abstract
+        Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep) ->
           let rep =
             match s.additional_action with
@@ -765,6 +766,8 @@ and subst_lazy_modtype scoping s = function
                   subst_lazy_modtype scoping (add_module id (Pident id') s) res)
   | Mty_alias p ->
       Mty_alias (module_path s p)
+  | Mty_strengthen (mty, p, a) ->
+      Mty_strengthen (subst_lazy_modtype scoping s mty, module_path s p, a)
 
 and subst_lazy_modtype_decl scoping s mtd =
   { mtd_type = Option.map (subst_lazy_modtype scoping s) mtd.mtd_type;

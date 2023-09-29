@@ -106,6 +106,9 @@ let is_move_basic : Cfg.basic -> bool =
   | Op op -> (
     match op with
     | Move -> true
+    (* CR mslater: (SIMD) vectorcast / float64<->float64x2 cast may be true *)
+    | Vectorcast _ -> false
+    | Scalarcast _ -> false
     | Spill -> false
     | Reload -> false
     | Const_int _ -> false

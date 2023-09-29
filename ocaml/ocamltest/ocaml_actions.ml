@@ -291,6 +291,11 @@ let compile_module compiler module_ log env =
   let is_c = is_c_file module_with_filetype in
   let c_headers_flags =
     if is_c then Ocaml_flags.c_includes else "" in
+  let compile_only_flag_opt =
+    if Environments.lookup_as_bool Ocaml_variables.compile_only env = Some false
+    then ""
+    else " -c "
+  in
   let commandline =
   [
     compiler#name;
@@ -301,7 +306,8 @@ let compile_module compiler module_ log env =
     libraries compiler#target env;
     backend_default_flags env compiler#target;
     backend_flags env compiler#target;
-    "-c " ^ module_;
+    compile_only_flag_opt;
+    module_;
   ] in
   let exit_status =
     Actions_helpers.run_cmd

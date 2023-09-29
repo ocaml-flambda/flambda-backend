@@ -114,11 +114,14 @@ let preserve_tailcall_for_prim = function
       true
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
+  | Pget_header _
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-  | Pmakeblock _ | Pmakefloatblock _
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Pufloatfield _ | Psetufloatfield _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
@@ -190,7 +193,7 @@ let rec size_of_lambda env = function
       begin match kind with
       | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
       | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
-      | Record_float -> RHS_floatblock size
+      | Record_float | Record_ufloat -> RHS_floatblock size
       | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
       end
   | Llet(_str, _k, id, arg, body) ->
@@ -412,6 +415,10 @@ let comp_primitive p args =
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
   | Pfloatfield (n, _sem, _mode) -> Kgetfloatfield n
   | Psetfloatfield (n, _init) -> Ksetfloatfield n
+  (* In bytecode, float#s are boxed.  So, we can use the existing float
+     instructions for the ufloat primitives. *)
+  | Pufloatfield (n, _sem) -> Kgetfloatfield n
+  | Psetufloatfield (n, _init) -> Ksetfloatfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
   | Pnegint -> Knegint
@@ -531,6 +538,7 @@ let comp_primitive p args =
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
   | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
   | Parray_of_iarray -> Kccall("caml_array_of_iarray", 1)
+  | Pget_header _ -> Kccall("caml_get_header", 1)
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
@@ -542,8 +550,10 @@ let comp_primitive p args =
   | Pfloatcomp _
   | Pmakeblock _
   | Pmakefloatblock _
+  | Pmakeufloatblock _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -774,7 +784,9 @@ let rec comp_expr env exp sz cont =
         (Kpush::
          Kconst (Const_base (Const_int n))::
          Kaddint::cont)
-  | Lprim (Pmakefloatblock _, args, loc) ->
+  | Lprim ((Pmakefloatblock _ | Pmakeufloatblock _), args, loc) ->
+      (* In bytecode, float# is boxed, so we can treat these two primitives the
+         same. *)
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kmakefloatblock (List.length args) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->

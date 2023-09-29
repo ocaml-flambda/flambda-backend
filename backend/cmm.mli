@@ -184,7 +184,14 @@ type memory_chunk =
   | Onetwentyeight                     (* word-aligned 128-bit vector
                                           CR mslater: (SIMD) alignment *)
 
-and operation =
+type vector_cast =
+  | Bits128
+
+type scalar_cast =
+  | V128_to_scalar of Primitive.vec128_type
+  | V128_of_scalar of Primitive.vec128_type
+
+type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
       { func: string;
@@ -219,6 +226,8 @@ and operation =
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
+  | Cvectorcast of vector_cast
+  | Cscalarcast of scalar_cast
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound (* Takes two arguments : first the bound to check against,
@@ -229,6 +238,8 @@ and operation =
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
+  | Ctuple_field of int * machtype array
+      (* the [machtype array] refers to the whole tuple *)
 
 (* This is information used exclusively during construction of cmm terms by
    cmmgen, and thus irrelevant for selectgen and flambda2. *)
@@ -308,7 +319,9 @@ type codegen_option =
   | No_CSE
   | Use_linscan_regalloc
   | Ignore_assert_all of property
-  | Check of { property: property; strict: bool; assume: bool; loc: Location.t }
+  | Assume of { property: property; strict: bool; never_returns_normally: bool;
+                loc: Location.t }
+  | Check of { property: property; strict: bool; loc: Location.t }
 
 type fundecl =
   { fun_name: symbol;

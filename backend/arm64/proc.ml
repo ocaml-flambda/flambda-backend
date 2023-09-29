@@ -364,7 +364,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
    `all_phys_regs`; we could also return `true` when `destroyed_at_terminator`
    returns `destroyed_at_c_call` for instance. *)
 (* note: keep this function in sync with `destroyed_at_terminator` above. *)
-let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Call {op = Indirect | Direct _; _} ->
@@ -378,6 +378,9 @@ let is_destruction_point (terminator : Cfg_intf.S.terminator) =
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+    if more_destruction_points then
+      true
+    else
     if alloc then true else false
   | Poll_and_jump _ -> false
 
@@ -432,6 +435,7 @@ let init () = ()
 let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
+  | Cvectorcast _ | Cscalarcast _
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
@@ -445,7 +449,7 @@ let operation_supported = function
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
-  | Cbeginregion | Cendregion
+  | Cbeginregion | Cendregion | Ctuple_field _
     -> true
 
 let trap_size_in_bytes = 16

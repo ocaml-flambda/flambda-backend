@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Location
 open Longident
 open Parsetree
@@ -97,7 +98,7 @@ let handle_extension ext =
 
 (* CR layouts: Remember to add this when layouts can have module
    prefixes. *)
-let add_layout _bv (_layout : Asttypes.layout_annotation) = ()
+let add_layout _bv (_layout : layout_annotation) = ()
 
 let add_vars_layouts bv vars_layouts =
   let add_one (_, layout) = Option.iter (add_layout bv) layout in
@@ -323,6 +324,7 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
+  | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -366,6 +368,39 @@ and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
   | Lexp_newtype (_, layout, inner_expr) ->
     add_layout bv layout;
     add_expr bv inner_expr
+
+and add_n_ary_function bv : Jane_syntax.N_ary_functions.expression -> _ =
+  fun (params, constraint_, body) ->
+    let bv = List.fold_left add_function_param bv params in
+    add_opt add_function_constraint bv constraint_;
+    add_function_body bv body
+
+and add_function_param bv : Jane_syntax.N_ary_functions.function_param -> _ =
+  fun { pparam_desc } ->
+    match pparam_desc with
+    | Pparam_val (_, opte, pat) ->
+      add_opt add_expr bv opte;
+      add_pattern bv pat
+    | Pparam_newtype _ -> bv
+
+and add_function_body bv : Jane_syntax.N_ary_functions.function_body -> _ =
+  function
+  | Pfunction_body e ->
+    add_expr bv e
+  | Pfunction_cases (cases, _, _) ->
+    add_cases bv cases
+
+and add_function_constraint bv
+    : Jane_syntax.N_ary_functions.function_constraint -> _ =
+  (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
+  *)
+  fun[@ocaml.warning "+9"] { mode_annotations = _; type_constraint } ->
+    match type_constraint with
+    | Pconstraint ty ->
+      add_type bv ty
+    | Pcoerce (ty1, ty2) ->
+      add_opt add_type bv ty1;
+      add_type bv ty2
 
 and add_cases bv cases =
   List.iter (add_case bv) cases
