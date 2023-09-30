@@ -17,8 +17,8 @@
 
 open Misc
 open Path
-open Layouts
 open Types
+open Layouts
 open Btype
 
 open Local_store

@@ -55,7 +55,7 @@
     ident
     path
     shape
-    layouts
+    jkind
     primitive
     mode
     types
@@ -143,7 +143,7 @@
 (copy_files ../../parsing/builtin_attributes.ml)
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
-(copy_files ../../typing/layouts.ml)
+(copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/mode.ml)
@@ -203,7 +203,7 @@
 (copy_files ../../parsing/builtin_attributes.mli)
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
-(copy_files ../../typing/layouts.mli)
+(copy_files ../../typing/jkind.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/mode.mli)
@@ -301,7 +301,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Layouts.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
@@ -376,7 +376,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Layouts.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx

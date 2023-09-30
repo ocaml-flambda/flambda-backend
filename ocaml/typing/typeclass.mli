@@ -14,8 +14,8 @@
 (**************************************************************************)
 
 open Asttypes
-open Layouts
 open Types
+open Layouts
 open Format
 
 type 'a class_info = {

@@ -16,8 +16,8 @@
 open Parsetree
 open Asttypes
 open Path
-open Layouts
 open Types
+open Layouts
 open Typetexp
 open Format
 open Mode

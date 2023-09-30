@@ -16,8 +16,8 @@
 (* Basic operations on core types *)
 
 open Asttypes
-open Layouts
 open Types
+open Layouts
 
 (**** Sets, maps and hashtables of types ****)
 

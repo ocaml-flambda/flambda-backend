@@ -82,7 +82,7 @@ PARSING_CMI = \
 
 TYPING = \
   typing/path.cmo \
-  typing/layouts.cmo \
+  typing/jkind.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
   typing/mode.cmo \

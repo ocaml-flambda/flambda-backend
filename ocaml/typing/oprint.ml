@@ -272,7 +272,7 @@ let pr_present =
 let pr_var = Printast.tyvar
 
 let print_out_layout ppf = function
-  | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
+  | Olay_const lay -> fprintf ppf "%s" (Jkind.Layout.string_of_const lay)
   | Olay_var v     -> fprintf ppf "%s" v
 
 let print_out_layout_annot ppf = function
@@ -377,7 +377,7 @@ let mode_agree expected real =
   linearity_agree expected.oam_linearity real.oam_linearity
 
 let print_out_layout ppf = function
-  | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
+  | Olay_const lay -> fprintf ppf "%s" (Jkind.Layout.string_of_const lay)
   | Olay_var v     -> fprintf ppf "%s" v
 
 let is_local mode =

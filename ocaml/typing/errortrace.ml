@@ -15,8 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Layouts
 open Types
+open Layouts
 open Format
 
 type position = First | Second

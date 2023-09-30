@@ -221,7 +221,7 @@ stdlib.cmx: stdlib.ml
 
 
 # special cases to add the extension flag when compiling float_u
-# CR layouts: eventually these can be just [-extension layouts]
+# CR jkind: eventually these can be just [-extension layouts]
 stdlib__Float_u.cmi:
 	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
 	         -o $@ -c $(filter %.mli, $^)

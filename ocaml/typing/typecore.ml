@@ -18,8 +18,8 @@
 open Misc
 open Asttypes
 open Parsetree
-open Layouts
 open Types
+open Layouts
 open Mode
 open Typedtree
 open Btype

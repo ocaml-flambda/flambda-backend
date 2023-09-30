@@ -112,7 +112,7 @@ COMPILERLIBS_SOURCES=\
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
-  typing/layouts.ml \
+  typing/jkind.ml \
   typing/primitive.ml \
   typing/types.ml \
   typing/btype.ml \
