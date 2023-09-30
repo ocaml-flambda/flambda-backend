@@ -15,8 +15,8 @@
 
 (* Typechecking of type expressions for the core language *)
 
-open Layouts
 open Types
+open Layouts
 open Mode
 
 module TyVarEnv : sig

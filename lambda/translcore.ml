@@ -19,8 +19,8 @@
 open Misc
 open Asttypes
 open Primitive
-open Layouts
 open Types
+open Layouts
 open Typedtree
 open Typeopt
 open Lambda

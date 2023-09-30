@@ -22,8 +22,8 @@ open Jane_asttypes
 open Misc
 open Parsetree
 open Typedtree
-open Layouts
 open Types
+open Layouts
 open Mode
 open Ctype
 

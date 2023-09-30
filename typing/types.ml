@@ -13,6 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR layouts v2.8: See comment at top of types.mli for an explanation. *)
+module Layouts = Jkind
+
 (* Representation of types and declarations *)
 
 open Asttypes

@@ -1,4 +1,4 @@
-open Layouts
+open Jkind
 open Lambda
 open Typedtree
 open Asttypes
@@ -197,7 +197,7 @@ let iterator ~transl_exp ~scopes = function
       ; element
       ; element_kind =
           Typeopt.layout pattern.pat_env pattern.pat_loc
-            Layouts.Sort.for_list_element pattern.pat_type
+            Sort.for_list_element pattern.pat_type
       ; add_bindings =
           (* CR layouts: to change when we allow non-values in sequences *)
           Matching.for_let

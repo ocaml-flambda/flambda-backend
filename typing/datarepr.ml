@@ -17,8 +17,8 @@
    determining their representation. *)
 
 open Asttypes
-open Layouts
 open Types
+open Layouts
 open Btype
 
 (* Simplified version of Ctype.free_vars *)

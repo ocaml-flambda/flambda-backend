@@ -15,8 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Layouts
 open Types
+open Layouts
 
 type position = First | Second
 

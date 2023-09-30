@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR layouts 2.8: This is a temporary hack so that the renaming of layouts.ml
+   to jkind.ml happens in a separate commit from other changes in that file.
+   This will allow git to recognize the file rename. *)
+module Layouts = Jkind
+
 (** {0 Representation of types and declarations} *)
 
 (** [Types] defines the representation of types and declarations (that is, the

@@ -68,7 +68,7 @@
    jane_syntax ; manual update: mli only files asttypes jane_asttypes parsetree
 
    ;; TYPING
-   ident path layouts primitive shape types btype oprint subst predef datarepr
+   ident path jkind primitive shape types btype oprint subst predef datarepr
    cmi_format persistent_env env errortrace mode
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
@@ -264,7 +264,7 @@
     (parsetree.mli as compiler-libs/parsetree.mli)
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
-    (layouts.mli as compiler-libs/layouts.mli)
+    (jkind.mli as compiler-libs/jkind.mli)
     (primitive.mli as compiler-libs/primitive.mli)
     (types.mli as compiler-libs/types.mli)
     (btype.mli as compiler-libs/btype.mli)

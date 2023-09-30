@@ -20,8 +20,8 @@
 
 *)
 
-open Layouts
 open Types
+open Layouts
 
 module Signature_names : sig
   type t

@@ -17,8 +17,8 @@
 
 open Asttypes
 open Path
-open Layouts
 open Types
+open Layouts
 open Typedtree
 
 type position = Errortrace.position = First | Second

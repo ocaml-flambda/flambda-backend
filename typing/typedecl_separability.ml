@@ -14,8 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Layouts
 open Types
+open Layouts
 
 type type_definition = type_declaration
 (* We should use 'declaration' for interfaces, and 'definition' for

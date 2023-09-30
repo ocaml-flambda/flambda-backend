@@ -19,8 +19,8 @@ open Misc
 open Asttypes
 open Parsetree
 open Primitive
-open Layouts
 open Types
+open Layouts
 open Typetexp
 
 module String = Misc.Stdlib.String
