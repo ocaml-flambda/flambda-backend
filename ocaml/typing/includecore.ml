@@ -18,7 +18,6 @@
 open Asttypes
 open Path
 open Types
-open Layouts
 open Typedtree
 
 type position = Errortrace.position = First | Second
@@ -232,7 +231,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.t
+  | Jkind of Jkind.Violation.t
 
 let report_locality_mismatch first second ppf err =
   let {order} = err in
@@ -494,8 +493,8 @@ let report_type_mismatch first second decl env ppf err =
       pr "Their internal representations differ:@ %s %s %s."
          (choose ord first second) decl
          "is extensible"
-  | Layout v ->
-      Layout.Violation.report_with_name ~name:first ppf v
+  | Jkind v ->
+      Jkind.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
@@ -1009,14 +1008,14 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
       (_, Type_abstract _) ->
-       (* Note that [decl2.type_layout] is an upper bound.
+       (* Note that [decl2.type_jkind] is an upper bound.
           If it isn't tight, [decl2] must
           have a manifest, which we're already checking for equality
           above. Similarly, [decl1]'s kind may conservatively approximate its
-          layout, but [check_decl_layout] will expand its manifest.  *)
-        (match Ctype.check_decl_layout env decl1 decl2.type_layout with
+          jkind, but [check_decl_jkind] will expand its manifest.  *)
+        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
          | Ok _ -> None
-         | Error v -> Some (Layout v))
+         | Error v -> Some (Jkind v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =

@@ -973,8 +973,8 @@ Error: Non-value detected in [value_kind].
 
 
 
-(* CR layouts v5: When we allow voidat the module level, we'll want
-   test cases, including cases where the term has an indeterminate
+(* CR layouts v5: When we allow void at the module level, we'll want
+   test cases, including cases where the term has an unrepresentable
    layout, and the signature a) mentions the term and specifies its layout, b)
    mentions the term and doesn't specify its layout, and c) doesn't mention the
    term. Do we want to allow "empty" modules?

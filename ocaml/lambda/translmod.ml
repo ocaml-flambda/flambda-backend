@@ -19,7 +19,6 @@
 open Misc
 open Asttypes
 open Types
-open Layouts
 open Typedtree
 open Lambda
 open Translobj
@@ -39,7 +38,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of type_expr * Layout.Violation.t
+| Non_value_jkind of type_expr * Jkind.Violation.t
 
 exception Error of Location.t * error
 
@@ -55,14 +54,14 @@ exception Error of Location.t * error
    When this sanity check is removed, consider whether it must be replaced with
    some defaulting. *)
 let sort_must_not_be_void loc ty sort =
-  if Sort.is_void_defaulting sort then
+  if Jkind.Sort.is_void_defaulting sort then
     let violation =
-      Layout.(Violation.of_
-                (Not_a_sublayout
-                   (Layout.of_sort ~why:V1_safety_check sort,
+      Jkind.(Violation.of_
+                (Not_a_subjkind
+                   (Jkind.of_sort ~why:V1_safety_check sort,
                     value ~why:V1_safety_check)))
     in
-    raise (Error (loc, Non_value_layout (ty, violation)))
+    raise (Error (loc, Non_value_jkind (ty, violation)))
 
 let cons_opt x_opt xs =
   match x_opt with
@@ -632,7 +631,7 @@ and transl_module ~scopes cc rootpath mexp =
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
       apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Sort.for_module arg)
+        (Translcore.transl_exp ~scopes Jkind.Sort.for_module arg)
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items
@@ -1894,11 +1893,11 @@ let report_error loc = function
         print_cycle cycle chapter section
   | Conflicting_inline_attributes ->
       Location.errorf "@[Conflicting 'inline' attributes@]"
-  | Non_value_layout (ty, err) ->
+  | Non_value_jkind (ty, err) ->
       Location.errorf
         "Non-value detected in [translmod]:@ Please report this error to \
          the Jane Street compilers team.@ %a"
-        (Layout.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
 
 let () =

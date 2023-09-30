@@ -38,7 +38,7 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
-    layout_annotation: mapper -> const_layout -> const_layout;
+    jkind_annotation: mapper -> const_jkind -> const_jkind;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;
@@ -121,8 +121,8 @@ let structure_item sub {str_desc; str_loc; str_env} =
   let str_env = sub.env sub str_env in
   let str_desc =
     match str_desc with
-    | Tstr_eval (exp, layout, attrs) ->
-        Tstr_eval (sub.expr sub exp, layout, attrs)
+    | Tstr_eval (exp, jkind, attrs) ->
+        Tstr_eval (sub.expr sub exp, jkind, attrs)
     | Tstr_value (rec_flag, list) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Tstr_value (rec_flag, list)
@@ -203,13 +203,13 @@ let type_exception sub x =
   in
   {x with tyexn_constructor}
 
-let var_layout sub (v, l) = v, Option.map (sub.layout_annotation sub) l
+let var_jkind sub (v, l) = v, Option.map (sub.jkind_annotation sub) l
 
 let extension_constructor sub x =
   let ext_kind =
     match x.ext_kind with
       Text_decl(v, ctl, cto) ->
-        Text_decl(List.map (var_layout sub) v,
+        Text_decl(List.map (var_jkind sub) v,
                   constructor_args sub ctl, Option.map (sub.typ sub) cto)
     | Text_rebind _ as d -> d
   in
@@ -369,10 +369,10 @@ let expr sub x =
           sub.expr sub exp2,
           Option.map (sub.expr sub) expo
         )
-    | Texp_sequence (exp1, layout, exp2) ->
+    | Texp_sequence (exp1, jkind, exp2) ->
         Texp_sequence (
           sub.expr sub exp1,
-          layout,
+          jkind,
           sub.expr sub exp2
         )
     | Texp_while wh ->
@@ -697,8 +697,8 @@ let typ sub x =
   let ctyp_desc =
     match x.ctyp_desc with
     | Ttyp_var (_,None) as d -> d
-    | Ttyp_var (s, Some layout) ->
-        Ttyp_var (s, Some (sub.layout_annotation sub layout))
+    | Ttyp_var (s, Some jkind) ->
+        Ttyp_var (s, Some (sub.jkind_annotation sub jkind))
     | Ttyp_arrow (label, ct1, ct2) ->
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list -> Ttyp_tuple (List.map (sub.typ sub) list)
@@ -712,13 +712,13 @@ let typ sub x =
            lid,
            List.map (sub.typ sub) list
           )
-    | Ttyp_alias (ct, s, layout) ->
+    | Ttyp_alias (ct, s, jkind) ->
         Ttyp_alias (sub.typ sub ct, s,
-                    Option.map (sub.layout_annotation sub) layout)
+                    Option.map (sub.jkind_annotation sub) jkind)
     | Ttyp_variant (list, closed, labels) ->
         Ttyp_variant (List.map (sub.row_field sub) list, closed, labels)
     | Ttyp_poly (vars, ct) ->
-        Ttyp_poly (List.map (var_layout sub) vars, sub.typ sub ct)
+        Ttyp_poly (List.map (var_jkind sub) vars, sub.typ sub ct)
     | Ttyp_package pack ->
         Ttyp_package (sub.package_type sub pack)
   in
@@ -788,7 +788,7 @@ let value_binding sub x =
 
 let env _sub x = x
 
-let layout_annotation _sub l = l
+let jkind_annotation _sub l = l
 
 let default =
   {
@@ -806,7 +806,7 @@ let default =
     env;
     expr;
     extension_constructor;
-    layout_annotation;
+    jkind_annotation;
     module_binding;
     module_coercion;
     module_declaration;
