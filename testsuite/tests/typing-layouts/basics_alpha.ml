@@ -289,7 +289,7 @@ Line 3, characters 0-15:
 Error:
        s5 has layout value, which is not a sublayout of immediate.
 |}]
-(* CR layouts v2.9: improve error, which will require layout histories *)
+(* CR layouts v2.9: improve error, which will require jkind histories *)
 
 type ('a : any) t4 = 'a
 and s4 = string t4;;
@@ -417,11 +417,11 @@ Error: This method has type 'b -> unit which is less general than
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
-   layouts.
+   jkinds.
 *)
 
 (*****************************************)
-(* Test 7: the layout check in unify_var *)
+(* Test 7: the jkind check in unify_var *)
 
 type ('a : immediate) t7 = Foo7 of 'a
 
@@ -619,7 +619,7 @@ Error: This expression has type t_void but an expression was expected of type
 |}];;
 
 (*************************************************)
-(* Test 10: layouts are checked by "more general" *)
+(* Test 10: jkinds are checked by "more general" *)
 
 (* This hits the first linktype in moregen (no expansion required to see it's a
    var) *)
@@ -708,7 +708,7 @@ end;;
 Line 5, characters 4-7:
 5 |     t.v # baz11
         ^^^
-Error: Methods must have layout value.
+Error: Method types must have layout value.
        This expression has layout void, which does not overlap with value.
 |}]
 
@@ -774,7 +774,7 @@ Error: The type constraints are not consistent.
 |}];;
 
 (*******************************************************************)
-(* Test 12: class parameters and bound vars must have layout value *)
+(* Test 12: class parameters and bound vars must have jkind value *)
 
 (* Hits `Pcl_let` *)
 module M12_1 = struct
@@ -1042,8 +1042,8 @@ Error:
 |}];;
 
 (****************************************************)
-(* Test 15: Type aliases need not have layout value *)
-(* (In [transl_type_aux], this hits the layout given to the type variable in the
+(* Test 15: Type aliases need not have jkind value *)
+(* (In [transl_type_aux], this hits the jkind given to the type variable in the
    Not_found case of the Ptyp_alias case. *)
 type ('a : void) t15
 type ('a, 'b) foo15 = ('a as 'b) t15 -> 'b t15;;
@@ -1063,8 +1063,8 @@ type t_16 = T_16 : 'a t_void_16 -> t_16 [@@unboxed]
 |}];;
 
 (**************************************************************************)
-(* Test 17: incremental layout checking of @@unboxed types - see comment on
-   [constrain_type_layout]. *)
+(* Test 17: incremental jkind checking of @@unboxed types - see comment on
+   [constrain_type_jkind]. *)
 
 type 'a t17 = 'a list
 type s17 = { lbl : s17 t17 } [@@unboxed];;
@@ -1076,7 +1076,7 @@ type s17 = { lbl : s17 t17; } [@@unboxed]
 
 (*****************************************)
 (* Test 18: expansion in [check_univars] *)
-(* This test isn't really layouts-specific, but it checks that the layout checks
+(* This test isn't really jkinds-specific, but it checks that the jkind checks
    we've added in [Typecore.check_univars] don't choke when expansion is needed
    to see a variable *)
 type 'a t18 = 'a
@@ -1176,7 +1176,7 @@ end = struct
   type t_imm : immediate
 end
 (* these are abstract, so the only trouble with unifying them in a GADT
-   match is around their layouts *)
+   match is around their jkinds *)
 
 let f (x : (M.t_void, M.t_imm) eq) =
   match x with
@@ -1194,7 +1194,7 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
        M.t_void has layout void, which does not overlap with immediate.
 |}]
 (* CR layouts v2.9: error message is OK, but it could probably be better.
-   But a similar case without layouts is already pretty bad, so try
+   But a similar case without jkinds is already pretty bad, so try
    that before spending too much time here. *)
 
 (*****************************************************)

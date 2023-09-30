@@ -147,9 +147,9 @@ let attribute sub a = {
 
 let attributes sub l = List.map (sub.attribute sub) l
 
-let var_layout ~loc (var, layout) =
+let var_jkind ~loc (var, jkind) =
   let add_loc x = mkloc x loc in
-  add_loc var, Option.map add_loc layout
+  add_loc var, Option.map add_loc jkind
 
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
@@ -265,9 +265,9 @@ let constructor_arguments sub = function
 let constructor_declaration sub cd =
   let loc = sub.location sub cd.cd_loc in
   let attrs = sub.attributes sub cd.cd_attributes in
-  let vars_layouts = List.map (var_layout ~loc) cd.cd_vars in
+  let vars_jkinds = List.map (var_jkind ~loc) cd.cd_vars in
   Jane_syntax.Layouts.constructor_declaration_of ~loc ~attrs
-    ~vars_layouts
+    ~vars_jkinds
     ~args:(constructor_arguments sub cd.cd_args)
     ~res:(Option.map (sub.typ sub) cd.cd_res)
     ~info:Docstrings.empty_info
@@ -300,7 +300,7 @@ let extension_constructor sub ext =
   let name = map_loc sub ext.ext_name in
   match ext.ext_kind with
   | Text_decl (vs, args, ret) ->
-    let vs = List.map (var_layout ~loc) vs in
+    let vs = List.map (var_jkind ~loc) vs in
     let args = constructor_arguments sub args in
     let ret = Option.map (sub.typ sub) ret in
     Jane_syntax.Extension_constructor.extension_constructor_of
@@ -426,9 +426,9 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some layout) ->
+    | Texp_newtype (s, Some jkind) ->
         Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, add_loc layout, sexp))
+          (Lexp_newtype(add_loc s, add_loc jkind, sexp))
         |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
@@ -570,7 +570,7 @@ let expression sub exp =
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
           Option.map (sub.expr sub) expo)
-    | Texp_sequence (exp1, _layout, exp2) ->
+    | Texp_sequence (exp1, _jkind, exp2) ->
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
@@ -788,7 +788,7 @@ let module_type (sub : mapper) mty =
       Mty.mk ~loc ~attrs (Pmty_ident (map_loc sub lid))
   | Tmty_alias (_path, lid) ->
       Mty.mk ~loc ~attrs (Pmty_alias (map_loc sub lid))
-  | Tmty_signature sg -> 
+  | Tmty_signature sg ->
       Mty.mk ~loc ~attrs (Pmty_signature (sub.signature sub sg))
   | Tmty_functor (arg, mtype2) ->
       Mty.mk ~loc ~attrs
@@ -937,9 +937,9 @@ let core_type sub ct =
   let desc = match ct.ctyp_desc with
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
-    | Ttyp_var (name, Some layout) ->
+    | Ttyp_var (name, Some jkind) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_var { name; layout = mkloc layout loc }) |>
+          (Ltyp_var { name; jkind = mkloc jkind loc }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
@@ -954,17 +954,17 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some layout) ->
+    | Ttyp_alias (ct, s, Some jkind) ->
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
-                        layout = mkloc layout loc }) |>
+                        jkind = mkloc jkind loc }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
       Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
     | Ttyp_variant (list, bool, labels) ->
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
-        let bound_vars = List.map (var_layout ~loc) list in
+        let bound_vars = List.map (var_jkind ~loc) list in
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes

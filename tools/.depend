@@ -33,11 +33,13 @@ cvt_emit.cmx :
 debug_printers.cmo : \
     ../typing/printtyp.cmi \
     ../typing/path.cmi \
+    ../typing/jkind.cmi \
     ../typing/ident.cmi \
     ../typing/ctype.cmi
 debug_printers.cmx : \
     ../typing/printtyp.cmx \
     ../typing/path.cmx \
+    ../typing/jkind.cmx \
     ../typing/ident.cmx \
     ../typing/ctype.cmx
 dumpobj.cmo : \

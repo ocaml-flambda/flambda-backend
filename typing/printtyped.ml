@@ -155,7 +155,7 @@ let arg_label i ppf = function
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
 
-let typevar_layout ~print_quote ppf (v, l) =
+let typevar_jkind ~print_quote ppf (v, l) =
   let pptv =
     if print_quote
     then Printast.tyvar
@@ -165,15 +165,15 @@ let typevar_layout ~print_quote ppf (v, l) =
   | None -> fprintf ppf " %a" pptv v
   | Some lay -> fprintf ppf " (%a : %a)"
                     pptv v
-                    Jane_syntax.Layouts.Pprint.const_layout lay
+                    Jane_syntax.Layouts.Pprint.const_jkind lay
 
 let typevars ppf vs =
-  List.iter (typevar_layout ~print_quote:true ppf) vs
+  List.iter (typevar_jkind ~print_quote:true ppf) vs
 ;;
 
-let layout_array i ppf layouts =
-  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.Layout.format l)
-    ppf layouts
+let jkind_array i ppf jkinds =
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.format l)
+    ppf jkinds
 
 let tag ppf = let open Types in function
   | Ordinary {src_index;runtime_tag} ->
@@ -183,16 +183,16 @@ let tag ppf = let open Types in function
 let variant_representation i ppf = let open Types in function
   | Variant_unboxed ->
     line i ppf "Variant_unboxed\n"
-  | Variant_boxed layouts ->
+  | Variant_boxed jkinds ->
     line i ppf "Variant_boxed %a\n"
-      (array (i+1) (fun _ ppf -> layout_array (i+1) ppf)) layouts
+      (array (i+1) (fun _ ppf -> jkind_array (i+1) ppf)) jkinds
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
     line i ppf "Record_unboxed\n"
-  | Record_boxed layouts ->
-    line i ppf "Record_boxed %a\n" (layout_array i) layouts
+  | Record_boxed jkinds ->
+    line i ppf "Record_boxed %a\n" (jkind_array i) jkinds
   | Record_inlined (t,v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
@@ -209,17 +209,17 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
-let layout_annotation i ppf layout =
-  line i ppf "%s" (Jkind.Layout.string_of_const layout)
+let jkind_annotation i ppf jkind =
+  line i ppf "%s" (Jkind.string_of_const jkind)
 
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
   let i = i+1 in
   match x.ctyp_desc with
-  | Ttyp_var (s, layout) ->
+  | Ttyp_var (s, jkind) ->
       line i ppf "Ttyp_var %s\n" (Option.value ~default:"_" s);
-      option i layout_annotation ppf layout
+      option i jkind_annotation ppf jkind
   | Ttyp_arrow (l, ct1, ct2) ->
       line i ppf "Ttyp_arrow\n";
       arg_label i ppf l;
@@ -251,13 +251,13 @@ let rec core_type i ppf x =
   | Ttyp_class (li, _, l) ->
       line i ppf "Ttyp_class %a\n" fmt_path li;
       list i core_type ppf l;
-  | Ttyp_alias (ct, s, layout) ->
+  | Ttyp_alias (ct, s, jkind) ->
       line i ppf "Ttyp_alias \"%s\"\n" (Option.value s ~default:"_");
       core_type i ppf ct;
-      option i layout_annotation ppf layout
+      option i jkind_annotation ppf jkind
   | Ttyp_poly (sl, ct) ->
       line i ppf "Ttyp_poly%a\n"
-        (fun ppf -> List.iter (typevar_layout ~print_quote:true ppf)) sl;
+        (fun ppf -> List.iter (typevar_jkind ~print_quote:true ppf)) sl;
       core_type i ppf ct;
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
@@ -354,7 +354,7 @@ and expression_extra i ppf (x,_,attrs) =
       attributes i ppf attrs;
       option i core_type ppf cto;
   | Texp_newtype (s, lay) ->
-      line i ppf "Texp_newtype %a\n" (typevar_layout ~print_quote:false) (s, lay);
+      line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
 
 and alloc_mode i ppf m =

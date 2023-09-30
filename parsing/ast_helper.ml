@@ -108,7 +108,7 @@ module Typ = struct
             Ptyp_object (List.map loop_object_field lst, o)
         | Ptyp_class (longident, lst) ->
             Ptyp_class (longident, List.map loop lst)
-        (* A Ptyp_alias might be a layout annotation (that is, it might have
+        (* A Ptyp_alias might be a jkind annotation (that is, it might have
            attributes which mean it should be interpreted as a
            [Jane_syntax.Layouts.Ltyp_alias]), but the code here still has the
            correct behavior. *)
@@ -521,13 +521,13 @@ module Type = struct
   let mk ?(loc = !default_loc) ?(attrs = [])
         ?(docs = empty_docs) ?(text = [])
       ?(params = [])
-      ?layout
+      ?jkind
       ?(cstrs = [])
       ?(kind = Ptype_abstract)
       ?(priv = Public)
       ?manifest
       name =
-    let layout_attrs = Option.to_list layout in
+    let jkind_attrs = Option.to_list jkind in
     {
      ptype_name = name;
      ptype_params = params;
@@ -536,7 +536,7 @@ module Type = struct
      ptype_private = priv;
      ptype_manifest = manifest;
      ptype_attributes =
-       layout_attrs @ add_text_attrs text (add_docs_attrs docs attrs);
+       jkind_attrs @ add_text_attrs text (add_docs_attrs docs attrs);
      ptype_loc = loc;
     }
 
