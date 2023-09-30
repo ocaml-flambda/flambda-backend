@@ -449,8 +449,8 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-let layout ~legacy_immediate attrs =
-  let layout =
+let jkind ~legacy_immediate attrs =
+  let jkind =
     List.find_map
       (fun a ->
          match a.attr_name.txt with
@@ -463,7 +463,7 @@ let layout ~legacy_immediate attrs =
          | _ -> None
         ) attrs
   in
-  match layout with
+  match jkind with
   | None -> Ok None
   | Some (a, l) ->
      mark_used a.attr_name;

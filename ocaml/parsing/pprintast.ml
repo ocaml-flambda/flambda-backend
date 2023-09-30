@@ -290,17 +290,17 @@ let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 let constant_string f s = pp f "%S" s
 
 let tyvar = Printast.tyvar
-let layout_annotation = Jane_syntax.Layouts.Pprint.layout_annotation
+let jkind_annotation = Jane_syntax.Layouts.Pprint.jkind_annotation
 
-let tyvar_layout_loc ~print_quote f (str,layout) =
+let tyvar_jkind_loc ~print_quote f (str,jkind) =
   let pptv =
     if print_quote
     then tyvar
     else fun ppf s -> Format.fprintf ppf "%s" s
   in
-  match layout with
+  match jkind with
   | None -> pptv f str.txt
-  | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt layout_annotation lay
+  | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt jkind_annotation lay
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
@@ -446,19 +446,19 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
       (attributes ctxt) filtered_attrs
   end
   else match x with
-  | Jtyp_layout (Ltyp_alias { aliased_type; name; layout }) ->
+  | Jtyp_layout (Ltyp_alias { aliased_type; name; jkind }) ->
     pp f "@[<2>%a@;as@;(%a :@ %a)@]"
       (core_type1 ctxt) aliased_type
       tyvar_option name
-      layout_annotation layout
+      jkind_annotation jkind
   | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   if has_non_curry_attr attrs then core_type_jane_syntax ctxt attrs f x
   else
     match x with
-    | Jtyp_layout (Ltyp_var { name; layout }) ->
-      pp f "(%a@;:@;%a)" tyvar_option name layout_annotation layout
+    | Jtyp_layout (Ltyp_var { name; jkind }) ->
+      pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
     | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
@@ -1428,7 +1428,7 @@ and pp_print_pexp_function ctxt sep f x =
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
-        layout_annotation lay
+        jkind_annotation lay
         (pp_print_pexp_function ctxt sep) e
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
@@ -1459,7 +1459,7 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; _} =
       | _ -> None in
     let rec gadt_exp tyvars e =
       match e with
-      (* no need to handle layout annotations here; the extracted variables
+      (* no need to handle jkind annotations here; the extracted variables
          don't get printed -- they're just used to decide how to print *)
       | {pexp_desc=Pexp_newtype (tyvar, e); pexp_attributes=[]} ->
           gadt_exp (tyvar :: tyvars) e
@@ -1768,13 +1768,13 @@ and type_declaration ctxt f x =
   in
   let constructor_declaration f pcd =
     pp f "|@;";
-    let vars_layouts, attrs =
+    let vars_jkinds, attrs =
       match Jane_syntax.Layouts.of_constructor_declaration pcd with
       | None -> List.map (fun v -> v, None) pcd.pcd_vars, pcd.pcd_attributes
       | Some stuff -> stuff
     in
     constructor_declaration ctxt f
-      (pcd.pcd_name.txt, vars_layouts, pcd.pcd_args, pcd.pcd_res, attrs)
+      (pcd.pcd_name.txt, vars_jkinds, pcd.pcd_args, pcd.pcd_res, attrs)
   in
   let repr f =
     let intro f =
@@ -1817,7 +1817,7 @@ and type_extension ctxt f x =
     x.ptyext_constructors
     (item_attributes ctxt) x.ptyext_attributes
 
-and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
+and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
   let name =
     match name with
     | "::" -> "(::)"
@@ -1825,7 +1825,7 @@ and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
   let pp_vars f vls =
     match vls with
     | [] -> ()
-    | _  -> pp f "%a@;.@;" (list (tyvar_layout_loc ~print_quote:true) ~sep:"@;")
+    | _  -> pp f "%a@;.@;" (list (tyvar_jkind_loc ~print_quote:true) ~sep:"@;")
                            vls
   in
   match res with
@@ -1840,7 +1840,7 @@ and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
         (attributes ctxt) attrs
   | Some r ->
       pp f "%s:@;%a%a@;%a" name
-        pp_vars vars_layouts
+        pp_vars vars_jkinds
         (fun f -> function
            | Pcstr_tuple [] -> core_type1 ctxt f r
            | Pcstr_tuple l -> pp f "%a@;->@;%a"
@@ -1980,10 +1980,10 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
   | Lexp_newtype _ when parens || ctxt.pipe || ctxt.semi ->
     paren true (layout_expr reset_ctxt ~parens:false) f x
   | Lexp_constant x -> unboxed_constant ctxt f x
-  | Lexp_newtype (lid, layout, inner_expr) ->
+  | Lexp_newtype (lid, jkind, inner_expr) ->
     pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
       lid.txt
-      layout_annotation layout
+      jkind_annotation jkind
       (pp_print_pexp_function ctxt "->") inner_expr
 
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
@@ -2000,7 +2000,7 @@ and function_param ctxt f
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
   | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
   | Pparam_newtype (ty, Some annot) ->
-      pp f "(type %s : %a)" ty.txt layout_annotation annot
+      pp f "(type %s : %a)" ty.txt jkind_annotation annot
 
 and function_body ctxt f (x : Jane_syntax.N_ary_functions.function_body) =
   match x with

@@ -25,7 +25,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 |}];;
 
 (*********************************************************)
-(* Test 1: Simple with type constraints respect layouts. *)
+(* Test 1: Simple with type constraints respect jkinds. *)
 
 (* CR layouts v5: parts of this test moved to [modules_alpha.ml] because they
    need void.  Bring back here when we have it. *)
@@ -93,7 +93,7 @@ module M1_2' : S1_2'
 
 (* CR layouts - annoyingly, the immediate annotation on 'a is required.  We
    can probably relax this so you don't have to label the parameter explcitly
-   and the layout is determined from the signature.  But we anticipate it'll
+   and the jkind is determined from the signature.  But we anticipate it'll
    require non-trivial refactoring of eqtype, so we've put it off for now. *)
 module M1_2'': S1_2' = struct
   type 'a t = 'a list
@@ -180,7 +180,7 @@ Error: This expression has type string but an expression was expected of type
 |}]
 
 (******************************************************************)
-(* Test 3: Recursive modules, with and without layout annotations *)
+(* Test 3: Recursive modules, with and without jkind annotations *)
 
 (* CR layouts v5: Some parts of this test need void. *)
 
@@ -333,7 +333,7 @@ and Bar3 : sig type ('a : float64) t type s = Foo3f.t t end
 |}];;
 
 (*************************************************************************)
-(* Test 4: Nondep typedecl layout approximation in the Nondep_cannot_erase
+(* Test 4: Nondep typedecl jkind approximation in the Nondep_cannot_erase
    case. *)
 
 (* CR layouts v5: Bring back the void part of this test. *)

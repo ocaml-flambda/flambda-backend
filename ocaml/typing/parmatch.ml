@@ -18,7 +18,6 @@
 open Misc
 open Asttypes
 open Types
-open Layouts
 open Typedtree
 
 (*************************************)
@@ -737,7 +736,7 @@ let close_variant env row =
     let more' =
       if static
       then Btype.newgenty Tnil
-      else Btype.newgenvar (Layout.value ~why:Row_variable)
+      else Btype.newgenvar (Jkind.value ~why:Row_variable)
     in
     (* this unification cannot fail *)
     Ctype.unify env more

@@ -398,13 +398,13 @@ let is_strict : kind_for_unboxing -> bool = function
 (* [exttype_of_sort] and [machtype_of_sort] should be kept in sync with
    [Typeopt.layout_of_const_sort]. *)
 (* CR layouts v5: Void case should probably be typ_void *)
-let exttype_of_sort (s : Layouts.Sort.const) =
+let exttype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> XInt
   | Float64 -> XFloat
   | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
 
-let machtype_of_sort (s : Layouts.Sort.const) =
+let machtype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> typ_val
   | Float64 -> typ_float

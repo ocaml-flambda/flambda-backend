@@ -31,9 +31,9 @@ type global_flag =
   | Global
   | Nothing
 
-(* constant layouts are parsed as layout annotations, and also used
-   in the type checker as already-inferred (i.e. non-variable) layouts *)
-type const_layout =
+(* constant jkinds are parsed as jkind annotations, and also used
+   in the type checker as already-inferred (i.e. non-variable) jkinds *)
+type const_jkind =
   | Any
   | Value
   | Void
@@ -41,4 +41,4 @@ type const_layout =
   | Immediate
   | Float64
 
-type layout_annotation = const_layout loc
+type jkind_annotation = const_jkind loc

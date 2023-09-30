@@ -271,22 +271,22 @@ let pr_present =
 
 let pr_var = Printast.tyvar
 
-let print_out_layout ppf = function
-  | Olay_const lay -> fprintf ppf "%s" (Jkind.Layout.string_of_const lay)
+let print_out_jkind ppf = function
+  | Olay_const lay -> fprintf ppf "%s" (Jkind.string_of_const lay)
   | Olay_var v     -> fprintf ppf "%s" v
 
-let print_out_layout_annot ppf = function
+let print_out_jkind_annot ppf = function
   | None -> ()
-  | Some lay -> fprintf ppf "@ : %a" print_out_layout lay
+  | Some lay -> fprintf ppf "@ : %a" print_out_jkind lay
 
-let pr_var_layout ppf (v, l) = match l with
+let pr_var_jkind ppf (v, l) = match l with
     | None -> pr_var ppf v
     | Some lay -> fprintf ppf "(%a : %a)"
                     pr_var v
-                    print_out_layout lay
+                    print_out_jkind lay
 
-let pr_var_layouts =
-  print_list pr_var_layout (fun ppf -> fprintf ppf "@ ")
+let pr_var_jkinds =
+  print_list pr_var_jkind (fun ppf -> fprintf ppf "@ ")
 
 let join_locality lm1 lm2 =
   match lm1, lm2 with
@@ -376,8 +376,8 @@ let mode_agree expected real =
   uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
   linearity_agree expected.oam_linearity real.oam_linearity
 
-let print_out_layout ppf = function
-  | Olay_const lay -> fprintf ppf "%s" (Jkind.Layout.string_of_const lay)
+let print_out_jkind ppf = function
+  | Olay_const lay -> fprintf ppf "%s" (Jkind.string_of_const lay)
   | Olay_var v     -> fprintf ppf "%s" v
 
 let is_local mode =
@@ -403,7 +403,7 @@ let rec print_out_type_0 mode ppf =
       print_out_type_0 mode ppf ty  (* no "." if there are no vars *)
   | Otyp_poly (sl, ty) ->
       fprintf ppf "@[<hov 2>%a.@ %a@]"
-        pr_var_layouts sl
+        pr_var_jkinds sl
         (print_out_type_0 mode) ty
   | ty ->
       print_out_type_1 mode ppf ty
@@ -525,10 +525,10 @@ and print_out_type_3 mode ppf =
   | Otyp_attribute (t, attr) ->
       fprintf ppf "@[<1>(%a [@@%s])@]"
         (print_out_type_0 mode) t attr.oattr_name
-  | Otyp_layout_annot (t, lay) ->
+  | Otyp_jkind_annot (t, lay) ->
     fprintf ppf "@[<1>(%a@ :@ %a)@]"
       (print_out_type_0 mode) t
-      print_out_layout lay
+      print_out_jkind lay
 and print_out_type ppf typ =
   print_out_type_0 default_mode ppf typ
 and print_simple_out_type ppf typ =
@@ -598,7 +598,7 @@ let print_type_parameter ppf s =
 
 let type_parameter ~in_parens ppf
       { oparam_name = ty; oparam_variance = var;
-        oparam_injectivity = inj; oparam_layout = lay } =
+        oparam_injectivity = inj; oparam_jkind = lay } =
   let open Asttypes in
   let format_string : _ format = "%s%s%a%a" in
   let format_string : _ format = match lay with
@@ -609,7 +609,7 @@ let type_parameter ~in_parens ppf
     (match var with Covariant -> "+" | Contravariant -> "-" | NoVariance ->  "")
     (match inj with Injective -> "!" | NoInjectivity -> "")
     print_type_parameter ty
-    print_out_layout_annot lay
+    print_out_jkind_annot lay
 
 let print_out_class_params ppf =
   function
@@ -914,7 +914,7 @@ and print_out_type_decl kwd ppf td =
   in
   fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t@]"
     print_name_params
-    print_out_layout_annot td.otype_layout
+    print_out_jkind_annot td.otype_jkind
     print_out_tkind ty
     print_constraints
     print_unboxed
@@ -956,11 +956,11 @@ and print_out_constr ppf constr =
           fprintf ppf "@[<2>%s of@ %a@]" name
             print_out_constr_args tyl
       end
-  | Some (vars_layouts, ret_type) ->
+  | Some (vars_jkinds, ret_type) ->
       fprintf ppf "@[<2>%s :@ " name;
-      begin match vars_layouts with
+      begin match vars_jkinds with
       | [] -> ()
-      | _ -> fprintf ppf "@[<hov>%a.@]@ " pr_var_layouts vars_layouts
+      | _ -> fprintf ppf "@[<hov>%a.@]@ " pr_var_jkinds vars_jkinds
       end;
       begin match tyl with
       | [] ->

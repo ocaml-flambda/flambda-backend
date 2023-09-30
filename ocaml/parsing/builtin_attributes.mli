@@ -30,7 +30,7 @@
     - ocaml.afl_inst_ratio
     - ocaml.flambda_o3
     - ocaml.flambda_oclassic
-    - layout attributes:
+    - jkind attributes:
       - ocaml.any
       - ocaml.value
       - ocaml.void
@@ -175,16 +175,16 @@ val has_unique: Parsetree.attributes -> (bool,unit) result
 
 val has_once : Parsetree.attributes -> (bool, unit) result
 
-(* [layout] gets the layout in the attributes if one is present.  We always
+(* [jkind] gets the jkind in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.
    If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
    attributes even if the layouts extensions are disabled - this is used to
    support the original immediacy attributes, which are now implemented in terms
-   of layouts.
+   of jkinds.
 
-   The return value is [Error <layout>] if a layout attribute is present but
+   The return value is [Error <jkind>] if a jkind attribute is present but
    not allowed by the current set of extensions.  Otherwise it is [Ok None] if
-   there is no layout annotation and [Ok (Some layout)] if there is one.
+   there is no jkind annotation and [Ok (Some jkind)] if there is one.
 
    - If no layout extensions are on and [~legacy_immediate] is false, this will
      always return [Ok None], [Ok (Some Value)], or [Error ...].
@@ -194,7 +194,7 @@ val has_once : Parsetree.attributes -> (bool, unit) result
    - If the [Layouts_beta] extension is on, this behaves like the previous case
      regardless of the value of [~legacy_immediate], except that it allows
      [float64] and [any].
-   - If the [Layouts_alpha] extension is on, this can return any layout and
+   - If the [Layouts_alpha] extension is on, this can return any jkind and
      never errors.
 
    Currently, the [Layouts] extension is ignored - it's no different than
@@ -202,10 +202,10 @@ val has_once : Parsetree.attributes -> (bool, unit) result
 
    This is not the only place the layouts extension level is checked.  If you're
    changing what's allowed in a given level, you may also need to make changes
-   in the parser, Layouts.get_required_layouts_level, and Typeopt.
+   in the parser, Jkind.get_required_layouts_level, and Typeopt.
 *)
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
-val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Jane_asttypes.layout_annotation option,
-   Jane_asttypes.layout_annotation) result
+val jkind : legacy_immediate:bool -> Parsetree.attributes ->
+  (Jane_asttypes.jkind_annotation option,
+   Jane_asttypes.jkind_annotation) result

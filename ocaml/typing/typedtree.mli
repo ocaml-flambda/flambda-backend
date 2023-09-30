@@ -186,7 +186,7 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string * const_layout option
+  | Texp_newtype of string * const_jkind option
         (** fun (type t : immediate) ->  *)
 
 and fun_curry_state =
@@ -199,18 +199,19 @@ and fun_curry_state =
             functions, which might result in this arg no longer being
             final *)
 
-(** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
-    requires layout information.  Our approach is to propagate layout
-    information inward during compilation.  This requires us to annotate places
-    in the typed tree where the layout of a subexpression is not determined by
-    the layout of the expression containing it.  For example, to the left of a
-    semicolon, or in value_bindings.
+(** Jkinds in the typed tree: Compilation of the typed tree to lambda
+    sometimes requires jkind information.  Our approach is to
+    propagate jkind information inward during compilation.  This
+    requires us to annotate places in the typed tree where the jkind
+    of a type of a subexpression is not determined by the jkind of the
+    type of the expression containing it.  For example, to the left of
+    a semicolon, or in value_bindings.
 
     CR layouts v1.5: Some of these were mainly needed for void (e.g., left of a
     semicolon).  If we redo how void is compiled, perhaps we can drop those.  On
     the other hand, there are some places we're not annotating now (e.g.,
     function arguments) that will need annotations in the future because we'll
-    allow other layouts there.  Just do a rationalization pass on this.
+    allow other jkinds there.  Just do a rationalization pass on this.
 *)
 and expression_desc =
     Texp_ident of
@@ -735,15 +736,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * const_layout option
+  | Ttyp_var of string option * const_jkind option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * const_layout option
+  | Ttyp_alias of core_type * string option * const_jkind option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * const_layout option) list * core_type
+  | Ttyp_poly of (string * const_jkind option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -818,7 +819,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * const_layout option) list;
+     cd_vars: (string * const_jkind option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -858,7 +859,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * const_layout option) list *
+    Text_decl of (string * const_jkind option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc

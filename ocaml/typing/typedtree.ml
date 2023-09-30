@@ -18,7 +18,6 @@
 open Asttypes
 open Jane_asttypes
 open Types
-open Layouts
 
 module Uid = Shape.Uid
 
@@ -105,7 +104,7 @@ and exp_extra =
   | Texp_constraint of core_type
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
-  | Texp_newtype of string * const_layout option
+  | Texp_newtype of string * const_jkind option
 
 
 and fun_curry_state =
@@ -122,13 +121,13 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Mode.Alloc.t;
-      arg_sort : sort;
-      ret_sort : sort;
+      arg_sort : Jkind.sort;
+      ret_sort : Jkind.sort;
       alloc_mode : Mode.Alloc.t }
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
         Mode.Locality.t
-  | Texp_match of expression * sort * computation case list * partial
+  | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
   | Texp_tuple of expression list * Mode.Alloc.t
   | Texp_construct of
@@ -148,11 +147,11 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * sort * expression
+  | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_sort : sort
+      wh_body_sort : Jkind.sort
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -161,7 +160,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_sort : sort;
+      for_body_sort : Jkind.sort;
     }
   | Texp_send of expression * meth * apply_position * Mode.Alloc.t
   | Texp_new of
@@ -181,9 +180,9 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
-      param_sort : sort;
+      param_sort : Jkind.sort;
       body : value case;
-      body_sort : sort;
+      body_sort : Jkind.sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -245,9 +244,9 @@ and binding_op =
     bop_op_name : string loc;
     bop_op_val : Types.value_description;
     bop_op_type : Types.type_expr;
-    bop_op_return_sort : sort;
+    bop_op_return_sort : Jkind.sort;
     bop_exp : expression;
-    bop_exp_sort : sort;
+    bop_exp_sort : Jkind.sort;
     bop_loc : Location.t;
   }
 
@@ -259,9 +258,9 @@ and omitted_parameter =
   { mode_closure : Mode.Alloc.t;
     mode_arg : Mode.Alloc.t;
     mode_ret : Mode.Alloc.t;
-    sort_arg : sort }
+    sort_arg : Jkind.sort }
 
-and apply_arg = (expression * sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail
@@ -363,7 +362,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * sort * attributes
+    Tstr_eval of expression * Jkind.sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list
@@ -392,7 +391,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
-    vb_sort: sort;
+    vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -540,15 +539,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * const_layout option
+  | Ttyp_var of string option * const_jkind option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * const_layout option
+  | Ttyp_alias of core_type * string option * const_jkind option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * const_layout option) list * core_type
+  | Ttyp_poly of (string * const_jkind option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -622,7 +621,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * const_layout option) list;
+     cd_vars: (string * const_jkind option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -662,7 +661,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * const_layout option) list *
+    Text_decl of (string * const_jkind option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc
@@ -873,17 +872,17 @@ let rec iter_bound_idents
        d
 
 type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.t -> sort -> unit
+  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.t -> Jkind.sort -> unit
 
 (* The intent is that the sort should be the sort of the type of the pattern.
-   It's used to avoid computing layouts from types.  `f` then gets passed
+   It's used to avoid computing jkinds from types.  `f` then gets passed
    the sorts of the variables.
 
    This is occasionally used in places where we don't actually know
    about the sort of the pattern but `f` doesn't care about the sorts. *)
 let iter_pattern_full ~both_sides_of_or f sort pat =
   let rec loop :
-    type k . full_bound_ident_action -> sort -> k general_pattern -> _ =
+    type k . full_bound_ident_action -> Jkind.sort -> k general_pattern -> _ =
     fun f sort pat ->
       match pat.pat_desc with
       (* Cases where we push the sort inwards: *)
@@ -902,21 +901,21 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
-              Array.to_list (Array.map Layout.sort_of_layout
-                                          cstr.cstr_arg_layouts)
+              Array.to_list (Array.map Jkind.sort_of_jkind
+                                          cstr.cstr_arg_jkinds)
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
-            (loop f) (Layout.sort_of_layout lbl.lbl_layout) pat)
+            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
-      | Tpat_variant (_, pat, _) -> Option.iter (loop f Sort.value) pat
-      | Tpat_tuple patl -> List.iter (loop f Sort.value) patl
+      | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
+      | Tpat_tuple patl -> List.iter (loop f Jkind.Sort.value) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
-      | Tpat_array (_, patl) -> List.iter (loop f Sort.value) patl
-      | Tpat_lazy p | Tpat_exception p -> loop f Sort.value p
+      | Tpat_array (_, patl) -> List.iter (loop f Jkind.Sort.value) patl
+      | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()
   in
@@ -942,9 +941,9 @@ let pat_bound_idents_full sort pat =
 (* In these two, we don't know the sort, but the sort information isn't used so
    it's fine to lie. *)
 let pat_bound_idents_with_types pat =
-  rev_only_idents_and_types (rev_pat_bound_idents_full Sort.value pat)
+  rev_only_idents_and_types (rev_pat_bound_idents_full Jkind.Sort.value pat)
 let pat_bound_idents pat =
-  rev_only_idents (rev_pat_bound_idents_full Sort.value pat)
+  rev_only_idents (rev_pat_bound_idents_full Jkind.Sort.value pat)
 
 let rev_let_bound_idents_full bindings =
   let idents_full = ref [] in

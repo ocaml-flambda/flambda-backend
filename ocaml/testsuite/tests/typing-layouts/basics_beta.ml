@@ -349,10 +349,10 @@ Error: This method has type 'b -> unit which is less general than
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
-   layouts. *)
+   jkinds. *)
 
-(*****************************************)
-(* Test 7: the layout check in unify_var *)
+(****************************************)
+(* Test 7: the jkind check in unify_var *)
 
 type ('a : immediate) t7 = Foo7 of 'a
 
@@ -513,7 +513,7 @@ Error: Tuple element types must have layout value.
 |}];;
 
 (*************************************************)
-(* Test 10: layouts are checked by "more general" *)
+(* Test 10: jkinds are checked by "more general" *)
 
 (* This hits the first linktype in moregen (no expansion required to see it's a
    var) *)
@@ -618,7 +618,7 @@ end;;
 Line 5, characters 4-5:
 5 |     x # baz11
         ^
-Error: Methods must have layout value.
+Error: Method types must have layout value.
        This expression has layout float64, which does not overlap with value.
 |}]
 
@@ -685,7 +685,7 @@ Error: The type constraints are not consistent.
 |}];;
 
 (*******************************************************************)
-(* Test 12: class parameters and bound vars must have layout value *)
+(* Test 12: class parameters and bound vars must have jkind value *)
 
 (* CR layouts v5: Bring the void versions back here. *)
 
@@ -962,7 +962,7 @@ Error:
 |}];;
 
 (****************************************************)
-(* Test 15: Type aliases need not have layout value *)
+(* Test 15: Type aliases need not have jkind value *)
 
 (* CR layouts v5: Bring back void version from basics_alpha. *)
 
@@ -989,8 +989,8 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 |}];;
 
 (**************************************************************************)
-(* Test 17: incremental layout checking of @@unboxed types - see comment on
-   [constrain_type_layout]. *)
+(* Test 17: incremental jkind checking of @@unboxed types - see comment on
+   [constrain_type_jkind]. *)
 
 type 'a t17 = 'a list
 type s17 = { lbl : s17 t17 } [@@unboxed];;
@@ -1002,7 +1002,7 @@ type s17 = { lbl : s17 t17; } [@@unboxed]
 
 (*****************************************)
 (* Test 18: expansion in [check_univars] *)
-(* This test isn't really layouts-specific, but it checks that the layout checks
+(* This test isn't really jkinds-specific, but it checks that the jkind checks
    we've added in [Typecore.check_univars] don't choke when expansion is needed
    to see a variable *)
 type 'a t18 = 'a

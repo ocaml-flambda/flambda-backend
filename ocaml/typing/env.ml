@@ -21,7 +21,6 @@ open Asttypes
 open Longident
 open Path
 open Types
-open Layouts
 
 open Local_store
 
@@ -721,7 +720,7 @@ type lookup_error =
   | Once_value_used_in of Longident.t * shared_context
   | Value_used_in_closure of Longident.t * closure_error
   | Local_value_used_in_exclave of Longident.t
-  | Non_value_used_in_object of Longident.t * type_expr * Layout.Violation.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -737,7 +736,7 @@ let lookup_error loc env err =
 
 let same_constr = ref (fun _ _ _ -> assert false)
 
-let constrain_type_layout = ref (fun _ _ _ -> assert false)
+let constrain_type_jkind = ref (fun _ _ _ -> assert false)
 
 let check_well_formed_module = ref (fun _ -> assert false)
 
@@ -3453,8 +3452,8 @@ let lookup_value ?(use=true) ~loc lid env =
   in
   let vd = Subst.Lazy.force_value_description desc in
   if must_box then begin
-    match !constrain_type_layout env vd.val_type
-            (Layout.(value ~why:Captured_in_object))
+    match !constrain_type_jkind env vd.val_type
+            (Jkind.(value ~why:Captured_in_object))
     with
     | Ok () -> ()
     | Result.Error err ->
@@ -3975,7 +3974,7 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[%a must have a type of layout value because it is \
                    captured by an object.@ %a@]"
         !print_longident lid
-        (Layout.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
 
 let report_error ppf = function
