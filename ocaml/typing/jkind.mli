@@ -348,10 +348,17 @@ val float64 : why:float64_creation_reason -> t
 (******************************)
 (* construction *)
 
-(** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort_var : why:concrete_jkind_reason -> t
+(** Create a fresh sort variable, packed into a jkind, returning both
+    the resulting kind and the sort. *)
+val of_new_sort_var : why:concrete_jkind_reason -> t * sort
 
-val of_sort : why:concrete_jkind_reason -> sort -> t
+(** Create a fresh sort variable, packed into a jkind. *)
+val of_new_sort : why:concrete_jkind_reason -> t
+
+(** There should not be a need to convert a sort to a jkind, but this is
+    occasionally useful for formatting error messages. Do not use in actual
+    type-checking. *)
+val of_sort_for_error : why:concrete_jkind_reason -> sort -> t
 
 val of_const : why:creation_reason -> const -> t
 

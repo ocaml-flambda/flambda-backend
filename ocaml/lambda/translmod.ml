@@ -38,7 +38,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_jkind of type_expr * Jkind.Violation.t
+| Non_value_jkind of type_expr * Jkind.sort
 
 exception Error of Location.t * error
 
@@ -55,13 +55,7 @@ exception Error of Location.t * error
    some defaulting. *)
 let sort_must_not_be_void loc ty sort =
   if Jkind.Sort.is_void_defaulting sort then
-    let violation =
-      Jkind.(Violation.of_
-                (Not_a_subjkind
-                   (Jkind.of_sort ~why:V1_safety_check sort,
-                    value ~why:V1_safety_check)))
-    in
-    raise (Error (loc, Non_value_jkind (ty, violation)))
+    raise (Error (loc, Non_value_jkind (ty, sort)))
 
 let cons_opt x_opt xs =
   match x_opt with
@@ -1893,12 +1887,12 @@ let report_error loc = function
         print_cycle cycle chapter section
   | Conflicting_inline_attributes ->
       Location.errorf "@[Conflicting 'inline' attributes@]"
-  | Non_value_jkind (ty, err) ->
+  | Non_value_jkind (ty, sort) ->
       Location.errorf
-        "Non-value detected in [translmod]:@ Please report this error to \
-         the Jane Street compilers team.@ %a"
-        (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+        "Non-value sort %a detected in [translmod] in type %a:@ \
+         Please report this error to the Jane Street compilers team."
+        Jkind.Sort.format sort
+        Printtyp.type_expr ty
 
 let () =
   Location.register_error_of_exn

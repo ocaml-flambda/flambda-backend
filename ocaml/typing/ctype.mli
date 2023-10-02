@@ -55,6 +55,10 @@ val create_scope : unit -> int
 val newty: type_desc -> type_expr
 val new_scoped_ty: int -> type_desc -> type_expr
 val newvar: ?name:string -> Jkind.t -> type_expr
+val new_rep_var :
+  ?name:string -> why:Jkind.concrete_jkind_reason -> unit ->
+  type_expr * Jkind.sort
+        (* Return a fresh representable variable, along with its sort *)
 val newvar2: ?name:string -> int -> Jkind.t -> type_expr
         (* Return a fresh variable *)
 val new_global_var: ?name:string -> Jkind.t -> type_expr

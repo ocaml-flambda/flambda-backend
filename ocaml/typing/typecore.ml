@@ -3298,13 +3298,10 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
           | Tvar _ ->
-              let sort_arg = Jkind.Sort.new_var () in
-              let ty_arg_mono =
-                newvar (Jkind.of_sort ~why:Function_argument sort_arg)
-              in
+              let ty_arg_mono, sort_arg = new_rep_var ~why:Function_argument () in
               let ty_arg = newmono ty_arg_mono in
               let ty_res =
-                newvar (Jkind.of_new_sort_var ~why:Function_result)
+                newvar (Jkind.of_new_sort ~why:Function_result)
               in
               if ret_tvar &&
                  not (is_prim ~name:"%identity" funct) &&
@@ -3817,7 +3814,7 @@ let rec approx_type env sty =
       let arg =
         if is_optional p
         then type_option (newvar (Jkind.value ~why:Type_argument))
-        else newvar (Jkind.of_new_sort_var ~why:Function_argument)
+        else newvar (Jkind.of_new_sort ~why:Function_argument)
       in
       let ret = approx_type env sty in
       let marg = Alloc.of_const arg_mode in
@@ -4912,10 +4909,9 @@ and type_expect_
           tuple_pat_mode mode modes, mode_tuple mode modes
       in
       begin_def ();
-      let sort = Jkind.Sort.new_var () in
+      let expected_ty, sort = new_rep_var ~why:Match () in
       let arg =
-        type_expect env arg_expected_mode sarg
-          (mk_expected (newvar (Jkind.of_sort ~why:Match sort)))
+        type_expect env arg_expected_mode sarg (mk_expected expected_ty)
       in
       end_def ();
       if maybe_expansive arg then lower_contravariant env arg.exp_type;
@@ -5079,7 +5075,7 @@ and type_expect_
         in
         match expected_opath, opt_exp_opath with
         | None, None ->
-          newvar (Jkind.of_new_sort_var ~why:Record_projection), None
+          newvar (Jkind.of_new_sort ~why:Record_projection), None
         | Some _, None -> ty_expected, expected_opath
         | Some(_, _, true), Some _ -> ty_expected, expected_opath
         | (None | Some (_, _, false)), Some (_, p', _) ->
@@ -5244,7 +5240,7 @@ and type_expect_
         type_label_access env srecord Env.Mutation lid in
       let ty_record =
         if expected_type = None
-        then newvar (Jkind.of_new_sort_var ~why:Record_assignment)
+        then newvar (Jkind.of_new_sort ~why:Record_assignment)
         else record.exp_type
       in
       let (label_loc, label, newval) =
@@ -5864,29 +5860,19 @@ and type_expect_
       let spat_params, ty_params, param_sort =
         let initial_jkind, initial_sort = match sands with
           | [] ->
-            let sort = Jkind.Sort.new_var () in
-            Jkind.of_sort ~why:Function_argument sort, sort
+            Jkind.of_new_sort_var ~why:Function_argument
           (* CR layouts v5: eliminate value requirement for tuple elements *)
           | _ -> Jkind.value ~why:Tuple_element, Jkind.Sort.value
         in
         loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
       in
-      let body_sort = Jkind.Sort.new_var () in
-      let ty_func_result =
-        newvar (Jkind.of_sort ~why:Function_result body_sort)
-      in
+      let ty_func_result, body_sort = new_rep_var ~why:Function_result () in
       let arrow_desc = Nolabel, Alloc.legacy, Alloc.legacy in
       let ty_func =
         newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
-      let op_result_sort = Jkind.Sort.new_var () in
-      let ty_result =
-        newvar (Jkind.of_sort ~why:Function_result op_result_sort)
-      in
-      let sort_andops = Jkind.Sort.new_var () in
-      let ty_andops =
-        newvar (Jkind.of_sort ~why:Function_argument sort_andops)
-      in
+      let ty_result, op_result_sort = new_rep_var ~why:Function_result () in
+      let ty_andops, sort_andops = new_rep_var ~why:Function_argument () in
       let ty_op =
         newty (Tarrow(arrow_desc, newmono ty_andops,
           newty (Tarrow(arrow_desc, newmono ty_func,
@@ -7072,8 +7058,7 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
      getting a sort variable for its jkind. *)
   (* CR layouts v10: Abstract jkinds will introduce cases where we really
      have [any] and can't get a sort here. *)
-  let sort = Jkind.Sort.new_var () in
-  let tv = newvar (Jkind.of_sort ~why:Statement sort) in
+  let tv, sort = new_rep_var ~why:Statement () in
   if is_Tvar ty && get_level ty > get_level tv then
     Location.prerr_warning
       (final_subexpression exp).exp_loc
@@ -7448,9 +7433,8 @@ and type_let
          attrs, pat_mode, exp_mode, spat)
       spat_sexp_list in
   let is_recursive = (rec_flag = Recursive) in
-  let sorts = List.map (fun _ -> Jkind.Sort.new_var ()) spatl in
-  let nvs =
-    List.map (fun s -> newvar (Jkind.of_sort ~why:Let_binding s)) sorts
+  let nvs, sorts =
+    List.split (List.map (fun _ -> new_rep_var ~why:Let_binding ()) spatl)
   in
   if is_recursive then begin_def ();
   let (pat_list, new_env, force, pvs, mvs) =
@@ -7713,14 +7697,9 @@ and type_andops env sarg sands expected_sort expected_ty =
         if !Clflags.principal then begin_def ();
         let op_path, op_desc = type_binding_op_ident env sop in
         let op_type = op_desc.val_type in
-        let sort_arg = Jkind.Sort.new_var () in
-        let ty_arg = newvar (Jkind.of_sort ~why:Function_argument sort_arg) in
-        let sort_rest = Jkind.Sort.new_var () in
-        let ty_rest = newvar (Jkind.of_sort ~why:Function_argument sort_rest) in
-        let op_result_sort = Jkind.Sort.new_var () in
-        let ty_result =
-          newvar (Jkind.of_sort ~why:Function_result op_result_sort)
-        in
+        let ty_arg, sort_arg = new_rep_var ~why:Function_argument () in
+        let ty_rest, sort_rest = new_rep_var ~why:Function_argument () in
+        let ty_result, op_result_sort = new_rep_var ~why:Function_result () in
         let arrow_desc = (Nolabel,Alloc.legacy,Alloc.legacy) in
         let ty_rest_fun =
           newty (Tarrow(arrow_desc, newmono ty_arg, ty_result, commu_ok))
@@ -8239,8 +8218,8 @@ let type_expression env jkind sexp =
   maybe_check_uniqueness_exp exp; exp
 
 let type_representable_expression ~why env sexp =
-  let sort = Jkind.Sort.new_var () in
-  let exp = type_expression env (Jkind.of_sort ~why sort) sexp in
+  let jkind, sort = Jkind.of_new_sort_var ~why in
+  let exp = type_expression env jkind sexp in
   exp, sort
 
 let type_expression env sexp =
