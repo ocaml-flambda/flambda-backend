@@ -78,6 +78,17 @@ end
 
 module RE = Rebuilt_expr
 
+type apply_cont =
+  { cont : Continuation.t;
+    trap_action : Trap_action.t option;
+    args : Simple.t list;
+    dbg : Debuginfo.t
+  }
+
+type tail_expr =
+  | Raw of Flambda.Expr.t
+  | Apply_cont of apply_cont
+
 type rev_expr_holed =
   | Up
   | Let of
@@ -136,7 +147,7 @@ and cont_handler =
   }
 
 and rev_expr =
-  { expr : Flambda.Expr.t;
+  { expr : tail_expr;
     holed_expr : rev_expr_holed;
     free_names : Name_occurrences.t
   }
@@ -190,6 +201,10 @@ module Deps = struct
     let bound_to = Bound_pattern.free_names bp in
     let f () bound_to = insert tbl bound_to dep in
     Name_occurrences.fold_names bound_to ~f ~init:()
+
+  let add_cont_dep t bp dep =
+    let tbl = t.name_to_dep in
+    insert tbl (Name.var bp) (Alias dep)
 end
 
 module Dot = struct
@@ -276,6 +291,8 @@ module Dacc : sig
 
   val let_dep : Bound_pattern.t -> Deps.Dep.t -> t -> t
 
+  val cont_dep : Variable.t -> Simple.t -> t -> t
+
   val opaque_let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
 
   val let_field : Bound_pattern.t -> Deps.field -> Name.t -> t -> t
@@ -285,6 +302,8 @@ module Dacc : sig
   val deps : t -> Deps.graph
 
   val todo : unit -> t
+
+  val todo' : t -> t
 end = struct
   type t =
     { let_ : int;
@@ -328,7 +347,15 @@ end = struct
     Deps.add_let_dep t.deps pat dep;
     t
 
+  let cont_dep pat dep t =
+    Simple.pattern_match dep
+      ~name:(fun name ~coercion:_ -> Deps.add_cont_dep t.deps pat name)
+      ~const:(fun _ -> ());
+    t
+
   let todo _ = empty ()
+
+  let todo' t = t
 end
 
 type dacc = Dacc.t
@@ -350,15 +377,36 @@ type tt = handlers -> rev_expr * dacc
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
   | Invalid _ ->
+    let expr = Raw expr in
     ( { expr; holed_expr = denv.parent; free_names = Name_occurrences.empty },
       dacc )
   | Switch switch ->
+    let expr = Raw expr in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Switch.free_names switch
       },
       dacc )
   | Apply_cont apply_cont ->
+    let cont = Apply_cont_expr.continuation apply_cont in
+    let args = Apply_cont_expr.args apply_cont in
+    let expr =
+      Apply_cont
+        { trap_action = Apply_cont_expr.trap_action apply_cont;
+          cont;
+          args;
+          dbg = Apply_cont_expr.debuginfo apply_cont
+        }
+    in
+    let dacc =
+      let params = Continuation.Map.find cont denv.conts in
+      match params with
+      | Normal params ->
+        List.fold_left2
+          (fun dacc param dep -> Dacc.cont_dep param dep dacc)
+          dacc params args
+      | Return | Exn -> Dacc.todo' dacc
+    in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Apply_cont.free_names apply_cont
@@ -366,6 +414,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       dacc )
   | Apply apply ->
     (* TODO apply_dep *)
+    let expr = Raw expr in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Apply.free_names apply
@@ -605,8 +654,18 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
 
+let rebuild_apply_cont { cont; trap_action; args; dbg } : Apply_cont_expr.t =
+  Apply_cont_expr.create ?trap_action cont ~args ~dbg
+
 let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
+  let expr =
+    match expr with
+    | Raw expr -> expr
+    | Apply_cont ac ->
+      let ac = rebuild_apply_cont ac in
+      Flambda.Expr.create_apply_cont ac
+  in
   rebuild_holed holed_expr (RE.from_expr ~expr ~free_names)
 
 and rebuild_function_params_and_body (params_and_body : rev_params_and_body) :
