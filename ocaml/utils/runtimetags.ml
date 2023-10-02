@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                      Max Slater, Jane Street                           *)
 (*                                                                        *)
-(*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,22 +12,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
-open! Int_replace_polymorphic_compare
+(* Defines the runtime tags used by the target runtime.
+   Must be kept in sync with ocaml/stdlib/obj.ml and ocaml/runtime/caml/mlvalues.h *)
 
-type t = int
-
-include Identifiable.Make (Numbers.Int)
-
-let create_exn tag =
-  if tag < 0 || tag > 255 then
-    Misc.fatal_error (Printf.sprintf "Tag.create_exn %d" tag)
-  else
-    tag
-
-let to_int t = t
-
-let zero = 0
-let object_tag = Runtimetags.object_tag
-
-let compare : t -> t -> int = Stdlib.compare
+let first_non_constant_constructor_tag = 0
+let last_non_constant_constructor_tag = 243
+let lazy_tag = 244
+let closure_tag = 245
+let object_tag = 246
+let infix_tag = 247
+let forward_tag = 248
+let no_scan_tag = 249
+let abstract_tag = 251
+let string_tag = 252
+let double_tag = 253
+let double_array_tag = 254
+let custom_tag = 255
+let final_tag = custom_tag
+let int_tag = 1000
+let out_of_heap_tag = 1001
+let unaligned_tag = 1002

@@ -337,6 +337,33 @@ go into `ocaml/`, then run the upstream configure script.  After that perform th
 `make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
+### Bootstrapping Incompatible Standard Library and Runtime Changes
+
+The normal bootstrapping procedure is insufficient when making
+non-backwards-compatible standard library and/or runtime changes, e.g. changing the
+representation of runtime tags. The steps for bumping magic numbers also do not
+quite work. Instead:
+
+- Start from a clean `ocaml/`
+- `./configure`
+- `make world`
+- Apply your changes
+- `make coldstart`
+  - Builds intermediate runtime/stdlib using the old compiler. Their sources include the
+    new definitions, but the compiled artifacts still internally use the old definitions.
+- `make coreboot`
+  - Builds intermediate compiler using the intermediate runtime/stdlib and the old compiler.
+    The compiled artifacts still interally use the old definitions.
+  - Promotes the intermediate compiler to boot, but does not rebuild runtime/stdlib.
+- `make bootstrap`
+  - Builds new compiler using the intermediate runtime/stdlib and the intermediate compiler.
+    The compiled artifacts now use the new definitions.
+  - Promotes the new compiler to boot.
+  - Builds new runtime/stdlib.
+  - Builds compiler tools.
+
+Bootstrapping should be complete, proceed to `make world.opt` / `make test`.
+
 ## Testing the compiler built locally with OPAM
 
 It is possible to create a OPAM switch with the Flambda backend compiler.

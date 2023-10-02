@@ -235,7 +235,8 @@ let transform_primitive env (prim : L.primitive) args loc =
     Misc.fatal_error "Pfloatfield with negative field index"
   | Psetfield (index, _, _), _ when index < 0 ->
     Misc.fatal_error "Psetfield with negative field index"
-  | Pmakeblock (tag, _, _, _), _ when tag < 0 || tag >= Obj.no_scan_tag ->
+  | Pmakeblock (tag, _, _, _), _ when tag < 0 || tag >= Runtimetags.no_scan_tag
+    ->
     Misc.fatal_errorf "Pmakeblock with wrong or non-scannable block tag %d" tag
   | Pmakefloatblock (_mut, _mode), args when List.length args < 1 ->
     Misc.fatal_errorf "Pmakefloatblock must have at least one argument"
@@ -1489,7 +1490,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         Misc.fatal_errorf
           "Bad tag %d in [Lswitch] (not the tag of a GC-scannable block)" sw_tag)
     block_nums;
-  if switch.sw_numblocks > Obj.last_non_constant_constructor_tag + 1
+  if switch.sw_numblocks > Runtimetags.last_non_constant_constructor_tag + 1
   then
     Misc.fatal_errorf
       "Too many blocks (%d) in [Lswitch], would overlap into tag space for \

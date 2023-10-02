@@ -626,7 +626,8 @@ let unary_primitive env res dbg f arg =
       C.ite
         (C.and_int arg (C.int 1 ~dbg) dbg)
         ~dbg ~then_:(C.int 0 ~dbg) ~then_dbg:dbg
-        ~else_:(C.eq (C.get_tag arg dbg) (C.int Obj.double_tag ~dbg) ~dbg)
+        ~else_:
+          (C.eq (C.get_tag arg dbg) (C.int Runtimetags.double_tag ~dbg) ~dbg)
         ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)

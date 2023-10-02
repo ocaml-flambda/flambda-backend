@@ -30,6 +30,6 @@ let create_exn tag =
 let to_int t = t
 
 let zero = 0
-let object_tag = Obj.object_tag
+let object_tag = Runtimetags.object_tag
 
 let compare : t -> t -> int = Stdlib.compare

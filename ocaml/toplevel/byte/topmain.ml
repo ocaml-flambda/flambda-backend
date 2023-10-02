@@ -37,7 +37,8 @@ let dir_trace ppf lid =
           let clos = Toploop.eval_value_path !Topcommon.toplevel_env path in
           (* Nothing to do if it's not a closure *)
           if Obj.is_block clos
-          && (Obj.tag clos = Obj.closure_tag || Obj.tag clos = Obj.infix_tag)
+          && (Obj.tag clos = Runtimetags.closure_tag ||
+              Obj.tag clos = Runtimetags.infix_tag)
           && (match
                 Types.get_desc
                   (Ctype.expand_head !Topcommon.toplevel_env desc.val_type)

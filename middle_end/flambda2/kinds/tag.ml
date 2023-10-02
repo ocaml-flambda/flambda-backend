@@ -54,23 +54,23 @@ let to_targetint_31_63 t = Targetint_31_63.of_int (to_int t)
 
 let zero = 0
 
-let string_tag = Obj.string_tag
+let string_tag = Runtimetags.string_tag
 
-let double_tag = Obj.double_tag
+let double_tag = Runtimetags.double_tag
 
-let double_array_tag = Obj.double_array_tag
+let double_array_tag = Runtimetags.double_array_tag
 
-let custom_tag = Obj.custom_tag
+let custom_tag = Runtimetags.custom_tag
 
-let infix_tag = Obj.infix_tag
+let infix_tag = Runtimetags.infix_tag
 
-let closure_tag = Obj.closure_tag
+let closure_tag = Runtimetags.closure_tag
 
-let object_tag = Obj.object_tag
+let object_tag = Runtimetags.object_tag
 
-let forward_tag = Obj.forward_tag
+let forward_tag = Runtimetags.forward_tag
 
-let lazy_tag = Obj.lazy_tag
+let lazy_tag = Runtimetags.lazy_tag
 
 module Scannable = struct
   type nonrec t = t
@@ -78,7 +78,7 @@ module Scannable = struct
   include Container_types.Make (Numeric_types.Int)
 
   let create tag =
-    if tag < min_tag || tag >= Obj.no_scan_tag then None else Some tag
+    if tag < min_tag || tag >= Runtimetags.no_scan_tag then None else Some tag
 
   let create_exn tag =
     match create tag with
@@ -93,11 +93,11 @@ module Scannable = struct
   let to_tag t = t
 
   let of_tag tag =
-    if tag < min_tag || tag >= Obj.no_scan_tag then None else Some tag
+    if tag < min_tag || tag >= Runtimetags.no_scan_tag then None else Some tag
 
   let zero = 0
 
-  let object_tag = Obj.object_tag
+  let object_tag = Runtimetags.object_tag
 end
 
 module Non_scannable = struct
@@ -105,7 +105,7 @@ module Non_scannable = struct
 
   include Container_types.Make (Numeric_types.Int)
 
-  let create tag = if tag < Obj.no_scan_tag then None else Some tag
+  let create tag = if tag < Runtimetags.no_scan_tag then None else Some tag
 
   let create_exn tag =
     match create tag with
@@ -118,11 +118,11 @@ module Non_scannable = struct
   let to_tag t = t
 
   let of_tag tag =
-    if tag < min_tag || tag >= Obj.no_scan_tag then None else Some tag
+    if tag < min_tag || tag >= Runtimetags.no_scan_tag then None else Some tag
 end
 
 let is_structured_block t =
   match Scannable.create t with None -> false | Some _ -> true
 
 let is_structured_block_but_not_data_constructor t =
-  is_structured_block t && t > Obj.last_non_constant_constructor_tag
+  is_structured_block t && t > Runtimetags.last_non_constant_constructor_tag

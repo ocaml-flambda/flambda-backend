@@ -1957,17 +1957,17 @@ let inline_lazy_force_cond arg pos loc =
           tag,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
-            (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
+            (* if (tag == Runtimetags.forward_tag) then varg.(0) else ... *)
             ( Lprim
                 ( Pintcomp Ceq,
-                  [ tag_var; Lconst (Const_base (Const_int Obj.forward_tag)) ],
+                  [ tag_var; Lconst (Const_base (Const_int Runtimetags.forward_tag)) ],
                   loc ),
               Lprim (lazy_forward_field, [ varg ], loc),
               Lifthenelse
-                (* if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
+                (* if (tag == Runtimetags.lazy_tag) then Lazy.force varg else ... *)
                 ( Lprim
                     ( Pintcomp Ceq,
-                      [ tag_var; Lconst (Const_base (Const_int Obj.lazy_tag)) ],
+                      [ tag_var; Lconst (Const_base (Const_int Runtimetags.lazy_tag)) ],
                       loc ),
                   Lapply
                     { ap_tailcall = Default_tailcall;
@@ -2003,9 +2003,9 @@ let inline_lazy_force_switch arg pos loc =
                 sw_numblocks = 256;
                 (* PR#6033 - tag ranges from 0 to 255 *)
                 sw_blocks =
-                  [ ( Obj.forward_tag,
+                  [ ( Runtimetags.forward_tag,
                       Lprim (lazy_forward_field, [ varg ], loc) );
-                    ( Obj.lazy_tag,
+                    ( Runtimetags.lazy_tag,
                       Lapply
                         { ap_tailcall = Default_tailcall;
                           ap_loc = loc;

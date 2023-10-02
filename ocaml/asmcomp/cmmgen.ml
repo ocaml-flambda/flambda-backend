@@ -470,7 +470,7 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
-      make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 functions)
+      make_alloc ~mode dbg Runtimetags.closure_tag (transl_fundecls 0 functions)
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
       let ptr = transl env arg in
@@ -545,7 +545,7 @@ let rec transl env e =
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
           make_alloc ~mode dbg tag (List.map (transl env) args)
       | (Pmakeufloatblock(_mut, mode), args) ->
-          make_float_alloc ~mode dbg Obj.double_array_tag
+          make_float_alloc ~mode dbg Runtimetags.double_array_tag
             (List.map (transl env) args)
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
@@ -845,7 +845,7 @@ and transl_make_array dbg env kind mode args =
   | Paddrarray | Pintarray ->
       make_alloc ~mode dbg 0 (List.map (transl env) args)
   | Pfloatarray ->
-      make_float_alloc ~mode dbg Obj.double_array_tag
+      make_float_alloc ~mode dbg Runtimetags.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
 
 and transl_ccall env prim args dbg =

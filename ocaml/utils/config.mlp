@@ -124,12 +124,6 @@ and cfg_magic_number = "Caml2021G512"
 
 let interface_suffix = ref ".mli"
 
-let max_tag = 245
-(* This is normally the same as in obj.ml, but we have to define it
-   separately because it can differ when we're in the middle of a
-   bootstrapping phase. *)
-let lazy_tag = 246
-
 let max_young_wosize = 256
 let stack_threshold = 256 (* see runtime/caml/config.h *)
 let stack_safety_margin = 60

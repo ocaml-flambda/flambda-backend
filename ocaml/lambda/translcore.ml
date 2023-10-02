@@ -116,7 +116,7 @@ let transl_extension_constructor ~scopes env path ext =
       (* Extension constructors are currently always Alloc_heap.
          They could be Alloc_local, but that would require changes
          to pattern typing, as patterns can close over them. *)
-      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None, alloc_heap),
+      Lprim (Pmakeblock (Runtimetags.object_tag, Immutable_unique, None, alloc_heap),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
         loc)
@@ -820,7 +820,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* We don't need to wrap with Popaque: this forward
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
-         Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
+         Lprim(Pmakeblock(Runtimetags.forward_tag, Immutable, None,
                           alloc_heap),
                 [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                of_location ~scopes e.exp_loc)
@@ -832,7 +832,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             block doesn't really match what is going on here.  This
             value may subsequently turn into an immediate... *)
          Lprim (Popaque Lambda.layout_lazy,
-                [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
+                [Lprim(Pmakeblock(Runtimetags.forward_tag, Immutable, None,
                                   alloc_heap),
                        [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                        of_location ~scopes e.exp_loc)],
@@ -857,7 +857,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.for_lazy_body e))
          in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+          Lprim(Pmakeblock(Runtimetags.lazy_tag, Mutable, None, alloc_heap), [fn],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->

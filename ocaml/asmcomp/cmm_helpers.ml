@@ -43,7 +43,7 @@ let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
 
 (* Block headers. Meaning of the tag field: see stdlib/obj.ml *)
 
-let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
+let floatarray_tag dbg = Cconst_int (Runtimetags.double_array_tag, dbg)
 
 let block_header tag sz =
   Nativeint.add (Nativeint.shift_left (Nativeint.of_int sz) 10)
@@ -53,26 +53,26 @@ let block_header tag sz =
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 let local_block_header tag sz = Nativeint.logor (block_header tag sz) caml_local
-let white_closure_header sz = block_header Obj.closure_tag sz
-let black_closure_header sz = black_block_header Obj.closure_tag sz
-let local_closure_header sz = local_block_header Obj.closure_tag sz
-let infix_header ofs = block_header Obj.infix_tag ofs
-let float_header = block_header Obj.double_tag (size_float / size_addr)
-let float_local_header = local_block_header Obj.double_tag (size_float / size_addr)
+let white_closure_header sz = block_header Runtimetags.closure_tag sz
+let black_closure_header sz = black_block_header Runtimetags.closure_tag sz
+let local_closure_header sz = local_block_header Runtimetags.closure_tag sz
+let infix_header ofs = block_header Runtimetags.infix_tag ofs
+let float_header = block_header Runtimetags.double_tag (size_float / size_addr)
+let float_local_header = local_block_header Runtimetags.double_tag (size_float / size_addr)
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with
      [caml_alloc_float_array]. *)
   assert (len >= 0);
   if len = 0 then block_header 0 0
-  else block_header Obj.double_array_tag (len * size_float / size_addr)
+  else block_header Runtimetags.double_array_tag (len * size_float / size_addr)
 let string_header len =
-      block_header Obj.string_tag ((len + size_addr) / size_addr)
-let boxedint32_header = block_header Obj.custom_tag 2
-let boxedint64_header = block_header Obj.custom_tag (1 + 8 / size_addr)
-let boxedintnat_header = block_header Obj.custom_tag 2
-let boxedint32_local_header = local_block_header Obj.custom_tag 2
-let boxedint64_local_header = local_block_header Obj.custom_tag (1 + 8 / size_addr)
-let boxedintnat_local_header = local_block_header Obj.custom_tag 2
+      block_header Runtimetags.string_tag ((len + size_addr) / size_addr)
+let boxedint32_header = block_header Runtimetags.custom_tag 2
+let boxedint64_header = block_header Runtimetags.custom_tag (1 + 8 / size_addr)
+let boxedintnat_header = block_header Runtimetags.custom_tag 2
+let boxedint32_local_header = local_block_header Runtimetags.custom_tag 2
+let boxedint64_local_header = local_block_header Runtimetags.custom_tag (1 + 8 / size_addr)
+let boxedintnat_local_header = local_block_header Runtimetags.custom_tag 2
 let caml_nativeint_ops = "caml_nativeint_ops"
 let caml_int32_ops = "caml_int32_ops"
 let caml_int64_ops = "caml_int64_ops"
@@ -3121,7 +3121,7 @@ let predef_exception i name =
     emit_string_constant (name_sym, Local) name []
   in
   let exn_sym = "caml_exn_" ^ name in
-  let tag = Obj.object_tag in
+  let tag = Runtimetags.object_tag in
   let size = 2 in
   let fields =
     (Csymbol_address name_sym)

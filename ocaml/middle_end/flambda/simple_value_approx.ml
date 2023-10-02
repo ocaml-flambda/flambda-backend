@@ -922,16 +922,16 @@ let potentially_taken_block_switch_branch t tag =
     Cannot_be_taken
   | Value_block (block_tag, _) when Tag.to_int block_tag = tag ->
     Must_be_taken
-  | Value_float _ when tag = Obj.double_tag ->
+  | Value_float _ when tag = Runtimetags.double_tag ->
     Must_be_taken
-  | Value_float_array _ when tag = Obj.double_array_tag ->
+  | Value_float_array _ when tag = Runtimetags.double_array_tag ->
     Must_be_taken
-  | Value_string _ when tag = Obj.string_tag ->
+  | Value_string _ when tag = Runtimetags.string_tag ->
     Must_be_taken
   | (Value_closure _ | Value_set_of_closures _)
-    when tag = Obj.closure_tag || tag = Obj.infix_tag ->
+    when tag = Runtimetags.closure_tag || tag = Runtimetags.infix_tag ->
     Can_be_taken
-  | Value_boxed_int _ when tag = Obj.custom_tag ->
+  | Value_boxed_int _ when tag = Runtimetags.custom_tag ->
     Must_be_taken
   | Value_block _ | Value_float _ | Value_set_of_closures _ | Value_closure _
   | Value_string _ | Value_float_array _ | Value_boxed_int _ ->

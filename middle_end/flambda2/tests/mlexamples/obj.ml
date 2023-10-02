@@ -780,19 +780,19 @@ let unmarshal str pos =
 
 let first_non_constant_constructor_tag = 0
 
-let last_non_constant_constructor_tag = 245
+let last_non_constant_constructor_tag = 243
 
-let lazy_tag = 246
+let lazy_tag = 244
 
-let closure_tag = 247
+let closure_tag = 245
 
-let object_tag = 248
+let object_tag = 246
 
-let infix_tag = 249
+let infix_tag = 247
 
-let forward_tag = 250
+let forward_tag = 248
 
-let no_scan_tag = 251
+let no_scan_tag = 249
 
 let abstract_tag = 251
 

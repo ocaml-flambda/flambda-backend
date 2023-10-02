@@ -46,6 +46,7 @@ utils/clflags.cmi : \
     utils/profile.cmi \
     utils/misc.cmi
 utils/compilation_unit.cmo : \
+    utils/runtimetags.cmi \
     utils/misc.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     utils/identifiable.cmi \
@@ -53,6 +54,7 @@ utils/compilation_unit.cmo : \
     utils/clflags.cmi \
     utils/compilation_unit.cmi
 utils/compilation_unit.cmx : \
+    utils/runtimetags.cmx \
     utils/misc.cmx \
     utils/int_replace_polymorphic_compare.cmx \
     utils/identifiable.cmx \
@@ -200,6 +202,11 @@ utils/profile.cmx : \
     utils/misc.cmx \
     utils/profile.cmi
 utils/profile.cmi :
+utils/runtimetags.cmo : \
+    utils/runtimetags.cmi
+utils/runtimetags.cmx : \
+    utils/runtimetags.cmi
+utils/runtimetags.cmi :
 utils/strongly_connected_components.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
@@ -2041,6 +2048,7 @@ typing/typemod.cmi : \
 typing/typeopt.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
+    utils/runtimetags.cmi \
     typing/printtyp.cmi \
     typing/predef.cmi \
     typing/path.cmi \
@@ -2060,6 +2068,7 @@ typing/typeopt.cmo : \
 typing/typeopt.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
+    utils/runtimetags.cmx \
     typing/printtyp.cmx \
     typing/predef.cmx \
     typing/path.cmx \
@@ -2525,6 +2534,7 @@ bytecomp/printinstr.cmx : \
 bytecomp/printinstr.cmi : \
     bytecomp/instruct.cmi
 bytecomp/symtable.cmo : \
+    utils/runtimetags.cmi \
     lambda/runtimedef.cmi \
     typing/predef.cmi \
     utils/misc.cmi \
@@ -2541,6 +2551,7 @@ bytecomp/symtable.cmo : \
     parsing/asttypes.cmi \
     bytecomp/symtable.cmi
 bytecomp/symtable.cmx : \
+    utils/runtimetags.cmx \
     lambda/runtimedef.cmx \
     typing/predef.cmx \
     utils/misc.cmx \
@@ -2888,6 +2899,7 @@ asmcomp/cmm_helpers.cmo : \
     utils/symbol.cmi \
     lambda/switch.cmi \
     asmcomp/strmatch.cmi \
+    utils/runtimetags.cmi \
     asmcomp/proc.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
@@ -2913,6 +2925,7 @@ asmcomp/cmm_helpers.cmx : \
     utils/symbol.cmx \
     lambda/switch.cmx \
     asmcomp/strmatch.cmx \
+    utils/runtimetags.cmx \
     asmcomp/proc.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
@@ -2958,6 +2971,7 @@ asmcomp/cmm_invariants.cmi : \
     asmcomp/cmm.cmi
 asmcomp/cmmgen.cmo : \
     typing/types.cmi \
+    utils/runtimetags.cmi \
     middle_end/printclambda_primitives.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
@@ -2979,6 +2993,7 @@ asmcomp/cmmgen.cmo : \
     asmcomp/cmmgen.cmi
 asmcomp/cmmgen.cmx : \
     typing/types.cmx \
+    utils/runtimetags.cmx \
     middle_end/printclambda_primitives.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
@@ -3908,6 +3923,7 @@ lambda/matching.cmo : \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
+    utils/config.cmi \
     utils/clflags.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -3931,6 +3947,7 @@ lambda/matching.cmx : \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
+    utils/config.cmx \
     utils/clflags.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
@@ -4179,6 +4196,7 @@ lambda/translcore.cmo : \
     lambda/transl_list_comprehension.cmi \
     lambda/transl_array_comprehension.cmi \
     typing/subst.cmi \
+    utils/runtimetags.cmi \
     typing/printtyp.cmi \
     typing/primitive.cmi \
     typing/predef.cmi \
@@ -4215,6 +4233,7 @@ lambda/translcore.cmx : \
     lambda/transl_list_comprehension.cmx \
     lambda/transl_array_comprehension.cmx \
     typing/subst.cmx \
+    utils/runtimetags.cmx \
     typing/printtyp.cmx \
     typing/primitive.cmx \
     typing/predef.cmx \
@@ -6071,6 +6090,7 @@ middle_end/flambda/simple_value_approx.cmo : \
     utils/symbol.cmi \
     middle_end/flambda/base_types/set_of_closures_origin.cmi \
     middle_end/flambda/base_types/set_of_closures_id.cmi \
+    utils/runtimetags.cmi \
     lambda/printlambda.cmi \
     middle_end/flambda/parameter.cmi \
     utils/misc.cmi \
@@ -6096,6 +6116,7 @@ middle_end/flambda/simple_value_approx.cmx : \
     utils/symbol.cmx \
     middle_end/flambda/base_types/set_of_closures_origin.cmx \
     middle_end/flambda/base_types/set_of_closures_id.cmx \
+    utils/runtimetags.cmx \
     lambda/printlambda.cmx \
     middle_end/flambda/parameter.cmx \
     utils/misc.cmx \
@@ -6477,12 +6498,14 @@ middle_end/flambda/base_types/static_exception.cmx : \
 middle_end/flambda/base_types/static_exception.cmi : \
     utils/identifiable.cmi
 middle_end/flambda/base_types/tag.cmo : \
+    utils/runtimetags.cmi \
     utils/numbers.cmi \
     utils/misc.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     utils/identifiable.cmi \
     middle_end/flambda/base_types/tag.cmi
 middle_end/flambda/base_types/tag.cmx : \
+    utils/runtimetags.cmx \
     utils/numbers.cmx \
     utils/misc.cmx \
     utils/int_replace_polymorphic_compare.cmx \
@@ -6862,6 +6885,7 @@ toplevel/expunge.cmx : \
 toplevel/genprintval.cmo : \
     typing/types.cmi \
     parsing/syntaxerr.cmi \
+    utils/runtimetags.cmi \
     typing/printtyp.cmi \
     typing/predef.cmi \
     typing/path.cmi \
@@ -6883,6 +6907,7 @@ toplevel/genprintval.cmo : \
 toplevel/genprintval.cmx : \
     typing/types.cmx \
     parsing/syntaxerr.cmx \
+    utils/runtimetags.cmx \
     typing/printtyp.cmx \
     typing/predef.cmx \
     typing/path.cmx \
@@ -7166,6 +7191,7 @@ toplevel/byte/topmain.cmo : \
     toplevel/byte/topeval.cmi \
     toplevel/topdirs.cmi \
     toplevel/topcommon.cmi \
+    utils/runtimetags.cmi \
     typing/printtyp.cmi \
     typing/path.cmi \
     utils/misc.cmi \
@@ -7184,6 +7210,7 @@ toplevel/byte/topmain.cmx : \
     toplevel/byte/topeval.cmx \
     toplevel/topdirs.cmx \
     toplevel/topcommon.cmx \
+    utils/runtimetags.cmx \
     typing/printtyp.cmx \
     typing/path.cmx \
     utils/misc.cmx \
@@ -7200,6 +7227,7 @@ toplevel/byte/trace.cmo : \
     typing/types.cmi \
     toplevel/byte/topeval.cmi \
     toplevel/topcommon.cmi \
+    utils/runtimetags.cmi \
     typing/printtyp.cmi \
     typing/predef.cmi \
     typing/path.cmi \
@@ -7213,6 +7241,7 @@ toplevel/byte/trace.cmx : \
     typing/types.cmx \
     toplevel/byte/topeval.cmx \
     toplevel/topcommon.cmx \
+    utils/runtimetags.cmx \
     typing/printtyp.cmx \
     typing/predef.cmx \
     typing/path.cmx \
