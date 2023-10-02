@@ -87,7 +87,8 @@ type apply_cont =
 
 type tail_expr =
   | Raw of Flambda.Expr.t
-  | Apply_cont of apply_cont
+  | Apply_cont of Apply_cont_expr.t
+  | Switch of Switch_expr.t
 
 type rev_expr_holed =
   | Up
@@ -171,9 +172,13 @@ module Deps = struct
 
   module DepSet = Set.Make (Dep)
 
-  type graph = { name_to_dep : (Name.t, DepSet.t) Hashtbl.t }
+  type graph =
+    { name_to_dep : (Name.t, DepSet.t) Hashtbl.t;
+      used : (Name.t, unit) Hashtbl.t
+    }
 
-  let create () = { name_to_dep = Hashtbl.create 100 }
+  let create () =
+    { name_to_dep = Hashtbl.create 100; used = Hashtbl.create 100 }
 
   let insert t k v =
     match Hashtbl.find_opt t k with
@@ -205,6 +210,8 @@ module Deps = struct
   let add_cont_dep t bp dep =
     let tbl = t.name_to_dep in
     insert tbl (Name.var bp) (Alias dep)
+
+  let add_use t dep = Hashtbl.replace t.used dep ()
 end
 
 module Dot = struct
@@ -293,6 +300,8 @@ module Dacc : sig
 
   val cont_dep : Variable.t -> Simple.t -> t -> t
 
+  val used : Simple.t -> t -> t
+
   val opaque_let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
 
   val let_field : Bound_pattern.t -> Deps.field -> Name.t -> t -> t
@@ -353,6 +362,12 @@ end = struct
       ~const:(fun _ -> ());
     t
 
+  let used dep t =
+    Simple.pattern_match dep
+      ~name:(fun name ~coercion:_ -> Deps.add_use t.deps name)
+      ~const:(fun _ -> ());
+    t
+
   let todo _ = empty ()
 
   let todo' t = t
@@ -374,6 +389,17 @@ type handlers = cont_handler Continuation.Map.t
 
 type tt = handlers -> rev_expr * dacc
 
+let apply_cont_deps denv dacc apply_cont =
+  let cont = Apply_cont_expr.continuation apply_cont in
+  let args = Apply_cont_expr.args apply_cont in
+  let params = Continuation.Map.find cont denv.conts in
+  match params with
+  | Normal params ->
+    List.fold_left2
+      (fun dacc param dep -> Dacc.cont_dep param dep dacc)
+      dacc params args
+  | Return | Exn -> Dacc.todo' dacc
+
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
   | Invalid _ ->
@@ -381,32 +407,21 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     ( { expr; holed_expr = denv.parent; free_names = Name_occurrences.empty },
       dacc )
   | Switch switch ->
-    let expr = Raw expr in
+    let expr = Switch switch in
+    let dacc =
+      let dacc = Dacc.used (Switch_expr.scrutinee switch) dacc in
+      Targetint_31_63.Map.fold
+        (fun _ apply_cont dacc -> apply_cont_deps denv dacc apply_cont)
+        (Switch_expr.arms switch) dacc
+    in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Switch.free_names switch
       },
       dacc )
   | Apply_cont apply_cont ->
-    let cont = Apply_cont_expr.continuation apply_cont in
-    let args = Apply_cont_expr.args apply_cont in
-    let expr =
-      Apply_cont
-        { trap_action = Apply_cont_expr.trap_action apply_cont;
-          cont;
-          args;
-          dbg = Apply_cont_expr.debuginfo apply_cont
-        }
-    in
-    let dacc =
-      let params = Continuation.Map.find cont denv.conts in
-      match params with
-      | Normal params ->
-        List.fold_left2
-          (fun dacc param dep -> Dacc.cont_dep param dep dacc)
-          dacc params args
-      | Return | Exn -> Dacc.todo' dacc
-    in
+    let expr = Apply_cont apply_cont in
+    let dacc = apply_cont_deps denv dacc apply_cont in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Apply_cont.free_names apply_cont
@@ -654,17 +669,13 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
 
-let rebuild_apply_cont { cont; trap_action; args; dbg } : Apply_cont_expr.t =
-  Apply_cont_expr.create ?trap_action cont ~args ~dbg
-
 let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
   let expr =
     match expr with
     | Raw expr -> expr
-    | Apply_cont ac ->
-      let ac = rebuild_apply_cont ac in
-      Flambda.Expr.create_apply_cont ac
+    | Apply_cont ac -> Flambda.Expr.create_apply_cont ac
+    | Switch switch -> Flambda.Expr.create_switch switch
   in
   rebuild_holed holed_expr (RE.from_expr ~expr ~free_names)
 
