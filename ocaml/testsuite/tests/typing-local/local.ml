@@ -2743,7 +2743,7 @@ Line 1, characters 21-24:
 1 | let foo (local_ f) = f _
                          ^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Specifying 1 more argument may make the value non-local
 |}]
