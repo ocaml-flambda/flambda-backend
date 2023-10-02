@@ -197,6 +197,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Underscore_wrapped_in_some
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3198,18 +3199,22 @@ let is_partial_apply args =
   List.exists
     (fun (_, arg) ->
        match arg with
+       | Underscore _ -> true
        | Omitted _ -> true
        | Arg _ -> false)
     args
 
 let remaining_function_type ty_ret mode_ret rev_args =
-  let ty_ret, _, _ =
+  let ty_ret, _, _, _ =
     List.fold_left
-      (fun (ty_ret, mode_ret, closed_args) (lbl, arg) ->
+      (fun (ty_ret, mode_ret, closed_args, underscore_args) (lbl, arg) ->
          match arg with
          | Arg (Unknown_arg { mode_arg; _ } | Known_arg { mode_arg; _ }) ->
              let closed_args = mode_arg :: closed_args in
-             (ty_ret, mode_ret, closed_args)
+             (ty_ret, mode_ret, closed_args, underscore_args)
+         | Underscore { mode_arg; _} ->
+            let underscore_args = mode_arg :: underscore_args in
+              (ty_ret, mode_ret, closed_args, underscore_args)
          | Arg (Eliminated_optional_arg
                   { mode_fun; ty_arg; mode_arg; level })
          | Omitted { mode_fun; ty_arg; mode_arg; level } ->
@@ -3219,10 +3224,10 @@ let remaining_function_type ty_ret mode_ret rev_args =
                  (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
              let mode_ret =
-               Alloc.join (mode_fun :: closed_args)
+               Alloc.join (mode_fun :: closed_args @ underscore_args)
              in
-             (ty_ret, mode_ret, closed_args))
-      (ty_ret, mode_ret, []) rev_args
+             (ty_ret, mode_ret, closed_args, underscore_args))
+      (ty_ret, mode_ret, [], []) rev_args
   in
   ty_ret
 
@@ -3240,13 +3245,15 @@ let check_local_application_complete ~env ~app_loc args =
     | Arg ( Known_arg { mode_fun; _ }
           | Unknown_arg { mode_fun; _ }
           | Eliminated_optional_arg { mode_fun; _ })
-    | Omitted { mode_fun; _ } -> mode_fun
+    | Omitted { mode_fun; _ }
+    | Underscore { mode_fun; _ } -> mode_fun
   in
   let rec loop has_commuted = function
     | [] | [_] -> ()
     | (lbl, ( Arg ( Known_arg { mode_fun; mode_arg; _ }
                   | Unknown_arg { mode_fun; mode_arg; _ }
                   | Eliminated_optional_arg { mode_fun; mode_arg; _ })
+            | Underscore { mode_fun; mode_arg; _}
             | Omitted { mode_fun; mode_arg; _ } as arg))
       :: ((next :: _) as rest) ->
       let mode_ret = arg_mode_fun next in
@@ -3294,8 +3301,9 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
     match sargs with
     | [] -> ty_fun, mode_fun, List.rev rev_args
     | (lbl, sarg) :: rest ->
+        let ty_fun = expand_head env ty_fun in
+        let lv = get_level ty_fun in
         let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
-          let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
           | Tvar _ ->
               let ty_arg_mono, sort_arg = new_rep_var ~why:Function_argument () in
@@ -3339,9 +3347,13 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                               (expand_head env funct.exp_type)))
         in
         let arg =
-          Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
+          match sarg.pexp_desc with
+          | Pexp_extension({txt = "extension.papp"}, PStr []) ->
+              Underscore {ty_arg = ty_arg_mono; mode_fun; mode_arg; sort_arg; level = lv}
+          | _ ->
+              Arg (Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg })
         in
-        loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
+        loop ty_res mode_ret ((lbl, arg) :: rev_args) rest
   in
   loop ty_fun mode_fun rev_args sargs
 
@@ -3378,12 +3390,19 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         and optional = is_optional l in
         let use_arg ~commuted sarg l' =
           let wrapped_in_some = optional && not (is_optional l') in
-          if wrapped_in_some then
-            may_warn sarg.pexp_loc
-              (Warnings.Not_principal "using an optional argument here");
-          Arg (Known_arg
-            { sarg; ty_arg; ty_arg0; commuted; sort_arg;
-              mode_fun; mode_arg; wrapped_in_some })
+          match sarg.pexp_desc with
+          | Pexp_extension({txt = "extension.papp"}, PStr []) ->
+              if wrapped_in_some then
+                raise (Error (sarg.pexp_loc, env, Underscore_wrapped_in_some))
+              else
+                Underscore { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
+          | _ ->
+              if wrapped_in_some then
+                may_warn sarg.pexp_loc
+                (Warnings.Not_principal "using an optional argument here");
+              Arg (Known_arg
+              { sarg; ty_arg; ty_arg0; commuted; sort_arg;
+                mode_fun; mode_arg; wrapped_in_some })
         in
         let eliminate_optional_arg () =
           may_warn funct.exp_loc
@@ -3391,6 +3410,11 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
           Arg
             (Eliminated_optional_arg
                { mode_fun; ty_arg; mode_arg; sort_arg; level = lv })
+        in
+        let omit_arg () =
+          may_warn funct.exp_loc
+            (Warnings.Non_principal_labels "commuted an argument");
+          Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -3428,13 +3452,10 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                 sargs,
                 if optional && List.mem_assoc Nolabel sargs then
                   eliminate_optional_arg ()
-                else begin
+                else
                   (* No argument was given for this parameter, we abstract over
                      it. *)
-                  may_warn funct.exp_loc
-                    (Warnings.Non_principal_labels "commuted an argument");
-                  Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
-                end
+                  omit_arg ()
         in
         loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
     | _ ->
@@ -3442,16 +3463,20 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
-let type_omitted_parameters expected_mode env ty_ret mode_ret args =
-  let ty_ret, mode_ret, _, _, args =
+let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
+  let ty_ret, mode_ret, open_args, closed_args, underscore_args, args =
     List.fold_left
-      (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
+      (fun (ty_ret, mode_ret, open_args, closed_args, underscore_args, args) (lbl, arg) ->
          match arg with
          | Arg (exp, exp_mode, sort) ->
-             let open_args = (exp_mode, exp) :: open_args in
+             let open_args = (exp_mode, exp.exp_loc) :: open_args in
              let args = (lbl, Arg (exp, sort)) :: args in
-             (ty_ret, mode_ret, open_args, closed_args, args)
-         | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
+             (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
+         | Underscore { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
+             let underscore_args = mode_arg :: underscore_args in
+             let args = (lbl, Underscore {mode_fun; ty_arg; mode_arg; level; sort_arg} ) :: args in
+             (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
+         | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg;} ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
                newty2 ~level
@@ -3459,27 +3484,61 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              in
              let new_closed_args =
                List.map
-                 (fun (marg, exp) ->
-                    submode ~loc:exp.exp_loc ~env ~reason:Other
+                 (fun (marg, loc) ->
+                    submode ~loc ~env ~reason:Other
                       marg (mode_partial_application expected_mode);
                     Value.regional_to_local_alloc marg)
                  open_args
              in
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
-             let mode_closed_args = List.map Alloc.close_over closed_args in
-             let mode_partial_fun = Alloc.partial_apply mode_fun in
+             (* note that [mode_fun] is closed_over, not partial_apply *)
+             let all_closed = mode_fun :: closed_args @ underscore_args in
              let mode_closure, _ =
-               Alloc.newvar_above (Alloc.join
-                (mode_partial_fun:: mode_closed_args))
+               all_closed |> List.map Alloc.close_over |> Alloc.join |> Alloc.newvar_above
              in
              register_allocation_mode mode_closure;
              let arg = Omitted { mode_closure; mode_arg; mode_ret; sort_arg } in
              let args = (lbl, arg) :: args in
-             (ty_ret, mode_closure, open_args, closed_args, args))
-      (ty_ret, mode_ret, [], [], []) (List.rev args)
+             (ty_ret, mode_closure, open_args, closed_args, underscore_args, args))
+      (ty_ret, mode_ret, [], [], [], []) (List.rev args)
   in
-  ty_ret, mode_ret, args
+  let closed_args =
+    if List.length underscore_args = 0 then closed_args
+    else
+    let new_closed_args =
+      List.map
+        (fun (marg, loc) ->
+          submode ~loc ~env ~reason:Other
+            marg (mode_partial_application expected_mode);
+          Value.regional_to_local_alloc marg)
+        open_args
+    in
+    funct_mode :: new_closed_args @ closed_args
+  in
+  let rec type_underscore_parameters closed_args = function
+    | [] -> ty_ret, mode_ret, []
+    | (lbl, Underscore { mode_fun = _; ty_arg; mode_arg; level; sort_arg }) :: rest ->
+        let ty_ret, mode_ret, args = type_underscore_parameters (mode_arg :: closed_args) rest in
+        let arrow_desc = (lbl, mode_arg, mode_ret) in
+        let ty_ret =
+          newty2 ~level
+            (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
+        in
+        let mode_closure, _ =
+          closed_args |> List.map Alloc.close_over |> Alloc.join |> Alloc.newvar_above
+        in
+        register_allocation_mode mode_closure;
+        let arg = Underscore {mode_closure; mode_arg; mode_ret; sort_arg } in
+        ty_ret, mode_closure, (lbl, arg) :: args
+    | (lbl, Omitted r) :: rest ->
+      let ty_ret, mode_ret, args = type_underscore_parameters closed_args rest in
+      ty_ret, mode_ret, (lbl, Omitted r) :: args
+    | (lbl, Arg r) :: rest ->
+      let ty_ret, mode_ret, args = type_underscore_parameters closed_args rest in
+      ty_ret, mode_ret, (lbl, Arg r) :: args
+  in
+  type_underscore_parameters closed_args args
 
 (* Generalization criterion for expressions *)
 
@@ -3627,6 +3686,7 @@ and is_nonexpansive_opt = function
 
 and is_nonexpansive_arg = function
   | Omitted _ -> true
+  | Underscore _ -> true
   | Arg (e, _) -> is_nonexpansive e
 
 let maybe_expansive e = not (is_nonexpansive e)
@@ -6864,6 +6924,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       let arg = option_none env (instance ty_arg) Location.none in
       (lbl, Arg (arg, Value.legacy, sort_arg))
   | Omitted _ as arg -> (lbl, arg)
+  | Underscore _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode pm
       funct funct_mode sargs ret_tvar =
@@ -6929,7 +6990,8 @@ and type_application env app_loc expected_mode pm
           untyped_args
       in
       let ty_ret, mode_ret, args =
-        type_omitted_parameters expected_mode env ty_ret mode_ret args
+        type_omitted_parameters expected_mode env ty_ret mode_ret
+          (Value.regional_to_local_alloc funct_mode) args
       in
       check_local_application_complete ~env ~app_loc untyped_args;
       if !Clflags.principal then begin
@@ -8392,7 +8454,7 @@ let escaping_hint failure_reason submode_reason
       let qualifier = if sure then "will" else "may" in
       [ Location.msg
           "Hint: @[This is a partial application@,\
-                   Adding %d more %s %s make the value non-local@]"
+                   Specifying %d more %s %s make the value non-local@]"
           n args qualifier ]
     | None -> []
     end
@@ -8970,6 +9032,9 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Underscore_wrapped_in_some ->
+      Location.errorf ~loc
+        "@[Underscore argument cannot be wrapped in Some.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
