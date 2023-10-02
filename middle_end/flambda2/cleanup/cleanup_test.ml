@@ -211,6 +211,10 @@ module Deps = struct
     let tbl = t.name_to_dep in
     insert tbl (Name.var bp) (Alias dep)
 
+  let add_func_param t ~param ~arg =
+    let tbl = t.name_to_dep in
+    insert tbl (Name.var param) (Alias arg)
+
   let add_use t dep = Hashtbl.replace t.used dep ()
 end
 
@@ -240,12 +244,21 @@ module Dot = struct
     let node_id ~ctx ppf (variable : Name.t) =
       Format.fprintf ppf "node_%d_%d" ctx (variable :> int)
 
-    let node ~ctx ppf name =
-      Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name Name.print
-        name
+    let node ~ctx ~root ppf name =
+      if root
+      then
+        Format.fprintf ppf "%a [shape=record label=\"%a\"];@\n" (node_id ~ctx)
+          name Name.print name
+      else
+        Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name
+          Name.print name
 
     let nodes ~ctx ppf t =
-      Hashtbl.iter (fun name _ -> node ~ctx ppf name) t.Deps.name_to_dep
+      Hashtbl.iter
+        (fun name _ ->
+          let root = Hashtbl.mem t.Deps.used name in
+          node ~ctx ~root ppf name)
+        t.Deps.name_to_dep
 
     let edge ~ctx ppf src (dst : Deps.Dep.t) =
       let color, deps =
@@ -283,6 +296,12 @@ module Dot = struct
     print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:P.print
 end
 
+type code_dep =
+  { params : Variable.t list;
+    return : Variable.t list; (* Dummy variable representing return value *)
+    exn : Variable.t list (* Dummy variable representing exn return value *)
+  }
+
 module Dacc : sig
   type t
 
@@ -300,11 +319,17 @@ module Dacc : sig
 
   val cont_dep : Variable.t -> Simple.t -> t -> t
 
+  val func_param_dep : Bound_parameter.t -> Variable.t -> t -> t
+
   val used : Simple.t -> t -> t
 
   val opaque_let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
 
   val let_field : Bound_pattern.t -> Deps.field -> Name.t -> t -> t
+
+  val add_code : Code_id.t -> code_dep -> t -> t
+
+  val find_code : t -> Code_id.t -> code_dep
 
   val pp : Format.formatter -> t -> unit
 
@@ -319,6 +344,7 @@ end = struct
       let_cont : int;
       let_rec_cont : int;
       func : int;
+      code : code_dep Code_id.Map.t;
       deps : Deps.graph
     }
 
@@ -333,8 +359,14 @@ end = struct
       let_cont = 0;
       let_rec_cont = 0;
       func = 0;
+      code = Code_id.Map.empty;
       deps = Deps.create ()
     }
+
+  let add_code code_id dep t =
+    { t with code = Code_id.Map.add code_id dep t.code }
+
+  let find_code t code_id = Code_id.Map.find code_id t.code
 
   let let_ t = { t with let_ = t.let_ + 1 }
 
@@ -360,6 +392,12 @@ end = struct
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ -> Deps.add_cont_dep t.deps pat name)
       ~const:(fun _ -> ());
+    t
+
+  let func_param_dep param arg t =
+    Deps.add_func_param t.deps
+      ~param:(Bound_parameter.var param)
+      ~arg:(Name.var arg);
     t
 
   let used dep t =
@@ -399,6 +437,32 @@ let apply_cont_deps denv dacc apply_cont =
       (fun dacc param dep -> Dacc.cont_dep param dep dacc)
       dacc params args
   | Return | Exn -> Dacc.todo' dacc
+
+let prepare_code dacc (code_id : Code_id.t) (code : Code.t) =
+  let return = [Variable.create "function_return"] in
+  let exn = [Variable.create "function_exn"] in
+  let params =
+    (* TODO: better. We just need the arity *)
+    let arity =
+      let params_and_body = Code.params_and_body code in
+      Flambda.Function_params_and_body.pattern_match params_and_body
+        ~f:(fun
+             ~return_continuation:_
+             ~exn_continuation:_
+             params
+             ~body:_
+             ~my_closure:_
+             ~is_my_closure_used:_
+             ~my_region:_
+             ~my_depth:_
+             ~free_names_of_body:_
+           -> Bound_parameters.arity params)
+    in
+    List.init (Flambda_arity.cardinal arity) (fun i ->
+        Variable.create (Printf.sprintf "function_param_%i" i))
+  in
+  let code_dep = { return; exn; params } in
+  Dacc.add_code code_id code_dep dacc
 
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
@@ -509,6 +573,10 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     end
   end
   | Let let_expr ->
+    let bound_pattern, body =
+      Flambda.Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
+          bound_pattern, body)
+    in
     let dacc = Dacc.let_ dacc in
     let defining_expr = Flambda.Let_expr.defining_expr let_expr in
     let dep : Deps.Dep.t option =
@@ -582,42 +650,56 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         let set_of_closures = { function_decls; value_slots; alloc_mode } in
         Set_of_closures set_of_closures, dacc
       | Static_consts group ->
-        let group = Flambda.Static_const_group.to_list group in
-        let static_const_or_code :
-            dacc ->
-            Flambda.static_const_or_code ->
-            dacc * rev_static_const_or_code =
-         fun dacc -> function
-          | Code code ->
-            let code, dacc = traverse_code dacc code in
-            dacc, Code code
-          | Deleted_code -> dacc, Deleted_code
-          | Static_const static_const -> dacc, Static_const static_const
+        let bound_static =
+          match bound_pattern with
+          | Static b -> b
+          | Singleton _ | Set_of_closures _ -> assert false
         in
-        let dacc, group = List.fold_left_map static_const_or_code dacc group in
+        let dacc =
+          Flambda.Static_const_group.match_against_bound_static group
+            bound_static ~init:dacc ~code:prepare_code
+            ~deleted_code:(fun dacc _ -> dacc)
+            ~set_of_closures:(fun dacc ~closure_symbols:_ _ -> dacc)
+            ~block_like:(fun dacc _ _ -> dacc)
+        in
+        let dacc, rev_group =
+          Flambda.Static_const_group.match_against_bound_static group
+            bound_static ~init:(dacc, [])
+            ~code:(fun (dacc, rev_group) code_id code ->
+              let code, dacc = traverse_code dacc code_id code in
+              dacc, Code code :: rev_group)
+            ~deleted_code:(fun (dacc, rev_group) _ ->
+              dacc, Deleted_code :: rev_group)
+            ~set_of_closures:
+              (fun (dacc, rev_group) ~closure_symbols:_ set_of_closures ->
+              let static_const = Static_const.set_of_closures set_of_closures in
+              dacc, Static_const static_const :: rev_group)
+            ~block_like:(fun (dacc, rev_group) _symbol static_const ->
+              (* TODO: register make block deps *)
+              dacc, Static_const static_const :: rev_group)
+        in
+        let group = List.rev rev_group in
         Static_consts group, dacc
       (* TODO set_of_closures in Static_consts *)
       | Prim _ -> Named defining_expr, dacc
       | Simple _ -> Named defining_expr, dacc
       | Rec_info _ as defining_expr -> Named defining_expr, dacc
     in
-    Flambda.Let_expr.pattern_match let_expr ~f:(fun bp ~body ->
-        ignore bp;
-        let dacc =
-          match dep with
-          | None ->
-            Dacc.opaque_let_dependency bp
-              (Flambda.Named.free_names defining_expr)
-              dacc
-          | Some dep -> Dacc.let_dep bp dep dacc
-        in
-        let let_acc =
-          Let
-            { bound_pattern = bp; defining_expr = named; parent = denv.parent }
-        in
-        traverse { parent = let_acc; conts = denv.conts } dacc body)
+    let dacc =
+      match dep with
+      | None ->
+        Dacc.opaque_let_dependency bound_pattern
+          (Flambda.Named.free_names defining_expr)
+          dacc
+      | Some dep -> Dacc.let_dep bound_pattern dep dacc
+    in
+    let let_acc =
+      Let { bound_pattern; defining_expr = named; parent = denv.parent }
+    in
+    traverse { parent = let_acc; conts = denv.conts } dacc body
 
-and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
+and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
+    rev_code * dacc =
   let dacc = Dacc.func dacc in
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
@@ -634,9 +716,18 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
          ~my_depth
          ~free_names_of_body:_
        ->
+      let code_dep = Dacc.find_code dacc code_id in
       let conts =
         Continuation.Map.of_list
-          [return_continuation, Return; exn_continuation, Exn]
+          [ return_continuation, Normal code_dep.return;
+            exn_continuation, Normal code_dep.exn ]
+      in
+      let dacc =
+        List.fold_left2
+          (fun dacc param arg -> Dacc.func_param_dep param arg dacc)
+          dacc
+          (Bound_parameters.to_list params)
+          code_dep.params
       in
       let body, dacc = traverse { parent = Up; conts } dacc body in
       let params_and_body =
