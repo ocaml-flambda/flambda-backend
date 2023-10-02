@@ -103,7 +103,7 @@ let [@ocamlformat "disable"] print ppf
       Function_declarations.print function_decls
       (Value_slot.Map.print Simple.print) value_slots
 
-let free_names { function_decls; value_slots; alloc_mode = _ } =
+let free_names { function_decls; value_slots; alloc_mode } =
   let free_names_of_value_slots =
     Value_slot.Map.fold
       (fun value_slot simple free_names ->
@@ -113,7 +113,7 @@ let free_names { function_decls; value_slots; alloc_mode = _ } =
       value_slots Name_occurrences.empty
   in
   Name_occurrences.union_list
-    [Function_declarations.free_names function_decls; free_names_of_value_slots]
+    [Function_declarations.free_names function_decls; free_names_of_value_slots; Alloc_mode.For_allocations.free_names alloc_mode]
 
 let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
   let alloc_mode' =
