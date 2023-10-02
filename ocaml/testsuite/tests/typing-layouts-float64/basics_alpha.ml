@@ -753,7 +753,7 @@ Error: This expression has type t_float64
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
        But the layout of t_float64 must be a sublayout of value, because
-         it's imported from another compilation unit.
+         of layout requirements from an imported definition.
 |}];;
 
 let f13_2 (x : t_float64) = compare x x;;
@@ -766,7 +766,7 @@ Error: This expression has type t_float64
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
        But the layout of t_float64 must be a sublayout of value, because
-         it's imported from another compilation unit.
+         of layout requirements from an imported definition.
 |}];;
 
 let f13_3 (x : t_float64) = Marshal.to_bytes x;;
@@ -779,7 +779,7 @@ Error: This expression has type t_float64
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
        But the layout of t_float64 must be a sublayout of value, because
-         it's imported from another compilation unit.
+         of layout requirements from an imported definition.
 |}];;
 
 let f13_4 (x : t_float64) = Hashtbl.hash x;;
@@ -792,5 +792,5 @@ Error: This expression has type t_float64
        The layout of t_float64 is float64, because
          of the annotation on the declaration of the type t_float64.
        But the layout of t_float64 must be a sublayout of value, because
-         it's imported from another compilation unit.
+         of layout requirements from an imported definition.
 |}];;

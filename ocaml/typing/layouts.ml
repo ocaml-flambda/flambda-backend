@@ -652,7 +652,7 @@ module Layout = struct
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
       | Match ->
-        fprintf ppf "it's pattern matched on"
+        fprintf ppf "it's matched against a pattern"
       | Constructor_declaration idx ->
         fprintf ppf "it's used as constructor field %d" idx
       | Label_declaration lbl ->
@@ -732,7 +732,7 @@ module Layout = struct
       | Primitive id ->
          fprintf ppf "it is the primitive immediate type %s" (Ident.name id)
       | Immediate_polymorphic_variant ->
-         fprintf ppf "it's an immediate polymorphic variant"
+         fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Gc_ignorable_check ->
          fprintf ppf "the check to see whether a value can be ignored by GC"
       | Value_kind ->
@@ -825,7 +825,7 @@ module Layout = struct
       | Concrete_creation concrete ->
          format_concrete_layout_reason ppf concrete
       | Imported ->
-         fprintf ppf "it's imported from another compilation unit"
+         fprintf ppf "of layout requirements from an imported definition"
       | Imported_type_argument {parent_path; position; arity} ->
         fprintf ppf "the %stype argument of %a has this layout"
           (format_position ~arity position)

@@ -176,5 +176,5 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         it's imported from another compilation unit.
+         of layout requirements from an imported definition.
 |}]
