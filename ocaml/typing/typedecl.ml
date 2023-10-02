@@ -2055,6 +2055,8 @@ let transl_value_decl env loc valdecl =
     Env.enter_value valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
+  let reason = Layout.Generalized (Some id, loc) in
+  Ctype.update_generalized_ty_layout_reason ty reason;
   let desc =
     {
      val_id = id;

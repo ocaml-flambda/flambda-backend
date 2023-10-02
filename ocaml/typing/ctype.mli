@@ -520,6 +520,9 @@ val check_type_layout :
 val constrain_type_layout :
   Env.t -> type_expr -> layout -> (unit, Layout.Violation.t) result
 
+(* Update the layout reason of all generalized type vars inside the given [type_expr] *)
+val update_generalized_ty_layout_reason : type_expr -> Layout.creation_reason -> unit
+
 val is_principal : type_expr -> bool
 
 (* True if a type is always global (i.e., it mode crosses for local).  This is
