@@ -238,6 +238,9 @@ let new_scoped_ty scope desc = newty3 ~level:!current_level ~scope desc
 
 let newvar ?name jkind =
   newty2 ~level:!current_level (Tvar { name; jkind })
+let new_rep_var ?name ~why () =
+  let jkind, sort = Jkind.of_new_sort_var ~why in
+  newvar ?name jkind, sort
 let newvar2 ?name level jkind = newty2 ~level (Tvar { name; jkind })
 let new_global_var ?name jkind =
   newty2 ~level:!global_level (Tvar { name; jkind })
@@ -2080,10 +2083,8 @@ let type_jkind env ty =
   estimate_type_jkind env (get_unboxed_type_approximation env ty)
 
 let type_sort ~why env ty =
-  let sort = Jkind.Sort.new_var () in
-  match
-    constrain_type_jkind env ty (Jkind.of_sort sort ~why)
-  with
+  let jkind, sort = Jkind.of_new_sort_var ~why in
+  match constrain_type_jkind env ty jkind with
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
@@ -3817,14 +3818,12 @@ let filter_arrow env t l ~force_tpoly =
        allow both to be any.  Separately, the relevant checks on function
        arguments should happen when functions are constructed, not their
        types. *)
-    let arg_sort = Jkind.Sort.new_var () in
-    let l_arg = Jkind.of_sort ~why:Function_argument arg_sort in
-    let ret_sort = Jkind.Sort.new_var () in
-    let l_res = Jkind.of_sort ~why:Function_result ret_sort in
+    let k_arg, arg_sort = Jkind.of_new_sort_var ~why:Function_argument in
+    let k_res, ret_sort = Jkind.of_new_sort_var ~why:Function_result in
     let ty_arg =
       if not force_tpoly then begin
         assert (not (is_optional l));
-        newvar2 level l_arg
+        newvar2 level k_arg
       end else begin
         let t1 =
           if is_optional l then
@@ -3835,12 +3834,12 @@ let filter_arrow env t l ~force_tpoly =
                        [newvar2 level (Jkind.value ~why:Type_argument)],
                        ref Mnil))
           else
-            newvar2 level l_arg
+            newvar2 level k_arg
         in
         newty2 ~level (Tpoly(t1, []))
       end
     in
-    let ty_ret = newvar2 level l_res in
+    let ty_ret = newvar2 level k_res in
     let arg_mode = Mode.Alloc.newvar () in
     let ret_mode = Mode.Alloc.newvar () in
     let t' =
