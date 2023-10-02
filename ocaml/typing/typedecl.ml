@@ -1167,6 +1167,16 @@ let update_decl_layout env dpath decl =
     end;
   new_decl
 
+let update_decls_layout_reason decls =
+  List.map
+    (fun (id, decl) ->
+       let reason =  Layout.(Generalized (Some id, decl.type_loc)) in
+       List.iter
+         (fun ty -> Ctype.update_generalized_ty_layout_reason ty reason)
+         decl.type_params;
+       (id, decl))
+    decls
+
 let update_decls_layout env decls =
   List.map
     (fun (id, decl) -> (id, update_decl_layout env (Pident id) decl))
@@ -1522,6 +1532,7 @@ let transl_type_decl env rec_flag sdecl_list =
       |> Typedecl_variance.update_decls env sdecl_list
       |> Typedecl_separability.update_decls env
       |> update_decls_layout new_env
+      |> update_decls_layout_reason
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))
