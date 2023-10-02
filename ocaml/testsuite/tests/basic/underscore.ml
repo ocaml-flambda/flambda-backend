@@ -11,13 +11,14 @@ val f : string -> x:'a -> y:'b -> int -> string = <fun>
 |}]
 
 (* note that x and y are applied together, without side effects in between;
- but all after the concatenation of "hello world" *)
-let g = f ("world" ^ "hello") ~y:_ ~x:_
+ but all after the side effect of the first argument *)
+let g = f (print_endline "hello"; "world") ~y:_ ~x:_
 [%%expect{|
 (let
   (f/274 = (apply (field 0 (global Toploop!)) "f")
    g/280 =
-     (let (arg/281 = (apply (field 27 (global Stdlib!)) "world" "hello"))
+     (let
+       (arg/281 = (seq (apply (field 45 (global Stdlib!)) "hello") "world"))
        (function {nlocal = 0} underscore/282 underscore/283 stub
          ignore assert all zero_alloc
          (apply f/274 arg/281 underscore/282 underscore/283))))
