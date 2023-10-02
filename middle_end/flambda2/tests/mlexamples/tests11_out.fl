@@ -36,7 +36,6 @@ let code loopify(never) size(7) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1
       ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
        $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
        0)
-      &my_region
       -> k * k1
 in
 let code inline(always) loopify(never) size(16) newer_version_of(bar_0)
@@ -56,18 +55,17 @@ and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1
         my_closure my_region my_depth
         -> k * k1 =
   apply direct(map_foo_4_1) inlined(never) inlining_state(depth(1))
-    $camlTests11__map_foo_8 ~ depth do_not_inline -> do_not_inline
+    $camlTests11__map_foo_8
       ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
        $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
        0)
-      &my_region
       -> k * k1
 and code rec loopify(never) size(69) newer_version_of(map_foo_4)
       map_foo_4_1 (f, seq, param : imm tagged)
         my_closure my_region my_depth
         -> k * k1
         : [ 0 | 0 of val * val ] =
-  apply seq (0) &my_region -> k2 * k1
+  apply seq (0) -> k2 * k1
     where k2 (`*match*` : [ 0 | 0 of val * val ]) =
       let prim = %is_int `*match*` in
       (switch prim
@@ -101,7 +99,7 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
                  cont k2 (`anon-fn[tests11.ml:15,2--70]`))
               where k2 (switch_result) =
                 ((let Pfield = %block_load (`*match*`, 0) in
-                  apply f (Pfield) &my_region -> k2 * k1)
+                  apply f (Pfield) -> k2 * k1)
                    where k2 (apply_result) =
                      let Pmakeblock = %Block 0 (apply_result, switch_result)
                      in
@@ -111,11 +109,10 @@ and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1
         my_closure my_region my_depth
         -> k * k1 =
   apply direct(map_foo_4_1) inlined(never) inlining_state(depth(1))
-    $camlTests11__map_foo_8 ~ depth do_not_inline -> do_not_inline
+    $camlTests11__map_foo_8
       ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
        $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
        0)
-      &my_region
       -> k * k1
 in
 let $camlTests11 = Block 0 ($camlTests11__bar_5, $camlTests11__map_foo_8) in
