@@ -997,7 +997,7 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 # 1003 "flambda_parser_in.ml"
         ) = 
@@ -1037,7 +1037,7 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos_region_ in
         let _v : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 # 1043 "flambda_parser_in.ml"
         ) = 
@@ -1059,12 +1059,12 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : (
-# 236 "flambda_parser.mly"
-      (Fexpr.alloc_mode_for_types)
+# 235 "flambda_parser.mly"
+      (Fexpr.region -> Fexpr.alloc_mode_for_allocations)
 # 1065 "flambda_parser_in.ml"
         ) = 
 # 505 "flambda_parser.mly"
-    ( Heap )
+    ( fun _ -> Heap )
 # 1069 "flambda_parser_in.ml"
          in
         {
@@ -1088,12 +1088,12 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
         let _v : (
-# 236 "flambda_parser.mly"
-      (Fexpr.alloc_mode_for_types)
+# 235 "flambda_parser.mly"
+      (Fexpr.region -> Fexpr.alloc_mode_for_allocations)
 # 1094 "flambda_parser_in.ml"
         ) = 
-# 506 "flambda_parser.mly"
-                      ( Heap_or_local )
+# 507 "flambda_parser.mly"
+              ( fun region -> Local { region } )
 # 1098 "flambda_parser_in.ml"
          in
         {
@@ -1117,12 +1117,12 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
         let _v : (
-# 236 "flambda_parser.mly"
-      (Fexpr.alloc_mode_for_types)
+# 235 "flambda_parser.mly"
+      (Fexpr.region -> Fexpr.alloc_mode_for_allocations)
 # 1123 "flambda_parser_in.ml"
         ) = 
 # 507 "flambda_parser.mly"
-              ( Local )
+              ( fun region -> Local { region } )
 # 1127 "flambda_parser_in.ml"
          in
         {
@@ -1164,7 +1164,7 @@ module Tables = struct
         let _startpos = _startpos_cont_ in
         let _endpos = _endpos_args_ in
         let _v : 'tv_apply_cont_expr = 
-# 872 "flambda_parser.mly"
+# 871 "flambda_parser.mly"
     ( { cont; args; trap_action } )
 # 1170 "flambda_parser_in.ml"
          in
@@ -1262,13 +1262,12 @@ module Tables = struct
           continuation = r;
           exn_continuation = e;
           args = args;
-          call_kind;
+          call_kind = call_kind region;
           inlined;
           inlining_state;
           arities;
-          region;
      } )
-# 1272 "flambda_parser_in.ml"
+# 1271 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1286,11 +1285,11 @@ module Tables = struct
         let _v : (
 # 237 "flambda_parser.mly"
       (Fexpr.array_kind)
-# 1290 "flambda_parser_in.ml"
+# 1289 "flambda_parser_in.ml"
         ) = 
 # 465 "flambda_parser.mly"
     ( Values )
-# 1294 "flambda_parser_in.ml"
+# 1293 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1315,11 +1314,11 @@ module Tables = struct
         let _v : (
 # 237 "flambda_parser.mly"
       (Fexpr.array_kind)
-# 1319 "flambda_parser_in.ml"
+# 1318 "flambda_parser_in.ml"
         ) = 
 # 466 "flambda_parser.mly"
             ( Immediates )
-# 1323 "flambda_parser_in.ml"
+# 1322 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1344,11 +1343,11 @@ module Tables = struct
         let _v : (
 # 237 "flambda_parser.mly"
       (Fexpr.array_kind)
-# 1348 "flambda_parser_in.ml"
+# 1347 "flambda_parser_in.ml"
         ) = 
 # 467 "flambda_parser.mly"
               ( Naked_floats )
-# 1352 "flambda_parser_in.ml"
+# 1351 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1373,7 +1372,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 728 "flambda_parser.mly"
             ( Invalid { message = "halt-and-catch-fire" } )
-# 1377 "flambda_parser_in.ml"
+# 1376 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1398,7 +1397,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 729 "flambda_parser.mly"
                     ( Invalid { message =  "treat-as-unreachable" } )
-# 1402 "flambda_parser_in.ml"
+# 1401 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1425,7 +1424,7 @@ module Tables = struct
         let message : (
 # 104 "flambda_parser.mly"
       (string)
-# 1429 "flambda_parser_in.ml"
+# 1428 "flambda_parser_in.ml"
         ) = Obj.magic message in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -1434,7 +1433,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 730 "flambda_parser.mly"
                                   ( Invalid { message } )
-# 1438 "flambda_parser_in.ml"
+# 1437 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1466,7 +1465,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 731 "flambda_parser.mly"
                                    ( Apply_cont ac )
-# 1470 "flambda_parser_in.ml"
+# 1469 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1505,7 +1504,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 732 "flambda_parser.mly"
                                                    ( Switch {scrutinee; cases} )
-# 1509 "flambda_parser_in.ml"
+# 1508 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1537,7 +1536,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 733 "flambda_parser.mly"
                              ( Apply e )
-# 1541 "flambda_parser_in.ml"
+# 1540 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1576,7 +1575,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 734 "flambda_parser.mly"
                              ( e )
-# 1580 "flambda_parser_in.ml"
+# 1579 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1601,11 +1600,11 @@ module Tables = struct
         let _v : (
 # 238 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
-# 1605 "flambda_parser_in.ml"
+# 1604 "flambda_parser_in.ml"
         ) = 
 # 528 "flambda_parser.mly"
             ( Add )
-# 1609 "flambda_parser_in.ml"
+# 1608 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1630,11 +1629,11 @@ module Tables = struct
         let _v : (
 # 238 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
-# 1634 "flambda_parser_in.ml"
+# 1633 "flambda_parser_in.ml"
         ) = 
 # 529 "flambda_parser.mly"
              ( Sub )
-# 1638 "flambda_parser_in.ml"
+# 1637 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1659,11 +1658,11 @@ module Tables = struct
         let _v : (
 # 238 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
-# 1663 "flambda_parser_in.ml"
+# 1662 "flambda_parser_in.ml"
         ) = 
 # 530 "flambda_parser.mly"
             ( Mul )
-# 1667 "flambda_parser_in.ml"
+# 1666 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1688,11 +1687,11 @@ module Tables = struct
         let _v : (
 # 238 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
-# 1692 "flambda_parser_in.ml"
+# 1691 "flambda_parser_in.ml"
         ) = 
 # 531 "flambda_parser.mly"
              ( Div )
-# 1696 "flambda_parser_in.ml"
+# 1695 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1717,11 +1716,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1721 "flambda_parser_in.ml"
+# 1720 "flambda_parser_in.ml"
         ) = 
 # 518 "flambda_parser.mly"
          ( Add )
-# 1725 "flambda_parser_in.ml"
+# 1724 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1746,11 +1745,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1750 "flambda_parser_in.ml"
+# 1749 "flambda_parser_in.ml"
         ) = 
 # 519 "flambda_parser.mly"
           ( Sub )
-# 1754 "flambda_parser_in.ml"
+# 1753 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1775,11 +1774,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1779 "flambda_parser_in.ml"
+# 1778 "flambda_parser_in.ml"
         ) = 
 # 520 "flambda_parser.mly"
          ( Mul )
-# 1783 "flambda_parser_in.ml"
+# 1782 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1804,11 +1803,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1808 "flambda_parser_in.ml"
+# 1807 "flambda_parser_in.ml"
         ) = 
 # 521 "flambda_parser.mly"
           ( Div )
-# 1812 "flambda_parser_in.ml"
+# 1811 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1833,11 +1832,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1837 "flambda_parser_in.ml"
+# 1836 "flambda_parser_in.ml"
         ) = 
 # 522 "flambda_parser.mly"
             ( Mod )
-# 1841 "flambda_parser_in.ml"
+# 1840 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1862,11 +1861,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1866 "flambda_parser_in.ml"
+# 1865 "flambda_parser_in.ml"
         ) = 
 # 523 "flambda_parser.mly"
              ( And )
-# 1870 "flambda_parser_in.ml"
+# 1869 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1891,11 +1890,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1895 "flambda_parser_in.ml"
+# 1894 "flambda_parser_in.ml"
         ) = 
 # 524 "flambda_parser.mly"
             ( Or )
-# 1899 "flambda_parser_in.ml"
+# 1898 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1920,11 +1919,11 @@ module Tables = struct
         let _v : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 1924 "flambda_parser_in.ml"
+# 1923 "flambda_parser_in.ml"
         ) = 
 # 525 "flambda_parser.mly"
              ( Xor )
-# 1928 "flambda_parser_in.ml"
+# 1927 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1984,7 +1983,7 @@ module Tables = struct
         let _v : 'tv_binop_app = 
 # 560 "flambda_parser.mly"
     ( Binary (op, arg1, arg2) )
-# 1988 "flambda_parser_in.ml"
+# 1987 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2018,7 +2017,7 @@ module Tables = struct
         let op : (
 # 250 "flambda_parser.mly"
       (Fexpr.infix_binop)
-# 2022 "flambda_parser_in.ml"
+# 2021 "flambda_parser_in.ml"
         ) = Obj.magic op in
         let arg1 : 'tv_simple = Obj.magic arg1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2027,7 +2026,7 @@ module Tables = struct
         let _v : 'tv_binop_app = 
 # 562 "flambda_parser.mly"
     ( Binary (Infix op, arg1, arg2) )
-# 2031 "flambda_parser_in.ml"
+# 2030 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2095,12 +2094,12 @@ module Tables = struct
         let mut : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 2099 "flambda_parser_in.ml"
+# 2098 "flambda_parser_in.ml"
         ) = Obj.magic mut in
         let ak : (
 # 237 "flambda_parser.mly"
       (Fexpr.array_kind)
-# 2104 "flambda_parser_in.ml"
+# 2103 "flambda_parser_in.ml"
         ) = Obj.magic ak in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2109,7 +2108,7 @@ module Tables = struct
         let _v : 'tv_binop_app = 
 # 565 "flambda_parser.mly"
     ( Binary (Array_load (ak, mut), arg1, arg2) )
-# 2113 "flambda_parser_in.ml"
+# 2112 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2155,13 +2154,13 @@ module Tables = struct
         let c : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 2159 "flambda_parser_in.ml"
+# 2158 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let arg1 : 'tv_simple = Obj.magic arg1 in
         let i : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 2165 "flambda_parser_in.ml"
+# 2164 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2170,7 +2169,7 @@ module Tables = struct
         let _v : 'tv_binop_app = 
 # 568 "flambda_parser.mly"
     ( Binary (Int_arith (i, c), arg1, arg2) )
-# 2174 "flambda_parser_in.ml"
+# 2173 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2222,14 +2221,14 @@ module Tables = struct
         let c : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 2226 "flambda_parser_in.ml"
+# 2225 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let arg1 : 'tv_simple = Obj.magic arg1 in
         let s : 'tv_signed_or_unsigned = Obj.magic s in
         let i : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 2233 "flambda_parser_in.ml"
+# 2232 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2238,7 +2237,7 @@ module Tables = struct
         let _v : 'tv_binop_app = 
 # 572 "flambda_parser.mly"
     ( Binary (Int_comp (i, c s), arg1, arg2) )
-# 2242 "flambda_parser_in.ml"
+# 2241 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2286,7 +2285,7 @@ module Tables = struct
         let i : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 2290 "flambda_parser_in.ml"
+# 2289 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2295,7 +2294,7 @@ module Tables = struct
         let _v : 'tv_binop_app = 
 # 575 "flambda_parser.mly"
     ( Binary (Int_shift (i, s), arg1, arg2) )
-# 2299 "flambda_parser_in.ml"
+# 2298 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2318,9 +2317,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
         let _v : 'tv_blank_or_kinds_with_subkinds_ = 
-# 990 "flambda_parser.mly"
+# 989 "flambda_parser.mly"
           ( None )
-# 2324 "flambda_parser_in.ml"
+# 2323 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2341,15 +2340,15 @@ module Tables = struct
         let a : (
 # 254 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 2345 "flambda_parser_in.ml"
+# 2344 "flambda_parser_in.ml"
         ) = Obj.magic a in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_a_ in
         let _endpos = _endpos_a_ in
         let _v : 'tv_blank_or_kinds_with_subkinds_ = 
-# 991 "flambda_parser.mly"
+# 990 "flambda_parser.mly"
           ( Some a )
-# 2353 "flambda_parser_in.ml"
+# 2352 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2407,15 +2406,15 @@ module Tables = struct
         let xs : 'tv_loption_separated_nonempty_list_COMMA_simple__ = Obj.magic xs in
         let _5 : unit = Obj.magic _5 in
         let alloc : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 2413 "flambda_parser_in.ml"
+# 2412 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let t : 'tv_tag = Obj.magic t in
         let m : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 2419 "flambda_parser_in.ml"
+# 2418 "flambda_parser_in.ml"
         ) = Obj.magic m in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2425,12 +2424,12 @@ module Tables = struct
           let elts = 
 # 229 "<standard.mly>"
     ( xs )
-# 2429 "flambda_parser_in.ml"
+# 2428 "flambda_parser_in.ml"
            in
           (
 # 599 "flambda_parser.mly"
     ( Variadic (Make_block (t, m, alloc), elts) )
-# 2434 "flambda_parser_in.ml"
+# 2433 "flambda_parser_in.ml"
            : 'tv_block)
         in
         {
@@ -2449,11 +2448,11 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (Fexpr.block_access_field_kind)
-# 2453 "flambda_parser_in.ml"
+# 2452 "flambda_parser_in.ml"
         ) = 
 # 477 "flambda_parser.mly"
     ( Any_value )
-# 2457 "flambda_parser_in.ml"
+# 2456 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2478,11 +2477,11 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (Fexpr.block_access_field_kind)
-# 2482 "flambda_parser_in.ml"
+# 2481 "flambda_parser_in.ml"
         ) = 
 # 478 "flambda_parser.mly"
             ( Immediate )
-# 2486 "flambda_parser_in.ml"
+# 2485 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2517,7 +2516,7 @@ module Tables = struct
         let field_kind : (
 # 240 "flambda_parser.mly"
       (Fexpr.block_access_field_kind)
-# 2521 "flambda_parser_in.ml"
+# 2520 "flambda_parser_in.ml"
         ) = Obj.magic field_kind in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_field_kind_ in
@@ -2525,7 +2524,7 @@ module Tables = struct
         let _v : 'tv_block_access_kind = 
 # 471 "flambda_parser.mly"
     ( Values { field_kind; tag; size } )
-# 2529 "flambda_parser_in.ml"
+# 2528 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2557,7 +2556,7 @@ module Tables = struct
         let _v : 'tv_block_access_kind = 
 # 473 "flambda_parser.mly"
     ( Naked_floats { size } )
-# 2561 "flambda_parser_in.ml"
+# 2560 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2575,7 +2574,7 @@ module Tables = struct
         let _v : 'tv_boption_KWD_NOALLOC_ = 
 # 130 "<standard.mly>"
     ( false )
-# 2579 "flambda_parser_in.ml"
+# 2578 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2600,7 +2599,7 @@ module Tables = struct
         let _v : 'tv_boption_KWD_NOALLOC_ = 
 # 132 "<standard.mly>"
     ( true )
-# 2604 "flambda_parser_in.ml"
+# 2603 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2618,7 +2617,7 @@ module Tables = struct
         let _v : 'tv_boption_KWD_TUPLED_ = 
 # 130 "<standard.mly>"
     ( false )
-# 2622 "flambda_parser_in.ml"
+# 2621 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2643,7 +2642,7 @@ module Tables = struct
         let _v : 'tv_boption_KWD_TUPLED_ = 
 # 132 "<standard.mly>"
     ( true )
-# 2647 "flambda_parser_in.ml"
+# 2646 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2668,7 +2667,7 @@ module Tables = struct
         let _v : 'tv_bytes_or_bigstring_set = 
 # 579 "flambda_parser.mly"
                    ( Bytes )
-# 2672 "flambda_parser_in.ml"
+# 2671 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2693,7 +2692,7 @@ module Tables = struct
         let _v : 'tv_bytes_or_bigstring_set = 
 # 580 "flambda_parser.mly"
                        ( Bigstring )
-# 2697 "flambda_parser_in.ml"
+# 2696 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2712,17 +2711,17 @@ module Tables = struct
           CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
         } = _menhir_stack in
         let alloc : (
-# 236 "flambda_parser.mly"
-      (Fexpr.alloc_mode_for_types)
-# 2718 "flambda_parser_in.ml"
+# 235 "flambda_parser.mly"
+      (Fexpr.region -> Fexpr.alloc_mode_for_allocations)
+# 2717 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_alloc_ in
         let _endpos = _endpos_alloc_ in
         let _v : 'tv_call_kind = 
-# 811 "flambda_parser.mly"
-                                      ( Function (Indirect alloc) )
-# 2726 "flambda_parser_in.ml"
+# 810 "flambda_parser.mly"
+                                      ( fun region -> Function (Indirect (alloc region)) )
+# 2725 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2772,9 +2771,9 @@ module Tables = struct
         } = _menhir_stack in
         let _6 : unit = Obj.magic _6 in
         let alloc : (
-# 236 "flambda_parser.mly"
-      (Fexpr.alloc_mode_for_types)
-# 2778 "flambda_parser_in.ml"
+# 235 "flambda_parser.mly"
+      (Fexpr.region -> Fexpr.alloc_mode_for_allocations)
+# 2777 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let function_slot : 'tv_function_slot_opt = Obj.magic function_slot in
         let code_id : 'tv_code_id = Obj.magic code_id in
@@ -2784,9 +2783,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__6_ in
         let _v : 'tv_call_kind = 
-# 817 "flambda_parser.mly"
-    ( Function (Direct { code_id; function_slot; alloc }) )
-# 2790 "flambda_parser_in.ml"
+# 816 "flambda_parser.mly"
+    ( fun region -> Function (Direct { code_id; function_slot; alloc = alloc region }) )
+# 2789 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2816,9 +2815,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos_noalloc_ in
         let _v : 'tv_call_kind = 
-# 819 "flambda_parser.mly"
-    ( C_call { alloc = not noalloc } )
-# 2822 "flambda_parser_in.ml"
+# 818 "flambda_parser.mly"
+    ( fun _ -> C_call { alloc = not noalloc } )
+# 2821 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2921,7 +2920,7 @@ module Tables = struct
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
         code_size; is_tupled; loopify; } )
-# 2925 "flambda_parser_in.ml"
+# 2924 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3016,7 +3015,7 @@ module Tables = struct
         let _v : 'tv_code_header = 
 # 352 "flambda_parser.mly"
     ( recursive, inline, loopify, id, newer_version_of, code_size, is_tupled )
-# 3020 "flambda_parser_in.ml"
+# 3019 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3039,9 +3038,9 @@ module Tables = struct
         let _startpos = _startpos_v_ in
         let _endpos = _endpos_v_ in
         let _v : 'tv_code_id = 
-# 1022 "flambda_parser.mly"
+# 1021 "flambda_parser.mly"
                  ( v )
-# 3045 "flambda_parser_in.ml"
+# 3044 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3064,9 +3063,9 @@ module Tables = struct
         let _startpos = _startpos_i_ in
         let _endpos = _endpos_i_ in
         let _v : 'tv_code_size = 
-# 1026 "flambda_parser.mly"
+# 1025 "flambda_parser.mly"
                   ( i )
-# 3070 "flambda_parser_in.ml"
+# 3069 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3089,9 +3088,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
         let _v : 'tv_coercion = 
-# 1002 "flambda_parser.mly"
+# 1001 "flambda_parser.mly"
            ( Id )
-# 3095 "flambda_parser_in.ml"
+# 3094 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3130,22 +3129,22 @@ module Tables = struct
         let to_ : (
 # 259 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 3134 "flambda_parser_in.ml"
+# 3133 "flambda_parser_in.ml"
         ) = Obj.magic to_ in
         let _3 : unit = Obj.magic _3 in
         let from : (
 # 259 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 3140 "flambda_parser_in.ml"
+# 3139 "flambda_parser_in.ml"
         ) = Obj.magic from in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos_to__ in
         let _v : 'tv_coercion = 
-# 1004 "flambda_parser.mly"
+# 1003 "flambda_parser.mly"
     ( Change_depth { from; to_; } )
-# 3149 "flambda_parser_in.ml"
+# 3148 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3166,7 +3165,7 @@ module Tables = struct
         let c : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 3170 "flambda_parser_in.ml"
+# 3169 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -3174,11 +3173,11 @@ module Tables = struct
         let _v : (
 # 241 "flambda_parser.mly"
       (Fexpr.const)
-# 3178 "flambda_parser_in.ml"
+# 3177 "flambda_parser_in.ml"
         ) = 
-# 976 "flambda_parser.mly"
+# 975 "flambda_parser.mly"
             ( make_const_int c )
-# 3182 "flambda_parser_in.ml"
+# 3181 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3199,7 +3198,7 @@ module Tables = struct
         let c : (
 # 68 "flambda_parser.mly"
        (float)
-# 3203 "flambda_parser_in.ml"
+# 3202 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -3207,11 +3206,11 @@ module Tables = struct
         let _v : (
 # 241 "flambda_parser.mly"
       (Fexpr.const)
-# 3211 "flambda_parser_in.ml"
+# 3210 "flambda_parser_in.ml"
         ) = 
-# 977 "flambda_parser.mly"
+# 976 "flambda_parser.mly"
               ( Naked_float c )
-# 3215 "flambda_parser_in.ml"
+# 3214 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3236,11 +3235,11 @@ module Tables = struct
         let _v : (
 # 242 "flambda_parser.mly"
       (Fexpr.continuation)
-# 3240 "flambda_parser_in.ml"
+# 3239 "flambda_parser_in.ml"
         ) = 
-# 1050 "flambda_parser.mly"
+# 1049 "flambda_parser.mly"
                         ( Named e )
-# 3244 "flambda_parser_in.ml"
+# 3243 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3261,7 +3260,7 @@ module Tables = struct
         let s : (
 # 262 "flambda_parser.mly"
       (Fexpr.special_continuation)
-# 3265 "flambda_parser_in.ml"
+# 3264 "flambda_parser_in.ml"
         ) = Obj.magic s in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_s_ in
@@ -3269,11 +3268,11 @@ module Tables = struct
         let _v : (
 # 242 "flambda_parser.mly"
       (Fexpr.continuation)
-# 3273 "flambda_parser_in.ml"
+# 3272 "flambda_parser_in.ml"
         ) = 
-# 1051 "flambda_parser.mly"
+# 1050 "flambda_parser.mly"
                              ( Special s )
-# 3277 "flambda_parser_in.ml"
+# 3276 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3321,16 +3320,16 @@ module Tables = struct
         let sort : (
 # 248 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
-# 3325 "flambda_parser_in.ml"
+# 3324 "flambda_parser_in.ml"
         ) = Obj.magic sort in
         let name : 'tv_continuation_id = Obj.magic name in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_name_ in
         let _endpos = _endpos_handler_ in
         let _v : 'tv_continuation_binding = 
-# 897 "flambda_parser.mly"
+# 896 "flambda_parser.mly"
     ( { name; params; handler; sort } )
-# 3334 "flambda_parser_in.ml"
+# 3333 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3355,7 +3354,7 @@ module Tables = struct
         let _v : 'tv_continuation_body = 
 # 723 "flambda_parser.mly"
                                     ( l )
-# 3359 "flambda_parser_in.ml"
+# 3358 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3380,7 +3379,7 @@ module Tables = struct
         let _v : 'tv_continuation_body = 
 # 724 "flambda_parser.mly"
                     ( a )
-# 3384 "flambda_parser_in.ml"
+# 3383 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3401,7 +3400,7 @@ module Tables = struct
         let e : (
 # 73 "flambda_parser.mly"
        (string)
-# 3405 "flambda_parser_in.ml"
+# 3404 "flambda_parser_in.ml"
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -3410,9 +3409,9 @@ module Tables = struct
           let _endpos = _endpos_e_ in
           let _startpos = _startpos_e_ in
           (
-# 1046 "flambda_parser.mly"
+# 1045 "flambda_parser.mly"
               ( make_located e (_startpos, _endpos) )
-# 3416 "flambda_parser_in.ml"
+# 3415 "flambda_parser_in.ml"
            : 'tv_continuation_id)
         in
         {
@@ -3431,11 +3430,40 @@ module Tables = struct
         let _v : (
 # 248 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
-# 3435 "flambda_parser_in.ml"
+# 3434 "flambda_parser_in.ml"
+        ) = 
+# 888 "flambda_parser.mly"
+    ( None )
+# 3438 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = _1;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        } = _menhir_stack in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__1_ in
+        let _v : (
+# 248 "flambda_parser.mly"
+      (Fexpr.continuation_sort option)
+# 3463 "flambda_parser_in.ml"
         ) = 
 # 889 "flambda_parser.mly"
-    ( None )
-# 3439 "flambda_parser_in.ml"
+            ( Some Exn )
+# 3467 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3460,40 +3488,11 @@ module Tables = struct
         let _v : (
 # 248 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
-# 3464 "flambda_parser_in.ml"
+# 3492 "flambda_parser_in.ml"
         ) = 
 # 890 "flambda_parser.mly"
-            ( Some Exn )
-# 3468 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = _1;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        } = _menhir_stack in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__1_ in
-        let _v : (
-# 248 "flambda_parser.mly"
-      (Fexpr.continuation_sort option)
-# 3493 "flambda_parser_in.ml"
-        ) = 
-# 891 "flambda_parser.mly"
                            ( Some Define_root_symbol )
-# 3497 "flambda_parser_in.ml"
+# 3496 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3525,11 +3524,11 @@ module Tables = struct
         let _v : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 3529 "flambda_parser_in.ml"
+# 3528 "flambda_parser_in.ml"
         ) = 
 # 492 "flambda_parser.mly"
                        ( Tagged_immediate )
-# 3533 "flambda_parser_in.ml"
+# 3532 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3554,11 +3553,11 @@ module Tables = struct
         let _v : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 3558 "flambda_parser_in.ml"
+# 3557 "flambda_parser_in.ml"
         ) = 
 # 493 "flambda_parser.mly"
             ( Naked_immediate )
-# 3562 "flambda_parser_in.ml"
+# 3561 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3583,11 +3582,11 @@ module Tables = struct
         let _v : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 3587 "flambda_parser_in.ml"
+# 3586 "flambda_parser_in.ml"
         ) = 
 # 494 "flambda_parser.mly"
               ( Naked_float )
-# 3591 "flambda_parser_in.ml"
+# 3590 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3612,11 +3611,11 @@ module Tables = struct
         let _v : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 3616 "flambda_parser_in.ml"
+# 3615 "flambda_parser_in.ml"
         ) = 
 # 495 "flambda_parser.mly"
               ( Naked_int32 )
-# 3620 "flambda_parser_in.ml"
+# 3619 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3641,11 +3640,11 @@ module Tables = struct
         let _v : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 3645 "flambda_parser_in.ml"
+# 3644 "flambda_parser_in.ml"
         ) = 
 # 496 "flambda_parser.mly"
               ( Naked_int64 )
-# 3649 "flambda_parser_in.ml"
+# 3648 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3670,11 +3669,11 @@ module Tables = struct
         let _v : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 3674 "flambda_parser_in.ml"
+# 3673 "flambda_parser_in.ml"
         ) = 
 # 497 "flambda_parser.mly"
                   ( Naked_nativeint )
-# 3678 "flambda_parser_in.ml"
+# 3677 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3692,7 +3691,7 @@ module Tables = struct
         let _v : 'tv_ctors = 
 # 670 "flambda_parser.mly"
     ( [], [] )
-# 3696 "flambda_parser_in.ml"
+# 3695 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3717,7 +3716,7 @@ module Tables = struct
         let _v : 'tv_ctors = 
 # 671 "flambda_parser.mly"
                            ( ctors )
-# 3721 "flambda_parser_in.ml"
+# 3720 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3742,7 +3741,7 @@ module Tables = struct
         let _v : 'tv_ctors_nonempty = 
 # 673 "flambda_parser.mly"
                     ( [ tag ], [] )
-# 3746 "flambda_parser_in.ml"
+# 3745 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3781,7 +3780,7 @@ module Tables = struct
         let _v : 'tv_ctors_nonempty = 
 # 675 "flambda_parser.mly"
       ( let (c, nc) = ctors in (tag :: c, nc) )
-# 3785 "flambda_parser_in.ml"
+# 3784 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3806,7 +3805,7 @@ module Tables = struct
         let _v : 'tv_ctors_nonempty = 
 # 676 "flambda_parser.mly"
                                         ( [], nonconsts )
-# 3810 "flambda_parser_in.ml"
+# 3809 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3845,7 +3844,7 @@ module Tables = struct
         let _v : 'tv_deleted_code = 
 # 319 "flambda_parser.mly"
                                              ( code_id )
-# 3849 "flambda_parser_in.ml"
+# 3848 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3872,7 +3871,7 @@ module Tables = struct
         let cont : (
 # 242 "flambda_parser.mly"
       (Fexpr.continuation)
-# 3876 "flambda_parser_in.ml"
+# 3875 "flambda_parser_in.ml"
         ) = Obj.magic cont in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -3881,7 +3880,7 @@ module Tables = struct
         let _v : 'tv_exn_continuation = 
 # 297 "flambda_parser.mly"
                              ( cont )
-# 3885 "flambda_parser_in.ml"
+# 3884 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3913,7 +3912,7 @@ module Tables = struct
         let _v : 'tv_exn_continuation_id = 
 # 300 "flambda_parser.mly"
                                 ( cont )
-# 3917 "flambda_parser_in.ml"
+# 3916 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3959,11 +3958,11 @@ module Tables = struct
         let _v : (
 # 244 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
-# 3963 "flambda_parser_in.ml"
+# 3962 "flambda_parser_in.ml"
         ) = 
 # 284 "flambda_parser.mly"
     ( { before; after } )
-# 3967 "flambda_parser_in.ml"
+# 3966 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3988,7 +3987,7 @@ module Tables = struct
         let _v : 'tv_expr = 
 # 702 "flambda_parser.mly"
                        ( l )
-# 3992 "flambda_parser_in.ml"
+# 3991 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4013,7 +4012,7 @@ module Tables = struct
         let _v : 'tv_expr = 
 # 703 "flambda_parser.mly"
                    ( i )
-# 4017 "flambda_parser_in.ml"
+# 4016 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4038,11 +4037,11 @@ module Tables = struct
         let _v : (
 # 245 "flambda_parser.mly"
       (Fexpr.field_of_block)
-# 4042 "flambda_parser_in.ml"
+# 4041 "flambda_parser_in.ml"
         ) = 
-# 957 "flambda_parser.mly"
+# 956 "flambda_parser.mly"
                ( Symbol s )
-# 4046 "flambda_parser_in.ml"
+# 4045 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4067,11 +4066,11 @@ module Tables = struct
         let _v : (
 # 245 "flambda_parser.mly"
       (Fexpr.field_of_block)
-# 4071 "flambda_parser_in.ml"
+# 4070 "flambda_parser_in.ml"
         ) = 
-# 958 "flambda_parser.mly"
+# 957 "flambda_parser.mly"
                  ( Dynamically_computed v )
-# 4075 "flambda_parser_in.ml"
+# 4074 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4092,7 +4091,7 @@ module Tables = struct
         let i : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 4096 "flambda_parser_in.ml"
+# 4095 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -4101,13 +4100,13 @@ module Tables = struct
           let _endpos = _endpos_i_ in
           let _startpos = _startpos_i_ in
           (
-# 959 "flambda_parser.mly"
+# 958 "flambda_parser.mly"
             ( Tagged_immediate ( make_tagged_immediate ~loc:(_startpos, _endpos) i ) )
-# 4107 "flambda_parser_in.ml"
+# 4106 "flambda_parser_in.ml"
            : (
 # 245 "flambda_parser.mly"
       (Fexpr.field_of_block)
-# 4111 "flambda_parser_in.ml"
+# 4110 "flambda_parser_in.ml"
           ))
         in
         {
@@ -4140,11 +4139,11 @@ module Tables = struct
         let _v : (
 # 246 "flambda_parser.mly"
       (Fexpr.flambda_unit)
-# 4144 "flambda_parser_in.ml"
+# 4143 "flambda_parser_in.ml"
         ) = 
 # 279 "flambda_parser.mly"
     ( body )
-# 4148 "flambda_parser_in.ml"
+# 4147 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4169,11 +4168,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4173 "flambda_parser_in.ml"
+# 4172 "flambda_parser_in.ml"
         ) = 
 # 543 "flambda_parser.mly"
              ( Yielding_bool Eq )
-# 4177 "flambda_parser_in.ml"
+# 4176 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4198,11 +4197,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4202 "flambda_parser_in.ml"
+# 4201 "flambda_parser_in.ml"
         ) = 
 # 544 "flambda_parser.mly"
                 ( Yielding_bool Neq )
-# 4206 "flambda_parser_in.ml"
+# 4205 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4227,11 +4226,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4231 "flambda_parser_in.ml"
+# 4230 "flambda_parser_in.ml"
         ) = 
 # 545 "flambda_parser.mly"
             ( Yielding_bool ( Lt ()) )
-# 4235 "flambda_parser_in.ml"
+# 4234 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4256,11 +4255,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4260 "flambda_parser_in.ml"
+# 4259 "flambda_parser_in.ml"
         ) = 
 # 546 "flambda_parser.mly"
                ( Yielding_bool ( Gt ()) )
-# 4264 "flambda_parser_in.ml"
+# 4263 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4285,11 +4284,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4289 "flambda_parser_in.ml"
+# 4288 "flambda_parser_in.ml"
         ) = 
 # 547 "flambda_parser.mly"
                  ( Yielding_bool (Le()) )
-# 4293 "flambda_parser_in.ml"
+# 4292 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4314,11 +4313,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4318 "flambda_parser_in.ml"
+# 4317 "flambda_parser_in.ml"
         ) = 
 # 548 "flambda_parser.mly"
                     ( Yielding_bool (Ge ()) )
-# 4322 "flambda_parser_in.ml"
+# 4321 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4343,11 +4342,11 @@ module Tables = struct
         let _v : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4347 "flambda_parser_in.ml"
+# 4346 "flambda_parser_in.ml"
         ) = 
 # 549 "flambda_parser.mly"
              ( (Yielding_int_like_compare_functions ()) )
-# 4351 "flambda_parser_in.ml"
+# 4350 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4368,7 +4367,7 @@ module Tables = struct
         let f : (
 # 68 "flambda_parser.mly"
        (float)
-# 4372 "flambda_parser_in.ml"
+# 4371 "flambda_parser_in.ml"
         ) = Obj.magic f in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_f_ in
@@ -4376,11 +4375,11 @@ module Tables = struct
         let _v : (
 # 249 "flambda_parser.mly"
       (float Fexpr.or_variable)
-# 4380 "flambda_parser_in.ml"
+# 4379 "flambda_parser_in.ml"
         ) = 
-# 937 "flambda_parser.mly"
+# 936 "flambda_parser.mly"
               ( Const f )
-# 4384 "flambda_parser_in.ml"
+# 4383 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4405,11 +4404,11 @@ module Tables = struct
         let _v : (
 # 249 "flambda_parser.mly"
       (float Fexpr.or_variable)
-# 4409 "flambda_parser_in.ml"
+# 4408 "flambda_parser_in.ml"
         ) = 
-# 938 "flambda_parser.mly"
+# 937 "flambda_parser.mly"
                  ( Var v )
-# 4413 "flambda_parser_in.ml"
+# 4412 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4446,9 +4445,9 @@ module Tables = struct
           };
         } = _menhir_stack in
         let alloc : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 4452 "flambda_parser_in.ml"
+# 4451 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let function_slot : 'tv_function_slot_opt = Obj.magic function_slot in
         let code_id : 'tv_code_id = Obj.magic code_id in
@@ -4459,7 +4458,7 @@ module Tables = struct
         let _v : 'tv_fun_decl = 
 # 785 "flambda_parser.mly"
     ( { code_id; function_slot; alloc; } )
-# 4463 "flambda_parser_in.ml"
+# 4462 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4482,9 +4481,9 @@ module Tables = struct
         let _startpos = _startpos_s_ in
         let _endpos = _endpos_s_ in
         let _v : 'tv_func_name_with_optional_arities = 
-# 981 "flambda_parser.mly"
+# 980 "flambda_parser.mly"
                ( s, None )
-# 4488 "flambda_parser_in.ml"
+# 4487 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4542,7 +4541,7 @@ module Tables = struct
         let ret_arity : (
 # 254 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 4546 "flambda_parser_in.ml"
+# 4545 "flambda_parser_in.ml"
         ) = Obj.magic ret_arity in
         let _5 : unit = Obj.magic _5 in
         let params_arity : 'tv_blank_or_kinds_with_subkinds_ = Obj.magic params_arity in
@@ -4553,9 +4552,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__7_ in
         let _v : 'tv_func_name_with_optional_arities = 
-# 986 "flambda_parser.mly"
+# 985 "flambda_parser.mly"
     ( s, Some ({ params_arity; ret_arity } : function_arities) )
-# 4559 "flambda_parser_in.ml"
+# 4558 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4578,9 +4577,9 @@ module Tables = struct
         let _startpos = _startpos_v_ in
         let _endpos = _endpos_v_ in
         let _v : 'tv_function_slot = 
-# 1029 "flambda_parser.mly"
+# 1028 "flambda_parser.mly"
                  ( v )
-# 4584 "flambda_parser_in.ml"
+# 4583 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4596,9 +4595,9 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : 'tv_function_slot_opt = 
-# 1033 "flambda_parser.mly"
+# 1032 "flambda_parser.mly"
     ( None )
-# 4602 "flambda_parser_in.ml"
+# 4601 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4628,9 +4627,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos_cid_ in
         let _v : 'tv_function_slot_opt = 
-# 1034 "flambda_parser.mly"
+# 1033 "flambda_parser.mly"
                             ( Some cid )
-# 4634 "flambda_parser_in.ml"
+# 4633 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4651,7 +4650,7 @@ module Tables = struct
         let o : (
 # 239 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
-# 4655 "flambda_parser_in.ml"
+# 4654 "flambda_parser_in.ml"
         ) = Obj.magic o in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_o_ in
@@ -4659,11 +4658,11 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Fexpr.infix_binop)
-# 4663 "flambda_parser_in.ml"
+# 4662 "flambda_parser_in.ml"
         ) = 
 # 423 "flambda_parser.mly"
                             ( Int_arith o )
-# 4667 "flambda_parser_in.ml"
+# 4666 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4684,7 +4683,7 @@ module Tables = struct
         let c : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 4688 "flambda_parser_in.ml"
+# 4687 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -4692,11 +4691,11 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Fexpr.infix_binop)
-# 4696 "flambda_parser_in.ml"
+# 4695 "flambda_parser_in.ml"
         ) = 
 # 424 "flambda_parser.mly"
                  ( Int_comp (c Signed) )
-# 4700 "flambda_parser_in.ml"
+# 4699 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4721,11 +4720,11 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Fexpr.infix_binop)
-# 4725 "flambda_parser_in.ml"
+# 4724 "flambda_parser_in.ml"
         ) = 
 # 425 "flambda_parser.mly"
                   ( Int_shift s )
-# 4729 "flambda_parser_in.ml"
+# 4728 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4746,7 +4745,7 @@ module Tables = struct
         let o : (
 # 238 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
-# 4750 "flambda_parser_in.ml"
+# 4749 "flambda_parser_in.ml"
         ) = Obj.magic o in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_o_ in
@@ -4754,11 +4753,11 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Fexpr.infix_binop)
-# 4758 "flambda_parser_in.ml"
+# 4757 "flambda_parser_in.ml"
         ) = 
 # 426 "flambda_parser.mly"
                               ( Float_arith o )
-# 4762 "flambda_parser_in.ml"
+# 4761 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4779,7 +4778,7 @@ module Tables = struct
         let c : (
 # 247 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
-# 4783 "flambda_parser_in.ml"
+# 4782 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -4787,11 +4786,11 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Fexpr.infix_binop)
-# 4791 "flambda_parser_in.ml"
+# 4790 "flambda_parser_in.ml"
         ) = 
 # 427 "flambda_parser.mly"
                    ( Float_comp c )
-# 4795 "flambda_parser_in.ml"
+# 4794 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4816,7 +4815,7 @@ module Tables = struct
         let _v : 'tv_init_or_assign = 
 # 500 "flambda_parser.mly"
           ( Initialization )
-# 4820 "flambda_parser_in.ml"
+# 4819 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4841,7 +4840,7 @@ module Tables = struct
         let _v : 'tv_init_or_assign = 
 # 501 "flambda_parser.mly"
               ( Assignment Heap )
-# 4845 "flambda_parser_in.ml"
+# 4844 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4873,7 +4872,53 @@ module Tables = struct
         let _v : 'tv_init_or_assign = 
 # 502 "flambda_parser.mly"
                   ( Assignment Local )
-# 4877 "flambda_parser_in.ml"
+# 4876 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _;
+          CamlinternalMenhirLib.EngineTypes.semv = _4;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__4_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__4_;
+          CamlinternalMenhirLib.EngineTypes.next = {
+            CamlinternalMenhirLib.EngineTypes.state = _;
+            CamlinternalMenhirLib.EngineTypes.semv = _3;
+            CamlinternalMenhirLib.EngineTypes.startp = _startpos__3_;
+            CamlinternalMenhirLib.EngineTypes.endp = _endpos__3_;
+            CamlinternalMenhirLib.EngineTypes.next = {
+              CamlinternalMenhirLib.EngineTypes.state = _;
+              CamlinternalMenhirLib.EngineTypes.semv = _2;
+              CamlinternalMenhirLib.EngineTypes.startp = _startpos__2_;
+              CamlinternalMenhirLib.EngineTypes.endp = _endpos__2_;
+              CamlinternalMenhirLib.EngineTypes.next = {
+                CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+                CamlinternalMenhirLib.EngineTypes.semv = _1;
+                CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+                CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+                CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+              };
+            };
+          };
+        } = _menhir_stack in
+        let _4 : unit = Obj.magic _4 in
+        let _3 : unit = Obj.magic _3 in
+        let _2 : unit = Obj.magic _2 in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__4_ in
+        let _v : 'tv_inline = 
+# 822 "flambda_parser.mly"
+                                        ( Always_inline )
+# 4922 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4918,8 +4963,8 @@ module Tables = struct
         let _endpos = _endpos__4_ in
         let _v : 'tv_inline = 
 # 823 "flambda_parser.mly"
-                                        ( Always_inline )
-# 4923 "flambda_parser_in.ml"
+                                           ( Available_inline )
+# 4968 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4964,54 +5009,8 @@ module Tables = struct
         let _endpos = _endpos__4_ in
         let _v : 'tv_inline = 
 # 824 "flambda_parser.mly"
-                                           ( Available_inline )
-# 4969 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _;
-          CamlinternalMenhirLib.EngineTypes.semv = _4;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__4_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__4_;
-          CamlinternalMenhirLib.EngineTypes.next = {
-            CamlinternalMenhirLib.EngineTypes.state = _;
-            CamlinternalMenhirLib.EngineTypes.semv = _3;
-            CamlinternalMenhirLib.EngineTypes.startp = _startpos__3_;
-            CamlinternalMenhirLib.EngineTypes.endp = _endpos__3_;
-            CamlinternalMenhirLib.EngineTypes.next = {
-              CamlinternalMenhirLib.EngineTypes.state = _;
-              CamlinternalMenhirLib.EngineTypes.semv = _2;
-              CamlinternalMenhirLib.EngineTypes.startp = _startpos__2_;
-              CamlinternalMenhirLib.EngineTypes.endp = _endpos__2_;
-              CamlinternalMenhirLib.EngineTypes.next = {
-                CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-                CamlinternalMenhirLib.EngineTypes.semv = _1;
-                CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-                CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-                CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-              };
-            };
-          };
-        } = _menhir_stack in
-        let _4 : unit = Obj.magic _4 in
-        let _3 : unit = Obj.magic _3 in
-        let _2 : unit = Obj.magic _2 in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__4_ in
-        let _v : 'tv_inline = 
-# 825 "flambda_parser.mly"
                                        ( Never_inline )
-# 5015 "flambda_parser_in.ml"
+# 5014 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5055,9 +5054,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_inline = 
-# 826 "flambda_parser.mly"
+# 825 "flambda_parser.mly"
                                              ( Inline_attribute.Unroll i )
-# 5061 "flambda_parser_in.ml"
+# 5060 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5101,9 +5100,55 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_inline = 
-# 827 "flambda_parser.mly"
+# 826 "flambda_parser.mly"
                                          ( Default_inline )
-# 5107 "flambda_parser_in.ml"
+# 5106 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _;
+          CamlinternalMenhirLib.EngineTypes.semv = _4;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__4_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__4_;
+          CamlinternalMenhirLib.EngineTypes.next = {
+            CamlinternalMenhirLib.EngineTypes.state = _;
+            CamlinternalMenhirLib.EngineTypes.semv = _3;
+            CamlinternalMenhirLib.EngineTypes.startp = _startpos__3_;
+            CamlinternalMenhirLib.EngineTypes.endp = _endpos__3_;
+            CamlinternalMenhirLib.EngineTypes.next = {
+              CamlinternalMenhirLib.EngineTypes.state = _;
+              CamlinternalMenhirLib.EngineTypes.semv = _2;
+              CamlinternalMenhirLib.EngineTypes.startp = _startpos__2_;
+              CamlinternalMenhirLib.EngineTypes.endp = _endpos__2_;
+              CamlinternalMenhirLib.EngineTypes.next = {
+                CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+                CamlinternalMenhirLib.EngineTypes.semv = _1;
+                CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+                CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+                CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+              };
+            };
+          };
+        } = _menhir_stack in
+        let _4 : unit = Obj.magic _4 in
+        let _3 : unit = Obj.magic _3 in
+        let _2 : unit = Obj.magic _2 in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__4_ in
+        let _v : 'tv_inlined = 
+# 829 "flambda_parser.mly"
+                                         ( Always_inlined )
+# 5152 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5148,8 +5193,8 @@ module Tables = struct
         let _endpos = _endpos__4_ in
         let _v : 'tv_inlined = 
 # 830 "flambda_parser.mly"
-                                         ( Always_inlined )
-# 5153 "flambda_parser_in.ml"
+                                       ( Hint_inlined )
+# 5198 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5194,54 +5239,8 @@ module Tables = struct
         let _endpos = _endpos__4_ in
         let _v : 'tv_inlined = 
 # 831 "flambda_parser.mly"
-                                       ( Hint_inlined )
-# 5199 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _;
-          CamlinternalMenhirLib.EngineTypes.semv = _4;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__4_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__4_;
-          CamlinternalMenhirLib.EngineTypes.next = {
-            CamlinternalMenhirLib.EngineTypes.state = _;
-            CamlinternalMenhirLib.EngineTypes.semv = _3;
-            CamlinternalMenhirLib.EngineTypes.startp = _startpos__3_;
-            CamlinternalMenhirLib.EngineTypes.endp = _endpos__3_;
-            CamlinternalMenhirLib.EngineTypes.next = {
-              CamlinternalMenhirLib.EngineTypes.state = _;
-              CamlinternalMenhirLib.EngineTypes.semv = _2;
-              CamlinternalMenhirLib.EngineTypes.startp = _startpos__2_;
-              CamlinternalMenhirLib.EngineTypes.endp = _endpos__2_;
-              CamlinternalMenhirLib.EngineTypes.next = {
-                CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-                CamlinternalMenhirLib.EngineTypes.semv = _1;
-                CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-                CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-                CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-              };
-            };
-          };
-        } = _menhir_stack in
-        let _4 : unit = Obj.magic _4 in
-        let _3 : unit = Obj.magic _3 in
-        let _2 : unit = Obj.magic _2 in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__4_ in
-        let _v : 'tv_inlined = 
-# 832 "flambda_parser.mly"
                                         ( Never_inlined )
-# 5245 "flambda_parser_in.ml"
+# 5244 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5285,9 +5284,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_inlined = 
-# 833 "flambda_parser.mly"
+# 832 "flambda_parser.mly"
                                              ( Unroll i )
-# 5291 "flambda_parser_in.ml"
+# 5290 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5331,9 +5330,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_inlined = 
-# 834 "flambda_parser.mly"
+# 833 "flambda_parser.mly"
                                           ( Default_inlined )
-# 5337 "flambda_parser_in.ml"
+# 5336 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5377,12 +5376,12 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_inlining_state = 
-# 838 "flambda_parser.mly"
+# 837 "flambda_parser.mly"
     (
       (* CR poechsel: Parse the inlining arguments *)
       { depth }
     )
-# 5386 "flambda_parser_in.ml"
+# 5385 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5426,9 +5425,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_inlining_state_depth = 
-# 844 "flambda_parser.mly"
+# 843 "flambda_parser.mly"
                                             ( i )
-# 5432 "flambda_parser_in.ml"
+# 5431 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5453,7 +5452,7 @@ module Tables = struct
         let _v : 'tv_inner_expr = 
 # 712 "flambda_parser.mly"
                    ( w )
-# 5457 "flambda_parser_in.ml"
+# 5456 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5478,7 +5477,7 @@ module Tables = struct
         let _v : 'tv_inner_expr = 
 # 713 "flambda_parser.mly"
                     ( a )
-# 5482 "flambda_parser_in.ml"
+# 5481 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5503,11 +5502,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5507 "flambda_parser_in.ml"
+# 5506 "flambda_parser_in.ml"
         ) = 
 # 534 "flambda_parser.mly"
          ( fun s -> Yielding_bool (Lt s) )
-# 5511 "flambda_parser_in.ml"
+# 5510 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5532,11 +5531,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5536 "flambda_parser_in.ml"
+# 5535 "flambda_parser_in.ml"
         ) = 
 # 535 "flambda_parser.mly"
             ( fun s -> Yielding_bool (Gt s) )
-# 5540 "flambda_parser_in.ml"
+# 5539 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5561,11 +5560,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5565 "flambda_parser_in.ml"
+# 5564 "flambda_parser_in.ml"
         ) = 
 # 536 "flambda_parser.mly"
               ( fun s -> Yielding_bool (Le s) )
-# 5569 "flambda_parser_in.ml"
+# 5568 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5590,11 +5589,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5594 "flambda_parser_in.ml"
+# 5593 "flambda_parser_in.ml"
         ) = 
 # 537 "flambda_parser.mly"
                  ( fun s -> Yielding_bool (Ge s) )
-# 5598 "flambda_parser_in.ml"
+# 5597 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5619,11 +5618,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5623 "flambda_parser_in.ml"
+# 5622 "flambda_parser_in.ml"
         ) = 
 # 538 "flambda_parser.mly"
           ( fun _ -> Yielding_bool Eq )
-# 5627 "flambda_parser_in.ml"
+# 5626 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5648,11 +5647,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5652 "flambda_parser_in.ml"
+# 5651 "flambda_parser_in.ml"
         ) = 
 # 539 "flambda_parser.mly"
              ( fun _ -> Yielding_bool Neq )
-# 5656 "flambda_parser_in.ml"
+# 5655 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5677,11 +5676,11 @@ module Tables = struct
         let _v : (
 # 251 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
-# 5681 "flambda_parser_in.ml"
+# 5680 "flambda_parser_in.ml"
         ) = 
 # 540 "flambda_parser.mly"
           ( fun s -> Yielding_int_like_compare_functions s )
-# 5685 "flambda_parser_in.ml"
+# 5684 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5706,7 +5705,7 @@ module Tables = struct
         let _v : 'tv_int_shift = 
 # 553 "flambda_parser.mly"
             ( Lsl )
-# 5710 "flambda_parser_in.ml"
+# 5709 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5731,7 +5730,7 @@ module Tables = struct
         let _v : 'tv_int_shift = 
 # 554 "flambda_parser.mly"
             ( Lsr )
-# 5735 "flambda_parser_in.ml"
+# 5734 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5756,7 +5755,7 @@ module Tables = struct
         let _v : 'tv_int_shift = 
 # 555 "flambda_parser.mly"
             ( Asr )
-# 5760 "flambda_parser_in.ml"
+# 5759 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5777,7 +5776,7 @@ module Tables = struct
         let nnk : (
 # 257 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
-# 5781 "flambda_parser_in.ml"
+# 5780 "flambda_parser_in.ml"
         ) = Obj.magic nnk in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_nnk_ in
@@ -5785,11 +5784,11 @@ module Tables = struct
         let _v : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 5789 "flambda_parser_in.ml"
+# 5788 "flambda_parser_in.ml"
         ) = 
 # 641 "flambda_parser.mly"
                             ( Naked_number nnk )
-# 5793 "flambda_parser_in.ml"
+# 5792 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5810,7 +5809,7 @@ module Tables = struct
         let subkind : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 5814 "flambda_parser_in.ml"
+# 5813 "flambda_parser_in.ml"
         ) = Obj.magic subkind in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_subkind_ in
@@ -5818,11 +5817,11 @@ module Tables = struct
         let _v : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 5822 "flambda_parser_in.ml"
+# 5821 "flambda_parser_in.ml"
         ) = 
 # 642 "flambda_parser.mly"
                       ( Value subkind )
-# 5826 "flambda_parser_in.ml"
+# 5825 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5847,11 +5846,11 @@ module Tables = struct
         let _v : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 5851 "flambda_parser_in.ml"
+# 5850 "flambda_parser_in.ml"
         ) = 
 # 643 "flambda_parser.mly"
                ( Region )
-# 5855 "flambda_parser_in.ml"
+# 5854 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5876,11 +5875,11 @@ module Tables = struct
         let _v : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 5880 "flambda_parser_in.ml"
+# 5879 "flambda_parser_in.ml"
         ) = 
 # 644 "flambda_parser.mly"
                  ( Rec_info )
-# 5884 "flambda_parser_in.ml"
+# 5883 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5896,9 +5895,9 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : 'tv_kind_with_subkind_opt = 
-# 967 "flambda_parser.mly"
+# 966 "flambda_parser.mly"
     ( None )
-# 5902 "flambda_parser_in.ml"
+# 5901 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5925,16 +5924,16 @@ module Tables = struct
         let kind : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 5929 "flambda_parser_in.ml"
+# 5928 "flambda_parser_in.ml"
         ) = Obj.magic kind in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos_kind_ in
         let _v : 'tv_kind_with_subkind_opt = 
-# 968 "flambda_parser.mly"
+# 967 "flambda_parser.mly"
                                     ( Some kind )
-# 5938 "flambda_parser_in.ml"
+# 5937 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5950,9 +5949,9 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : 'tv_kinded_args = 
-# 901 "flambda_parser.mly"
+# 900 "flambda_parser.mly"
     ( [] )
-# 5956 "flambda_parser_in.ml"
+# 5955 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5989,9 +5988,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__3_ in
         let _v : 'tv_kinded_args = 
-# 902 "flambda_parser.mly"
+# 901 "flambda_parser.mly"
                                                                          ( vs )
-# 5995 "flambda_parser_in.ml"
+# 5994 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6021,9 +6020,9 @@ module Tables = struct
         let _startpos = _startpos_param_ in
         let _endpos = _endpos_kind_ in
         let _v : 'tv_kinded_variable = 
-# 963 "flambda_parser.mly"
+# 962 "flambda_parser.mly"
                                                    ( { param; kind } )
-# 6027 "flambda_parser_in.ml"
+# 6026 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6048,11 +6047,11 @@ module Tables = struct
         let _v : (
 # 254 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 6052 "flambda_parser_in.ml"
+# 6051 "flambda_parser_in.ml"
         ) = 
 # 647 "flambda_parser.mly"
              ( [] )
-# 6056 "flambda_parser_in.ml"
+# 6055 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6077,11 +6076,11 @@ module Tables = struct
         let _v : (
 # 254 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 6081 "flambda_parser_in.ml"
+# 6080 "flambda_parser_in.ml"
         ) = 
 # 648 "flambda_parser.mly"
                                                           ( ks )
-# 6085 "flambda_parser_in.ml"
+# 6084 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6106,11 +6105,11 @@ module Tables = struct
         let _v : (
 # 267 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 6110 "flambda_parser_in.ml"
+# 6109 "flambda_parser_in.ml"
         ) = 
 # 666 "flambda_parser.mly"
                                                            ( sks )
-# 6114 "flambda_parser_in.ml"
+# 6113 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6156,7 +6155,7 @@ module Tables = struct
         let _v : 'tv_let__continuation_body_ = 
 # 761 "flambda_parser.mly"
     ( ({ bindings; value_slots; body } : let_) )
-# 6160 "flambda_parser_in.ml"
+# 6159 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6202,7 +6201,7 @@ module Tables = struct
         let _v : 'tv_let__expr_ = 
 # 761 "flambda_parser.mly"
     ( ({ bindings; value_slots; body } : let_) )
-# 6206 "flambda_parser_in.ml"
+# 6205 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6235,7 +6234,7 @@ module Tables = struct
         let defining_expr : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 6239 "flambda_parser_in.ml"
+# 6238 "flambda_parser_in.ml"
         ) = Obj.magic defining_expr in
         let _2 : unit = Obj.magic _2 in
         let var : 'tv_variable = Obj.magic var in
@@ -6245,7 +6244,7 @@ module Tables = struct
         let _v : 'tv_let_binding = 
 # 766 "flambda_parser.mly"
     ( { var; defining_expr } )
-# 6249 "flambda_parser_in.ml"
+# 6248 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6277,7 +6276,7 @@ module Tables = struct
         let _v : 'tv_let_expr_continuation_body_ = 
 # 707 "flambda_parser.mly"
                            ( Let l )
-# 6281 "flambda_parser_in.ml"
+# 6280 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6302,7 +6301,7 @@ module Tables = struct
         let _v : 'tv_let_expr_continuation_body_ = 
 # 708 "flambda_parser.mly"
                           ( Let_symbol ls )
-# 6306 "flambda_parser_in.ml"
+# 6305 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6334,7 +6333,7 @@ module Tables = struct
         let _v : 'tv_let_expr_expr_ = 
 # 707 "flambda_parser.mly"
                            ( Let l )
-# 6338 "flambda_parser_in.ml"
+# 6337 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6359,7 +6358,7 @@ module Tables = struct
         let _v : 'tv_let_expr_expr_ = 
 # 708 "flambda_parser.mly"
                           ( Let_symbol ls )
-# 6363 "flambda_parser_in.ml"
+# 6362 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6412,7 +6411,7 @@ module Tables = struct
         let _v : 'tv_let_symbol_continuation_body_ = 
 # 307 "flambda_parser.mly"
                          ( { bindings; value_slots; body } )
-# 6416 "flambda_parser_in.ml"
+# 6415 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6465,7 +6464,7 @@ module Tables = struct
         let _v : 'tv_let_symbol_expr_ = 
 # 307 "flambda_parser.mly"
                          ( { bindings; value_slots; body } )
-# 6469 "flambda_parser_in.ml"
+# 6468 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6490,11 +6489,40 @@ module Tables = struct
         let _v : (
 # 255 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
-# 6494 "flambda_parser_in.ml"
+# 6493 "flambda_parser_in.ml"
+        ) = 
+# 852 "flambda_parser.mly"
+               ( Always_loopify )
+# 6497 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = _1;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        } = _menhir_stack in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__1_ in
+        let _v : (
+# 255 "flambda_parser.mly"
+      (Fexpr.loopify_attribute)
+# 6522 "flambda_parser_in.ml"
         ) = 
 # 853 "flambda_parser.mly"
-               ( Always_loopify )
-# 6498 "flambda_parser_in.ml"
+              ( Never_loopify )
+# 6526 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6519,40 +6547,11 @@ module Tables = struct
         let _v : (
 # 255 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
-# 6523 "flambda_parser_in.ml"
+# 6551 "flambda_parser_in.ml"
         ) = 
 # 854 "flambda_parser.mly"
-              ( Never_loopify )
-# 6527 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = _1;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        } = _menhir_stack in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__1_ in
-        let _v : (
-# 255 "flambda_parser.mly"
-      (Fexpr.loopify_attribute)
-# 6552 "flambda_parser_in.ml"
-        ) = 
-# 855 "flambda_parser.mly"
              ( Already_loopified )
-# 6556 "flambda_parser_in.ml"
+# 6555 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6584,11 +6583,11 @@ module Tables = struct
         let _v : (
 # 255 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
-# 6588 "flambda_parser_in.ml"
+# 6587 "flambda_parser_in.ml"
         ) = 
-# 856 "flambda_parser.mly"
+# 855 "flambda_parser.mly"
                             ( Default_loopify_and_tailrec )
-# 6592 "flambda_parser_in.ml"
+# 6591 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6613,11 +6612,11 @@ module Tables = struct
         let _v : (
 # 255 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
-# 6617 "flambda_parser_in.ml"
+# 6616 "flambda_parser_in.ml"
         ) = 
-# 857 "flambda_parser.mly"
+# 856 "flambda_parser.mly"
                 ( Default_loopify_and_not_tailrec )
-# 6621 "flambda_parser_in.ml"
+# 6620 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6633,9 +6632,9 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : 'tv_loopify_opt = 
-# 848 "flambda_parser.mly"
+# 847 "flambda_parser.mly"
     ( None )
-# 6639 "flambda_parser_in.ml"
+# 6638 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6675,7 +6674,7 @@ module Tables = struct
         let l : (
 # 255 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
-# 6679 "flambda_parser_in.ml"
+# 6678 "flambda_parser_in.ml"
         ) = Obj.magic l in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -6683,9 +6682,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_loopify_opt = 
-# 849 "flambda_parser.mly"
+# 848 "flambda_parser.mly"
                                             ( Some l )
-# 6689 "flambda_parser_in.ml"
+# 6688 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6703,7 +6702,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_COMMA_field_of_block__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6707 "flambda_parser_in.ml"
+# 6706 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6728,7 +6727,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_COMMA_field_of_block__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6732 "flambda_parser_in.ml"
+# 6731 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6746,7 +6745,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_COMMA_float_or_variable__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6750 "flambda_parser_in.ml"
+# 6749 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6771,7 +6770,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_COMMA_float_or_variable__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6775 "flambda_parser_in.ml"
+# 6774 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6789,7 +6788,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_COMMA_simple__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6793 "flambda_parser_in.ml"
+# 6792 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6814,7 +6813,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_COMMA_simple__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6818 "flambda_parser_in.ml"
+# 6817 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6832,7 +6831,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_KWD_ANDWHERE_continuation_binding__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6836 "flambda_parser_in.ml"
+# 6835 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6857,7 +6856,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_KWD_ANDWHERE_continuation_binding__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6861 "flambda_parser_in.ml"
+# 6860 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6875,7 +6874,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_PIPE_switch_case__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6879 "flambda_parser_in.ml"
+# 6878 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6900,7 +6899,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_PIPE_switch_case__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6904 "flambda_parser_in.ml"
+# 6903 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6918,7 +6917,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_SEMICOLON_float_or_variable__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6922 "flambda_parser_in.ml"
+# 6921 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6943,7 +6942,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_SEMICOLON_float_or_variable__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6947 "flambda_parser_in.ml"
+# 6946 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6961,7 +6960,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_SEMICOLON_value_slot__ = 
 # 139 "<standard.mly>"
     ( [] )
-# 6965 "flambda_parser_in.ml"
+# 6964 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6986,7 +6985,7 @@ module Tables = struct
         let _v : 'tv_loption_separated_nonempty_list_SEMICOLON_value_slot__ = 
 # 141 "<standard.mly>"
     ( x )
-# 6990 "flambda_parser_in.ml"
+# 6989 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7011,7 +7010,7 @@ module Tables = struct
         let _v : 'tv_module_ = 
 # 293 "flambda_parser.mly"
     ( { body } )
-# 7015 "flambda_parser_in.ml"
+# 7014 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7036,11 +7035,11 @@ module Tables = struct
         let _v : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 7040 "flambda_parser_in.ml"
+# 7039 "flambda_parser_in.ml"
         ) = 
 # 448 "flambda_parser.mly"
                 ( Mutable )
-# 7044 "flambda_parser_in.ml"
+# 7043 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7065,11 +7064,11 @@ module Tables = struct
         let _v : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 7069 "flambda_parser_in.ml"
+# 7068 "flambda_parser_in.ml"
         ) = 
 # 449 "flambda_parser.mly"
                          ( Immutable_unique )
-# 7073 "flambda_parser_in.ml"
+# 7072 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7087,11 +7086,11 @@ module Tables = struct
         let _v : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 7091 "flambda_parser_in.ml"
+# 7090 "flambda_parser_in.ml"
         ) = 
 # 450 "flambda_parser.mly"
     ( Immutable )
-# 7095 "flambda_parser_in.ml"
+# 7094 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7116,11 +7115,11 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
-# 7120 "flambda_parser_in.ml"
+# 7119 "flambda_parser_in.ml"
         ) = 
 # 626 "flambda_parser.mly"
             ( Naked_immediate )
-# 7124 "flambda_parser_in.ml"
+# 7123 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7145,11 +7144,11 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
-# 7149 "flambda_parser_in.ml"
+# 7148 "flambda_parser_in.ml"
         ) = 
 # 627 "flambda_parser.mly"
               ( Naked_float )
-# 7153 "flambda_parser_in.ml"
+# 7152 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7174,11 +7173,11 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
-# 7178 "flambda_parser_in.ml"
+# 7177 "flambda_parser_in.ml"
         ) = 
 # 628 "flambda_parser.mly"
               ( Naked_int32 )
-# 7182 "flambda_parser_in.ml"
+# 7181 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7203,11 +7202,11 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
-# 7207 "flambda_parser_in.ml"
+# 7206 "flambda_parser_in.ml"
         ) = 
 # 629 "flambda_parser.mly"
               ( Naked_int64 )
-# 7211 "flambda_parser_in.ml"
+# 7210 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7232,11 +7231,11 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
-# 7236 "flambda_parser_in.ml"
+# 7235 "flambda_parser_in.ml"
         ) = 
 # 630 "flambda_parser.mly"
                   ( Naked_nativeint )
-# 7240 "flambda_parser_in.ml"
+# 7239 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7261,11 +7260,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7265 "flambda_parser_in.ml"
+# 7264 "flambda_parser_in.ml"
         ) = 
 # 603 "flambda_parser.mly"
                ( Simple s )
-# 7269 "flambda_parser_in.ml"
+# 7268 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7290,11 +7289,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7294 "flambda_parser_in.ml"
+# 7293 "flambda_parser_in.ml"
         ) = 
 # 604 "flambda_parser.mly"
                ( Prim (Nullary n) )
-# 7298 "flambda_parser_in.ml"
+# 7297 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7322,7 +7321,7 @@ module Tables = struct
         let u : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 7326 "flambda_parser_in.ml"
+# 7325 "flambda_parser_in.ml"
         ) = Obj.magic u in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_u_ in
@@ -7330,11 +7329,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7334 "flambda_parser_in.ml"
+# 7333 "flambda_parser_in.ml"
         ) = 
 # 605 "flambda_parser.mly"
                         ( Prim (Unary (u, a)) )
-# 7338 "flambda_parser_in.ml"
+# 7337 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7359,11 +7358,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7363 "flambda_parser_in.ml"
+# 7362 "flambda_parser_in.ml"
         ) = 
 # 606 "flambda_parser.mly"
                   ( Prim b )
-# 7367 "flambda_parser_in.ml"
+# 7366 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7388,11 +7387,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7392 "flambda_parser_in.ml"
+# 7391 "flambda_parser_in.ml"
         ) = 
 # 607 "flambda_parser.mly"
                    ( Prim t )
-# 7396 "flambda_parser_in.ml"
+# 7395 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7417,11 +7416,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7421 "flambda_parser_in.ml"
+# 7420 "flambda_parser_in.ml"
         ) = 
 # 608 "flambda_parser.mly"
               ( Prim b )
-# 7425 "flambda_parser_in.ml"
+# 7424 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7446,11 +7445,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7450 "flambda_parser_in.ml"
+# 7449 "flambda_parser_in.ml"
         ) = 
 # 609 "flambda_parser.mly"
                  ( Closure c )
-# 7454 "flambda_parser_in.ml"
+# 7453 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7477,7 +7476,7 @@ module Tables = struct
         let ri : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 7481 "flambda_parser_in.ml"
+# 7480 "flambda_parser_in.ml"
         ) = Obj.magic ri in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -7486,11 +7485,11 @@ module Tables = struct
         let _v : (
 # 258 "flambda_parser.mly"
       (Fexpr.named)
-# 7490 "flambda_parser_in.ml"
+# 7489 "flambda_parser_in.ml"
         ) = 
 # 615 "flambda_parser.mly"
                                      ( Rec_info ri )
-# 7494 "flambda_parser_in.ml"
+# 7493 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7536,7 +7535,7 @@ module Tables = struct
         let _v : 'tv_newer_version_of = 
 # 356 "flambda_parser.mly"
                                                       ( id )
-# 7540 "flambda_parser_in.ml"
+# 7539 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7569,7 +7568,7 @@ module Tables = struct
         let kinds : (
 # 267 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 7573 "flambda_parser_in.ml"
+# 7572 "flambda_parser_in.ml"
         ) = Obj.magic kinds in
         let _2 : unit = Obj.magic _2 in
         let tag : 'tv_tag = Obj.magic tag in
@@ -7579,7 +7578,7 @@ module Tables = struct
         let _v : 'tv_nonconst_ctor = 
 # 681 "flambda_parser.mly"
                                                             ( tag, kinds )
-# 7583 "flambda_parser_in.ml"
+# 7582 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7604,7 +7603,7 @@ module Tables = struct
         let _v : 'tv_nonconst_ctors_nonempty = 
 # 678 "flambda_parser.mly"
                                                          ( ctors )
-# 7608 "flambda_parser_in.ml"
+# 7607 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7629,7 +7628,7 @@ module Tables = struct
         let _v : 'tv_nullop = 
 # 376 "flambda_parser.mly"
                       ( Begin_region )
-# 7633 "flambda_parser_in.ml"
+# 7632 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7647,7 +7646,7 @@ module Tables = struct
         let _v : 'tv_option_PIPE_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7651 "flambda_parser_in.ml"
+# 7650 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7672,7 +7671,7 @@ module Tables = struct
         let _v : 'tv_option_PIPE_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7676 "flambda_parser_in.ml"
+# 7675 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7690,7 +7689,7 @@ module Tables = struct
         let _v : 'tv_option_inline_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7694 "flambda_parser_in.ml"
+# 7693 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7715,7 +7714,7 @@ module Tables = struct
         let _v : 'tv_option_inline_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7719 "flambda_parser_in.ml"
+# 7718 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7733,7 +7732,7 @@ module Tables = struct
         let _v : 'tv_option_inlined_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7737 "flambda_parser_in.ml"
+# 7736 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7758,7 +7757,7 @@ module Tables = struct
         let _v : 'tv_option_inlined_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7762 "flambda_parser_in.ml"
+# 7761 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7776,7 +7775,7 @@ module Tables = struct
         let _v : 'tv_option_inlining_state_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7780 "flambda_parser_in.ml"
+# 7779 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7801,7 +7800,7 @@ module Tables = struct
         let _v : 'tv_option_inlining_state_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7805 "flambda_parser_in.ml"
+# 7804 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7819,7 +7818,7 @@ module Tables = struct
         let _v : 'tv_option_newer_version_of_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7823 "flambda_parser_in.ml"
+# 7822 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7844,7 +7843,7 @@ module Tables = struct
         let _v : 'tv_option_newer_version_of_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7848 "flambda_parser_in.ml"
+# 7847 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7862,7 +7861,7 @@ module Tables = struct
         let _v : 'tv_option_raise_kind_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7866 "flambda_parser_in.ml"
+# 7865 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7887,7 +7886,7 @@ module Tables = struct
         let _v : 'tv_option_raise_kind_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7891 "flambda_parser_in.ml"
+# 7890 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7905,7 +7904,7 @@ module Tables = struct
         let _v : 'tv_option_trap_action_ = 
 # 111 "<standard.mly>"
     ( None )
-# 7909 "flambda_parser_in.ml"
+# 7908 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7930,7 +7929,7 @@ module Tables = struct
         let _v : 'tv_option_trap_action_ = 
 # 113 "<standard.mly>"
     ( Some x )
-# 7934 "flambda_parser_in.ml"
+# 7933 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7951,15 +7950,15 @@ module Tables = struct
         let i : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 7955 "flambda_parser_in.ml"
+# 7954 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
         let _endpos = _endpos_i_ in
         let _v : 'tv_plain_int = 
-# 953 "flambda_parser.mly"
+# 952 "flambda_parser.mly"
           ( make_plain_int i )
-# 7963 "flambda_parser_in.ml"
+# 7962 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7993,7 +7992,7 @@ module Tables = struct
         let mutability : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 7997 "flambda_parser_in.ml"
+# 7996 "flambda_parser_in.ml"
         ) = Obj.magic mutability in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -8002,7 +8001,7 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 434 "flambda_parser.mly"
     ( Block_load (kind, mutability) )
-# 8006 "flambda_parser_in.ml"
+# 8005 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8034,7 +8033,7 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 437 "flambda_parser.mly"
     ( String_or_bigstring_load (Bigstring, saw) )
-# 8038 "flambda_parser_in.ml"
+# 8037 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8066,7 +8065,7 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 440 "flambda_parser.mly"
     ( String_or_bigstring_load (Bytes, saw) )
-# 8070 "flambda_parser_in.ml"
+# 8069 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8098,7 +8097,7 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 443 "flambda_parser.mly"
     ( String_or_bigstring_load (String, saw) )
-# 8102 "flambda_parser_in.ml"
+# 8101 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8123,7 +8122,7 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 444 "flambda_parser.mly"
                  ( Phys_equal Eq )
-# 8127 "flambda_parser_in.ml"
+# 8126 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8148,7 +8147,32 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 445 "flambda_parser.mly"
                  ( Phys_equal Neq )
-# 8152 "flambda_parser_in.ml"
+# 8151 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = _1;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        } = _menhir_stack in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__1_ in
+        let _v : 'tv_raise_kind = 
+# 883 "flambda_parser.mly"
+                ( Regular )
+# 8176 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8172,8 +8196,8 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : 'tv_raise_kind = 
 # 884 "flambda_parser.mly"
-                ( Regular )
-# 8177 "flambda_parser_in.ml"
+                ( Reraise )
+# 8201 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8197,33 +8221,8 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : 'tv_raise_kind = 
 # 885 "flambda_parser.mly"
-                ( Reraise )
-# 8202 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = _1;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        } = _menhir_stack in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__1_ in
-        let _v : 'tv_raise_kind = 
-# 886 "flambda_parser.mly"
                 ( No_trace )
-# 8227 "flambda_parser_in.ml"
+# 8226 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8244,7 +8243,7 @@ module Tables = struct
         let ri : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8248 "flambda_parser_in.ml"
+# 8247 "flambda_parser_in.ml"
         ) = Obj.magic ri in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_ri_ in
@@ -8252,11 +8251,11 @@ module Tables = struct
         let _v : (
 # 259 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8256 "flambda_parser_in.ml"
+# 8255 "flambda_parser_in.ml"
         ) = 
-# 1016 "flambda_parser.mly"
+# 1015 "flambda_parser.mly"
                        ( ri )
-# 8260 "flambda_parser_in.ml"
+# 8259 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8283,7 +8282,7 @@ module Tables = struct
         let ri : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8287 "flambda_parser_in.ml"
+# 8286 "flambda_parser_in.ml"
         ) = Obj.magic ri in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -8292,11 +8291,11 @@ module Tables = struct
         let _v : (
 # 259 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8296 "flambda_parser_in.ml"
+# 8295 "flambda_parser_in.ml"
         ) = 
-# 1017 "flambda_parser.mly"
+# 1016 "flambda_parser.mly"
                                  ( Succ ri )
-# 8300 "flambda_parser_in.ml"
+# 8299 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8329,7 +8328,7 @@ module Tables = struct
         let ri : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8333 "flambda_parser_in.ml"
+# 8332 "flambda_parser_in.ml"
         ) = Obj.magic ri in
         let d : 'tv_plain_int = Obj.magic d in
         let _1 : unit = Obj.magic _1 in
@@ -8339,11 +8338,11 @@ module Tables = struct
         let _v : (
 # 259 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8343 "flambda_parser_in.ml"
+# 8342 "flambda_parser_in.ml"
         ) = 
-# 1018 "flambda_parser.mly"
+# 1017 "flambda_parser.mly"
                                                   ( Unroll (d, ri) )
-# 8347 "flambda_parser_in.ml"
+# 8346 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8368,11 +8367,40 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8372 "flambda_parser_in.ml"
+# 8371 "flambda_parser_in.ml"
+        ) = 
+# 1007 "flambda_parser.mly"
+                  ( Depth i )
+# 8375 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = _1;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        } = _menhir_stack in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__1_ in
+        let _v : (
+# 260 "flambda_parser.mly"
+      (Fexpr.rec_info)
+# 8400 "flambda_parser_in.ml"
         ) = 
 # 1008 "flambda_parser.mly"
-                  ( Depth i )
-# 8376 "flambda_parser_in.ml"
+            ( Infinity )
+# 8404 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8397,40 +8425,11 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8401 "flambda_parser_in.ml"
+# 8429 "flambda_parser_in.ml"
         ) = 
 # 1009 "flambda_parser.mly"
-            ( Infinity )
-# 8405 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = _1;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        } = _menhir_stack in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__1_ in
-        let _v : (
-# 260 "flambda_parser.mly"
-      (Fexpr.rec_info)
-# 8430 "flambda_parser_in.ml"
-        ) = 
-# 1010 "flambda_parser.mly"
                       ( Do_not_inline )
-# 8434 "flambda_parser_in.ml"
+# 8433 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8455,11 +8454,11 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8459 "flambda_parser_in.ml"
+# 8458 "flambda_parser_in.ml"
         ) = 
-# 1011 "flambda_parser.mly"
+# 1010 "flambda_parser.mly"
                   ( Var dv )
-# 8463 "flambda_parser_in.ml"
+# 8462 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8493,7 +8492,7 @@ module Tables = struct
         let ri : (
 # 259 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8497 "flambda_parser_in.ml"
+# 8496 "flambda_parser_in.ml"
         ) = Obj.magic ri in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -8502,11 +8501,11 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.rec_info)
-# 8506 "flambda_parser_in.ml"
+# 8505 "flambda_parser_in.ml"
         ) = 
-# 1012 "flambda_parser.mly"
+# 1011 "flambda_parser.mly"
                                   ( ri )
-# 8510 "flambda_parser_in.ml"
+# 8509 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8524,7 +8523,7 @@ module Tables = struct
         let _v : 'tv_recursive = 
 # 371 "flambda_parser.mly"
     ( Nonrecursive )
-# 8528 "flambda_parser_in.ml"
+# 8527 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8549,7 +8548,7 @@ module Tables = struct
         let _v : 'tv_recursive = 
 # 372 "flambda_parser.mly"
             ( Recursive )
-# 8553 "flambda_parser_in.ml"
+# 8552 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8574,11 +8573,11 @@ module Tables = struct
         let _v : (
 # 261 "flambda_parser.mly"
       (Fexpr.region)
-# 8578 "flambda_parser_in.ml"
+# 8577 "flambda_parser_in.ml"
         ) = 
-# 861 "flambda_parser.mly"
+# 860 "flambda_parser.mly"
                  ( Named v )
-# 8582 "flambda_parser_in.ml"
+# 8581 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8603,11 +8602,11 @@ module Tables = struct
         let _v : (
 # 261 "flambda_parser.mly"
       (Fexpr.region)
-# 8607 "flambda_parser_in.ml"
+# 8606 "flambda_parser_in.ml"
         ) = 
-# 862 "flambda_parser.mly"
+# 861 "flambda_parser.mly"
                  ( Toplevel )
-# 8611 "flambda_parser_in.ml"
+# 8610 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8628,15 +8627,15 @@ module Tables = struct
         let c : (
 # 242 "flambda_parser.mly"
       (Fexpr.continuation)
-# 8632 "flambda_parser_in.ml"
+# 8631 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
         let _endpos = _endpos_c_ in
         let _v : 'tv_result_continuation = 
-# 866 "flambda_parser.mly"
+# 865 "flambda_parser.mly"
                      ( Return c )
-# 8640 "flambda_parser_in.ml"
+# 8639 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8659,9 +8658,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
         let _v : 'tv_result_continuation = 
-# 867 "flambda_parser.mly"
+# 866 "flambda_parser.mly"
               ( Never_returns )
-# 8665 "flambda_parser_in.ml"
+# 8664 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8679,7 +8678,7 @@ module Tables = struct
         let _v : 'tv_return_arity = 
 # 684 "flambda_parser.mly"
     ( None )
-# 8683 "flambda_parser_in.ml"
+# 8682 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8706,7 +8705,7 @@ module Tables = struct
         let k : (
 # 254 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 8710 "flambda_parser_in.ml"
+# 8709 "flambda_parser_in.ml"
         ) = Obj.magic k in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -8715,7 +8714,7 @@ module Tables = struct
         let _v : 'tv_return_arity = 
 # 685 "flambda_parser.mly"
                                   ( Some k )
-# 8719 "flambda_parser_in.ml"
+# 8718 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8736,7 +8735,7 @@ module Tables = struct
         let x : (
 # 245 "flambda_parser.mly"
       (Fexpr.field_of_block)
-# 8740 "flambda_parser_in.ml"
+# 8739 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -8744,7 +8743,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_field_of_block_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 8748 "flambda_parser_in.ml"
+# 8747 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8779,7 +8778,7 @@ module Tables = struct
         let x : (
 # 245 "flambda_parser.mly"
       (Fexpr.field_of_block)
-# 8783 "flambda_parser_in.ml"
+# 8782 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -8787,7 +8786,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_field_of_block_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 8791 "flambda_parser_in.ml"
+# 8790 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8808,7 +8807,7 @@ module Tables = struct
         let x : (
 # 249 "flambda_parser.mly"
       (float Fexpr.or_variable)
-# 8812 "flambda_parser_in.ml"
+# 8811 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -8816,7 +8815,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_float_or_variable_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 8820 "flambda_parser_in.ml"
+# 8819 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8851,7 +8850,7 @@ module Tables = struct
         let x : (
 # 249 "flambda_parser.mly"
       (float Fexpr.or_variable)
-# 8855 "flambda_parser_in.ml"
+# 8854 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -8859,7 +8858,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_float_or_variable_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 8863 "flambda_parser_in.ml"
+# 8862 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8884,7 +8883,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_kinded_variable_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 8888 "flambda_parser_in.ml"
+# 8887 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8923,7 +8922,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_kinded_variable_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 8927 "flambda_parser_in.ml"
+# 8926 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8948,7 +8947,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_simple_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 8952 "flambda_parser_in.ml"
+# 8951 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8987,7 +8986,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_COMMA_simple_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 8991 "flambda_parser_in.ml"
+# 8990 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9012,7 +9011,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_AND_let_binding_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9016 "flambda_parser_in.ml"
+# 9015 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9051,7 +9050,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_AND_let_binding_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9055 "flambda_parser_in.ml"
+# 9054 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9076,7 +9075,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_AND_static_closure_binding_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9080 "flambda_parser_in.ml"
+# 9079 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9115,7 +9114,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_AND_static_closure_binding_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9119 "flambda_parser_in.ml"
+# 9118 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9136,7 +9135,7 @@ module Tables = struct
         let x : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 9140 "flambda_parser_in.ml"
+# 9139 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -9144,7 +9143,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_AND_symbol_binding_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9148 "flambda_parser_in.ml"
+# 9147 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9179,7 +9178,7 @@ module Tables = struct
         let x : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 9183 "flambda_parser_in.ml"
+# 9182 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -9187,7 +9186,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_AND_symbol_binding_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9191 "flambda_parser_in.ml"
+# 9190 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9212,7 +9211,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_ANDWHERE_continuation_binding_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9216 "flambda_parser_in.ml"
+# 9215 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9251,7 +9250,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_KWD_ANDWHERE_continuation_binding_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9255 "flambda_parser_in.ml"
+# 9254 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9276,7 +9275,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_PIPE_nonconst_ctor_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9280 "flambda_parser_in.ml"
+# 9279 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9315,7 +9314,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_PIPE_nonconst_ctor_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9319 "flambda_parser_in.ml"
+# 9318 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9340,7 +9339,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_PIPE_switch_case_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9344 "flambda_parser_in.ml"
+# 9343 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9379,7 +9378,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_PIPE_switch_case_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9383 "flambda_parser_in.ml"
+# 9382 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9400,7 +9399,7 @@ module Tables = struct
         let x : (
 # 249 "flambda_parser.mly"
       (float Fexpr.or_variable)
-# 9404 "flambda_parser_in.ml"
+# 9403 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -9408,7 +9407,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_SEMICOLON_float_or_variable_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9412 "flambda_parser_in.ml"
+# 9411 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9443,7 +9442,7 @@ module Tables = struct
         let x : (
 # 249 "flambda_parser.mly"
       (float Fexpr.or_variable)
-# 9447 "flambda_parser_in.ml"
+# 9446 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -9451,7 +9450,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_SEMICOLON_float_or_variable_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9455 "flambda_parser_in.ml"
+# 9454 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9476,7 +9475,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_SEMICOLON_value_slot_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9480 "flambda_parser_in.ml"
+# 9479 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9515,7 +9514,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_SEMICOLON_value_slot_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9519 "flambda_parser_in.ml"
+# 9518 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9536,7 +9535,7 @@ module Tables = struct
         let x : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 9540 "flambda_parser_in.ml"
+# 9539 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -9544,7 +9543,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_STAR_kind_with_subkind_ = 
 # 238 "<standard.mly>"
     ( [ x ] )
-# 9548 "flambda_parser_in.ml"
+# 9547 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9579,7 +9578,7 @@ module Tables = struct
         let x : (
 # 253 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
-# 9583 "flambda_parser_in.ml"
+# 9582 "flambda_parser_in.ml"
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -9587,7 +9586,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_STAR_kind_with_subkind_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
-# 9591 "flambda_parser_in.ml"
+# 9590 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9605,7 +9604,7 @@ module Tables = struct
         let _v : 'tv_signed_or_unsigned = 
 # 514 "flambda_parser.mly"
     ( Signed )
-# 9609 "flambda_parser_in.ml"
+# 9608 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9630,7 +9629,7 @@ module Tables = struct
         let _v : 'tv_signed_or_unsigned = 
 # 515 "flambda_parser.mly"
                  ( Unsigned )
-# 9634 "flambda_parser_in.ml"
+# 9633 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9653,9 +9652,9 @@ module Tables = struct
         let _startpos = _startpos_s_ in
         let _endpos = _endpos_s_ in
         let _v : 'tv_simple = 
-# 995 "flambda_parser.mly"
+# 994 "flambda_parser.mly"
                ( Symbol s )
-# 9659 "flambda_parser_in.ml"
+# 9658 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9678,9 +9677,9 @@ module Tables = struct
         let _startpos = _startpos_v_ in
         let _endpos = _endpos_v_ in
         let _v : 'tv_simple = 
-# 996 "flambda_parser.mly"
+# 995 "flambda_parser.mly"
                  ( Var v )
-# 9684 "flambda_parser_in.ml"
+# 9683 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9701,15 +9700,15 @@ module Tables = struct
         let c : (
 # 241 "flambda_parser.mly"
       (Fexpr.const)
-# 9705 "flambda_parser_in.ml"
+# 9704 "flambda_parser_in.ml"
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
         let _endpos = _endpos_c_ in
         let _v : 'tv_simple = 
-# 997 "flambda_parser.mly"
+# 996 "flambda_parser.mly"
               ( Const c )
-# 9713 "flambda_parser_in.ml"
+# 9712 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9746,9 +9745,9 @@ module Tables = struct
         let _startpos = _startpos_s_ in
         let _endpos = _endpos_c_ in
         let _v : 'tv_simple = 
-# 998 "flambda_parser.mly"
+# 997 "flambda_parser.mly"
                                     ( Coerce (s, c) )
-# 9752 "flambda_parser_in.ml"
+# 9751 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9764,9 +9763,9 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : 'tv_simple_args = 
-# 971 "flambda_parser.mly"
+# 970 "flambda_parser.mly"
     ( [] )
-# 9770 "flambda_parser_in.ml"
+# 9769 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9803,9 +9802,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__3_ in
         let _v : 'tv_simple_args = 
-# 972 "flambda_parser.mly"
+# 971 "flambda_parser.mly"
                                                               ( s )
-# 9809 "flambda_parser_in.ml"
+# 9808 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9823,7 +9822,7 @@ module Tables = struct
         let _v : 'tv_size_opt = 
 # 481 "flambda_parser.mly"
     ( None )
-# 9827 "flambda_parser_in.ml"
+# 9826 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9869,7 +9868,7 @@ module Tables = struct
         let _v : 'tv_size_opt = 
 # 482 "flambda_parser.mly"
                                                ( Some size )
-# 9873 "flambda_parser_in.ml"
+# 9872 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9894,40 +9893,40 @@ module Tables = struct
         let _v : (
 # 262 "flambda_parser.mly"
       (Fexpr.special_continuation)
-# 9898 "flambda_parser_in.ml"
+# 9897 "flambda_parser_in.ml"
+        ) = 
+# 1054 "flambda_parser.mly"
+             ( Done )
+# 9901 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = _1;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        } = _menhir_stack in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__1_ in
+        let _v : (
+# 262 "flambda_parser.mly"
+      (Fexpr.special_continuation)
+# 9926 "flambda_parser_in.ml"
         ) = 
 # 1055 "flambda_parser.mly"
-             ( Done )
-# 9902 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = _1;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        } = _menhir_stack in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__1_ in
-        let _v : (
-# 262 "flambda_parser.mly"
-      (Fexpr.special_continuation)
-# 9927 "flambda_parser_in.ml"
-        ) = 
-# 1056 "flambda_parser.mly"
               ( Error )
-# 9931 "flambda_parser_in.ml"
+# 9930 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9945,11 +9944,11 @@ module Tables = struct
         let _v : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 9949 "flambda_parser_in.ml"
+# 9948 "flambda_parser_in.ml"
         ) = 
 # 485 "flambda_parser.mly"
     ( Tagged_immediate )
-# 9953 "flambda_parser_in.ml"
+# 9952 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9974,11 +9973,11 @@ module Tables = struct
         let _v : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 9978 "flambda_parser_in.ml"
+# 9977 "flambda_parser_in.ml"
         ) = 
 # 486 "flambda_parser.mly"
             ( Naked_immediate )
-# 9982 "flambda_parser_in.ml"
+# 9981 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10003,11 +10002,11 @@ module Tables = struct
         let _v : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 10007 "flambda_parser_in.ml"
+# 10006 "flambda_parser_in.ml"
         ) = 
 # 487 "flambda_parser.mly"
               ( Naked_int32 )
-# 10011 "flambda_parser_in.ml"
+# 10010 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10032,11 +10031,11 @@ module Tables = struct
         let _v : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 10036 "flambda_parser_in.ml"
+# 10035 "flambda_parser_in.ml"
         ) = 
 # 488 "flambda_parser.mly"
               ( Naked_int64 )
-# 10040 "flambda_parser_in.ml"
+# 10039 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10061,11 +10060,11 @@ module Tables = struct
         let _v : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 10065 "flambda_parser_in.ml"
+# 10064 "flambda_parser_in.ml"
         ) = 
 # 489 "flambda_parser.mly"
                   ( Naked_nativeint )
-# 10069 "flambda_parser_in.ml"
+# 10068 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10104,7 +10103,7 @@ module Tables = struct
         let _v : 'tv_static_closure_binding = 
 # 360 "flambda_parser.mly"
     ( { symbol; fun_decl } )
-# 10108 "flambda_parser_in.ml"
+# 10107 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10159,7 +10158,7 @@ module Tables = struct
         let m : (
 # 256 "flambda_parser.mly"
       (Fexpr.mutability)
-# 10163 "flambda_parser_in.ml"
+# 10162 "flambda_parser_in.ml"
         ) = Obj.magic m in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -10169,16 +10168,16 @@ module Tables = struct
           let elements = 
 # 229 "<standard.mly>"
     ( xs )
-# 10173 "flambda_parser_in.ml"
+# 10172 "flambda_parser_in.ml"
            in
           (
-# 913 "flambda_parser.mly"
+# 912 "flambda_parser.mly"
     ( (Block { tag; mutability = m; elements } : static_data) )
-# 10178 "flambda_parser_in.ml"
+# 10177 "flambda_parser_in.ml"
            : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10182 "flambda_parser_in.ml"
+# 10181 "flambda_parser_in.ml"
           ))
         in
         {
@@ -10200,7 +10199,7 @@ module Tables = struct
         let f : (
 # 68 "flambda_parser.mly"
        (float)
-# 10204 "flambda_parser_in.ml"
+# 10203 "flambda_parser_in.ml"
         ) = Obj.magic f in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_f_ in
@@ -10208,11 +10207,11 @@ module Tables = struct
         let _v : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10212 "flambda_parser_in.ml"
+# 10211 "flambda_parser_in.ml"
         ) = 
-# 914 "flambda_parser.mly"
+# 913 "flambda_parser.mly"
               ( Boxed_float (Const f) )
-# 10216 "flambda_parser_in.ml"
+# 10215 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10233,7 +10232,7 @@ module Tables = struct
         let i : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 10237 "flambda_parser_in.ml"
+# 10236 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -10241,11 +10240,11 @@ module Tables = struct
         let _v : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10245 "flambda_parser_in.ml"
+# 10244 "flambda_parser_in.ml"
         ) = 
-# 915 "flambda_parser.mly"
+# 914 "flambda_parser.mly"
             ( make_boxed_const_int i )
-# 10249 "flambda_parser_in.ml"
+# 10248 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10278,7 +10277,7 @@ module Tables = struct
         let k : (
 # 268 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
-# 10282 "flambda_parser_in.ml"
+# 10281 "flambda_parser_in.ml"
         ) = Obj.magic k in
         let _2 : unit = Obj.magic _2 in
         let v : 'tv_variable = Obj.magic v in
@@ -10288,11 +10287,11 @@ module Tables = struct
         let _v : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10292 "flambda_parser_in.ml"
+# 10291 "flambda_parser_in.ml"
         ) = 
-# 916 "flambda_parser.mly"
+# 915 "flambda_parser.mly"
                                               ( k v )
-# 10296 "flambda_parser_in.ml"
+# 10295 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10339,16 +10338,16 @@ module Tables = struct
           let fs = 
 # 229 "<standard.mly>"
     ( xs )
-# 10343 "flambda_parser_in.ml"
+# 10342 "flambda_parser_in.ml"
            in
           (
-# 920 "flambda_parser.mly"
+# 919 "flambda_parser.mly"
     ( Immutable_float_block fs )
-# 10348 "flambda_parser_in.ml"
+# 10347 "flambda_parser_in.ml"
            : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10352 "flambda_parser_in.ml"
+# 10351 "flambda_parser_in.ml"
           ))
         in
         {
@@ -10396,16 +10395,16 @@ module Tables = struct
           let fs = 
 # 229 "<standard.mly>"
     ( xs )
-# 10400 "flambda_parser_in.ml"
+# 10399 "flambda_parser_in.ml"
            in
           (
-# 924 "flambda_parser.mly"
+# 923 "flambda_parser.mly"
     ( Immutable_float_array fs )
-# 10405 "flambda_parser_in.ml"
+# 10404 "flambda_parser_in.ml"
            : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10409 "flambda_parser_in.ml"
+# 10408 "flambda_parser_in.ml"
           ))
         in
         {
@@ -10431,11 +10430,11 @@ module Tables = struct
         let _v : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10435 "flambda_parser_in.ml"
+# 10434 "flambda_parser_in.ml"
         ) = 
-# 925 "flambda_parser.mly"
+# 924 "flambda_parser.mly"
                              ( Empty_array )
-# 10439 "flambda_parser_in.ml"
+# 10438 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10462,7 +10461,7 @@ module Tables = struct
         let s : (
 # 104 "flambda_parser.mly"
       (string)
-# 10466 "flambda_parser_in.ml"
+# 10465 "flambda_parser_in.ml"
         ) = Obj.magic s in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -10471,11 +10470,11 @@ module Tables = struct
         let _v : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10475 "flambda_parser_in.ml"
+# 10474 "flambda_parser_in.ml"
         ) = 
-# 926 "flambda_parser.mly"
+# 925 "flambda_parser.mly"
                             ( Mutable_string { initial_value = s } )
-# 10479 "flambda_parser_in.ml"
+# 10478 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10496,7 +10495,7 @@ module Tables = struct
         let s : (
 # 104 "flambda_parser.mly"
       (string)
-# 10500 "flambda_parser_in.ml"
+# 10499 "flambda_parser_in.ml"
         ) = Obj.magic s in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_s_ in
@@ -10504,11 +10503,11 @@ module Tables = struct
         let _v : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10508 "flambda_parser_in.ml"
+# 10507 "flambda_parser_in.ml"
         ) = 
-# 927 "flambda_parser.mly"
+# 926 "flambda_parser.mly"
                ( Immutable_string s )
-# 10512 "flambda_parser_in.ml"
+# 10511 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10541,7 +10540,7 @@ module Tables = struct
         let sp : (
 # 264 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10545 "flambda_parser_in.ml"
+# 10544 "flambda_parser_in.ml"
         ) = Obj.magic sp in
         let _2 : unit = Obj.magic _2 in
         let s : 'tv_symbol = Obj.magic s in
@@ -10551,11 +10550,11 @@ module Tables = struct
         let _v : (
 # 265 "flambda_parser.mly"
       (Fexpr.static_data_binding)
-# 10555 "flambda_parser_in.ml"
+# 10554 "flambda_parser_in.ml"
         ) = 
-# 907 "flambda_parser.mly"
+# 906 "flambda_parser.mly"
     ( { symbol = s; defining_expr = sp } )
-# 10559 "flambda_parser_in.ml"
+# 10558 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10587,11 +10586,47 @@ module Tables = struct
         let _v : (
 # 268 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
-# 10591 "flambda_parser_in.ml"
+# 10590 "flambda_parser_in.ml"
+        ) = 
+# 930 "flambda_parser.mly"
+                        ( fun v -> Boxed_float (Var v) )
+# 10594 "flambda_parser_in.ml"
+         in
+        {
+          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
+          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+        });
+      (fun _menhir_env ->
+        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
+        let {
+          CamlinternalMenhirLib.EngineTypes.state = _;
+          CamlinternalMenhirLib.EngineTypes.semv = _2;
+          CamlinternalMenhirLib.EngineTypes.startp = _startpos__2_;
+          CamlinternalMenhirLib.EngineTypes.endp = _endpos__2_;
+          CamlinternalMenhirLib.EngineTypes.next = {
+            CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
+            CamlinternalMenhirLib.EngineTypes.semv = _1;
+            CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
+            CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
+            CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
+          };
+        } = _menhir_stack in
+        let _2 : unit = Obj.magic _2 in
+        let _1 : unit = Obj.magic _1 in
+        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
+        let _startpos = _startpos__1_ in
+        let _endpos = _endpos__2_ in
+        let _v : (
+# 268 "flambda_parser.mly"
+      (Fexpr.variable -> Fexpr.static_data)
+# 10626 "flambda_parser_in.ml"
         ) = 
 # 931 "flambda_parser.mly"
-                        ( fun v -> Boxed_float (Var v) )
-# 10595 "flambda_parser_in.ml"
+                        ( fun v -> Boxed_int32 (Var v) )
+# 10630 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10623,11 +10658,11 @@ module Tables = struct
         let _v : (
 # 268 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
-# 10627 "flambda_parser_in.ml"
+# 10662 "flambda_parser_in.ml"
         ) = 
 # 932 "flambda_parser.mly"
-                        ( fun v -> Boxed_int32 (Var v) )
-# 10631 "flambda_parser_in.ml"
+                        ( fun v -> Boxed_int64 (Var v) )
+# 10666 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10659,47 +10694,11 @@ module Tables = struct
         let _v : (
 # 268 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
-# 10663 "flambda_parser_in.ml"
+# 10698 "flambda_parser_in.ml"
         ) = 
 # 933 "flambda_parser.mly"
-                        ( fun v -> Boxed_int64 (Var v) )
-# 10667 "flambda_parser_in.ml"
-         in
-        {
-          CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-          CamlinternalMenhirLib.EngineTypes.semv = Obj.repr _v;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos;
-          CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-        });
-      (fun _menhir_env ->
-        let _menhir_stack = _menhir_env.CamlinternalMenhirLib.EngineTypes.stack in
-        let {
-          CamlinternalMenhirLib.EngineTypes.state = _;
-          CamlinternalMenhirLib.EngineTypes.semv = _2;
-          CamlinternalMenhirLib.EngineTypes.startp = _startpos__2_;
-          CamlinternalMenhirLib.EngineTypes.endp = _endpos__2_;
-          CamlinternalMenhirLib.EngineTypes.next = {
-            CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
-            CamlinternalMenhirLib.EngineTypes.semv = _1;
-            CamlinternalMenhirLib.EngineTypes.startp = _startpos__1_;
-            CamlinternalMenhirLib.EngineTypes.endp = _endpos__1_;
-            CamlinternalMenhirLib.EngineTypes.next = _menhir_stack;
-          };
-        } = _menhir_stack in
-        let _2 : unit = Obj.magic _2 in
-        let _1 : unit = Obj.magic _1 in
-        let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
-        let _startpos = _startpos__1_ in
-        let _endpos = _endpos__2_ in
-        let _v : (
-# 268 "flambda_parser.mly"
-      (Fexpr.variable -> Fexpr.static_data)
-# 10699 "flambda_parser_in.ml"
-        ) = 
-# 934 "flambda_parser.mly"
                             ( fun v -> Boxed_nativeint (Var v) )
-# 10703 "flambda_parser_in.ml"
+# 10702 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10745,7 +10744,7 @@ module Tables = struct
         let _v : 'tv_static_set_of_closures = 
 # 368 "flambda_parser.mly"
     ( { bindings; elements } )
-# 10749 "flambda_parser_in.ml"
+# 10748 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10766,7 +10765,7 @@ module Tables = struct
         let i : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 10770 "flambda_parser_in.ml"
+# 10769 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -10782,7 +10781,7 @@ module Tables = struct
       | 128, Some 'a' -> One_twenty_eight {aligned = true}
       | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" )
-# 10786 "flambda_parser_in.ml"
+# 10785 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10807,11 +10806,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 10811 "flambda_parser_in.ml"
+# 10810 "flambda_parser_in.ml"
         ) = 
 # 651 "flambda_parser.mly"
             ( Anything )
-# 10815 "flambda_parser_in.ml"
+# 10814 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10843,11 +10842,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 10847 "flambda_parser_in.ml"
+# 10846 "flambda_parser_in.ml"
         ) = 
 # 652 "flambda_parser.mly"
                         ( Boxed_float )
-# 10851 "flambda_parser_in.ml"
+# 10850 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10879,11 +10878,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 10883 "flambda_parser_in.ml"
+# 10882 "flambda_parser_in.ml"
         ) = 
 # 653 "flambda_parser.mly"
                         ( Boxed_int32 )
-# 10887 "flambda_parser_in.ml"
+# 10886 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10915,11 +10914,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 10919 "flambda_parser_in.ml"
+# 10918 "flambda_parser_in.ml"
         ) = 
 # 654 "flambda_parser.mly"
                         ( Boxed_int64 )
-# 10923 "flambda_parser_in.ml"
+# 10922 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10951,11 +10950,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 10955 "flambda_parser_in.ml"
+# 10954 "flambda_parser_in.ml"
         ) = 
 # 655 "flambda_parser.mly"
                             ( Boxed_nativeint )
-# 10959 "flambda_parser_in.ml"
+# 10958 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10987,11 +10986,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 10991 "flambda_parser_in.ml"
+# 10990 "flambda_parser_in.ml"
         ) = 
 # 656 "flambda_parser.mly"
                        ( Tagged_immediate )
-# 10995 "flambda_parser_in.ml"
+# 10994 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11030,11 +11029,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 11034 "flambda_parser_in.ml"
+# 11033 "flambda_parser_in.ml"
         ) = 
 # 657 "flambda_parser.mly"
                                              ( Float_block { num_fields } )
-# 11038 "flambda_parser_in.ml"
+# 11037 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11073,11 +11072,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 11077 "flambda_parser_in.ml"
+# 11076 "flambda_parser_in.ml"
         ) = 
 # 659 "flambda_parser.mly"
     ( let consts, non_consts = ctors in Variant { consts; non_consts; })
-# 11081 "flambda_parser_in.ml"
+# 11080 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11109,11 +11108,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 11113 "flambda_parser_in.ml"
+# 11112 "flambda_parser_in.ml"
         ) = 
 # 660 "flambda_parser.mly"
                         ( Float_array )
-# 11117 "flambda_parser_in.ml"
+# 11116 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11145,11 +11144,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 11149 "flambda_parser_in.ml"
+# 11148 "flambda_parser_in.ml"
         ) = 
 # 661 "flambda_parser.mly"
                       ( Immediate_array )
-# 11153 "flambda_parser_in.ml"
+# 11152 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11181,11 +11180,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 11185 "flambda_parser_in.ml"
+# 11184 "flambda_parser_in.ml"
         ) = 
 # 662 "flambda_parser.mly"
                       ( Value_array )
-# 11189 "flambda_parser_in.ml"
+# 11188 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11217,11 +11216,11 @@ module Tables = struct
         let _v : (
 # 266 "flambda_parser.mly"
       (Fexpr.subkind)
-# 11221 "flambda_parser_in.ml"
+# 11220 "flambda_parser_in.ml"
         ) = 
 # 663 "flambda_parser.mly"
                       ( Generic_array )
-# 11225 "flambda_parser_in.ml"
+# 11224 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11254,12 +11253,12 @@ module Tables = struct
           let cs = 
 # 229 "<standard.mly>"
     ( xs )
-# 11258 "flambda_parser_in.ml"
+# 11257 "flambda_parser_in.ml"
            in
           (
 # 623 "flambda_parser.mly"
                                                          ( cs )
-# 11263 "flambda_parser_in.ml"
+# 11262 "flambda_parser_in.ml"
            : 'tv_switch)
         in
         {
@@ -11299,7 +11298,7 @@ module Tables = struct
         let _v : 'tv_switch_case = 
 # 619 "flambda_parser.mly"
                                                 ( i,ac )
-# 11303 "flambda_parser_in.ml"
+# 11302 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11320,7 +11319,7 @@ module Tables = struct
         let e : (
 # 105 "flambda_parser.mly"
       (Fexpr.compilation_unit option * string)
-# 11324 "flambda_parser_in.ml"
+# 11323 "flambda_parser_in.ml"
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -11329,9 +11328,9 @@ module Tables = struct
           let _endpos = _endpos_e_ in
           let _startpos = _startpos_e_ in
           (
-# 1038 "flambda_parser.mly"
+# 1037 "flambda_parser.mly"
                ( make_located e (_startpos, _endpos) )
-# 11335 "flambda_parser_in.ml"
+# 11334 "flambda_parser_in.ml"
            : 'tv_symbol)
         in
         {
@@ -11353,7 +11352,7 @@ module Tables = struct
         let s : (
 # 265 "flambda_parser.mly"
       (Fexpr.static_data_binding)
-# 11357 "flambda_parser_in.ml"
+# 11356 "flambda_parser_in.ml"
         ) = Obj.magic s in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_s_ in
@@ -11361,11 +11360,11 @@ module Tables = struct
         let _v : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 11365 "flambda_parser_in.ml"
+# 11364 "flambda_parser_in.ml"
         ) = 
 # 311 "flambda_parser.mly"
                             ( Data s )
-# 11369 "flambda_parser_in.ml"
+# 11368 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11390,11 +11389,11 @@ module Tables = struct
         let _v : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 11394 "flambda_parser_in.ml"
+# 11393 "flambda_parser_in.ml"
         ) = 
 # 312 "flambda_parser.mly"
                 ( Code code )
-# 11398 "flambda_parser_in.ml"
+# 11397 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11419,11 +11418,11 @@ module Tables = struct
         let _v : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 11423 "flambda_parser_in.ml"
+# 11422 "flambda_parser_in.ml"
         ) = 
 # 313 "flambda_parser.mly"
                            ( Deleted_code code_id )
-# 11427 "flambda_parser_in.ml"
+# 11426 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11448,11 +11447,11 @@ module Tables = struct
         let _v : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 11452 "flambda_parser_in.ml"
+# 11451 "flambda_parser_in.ml"
         ) = 
 # 314 "flambda_parser.mly"
                                ( Closure s )
-# 11456 "flambda_parser_in.ml"
+# 11455 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11477,11 +11476,11 @@ module Tables = struct
         let _v : (
 # 269 "flambda_parser.mly"
       (Fexpr.symbol_binding)
-# 11481 "flambda_parser_in.ml"
+# 11480 "flambda_parser_in.ml"
         ) = 
 # 315 "flambda_parser.mly"
                                ( Set_of_closures s )
-# 11485 "flambda_parser_in.ml"
+# 11484 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11502,7 +11501,7 @@ module Tables = struct
         let tag : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 11506 "flambda_parser_in.ml"
+# 11505 "flambda_parser_in.ml"
         ) = Obj.magic tag in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_tag_ in
@@ -11511,9 +11510,9 @@ module Tables = struct
           let _endpos = _endpos_tag_ in
           let _startpos = _startpos_tag_ in
           (
-# 944 "flambda_parser.mly"
+# 943 "flambda_parser.mly"
             ( make_tag ~loc:(make_loc (_startpos, _endpos)) tag )
-# 11517 "flambda_parser_in.ml"
+# 11516 "flambda_parser_in.ml"
            : 'tv_tag)
         in
         {
@@ -11558,9 +11557,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_tag_opt = 
-# 948 "flambda_parser.mly"
+# 947 "flambda_parser.mly"
                                       ( Some tag )
-# 11564 "flambda_parser_in.ml"
+# 11563 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11576,9 +11575,9 @@ module Tables = struct
         let _startpos = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
         let _v : 'tv_tag_opt = 
-# 949 "flambda_parser.mly"
+# 948 "flambda_parser.mly"
     ( None )
-# 11582 "flambda_parser_in.ml"
+# 11581 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11599,15 +11598,15 @@ module Tables = struct
         let i : (
 # 74 "flambda_parser.mly"
        (string * char option)
-# 11603 "flambda_parser_in.ml"
+# 11602 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
         let _endpos = _endpos_i_ in
         let _v : 'tv_targetint = 
-# 941 "flambda_parser.mly"
+# 940 "flambda_parser.mly"
           ( make_targetint i )
-# 11611 "flambda_parser_in.ml"
+# 11610 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11683,7 +11682,7 @@ module Tables = struct
         let ak : (
 # 237 "flambda_parser.mly"
       (Fexpr.array_kind)
-# 11687 "flambda_parser_in.ml"
+# 11686 "flambda_parser_in.ml"
         ) = Obj.magic ak in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -11692,7 +11691,7 @@ module Tables = struct
         let _v : 'tv_ternop_app = 
 # 586 "flambda_parser.mly"
     ( Ternary (Array_set (ak, ia), arr, ix, v) )
-# 11696 "flambda_parser_in.ml"
+# 11695 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11773,7 +11772,7 @@ module Tables = struct
         let _v : 'tv_ternop_app = 
 # 590 "flambda_parser.mly"
     ( Ternary (Block_set (kind, ia), block, ix, v) )
-# 11777 "flambda_parser_in.ml"
+# 11776 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11847,7 +11846,7 @@ module Tables = struct
         let _v : 'tv_ternop_app = 
 # 593 "flambda_parser.mly"
     ( Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) )
-# 11851 "flambda_parser_in.ml"
+# 11850 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11887,7 +11886,7 @@ module Tables = struct
         let exn_handler : (
 # 242 "flambda_parser.mly"
       (Fexpr.continuation)
-# 11891 "flambda_parser_in.ml"
+# 11890 "flambda_parser_in.ml"
         ) = Obj.magic exn_handler in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -11895,9 +11894,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
         let _v : 'tv_trap_action = 
-# 876 "flambda_parser.mly"
+# 875 "flambda_parser.mly"
                                                          ( Push { exn_handler } )
-# 11901 "flambda_parser_in.ml"
+# 11900 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11943,7 +11942,7 @@ module Tables = struct
         let exn_handler : (
 # 242 "flambda_parser.mly"
       (Fexpr.continuation)
-# 11947 "flambda_parser_in.ml"
+# 11946 "flambda_parser_in.ml"
         ) = Obj.magic exn_handler in
         let raise_kind : 'tv_option_raise_kind_ = Obj.magic raise_kind in
         let _2 : unit = Obj.magic _2 in
@@ -11952,9 +11951,9 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__5_ in
         let _v : 'tv_trap_action = 
-# 880 "flambda_parser.mly"
+# 879 "flambda_parser.mly"
     ( Pop { exn_handler; raise_kind } )
-# 11958 "flambda_parser_in.ml"
+# 11957 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11979,11 +11978,11 @@ module Tables = struct
         let _v : (
 # 270 "flambda_parser.mly"
       (Fexpr.unary_int_arith_op)
-# 11983 "flambda_parser_in.ml"
+# 11982 "flambda_parser_in.ml"
         ) = 
 # 380 "flambda_parser.mly"
               ( Swap_byte_endianness )
-# 11987 "flambda_parser_in.ml"
+# 11986 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12008,11 +12007,11 @@ module Tables = struct
         let _v : (
 # 270 "flambda_parser.mly"
       (Fexpr.unary_int_arith_op)
-# 12012 "flambda_parser_in.ml"
+# 12011 "flambda_parser_in.ml"
         ) = 
 # 381 "flambda_parser.mly"
                ( Neg )
-# 12016 "flambda_parser_in.ml"
+# 12015 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12037,11 +12036,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12041 "flambda_parser_in.ml"
+# 12040 "flambda_parser_in.ml"
         ) = 
 # 384 "flambda_parser.mly"
                       ( Array_length )
-# 12045 "flambda_parser_in.ml"
+# 12044 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12066,11 +12065,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12070 "flambda_parser_in.ml"
+# 12069 "flambda_parser_in.ml"
         ) = 
 # 385 "flambda_parser.mly"
                           ( Begin_try_region )
-# 12074 "flambda_parser_in.ml"
+# 12073 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12095,11 +12094,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12099 "flambda_parser_in.ml"
+# 12098 "flambda_parser_in.ml"
         ) = 
 # 386 "flambda_parser.mly"
                      ( Boolean_not )
-# 12103 "flambda_parser_in.ml"
+# 12102 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12124,9 +12123,9 @@ module Tables = struct
           };
         } = _menhir_stack in
         let alloc : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 12130 "flambda_parser_in.ml"
+# 12129 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12135,11 +12134,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12139 "flambda_parser_in.ml"
+# 12138 "flambda_parser_in.ml"
         ) = 
 # 388 "flambda_parser.mly"
     ( Box_number (Naked_float, alloc) )
-# 12143 "flambda_parser_in.ml"
+# 12142 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12164,9 +12163,9 @@ module Tables = struct
           };
         } = _menhir_stack in
         let alloc : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 12170 "flambda_parser_in.ml"
+# 12169 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12175,11 +12174,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12179 "flambda_parser_in.ml"
+# 12178 "flambda_parser_in.ml"
         ) = 
 # 390 "flambda_parser.mly"
     ( Box_number (Naked_int32, alloc) )
-# 12183 "flambda_parser_in.ml"
+# 12182 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12204,9 +12203,9 @@ module Tables = struct
           };
         } = _menhir_stack in
         let alloc : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 12210 "flambda_parser_in.ml"
+# 12209 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12215,11 +12214,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12219 "flambda_parser_in.ml"
+# 12218 "flambda_parser_in.ml"
         ) = 
 # 392 "flambda_parser.mly"
     ( Box_number (Naked_int64, alloc) )
-# 12223 "flambda_parser_in.ml"
+# 12222 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12244,9 +12243,9 @@ module Tables = struct
           };
         } = _menhir_stack in
         let alloc : (
-# 235 "flambda_parser.mly"
+# 236 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 12250 "flambda_parser_in.ml"
+# 12249 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12255,11 +12254,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12259 "flambda_parser_in.ml"
+# 12258 "flambda_parser_in.ml"
         ) = 
 # 394 "flambda_parser.mly"
     ( Box_number (Naked_nativeint, alloc) )
-# 12263 "flambda_parser_in.ml"
+# 12262 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12284,11 +12283,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12288 "flambda_parser_in.ml"
+# 12287 "flambda_parser_in.ml"
         ) = 
 # 395 "flambda_parser.mly"
                       ( String_length Bytes )
-# 12292 "flambda_parser_in.ml"
+# 12291 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12313,11 +12312,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12317 "flambda_parser_in.ml"
+# 12316 "flambda_parser_in.ml"
         ) = 
 # 396 "flambda_parser.mly"
                     ( End_region )
-# 12321 "flambda_parser_in.ml"
+# 12320 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12342,11 +12341,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12346 "flambda_parser_in.ml"
+# 12345 "flambda_parser_in.ml"
         ) = 
 # 397 "flambda_parser.mly"
                  ( Get_tag )
-# 12350 "flambda_parser_in.ml"
+# 12349 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12371,11 +12370,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12375 "flambda_parser_in.ml"
+# 12374 "flambda_parser_in.ml"
         ) = 
 # 398 "flambda_parser.mly"
                              ( Is_flat_float_array )
-# 12379 "flambda_parser_in.ml"
+# 12378 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12400,11 +12399,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12404 "flambda_parser_in.ml"
+# 12403 "flambda_parser_in.ml"
         ) = 
 # 399 "flambda_parser.mly"
                 ( Is_int )
-# 12408 "flambda_parser_in.ml"
+# 12407 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12437,12 +12436,12 @@ module Tables = struct
         let o : (
 # 270 "flambda_parser.mly"
       (Fexpr.unary_int_arith_op)
-# 12441 "flambda_parser_in.ml"
+# 12440 "flambda_parser_in.ml"
         ) = Obj.magic o in
         let i : (
 # 263 "flambda_parser.mly"
       (Fexpr.standard_int)
-# 12446 "flambda_parser_in.ml"
+# 12445 "flambda_parser_in.ml"
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12451,11 +12450,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12455 "flambda_parser_in.ml"
+# 12454 "flambda_parser_in.ml"
         ) = 
 # 401 "flambda_parser.mly"
     ( Int_arith (i, o) )
-# 12459 "flambda_parser_in.ml"
+# 12458 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12507,13 +12506,13 @@ module Tables = struct
         let dst : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 12511 "flambda_parser_in.ml"
+# 12510 "flambda_parser_in.ml"
         ) = Obj.magic dst in
         let _4 : unit = Obj.magic _4 in
         let src : (
 # 243 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
-# 12517 "flambda_parser_in.ml"
+# 12516 "flambda_parser_in.ml"
         ) = Obj.magic src in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -12523,11 +12522,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12527 "flambda_parser_in.ml"
+# 12526 "flambda_parser_in.ml"
         ) = 
 # 405 "flambda_parser.mly"
     ( Num_conv { src; dst } )
-# 12531 "flambda_parser_in.ml"
+# 12530 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12552,11 +12551,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12556 "flambda_parser_in.ml"
+# 12555 "flambda_parser_in.ml"
         ) = 
 # 406 "flambda_parser.mly"
                 ( Opaque_identity )
-# 12560 "flambda_parser_in.ml"
+# 12559 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12602,11 +12601,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12606 "flambda_parser_in.ml"
+# 12605 "flambda_parser_in.ml"
         ) = 
 # 408 "flambda_parser.mly"
     ( Project_value_slot { project_from; value_slot } )
-# 12610 "flambda_parser_in.ml"
+# 12609 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12666,11 +12665,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12670 "flambda_parser_in.ml"
+# 12669 "flambda_parser_in.ml"
         ) = 
 # 412 "flambda_parser.mly"
     ( Project_function_slot { move_from; move_to } )
-# 12674 "flambda_parser_in.ml"
+# 12673 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12695,11 +12694,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12699 "flambda_parser_in.ml"
+# 12698 "flambda_parser_in.ml"
         ) = 
 # 413 "flambda_parser.mly"
                        ( String_length String )
-# 12703 "flambda_parser_in.ml"
+# 12702 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12724,11 +12723,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12728 "flambda_parser_in.ml"
+# 12727 "flambda_parser_in.ml"
         ) = 
 # 414 "flambda_parser.mly"
                  ( Tag_immediate )
-# 12732 "flambda_parser_in.ml"
+# 12731 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12753,11 +12752,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12757 "flambda_parser_in.ml"
+# 12756 "flambda_parser_in.ml"
         ) = 
 # 415 "flambda_parser.mly"
                      ( Unbox_number Naked_float )
-# 12761 "flambda_parser_in.ml"
+# 12760 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12782,11 +12781,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12786 "flambda_parser_in.ml"
+# 12785 "flambda_parser_in.ml"
         ) = 
 # 416 "flambda_parser.mly"
                      ( Unbox_number Naked_int32 )
-# 12790 "flambda_parser_in.ml"
+# 12789 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12811,11 +12810,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12815 "flambda_parser_in.ml"
+# 12814 "flambda_parser_in.ml"
         ) = 
 # 417 "flambda_parser.mly"
                      ( Unbox_number Naked_int64 )
-# 12819 "flambda_parser_in.ml"
+# 12818 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12840,11 +12839,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12844 "flambda_parser_in.ml"
+# 12843 "flambda_parser_in.ml"
         ) = 
 # 418 "flambda_parser.mly"
                          ( Unbox_number Naked_nativeint )
-# 12848 "flambda_parser_in.ml"
+# 12847 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12869,11 +12868,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12873 "flambda_parser_in.ml"
+# 12872 "flambda_parser_in.ml"
         ) = 
 # 419 "flambda_parser.mly"
                       ( Unbox_number Naked_vec128 )
-# 12877 "flambda_parser_in.ml"
+# 12876 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12898,11 +12897,11 @@ module Tables = struct
         let _v : (
 # 271 "flambda_parser.mly"
       (Fexpr.unop)
-# 12902 "flambda_parser_in.ml"
+# 12901 "flambda_parser_in.ml"
         ) = 
 # 420 "flambda_parser.mly"
                    ( Untag_immediate )
-# 12906 "flambda_parser_in.ml"
+# 12905 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12941,7 +12940,7 @@ module Tables = struct
         let _v : 'tv_value_slot = 
 # 778 "flambda_parser.mly"
                                                             ( { var; value; } )
-# 12945 "flambda_parser_in.ml"
+# 12944 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12962,7 +12961,7 @@ module Tables = struct
         let e : (
 # 73 "flambda_parser.mly"
        (string)
-# 12966 "flambda_parser_in.ml"
+# 12965 "flambda_parser_in.ml"
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -12971,9 +12970,9 @@ module Tables = struct
           let _endpos = _endpos_e_ in
           let _startpos = _startpos_e_ in
           (
-# 1060 "flambda_parser.mly"
+# 1059 "flambda_parser.mly"
               ( make_located e (_startpos, _endpos) )
-# 12977 "flambda_parser_in.ml"
+# 12976 "flambda_parser_in.ml"
            : 'tv_value_slot_for_projection)
         in
         {
@@ -12995,7 +12994,7 @@ module Tables = struct
         let e : (
 # 73 "flambda_parser.mly"
        (string)
-# 12999 "flambda_parser_in.ml"
+# 12998 "flambda_parser_in.ml"
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -13004,9 +13003,9 @@ module Tables = struct
           let _endpos = _endpos_e_ in
           let _startpos = _startpos_e_ in
           (
-# 1042 "flambda_parser.mly"
+# 1041 "flambda_parser.mly"
               ( make_located e (_startpos, _endpos) )
-# 13010 "flambda_parser_in.ml"
+# 13009 "flambda_parser_in.ml"
            : 'tv_variable)
         in
         {
@@ -13054,12 +13053,12 @@ module Tables = struct
           let bindings = 
 # 229 "<standard.mly>"
     ( xs )
-# 13058 "flambda_parser_in.ml"
+# 13057 "flambda_parser_in.ml"
            in
           (
 # 719 "flambda_parser.mly"
     ( Let_cont { recursive; body; bindings } )
-# 13063 "flambda_parser_in.ml"
+# 13062 "flambda_parser_in.ml"
            : 'tv_where_expr)
         in
         {
@@ -13078,7 +13077,7 @@ module Tables = struct
         let _v : 'tv_with_value_slots_opt = 
 # 770 "flambda_parser.mly"
     ( None )
-# 13082 "flambda_parser_in.ml"
+# 13081 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13125,12 +13124,12 @@ module Tables = struct
           let elements = 
 # 229 "<standard.mly>"
     ( xs )
-# 13129 "flambda_parser_in.ml"
+# 13128 "flambda_parser_in.ml"
            in
           (
 # 774 "flambda_parser.mly"
     ( Some elements )
-# 13134 "flambda_parser_in.ml"
+# 13133 "flambda_parser_in.ml"
            : 'tv_with_value_slots_opt)
         in
         {
@@ -13162,7 +13161,7 @@ let flambda_unit =
     (Obj.magic (MenhirInterpreter.entry `Legacy 605 lexer lexbuf) : (
 # 246 "flambda_parser.mly"
       (Fexpr.flambda_unit)
-# 13166 "flambda_parser_in.ml"
+# 13165 "flambda_parser_in.ml"
     ))
 
 and expect_test_spec =
@@ -13170,7 +13169,7 @@ and expect_test_spec =
     (Obj.magic (MenhirInterpreter.entry `Legacy 0 lexer lexbuf) : (
 # 244 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
-# 13174 "flambda_parser_in.ml"
+# 13173 "flambda_parser_in.ml"
     ))
 
 module Incremental = struct
@@ -13180,7 +13179,7 @@ module Incremental = struct
       (Obj.magic (MenhirInterpreter.start 605 initial_position) : (
 # 246 "flambda_parser.mly"
       (Fexpr.flambda_unit)
-# 13184 "flambda_parser_in.ml"
+# 13183 "flambda_parser_in.ml"
       ) MenhirInterpreter.checkpoint)
   
   and expect_test_spec =
@@ -13188,12 +13187,12 @@ module Incremental = struct
       (Obj.magic (MenhirInterpreter.start 0 initial_position) : (
 # 244 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
-# 13192 "flambda_parser_in.ml"
+# 13191 "flambda_parser_in.ml"
       ) MenhirInterpreter.checkpoint)
   
 end
 
-# 1063 "flambda_parser.mly"
+# 1062 "flambda_parser.mly"
   
 
-# 13200 "flambda_parser_in.ml"
+# 13199 "flambda_parser_in.ml"

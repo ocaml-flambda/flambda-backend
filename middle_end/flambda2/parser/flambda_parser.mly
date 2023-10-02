@@ -232,8 +232,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token STATIC_CONST_EMPTY_ARRAY [@symbol "Empty_array"]
 
 %start flambda_unit expect_test_spec
+%type <Fexpr.region -> Fexpr.alloc_mode_for_allocations> alloc_mode_for_types_opt
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
-%type <Fexpr.alloc_mode_for_types> alloc_mode_for_types_opt
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
@@ -502,9 +502,9 @@ init_or_assign:
   | LESSMINUS AMP { Assignment Local }
 
 alloc_mode_for_types_opt:
-  | { Heap }
-  | KWD_HEAP_OR_LOCAL { Heap_or_local }
-  | KWD_LOCAL { Local }
+  | { fun _ -> Heap }
+  | KWD_HEAP_OR_LOCAL
+  | KWD_LOCAL { fun region -> Local { region } }
 
 alloc_mode_for_allocations_opt:
   | { Heap }
@@ -799,24 +799,23 @@ apply_expr:
           continuation = r;
           exn_continuation = e;
           args = args;
-          call_kind;
+          call_kind = call_kind region;
           inlined;
           inlining_state;
           arities;
-          region;
      } }
 ;
 
 call_kind:
-  | alloc = alloc_mode_for_types_opt; { Function (Indirect alloc) }
+  | alloc = alloc_mode_for_types_opt; { fun region -> Function (Indirect (alloc region)) }
   | KWD_DIRECT; LPAREN;
       code_id = code_id;
       function_slot = function_slot_opt;
       alloc = alloc_mode_for_types_opt;
     RPAREN
-    { Function (Direct { code_id; function_slot; alloc }) }
+    { fun region -> Function (Direct { code_id; function_slot; alloc = alloc region }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
-    { C_call { alloc = not noalloc } }
+    { fun _ -> C_call { alloc = not noalloc } }
 ;
 
 inline:
