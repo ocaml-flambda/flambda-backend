@@ -471,9 +471,12 @@ let get_required_layouts_level (context : annotation_context) (jkind : const) :
 (* construction *)
 
 let of_new_sort_var ~why =
-  fresh_jkind (Sort (Sort.new_var ())) ~why:(Concrete_creation why)
+  let sort = Sort.new_var () in
+  fresh_jkind (Sort sort) ~why:(Concrete_creation why), sort
 
-let of_sort ~why s = fresh_jkind (Sort s) ~why:(Concrete_creation why)
+let of_new_sort ~why = fst (of_new_sort_var ~why)
+
+let of_sort_for_error ~why s = fresh_jkind (Sort s) ~why:(Concrete_creation why)
 
 let of_const ~why : const -> t = function
   | Any -> fresh_jkind Any ~why

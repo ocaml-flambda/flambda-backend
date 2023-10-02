@@ -1398,7 +1398,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
                   if not (Jkind.Sort.(equate sort value))
                   then let viol = Jkind.Violation.of_ (Not_a_subjkind(
-                    Jkind.of_sort ~why:Let_binding sort,
+                    Jkind.of_sort_for_error ~why:Let_binding sort,
                     Jkind.value ~why:Class_let_binding))
                     in
                     raise (Error(loc, met_env,
