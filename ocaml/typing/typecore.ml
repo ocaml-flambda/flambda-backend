@@ -7669,6 +7669,31 @@ and type_let
              lower_contravariant env exp.exp_type;
            generalize_and_check_univars env "definition" exp expected_ty vars)
     pat_list exp_list;
+  let update_layout (_, p, _) (exp, _) =
+    let pat_name =
+      match p.pat_desc with
+        Tpat_var (id, _, _) -> Some id
+      | Tpat_alias(_, id, _, _) -> Some id
+      | _ -> None in
+    let reason = Layout.Generalized (pat_name, exp.exp_loc) in
+    let rec inner ty =
+      let level = get_level ty in
+      if level = generic_level && try_mark_node ty then begin
+        begin match get_desc ty with
+        | Tvar ({ layout; _ } as r) ->
+          let new_layout = Layout.(update_reason layout reason) in
+          set_type_desc ty (Tvar {r with layout = new_layout})
+        | Tunivar ({ layout; _ } as r) ->
+          let new_layout = Layout.(update_reason layout reason) in
+          set_type_desc ty (Tunivar {r with layout = new_layout})
+        | _ -> ()
+        end;
+        iter_type_expr inner ty
+      end
+    in
+    inner exp.exp_type;
+    unmark_type exp.exp_type in
+  List.iter2 update_layout pat_list exp_list;
   let l = List.combine pat_list exp_list in
   let l = List.combine sorts l in
   let l =

@@ -335,7 +335,7 @@ module Layout = struct
     | Imported
     | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
     (* [position] is 1-indexed *)
-
+    | Generalized of Ident.t option * Location.t
 
   type interact_reason =
     | Gadt_equation of Path.t
@@ -830,6 +830,11 @@ module Layout = struct
         fprintf ppf "the %stype argument of %a has this layout"
           (format_position ~arity position)
           !printtyp_path parent_path
+      | Generalized (id, loc) ->
+        let format_id ppf = function
+          | Some id -> fprintf ppf " of %s" (Ident.name id)
+          | None -> () in
+        fprintf ppf "of definition%a at %a" format_id id Location.print_loc loc
 
     let format_interact_reason ppf = function
       | Gadt_equation name ->
@@ -1215,6 +1220,12 @@ module Layout = struct
       | Imported_type_argument {parent_path; position; arity}  ->
            fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a"
            position arity !printtyp_path parent_path
+      | Generalized (id, loc) ->
+        fprintf ppf "Generalized (%s, %a)"
+          (match id with
+           | Some id -> Ident.unique_name id
+           | None -> "")
+           Location.print_loc loc
 
     let interact_reason ppf = function
       | Gadt_equation p ->
