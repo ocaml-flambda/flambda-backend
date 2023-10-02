@@ -141,42 +141,207 @@ and rev_expr =
     free_names : Name_occurrences.t
   }
 
+module Deps = struct
+  type field =
+    | Block of int
+    | Value_slot of Value_slot.t
+    | Function_slot of Function_slot.t
+
+  module Dep = struct
+    type t =
+      | Alias of Name.t
+      | Use of Name.t
+      | Field of field * Name.t
+      | Block of (field * Name.t) list
+      | Apply of Name.t
+
+    let compare = compare
+  end
+
+  module DepSet = Set.Make (Dep)
+
+  type graph = { name_to_dep : (Name.t, DepSet.t) Hashtbl.t }
+
+  let create () = { name_to_dep = Hashtbl.create 100 }
+
+  let insert t k v =
+    match Hashtbl.find_opt t k with
+    | None -> Hashtbl.add t k (DepSet.singleton v)
+    | Some s -> Hashtbl.replace t k (DepSet.add v s)
+
+  let add_opaque_let_dependency t bp fv =
+    let tbl = t.name_to_dep in
+    let bound_to = Bound_pattern.free_names bp in
+    let f () bound_to =
+      Name_occurrences.fold_names fv
+        ~f:(fun () dep -> insert tbl bound_to (Dep.Use dep))
+        ~init:()
+    in
+    Name_occurrences.fold_names bound_to ~f ~init:()
+
+  let add_let_field t bp field name =
+    let tbl = t.name_to_dep in
+    let bound_to = Bound_pattern.free_names bp in
+    let f () bound_to = insert tbl bound_to (Dep.Field (field, name)) in
+    Name_occurrences.fold_names bound_to ~f ~init:()
+
+  let add_let_dep t bp dep =
+    let tbl = t.name_to_dep in
+    let bound_to = Bound_pattern.free_names bp in
+    let f () bound_to = insert tbl bound_to dep in
+    Name_occurrences.fold_names bound_to ~f ~init:()
+end
+
+module Dot = struct
+  let dep_graph_ppf =
+    lazy
+      (let filename = "dep.dot" in
+       let ch = open_out filename in
+       let ppf = Format.formatter_of_out_channel ch in
+       Format.fprintf ppf "digraph g {@\n";
+       at_exit (fun () ->
+           Format.fprintf ppf "@\n}@.";
+           close_out ch);
+       ppf)
+
+  let dot_count = ref ~-1
+
+  let print_graph ~print ~print_name ~lazy_ppf ~graph =
+    match print_name with
+    | None -> ()
+    | Some print_name ->
+      incr dot_count;
+      let ppf = Lazy.force lazy_ppf in
+      print ~ctx:!dot_count ~print_name ppf graph
+
+  module P = struct
+    let node_id ~ctx ppf (variable : Name.t) =
+      Format.fprintf ppf "node_%d_%d" ctx (variable :> int)
+
+    let node ~ctx ppf name =
+      Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name Name.print
+        name
+
+    let nodes ~ctx ppf t =
+      Hashtbl.iter (fun name _ -> node ~ctx ppf name) t.Deps.name_to_dep
+
+    let edge ~ctx ppf src (dst : Deps.Dep.t) =
+      let color, deps =
+        match dst with
+        | Alias name -> "black", [name]
+        | Use name ->
+          (* ignore name; *)
+          (* "red", [] *)
+          "red", [name]
+        | Field (_, name) -> "green", [name]
+        | Block fields -> "blue", List.map snd fields
+        | Apply name -> "pink", [name]
+      in
+      List.iter
+        (fun dst ->
+          Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) src
+            (node_id ~ctx) dst color)
+        deps
+
+    let edges ~ctx ppf t =
+      Hashtbl.iter
+        (fun src dst_set ->
+          Deps.DepSet.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
+        t.Deps.name_to_dep
+
+    let print ~ctx ~print_name ppf t =
+      Flambda_colours.without_colours ~f:(fun () ->
+          Format.fprintf ppf
+            "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n}@." ctx print_name
+            (nodes ~ctx) t (edges ~ctx) t)
+  end
+
+  let print_dep dep =
+    let print_name = Some "dep" in
+    print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:P.print
+end
+
 module Dacc : sig
   type t
 
-  val empty : t
+  val empty : unit -> t
 
   val let_ : t -> t
+
   val let_cont : t -> t
+
   val let_rec_cont : t -> t
+
   val func : t -> t
 
-  val let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
+  val let_dep : Bound_pattern.t -> Deps.Dep.t -> t -> t
+
+  val opaque_let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
+
+  val let_field : Bound_pattern.t -> Deps.field -> Name.t -> t -> t
 
   val pp : Format.formatter -> t -> unit
 
+  val deps : t -> Deps.graph
+
   val todo : unit -> t
 end = struct
-  type t = { let_ : int; let_cont : int; let_rec_cont : int; func : int }
+  type t =
+    { let_ : int;
+      let_cont : int;
+      let_rec_cont : int;
+      func : int;
+      deps : Deps.graph
+    }
 
   let pp ppf t =
-    Format.fprintf ppf "let : %i@ let_cont : %i@ let_rec_cont : %i@ func : %i" t.let_ t.let_cont t.let_rec_cont t.func
+    Format.fprintf ppf "let : %i@ let_cont : %i@ let_rec_cont : %i@ func : %i"
+      t.let_ t.let_cont t.let_rec_cont t.func
 
-  let empty = { let_ = 0; let_cont = 0; let_rec_cont = 0; func = 0 }
+  let deps t = t.deps
+
+  let empty () =
+    { let_ = 0;
+      let_cont = 0;
+      let_rec_cont = 0;
+      func = 0;
+      deps = Deps.create ()
+    }
 
   let let_ t = { t with let_ = t.let_ + 1 }
+
   let let_cont t = { t with let_cont = t.let_cont + 1 }
+
   let let_rec_cont t = { t with let_rec_cont = t.let_rec_cont + 1 }
+
   let func t = { t with func = t.func + 1 }
 
-  let let_dependency _pat _fv t = t
+  let opaque_let_dependency pat fv t =
+    Deps.add_opaque_let_dependency t.deps pat fv;
+    t
 
-  let todo _ = empty
+  let let_field pat field name t =
+    Deps.add_let_field t.deps pat field name;
+    t
+
+  let let_dep pat dep t =
+    Deps.add_let_dep t.deps pat dep;
+    t
+
+  let todo _ = empty ()
 end
 
 type dacc = Dacc.t
 
-type denv = { parent : rev_expr_holed }
+type cont_kind =
+  | Normal of Variable.t list
+  | Return
+  | Exn
+
+type denv =
+  { parent : rev_expr_holed;
+    conts : cont_kind Continuation.Map.t
+  }
 
 type handlers = cont_handler Continuation.Map.t
 
@@ -200,6 +365,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       },
       dacc )
   | Apply apply ->
+    (* TODO apply_dep *)
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Apply.free_names apply
@@ -215,9 +381,17 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let cont_handler =
             Flambda.Non_recursive_let_cont_handler.handler handler
           in
-          traverse_cont_handler dacc cont_handler (fun handler dacc ->
+          traverse_cont_handler { parent = Up; conts = denv.conts }
+            dacc cont_handler (fun handler dacc ->
+              let conts =
+                Continuation.Map.add cont
+                  (Normal (Bound_parameters.vars handler.bound_parameters))
+                  denv.conts
+              in
               let denv =
-                { parent = Let_cont { cont; handler; parent = denv.parent } }
+                { parent = Let_cont { cont; handler; parent = denv.parent };
+                  conts
+                }
               in
               traverse denv dacc body))
     | Recursive handlers -> begin
@@ -225,19 +399,46 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       (* Warning non tail rec on traverse_cont_handler, probably OK *)
       Flambda.Recursive_let_cont_handlers.pattern_match handlers
         ~f:(fun ~invariant_params ~body handlers ->
+          let invariant_params_vars = Bound_parameters.vars invariant_params in
+          let handlers =
+            Continuation.Map.map
+              (fun cont_handler ->
+                Flambda.Continuation_handler.pattern_match cont_handler
+                  ~f:(fun bound_parameters ~handler ->
+                    cont_handler, bound_parameters, handler))
+              (Flambda.Continuation_handlers.to_map handlers)
+          in
+          let conts =
+            Continuation.Map.fold
+              (fun cont (_, bp, _) conts ->
+                Continuation.Map.add cont
+                  (Normal (invariant_params_vars @ Bound_parameters.vars bp))
+                  conts)
+              handlers denv.conts
+          in
           let dacc, handlers =
             Continuation.Map.fold
-              (fun cont handler (dacc, handlers) ->
-                traverse_cont_handler dacc handler
-                  (fun (handler : cont_handler) dacc ->
-                    dacc, Continuation.Map.add cont handler handlers))
-              (Flambda.Continuation_handlers.to_map handlers)
+              (fun cont (cont_handler, bound_parameters, handler)
+                   (dacc, handlers) ->
+                let is_exn_handler =
+                  Flambda.Continuation_handler.is_exn_handler cont_handler
+                in
+                let is_cold =
+                  Flambda.Continuation_handler.is_cold cont_handler
+                in
+                let expr, dacc = traverse { parent = Up; conts } dacc handler in
+                let handler =
+                  { bound_parameters; expr; is_exn_handler; is_cold }
+                in
+                dacc, Continuation.Map.add cont handler handlers)
+              handlers
               (dacc, Continuation.Map.empty)
           in
           let denv =
             { parent =
                 Let_cont_rec
-                  { invariant_params; handlers; parent = denv.parent }
+                  { invariant_params; handlers; parent = denv.parent };
+              conts
             }
           in
           traverse denv dacc body)
@@ -245,8 +446,71 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   end
   | Let let_expr ->
     let dacc = Dacc.let_ dacc in
+    let defining_expr = Flambda.Let_expr.defining_expr let_expr in
+    let dep : Deps.Dep.t option =
+      match defining_expr with
+      | Set_of_closures _set_of_closures -> None
+      | Static_consts _group -> None
+      | Prim (prim, _dbg) -> begin
+        match[@ocaml.warning "-4"] prim with
+        | Variadic (Make_block (_, Immutable, _), fields) ->
+          let acc = ref [] in
+          List.iteri
+            (fun i field ->
+              Simple.pattern_match field
+                ~name:(fun name ~coercion:_ ->
+                  acc := (Deps.Block i, name) :: !acc)
+                ~const:(fun _ -> ()))
+            fields;
+          Some (Block !acc)
+        | Unary (Project_function_slot { move_from = _; move_to }, block) ->
+          let block =
+            Simple.pattern_match block
+              ~name:(fun name ~coercion:_ -> name)
+              ~const:(fun _ -> assert false)
+          in
+          let dep = Some (Deps.Dep.Field (Function_slot move_to, block)) in
+          dep
+        | Unary
+            ( Project_value_slot { project_from = _; value_slot; kind = _ },
+              block ) ->
+          let block =
+            Simple.pattern_match block
+              ~name:(fun name ~coercion:_ -> name)
+              ~const:(fun _ -> assert false)
+          in
+          let dep = Some (Deps.Dep.Field (Value_slot value_slot, block)) in
+          dep
+        | Binary (Block_load (_access_kind, Immutable), block, field) ->
+          let dep =
+            Simple.pattern_match field
+              ~name:(fun _ ~coercion:_ -> None)
+              ~const:(fun cst ->
+                let block =
+                  Simple.pattern_match block
+                    ~name:(fun name ~coercion:_ -> name)
+                    ~const:(fun _ -> assert false)
+                in
+                match Int_ids.Const.descr cst with
+                | Tagged_immediate i ->
+                  let i = Targetint_31_63.to_int_exn i in
+                  Some (Deps.Dep.Field (Block i, block))
+                | _ -> assert false)
+          in
+          dep
+        | _ -> None
+      end
+      | Simple s ->
+        let dep =
+          Simple.pattern_match s
+            ~name:(fun name ~coercion:_ -> Some (Deps.Dep.Alias name))
+            ~const:(fun _ -> None)
+        in
+        dep
+      | Rec_info _ -> None
+    in
     let (named, dacc) : rev_named * dacc =
-      match Flambda.Let_expr.defining_expr let_expr with
+      match defining_expr with
       | Set_of_closures set_of_closures ->
         let function_decls = Set_of_closures.function_decls set_of_closures in
         let value_slots = Set_of_closures.value_slots set_of_closures in
@@ -269,16 +533,25 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         let dacc, group = List.fold_left_map static_const_or_code dacc group in
         Static_consts group, dacc
       (* TODO set_of_closures in Static_consts *)
-      | (Simple _ | Prim _ | Rec_info _) as defining_expr ->
-        Named defining_expr, dacc
+      | Prim _ -> Named defining_expr, dacc
+      | Simple _ -> Named defining_expr, dacc
+      | Rec_info _ as defining_expr -> Named defining_expr, dacc
     in
     Flambda.Let_expr.pattern_match let_expr ~f:(fun bp ~body ->
         ignore bp;
+        let dacc =
+          match dep with
+          | None ->
+            Dacc.opaque_let_dependency bp
+              (Flambda.Named.free_names defining_expr)
+              dacc
+          | Some dep -> Dacc.let_dep bp dep dacc
+        in
         let let_acc =
           Let
             { bound_pattern = bp; defining_expr = named; parent = denv.parent }
         in
-        traverse { parent = let_acc } dacc body)
+        traverse { parent = let_acc; conts = denv.conts } dacc body)
 
 and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
   let dacc = Dacc.func dacc in
@@ -297,7 +570,11 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
          ~my_depth
          ~free_names_of_body:_
        ->
-      let body, dacc = traverse { parent = Up } dacc body in
+      let conts =
+        Continuation.Map.of_list
+          [return_continuation, Return; exn_continuation, Exn]
+      in
+      let body, dacc = traverse { parent = Up; conts } dacc body in
       let params_and_body =
         { return_continuation;
           exn_continuation;
@@ -312,15 +589,19 @@ and traverse_code (dacc : dacc) (code : Code.t) : rev_code * dacc =
 
 and traverse_cont_handler :
     type a.
-    dacc -> Flambda.Continuation_handler.t -> (cont_handler -> dacc -> a) -> a =
- fun dacc cont_handler k ->
+    denv ->
+    dacc ->
+    Flambda.Continuation_handler.t ->
+    (cont_handler -> dacc -> a) ->
+    a =
+ fun denv dacc cont_handler k ->
   let is_exn_handler =
     Flambda.Continuation_handler.is_exn_handler cont_handler
   in
   let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
   Flambda.Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
-      let expr, dacc = traverse { parent = Up } dacc handler in
+      let expr, dacc = traverse denv dacc handler in
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
 
@@ -427,15 +708,21 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
 
 let run (unit : Flambda_unit.t) =
   (* Format.printf "CLEANUP@."; *)
-  let dacc = Dacc.empty in
+  let dacc = Dacc.empty () in
   let holed, _dacc =
     Profile.record_call ~accumulate:false "down" (fun () ->
-        traverse { parent = Up } dacc (Flambda_unit.body unit))
+        let conts =
+          Continuation.Map.of_list
+            [ Flambda_unit.return_continuation unit, Return;
+              Flambda_unit.exn_continuation unit, Exn ]
+        in
+        traverse { parent = Up; conts } dacc (Flambda_unit.body unit))
   in
   Profile.record_call ~accumulate:false "size" (fun () ->
       let size = Obj.reachable_words (Obj.repr holed) in
       Format.printf "CLEANUP %i@." (size / 1000));
   Format.printf "DACC %a@." Dacc.pp _dacc;
+  let () = Dot.print_dep (Dacc.deps _dacc) in
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr holed)
   in
