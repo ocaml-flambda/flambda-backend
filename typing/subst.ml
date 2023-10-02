@@ -109,13 +109,7 @@ let with_additional_action (config : additional_action_config) s =
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64
           | Const Float64 -> float64
-          | Var var -> begin
-              match Jkind.Sort.var_constraint var with
-              | Some Void -> void
-              | Some Value -> value
-              | Some Float64 -> float64
-              | None -> raise(Error (loc, Unconstrained_jkind_variable))
-            end
+          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
   in
@@ -228,6 +222,8 @@ let newpersty desc =
   create_expr
     desc ~level:generic_level ~scope:Btype.lowest_level ~id:!new_id
 
+(* CR layouts: remove this. While we're still developing, though, it might
+   be nice to get the location of this kind of error. *)
 (* We use a ref instead of passing [loc] as an argument to [typexp]
    because the ref requires no modifications to the body of [typexp],
    reducing the chance of merge conflicts. This location is not critical --
