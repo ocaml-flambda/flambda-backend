@@ -50,11 +50,6 @@ module Sort : sig
   (** A sort variable that can be unified during type-checking. *)
   type var
 
-  (** Return the concrete constraint placed on the variable. This check is
-      constant-time if [var] was just returned from [Jkind.get].
-  *)
-  val var_constraint : var -> const option
-
   (** Create a new sort variable that can be unified. *)
   val new_var : unit -> t
 

@@ -45,7 +45,6 @@ module Sort = struct
 
   let void = Const Void
   let value = Const Value
-
   let float64 = Const Float64
 
   let some_value = Some value
@@ -59,6 +58,7 @@ module Sort = struct
 
   let new_var () = Var (ref None)
 
+  (* Post-condition: If the result is a [Var v], then [!v] is [None]. *)
   let rec get : t -> t = function
     | Const _ as t -> t
     | Var r as t -> begin match !r with
@@ -69,20 +69,6 @@ module Sort = struct
           result
         end
     end
-
-  (* This is constant-time if [var] was just returned from a previous call to
-     [get]. That's because [var] will always be [None] in that case.
-  *)
-  let var_constraint : var -> const option = fun r ->
-    match !r with
-    | None -> None
-    | Some t -> begin
-        match get t with
-        | Const const -> Some const
-        | Var { contents = None } -> None
-        | Var _ ->
-            Misc.fatal_error "[get] should return [Const _] or [Var None]"
-      end
 
   let default_value : t option = Some (Const Value)
   let default_void : t option = Some (Const Void)
@@ -515,6 +501,7 @@ let sub_desc d1 d2 = match d1, d2 with
   | Var v1, Var v2 -> if v1 == v2 then Equal else Not_sub
   | Const _, Var _ | Var _, Const _ -> Not_sub
 
+(* Post-condition: If the result is [Var v], then [!v] is [None]. *)
 let get_internal (lay : internal) : desc = match lay with
   | Any -> Const Any
   | Immediate -> Const Immediate
