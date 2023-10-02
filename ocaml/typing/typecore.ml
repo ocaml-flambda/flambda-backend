@@ -8610,7 +8610,7 @@ let report_error ~loc env = function
   | Not_a_value (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Methods must have layout value.@ %a"
-        (Layout.Violation.report_with_name ~name:"This expression")
+        (Layout.Violation.report_with_name ~name:"this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
       ()
