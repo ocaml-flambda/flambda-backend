@@ -875,6 +875,10 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
       in
+      let result_mode : Fexpr.alloc_mode_for_assignments = match Code.result_mode code with
+        | Alloc_heap -> Heap
+        | Alloc_local -> Local
+      in
       Code
         { id = code_id;
           newer_version_of;
@@ -885,7 +889,8 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
           loopify;
           params_and_body;
           code_size;
-          is_tupled
+          is_tupled;
+          result_mode
         }
     | Code code_id, Deleted_code ->
       Deleted_code (code_id |> Env.find_code_id_exn env)

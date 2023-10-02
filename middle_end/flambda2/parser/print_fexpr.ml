@@ -822,7 +822,8 @@ and code_binding ppf
        params_and_body;
        code_size = cs;
        is_tupled;
-       loopify
+       loopify;
+       result_mode
      } :
       code) =
   Format.fprintf ppf
@@ -840,12 +841,12 @@ and code_binding ppf
     params_and_body
   in
   Format.fprintf ppf
-    "%a@]@ @[<hov 2>%a@ %a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a@]@] =@ %a"
+    "%a@]@ @[<hov 2>%a@ %a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a%s@]@] =@ %a"
     (kinded_parameters ~space:Before)
     params variable closure_var variable region_var variable depth_var
     continuation_id ret_cont continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
-    ret_arity (expr Outer) body
+    ret_arity (match result_mode with Heap -> "" | Local -> " local") (expr Outer) body
 
 let flambda_unit ppf ({ body } : flambda_unit) =
   Format.fprintf ppf "@[<v>@[%a@]@ @]" (expr Outer) body

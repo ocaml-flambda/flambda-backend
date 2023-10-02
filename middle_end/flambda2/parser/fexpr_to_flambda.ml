@@ -796,7 +796,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             params_and_body;
             code_size;
             is_tupled;
-            loopify
+            loopify;
+            result_mode
           } ->
         let code_id = find_code_id env id in
         let newer_version_of = Option.map (find_code_id env) newer_version_of in
@@ -888,7 +889,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             (fun _ -> Alloc_mode.For_types.heap)
             (Flambda_arity.unarize params_arity)
         in
-        let result_mode = Lambda.alloc_heap in
+        let result_mode = match result_mode with Heap -> Lambda.alloc_heap | Local -> Lambda.alloc_local in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body

@@ -327,16 +327,18 @@ code:
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
+    result_mode = boption(KWD_LOCAL);
     EQUAL; body = expr;
     { let
         recursive, inline, loopify, id, newer_version_of, code_size, is_tupled
         =
         header
       in
+      let result_mode : alloc_mode_for_assignments = if result_mode then Local else Heap in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
-        code_size; is_tupled; loopify; } }
+        code_size; is_tupled; loopify; result_mode; } }
 ;
 
 code_header:
