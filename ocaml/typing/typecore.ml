@@ -3704,6 +3704,9 @@ end = struct
             {txt = "extension.once" | "ocaml.once" | "once"}, PStr []) },
           [Nolabel, exp]) ->
           loop exp
+      | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
+                                                  None) } ->
+          Either
       | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
       | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
       | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _

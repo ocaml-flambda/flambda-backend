@@ -2745,10 +2745,6 @@ let foo b =
   else local_ Some 6
 
 [%%expect{|
-Line 3, characters 7-19:
-3 |   then assert false
-           ^^^^^^^^^^^^
-Error: This function return is not annotated with "local_"
-       whilst other returns were.
+val foo : bool -> local_ int option = <fun>
 |}]
 
