@@ -77,7 +77,7 @@ Error: Underscore argument cannot be wrapped in Some.
 (* Underscore can still be supplied as optional argument raw *)
 let g = f ?foo:_
 [%%expect{|
-val g : ?foo:'_weak1 -> unit -> string = <fun>
+val g : ?foo:'a -> unit -> string = <fun>
 |}]
 
 (* Poly bug reported by nick roberts *)

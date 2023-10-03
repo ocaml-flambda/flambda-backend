@@ -3559,8 +3559,21 @@ let rec is_nonexpansive exp =
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
-  | Texp_apply(e, (_,Omitted _)::el, _, _) ->
-      is_nonexpansive e && List.for_all is_nonexpansive_arg (List.map snd el)
+  | Texp_apply(e, args, _, _)
+      when is_nonexpansive e
+        && List.for_all is_nonexpansive_arg (List.map snd args) ->
+      let has_underscore =
+        List.exists (fun (_, arg) -> match arg with
+        | Underscore _ -> true
+        | _ -> false
+        ) args
+      in
+      if has_underscore then true
+      else begin
+        match args with
+        | (_, Omitted _) :: _ -> true
+        | _ -> false
+      end
   | Texp_match(e, _, cases, _) ->
      (* Not sure this is necessary, if [e] is nonexpansive then we shouldn't
          care if there are exception patterns. But the previous version enforced
