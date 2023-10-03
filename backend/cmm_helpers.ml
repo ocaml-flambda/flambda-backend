@@ -2334,12 +2334,22 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
+let make_tuple l = match l with [e] -> e | _ -> Ctuple l
+
 let split_arity_for_apply arity args =
   let max_arity = Lambda.max_arity () in
   if List.compare_length_with arity max_arity > 0
   then
+    let rec split_args args args_arity =
+      match args_arity, args with
+      | [], l -> [], l
+      | kinds :: args_arity, args ->
+        let group, rest = Misc.Stdlib.List.split_at (Array.length kinds) args in
+        let a, b = split_args rest args_arity in
+        make_tuple group :: a, b
+    in
     let a1, a2 = Misc.Stdlib.List.split_at max_arity arity in
-    let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
+    let args1, args2 = split_args args a1 in
     (a1, args1), Some (a2, args2)
   else (arity, args), None
 
@@ -2837,8 +2847,6 @@ let machtype_non_scanned_size t =
       | Float -> cur + ints_per_float
       | Vec128 -> cur + ints_per_vec128)
     0 t
-
-let make_tuple l = match l with [e] -> e | _ -> Ctuple l
 
 let value_slot_given_machtype vs =
   let non_scanned, scanned =
