@@ -145,7 +145,13 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
     =
   match kind with
   | Pgenarray_ref mode ->
-    check_float_array_optimisation_enabled ();
+    (* CR mshinwell: We can't check this because of the translations of
+       primitives for Obj.size, Obj.field and Obj.set_field, which can be used
+       both on arrays and blocks. We should probably propagate the "%obj_..."
+       primitives which these functions use all the way to the middle end. Then
+       this check could be reinstated for all normal cases.
+
+       check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_ref mode
   | Paddrarray_ref -> Array_ref_kind Values
   | Pintarray_ref -> Array_ref_kind Immediates
@@ -159,7 +165,9 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
     =
   match kind with
   | Pgenarray_set mode ->
-    check_float_array_optimisation_enabled ();
+    (* CR mshinwell: see CR in [convert_array_ref_kind] above
+
+       check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_set (Alloc_mode.For_assignments.from_lambda mode)
   | Paddrarray_set mode ->
     Array_set_kind
