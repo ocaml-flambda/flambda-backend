@@ -1099,7 +1099,6 @@ let unboxed_float_type sloc tys =
 %token PERCENT                "%"
 %token PLUS                   "+"
 %token PLUSDOT                "+."
-
 %token PLUSEQ                 "+="
 %token <string> PREFIXOP      "!+" (* chosen with care; see above *)
 %token PRIVATE                "private"
@@ -3707,9 +3706,13 @@ jkind_annotation: (* : jkind_annotation *)
 
 jkind_attr:
   COLON
-  jkind=ident
-  { let jkind = mkloc jkind (make_loc $loc(jkind)) in
-      Attr.mk ~loc:jkind.loc jkind (PStr []) }
+  jkind=jkind_annotation
+  { (* CR layouts 1.5: this will go away in the child PR *)
+    let jkind_attribute = Jane_asttypes.jkind_to_string jkind.txt in
+    (match Builtin_attributes.jkind_attribute_of_string jkind_attribute with
+     | None -> expecting $loc(jkind) "layout"
+     | Some _ -> ());
+    Attr.mk ~loc:jkind.loc { loc = jkind.loc; txt = jkind_attribute } (PStr []) }
 ;
 
 %inline type_param_with_jkind:

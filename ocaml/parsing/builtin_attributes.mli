@@ -184,6 +184,7 @@ type jkind_attribute =
   | Float64
 
 val jkind_attribute_to_string : jkind_attribute -> string
+val jkind_attribute_of_string : string -> jkind_attribute option
 
 (* [jkind] gets the jkind in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.
