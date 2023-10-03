@@ -37,12 +37,12 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
-               body = body'; attr; loc; ret_mode}
+               body = body'; attr; loc; mode = Alloc_heap; ret_mode; region}
     when List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
@@ -58,7 +58,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
                 ~mode:alloc_heap
-                ~ret_mode:alloc_heap
+                ~ret_mode
                 ~region
 
 let lapply ap =
@@ -796,7 +796,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
   let msubst arr = function
-      Lfunction {kind = Curried _ as kind; region;
+      Lfunction {kind = Curried _ as kind; region; ret_mode;
                  params = self :: args; return; body} ->
         let env = Ident.create_local "env" in
         let body' =
@@ -808,7 +808,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self.name] env env2 (lfunction return args body')
         with Not_found ->
-          [lfunction ~kind ~region return (self :: args)
+          [lfunction ~kind ~region ~ret_mode return (self :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, layout_block, env,
                    Lprim(Pfield_computed Reads_vary,
