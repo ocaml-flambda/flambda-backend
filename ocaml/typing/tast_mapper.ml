@@ -384,13 +384,12 @@ let expr sub x =
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
                           for_to = sub.expr sub tf.for_to;
                           for_body = sub.expr sub tf.for_body}
-    | Texp_send (exp, meth, ap, am) ->
+    | Texp_send (exp, meth, ap) ->
         Texp_send
           (
             sub.expr sub exp,
             meth,
-            ap,
-            am
+            ap
           )
     | Texp_new _
     | Texp_instvar _ as d -> d

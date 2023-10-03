@@ -269,7 +269,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub for_from;
       sub.expr sub for_to;
       sub.expr sub for_body
-  | Texp_send (exp, _, _, _) ->
+  | Texp_send (exp, _, _) ->
       sub.expr sub exp
   | Texp_new _ -> ()
   | Texp_instvar _ -> ()
