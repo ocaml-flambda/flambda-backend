@@ -1291,7 +1291,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_to = check_uniqueness_exp ienv for_to in
     let uf_body = check_uniqueness_exp ienv for_body in
     UF.seq (UF.par uf_from uf_to) uf_body
-  | Texp_send (e, _, _, _) -> check_uniqueness_exp ienv e
+  | Texp_send (e, _, _) -> check_uniqueness_exp ienv e
   | Texp_new _ -> UF.unused
   | Texp_instvar _ -> UF.unused
   | Texp_setinstvar (_, _, _, e) -> check_uniqueness_exp ienv e

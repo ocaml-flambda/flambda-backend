@@ -578,7 +578,7 @@ let expression sub exp =
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,
           for_dir, sub.expr sub for_body)
-    | Texp_send (exp, meth, _, _) ->
+    | Texp_send (exp, meth, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
           | Tmeth_val id -> mkloc (Ident.name id) loc

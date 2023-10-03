@@ -697,10 +697,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         for_body = event_before ~scopes for_body
                      (maybe_region_layout layout_unit body);
       }
-  | Texp_send(expr, met, pos, alloc_mode) ->
+  | Texp_send(expr, met, pos) ->
       let lam =
         let pos = transl_apply_position pos in
-        let mode = transl_alloc_mode alloc_mode in
+        let mode = Lambda.alloc_heap in
         let loc = of_location ~scopes e.exp_loc in
         let layout = layout_exp sort e in
         match met with
