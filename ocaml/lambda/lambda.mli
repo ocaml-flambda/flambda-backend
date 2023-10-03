@@ -614,8 +614,6 @@ val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
-val transl_compilation_unit: scoped_location -> Compilation_unit.t -> lambda
-
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:

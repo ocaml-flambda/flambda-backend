@@ -36,7 +36,7 @@ val transl_package:
         -> style:compilation_unit_style -> int * lambda
 
 val transl_instance:
-  Compilation_unit.t -> runtime_params:Compilation_unit.t list
+      Compilation_unit.t -> runtime_params:Global.t list
         -> style:compilation_unit_style -> Lambda.program
 
 val toplevel_name: Ident.t -> string

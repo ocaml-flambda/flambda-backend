@@ -1054,9 +1054,6 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-let transl_compilation_unit loc comp_unit =
-  transl_address loc (Env.find_compilation_unit_address comp_unit)
-
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function

@@ -138,13 +138,17 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | Instantiation ->
     Compilenv.reset info.module_name;
+    let global_name =
+      Compilation_unit.to_global_name_exn info.module_name
+    in
     (* Consider the names of arguments to be parameters for the purposes of the
        subset rule - that is, a module we import can refer to our arguments as
-       parameters. However, set [exported] to false because they're not
-       parameters of _this_ module, that is, the instance we're generating. *)
+       parameters. *)
     List.iter
-      (fun (param, _value) -> Env.register_parameter param ~exported:false)
-      (Compilation_unit.instance_arguments info.module_name);
+      (fun (param, _value) ->
+        let import = Compilation_unit.Name.of_head_of_global_name param in
+        Env.register_parameter_import import)
+      global_name.args;
     let cmx_info, _ = Compilenv.read_unit_info info.source_file in
     let runtime_params = cmx_info.ui_runtime_params in
     let impl =

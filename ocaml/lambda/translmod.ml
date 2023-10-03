@@ -2002,7 +2002,6 @@ let transl_package component_names target_name coercion ~style =
       transl_package_set_global component_names target_name coercion
   | Set_individual_fields ->
       transl_package_set_fields component_names target_name coercion
-    (*
 
 let subst_in_args compilation_unit ~bindings =
   let subst_in_arg (param, arg) =
@@ -2023,8 +2022,34 @@ let subst_in_args compilation_unit ~bindings =
   let args = List.map subst_in_arg args in
   Compilation_unit.create_instance unit_without_args args
 
+let arg_subst_of_compilation_unit cu =
+  let global_name =
+    match Compilation_unit.to_global_name cu with
+    | Some global_name -> global_name
+    | None -> raise (Error (Location.none, Instantiating_packed cu))
+  in
+  (* Must be a complete instantiation, meaning no hidden args anywhere. *)
+  (* CR lmaurer: This should be checked. *)
+  let rec global_of_complete_global_name (name : Global.Name.t) =
+    Global.create name.head (globals_of_args name.args) ~hidden_args:[]
+  and globals_of_args (args : (Global.Name.t * Global.Name.t) list) =
+    List.map (fun (name, value) -> name, global_of_complete_global_name value)
+      args
+  in
+  let global = global_of_complete_global_name global_name in
+  Global.Name.Map.of_list global.visible_args
+
+let transl_runtime_param runtime_param ~arg_subst =
+  (* The param comes from the .cmo/x for the parameterized library and therefore
+     is either itself a library parameter or is an imported module with hidden
+     arguments; in either case we need to substitute now to find the actual
+     value *)
+  let glob = Global.subst runtime_param arg_subst in
+  let cu = glob |> Global.to_name |> Compilation_unit.of_global_name in
+  Lprim (Pgetglobal cu, [], Loc_unknown)
+
 let transl_instance_plain_block
-    compilation_unit ~open_imports : Lambda.program =
+    compilation_unit ~runtime_params : Lambda.program =
   let src, instance_args =
     Compilation_unit.split_instance_exn compilation_unit
   in
@@ -2036,20 +2061,16 @@ let transl_instance_plain_block
        if Compilation_unit.is_packed comp_unit
        then raise (Error (Location.none, Instantiating_packed comp_unit)))
     (src :: instance_arg_values);
-  let open_imports =
+  let arg_subst = arg_subst_of_compilation_unit compilation_unit in
+  let runtime_params =
     (* Take care of any dependencies of [Foo[A]] on [Bar[Baz][A]], for example *)
-    List.map (subst_in_args ~bindings:instance_args) open_imports
+    List.map (transl_runtime_param ~arg_subst) runtime_params
   in
-  let all_args = instance_arg_values @ open_imports in
-  let lam_of cu =
-    Lambda.transl_compilation_unit Loc_unknown cu
-  in
-  let src_lam = lam_of src in
-  let args_lam = List.map lam_of all_args in
+  let src_lam = Lprim (Pgetglobal src, [], Loc_unknown) in
   let code =
     Lapply {
       ap_func = src_lam;
-      ap_args = args_lam;
+      ap_args = runtime_params;
       ap_result_layout = Pvalue Pgenval;
       ap_loc = Loc_unknown;
       ap_inlined = Always_inlined; (* Definitely inline!! *)
@@ -2105,20 +2126,15 @@ let transl_instance_set_fields compilation_unit ~open_imports =
   in
   { block_impl with code; }
 
-let transl_instance instance_unit ~open_imports ~style =
+let transl_instance instance_unit ~runtime_params ~style =
   assert (Compilation_unit.is_instance instance_unit);
   match style with
   | Plain_block ->
-      transl_instance_plain_block instance_unit ~open_imports
+      transl_instance_plain_block instance_unit ~runtime_params
   | Set_global_to_block ->
-      transl_instance_set_global instance_unit ~open_imports
+      transl_instance_set_global instance_unit ~runtime_params
   | Set_individual_fields ->
-      transl_instance_set_fields instance_unit ~open_imports
-*)
-
-let transl_instance instance_unit ~runtime_params ~style =
-  ignore (instance_unit, runtime_params, style);
-  assert false
+      transl_instance_set_fields instance_unit ~runtime_params
 
 (* Error report *)
 
