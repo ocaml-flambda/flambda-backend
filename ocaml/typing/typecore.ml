@@ -3761,8 +3761,10 @@ end = struct
                 loop_body body
             | Jexp_comprehension _ | Jexp_immutable_array _ ->
                 expr e
-            | Jexp_layout (Lexp_constant _ | Lexp_newtype _) ->
-              Not e.pexp_loc
+            | Jexp_layout (Lexp_constant _) ->
+                Not e.pexp_loc
+            | Jexp_layout (Lexp_newtype (_, _, body)) ->
+                loop_body body
           end
         | None -> match e.pexp_desc, e.pexp_attributes with
         | Pexp_fun(_, _, _, e), _ -> loop_body e
