@@ -2723,3 +2723,34 @@ Line 2, characters 33-58:
 Error: This expression has type int -> local_ (int -> int)
        but an expression was expected of type int -> int -> int
 |}];;
+
+(* test that [function] checks all its branches either for local_ or the
+   absence thereof *)
+let foo = function
+  | false -> local_ 5
+  | true -> 6
+
+(* Poor error message: really this should complain about the inconsistency
+   of local_ annotations. Note that the type is a mode-crossing type, and
+   so that makes this error message even worse. *)
+[%%expect{|
+Line 2, characters 13-21:
+2 |   | false -> local_ 5
+                 ^^^^^^^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an "exclave_" annotation
+|}]
+
+(* test that [assert false] can mix with other returns being [local_] *)
+let foo b =
+  if b
+  then assert false
+  else local_ Some 6
+
+[%%expect{|
+Line 3, characters 7-19:
+3 |   then assert false
+           ^^^^^^^^^^^^
+Error: This function return is not annotated with "local_"
+       whilst other returns were.
+|}]
