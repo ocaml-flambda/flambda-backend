@@ -104,6 +104,10 @@ let builtin_attrs =
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
   ; "unaliasable"; "ocaml.unaliasable"
+  ; "builtin"; "ocaml.builtin"
+  ; "no_effects"; "ocaml.no_effects"
+  ; "no_coeffects"; "ocaml.no_coeffects"
+  ; "only_generative_effects"; "ocaml.only_generative_effects";
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
