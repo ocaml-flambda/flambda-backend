@@ -1,4 +1,5 @@
 (* TEST
+   flags="-extension underscore_argument"
    * expect *)
 
 let leak n =

@@ -1,5 +1,7 @@
 (* TEST
+   flags="-extension underscore_argument"
    * expect
+
 *)
 
 (* Underscore partial application *)
@@ -76,4 +78,16 @@ Error: Underscore argument cannot be wrapped in Some.
 let g = f ?foo:_
 [%%expect{|
 val g : ?foo:'_weak1 -> unit -> string = <fun>
+|}]
+
+(* Poly bug reported by nick roberts *)
+let f g = g _
+[%%expect{|
+val f : ('a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+let go () = let h = f (fun x -> x) in h 1
+[%%expect{|
+Uncaught exception: File "ocaml/typing/btype.ml", line 728, characters 9-15: Assertion failed
+
 |}]

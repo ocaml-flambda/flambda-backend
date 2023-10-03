@@ -3348,7 +3348,10 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
         in
         let arg =
           match sarg.pexp_desc with
-          | Pexp_extension({txt = "extension.papp"}, PStr []) ->
+          | Pexp_extension({txt = "extension.underscore"; loc}, PStr []) ->
+              if not (Language_extension.is_enabled Underscore_argument) then
+                raise (Typetexp.Error (loc, env,
+                  Unsupported_extension Underscore_argument));
               Underscore {ty_arg = ty_arg_mono; mode_fun; mode_arg; sort_arg; level = lv}
           | _ ->
               Arg (Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg })
@@ -3391,9 +3394,12 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         let use_arg ~commuted sarg l' =
           let wrapped_in_some = optional && not (is_optional l') in
           match sarg.pexp_desc with
-          | Pexp_extension({txt = "extension.papp"}, PStr []) ->
+          | Pexp_extension({txt = "extension.underscore"; loc}, PStr []) ->
+              if not (Language_extension.is_enabled Underscore_argument) then
+                raise (Typetexp.Error (loc, env,
+                  Unsupported_extension Underscore_argument));
               if wrapped_in_some then
-                raise (Error (sarg.pexp_loc, env, Underscore_wrapped_in_some))
+                raise (Error (loc, env, Underscore_wrapped_in_some))
               else
                 Underscore { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
           | _ ->

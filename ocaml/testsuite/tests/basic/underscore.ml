@@ -1,5 +1,5 @@
 (* TEST
- flags = "-dlambda"
+ flags = "-dlambda -extension underscore_argument"
  * expect
  *)
 
