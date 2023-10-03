@@ -17,19 +17,19 @@
 #include "caml/alloc.h"
 #include "caml/simd.h"
 
-CAMLextern value caml_copy_vec128(__m128 v) {
+CAMLexport value caml_copy_vec128(__m128 v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_val(res, v);
     return res;
 }
 
-CAMLextern value caml_copy_vec128i(__m128i v) {
+CAMLexport value caml_copy_vec128i(__m128i v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_vali(res, v);
     return res;
 }
 
-CAMLextern value caml_copy_vec128d(__m128d v) {
+CAMLexport value caml_copy_vec128d(__m128d v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_vald(res, v);
     return res;
