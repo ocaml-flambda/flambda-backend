@@ -2730,15 +2730,12 @@ let foo = function
   | false -> local_ 5
   | true -> 6
 
-(* Poor error message: really this should complain about the inconsistency
-   of local_ annotations. Note that the type is a mode-crossing type, and
-   so that makes this error message even worse. *)
 [%%expect{|
-Line 2, characters 13-21:
-2 |   | false -> local_ 5
-                 ^^^^^^^^
-Error: This local value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+Line 3, characters 12-13:
+3 |   | true -> 6
+                ^
+Error: This function return is not annotated with "local_"
+       whilst other returns were.
 |}]
 
 (* test that [assert false] can mix with other returns being [local_] *)
@@ -2754,3 +2751,4 @@ Line 3, characters 7-19:
 Error: This function return is not annotated with "local_"
        whilst other returns were.
 |}]
+
