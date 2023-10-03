@@ -478,17 +478,14 @@ and expression i ppf x =
       expression i ppf for_from;
       expression i ppf for_to;
       expression i ppf for_body
-  | Texp_send (e, Tmeth_name s, _, am) ->
+  | Texp_send (e, Tmeth_name s, _) ->
       line i ppf "Texp_send \"%s\"\n" s;
-      alloc_mode i ppf am;
       expression i ppf e
-  | Texp_send (e, Tmeth_val s, _, am) ->
+  | Texp_send (e, Tmeth_val s, _) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-      alloc_mode i ppf am;
       expression i ppf e
-  | Texp_send (e, Tmeth_ancestor(s, _), _, am) ->
+  | Texp_send (e, Tmeth_ancestor(s, _), _) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-      alloc_mode i ppf am;
       expression i ppf e
   | Texp_new (li, _, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
   | Texp_setinstvar (_, s, _, e) ->

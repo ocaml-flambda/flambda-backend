@@ -5570,9 +5570,7 @@ and type_expect_
             assert false
       in
       rue {
-        exp_desc = Texp_send(obj, meth, pm.apply_position,
-          register_allocation expected_mode
-        );
+        exp_desc = Texp_send(obj, meth, pm.apply_position);
         exp_loc = loc; exp_extra = [];
         exp_type = typ;
         exp_attributes = sexp.pexp_attributes;

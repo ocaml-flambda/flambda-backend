@@ -709,7 +709,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression wh_cond << Dereference;
         expression wh_body << Guard;
       ]
-    | Texp_send (e1, _, _, _) ->
+    | Texp_send (e1, _, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)

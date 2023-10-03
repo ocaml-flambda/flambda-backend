@@ -162,7 +162,7 @@ and expression_desc =
       for_body : expression;
       for_body_sort : Jkind.sort;
     }
-  | Texp_send of expression * meth * apply_position * Mode.Alloc.t
+  | Texp_send of expression * meth * apply_position
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
