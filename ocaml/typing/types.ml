@@ -609,6 +609,7 @@ type change =
   | Ccommu : [`var] commutable_gen -> change
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
+  | Csort : Jkind.Sort.change -> change
 
 type changes =
     Change of change * changes ref
@@ -623,7 +624,8 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.change_log := (fun changes -> log_change (Cmodes changes))
+  Mode.change_log := (fun changes -> log_change (Cmodes changes));
+  Jkind.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -873,6 +875,7 @@ let undo_change = function
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
   | Cmodes ms -> Mode.undo_changes ms
+  | Csort change -> Jkind.Sort.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0
@@ -1030,5 +1033,3 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
-
-
