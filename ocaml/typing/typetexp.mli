@@ -52,8 +52,7 @@ module TyVarEnv : sig
        type scheme (i.e. variables become Tvar rather than Tunivar) *)
 
   val ttyp_poly_arg : poly_univars -> (string * Jkind.const option) list
-  (* CR nroberts: document more *)
-  (* something suitable as an argument to [Ttyp_poly] *)
+    (** A suitable arg to the corresponding [Ttyp_poly] type. *)
 end
 
 val valid_tyvar_name : string -> bool

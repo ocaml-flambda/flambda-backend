@@ -438,12 +438,15 @@ module Const : sig
     | Immediate
     | Float64
 
-  val to_user_written_attribute : t -> Builtin_attributes.jkind_annotation
-
   val of_user_written_attribute_unchecked :
-    Builtin_attributes.jkind_annotation -> t
+    Builtin_attributes.jkind_attribute -> t
+
+  val of_user_written_annotation_unchecked :
+    Jane_asttypes.const_jkind -> t option
+
+  val to_user_written_annotation : t -> Jane_asttypes.const_jkind
 end = struct
-  type t = Builtin_attributes.jkind_annotation =
+  type t = Builtin_attributes.jkind_attribute =
     | Any
     | Value
     | Void
@@ -451,9 +454,27 @@ end = struct
     | Immediate
     | Float64
 
-  let of_user_written_attribute_unchecked x = x
+  let of_user_written_attribute_unchecked t = t
 
-  let to_user_written_attribute x = x
+  let of_user_written_annotation_unchecked annot =
+    match Jane_asttypes.jkind_to_string annot with
+    | "any" -> Some Any
+    | "value" -> Some Value
+    | "void" -> Some Void
+    | "immediate64" -> Some Immediate64
+    | "immediate" -> Some Immediate
+    | "float64" -> Some Float64
+    | _ -> None
+
+  let to_user_written_annotation annot =
+    Jane_asttypes.jkind_of_string
+      (match annot with
+      | Any -> "any"
+      | Value -> "value"
+      | Void -> "void"
+      | Immediate64 -> "immediate64"
+      | Immediate -> "immediate"
+      | Float64 -> "float64")
 end
 
 type const = Const.t =
@@ -528,13 +549,9 @@ let of_const ~why : const -> t = function
   | Void -> fresh_jkind (Sort Sort.void) ~why
   | Float64 -> fresh_jkind (Sort Sort.float64) ~why
 
-let const_of_user_written_attribute ?(legacy_immediate = false) ~context
-    Location.{ loc; txt = (annot : Builtin_attributes.jkind_annotation) } =
-  (* This is *the* place that does checks on the
-     Builtin_attributes.jkind_annotation, so it's fine to do this "unchecked"
-     conversion.
-  *)
-  match Const.of_user_written_attribute_unchecked annot with
+let check_user_written_annotation ?(legacy_immediate = false) ~context ~loc
+    annot =
+  match annot with
   | (Immediate | Immediate64 | Value) as const when legacy_immediate -> const
   | const ->
     let required_layouts_level = get_required_layouts_level context const in
@@ -542,29 +559,27 @@ let const_of_user_written_attribute ?(legacy_immediate = false) ~context
     then raise ~loc (Insufficient_level (context, const));
     const
 
-let const_loc_of_user_written_attribute ?legacy_immediate ~context attribute =
-  let const =
-    const_of_user_written_attribute ?legacy_immediate ~context attribute
-  in
-  Location.{ txt = const; loc = attribute.loc }
-
 let const_of_user_written_annotation ?legacy_immediate ~context
     Location.{ loc; txt = annot } =
-  match Builtin_attributes.jkind_of_parsetree annot with
+  match Const.of_user_written_annotation_unchecked annot with
   | None -> raise ~loc (Unknown_jkind annot)
-  | Some attribute ->
-    const_of_user_written_attribute ?legacy_immediate ~context
-      { txt = attribute; loc }
+  | Some unchecked ->
+    check_user_written_annotation ?legacy_immediate ~context ~loc unchecked
 
-let const_to_user_written_annotation annot =
-  (* CR nroberts: a bit of a lie *)
-  Builtin_attributes.jkind_to_parsetree (Const.to_user_written_attribute annot)
+let const_to_user_written_annotation = Const.to_user_written_annotation
+
+let const_of_user_written_attribute ?legacy_immediate ~context
+    Location.{ loc; txt = attribute } =
+  let unchecked = Const.of_user_written_attribute_unchecked attribute in
+  let checked =
+    check_user_written_annotation ?legacy_immediate ~context ~loc unchecked
+  in
+  Location.{ loc; txt = checked }
 
 let const_of_attributes ~legacy_immediate ~context attrs =
   Builtin_attributes.jkind ~legacy_immediate attrs
   |> Result.map
-       (Option.map
-          (const_loc_of_user_written_attribute ~legacy_immediate ~context))
+       (Option.map (const_of_user_written_attribute ~legacy_immediate ~context))
 
 let of_annotated_const ~context Location.{ txt = const; loc = const_loc } =
   of_const ~why:(Annotated (context, const_loc)) const

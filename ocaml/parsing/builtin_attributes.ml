@@ -452,7 +452,7 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-type jkind_annotation =
+type jkind_attribute =
   | Any
   | Value
   | Void
@@ -460,7 +460,7 @@ type jkind_annotation =
   | Immediate
   | Float64
 
-let jkind_of_string = function
+let jkind_attribute_of_string = function
   | "ocaml.any" | "any" -> Some Any
   | "ocaml.value" | "value" -> Some Value
   | "ocaml.void" | "void" -> Some Void
@@ -469,7 +469,7 @@ let jkind_of_string = function
   | "ocaml.float64" | "float64" -> Some Float64
   | _ -> None
 
-let jkind_to_string = function
+let jkind_attribute_to_string = function
   | Any -> "any"
   | Value -> "value"
   | Void -> "void"
@@ -477,17 +477,11 @@ let jkind_to_string = function
   | Immediate -> "immediate"
   | Float64 -> "float64"
 
-let jkind_of_parsetree x =
-  jkind_of_string (Jane_asttypes.jkind_to_string x)
-
-let jkind_to_parsetree x =
-  Jane_asttypes.jkind_of_string (jkind_to_string x)
-
 let jkind ~legacy_immediate attrs =
   let jkind =
     List.find_map
       (fun a ->
-         match jkind_of_string a.attr_name.txt with
+         match jkind_attribute_of_string a.attr_name.txt with
          | Some attr -> Some (a, attr)
          | None -> None
       ) attrs

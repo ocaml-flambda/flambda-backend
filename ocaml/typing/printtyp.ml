@@ -1646,8 +1646,8 @@ let rec tree_of_type_decl id decl =
        begin match
          Builtin_attributes.jkind ~legacy_immediate:true decl.type_attributes
        with
-       | Ok annot -> annot
-       | Error annot -> Some annot  (* don't care here about extensions *)
+       | Ok attr -> attr
+       | Error attr -> Some attr  (* don't care here about extensions *)
        end
     | _ -> None (* other cases have no jkind annotation *)
   in
@@ -1657,7 +1657,15 @@ let rec tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-          (fun { txt } -> Olay_const (Builtin_attributes.jkind_to_parsetree txt))
+          (fun { txt } ->
+             let jkind_attribute =
+               Builtin_attributes.jkind_attribute_to_string txt
+             in
+             (* CR layouts 1.5: This is a bit of a lie: we're interpreting the
+                jkind attribute as a jkind *annotation*. This will go away in a
+                child PR when we move jkind annotations into Jane Syntax. *)
+             let jkind_annot = Jane_asttypes.jkind_of_string jkind_attribute in
+             Olay_const jkind_annot)
           lay;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }

@@ -401,7 +401,7 @@ val of_attributes :
   legacy_immediate:bool ->
   context:annotation_context ->
   Parsetree.attributes ->
-  (t option, Builtin_attributes.jkind_annotation Location.loc) result
+  (t option, Builtin_attributes.jkind_attribute Location.loc) result
 
 (** Find a jkind in attributes, defaulting to ~default.  Returns error if a
     disallowed jkind is present, but always allows immediate if
@@ -411,7 +411,7 @@ val of_attributes_default :
   context:annotation_context ->
   default:t ->
   Parsetree.attributes ->
-  (t, Builtin_attributes.jkind_annotation Location.loc) result
+  (t, Builtin_attributes.jkind_attribute Location.loc) result
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)

@@ -243,8 +243,7 @@ end = struct
       f
       ~finally:(fun () -> univars := old_univars)
 
-  let ttyp_poly_arg (poly_univars : poly_univars) =
-    List.map
+  let ttyp_poly_arg (poly_univars : poly_univars) = List.map
       (fun (name, _, jkind_info) -> name, jkind_info.jkind_annot)
       poly_univars
 

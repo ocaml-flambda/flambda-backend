@@ -79,7 +79,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Builtin_attributes.jkind_annotation
+  | Layout_not_enabled of Builtin_attributes.jkind_attribute
 
 open Typedtree
 
@@ -2661,10 +2661,9 @@ let report_error ppf = function
                    To enable it, pass the '-extension local' flag@]"
   | Layout_not_enabled c ->
       fprintf ppf
-        "@[Layout %a is used here, but the appropriate layouts extension is \
+        "@[Layout %s is used here, but the appropriate layouts extension is \
          not enabled@]"
-        Jane_syntax.Layouts.Pprint.const_jkind
-        (Builtin_attributes.jkind_to_parsetree c)
+        (Builtin_attributes.jkind_attribute_to_string c)
 
 let () =
   Location.register_error_of_exn

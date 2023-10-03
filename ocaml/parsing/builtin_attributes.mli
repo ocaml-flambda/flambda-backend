@@ -175,7 +175,7 @@ val has_unique: Parsetree.attributes -> (bool,unit) result
 
 val has_once : Parsetree.attributes -> (bool, unit) result
 
-type jkind_annotation =
+type jkind_attribute =
   | Any
   | Value
   | Void
@@ -183,8 +183,7 @@ type jkind_annotation =
   | Immediate
   | Float64
 
-val jkind_of_parsetree : Jane_asttypes.const_jkind -> jkind_annotation option
-val jkind_to_parsetree : jkind_annotation -> Jane_asttypes.const_jkind
+val jkind_attribute_to_string : jkind_attribute -> string
 
 (* [jkind] gets the jkind in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.
@@ -218,4 +217,4 @@ val jkind_to_parsetree : jkind_annotation -> Jane_asttypes.const_jkind
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
 val jkind : legacy_immediate:bool -> Parsetree.attributes ->
-  (jkind_annotation Location.loc option, jkind_annotation Location.loc) result
+  (jkind_attribute Location.loc option, jkind_attribute Location.loc) result
