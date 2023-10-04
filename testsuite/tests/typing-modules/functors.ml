@@ -921,37 +921,14 @@ Error: Signature mismatch:
          sig
            module B :
              sig
-               module C :
-                 sig
-                   module D :
-                     sig
-                       module E :
-                         sig
-                           module F :
-                             functor (X : sig type x end)
-                               (Y : sig type y' end) (W : sig type w end) ->
-                               sig end
-                         end
-                     end
-                 end
+               module C : sig module D : sig module E : sig ... end end end
              end
          end
        is not included in
          sig
            module B :
              sig
-               module C :
-                 sig
-                   module D :
-                     sig
-                       module E :
-                         sig
-                           module F :
-                             sig type x end -> sig type y end ->
-                               sig type z end -> sig type w end -> sig end
-                         end
-                     end
-                 end
+               module C : sig module D : sig module E : sig ... end end end
              end
          end
        In module B:
@@ -966,8 +943,8 @@ Error: Signature mismatch:
                    module E :
                      sig
                        module F :
-                         sig type x end -> sig type y end ->
-                           sig type z end -> sig type w end -> sig end
+                         sig ... end -> sig ... end -> sig ... end ->
+                           sig ... end -> sig end
                      end
                  end
              end
