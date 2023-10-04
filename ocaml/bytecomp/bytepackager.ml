@@ -234,6 +234,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
+        cu_implements_param = None;
         cu_imports =
           Array.of_list
             ((Import_info.create modname
