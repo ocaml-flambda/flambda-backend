@@ -1,5 +1,5 @@
 (* TEST
-   flags="-extension underscore_argument"
+   flags="-extension dummy_arguments"
    * expect
 
 *)
@@ -89,4 +89,27 @@ val f : ('a -> 'b -> 'c -> 'd) -> 'a -> 'b -> 'c -> 'd = <fun>
 let go () = let h = f (fun x y z -> x + y + z) in h 1
 [%%expect{|
 val go : unit -> int -> int -> int = <fun>
+|}]
+
+let f g =
+   let h = g _ in
+   let _x = h "hello" in
+   let _y = h 42 in
+   h
+[%%expect{|
+Line 4, characters 14-16:
+4 |    let _y = h 42 in
+                  ^^
+Error: This expression has type int but an expression was expected of type
+         string
+|}]
+
+(* Polymorphic parameters working, if we annotate the types *)
+let f (g : 'a. 'a -> 'a) =
+   let h = g _ in
+   let _x = h "hello" in
+   let _y = h 42 in
+   h
+[%%expect{|
+val f : ('a. 'a -> 'a) -> 'b -> 'b = <fun>
 |}]

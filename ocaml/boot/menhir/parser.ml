@@ -379,7 +379,7 @@ let local_ext_loc loc = mkloc "extension.local" loc
 let unique_ext_loc loc = mkloc "extension.unique" loc
 let once_ext_loc loc = mkloc "extension.once" loc
 
-let underscore_ext_loc loc = mkloc "extension.underscore" loc
+let dummy_ext_loc loc = mkloc "extension.dummy" loc
 
 let local_attr loc =
   mk_attr ~loc (local_ext_loc loc) (PStr [])
@@ -399,8 +399,8 @@ let unique_extension loc =
 let once_extension loc =
   Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
 
-let underscore_extension loc =
-  Exp.mk ~loc:(ghost_loc loc) (Pexp_extension(underscore_ext_loc (make_loc loc), PStr []))
+let dummy_extension loc =
+  Exp.mk ~loc:(ghost_loc loc) (Pexp_extension(dummy_ext_loc (make_loc loc), PStr []))
 
 let mkexp_stack ~loc ~kwd_loc exp =
   Exp.mk ~loc (Pexp_apply(local_extension kwd_loc, [Nolabel, exp]))
@@ -24550,7 +24550,7 @@ module Tables = struct
         let _v : (Asttypes.arg_label * Parsetree.expression) = let _loc__1_ = (_startpos__1_, _endpos__1_) in
         
 # 3102 "parsing/parser.mly"
-      ( (Nolabel, underscore_extension _loc__1_) )
+      ( (Nolabel, dummy_extension _loc__1_) )
 # 24555 "parsing/parser.ml"
          in
         {
@@ -24587,7 +24587,7 @@ module Tables = struct
         let _v : (Asttypes.arg_label * Parsetree.expression) = let _loc__2_ = (_startpos__2_, _endpos__2_) in
         
 # 3104 "parsing/parser.mly"
-      ( (Labelled _1, underscore_extension _loc__2_) )
+      ( (Labelled _1, dummy_extension _loc__2_) )
 # 24592 "parsing/parser.ml"
          in
         {
@@ -24624,7 +24624,7 @@ module Tables = struct
         let _v : (Asttypes.arg_label * Parsetree.expression) = let _loc__2_ = (_startpos__2_, _endpos__2_) in
         
 # 3106 "parsing/parser.mly"
-      ( (Optional _1, underscore_extension _loc__2_) )
+      ( (Optional _1, dummy_extension _loc__2_) )
 # 24629 "parsing/parser.ml"
          in
         {
