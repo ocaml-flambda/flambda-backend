@@ -19,7 +19,9 @@
    naked_pointers_checker
    flambda
    flambda2
-   no_flat_float_array
+   ; CR-someday poechsel: This feature is currently broken - it should be turned back on 
+   ; once it is working again.
+   ; no_flat_float_array
    perf_demangled_symbols
    stack_allocation
    poll_insertion
