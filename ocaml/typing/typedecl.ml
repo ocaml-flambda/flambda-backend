@@ -190,10 +190,8 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      are checked and then unified with the real manifest and checked against the
      kind. *)
   let type_jkind, type_jkind_annotation, sdecl_attributes =
-    (* We set ~legacy_immediate to true because we're looking at a declaration
-       that was already allowed to be [@@immediate] *)
     Jkind.of_type_decl_default
-      ~legacy_immediate:true ~context:(Type_declaration path)
+      ~context:(Type_declaration path)
       ~default:(Jkind.any ~why:Initial_typedecl_env)
       sdecl
   in
@@ -633,12 +631,7 @@ let transl_declaration env sdecl (id, uid) =
   in
   verify_unboxed_attr unboxed_attr sdecl;
   let jkind_from_annotation, jkind_annotation, sdecl_attributes =
-    (* We set legacy_immediate to true because you were already allowed to write
-       [@@immediate] on declarations.  *)
-    match
-      Jkind.of_type_decl
-        ~legacy_immediate:true ~context:(Type_declaration path) sdecl
-    with
+    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
     | Some (jkind, jkind_annotation, sdecl_attributes) ->
         Some jkind, Some jkind_annotation, sdecl_attributes
     | None -> None, None, sdecl.ptype_attributes
@@ -2326,9 +2319,7 @@ let approx_type_decl sdecl_list =
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
        let jkind, jkind_annotation, _sdecl_attributes =
-         (* We set legacy_immediate to true because you were already allowed
-            to write [@@immediate] on declarations. *)
-         Jkind.of_type_decl_default ~legacy_immediate:true
+         Jkind.of_type_decl_default
            ~context:(Type_declaration path)
            ~default:(Jkind.value ~why:Default_type_jkind)
            sdecl
