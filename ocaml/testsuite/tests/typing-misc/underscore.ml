@@ -81,13 +81,12 @@ val g : ?foo:'a -> unit -> string = <fun>
 |}]
 
 (* Poly bug reported by nick roberts *)
-let f g = g _
+let f g = g _ _ _
 [%%expect{|
-val f : ('a -> 'b) -> 'a -> 'b = <fun>
+val f : ('a -> 'b -> 'c -> 'd) -> 'a -> 'b -> 'c -> 'd = <fun>
 |}]
 
-let go () = let h = f (fun x -> x) in h 1
+let go () = let h = f (fun x y z -> x + y + z) in h 1
 [%%expect{|
-Uncaught exception: File "ocaml/typing/btype.ml", line 728, characters 9-15: Assertion failed
-
+val go : unit -> int -> int -> int = <fun>
 |}]

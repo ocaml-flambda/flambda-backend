@@ -3303,7 +3303,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
     | (lbl, sarg) :: rest ->
         let ty_fun = expand_head env ty_fun in
         let lv = get_level ty_fun in
-        let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
+        let (sort_arg, mode_arg, ty_arg, ty_arg_mono, mode_ret, ty_res) =
           match get_desc ty_fun with
           | Tvar _ ->
               let ty_arg_mono, sort_arg = new_rep_var ~why:Function_argument () in
@@ -3322,7 +3322,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               let kind = (lbl, mode_arg, mode_ret) in
               unify env ty_fun
                 (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
-              (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res)
+              (sort_arg, mode_arg, ty_arg, ty_arg_mono, mode_ret, ty_res)
         | Tarrow ((l, mode_arg, mode_ret), ty_arg, ty_res, _)
           when labels_match ~param:l ~arg:lbl ->
             let sort_arg =
@@ -3331,7 +3331,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               | Error err -> raise(Error(funct.exp_loc, env,
                                          Function_type_not_rep (ty_arg,err)))
             in
-            (sort_arg, mode_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
+            (sort_arg, mode_arg, ty_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
         | td ->
             let ty_fun = match td with Tarrow _ -> newty td | _ -> ty_fun in
             let ty_res = remaining_function_type ty_fun mode_fun rev_args in
@@ -3352,7 +3352,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               if not (Language_extension.is_enabled Underscore_argument) then
                 raise (Typetexp.Error (loc, env,
                   Unsupported_extension Underscore_argument));
-              Underscore {ty_arg = ty_arg_mono; mode_fun; mode_arg; sort_arg; level = lv}
+              Underscore {ty_arg; mode_fun; mode_arg; sort_arg; level = lv}
           | _ ->
               Arg (Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg })
         in
