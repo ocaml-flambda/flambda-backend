@@ -204,7 +204,7 @@ let print_general_infos print_name name crc defines implements_param
     | [||] -> ()
     | _ ->
       printf "Runtime parameters:\n";
-      Array.iter print_global_line runtime_params
+      Array.iter print_global_as_name_line runtime_params
   in
   ()
 

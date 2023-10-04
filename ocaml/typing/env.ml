@@ -1317,6 +1317,14 @@ let find_hash_type path env =
   | Papply _ ->
       raise Not_found
 
+let find_global_name name =
+  let mda = find_pers_mod name in
+  let decl = Subst.Lazy.force_module_decl mda.mda_declaration in
+  match decl.md_type with
+  | Mty_signature sg -> sg
+  | (Mty_ident _ | Mty_functor (_, _) | Mty_alias _) ->
+      assert false
+
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty
 let add_probe name = probes := String.Set.add name !probes

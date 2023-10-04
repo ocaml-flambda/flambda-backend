@@ -528,6 +528,7 @@ let base_filename t =
         String.make (depth + 1) '-' ^ (value |> Name.to_string))
   in
   String.concat "" ((name |> Name.to_string) :: arg_segments)
+  |> String.uncapitalize_ascii
 
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list (for_pack_prefix child))

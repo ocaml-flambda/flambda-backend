@@ -1,6 +1,7 @@
 File main.cmo
 Unit name: Main
 Interfaces imported:
+	00000000000000000000000000000000	String_semigroup
 	00000000000000000000000000000000	Stdlib__Seq
 	00000000000000000000000000000000	Stdlib__List
 	00000000000000000000000000000000	Stdlib__Either
@@ -31,6 +32,7 @@ Runtime parameters:
 	Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
 	Category_of_monoid[Monoid:Monoid_of_semigroup]
 Required globals:
+	Monoid_utils[Monoid:Monoid_of_semigroup[Semigroup:String_semigroup]]
 	Stdlib__List
 Uses unsafe features: no
 Force link: no

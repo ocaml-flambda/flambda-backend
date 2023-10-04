@@ -134,55 +134,23 @@ let main unix argv ppf ~flambda2 =
     end
     else if !instantiate then begin
       Compmisc.init_path ();
-      let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
-      let to_instantiate, args =
-        match objfiles with
+      (* Requiring [-o] isn't really necessary, but we don't intend for humans
+         to be invoking [-instantiate] by hand, and computing the correct value
+         here would be awkward *)
+      let target = Compenv.extract_output !output_name in
+      let src, args =
+        match Compenv.get_objfiles ~with_ocamlparam:false with
         | [] | [_] ->
           Printf.ksprintf Compenv.fatal
             "Must specify at least two .cmx files with -instantiate"
-        | to_instantiate :: args ->
-          to_instantiate, args
+        | src :: args ->
+          src, args
       in
-      (* CR lmaurer: Not sure how I feel about reading files here, but I need
-         to do it here to calculate the compilation unit *)
-      let base_compilation_unit =
-        let unit_infos, _ = Compilenv.read_unit_info to_instantiate in
-        unit_infos.ui_unit
-      in
-      let param_and_comp_unit_of_cmx_path cmx_path =
-        let unit_infos, _ = Compilenv.read_unit_info cmx_path in
-        (* TODO ui_implements_param *)
-        match Sys.opaque_identity (fun () -> assert false) () (* unit_infos.ui_implements_param *) with
-        | None ->
-          Printf.ksprintf Compenv.fatal
-            "Argument .cmx must compiled with -as-parameter-for: %s"
-            cmx_path
-        | Some param ->
-          param, unit_infos.ui_unit
-      in
-      let compilation_unit =
-        Compilation_unit.create_instance
-          base_compilation_unit
-          (args |> List.map param_and_comp_unit_of_cmx_path)
-      in
-      let default_output_prefix =
-        Compilation_unit.base_filename compilation_unit
-      in
-      let output_prefix = Compenv.output_prefix default_output_prefix in
-      if not (String.equal
-                (Filename.basename output_prefix)
-                default_output_prefix)
-      then begin
-        (* The module will only work if given the correct filename *)
-        Printf.ksprintf Compenv.fatal
-          "Filename given by -o must have basename %s\n\
-           to produce the desired instance %s"
-          default_output_prefix
-          (Compilation_unit.full_path_as_string compilation_unit)
-      end;
-      Optcompile.instance unix ~backend ~flambda2
-        ~source_file:to_instantiate ~output_prefix ~compilation_unit
-        ~keep_symbol_tables:false;
+      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
+        Asminstantiator.instantiate unix
+          ~ppf_dump
+          ~src ~args target ~backend
+          ~flambda2);
       Warnings.check_fatal ();
     end
     else if !shared then begin

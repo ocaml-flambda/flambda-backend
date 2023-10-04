@@ -107,8 +107,8 @@
  (libraries ocamlcommon)
  (modules
     ;; bytecomp/
-    bytegen bytelibrarian bytelink bytepackager emitcode printinstr
-    instruct
+    bytegen byteinstantiator bytelibrarian bytelink bytepackager emitcode
+    printinstr instruct
 
     ;; driver/
     errors compile maindriver

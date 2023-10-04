@@ -1,4 +1,4 @@
-(* TEST
+(* TQEST
 
 readonly_files = "\
   bad_arg_impl.ml bad_arg_impl.reference \
@@ -15,6 +15,7 @@ readonly_files = "\
   category_utils.ml category_utils.mli \
   chain.ml chain.mli \
   import.ml \
+  int_list_element.ml int_list_element.mli \
   list_element.mli \
   list_monoid.ml list_monoid.mli \
   main.ml main.mli main.reference \
@@ -160,11 +161,22 @@ module = "main.mli"
 flags += " -i"
 module = "main.ml"
 compiler_output = "main.reference"
-******************* check-ocamlc.byte-output
-compiler_reference = "main.reference"
-****************** ocamlc.byte
+******************* ocamlc.byte
 module = "main.ml"
-******************* ocamlobjinfo
+******************** ocamlobjinfo
 program = "main.cmo main.cmi"
-******************** check-program-output
+********************* check-program-output
+******************** ocamlc.byte
+flags = "-as-argument-for List_element"
+module = "int_list_element.mli int_list_element.ml"
+********************* ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "main-Int_list_element-String_semigroup.cmo"
+all_modules = "main.cmo int_list_element.cmo string_semigroup.cmo"
+********************** ocamlc.byte
+module = "run.ml"
+*********************** ocamlc.byte
+program = "run.exe"
+all_modules = "string_semigroup.cmo monoid_of_semigroup-String_semigroup.cmo "
 *)
