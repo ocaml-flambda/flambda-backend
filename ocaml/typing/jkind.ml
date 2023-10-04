@@ -516,7 +516,10 @@ let sub_const (c1 : const) (c2 : const) =
 (******************************)
 (*** user errors ***)
 type error =
-  | Insufficient_level of annotation_context * const
+  | Insufficient_level of
+      { jkind : const;
+        required_layouts_level : Language_extension.maturity
+      }
   | Unknown_jkind of Jane_asttypes.const_jkind
   | Multiple_jkinds of
       { from_annotation : const;
@@ -528,10 +531,20 @@ exception User_error of Location.t * error
 let raise ~loc err = raise (User_error (loc, err))
 
 (*** extension requirements ***)
-let get_required_layouts_level (context : annotation_context) (jkind : const) :
-    Language_extension.maturity =
+
+(* The need for [is_type_decl] comes from the fact that we want to allow
+   [type t : immediate] and [type t : immediate64] if *any* layouts extension
+   is enabled, because these are exactly equivalent to the pre-existing
+   and well-loved [@@immediate] and [@@immediate64] attributes.
+
+   Once immediate/immediate64 graduate from Beta to Stable, we can likely
+   delete the [is_type_decl] parameter.
+*)
+let get_required_layouts_level (context : annotation_context) (jkind : const)
+    ~is_type_decl : Language_extension.maturity =
   match context, jkind with
   | _, Value -> Stable
+  | _, (Immediate | Immediate64) when is_type_decl -> Stable
   | _, (Immediate | Immediate64 | Any | Float64) -> Beta
   | _, Void -> Alpha
 
@@ -554,16 +567,17 @@ let of_const ~why : const -> t = function
   | Void -> fresh_jkind (Sort Sort.void) ~why
   | Float64 -> fresh_jkind (Sort Sort.float64) ~why
 
-let const_of_user_written_annotation ~legacy_immediate ~context
+let const_of_user_written_annotation ~context ~is_type_decl
     Location.{ loc; txt = annot } =
   match Const.of_user_written_annotation_unchecked annot with
   | None -> raise ~loc (Unknown_jkind annot)
-  | Some ((Value | Immediate | Immediate64) as const) when legacy_immediate ->
-    const
   | Some const ->
-    let required_layouts_level = get_required_layouts_level context const in
+    let required_layouts_level =
+      get_required_layouts_level context const ~is_type_decl
+    in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then raise ~loc (Insufficient_level (context, const));
+    then
+      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
     const
 
 let const_to_user_written_annotation = Const.to_user_written_annotation
@@ -571,16 +585,14 @@ let const_to_user_written_annotation = Const.to_user_written_annotation
 let of_annotated_const ~context Location.{ txt = const; loc = const_loc } =
   of_const ~why:(Annotated (context, const_loc)) const
 
-let of_annotation ~legacy_immediate ~context (annot : _ Location.loc) =
-  let const =
-    const_of_user_written_annotation ~legacy_immediate ~context annot
-  in
+let of_annotation ~context ~is_type_decl (annot : _ Location.loc) =
+  let const = const_of_user_written_annotation ~is_type_decl ~context annot in
   let jkind = of_annotated_const { txt = const; loc = annot.loc } ~context in
   jkind, const
 
-let of_annotation_option_default ~default ~context =
+let of_annotation_option_default ~default ~context ~is_type_decl =
   Option.fold ~none:(default, None) ~some:(fun annot ->
-      let t, annot = of_annotation ~context ~legacy_immediate:false annot in
+      let t, annot = of_annotation ~context ~is_type_decl annot in
       t, Some annot)
 
 let of_attribute ~context
@@ -592,7 +604,7 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
     Jane_syntax.Layouts.of_type_declaration decl
     |> Option.map (fun (annot, attrs) ->
-           let t, const = of_annotation ~context ~legacy_immediate:true annot in
+           let t, const = of_annotation ~context ~is_type_decl:true annot in
            t, const, attrs)
   in
   let jkind_of_attribute =
@@ -1344,8 +1356,7 @@ let report_error ~loc = function
        ([@@@@%s]).@]"
       (string_of_const from_annotation)
       (string_of_const from_attribute)
-  | Insufficient_level (context, jkind) -> (
-    let required_layouts_level = get_required_layouts_level context jkind in
+  | Insufficient_level { jkind; required_layouts_level } -> (
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
         (Language_extension.to_command_line_string Layouts
@@ -1369,10 +1380,13 @@ let () =
     | User_error (loc, err) -> Some (report_error ~loc err)
     | _ -> None)
 
-(* Drop [legacy_immediate] from external API *)
+(* Drop [is_type_decl] from external API *)
 
 let const_of_user_written_annotation ~context t : const =
-  const_of_user_written_annotation ~legacy_immediate:false ~context t
+  const_of_user_written_annotation ~context ~is_type_decl:false t
 
 let of_annotation ~context t : _ * _ =
-  of_annotation ~legacy_immediate:false ~context t
+  of_annotation ~is_type_decl:false ~context t
+
+let of_annotation_option_default ~default ~context t : _ * _ =
+  of_annotation_option_default ~default ~context ~is_type_decl:false t
