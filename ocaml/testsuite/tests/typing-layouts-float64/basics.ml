@@ -16,10 +16,11 @@
 type t_float64 : float64
 type ('a : float64) t_float64_id = 'a;;
 [%%expect{|
-Line 1, characters 15-26:
-1 | type t_float64 [@@float64]
-                   ^^^^^^^^^^^
-Error: Layout float64 is used here, but the appropriate layouts extension is not enabled
+Line 1, characters 17-24:
+1 | type t_float64 : float64
+                     ^^^^^^^
+Error: Layout float64 is more experimental than allowed by -extension layouts.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 (* CR layouts: The below test checks that we give an acceptable error for cases

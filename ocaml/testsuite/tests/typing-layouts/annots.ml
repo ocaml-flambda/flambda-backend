@@ -20,7 +20,8 @@ type t_any : any;;
 Line 1, characters 13-16:
 1 | type t_any : any;;
                  ^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+Error: Layout any is more experimental than allowed by -extension layouts.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type t_void : void
@@ -29,7 +30,8 @@ type t_void : void
 Line 1, characters 14-18:
 1 | type t_void : void
                   ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by -extension layouts.
+       You must enable -extension layouts_alpha to use this feature.
 |}]
 
 (***************************************)
