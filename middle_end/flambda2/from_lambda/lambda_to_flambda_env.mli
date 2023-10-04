@@ -27,6 +27,7 @@ val create :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   my_region:Ident.t ->
+  ret_mode:Lambda.alloc_mode ->
   t
 
 val current_unit : t -> Compilation_unit.t
@@ -147,6 +148,8 @@ val entering_try_region : t -> Ident.t -> t
 val leaving_try_region : t -> t
 
 val current_region : t -> Ident.t
+
+val current_region_opt : t -> Ident.t option
 
 val my_region : t -> Ident.t
 

@@ -44,13 +44,16 @@ type t =
     static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
     recursive_static_catches : Numeric_types.Int.Set.t;
     my_region : Ident.t;
+    ret_mode : Lambda.alloc_mode;
+    (* CR-someday ncourant: replace this with [my_region: Ident.t option] *)
     region_stack : region_stack_element list;
     region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
     region_closure_continuations : region_closure_continuation Ident.Map.t;
     ident_stamp_upon_starting : int
   }
 
-let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
+let create ~current_unit ~return_continuation ~exn_continuation ~my_region
+    ~ret_mode =
   let mutables_needed_by_continuations =
     Continuation.Map.of_list
       [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
@@ -71,6 +74,7 @@ let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
     static_exn_continuation = Numeric_types.Int.Map.empty;
     recursive_static_catches = Numeric_types.Int.Set.empty;
     my_region;
+    ret_mode;
     region_stack = [];
     region_stack_in_cont_scope =
       Continuation.Map.singleton return_continuation [];
@@ -324,6 +328,17 @@ let current_region t =
     match t.region_stack with
     | [] -> t.my_region
     | (Regular region | Try_with region) :: _ -> region
+
+let current_region_opt t =
+  if not (Flambda_features.stack_allocation_enabled ())
+  then None
+  else
+    match t.region_stack with
+    | (Regular region | Try_with region) :: _ -> Some region
+    | [] -> (
+      match t.ret_mode with
+      | Alloc_local -> Some t.my_region
+      | Alloc_heap -> None)
 
 let my_region t = t.my_region
 

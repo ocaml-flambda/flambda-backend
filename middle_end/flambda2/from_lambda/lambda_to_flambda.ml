@@ -1111,20 +1111,45 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        identifier of the "try region". To handle this correctly we annotate the
        [Begin_region] with its parent region. This use of the parent region will
        ensure that the parent does not get deleted unless the try region is
-       unused. *)
+       unused. However, if there is no enclosing region (and we are not
+       returning a local value), then we need to ensure we do not create the
+       [Begin_region], as it would reference the toplevel [my_region] parameter,
+       which is expected to be unused in this case. *)
     (* Under a try-with block, any exception might introduce a branch to the
        handler. So while for static catches we could simplify the body in the
        same toplevel context, here we need to assume that all of the body could
        be behind a branch. *)
     let ccenv = CCenv.set_not_at_toplevel ccenv in
-    CC.close_let acc ccenv
-      [region, Flambda_kind.With_subkind.region]
-      Not_user_visible
-      (Begin_region { try_region_parent = Some (Env.current_region env) })
-      ~body:(fun acc ccenv ->
+    let try_region_parent = Env.current_region_opt env in
+    let handler k acc env ccenv =
+      if Option.is_some try_region_parent
+      then
+        CC.close_let acc ccenv
+          [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+          Not_user_visible (End_region region)
+          ~body:(fun acc ccenv ->
+            let env = Env.leaving_try_region env in
+            cps_tail acc env ccenv handler k k_exn)
+      else cps_tail acc env ccenv handler k k_exn
+    in
+    let begin_try_region body =
+      if Option.is_some try_region_parent
+      then
+        CC.close_let acc ccenv
+          [region, Flambda_kind.With_subkind.region]
+          Not_user_visible
+          (Begin_region { try_region_parent })
+          ~body
+      else body acc ccenv
+    in
+    begin_try_region (fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
           (fun acc env ccenv k ->
-            let env = Env.entering_try_region env region in
+            let env =
+              if Option.is_some try_region_parent
+              then Env.entering_try_region env region
+              else env
+            in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
               ~params:[id, is_user_visible env id, Lambda.layout_block]
@@ -1144,18 +1169,15 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    let env = Env.leaving_try_region env in
+                    let env =
+                      if Option.is_some try_region_parent
+                      then Env.leaving_try_region env
+                      else env
+                    in
                     apply_cont_with_extra_args acc env ccenv ~dbg k
                       (Some (IR.Pop { exn_handler = handler_continuation }))
                       [IR.Var body_result]))
-              ~handler:(fun acc env ccenv ->
-                CC.close_let acc ccenv
-                  [ ( Ident.create_local "unit",
-                      Flambda_kind.With_subkind.tagged_immediate ) ]
-                  Not_user_visible (End_region region)
-                  ~body:(fun acc ccenv ->
-                    let env = Env.leaving_try_region env in
-                    cps_tail acc env ccenv handler k k_exn))))
+              ~handler:(handler k)))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
@@ -1461,6 +1483,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let new_env =
     Env.create ~current_unit:(Env.current_unit env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
+      ~ret_mode
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
@@ -1701,6 +1724,7 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
   let env =
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
+      ~ret_mode:Lambda.alloc_heap
   in
   let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
