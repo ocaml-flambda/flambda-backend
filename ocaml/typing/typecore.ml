@@ -197,7 +197,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-  | Underscore_wrapped_in_some
+  | Dummy_wrapped_in_some
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3199,7 +3199,7 @@ let is_partial_apply args =
   List.exists
     (fun (_, arg) ->
        match arg with
-       | Underscore _ -> true
+       | Dummy _ -> true
        | Omitted _ -> true
        | Arg _ -> false)
     args
@@ -3212,7 +3212,7 @@ let remaining_function_type ty_ret mode_ret rev_args =
          | Arg (Unknown_arg { mode_arg; _ } | Known_arg { mode_arg; _ }) ->
              let closed_args = mode_arg :: closed_args in
              (ty_ret, mode_ret, closed_args, underscore_args)
-         | Underscore { mode_arg; _} ->
+         | Dummy { mode_arg; _} ->
             let underscore_args = mode_arg :: underscore_args in
               (ty_ret, mode_ret, closed_args, underscore_args)
          | Arg (Eliminated_optional_arg
@@ -3246,14 +3246,14 @@ let check_local_application_complete ~env ~app_loc args =
           | Unknown_arg { mode_fun; _ }
           | Eliminated_optional_arg { mode_fun; _ })
     | Omitted { mode_fun; _ }
-    | Underscore { mode_fun; _ } -> mode_fun
+    | Dummy { mode_fun; _ } -> mode_fun
   in
   let rec loop has_commuted = function
     | [] | [_] -> ()
     | (lbl, ( Arg ( Known_arg { mode_fun; mode_arg; _ }
                   | Unknown_arg { mode_fun; mode_arg; _ }
                   | Eliminated_optional_arg { mode_fun; mode_arg; _ })
-            | Underscore { mode_fun; mode_arg; _}
+            | Dummy { mode_fun; mode_arg; _}
             | Omitted { mode_fun; mode_arg; _ } as arg))
       :: ((next :: _) as rest) ->
       let mode_ret = arg_mode_fun next in
@@ -3352,7 +3352,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               if not (Language_extension.is_enabled Dummy_arguments) then
                 raise (Typetexp.Error (loc, env,
                   Unsupported_extension Dummy_arguments));
-              Underscore {ty_arg; mode_fun; mode_arg; sort_arg; level = lv}
+              Dummy {ty_arg; mode_fun; mode_arg; sort_arg; level = lv}
           | _ ->
               Arg (Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg })
         in
@@ -3399,9 +3399,9 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                 raise (Typetexp.Error (loc, env,
                   Unsupported_extension Dummy_arguments));
               if wrapped_in_some then
-                raise (Error (loc, env, Underscore_wrapped_in_some))
+                raise (Error (loc, env, Dummy_wrapped_in_some))
               else
-                Underscore { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
+                Dummy { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
           | _ ->
               if wrapped_in_some then
                 may_warn sarg.pexp_loc
@@ -3478,9 +3478,9 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
              let open_args = (exp_mode, exp.exp_loc) :: open_args in
              let args = (lbl, Arg (exp, sort)) :: args in
              (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
-         | Underscore { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
+         | Dummy { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let underscore_args = mode_arg :: underscore_args in
-             let args = (lbl, Underscore {mode_fun; ty_arg; mode_arg; level; sort_arg} ) :: args in
+             let args = (lbl, Dummy {mode_fun; ty_arg; mode_arg; level; sort_arg} ) :: args in
              (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg;} ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
@@ -3524,7 +3524,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
   in
   let rec type_underscore_parameters closed_args = function
     | [] -> ty_ret, mode_ret, []
-    | (lbl, Underscore { mode_fun = _; ty_arg; mode_arg; level; sort_arg }) :: rest ->
+    | (lbl, Dummy { mode_fun = _; ty_arg; mode_arg; level; sort_arg }) :: rest ->
         let ty_ret, mode_ret, args = type_underscore_parameters (mode_arg :: closed_args) rest in
         let arrow_desc = (lbl, mode_arg, mode_ret) in
         let ty_ret =
@@ -3535,7 +3535,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
           closed_args |> List.map Alloc.close_over |> Alloc.join |> Alloc.newvar_above
         in
         register_allocation_mode mode_closure;
-        let arg = Underscore {mode_closure; mode_arg; mode_ret; sort_arg } in
+        let arg = Dummy {mode_closure; mode_arg; mode_ret; sort_arg } in
         ty_ret, mode_closure, (lbl, arg) :: args
     | (lbl, Omitted r) :: rest ->
       let ty_ret, mode_ret, args = type_underscore_parameters closed_args rest in
@@ -3637,7 +3637,7 @@ let rec is_nonexpansive exp =
        && List.for_all is_nonexpansive_arg (List.map snd args) ->
      let has_underscore =
        List.exists (fun (_, arg) -> match arg with
-       | Underscore _ -> true
+       | Dummy _ -> true
        | _ -> false
        ) args
      in
@@ -3705,7 +3705,7 @@ and is_nonexpansive_opt = function
 
 and is_nonexpansive_arg = function
   | Omitted _ -> true
-  | Underscore _ -> true
+  | Dummy _ -> true
   | Arg (e, _) -> is_nonexpansive e
 
 let maybe_expansive e = not (is_nonexpansive e)
@@ -6943,7 +6943,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       let arg = option_none env (instance ty_arg) Location.none in
       (lbl, Arg (arg, Value.legacy, sort_arg))
   | Omitted _ as arg -> (lbl, arg)
-  | Underscore _ as arg -> (lbl, arg)
+  | Dummy _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode pm
       funct funct_mode sargs ret_tvar =
@@ -9051,9 +9051,9 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-  | Underscore_wrapped_in_some ->
+  | Dummy_wrapped_in_some ->
       Location.errorf ~loc
-        "@[Underscore argument cannot be wrapped in Some.@]"
+        "@[Dummy argument cannot be supplied with tilda for optional parameter.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

@@ -1207,7 +1207,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
           match arg with
           | Arg (e, _) -> check_uniqueness_exp ienv e
           | Omitted _ -> UF.unused
-          | Underscore _ -> UF.unused)
+          | Dummy _ -> UF.unused)
         args
     in
     UF.pars (uf_fn :: uf_args)

@@ -355,7 +355,7 @@ let can_apply_primitive p pmode pos args =
   let is_omitted = function
     | Arg _ -> false
     | Omitted _ -> true
-    | Underscore _ -> true
+    | Dummy _ -> true
   in
   if List.exists (fun (_, arg) -> is_omitted arg) args then false
   else begin
@@ -415,7 +415,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           let arg_sort = Jkind.Sort.of_const (sort_of_native_repr arg_repr) in
           (x, arg_sort) :: arg_exps, extra_args
         | _, ((_, Omitted _) :: _) -> assert false
-        | _, ((_, Underscore _) :: _) -> assert false
+        | _, ((_, Dummy _) :: _) -> assert false
       in
       let arg_exps, extra_args = cut_args p.prim_native_repr_args oargs in
       let args = transl_list ~scopes arg_exps in
@@ -1131,7 +1131,7 @@ and transl_apply ~scopes
       (fun (_, arg) ->
          match arg with
          | Omitted _ as arg -> arg
-         | Underscore _ as arg -> arg
+         | Dummy _ as arg -> arg
          | Arg (exp, sort_arg) ->
            Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
@@ -1155,7 +1155,7 @@ and transl_apply ~scopes
 
   let rec build_apply lam args loc pos ap_mode prot = function
     (* [prot = true] means the remaining arguments are already protected *)
-    | Underscore _ :: _ -> assert false
+    | Dummy _ :: _ -> assert false
     | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
         assert (pos = Rc_normal);
         let lam =
@@ -1172,7 +1172,7 @@ and transl_apply ~scopes
             List.map
               (fun arg ->
                  match arg with
-                 | Underscore _ -> assert false
+                 | Dummy _ -> assert false
                  | Omitted _ -> arg
                  | Arg arg -> Arg (protect "arg" arg))
               l
@@ -1213,7 +1213,7 @@ and transl_apply ~scopes
   (* [prot = true] means [lam] [rev_args] and the remaining args are already
      protected *)
     | [] -> build_apply lam [] loc position mode prot (List.rev rev_args)
-    | Underscore { mode_closure; mode_arg; mode_ret; sort_arg } :: rest ->
+    | Dummy { mode_closure; mode_arg; mode_ret; sort_arg } :: rest ->
       with_protect (fun protect ->
         let lam, _ =
           if prot then
@@ -1227,7 +1227,7 @@ and transl_apply ~scopes
             List.map
             (fun arg ->
               match arg with
-              | Underscore _ -> assert false
+              | Dummy _ -> assert false
               | Omitted _ -> arg
               | Arg arg -> Arg (protect "arg" arg)
               )
@@ -1239,7 +1239,7 @@ and transl_apply ~scopes
             List.map
             (fun arg ->
               match arg with
-              | Underscore _ -> arg
+              | Dummy _ -> arg
               | Omitted _ -> arg
               | Arg arg -> Arg (protect "arg" arg))
             rest

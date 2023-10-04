@@ -782,7 +782,7 @@ module Analyser =
               (fun acc -> fun (_, arg) ->
                 match arg with
                 | Omitted _ -> acc
-                | Underscore _ -> acc
+                | Dummy _ -> acc
                 | Arg e -> acc @ [e])
               []
               arg_list

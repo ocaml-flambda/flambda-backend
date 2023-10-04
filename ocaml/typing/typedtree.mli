@@ -441,7 +441,7 @@ and binding_op =
 and ('a, 'b, 'c) arg_or_omitted =
   | Arg of 'a
   | Omitted of 'b
-  | Underscore of 'c
+  | Dummy of 'c
 
 and omitted_parameter =
   { mode_closure : Mode.Alloc.t;

@@ -215,7 +215,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       List.iter (function
         | (_, Arg (exp, _)) -> sub.expr sub exp
         | (_, Omitted _) -> ()
-        | (_, Underscore _) -> ())
+        | (_, Dummy _) -> ())
         list
   | Texp_match (exp, _, cases, _) ->
       sub.expr sub exp;
@@ -422,7 +422,7 @@ let class_expr sub {cl_desc; cl_env; _} =
       List.iter (function
         | (_, Arg (exp, _)) -> sub.expr sub exp
         | (_, Omitted _) -> ()
-        | (_, Underscore _) -> ())
+        | (_, Dummy _) -> ())
         args
   | Tcl_let (rec_flag, value_bindings, ivars, cl) ->
       sub.value_bindings sub (rec_flag, value_bindings);

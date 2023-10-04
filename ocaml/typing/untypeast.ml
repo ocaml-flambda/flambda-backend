@@ -515,7 +515,7 @@ let expression sub exp =
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
               match arg with
-              | Underscore _ -> list
+              | Dummy _ -> list
               | Omitted _ -> list
               | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) list [])
@@ -868,7 +868,7 @@ let class_expr sub cexpr =
         Pcl_apply (sub.class_expr sub cl,
           List.fold_right (fun (label, expo) list ->
               match expo with
-              | Underscore _ -> list
+              | Dummy _ -> list
               | Omitted _ -> list
               | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) args [])

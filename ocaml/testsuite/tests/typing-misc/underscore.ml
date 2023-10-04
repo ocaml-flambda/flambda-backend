@@ -4,7 +4,7 @@
 
 *)
 
-(* Underscore partial application *)
+(* Dummy partial application *)
 let f ~(x : string) ~(y : int) (z:char) = ()
 [%%expect{|
 val f : x:string -> y:int -> char -> unit = <fun>
@@ -71,10 +71,10 @@ let g = f ~foo:_
 Line 1, characters 15-16:
 1 | let g = f ~foo:_
                    ^
-Error: Underscore argument cannot be wrapped in Some.
+Error: Dummy argument cannot be wrapped in Some.
 |}]
 
-(* Underscore can still be supplied as optional argument raw *)
+(* Dummy can still be supplied as optional argument raw *)
 let g = f ?foo:_
 [%%expect{|
 val g : ?foo:'a -> unit -> string = <fun>
@@ -104,7 +104,7 @@ Error: This expression has type int but an expression was expected of type
          string
 |}]
 
-(* Polymorphic parameters working, if we annotate the types *)
+(* Testing polymorphic_parameters vs. dummy_arguments *)
 let f (g : 'a. 'a -> 'a) =
    let h = g _ in
    let _x = h "hello" in
@@ -112,4 +112,43 @@ let f (g : 'a. 'a -> 'a) =
    h
 [%%expect{|
 val f : ('a. 'a -> 'a) -> 'b -> 'b = <fun>
+|}]
+
+let h = f (fun x -> x)
+[%%expect{|
+val h : '_weak1 -> '_weak1 = <fun>
+|}]
+
+let h' = f h
+[%%expect{|
+Line 1, characters 11-12:
+1 | let h' = f h
+               ^
+Error: This argument has type 'b -> 'b which is less general than
+         'a. 'a -> 'a
+|}]
+
+
+(* Reference that doesn't use dummy arguments *)
+let f_ref (g : 'a. 'a -> 'a) =
+   let h = fun x -> g x in
+   let _x = h "hello" in
+   let _y = h "42" in
+   h
+[%%expect{|
+val f_ref : ('a. 'a -> 'a) -> 'b -> 'b = <fun>
+|}]
+
+let h_ref = f_ref (fun x -> x)
+[%%expect{|
+val h_ref : '_weak2 -> '_weak2 = <fun>
+|}]
+
+let h'_ref = f_ref h_ref
+[%%expect{|
+Line 1, characters 19-24:
+1 | let h'_ref = f_ref h_ref
+                       ^^^^^
+Error: This argument has type 'b -> 'b which is less general than
+         'a. 'a -> 'a
 |}]
