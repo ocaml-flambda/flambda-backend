@@ -13,7 +13,7 @@
 (* CR layouts: Bring tests here from [basics_alpha.ml] once we have float64 by
    default *)
 
-type t_float64 [@@float64]
+type t_float64 : float64
 type ('a : float64) t_float64_id = 'a;;
 [%%expect{|
 Line 1, characters 15-26:
