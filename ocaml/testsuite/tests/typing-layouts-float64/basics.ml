@@ -29,9 +29,9 @@ Error: Layout float64 is used here, but the appropriate layouts extension is not
    layouts extension). *)
 let f x = Stdlib__Float_u.sin x
 [%%expect{|
-Line 1, characters 6-31:
+Line 1, characters 10-31:
 1 | let f x = Stdlib__Float_u.sin x
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
+              ^^^^^^^^^^^^^^^^^^^^^
 Error: Non-value layout float64 detected as sort for type float#,
        but this requires extension layouts_beta, which is not enabled.
        If you intended to use this layout, please add this flag to your build file.
