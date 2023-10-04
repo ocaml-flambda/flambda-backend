@@ -418,7 +418,10 @@ let to_file outchan unit_name objfile ~required_globals code =
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
       cu_implements_param =
-        !Clflags.as_argument_for |> Option.map Compilation_unit.Name.of_string;
+        (* Currently, parameters don't have parameters, so we assume the argument
+           list is empty *)
+        !Clflags.as_argument_for
+        |> Option.map (fun head -> Global.Name.create head []);
       cu_imports = Env.imports() |> Array.of_list;
       cu_runtime_params = runtime_params;
       cu_primitives = List.map Primitive.byte_name
