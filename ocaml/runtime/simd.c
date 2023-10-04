@@ -17,6 +17,8 @@
 #include "caml/alloc.h"
 #include "caml/simd.h"
 
+#ifdef ARCH_SSE2
+
 CAMLexport value caml_copy_vec128(__m128 v) {
     value res = caml_alloc_small(2, Abstract_tag);
     Store_vec128_val(res, v);
@@ -34,3 +36,5 @@ CAMLexport value caml_copy_vec128d(__m128d v) {
     Store_vec128_vald(res, v);
     return res;
 }
+
+#endif
