@@ -1636,19 +1636,12 @@ let rec tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let lay = match ty, unboxed with
+  let jkind_annotation = match ty, unboxed with
     | (Otyp_abstract, _) | (_, true) ->
         (* (C1.1) from the Note corresponds to Otyp_abstract. Anything
-           but the default must be user-written, so we just look in the
-           attributes. Similarly, look in the attributes for (C1.2), the
-           unboxed case. Because this is just printing, we liberally
-           allow [@@immediate]. *)
-       begin match
-         Builtin_attributes.jkind ~legacy_immediate:true decl.type_attributes
-       with
-       | Ok attr -> attr
-       | Error attr -> Some attr  (* don't care here about extensions *)
-       end
+           but the default must be user-written, so we print the user-written
+           annotation. *)
+        decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
     { otype_name = name;
@@ -1657,16 +1650,8 @@ let rec tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-          (fun { txt } ->
-             let jkind_attribute =
-               Builtin_attributes.jkind_attribute_to_string txt
-             in
-             (* CR layouts 1.5: This is a bit of a lie: we're interpreting the
-                jkind attribute as a jkind *annotation*. This will go away in a
-                child PR when we move jkind annotations into Jane Syntax. *)
-             let jkind_annot = Jane_asttypes.jkind_of_string jkind_attribute in
-             Olay_const jkind_annot)
-          lay;
+          (fun x -> Olay_const (Jkind.const_to_user_written_annotation x))
+          jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2025,6 +2010,7 @@ let dummy =
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
     type_variance = [];

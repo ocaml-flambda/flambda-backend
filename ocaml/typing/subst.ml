@@ -474,6 +474,7 @@ let type_declaration' copy_scope s decl =
             prepare_jkind decl.type_loc decl.type_jkind
         | Duplicate_variables | No_action -> decl.type_jkind
       end;
+    type_jkind_annotation = decl.type_jkind_annotation;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;

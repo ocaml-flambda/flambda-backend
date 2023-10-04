@@ -394,24 +394,26 @@ val of_annotation_option_default :
   Jane_asttypes.jkind_annotation option ->
   t * const option
 
+(* CR nroberts: documentation, here and below *)
+
 (** Find a jkind in attributes.  Returns error if a disallowed jkind is
     present, but always allows immediate attributes if ~legacy_immediate is
     true.  See comment on [Builtin_attributes.jkind].  *)
-val of_attributes :
+val of_type_decl :
   legacy_immediate:bool ->
   context:annotation_context ->
-  Parsetree.attributes ->
-  (t option, Builtin_attributes.jkind_attribute Location.loc) result
+  Parsetree.type_declaration ->
+  (t * const * Parsetree.attributes) option
 
 (** Find a jkind in attributes, defaulting to ~default.  Returns error if a
     disallowed jkind is present, but always allows immediate if
     ~legacy_immediate is true.  See comment on [Builtin_attributes.jkind]. *)
-val of_attributes_default :
+val of_type_decl_default :
   legacy_immediate:bool ->
   context:annotation_context ->
   default:t ->
-  Parsetree.attributes ->
-  (t, Builtin_attributes.jkind_attribute Location.loc) result
+  Parsetree.type_declaration ->
+  t * const option * Parsetree.attributes
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)

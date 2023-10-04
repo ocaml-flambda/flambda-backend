@@ -218,7 +218,6 @@ module Type:
   sig
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
-      ?jkind:attribute ->
       ?cstrs:(core_type * core_type * loc) list ->
       ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
       type_declaration

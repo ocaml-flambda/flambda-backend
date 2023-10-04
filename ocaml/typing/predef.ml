@@ -172,6 +172,7 @@ let mk_add_type add_type
      type_arity = 0;
      type_kind = kind;
      type_jkind = jkind;
+     type_jkind_annotation = None;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -200,6 +201,7 @@ let common_initial_env add_type add_extension empty_env =
        type_arity = 1;
        type_kind = kind param;
        type_jkind = jkind;
+       type_jkind_annotation = None;
        type_loc = Location.none;
        type_private = Asttypes.Public;
        type_manifest = None;

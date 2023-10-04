@@ -3619,7 +3619,7 @@ generic_type_declaration(flag, kind):
   flag = flag
   params = type_parameters
   id = mkrhs(LIDENT)
-  jkind = jkind_attr?
+  jkind = jkind_constraint?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3629,7 +3629,8 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       (flag, ext),
-      Type.mk id ~params ?jkind ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
+      Jane_syntax.Layouts.type_declaration_of
+        id ~params ~cstrs ~kind ~priv ~manifest ~attrs ~loc ~docs ~text:None ~jkind
     }
 ;
 %inline generic_and_type_declaration(kind):
@@ -3637,7 +3638,7 @@ generic_type_declaration(flag, kind):
   attrs1 = attributes
   params = type_parameters
   id = mkrhs(LIDENT)
-  jkind = jkind_attr?
+  jkind = jkind_constraint?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3647,7 +3648,8 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let text = symbol_text $symbolstartpos in
-      Type.mk id ~params ?jkind ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
+      Jane_syntax.Layouts.type_declaration_of
+        id ~params ~jkind ~cstrs ~kind ~priv ~manifest ~attrs ~loc ~docs ~text:(Some text)
     }
 ;
 %inline constraints:
@@ -3704,15 +3706,8 @@ jkind_annotation: (* : jkind_annotation *)
   ident { mkloc (Jane_asttypes.jkind_of_string $1) (make_loc $sloc) }
 ;
 
-jkind_attr:
-  COLON
-  jkind=jkind_annotation
-  { (* CR layouts 1.5: this will go away in the child PR *)
-    let jkind_attribute = Jane_asttypes.jkind_to_string jkind.txt in
-    (match Builtin_attributes.jkind_attribute_of_string jkind_attribute with
-     | None -> expecting $loc(jkind) "layout"
-     | Some _ -> ());
-    Attr.mk ~loc:jkind.loc { loc = jkind.loc; txt = jkind_attribute } (PStr []) }
+jkind_constraint:
+  COLON jkind_annotation { $2 }
 ;
 
 %inline type_param_with_jkind:

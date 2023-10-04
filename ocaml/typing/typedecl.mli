@@ -47,7 +47,14 @@ val transl_with_constraint:
     Typedtree.type_declaration
 
 val abstract_type_decl:
-    injective:bool -> Jkind.t -> Jkind.t list -> type_declaration
+  injective:bool ->
+  jkind:Jkind.t ->
+  (* [jkind_annotation] is what the user wrote, and is just used when printing
+     the type produced by this function. *)
+  jkind_annotation:Jkind.const option ->
+  params:Jkind.t list ->
+  type_declaration
+
 val approx_type_decl:
     Parsetree.type_declaration list -> (Ident.t * type_declaration) list
 val check_recmod_typedecl:

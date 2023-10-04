@@ -1566,6 +1566,50 @@ module Layouts = struct
   let of_constructor_declaration =
     Constructor_declaration.make_of_ast
       ~of_ast_internal:of_constructor_declaration_internal
+
+  (*********************************************************)
+  (* Constructing a [type_declaration] with jkinds *)
+
+  module Type_decl_of = Ast_of (Type_declaration) (Ext)
+
+  let type_declaration_of ~loc ~attrs ~docs ~text ~params ~cstrs ~kind ~priv
+      ~manifest ~jkind name =
+    let type_decl =
+      Ast_helper.Type.mk ~loc ~docs ?text ~params ~cstrs ~kind ~priv ?manifest
+        name
+    in
+    let type_decl =
+      match jkind with
+      | None -> type_decl
+      | Some jkind ->
+        Type_declaration.make_entire_jane_syntax ~loc feature (fun () ->
+            let payload = Encode.as_payload jkind in
+            Type_decl_of.wrap_jane_syntax ["annot"] ~payload type_decl)
+    in
+    (* Performance hack: save an allocation if [attrs] is empty. *)
+    match attrs with
+    | [] -> type_decl
+    | _ :: _ as attrs ->
+      (* See Note [Outer attributes at end] *)
+      { type_decl with ptype_attributes = type_decl.ptype_attributes @ attrs }
+
+  let of_type_declaration_internal (feat : Feature.t) type_decl =
+    match feat with
+    | Language_extension Layouts ->
+      let loc = type_decl.ptype_loc in
+      let names, payload, attributes =
+        Of_ast.unwrap_jane_syntax_attributes_exn ~loc type_decl.ptype_attributes
+      in
+      let jkind_annot =
+        match names with
+        | ["annot"] -> Decode.from_payload ~loc payload
+        | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
+      in
+      Some (jkind_annot, attributes)
+    | _ -> None
+
+  let of_type_declaration =
+    Type_declaration.make_of_ast ~of_ast_internal:of_type_declaration_internal
 end
 
 (******************************************************************************)
