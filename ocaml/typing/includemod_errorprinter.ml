@@ -203,7 +203,7 @@ let show_locs ppf (loc1, loc2) =
 
 
 let dmodtype mty =
-  let tmty = Printtyp.tree_of_modtype mty in
+  let tmty = Printtyp.tree_of_modtype ~abbrev:true mty in
   Format.dprintf "%a" !Oprint.out_module_type tmty
 
 let space ppf () = Format.fprintf ppf "@ "
@@ -666,22 +666,22 @@ let module_types {Err.got=mty1; expected=mty2} =
   Format.dprintf
     "@[<hv 2>Modules do not match:@ \
      %a@;<1 -2>is not included in@ %a@]"
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty1)
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty2)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty1)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty2)
 
 let eq_module_types {Err.got=mty1; expected=mty2} =
   Format.dprintf
     "@[<hv 2>Module types do not match:@ \
      %a@;<1 -2>is not equal to@ %a@]"
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty1)
-    !Oprint.out_module_type (Printtyp.tree_of_modtype mty2)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty1)
+    !Oprint.out_module_type (Printtyp.tree_of_modtype ~abbrev:true mty2)
 
 let module_type_declarations id {Err.got=d1 ; expected=d2} =
   Format.dprintf
     "@[<hv 2>Module type declarations do not match:@ \
      %a@;<1 -2>does not match@ %a@]"
-    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration id d1)
-    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration id d2)
+    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration ~abbrev:true id d1)
+    !Oprint.out_sig_item (Printtyp.tree_of_modtype_declaration ~abbrev:true id d2)
 
 let interface_mismatch ppf (diff: _ Err.diff) =
   Format.fprintf ppf
