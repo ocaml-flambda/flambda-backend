@@ -114,8 +114,8 @@ val check : 'a t -> 'a sig_reader -> loc:Location.t -> Global.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter and thus is expected
    to have been compiled as such. It may or may not be a parameter to _this_
-   module (see [register_parameter]). Raises an exception if the module has
-   already been imported as a non-parameter. *)
+   module (see [register_exported_parameter]). Raises an exception if the module
+   has already been imported as a non-parameter. *)
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
 (* Declare a parameter to this module. Calls [register_parameter_import]. *)
