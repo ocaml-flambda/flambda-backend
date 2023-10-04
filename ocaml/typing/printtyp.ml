@@ -2161,6 +2161,12 @@ and tree_of_signature ?abbrev = function
   | sg ->
     Abbrev.deeper abbrev (fun () ->
       wrap_env (fun env -> env)(fun sg ->
+        (* Only expand signatures to 'abbrev.depth' depth and print at most 'abbrev.width'
+           items overall. We just keep decreasing 'abbrev.width' during the traversal but
+           make sure that we expand the current signature up to 'abbrev.width' before
+           expanding it's components. Below, 'max_items' is the number of items we should
+           print in the current signature and 'abbrev.width' is then be the remaining
+           number of items. This is simpler to implement than proper breadth-first. *)
         let max_items, trimmed = Abbrev.items abbrev sg in
         let tree_groups = tree_of_signature_rec ?abbrev ?max_items !printing_env sg in
         let items = List.concat_map (fun (_env,l) -> List.map snd l) tree_groups in
@@ -2170,6 +2176,7 @@ and tree_of_signature ?abbrev = function
 
 and tree_of_signature_rec ?abbrev ?max_items env' sg =
   let structured = List.of_seq (Signature_group.seq sg) in
+  (* Don't descent into more than 'max_items' (if set) elements to save time. *)
   let collect_trees_of_rec_group max_items group =
     match max_items with
     | Some n when n <= 0 -> (max_items, (!printing_env, []))
