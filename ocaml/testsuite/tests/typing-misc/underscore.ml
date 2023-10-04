@@ -71,7 +71,7 @@ let g = f ~foo:_
 Line 1, characters 15-16:
 1 | let g = f ~foo:_
                    ^
-Error: Dummy argument cannot be wrapped in Some.
+Error: Dummy argument cannot be supplied with tilda for optional parameter.
 |}]
 
 (* Dummy can still be supplied as optional argument raw *)
