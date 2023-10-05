@@ -11,7 +11,7 @@ cd $(git rev-parse --show-toplevel)/ocaml
 files_in_dependency_order=(
   utils/language_extension_kernel.{mli,ml}
   language_extension.ml
-  parsing/jane_asttypes.mli
+  parsing/jane_asttypes.{mli,ml}
   parsing/{jane_syntax_parsing,jane_syntax}.{mli,ml}
 )
 

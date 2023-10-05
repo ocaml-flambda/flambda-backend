@@ -64,8 +64,8 @@
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
    camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
-   attr_helper builtin_attributes ast_invariants depend jane_syntax_parsing
-   jane_syntax ; manual update: mli only files asttypes jane_asttypes parsetree
+   attr_helper builtin_attributes ast_invariants depend jane_asttypes jane_syntax_parsing
+   jane_syntax ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
    ident path jkind primitive shape types btype oprint subst predef datarepr
