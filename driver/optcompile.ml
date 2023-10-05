@@ -73,7 +73,10 @@ let emit unix i =
   Asmgen.compile_implementation_linear unix
     i.output_prefix ~progname:i.source_file
 
-type starting_point = Parsing | Emit | Instantiation
+type starting_point =
+  | Parsing
+  | Emit
+  | Instantiation of { runtime_params : Global.t list }
 
 let starting_point_of_compiler_pass start_from  =
   match (start_from:Clflags.Compiler_pass.t) with
@@ -136,7 +139,7 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
         Compiler_hooks.execute Compiler_hooks.Typed_tree_impl impl)
       info ~backend
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
-  | Instantiation ->
+  | Instantiation { runtime_params } ->
     Compilenv.reset info.module_name;
     let global_name =
       Compilation_unit.to_global_name_exn info.module_name
@@ -149,8 +152,6 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
         let import = Compilation_unit.Name.of_head_of_global_name param in
         Env.register_parameter_import import)
       global_name.args;
-    let cmx_info, _ = Compilenv.read_unit_info info.source_file in
-    let runtime_params = cmx_info.ui_runtime_params in
     let impl =
       Translmod.transl_instance info.module_name ~runtime_params
         ~style:transl_style
@@ -166,8 +167,8 @@ let implementation unix ~backend ~flambda2 ~start_from ~source_file
     ~compilation_unit:Inferred_from_output_prefix
 
 let instance unix ~backend ~flambda2 ~source_file
-      ~output_prefix ~compilation_unit ~keep_symbol_tables =
-  let start_from = Instantiation in
+      ~output_prefix ~compilation_unit ~runtime_params ~keep_symbol_tables =
+  let start_from = Instantiation { runtime_params } in
   implementation0 unix ~backend ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables
     ~compilation_unit:(Exactly compilation_unit)

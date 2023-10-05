@@ -2022,18 +2022,45 @@ let arg_subst_of_compilation_unit cu =
   let global = global_of_complete_global_name global_name in
   Global.Name.Map.of_list global.visible_args
 
+type runtime_arg_kind =
+  | Instance_argument
+    (* An actual instance argument being passed. These need to be accessed
+       specially, since they should get the signature of the parameter rather
+       than their own .mli. *)
+  | Dependency
+    (* An extra argument added because a dependency needs to take a parameter.
+       These are being accessed at their usual types, so no special handling is
+       needed. *)
+
 (* Resolve the values of a runtime parameter, given the instance arguments
    being passed in *)
 let resolve_runtime_arg param ~arg_subst =
   let glob = Global.subst param arg_subst in
-  glob |> Global.to_name |> Compilation_unit.of_global_name
+  let cu = glob |> Global.to_name |> Compilation_unit.of_global_name in
+  let kind =
+    (* TODO Consider making [Global.subst] abstract and hiding this in a
+       new [Global.Subst] submodule. *)
+    if Global.Name.Map.mem (Global.to_name param) arg_subst then
+      Instance_argument
+    else
+      Dependency
+  in
+  cu, kind
 
-let transl_runtime_arg cu =
-  (* Note that everything compiled with [-as-argument-for] uses the
-     [Cmi_format.Full_module_and_argument_form] as the format of its module
-     block. Here and here only, we get the *secondary* module block. *)
+let transl_runtime_arg (cu, kind) =
   let outer_block = Lprim (Pgetglobal cu, [], Loc_unknown) in
-  Lprim(Pfield (1, Reads_agree), [outer_block], Loc_unknown)
+  match kind with
+  | Instance_argument ->
+    (* Note that everything compiled with [-as-argument-for] uses the
+        [Cmi_format.Full_module_and_argument_form] as the format of its module
+        block. Here and here only, we get the *secondary* module block. *)
+    Lprim(Pfield (1, Reads_agree), [outer_block], Loc_unknown)
+  | Dependency ->
+    (* FIXME The following comment is wrong. Will need to rethink. *)
+    (* Each dependency will be an instance here, and therefore won't be
+       compiled with [-as-argument-for]. So this is a [Cmi_format.Single_block]
+       module block. *)
+    outer_block
 
 let transl_generating_functor cu =
   (* Here we need to undo [wrap_toplevel_functor_in_struct] *)
@@ -2054,10 +2081,10 @@ let transl_instance_plain_block
        then raise (Error (Location.none, Instantiating_packed comp_unit)))
     (src :: instance_arg_values);
   let arg_subst = arg_subst_of_compilation_unit compilation_unit in
-  let runtime_arg_units =
+  let runtime_arg_units_with_kinds =
     List.map (resolve_runtime_arg ~arg_subst) runtime_params
   in
-  let runtime_args = List.map transl_runtime_arg runtime_arg_units in
+  let runtime_args = List.map transl_runtime_arg runtime_arg_units_with_kinds in
   let src_lam = transl_generating_functor src in
   let code =
     Lapply {
@@ -2073,6 +2100,7 @@ let transl_instance_plain_block
       ap_probe = None;
     }
   in
+  let runtime_arg_units = List.map fst runtime_arg_units_with_kinds in
   (* CR lmaurer: This seems a bit pat. Is the situation with [required_globals]
      really this simple? *)
   let required_globals =

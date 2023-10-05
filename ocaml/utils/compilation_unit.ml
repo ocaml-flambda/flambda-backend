@@ -462,15 +462,15 @@ include Identifiable.Make (struct
   and hash_arg (param, value) = Hashtbl.hash (hash param, hash value)
 end)
 
-let full_path_as_string t =
-  (* We take care not to break sharing when the prefix is empty. However we
-     can't share in the case where there is a prefix. *)
-  if Prefix.is_empty (for_pack_prefix t)
-  then Name.to_string (name t)
-  else Format.asprintf "%a" print t
-
 let is_instance t =
   match instance_arguments t with [] -> false | _ :: _ -> true
+
+let full_path_as_string t =
+  (* We take care not to break sharing when the prefix is empty. However we
+     can't share in the case where there is a prefix or arguments. *)
+  if Prefix.is_empty (for_pack_prefix t) && not (is_instance t)
+  then Name.to_string (name t)
+  else Format.asprintf "%a" print t
 
 let create_instance t arguments =
   let { for_pack_prefix; name; arguments = existing_arguments } = descr t in

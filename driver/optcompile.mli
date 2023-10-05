@@ -43,5 +43,6 @@ val instance
     Cmm.phrase list)
   -> source_file:string -> output_prefix:string
   -> compilation_unit:Compilation_unit.t
+  -> runtime_params:Global.t list
   -> keep_symbol_tables:bool
   -> unit

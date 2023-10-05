@@ -146,11 +146,7 @@ let main unix argv ppf ~flambda2 =
         | src :: args ->
           src, args
       in
-      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
-        Asminstantiator.instantiate unix
-          ~ppf_dump
-          ~src ~args target ~backend
-          ~flambda2);
+      Asminstantiator.instantiate unix ~src ~args target ~backend ~flambda2;
       Warnings.check_fatal ();
     end
     else if !shared then begin

@@ -99,8 +99,7 @@ let main argv ppf =
         | src :: args ->
             src, args
       in
-      Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
-        Byteinstantiator.instantiate ~ppf_dump ~src ~args target);
+      Byteinstantiator.instantiate ~src ~args target;
       Warnings.check_fatal ();
     end
     else if not !Compenv.stop_early && !objfiles <> [] then begin

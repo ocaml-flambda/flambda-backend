@@ -1,4 +1,4 @@
-(* TQEST
+(* TEST
 
 readonly_files = "\
   bad_arg_impl.ml bad_arg_impl.reference \
@@ -18,10 +18,11 @@ readonly_files = "\
   int_list_element.ml int_list_element.mli \
   list_element.mli \
   list_monoid.ml list_monoid.mli \
-  main.ml main.mli main.reference \
+  main.ml main.mli main.reference main-ocamlobjinfo.reference \
   monoid.mli \
   monoid_of_semigroup.ml monoid_of_semigroup.mli \
   monoid_utils.ml monoid_utils.mli \
+  run.ml \
   semigroup.mli \
   string_monoid.ml string_monoid.mli \
   string_semigroup.ml string_semigroup.mli \
@@ -30,7 +31,7 @@ readonly_files = "\
 
 * setup-ocamlc.byte-build-env
 ** ocamlc.byte
-flags = "-as-parameter"
+flags = "-g -as-parameter"
 module = "monoid.mli"
 *** ocamlc.byte
 module = "bad_ref_direct.ml"
@@ -46,7 +47,7 @@ ocamlc_byte_exit_status = "2"
 **** check-ocamlc.byte-output
 compiler_reference = "bad_arg_impl.reference"
 *** ocamlc.byte
-flags = "-as-argument-for Monoid"
+flags = "-g -as-argument-for Monoid"
 module = "bad_arg_intf.mli"
 compiler_output = "bad_arg_intf.output"
 ocamlc_byte_exit_status = "2"
@@ -56,13 +57,13 @@ compiler_reference = "bad_arg_intf.reference"
 src = "string_monoid.ml"
 dst = "string_monoid_no_mli.ml"
 **** ocamlc.byte
-flags = "-as-argument-for Monoid"
+flags = "-g -as-argument-for Monoid"
 module = "string_monoid_no_mli.ml string_monoid.mli string_monoid.ml"
 ***** ocamlc.byte
-flags = ""
+flags = "-g"
 module = "test_direct_access.ml"
 ****** ocamlc.byte
-flags = ""
+flags = "-g"
 program = "${test_build_directory}/test_direct_access.exe"
 module = ""
 all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo"
@@ -75,108 +76,156 @@ module = "semigroup.mli"
 **** ocamlc.byte
 module = "category.mli"
 ***** ocamlc.byte
-flags = "-parameter Semigroup -as-argument-for Monoid"
+flags = "-g -parameter Semigroup -as-argument-for Monoid"
 module = "monoid_of_semigroup.mli"
 ****** ocamlc.byte
 (* Invoke the compiler separately on .mli and .ml just this once to make sure
    things work this way as well *)
 module = "monoid_of_semigroup.ml"
 ******* ocamlc.byte
-flags = "-as-parameter"
+flags = "-g -as-parameter"
 module = "list_element.mli"
 ******** ocamlc.byte
-flags = "-parameter List_element -as-argument-for Monoid"
+flags = "-g -parameter List_element -as-argument-for Monoid"
 module = "list_monoid.mli list_monoid.ml"
 ********* ocamlc.byte
-flags = "-parameter Monoid"
+flags = "-g -parameter Monoid"
 module = "monoid_utils.mli monoid_utils.ml"
 ********** ocamlc.byte
-flags = ""
+flags = "-g"
 module = "bad_ref_indirect.ml"
 compiler_output = "bad_ref_indirect.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_ref_indirect.reference"
 ********** ocamlc.byte
-flags = "-parameter List_element"
+flags = "-g -parameter List_element"
 module = "bad_instance_arg_name_not_found.ml"
 compiler_output = "bad_instance_arg_name_not_found.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_name_not_found.reference"
 ********** ocamlc.byte
-flags = "-parameter List_element"
+flags = "-g -parameter List_element"
 module = "bad_instance_arg_value_not_arg.ml"
 compiler_output = "bad_instance_arg_value_not_arg.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_not_arg.reference"
 ********** ocamlc.byte
-flags = "-parameter List_element"
+flags = "-g -parameter List_element"
 module = "bad_instance_arg_value_not_found.ml"
 compiler_output = "bad_instance_arg_value_not_found.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_not_found.reference"
 ********** ocamlc.byte
-flags = "-parameter Semigroup"
+flags = "-g -parameter Semigroup"
 module = "bad_ref_direct_imported.ml"
 compiler_output = "bad_ref_direct_imported.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_ref_direct_imported.reference"
 ********** ocamlc.byte
-flags = "-parameter Category"
+flags = "-g -parameter Category"
 module = "chain.mli chain.ml"
 *********** ocamlc.byte
-flags = "-parameter Category"
+flags = "-g -parameter Category"
 module = "category_utils.mli category_utils.ml"
 ************ ocamlc.byte
-flags = "-parameter Monoid -as-argument-for Category"
+flags = "-g -parameter Monoid -as-argument-for Category"
 module = "category_of_monoid.mli category_of_monoid.ml"
 ************* ocamlc.byte
-flags = "-parameter List_element"
+flags = "-g -parameter List_element"
 module = "bad_instance_arg_value_wrong_type.ml"
 compiler_output = "bad_instance_arg_value_wrong_type.output"
 ocamlc_byte_exit_status = "2"
 ************** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_wrong_type.reference"
 ************* ocamlc.byte
-flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
+flags = "-g -parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "import.ml"
 ************** ocamlc.byte
-flags = "-as-argument-for Semigroup"
+flags = "-g -as-argument-for Semigroup"
 module = "string_semigroup.mli"
 *************** ocamlc.byte
 module = "string_semigroup.ml"
 **************** ocamlc.byte
 module = ""
-flags = "-instantiate"
+flags = "-g -instantiate"
 program = "monoid_of_semigroup-String_semigroup.cmo"
 all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo"
 ***************** ocamlc.byte
-flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
+flags = "-g -parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
 ****************** ocamlc.byte
 flags += " -i"
 module = "main.ml"
-compiler_output = "main.reference"
-******************* ocamlc.byte
+compiler_output = "main.output"
+******************* check-ocamlc.byte-output
+compiler_reference = "main.reference"
+****************** ocamlc.byte
 module = "main.ml"
-******************** ocamlobjinfo
+******************* ocamlobjinfo
 program = "main.cmo main.cmi"
-********************* check-program-output
-******************** ocamlc.byte
-flags = "-as-argument-for List_element"
+output = "main-ocamlobjinfo.output"
+******************** check-program-output
+reference = "main-ocamlobjinfo.reference"
+******************* ocamlc.byte
+flags = "-g -as-argument-for List_element"
 module = "int_list_element.mli int_list_element.ml"
-********************* ocamlc.byte
+******************** ocamlc.byte
 module = ""
 flags = "-instantiate"
+program = "category_of_monoid-List_monoid--Int_list_element.cmo"
+all_modules = "category_of_monoid.cmo int_list_element.cmo"
+********************* ocamlc.byte
+module = ""
+flags = "-g -instantiate -dlambda"
 program = "main-Int_list_element-String_semigroup.cmo"
 all_modules = "main.cmo int_list_element.cmo string_semigroup.cmo"
 ********************** ocamlc.byte
-module = "run.ml"
+flags = "-g -w -misplaced-attribute"
+module = "test.ml"
 *********************** ocamlc.byte
-program = "run.exe"
-all_modules = "string_semigroup.cmo monoid_of_semigroup-String_semigroup.cmo "
+flags = "-g"
+module = ""
+program = "test.exe"
+all_modules = "\
+   string_semigroup.cmo \
+   monoid_of_semigroup.cmo \
+   monoid_of_semigroup-String_semigroup.cmo \
+   monoid_utils.cmo \
+   category_of_monoid-List_monoid--Int_list_element.cmo \
+   main-Int_list_element-String_semigroup.cmo \
+   test.cmo \
+"
+************************ run
+program = "${test_build_directory}/test.exe"
+************************* check-program-output
 *)
+
+module M =
+  Main(List_element)(Int_list_element)(Semigroup)(String_semigroup)
+  [@jane.non_erasable.instances]
+
+let ints =
+  M.append3_lists
+    [4; 8]
+    (M.concat_lists [[15]; []])
+    (M.concat_chain_lists [[]; [16; -1]; []; [23; 42]])
+
+let greeting =
+  match
+    M.concat_string_options [Some "Hello "; None; Some "world"; Some "!\n"; None]
+  with
+  | Some greeting -> greeting
+  | None -> assert false
+
+let ints_line =
+  List.map (fun i -> if i > 0 then Some (i |> string_of_int) else None) ints
+  |> M.concat_semi
+
+let s = M.append3_semi (Some greeting) ints_line None |> Option.get
+
+let () = print_endline s
