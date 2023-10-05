@@ -94,6 +94,8 @@ let iter_loc sub {loc; txt = _} = sub.location sub loc
 module T = struct
   (* Type expressions for the core language *)
 
+  module LT = Jane_syntax.Labeled_tuples
+
   let row_field sub {
       prf_desc;
       prf_loc;
@@ -116,8 +118,11 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let iter_jst _sub : Jane_syntax.Core_type.t -> _ = function
-    | _ -> .
+  let iter_lt_typ sub : LT.core_type -> _ = function
+    | Lttyp_tuple tl -> List.iter (iter_snd (sub.typ sub)) tl
+
+  let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
+    | Jtyp_tuple lt_typ -> iter_lt_typ sub lt_typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
@@ -133,7 +138,7 @@ module T = struct
     | Ptyp_var _ -> ()
     | Ptyp_arrow (_lab, t1, t2) ->
         sub.typ sub t1; sub.typ sub t2
-    | Ptyp_tuple tyl -> List.iter (fun (_, typ) -> sub.typ sub typ) tyl
+    | Ptyp_tuple tyl -> List.iter (sub.typ sub) tyl
     | Ptyp_constr (lid, tl) ->
         iter_loc sub lid; List.iter (sub.typ sub) tl
     | Ptyp_object (ol, _o) ->
@@ -408,6 +413,7 @@ module E = struct
 
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
+  module LT = Jane_syntax.Labeled_tuples
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -439,10 +445,14 @@ module E = struct
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
 
+  let iter_lt_exp sub : LT.expression -> _ = function
+    | Ltexp_tuple el -> List.iter (iter_snd (sub.expr sub)) el
+
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_unboxed_constant _ -> iter_constant
+    | Jexp_tuple lt_exp -> iter_lt_exp sub lt_exp
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
@@ -469,7 +479,7 @@ module E = struct
     | Pexp_match (e, pel) ->
         sub.expr sub e; sub.cases sub pel
     | Pexp_try (e, pel) -> sub.expr sub e; sub.cases sub pel
-    | Pexp_tuple el -> List.iter (iter_snd (sub.expr sub)) el
+    | Pexp_tuple el -> List.iter (sub.expr sub) el
     | Pexp_construct (lid, arg) ->
         iter_loc sub lid; iter_opt (sub.expr sub) arg
     | Pexp_variant (_lab, eo) ->
@@ -538,14 +548,20 @@ module P = struct
   (* Patterns *)
 
   module IA = Jane_syntax.Immutable_arrays
+  module LT = Jane_syntax.Labeled_tuples
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
+  let iter_ltpat sub : LT.pattern -> _ = function
+    | Ltpat_tuple (pl, _) ->
+      List.iter (iter_snd (sub.pat sub)) pl
+
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_unboxed_constant _ -> iter_constant
+    | Jpat_tuple ltpat -> iter_ltpat sub ltpat
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -562,7 +578,7 @@ module P = struct
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
     | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
-    | Ppat_tuple (pl, _) -> List.iter (fun (_, p) -> sub.pat sub p) pl
+    | Ppat_tuple pl -> List.iter (sub.pat sub) pl
     | Ppat_construct (l, p) ->
         iter_loc sub l;
         iter_opt

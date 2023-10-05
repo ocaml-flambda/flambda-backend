@@ -86,6 +86,60 @@ module Immutable_arrays : sig
     pattern -> Parsetree.pattern
 end
 
+(** The ASTs for labeled tuples. When we merge this upstream, we'll replace
+    existing [P{typ,exp,pat}_tuple] constructors with these. *)
+module Labeled_tuples : sig
+  type core_type =
+    | Lttyp_tuple of (string option * Parsetree.core_type) list
+    (** [Lttyp_tuple(tl)] represents a product type:
+          - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
+          - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
+          - A mix, e.g. [L1:T1,T2] when [tl] is [(Some L1,T1);(None,T2)]
+
+          Invariant: [n >= 2] and there is at least one label.
+      *)
+
+  type expression =
+    | Ltexp_tuple of (string option * Parsetree.expression) list
+    (** [Ltexp_tuple(el)] represents
+          - [(E1, ..., En)]
+              when [el] is [(None, E1);...;(None, En)]
+          - [(~L1:E1, ..., ~Ln:En)]
+              when [el] is [(Some L1, E1);...;(Some Ln, En)]
+          - A mix, e.g.:
+              [(~L1:E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+
+          Invariant: [n >= 2] and there is at least one label.
+      *)
+
+  type pattern =
+    | Ltpat_tuple of
+      (string option * Parsetree.pattern) list * Asttypes.closed_flag
+    (** [Ltpat_tuple(pl, Closed)] represents
+          - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
+          - [(L1:P1, ..., Ln:Pn)] when [pl] is
+                                              [(Some L1, P1);...;(Some Ln, Pn)]
+          - A mix, e.g. [(L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
+          - If pattern is open, then it also ends in a [..]
+
+        Invariant:
+        - If Closed, [n >= 2] and there is at least one label.
+        - If Open, [n >= 1]
+      *)
+
+  val typ_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    core_type -> Parsetree.core_type
+
+  val expr_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    expression -> Parsetree.expression
+
+  val pat_of :
+    loc:Location.t -> attrs:Parsetree.attributes ->
+    pattern -> Parsetree.pattern
+end
+
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
     these into the existing [P{sig,str}_include] constructors (similar to what
     we did with [T{sig,str}_include], but without depending on typechecking). *)
@@ -206,11 +260,15 @@ end
 
 (** Novel syntax in types *)
 module Core_type : sig
-  type t = |
+  type t =
+    | Jtyp_tuple of Labeled_tuples.core_type
 
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.core_type
+
+  val typ_of :
+    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.core_type
 end
 
 (** Novel syntax in constructor arguments; this isn't a core AST type,
@@ -229,6 +287,7 @@ module Expression : sig
     | Jexp_comprehension    of Comprehensions.expression
     | Jexp_immutable_array  of Immutable_arrays.expression
     | Jexp_unboxed_constant of Unboxed_constants.expression
+    | Jexp_tuple            of Labeled_tuples.expression
 
   include AST
     with type t := t * Parsetree.attributes
@@ -243,6 +302,7 @@ module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_unboxed_constant of Unboxed_constants.pattern
+    | Jpat_tuple of Labeled_tuples.pattern
 
   include AST
     with type t := t * Parsetree.attributes

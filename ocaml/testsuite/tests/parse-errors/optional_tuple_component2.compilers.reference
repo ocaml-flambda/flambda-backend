@@ -1,4 +1,4 @@
-File "optional_tuple_component2.ml", line 8, characters 3-10:
+File "optional_tuple_component2.ml", line 8, characters 9-10:
 8 | ~~(y, ?x:2)
-       ^^^^^^^
+             ^
 Error: Tuple components cannot be optional

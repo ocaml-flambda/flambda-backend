@@ -13,6 +13,7 @@ type _ t =
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
+  | Labeled_tuples : unit t
   | Layouts : maturity t
 
 (** Existentially packed language extension *)

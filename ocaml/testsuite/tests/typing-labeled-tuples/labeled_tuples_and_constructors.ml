@@ -1,5 +1,6 @@
 (* TEST
    * expect
+   flags = "-extension labeled_tuples"
 *)
 
 (* Constructor with labeled arguments (disallowed) *)

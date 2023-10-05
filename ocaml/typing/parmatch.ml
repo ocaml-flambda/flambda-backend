@@ -1914,9 +1914,15 @@ module Conv = struct
           mkpat (Ppat_constant (Untypeast.constant c))
       | Tpat_alias (p,_,_,_) -> loop p
       | Tpat_tuple lst ->
-          mkpat
-            (Ppat_tuple
-              (List.map (fun (label, p) -> label, loop p) lst, Closed))
+        if List.for_all (fun (label, _) -> Option.is_none label) lst then
+          mkpat (Ppat_tuple (List.map (fun (_, p) -> loop p) lst))
+        else
+          let ppat =
+            Jane_syntax.Labeled_tuples.pat_of
+              ~loc:pat.pat_loc ~attrs:[]
+              (Ltpat_tuple (List.map (fun (lbl, p) -> lbl, loop p) lst, Closed))
+          in
+          mkpat ~attrs:ppat.ppat_attributes ppat.ppat_desc
       | Tpat_construct (cstr_lid, cstr, lst, _) ->
           let id = fresh cstr.cstr_name in
           let lid = { cstr_lid with txt = Longident.Lident id } in
@@ -1925,10 +1931,7 @@ module Conv = struct
             match List.map loop lst with
             | []  -> None
             | [p] -> Some ([], p)
-            | lst ->
-              Some
-                ([],
-                mkpat (Ppat_tuple (List.map (fun p -> None, p) lst, Closed)))
+            | lst -> Some ([], mkpat (Ppat_tuple lst))
           in
           mkpat (Ppat_construct(lid, arg))
       | Tpat_variant(label,p_opt,_row_desc) ->

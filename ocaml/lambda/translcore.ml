@@ -1635,12 +1635,6 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
                (id, layout), (Lvar id, s, layout))
             argl
           |> List.split
-            (* CR labeled tuples: test this case (a match with normal and
-               exception cases) such as with:
-                 match ~~(~x:3, 42) with
-                 | ~~(~x, y) -> ...
-                 | exception Foo -> ...
-            *)
         in
         let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids

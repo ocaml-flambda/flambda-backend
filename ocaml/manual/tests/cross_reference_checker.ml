@@ -173,7 +173,7 @@ module OCaml_refs = struct
   let inner_expr loc e =
     let tuple_expected () = print_error (Tuple_expected loc) in
     match e.Parsetree.pexp_desc with
-          | Parsetree.Pexp_tuple (_label, l) ->
+          | Parsetree.Pexp_tuple l ->
               begin match int_list l with
               | None -> tuple_expected (); []
               | Some pos -> pos

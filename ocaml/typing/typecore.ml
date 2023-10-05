@@ -1178,7 +1178,7 @@ let extract_or_mk_pat label rem closed =
 (* Reorders [patl] to match the label order in [labeled_tl], erroring if [patl]
    is missing a label or has an a extra label (unlabeled components morally
    share the same special label).
-   
+
    If [closed] is [Open], then no "missing label" errors are possible;
    instead, [_] patterns will be generated for those labels. However, an
    unnecessarily [Open] pattern is an error.
@@ -2039,8 +2039,7 @@ let rec has_literal_pattern p =
   | Ppat_lazy p
   | Ppat_open (_, p) ->
      has_literal_pattern p
-  | Ppat_tuple (labeled_ps, _) ->
-     List.exists (fun (_, p) -> has_literal_pattern p) labeled_ps
+  | Ppat_tuple ps
   | Ppat_array ps ->
      List.exists has_literal_pattern ps
   | Ppat_record (ps, _) ->
@@ -2051,6 +2050,8 @@ and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
   | Jpat_unboxed_constant _ -> true
+  | Jpat_tuple (Ltpat_tuple (labeled_ps, _)) ->
+     List.exists (fun (_, p) -> has_literal_pattern p) labeled_ps
 
 let check_scope_escape loc env level ty =
   try Ctype.check_scope_escape env level ty
@@ -2356,6 +2357,24 @@ and type_pat_aux
         pat_attributes;
         pat_env = !env })
   in
+  let type_tuple_pat spl closed =
+    let spl_ann =
+      solve_Ppat_tuple ~refine ~alloc_mode loc env spl closed expected_ty
+    in
+    map_fold_cont
+      (fun (lbl, p, t, alloc_mode) k ->
+        type_pat tps Value ~alloc_mode p t (fun gp -> k (lbl, gp)))
+      spl_ann
+      (fun pl ->
+      rvp k {
+      pat_desc = Tpat_tuple pl;
+      pat_loc = loc; pat_extra=[];
+      pat_type =
+        newty
+          (Ttuple(List.map (fun (label, p) -> label, p.pat_type) pl));
+      pat_attributes = sp.ppat_attributes;
+      pat_env = !env })
+  in
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
       (* Normally this would go to an auxiliary function, but this function
@@ -2373,6 +2392,8 @@ and type_pat_aux
             pat_type = type_constant_unboxed !env loc cst;
             pat_attributes = attrs;
             pat_env = !env }
+      | Jpat_tuple (Ltpat_tuple (spl, closed)) ->
+          type_tuple_pat spl closed
     end
   | None ->
   match sp.ppat_desc with
@@ -2488,23 +2509,8 @@ and type_pat_aux
         (* TODO: record 'extra' to remember about interval *)
   | Ppat_interval _ ->
       raise (Error (loc, !env, Invalid_interval))
-  | Ppat_tuple (spl, closed) ->
-      let spl_ann =
-        solve_Ppat_tuple ~refine ~alloc_mode loc env spl closed expected_ty
-      in
-      map_fold_cont
-        (fun (lbl, p, t, alloc_mode) k ->
-          type_pat tps Value ~alloc_mode p t (fun gp -> k (lbl, gp)))
-        spl_ann
-        (fun pl ->
-        rvp k {
-        pat_desc = Tpat_tuple pl;
-        pat_loc = loc; pat_extra=[];
-        pat_type =
-          newty
-            (Ttuple(List.map (fun (label, p) -> label, p.pat_type) pl));
-        pat_attributes = sp.ppat_attributes;
-        pat_env = !env })
+  | Ppat_tuple spl ->
+      type_tuple_pat (List.map (fun sp -> None, sp) spl) Closed
   | Ppat_construct(lid, sarg) ->
       let expected_type =
         match extract_concrete_variant !env expected_ty with
@@ -2553,28 +2559,30 @@ and type_pat_aux
       let sargs =
         match sarg' with
           None -> []
-        | Some {ppat_desc = Ppat_tuple (spl, _)} when
+        | Some sarg' ->
+        match Jane_syntax.Pattern.of_ast sarg' with
+        | Some (Jpat_tuple (Ltpat_tuple _), attrs) when
+            constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
+          -> raise (Error(loc, !env, Constructor_labeled_arg))
+        | Some (
+            (Jpat_immutable_array _, _)
+          | (Jpat_unboxed_constant _, _)
+          | (Jpat_tuple _, _)
+        ) -> [sarg']
+        | None -> match sarg' with
+        | {ppat_desc = Ppat_tuple spl} as sp when
             constr.cstr_arity > 1 ||
             Builtin_attributes.explicit_arity sp.ppat_attributes
-          ->
-            List.map
-            (fun (label, p) ->
-              if Option.is_some label then
-                (* CR labeled tuples: is this the best error to give?
-                   It's a bit unexpected because a constructor can take a
-                   labeled tuple for a single arg. *)
-                raise(Error(loc, !env, Constructor_labeled_arg));
-              p)
-            spl
-        | Some({ppat_desc = Ppat_any} as sp) when
+          -> spl
+        | {ppat_desc = Ppat_any} as sp when
             constr.cstr_arity = 0 && existential_styp = None
           ->
             Location.prerr_warning sp.ppat_loc
               Warnings.Wildcard_arg_to_constant_constr;
             []
-        | Some({ppat_desc = Ppat_any} as sp) when constr.cstr_arity > 1 ->
+        | {ppat_desc = Ppat_any} as sp when constr.cstr_arity > 1 ->
             replicate_list sp constr.cstr_arity
-        | Some sp -> [sp] in
+        | sp -> [sp] in
       if Builtin_attributes.warn_on_literal_pattern constr.cstr_attributes then
         begin match List.filter has_literal_pattern sargs with
         | sp :: _ ->
@@ -3023,7 +3031,7 @@ let rec pat_tuple_arity spat =
   | Some (jpat, _attrs) -> pat_tuple_arity_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-  | Ppat_tuple (args, _) -> Local_tuple (List.length args)
+  | Ppat_tuple args -> Local_tuple (List.length args)
   | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
   | Ppat_constant _
   | Ppat_interval _ | Ppat_construct _ | Ppat_variant _
@@ -3032,9 +3040,11 @@ let rec pat_tuple_arity spat =
   | Ppat_or(sp1, sp2) ->
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
   | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
+
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
   | Jpat_unboxed_constant _ -> Not_local_tuple
+  | Jpat_tuple (Ltpat_tuple (args, _)) -> Local_tuple (List.length args)
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -3590,6 +3600,7 @@ let is_local_returning_expr e =
         | Jexp_comprehension   _ -> false, e.pexp_loc
         | Jexp_immutable_array _ -> false, e.pexp_loc
         | Jexp_unboxed_constant _ -> false, e.pexp_loc
+        | Jexp_tuple _           -> false, e.pexp_loc
       end
     | None      ->
     match e.pexp_desc with
@@ -3700,7 +3711,7 @@ let rec approx_type env sty =
       let mret = Alloc_mode.newvar () in
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
-      newty (Ttuple (List.map (fun (label, t) -> label, approx_type env t) args))
+      newty (Ttuple (List.map (fun t -> None, approx_type env t) args))
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
@@ -3715,12 +3726,16 @@ let rec approx_type env sty =
      (which mentions approx_type) for why it can't be value.  *)
   | _ -> newvar (Layout.any ~why:Dummy_layout)
 
-and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
-  | _ -> .
+and approx_type_jst env _attrs : Jane_syntax.Core_type.t -> _ = function
+  | Jtyp_tuple (Lttyp_tuple args) ->
+      newty
+        (Ttuple (List.map (fun (label, t) -> label, approx_type env t) args))
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _
-  | Jpat_unboxed_constant _ -> ()
+  | Jpat_unboxed_constant _
+  | Jpat_tuple _
+    -> ()
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
@@ -3777,7 +3792,8 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
+  | Some (jexp, _attrs) ->
+    type_approx_aux_jane_syntax ~env ~loc:sexp.pexp_loc ~ty_expected jexp
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
@@ -3789,16 +3805,8 @@ and type_approx_aux env sexp in_function ty_expected =
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
-      let labeled_tys = List.map
-        (fun (label, _) -> label, newvar (Layout.value ~why:Tuple_element)) l
-      in
-      let ty = newty (Ttuple labeled_tys) in
-      begin try unify env ty ty_expected with Unify err ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
-      end;
-      List.iter2
-        (fun (_, e) (_, ty) -> type_approx_aux env e None ty)
-        l labeled_tys
+    type_tuple_approx_aux env sexp.pexp_loc ty_expected
+      (List.map (fun e -> None, e) l)
   | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
   | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
   | Pexp_constraint (e, sty) ->
@@ -3823,10 +3831,25 @@ and type_approx_aux env sexp in_function ty_expected =
     type_approx_aux env e None ty_expected
   | _ -> ()
 
-and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
+and type_approx_aux_jane_syntax ~env ~loc ~ty_expected
+  : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
   | Jexp_immutable_array _
   | Jexp_unboxed_constant _ -> ()
+  | Jexp_tuple (Ltexp_tuple l) ->
+    type_tuple_approx_aux env loc ty_expected l
+
+and type_tuple_approx_aux (env: Env.t) loc ty_expected l =
+  let labeled_tys = List.map
+    (fun (label, _) -> label, newvar (Layout.value ~why:Tuple_element)) l
+  in
+  let ty = newty (Ttuple labeled_tys) in
+  begin try unify env ty ty_expected with Unify err ->
+    raise(Error(loc, env, Expr_type_clash (err, None, None)))
+  end;
+  List.iter2
+    (fun (_, e) (_, ty) -> type_approx_aux env e None ty)
+    l labeled_tys
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -4042,6 +4065,7 @@ let contains_variant_either ty =
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
   | Jpat_unboxed_constant _ -> ()
+  | Jpat_tuple (Ltpat_tuple (lst, _)) ->  List.iter (fun (_,p) -> f p) lst
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -4055,7 +4079,7 @@ let shallow_iter_ppat f p =
   | Ppat_array pats -> List.iter f pats
   | Ppat_or (p1,p2) -> f p1; f p2
   | Ppat_variant (_, arg) -> Option.iter f arg
-  | Ppat_tuple (lst, _) ->  List.iter (fun (_,p) -> f p) lst
+  | Ppat_tuple lst -> List.iter f lst
   | Ppat_construct (_, Some (_, p))
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
@@ -4078,17 +4102,6 @@ let contains_polymorphic_variant p =
      | _ -> false)
     p
 
-let contains_labeled_or_partial_tuple p =
-  exists_ppat
-    (function
-     | {ppat_desc = (Ppat_tuple (pl, closed))} ->
-        begin match closed with
-        | Open -> true
-        | Closed -> List.exists (fun (label, _) -> Option.is_some label) pl
-        end
-     | _ -> false)
-    p
-
 let contains_gadt p =
   exists_general_pattern { f = fun (type k) (p : k general_pattern) ->
      match p.pat_desc with
@@ -4106,6 +4119,20 @@ let may_contain_gadts p =
    | {ppat_desc = Ppat_construct _} -> true
    | _ -> false)
   p
+
+(* One of the things we do in the presence of GADT constructors (see above
+   definition) is treat `let p = e in ...` as a match `match e with p -> ...`.
+   This changes the way type inference works to check the expression first, and
+   using its type in the checking of the pattern.  We want that behavior for
+   labeled tuple patterns as well.  *)
+let turn_let_into_match p =
+  exists_ppat (fun p ->
+    match Jane_syntax.Pattern.of_ast p with
+    | Some (Jpat_tuple (Ltpat_tuple _), _) -> true
+    | Some ((Jpat_unboxed_constant _ | Jpat_immutable_array _), _) -> false
+    | None -> match p.ppat_desc with
+    | Ppat_construct _ -> true
+    | _ -> false) p
 
 (* There are various things that we need to do in presence of module patterns
    that aren't required if there are none. Most notably, we need to ensure the
@@ -4204,7 +4231,8 @@ let rec is_inferred sexp =
 and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
   | Jexp_immutable_array _
-  | Jexp_unboxed_constant _ -> false
+  | Jexp_unboxed_constant _
+  | Jexp_tuple _ -> false
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -4365,7 +4393,7 @@ and type_expect_
         exp_env = env }
   | Pexp_let(Nonrecursive,
              [{pvb_pat=spat; pvb_expr=sval; pvb_attributes=[]}], sbody)
-    when may_contain_gadts spat || contains_labeled_or_partial_tuple spat->
+    when turn_let_into_match spat ->
     (* TODO: allow non-empty attributes? *)
       type_expect ?in_function env expected_mode
         {sexp with
@@ -4692,42 +4720,8 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_tuple sexpl ->
-      let arity = List.length sexpl in
-      assert (arity >= 2);
-      let alloc_mode = register_allocation expected_mode in
-      (* CR layouts v5: non-values in tuples *)
-      let labeled_subtypes =
-        List.map (fun (label, _) -> label,
-                                    newgenvar (Layout.value ~why:Tuple_element))
-        sexpl
-      in
-      let to_unify = newgenty (Ttuple labeled_subtypes) in
-      with_explanation (fun () ->
-        unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let argument_modes =
-        if List.compare_length_with expected_mode.tuple_modes arity = 0 then
-          expected_mode.tuple_modes
-        else begin
-          let arg_mode = Value_mode.regional_to_global expected_mode.mode in
-          List.init arity (fun _ -> arg_mode)
-        end
-      in
-      let types_and_modes = List.combine labeled_subtypes argument_modes in
-      let expl =
-        List.map2
-          (fun (label, body) ((_, ty), argument_mode) ->
-            let argument_mode = mode_default argument_mode in
-            let argument_mode = expect_mode_cross env ty argument_mode in
-             (label, type_expect env argument_mode body (mk_expected ty)))
-          sexpl types_and_modes
-      in
-      re {
-        exp_desc = Texp_tuple (expl, alloc_mode);
-        exp_loc = loc; exp_extra = [];
-        (* Keep sharing *)
-        exp_type = newty (Ttuple (List.map (fun (label, e) -> label, e.exp_type) expl));
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+      type_tuple ~loc ~env ~expected_mode ~ty_expected ~explanation
+        ~attributes:sexp.pexp_attributes (List.map (fun e -> None, e) sexpl)
   | Pexp_construct(lid, sarg) ->
       type_construct env expected_mode loc lid
         sarg ty_expected_explained sexp.pexp_attributes
@@ -5630,8 +5624,7 @@ and type_expect_
             (* CR layouts v5: eliminate value requirement *)
             let ty = newvar (Layout.value ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
-            let spat_acc =
-              Ast_helper.Pat.tuple ~loc [None, spat_acc; None, spat] Closed in
+            let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
             loop spat_acc ty_acc Sort.value rest
       in
@@ -6075,7 +6068,7 @@ and type_format loc str env =
         let arg = match args with
           | []          -> None
           | [ e ]       -> Some e
-          | _ :: _ :: _ -> Some (mk_exp_loc (Ast_helper.Exp.unlabeled_tuple args)) in
+          | _ :: _ :: _ -> Some (mk_exp_loc (Pexp_tuple args)) in
         mk_exp_loc (Pexp_construct (mk_lid_loc lid, arg)) in
       let mk_cst cst = mk_exp_loc (Pexp_constant cst) in
       let mk_int n = mk_cst (Pconst_integer (Int.to_string n, None))
@@ -6141,7 +6134,7 @@ and type_format loc str env =
         | Float_H  -> mk_constr "Float_H"  []
         | Float_F  -> mk_constr "Float_F"  []
         | Float_CF -> mk_constr "Float_CF" [] in
-        mk_exp_loc (Pexp_tuple [None, flag; None, kind])
+        mk_exp_loc (Pexp_tuple [flag; kind])
       and mk_counter cnt = match cnt with
         | Line_counter  -> mk_constr "Line_counter"  []
         | Char_counter  -> mk_constr "Char_counter"  []
@@ -6717,6 +6710,45 @@ and type_application env app_loc expected_mode pm
       check_tail_call_local_returning app_loc env ap_mode pm;
       args, ty_ret, ap_mode, pm
 
+and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
+    ~explanation ~attributes sexpl =
+  let arity = List.length sexpl in
+  assert (arity >= 2);
+  let alloc_mode = register_allocation expected_mode in
+  (* CR layouts v5: non-values in tuples *)
+  let labeled_subtypes =
+    List.map (fun (label, _) -> label,
+                                newgenvar (Layout.value ~why:Tuple_element))
+    sexpl
+  in
+  let to_unify = newgenty (Ttuple labeled_subtypes) in
+  with_explanation explanation (fun () ->
+    unify_exp_types loc env to_unify (generic_instance ty_expected));
+  let argument_modes =
+    if List.compare_length_with expected_mode.tuple_modes arity = 0 then
+      expected_mode.tuple_modes
+    else begin
+      let arg_mode = Value_mode.regional_to_global expected_mode.mode in
+      List.init arity (fun _ -> arg_mode)
+    end
+  in
+  let types_and_modes = List.combine labeled_subtypes argument_modes in
+  let expl =
+    List.map2
+      (fun (label, body) ((_, ty), argument_mode) ->
+        let argument_mode = mode_default argument_mode in
+        let argument_mode = expect_mode_cross env ty argument_mode in
+          (label, type_expect env argument_mode body (mk_expected ty)))
+      sexpl types_and_modes
+  in
+  re {
+    exp_desc = Texp_tuple (expl, alloc_mode);
+    exp_loc = loc; exp_extra = [];
+    (* Keep sharing *)
+    exp_type = newty (Ttuple (List.map (fun (label, e) -> label, e.exp_type) expl));
+    exp_attributes = attributes;
+    exp_env = env }
+
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
   let { ty = ty_expected; explanation } = ty_expected_explained in
@@ -6741,15 +6773,23 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   in
   let sargs =
     match sarg with
-      None -> []
-    | Some {pexp_desc = Pexp_tuple sel} when
-        constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
-      -> List.map (fun (label, body) ->
-                     if Option.is_some label then raise(Error(loc, env, Constructor_labeled_arg));
-                     body
-                  )
-                  sel
-    | Some se -> [se] in
+    | None -> []
+    | Some se -> begin
+        match Jane_syntax.Expression.of_ast se with
+        | Some (Jexp_tuple (Ltexp_tuple _), _) when
+            constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs ->
+          raise(Error(loc, env, Constructor_labeled_arg))
+        | Some (( Jexp_tuple _
+                | Jexp_comprehension _
+                | Jexp_immutable_array _
+                | Jexp_unboxed_constant _), _) -> [se]
+        | None -> match se.pexp_desc with
+        | Pexp_tuple sel when
+            constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
+          -> sel
+        | _ -> [se]
+      end
+  in
   if List.length sargs <> constr.cstr_arity then
     raise(Error(loc, env, Constructor_arity_mismatch
                             (lid.txt, constr.cstr_arity, List.length sargs)));
@@ -7112,7 +7152,8 @@ and type_let
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension _
     | Jexp_immutable_array _
-    | Jexp_unboxed_constant _ -> false
+    | Jexp_unboxed_constant _
+    | Jexp_tuple _ -> false
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -7517,6 +7558,9 @@ and type_expect_jane_syntax
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
   | Jexp_unboxed_constant x ->
       type_unboxed_constant
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+  | Jexp_tuple (Ltexp_tuple x) ->
+      type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 
 (* What modes should comprehensions use?  Let us be generic over the sequence

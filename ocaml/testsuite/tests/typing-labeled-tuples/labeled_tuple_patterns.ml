@@ -1,5 +1,6 @@
 (* TEST
    * expect
+   flags = "-extension labeled_tuples"
 *)
 
 (* Test match statements with exception patterns *)

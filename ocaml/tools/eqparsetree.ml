@@ -164,7 +164,7 @@ and eq_core_type_desc :
   | (Ptyp_arrow (a0, a1, a2), Ptyp_arrow (b0, b1, b2)) ->
       ((Asttypes.eq_label (a0, b0)) && (eq_core_type (a1, b1))) &&
         (eq_core_type (a2, b2))
-  | (Ptyp_tuple a0, Ptyp_tuple b0) -> eq_list eq_labeled_core_type (a0, b0)
+  | (Ptyp_tuple a0, Ptyp_tuple b0) -> eq_list eq_core_type (a0, b0)
   | (Ptyp_constr (a0, a1), Ptyp_constr (b0, b1)) ->
       (Asttypes.eq_loc Longident.eq_t (a0, b0)) &&
         (eq_list eq_core_type (a1, b1))
@@ -188,14 +188,6 @@ and eq_core_type : (core_type * core_type) -> 'result =
     ({ ptyp_desc = a0; ptyp_loc = a1 },
      { ptyp_desc = b0; ptyp_loc = b1 })
     -> (eq_core_type_desc (a0, b0)) && (Location.eq_t (a1, b1))
-
-and labeled_eq_core_type :
-  ((string option * core_type) * (string option * core_type)) -> 'result =
-  fun
-    ((lbl1, { ptyp_desc = a0; ptyp_loc = a1 }),
-     (lbl2, { ptyp_desc = b0; ptyp_loc = b1 }))
-    -> (eq_option eq_string (lbl1, lbl2)) && (eq_core_type_desc (a0, b0))
-       && (Location.eq_t (a1, b1))
 
 let eq_class_infos :
   'all_a0.
@@ -241,8 +233,7 @@ let rec eq_pattern_desc : (pattern_desc * pattern_desc) -> 'result =
       (eq_pattern (a0, b0)) && (Asttypes.eq_loc eq_string (a1, b1))
   | (Ppat_constant a0, Ppat_constant b0) ->
       Asttypes.eq_constant (a0, b0)
-  | (Ppat_tuple (a0, a1), Ppat_tuple (b0, b1)) ->
-      (eq_closed_flag (a1, b1)) && (eq_list eq_pattern (a0, b0))
+  | (Ppat_tuple a0, Ppat_tuple b0) -> eq_list eq_pattern (a0, b0)
   | (Ppat_construct (a0, a1), Ppat_construct (b0, b1)) ->
       ((Asttypes.eq_loc Longident.eq_t (a0, b0)) &&
          (eq_option eq_pattern (a1, b1)))
