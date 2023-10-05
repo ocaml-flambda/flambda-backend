@@ -122,7 +122,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       match args_arity, args with
       | [], [] -> []
       | [], _ :: _ ->
-        Misc.fatal_errorf "[split_args]: [args] and [args_ty] do not have compatible lengths"
+        Misc.fatal_errorf
+          "[split_args]: [args] and [args_ty] do not have compatible lengths"
       | kinds :: args_arity, args ->
         let group, rest =
           Misc.Stdlib.List.map2_prefix (fun _kind arg -> arg) kinds args
@@ -240,7 +241,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode) dbg,
+    ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
+        dbg,
       free_vars,
       env,
       res,
