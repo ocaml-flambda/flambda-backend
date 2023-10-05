@@ -2657,15 +2657,8 @@ expr:
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
-  | LPAREN args = labeled_expression_comma_list RPAREN
-      {
-        let labels, components = List.split args in
-        if (List.for_all Option.is_none labels) then
-          mkexp ~loc:$sloc
-            (Pexp_tuple(components))
-        else
-          pexp_lttuple $sloc args
-      }
+  | LPAREN args = ltuple_component_comma_list RPAREN
+      { pexp_lttuple $sloc args }
   | LPAREN seq_expr error
       { unclosed "(" $loc($1) ")" $loc($3) }
   | LPAREN seq_expr type_constraint RPAREN
@@ -3078,7 +3071,10 @@ fun_def:
     { es }
 ;
 
-%inline strict_labeled_expr:
+(* We do not use [labeled_simple_expr] for labeled tuples because we do not
+   permit optional tuple fields, and because we want don't want to parse tuples
+   with no labels as labeled tuples. *)
+%inline strict_ltuple_component:
   | LABEL simple_expr
       { Some $1, $2 }
   | TILDE label = LIDENT
@@ -3090,34 +3086,33 @@ fun_def:
           ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
 ;
 
-%inline labeled_expr:
+%inline ltuple_component:
   | expr
       { None, $1 }
-  | strict_labeled_expr
+  | strict_ltuple_component
       { $1 }
 ;
 
 // Length >= 2, at least one label
-reversed_labeled_expression_comma_list:
+reversed_ltuple_component_comma_list:
   // Base case: the next three rules are the ways to produce a list of length 2
-  | strict_labeled_expr COMMA strict_labeled_expr
+  | strict_ltuple_component COMMA strict_ltuple_component
       { [$3; $1] }
-  | expr COMMA strict_labeled_expr
+  | expr COMMA strict_ltuple_component
       { [$3; None, $1]}
-  | strict_labeled_expr COMMA expr
+  | strict_ltuple_component COMMA expr
       { [None, $3; $1]}
   // One label, length > 2
-  | separated_nontrivial_llist(COMMA, expr) COMMA strict_labeled_expr
+  | separated_nontrivial_llist(COMMA, expr) COMMA strict_ltuple_component
       { $3 :: List.map (fun x -> None, x) $1 }
   // Recursive case
-  | reversed_labeled_expression_comma_list COMMA labeled_expr
+  | reversed_ltuple_component_comma_list COMMA ltuple_component
       { $3 :: $1 }
 ;
 
-%inline labeled_expression_comma_list:
-  | rev(reversed_labeled_expression_comma_list) { $1 }
+%inline ltuple_component_comma_list:
+  | rev(reversed_ltuple_component_comma_list) { $1 }
 ;
-
 
 record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
@@ -3250,12 +3245,8 @@ simple_pattern_not_ident:
       { reloc_pat ~loc:$sloc $2 }
   | LPAREN args = labeled_tuple_pattern RPAREN
       { let l, closed = args in
-        if (closed = Closed)
-            && (List.for_all Option.is_none (List.map fst l)) then
-          mkpat ~loc:$sloc (Ppat_tuple(List.map snd l))
-        else
-          ppat_lttuple $sloc l closed
-        }
+        ppat_lttuple $sloc l closed
+      }
   | simple_delimited_pattern
       { $1 }
   | LPAREN MODULE ext_attributes mkrhs(module_name) RPAREN
@@ -3340,7 +3331,7 @@ pattern_comma_list(self):
   | self COMMA error                            { expecting $loc($3) "pattern" }
 ;
 
-strict_labeled_pattern:
+strict_ltuple_component_pat:
   | LABEL pattern %prec below_HASH
       { Some $1, $2 }
   (* Punning *)
@@ -3354,37 +3345,38 @@ strict_labeled_pattern:
         Some label, mkpat_opt_constraint ~loc pat (Some cty) }
 ;
 
-%inline labeled_pattern:
+%inline ltuple_component_pat:
   | pattern
       { None, $1 }
-  | strict_labeled_pattern
+  | strict_ltuple_component_pat
       { $1 }
 ;
 
 // Length >= 2, at least one label
-reversed_labeled_pattern_comma_list:
+reversed_ltuple_component_pat_comma_list:
   // Base case: the next three rules are the ways to produce a list of length 2
-  | strict_labeled_pattern COMMA strict_labeled_pattern
+  | strict_ltuple_component_pat COMMA strict_ltuple_component_pat
       { [$3; $1] }
-  | pattern COMMA strict_labeled_pattern
+  | pattern COMMA strict_ltuple_component_pat
       { [$3; None, $1]}
-  | strict_labeled_pattern COMMA pattern %prec below_HASH
+  | strict_ltuple_component_pat COMMA pattern %prec below_HASH
       { [None, $3; $1]}
   // One label, length > 2
-  | pattern_comma_list(pattern) COMMA strict_labeled_pattern
+  | pattern_comma_list(pattern) COMMA strict_ltuple_component_pat
       { $3 :: List.rev_map (fun x -> None, x) $1 }
   // Recursive case
-  | reversed_labeled_pattern_comma_list COMMA labeled_pattern %prec below_HASH
+  | reversed_ltuple_component_pat_comma_list COMMA ltuple_component_pat
+      %prec below_HASH
       { $3 :: $1 }
 ;
 
 labeled_tuple_pattern:
-  | rev(reversed_labeled_pattern_comma_list)
+  | rev(reversed_ltuple_component_pat_comma_list)
       { $1, Closed }
-  | rev(reversed_labeled_pattern_comma_list) COMMA DOTDOT
+  | rev(reversed_ltuple_component_pat_comma_list) COMMA DOTDOT
       { $1, Open }
   // Partial patterns are allowed to be length-one
-  | labeled_pattern COMMA DOTDOT
+  | ltuple_component_pat COMMA DOTDOT
       { [$1], Open }
 
 %inline pattern_semi_list:

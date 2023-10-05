@@ -185,6 +185,30 @@ type 'a box = { thing : 'a; }
 val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
 |}]
 
+(* Punned tuple components with type annotations. *)
+let x = 42
+let y = "hi"
+
+let z = (~x, ~(y:string));;
+[%%expect{|
+val x : int = 42
+val y : string = "hi"
+val z : x:int * y:string = (~x:42, ~y:"hi")
+|}];;
+
+let z = (~(x:int), ~y:"baz");;
+[%%expect{|
+val z : x:int * y:string = (~x:42, ~y:"baz")
+|}];;
+
+let z = (~(x:string), ~y:"baz");;
+[%%expect{|
+Line 1, characters 11-12:
+1 | let z = (~(x:string), ~y:"baz");;
+               ^
+Error: This expression has type int but an expression was expected of type
+         string
+|}];;
 
 (* Take a [a:'a * b:'a] and an int, and returns a
    [swapped:[a:'a * b:'a] * same:bool].
