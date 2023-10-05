@@ -264,8 +264,7 @@ let rec mktailpat nilloc = let open Location in function
   | p1 :: pl ->
       let pat_pl, el_loc = mktailpat nilloc pl in
       let loc = (p1.ppat_loc.loc_start, snd el_loc) in
-      let cons = Ppat_tuple [p1; ghpat ~loc:el_loc pat_pl] in
-      let arg = ghpat ~loc cons in
+      let arg = ghpat ~loc (Ppat_tuple [p1; ghpat ~loc:el_loc pat_pl]) in
       ghpat_cons_desc loc arg, loc
 
 let mkstrexp e attrs =
@@ -364,6 +363,24 @@ let ptyp_lttuple loc tl =
     ~loc:(make_loc loc) ~attrs:[]
     (Lttyp_tuple tl)
 
+let arg_to_tuple_component (arg_label, body) =
+  let label =
+    match arg_label with
+    | Nolabel -> None
+    | Optional _ ->
+        raise Syntaxerr.(Error(Optional_tuple_component(body.pexp_loc)))
+    | Labelled s -> Some s
+  in
+  label, body
+
+let args_to_tuple_components args =
+  List.map arg_to_tuple_component args
+
+let pexp_lttuple loc args =
+  Jane_syntax.Labeled_tuples.expr_of
+    ~loc:(make_loc loc) ~attrs:[]
+    (Ltexp_tuple(args_to_tuple_components args))
+
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
 
@@ -382,19 +399,6 @@ let expecting loc nonterm =
 
 let not_expecting loc nonterm =
     raise Syntaxerr.(Error(Not_expecting(make_loc loc, nonterm)))
-
-let arg_to_tuple_component loc (arg_label, body) =
-  let label =
-    match arg_label with
-    | Nolabel -> None
-    | Optional _ ->
-        raise Syntaxerr.(Error(Optional_tuple_component(make_loc loc)))
-    | Labelled s -> Some s
-  in
-  label, body
-
-let args_to_tuple_components loc args =
-  List.map (arg_to_tuple_component loc) args
 
 (* Helper functions for desugaring array indexing operators *)
 type paren_kind = Paren | Brace | Bracket
@@ -445,24 +449,12 @@ type ('dot,'index) array_family = {
 
 }
 
-let bigarray_untuplify e =
-  match Jane_syntax.Expression.of_ast e with
-  | Some (Jexp_tuple (Ltexp_tuple explist), _) ->
-    List.map
-      (fun (label, body) ->
-        if Option.is_some label then
-          raise Syntaxerr.(Error(Labeled_bigarray_index e.pexp_loc));
-        body)
-      explist
-  | Some ((
-      Jexp_comprehension _
-      | Jexp_immutable_array _
-      | Jexp_unboxed_constant _
-    ), _) ->
-      [e]
-  | None -> match e with
-  | { pexp_desc = Pexp_tuple explist } -> explist
-  | _ -> [e]
+let bigarray_untuplify exp =
+  match Jane_syntax.Expression.of_ast exp with
+  | Some _ -> [exp]
+  | None -> match exp with
+  | { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> explist
+  | exp -> [exp]
 
 (* Immutable array indexing is a regular operator, so it doesn't need a special
    case here *)
@@ -2595,15 +2587,13 @@ expr:
       { $1 }
   (* CR labeled tuples: Merge the below two cases *)
   | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
-      { 
+      {
         let labels, components = List.split args in
         if (List.for_all (fun lbl -> lbl = Nolabel) labels) then
           mkexp ~loc:$sloc
             (Pexp_tuple(components))
         else
-          Jane_syntax.Labeled_tuples.expr_of
-            ~loc:(make_loc $sloc) ~attrs:[]
-            (Ltexp_tuple(args_to_tuple_components $loc(args) args))
+          pexp_lttuple $sloc args
       }
   | expr_comma_list %prec below_COMMA
       { mkexp ~loc:$sloc (Pexp_tuple $1) }
@@ -2616,9 +2606,7 @@ expr:
         let let_ = {pbop_op; pbop_pat; pbop_exp; pbop_loc} in
         mkexp ~loc:$sloc (Pexp_letop{ let_; ands; body}) }
   | expr COLONCOLON expr
-      { mkexp_cons
-          ~loc:$sloc $loc($2)
-          (ghexp ~loc:$sloc (Pexp_tuple([$1; $3]))) }
+      { mkexp_cons ~loc:$sloc $loc($2) (ghexp ~loc:$sloc (Pexp_tuple[$1;$3])) }
   | mkrhs(label) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
   | simple_expr DOT mkrhs(label_longident) LESSMINUS expr
@@ -3191,8 +3179,7 @@ pattern_no_exn:
 
 %inline pattern_(self):
   | self COLONCOLON pattern
-      { mkpat_cons ~loc:$sloc $loc($2)
-          (ghpat ~loc:$sloc (Ppat_tuple([$1;$3]))) }
+      { mkpat_cons ~loc:$sloc $loc($2) (ghpat ~loc:$sloc (Ppat_tuple[$1;$3])) }
   | self attribute
       { Pat.attr $1 $2 }
   | pattern_gen
@@ -3942,10 +3929,10 @@ tuple_type:
   | TILDETILDELPAREN
       tys = separated_nontrivial_llist(STAR, labeled_atomic_type)
     RPAREN
-      { 
+      {
         if List.for_all (fun (lbl, _) -> Option.is_none lbl) tys then
           mktyp ~loc:$sloc (Ptyp_tuple (List.map snd tys))
-        else 
+        else
           ptyp_lttuple $sloc tys
       }
 ;

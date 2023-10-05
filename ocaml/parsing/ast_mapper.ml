@@ -146,8 +146,8 @@ module T = struct
     Of.mk ~loc ~attrs desc
 
   let map_lttyp sub : LT.core_type -> LT.core_type = function
-    | Lttyp_tuple tl ->
-      Lttyp_tuple (List.map (map_snd (sub.typ sub)) tl)
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Lttyp_tuple tl -> Lttyp_tuple (List.map (map_snd (sub.typ sub)) tl)
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
@@ -528,10 +528,8 @@ module E = struct
     | Float _ | Integer _ as x -> x
 
   let map_ltexp sub : LT.expression -> LT.expression = function
-    | Ltexp_tuple el ->
-      (* CR labeled tuples: Eventually we'll want mappers to be able to see the
-         labels. *)
-      Ltexp_tuple (List.map (map_snd (sub.expr sub)) el)
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Ltexp_tuple el -> Ltexp_tuple (List.map (map_snd (sub.expr sub)) el)
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
@@ -539,8 +537,6 @@ module E = struct
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_unboxed_constant x ->
         Jexp_unboxed_constant (map_unboxed_constant_exp sub x)
-    (* CR labeled tuples: Eventually we'll want mappers to be able to see the
-       labels. *)
     | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
 
   let map sub
@@ -658,9 +654,9 @@ module P = struct
     | Float _ | Integer _ as x -> x
 
   let map_ltpat sub : LT.pattern -> LT.pattern = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
     | Ltpat_tuple (pl, closed) ->
-      Ltpat_tuple
-        ((List.map (fun (label, p) -> label, sub.pat sub p) pl), closed)
+      Ltpat_tuple (List.map (map_snd (sub.pat sub)) pl, closed)
 
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)

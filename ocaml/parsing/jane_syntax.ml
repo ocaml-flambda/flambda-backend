@@ -325,19 +325,19 @@ module Labeled_tuples = struct
   let string_of_label = function
     | None -> ""
     | Some lbl -> lbl
-  
+
   let label_of_string = function
     | "" -> None
     | s -> Some s
 
   let string_of_closed_flag = function
-  | Closed -> "closed"
-  | Open -> "open"
+    | Closed -> "closed"
+    | Open -> "open"
 
   let closed_flag_of_string = function
-  | "closed" -> Closed
-  | "open" -> Open
-  | _ -> failwith "bad closed flag"
+    | "closed" -> Closed
+    | "open" -> Open
+    | _ -> failwith "bad closed flag"
 
   module Desugaring_error = struct
     type error =
@@ -370,36 +370,38 @@ module Labeled_tuples = struct
     let raise loc err = raise (Error (loc, err))
   end
 
-  let typ_of ~loc ~attrs = function
-      | Lttyp_tuple tl ->
-        Core_type.make_entire_jane_syntax ~loc feature (fun () ->
-          let names = List.map (fun (label, _) -> string_of_label label) tl in
-          Core_type.make_jane_syntax feature names @@
-          Ast_helper.Typ.tuple ~attrs (List.map snd tl))
-  
-  let expand_labeled_tuple_extension_typ typ =
-    match find_and_remove_jane_syntax_attribute typ.ptyp_attributes with
+  let expand_labeled_tuple_extension loc attrs =
+    match find_and_remove_jane_syntax_attribute attrs with
     | Some (ext_name, ptyp_attributes) -> begin
         match Jane_syntax_parsing.Embedded_name.components ext_name with
         | labeled_tuples :: names
             when String.equal labeled_tuples extension_string ->
-          names, { typ with ptyp_attributes }
+          names, ptyp_attributes
         | _ :: _ ->
-          Desugaring_error.raise
-            typ.ptyp_loc (Non_labeled_tuple_embedding ext_name)
+          Desugaring_error.raise loc (Non_labeled_tuple_embedding ext_name)
         end
     | None ->
-      Desugaring_error.raise typ.ptyp_loc Non_embedding
+      Desugaring_error.raise loc Non_embedding
+
+  let typ_of ~loc ~attrs = function
+    | Lttyp_tuple tl ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Core_type.make_entire_jane_syntax ~loc feature (fun () ->
+        let names = List.map (fun (label, _) -> string_of_label label) tl in
+        Core_type.make_jane_syntax feature names @@
+        Ast_helper.Typ.tuple ~attrs (List.map snd tl))
 
   (* Returns remaining unconsumed attributes *)
   let of_typ typ =
-    match expand_labeled_tuple_extension_typ typ with
-    | labels, { ptyp_desc = Ptyp_tuple components; ptyp_attributes } ->
+    let labels, ptyp_attributes =
+      expand_labeled_tuple_extension typ.ptyp_loc typ.ptyp_attributes
+    in
+    match typ.ptyp_desc with
+    | Ptyp_tuple components ->
       if List.length labels <> List.length components then
         Desugaring_error.raise typ.ptyp_loc Malformed;
       let labeled_components =
-        List.map2
-          (fun s t -> (label_of_string s), t) labels components
+        List.map2 (fun s t -> (label_of_string s), t) labels components
       in
       Lttyp_tuple labeled_components, ptyp_attributes
     | _ -> Desugaring_error.raise typ.ptyp_loc Malformed
@@ -411,30 +413,18 @@ module Labeled_tuples = struct
         let names = List.map (fun (label, _) -> string_of_label label) el in
         Expression.make_jane_syntax feature names @@
         Ast_helper.Exp.tuple ~attrs (List.map snd el))
-  
-  let expand_labeled_tuple_extension_expr expr =
-    match find_and_remove_jane_syntax_attribute expr.pexp_attributes with
-    | Some (ext_name, pexp_attributes) -> begin
-        match Jane_syntax_parsing.Embedded_name.components ext_name with
-        | labeled_tuples :: names
-            when String.equal labeled_tuples extension_string ->
-          names, { expr with pexp_attributes }
-        | _ :: _ ->
-          Desugaring_error.raise
-            expr.pexp_loc (Non_labeled_tuple_embedding ext_name)
-        end
-    | None ->
-      Desugaring_error.raise expr.pexp_loc Non_embedding
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr =
-    match expand_labeled_tuple_extension_expr expr with
-    | labels, { pexp_desc = Pexp_tuple components; pexp_attributes } ->
+    let labels, pexp_attributes =
+      expand_labeled_tuple_extension expr.pexp_loc expr.pexp_attributes
+    in
+    match expr.pexp_desc with
+    | Pexp_tuple components ->
       if List.length labels <> List.length components then
         Desugaring_error.raise expr.pexp_loc Malformed;
       let labeled_components =
-        List.map2
-          (fun s e -> (label_of_string s), e) labels components
+        List.map2 (fun s e -> (label_of_string s), e) labels components
       in
       Ltexp_tuple labeled_components, pexp_attributes
     | _ -> Desugaring_error.raise expr.pexp_loc Malformed
@@ -448,30 +438,18 @@ module Labeled_tuples = struct
           (string_of_closed_flag closed :: names) @@
         Ast_helper.Pat.tuple ~attrs (List.map snd pl))
 
-  let expand_labeled_tuple_extension_pat pat =
-    match find_and_remove_jane_syntax_attribute pat.ppat_attributes with
-    | Some (ext_name, ppat_attributes) -> begin
-        match Jane_syntax_parsing.Embedded_name.components ext_name with
-        | labeled_tuples :: closed :: names
-            when String.equal labeled_tuples extension_string ->
-          names, closed_flag_of_string closed, { pat with ppat_attributes }
-        | _ :: _ ->
-          Desugaring_error.raise
-            pat.ppat_loc (Non_labeled_tuple_embedding ext_name)
-        end
-    | None ->
-      Desugaring_error.raise pat.ppat_loc Non_embedding
-
   (* Returns remaining unconsumed attributes *)
   let of_pat pat =
-    match expand_labeled_tuple_extension_pat pat with
-    | labels, closed,
-        { ppat_desc = Ppat_tuple (components); ppat_attributes } ->
+    let labels, ppat_attributes =
+      expand_labeled_tuple_extension pat.ppat_loc pat.ppat_attributes
+    in
+    match labels, pat.ppat_desc with
+    | closed :: labels, Ppat_tuple components ->
       if List.length labels <> List.length components then
         Desugaring_error.raise pat.ppat_loc Malformed;
+      let closed = closed_flag_of_string closed in
       let labeled_components =
-        List.map2
-          (fun s e -> (label_of_string s), e) labels components
+        List.map2 (fun s e -> (label_of_string s), e) labels components
       in
       Ltpat_tuple (labeled_components, closed), ppat_attributes
     | _ -> Desugaring_error.raise pat.ppat_loc Malformed
@@ -653,7 +631,7 @@ module Pattern = struct
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_unboxed_constant of Unboxed_constants.pattern
-    | Jpat_tuple           of Labeled_tuples.pattern 
+    | Jpat_tuple           of Labeled_tuples.pattern
 
   let of_ast_internal (feat : Feature.t) pat = match feat with
     | Language_extension Immutable_arrays ->

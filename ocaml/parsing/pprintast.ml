@@ -435,10 +435,8 @@ and labeled_core_type1 ctxt f (label, ty) =
   core_type1 ctxt f ty
 
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
-  if has_non_curry_attr attrs then core_type1_jane_syntax ctxt attrs f x
-  else
-    match x with
-    | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
+  match x with
+  | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
 
 and core_type1_labeled_tuple ctxt _attrs f
       : Jane_syntax.Labeled_tuples.core_type -> _ = function
@@ -608,14 +606,13 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
     | Jpat_unboxed_constant c -> unboxed_constant ctxt f c
     | Jpat_tuple (Ltpat_tuple (l, closed)) ->
-        begin match closed with
-        | Closed ->
-          pp f "@[<1>(%a)@]"
-            (list ~sep:",@;" (labeled_pattern1 ctxt)) l (* level1 *)
-        | Open ->
-          pp f "@[<1>(%a,@;..)@]"
-            (list ~sep:",@;" (labeled_pattern1 ctxt)) l (* level1 *)
-        end
+        let closed_flag ppf = function
+        | Closed -> ()
+        | Open -> pp ppf ",@;.."
+        in
+        pp f "@[<1>(%a%a)@]"
+          (list ~sep:",@;" (labeled_pattern1 ctxt)) l
+          closed_flag closed
 
 and maybe_local_pat ctxt is_local f p =
   if is_local then
@@ -1907,7 +1904,7 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
   | Jexp_comprehension x    -> comprehension_expr ctxt f x
   | Jexp_immutable_array x  -> immutable_array_expr ctxt f x
   | Jexp_unboxed_constant x -> unboxed_constant ctxt f x
-  | Jexp_tuple ltexp           -> labeled_tuple_expr ctxt f ltexp
+  | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -1966,7 +1963,7 @@ and unboxed_constant _ctxt f (x : Jane_syntax.Unboxed_constants.t)
   | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
   | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
 
-and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) = 
+and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
   match x with
   | Ltexp_tuple l ->
     pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") l

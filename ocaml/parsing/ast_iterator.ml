@@ -117,7 +117,7 @@ module T = struct
     match pof_desc with
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
-  
+
   let iter_lt_typ sub : LT.core_type -> _ = function
     | Lttyp_tuple tl -> List.iter (iter_snd (sub.typ sub)) tl
 
@@ -444,7 +444,7 @@ module E = struct
   let iter_iarr_exp sub : IA.expression -> _ = function
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
-  
+
   let iter_lt_exp sub : LT.expression -> _ = function
     | Ltexp_tuple el -> List.iter (iter_snd (sub.expr sub)) el
 
@@ -553,10 +553,10 @@ module P = struct
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
-  
+
   let iter_ltpat sub : LT.pattern -> _ = function
     | Ltpat_tuple (pl, _) ->
-      List.iter (fun (_, p) -> sub.pat sub p) pl
+      List.iter (iter_snd (sub.pat sub)) pl
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat

@@ -438,7 +438,7 @@ and transl_type_aux env policy mode styp =
   in
   match Jane_syntax.Core_type.of_ast styp with
   | Some (etyp, attrs) ->
-    transl_type_aux_jst env policy mode attrs loc ctyp etyp
+    transl_type_aux_jst env loc policy mode attrs etyp
   | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
@@ -514,22 +514,8 @@ and transl_type_aux env policy mode styp =
       in
       loop mode args
   | Ptyp_tuple stl ->
-    assert (List.length stl >= 2);
-    let ctys = List.map (transl_type env policy Alloc_mode.Global) stl in
-    List.iter (fun {ctyp_type; ctyp_loc} ->
-      (* CR layouts v5: remove value requirement *)
-      match
-        constrain_type_layout
-          env ctyp_type (Layout.value ~why:Tuple_element)
-      with
-      | Ok _ -> ()
-      | Error e ->
-        raise (Error(ctyp_loc, env,
-                     Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
-      ctys;
-    let ty =
-      newty (Ttuple (List.map (fun ctyp -> None, ctyp.ctyp_type) ctys)) in
-    ctyp (Ttyp_tuple (List.map (fun ctyp -> None, ctyp) ctys)) ty
+    transl_type_aux_tuple env loc policy styp.ptyp_attributes
+      (List.map (fun t -> (None, t)) stl)
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
@@ -838,37 +824,35 @@ and transl_type_aux env policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_type_aux_jst env policy mode attrs loc ctyp
+and transl_type_aux_jst env loc policy _mode attrs
       : Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_tuple lt_typ ->
-    transl_type_aux_lt_typ env policy mode attrs loc ctyp lt_typ
+  | Jtyp_tuple (Lttyp_tuple x) ->
+    transl_type_aux_tuple env loc policy attrs x
 
-and transl_type_aux_lt_typ env policy _mode _attrs _loc ctyp
-      : Jane_syntax.Labeled_tuples.core_type -> _ = function
-  | Lttyp_tuple stl ->
-    assert (List.length stl >= 2);
-    let labeled_ctys =
-      List.map
-        (fun (label, t) -> label, transl_type env policy Alloc_mode.Global t)
-        stl
-    in
-    List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
-      (* CR layouts v5: remove value requirement *)
-      match
-        constrain_type_layout
-          env ctyp_type (Layout.value ~why:Tuple_element)
-      with
-      | Ok _ -> ()
-      | Error e ->
-        raise (Error(ctyp_loc, env,
-                     Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
-      labeled_ctys;
-    let ty =
-      newty 
-        (Ttuple
-          (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) labeled_ctys))
-    in
-    ctyp (Ttyp_tuple labeled_ctys) ty
+and transl_type_aux_tuple env loc policy attrs stl =
+  assert (List.length stl >= 2);
+  let ctys =
+    List.map
+      (fun (label, t) -> label, transl_type env policy Alloc_mode.Global t)
+      stl
+  in
+  List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
+    (* CR layouts v5: remove value requirement *)
+    match
+      constrain_type_layout
+        env ctyp_type (Layout.value ~why:Tuple_element)
+    with
+    | Ok _ -> ()
+    | Error e ->
+      raise (Error(ctyp_loc, env,
+                   Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
+    ctys;
+  let ctyp_type =
+    newty (Ttuple (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) ctys))
+  in
+  let ctyp_desc = Ttyp_tuple ctys in
+  { ctyp_desc; ctyp_type; ctyp_env = env;
+    ctyp_loc = loc; ctyp_attributes = attrs }
 
 and transl_fields env policy o fields =
   let hfields = Hashtbl.create 17 in

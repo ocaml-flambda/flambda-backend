@@ -212,13 +212,6 @@ let rec core_type i ppf x =
       payload i ppf arg
   )
 
-and labeled_core_type i ppf (label, t) =
-  begin match label with
-  | Some s -> line i ppf "Label: \"%s\"\n" s;
-  | None -> ()
-  end;
-  core_type i ppf t
-
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident_loc s;
   core_type i ppf t

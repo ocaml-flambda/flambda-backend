@@ -123,11 +123,10 @@ let rec add_type bv ty =
   | Ptyp_extension e -> handle_extension e
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_tuple x -> add_labeled_tuple_expr bv x
+  | Jtyp_tuple x -> add_labeled_tuple_type bv x
 
-and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.core_type -> _ =
-    function
-    | Lttyp_tuple tl -> List.iter (fun (_, ty) -> add_type bv ty) tl
+and add_labeled_tuple_type bv : Jane_syntax.Labeled_tuples.core_type -> _ =
+  function Lttyp_tuple tl -> List.iter (fun (_, ty) -> add_type bv ty) tl
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -348,8 +347,7 @@ and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
   | Iaexp_immutable_array exprs -> List.iter (add_expr bv) exprs
 
 and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
-  function
-  | Ltexp_tuple el -> List.iter (add_expr bv) (List.map snd el)
+  function Ltexp_tuple el -> List.iter (add_expr bv) (List.map snd el)
 
 and add_cases bv cases =
   List.iter (add_case bv) cases
