@@ -4128,8 +4128,7 @@ let may_contain_gadts p =
 let turn_let_into_match p =
   exists_ppat (fun p ->
     match Jane_syntax.Pattern.of_ast p with
-    | Some (Jpat_tuple (Ltpat_tuple (pl, closed)), _) ->
-      closed = Open || List.exists (fun (lbl, _) -> Option.is_some lbl) pl
+    | Some (Jpat_tuple (Ltpat_tuple _), _) -> true
     | Some ((Jpat_unboxed_constant _ | Jpat_immutable_array _), _) -> false
     | None -> match p.ppat_desc with
     | Ppat_construct _ -> true
