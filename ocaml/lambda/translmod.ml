@@ -2003,89 +2003,20 @@ let transl_package component_names target_name coercion ~style =
   | Set_individual_fields ->
       transl_package_set_fields component_names target_name coercion
 
-let arg_subst_of_compilation_unit cu =
-  let global_name =
-    match Compilation_unit.to_global_name cu with
-    | Some global_name -> global_name
-    | None -> raise (Error (Location.none, Instantiating_packed cu))
-  in
-  (* Must be a complete instantiation, meaning that if we could expand it into
-     a [Global.t], there would be no hidden args anywhere. *)
-  (* CR lmaurer: This should be checked. We can't immediately check it here
-     because we don't have the expansion. *)
-  let rec global_of_complete_global_name (name : Global.Name.t) =
-    Global.create name.head (globals_of_args name.args) ~hidden_args:[]
-  and globals_of_args (args : (Global.Name.t * Global.Name.t) list) =
-    List.map (fun (name, value) -> name, global_of_complete_global_name value)
-      args
-  in
-  let global = global_of_complete_global_name global_name in
-  Global.Name.Map.of_list global.visible_args
-
-type runtime_arg_kind =
-  | Instance_argument
-    (* An actual instance argument being passed. These need to be accessed
-       specially, since they should get the signature of the parameter rather
-       than their own .mli. *)
-  | Dependency
-    (* An extra argument added because a dependency needs to take a parameter.
-       These are being accessed at their usual types, so no special handling is
-       needed. *)
-
-(* Resolve the values of a runtime parameter, given the instance arguments
-   being passed in *)
-let resolve_runtime_arg param ~arg_subst =
-  let glob = Global.subst param arg_subst in
-  let cu = glob |> Global.to_name |> Compilation_unit.of_global_name in
-  let kind =
-    (* TODO Consider making [Global.subst] abstract and hiding this in a
-       new [Global.Subst] submodule. *)
-    if Global.Name.Map.mem (Global.to_name param) arg_subst then
-      Instance_argument
-    else
-      Dependency
-  in
-  cu, kind
-
-let transl_runtime_arg (cu, kind) =
-  let outer_block = Lprim (Pgetglobal cu, [], Loc_unknown) in
-  match kind with
-  | Instance_argument ->
-    (* Note that everything compiled with [-as-argument-for] uses the
-        [Cmi_format.Full_module_and_argument_form] as the format of its module
-        block. Here and here only, we get the *secondary* module block. *)
-    Lprim(Pfield (1, Reads_agree), [outer_block], Loc_unknown)
-  | Dependency ->
-    (* FIXME The following comment is wrong. Will need to rethink. *)
-    (* Each dependency will be an instance here, and therefore won't be
-       compiled with [-as-argument-for]. So this is a [Cmi_format.Single_block]
-       module block. *)
-    outer_block
-
-let transl_generating_functor cu =
-  (* Here we need to undo [wrap_toplevel_functor_in_struct] *)
-  let outer_block = Lprim (Pgetglobal cu, [], Loc_unknown) in
-  Lprim(Pfield (0, Reads_agree), [outer_block], Loc_unknown)
+let rec required_global_of_address (addr : Address.t) =
+  match addr with
+  | Aunit cu -> cu
+  | Adot (addr, _) -> required_global_of_address addr
+  | Alocal ident ->
+      Misc.fatal_errorf "unexpected local ident %a" Ident.print ident
 
 let transl_instance_plain_block
     compilation_unit ~runtime_params : Lambda.program =
-  let src, instance_args =
-    Compilation_unit.split_instance_exn compilation_unit
+  let { Env.instantiating_functor; arguments; main_module_block_size } =
+    Env.instantiate compilation_unit ~runtime_params
   in
-  let instance_arg_values =
-    List.map (fun (_param, value) -> value) instance_args
-  in
-  List.iter
-    (fun comp_unit ->
-       if Compilation_unit.is_packed comp_unit
-       then raise (Error (Location.none, Instantiating_packed comp_unit)))
-    (src :: instance_arg_values);
-  let arg_subst = arg_subst_of_compilation_unit compilation_unit in
-  let runtime_arg_units_with_kinds =
-    List.map (resolve_runtime_arg ~arg_subst) runtime_params
-  in
-  let runtime_args = List.map transl_runtime_arg runtime_arg_units_with_kinds in
-  let src_lam = transl_generating_functor src in
+  let src_lam = Lambda.transl_address Loc_unknown instantiating_functor in
+  let runtime_args = List.map (Lambda.transl_address Loc_unknown) arguments in
   let code =
     Lapply {
       ap_func = src_lam;
@@ -2100,18 +2031,9 @@ let transl_instance_plain_block
       ap_probe = None;
     }
   in
-  let runtime_arg_units = List.map fst runtime_arg_units_with_kinds in
-  (* CR lmaurer: This seems a bit pat. Is the situation with [required_globals]
-     really this simple? *)
   let required_globals =
-    (src :: runtime_arg_units) |> Compilation_unit.Set.of_list
-  in
-  let main_module_block_size =
-    let sg =
-      Env.find_global_name
-        (compilation_unit |> Compilation_unit.to_global_name_exn)
-    in
-    List.length (Types.bound_value_identifiers sg)
+    List.map required_global_of_address (instantiating_functor :: arguments)
+    |> Compilation_unit.Set.of_list
   in
   {
     compilation_unit;

@@ -416,6 +416,11 @@ let of_string str =
   in
   create for_pack_prefix name
 
+let of_complete_global_exn glob =
+  if not (Global.is_complete glob)
+  then Misc.fatal_errorf "of_complete_global_exn@ %a" Global.print glob;
+  of_global_name (glob |> Global.to_name)
+
 let dummy = create Prefix.empty (Name.of_string "*none*")
 
 let predef_exn = create Prefix.empty Name.predef_exn

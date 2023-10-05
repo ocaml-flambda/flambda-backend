@@ -914,6 +914,26 @@ let implemented_parameter penv modname =
   | Some { pn_arg_for; _ } -> pn_arg_for
   | None -> None
 
+let main_module_block_size penv modname =
+  (* We should think about storing this in the .cmo/.cmx of the template, since
+     it's only needed by [-instantiate] and it's really about the .cmo/.cmx ABI
+     rather than typing per se. *)
+  let import =
+    (* FIXME Do we need to check? *)
+    let check = true in
+    find_import penv ~check (CU.Name.of_head_of_global_name modname)
+  in
+  match import.imp_module_block_layout with
+  | Full_module_and_argument_form -> 2
+  | Single_block ->
+    (* This doesn't change from one instance to another, so we can just use the
+       raw signature *)
+    let fields =
+      Types.bound_value_identifiers
+        (Subst.Lazy.force_signature import.imp_raw_sign.sign)
+    in
+    List.length fields
+
 let make_cmi penv modname kind sign alerts =
   let flags =
     List.concat [

@@ -176,18 +176,63 @@ flags = "-g -as-argument-for List_element"
 module = "int_list_element.mli int_list_element.ml"
 ******************** ocamlc.byte
 module = ""
-flags = "-instantiate"
-program = "category_of_monoid-List_monoid--Int_list_element.cmo"
-all_modules = "category_of_monoid.cmo int_list_element.cmo"
+flags = "-instantiate -as-argument-for Monoid"
+program = "list_monoid-Int_list_element.cmo"
+all_modules = "list_monoid.cmo int_list_element.cmo"
 ********************* ocamlc.byte
 module = ""
-flags = "-g -instantiate -dlambda"
+flags = "-instantiate -as-argument-for Monoid"
+program = "monoid_of_semigroup-String_semigroup.cmo"
+all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo"
+********************** ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "monoid_utils-Monoid_of_semigroup--String_semigroup.cmo"
+all_modules = "monoid_utils.cmo monoid_of_semigroup-String_semigroup.cmo"
+*********************** ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Category"
+program = "category_of_monoid-List_monoid--Int_list_element.cmo"
+all_modules = "category_of_monoid.cmo list_monoid-Int_list_element.cmo"
+************************ ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Category"
+program = "category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
+all_modules = "category_of_monoid.cmo monoid_of_semigroup-String_semigroup.cmo"
+************************* ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "chain-Category_of_monoid--List_monoid---Int_list_element.cmo"
+all_modules = "chain.cmo category_of_monoid-List_monoid--Int_list_element.cmo"
+************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo"
+all_modules = "chain.cmo category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
+*************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "import-Int_list_element-String_semigroup.cmo"
+all_modules = "import.cmo int_list_element.cmo string_semigroup.cmo"
+**************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "category_utils-Category_of_monoid--List_monoid---Int_list_element.cmo"
+all_modules = "category_utils.cmo category_of_monoid-List_monoid--Int_list_element.cmo"
+***************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo"
+all_modules = "category_utils.cmo category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
+****************************** ocamlc.byte
+module = ""
+flags = "-g -instantiate"
 program = "main-Int_list_element-String_semigroup.cmo"
 all_modules = "main.cmo int_list_element.cmo string_semigroup.cmo"
-********************** ocamlc.byte
+******************************* ocamlc.byte
 flags = "-g -w -misplaced-attribute"
 module = "test.ml"
-*********************** ocamlc.byte
+******************************** ocamlc.byte
 flags = "-g"
 module = ""
 program = "test.exe"
@@ -196,13 +241,28 @@ all_modules = "\
    monoid_of_semigroup.cmo \
    monoid_of_semigroup-String_semigroup.cmo \
    monoid_utils.cmo \
+   monoid_utils-Monoid_of_semigroup--String_semigroup.cmo \
+   int_list_element.cmo \
+   list_monoid.cmo \
+   list_monoid-Int_list_element.cmo \
+   category_of_monoid.cmo \
    category_of_monoid-List_monoid--Int_list_element.cmo \
+   category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo \
+   chain.cmo \
+   chain-Category_of_monoid--List_monoid---Int_list_element.cmo \
+   chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo \
+   category_utils.cmo \
+   category_utils-Category_of_monoid--List_monoid---Int_list_element.cmo \
+   category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo \
+   import.cmo \
+   import-Int_list_element-String_semigroup.cmo \
+   main.cmo \
    main-Int_list_element-String_semigroup.cmo \
    test.cmo \
 "
-************************ run
+********************************* run
 program = "${test_build_directory}/test.exe"
-************************* check-program-output
+********************************** check-program-output
 *)
 
 module M =
@@ -223,7 +283,7 @@ let greeting =
   | None -> assert false
 
 let ints_line =
-  List.map (fun i -> if i > 0 then Some (i |> string_of_int) else None) ints
+  List.map (fun i -> if i > 0 then Some (Format.sprintf " %i" i) else None) ints
   |> M.concat_semi
 
 let s = M.append3_semi (Some greeting) ints_line None |> Option.get

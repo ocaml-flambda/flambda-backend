@@ -701,6 +701,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Incomplete_instantiation of { unset_param : Global.Name.t }
 
 exception Error of error
 
@@ -1317,13 +1318,80 @@ let find_hash_type path env =
   | Papply _ ->
       raise Not_found
 
-let find_global_name name =
-  let mda = find_pers_mod name in
-  let decl = Subst.Lazy.force_module_decl mda.mda_declaration in
-  match decl.md_type with
-  | Mty_signature sg -> sg
-  | (Mty_ident _ | Mty_functor (_, _) | Mty_alias _) ->
-      assert false
+type instantiation = {
+  instantiating_functor : address;
+  arguments : address list;
+  main_module_block_size : int;
+}
+
+let global_of_instance_compilation_unit cu =
+  let global_name = Compilation_unit.to_global_name_exn cu in
+  (* Must be a complete instantiation, meaning that its [Global.t] form has no
+     hidden arguments anywhere. *)
+  let global =
+    (* We could just convert the global name ourselves by filling in empty lists
+       of hidden arguments, but this doubles as a typecheck of the instance. *)
+    Persistent_env.global_of_global_name !persistent_env global_name
+      ~check:false ~param:false
+  in
+  let rec check (global : Global.t) =
+    match global.hidden_args with
+    | (name, _) :: _ ->
+        raise (Error (Incomplete_instantiation { unset_param = name }))
+    | [] ->
+        List.iter (fun (_, value) -> check value) global.visible_args
+  in
+  check global;
+  global
+
+(* Resolve the value of a runtime parameter, given the instance arguments
+   being passed in *)
+let address_of_runtime_arg param ~arg_subst =
+  let cu =
+    Global.subst param arg_subst |> Compilation_unit.of_complete_global_exn
+  in
+  (* XXX This isn't great. The meaning of [param] is ambiguous and we're
+     disambiguating it. Really, [Cmo_format.cu_runtime_params] (as well as its
+     .cmx counterpart) has the wrong type: it conflates instance arguments,
+     which need to be accessed specially, with parameterised dependencies,
+     which do not. *)
+  (* TODO Consider making [Global.subst] abstract and hiding this "is it in the
+     map?" check in a new [Global.Subst] submodule. *)
+  if Global.Name.Map.mem (Global.to_name param) arg_subst then
+    (* The module is itself an argument, so we're using it at its argument
+       type, so here and only here we're accessing its argument block rather
+       than the usual module block. *)
+    Adot (Aunit cu, 1)
+  else
+    (* Just access the module the usual way (which varies depending on the
+       module's [Cmi_format.module_block_layout]). *)
+    let mda = find_pers_mod (cu |> Compilation_unit.to_global_name_exn) in
+    get_address mda.mda_address
+
+let address_of_instantiating_functor cu =
+  (* Here we don't need to worry about the module block format: it's always a
+     block with exactly one field, namely the functor. *)
+  let to_instantiate, _ = cu |> Compilation_unit.split_instance_exn in
+  Adot (Aunit to_instantiate, 0)
+
+let instantiate compilation_unit ~runtime_params : instantiation =
+  let global = global_of_instance_compilation_unit compilation_unit in
+  let arg_subst : Global.subst = Global.Name.Map.of_list global.visible_args in
+  let instantiating_functor =
+    address_of_instantiating_functor compilation_unit
+  in
+  let arguments =
+    List.map (address_of_runtime_arg ~arg_subst) runtime_params
+  in
+  let main_module_block_size =
+    Persistent_env.main_module_block_size !persistent_env
+      (Compilation_unit.to_global_name_exn compilation_unit)
+  in
+  {
+    instantiating_functor;
+    arguments;
+    main_module_block_size;
+  }
 
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty
@@ -3908,6 +3976,10 @@ let report_error ppf = function
       fprintf ppf "'%s' is not a valid value identifier."
         name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
+  | Incomplete_instantiation { unset_param } ->
+      fprintf ppf "@[<hov>Not enough instance arguments: the parameter@ %a@ is \
+                   required.@]"
+        Global.Name.print unset_param
 
 let () =
   Location.register_error_of_exn
@@ -3918,6 +3990,7 @@ let () =
             | Missing_module (loc, _, _)
             | Illegal_value_name (loc, _)
             | Lookup_error(loc, _, _) -> loc
+            | Incomplete_instantiation _ -> Location.none
           in
           let error_of_printer =
             if loc = Location.none

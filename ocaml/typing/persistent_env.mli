@@ -148,6 +148,10 @@ val local_ident : 'a t -> Global.Name.t -> Ident.t option
    that [md] was compiled with. *)
 val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
 
+(* [main_module_block_size] gives the number of fields that will be in the
+   main module block of a module. See [Cmi_format.module_block_layout]. *)
+val main_module_block_size : 'a t -> Global.Name.t -> int
+
 val global_of_global_name : 'a t
   -> check:bool
   -> param:bool

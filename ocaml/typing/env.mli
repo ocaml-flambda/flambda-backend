@@ -121,7 +121,6 @@ val find_value_address: Path.t -> t -> address
 val find_module_address: Path.t -> t -> address
 val find_class_address: Path.t -> t -> address
 val find_constructor_address: Path.t -> t -> address
-val find_global_name: Global.Name.t -> signature
 
 val shape_of_path:
   namespace:Shape.Sig_component_kind.t -> t -> Path.t -> Shape.t
@@ -304,6 +303,20 @@ val bound_class: string -> t -> bool
 val bound_cltype: string -> t -> bool
 
 val make_copy_of_types: t -> (t -> t)
+
+(* Resolution of globals *)
+
+type instantiation = {
+  instantiating_functor : address;
+  arguments : address list;
+  main_module_block_size : int;
+}
+
+(* Find all the addresses needed to form the expression that produces the
+   instance with the given name. Requires knowing all the parameters that the
+   instantiating functor takes, which must be read from the .cmo/.cmx file. *)
+val instantiate:
+  Compilation_unit.t -> runtime_params:Global.t list -> instantiation
 
 (* Insertion by identifier *)
 
@@ -493,6 +506,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Incomplete_instantiation of { unset_param : Global.Name.t; }
 
 exception Error of error
 
