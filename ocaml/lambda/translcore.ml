@@ -1424,48 +1424,71 @@ and transl_curried_function
       N>n, then the translation of an N-ary typedtree function is an n-ary lambda
       function returning the translation of an (N-n)-ary typedtree function.
     *)
-    let open struct
-      type acc = { body : lambda; return_layout : layout; region : bool; nlocal : int }
+    let module Chunk = struct
+      (* An [acc] is defined in respect to a "chunk" of params. This chunk
+         of params together with the [body] field form a function.
+      *)
+      type acc =
+        { body : lambda; (* The function body of those params *)
+          return_layout : layout; (* The layout of [body] *)
+          region : bool; (* Whether the function has its own region *)
+          nlocal : int;
+          (* An upper bound on the [nlocal] field for the function. If [nlocal]
+             exceeds the length of the chunk of params, the difference will
+             become the nlocal field with respect to the *enclosing* chunk
+             of params.
+          *)
+        }
+
+      (* Meant to be used with a [fold_right]. The returned [acc] is in
+         respect to the enclosing chunk.
+      *)
+      let process_inner_chunk chunk { body; return_layout; nlocal; region } =
+        let chunk_length = List.length chunk in
+        let loc = of_location ~scopes loc in
+        (* The current function is locally-allocated (and thus its
+           enclosing chunk doesn't have a region) when nlocal isn't
+           yet exhausted in the current chunk.
+        *)
+        let current_nlocal, current_mode, enclosing_region =
+          if nlocal > chunk_length
+          then chunk_length, alloc_local, false
+          else nlocal, mode, true
+        in
+        let enclosing_nlocal = nlocal - current_nlocal in
+        let body =
+          if region then maybe_region_layout return_layout body else body
+        in
+        let body =
+          lfunction
+            ~kind:
+              (Curried { nlocal=current_nlocal })
+            ~params:chunk ~mode:current_mode
+            ~return:return_layout ~body
+            ~attr:function_attribute_disallowing_arity_fusion
+            ~loc ~region
+        in
+        (* we return Pgenval (for a function) after the rightmost chunk *)
+        { body;
+          return_layout = Pvalue Pgenval;
+          nlocal = enclosing_nlocal;
+          region = enclosing_region;
+        }
     end
     in
-    let params, { body; return_layout; region; nlocal } =
+    (* The Chunk.acc is in respect to the [params] chunk. *)
+    let params, ({ body; return_layout; region; nlocal } : Chunk.acc) =
       match Misc.Stdlib.List.chunks_of (Lambda.max_arity ()) params with
       | [] ->
           Misc.fatal_error
             "attempted to translate a function with zero arguments"
       | first_chunk :: rest_of_chunks ->
+        let region = region || not (may_allocate_in_region body) in
         let acc =
           List.fold_right
-            (fun chunk { body; return_layout; nlocal; region } ->
-              let chunk_length = List.length chunk in
-              let loc = of_location ~scopes loc in
-              let current_nlocal, current_mode, enclosing_region =
-                if nlocal >= chunk_length
-                then chunk_length, alloc_local, false
-                else nlocal, mode, true
-              in
-              let enclosing_nlocal = nlocal - current_nlocal in
-              let body =
-                if region then maybe_region_layout return_layout body else body
-              in
-              let body =
-                lfunction
-                  ~kind:
-                    (Curried { nlocal=current_nlocal })
-                  ~params:chunk ~mode:current_mode
-                  ~return:return_layout ~body
-                  ~attr:function_attribute_disallowing_arity_fusion
-                  ~loc ~region
-              in
-              (* we return Pgenval (for a function) after the rightmost chunk *)
-              { body;
-                return_layout = Pvalue Pgenval;
-                nlocal = enclosing_nlocal;
-                region = enclosing_region;
-              })
+            Chunk.process_inner_chunk
             rest_of_chunks
-            (let region = region || not (may_allocate_in_region body) in
-            { body; return_layout; nlocal; region })
+            ({ body; return_layout; nlocal; region } : Chunk.acc)
         in
         first_chunk, acc
     in
