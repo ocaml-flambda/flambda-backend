@@ -88,6 +88,7 @@ let select_operation_sse op args =
 
 let select_operation_sse2 op args =
   match op with
+  | "caml_sse2_cast_float64_int64" -> Some (Cast_f64_i64, args)
   | "caml_sse2_float64_max" -> Some (Max_sf64, args)
   | "caml_sse2_float64_min" -> Some (Min_sf64, args)
   | "caml_sse2_float64_sqrt" -> Some (Sqrt_sf64, args)
