@@ -140,8 +140,6 @@ let prepare_error err =
         "broken invariant in parsetree: %s" s
   | Invalid_package_type (loc, s) ->
       Location.errorf ~loc "invalid package type: %s" s
-  | Bigarray_index_extension (loc, s) ->
-      Location.errorf ~loc "%s cannot be used as bigarray indices" s
 
 let () =
   Location.register_error_of_exn

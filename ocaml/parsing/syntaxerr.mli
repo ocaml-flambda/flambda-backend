@@ -29,7 +29,6 @@ type error =
   | Other of Location.t
   | Ill_formed_ast of Location.t * string
   | Invalid_package_type of Location.t * string
-  | Bigarray_index_extension of Location.t * string
 
 exception Error of error
 exception Escape_error
