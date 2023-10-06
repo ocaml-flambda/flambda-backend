@@ -43,7 +43,8 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
     let bindings_outermost_first =
       ListLabels.map2 params args ~f:(fun param arg ->
           let let_bound =
-            Bound_var.create (BP.var param) Name_mode.normal
+            let param_var, param_uid = BP.var_and_uid param in
+            Bound_var.create param_var param_uid Name_mode.normal
             |> Bound_pattern.singleton
           in
           let named = Named.create_simple arg in

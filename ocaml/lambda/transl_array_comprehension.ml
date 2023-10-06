@@ -235,7 +235,7 @@ end = struct
     let y = y.Let_binding.var in
     let open (val Lambda_utils.int_ops ~loc) in
     let product =
-      Let_binding.make (Immutable Alias) (Pvalue Pintval) "product" (x * y)
+      Let_binding.make (Immutable Alias) (Pvalue Pintval) "product" Uid.internal_not_actually_unique (x * y)
     in
     (* [x * y] is safe, for strictly positive [x] and [y], iff you can undo the
        multiplication: [(x * y)/y = x].  We assume the inputs are values, so we
@@ -265,7 +265,7 @@ end = struct
   let safe_product_pos ?(variable_name = "x") ~loc factors =
     let factors =
       List.map (Let_binding.make (Immutable Strict) (Pvalue Pintval)
-                       variable_name) factors
+                       variable_name Uid.internal_not_actually_unique) factors
     in
     Let_binding.let_all factors (safe_product_pos_vals ~loc factors)
 end
@@ -371,7 +371,7 @@ module Iterator_bindings = struct
              still might overflow *)
           let range_size =
             Let_binding.make (Immutable Alias) (Pvalue Pintval)
-              "range_size" (high - low + l1)
+              "range_size" Uid.internal_not_actually_unique (high - low + l1)
           in
           Let_binding.let_one range_size
             (* If the computed size of the range is positive, there was no
@@ -450,7 +450,7 @@ let iterator ~transl_exp ~scopes ~loc
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
       let bound name value =
         Let_binding.make (Immutable Strict) (Pvalue Pintval)
-          name (transl_exp ~scopes Jkind.Sort.for_predef_value value)
+          name Uid.internal_not_actually_unique (transl_exp ~scopes Jkind.Sort.for_predef_value value)
       in
       let start = bound "start" start in
       let stop  = bound "stop"  stop  in
@@ -468,14 +468,14 @@ let iterator ~transl_exp ~scopes ~loc
   | Texp_comp_in { pattern; sequence = iter_arr_exp } ->
       let iter_arr =
         Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_arr" (transl_exp ~scopes Jkind.Sort.for_predef_value iter_arr_exp)
+          "iter_arr" Uid.internal_not_actually_unique (transl_exp ~scopes Jkind.Sort.for_predef_value iter_arr_exp)
       in
       let iter_arr_kind = Typeopt.array_kind iter_arr_exp in
       let iter_len =
         (* Extra let-binding if we're not in the fixed-size array case; the
            middle-end will simplify this for us *)
         Let_binding.make (Immutable Alias) (Pvalue Pintval)
-          "iter_len"
+          "iter_len" Uid.internal_not_actually_unique
           (Lprim(Parraylength iter_arr_kind, [iter_arr.var], loc))
       in
       let iter_ix = Ident.create_local "iter_ix" in
@@ -623,7 +623,7 @@ let clauses ~transl_exp ~scopes ~loc = function
       in
       let array_size =
         Let_binding.make (Immutable Alias) (Pvalue Pintval)
-          "array_size"
+          "array_size" Uid.internal_not_actually_unique
           (Iterator_bindings.Fixed_size_array.total_size_nonempty
              ~loc var_bindings)
       in
@@ -634,7 +634,7 @@ let clauses ~transl_exp ~scopes ~loc = function
   | clauses ->
       let array_size =
         Let_binding.make Mutable (Pvalue Pintval)
-          "array_size" (int Resizable_array.starting_size)
+          "array_size" Uid.internal_not_actually_unique (int Resizable_array.starting_size)
       in
       let make_comprehension =
         Cps_utils.compose_map (clause ~transl_exp ~loc ~scopes) clauses
@@ -704,7 +704,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
   in
-  Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
+  Let_binding.make array_let_kind (Pvalue Pgenval) "array" Uid.internal_not_actually_unique array_value
 
 (** Generate the code for the body of an array comprehension.  This involves
     translating the body expression (a [Typedtree.expression], which is the
@@ -778,7 +778,7 @@ let body
   let set_element_known_kind_in_bounds = match array_kind with
     | Pgenarray ->
         let is_first_iteration = (index.var = l0) in
-        let elt = Let_binding.make (Immutable Strict) (Pvalue Pgenval) "elt" body in
+        let elt = Let_binding.make (Immutable Strict) (Pvalue Pgenval) "elt" Uid.internal_not_actually_unique body in
         let make_array = match array_sizing with
           | Fixed_size ->
               make_vect ~loc ~length:array_size.var ~init:elt.var
@@ -809,7 +809,7 @@ let comprehension
   let array =
     initial_array ~loc ~array_kind ~array_size ~array_sizing
   in
-  let index = Let_binding.make Mutable (Pvalue Pintval) "index" (int 0) in
+  let index = Let_binding.make Mutable (Pvalue Pintval) "index" Uid.internal_not_actually_unique (int 0) in
   (* The core of the comprehension: the array, the index, and the iteration that
      fills everything in.  The translation of the clauses will produce a check
      to see if we can avoid doing the hard work of growing the array, which is

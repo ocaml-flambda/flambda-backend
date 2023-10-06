@@ -16,6 +16,8 @@
 open Misc
 open Asttypes
 
+module Uid = Shape.Uid
+
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
 type compile_time_constant =
@@ -552,6 +554,8 @@ type parameter_attribute = No_attributes
 
 type lparam = {
   name : Ident.t;
+  (* This is the uid of the variable, not of the type of the variable. *)
+  var_uid : Uid.t;
   layout : layout;
   attributes : parameter_attribute;
   mode : alloc_mode
@@ -563,15 +567,15 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * layout * Ident.t * lambda * lambda
-  | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Llet of let_kind * layout * Ident.t * Uid.t * lambda * lambda
+  | Lmutlet of layout * Ident.t * Uid.t * lambda * lambda
+  | Lletrec of (Ident.t * Uid.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
-  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  | Lstaticcatch of lambda * (static_label * (Ident.t * Uid.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
@@ -770,20 +774,22 @@ let make_key e =
         Lapply {ap with ap_func = tr_rec env ap.ap_func;
                         ap_args = tr_recs env ap.ap_args;
                         ap_loc = Loc_unknown}
-    | Llet (Alias,_k,x,ex,e) -> (* Ignore aliases -> substitute *)
+    | Llet (Alias,_k,x,_x_uid,ex,e) -> (* Ignore aliases -> substitute *)
         let ex = tr_rec env ex in
         tr_rec (Ident.add x ex env) e
-    | Llet ((Strict | StrictOpt),_k,x,ex,Lvar v) when Ident.same v x ->
+    | Llet ((Strict | StrictOpt),_k,x,_x_uid,ex,Lvar v) when Ident.same v x ->
         tr_rec env ex
-    | Llet (str,k,x,ex,e) ->
+    | Llet (str,k,x,x_uid,ex,e) ->
      (* Because of side effects, keep other lets with normalized names *)
         let ex = tr_rec env ex in
         let y = make_key x in
-        Llet (str,k,y,ex,tr_rec (Ident.add x (Lvar y) env) e)
-    | Lmutlet (k,x,ex,e) ->
+        (* CR tnowak: verify *)
+        Llet (str,k,y,x_uid,ex,tr_rec (Ident.add x (Lvar y) env) e)
+    | Lmutlet (k,x,x_uid,ex,e) ->
         let ex = tr_rec env ex in
         let y = make_key x in
-        Lmutlet (k,y,ex,tr_rec (Ident.add x (Lmutvar y) env) e)
+        (* CR tnowak: verify *)
+        Lmutlet (k,y,x_uid,ex,tr_rec (Ident.add x (Lmutvar y) env) e)
     | Lprim (p,es,_) ->
         Lprim (p,tr_recs env es, Loc_unknown)
     | Lswitch (e,sw,loc,kind) ->
@@ -841,7 +847,8 @@ let name_lambda strict arg layout fn =
     Lvar id -> fn id
   | _ ->
       let id = Ident.create_local "let" in
-      Llet(strict, layout, id, arg, fn id)
+      let uid = Uid.internal_not_actually_unique in
+      Llet(strict, layout, id, uid, arg, fn id)
 
 let name_lambda_list args fn =
   let rec name_list names = function
@@ -850,7 +857,8 @@ let name_lambda_list args fn =
       name_list (arg :: names) rem
   | (arg, layout) :: rem ->
       let id = Ident.create_local "let" in
-      Llet(Strict, layout, id, arg, name_list (Lvar id :: names) rem) in
+      let uid = Uid.internal_not_actually_unique in
+      Llet(Strict, layout, id, uid, arg, name_list (Lvar id :: names) rem) in
   name_list [] args
 
 
@@ -866,12 +874,12 @@ let shallow_iter ~tail ~non_tail:f = function
       f fn; List.iter f args
   | Lfunction{body} ->
       f body
-  | Llet(_, _k, _id, arg, body)
-  | Lmutlet(_k, _id, arg, body) ->
+  | Llet(_, _k, _id, _, arg, body)
+  | Lmutlet(_k, _id, _, arg, body) ->
       f arg; tail body
   | Lletrec(decl, body) ->
       tail body;
-      List.iter (fun (_id, exp) -> f exp) decl
+      List.iter (fun (_id, _uid, exp) -> f exp) decl
   | Lprim (Psequand, [l1; l2], _)
   | Lprim (Psequor, [l1; l2], _) ->
       f l1;
@@ -926,14 +934,14 @@ let rec free_variables = function
   | Lfunction{body; params} ->
       Ident.Set.diff (free_variables body)
         (Ident.Set.of_list (List.map (fun p -> p.name) params))
-  | Llet(_, _k, id, arg, body)
-  | Lmutlet(_k, id, arg, body) ->
+  | Llet(_, _k, id, _uid, arg, body)
+  | Lmutlet(_k, id, _uid, arg, body) ->
       Ident.Set.union
         (free_variables arg)
         (Ident.Set.remove id (free_variables body))
   | Lletrec(decl, body) ->
-      let set = free_variables_list (free_variables body) (List.map snd decl) in
-      Ident.Set.diff set (Ident.Set.of_list (List.map fst decl))
+      let set = free_variables_list (free_variables body) (List.map thd3 decl) in
+      Ident.Set.diff set (Ident.Set.of_list (List.map fst3 decl))
   | Lprim(_p, args, _loc) ->
       free_variables_list Ident.Set.empty args
   | Lswitch(arg, sw,_,_) ->
@@ -962,7 +970,7 @@ let rec free_variables = function
       Ident.Set.union
         (Ident.Set.diff
            (free_variables handler)
-           (Ident.Set.of_list (List.map fst params)))
+           (Ident.Set.of_list (List.map fst3 params)))
         (free_variables body)
   | Ltrywith(body, param, handler, _) ->
       Ident.Set.union
@@ -1014,15 +1022,15 @@ let staticfail = Lstaticraise (0,[])
 
 let rec is_guarded = function
   | Lifthenelse(_cond, _body, Lstaticraise (0,[]),_) -> true
-  | Llet(_str, _k, _id, _lam, body) -> is_guarded body
+  | Llet(_str, _k, _id, _uid, _lam, body) -> is_guarded body
   | Levent(lam, _ev) -> is_guarded lam
   | _ -> false
 
 let rec patch_guarded patch = function
   | Lifthenelse (cond, body, Lstaticraise (0,[]), kind) ->
       Lifthenelse (cond, body, patch, kind)
-  | Llet(str, k, id, lam, body) ->
-      Llet (str, k, id, lam, patch_guarded patch body)
+  | Llet(str, k, id, uid, lam, body) ->
+      Llet (str, k, id, uid, lam, patch_guarded patch body)
   | Levent(lam, ev) ->
       Levent (patch_guarded patch lam, ev)
   | _ -> fatal_error "Lambda.patch_guarded"
@@ -1088,13 +1096,14 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
      scope, mapped to either themselves or freshened versions of
      themselves when [freshen_bound_variables] is set. *)
   let bind id l =
+    (* CR tnowak: verify whether uid has to be also passed here *)
     let id' = if not freshen_bound_variables then id else Ident.rename id in
     id', Ident.Map.add id id' l
   in
   let bind_many ids l =
-    List.fold_right (fun (id, rhs) (ids', l) ->
+    List.fold_right (fun (id, uid, rhs) (ids', l) ->
         let id', l = bind id l in
-        ((id', rhs) :: ids' , l)
+        ((id', uid, rhs) :: ids' , l)
       ) ids ([], l)
   in
   let bind_params params l =
@@ -1129,12 +1138,12 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lfunction lf ->
         let params, l' = bind_params lf.params l in
         Lfunction {lf with params; body = subst s l' lf.body}
-    | Llet(str, k, id, arg, body) ->
+    | Llet(str, k, id, uid, arg, body) ->
         let id, l' = bind id l in
-        Llet(str, k, id, subst s l arg, subst s l' body)
-    | Lmutlet(k, id, arg, body) ->
+        Llet(str, k, id, uid, subst s l arg, subst s l' body)
+    | Lmutlet(k, id, uid, arg, body) ->
         let id, l' = bind id l in
-        Lmutlet(k, id, subst s l arg, subst s l' body)
+        Lmutlet(k, id, uid, subst s l arg, subst s l' body)
     | Lletrec(decl, body) ->
         let decl, l' = bind_many decl l in
         Lletrec(List.map (subst_decl s l') decl, subst s l' body)
@@ -1211,7 +1220,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lexclave e ->
         Lexclave (subst s l e)
   and subst_list s l li = List.map (subst s l) li
-  and subst_decl s l (id, exp) = (id, subst s l exp)
+  and subst_decl s l (id, uid, exp) = (id, uid, subst s l exp)
   and subst_case s l (key, case) = (key, subst s l case)
   and subst_strcase s l (key, case) = (key, subst s l case)
   and subst_opt s l = function
@@ -1256,12 +1265,12 @@ let shallow_map ~tail ~non_tail:f = function
   | Lfunction { kind; params; return; body; attr; loc; mode; region } ->
       Lfunction { kind; params; return; body = f body; attr; loc;
                   mode; region }
-  | Llet (str, layout, v, e1, e2) ->
-      Llet (str, layout, v, f e1, tail e2)
-  | Lmutlet (layout, v, e1, e2) ->
-      Lmutlet (layout, v, f e1, tail e2)
+  | Llet (str, layout, v, uid, e1, e2) ->
+      Llet (str, layout, v, uid, f e1, tail e2)
+  | Lmutlet (layout, v, uid, e1, e2) ->
+      Lmutlet (layout, v, uid, f e1, tail e2)
   | Lletrec (idel, e2) ->
-      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
+      Lletrec (List.map (fun (v, uid, e) -> (v, uid, f e)) idel, tail e2)
   | Lprim (Psequand as p, [l1; l2], loc)
   | Lprim (Psequor as p, [l1; l2], loc) ->
       Lprim(p, [f l1; tail l2], loc)
@@ -1318,10 +1327,10 @@ let map f =
 
 (* To let-bind expressions to variables *)
 
-let bind_with_layout str (var, layout) exp body =
+let bind_with_layout str (var, uid, layout) exp body =
   match exp with
     Lvar var' when Ident.same var var' -> body
-  | _ -> Llet(str, layout, var, exp, body)
+  | _ -> Llet(str, layout, var, uid, exp, body)
 
 let negate_integer_comparison = function
   | Ceq -> Cne
@@ -1616,11 +1625,11 @@ let compute_expr_layout free_vars_kind lam =
     | Lfunction _ -> layout_function
     | Lapply { ap_result_layout; _ } -> ap_result_layout
     | Lsend (_, _, _, _, _, _, _, layout) -> layout
-    | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
+    | Llet(_, kind, id, _uid, _, body) | Lmutlet(kind, id, _uid, _, body) ->
       compute_expr_layout (Ident.Map.add id kind kinds) body
     | Lletrec(defs, body) ->
       let kinds =
-        List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
+        List.fold_left (fun kinds (id, _uid, _) -> Ident.Map.add id layout_letrec kinds)
           kinds defs
       in
       compute_expr_layout kinds body

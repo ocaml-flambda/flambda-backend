@@ -16,18 +16,21 @@
 
 type t =
   { var : Variable.t;
+    uid : Flambda_uid.t;
     name_mode : Name_mode.t
   }
 
-let [@ocamlformat "disable"] print ppf { var; name_mode = _; } =
-  Variable.print ppf var
+let [@ocamlformat "disable"] print ppf { var; uid; name_mode = _; } =
+  Format.fprintf ppf "%a,uid=%a" Variable.print var Flambda_uid.print uid
 
-let create var name_mode =
+let create var uid name_mode =
   (* Note that [name_mode] might be [In_types], e.g. when dealing with function
      return types and also using [Typing_env.add_definition]. *)
-  { var; name_mode }
+  { var; uid; name_mode }
 
 let var t = t.var
+
+let uid t = t.uid
 
 let name_mode t = t.name_mode
 
@@ -42,9 +45,9 @@ let apply_renaming t renaming =
 
 let free_names t = Name_occurrences.singleton_variable t.var t.name_mode
 
-let ids_for_export { var; name_mode = _ } =
+let ids_for_export { var; uid = _; name_mode = _ } =
   Ids_for_export.add_variable Ids_for_export.empty var
 
-let renaming { var; name_mode = _ } ~guaranteed_fresh =
-  let { var = guaranteed_fresh; name_mode = _ } = guaranteed_fresh in
+let renaming { var; uid = _; name_mode = _ } ~guaranteed_fresh =
+  let { var = guaranteed_fresh; uid = _; name_mode = _ } = guaranteed_fresh in
   Renaming.add_fresh_variable Renaming.empty var ~guaranteed_fresh

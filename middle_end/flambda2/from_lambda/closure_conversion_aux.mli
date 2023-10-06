@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Uid = Shape.Uid
+
 (** Environments and auxiliary structures used during closure conversion. *)
 
 module IR : sig
@@ -23,7 +25,7 @@ module IR : sig
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Flambda_kind.With_subkind.t) list
+      extra_args : (simple * Flambda_uid.t * Flambda_kind.With_subkind.t) list
     }
 
   type trap_action =
@@ -134,7 +136,8 @@ module Env : sig
 
   val add_vars_like :
     t ->
-    (Ident.t * IR.user_visible * Flambda_kind.With_subkind.t) list ->
+    (Ident.t * Flambda_uid.t * IR.user_visible * Flambda_kind.With_subkind.t)
+    list ->
     t * Variable.t list
 
   val find_name : t -> Ident.t -> Name.t
@@ -307,6 +310,7 @@ module Function_decls : sig
 
     type param =
       { name : Ident.t;
+        var_uid : Flambda_uid.t;
         kind : Flambda_kind.With_subkind.t;
         attributes : Lambda.parameter_attribute;
         mode : Lambda.alloc_mode
@@ -314,6 +318,7 @@ module Function_decls : sig
 
     val create :
       let_rec_ident:Ident.t option ->
+      let_rec_uid:Flambda_uid.t ->
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:param list ->

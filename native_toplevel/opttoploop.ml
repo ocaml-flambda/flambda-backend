@@ -122,7 +122,9 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Lambda.layout_module_field, id, glob, l)
+    (* CR tnowak: verify *)
+    let uid = Shape.Uid.internal_not_actually_unique in
+    Llet(Strict, Lambda.layout_module_field, id, uid, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =

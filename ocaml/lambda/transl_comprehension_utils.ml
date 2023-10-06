@@ -11,21 +11,22 @@ module Let_binding = struct
     { let_kind   : Let_kind.t
     ; layout : layout
     ; id         : Ident.t
+    ; uid        : Shape.Uid.t
     ; init       : lambda
     ; var        : lambda }
 
-  let make (let_kind : Let_kind.t) layout name init =
+  let make (let_kind : Let_kind.t) layout name uid init =
     let id = Ident.create_local name in
     let var = match let_kind with
       | Mutable -> Lmutvar id
       | Immutable _ -> Lvar id
     in
-    {let_kind; layout; id; init; var}
+    {let_kind; layout; id; uid; init; var}
 
-  let let_one {let_kind; layout; id; init} body =
+  let let_one {let_kind; layout; id; uid; init} body =
     match let_kind with
-    | Immutable let_kind -> Llet(let_kind, layout, id, init, body)
-    | Mutable            -> Lmutlet(layout, id, init, body)
+    | Immutable let_kind -> Llet(let_kind, layout, id, uid, init, body)
+    | Mutable            -> Lmutlet(layout, id, uid, init, body)
 
   let let_all = List.fold_right let_one
 end

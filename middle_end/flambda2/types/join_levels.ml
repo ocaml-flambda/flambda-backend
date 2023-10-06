@@ -46,7 +46,10 @@ let join_types ~env_at_fork envs_with_levels =
                     let kind = TEL.find_kind level var in
                     TE.add_definition base_env
                       (Bound_name.create_var
-                         (Bound_var.create var Name_mode.in_types))
+                         (* CR tnowak: verify *)
+                         (Bound_var.create var
+                            Flambda_uid.internal_not_actually_unique
+                            Name_mode.in_types))
                       kind)
                 vars base_env)
             (TEL.variables_by_binding_time level)
