@@ -55,12 +55,13 @@ let float_condition_of_int = function
   | i -> Misc.fatal_errorf "Invalid float condition immediate: %d" i
 
 let float_rounding_of_int = function
-  | 0 -> RoundNearest
-  | 1 -> RoundDown
-  | 2 -> RoundUp
-  | 3 -> RoundTruncate
-  | 4 -> RoundCurrent
-  | i -> Misc.fatal_errorf "Invalid float condition immediate: %d" i
+  (* Starts at 8, as these rounding modes also imply _MM_FROUND_NO_EXC (0x8) *)
+  | 0x8 -> RoundNearest
+  | 0x9 -> RoundDown
+  | 0xA -> RoundUp
+  | 0xB -> RoundTruncate
+  | 0xC -> RoundCurrent
+  | i -> Misc.fatal_errorf "Invalid float rounding immediate: %d" i
 
 let select_operation_sse op args =
   match op with
