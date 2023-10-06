@@ -507,6 +507,7 @@ and lambda_while =
 
 and lambda_for =
   { for_id : Ident.t;
+    for_loc : scoped_location;
     for_from : lambda;
     for_to : lambda;
     for_dir : direction_flag;
