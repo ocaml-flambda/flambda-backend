@@ -74,6 +74,7 @@ module IR : sig
 
   type switch =
     { numconsts : int;
+      (* CR mshinwell: use record types *)
       consts :
         (int * Continuation.t * Debuginfo.t * trap_action option * simple list)
         list;
