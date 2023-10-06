@@ -63,9 +63,13 @@ middle_end/flambda2/docs/types.md               @lthls
 native_toplevel/                @mshinwell @xclerc
 
 ocaml/asmcomp/                  @gretay-js @xclerc
+ocaml/file_formats              @lpw25 @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @gretay-js @xclerc @lukemaurer
+ocaml/lambda/                   @lpw25 @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @lukemaurer
+ocaml/parsing/                  @lpw25 @ccasin @goldfirere @riaqn @ncik-roberts @stedolan
 ocaml/runtime/                  @stedolan
-ocaml/typing/                   @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan
-ocaml/testsuite/tests/          @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @gretay-js @xclerc @lukemaurer
+ocaml/testsuite/tests/          @lpw25 @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @gretay-js @xclerc @lukemaurer
+ocaml/typing/                   @lpw25 @ccasin @goldfirere @riaqn @ncik-roberts @stedolan
+ocaml/utils/                    @lpw25 @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @lukemaurer
 
 scripts/                        @mshinwell @xclerc
 
