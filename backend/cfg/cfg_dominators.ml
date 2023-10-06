@@ -23,7 +23,7 @@ type dominator_tree =
 type t =
   { doms : doms;
     dominance_frontiers : dominance_frontiers;
-    dominator_tree : dominator_tree
+    dominator_forest : dominator_tree list
   }
 
 let rec is_dominating (doms : doms) left right =
@@ -48,15 +48,12 @@ let invariant_doms : Cfg.t -> doms -> unit =
     cfg.blocks;
   (* Check that (i) the immediate dominator is a strict dominator, and (ii)
      there is no other intermediate strict dominator - except for the entry
-     block. *)
+     block and unreachable blocks, which all have (by convention) themselves as
+     immediate dominators. *)
   Label.Tbl.iter
     (fun n idom_n ->
-      if Label.equal n cfg.entry_label
+      if not (Label.equal n idom_n)
       then (
-        if not (Label.equal idom_n cfg.entry_label)
-        then
-          fatal "Cfg_dominators.invariant_doms: invalid binding for entry label")
-      else (
         if not (is_strictly_dominating doms idom_n n)
         then
           fatal
@@ -169,18 +166,18 @@ let compute_doms : Cfg.t -> doms =
                   new_idom
                     := Some
                          (intersect doms order predecessor_label new_idom_pred)));
-          match !new_idom with
-          | None -> assert false
-          | Some new_idom -> (
-            match Label.Tbl.find_opt doms label with
-            | None ->
+          let new_idom =
+            match !new_idom with None -> label | Some new_idom -> new_idom
+          in
+          match Label.Tbl.find_opt doms label with
+          | None ->
+            Label.Tbl.replace doms label new_idom;
+            changed := true
+          | Some dom_label ->
+            if not (Label.equal dom_label new_idom)
+            then (
               Label.Tbl.replace doms label new_idom;
-              changed := true
-            | Some dom_label ->
-              if not (Label.equal dom_label new_idom)
-              then (
-                Label.Tbl.replace doms label new_idom;
-                changed := true))))
+              changed := true)))
   done;
   if debug then invariant_doms cfg doms;
   doms
@@ -253,11 +250,12 @@ let iter_breadth_dominator_tree : dominator_tree -> f:(Label.t -> unit) -> unit
     List.iter dom_tree.children ~f:(fun child -> Queue.add child queue)
   done
 
-let invariant_dominator_tree : Cfg.t -> doms -> dominator_tree -> unit =
- fun cfg doms dominator_tree ->
+let invariant_dominator_forest : Cfg.t -> doms -> dominator_tree list -> unit =
+ fun cfg doms dominator_forest ->
   let seen_by_iter = ref Label.Set.empty in
-  iter_breadth_dominator_tree dominator_tree ~f:(fun label ->
-      seen_by_iter := Label.Set.add label !seen_by_iter);
+  List.iter dominator_forest ~f:(fun dominator_tree ->
+      iter_breadth_dominator_tree dominator_tree ~f:(fun label ->
+          seen_by_iter := Label.Set.add label !seen_by_iter));
   let seen_by_cfg =
     Cfg.fold_blocks cfg ~init:Label.Set.empty
       ~f:(fun label _block seen_by_cfg -> Label.Set.add label seen_by_cfg)
@@ -265,7 +263,8 @@ let invariant_dominator_tree : Cfg.t -> doms -> dominator_tree -> unit =
   if not (Label.Set.equal !seen_by_iter seen_by_cfg)
   then
     fatal
-      "Cfg_dominators.invariant_dominator_tree: iterator did not see all blocks";
+      "Cfg_dominators.invariant_dominator_forest: iterator did not see all \
+       blocks";
   let rec check_parent ~parent tree =
     let immediate_dominator : Label.t option =
       match Label.Tbl.find_opt doms tree.label with
@@ -275,16 +274,17 @@ let invariant_dominator_tree : Cfg.t -> doms -> dominator_tree -> unit =
     if not (Option.equal Label.equal immediate_dominator parent)
     then
       fatal
-        "Cfg_dominators.invariant_dominator_tree: unexpected parent (%s) for \
+        "Cfg_dominators.invariant_dominator_forest: unexpected parent (%s) for \
          label %d"
         (Option.fold ~none:"none" ~some:string_of_int parent)
         tree.label;
     List.iter tree.children ~f:(fun child ->
         check_parent ~parent:(Some tree.label) child)
   in
-  check_parent ~parent:None dominator_tree
+  List.iter dominator_forest ~f:(fun dominator_tree ->
+      check_parent ~parent:None dominator_tree)
 
-let compute_dominator_tree : Cfg.t -> doms -> dominator_tree =
+let compute_dominator_forest : Cfg.t -> doms -> dominator_tree list =
  fun cfg doms ->
   let rec children_of parent =
     Label.Tbl.fold
@@ -296,17 +296,23 @@ let compute_dominator_tree : Cfg.t -> doms -> dominator_tree =
       doms []
   in
   let res =
-    { label = cfg.entry_label; children = children_of cfg.entry_label }
+    Cfg.fold_blocks cfg ~init:[] ~f:(fun label _block acc ->
+        match Label.Tbl.find_opt doms label with
+        | None -> assert false
+        | Some immediate_dominator ->
+          if Label.equal label immediate_dominator
+          then { label; children = children_of label } :: acc
+          else acc)
   in
-  if debug then invariant_dominator_tree cfg doms res;
+  if debug then invariant_dominator_forest cfg doms res;
   res
 
 let build : Cfg.t -> t =
  fun cfg ->
   let doms = compute_doms cfg in
   let dominance_frontiers = compute_dominance_frontiers cfg doms in
-  let dominator_tree = compute_dominator_tree cfg doms in
-  { doms; dominance_frontiers; dominator_tree }
+  let dominator_forest = compute_dominator_forest cfg doms in
+  { doms; dominance_frontiers; dominator_forest }
 
 let is_dominating t left right = is_dominating t.doms left right
 
@@ -320,7 +326,8 @@ let find_dominance_frontier t label =
     fatal "Cfg_dominators.find_dominance_frontier: no frontier for label %d"
       label
 
-let dominator_tree t = t.dominator_tree
+let dominator_forest t = t.dominator_forest
 
-let iter_breadth_dominator_tree t ~f =
-  iter_breadth_dominator_tree t.dominator_tree ~f
+let iter_breadth_dominator_forest t ~f =
+  List.iter t.dominator_forest ~f:(fun dominator_tree ->
+      iter_breadth_dominator_tree dominator_tree ~f)

@@ -17,6 +17,9 @@ val log_dominance_frontier : indent:int -> Cfg.t -> Cfg_dominators.t -> unit
 
 val log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit
 
+val log_dominator_forest :
+  indent:int -> Cfg_dominators.dominator_tree list -> unit
+
 val log_substitution : indent:int -> Substitution.t -> unit
 
 val log_substitutions : indent:int -> Substitution.map -> unit
