@@ -3900,7 +3900,6 @@ function_type:
       { ty }
 ;
 
-
 strict_function_type:
   | mktyp(
       label = arg_label
@@ -3929,16 +3928,16 @@ strict_function_type:
 
 %inline strict_arg_label:
   | label = optlabel
-    { Optional label }
+      { Optional label }
   | label = LIDENT COLON
-    { Labelled label }
+      { Labelled label }
 ;
 
 %inline arg_label:
   | strict_arg_label
-    { $1 }
+      { $1 }
   | /* empty */
-    { Nolabel }
+      { Nolabel }
 ;
 
 %inline optional_local:
@@ -3984,7 +3983,7 @@ labeled_atomic_type:
       { $1 }
 ;
 
-(* Star-separated of >= 1 type(s) with at least one label total*)
+(* Star-separated of >= 1 type(s) with at least one label total *)
 reversed_labeled_type_list:
   (* 0 unlabeled types before the first label *)
   | strict_labeled_atomic_type %prec below_HASH
