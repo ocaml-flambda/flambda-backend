@@ -2334,15 +2334,22 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let make_tuple l = match l with [e] -> e | _ -> Ctuple l
-
 let split_arity_for_apply arity args =
+  (* Decides wether a caml_applyN needs to be splitted. If N <= max_arity, then
+     keep caml_apply as is If N = max_arity + 1 then we need to make sure not to
+     create a caml_apply1 as it is illegal - hence we split at max_arity - 1
+     Otherwise we can just split at caml_apply[max_arity] *)
   let max_arity = Lambda.max_arity () in
-  if List.compare_length_with arity max_arity > 0
-  then
-    let a1, a2 = Misc.Stdlib.List.split_at max_arity arity in
-    let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
+  let do_split split_at =
+    let a1, a2 = Misc.Stdlib.List.split_at split_at arity in
+    let args1, args2 = Misc.Stdlib.List.split_at split_at args in
     (a1, args1), Some (a2, args2)
+  in
+  let c = List.compare_length_with arity (max_arity + 1) in
+  if c = 0
+  then do_split (max_arity - 1)
+  else if c >= 0
+  then do_split max_arity
   else (arity, args), None
 
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
@@ -2389,17 +2396,17 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                 Any )))
   else really_call_caml_apply clos args
 
-let might_split_call_caml_apply ~recurse result arity mut clos args pos mode dbg
-    =
+let rec might_split_call_caml_apply result arity mut clos args pos mode dbg =
   match split_arity_for_apply arity args with
   | (arity, args), None ->
     call_caml_apply result arity mut clos args pos mode dbg
   | (arity, args), Some (arity', args') ->
     bind "result"
       (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
-      (fun clos -> recurse clos args' arity')
+      (fun clos ->
+        might_split_call_caml_apply result arity' mut clos args' pos mode dbg)
 
-let rec generic_apply mut clos args args_type result (pos, mode) dbg =
+let generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
   | [arg] ->
     bind "fun" clos (fun clos ->
@@ -2407,11 +2414,7 @@ let rec generic_apply mut clos args args_type result (pos, mode) dbg =
           ( Capply (Extended_machtype.to_machtype result, pos),
             [get_field_gen mut clos 0 dbg; arg; clos],
             dbg ))
-  | _ ->
-    might_split_call_caml_apply
-      ~recurse:(fun clos args args_type ->
-        generic_apply mut clos args args_type result (pos, mode) dbg)
-      result args_type mut clos args pos mode dbg
+  | _ -> might_split_call_caml_apply result args_type mut clos args pos mode dbg
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
@@ -2839,6 +2842,8 @@ let machtype_non_scanned_size t =
       | Float -> cur + ints_per_float
       | Vec128 -> cur + ints_per_vec128)
     0 t
+
+let make_tuple l = match l with [e] -> e | _ -> Ctuple l
 
 let value_slot_given_machtype vs =
   let non_scanned, scanned =
@@ -4385,7 +4390,7 @@ let store ~dbg kind init ~addr ~new_value =
 let direct_call ~dbg ty pos f_code_sym args =
   Cop (Capply (ty, pos), f_code_sym :: args, dbg)
 
-let rec indirect_call ~dbg ty pos alloc_mode f args_type args =
+let indirect_call ~dbg ty pos alloc_mode f args_type args =
   match args_type with
   | [_] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
@@ -4399,10 +4404,8 @@ let rec indirect_call ~dbg ty pos alloc_mode f args_type args =
              @ [Cvar v],
              dbg ))
   | _ ->
-    might_split_call_caml_apply
-      ~recurse:(fun f args args_type ->
-        indirect_call ~dbg ty pos alloc_mode f args_type args)
-      ty args_type Asttypes.Mutable f args pos alloc_mode dbg
+    might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
+      alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
   (* the single-argument case is already optimized by indirect_call *)
