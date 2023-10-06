@@ -23,7 +23,6 @@ type error =
   | Variable_in_scope of Location.t * string
   | Other of Location.t
   | Ill_formed_ast of Location.t * string
-  | Optional_tuple_component of Location.t
   | Invalid_package_type of Location.t * string
   | Bigarray_index_extension of Location.t * string
 
@@ -38,7 +37,6 @@ let location_of_error = function
   | Not_expecting (l, _)
   | Ill_formed_ast (l, _)
   | Invalid_package_type (l, _)
-  | Optional_tuple_component l
   | Expecting (l, _)
   | Bigarray_index_extension (l, _) -> l
 
