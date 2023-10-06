@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*      Pierre Chambart, Vincent Laviron and Louis Gesbert, OCamlPro      *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                   Mark Shinwell, Jane Street Europe                    *)
 (*                                                                        *)
-(*   Copyright 2018 OCamlPro SAS                                          *)
-(*   Copyright 2018 Jane Street Group LLC                                 *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,17 +12,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Compile let-rec defining non-function values into separate allocation and
-    assignments. *)
+(** Augmented version of [Shape.Uid.t] that can track variables forming parts
+    of unboxed products. *)
 
-type dissected =
-  | Dissected of Lambda.lambda
-  | Unchanged
+type t = private
+  | Uid of Shape.Uid.t
+  | Proj of Shape.Uid.t * int
 
-(** [dissect_letrec] assumes that bindings have not been dissected yet. In
-    particular, that no arguments of function call are recursive. *)
-val dissect_letrec :
-  bindings:(Ident.t * Shape.Uid.t * Lambda.lambda) list ->
-  body:Lambda.lambda ->
-  free_vars_kind:(Ident.t -> Lambda.layout option) ->
-  dissected
+val internal_not_actually_unique : t
+
+val uid : Shape.Uid.t -> t
+
+val proj : Shape.Uid.t -> field:int -> t
+
+include Identifiable.S with type t := t

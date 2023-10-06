@@ -923,17 +923,17 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
 
 let rev_pat_bound_idents_full sort pat =
   let idents_full = ref [] in
-  let add id sloc typ _uid _ sort =
-    idents_full := (id, sloc, typ, sort) :: !idents_full
+  let add id sloc typ uid _ sort =
+    idents_full := (id, sloc, typ, uid, sort) :: !idents_full
   in
   iter_pattern_full ~both_sides_of_or:false add sort pat;
   !idents_full
 
 let rev_only_idents idents_full =
-  List.rev_map (fun (id,_,_,_) -> id) idents_full
+  List.rev_map (fun (id,_,_,_,_) -> id) idents_full
 
 let rev_only_idents_and_types idents_full =
-  List.rev_map (fun (id,_,ty,_) -> (id,ty)) idents_full
+  List.rev_map (fun (id,_,ty,_,_) -> (id,ty)) idents_full
 
 let pat_bound_idents_full sort pat =
   List.rev (rev_pat_bound_idents_full sort pat)

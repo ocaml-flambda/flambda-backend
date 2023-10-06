@@ -333,11 +333,18 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       match must_untag_lookup_table_result with
       | Leave_as_tagged_immediate -> body
       | Must_untag ->
-        let bound = BPt.singleton (BV.create final_arg_var NM.normal) in
+        let bound =
+          BPt.singleton
+            (BV.create final_arg_var Flambda_uid.internal_not_actually_unique
+               NM.normal)
+        in
         let untag_arg = Named.create_prim untag_arg_prim dbg in
         RE.create_let rebuilding bound untag_arg ~body ~free_names_of_body
     in
-    let bound = BPt.singleton (BV.create arg_var NM.normal) in
+    let bound =
+      BPt.singleton
+        (BV.create arg_var Flambda_uid.internal_not_actually_unique NM.normal)
+    in
     RE.create_let rebuilding bound load_from_block ~body ~free_names_of_body
   in
   let extra_free_names =
@@ -505,7 +512,9 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
                   Debuginfo.none
               in
               let bound =
-                VB.create not_scrutinee NM.normal |> Bound_pattern.singleton
+                VB.create not_scrutinee Flambda_uid.internal_not_actually_unique
+                  NM.normal
+                |> Bound_pattern.singleton
               in
               let apply_cont =
                 Apply_cont.create dest ~args:[not_scrutinee'] ~dbg
@@ -603,7 +612,9 @@ let simplify_switch ~simplify_let ~simplify_function_body dacc switch
   let let_expr =
     (* [body] won't be looked at (see below). *)
     Let.create
-      (Bound_pattern.singleton (Bound_var.create tagged_scrutinee NM.normal))
+      (Bound_pattern.singleton
+         (Bound_var.create tagged_scrutinee
+            Flambda_uid.internal_not_actually_unique NM.normal))
       tagging_prim
       ~body:(Expr.create_switch switch)
       ~free_names_of_body:Unknown

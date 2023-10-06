@@ -34,22 +34,22 @@ type t = {
 }
 
 let add_default_argument_wrappers lam =
-  let defs_are_all_functions (defs : (_ * Lambda.lambda) list) =
-    List.for_all (function (_, Lambda.Lfunction _) -> true | _ -> false) defs
+  let defs_are_all_functions (defs : (_ * _ * Lambda.lambda) list) =
+    List.for_all (function (_, _, Lambda.Lfunction _) -> true | _ -> false) defs
   in
   let f (lam : Lambda.lambda) : Lambda.lambda =
     match lam with
-    | Llet (( Strict | Alias | StrictOpt), _k, id,
+    | Llet (( Strict | Alias | StrictOpt), _k, id, uid,
         Lfunction {kind; params; body = fbody; attr; loc;
                    mode; region; return }, body) ->
       begin match
-        Simplif.split_default_wrapper ~id ~kind ~params
+        Simplif.split_default_wrapper ~id ~uid ~kind ~params
           ~body:fbody ~return ~attr ~loc ~mode ~region
       with
-      | [fun_id, def] -> Llet (Alias, Lambda.layout_function, fun_id, def, body)
-      | [fun_id, def; inner_fun_id, def_inner] ->
-        Llet (Alias, Lambda.layout_function, inner_fun_id, def_inner,
-              Llet (Alias, Lambda.layout_function, fun_id, def, body))
+      | [fun_id, fun_uid, def] -> Llet (Alias, Lambda.layout_function, fun_id, fun_uid, def, body)
+      | [fun_id, fun_uid, def; inner_fun_id, inner_fun_uid, def_inner] ->
+        Llet (Alias, Lambda.layout_function, inner_fun_id, inner_fun_uid, def_inner,
+              Llet (Alias, Lambda.layout_function, fun_id, fun_uid, def, body))
       | _ -> assert false
       end
     | Lletrec (defs, body) as lam ->
@@ -58,9 +58,9 @@ let add_default_argument_wrappers lam =
           List.flatten
             (List.map
                (function
-                 | (id, Lambda.Lfunction {kind; params; body; attr; loc;
+                 | (id, uid, Lambda.Lfunction {kind; params; body; attr; loc;
                                           mode; region; return }) ->
-                   Simplif.split_default_wrapper ~id ~kind ~params ~body
+                   Simplif.split_default_wrapper ~id ~uid ~kind ~params ~body
                      ~return ~attr ~loc ~mode ~region
                  | _ -> assert false)
                defs)
@@ -197,14 +197,15 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
   | Lconst cst ->
     let cst, name = close_const t cst in
     name_expr cst ~name
-  | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
+  | Llet ((Strict | Alias | StrictOpt), layout, id, _uid, defining_expr, body) ->
+    (* CR tnowak: is it OK to ignore the uids in this file? *)
     let var = Variable.create_with_same_name_as_ident id in
     let defining_expr =
       close_let_bound_expression t var env defining_expr
     in
     let body = close t (Env.add_var env id var layout) body in
     Flambda.create_let var defining_expr body
-  | Lmutlet (block_kind, id, defining_expr, body) ->
+  | Lmutlet (block_kind, id, _uid, defining_expr, body) ->
     let mut_var = Mutable_variable.create_with_same_name_as_ident id in
     let var = Variable.create_with_same_name_as_ident id in
     let defining_expr =
@@ -265,7 +266,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
 
   | Lletrec (defs, body) ->
     let env =
-      List.fold_right (fun (id,  _) env ->
+      List.fold_right (fun (id, _uid, _) env ->
           Env.add_var env id (Variable.create_with_same_name_as_ident id)
             Lambda.layout_letrec)
         defs env
@@ -274,7 +275,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       (* Identify any bindings in the [let rec] that are functions.  These
          will be named after the corresponding identifier in the [let rec]. *)
       List.map (function
-          | (let_rec_ident,
+          | (let_rec_ident, _let_rec_uid,
              Lambda.Lfunction { kind; params; return; body; attr; loc; mode; region }) ->
             let closure_bound_var =
               let debug_info = Debuginfo.from_location loc in
@@ -327,7 +328,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
          expression; any functions bound by it will have their own
          individual closures. *)
       let defs =
-        List.map (fun (id, def) ->
+        List.map (fun (id, _uid, def) ->
             let var, _kind = Env.find_var env id in
             var, close_let_bound_expression t ~let_rec_ident:id var env def)
           defs
@@ -463,6 +464,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       close t env
         (Lambda.Llet(Strict, Lambda.layout_unit, Ident.create_local "dummy",
+                     Shape.Uid.internal_not_actually_unique,
                      arg, Lconst const))
   | Lprim (Pfield _, [Lprim (Pgetglobal cu, [],_)], _)
       when Compilation_unit.equal cu t.current_unit ->
@@ -533,11 +535,12 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let st_exn = Static_exception.create () in
     let env = Env.add_static_exception env i st_exn in
     let vars =
-      List.map (fun (ident, kind) ->
+      List.map (fun (ident, _uid, kind) ->
           (Variable.create_with_same_name_as_ident ident, kind)) ids
     in
+    let fst3 (a, _, _) = a in
     Static_catch (st_exn, vars, close t env body,
-      close t (Env.add_vars env (List.map fst ids) vars) handler, kind)
+      close t (Env.add_vars env (List.map fst3 ids) vars) handler, kind)
   | Ltrywith (body, id, handler, kind) ->
     let var = Variable.create_with_same_name_as_ident id in
     Try_with (close t env body, var,

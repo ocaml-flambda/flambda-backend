@@ -284,7 +284,9 @@ let create_coerced_singleton_let uacc var defining_expr
         (* Generate [let uncoerced_var = <defining_expr>] *)
         let ((_body, _uacc, outer_result) as outer) =
           let bound =
-            Bound_pattern.singleton (VB.create uncoerced_var name_mode)
+            Bound_pattern.singleton
+              (VB.create uncoerced_var Flambda_uid.internal_not_actually_unique
+                 name_mode)
           in
           create_let uacc bound defining_expr ~free_names_of_defining_expr ~body
             ~cost_metrics_of_defining_expr
@@ -567,7 +569,9 @@ let create_let_symbols uacc lifted_constant ~body =
       let free_names_of_defining_expr = Named.free_names defining_expr in
       let expr, uacc, _ =
         create_coerced_singleton_let uacc
-          (VB.create var Name_mode.normal)
+          (* CR tnowak: verify *)
+          (VB.create var Flambda_uid.internal_not_actually_unique
+             Name_mode.normal)
           defining_expr ~coercion_from_defining_expr_to_var
           ~free_names_of_defining_expr ~body:expr ~cost_metrics_of_defining_expr
       in
@@ -759,11 +763,11 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
          binds [kinded_params]. *)
       let params =
         List.map
-          (fun _kind -> Variable.create "param")
+          (fun kind ->
+            BP.create (Variable.create "param") kind
+              Flambda_uid.internal_not_actually_unique
+            (* CR tnowak: verify *))
           (Flambda_arity.unarized_components arity)
-      in
-      let params =
-        List.map2 BP.create params (Flambda_arity.unarized_components arity)
       in
       let args = List.map BP.simple params in
       let params = Bound_parameters.create params in

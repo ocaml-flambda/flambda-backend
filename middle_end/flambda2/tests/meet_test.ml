@@ -17,7 +17,10 @@ let create_env () =
 let test_meet_chains_two_vars () =
   let env = create_env () in
   let var1 = Variable.create "var1" in
-  let var1' = Bound_var.create var1 Name_mode.normal in
+  let var1' =
+    Bound_var.create var1 Flambda_uid.internal_not_actually_unique
+      Name_mode.normal
+  in
   let env = TE.add_definition env (Bound_name.create_var var1') K.value in
   let env =
     TE.add_equation env (Name.var var1)
@@ -25,7 +28,10 @@ let test_meet_chains_two_vars () =
          Alloc_mode.For_types.heap ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
-  let var2' = Bound_var.create var2 Name_mode.normal in
+  let var2' =
+    Bound_var.create var2 Flambda_uid.internal_not_actually_unique
+      Name_mode.normal
+  in
   let env = TE.add_definition env (Bound_name.create_var var2') K.value in
   let first_type_for_var2 = T.alias_type_of K.value (Simple.var var1) in
   let env = TE.add_equation env (Name.var var2) first_type_for_var2 in
@@ -50,7 +56,10 @@ let test_meet_chains_two_vars () =
 let test_meet_chains_three_vars () =
   let env = create_env () in
   let var1 = Variable.create "var1" in
-  let var1' = Bound_var.create var1 Name_mode.normal in
+  let var1' =
+    Bound_var.create var1 Flambda_uid.internal_not_actually_unique
+      Name_mode.normal
+  in
   let env = TE.add_definition env (Bound_name.create_var var1') K.value in
   let env =
     TE.add_equation env (Name.var var1)
@@ -58,12 +67,18 @@ let test_meet_chains_three_vars () =
          Alloc_mode.For_types.heap ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
-  let var2' = Bound_var.create var2 Name_mode.normal in
+  let var2' =
+    Bound_var.create var2 Flambda_uid.internal_not_actually_unique
+      Name_mode.normal
+  in
   let env = TE.add_definition env (Bound_name.create_var var2') K.value in
   let first_type_for_var2 = T.alias_type_of K.value (Simple.var var1) in
   let env = TE.add_equation env (Name.var var2) first_type_for_var2 in
   let var3 = Variable.create "var3" in
-  let var3' = Bound_var.create var3 Name_mode.normal in
+  let var3' =
+    Bound_var.create var3 Flambda_uid.internal_not_actually_unique
+      Name_mode.normal
+  in
   let env = TE.add_definition env (Bound_name.create_var var3') K.value in
   let first_type_for_var3 = T.alias_type_of K.value (Simple.var var2) in
   let env = TE.add_equation env (Name.var var3) first_type_for_var3 in
@@ -88,7 +103,10 @@ let test_meet_chains_three_vars () =
 let meet_variants_don't_lose_aliases () =
   let env = create_env () in
   let define env v =
-    let v' = Bound_var.create v Name_mode.normal in
+    let v' =
+      Bound_var.create v Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     TE.add_definition env (Bound_name.create_var v') K.value
   in
   let defines env l = List.fold_left define env l in
@@ -136,7 +154,10 @@ let meet_variants_don't_lose_aliases () =
 
 let test_meet_two_blocks () =
   let define env v =
-    let v' = Bound_var.create v Name_mode.normal in
+    let v' =
+      Bound_var.create v Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     TE.add_definition env (Bound_name.create_var v') K.value
   in
   let defines env l = List.fold_left define env l in

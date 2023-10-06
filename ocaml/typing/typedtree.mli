@@ -225,7 +225,11 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
+  | Texp_function of { arg_label : arg_label;
+      (** [param] is either a freshly generated name or
+          an existing parameter name that appears in the case list.
+      *)
+      param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
@@ -984,7 +988,7 @@ val pat_bound_idents_with_types:
   'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
   Jkind.sort -> 'k general_pattern
-  -> (Ident.t * string loc * Types.type_expr * Jkind.sort) list
+  -> (Ident.t * string loc * Types.type_expr * Uid.t * Jkind.sort) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:
