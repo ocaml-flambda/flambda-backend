@@ -188,7 +188,7 @@ let rec size_of_lambda env = function
   | Lfunction{params} as funct ->
       RHS_function (2 + Ident.Set.cardinal(free_variables funct),
                     List.length params)
-  | Llet (Strict, _k, id, Lprim (Pduprecord (kind, size), _, _), body)
+  | Llet (Strict, _k, id, _uid, Lprim (Pduprecord (kind, size), _, _), body)
     when check_recordwith_updates id body ->
       begin match kind with
       | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
@@ -196,23 +196,23 @@ let rec size_of_lambda env = function
       | Record_float | Record_ufloat -> RHS_floatblock size
       | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
       end
-  | Llet(_str, _k, id, arg, body) ->
+  | Llet(_str, _k, id, _uid, arg, body) ->
       size_of_lambda (Ident.add id (size_of_lambda env arg) env) body
   (* See the Lletrec case of comp_expr *)
   | Lletrec(bindings, body) when
-      List.for_all (function (_, Lfunction _) -> true | _ -> false) bindings ->
+      List.for_all (function (_, _, Lfunction _) -> true | _ -> false) bindings ->
       (* let rec of functions *)
       let fv =
         Ident.Set.elements (free_variables (Lletrec(bindings, lambda_unit))) in
       (* See Instruct(CLOSUREREC) in interp.c *)
       let blocksize = List.length bindings * 3 - 1 + List.length fv in
-      let offsets = List.mapi (fun i (id, _e) -> (id, i * 3)) bindings in
+      let offsets = List.mapi (fun i (id, _uid, _e) -> (id, i * 3)) bindings in
       let env = List.fold_right (fun (id, offset) env ->
         Ident.add id (RHS_infix { blocksize; offset }) env) offsets env in
       size_of_lambda env body
   | Lletrec(bindings, body) ->
       let env = List.fold_right
-        (fun (id, e) env -> Ident.add id (size_of_lambda env e) env)
+        (fun (id, _uid, e) env -> Ident.add id (size_of_lambda env e) env)
         bindings env
       in
       size_of_lambda env body
@@ -647,22 +647,22 @@ let rec comp_expr env exp sz cont =
       Stack.push to_compile functions_to_compile;
       comp_args env (List.map (fun n -> Lvar n) fv) sz
         (Kclosure(lbl, List.length fv) :: cont)
-  | Llet(_, _k, id, arg, body)
-  | Lmutlet(_k, id, arg, body) ->
+  | Llet(_, _k, id, _uid, arg, body)
+  | Lmutlet(_k, id, _uid, arg, body) ->
       comp_expr env arg sz
         (Kpush :: comp_expr (add_var id (sz+1) env) body (sz+1)
           (add_pop 1 cont))
   | Lletrec(decl, body) ->
       let ndecl = List.length decl in
-      if List.for_all (function (_, Lfunction _) -> true | _ -> false)
+      if List.for_all (function (_, _uid, Lfunction _) -> true | _ -> false)
                       decl then begin
         (* let rec of functions *)
         let fv =
           Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
-        let rec_idents = List.map (fun (id, _lam) -> id) decl in
+        let rec_idents = List.map (fun (id, _uid, _lam) -> id) decl in
         let rec comp_fun pos = function
             [] -> []
-          | (_id, Lfunction{params; body}) :: rem ->
+          | (_id, _uid, Lfunction{params; body}) :: rem ->
               let lbl = new_label() in
               let to_compile =
                 { params = List.map (fun p -> p.name) params; body = body; label = lbl;
@@ -678,7 +678,7 @@ let rec comp_expr env exp sz cont =
                        (add_pop ndecl cont)))
       end else begin
         let decl_size =
-          List.map (fun (id, exp) -> (id, exp, size_of_lambda Ident.empty exp))
+          List.map (fun (id, _uid, exp) -> (id, exp, size_of_lambda Ident.empty exp))
             decl in
         let rec comp_init new_env sz = function
           | [] -> comp_nonrec new_env sz ndecl decl_size
@@ -843,7 +843,7 @@ let rec comp_expr env exp sz cont =
   | Lprim(p, args, _) ->
       comp_args env args sz (comp_primitive p args :: cont)
   | Lstaticcatch (body, (i, vars) , handler, _) ->
-      let vars = List.map fst vars in
+      let vars = List.map fst3 vars in
       let nvars = List.length vars in
       let branch1, cont1 = make_branch cont in
       let r =

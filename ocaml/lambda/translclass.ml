@@ -67,7 +67,9 @@ let lapply ap =
       Lapply ap
 
 let lparam name layout : Lambda.lparam =
-  { name; layout;
+  { name;
+    var_uid = Uid.internal_not_actually_unique (* CR tnowak: verify *);
+    layout;
     attributes = Lambda.default_param_attribute; mode = alloc_heap }
 
 let mkappl (func, args, layout) =
@@ -112,7 +114,9 @@ let transl_val tbl create name =
 let transl_vals tbl create strict vals rem =
   List.fold_right
     (fun (name, id) rem ->
-      Llet(strict, layout_int, id, transl_val tbl create name, rem))
+      (* CR tnowak: unsure, verify *)
+      let uid = Uid.internal_not_actually_unique in
+      Llet(strict, layout_int, id, uid, transl_val tbl create name, rem))
     vals rem
 
 let meths_super tbl meths inh_meths =
@@ -128,7 +132,8 @@ let meths_super tbl meths inh_meths =
 let bind_super tbl (vals, meths) cl_init =
   transl_vals tbl false StrictOpt vals
     (List.fold_right (fun (_nm, id, def) rem ->
-         Llet(StrictOpt, layout_meth, id, def, rem))
+         let uid = Uid.internal_not_actually_unique in
+         Llet(StrictOpt, layout_meth, id, uid, def, rem))
        meths cl_init)
 
 let create_object cl obj init =
@@ -141,7 +146,7 @@ let create_object cl obj init =
              [obj; Lvar cl], layout_obj))
   else begin
    (inh_init,
-    Llet(Strict, layout_obj, obj',
+    Llet(Strict, layout_obj, obj', Uid.internal_not_actually_unique,
             mkappl (oo_prim "create_object_opt", [obj; Lvar cl], layout_obj),
          Lsequence(obj_init,
                    if not has_init then Lvar obj' else
@@ -270,7 +275,9 @@ let rec build_object_init_0
 
 
 let bind_method tbl lab id cl_init =
-  Llet(Strict, layout_label, id, mkappl (oo_prim "get_method_label",
+  (* CR tnowak: unsure, verify *)
+  let uid = Uid.internal_not_actually_unique in
+  Llet(Strict, layout_label, id, uid, mkappl (oo_prim "get_method_label",
                            [Lvar tbl; transl_label lab], layout_label),
        cl_init)
 
@@ -285,12 +292,13 @@ let bind_methods tbl meths vals cl_init =
     if nvals = 0 then "get_method_labels", [] else
     "new_methods_variables", [transl_meth_list (List.map fst vals)]
   in
-  Llet(Strict, layout_label_array, ids,
+  Llet(Strict, layout_label_array, ids, Uid.internal_not_actually_unique,
        mkappl (oo_prim getter,
                [Lvar tbl; transl_meth_list (List.map fst methl)] @ names,
               layout_label_array),
        List.fold_right
          (fun (_lab,id) lam -> decr i; Llet(StrictOpt, layout_label, id,
+                                            Uid.internal_not_actually_unique (* CR tnowak: verify *),
                                            lfield ids !i, lam))
          (methl @ vals) cl_init)
 
@@ -329,7 +337,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
       begin match inh_init with
       | (_, path_lam, obj_init)::inh_init ->
           (inh_init,
-           Llet (Strict, layout_t, obj_init,
+           Llet (Strict, layout_t, obj_init, Uid.internal_not_actually_unique,
                  mkappl(Lprim(class_field 1, [path_lam], Loc_unknown), (Lvar cla ::
                         if top then [Lprim(class_field 3, [path_lam], Loc_unknown)]
                         else []), layout_t),
@@ -368,7 +376,8 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                   if !Clflags.native_code && List.length met_code = 1 then
                     (* Force correct naming of method for profiles *)
                     let met = Ident.create_local ("method_" ^ name.txt) in
-                    [Llet(Strict, layout_meth, met, List.hd met_code, Lvar met)]
+                    let uid = Uid.internal_not_actually_unique in
+                    [Llet(Strict, layout_meth, met, uid, List.hd met_code, Lvar met)]
                   else met_code
                 in
                 (inh_init, cl_init,
@@ -423,23 +432,24 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
           let cl_init =
             List.fold_left
               (fun init (nm, id, _) ->
-                Llet(StrictOpt, layout_meth, id,
+                Llet(StrictOpt, layout_meth, id, Uid.internal_not_actually_unique,
                      lfield inh (index nm concr_meths + ofs),
                      init))
               cl_init methids in
           let cl_init =
             List.fold_left
               (fun init (nm, id) ->
-                Llet(StrictOpt, layout_meth, id,
+                Llet(StrictOpt, layout_meth, id, Uid.internal_not_actually_unique,
                      lfield inh (index nm vals + 1), init))
               cl_init valids in
           (inh_init,
-           Llet (Strict, layout_array Pgenarray, inh,
+           Llet (Strict, layout_array Pgenarray, inh, Uid.internal_not_actually_unique,
                  mkappl(oo_prim "inherits", narrow_args @
                         [path_lam;
                          Lconst(const_int (if top then 1 else 0))],
                        layout_array Pgenarray),
-                 Llet(StrictOpt, layout_t, obj_init, lfield inh 0, cl_init)))
+                 Llet(StrictOpt, layout_t, obj_init, Uid.internal_not_actually_unique,
+                      lfield inh 0, cl_init)))
       | _ ->
           let core cl_init =
             build_class_init
@@ -589,13 +599,13 @@ let transl_class_rebind ~scopes cl vf =
     and table = Ident.create_local "table"
     and envs = Ident.create_local "envs" in
     Llet(
-    Strict, layout_function, new_init, lfunction layout_function [lparam obj_init layout_function] obj_init',
+    Strict, layout_function, new_init, Uid.internal_not_actually_unique, lfunction layout_function [lparam obj_init layout_function] obj_init',
     Llet(
-    Alias, layout_block, cla, path_lam,
+    Alias, layout_block, cla, Uid.internal_not_actually_unique, path_lam,
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [mkappl(Lvar new_init, [lfield cla 0], layout_function);
            lfunction layout_function [lparam table layout_table]
-             (Llet(Strict, layout_function, env_init,
+             (Llet(Strict, layout_function, env_init, Uid.internal_not_actually_unique,
                    mkappl(lfield cla 1, [Lvar table], layout_function),
                    lfunction layout_function [lparam envs layout_block]
                      (mkappl(Lvar new_init,
@@ -630,7 +640,7 @@ let rec builtin_meths self env env2 body =
     | _ -> raise Not_found
   in
   match body with
-  | Llet(_str, _k, s', Lvar s, body) when List.mem s self ->
+  | Llet(_str, _k, s', _s_uid, Lvar s, body) when List.mem s self ->
       builtin_meths (s'::self) env env2 body
   | Lapply{ap_func = f; ap_args = [arg]} when const_path f ->
       let s, args = conv arg in ("app_"^s, f :: args)
@@ -656,7 +666,7 @@ let rec builtin_meths self env env2 body =
         | Lprim(Parraysetu _, [Lvar s; Lvar n; Lvar x'], _)
           when Ident.same x x' && List.mem s self ->
             ("set_var", [Lvar n])
-        | Llet(_str, _k, s', Lvar s, body) when List.mem s self ->
+        | Llet(_str, _k, s', _s_uid, Lvar s, body) when List.mem s self ->
             enter (s'::self) body
         | _ -> raise Not_found
       in enter self body
@@ -735,13 +745,13 @@ let free_methods l =
     | Lsend _ -> ()
     | Lfunction{params} ->
         List.iter (fun p -> fv := Ident.Set.remove p.name !fv) params
-    | Llet(_, _k, id, _arg, _body)
-    | Lmutlet(_k, id, _arg, _body) ->
+    | Llet(_, _k, id, _uid, _arg, _body)
+    | Lmutlet(_k, id, _uid, _arg, _body) ->
         fv := Ident.Set.remove id !fv
     | Lletrec(decl, _body) ->
-        List.iter (fun (id, _exp) -> fv := Ident.Set.remove id !fv) decl
+        List.iter (fun (id, _uid, _exp) -> fv := Ident.Set.remove id !fv) decl
     | Lstaticcatch(_e1, (_,vars), _e2, _kind) ->
-        List.iter (fun (id, _) -> fv := Ident.Set.remove id !fv) vars
+        List.iter (fun (id, _uid, _) -> fv := Ident.Set.remove id !fv) vars
     | Ltrywith(_e1, exn, _e2, _k) ->
         fv := Ident.Set.remove exn !fv
     | Lfor {for_id} ->
@@ -806,7 +816,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
         with Not_found ->
           [lfunction ~kind ~region return (self :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
-              Llet(Alias, layout_block, env,
+              Llet(Alias, layout_block, env, Uid.internal_not_actually_unique,
                    Lprim(Pfield_computed Reads_vary,
                          [Lvar self.name; Lvar env2],
                          Loc_unknown),
@@ -825,8 +835,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     if top then lam else
     (* must be called only once! *)
     let lam = Lambda.subst no_env_update (subst env1 lam 1 new_ids_init) lam in
-    Llet(Alias, layout_block, env1, (if l = [] then Lvar envs else lfield envs 0),
-    Llet(Alias, layout_block, env1',
+    Llet(Alias, layout_block, env1, Uid.internal_not_actually_unique, (if l = [] then Lvar envs else lfield envs 0),
+    Llet(Alias, layout_block, env1', Uid.internal_not_actually_unique,
          (if !new_ids_init = [] then Lvar env1 else lfield env1 0),
          lam))
   in
@@ -856,11 +866,11 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       if name' <> name then raise(Error(cl.cl_loc, Tags(name, name'))))
     tags pub_meths;
   let ltable table lam =
-    Llet(Strict, layout_table, table,
+    Llet(Strict, layout_table, table, Uid.internal_not_actually_unique,
          mkappl (oo_prim "create_table", [transl_meth_list pub_meths],
                 layout_table), lam)
   and ldirect obj_init =
-    Llet(Strict, layout_function, obj_init, cl_init,
+    Llet(Strict, layout_function, obj_init, Uid.internal_not_actually_unique, cl_init,
          Lsequence(mkappl (oo_prim "init_class", [Lvar cla], layout_unit),
                    mkappl (Lvar obj_init, [lambda_unit], layout_function)))
   in
@@ -877,7 +887,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~mode:alloc_heap
                            ~region:true
                            ~params:[lparam cla layout_table] ~body:cl_init) in
-    Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
+    Llet(Strict, layout_function, class_init, Uid.internal_not_actually_unique, cl_init, lam (free_variables cl_init))
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
       mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
@@ -885,7 +895,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     else
       ltable table (
       Llet(
-      Strict, layout_function, env_init, mkappl (Lvar class_init, [Lvar table], layout_function),
+      Strict, layout_function, env_init, Uid.internal_not_actually_unique, mkappl (Lvar class_init, [Lvar table], layout_function),
       Lsequence(
       mkappl (oo_prim "init_class", [Lvar table], layout_unit),
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
@@ -932,13 +942,13 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       (List.rev inh_init)
   in
   let make_envs lam =
-    Llet(StrictOpt, layout_block, envs,
+    Llet(StrictOpt, layout_block, envs, Uid.internal_not_actually_unique,
          (if linh_envs = [] then lenv else
          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                lenv :: linh_envs, Loc_unknown)),
          lam)
   and def_ids cla lam =
-    Llet(StrictOpt, layout_int, env2,
+    Llet(StrictOpt, layout_int, env2, Uid.internal_not_actually_unique,
          mkappl (oo_prim "new_variable", [Lvar cla; transl_label ""], layout_int),
          lam)
   in
@@ -953,7 +963,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       inh_paths
   in
   let lclass lam =
-    Llet(Strict, layout_function, class_init,
+    Llet(Strict, layout_function, class_init, Uid.internal_not_actually_unique,
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0}) ~params:[lparam cla layout_table]
                    ~return:layout_function
@@ -963,8 +973,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lcache lam =
-    if inh_keys = [] then Llet(Alias, layout_tables, cached, Lvar tables, lam) else
-    Llet(Strict, layout_tables, cached,
+    if inh_keys = [] then Llet(Alias, layout_tables, cached, Uid.internal_not_actually_unique, Lvar tables, lam) else
+    Llet(Strict, layout_tables, cached, Uid.internal_not_actually_unique,
          mkappl (oo_prim "lookup_tables",
                 [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, alloc_heap),
                                     inh_keys, Loc_unknown)], layout_tables),
@@ -975,7 +985,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let ldirect () =
     ltable cla
-      (Llet(Strict, layout_function, env_init, def_ids cla cl_init,
+      (Llet(Strict, layout_function, env_init, Uid.internal_not_actually_unique, def_ids cla cl_init,
             Lsequence(mkappl (oo_prim "init_class", [Lvar cla], layout_unit),
                       lset cached 0 (Lvar env_init))))
   and lclass_virt () =

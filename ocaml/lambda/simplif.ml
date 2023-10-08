@@ -35,12 +35,12 @@ let rec eliminate_ref id = function
       if Ident.Set.mem id (free_variables lam)
       then raise Real_reference
       else lam
-  | Llet(str, kind, v, e1, e2) ->
-      Llet(str, kind, v, eliminate_ref id e1, eliminate_ref id e2)
-  | Lmutlet(kind, v, e1, e2) ->
-      Lmutlet(kind, v, eliminate_ref id e1, eliminate_ref id e2)
+  | Llet(str, kind, v, v_uid, e1, e2) ->
+      Llet(str, kind, v, v_uid, eliminate_ref id e1, eliminate_ref id e2)
+  | Lmutlet(kind, v, v_uid, e1, e2) ->
+      Lmutlet(kind, v, v_uid, eliminate_ref id e1, eliminate_ref id e2)
   | Lletrec(idel, e2) ->
-      Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
+      Lletrec(List.map (fun (v, v_uid, e) -> (v, v_uid, eliminate_ref id e)) idel,
               eliminate_ref id e2)
   | Lprim(Pfield (0, _sem), [Lvar v], _) when Ident.same v id ->
       Lmutvar id
@@ -132,11 +132,11 @@ let simplify_exits lam =
       count ~try_depth ap.ap_func;
       List.iter (count ~try_depth) ap.ap_args
   | Lfunction {body} -> count ~try_depth body
-  | Llet(_, _kind, _v, l1, l2)
-  | Lmutlet(_kind, _v, l1, l2) ->
+  | Llet(_, _kind, _v, _v_uid, l1, l2)
+  | Lmutlet(_kind, _v, _v_uid, l1, l2) ->
       count ~try_depth l2; count ~try_depth l1
   | Lletrec(bindings, body) ->
-      List.iter (fun (_v, l) -> count ~try_depth l) bindings;
+      List.iter (fun (_v, _v_uid, l) -> count ~try_depth l) bindings;
       count ~try_depth body
   | Lprim(_p, ll, _) -> List.iter (count ~try_depth) ll
   | Lswitch(l, sw, _loc, _kind) ->
@@ -236,12 +236,12 @@ let simplify_exits lam =
   | Lfunction{kind; params; return; mode; region; body = l; attr; loc} ->
      lfunction ~kind ~params ~return ~mode ~region
        ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
-  | Llet(str, kind, v, l1, l2) ->
-      Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
-  | Lmutlet(kind, v, l1, l2) ->
-      Lmutlet(kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
+  | Llet(str, kind, v, v_uid, l1, l2) ->
+      Llet(str, kind, v, v_uid, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
+  | Lmutlet(kind, v, v_uid, l1, l2) ->
+      Lmutlet(kind, v, v_uid, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif ~layout:None ~try_depth l)) bindings,
+      Lletrec(List.map (fun (v, v_uid, l) -> (v, v_uid, simplif ~layout:None ~try_depth l)) bindings,
       simplif ~layout ~try_depth body)
   | Lprim(p, ll, loc) -> begin
     let ll = List.map (simplif ~layout:None ~try_depth) ll in
@@ -288,10 +288,10 @@ let simplify_exits lam =
       let ls = List.map (simplif ~layout:None ~try_depth) ls in
       begin try
         let xs,handler =  Hashtbl.find subst i in
-        let ys = List.map (fun (x, k) -> Ident.rename x, k) xs in
+        let ys = List.map (fun (x, uid, k) -> x, uid, k) xs in
         let env =
           List.fold_right2
-            (fun (x, _) (y, _) env -> Ident.Map.add x y env)
+            (fun (x, _, _) (y, _, _) env -> Ident.Map.add x y env)
             xs ys Ident.Map.empty
         in
         (* The evaluation order for Lstaticraise arguments is currently
@@ -301,7 +301,7 @@ let simplify_exits lam =
            so will be evaluated last).
         *)
         List.fold_left2
-          (fun r (y, kind) l -> Llet (Strict, kind, y, l, r))
+          (fun r (y, uid, kind) l -> Llet (Strict, kind, y, uid, l, r))
           (Lambda.rename env handler) ys ls
       with
       | Not_found -> Lstaticraise (i,ls)
@@ -374,7 +374,7 @@ let exact_application {kind; params; _} args =
 
 let beta_reduce params body args =
   List.fold_left2
-    (fun l param arg -> Llet(Strict, param.layout, param.name, arg, l))
+    (fun l param arg -> Llet(Strict, param.layout, param.name, param.var_uid, arg, l))
     body params args
 
 (* Simplification of lets *)
@@ -441,20 +441,20 @@ let simplify_lets lam =
       end
   | Lfunction {body} ->
       count Ident.Map.empty body
-  | Llet(_str, _k, v, Lvar w, l2) when optimize ->
+  | Llet(_str, _k, v, _v_uid, Lvar w, l2) when optimize ->
       (* v will be replaced by w in l2, so each occurrence of v in l2
          increases w's refcount *)
       count (bind_var bv v) l2;
       use_var bv w (count_var v)
-  | Llet(str, _kind, v, l1, l2) ->
+  | Llet(str, _kind, v, _v_uid, l1, l2) ->
       count (bind_var bv v) l2;
       (* If v is unused, l1 will be removed, so don't count its variables *)
       if str = Strict || count_var v > 0 then count bv l1
-  | Lmutlet(_kind, _v, l1, l2) ->
+  | Lmutlet(_kind, _v, _v_uid, l1, l2) ->
      count bv l1;
      count bv l2
   | Lletrec(bindings, body) ->
-      List.iter (fun (_v, l) -> count bv l) bindings;
+      List.iter (fun (_v, _v_uid, l) -> count bv l) bindings;
       count bv body
   | Lprim(_p, ll, _) -> List.iter (count bv) ll
   | Lswitch(l, sw, _loc, _kind) ->
@@ -522,16 +522,16 @@ let simplify_lets lam =
 (* This (small)  optimisation is always legal, it may uncover some
    tail call later on. *)
 
-  let mklet str kind v e1 e2 =
+  let mklet str kind v v_uid e1 e2 =
     match e2 with
     | Lvar w when optimize && Ident.same v w -> e1
-    | _ -> Llet (str, kind,v,e1,e2)
+    | _ -> Llet (str, kind,v,v_uid,e1,e2)
   in
 
-  let mkmutlet kind v e1 e2 =
+  let mkmutlet kind v v_uid e1 e2 =
     match e2 with
     | Lmutvar w when optimize && Ident.same v w -> e1
-    | _ -> Lmutlet (kind,v,e1,e2)
+    | _ -> Lmutlet (kind,v,v_uid,e1,e2)
   in
 
   let rec simplif = function
@@ -575,10 +575,10 @@ let simplify_lets lam =
       | kind, region, body ->
           lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~region
       end
-  | Llet(_str, _k, v, Lvar w, l2) when optimize ->
+  | Llet(_str, _k, v, _v_uid, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
       simplif l2
-  | Llet(Strict, kind, v,
+  | Llet(Strict, kind, v, v_uid,
          Lprim(Pmakeblock(0, Mutable, kind_ref, _mode) as prim, [linit], loc),
          lbody)
     when optimize ->
@@ -590,25 +590,25 @@ let simplify_lets lam =
           | Some [field_kind] -> Pvalue field_kind
           | Some _ -> assert false
         in
-        mkmutlet kind v slinit (eliminate_ref v slbody)
+        mkmutlet kind v v_uid slinit (eliminate_ref v slbody)
       with Real_reference ->
-        mklet Strict kind v (Lprim(prim, [slinit], loc)) slbody
+        mklet Strict kind v v_uid (Lprim(prim, [slinit], loc)) slbody
       end
-  | Llet(Alias, kind, v, l1, l2) ->
+  | Llet(Alias, kind, v, v_uid, l1, l2) ->
       begin match count_var v with
         0 -> simplif l2
       | 1 when optimize -> Hashtbl.add subst v (simplif l1); simplif l2
-      | _ -> Llet(Alias, kind, v, simplif l1, simplif l2)
+      | _ -> Llet(Alias, kind, v, v_uid, simplif l1, simplif l2)
       end
-  | Llet(StrictOpt, kind, v, l1, l2) ->
+  | Llet(StrictOpt, kind, v, v_uid, l1, l2) ->
       begin match count_var v with
         0 -> simplif l2
-      | _ -> mklet StrictOpt kind v (simplif l1) (simplif l2)
+      | _ -> mklet StrictOpt kind v v_uid (simplif l1) (simplif l2)
       end
-  | Llet(str, kind, v, l1, l2) -> mklet str kind v (simplif l1) (simplif l2)
-  | Lmutlet(kind, v, l1, l2) -> mkmutlet kind v (simplif l1) (simplif l2)
+  | Llet(str, kind, v, v_uid, l1, l2) -> mklet str kind v v_uid (simplif l1) (simplif l2)
+  | Lmutlet(kind, v, v_uid, l1, l2) -> mkmutlet kind v v_uid (simplif l1) (simplif l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif l)) bindings, simplif body)
+      Lletrec(List.map (fun (v, v_uid, l) -> (v, v_uid, simplif l)) bindings, simplif body)
   | Lprim(p, ll, loc) -> Lprim(p, List.map simplif ll, loc)
   | Lswitch(l, sw, loc, kind) ->
       let new_l = simplif l
@@ -680,12 +680,12 @@ let rec emit_tail_infos is_tail lambda =
       list_emit_tail_infos false ap.ap_args
   | Lfunction {body = lam} ->
       emit_tail_infos true lam
-  | Llet (_, _k, _, lam, body)
-  | Lmutlet (_k, _, lam, body) ->
+  | Llet (_, _k, _, _, lam, body)
+  | Lmutlet (_k, _, _, lam, body) ->
       emit_tail_infos false lam;
       emit_tail_infos is_tail body
   | Lletrec (bindings, body) ->
-      List.iter (fun (_, lam) -> emit_tail_infos false lam) bindings;
+      List.iter (fun (_, _, lam) -> emit_tail_infos false lam) bindings;
       emit_tail_infos is_tail body
   | Lprim ((Pbytes_to_string | Pbytes_of_string |
             Parray_to_iarray | Parray_of_iarray),
@@ -758,7 +758,7 @@ and list_emit_tail_infos is_tail =
    'Some' constructor, only to deconstruct it immediately in the
    function's body. *)
 
-let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
+let split_default_wrapper ~id:fun_id ~uid:fun_uid ~kind ~params ~return ~body
       ~attr ~loc ~mode ~region:orig_region =
   let rec aux map add_region = function
     (* When compiling [fun ?(x=expr) -> body], this is first translated
@@ -776,7 +776,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
        which is why we need a deep pattern matching on the expected result of
        the pattern-matching compiler for options.
     *)
-    | Llet(Strict, k, id,
+    | Llet(Strict, k, id, uid,
            (Lifthenelse(Lprim (Pisint _, [Lvar optparam], _), _, _, _) as def),
            rest) when
         String.starts_with (Ident.name optparam) ~prefix:"*opt*" &&
@@ -784,7 +784,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
-        Llet(Strict, k, id, def, wrapper_body), inner
+        Llet(Strict, k, id, uid, def, wrapper_body), inner
     | Lregion (rest, _) -> aux map true rest
     | Lexclave rest -> aux map true rest
     | _ when map = [] -> raise Exit
@@ -795,11 +795,13 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         List.iter (fun (id, _) -> if Ident.Set.mem id fv then raise Exit) map;
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
+        let inner_uid = Uid.internal_not_actually_unique in
         let map_param (p : Lambda.lparam) =
           try
             (* If the param is optional, then it must be a value *)
             {
               name = List.assoc p.name map;
+              var_uid = Uid.internal_not_actually_unique; (* CR tnowak: verify *)
               layout = Lambda.layout_field;
               attributes = Lambda.default_param_attribute;
               mode = p.mode
@@ -838,7 +840,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~region:true
         in
-        (wrapper_body, (inner_id, inner_fun))
+        (wrapper_body, (inner_id, inner_uid, inner_fun))
   in
   try
     (* TODO: enable this optimisation even in the presence of local returns *)
@@ -849,9 +851,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
+    [(fun_id, fun_uid, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
   with Exit ->
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
+    [(fun_id, fun_uid, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the
@@ -906,7 +908,7 @@ let simplify_local_functions lam =
     | Some sco -> sco == scope
   in
   let rec tail = function
-    | Llet (_str, _kind, id, Lfunction lf, cont) when enabled lf.attr ->
+    | Llet (_str, _kind, id, _uid, Lfunction lf, cont) when enabled lf.attr ->
         let r =
           {func = lf; function_scope = !current_function_scope; scope = None}
         in
@@ -1001,7 +1003,7 @@ let simplify_local_functions lam =
   let rec rewrite lam0 =
     let lam =
       match lam0 with
-      | Llet (_, _, id, _, cont) when Hashtbl.mem static_id id ->
+      | Llet (_, _, id, _uid, _, cont) when Hashtbl.mem static_id id ->
           rewrite cont
       | Lapply {ap_func = Lvar id; ap_args; _} when Hashtbl.mem static_id id ->
          let st = Hashtbl.find static_id id in
@@ -1016,7 +1018,7 @@ let simplify_local_functions lam =
     in
     let new_params lf =
       List.map
-        (fun p -> (p.name, p.layout)) lf.params
+        (fun p -> (p.name, p.var_uid, p.layout)) lf.params
     in
     List.fold_right
       (fun (st, lf) lam ->

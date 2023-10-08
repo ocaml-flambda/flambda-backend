@@ -146,6 +146,36 @@ let dwarf_for_variable state ~function_proto_die ~proto_dies_for_vars
       function_proto_die, true
     | Some _provenance -> function_proto_die, false
   in
+  let is_parameter = ARV.Range_info.is_parameter range_info in
+  let type_and_name_attributes =
+    match type_die_reference_for_var var ~proto_dies_for_vars with
+    | None -> []
+    | Some reference ->
+      let name_for_var =
+        (* For the moment assume function parameter names are unique, they
+           almost always will be, and avoiding the stamps looks much better in
+           the debugger. *)
+        match is_parameter with
+        | Parameter _ -> Backend_var.name_for_debugger var
+        | Local -> Backend_var.unique_name_for_debugger var
+      in
+      let proto_die_reference =
+        match provenance with
+        | Some provenance ->
+          let die_reference =
+            Dwarf_type.variable_to_die state
+              (Backend_var.Provenance.uid provenance)
+              ~parent_proto_die
+          in
+          die_reference
+        | None -> Proto_die.reference (DS.value_type_proto_die state)
+      in
+      let type_attribute =
+        [DAH.create_type_from_reference ~proto_die_reference]
+      in
+      let name_attribute = [DAH.create_name name_for_var] in
+      name_attribute @ type_attribute
+  in
   let location_attribute_value, location_list_in_debug_loc_table =
     (* Build a location list that identifies where the value of [var] may be
        found at runtime, indexed by program counter range. The representations
@@ -188,27 +218,6 @@ let dwarf_for_variable state ~function_proto_die ~proto_dies_for_vars
         Location_list_table.add (DS.location_list_table state) location_list
       in
       [DAH.create_location location_list_index], None
-  in
-  let is_parameter = ARV.Range_info.is_parameter range_info in
-  let type_and_name_attributes =
-    match type_die_reference_for_var var ~proto_dies_for_vars with
-    | None -> []
-    | Some reference ->
-      let name_for_var =
-        (* For the moment assume function parameter names are unique, they
-           almost always will be, and avoiding the stamps looks much better in
-           the debugger. *)
-        match is_parameter with
-        | Parameter _ -> Backend_var.name_for_debugger var
-        | Local -> Backend_var.unique_name_for_debugger var
-      in
-      let type_attribute =
-        [ DAH.create_type_from_reference
-            ~proto_die_reference:
-              (Proto_die.reference (DS.value_type_proto_die state)) ]
-      in
-      let name_attribute = [DAH.create_name name_for_var] in
-      name_attribute @ type_attribute
   in
   let tag : Dwarf_tag.t =
     match is_parameter with

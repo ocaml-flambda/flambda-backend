@@ -320,7 +320,8 @@ let add_equation_on_name t name ty =
 let define_parameters t ~params =
   List.fold_left
     (fun t param ->
-      let var = Bound_var.create (BP.var param) Name_mode.normal in
+      let param_var, param_uid = BP.var_and_uid param in
+      let var = Bound_var.create param_var param_uid Name_mode.normal in
       define_variable t var (K.With_subkind.kind (BP.kind param)))
     t
     (Bound_parameters.to_list params)
@@ -341,7 +342,8 @@ let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
   in
   List.fold_left2
     (fun t param param_type ->
-      let var = Bound_var.create (BP.var param) name_mode in
+      let param_var, param_uid = BP.var_and_uid param in
+      let var = Bound_var.create param_var param_uid name_mode in
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 

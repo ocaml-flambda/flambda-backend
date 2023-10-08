@@ -577,7 +577,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let bound_vars, env =
       let convert_binding env (var, _) : Bound_var.t * env =
         let var, env = fresh_var env var in
-        let var = Bound_var.create var Name_mode.normal in
+        (* CR tnowak: verify *)
+        let var =
+          Bound_var.create var Flambda_uid.internal_not_actually_unique
+            Name_mode.normal
+        in
         var, env
       in
       map_accum_left convert_binding env vars_and_closure_bindings
@@ -604,7 +608,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let named = defining_expr env d in
     let id, env = fresh_var env var in
     let body = expr env body in
-    let var = Bound_var.create id Name_mode.normal in
+    let var =
+      Bound_var.create id Flambda_uid.internal_not_actually_unique
+        Name_mode.normal
+    in
     let bound = Bound_pattern.singleton var in
     Flambda.Let.create bound named ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let
@@ -633,7 +640,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
           let var, env = fresh_var env param in
           let param =
-            Bound_parameter.create var (value_kind_with_subkind_opt kind)
+            Bound_parameter.create var
+              (value_kind_with_subkind_opt kind)
+              Flambda_uid.internal_not_actually_unique
+            (* CR tnowak: verify *)
           in
           env, param :: args)
         params (env, [])
@@ -842,7 +852,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (fun env ({ param; kind } : Fexpr.kinded_parameter) ->
                 let var, env = fresh_var env param in
                 let param =
-                  Bound_parameter.create var (value_kind_with_subkind_opt kind)
+                  Bound_parameter.create var
+                    (value_kind_with_subkind_opt kind)
+                    Flambda_uid.internal_not_actually_unique
+                  (* CR tnowak: verify *)
                 in
                 param, env)
               env params

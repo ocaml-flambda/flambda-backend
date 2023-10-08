@@ -17,6 +17,8 @@
 
 open Asttypes
 
+module Uid = Shape.Uid
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -449,6 +451,7 @@ type parameter_attribute = No_attributes
 
 type lparam = {
   name : Ident.t;
+  var_uid : Uid.t;
   layout : layout;
   attributes : parameter_attribute;
   mode : alloc_mode
@@ -462,9 +465,9 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * layout * Ident.t * lambda * lambda
-  | Lmutlet of layout * Ident.t * lambda * lambda
-  | Lletrec of (Ident.t * lambda) list * lambda
+  | Llet of let_kind * layout * Ident.t * Uid.t * lambda * lambda
+  | Lmutlet of layout * Ident.t * Uid.t * lambda * lambda
+  | Lletrec of (Ident.t * Uid.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
@@ -472,7 +475,7 @@ type lambda =
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
-  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  | Lstaticcatch of lambda * (static_label * (Ident.t * Uid.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
 (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
@@ -685,7 +688,7 @@ val shallow_map  :
   (** Rewrite each immediate sub-term with the function. *)
 
 val bind_with_layout:
-  let_kind -> (Ident.t * layout) -> lambda -> lambda -> lambda
+  let_kind -> (Ident.t * Uid.t * layout) -> lambda -> lambda -> lambda
 
 val negate_integer_comparison : integer_comparison -> integer_comparison
 val swap_integer_comparison : integer_comparison -> integer_comparison

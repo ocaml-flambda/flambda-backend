@@ -294,6 +294,7 @@
   dwarf_reg_locations
   dwarf_state
   dwarf_variables_and_parameters
+  dwarf_type
   ;; driver/
   opterrors
   optcompile

@@ -157,7 +157,8 @@ type letrec =
 type let_def =
   { let_kind : Lambda.let_kind;
     layout : Lambda.layout;
-    ident : Ident.t
+    ident : Ident.t;
+    uid : Uid.t
   }
 
 exception Bug
@@ -221,6 +222,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
           ( current_let.let_kind,
             current_let.layout,
             current_let.ident,
+            (* CR tnowak: probably invalid *)
+            Uid.internal_not_actually_unique,
             lam,
             letrec.pre ~tail )
       in
@@ -253,7 +256,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     let lam =
       List.fold_left
         (fun body (id, def) : Lambda.lambda ->
-          Llet (Strict, arg_layout, id, def, body))
+          Llet
+            ( Strict,
+              arg_layout,
+              id,
+              (* CR tnowak: probably invalid *) Uid.internal_not_actually_unique,
+              def,
+              body ))
         (Lambda.Lprim (prim, args, dbg))
         defs
     in
@@ -297,7 +306,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     | Some current_let ->
       { letrec with consts = (current_let.ident, const) :: letrec.consts }
     | None -> dead_code lam letrec)
-  | Lmutlet (k, id, def, body) ->
+  | Lmutlet (k, id, uid, def, body) ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
     (* Variable let comes from mutable values, and reading from it is considered
        as inspections by Typecore.check_recursive_expression.
@@ -312,7 +321,9 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     let free_vars_def = Lambda.free_variables def in
     if Ident.Set.disjoint free_vars_def recursive_set
     then
-      let pre ~tail : Lambda.lambda = Lmutlet (k, id, def, letrec.pre ~tail) in
+      let pre ~tail : Lambda.lambda =
+        Lmutlet (k, id, uid, def, letrec.pre ~tail)
+      in
       { letrec with pre }
     else
       let free_vars_body = Lambda.free_variables body in
@@ -320,7 +331,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       assert (not (Ident.Set.mem id free_vars_body));
       (* It is not used, we only keep the effect *)
       { letrec with effects = Lsequence (def, letrec.effects) }
-  | Llet (((Strict | Alias | StrictOpt) as let_kind), layout, id, def, body) ->
+  | Llet (((Strict | Alias | StrictOpt) as let_kind), layout, id, uid, def, body)
+    ->
     let letbound = Ident.Set.add id letrec.letbound in
     let letrec = { letrec with letbound } in
     let free_vars = Lambda.free_variables def in
@@ -329,13 +341,19 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       (* Non recursive let *)
       let letrec = prepare_letrec recursive_set current_let body letrec in
       let pre ~tail : Lambda.lambda =
-        Llet (let_kind, layout, id, def, letrec.pre ~tail)
+        Llet
+          ( let_kind,
+            layout,
+            id,
+            Uid.internal_not_actually_unique (* CR tnowak: probably invalid *),
+            def,
+            letrec.pre ~tail )
       in
       { letrec with pre }
     else
       let recursive_set = Ident.Set.add id recursive_set in
       let letrec = prepare_letrec recursive_set current_let body letrec in
-      let let_def = { let_kind; layout; ident = id } in
+      let let_def = { let_kind; layout; ident = id; uid } in
       prepare_letrec recursive_set (Some let_def) def letrec
   | Lsequence (lam1, lam2) ->
     let letrec = prepare_letrec recursive_set current_let lam2 letrec in
@@ -358,7 +376,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
        safely depend upon them. *)
     let deps =
       List.fold_left
-        (fun acc (x, def) -> Ident.Map.add x (Lambda.free_variables def) acc)
+        (fun acc (x, _x_uid, def) ->
+          Ident.Map.add x (Lambda.free_variables def) acc)
         Ident.Map.empty bindings
     in
     let vars = Ident.Map.keys deps in
@@ -402,9 +421,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       in
       let letrec, inner_effects, inner_functions =
         List.fold_right
-          (fun (id, def) (letrec, inner_effects, inner_functions) ->
+          (fun (id, uid, def) (letrec, inner_effects, inner_functions) ->
             let let_def =
-              { let_kind = Strict; layout = Lambda.layout_letrec; ident = id }
+              { let_kind = Strict;
+                layout = Lambda.layout_letrec;
+                ident = id;
+                uid
+              }
             in
             if Ident.Set.mem id outer_vars
             then
@@ -457,7 +480,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         | [] -> pre
         | _ :: _ ->
           let functions =
-            List.map (fun (id, lfun) -> id, Lfunction lfun) inner_functions
+            List.map
+              (fun (id, lfun) ->
+                ( id,
+                  Uid.internal_not_actually_unique
+                  (* CR tnowak: probably invalid *),
+                  Lfunction lfun ))
+              inner_functions
           in
           fun ~tail -> Lletrec (functions, pre ~tail)
       in
@@ -530,7 +559,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       match current_let with
       | Some cl ->
         fun ~tail : Lambda.lambda ->
-          Llet (cl.let_kind, cl.layout, cl.ident, lam, letrec.pre ~tail)
+          Llet
+            ( cl.let_kind,
+              cl.layout,
+              cl.ident,
+              Uid.internal_not_actually_unique (* CR tnowak: probably invalid *),
+              lam,
+              letrec.pre ~tail )
       | None -> fun ~tail : Lambda.lambda -> Lsequence (lam, letrec.pre ~tail)
     in
     { letrec with pre }
@@ -543,13 +578,15 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       Printlambda.lambda lam
   [@@ocaml.warning "-fragile-match"]
 
+let fst3 (a, _, _) = a
+
 let dissect_letrec ~bindings ~body ~free_vars_kind =
-  let letbound = Ident.Set.of_list (List.map fst bindings) in
+  let letbound = Ident.Set.of_list (List.map fst3 bindings) in
   let letrec =
     List.fold_right
-      (fun (id, def) letrec ->
+      (fun (id, uid, def) letrec ->
         let let_def =
-          { let_kind = Strict; layout = Lambda.layout_letrec; ident = id }
+          { let_kind = Strict; layout = Lambda.layout_letrec; ident = id; uid }
         in
         prepare_letrec letbound (Some let_def) def letrec)
       bindings
@@ -583,7 +620,12 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
     | [] -> effects_then_body
     | _ :: _ ->
       let functions =
-        List.map (fun (id, lfun) -> id, Lfunction lfun) letrec.functions
+        List.map
+          (fun (id, lfun) ->
+            ( id,
+              Uid.internal_not_actually_unique (* CR tnowak: probably invalid *),
+              Lfunction lfun ))
+          letrec.functions
       in
       Lletrec (functions, effects_then_body)
   in
@@ -592,7 +634,13 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
     List.fold_left
       (fun body (id, binding) ->
         (* Preallocations can only be blocks *)
-        Llet (Strict, Lambda.layout_block, id, binding, body))
+        Llet
+          ( Strict,
+            Lambda.layout_block,
+            id,
+            Uid.internal_not_actually_unique (* CR tnowak: probably invalid *),
+            binding,
+            body ))
       with_non_rec preallocations
   in
   let with_constants =
@@ -602,6 +650,7 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
           ( Strict,
             Lambda.structured_constant_layout const,
             id,
+            Uid.internal_not_actually_unique (* CR tnowak: probably invalid *),
             Lconst const,
             body ))
       with_preallocations letrec.consts
@@ -612,7 +661,7 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
     let body_layout =
       let bindings =
         Ident.Map.map (fun _ -> Lambda.layout_letrec)
-        @@ Ident.Map.of_list bindings
+        @@ Ident.Map.of_list (List.map (fun (id, _uid, l) -> id, l) bindings)
       in
       let free_vars_kind id : Lambda.layout option =
         try Some (Ident.Map.find id bindings)
@@ -628,7 +677,7 @@ type dissected =
   | Unchanged
 
 let dissect_letrec ~bindings ~body ~free_vars_kind =
-  let is_a_function = function _, Lfunction _ -> true | _, _ -> false in
+  let is_a_function = function _, _, Lfunction _ -> true | _, _, _ -> false in
   if List.for_all is_a_function bindings
   then Unchanged
   else

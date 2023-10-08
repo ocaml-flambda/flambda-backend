@@ -62,10 +62,12 @@ and offset = Offset of lambda
 let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
-  { name = var ; layout = Lambda.layout_block ;
-    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
-  { name = offset ; layout = Lambda.layout_int ;
-    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+  { name = var ; var_uid = Uid.internal_not_actually_unique (* CR tnowak: verify *) ;
+    layout = Lambda.layout_block ; attributes = Lambda.default_param_attribute ;
+    mode = alloc_heap } ::
+  { name = offset ; var_uid = Uid.internal_not_actually_unique ;
+    layout = Lambda.layout_int ; attributes = Lambda.default_param_attribute ;
+    mode = alloc_heap } ::
   params
 
 let add_dst_args ({var; offset} : offset destination) args =
@@ -138,7 +140,8 @@ end = struct
     let placeholder_pos = List.length constr.before in
     let placeholder_pos_lam = Lconst (Const_base (Const_int placeholder_pos)) in
     let block_var = Ident.create_local "block" in
-    Llet (Strict, Lambda.layout_block, block_var, k_with_placeholder,
+    let uid = Uid.internal_not_actually_unique in
+    Llet (Strict, Lambda.layout_block, block_var, uid, k_with_placeholder,
           body {
             var = block_var;
             offset = Offset placeholder_pos_lam ;
@@ -162,14 +165,15 @@ end = struct
             else begin
               let v = Ident.create_local
                   (Printf.sprintf "block%d_arg%d" block_id (arg_offset + i)) in
-              (Some (v, lam), Lvar v)
+              let uid = Uid.internal_not_actually_unique in
+              (Some (v, uid, lam), Lvar v)
             end)
         |> List.split in
       let body = k args in
       List.fold_right (fun binding body ->
           match binding with
           | None -> body
-          | Some (v, lam) -> Llet(Strict, Lambda.layout_field, v, lam, body)
+          | Some (v, uid, lam) -> Llet(Strict, Lambda.layout_field, v, uid, lam, body)
         ) bindings body in
     fun ~block_id constr body ->
     bind_list ~block_id ~arg_offset:0 constr.before @@ fun vbefore ->
@@ -557,8 +561,8 @@ and specialized = {
 }
 
 let llets lk vk bindings body =
-  List.fold_right (fun (var, def) body ->
-    Llet (lk, vk, var, def, body)
+  List.fold_right (fun (var, uid, def) body ->
+    Llet (lk, vk, var, uid, def, body)
   ) bindings body
 
 let find_candidate = function
@@ -570,7 +574,7 @@ let find_candidate = function
      Some lfun
   | _ -> None
 
-let declare_binding ctx (var, def) =
+let declare_binding ctx (var, _uid, def) =
   match find_candidate def with
   | None -> ctx
   | Some lfun ->
@@ -609,13 +613,13 @@ let rec choice ctx t =
         let l1 = traverse ctx l1 in
         let+ (l2, l3) = choice_pair ctx ~tail (l2, l3) in
         Lifthenelse (l1, l2, l3, kind)
-    | Lmutlet (vk, var, def, body) ->
+    | Lmutlet (vk, var, uid, def, body) ->
         (* mutable bindings are not TMC-specialized *)
         let def = traverse ctx def in
         let+ body = choice ctx ~tail body in
-        Lmutlet (vk, var, def, body)
-    | Llet (lk, vk, var, def, body) ->
-        let ctx, bindings = traverse_let ctx var def in
+        Lmutlet (vk, var, uid, def, body)
+    | Llet (lk, vk, var, uid, def, body) ->
+        let ctx, bindings = traverse_let ctx var uid def in
         let+ body = choice ctx ~tail body in
         llets lk vk bindings body
     | Lletrec (bindings, body) ->
@@ -953,8 +957,8 @@ let rec choice ctx t =
   in choice ctx t
 
 and traverse ctx = function
-  | Llet (lk, vk, var, def, body) ->
-      let ctx, bindings = traverse_let ctx var def in
+  | Llet (lk, vk, var, uid, def, body) ->
+      let ctx, bindings = traverse_let ctx var uid def in
       let body = traverse ctx body in
       llets lk vk bindings body
   | Lletrec (bindings, body) ->
@@ -963,9 +967,9 @@ and traverse ctx = function
   | lam ->
       shallow_map ~tail:(traverse ctx) ~non_tail:(traverse ctx) lam
 
-and traverse_let outer_ctx var def =
-  let inner_ctx = declare_binding outer_ctx (var, def) in
-  let bindings = traverse_binding outer_ctx inner_ctx (var, def) in
+and traverse_let outer_ctx var uid def =
+  let inner_ctx = declare_binding outer_ctx (var, uid, def) in
+  let bindings = traverse_binding outer_ctx inner_ctx (var, uid, def) in
   inner_ctx, bindings
 
 and traverse_letrec ctx bindings =
@@ -973,9 +977,9 @@ and traverse_letrec ctx bindings =
   let bindings = List.concat_map (traverse_binding ctx ctx) bindings in
   ctx, bindings
 
-and traverse_binding outer_ctx inner_ctx (var, def) =
+and traverse_binding outer_ctx inner_ctx (var, uid, def) =
   match find_candidate def with
-  | None -> [(var, traverse outer_ctx def)]
+  | None -> [(var, uid, traverse outer_ctx def)]
   | Some lfun ->
   let special = Ident.Map.find var inner_ctx.specialized in
   let fun_choice = choice outer_ctx ~tail:true lfun.body in
@@ -1017,7 +1021,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       ~region:true
   in
   let dps_var = special.dps_id in
-  [(var, direct); (dps_var, dps)]
+  (* CR tnowak: verify *)
+  let dps_uid = Uid.internal_not_actually_unique in
+  [(var, uid, direct); (dps_var, dps_uid, dps)]
 
 and traverse_list ctx terms =
   List.map (traverse ctx) terms

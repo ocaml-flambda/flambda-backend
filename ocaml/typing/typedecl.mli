@@ -61,6 +61,8 @@ val check_coherence:
 (* for fixed types *)
 val is_fixed_type : Parsetree.type_declaration -> bool
 
+val uid_of_path : env:Env.t -> Path.t -> Types.Uid.t option
+
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)

@@ -175,9 +175,9 @@ let expand_record_head h =
       { h with pat_desc = Record (Array.to_list lbl_all) }
   | _ -> h
 
-let bind_alias p id ~arg ~arg_sort ~action =
+let bind_alias p id uid ~arg ~arg_sort ~action =
   let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
-  bind_with_layout Alias (id, k) arg action
+  bind_with_layout Alias (id, uid, k) arg action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
@@ -259,10 +259,10 @@ end = struct
       | `Any -> stop p `Any
       | `Var (id, s, uid, mode) ->
         continue p (`Alias (Patterns.omega, id, s, uid, mode))
-      | `Alias (p, id, _, _, _) ->
+      | `Alias (p, id, _, uid, _) ->
           aux
             ( (General.view p, patl),
-              bind_alias p id ~arg ~arg_sort ~action )
+              bind_alias p id uid ~arg ~arg_sort ~action )
       | `Record ([], _) as view -> stop p view
       | `Record (lbls, closed) ->
           let full_view = `Record (all_record_args lbls, closed) in
@@ -399,7 +399,9 @@ end = struct
                   let pat, action =
                     fresh_clause (Some id) action_vars renaming_env rem_vars
                   in
-                  pat, bind_alias pat id ~arg ~arg_sort ~action
+                  (* CR tnowak: unsure, verify *)
+                  let uid = Uid.internal_not_actually_unique in
+                  pat, bind_alias pat id uid ~arg ~arg_sort ~action
               end
           in
           fresh_clause None [] [] patbound_action_vars :: rem
@@ -966,7 +968,7 @@ type 'row pattern_matching = {
 type handler = {
   provenance : matrix;
   exit : int;
-  vars : (Ident.t * Lambda.layout) list;
+  vars : (Ident.t * Uid.t * Lambda.layout) list;
   pm : initial_clause pattern_matching
 }
 
@@ -1072,7 +1074,7 @@ let make_catch kind d k =
 (* Introduce a catch, if worth it, delayed version *)
 let rec as_simple_exit = function
   | Lstaticraise (i, []) -> Some i
-  | Llet (Alias, _k, _, _, e) -> as_simple_exit e
+  | Llet (Alias, _k, _, _, _, e) -> as_simple_exit e
   | _ -> None
 
 let make_catch_delayed kind handler =
@@ -1602,9 +1604,9 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
               Typedtree.pat_bound_idents_full arg_sort orp
-              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, _, ty, id_sort) ->
-                     (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
+              |> List.filter (fun (id, _, _, _, _) -> Ident.Set.mem id pm_fv)
+              |> List.map (fun (id, _, ty, uid, id_sort) ->
+                     (id, uid, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -1614,7 +1616,7 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
             let new_cases =
               Simple.explode_or_pat ~arg ~arg_sort p
                 ~mk_action:mk_new_action
-                ~patbound_action_vars:(List.map fst patbound_action_vars)
+                ~patbound_action_vars:(List.map fst3 patbound_action_vars)
               |> List.map (fun (p, act) -> ((p, new_patl), act)) in
             let handler =
               { provenance = [ [ orp ] ];
@@ -1942,19 +1944,25 @@ let lazy_forward_field = Lambda.Pfield (0, Reads_vary)
 
 let inline_lazy_force_cond arg pos loc =
   let idarg = Ident.create_local "lzarg" in
+  (* CR tnowak: verify *)
+  let uidarg = Uid.internal_not_actually_unique in
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
+  (* CR tnowak: verify *)
+  let uidtag = Uid.internal_not_actually_unique in
   let tag_var = Lvar tag in
   let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
       Lambda.layout_lazy,
       idarg,
+      uidarg,
       arg,
       Llet
         ( Alias,
           Lambda.layout_int,
           tag,
+          uidtag,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
             (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
@@ -1986,12 +1994,14 @@ let inline_lazy_force_cond arg pos loc =
 
 let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
+  let uidarg = Uid.internal_not_actually_unique in
   let varg = Lvar idarg in
   let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
       Lambda.layout_lazy,
       idarg,
+      uidarg,
       arg,
       Lifthenelse
         ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
@@ -2249,7 +2259,8 @@ let bind_sw arg layout k =
   | Lvar _ -> k arg
   | _ ->
       let id = Ident.create_local "switch" in
-      Llet (Strict, layout, id, arg, k (Lvar id))
+      let uid = Uid.internal_not_actually_unique in
+      Llet (Strict, layout, id, uid, arg, k (Lvar id))
 
 (* Sequential equality tests *)
 
@@ -2463,8 +2474,9 @@ module SArg = struct
           let newvar = Ident.create_local "switcher" in
           (newvar, Lvar newvar)
     in
+    let uid = Uid.internal_not_actually_unique in
     (* [switch.ml] will only call bind with an integer argument *)
-    bind_with_layout Alias (newvar, Lambda.layout_int) arg (body newarg)
+    bind_with_layout Alias (newvar, uid, Lambda.layout_int) arg (body newarg)
 
   let make_const i = Lconst (Const_base (Const_int i))
 
@@ -2919,6 +2931,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
           | [] -> default
           | _ ->
               let tag = Ident.create_local "tag" in
+              let uid = Uid.internal_not_actually_unique in
               let tests =
                 List.fold_right
                   (fun (path, act) rem ->
@@ -2927,7 +2940,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                       (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
-              Llet (Alias, Lambda.layout_block, tag,
+              Llet (Alias, Lambda.layout_block, tag, uid,
                     Lprim (Pfield (0, Reads_agree), [ arg ], loc),
                     tests)
         in
@@ -3022,10 +3035,12 @@ let call_switcher_variant_constant kind loc fail arg int_lambda_list =
 
 let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
   let v = Ident.create_local "variant" in
+  let uid = Uid.internal_not_actually_unique in
   Llet
     ( Alias,
       Lambda.layout_int,
       v,
+      uid,
       Lprim (nonconstant_variant_field 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
 
@@ -3107,7 +3122,8 @@ let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, tota
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
-    bind_with_layout Alias (newvar, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
+    let uid = Uid.internal_not_actually_unique in
+    bind_with_layout Alias (newvar, uid, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
 
@@ -3125,8 +3141,8 @@ let rec event_branch repr lam =
             lev_repr = repr;
             lev_env = ev.lev_env
           } )
-  | Llet (str, k, id, lam, body), _ ->
-      Llet (str, k, id, lam, event_branch repr body)
+  | Llet (str, k, id, uid, lam, body), _ ->
+      Llet (str, k, id, uid, lam, event_branch repr body)
   | Lstaticraise _, _ -> lam
   | _, Some _ ->
       Printlambda.lambda Format.str_formatter lam;
@@ -3220,7 +3236,7 @@ let rec approx_present v = function
   | Lstaticraise (_, args) ->
       List.exists (fun lam -> approx_present v lam) args
   | Lprim (_, args, _) -> List.exists (fun lam -> approx_present v lam) args
-  | Llet (Alias, _k, _, l1, l2) -> approx_present v l1 || approx_present v l2
+  | Llet (Alias, _k, _, _, l1, l2) -> approx_present v l1 || approx_present v l2
   | Lvar vv -> Ident.same v vv
   | _ -> true
 
@@ -3236,7 +3252,7 @@ let rec lower_bind v arg_layout arg lam =
           Lifthenelse (cond, lower_bind v arg_layout arg ifso, ifnot, kind)
       | false, false, true ->
           Lifthenelse (cond, ifso, lower_bind v arg_layout arg ifnot, kind)
-      | _, _, _ -> bind_with_layout Alias (v, arg_layout) arg lam
+      | _, _, _ -> bind_with_layout Alias (v, Uid.internal_not_actually_unique, arg_layout) arg lam
     )
   | Lswitch (ls, ({ sw_consts = [ (i, act) ]; sw_blocks = [] } as sw), loc,
              kind)
@@ -3248,18 +3264,18 @@ let rec lower_bind v arg_layout arg lam =
     when not (approx_present v ls) ->
       Lswitch (ls, { sw with sw_blocks = [ (i, lower_bind v arg_layout arg act) ] },
                loc, kind)
-  | Llet (Alias, k, vv, lv, l) ->
+  | Llet (Alias, k, vv, v_uid, lv, l) ->
       if approx_present v lv then
-        bind_with_layout Alias (v, arg_layout) arg lam
+        bind_with_layout Alias (v, v_uid, arg_layout) arg lam
       else
-        Llet (Alias, k, vv, lv, lower_bind v arg_layout arg l)
-  | _ -> bind_with_layout Alias (v, arg_layout) arg lam
+        Llet (Alias, k, vv, v_uid, lv, lower_bind v arg_layout arg l)
+  | _ -> bind_with_layout Alias (v, Uid.internal_not_actually_unique, arg_layout) arg lam
 
 let bind_check str v arg_layout arg lam =
   match (str, arg) with
-  | _, Lvar _ -> bind_with_layout str (v, arg_layout) arg lam
+  | _, Lvar _ -> bind_with_layout str (v, Uid.internal_not_actually_unique, arg_layout) arg lam
   | Alias, _ -> lower_bind v arg_layout arg lam
-  | _, _ -> bind_with_layout str (v, arg_layout) arg lam
+  | _, _ -> bind_with_layout str (v, Uid.internal_not_actually_unique, arg_layout) arg lam
 
 let comp_exit ctx m =
   match Default_environment.pop m.default with
@@ -3724,8 +3740,8 @@ let simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body =
 *)
 
 let rec map_return f = function
-  | Llet (str, k, id, l1, l2) -> Llet (str, k, id, l1, map_return f l2)
-  | Lmutlet (k, id, l1, l2) -> Lmutlet (k, id, l1, map_return f l2)
+  | Llet (str, k, id, uid, l1, l2) -> Llet (str, k, id, uid, l1, map_return f l2)
+  | Lmutlet (k, id, uid, l1, l2) -> Lmutlet (k, id, uid, l1, map_return f l2)
   | Lletrec (l1, l2) -> Lletrec (l1, map_return f l2)
   | Lifthenelse (lcond, lthen, lelse, k) ->
       Lifthenelse (lcond, map_return f lthen, map_return f lelse, k)
@@ -3819,21 +3835,21 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       (* This eliminates a useless variable (and stack slot in bytecode)
          for "let _ = ...". See #6865. *)
       Lsequence (param, body)
-  | Tpat_var (id, _, _, _) ->
+  | Tpat_var (id, _, uid, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
       let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
-      Llet (Strict, k, id, param, body)
+      Llet (Strict, k, id, uid, param, body)
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
       let catch_ids = pat_bound_idents_full arg_sort pat in
       let ids_with_kinds =
         List.map
-          (fun (id, _, typ, sort) ->
-             (id, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
+          (fun (id, _, typ, uid, sort) ->
+             (id, uid, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
           catch_ids
       in
-      let ids = List.map (fun (id, _, _, _) -> id) catch_ids in
+      let ids = List.map (fun (id, _, _, _, _) -> id) catch_ids in
       let bind =
         map_return (assign_pat ~scopes return_layout opt nraise ids loc pat
                       arg_sort)
@@ -3947,7 +3963,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
      assume the whole thing and the elements have sort value.  That will change
      when we allow non-values in structures. *)
   let repr = None in
-  let param_lambda = List.map (fun (l, _, _) -> l) paraml in
+  let param_lambda = List.map (fun (l, _, _, _) -> l) paraml in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
     Lprim (Pmakeblock (0, Immutable, None, mode), param_lambda, sloc)
@@ -3967,11 +3983,11 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
     let size = List.length paraml in
     let (idl_with_layouts, args) =
       List.map (function
-        | Lvar id as lid, sort, layout ->
-          (id, layout), (lid, Alias, sort, layout)
-        | _, sort, layout ->
+        | Lvar id as lid, uid, sort, layout ->
+          (id, uid, layout), (lid, Alias, sort, layout)
+        | _, uid, sort, layout ->
           let id = Ident.create_local "*match*" in
-          (id, layout), (Lvar id, Alias, sort, layout))
+          (id, uid, layout), (Lvar id, Alias, sort, layout))
         paraml
       |> List.split
     in
@@ -3992,19 +4008,21 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
    may not be side effect free. *)
 
 let param_to_var (param, sort, layout) =
+  (* CR tnowak: unsure, verify *)
+  let uid = Uid.internal_not_actually_unique in
   match param with
-  | Lvar v -> (v, sort, layout, None)
-  | _ -> (Ident.create_local "*match*", sort, layout, Some param)
+  | Lvar v -> (v, uid, sort, layout, None)
+  | _ -> (Ident.create_local "*match*", uid, sort, layout, Some param)
 
-let bind_opt (v, _, layout, eo) k =
+let bind_opt (v, uid, _, layout, eo) k =
   match eo with
   | None -> k
-  | Some e -> Lambda.bind_with_layout Strict (v, layout) e k
+  | Some e -> Lambda.bind_with_layout Strict (v, uid, layout) e k
 
 let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
   let paraml =
-    List.map (fun (v, sort, layout, _) -> (Lvar v, sort, layout)) v_paraml
+    List.map (fun (v, uid, sort, layout, _) -> (Lvar v, uid, sort, layout)) v_paraml
   in
   List.fold_right bind_opt v_paraml
     (do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list

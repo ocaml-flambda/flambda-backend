@@ -56,6 +56,7 @@
     .stdlib.objs/byte/stdlib.cmi
     .stdlib.objs/byte/stdlib.cmt
     .stdlib.objs/byte/stdlib.cmti
+    .stdlib.objs/byte/stdlib.cms
 
     arg.ml
     arg.mli
@@ -195,182 +196,242 @@
     .stdlib.objs/byte/stdlib__Arg.cmi
     .stdlib.objs/byte/stdlib__Arg.cmt
     .stdlib.objs/byte/stdlib__Arg.cmti
+    .stdlib.objs/byte/stdlib__Arg.cms
     .stdlib.objs/byte/stdlib__Array.cmi
     .stdlib.objs/byte/stdlib__Array.cmt
     .stdlib.objs/byte/stdlib__Array.cmti
+    .stdlib.objs/byte/stdlib__Array.cms
     .stdlib.objs/byte/stdlib__ArrayLabels.cmi
     .stdlib.objs/byte/stdlib__ArrayLabels.cmt
     .stdlib.objs/byte/stdlib__ArrayLabels.cmti
+    .stdlib.objs/byte/stdlib__ArrayLabels.cms
     .stdlib.objs/byte/stdlib__Atomic.cmi
     .stdlib.objs/byte/stdlib__Atomic.cmt
     .stdlib.objs/byte/stdlib__Atomic.cmti
+    .stdlib.objs/byte/stdlib__Atomic.cms
     .stdlib.objs/byte/stdlib__Bigarray.cmi
     .stdlib.objs/byte/stdlib__Bigarray.cmt
     .stdlib.objs/byte/stdlib__Bigarray.cmti
+    .stdlib.objs/byte/stdlib__Bigarray.cms
     .stdlib.objs/byte/stdlib__Bool.cmi
     .stdlib.objs/byte/stdlib__Bool.cmt
     .stdlib.objs/byte/stdlib__Bool.cmti
+    .stdlib.objs/byte/stdlib__Bool.cms
     .stdlib.objs/byte/stdlib__Buffer.cmi
     .stdlib.objs/byte/stdlib__Buffer.cmt
     .stdlib.objs/byte/stdlib__Buffer.cmti
+    .stdlib.objs/byte/stdlib__Buffer.cms
     .stdlib.objs/byte/stdlib__Bytes.cmi
     .stdlib.objs/byte/stdlib__Bytes.cmt
     .stdlib.objs/byte/stdlib__Bytes.cmti
+    .stdlib.objs/byte/stdlib__Bytes.cms
     .stdlib.objs/byte/stdlib__BytesLabels.cmi
     .stdlib.objs/byte/stdlib__BytesLabels.cmt
     .stdlib.objs/byte/stdlib__BytesLabels.cmti
+    .stdlib.objs/byte/stdlib__BytesLabels.cms
     .stdlib.objs/byte/stdlib__Callback.cmi
     .stdlib.objs/byte/stdlib__Callback.cmt
     .stdlib.objs/byte/stdlib__Callback.cmti
+    .stdlib.objs/byte/stdlib__Callback.cms
     .stdlib.objs/byte/stdlib__Char.cmi
     .stdlib.objs/byte/stdlib__Char.cmt
     .stdlib.objs/byte/stdlib__Char.cmti
+    .stdlib.objs/byte/stdlib__Char.cms
     .stdlib.objs/byte/stdlib__Complex.cmi
     .stdlib.objs/byte/stdlib__Complex.cmt
     .stdlib.objs/byte/stdlib__Complex.cmti
+    .stdlib.objs/byte/stdlib__Complex.cms
     .stdlib.objs/byte/stdlib__Digest.cmi
     .stdlib.objs/byte/stdlib__Digest.cmt
     .stdlib.objs/byte/stdlib__Digest.cmti
+    .stdlib.objs/byte/stdlib__Digest.cms
     .stdlib.objs/byte/stdlib__Either.cmi
     .stdlib.objs/byte/stdlib__Either.cmt
     .stdlib.objs/byte/stdlib__Either.cmti
+    .stdlib.objs/byte/stdlib__Either.cms
     .stdlib.objs/byte/stdlib__Ephemeron.cmi
     .stdlib.objs/byte/stdlib__Ephemeron.cmt
     .stdlib.objs/byte/stdlib__Ephemeron.cmti
+    .stdlib.objs/byte/stdlib__Ephemeron.cms
     .stdlib.objs/byte/stdlib__Filename.cmi
     .stdlib.objs/byte/stdlib__Filename.cmt
     .stdlib.objs/byte/stdlib__Filename.cmti
+    .stdlib.objs/byte/stdlib__Filename.cms
     .stdlib.objs/byte/stdlib__Float.cmi
     .stdlib.objs/byte/stdlib__Float.cmt
     .stdlib.objs/byte/stdlib__Float.cmti
+    .stdlib.objs/byte/stdlib__Float.cms
     .stdlib.objs/byte/stdlib__Float_u.cmi
     .stdlib.objs/byte/stdlib__Float_u.cmt
     .stdlib.objs/byte/stdlib__Float_u.cmti
+    .stdlib.objs/byte/stdlib__Float_u.cms
     .stdlib.objs/byte/stdlib__Format.cmi
     .stdlib.objs/byte/stdlib__Format.cmt
     .stdlib.objs/byte/stdlib__Format.cmti
+    .stdlib.objs/byte/stdlib__Format.cms
     .stdlib.objs/byte/stdlib__Fun.cmi
     .stdlib.objs/byte/stdlib__Fun.cmt
     .stdlib.objs/byte/stdlib__Fun.cmti
+    .stdlib.objs/byte/stdlib__Fun.cms
     .stdlib.objs/byte/stdlib__Gc.cmi
     .stdlib.objs/byte/stdlib__Gc.cmt
     .stdlib.objs/byte/stdlib__Gc.cmti
+    .stdlib.objs/byte/stdlib__Gc.cms
     .stdlib.objs/byte/stdlib__Genlex.cmi
     .stdlib.objs/byte/stdlib__Genlex.cmt
     .stdlib.objs/byte/stdlib__Genlex.cmti
+    .stdlib.objs/byte/stdlib__Genlex.cms
     .stdlib.objs/byte/stdlib__Hashtbl.cmi
     .stdlib.objs/byte/stdlib__Hashtbl.cmt
     .stdlib.objs/byte/stdlib__Hashtbl.cmti
+    .stdlib.objs/byte/stdlib__Hashtbl.cms
     .stdlib.objs/byte/stdlib__Iarray.cmi
     .stdlib.objs/byte/stdlib__Iarray.cmt
     .stdlib.objs/byte/stdlib__Iarray.cmti
+    .stdlib.objs/byte/stdlib__Iarray.cms
     .stdlib.objs/byte/stdlib__IarrayLabels.cmi
     .stdlib.objs/byte/stdlib__IarrayLabels.cmt
     .stdlib.objs/byte/stdlib__IarrayLabels.cmti
+    .stdlib.objs/byte/stdlib__IarrayLabels.cms
     .stdlib.objs/byte/stdlib__In_channel.cmi
     .stdlib.objs/byte/stdlib__In_channel.cmt
     .stdlib.objs/byte/stdlib__In_channel.cmti
+    .stdlib.objs/byte/stdlib__In_channel.cms
     .stdlib.objs/byte/stdlib__Int.cmi
     .stdlib.objs/byte/stdlib__Int.cmt
     .stdlib.objs/byte/stdlib__Int.cmti
+    .stdlib.objs/byte/stdlib__Int.cms
     .stdlib.objs/byte/stdlib__Int32.cmi
     .stdlib.objs/byte/stdlib__Int32.cmt
     .stdlib.objs/byte/stdlib__Int32.cmti
+    .stdlib.objs/byte/stdlib__Int32.cms
     .stdlib.objs/byte/stdlib__Int64.cmi
     .stdlib.objs/byte/stdlib__Int64.cmt
     .stdlib.objs/byte/stdlib__Int64.cmti
+    .stdlib.objs/byte/stdlib__Int64.cms
     .stdlib.objs/byte/stdlib__Lazy.cmi
     .stdlib.objs/byte/stdlib__Lazy.cmt
     .stdlib.objs/byte/stdlib__Lazy.cmti
+    .stdlib.objs/byte/stdlib__Lazy.cms
     .stdlib.objs/byte/stdlib__Lexing.cmi
     .stdlib.objs/byte/stdlib__Lexing.cmt
     .stdlib.objs/byte/stdlib__Lexing.cmti
+    .stdlib.objs/byte/stdlib__Lexing.cms
     .stdlib.objs/byte/stdlib__List.cmi
     .stdlib.objs/byte/stdlib__List.cmt
     .stdlib.objs/byte/stdlib__List.cmti
+    .stdlib.objs/byte/stdlib__List.cms
     .stdlib.objs/byte/stdlib__ListLabels.cmi
     .stdlib.objs/byte/stdlib__ListLabels.cmt
     .stdlib.objs/byte/stdlib__ListLabels.cmti
+    .stdlib.objs/byte/stdlib__ListLabels.cms
     .stdlib.objs/byte/stdlib__Map.cmi
     .stdlib.objs/byte/stdlib__Map.cmt
     .stdlib.objs/byte/stdlib__Map.cmti
+    .stdlib.objs/byte/stdlib__Map.cms
     .stdlib.objs/byte/stdlib__Marshal.cmi
     .stdlib.objs/byte/stdlib__Marshal.cmt
     .stdlib.objs/byte/stdlib__Marshal.cmti
+    .stdlib.objs/byte/stdlib__Marshal.cms
     .stdlib.objs/byte/stdlib__MoreLabels.cmi
     .stdlib.objs/byte/stdlib__MoreLabels.cmt
     .stdlib.objs/byte/stdlib__MoreLabels.cmti
+    .stdlib.objs/byte/stdlib__MoreLabels.cms
     .stdlib.objs/byte/stdlib__Nativeint.cmi
     .stdlib.objs/byte/stdlib__Nativeint.cmt
     .stdlib.objs/byte/stdlib__Nativeint.cmti
+    .stdlib.objs/byte/stdlib__Nativeint.cms
     .stdlib.objs/byte/stdlib__Obj.cmi
     .stdlib.objs/byte/stdlib__Obj.cmt
     .stdlib.objs/byte/stdlib__Obj.cmti
+    .stdlib.objs/byte/stdlib__Obj.cms
     .stdlib.objs/byte/stdlib__Oo.cmi
     .stdlib.objs/byte/stdlib__Oo.cmt
     .stdlib.objs/byte/stdlib__Oo.cmti
+    .stdlib.objs/byte/stdlib__Oo.cms
     .stdlib.objs/byte/stdlib__Option.cmi
     .stdlib.objs/byte/stdlib__Option.cmt
     .stdlib.objs/byte/stdlib__Option.cmti
+    .stdlib.objs/byte/stdlib__Option.cms
     .stdlib.objs/byte/stdlib__Out_channel.cmi
     .stdlib.objs/byte/stdlib__Out_channel.cmt
     .stdlib.objs/byte/stdlib__Out_channel.cmti
+    .stdlib.objs/byte/stdlib__Out_channel.cms
     .stdlib.objs/byte/stdlib__Parsing.cmi
     .stdlib.objs/byte/stdlib__Parsing.cmt
     .stdlib.objs/byte/stdlib__Parsing.cmti
+    .stdlib.objs/byte/stdlib__Parsing.cms
     .stdlib.objs/byte/stdlib__Pervasives.cmi
     .stdlib.objs/byte/stdlib__Pervasives.cmt
     .stdlib.objs/byte/stdlib__Printexc.cmi
+    .stdlib.objs/byte/stdlib__Pervasives.cms
     .stdlib.objs/byte/stdlib__Printexc.cmt
     .stdlib.objs/byte/stdlib__Printexc.cmti
+    .stdlib.objs/byte/stdlib__Printexc.cms
     .stdlib.objs/byte/stdlib__Printf.cmi
     .stdlib.objs/byte/stdlib__Printf.cmt
     .stdlib.objs/byte/stdlib__Printf.cmti
+    .stdlib.objs/byte/stdlib__Printf.cms
     .stdlib.objs/byte/stdlib__Queue.cmi
     .stdlib.objs/byte/stdlib__Queue.cmt
     .stdlib.objs/byte/stdlib__Queue.cmti
+    .stdlib.objs/byte/stdlib__Queue.cms
     .stdlib.objs/byte/stdlib__Random.cmi
     .stdlib.objs/byte/stdlib__Random.cmt
     .stdlib.objs/byte/stdlib__Random.cmti
+    .stdlib.objs/byte/stdlib__Random.cms
     .stdlib.objs/byte/stdlib__Result.cmi
     .stdlib.objs/byte/stdlib__Result.cmt
     .stdlib.objs/byte/stdlib__Result.cmti
+    .stdlib.objs/byte/stdlib__Result.cms
     .stdlib.objs/byte/stdlib__Scanf.cmi
     .stdlib.objs/byte/stdlib__Scanf.cmt
     .stdlib.objs/byte/stdlib__Scanf.cmti
+    .stdlib.objs/byte/stdlib__Scanf.cms
     .stdlib.objs/byte/stdlib__Seq.cmi
     .stdlib.objs/byte/stdlib__Seq.cmt
     .stdlib.objs/byte/stdlib__Seq.cmti
+    .stdlib.objs/byte/stdlib__Seq.cms
     .stdlib.objs/byte/stdlib__Set.cmi
     .stdlib.objs/byte/stdlib__Set.cmt
     .stdlib.objs/byte/stdlib__Set.cmti
+    .stdlib.objs/byte/stdlib__Set.cms
     .stdlib.objs/byte/stdlib__Stack.cmi
     .stdlib.objs/byte/stdlib__Stack.cmt
     .stdlib.objs/byte/stdlib__Stack.cmti
+    .stdlib.objs/byte/stdlib__Stack.cms
     .stdlib.objs/byte/stdlib__StdLabels.cmi
     .stdlib.objs/byte/stdlib__StdLabels.cmt
     .stdlib.objs/byte/stdlib__StdLabels.cmti
+    .stdlib.objs/byte/stdlib__StdLabels.cms
     .stdlib.objs/byte/stdlib__Stream.cmi
     .stdlib.objs/byte/stdlib__Stream.cmt
     .stdlib.objs/byte/stdlib__Stream.cmti
+    .stdlib.objs/byte/stdlib__Stream.cms
     .stdlib.objs/byte/stdlib__String.cmi
     .stdlib.objs/byte/stdlib__String.cmt
     .stdlib.objs/byte/stdlib__String.cmti
+    .stdlib.objs/byte/stdlib__String.cms
     .stdlib.objs/byte/stdlib__StringLabels.cmi
     .stdlib.objs/byte/stdlib__StringLabels.cmt
     .stdlib.objs/byte/stdlib__StringLabels.cmti
+    .stdlib.objs/byte/stdlib__StringLabels.cms
     .stdlib.objs/byte/stdlib__Sys.cmi
     .stdlib.objs/byte/stdlib__Sys.cmt
     .stdlib.objs/byte/stdlib__Sys.cmti
+    .stdlib.objs/byte/stdlib__Sys.cms
     .stdlib.objs/byte/stdlib__Uchar.cmi
     .stdlib.objs/byte/stdlib__Uchar.cmt
     .stdlib.objs/byte/stdlib__Uchar.cmti
+    .stdlib.objs/byte/stdlib__Uchar.cms
     .stdlib.objs/byte/stdlib__Unit.cmi
     .stdlib.objs/byte/stdlib__Unit.cmt
     .stdlib.objs/byte/stdlib__Unit.cmti
+    .stdlib.objs/byte/stdlib__Unit.cms
     .stdlib.objs/byte/stdlib__Weak.cmi
     .stdlib.objs/byte/stdlib__Weak.cmt
     .stdlib.objs/byte/stdlib__Weak.cmti
+    .stdlib.objs/byte/stdlib__Weak.cms
 
     .stdlib.objs/native/stdlib.cmx
 
@@ -383,12 +444,19 @@
     .stdlib.objs/byte/camlinternalFormat.cmi
 
     .stdlib.objs/byte/camlinternalComprehension.cmt
+    .stdlib.objs/byte/camlinternalComprehension.cms
     .stdlib.objs/byte/camlinternalMod.cmt
+    .stdlib.objs/byte/camlinternalMod.cms
     .stdlib.objs/byte/camlinternalAtomic.cmt
+    .stdlib.objs/byte/camlinternalAtomic.cms
     .stdlib.objs/byte/camlinternalFormatBasics.cmt
+    .stdlib.objs/byte/camlinternalFormatBasics.cms
     .stdlib.objs/byte/camlinternalLazy.cmt
+    .stdlib.objs/byte/camlinternalLazy.cms
     .stdlib.objs/byte/camlinternalOO.cmt
+    .stdlib.objs/byte/camlinternalOO.cms
     .stdlib.objs/byte/camlinternalFormat.cmt
+    .stdlib.objs/byte/camlinternalFormat.cms
 
     .stdlib.objs/byte/camlinternalComprehension.cmti
     .stdlib.objs/byte/camlinternalMod.cmti
@@ -409,6 +477,7 @@
     .stdlib.objs/byte/std_exit.cmi
     .stdlib.objs/byte/std_exit.cmo
     .stdlib.objs/byte/std_exit.cmt
+    .stdlib.objs/byte/std_exit.cms
     .stdlib.objs/native/std_exit.o
     .stdlib.objs/native/std_exit.cmx
 

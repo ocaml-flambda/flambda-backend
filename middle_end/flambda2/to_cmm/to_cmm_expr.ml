@@ -385,12 +385,12 @@ let rec expr env res e : Cmm.expression * Backend_var.Set.t * To_cmm_result.t =
 
 and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
   let dbg = Env.add_inlined_debuginfo env dbg in
-  let v = Bound_var.var v in
   let effects_and_coeffects_of_prim =
     Flambda_primitive.effects_and_coeffects p
   in
   let inline =
-    To_cmm_effects.classify_let_binding v ~num_normal_occurrences_of_bound_vars
+    To_cmm_effects.classify_let_binding (Bound_var.var v)
+      ~num_normal_occurrences_of_bound_vars
       ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
   in
   let simple_case (inline : Env.simple Env.inline) =
@@ -431,7 +431,6 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     ~num_normal_occurrences_of_bound_vars ~body =
   match[@warning "-4"] bound_pattern, Let.defining_expr let_expr with
   | Singleton v, Simple s ->
-    let v = Bound_var.var v in
     (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
        these bindings should have been substituted out). *)
     (* CR gbury: once we get proper debuginfo here, remember to apply
@@ -765,7 +764,8 @@ and apply_expr env res apply =
       let handler_params = Bound_parameters.to_list handler_params in
       match handler_params with
       | [param] ->
-        let var = Bound_parameter.var param in
+        let param_var, param_uid = Bound_parameter.var_and_uid param in
+        let var = Bound_var.create param_var param_uid Name_mode.normal in
         let env, res =
           Env.bind_variable env res var
             ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
@@ -784,7 +784,8 @@ and apply_expr env res apply =
           Env.flush_delayed_lets ~mode:Branching_point env res
         in
         let env, cmm_params =
-          Env.create_bound_parameters env (List.map Bound_parameter.var params)
+          Env.create_bound_parameters env
+            (List.map Bound_parameter.var_and_uid params)
         in
         let label = Lambda.next_raise_count () in
         let params_with_machtype =
@@ -849,8 +850,9 @@ and apply_cont env res apply_cont =
         let env, res =
           List.fold_left2
             (fun (env, res) param ->
-              bind_var_to_simple ~dbg_with_inlined env res
-                (Bound_parameter.var param)
+              let param_var, param_uid = Bound_parameter.var_and_uid param in
+              let var = Bound_var.create param_var param_uid Name_mode.normal in
+              bind_var_to_simple ~dbg_with_inlined env res var
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
             (env, res) handler_params args
         in

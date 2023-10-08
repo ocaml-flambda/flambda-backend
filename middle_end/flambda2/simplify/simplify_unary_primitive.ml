@@ -556,7 +556,9 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
         in
         let bind_contents =
           { Expr_builder.let_bound =
-              Bound_pattern.singleton (Bound_var.create contents_var NM.normal);
+              Bound_pattern.singleton
+                (Bound_var.create contents_var
+                   Flambda_uid.internal_not_actually_unique NM.normal);
             simplified_defining_expr = Simplified_named.create contents_expr;
             original_defining_expr = None
           }
@@ -564,7 +566,8 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
         let contents_simple = Simple.var contents_var in
         let dacc =
           DA.add_variable dacc
-            (Bound_var.create contents_var NM.normal)
+            (Bound_var.create contents_var
+               Flambda_uid.internal_not_actually_unique NM.normal)
             contents_ty
         in
         ( [bind_contents],

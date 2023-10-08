@@ -354,6 +354,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     else
       let my_closure_param =
         Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
+          Flambda_uid.internal_not_actually_unique (* CR tnowak: maybe? *)
       in
       Bound_parameters.append params
         (Bound_parameters.create [my_closure_param])
@@ -368,7 +369,11 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
      code, so we don't need any binder for it (this is why we can ignore
      [_bound_var]). If it does end up in generated code, Selection will complain
      and refuse to compile the code. *)
-  let env, my_region_var = Env.create_bound_parameter env my_region in
+  let env, my_region_var =
+    Env.create_bound_parameter env
+      ( my_region,
+        Flambda_uid.internal_not_actually_unique (* CR tnowak: verify *) )
+  in
   (* Translate the arg list and body *)
   let env, fun_params = C.bound_parameters env params in
   let fun_body, fun_body_free_vars, res = translate_expr env res body in
@@ -554,7 +559,6 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
   let env, res =
     List.fold_left2
       (fun (env, res) cid v ->
-        let v = Bound_var.var v in
         let sym =
           C.symbol ~dbg
             (R.symbol res (Function_slot.Map.find cid closure_symbols))
@@ -596,7 +600,11 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
       ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
       dbg tag l
   in
-  let soc_var = Variable.create "*set_of_closures*" in
+  let soc_var =
+    Bound_var.create
+      (Variable.create "*set_of_closures*")
+      Flambda_uid.internal_not_actually_unique Name_mode.normal
+  in
   let defining_expr = Env.simple csoc free_vars in
   let env, res =
     Env.bind_variable_to_primitive env res soc_var ~inline:Env.Do_not_inline
@@ -609,7 +617,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
           res;
           expr = { cmm = soc_cmm_var; free_vars = s_free_vars; effs = peff }
         } =
-    Env.inline_variable env res soc_var
+    Env.inline_variable env res (Bound_var.var soc_var)
   in
   assert (
     match To_cmm_effects.classify_by_effects_and_coeffects peff with
@@ -636,7 +644,6 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
         match get_closure_by_offset env cid with
         | None -> env, res
         | Some (defining_expr, effects_and_coeffects_of_defining_expr) ->
-          let v = Bound_var.var v in
           Env.bind_variable env res v ~defining_expr
             ~free_vars_of_defining_expr:s_free_vars
             ~num_normal_occurrences_of_bound_vars

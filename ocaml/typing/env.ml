@@ -2710,10 +2710,22 @@ let save_signature_with_imports ~alerts sg modname filename imports =
 
 (* Make the initial environment, without language extensions *)
 let (initial_safe_string, initial_unsafe_string) =
-  Predef.build_initial_env
-    (add_type ~check:false)
+  let added_types = Ident.Tbl.create 42 in
+  let add_type (type_ident : Ident.t) decl env =
+    Ident.Tbl.add added_types type_ident decl;
+    add_type type_ident decl env ~check:false
+  in
+  let ret = Predef.build_initial_env
+    (add_type)
     (add_extension ~check:false ~rebind:false)
     empty
+  in
+  Ident.Tbl.iter (fun type_ident decl ->
+    let (env : t) = fst ret in
+    let uid_of_path path = Some (find_type path env).type_uid in
+    Type_shape.add_to_type_decls (Pident type_ident) decl uid_of_path;
+  ) added_types;
+  ret
 
 let add_language_extension_types env =
   lazy

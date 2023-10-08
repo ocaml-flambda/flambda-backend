@@ -26,6 +26,7 @@ type cms_infos = {
   cms_uid_to_loc : Location.t Shape.Uid.Tbl.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
+  cms_shapes_for_dwarf : Type_shape.Type_decl_shape.t Shape.Uid.Tbl.t;
 }
 
 type error =
