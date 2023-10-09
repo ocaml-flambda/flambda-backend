@@ -1716,7 +1716,7 @@ module Int16x8 = struct
             let v0 = Int16.of_ints l r l r l r l r in
             let result = minposu v0 in
             let min_v = Int16.minu l r in
-            let idx = if min = l then 0 else 1 in
+            let idx = if min_v = l then 0 else 1 in
             let expect = Int64.(logor (shift_left (of_int idx |> logand 0x3L) 16) (of_int min_v |> logand 0xffffL)) in
             eq (int16x8_low_int64 result) (int16x8_high_int64 result)
             expect 0L

@@ -33,13 +33,13 @@ type register_behavior =
   | R_RM_to_xmm0
 
 (* Assumes untagged int *)
-let extract_constant args low high name =
+let extract_constant args name ~max =
   match args with
   | Cmm.Cconst_int (i, _) :: args ->
-    if i < low || i > high
+    if i < 0 || i > max
     then
-      Misc.fatal_errorf "Immediate for %s must be in range [%d,%d] (got %d)"
-        name low high i;
+      Misc.fatal_errorf "Immediate for %s must be in range [0,%d] (got %d)" name
+        max i;
     i, args
   | _ -> Misc.fatal_errorf "Did not get integer immediate for %s" name
 
@@ -65,7 +65,7 @@ let float_rounding_of_int = function
 let select_operation_sse op args =
   match op with
   | "caml_sse_float32x4_cmp" ->
-    let i, args = extract_constant args 0 7 "caml_sse_float32x4_cmp" in
+    let i, args = extract_constant args ~max:7 op in
     Some (Cmp_f32 (float_condition_of_int i), args)
   | "caml_sse_float32x4_add" -> Some (Add_f32, args)
   | "caml_sse_float32x4_sub" -> Some (Sub_f32, args)
@@ -82,7 +82,7 @@ let select_operation_sse op args =
   | "caml_sse_vec128_interleave_low_32" -> Some (Interleave_low_32, args)
   | "caml_sse_vec128_movemask_32" -> Some (Movemask_32, args)
   | "caml_sse_vec128_shuffle_32" ->
-    let i, args = extract_constant args 0 0xff "caml_sse_vec128_shuffle_32" in
+    let i, args = extract_constant args ~max:0xff op in
     Some (Shuffle_32 i, args)
   | _ -> None
 
@@ -125,14 +125,10 @@ let select_operation_sse2 op args =
   | "caml_sse2_vec128_movemask_8" -> Some (Movemask_8, args)
   | "caml_sse2_vec128_movemask_64" -> Some (Movemask_64, args)
   | "caml_sse2_vec128_shift_left_bytes" ->
-    let i, args =
-      extract_constant args 0 15 "caml_sse2_vec128_shift_left_bytes"
-    in
+    let i, args = extract_constant args ~max:15 op in
     Some (Shift_left_bytes i, args)
   | "caml_sse2_vec128_shift_right_bytes" ->
-    let i, args =
-      extract_constant args 0 15 "caml_sse2_vec128_shift_right_bytes"
-    in
+    let i, args = extract_constant args ~max:15 op in
     Some (Shift_right_bytes i, args)
   | "caml_sse2_int8x16_cmpeq" -> Some (Cmpeq_i8, args)
   | "caml_sse2_int16x8_cmpeq" -> Some (Cmpeq_i16, args)
@@ -141,7 +137,7 @@ let select_operation_sse2 op args =
   | "caml_sse2_int16x8_cmpgt" -> Some (Cmpgt_i16, args)
   | "caml_sse2_int32x4_cmpgt" -> Some (Cmpgt_i32, args)
   | "caml_sse2_float64x2_cmp" ->
-    let i, args = extract_constant args 0 0x1f "caml_sse2_float64x2_cmp" in
+    let i, args = extract_constant args ~max:0x1f op in
     Some (Cmp_f64 (float_condition_of_int i), args)
   | "caml_sse2_cvt_int32x4_float64x2" -> Some (I32_to_f64, args)
   | "caml_sse2_cvt_int32x4_float32x4" -> Some (I32_to_f32, args)
@@ -167,41 +163,37 @@ let select_operation_sse2 op args =
   | "caml_sse2_int16x8_sra" -> Some (SRA_i16, args)
   | "caml_sse2_int32x4_sra" -> Some (SRA_i32, args)
   | "caml_sse2_int16x8_slli" ->
-    let i, args = extract_constant args 0 15 "caml_sse2_int16x8_slli" in
+    let i, args = extract_constant args ~max:15 op in
     Some (SLLi_i16 i, args)
   | "caml_sse2_int32x4_slli" ->
-    let i, args = extract_constant args 0 31 "caml_sse2_int32x4_slli" in
+    let i, args = extract_constant args ~max:31 op in
     Some (SLLi_i32 i, args)
   | "caml_sse2_int64x2_slli" ->
-    let i, args = extract_constant args 0 63 "caml_sse2_int64x2_slli" in
+    let i, args = extract_constant args ~max:63 op in
     Some (SLLi_i64 i, args)
   | "caml_sse2_int16x8_srli" ->
-    let i, args = extract_constant args 0 15 "caml_sse2_int16x8_srli" in
+    let i, args = extract_constant args ~max:15 op in
     Some (SRLi_i16 i, args)
   | "caml_sse2_int32x4_srli" ->
-    let i, args = extract_constant args 0 31 "caml_sse2_int32x4_srli" in
+    let i, args = extract_constant args ~max:31 op in
     Some (SRLi_i32 i, args)
   | "caml_sse2_int64x2_srli" ->
-    let i, args = extract_constant args 0 63 "caml_sse2_int64x2_srli" in
+    let i, args = extract_constant args ~max:63 op in
     Some (SRLi_i64 i, args)
   | "caml_sse2_int16x8_srai" ->
-    let i, args = extract_constant args 0 15 "caml_sse2_int16x8_srai" in
+    let i, args = extract_constant args ~max:15 op in
     Some (SRAi_i16 i, args)
   | "caml_sse2_int32x4_srai" ->
-    let i, args = extract_constant args 0 31 "caml_sse2_int32x4_srai" in
+    let i, args = extract_constant args ~max:31 op in
     Some (SRAi_i32 i, args)
   | "caml_sse2_vec128_shuffle_64" ->
-    let i, args = extract_constant args 0 3 "caml_sse2_vec128_shuffle_64" in
+    let i, args = extract_constant args ~max:3 op in
     Some (Shuffle_64 i, args)
   | "caml_sse2_vec128_shuffle_high_16" ->
-    let i, args =
-      extract_constant args 0 255 "caml_sse2_vec128_shuffle_high_16"
-    in
+    let i, args = extract_constant args ~max:255 op in
     Some (Shuffle_high_16 i, args)
   | "caml_sse2_vec128_shuffle_low_16" ->
-    let i, args =
-      extract_constant args 0 255 "caml_sse2_vec128_shuffle_low_16"
-    in
+    let i, args = extract_constant args ~max:255 op in
     Some (Shuffle_low_16 i, args)
   | "caml_sse2_vec128_interleave_high_8" -> Some (Interleave_high_8, args)
   | "caml_sse2_vec128_interleave_low_8" -> Some (Interleave_low_8, args)
@@ -246,9 +238,7 @@ let select_operation_ssse3 op args =
     | "caml_ssse3_int32x4_mulsign" -> Some (Mulsign_i32, args)
     | "caml_ssse3_vec128_shuffle_8" -> Some (Shuffle_8, args)
     | "caml_ssse3_vec128_align_right_bytes" ->
-      let i, args =
-        extract_constant args 0 31 "caml_ssse3_vec128_align_right_bytes"
-      in
+      let i, args = extract_constant args ~max:31 op in
       Some (Alignr_i8 i, args)
     | _ -> None
 
@@ -258,13 +248,13 @@ let select_operation_sse41 op args =
   else
     match op with
     | "caml_sse41_vec128_blend_16" ->
-      let i, args = extract_constant args 0 255 "caml_sse41_vec128_blend_16" in
+      let i, args = extract_constant args ~max:255 op in
       Some (Blend_16 i, args)
     | "caml_sse41_vec128_blend_32" ->
-      let i, args = extract_constant args 0 15 "caml_sse41_vec128_blend_32" in
+      let i, args = extract_constant args ~max:15 op in
       Some (Blend_32 i, args)
     | "caml_sse41_vec128_blend_64" ->
-      let i, args = extract_constant args 0 3 "caml_sse41_vec128_blend_64" in
+      let i, args = extract_constant args ~max:3 op in
       Some (Blend_64 i, args)
     | "caml_sse41_vec128_blendv_8" -> Some (Blendv_8, args)
     | "caml_sse41_vec128_blendv_32" -> Some (Blendv_32, args)
@@ -283,40 +273,40 @@ let select_operation_sse41 op args =
     | "caml_sse41_cvtzx_int16x8_int64x2" -> Some (I16_zx_i64, args)
     | "caml_sse41_cvtzx_int32x4_int64x2" -> Some (I32_zx_i64, args)
     | "caml_sse41_float32x4_dp" ->
-      let i, args = extract_constant args 0 255 "caml_sse41_float32x4_dp" in
+      let i, args = extract_constant args ~max:255 op in
       Some (Dp_f32 i, args)
     | "caml_sse41_float64x2_dp" ->
-      let i, args = extract_constant args 0 255 "caml_sse41_float64x2_dp" in
+      let i, args = extract_constant args ~max:255 op in
       Some (Dp_f64 i, args)
     | "caml_sse41_int8x16_extract" ->
-      let i, args = extract_constant args 0 15 "caml_sse41_int8x16_extract" in
+      let i, args = extract_constant args ~max:15 op in
       Some (Extract_i8 i, args)
     | "caml_sse41_int16x8_extract" ->
-      let i, args = extract_constant args 0 7 "caml_sse41_int16x8_extract" in
+      let i, args = extract_constant args ~max:7 op in
       Some (Extract_i16 i, args)
     | "caml_sse41_int32x4_extract" ->
-      let i, args = extract_constant args 0 3 "caml_sse41_int32x4_extract" in
+      let i, args = extract_constant args ~max:3 op in
       Some (Extract_i32 i, args)
     | "caml_sse41_int64x2_extract" ->
-      let i, args = extract_constant args 0 1 "caml_sse41_int64x2_extract" in
+      let i, args = extract_constant args ~max:1 op in
       Some (Extract_i64 i, args)
     | "caml_sse41_int8x16_insert" ->
-      let i, args = extract_constant args 0 15 "caml_sse41_int8x16_insert" in
+      let i, args = extract_constant args ~max:15 op in
       Some (Insert_i8 i, args)
     | "caml_sse41_int16x8_insert" ->
-      let i, args = extract_constant args 0 7 "caml_sse41_int16x8_insert" in
+      let i, args = extract_constant args ~max:7 op in
       Some (Insert_i16 i, args)
     | "caml_sse41_int32x4_insert" ->
-      let i, args = extract_constant args 0 3 "caml_sse41_int32x4_insert" in
+      let i, args = extract_constant args ~max:3 op in
       Some (Insert_i32 i, args)
     | "caml_sse41_int64x2_insert" ->
-      let i, args = extract_constant args 0 1 "caml_sse41_int64x2_insert" in
+      let i, args = extract_constant args ~max:1 op in
       Some (Insert_i64 i, args)
     | "caml_sse41_float32x4_round" ->
-      let i, args = extract_constant args 0 15 "caml_sse41_float32x4_round" in
+      let i, args = extract_constant args ~max:15 op in
       Some (Round_f32 (float_rounding_of_int i), args)
     | "caml_sse41_float64x2_round" ->
-      let i, args = extract_constant args 0 15 "caml_sse41_float64x2_round" in
+      let i, args = extract_constant args ~max:15 op in
       Some (Round_f64 (float_rounding_of_int i), args)
     | "caml_sse41_int8x16_max" -> Some (Max_i8, args)
     | "caml_sse41_int32x4_max" -> Some (Max_i32, args)
@@ -327,9 +317,7 @@ let select_operation_sse41 op args =
     | "caml_sse41_int16x8_min_unsigned" -> Some (Min_unsigned_i16, args)
     | "caml_sse41_int32x4_min_unsigned" -> Some (Min_unsigned_i32, args)
     | "caml_sse41_int8x16_multi_sad_unsigned" ->
-      let i, args =
-        extract_constant args 0 7 "caml_sse41_int8x16_multi_sad_unsigned"
-      in
+      let i, args = extract_constant args ~max:7 op in
       Some (Multi_sad_unsigned_i8 i, args)
     | "caml_sse41_int16x8_minpos_unsigned" -> Some (Minpos_unsigned_i16, args)
     | _ -> None
@@ -342,46 +330,46 @@ let select_operation_sse42 op args =
     | "caml_sse42_int64x2_cmpgt" -> Some (Cmpgt_i64, args)
     | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" -> Some (Crc32_64, args)
     | "caml_sse42_vec128_cmpestrm" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrm" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestrm i, args)
     | "caml_sse42_vec128_cmpestra" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestra" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestra i, args)
     | "caml_sse42_vec128_cmpestrc" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrc" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestrc i, args)
     | "caml_sse42_vec128_cmpestri" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestri" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestri i, args)
     | "caml_sse42_vec128_cmpestro" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestro" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestro i, args)
     | "caml_sse42_vec128_cmpestrs" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrs" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestrs i, args)
     | "caml_sse42_vec128_cmpestrz" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpestrz" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpestrz i, args)
     | "caml_sse42_vec128_cmpistrm" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrm" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistrm i, args)
     | "caml_sse42_vec128_cmpistra" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistra" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistra i, args)
     | "caml_sse42_vec128_cmpistrc" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrc" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistrc i, args)
     | "caml_sse42_vec128_cmpistri" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistri" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistri i, args)
     | "caml_sse42_vec128_cmpistro" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistro" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistro i, args)
     | "caml_sse42_vec128_cmpistrs" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrs" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistrs i, args)
     | "caml_sse42_vec128_cmpistrz" ->
-      let i, args = extract_constant args 0 127 "caml_sse42_vec128_cmpistrz" in
+      let i, args = extract_constant args ~max:127 op in
       Some (Cmpistrz i, args)
     | _ -> None
 
@@ -494,8 +482,8 @@ let pseudoregs_for_operation op arg res =
     [| res.(0); arg.(1) |], res
   | R_RM_xmm0_to_fst -> [| res.(0); arg.(1); xmm0v () |], res
   | R_RM_rax_rdx_to_rcx -> [| arg.(0); arg.(1); rax; rdx |], [| rcx |]
-  | R_RM_to_rcx -> [| arg.(0); arg.(1); rax; rdx |], [| xmm0v () |]
-  | R_RM_rax_rdx_to_xmm0 -> arg, [| rcx |]
+  | R_RM_rax_rdx_to_xmm0 -> [| arg.(0); arg.(1); rax; rdx |], [| xmm0v () |]
+  | R_RM_to_rcx -> arg, [| rcx |]
   | R_RM_to_xmm0 -> arg, [| xmm0v () |]
 
 let reload_operation makereg op arg res =

@@ -182,7 +182,7 @@ type instruction =
   | XOR of arg * arg
   | XORPD of arg * arg
   | CMPPS of float_condition * arg * arg
-  | SHUFPS of int * arg * arg
+  | SHUFPS of arg * arg * arg
   | ADDPS of arg * arg
   | SUBPS of arg * arg
   | MULPS of arg * arg
@@ -229,8 +229,8 @@ type instruction =
   | PXOR of arg * arg
   | PMOVMSKB of arg * arg
   | MOVMSKPD of arg * arg
-  | PSLLDQ of int * arg
-  | PSRLDQ of int * arg
+  | PSLLDQ of arg * arg
+  | PSRLDQ of arg * arg
   | PCMPEQB of arg * arg
   | PCMPEQW of arg * arg
   | PCMPEQD of arg * arg
@@ -252,17 +252,17 @@ type instruction =
   | PSRLQ of arg * arg
   | PSRAW of arg * arg
   | PSRAD of arg * arg
-  | PSLLWI of int * arg
-  | PSLLDI of int * arg
-  | PSLLQI of int * arg
-  | PSRLWI of int * arg
-  | PSRLDI of int * arg
-  | PSRLQI of int * arg
-  | PSRAWI of int * arg
-  | PSRADI of int * arg
-  | SHUFPD of int * arg * arg
-  | PSHUFHW of int * arg * arg
-  | PSHUFLW of int * arg * arg
+  | PSLLWI of arg * arg
+  | PSLLDI of arg * arg
+  | PSLLQI of arg * arg
+  | PSRLWI of arg * arg
+  | PSRLDI of arg * arg
+  | PSRLQI of arg * arg
+  | PSRAWI of arg * arg
+  | PSRADI of arg * arg
+  | SHUFPD of arg * arg * arg
+  | PSHUFHW of arg * arg * arg
+  | PSHUFLW of arg * arg * arg
   | PUNPCKHBW of arg * arg
   | PUNPCKHWD of arg * arg
   | PUNPCKHQDQ of arg * arg
@@ -291,9 +291,9 @@ type instruction =
   | PSIGNW of arg * arg
   | PSIGND of arg * arg
   | PSHUFB of arg * arg
-  | PBLENDW of int * arg * arg
-  | BLENDPS of int * arg * arg
-  | BLENDPD of int * arg * arg
+  | PBLENDW of arg * arg * arg
+  | BLENDPS of arg * arg * arg
+  | BLENDPD of arg * arg * arg
   | PBLENDVB of arg * arg
   | BLENDVPS of arg * arg
   | BLENDVPD of arg * arg
@@ -310,16 +310,16 @@ type instruction =
   | PMOVZXWD of arg * arg
   | PMOVZXWQ of arg * arg
   | PMOVZXDQ of arg * arg
-  | DPPS of int * arg * arg
-  | DPPD of int * arg * arg
-  | PEXTRB of int * arg * arg
-  | PEXTRW of int * arg * arg
-  | PEXTRD of int * arg * arg
-  | PEXTRQ of int * arg * arg
-  | PINSRB of int * arg * arg
-  | PINSRW of int * arg * arg
-  | PINSRD of int * arg * arg
-  | PINSRQ of int * arg * arg
+  | DPPS of arg * arg * arg
+  | DPPD of arg * arg * arg
+  | PEXTRB of arg * arg * arg
+  | PEXTRW of arg * arg * arg
+  | PEXTRD of arg * arg * arg
+  | PEXTRQ of arg * arg * arg
+  | PINSRB of arg * arg * arg
+  | PINSRW of arg * arg * arg
+  | PINSRD of arg * arg * arg
+  | PINSRQ of arg * arg * arg
   | PMAXSB of arg * arg
   | PMAXSD of arg * arg
   | PMAXUW of arg * arg
@@ -331,10 +331,10 @@ type instruction =
   | ROUNDPD of rounding * arg * arg
   | ROUNDPS of rounding * arg * arg
   | PCMPGTQ of arg * arg
-  | PCMPESTRI of int * arg * arg
-  | PCMPESTRM of int * arg * arg
-  | PCMPISTRI of int * arg * arg
-  | PCMPISTRM of int * arg * arg
+  | PCMPESTRI of arg * arg * arg
+  | PCMPESTRM of arg * arg * arg
+  | PCMPISTRI of arg * arg * arg
+  | PCMPISTRM of arg * arg * arg
   | CRC32 of arg * arg
   | PAVGB of arg * arg
   | PAVGW of arg * arg
@@ -343,8 +343,8 @@ type instruction =
   | PACKSSDW of arg * arg
   | PACKUSWB of arg * arg
   | PACKUSDW of arg * arg
-  | PALIGNR of int * arg * arg
-  | MPSADBW of int * arg * arg
+  | PALIGNR of arg * arg * arg
+  | MPSADBW of arg * arg * arg
   | PHMINPOSUW of arg * arg
 
 (* ELF specific *)
