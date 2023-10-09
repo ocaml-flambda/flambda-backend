@@ -566,7 +566,7 @@ int64_t int8_diffu(int64_t l, int64_t r) {
 
 double float64_round(double f) {
   __m128d v = _mm_set1_pd(f);
-  return _mm_cvtsd_f64(_mm_round_pd(v, 0));
+  return _mm_cvtsd_f64(_mm_round_pd(v, 0x8));
 }
 double float64_sqrt(double f) {
   __m128d v = _mm_set1_pd(f);
@@ -638,5 +638,5 @@ FLOAT32_UNOP(cvt_i32, _mm_cvtps_epi32);
 
 int32_t float32_round(int32_t f) {
   __m128 v = _mm_set1_ps(float_of_int32(f));
-  return _mm_extract_ps(_mm_round_ps(v, 0), 0);
+  return _mm_extract_ps(_mm_round_ps(v, 0x8), 0);
 }
