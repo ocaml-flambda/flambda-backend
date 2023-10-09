@@ -3,7 +3,6 @@
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <smmintrin.h>
-#include <emmintrin.h>
 #include <assert.h>
 
 int64_t vec128_low_int64(__m128i v)

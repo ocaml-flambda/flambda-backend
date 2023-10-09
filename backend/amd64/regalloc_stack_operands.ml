@@ -7,8 +7,8 @@ open! Regalloc_utils
 let debug = false
 
 let may_use_stack_operand_for_second_argument
-  : type a . ?num_args:int -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
-  = fun ?(num_args = 2) map instr ->
+  : type a . num_args:int -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun ~num_args map instr ->
   if debug then begin
     check_lengths instr ~of_arg:num_args ~of_res:1;
     check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
@@ -178,15 +178,15 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
   | Op (Addf | Subf | Mulf | Divf)
   | Op (Specific (Ifloat_min | Ifloat_max)) ->
-    may_use_stack_operand_for_second_argument map instr
+    may_use_stack_operand_for_second_argument map instr ~num_args:2
   | Op (Specific (Isimd op)) ->
     (match Simd_selection.register_behavior op with
     | R_to_fst | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
-    | R_RM_to_fst | String_no_length | String_no_length_mask ->
-      may_use_stack_operand_for_second_argument map instr
-    | String_length | String_length_mask ->
-      may_use_stack_operand_for_second_argument ~num_args:4 map instr
-    | R_RM_XMM0_to_fst -> may_use_stack_operand_for_second_argument ~num_args:3 map instr
+    | R_RM_to_fst | R_RM_to_rcx | R_RM_to_xmm0 ->
+      may_use_stack_operand_for_second_argument map instr ~num_args:2
+    | R_RM_rax_rdx_to_rcx | R_RM_rax_rdx_to_xmm0 ->
+      may_use_stack_operand_for_second_argument map instr ~num_args:4
+    | R_RM_xmm0_to_fst -> may_use_stack_operand_for_second_argument map instr ~num_args:3
     | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
   | Op (Scalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2))) ->

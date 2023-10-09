@@ -155,25 +155,7 @@ let pseudoregs_for_operation op arg res =
   | Ispecific (Ifloat_min | Ifloat_max) ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
-  | Ispecific (Isimd op) ->
-    (match Simd_selection.register_behavior op with
-    | R_to_R | RM_to_R | R_to_RM -> (arg, res)
-    | R_to_fst ->
-      (* arg.(0) and res.(0) must be the same *)
-      ([|res.(0)|], res)
-    | R_R_to_fst | R_RM_to_fst ->
-      (* arg.(0) and res.(0) must be the same *)
-      ([|res.(0); arg.(1)|], res)
-    | R_RM_XMM0_to_fst ->
-      ([|res.(0); arg.(1); xmm0v ()|], res)
-    | String_length ->
-      ([|arg.(0); arg.(1); rax; rdx|], [| rcx |])
-    | String_length_mask ->
-      ([|arg.(0); arg.(1); rax; rdx|], [| xmm0v () |])
-    | String_no_length ->
-      (arg, [| rcx |])
-    | String_no_length_mask ->
-      (arg, [| xmm0v () |]))
+  | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in

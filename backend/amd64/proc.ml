@@ -476,7 +476,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_pushtrap
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
-  | Op (Store(Single, _, _)) ->
+  | Op(Store(Single, _, _)) ->
     destroy_xmm15 ()
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]

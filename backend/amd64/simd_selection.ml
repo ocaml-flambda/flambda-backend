@@ -26,11 +26,11 @@ type register_behavior =
   | RM_to_R
   | R_R_to_fst
   | R_RM_to_fst
-  | R_RM_XMM0_to_fst
-  | String_length
-  | String_no_length
-  | String_length_mask
-  | String_no_length_mask
+  | R_RM_xmm0_to_fst
+  | R_RM_rax_rdx_to_rcx
+  | R_RM_to_rcx
+  | R_RM_rax_rdx_to_xmm0
+  | R_RM_to_xmm0
 
 (* Assumes untagged int *)
 let extract_constant args low high name =
@@ -444,7 +444,7 @@ let register_behavior_sse41 = function
   | U8_zx_i16 | U8_zx_i32 | U8_zx_i64 | U16_zx_i32 | U16_zx_i64 | U32_zx_i64
   | Round_f64 _ | Round_f32 _ | Minpos_u16 ->
     RM_to_R
-  | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_XMM0_to_fst
+  | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_xmm0_to_fst
   | Extract_i64 _ | Extract_i32 _ -> R_to_RM
   | Extract_i8 _ | Extract_i16 _ ->
     (* CR mslater: (SIMD): replace once we have int8/int16/float32 *)
@@ -452,14 +452,14 @@ let register_behavior_sse41 = function
 
 let register_behavior_sse42 = function
   | Crc32_64 | Cmpgt_i64 -> R_RM_to_fst
-  | Cmpestrm _ -> String_length_mask
-  | Cmpistrm _ -> String_no_length_mask
+  | Cmpestrm _ -> R_RM_rax_rdx_to_xmm0
+  | Cmpistrm _ -> R_RM_to_xmm0
   | Cmpestra _ | Cmpestrc _ | Cmpestri _ | Cmpestro _ | Cmpestrs _ | Cmpestrz _
     ->
-    String_length
+    R_RM_rax_rdx_to_rcx
   | Cmpistra _ | Cmpistrc _ | Cmpistri _ | Cmpistro _ | Cmpistrs _ | Cmpistrz _
     ->
-    String_no_length
+    R_RM_to_rcx
 
 let register_behavior = function
   | SSE op -> register_behavior_sse op
@@ -468,3 +468,64 @@ let register_behavior = function
   | SSSE3 op -> register_behavior_ssse3 op
   | SSE41 op -> register_behavior_sse41 op
   | SSE42 op -> register_behavior_sse42 op
+
+let pseudoregs_for_operation op arg res =
+  let rax = Proc.phys_reg Int 0 in
+  let rcx = Proc.phys_reg Int 5 in
+  let rdx = Proc.phys_reg Int 4 in
+  let xmm0v () = Proc.phys_reg Vec128 100 in
+  match register_behavior op with
+  | R_to_R | RM_to_R | R_to_RM -> arg, res
+  | R_to_fst ->
+    (* arg.(0) and res.(0) must be the same *)
+    [| res.(0) |], res
+  | R_R_to_fst | R_RM_to_fst ->
+    (* arg.(0) and res.(0) must be the same *)
+    [| res.(0); arg.(1) |], res
+  | R_RM_xmm0_to_fst -> [| res.(0); arg.(1); xmm0v () |], res
+  | R_RM_rax_rdx_to_rcx -> [| arg.(0); arg.(1); rax; rdx |], [| rcx |]
+  | R_RM_to_rcx -> [| arg.(0); arg.(1); rax; rdx |], [| xmm0v () |]
+  | R_RM_rax_rdx_to_xmm0 -> arg, [| rcx |]
+  | R_RM_to_xmm0 -> arg, [| xmm0v () |]
+
+let reload_operation makereg op arg res =
+  let stackp r =
+    match r.Reg.loc with Stack _ -> true | Reg _ | Unknown -> false
+  in
+  match register_behavior op with
+  | R_to_fst ->
+    (* Argument must be in a register; result must be the argument. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    [| arg0 |], [| arg0 |]
+  | R_to_RM ->
+    (* Argument must be in a register. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    [| arg0 |], res
+  | RM_to_R ->
+    (* Result must be in a register. *)
+    let res0 = if stackp res.(0) then makereg res.(0) else res.(0) in
+    arg, [| res0 |]
+  | R_to_R ->
+    (* Argument and result must be in registers. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    let res0 = if stackp res.(0) then makereg res.(0) else res.(0) in
+    [| arg0 |], [| res0 |]
+  | R_R_to_fst ->
+    (* Both arguments must be registers; the result must be the first arg. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    let arg1 = if stackp arg.(1) then makereg arg.(1) else arg.(1) in
+    [| arg0; arg1 |], [| arg0 |]
+  | R_RM_to_fst | R_RM_xmm0_to_fst ->
+    (* First argument must be a register; the result must be the first arg. Note
+       that stack-spilled vectors are properly aligned. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    let arg = Array.copy arg in
+    Array.set arg 0 arg0;
+    arg, [| arg0 |]
+  | R_RM_rax_rdx_to_rcx | R_RM_to_rcx | R_RM_rax_rdx_to_xmm0 | R_RM_to_xmm0 ->
+    (* First argument must be a register. Specific register constraints are
+       enforced by selection. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    let arg = Array.copy arg in
+    Array.set arg 0 arg0;
+    arg, res
