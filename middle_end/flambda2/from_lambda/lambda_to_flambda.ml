@@ -885,6 +885,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           [new_id, value_kind]
           User_visible (Simple new_value) ~body)
       k_exn
+  | Llet ((Strict | Alias | StrictOpt), _layout, id, defining_expr, Lvar id')
+    when Ident.same id id' ->
+    (* Simplif already simplifies such bindings, but we can generate new ones
+       when translating primitives (see the Lprim case below). *)
+    (* This case must not be moved above the case for let-bound primitives. *)
+    cps acc env ccenv defining_expr k k_exn
   | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, is_user_visible env id, layout]
@@ -936,6 +942,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         Misc.fatal_errorf "Wrong number of arguments for Lraise: %a"
           Printlambda.primitive prim)
     | _ ->
+      (* The code for translating primitives needs a let binding, so we
+         introduce such a binding explicitly. *)
+      (* For primitives like [Psequand], which are transformed instead, this
+         binding is useless and can move calls out of tail position, so we rely
+         on a special case above that removes such bindings when the bound
+         expression isn't a primitive. *)
       let name = Printlambda.name_of_primitive prim in
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
