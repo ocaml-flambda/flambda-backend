@@ -885,6 +885,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           [new_id, value_kind]
           User_visible (Simple new_value) ~body)
       k_exn
+  | Llet ((Strict | Alias | StrictOpt), _layout, id, defining_expr, Lvar id')
+    when Ident.same id id' ->
+    cps acc env ccenv defining_expr k k_exn
   | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, is_user_visible env id, layout]
