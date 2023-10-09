@@ -104,6 +104,8 @@ __m128i vectors_and_floats_and_ints(
 
 #define BUILTIN(name) void name() { assert(0); }
 
+BUILTIN(caml_vec128_unreachable);
+
 BUILTIN(caml_vec128_cast);
 
 BUILTIN(caml_float32x4_low_of_float);
@@ -400,7 +402,7 @@ int64_t int16_subsu(int64_t l, int64_t r) {
   if(sum < 0) return 0;
   return sum;
 }
-int64_t int16_muls(int64_t l, int64_t r) {
+int64_t int16_mulsign(int64_t l, int64_t r) {
   int16_t x = l, y = r;
   return y == 0 ? 0 : y > 0 ? x : -x;
 }
@@ -510,7 +512,7 @@ int64_t int8_subsu(int64_t l, int64_t r) {
   if(sum < 0) return 0;
   return sum;
 }
-int64_t int8_muls(int64_t l, int64_t r) {
+int64_t int8_mulsign(int64_t l, int64_t r) {
   int8_t x = l, y = r;
   return y == 0 ? 0 : y > 0 ? x : -x;
 }
