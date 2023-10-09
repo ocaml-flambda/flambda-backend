@@ -885,20 +885,45 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           [new_id, value_kind]
           User_visible (Simple new_value) ~body)
       k_exn
-  | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
-    let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
-      ~params:[id, is_user_visible env id, layout]
-      ~body:(fun acc env ccenv after_defining_expr ->
-        cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
-      ~handler:(fun acc env ccenv -> cps acc env ccenv body k k_exn)
-  (* CR pchambart: This version would avoid one let cont, but would miss the
-     value kind. It should be used when CC.close_let can propagate the
-     value_kind. *)
-  (* let k acc env ccenv value =
-   *   let body acc ccenv = cps acc env ccenv body k k_exn in
-   *   CC.close_let acc ccenv id User_visible value_kind (Simple value) ~body
-   * in
-   * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
+  | Llet ((Strict | Alias | StrictOpt), _layout, id, defining_expr, body) ->
+    let k acc env ccenv (simples : IR.simple list)
+        (arity_component : [`Complex] Flambda_arity.Component_for_creation.t) =
+      let env, ids_with_kinds =
+        match arity_component with
+        | Singleton kind -> env, [id, kind]
+        | Unboxed_product _ ->
+          let arity = Flambda_arity.create [arity_component] in
+          let fields =
+            List.mapi
+              (fun n kind ->
+                let field =
+                  Ident.create_local
+                    (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n)
+                in
+                field, kind)
+              (Flambda_arity.unarize arity)
+          in
+          let env =
+            Env.register_unboxed_product env ~unboxed_product:id
+              ~before_unarization:arity_component ~fields
+          in
+          env, fields
+      in
+      let body acc ccenv = cps acc env ccenv body k k_exn in
+      let make_lets =
+        List.fold_left2
+          (fun body (id, kind) simple ->
+            let acc, expr =
+              CC.close_let acc ccenv
+                [id, kind]
+                User_visible (Simple simple) ~body
+            in
+            fun _ _ -> acc, expr)
+          body ids_with_kinds simples
+      in
+      make_lets acc ccenv
+    in
+    cps_non_tail_simple acc env ccenv defining_expr k k_exn
   | Lletrec (bindings, body) -> (
     let free_vars_kind id =
       let _, kind_with_subkind = CCenv.find_var ccenv id in
