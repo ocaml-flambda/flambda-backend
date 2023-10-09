@@ -2399,31 +2399,38 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
 (* CR mshinwell: These will be filled in by later pull requests. *)
 let placeholder_dbg () = Debuginfo.none
 
-let maybe_reset_current_region ~dbg ~body old_region =
+let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
   Cifthenelse
     ( Cop (Ccmpi Ceq, [old_region; Cop (Cbeginregion, [], dbg ())], dbg ()),
       dbg (),
-      body,
+      body_tail,
       dbg (),
       (let res = V.create_local "result" in
        Clet
          ( VP.create res,
-           body,
+           body_nontail,
            Csequence (Cop (Cendregion, [old_region], dbg ()), Cvar res) )),
       dbg (),
       Any )
 
-let rec might_split_call_caml_apply ?(was_already_split = false) result arity
+let rec might_split_call_caml_apply ?old_region result arity
     mut clos args pos mode dbg =
   match split_arity_for_apply arity args with
   | (arity, args), None ->
-    call_caml_apply result arity mut clos args pos mode dbg
+    (match old_region with
+     | None ->
+       call_caml_apply result arity mut clos args pos mode dbg
+     | Some old_region ->
+       maybe_reset_current_region ~dbg:placeholder_dbg
+         ~body_tail:(call_caml_apply result arity mut clos args pos mode dbg)
+         ~body_nontail:(call_caml_apply result arity mut clos args Rc_normal Lambda.alloc_local dbg)
+         old_region)
   | (arity, args), Some (arity', args') -> (
-    let body pos mode =
+    let body old_region =
       bind "result"
-        (call_caml_apply [| Val |] arity mut clos args Rc_normal mode dbg)
+        (call_caml_apply [| Val |] arity mut clos args Rc_normal Lambda.alloc_local dbg)
         (fun clos ->
-          might_split_call_caml_apply ~was_already_split:true result arity' mut
+          might_split_call_caml_apply ?old_region result arity' mut
             clos args' pos mode dbg)
     in
     (* When splitting [caml_applyM] into [caml_applyN] and [caml_applyK] it is
@@ -2431,18 +2438,16 @@ let rec might_split_call_caml_apply ?(was_already_split = false) result arity
        the region might be closed once [caml_applyN] returns, which could
        produce a segfault or make subsequent loads read bad data.
 
-       To avoid doing that, when splitting a [caml_apply] we always call the
-       local version of caml_apply and we close the region ourselves after the
-       last call to [caml_apply]. *)
-    match was_already_split, mode with
-    | false, Lambda.Alloc_heap when Config.stack_allocation ->
+       To avoid doing that, when splitting a [caml_apply], we check before calling the
+       last [caml_apply] if we allocated on the local stack; and if so, we close the
+       region ourselves afterwards, as is already done inside [caml_apply]. *)
+    match old_region, mode with
+    | None, Lambda.Alloc_heap when Config.stack_allocation ->
       let dbg = placeholder_dbg in
       bind "region"
         (Cop (Cbeginregion, [], dbg ()))
-        (fun region ->
-          bind "res" (body Lambda.Rc_normal Lambda.alloc_local) (fun body ->
-              maybe_reset_current_region ~dbg ~body region))
-    | _ -> body pos mode)
+        (fun region -> body (Some region))
+    | _ -> body old_region)
 
 let generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
@@ -2646,7 +2651,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
         (* To preserve tail-call behaviour, we do a runtime check whether
            anything has been allocated in [region]. If not, then we can do a
            direct tail call without waiting to end the region afterwards. *)
-        maybe_reset_current_region ~dbg ~body:app (Cvar region))
+        maybe_reset_current_region ~dbg ~body_tail:app ~body_nontail:app (Cvar region))
     | arg :: args ->
       let newclos = V.create_local "clos" in
       Clet
