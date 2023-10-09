@@ -37,6 +37,30 @@ type float_rounding = X86_ast.rounding =
   | RoundTruncate
   | RoundCurrent
 
+let float_condition_equal l r =
+  match l, r with
+  | EQf, EQf
+  | LTf, LTf
+  | LEf, LEf
+  | UNORDf, UNORDf
+  | NEQf, NEQf
+  | NLTf, NLTf
+  | NLEf, NLEf
+  | ORDf, ORDf ->
+    true
+  | (EQf | LTf | LEf | UNORDf | NEQf | NLTf | NLEf | ORDf), _ -> false
+
+let float_rounding_equal l r =
+  match l, r with
+  | RoundUp, RoundUp
+  | RoundDown, RoundDown
+  | RoundNearest, RoundNearest
+  | RoundTruncate, RoundTruncate
+  | RoundCurrent, RoundCurrent ->
+    true
+  | (RoundUp | RoundDown | RoundNearest | RoundTruncate | RoundCurrent), _ ->
+    false
+
 type sse_operation =
   | Cmp_f32 of float_condition
   | Add_f32
@@ -249,8 +273,8 @@ let equal_operation_sse l r =
   | Interleave_low_32, Interleave_low_32
   | Movemask_32, Movemask_32 ->
     true
-  | Cmp_f32 l, Cmp_f32 r when l = r -> true
-  | Shuffle_32 l, Shuffle_32 r when l = r -> true
+  | Cmp_f32 l, Cmp_f32 r when float_condition_equal l r -> true
+  | Shuffle_32 l, Shuffle_32 r when Int.equal l r -> true
   | ( ( Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32 | Rcp_f32
       | Sqrt_f32 | Rsqrt_f32 | High_64_to_low_64 | Low_64_to_high_64
       | Interleave_high_32 | Interleave_low_32 | Movemask_32 | Cmp_f32 _
@@ -339,9 +363,9 @@ let equal_operation_sse2 l r =
   | Shuffle_64 l, Shuffle_64 r
   | Shuffle_high_16 l, Shuffle_high_16 r
   | Shuffle_low_16 l, Shuffle_low_16 r
-    when l = r ->
+    when Int.equal l r ->
     true
-  | Cmp_f64 l, Cmp_f64 r when l = r -> true
+  | Cmp_f64 l, Cmp_f64 r when float_condition_equal l r -> true
   | ( ( Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Adds_u8 | Adds_u16
       | Adds_i8 | Adds_i16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
       | Subs_u8 | Subs_u16 | Subs_i8 | Subs_i16 | Max_u8 | Max_i16 | Max_f64
@@ -392,7 +416,7 @@ let equal_operation_ssse3 l r =
   | Mulsign_i32, Mulsign_i32
   | Shuffle_8, Shuffle_8 ->
     true
-  | Alignr_i8 l, Alignr_i8 r when l = r -> true
+  | Alignr_i8 l, Alignr_i8 r when Int.equal l r -> true
   | ( ( Abs_i8 | Abs_i16 | Abs_i32 | Hadd_i16 | Hadd_i32 | Hadds_i16 | Hsub_i16
       | Hsub_i32 | Hsubs_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32
       | Shuffle_8 | Alignr_i8 _ ),
@@ -441,9 +465,11 @@ let equal_operation_sse41 l r =
   | Insert_i32 l, Insert_i32 r
   | Insert_i64 l, Insert_i64 r
   | Multi_sad_u8 l, Multi_sad_u8 r
-    when l = r ->
+    when Int.equal l r ->
     true
-  | (Round_f64 l, Round_f64 r | Round_f32 l, Round_f32 r) when l = r -> true
+  | (Round_f64 l, Round_f64 r | Round_f32 l, Round_f32 r)
+    when float_rounding_equal l r ->
+    true
   | ( ( Multi_sad_u8 _ | Blendv_8 | Blendv_32 | Blendv_64 | Cmpeq_i64
       | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64
       | U8_zx_i16 | U8_zx_i32 | U8_zx_i64 | U16_zx_i32 | U16_zx_i64 | U32_zx_i64
@@ -472,7 +498,7 @@ let equal_operation_sse42 l r =
   | Cmpistro l, Cmpistro r
   | Cmpistrs l, Cmpistrs r
   | Cmpistrz l, Cmpistrz r
-    when l = r ->
+    when Int.equal l r ->
     true
   | ( ( Cmpgt_i64 | Crc32_64 | Cmpestrm _ | Cmpestra _ | Cmpestrc _ | Cmpestro _
       | Cmpestrs _ | Cmpestrz _ | Cmpistrm _ | Cmpistra _ | Cmpistrc _
@@ -623,8 +649,10 @@ let print_operation_sse2 printreg op ppf arg =
   | SRLi_i64 i -> fprintf ppf "srli_i64[%d] %a" i printreg arg.(0)
   | SRAi_i16 i -> fprintf ppf "srai_i16[%d] %a" i printreg arg.(0)
   | SRAi_i32 i -> fprintf ppf "srai_i32[%d] %a" i printreg arg.(0)
-  | Shift_left_bytes i -> fprintf ppf "extract_i16[%d] %a" i printreg arg.(0)
-  | Shift_right_bytes i -> fprintf ppf "extract_i16[%d] %a" i printreg arg.(0)
+  | Shift_left_bytes i ->
+    fprintf ppf "shift_left_bytes[%d] %a" i printreg arg.(0)
+  | Shift_right_bytes i ->
+    fprintf ppf "shift_right_bytes[%d] %a" i printreg arg.(0)
   | Cmp_f64 i ->
     fprintf ppf "cmp_f64[%a] %a %a" print_float_condition i printreg arg.(0)
       printreg arg.(1)

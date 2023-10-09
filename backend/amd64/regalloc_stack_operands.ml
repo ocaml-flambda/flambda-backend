@@ -9,10 +9,7 @@ let debug = false
 let may_use_stack_operand_for_second_argument
   : type a . num_args:int -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun ~num_args map instr ->
-  if debug then begin
-    check_lengths instr ~of_arg:num_args ~of_res:1;
-    check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
-  end;
+  if debug then check_lengths instr ~of_arg:num_args ~of_res:1;
   begin match is_spilled map instr.arg.(1) with
   | false -> ()
   | true ->
@@ -49,9 +46,7 @@ let may_use_stack_operand_for_only_result
 let may_use_stack_operand_for_result
   : type a . num_args:int -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun ~num_args map instr ->
-  if debug then begin
-    check_lengths instr ~of_arg:num_args ~of_res:1;
-  end;
+  if debug then check_lengths instr ~of_arg:num_args ~of_res:1;
   begin match is_spilled map instr.res.(0) with
   | false -> ()
   | true ->
