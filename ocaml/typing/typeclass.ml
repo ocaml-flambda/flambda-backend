@@ -16,7 +16,6 @@
 open Parsetree
 open Asttypes
 open Path
-open Layouts
 open Types
 open Typetexp
 open Format
@@ -109,7 +108,7 @@ type error =
   | Duplicate of string * string
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
-  | Non_value_binding of string * Layout.Violation.t
+  | Non_value_binding of string * Jkind.Violation.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -311,8 +310,8 @@ let rec class_type_field env sign self_scope ctf =
           let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
           let ty = cty.ctyp_type in
           begin match
-            Ctype.constrain_type_layout
-              env ty (Layout.value ~why:Instance_variable)
+            Ctype.constrain_type_jkind
+              env ty (Jkind.value ~why:Instance_variable)
           with
           | Ok _ -> ()
           | Error err -> raise (Error(loc, env, Non_value_binding(lab, err)))
@@ -327,7 +326,7 @@ let rec class_type_field env sign self_scope ctf =
            match sty.ptyp_desc, priv with
            | Ptyp_poly ([],sty'), Public ->
                let expected_ty =
-                 Ctype.newvar (Layout.value ~why:Object_field)
+                 Ctype.newvar (Jkind.value ~why:Object_field)
                in
                add_method loc env lab priv virt expected_ty sign;
                let returned_cty =
@@ -677,8 +676,8 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            end;
            begin
              match
-               Ctype.constrain_type_layout
-                 val_env ty (Layout.value ~why:Class_field)
+               Ctype.constrain_type_jkind
+                 val_env ty (Jkind.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -726,9 +725,9 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            end;
            begin
              match
-               Ctype.constrain_type_layout
+               Ctype.constrain_type_jkind
                  val_env definition.exp_type
-                 (Layout.value ~why:Class_field)
+                 (Jkind.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
@@ -798,7 +797,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            in
            let ty =
              match sty with
-             | None -> Ctype.newvar (Layout.value ~why:Object_field)
+             | None -> Ctype.newvar (Jkind.value ~why:Object_field)
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
@@ -812,7 +811,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                match get_desc ty with
                | Tvar _ ->
                    let ty' =
-                     Ctype.newvar (Layout.value ~why:Object_field)
+                     Ctype.newvar (Jkind.value ~why:Object_field)
                    in
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
@@ -1304,7 +1303,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               Arg (
                 if not optional || Btype.is_optional l' then
                   let arg = Typecore.type_argument val_env sarg ty ty0 in
-                  arg, Sort.value
+                  arg, Jkind.Sort.value
                 else
                   let ty' = Typecore.extract_option_type val_env ty
                   and ty0' = Typecore.extract_option_type val_env ty0 in
@@ -1312,14 +1311,14 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                   Typecore.option_some val_env arg Mode.Value.legacy,
                   (* CR layouts v5: Change the sort when options can hold
                      non-values. *)
-                  Sort.value
+                  Jkind.Sort.value
               )
             in
             let eliminate_optional_arg () =
               Arg (Typecore.option_none val_env ty0 Location.none,
                    (* CR layouts v5: Change the sort when options can hold
                       non-values. *)
-                   Sort.value
+                   Jkind.Sort.value
                   )
             in
             let remaining_sargs, arg =
@@ -1355,7 +1354,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Mode.Alloc.legacy in
                       let mode_arg = Mode.Alloc.legacy in
                       let mode_ret = Mode.Alloc.legacy in
-                      let sort_arg = Sort.value in
+                      let sort_arg = Jkind.Sort.value in
                       Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
                     end
             in
@@ -1397,10 +1396,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              List.iter
                (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
-                  if not (Sort.equate sort Sort.value)
-                  then let viol = Layout.Violation.of_ (Not_a_sublayout(
-                    Layout.of_sort ~why:Let_binding sort,
-                    Layout.value ~why:Class_let_binding))
+                  if not (Jkind.Sort.(equate sort value))
+                  then let viol = Jkind.Violation.of_ (Not_a_subjkind(
+                    Jkind.of_sort_for_error ~why:Let_binding sort,
+                    Jkind.value ~why:Class_let_binding))
                     in
                     raise (Error(loc, met_env,
                                  Non_value_binding (Ident.name id, viol)))
@@ -1504,16 +1503,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Layout.value ~why:Type_argument))
+  Predef.type_option (Btype.newgenvar (Jkind.value ~why:Type_argument))
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Layout.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_argument)
         (* CR layouts: use of value here may be relaxed when we update
-           classes to work with layouts *)
+           classes to work with jkinds *)
       in
       let arg = Ctype.newmono arg in
       let arrow_desc = l, Mode.Alloc.legacy, Mode.Alloc.legacy in
@@ -1523,37 +1522,37 @@ let rec approx_declaration cl =
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
       approx_declaration cl
-  | _ -> Ctype.newvar (Layout.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.value ~why:Object)
 
 let rec approx_description ct =
   match ct.pcty_desc with
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Layout.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_argument)
         (* CR layouts: use of value here may be relaxed when we
-           relax layouts in classes *)
+           relax jkinds in classes *)
       in
       let arg = Ctype.newmono arg in
       let arrow_desc = l, Mode.Alloc.legacy, Mode.Alloc.legacy in
       Ctype.newty
         (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
-  | _ -> Ctype.newvar (Layout.value ~why:Object)
+  | _ -> Ctype.newvar (Jkind.value ~why:Object)
 
 (*******************************)
 
 let temp_abbrev loc env id arity uid =
   let params = ref [] in
   for _i = 1 to arity do
-    params := Ctype.newvar (Layout.value ~why:Type_argument) :: !params
+    params := Ctype.newvar (Jkind.value ~why:Type_argument) :: !params
   done;
-  let ty = Ctype.newobj (Ctype.newvar (Layout.value ~why:Object)) in
+  let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
   let env =
     Env.add_type ~check:true id
       {type_params = !params;
        type_arity = arity;
-       type_kind = Type_abstract;
-       type_layout = Layout.value ~why:Object;
+       type_kind = Type_abstract Abstract_def;
+       type_jkind = Jkind.value ~why:Object;
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1641,7 +1640,7 @@ let class_infos define_class kind
            we should lift this restriction. Doing so causes bad error messages
            today, so we wait for tomorrow. *)
         Ctype.unify env param.ctyp_type
-          (Ctype.newvar (Layout.value ~why:Class_argument));
+          (Ctype.newvar (Jkind.value ~why:Class_argument));
         (param, v)
       with Already_bound ->
         raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -1793,8 +1792,8 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Type_abstract;
-     type_layout = Layout.value ~why:Object;
+     type_kind = Type_abstract Abstract_def;
+     type_jkind = Jkind.value ~why:Object;
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1816,8 +1815,8 @@ let class_infos define_class kind
     {
      type_params = cl_params;
      type_arity = arity;
-     type_kind = Type_abstract;
-     type_layout = Layout.value ~why:Object;
+     type_kind = Type_abstract Abstract_def;
+     type_jkind = Jkind.value ~why:Object;
      type_private = Public;
      type_manifest = Some cl_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -2248,7 +2247,7 @@ let report_error env ppf = function
   | Non_value_binding (nm, err) ->
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
-      (Layout.Violation.report_with_name ~name:nm) err
+      (Jkind.Violation.report_with_name ~name:nm) err
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

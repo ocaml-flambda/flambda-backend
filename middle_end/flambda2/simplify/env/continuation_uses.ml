@@ -20,7 +20,7 @@ module U = One_continuation_use
 
 type t =
   { continuation : Continuation.t;
-    arity : Flambda_arity.t;
+    arity : [`Unarized] Flambda_arity.t;
     uses : U.t list
   }
 
@@ -95,7 +95,7 @@ let add_uses_to_arg_maps arg_maps uses =
 let empty_arg_maps arity : arg_types_by_use_id =
   List.map
     (fun _ -> Apply_cont_rewrite_id.Map.empty)
-    (Flambda_arity.to_list arity)
+    (Flambda_arity.unarized_components arity)
 
 let get_arg_types_by_use_id t =
   add_uses_to_arg_maps (empty_arg_maps t.arity) t.uses
@@ -107,10 +107,12 @@ let get_arg_types_by_use_id_for_invariant_params arity l =
   List.fold_left
     (fun arg_maps t ->
       if not
-           (Misc.Stdlib.List.is_prefix
-              ~equal:Flambda_kind.With_subkind.equal_ignoring_subkind
-              (Flambda_arity.to_list arity)
-              ~of_:(Flambda_arity.to_list t.arity))
+           (Misc.Stdlib.List.is_prefix ~equal:Flambda_kind.equal
+              (Flambda_arity.unarized_components arity
+              |> List.map Flambda_kind.With_subkind.kind)
+              ~of_:
+                (Flambda_arity.unarized_components t.arity
+                |> List.map Flambda_kind.With_subkind.kind))
       then
         Misc.fatal_errorf
           "Arity of invariant params@ (%a) is not a prefix of the arity of the \

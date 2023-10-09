@@ -1,4 +1,3 @@
-open Layouts
 open Lambda
 open Typedtree
 open Asttypes
@@ -173,7 +172,7 @@ let iterator ~transl_exp ~scopes = function
       let transl_bound var bound =
         Let_binding.make
           (Immutable Strict) (Pvalue Pintval)
-          var (transl_exp ~scopes Sort.for_predef_value bound)
+          var (transl_exp ~scopes Jkind.Sort.for_predef_value bound)
       in
       let start = transl_bound "start" start in
       let stop  = transl_bound "stop"  stop  in
@@ -188,7 +187,7 @@ let iterator ~transl_exp ~scopes = function
   | Texp_comp_in { pattern; sequence } ->
       let iter_list =
         Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_list" (transl_exp ~scopes Sort.for_predef_value sequence)
+          "iter_list" (transl_exp ~scopes Jkind.Sort.for_predef_value sequence)
       in
       (* Create a fresh variable to use as the function argument *)
       let element = Ident.create_local "element" in
@@ -197,11 +196,11 @@ let iterator ~transl_exp ~scopes = function
       ; element
       ; element_kind =
           Typeopt.layout pattern.pat_env pattern.pat_loc
-            Layouts.Sort.for_list_element pattern.pat_type
+            Jkind.Sort.for_list_element pattern.pat_type
       ; add_bindings =
           (* CR layouts: to change when we allow non-values in sequences *)
           Matching.for_let
-            ~scopes ~arg_sort:Sort.for_list_element
+            ~scopes ~arg_sort:Jkind.Sort.for_list_element
             ~return_layout:(Pvalue Pgenval) pattern.pat_loc (Lvar element)
             pattern
       }
@@ -298,7 +297,7 @@ let rec translate_clauses
             in
             Let_binding.let_all arg_lets bindings
         | Texp_comp_when cond ->
-            Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
+            Lifthenelse(transl_exp ~scopes Jkind.Sort.for_predef_value cond,
                         body ~accumulator,
                         accumulator,
                         (Pvalue Pgenval) (* [list]s have the standard representation *))
@@ -313,7 +312,7 @@ let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
         rev_list_snoc_local
           ~loc
           ~init:accumulator
-          ~last:(transl_exp ~scopes Sort.for_list_element comp_body))
+          ~last:(transl_exp ~scopes Jkind.Sort.for_list_element comp_body))
       ~accumulator:rev_list_nil
       comp_clauses
   in

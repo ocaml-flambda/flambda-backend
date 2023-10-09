@@ -274,6 +274,8 @@ let is_imm32L n = n < 0x8000_0000L && n >= -0x8000_0000L
 
 let is_imm8L x = x < 128L && x >= -128L
 
+let is_imm16L n = n < 32768L && n >= -32768L
+
 let rd_of_regf regf =
   match regf with
   | XMM n -> n
@@ -384,6 +386,12 @@ let arch64 = Config.architecture = "amd64"
 
 let emit_rex b rexcode =
   if arch64 && rexcode <> 0 then buf_int8 b (rexcode lor rex)
+
+let buf_int16_imm b = function
+  | Imm n ->
+      assert (is_imm16L n);
+      buf_int16L b n
+  | _ -> assert false
 
 let buf_int32_imm b = function
   | Imm n ->
@@ -1136,6 +1144,7 @@ type simple_encoding = {
   al_imm8 : int list;
   rax_imm32 : int list;
   rm8_imm8 : int list;
+  rm16_imm16 : int list;
   rm64_imm32 : int list;
   rm64_imm8 : int list;
   reg : int;
@@ -1180,6 +1189,12 @@ let emit_simple_encoding enc b dst src =
   | { rax_imm32 = opcodes }, Reg32 RAX, ((Imm _ | Sym _) as n) ->
       buf_opcodes b opcodes;
       buf_int32_imm b n
+  | ( { rm16_imm16 = opcodes; reg },
+      ((Reg16 _ | Mem { typ = WORD })
+      as rm),
+      (Imm _ as n) ) ->
+      emit_mod_rm_reg b 0 opcodes rm reg;
+      buf_int16_imm b n
   | ( { rm64_imm32 = opcodes; reg },
       ((Reg32 _ | Mem { typ = NONE; arch = X86 } | Mem { typ = DWORD | REAL4 })
       as rm),
@@ -1205,6 +1220,7 @@ let emit_simple_encoding base reg =
       al_imm8 = [ base + 4 ];
       rax_imm32 = [ base + 5 ];
       rm8_imm8 = [ 0x80 ];
+      rm16_imm16 = [ 0x81 ];
       rm64_imm32 = [ 0x81 ];
       rm64_imm8 = [ 0x83 ];
       reg;
@@ -1696,6 +1712,8 @@ let emit_XCHG b src dst =
       emit_mod_rm_reg b no_rex [ 0x86 ] rm (rd_of_reg8 reg)
   | _ -> assert false
 
+let imm arg = match arg with Imm n -> Int64.to_int n | _ -> assert false
+
 let assemble_instr b loc = function
   | ADD (src, dst) -> emit_ADD b dst src
   | ADDSD (src, dst) -> emit_addsd b dst src
@@ -1786,7 +1804,7 @@ let assemble_instr b loc = function
   | UNPCKHPS (src, dst) -> emit_unpckhps b dst src
   | UNPCKLPS (src, dst) -> emit_unpcklps b dst src
   | MOVMSKPS (src, dst) -> emit_movmskps b dst src
-  | SHUFPS (shuf, src, dst) -> emit_shufps b shuf dst src
+  | SHUFPS (shuf, src, dst) -> emit_shufps b (imm shuf) dst src
   | PADDB (src, dst) -> emit_paddb b dst src
   | PADDW (src, dst) -> emit_paddw b dst src
   | PADDD (src, dst) -> emit_paddd b dst src
@@ -1819,8 +1837,8 @@ let assemble_instr b loc = function
   | PXOR (src, dst) -> emit_pxor b dst src
   | PMOVMSKB (src, dst) -> emit_pmovmskb b dst src
   | MOVMSKPD (src, dst) -> emit_movmskpd b dst src
-  | PSLLDQ (n, dst) -> emit_pslldq b n dst
-  | PSRLDQ (n, dst) -> emit_psrldq b n dst
+  | PSLLDQ (n, dst) -> emit_pslldq b (imm n) dst
+  | PSRLDQ (n, dst) -> emit_psrldq b (imm n) dst
   | PCMPEQB (src, dst) -> emit_pcmpeqb b dst src
   | PCMPEQW (src, dst) -> emit_pcmpeqw b dst src
   | PCMPEQD (src, dst) -> emit_pcmpeqd b dst src
@@ -1842,17 +1860,17 @@ let assemble_instr b loc = function
   | PSRLQ (src, dst) -> emit_psrlq b dst src
   | PSRAW (src, dst) -> emit_psraw b dst src
   | PSRAD (src, dst) -> emit_psrad b dst src
-  | PSLLWI (n, dst) -> emit_psllwi b n dst
-  | PSLLDI (n, dst) -> emit_pslldi b n dst
-  | PSLLQI (n, dst) -> emit_psllqi b n dst
-  | PSRLWI (n, dst) -> emit_psrlwi b n dst
-  | PSRLDI (n, dst) -> emit_psrldi b n dst
-  | PSRLQI (n, dst) -> emit_psrlqi b n dst
-  | PSRAWI (n, dst) -> emit_psrawi b n dst
-  | PSRADI (n, dst) -> emit_psradi b n dst
-  | SHUFPD (n, src, dst) -> emit_shufpd b n dst src
-  | PSHUFHW (n, src, dst) -> emit_pshufhw b n dst src
-  | PSHUFLW (n, src, dst) -> emit_pshuflw b n dst src
+  | PSLLWI (n, dst) -> emit_psllwi b (imm n) dst
+  | PSLLDI (n, dst) -> emit_pslldi b (imm n) dst
+  | PSLLQI (n, dst) -> emit_psllqi b (imm n) dst
+  | PSRLWI (n, dst) -> emit_psrlwi b (imm n) dst
+  | PSRLDI (n, dst) -> emit_psrldi b (imm n) dst
+  | PSRLQI (n, dst) -> emit_psrlqi b (imm n) dst
+  | PSRAWI (n, dst) -> emit_psrawi b (imm n) dst
+  | PSRADI (n, dst) -> emit_psradi b (imm n) dst
+  | SHUFPD (n, src, dst) -> emit_shufpd b (imm n) dst src
+  | PSHUFHW (n, src, dst) -> emit_pshufhw b (imm n) dst src
+  | PSHUFLW (n, src, dst) -> emit_pshuflw b (imm n) dst src
   | PUNPCKHBW (src, dst) -> emit_punpckhbw b dst src
   | PUNPCKHWD (src, dst) -> emit_punpckhwd b dst src
   | PUNPCKHQDQ (src, dst) -> emit_punpckhqdq b dst src
@@ -1881,9 +1899,9 @@ let assemble_instr b loc = function
   | PSIGNW (src, dst) -> emit_psignw b dst src
   | PSIGND (src, dst) -> emit_psignd b dst src
   | PSHUFB (src, dst) -> emit_pshufb b dst src
-  | PBLENDW (n, src, dst) -> emit_pblendw b n dst src
-  | BLENDPS (n, src, dst) -> emit_blendps b n dst src
-  | BLENDPD (n, src, dst) -> emit_blendpd b n dst src
+  | PBLENDW (n, src, dst) -> emit_pblendw b (imm n) dst src
+  | BLENDPS (n, src, dst) -> emit_blendps b (imm n) dst src
+  | BLENDPD (n, src, dst) -> emit_blendpd b (imm n) dst src
   | PBLENDVB (src, dst) -> emit_pblendvb b dst src
   | BLENDVPS (src, dst) -> emit_blendvps b dst src
   | BLENDVPD (src, dst) -> emit_blendvpd b dst src
@@ -1900,16 +1918,16 @@ let assemble_instr b loc = function
   | PMOVZXWD (src, dst) -> emit_pmovzxwd b dst src
   | PMOVZXWQ (src, dst) -> emit_pmovzxwq b dst src
   | PMOVZXDQ (src, dst) -> emit_pmovzxdq b dst src
-  | DPPS (n, src, dst) -> emit_dpps b n dst src
-  | DPPD (n, src, dst) -> emit_dppd b n dst src
-  | PEXTRB (n, src, dst) -> emit_pextrb b n dst src
-  | PEXTRW (n, src, dst) -> emit_pextrw b n dst src
-  | PEXTRD (n, src, dst) -> emit_pextrd b n dst src
-  | PEXTRQ (n, src, dst) -> emit_pextrq b n dst src
-  | PINSRB (n, src, dst) -> emit_pinsrb b n dst src
-  | PINSRW (n, src, dst) -> emit_pinsrw b n dst src
-  | PINSRD (n, src, dst) -> emit_pinsrd b n dst src
-  | PINSRQ (n, src, dst) -> emit_pinsrq b n dst src
+  | DPPS (n, src, dst) -> emit_dpps b (imm n) dst src
+  | DPPD (n, src, dst) -> emit_dppd b (imm n) dst src
+  | PEXTRB (n, src, dst) -> emit_pextrb b (imm n) dst src
+  | PEXTRW (n, src, dst) -> emit_pextrw b (imm n) dst src
+  | PEXTRD (n, src, dst) -> emit_pextrd b (imm n) dst src
+  | PEXTRQ (n, src, dst) -> emit_pextrq b (imm n) dst src
+  | PINSRB (n, src, dst) -> emit_pinsrb b (imm n) dst src
+  | PINSRW (n, src, dst) -> emit_pinsrw b (imm n) dst src
+  | PINSRD (n, src, dst) -> emit_pinsrd b (imm n) dst src
+  | PINSRQ (n, src, dst) -> emit_pinsrq b (imm n) dst src
   | PMAXSB (src, dst) -> emit_pmaxsb b dst src
   | PMAXSD (src, dst) -> emit_pmaxsd b dst src
   | PMAXUW (src, dst) -> emit_pmaxuw b dst src
@@ -1921,10 +1939,10 @@ let assemble_instr b loc = function
   | ROUNDPD (n, src, dst) -> emit_roundpd b (imm8_of_rounding n) dst src
   | ROUNDPS (n, src, dst) -> emit_roundps b (imm8_of_rounding n) dst src
   | PCMPGTQ (src, dst) -> emit_pcmpgtq b dst src
-  | PCMPESTRI (n, src, dst) -> emit_pcmpestri b n dst src
-  | PCMPESTRM (n, src, dst) -> emit_pcmpestrm b n dst src
-  | PCMPISTRI (n, src, dst) -> emit_pcmpistri b n dst src
-  | PCMPISTRM (n, src, dst) -> emit_pcmpistrm b n dst src
+  | PCMPESTRI (n, src, dst) -> emit_pcmpestri b (imm n) dst src
+  | PCMPESTRM (n, src, dst) -> emit_pcmpestrm b (imm n) dst src
+  | PCMPISTRI (n, src, dst) -> emit_pcmpistri b (imm n) dst src
+  | PCMPISTRM (n, src, dst) -> emit_pcmpistrm b (imm n) dst src
   | PAVGB (src, dst) -> emit_pavgb b dst src
   | PAVGW (src, dst) -> emit_pavgw b dst src
   | PSADBW (src, dst) -> emit_psadbw b dst src
@@ -1932,8 +1950,8 @@ let assemble_instr b loc = function
   | PACKSSDW (src, dst) -> emit_packssdw b dst src
   | PACKUSWB (src, dst) -> emit_packuswb b dst src
   | PACKUSDW (src, dst) -> emit_packusdw b dst src
-  | PALIGNR (n, src, dst) -> emit_palignr b n dst src
-  | MPSADBW (n, src, dst) -> emit_mpsadbw b n dst src
+  | PALIGNR (n, src, dst) -> emit_palignr b (imm n) dst src
+  | MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
   | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
 
 let assemble_line b loc ins =

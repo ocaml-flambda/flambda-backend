@@ -231,6 +231,7 @@ let prelude :
   if Utils.debug
   then Utils.log ~indent:0 "#temporaries(before):%d" num_temporaries;
   if num_temporaries >= threshold_split_live_ranges
+     || Flambda2_ui.Flambda_features.classic_mode ()
   then cfg_infos, Regalloc_stack_slots.make ()
   else if Lazy.force Regalloc_split_utils.split_live_ranges
   then

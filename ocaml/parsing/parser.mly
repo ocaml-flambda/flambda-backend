@@ -25,6 +25,7 @@
 %{
 
 open Asttypes
+open Jane_asttypes
 open Longident
 open Parsetree
 open Ast_helper
@@ -512,7 +513,10 @@ type ('dot,'index) array_family = {
 
 }
 
-let bigarray_untuplify = function
+let bigarray_untuplify exp =
+  match Jane_syntax.Expression.of_ast exp with
+  | Some _ -> [exp]
+  | None -> match exp with
     { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> explist
   | exp -> [exp]
 
@@ -618,12 +622,12 @@ let pat_of_label lbl =
   Pat.mk ~loc:lbl.loc  (Ppat_var (loc_last lbl))
 
 let mk_newtypes ~loc newtypes exp =
-  let mk_one (name, layout) exp =
-    match layout with
+  let mk_one (name, jkind) exp =
+    match jkind with
     | None -> mkexp ~loc (Pexp_newtype (name, exp))
-    | Some layout ->
+    | Some jkind ->
       Jane_syntax.Layouts.expr_of ~loc:(make_loc loc)
-        (Lexp_newtype (name, layout, exp))
+        (Lexp_newtype (name, jkind, exp))
   in
   List.fold_right mk_one newtypes exp
 
@@ -816,7 +820,7 @@ let all_params_as_newtypes =
   in
   let as_newtype { pparam_desc; _ } =
     match pparam_desc with
-    | Pparam_newtype (x, layout) -> Some (x, layout)
+    | Pparam_newtype (x, jkind) -> Some (x, jkind)
     | Pparam_val _ -> None
   in
   fun params ->
@@ -908,7 +912,7 @@ let mk_directive ~loc name arg =
       pdir_loc = make_loc loc;
     }
 
-let check_layout ~loc id : const_layout =
+let check_jkind ~loc id : const_jkind =
   match id with
   | "any" -> Any
   | "value" -> Value
@@ -945,7 +949,7 @@ end = struct
 
   let assert_unboxed_literals ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
 
   let unboxed ~loc x =
     assert_unboxed_literals ~loc:(make_loc loc);
@@ -990,7 +994,7 @@ let unboxed_float sloc sign (f, m) =
 
 let assert_unboxed_float_type ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
 
 let unboxed_float_type sloc tys =
   assert_unboxed_float_type ~loc:(make_loc sloc);
@@ -3269,13 +3273,13 @@ fun_param_as_list:
           | _ :: _ :: _ -> ghost_loc $sloc
         in
         List.map
-          (fun (newtype, layout) ->
+          (fun (newtype, jkind) ->
              { N_ary.pparam_loc = loc;
-               pparam_desc = Pparam_newtype (newtype, layout)
+               pparam_desc = Pparam_newtype (newtype, jkind)
              })
           ty_params
       }
-  | LPAREN TYPE mkrhs(LIDENT) COLON layout_annotation RPAREN
+  | LPAREN TYPE mkrhs(LIDENT) COLON jkind_annotation RPAREN
       { [ { N_ary.pparam_loc = make_loc $sloc;
             pparam_desc = Pparam_newtype ($3, Some $5)
           }
@@ -3345,14 +3349,14 @@ type_constraint:
 
 (* the thing between the [type] and the [.] in
    [let : type <<here>>. 'a -> 'a = ...] *)
-newtypes: (* : (string with_loc * layout_annotation option) list *)
+newtypes: (* : (string with_loc * jkind_annotation option) list *)
   newtype+
     { $1 }
 
-newtype: (* : string with_loc * layout_annotation option *)
+newtype: (* : string with_loc * jkind_annotation option *)
     mkrhs(LIDENT)                     { $1, None }
-  | LPAREN name=mkrhs(LIDENT) COLON layout=layout_annotation RPAREN
-      { name, Some layout }
+  | LPAREN name=mkrhs(LIDENT) COLON jkind=jkind_annotation RPAREN
+      { name, Some jkind }
 
 /* Patterns */
 
@@ -3625,7 +3629,7 @@ generic_type_declaration(flag, kind):
   flag = flag
   params = type_parameters
   id = mkrhs(LIDENT)
-  layout = layout_attr?
+  jkind = jkind_attr?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3635,7 +3639,7 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       (flag, ext),
-      Type.mk id ~params ?layout ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
+      Type.mk id ~params ?jkind ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
     }
 ;
 %inline generic_and_type_declaration(kind):
@@ -3643,7 +3647,7 @@ generic_type_declaration(flag, kind):
   attrs1 = attributes
   params = type_parameters
   id = mkrhs(LIDENT)
-  layout = layout_attr?
+  jkind = jkind_attr?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3653,7 +3657,7 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let text = symbol_text $symbolstartpos in
-      Type.mk id ~params ?layout ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
+      Type.mk id ~params ?jkind ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
     }
 ;
 %inline constraints:
@@ -3706,36 +3710,36 @@ type_parameters:
       { ps }
 ;
 
-layout_annotation: (* : layout_annotation *)
+jkind_annotation: (* : jkind_annotation *)
   ident { let loc = make_loc $sloc in
-          mkloc (check_layout ~loc $1) loc }
+          mkloc (check_jkind ~loc $1) loc }
 ;
 
-layout_string: (* : string with_loc *)
-  (* the [check_layout] just ensures this is the name of a layout *)
+jkind_string: (* : string with_loc *)
+  (* the [check_jkind] just ensures this is the name of a jkind *)
   ident { let loc = make_loc $sloc in
-          ignore (check_layout ~loc $1 : const_layout);
+          ignore (check_jkind ~loc $1 : const_jkind);
           mkloc $1 loc }
 ;
 
-layout_attr:
+jkind_attr:
   COLON
-  layout=layout_string
-    { Attr.mk ~loc:layout.loc layout (PStr []) }
+  jkind=jkind_string
+    { Attr.mk ~loc:jkind.loc jkind (PStr []) }
 ;
 
-%inline type_param_with_layout:
+%inline type_param_with_jkind:
   name=tyvar_name_or_underscore
   attrs=attributes
   COLON
-  layout=layout_annotation
+  jkind=jkind_annotation
     { Jane_syntax.Core_type.core_type_of ~loc:(make_loc $sloc) ~attrs
-        (Jtyp_layout (Ltyp_var { name; layout })) }
+        (Jtyp_layout (Ltyp_var { name; jkind })) }
 ;
 
 parenthesized_type_parameter:
     type_parameter { $1 }
-  | type_variance type_param_with_layout
+  | type_variance type_param_with_jkind
     { $2, $1 }
 ;
 
@@ -3808,9 +3812,9 @@ generic_constructor_declaration(opening):
 %inline constructor_declaration(opening):
   d = generic_constructor_declaration(opening)
     {
-      let cid, vars_layouts, args, res, attrs, loc, info = d in
+      let cid, vars_jkinds, args, res, attrs, loc, info = d in
       Jane_syntax.Layouts.constructor_declaration_of
-        cid ~vars_layouts ~args ~res ~attrs ~loc ~info
+        cid ~vars_jkinds ~args ~res ~attrs ~loc ~info
     }
 ;
 str_exception_declaration:
@@ -3838,24 +3842,24 @@ sig_exception_declaration:
   vars_args_res = generalized_constructor_arguments
   attrs2 = attributes
   attrs = post_item_attributes
-    { let vars_layouts, args, res = vars_args_res in
+    { let vars_jkinds, args, res = vars_args_res in
       let loc = make_loc ($startpos, $endpos(attrs2)) in
       let docs = symbol_docs $sloc in
       let ext_ctor =
         Jane_syntax.Extension_constructor.extension_constructor_of
           ~loc ~name:id ~attrs:(attrs1 @ attrs2) ~docs
-          (Jext_layout (Lext_decl (vars_layouts, args, res)))
+          (Jext_layout (Lext_decl (vars_jkinds, args, res)))
       in
       Te.mk_exception ~attrs ext_ctor, ext }
 ;
 %inline let_exception_declaration:
     mkrhs(constr_ident) generalized_constructor_arguments attributes
-      { let vars_layouts, args, res = $2 in
+      { let vars_jkinds, args, res = $2 in
         Jane_syntax.Extension_constructor.extension_constructor_of
             ~loc:(make_loc $sloc)
             ~name:$1
             ~attrs:$3
-            (Jext_layout (Lext_decl (vars_layouts, args, res))) }
+            (Jext_layout (Lext_decl (vars_jkinds, args, res))) }
 ;
 
 generalized_constructor_arguments:
@@ -3947,10 +3951,10 @@ label_declaration_semi:
 %inline extension_constructor_declaration(opening):
   d = generic_constructor_declaration(opening)
     {
-      let name, vars_layouts, args, res, attrs, loc, info = d in
+      let name, vars_jkinds, args, res, attrs, loc, info = d in
       Jane_syntax.Extension_constructor.extension_constructor_of
         ~loc ~attrs ~info ~name
-          (Jext_layout (Lext_decl(vars_layouts, args, res)))
+          (Jext_layout (Lext_decl(vars_jkinds, args, res)))
     }
 ;
 extension_constructor_rebind(opening):
@@ -4004,14 +4008,14 @@ with_type_binder:
 
 /* Polymorphic types */
 
-%inline typevar: (* : string with_loc * layout_annotation option *)
+%inline typevar: (* : string with_loc * jkind_annotation option *)
     QUOTE mkrhs(ident)
       { ($2, None) }
-    | LPAREN QUOTE tyvar=mkrhs(ident) COLON layout=layout_annotation RPAREN
-      { (tyvar, Some layout) }
+    | LPAREN QUOTE tyvar=mkrhs(ident) COLON jkind=jkind_annotation RPAREN
+      { (tyvar, Some jkind) }
 ;
 %inline typevar_list:
-  (* : (string with_loc * layout_annotation option) list *)
+  (* : (string with_loc * jkind_annotation option) list *)
   nonempty_llist(typevar)
     { $1 }
 ;
@@ -4073,10 +4077,10 @@ alias_type:
              LPAREN
              name = tyvar_name_or_underscore
              COLON
-             layout = layout_annotation
+             jkind = jkind_annotation
              RPAREN
         { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc)
-              (Ltyp_alias { aliased_type; name; layout }) }
+              (Ltyp_alias { aliased_type; name; jkind }) }
 ;
 
 (* Function types include:
@@ -4225,12 +4229,12 @@ atomic_type:
         { Ptyp_extension $1 }
   )
   { $1 } /* end mktyp group */
-  | LPAREN QUOTE name=ident COLON layout=layout_annotation RPAREN
+  | LPAREN QUOTE name=ident COLON jkind=jkind_annotation RPAREN
       { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
-        Ltyp_var { name = Some name; layout } }
-  | LPAREN UNDERSCORE COLON layout=layout_annotation RPAREN
+        Ltyp_var { name = Some name; jkind } }
+  | LPAREN UNDERSCORE COLON jkind=jkind_annotation RPAREN
       { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
-        Ltyp_var { name = None; layout } }
+        Ltyp_var { name = None; jkind } }
 
 
 (* This is the syntax of the actual type parameters in an application of

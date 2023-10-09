@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 type iterator =
@@ -32,7 +33,7 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-    layout_annotation: iterator -> const_layout -> unit;
+    jkind_annotation: iterator -> const_jkind -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
@@ -182,7 +183,7 @@ let pat
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
   | Tpat_array (_, l) -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, _, _) -> sub.pat sub p
+  | Tpat_alias (p, _, _, _, _) -> sub.pat sub p
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)
   | Tpat_exception p -> sub.pat sub p
@@ -268,7 +269,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub for_from;
       sub.expr sub for_to;
       sub.expr sub for_body
-  | Texp_send (exp, _, _, _) ->
+  | Texp_send (exp, _, _) ->
       sub.expr sub exp
   | Texp_new _ -> ()
   | Texp_instvar _ -> ()
@@ -459,8 +460,8 @@ let class_type_field sub {ctf_desc; _} =
 let typ sub {ctyp_desc; ctyp_env; _} =
   sub.env sub ctyp_env;
   match ctyp_desc with
-  | Ttyp_var (_, layout) ->
-      Option.iter (sub.layout_annotation sub) layout
+  | Ttyp_var (_, jkind) ->
+      Option.iter (sub.jkind_annotation sub) jkind
   | Ttyp_arrow (_, ct1, ct2) ->
       sub.typ sub ct1;
       sub.typ sub ct2
@@ -468,12 +469,12 @@ let typ sub {ctyp_desc; ctyp_env; _} =
   | Ttyp_constr (_, _, list) ->  List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
   | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list
-  | Ttyp_alias (ct, _, layout) ->
+  | Ttyp_alias (ct, _, jkind) ->
     sub.typ sub ct;
-    Option.iter (sub.layout_annotation sub) layout
+    Option.iter (sub.jkind_annotation sub) jkind
   | Ttyp_variant (list, _, _) -> List.iter (sub.row_field sub) list
   | Ttyp_poly (vars, ct) ->
-      List.iter (fun (_, l) -> Option.iter (sub.layout_annotation sub) l) vars;
+      List.iter (fun (_, l) -> Option.iter (sub.jkind_annotation sub) l) vars;
       sub.typ sub ct
   | Ttyp_package pack -> sub.package_type sub pack
 
@@ -518,7 +519,7 @@ let value_binding sub {vb_pat; vb_expr; _} =
 
 let env _sub _ = ()
 
-let layout_annotation _sub _ = ()
+let jkind_annotation _sub _ = ()
 
 let default_iterator =
   {
@@ -536,7 +537,7 @@ let default_iterator =
     env;
     expr;
     extension_constructor;
-    layout_annotation;
+    jkind_annotation;
     module_binding;
     module_coercion;
     module_declaration;

@@ -80,17 +80,17 @@ let get_label t name = String.Tbl.find t.labels_tbl name
 
 let get_label_idx t name =
   let label, symbol = get_label t name in
-  let idx = IntTbl.find t.section_symbol_tbl (Symbol_entry.get_shndx symbol) in
+  let idx = (IntTbl.find t.section_symbol_tbl (Symbol_entry.get_shndx symbol)) + 1 in
   label, idx
 
 let get_symbol_idx_opt t name =
   match String.Tbl.find_opt t.global_symbols_tbl name with
-  | Some idx -> Some (t.local_num_symbols + idx)
-  | None -> String.Tbl.find_opt t.local_symbols_tbl name
+  | Some idx -> Some (t.local_num_symbols + idx + 1)
+  | None -> String.Tbl.find_opt t.local_symbols_tbl name |> Option.map succ
 
-let num_symbols t = t.local_num_symbols + t.global_num_symbols
+let num_symbols t = t.local_num_symbols + t.global_num_symbols + 1
 
-let num_locals t = t.local_num_symbols
+let num_locals t = t.local_num_symbols + 1
 
 let make_undef_symbol t name string_table =
   add_symbol t (Symbol_entry.create_undef_symbol name string_table)
@@ -107,8 +107,16 @@ let make_symbol t symbol sections string_table =
   add_symbol t symbol_entry
 
 let write t sh_offset buf =
+  let module B = Compiler_owee.Owee_buf in
+  let cursor = Compiler_owee.Owee_buf.cursor buf ~at:(Int64.to_int sh_offset) in
+  B.Write.u32 cursor 0;
+  B.Write.u8 cursor 0;
+  B.Write.u8 cursor 0;
+  B.Write.u16 cursor 0;
+  B.Write.u64 cursor 0L;
+  B.Write.u64 cursor 0L;
   List.iteri
     (fun i symbol ->
-      let idx = (i * 24) + Int64.to_int sh_offset in
+      let idx = ((i + 1) * 24) + Int64.to_int sh_offset in
       Symbol_entry.write symbol (Compiler_owee.Owee_buf.cursor buf ~at:idx))
     (List.rev t.local_symbols @ List.rev t.global_symbols)

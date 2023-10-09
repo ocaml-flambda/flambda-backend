@@ -243,7 +243,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
        (%a)"
       Exn_continuation.print exn_cont Bound_parameters.print
       rewrite.original_params;
-  assert (Flambda_arity.cardinal exn_cont_arity >= 1);
+  assert (Flambda_arity.cardinal_unarized exn_cont_arity >= 1);
   if List.hd rewrite.original_params_usage <> Used
   then
     Misc.fatal_errorf

@@ -204,7 +204,7 @@ let print_instr b = function
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
   | CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
-  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" (Imm (Int64.of_int shuf)) arg1 arg2
+  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" shuf arg1 arg2
   | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
   | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
   | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
@@ -251,8 +251,8 @@ let print_instr b = function
   | PXOR (arg1, arg2) -> i2 b "pxor" arg1 arg2
   | PMOVMSKB (arg1, arg2) -> i2 b "pmovmskb" arg1 arg2
   | MOVMSKPD (arg1, arg2) -> i2 b "movmskpd" arg1 arg2
-  | PSLLDQ (bytes, arg1) -> i2 b "pslldq" (Imm (Int64.of_int bytes)) arg1
-  | PSRLDQ (bytes, arg1) -> i2 b "psrldq" (Imm (Int64.of_int bytes)) arg1
+  | PSLLDQ (bytes, arg1) -> i2 b "pslldq" bytes arg1
+  | PSRLDQ (bytes, arg1) -> i2 b "psrldq" bytes arg1
   | PCMPEQB (arg1, arg2) -> i2 b "pcmpeqb" arg1 arg2
   | PCMPEQW (arg1, arg2) -> i2 b "pcmpeqw" arg1 arg2
   | PCMPEQD (arg1, arg2) -> i2 b "pcmpeqd" arg1 arg2
@@ -274,17 +274,17 @@ let print_instr b = function
   | PSRLQ (arg1, arg2) -> i2 b "psrlq" arg1 arg2
   | PSRAW (arg1, arg2) -> i2 b "psraw" arg1 arg2
   | PSRAD (arg1, arg2) -> i2 b "psrad" arg1 arg2
-  | PSLLWI (bits, arg1) -> i2 b "psllw" (Imm (Int64.of_int bits)) arg1
-  | PSLLDI (bits, arg1) -> i2 b "pslld" (Imm (Int64.of_int bits)) arg1
-  | PSLLQI (bits, arg1) -> i2 b "psllq" (Imm (Int64.of_int bits)) arg1
-  | PSRLWI (bits, arg1) -> i2 b "psrlw" (Imm (Int64.of_int bits)) arg1
-  | PSRLDI (bits, arg1) -> i2 b "psrld" (Imm (Int64.of_int bits)) arg1
-  | PSRLQI (bits, arg1) -> i2 b "psrlq" (Imm (Int64.of_int bits)) arg1
-  | PSRAWI (bits, arg1) -> i2 b "psraw" (Imm (Int64.of_int bits)) arg1
-  | PSRADI (bits, arg1) -> i2 b "psrad" (Imm (Int64.of_int bits)) arg1
-  | SHUFPD (shuf, arg1, arg2) -> i3 b "shufpd" (Imm (Int64.of_int shuf)) arg1 arg2
-  | PSHUFHW (shuf, arg1, arg2) -> i3 b "pshufhw" (Imm (Int64.of_int shuf)) arg1 arg2
-  | PSHUFLW (shuf, arg1, arg2) -> i3 b "pshuflw" (Imm (Int64.of_int shuf)) arg1 arg2
+  | PSLLWI (bits, arg1) -> i2 b "psllw" bits arg1
+  | PSLLDI (bits, arg1) -> i2 b "pslld" bits arg1
+  | PSLLQI (bits, arg1) -> i2 b "psllq" bits arg1
+  | PSRLWI (bits, arg1) -> i2 b "psrlw" bits arg1
+  | PSRLDI (bits, arg1) -> i2 b "psrld" bits arg1
+  | PSRLQI (bits, arg1) -> i2 b "psrlq" bits arg1
+  | PSRAWI (bits, arg1) -> i2 b "psraw" bits arg1
+  | PSRADI (bits, arg1) -> i2 b "psrad" bits arg1
+  | SHUFPD (shuf, arg1, arg2) -> i3 b "shufpd" shuf arg1 arg2
+  | PSHUFHW (shuf, arg1, arg2) -> i3 b "pshufhw" shuf arg1 arg2
+  | PSHUFLW (shuf, arg1, arg2) -> i3 b "pshuflw" shuf arg1 arg2
   | PUNPCKHBW (arg1, arg2) -> i2 b "punpckhbw" arg1 arg2
   | PUNPCKHWD (arg1, arg2) -> i2 b "punpckhwd" arg1 arg2
   | PUNPCKHQDQ (arg1, arg2) -> i2 b "punpckhqdq" arg1 arg2
@@ -313,9 +313,9 @@ let print_instr b = function
   | PSIGNW (arg1, arg2) -> i2 b "psignw" arg1 arg2
   | PSIGND (arg1, arg2) -> i2 b "psignd" arg1 arg2
   | PSHUFB (arg1, arg2) -> i2 b "pshufb" arg1 arg2
-  | PBLENDW (lanes, arg1, arg2) -> i3 b "pblendw" (Imm (Int64.of_int lanes)) arg1 arg2
-  | BLENDPS (lanes, arg1, arg2) -> i3 b "blendps" (Imm (Int64.of_int lanes)) arg1 arg2
-  | BLENDPD (lanes, arg1, arg2) -> i3 b "blendpd" (Imm (Int64.of_int lanes)) arg1 arg2
+  | PBLENDW (lanes, arg1, arg2) -> i3 b "pblendw" lanes arg1 arg2
+  | BLENDPS (lanes, arg1, arg2) -> i3 b "blendps" lanes arg1 arg2
+  | BLENDPD (lanes, arg1, arg2) -> i3 b "blendpd" lanes arg1 arg2
   | PBLENDVB (arg1, arg2) -> i2 b "pblendvb" arg1 arg2
   | BLENDVPS (arg1, arg2) -> i2 b "blendvps" arg1 arg2
   | BLENDVPD (arg1, arg2) -> i2 b "blendvpd" arg1 arg2
@@ -332,16 +332,16 @@ let print_instr b = function
   | PMOVZXWD (arg1, arg2) -> i2 b "pmovzxwd" arg1 arg2
   | PMOVZXWQ (arg1, arg2) -> i2 b "pmovzxwq" arg1 arg2
   | PMOVZXDQ (arg1, arg2) -> i2 b "pmovzxdq" arg1 arg2
-  | DPPS (sel, arg1, arg2) -> i3 b "dpps" (Imm (Int64.of_int sel)) arg1 arg2
-  | DPPD (sel, arg1, arg2) -> i3 b "dppd" (Imm (Int64.of_int sel)) arg1 arg2
-  | PEXTRB (n, arg1, arg2) -> i3 b "pextrb" (Imm (Int64.of_int n)) arg1 arg2
-  | PEXTRW (n, arg1, arg2) -> i3 b "pextrw" (Imm (Int64.of_int n)) arg1 arg2
-  | PEXTRD (n, arg1, arg2) -> i3 b "pextrd" (Imm (Int64.of_int n)) arg1 arg2
-  | PEXTRQ (n, arg1, arg2) -> i3 b "pextrq" (Imm (Int64.of_int n)) arg1 arg2
-  | PINSRB (n, arg1, arg2) -> i3 b "pinsrb" (Imm (Int64.of_int n)) arg1 arg2
-  | PINSRW (n, arg1, arg2) -> i3 b "pinsrw" (Imm (Int64.of_int n)) arg1 arg2
-  | PINSRD (n, arg1, arg2) -> i3 b "pinsrd" (Imm (Int64.of_int n)) arg1 arg2
-  | PINSRQ (n, arg1, arg2) -> i3 b "pinsrq" (Imm (Int64.of_int n)) arg1 arg2
+  | DPPS (sel, arg1, arg2) -> i3 b "dpps" sel arg1 arg2
+  | DPPD (sel, arg1, arg2) -> i3 b "dppd" sel arg1 arg2
+  | PEXTRB (n, arg1, arg2) -> i3 b "pextrb" n arg1 arg2
+  | PEXTRW (n, arg1, arg2) -> i3 b "pextrw" n arg1 arg2
+  | PEXTRD (n, arg1, arg2) -> i3 b "pextrd" n arg1 arg2
+  | PEXTRQ (n, arg1, arg2) -> i3 b "pextrq" n arg1 arg2
+  | PINSRB (n, arg1, arg2) -> i3 b "pinsrb" n arg1 arg2
+  | PINSRW (n, arg1, arg2) -> i3 b "pinsrw" n arg1 arg2
+  | PINSRD (n, arg1, arg2) -> i3 b "pinsrd" n arg1 arg2
+  | PINSRQ (n, arg1, arg2) -> i3 b "pinsrq" n arg1 arg2
   | PMAXSB (arg1, arg2) -> i2 b "pmaxsb" arg1 arg2
   | PMAXSD (arg1, arg2) -> i2 b "pmaxsd" arg1 arg2
   | PMAXUW (arg1, arg2) -> i2 b "pmaxuw" arg1 arg2
@@ -353,10 +353,10 @@ let print_instr b = function
   | ROUNDPD (rd, arg1, arg2) -> i3 b "roundpd" (imm_of_rounding rd) arg1 arg2
   | ROUNDPS (rd, arg1, arg2) -> i3 b "roundps" (imm_of_rounding rd) arg1 arg2
   | PCMPGTQ (arg1, arg2) -> i2 b "pcmpgtq" arg1 arg2
-  | PCMPESTRI (n, arg1, arg2) -> i3 b "pcmpestri" (Imm (Int64.of_int n)) arg1 arg2
-  | PCMPESTRM (n, arg1, arg2) -> i3 b "pcmpestrm" (Imm (Int64.of_int n)) arg1 arg2
-  | PCMPISTRI (n, arg1, arg2) -> i3 b "pcmpistri" (Imm (Int64.of_int n)) arg1 arg2
-  | PCMPISTRM (n, arg1, arg2) -> i3 b "pcmpistrm" (Imm (Int64.of_int n)) arg1 arg2
+  | PCMPESTRI (n, arg1, arg2) -> i3 b "pcmpestri" n arg1 arg2
+  | PCMPESTRM (n, arg1, arg2) -> i3 b "pcmpestrm" n arg1 arg2
+  | PCMPISTRI (n, arg1, arg2) -> i3 b "pcmpistri" n arg1 arg2
+  | PCMPISTRM (n, arg1, arg2) -> i3 b "pcmpistrm" n arg1 arg2
   | PAVGB (arg1, arg2) -> i2 b "pavgb" arg1 arg2
   | PAVGW (arg1, arg2) -> i2 b "pavgw" arg1 arg2
   | PSADBW (arg1, arg2) -> i2 b "psadbw" arg1 arg2
@@ -364,8 +364,8 @@ let print_instr b = function
   | PACKSSDW (arg1, arg2) -> i2 b "packssdw" arg1 arg2
   | PACKUSWB (arg1, arg2) -> i2 b "packuswb" arg1 arg2
   | PACKUSDW (arg1, arg2) -> i2 b "packusdw" arg1 arg2
-  | PALIGNR (n, arg1, arg2) -> i3 b "palignr" (Imm (Int64.of_int n)) arg1 arg2
-  | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" (Imm (Int64.of_int n)) arg1 arg2
+  | PALIGNR (n, arg1, arg2) -> i3 b "palignr" n arg1 arg2
+  | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
 
 let print_line b = function

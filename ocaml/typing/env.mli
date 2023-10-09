@@ -17,7 +17,6 @@
 
 open Types
 open Misc
-open Layouts
 
 val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
 
@@ -231,7 +230,7 @@ type lookup_error =
   | Once_value_used_in of Longident.t * shared_context
   | Value_used_in_closure of Longident.t * closure_error
   | Local_value_used_in_exclave of Longident.t
-  | Non_value_used_in_object of Longident.t * type_expr * Layout.Violation.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -543,8 +542,8 @@ val scrape_alias:
 (* Forward declaration to break mutual recursion with Ctype. *)
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
-val constrain_type_layout:
-  (t -> type_expr -> layout -> (unit, Layout.Violation.t) result) ref
+val constrain_type_jkind:
+  (t -> type_expr -> jkind -> (unit, Jkind.Violation.t) result) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_longident: (Format.formatter -> Longident.t -> unit) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)

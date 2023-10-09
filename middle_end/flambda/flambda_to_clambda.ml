@@ -22,7 +22,7 @@ module Int = Misc.Stdlib.Int
 
 type 'a for_one_or_more_units = {
   fun_offset_table : int Closure_id.Map.t;
-  fv_offset_table : int Var_within_closure.Map.t;
+  fv_offset_table : Closure_offsets.parts Var_within_closure.Map.t;
   constant_closures : Closure_id.Set.t;
   closures: Closure_id.Set.t;
 }
@@ -243,6 +243,31 @@ let to_clambda_const env (const : Flambda.constant_defining_value_block_field)
   | Symbol symbol -> to_clambda_symbol' env symbol
   | Const (Int i) -> Uconst_int i
   | Const (Char c) -> Uconst_int (Char.code c)
+
+let layout_of_atom (atom : Closure_offsets.layout_atom) : Lambda.layout =
+  match atom with
+  | Value -> Pvalue Pgenval
+  | Value_int -> Pvalue Pintval
+  | Unboxed_float -> Punboxed_float
+  | Unboxed_int bi -> Punboxed_int bi
+  | Unboxed_vector bv -> Punboxed_vector bv
+
+let load_env_field ~fun_offset
+    ~closure_using_field (parts : Closure_offsets.parts) : Clambda.ulambda =
+  let rec rebuild (parts : Closure_offsets.parts) : Clambda.ulambda * Clambda_primitives.layout =
+    match parts with
+    | Atom { offset = var_offset; layout } ->
+      let pos = var_offset - fun_offset in
+      let layout = layout_of_atom layout in
+      Uprim (Pfield (pos, layout), [closure_using_field pos], Debuginfo.none), layout
+    | Product parts ->
+      let parts = Array.to_list @@ Array.map rebuild parts in
+      let parts, layouts = List.split parts in
+      Uprim (Pmake_unboxed_product layouts, parts, Debuginfo.none),
+      Punboxed_product layouts
+  in
+  let expr, _layout = rebuild parts in
+  expr
 
 let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
   match flam with
@@ -499,16 +524,17 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
       ((get_fun_offset t move_to) - (get_fun_offset t start_from)))
       named,
     Lambda.layout_function
-  | Project_var { closure; var; closure_id; kind } ->
-    let ulam, _closure_layout = subst_var env closure in
-    let fun_offset = get_fun_offset t closure_id in
-    let var_offset = get_fv_offset t var in
-    let pos = var_offset - fun_offset in
-    Uprim (Pfield (pos, kind),
-      [check_field t (check_closure t ulam (Expr (Var closure)))
-         pos (Some named)],
-      Debuginfo.none),
-    kind
+  | Project_var { closure; var; closure_id; kind } -> begin
+      let ulam, _closure_layout = subst_var env closure in
+      let fun_offset = get_fun_offset t closure_id in
+      let var_offset = get_fv_offset t var in
+      let check_field pos =
+        check_field t (check_closure t ulam (Expr (Var closure)))
+          pos (Some named)
+      in
+      load_env_field ~fun_offset ~closure_using_field:check_field var_offset,
+      kind
+    end
   | Prim (Pfield (index, layout), [block], dbg) ->
     begin match layout with
       | Pvalue _ -> ()
@@ -655,10 +681,11 @@ and to_clambda_set_of_closures t env
               Variable.print id
               Flambda.print_set_of_closures set_of_closures
         in
-        let pos = var_offset - fun_offset in
-        Env.add_subst env id
-          (Uprim (Pfield (pos, spec_to.kind), [Clambda.Uvar env_var], Debuginfo.none))
-          spec_to.kind
+        let expr =
+          let closure_using_field _pos = Clambda.Uvar env_var in
+          load_env_field ~fun_offset ~closure_using_field var_offset
+        in
+        Env.add_subst env id expr spec_to.kind
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
       (* Add the Clambda expressions for all functions defined in the current
@@ -703,34 +730,22 @@ and to_clambda_set_of_closures t env
   in
   let functions = List.map to_clambda_function all_functions in
   let not_scanned_fv, scanned_fv =
-    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
-        match free_var.kind with
-        | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
-        | Pbottom ->
-          Misc.fatal_error
-            "[Pbottom] should have been eliminated as dead code \
-             and not stored in a closure."
-        | Punboxed_float -> true
-        | Punboxed_int _ -> true
-        | Punboxed_vector _ -> true
-        | Pvalue Pintval -> true
-        | Pvalue _ -> false)
-      free_vars
+    let free_vars = Variable.Map.bindings free_vars in
+    List.fold_left (fun acc (_var, (free_var : Flambda.specialised_to)) ->
+        let f (not_scanned_fv, scanned_fv)
+            (expr: Clambda.ulambda) (atom : Closure_offsets.layout_atom) =
+          match atom with
+          | Value -> not_scanned_fv, (expr :: scanned_fv)
+          | Value_int | Unboxed_float | Unboxed_int _ | Unboxed_vector _ ->
+            (expr :: not_scanned_fv, scanned_fv)
+        in
+        let closure, var_layout = subst_var env free_var.var in
+        assert(Lambda.compatible_layout var_layout free_var.kind);
+        Clambda_layout.fold_left_layout f acc closure free_var.kind
+      ) ([],[]) free_vars
   in
-  let to_closure_args free_vars =
-    List.map snd (
-      Variable.Map.bindings (Variable.Map.map (
-          fun (free_var : Flambda.specialised_to) ->
-            let var, var_layout = subst_var env free_var.var in
-            assert(Lambda.compatible_layout var_layout free_var.kind);
-            var
-        ) free_vars))
-  in
-  Uclosure {
-    functions ;
-    not_scanned_slots = to_closure_args not_scanned_fv ;
-    scanned_slots = to_closure_args scanned_fv
-  }
+  let not_scanned_slots, scanned_slots = List.rev not_scanned_fv, List.rev scanned_fv in
+  Uclosure { functions; not_scanned_slots; scanned_slots; }
 
 and to_clambda_closed_set_of_closures t env symbol
       ({ function_decls; } : Flambda.set_of_closures)

@@ -225,7 +225,7 @@ let classify_expression : Typedtree.expression -> sd =
     let old_env = env in
     let add_value_binding env vb =
       match vb.vb_pat.pat_desc with
-      | Tpat_var (id, _loc, _mode) ->
+      | Tpat_var (id, _loc, _uid, _mode) ->
           let size = classify_expression old_env vb.vb_expr in
           Ident.add id size env
       | _ ->
@@ -642,7 +642,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
         let field_mode = match rep with
-          | Record_float -> Dereference
+          | Record_float | Record_ufloat -> Dereference
           | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
         in
@@ -709,7 +709,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression wh_cond << Dereference;
         expression wh_body << Guard;
       ]
-    | Texp_send (e1, _, _, _) ->
+    | Texp_send (e1, _, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)
@@ -1227,8 +1227,8 @@ and pattern : type k . k general_pattern -> Env.t -> mode = fun pat env ->
 and is_destructuring_pattern : type k . k general_pattern -> bool =
   fun pat -> match pat.pat_desc with
     | Tpat_any -> false
-    | Tpat_var (_, _, _) -> false
-    | Tpat_alias (pat, _, _, _) -> is_destructuring_pattern pat
+    | Tpat_var (_, _, _, _) -> false
+    | Tpat_alias (pat, _, _, _, _) -> is_destructuring_pattern pat
     | Tpat_constant _ -> true
     | Tpat_tuple _ -> true
     | Tpat_construct _ -> true

@@ -19,7 +19,6 @@ open Misc
 open Asttypes
 open Parsetree
 open Primitive
-open Layouts
 open Types
 open Typetexp
 
@@ -27,7 +26,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type layout_sort_loc = Cstr_tuple | Record | External
+type jkind_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -63,35 +62,36 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout_mismatch_of_type of type_expr * Layout.Violation.t
-  | Layout_mismatch_of_path of Path.t * Layout.Violation.t
-  | Layout_sort of
-      { lloc : layout_sort_loc
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_sort of
+      { kloc : jkind_sort_loc
       ; typ : type_expr
-      ; err : Layout.Violation.t
+      ; err : Jkind.Violation.t
       }
-  | Layout_empty_record
-  | Non_value_in_sig of Layout.Violation.t * string
-  | Float64_in_block of type_expr
+  | Jkind_empty_record
+  | Non_value_in_sig of Jkind.Violation.t * string
+  | Float64_in_block of type_expr * jkind_sort_loc
+  | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Layout.const
+  | Layout_not_enabled of Jkind.const
 
 open Typedtree
 
 exception Error of Location.t * error
 
-let layout_of_attributes ~legacy_immediate ~context attrs =
-  match Layout.of_attributes ~legacy_immediate ~context attrs with
+let jkind_of_attributes ~legacy_immediate ~context attrs =
+  match Jkind.of_attributes ~legacy_immediate ~context attrs with
   | Ok l -> l
   | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
-let layout_of_attributes_default ~legacy_immediate ~context ~default attrs =
-  match Layout.of_attributes_default ~legacy_immediate ~context ~default attrs with
+let jkind_of_attributes_default ~legacy_immediate ~context ~default attrs =
+  match Jkind.of_attributes_default ~legacy_immediate ~context ~default attrs with
   | Ok l -> l
   | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
@@ -123,7 +123,12 @@ let add_type ~check id decl env =
   Builtin_attributes.warning_scope ~ppwarning:false decl.type_attributes
     (fun () -> Env.add_type ~check id decl env)
 
-let enter_type rec_flag env sdecl (id, uid) =
+(* Add a dummy type declaration to the environment, with the given arity.
+   The [type_kind] is [Type_abstract], but there is a generic [type_manifest]
+   for abbreviations, to allow polymorphic expansion, except if
+   [abstract_abbrevs] is given along with a reason for not allowing expansion.
+   This function is only used in [transl_type_decl]. *)
+let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let needed =
     match rec_flag with
     | Asttypes.Nonrecursive ->
@@ -141,7 +146,7 @@ let enter_type rec_flag env sdecl (id, uid) =
   let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
 
-  (* There is some trickiness going on here with the layout.  It expands on an
+  (* There is some trickiness going on here with the jkind.  It expands on an
      old trick used in the manifest of [decl] below.
 
      Consider a declaration like:
@@ -151,14 +156,14 @@ let enter_type rec_flag env sdecl (id, uid) =
 
      When [enter_type] is called, we haven't yet analyzed anything about the
      manifests and kinds of the declarations, so it's natural to give [t] and
-     [foo] layout [Any].  But, while translating [t]'s manifest, we'll need to
-     know [foo] has layout [value], because it is used as the argument to
+     [foo] jkind [Any].  But, while translating [t]'s manifest, we'll need to
+     know [foo] has jkind [value], because it is used as the argument to
      [list_of_values]. And this check will occur before we've looked at [foo] at
      all.
 
-     One can imagine solutions, like estimating the layout based on the kind
+     One can imagine solutions, like estimating the jkind based on the kind
      (tricky for unboxed) or parameterizing the type_expr translation with an
-     option to not do full layout checking in some cases and fix it up later
+     option to not do full jkind checking in some cases and fix it up later
      (ugly).
 
      Instead, we build on an old trick that is used to handle constraints.
@@ -190,32 +195,37 @@ let enter_type rec_flag env sdecl (id, uid) =
 
      If [r] were, e.g., defined to be [int list], step 3 would fail.
 
-     To handle the original layout example, we piggyback off that approach - the
-     layout of the variable put in manifests here is updated when constraints
+     To handle the original jkind example, we piggyback off that approach - the
+     jkind of the variable put in manifests here is updated when constraints
      are checked and then unified with the real manifest and checked against the
      kind. *)
-  let type_layout =
+  let type_jkind =
     (* We set ~legacy_immediate to true because we're looking at a declaration
        that was already allowed to be [@@immediate] *)
-    layout_of_attributes_default
+    jkind_of_attributes_default
       ~legacy_immediate:true ~context:(Type_declaration path)
-      ~default:(Layout.any ~why:Initial_typedecl_env)
+      ~default:(Jkind.any ~why:Initial_typedecl_env)
       sdecl.ptype_attributes
+  in
+  let abstract_reason, type_manifest =
+    match sdecl.ptype_manifest, abstract_abbrevs with
+    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar type_jkind)
+    | Some _, Some reason -> reason, None
   in
   let type_params =
     List.map (fun (param, _) ->
         let name = get_type_param_name param in
-        let layout = get_type_param_layout path param in
-        Btype.newgenvar ?name layout)
+        let jkind = get_type_param_jkind path param in
+        Btype.newgenvar ?name jkind)
       sdecl.ptype_params
   in
   let decl =
     { type_params;
       type_arity = arity;
-      type_kind = Type_abstract;
-      type_layout;
+      type_kind = Type_abstract abstract_reason;
+      type_jkind;
       type_private = sdecl.ptype_private;
-      type_manifest = Some (Ctype.newvar type_layout);
+      type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -233,16 +243,16 @@ let enter_type rec_flag env sdecl (id, uid) =
    variable in [temp_env], which contains any requirements on the type implied
    by its use in other mutually defined types.
 
-   In particular, we want to ensure that the manifest of this type has a layout
+   In particular, we want to ensure that the manifest of this type has a jkind
    compatible with its uses in mutually defined types.  One subtlety is that we
-   don't actually perform those layout checks here - we use
-   [Ctype.unify_delaying_layout_checks] to record any needed layout checks, but
+   don't actually perform those jkind checks here - we use
+   [Ctype.unify_delaying_jkind_checks] to record any needed jkind checks, but
    don't perform them until slightly later in [transl_type_decl].
 
    The reason for this delay is ill-formed, circular types.  These haven't been
-   ruled out yet, and as a result layout checking can fall into an infinite loop
-   where layout checking expands types, and these type expansions in subst
-   trigger layout checks that trigger type expansions that trigger layout checks
+   ruled out yet, and as a result jkind checking can fall into an infinite loop
+   where jkind checking expands types, and these type expansions in subst
+   trigger jkind checks that trigger type expansions that trigger jkind checks
    that...  These circular types are ruled out just after [update_type] in
    [transl_type_decl], and then we perform the delayed checks.
 *)
@@ -252,7 +262,7 @@ let update_type temp_env env id loc =
   match decl.type_manifest with None -> assert false
   | Some ty ->
       try
-        Ctype.(unify_delaying_layout_checks env
+        Ctype.(unify_delaying_jkind_checks env
                  (newconstr path decl.type_params) ty)
       with Ctype.Unify err ->
         raise (Error(loc, Type_clash (env, err)))
@@ -276,8 +286,8 @@ let is_fixed_type sd =
   let rec has_row_var sty =
     match sty.ptyp_desc with
       (* CR layouts upstreaming: The Ptyp_alias case also covers the case for a
-         layout annotation, conveniently. When upstreaming layouts, this
-         function will need a case for layout-annotation aliases. *)
+         jkind annotation, conveniently. When upstreaming jkinds, this
+         function will need a case for jkind-annotation aliases. *)
       Ptyp_alias (sty, _) -> has_row_var sty
     | Ptyp_class _
     | Ptyp_object (_, Open)
@@ -372,8 +382,8 @@ let transl_labels env univars closed lbls =
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_global = ld.ld_global;
-          ld_layout = Layout.any ~why:Dummy_layout;
-            (* Updated by [update_label_layouts] *)
+          ld_jkind = Jkind.any ~why:Dummy_jkind;
+            (* Updated by [update_label_jkinds] *)
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;
@@ -403,18 +413,18 @@ let transl_constructor_arguments env univars closed = function
       Types.Cstr_record lbls',
       Cstr_record lbls
 
-(* Note that [make_constructor] does not fill in the [ld_layout] field of any
+(* Note that [make_constructor] does not fill in the [ld_jkind] field of any
    computed record types, because it's called too early in the translation of a
-   type declaration to compute accurate layouts in the presence of recursively
-   defined types. It is updated later by [update_constructor_arguments_layouts]
+   type declaration to compute accurate jkinds in the presence of recursively
+   defined types. It is updated later by [update_constructor_arguments_jkinds]
 *)
 let make_constructor
       env loc ~cstr_path ~type_path type_params (svars : _ Either.t)
       sargs sret_type =
   let tvars = match svars with
     | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
-    | Right vars_layouts ->
-      List.map (fun (v, l) -> v.txt, Option.map Location.get_txt l) vars_layouts
+    | Right vars_jkinds ->
+      List.map (fun (v, l) -> v.txt, Option.map Location.get_txt l) vars_jkinds
   in
   match sret_type with
   | None ->
@@ -432,17 +442,17 @@ let make_constructor
         | Left vars_only ->
            Ctype.begin_def();
            Some (TyVarEnv.make_poly_univars vars_only), true
-        | Right vars_layouts ->
+        | Right vars_jkinds ->
            Ctype.begin_def();
-           Some (TyVarEnv.make_poly_univars_layouts
+           Some (TyVarEnv.make_poly_univars_jkinds
                    ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
-                   vars_layouts), true
+                   vars_jkinds), true
       in
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = 
-        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type 
+      let tret_type =
+        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type
       in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
@@ -470,7 +480,7 @@ let make_constructor
          let _vars = TyVarEnv.instance_poly_univars env loc univars in
          let set_level t =
            Ctype.unify_var env
-             (Ctype.newvar (Layout.any ~why:Dummy_layout)) t
+             (Ctype.newvar (Jkind.any ~why:Dummy_jkind)) t
          in
          Btype.iter_type_expr_cstr_args set_level args;
          set_level ret_type;
@@ -514,62 +524,62 @@ let verify_unboxed_attr unboxed_attr sdecl =
       end
   end
 
-(* Note [Default layouts in transl_declaration]
+(* Note [Default jkinds in transl_declaration]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    For every type declaration we create in transl_declaration, we must
-   choose the layout to use in the [type_layout] field. Note that choices
-   2 and 3 below consult the layouts of other types. In the case that these
-   types are declared in the same mutually recursive group, those layouts
+   choose the jkind to use in the [type_jkind] field. Note that choices
+   2 and 3 below consult the jkinds of other types. In the case that these
+   types are declared in the same mutually recursive group, those jkinds
    will be approximations; see the comments on [enter_type].
 
-   1. If there is a layout annotation, use that. We might later compute a more
-      precise layout for the type (e.g. [type t : value = int] or [type t :
-      value = A | B | C]); this will be updated in [update_decl_layout] (updates
+   1. If there is a jkind annotation, use that. We might later compute a more
+      precise jkind for the type (e.g. [type t : value = int] or [type t :
+      value = A | B | C]); this will be updated in [update_decl_jkind] (updates
       from the kind) or [check_coherence] (updates from the manifest), which
-      also ensures that the updated layout is a sublayout of the annotated
-      layout.
+      also ensures that the updated jkind is a subjkind of the annotated
+      jkind.
 
-   2. If there is no annotation but there is a manifest, use the layout
+   2. If there is no annotation but there is a manifest, use the jkind
       of the manifest. This gets improved in [check_coherence], after
-      the manifest layout might be more accurate.
+      the manifest jkind might be more accurate.
 
-   3. If there is no annotation and no manifest, the default layout
+   3. If there is no annotation and no manifest, the default jkind
       depends on the kind:
 
       - Abstract types: In this case, we have a fully abstract type declaration,
-        like [type t]. We wish to default these to have layout [value] for
+        like [type t]. We wish to default these to have jkind [value] for
         backward compatibility.
 
       - [@@unboxed] records and variants: We use [any] as the default.
-        This default gets updated in [update_decl_layout], when we can
-        safely look up the layout of the field. Recursive uses
-        of the unboxed type are OK, because [update_decl_layout] uses
-        [Ctype.type_layout], which looks through unboxed types (and thus
+        This default gets updated in [update_decl_jkind], when we can
+        safely look up the jkind of the field. Recursive uses
+        of the unboxed type are OK, because [update_decl_jkind] uses
+        [Ctype.type_jkind], which looks through unboxed types (and thus
         the choice of [any] is not observed on recursive occurrences).
 
-      - Other records and variants: The layout of these depends on the layouts
+      - Other records and variants: The jkind of these depends on the jkinds
         of their fields: an enumeration variant is an [immediate], and someday
         (* CR layouts v5: today is the someday! *) we will allow records
         comprising only [void]s, which will also be [immediate].
 
         So we choose a default of [value], which gets updated in
-        [update_decl_layout]. This default choice does get used when updating
-        the layouts of other types that (recursively) mention the current type,
-        but that's OK: the update in [update_decl_layout] can only change a
+        [update_decl_jkind]. This default choice does get used when updating
+        the jkinds of other types that (recursively) mention the current type,
+        but that's OK: the update in [update_decl_jkind] can only change a
         [value] to become [immediate], and yet that change can never affect
         the decision of whether an outer record/variant is a [value] or
         [immediate] (only choices of [void] can do that).
 
         (Again, any unboxed records/variants are looked through by
-        [type_layout], so a void one of those is OK.)
+        [type_jkind], so a void one of those is OK.)
 
         It is tempting to use [any] as the default here, but that causes
-        trouble around recursive occurrences in [update_decl_layout].
+        trouble around recursive occurrences in [update_decl_jkind].
 
       - Extensible variants: These really are [value]s, so we just use
         that as the default.
 
-   The layouts in type declarations are always just upper bounds, as
+   The jkinds in type declarations are always just upper bounds, as
    we see in this example:
 
    {[
@@ -580,15 +590,15 @@ let verify_unboxed_attr unboxed_attr sdecl =
      type t7_3 = t7_2 [@@immediate]
    ]}
 
-   The proper layout of [t7] is [immediate], but that's hard to know. Because
-   [t7] has no layout annotation and no manifest, it gets a default layout
-   of [value]. [t7_2] gets a default of [any]. We update [t7]'s layout to be
-   [immediate] in [update_decl_layout]. But when updating [t7_2]'s layout, we
-   use the *original, default* layout for [t7]: [value]. This means that the
-   layout recorded for [t7_2] is actually [value]. The program above is still
-   accepted, because the layout check in [check_coherence] uses [type_layout],
+   The proper jkind of [t7] is [immediate], but that's hard to know. Because
+   [t7] has no jkind annotation and no manifest, it gets a default jkind
+   of [value]. [t7_2] gets a default of [any]. We update [t7]'s jkind to be
+   [immediate] in [update_decl_jkind]. But when updating [t7_2]'s jkind, we
+   use the *original, default* jkind for [t7]: [value]. This means that the
+   jkind recorded for [t7_2] is actually [value]. The program above is still
+   accepted, because the jkind check in [check_coherence] uses [type_jkind],
    which looks through unboxed types. So it's all OK for users, but it's
-   unfortunate that the stored layout on [t7_2] is imprecise.
+   unfortunate that the stored jkind on [t7_2] is imprecise.
 
    (* CR layouts: see if we can do better here. *)
 *)
@@ -617,10 +627,10 @@ let transl_declaration env sdecl (id, uid) =
     | _ -> false, false (* Not unboxable, mark as boxed *)
   in
   verify_unboxed_attr unboxed_attr sdecl;
-  let layout_annotation =
+  let jkind_annotation =
     (* We set legacy_immediate to true because you were already allowed to write
        [@@immediate] on declarations.  *)
-    layout_of_attributes ~legacy_immediate:true ~context:(Type_declaration path)
+    jkind_of_attributes ~legacy_immediate:true ~context:(Type_declaration path)
       sdecl.ptype_attributes
   in
   let (tman, man) = match sdecl.ptype_manifest with
@@ -630,15 +640,15 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  let any = Layout.any ~why:Initial_typedecl_env in
-  (* layout_default is the layout to use for now as the type_layout when there
+  let any = Jkind.any ~why:Initial_typedecl_env in
+  (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
-     See Note [Default layouts in transl_declaration].
+     See Note [Default jkinds in transl_declaration].
   *)
-  let (tkind, kind, layout_default) =
+  let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract, Layout.value ~why:Default_type_layout
+        Ttype_abstract, Type_abstract Abstract_def, Jkind.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -664,8 +674,8 @@ let transl_declaration env sdecl (id, uid) =
             | None ->
               Either.Left scstr.pcd_vars,
               scstr.pcd_attributes
-            | Some (vars_layouts, attributes) ->
-              Either.Right vars_layouts,
+            | Some (vars_jkinds, attributes) ->
+              Either.Right vars_jkinds,
               attributes
           in
           let tvars, targs, tret_type, args, ret_type =
@@ -697,12 +707,12 @@ let transl_declaration env sdecl (id, uid) =
             (fun () -> make_cstr scstr)
         in
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
-        let rep, layout =
+        let rep, jkind =
           if unbox then
             Variant_unboxed, any
           else
-            (* We mark all arg layouts "any" here.  They are updated later,
-               after the circular type checks make it safe to check layouts. *)
+            (* We mark all arg jkinds "any" here.  They are updated later,
+               after the circular type checks make it safe to check jkinds. *)
             Variant_boxed (
               Array.map
                 (fun cstr ->
@@ -712,52 +722,52 @@ let transl_declaration env sdecl (id, uid) =
                    | Cstr_record _ -> [| any |])
                 (Array.of_list cstrs)
             ),
-            Layout.value ~why:Boxed_variant
+            Jkind.value ~why:Boxed_variant
         in
-          Ttype_variant tcstrs, Type_variant (cstrs, rep), layout
+          Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
           let lbls, lbls' = transl_labels env None true lbls in
-          let rep, layout =
+          let rep, jkind =
             if unbox then
               Record_unboxed, any
             else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
             then Record_float
             else Record_boxed (Array.make (List.length lbls) any)),
-                 Layout.value ~why:Boxed_record
+                 Jkind.value ~why:Boxed_record
           in
-          Ttype_record lbls, Type_record(lbls', rep), layout
+          Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
-        Ttype_open, Type_open, Layout.value ~why:Extensible_variant
+        Ttype_open, Type_open, Jkind.value ~why:Extensible_variant
       in
-    let layout =
+    let jkind =
     (* - If there's an annotation, we use that. It's checked against
-         a kind in [update_decl_layout] and the manifest in [check_coherence].
+         a kind in [update_decl_jkind] and the manifest in [check_coherence].
        - If there's no annotation but there is a manifest, we estimate the
-         layout based on the manifest here. This upper bound saves time
-         later by avoiding expanding the manifest in layout checks, but it
+         jkind based on the manifest here. This upper bound saves time
+         later by avoiding expanding the manifest in jkind checks, but it
          would be sound to leave in `any`. We can't give a perfectly
-         accurate layout here because we don't have access to the
+         accurate jkind here because we don't have access to the
          manifests of mutually defined types (but we could one day consider
          improving it at a later point in transl_type_decl).
        - If there's no annotation and no manifest, we fill in with the
          default calculated above here. It will get updated in
-         [update_decl_layout]. See Note [Default layouts in transl_declaration].
+         [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
     *)
     (* CR layouts: Is the estimation mentioned in the second bullet above
        doing anything for us?  Abstract types are updated by
        check_coherence and record/variant types are updated by
-       update_decl_layout.  *)
-      match layout_annotation, man with
+       update_decl_jkind.  *)
+      match jkind_annotation, man with
       | Some annot, _ -> annot
-      | None, Some typ -> Ctype.estimate_type_layout env typ
-      | None, None -> layout_default
+      | None, Some typ -> Ctype.estimate_type_jkind env typ
+      | None, None -> jkind_default
     in
     let arity = List.length params in
     let decl =
       { type_params = params;
         type_arity = arity;
         type_kind = kind;
-        type_layout = layout;
+        type_jkind = jkind;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -833,10 +843,10 @@ let rec check_constraints_rec env loc visited ty =
         match Ctype.matches ~expand_error_trace:false env ty ty' with
         | Unification_failure err ->
           raise (Error(loc, Constraint_failed (env, err)))
-        | Layout_mismatch { original_layout; inferred_layout; ty } ->
-          raise (Error(loc, Layout_mismatch_of_type (ty,
-                              (Layout.Violation.of_ (Not_a_sublayout
-                                 (original_layout, inferred_layout))))))
+        | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
+          raise (Error(loc, Jkind_mismatch_of_type (ty,
+                              (Jkind.Violation.of_ (Not_a_subjkind
+                                 (original_jkind, inferred_jkind))))))
         | All_good -> ()
       end;
       List.iter (check_constraints_rec env loc visited) args
@@ -865,7 +875,7 @@ let check_constraints env sdecl (_, decl) =
     (fun (sty, _) ty -> check_constraints_rec env sty.ptyp_loc visited ty)
     sdecl.ptype_params decl.type_params;
   begin match decl.type_kind with
-  | Type_abstract -> ()
+  | Type_abstract _ -> ()
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
@@ -925,17 +935,17 @@ let check_constraints env sdecl (_, decl) =
    need to check that the equation refers to a type of the same kind
    with the same constructors and labels.
 
-   If the kind is [Type_abstract], we need to check that [type_layout] (where
-   we've stored the layout annotation, if any) corresponds to the manifest
-   (e.g., in the case where [type_layout] is immediate, we should check the
+   If the kind is [Type_abstract], we need to check that [type_jkind] (where
+   we've stored the jkind annotation, if any) corresponds to the manifest
+   (e.g., in the case where [type_jkind] is immediate, we should check the
    manifest is immediate).  It would also be nice to store the best possible
-   layout for this type in the kind, to avoid expansions later.  So, we do the
-   relatively expensive thing of computing the best possible layout for the
-   manifest, checking that it's a sublayout of [type_layout], and then replacing
-   [type_layout] with what we computed.
+   jkind for this type in the kind, to avoid expansions later.  So, we do the
+   relatively expensive thing of computing the best possible jkind for the
+   manifest, checking that it's a subjkind of [type_jkind], and then replacing
+   [type_jkind] with what we computed.
 
    CR layouts: if easy, factor out the shared backtracking logic from here
-   and is_always_global.
+   and is_immediate.
 *)
 let check_coherence env loc dpath decl =
   match decl with
@@ -971,23 +981,23 @@ let check_coherence env loc dpath decl =
           end
       | _ -> raise(Error(loc, Definition_mismatch (ty, env, None)))
       end
-  | { type_kind = Type_abstract;
+  | { type_kind = Type_abstract _;
       type_manifest = Some ty } ->
-    let layout' =
+    let jkind' =
       if !Clflags.principal || Env.has_local_constraints env then
         (* We snapshot to keep this pure; see the mode crossing test that
            mentions snapshotting for an example. *)
         let snap = Btype.snapshot () in
-        let layout' = Ctype.type_layout env ty in
+        let jkind' = Ctype.type_jkind env ty in
         Btype.backtrack snap;
-        layout'
+        jkind'
       else
-        Ctype.type_layout env ty
+        Ctype.type_jkind env ty
     in
-    begin match Layout.sub_with_history layout' decl.type_layout with
-    | Ok layout' -> { decl with type_layout = layout' }
+    begin match Jkind.sub_with_history jkind' decl.type_jkind with
+    | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
-      raise (Error (loc, Layout_mismatch_of_type (ty,v)))
+      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
     end
   | { type_manifest = None } -> decl
 
@@ -996,14 +1006,14 @@ let check_abbrev env sdecl (id, decl) =
 
 (* Makes sure a type is representable.  Will lower "any" to "value". *)
 (* CR layouts: In the places where this is used, we first call this to
-   ensure a type is representable, and then call [Ctype.type_layout] to get the
-   most precise layout.  These could be combined into some new function
-   [Ctype.type_layout_representable] that avoids duplicated work *)
+   ensure a type is representable, and then call [Ctype.type_jkind] to get the
+   most precise jkind.  These could be combined into some new function
+   [Ctype.type_jkind_representable] that avoids duplicated work *)
 (* CR layouts: Many places where [check_representable] is called in this file
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~why env loc lloc typ =
+let check_representable ~why ~allow_float env loc kloc typ =
   match Ctype.type_sort ~why env typ with
   (* CR layouts v3: This is a convenient place to rule out [float#] in
      structures for now, as it is called on all the types in declared blocks in
@@ -1012,97 +1022,125 @@ let check_representable ~why env loc lloc typ =
   (* CR layouts v2.5: This rules out float# in [@@unboxed] types.  No real need
      to rule that out - I just haven't had time to write tests for it yet. *)
   | Ok s -> begin
-      match Sort.get_default_value s with
-      (* All calls to this are part of [update_decl_layout], which happens after
+      match Jkind.Sort.get_default_value s with
+      (* All calls to this are part of [update_decl_jkind], which happens after
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 -> raise (Error (loc, Float64_in_block typ))
+      | Float64 when allow_float -> ()
+      (* CR layouts v2.5: If we want to hold back [float#] records from the
+         maturity progression of [float64], we can add a check here. *)
+      | Float64 -> raise (Error (loc, Float64_in_block (typ, kloc)))
     end
-  | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
+  | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
-(* The [update_x_layouts] functions infer more precise layouts in the type kind,
+(* The [update_x_jkinds] functions infer more precise jkinds in the type kind,
    including which fields of a record are void.  This would be hard to do during
    [transl_declaration] due to mutually recursive types.
 *)
-(* [update_label_layouts] additionally returns whether all the layouts
+(* [update_label_jkinds] additionally returns whether all the jkinds
    were void *)
-let update_label_layouts env loc lbls named =
-  (* "named" distinguishes between top-level records (for which we need to
-     update the kind with the layouts) and inlined records *)
+let update_label_jkinds env loc lbls named =
+  (* [named] is [Some jkinds] for top-level records (we will update the
+     jkinds) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
      void.  just needs a bit of refactoring in translcore *)
   let update =
     match named with
     | None -> fun _ _ -> ()
-    | Some layouts -> fun idx layout -> layouts.(idx) <- layout
+    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
       check_representable ~why:(Label_declaration ld_id)
-        env ld_loc Record ld_type;
-      let ld_layout = Ctype.type_layout env ld_type in
-      update idx ld_layout;
-      {lbl with ld_layout}
+        ~allow_float:(Option.is_some named) env ld_loc Record ld_type;
+      let ld_jkind = Ctype.type_jkind env ld_type in
+      update idx ld_jkind;
+      {lbl with ld_jkind}
     ) lbls
   in
-  if List.for_all (fun l -> Layout.is_void_defaulting l.ld_layout) lbls then
-    raise (Error (loc, Layout_empty_record))
+  if List.for_all (fun l -> Jkind.is_void_defaulting l.ld_jkind) lbls then
+    raise (Error (loc, Jkind_empty_record))
   else lbls, false
 (* CR layouts v5: return true for a record with all voids *)
 
 (* In addition to updated constructor arguments, returns whether
    all arguments are void, useful for detecting enumerations that
    can be [immediate]. *)
-let update_constructor_arguments_layouts env loc cd_args layouts =
+let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx)
+      check_representable ~why:(Constructor_declaration idx) ~allow_float:false
         env loc Cstr_tuple ty;
-      layouts.(idx) <- Ctype.type_layout env ty) tys;
-    cd_args, Array.for_all Layout.is_void_defaulting layouts
+      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
+    cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
-    let lbls, all_void = update_label_layouts env loc lbls None in
-    layouts.(0) <- Layout.value ~why:Boxed_record;
+    let lbls, all_void = update_label_jkinds env loc lbls None in
+    jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
-(* This function updates layout stored in kinds with more accurate layouts.
-   It is called after the circularity checks and the delayed layout checks
-   have happened, so we can fully compute layouts of types.
+(* This function updates jkind stored in kinds with more accurate jkinds.
+   It is called after the circularity checks and the delayed jkind checks
+   have happened, so we can fully compute jkinds of types.
 
    This function is an important part
-   of correctness, as it also checks that the layout computed from a kind
-   is consistent (i.e. a sublayout of) any layout annotation.
-   See Note [Default layouts in transl_declaration].
+   of correctness, as it also checks that the jkind computed from a kind
+   is consistent (i.e. a subjkind of) any jkind annotation.
+   See Note [Default jkinds in transl_declaration].
 *)
-let update_decl_layout env dpath decl =
-  (* returns updated labels, updated rep, and updated layout *)
+let update_decl_jkind env dpath decl =
+  let open struct
+    (* For tracking what types appear in record blocks. *)
+    type has_values = Has_values | No_values
+    type has_float64s = Has_float64s | No_float64s
+  end in
+
+  (* returns updated labels, updated rep, and updated jkind *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~why:(Label_declaration ld_id)
+      check_representable ~why:(Label_declaration ld_id) ~allow_float:false
         env ld_loc Record ld_type;
-      let ld_layout = Ctype.type_layout env ld_type in
-      [{lbl with ld_layout}], Record_unboxed, ld_layout
-    | _, Record_boxed layouts ->
-      let lbls, all_void = update_label_layouts env loc lbls (Some layouts) in
-      let layout = Layout.for_boxed_record ~all_void in
-      lbls, rep, layout
+      let ld_jkind = Ctype.type_jkind env ld_type in
+      [{lbl with ld_jkind}], Record_unboxed, ld_jkind
+    | _, Record_boxed jkinds ->
+      let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
+      let jkind = Jkind.for_boxed_record ~all_void in
+      let has_values, has_floats =
+        Array.fold_left
+          (fun (values, floats) jkind ->
+             match Jkind.get_default_value jkind with
+             | Value | Immediate64 | Immediate -> (Has_values, floats)
+             | Float64 -> (values, Has_float64s)
+             | Void -> (values, floats)
+             | Any -> assert false)
+          (No_values, No_float64s) jkinds
+      in
+      let rep =
+        match has_values, has_floats with
+        | Has_values, Has_float64s -> raise (Error (loc, Mixed_block))
+        | Has_values, No_float64s -> rep
+        | No_values, Has_float64s -> Record_ufloat
+        | No_values, No_float64s ->
+          Misc.fatal_error "Typedecl.update_record_kind: empty record"
+      in
+      lbls, rep, jkind
     | _, Record_float ->
-      (* CR layouts v2.5: When we have an unboxed float layout, does it make
+      (* CR layouts v2.5: When we have an unboxed float jkind, does it make
          sense to use that here?  The use of value feels inaccurate, but I think
          the code that would look at first looks at the rep. *)
       let lbls =
         List.map (fun lbl ->
-          { lbl with ld_layout = Layout.value ~why:Float_record_field })
+          { lbl with ld_jkind = Jkind.value ~why:Float_record_field })
           lbls
       in
-      lbls, rep, Layout.value ~why:Boxed_record
-    | (([] | (_ :: _)), Record_unboxed | _, Record_inlined _) -> assert false
+      lbls, rep, Jkind.value ~why:Boxed_record
+    | (([] | (_ :: _)), Record_unboxed
+      | _, (Record_inlined _ | Record_ufloat)) -> assert false
   in
 
-  (* returns updated constructors, updated rep, and updated layout *)
+  (* returns updated constructors, updated rep, and updated jkind *)
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
@@ -1110,66 +1148,66 @@ let update_decl_layout env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             check_representable ~why:(Constructor_declaration 0)
-              env cd_loc Cstr_tuple ty;
-            let layout = Ctype.type_layout env ty in
-            cstrs, Variant_unboxed, layout
+              ~allow_float:false env cd_loc Cstr_tuple ty;
+            let jkind = Ctype.type_jkind env ty in
+            cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~why:(Label_declaration ld_id)
-              env ld_loc Record ld_type;
-            let ld_layout = Ctype.type_layout env ld_type in
+              ~allow_float:false env ld_loc Record ld_type;
+            let ld_jkind = Ctype.type_jkind env ld_type in
             [{ cstr with Types.cd_args =
-                           Cstr_record [{ lbl with ld_layout }] }],
-            Variant_unboxed, ld_layout
+                           Cstr_record [{ lbl with ld_jkind }] }],
+            Variant_unboxed, ld_jkind
           end
         | (Cstr_tuple ([] | _ :: _ :: _) | Cstr_record ([] | _ :: _ :: _)) ->
           assert false
       end
-    | cstrs, Variant_boxed layouts ->
+    | cstrs, Variant_boxed jkinds ->
       let (_,cstrs,all_voids) =
         List.fold_left (fun (idx,cstrs,all_voids) cstr ->
           let cd_args, all_void =
-            update_constructor_arguments_layouts env cstr.Types.cd_loc
-              cstr.Types.cd_args layouts.(idx)
+            update_constructor_arguments_jkinds env cstr.Types.cd_loc
+              cstr.Types.cd_args jkinds.(idx)
           in
           let cstr = { cstr with Types.cd_args } in
           (idx+1,cstr::cstrs,all_voids && all_void)
         ) (0,[],true) cstrs
       in
-      let layout = Layout.for_boxed_variant ~all_voids in
-      List.rev cstrs, rep, layout
+      let jkind = Jkind.for_boxed_variant ~all_voids in
+      List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
   in
 
-  let new_decl, new_layout = match decl.type_kind with
-    | Type_abstract -> decl, decl.type_layout
+  let new_decl, new_jkind = match decl.type_kind with
+    | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
-      let type_layout = Layout.value ~why:Extensible_variant in
-      { decl with type_layout }, type_layout
+      let type_jkind = Jkind.value ~why:Extensible_variant in
+      { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
-      let lbls, rep, type_layout = update_record_kind decl.type_loc lbls rep in
-      { decl with type_kind = Type_record (lbls, rep); type_layout },
-      type_layout
+      let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
+      { decl with type_kind = Type_record (lbls, rep); type_jkind },
+      type_jkind
     | Type_variant (cstrs, rep) ->
-      let cstrs, rep, type_layout = update_variant_kind cstrs rep in
-      { decl with type_kind = Type_variant (cstrs, rep); type_layout },
-      type_layout
+      let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
+      { decl with type_kind = Type_variant (cstrs, rep); type_jkind },
+      type_jkind
   in
 
-  (* check that the layout computed from the kind matches the layout
-     annotation, which was stored in decl.type_layout *)
-  if new_layout != decl.type_layout then
-    begin match Layout.sub new_layout decl.type_layout with
+  (* check that the jkind computed from the kind matches the jkind
+     annotation, which was stored in decl.type_jkind *)
+  if new_jkind != decl.type_jkind then
+    begin match Jkind.sub new_jkind decl.type_jkind with
     | Ok () -> ()
     | Error err ->
-      raise(Error(decl.type_loc, Layout_mismatch_of_path (dpath,err)))
+      raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
     end;
   new_decl
 
-let update_decls_layout env decls =
+let update_decls_jkind env decls =
   List.map
-    (fun (id, decl) -> (id, update_decl_layout env (Pident id) decl))
+    (fun (id, decl) -> (id, update_decl_jkind env (Pident id) decl))
     decls
 
 (* Check that recursion is well-founded *)
@@ -1234,9 +1272,9 @@ let check_well_founded env loc path to_check ty =
 let check_well_founded_manifest env loc path decl =
   if decl.type_manifest = None then () else
   let args =
-    (* The layouts here shouldn't matter for the purposes of
+    (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Layout.any ~why:Dummy_layout))
+    List.map (fun _ -> Ctype.newvar (Jkind.any ~why:Dummy_jkind))
       decl.type_params
   in
   check_well_founded env loc path (Path.same path) (Ctype.newconstr path args)
@@ -1250,7 +1288,7 @@ let check_well_founded_decl env loc path decl to_check =
 
 (* Check for ill-defined abbrevs *)
 
-let check_recursion ~orig_env env loc path decl to_check =
+let check_recursion ~abs_env env loc path decl to_check =
   (* to_check is true for potentially mutually recursive paths.
      (path, decl) is the type declaration to be checked. *)
 
@@ -1264,7 +1302,7 @@ let check_recursion ~orig_env env loc path decl to_check =
       match get_desc ty with
       | Tconstr(path', args', _) ->
           if Path.same path path' then begin
-            if not (Ctype.is_equal orig_env false args args') then
+            if not (Ctype.is_equal abs_env false args args') then
               raise (Error(loc,
                      Non_regular {
                        definition=path;
@@ -1286,9 +1324,9 @@ let check_recursion ~orig_env env loc path decl to_check =
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
-                try List.iter2 (Ctype.unify orig_env) params args'
+                try List.iter2 (Ctype.unify abs_env) params args'
                 with Ctype.Unify err ->
-                  raise (Error(loc, Constraint_failed (orig_env, err)));
+                  raise (Error(loc, Constraint_failed (abs_env, err)));
               end;
               check_regular path' args
                 (path' :: prev_exp) ((ty,body) :: prev_expansions)
@@ -1313,10 +1351,10 @@ let check_recursion ~orig_env env loc path decl to_check =
       check_regular path args [] [] body)
     decl.type_manifest
 
-let check_abbrev_recursion ~orig_env env id_loc_list to_check tdecl =
+let check_abbrev_recursion ~abs_env env id_loc_list to_check tdecl =
   let decl = tdecl.typ_type in
   let id = tdecl.typ_id in
-  check_recursion ~orig_env env (List.assoc id id_loc_list) (Path.Pident id)
+  check_recursion ~abs_env env (List.assoc id id_loc_list) (Path.Pident id)
     decl to_check
 
 let check_duplicates sdecl_list =
@@ -1352,7 +1390,7 @@ let check_duplicates sdecl_list =
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
   match decl with
-  | { type_kind = Type_abstract;
+  | { type_kind = Type_abstract Abstract_def;
       type_manifest = Some ty;
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
@@ -1448,6 +1486,9 @@ let transl_type_decl env rec_flag sdecl_list =
       name_sdecl.ptype_attributes
       (fun () -> transl_declaration temp_env name_sdecl id)
   in
+  (* Translate declarations, using a temporary environment where abbreviations
+     expand to a generic type variable. After that, we check the coherence of
+     the translated declarations in the resulting new enviroment. *)
   let tdecls =
     List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
   let decls =
@@ -1458,7 +1499,7 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Build the final env. *)
   let new_env = add_types_to_env decls env in
   (* Update stubs *)
-  let delayed_layout_checks =
+  let delayed_jkind_checks =
     match rec_flag with
     | Asttypes.Nonrecursive -> []
     | Asttypes.Recursive ->
@@ -1486,26 +1527,34 @@ let transl_type_decl env rec_flag sdecl_list =
     check_well_founded_decl new_env (List.assoc id id_loc_list) (Path.Pident id)
       decl to_check)
     decls;
+  (* [check_abbrev_regularity] cannot use the new environment, as this might
+     result in non-termination. Instead we use a completely abstract version
+     of the temporary environment, giving a reason for why abbreviations
+     cannot be expanded (#12334, #12368) *)
+  let abs_env =
+    List.fold_left2
+      (enter_type ~abstract_abbrevs:Abstract_rec_check_regularity rec_flag)
+      env sdecl_list ids_list in
   List.iter
-    (check_abbrev_recursion ~orig_env:env new_env id_loc_list to_check) tdecls;
+    (check_abbrev_recursion ~abs_env new_env id_loc_list to_check) tdecls;
   (* Now that we've ruled out ill-formed types, we can perform the delayed
-     layout checks *)
+     jkind checks *)
   List.iter (fun (checks,loc) ->
-    List.iter (fun (ty,layout) ->
-      match Ctype.constrain_type_layout new_env ty layout with
+    List.iter (fun (ty,jkind) ->
+      match Ctype.constrain_type_jkind new_env ty jkind with
       | Ok _ -> ()
       | Error err ->
-        let err = Errortrace.unification_error ~trace:[Bad_layout (ty,err)] in
+        let err = Errortrace.unification_error ~trace:[Bad_jkind (ty,err)] in
         raise (Error (loc, Type_clash (new_env, err))))
       checks)
-    delayed_layout_checks;
+    delayed_jkind_checks;
   (* Check that constraints are enforced *)
   List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Check that all type variables are closed; this also defaults any remaining
-     sort variables. Defaulting must happen before update_decls_layout,
+     sort variables. Defaulting must happen before update_decls_jkind,
      Typedecl_seperability.update_decls, and add_types_to_env, all of which need
      to check whether parts of the type are void (and currently use
-     Layout.equate to do this which would set any remaining sort variables
+     Jkind.equate to do this which would set any remaining sort variables
      to void). *)
   List.iter2
     (fun sdecl tdecl ->
@@ -1521,7 +1570,7 @@ let transl_type_decl env rec_flag sdecl_list =
       |> name_recursion_decls sdecl_list
       |> Typedecl_variance.update_decls env sdecl_list
       |> Typedecl_separability.update_decls env
-      |> update_decls_layout new_env
+      |> update_decls_jkind new_env
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))
@@ -1555,25 +1604,25 @@ let transl_extension_constructor_decl
     | Cstr_tuple args -> List.length args
     | Cstr_record _ -> 1
   in
-  let layouts = Array.make num_args (Layout.any ~why:Dummy_layout) in
+  let jkinds = Array.make num_args (Jkind.any ~why:Dummy_jkind) in
   let args, constant =
-    update_constructor_arguments_layouts env loc args layouts
+    update_constructor_arguments_jkinds env loc args jkinds
   in
-  args, layouts, constant, ret_type,
+  args, jkinds, constant, ret_type,
   Text_decl(tvars, targs, tret_type)
 
 let transl_extension_constructor_jst env type_path _type_params
       typext_params _priv loc id _attrs :
   Jane_syntax.Extension_constructor.t -> _ = function
-  | Jext_layout (Lext_decl(vars_layouts, args, res)) ->
+  | Jext_layout (Lext_decl(vars_jkinds, args, res)) ->
     transl_extension_constructor_decl
-      env type_path typext_params loc id (Right vars_layouts) args res
+      env type_path typext_params loc id (Right vars_jkinds) args res
 
 let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
-  let args, arg_layouts, constant, ret_type, kind =
+  let args, arg_jkinds, constant, ret_type, kind =
     match Jane_syntax.Extension_constructor.of_ast sext with
     | Some (jext, attrs) ->
       transl_extension_constructor_jst
@@ -1612,9 +1661,9 @@ let transl_extension_constructor ~scope env type_path type_params
           List.iter
             (fun ty ->
               match get_desc ty with
-              | Tvar { name = Some "_"; layout }
+              | Tvar { name = Some "_"; jkind }
                 when List.exists (eq_type ty) vars ->
-                set_type_desc ty (Tvar { name = None; layout })
+                set_type_desc ty (Tvar { name = None; jkind })
               | _ -> ())
             typext_params
         end;
@@ -1666,14 +1715,14 @@ let transl_extension_constructor ~scope env type_path type_params
               in
               Types.Cstr_record lbls
         in
-        args, cdescr.cstr_arg_layouts, cdescr.cstr_constant, ret_type,
+        args, cdescr.cstr_arg_jkinds, cdescr.cstr_constant, ret_type,
         Text_rebind(path, lid)
   in
   let ext =
     { ext_type_path = type_path;
       ext_type_params = typext_params;
       ext_args = args;
-      ext_arg_layouts = arg_layouts;
+      ext_arg_jkinds = arg_jkinds;
       ext_constant = constant;
       ext_ret_type = ret_type;
       ext_private = priv;
@@ -1940,9 +1989,9 @@ let prim_const_mode m =
    allow non-representable types in external args/returns then. *)
 let type_sort_external ~why env loc typ =
   match Ctype.type_sort ~why env typ with
-  | Ok s -> Sort.get_default_value s
+  | Ok s -> Jkind.Sort.get_default_value s
   | Error err ->
-    raise (Error (loc,Layout_sort {lloc = External; typ; err}))
+    raise (Error (loc,Jkind_sort {kloc = External; typ; err}))
 
 let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   match core_type.ptyp_desc, get_desc ty,
@@ -2006,8 +2055,8 @@ let check_unboxable env loc ty =
 let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
-  begin match Ctype.constrain_type_layout env cty.ctyp_type
-                (Layout.value ~why:Structure_element) with
+  begin match Ctype.constrain_type_jkind env cty.ctyp_type
+                (Jkind.value ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err, valdecl.pval_name.txt)))
@@ -2134,32 +2183,33 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     try Ctype.unify env cty.ctyp_type cty'.ctyp_type
     with Ctype.Unify err ->
       raise(Error(loc, Inconsistent_constraint (env, err)))
-  ) constraints;
+    ) constraints;
+  let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
   let priv =
     if sdecl.ptype_private = Private then Private else
-    if arity_ok && not (decl_is_abstract sig_decl)
+    if arity_ok && not sig_decl_abstract
     then sig_decl.type_private else sdecl.ptype_private
   in
-  if arity_ok && not (decl_is_abstract sig_decl)
+  if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_kind, type_unboxed_default, type_layout =
+  let type_kind, type_unboxed_default, type_jkind =
     (* Here, `man = None` indicates we have a "fake" with constraint built by
        [Typetexp.create_package_mty] for a package type. *)
     if arity_ok && man <> None then
-      sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_layout
+      sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_jkind
     else
       (* CR layouts: this is a gross hack.  See the comments in the
          [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
-      let layout = Layout.value ~why:Package_hack in
-        (* Layout.(of_attributes ~default:value sdecl.ptype_attributes) *)
-      Type_abstract, false, layout
+      let jkind = Jkind.value ~why:Package_hack in
+        (* Jkind.(of_attributes ~default:value sdecl.ptype_attributes) *)
+      Type_abstract Abstract_def, false, jkind
   in
   let new_sig_decl =
     { type_params = params;
       type_arity = arity;
       type_kind;
-      type_layout;
+      type_jkind;
       type_private = priv;
       type_manifest = man;
       type_variance = [];
@@ -2197,7 +2247,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_params = new_sig_decl.type_params;
       type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
-      type_layout = new_sig_decl.type_layout;
+      type_jkind = new_sig_decl.type_jkind;
       type_private = new_sig_decl.type_private;
       type_manifest = new_sig_decl.type_manifest;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -2227,15 +2277,15 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 
 (* Approximate a type declaration: just make all types abstract *)
 
-let abstract_type_decl ~injective layout params =
+let abstract_type_decl ~injective jkind params =
   let arity = List.length params in
   Ctype.begin_def();
   let params = List.map Ctype.newvar params in
   let decl =
     { type_params = params;
       type_arity = arity;
-      type_kind = Type_abstract;
-      type_layout = layout;
+      type_kind = Type_abstract Abstract_def;
+      type_jkind = jkind;
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
@@ -2258,19 +2308,19 @@ let approx_type_decl sdecl_list =
        let id = Ident.create_scoped ~scope sdecl.ptype_name.txt in
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
-       let layout =
+       let jkind =
          (* We set legacy_immediate to true because you were already allowed
             to write [@@immediate] on declarations. *)
-         layout_of_attributes_default ~legacy_immediate:true
+         jkind_of_attributes_default ~legacy_immediate:true
            ~context:(Type_declaration path)
-           ~default:(Layout.value ~why:Default_type_layout)
+           ~default:(Jkind.value ~why:Default_type_jkind)
            sdecl.ptype_attributes
        in
        let params =
-         List.map (fun (param, _) -> get_type_param_layout path param)
+         List.map (fun (param, _) -> get_type_param_jkind path param)
            sdecl.ptype_params
        in
-       (id, abstract_type_decl ~injective layout params))
+       (id, abstract_type_decl ~injective jkind params))
     sdecl_list
 
 (* Variant of check_abbrev_recursion to check the well-formedness
@@ -2281,8 +2331,8 @@ let check_recmod_typedecl env loc recmod_ids path decl =
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
   check_well_founded_decl env loc path decl to_check;
-  check_recursion ~orig_env:env env loc path decl to_check;
-  (* additionally check coherece, as one might build an incoherent signature,
+  check_recursion ~abs_env:env env loc path decl to_check;
+  (* additional coherence check, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)
   ignore (check_coherence env loc path decl)
 
@@ -2428,7 +2478,7 @@ let report_error ppf = function
       | Type_record (tl, _), _ ->
           explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
             "field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
-      | Type_abstract, Some ty' ->
+      | Type_abstract _, Some ty' ->
           explain_unbound_single ppf ty ty'
       | _ -> ()
       end;
@@ -2527,34 +2577,44 @@ let report_error ppf = function
          a direct argument or result of the primitive,@ \
          it should not occur deeply into its type.@]"
         (match kind with Unboxed -> "@unboxed" | Untagged -> "@untagged")
-  | Layout_mismatch_of_path (dpath,v) ->
+  | Jkind_mismatch_of_path (dpath,v) ->
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
     let offender ppf = fprintf ppf "Type %s" (Ident.name (Path.head dpath)) in
-    Layout.Violation.report_with_offender ~offender ppf v
-  | Layout_mismatch_of_type (ty,v) ->
+    Jkind.Violation.report_with_offender ~offender ppf v
+  | Jkind_mismatch_of_type (ty,v) ->
     let offender ppf = fprintf ppf "Type %a" Printtyp.type_expr ty in
-    Layout.Violation.report_with_offender ~offender ppf v
-  | Layout_sort {lloc; typ; err} ->
+    Jkind.Violation.report_with_offender ~offender ppf v
+  | Jkind_sort {kloc; typ; err} ->
     let s =
-      match lloc with
+      match kloc with
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
       | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
-      (Layout.Violation.report_with_offender
+      (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
-  | Layout_empty_record ->
+  | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
-      val_name (Layout.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block typ ->
+      val_name (Jkind.Violation.report_with_name ~name:val_name) err
+  | Float64_in_block (typ, lloc) ->
+    let struct_desc =
+      match lloc with
+      | Cstr_tuple -> "Variants"
+      | Record -> "Unboxed records"
+        (* [Record] always means unboxed record here, because illegal boxed records
+           get rejected with the [Mixed_block] error instead. *)
+      | External -> assert false
+    in
     fprintf ppf
-      "@[Type %a has layout float64.@ Types of this layout are not yet \
-       allowed in blocks (like records or variants).@]"
-      Printtyp.type_expr typ
+      "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
+      Printtyp.type_expr typ struct_desc
+  | Mixed_block  ->
+    fprintf ppf
+      "@[Records may not contain both unboxed floats and normal values.@]"
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->
@@ -2589,7 +2649,7 @@ let report_error ppf = function
       fprintf ppf
         "@[Layout %s is used here, but the appropriate layouts extension is \
          not enabled@]"
-        (Layout.string_of_const c)
+        (Jkind.string_of_const c)
 
 let () =
   Location.register_error_of_exn

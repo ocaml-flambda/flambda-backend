@@ -3,7 +3,7 @@
    * expect
 *)
 
-(* Tests for layouts in algebraic datatypes *)
+(* Tests for jkinds in algebraic datatypes *)
 
 (* CR layouts v5: add mixed block restriction tests. *)
 
@@ -264,7 +264,7 @@ Error: Record element types must have a representable layout.
 |}];;
 
 (**************************************************************************)
-(* Test 6: fields in all-float records get layout value.  may change in the
+(* Test 6: fields in all-float records get jkind value.  may change in the
    future, but record fields must at least be representable. *)
 type t6 = { fld6 : float }
 type ('a : immediate) s6 = S6 of 'a

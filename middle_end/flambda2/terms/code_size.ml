@@ -24,6 +24,8 @@ let equal (a : t) (b : t) = a = b
 
 let ( + ) (a : t) (b : t) : t = a + b
 
+let ( - ) (a : t) (b : t) : t = a - b
+
 let ( <= ) (a : t) (b : t) = a <= b
 
 let arch32 = Targetint_32_64.size = 32 (* are we compiling for a 32-bit arch *)

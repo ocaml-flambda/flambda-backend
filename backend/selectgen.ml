@@ -237,6 +237,7 @@ let oper_result_type = function
        naked pointer into the local allocation stack. *)
     typ_int
   | Cendregion -> typ_void
+  | Ctuple_field (field, fields_ty) -> fields_ty.(field)
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -538,6 +539,7 @@ method is_simple_expr = function
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
+      | Ctuple_field _
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
@@ -585,6 +587,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
+      | Ctuple_field _
       | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
       | Cbswap _
       | Ccsel _
@@ -982,6 +985,21 @@ method emit_expr_aux (env:environment) exp ~bound_name :
       | Some (simple_args, env) ->
          let rs = self#emit_tuple env simple_args in
          ret (self#insert_op_debug env Iopaque dbg rs rs)
+      end
+  | Cop(Ctuple_field(field, fields_layout), [arg], dbg) ->
+      begin match self#emit_expr env arg ~bound_name:None with
+        None -> None
+      | Some loc_exp ->
+        let flat_size a =
+          Array.fold_left (fun acc t -> acc + Array.length t) 0 a
+        in
+        assert(Array.length loc_exp = flat_size fields_layout);
+        let before = Array.sub fields_layout 0 field in
+        let size_before = flat_size before in
+        let field_slice =
+          Array.sub loc_exp size_before (Array.length fields_layout.(field))
+        in
+        ret field_slice
       end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env args with

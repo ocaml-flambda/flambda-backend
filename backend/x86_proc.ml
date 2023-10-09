@@ -51,6 +51,7 @@ module Section_name = struct
 
     let is_text_like t = String.starts_with ~prefix:".text" t.name_str
     let is_data_like t = String.starts_with ~prefix:".data" t.name_str
+    let is_note_like t = String.starts_with ~prefix:".note" t.name_str
   end
   include S
   module Map = Map.Make (S)

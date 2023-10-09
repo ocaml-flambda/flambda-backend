@@ -64,6 +64,7 @@ let layout (layout : Lambda.layout) =
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"
   | Punboxed_vector (Pvec128 ty) ->
     Format.sprintf ":unboxed_%s" (Lambda.vec128_name ty)
+  | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x

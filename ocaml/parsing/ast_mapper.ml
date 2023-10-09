@@ -51,8 +51,9 @@ type mapper = {
                          -> extension_constructor;
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
+  jkind_annotation:
+    mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
   label_declaration: mapper -> label_declaration -> label_declaration;
-  layout_annotation: mapper -> Asttypes.const_layout -> Asttypes.const_layout;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
   module_declaration: mapper -> module_declaration -> module_declaration;
@@ -146,29 +147,29 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
-  let var_layout sub (name, layout_opt) =
+  let var_jkind sub (name, jkind_opt) =
     let name = map_loc sub name in
-    let layout_opt =
-      map_opt (map_loc_txt sub sub.layout_annotation) layout_opt
+    let jkind_opt =
+      map_opt (map_loc_txt sub sub.jkind_annotation) jkind_opt
     in
-    (name, layout_opt)
+    (name, jkind_opt)
 
-  let map_bound_vars sub bound_vars = List.map (var_layout sub) bound_vars
+  let map_bound_vars sub bound_vars = List.map (var_jkind sub) bound_vars
 
   let map_jst_layouts sub :
         Jane_syntax.Layouts.core_type -> Jane_syntax.Layouts.core_type =
     function
-    | Ltyp_var { name; layout } ->
-      let layout = map_loc_txt sub sub.layout_annotation layout in
-      Ltyp_var { name; layout }
+    | Ltyp_var { name; jkind } ->
+      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
+      Ltyp_var { name; jkind }
     | Ltyp_poly { bound_vars; inner_type } ->
       let bound_vars = map_bound_vars sub bound_vars in
       let inner_type = sub.typ sub inner_type in
       Ltyp_poly { bound_vars; inner_type }
-    | Ltyp_alias { aliased_type; name; layout } ->
+    | Ltyp_alias { aliased_type; name; jkind } ->
       let aliased_type = sub.typ sub aliased_type in
-      let layout = map_loc_txt sub sub.layout_annotation layout in
-      Ltyp_alias { aliased_type; name; layout }
+      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
+      Ltyp_alias { aliased_type; name; jkind }
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
@@ -555,11 +556,11 @@ module E = struct
 
   let map_layout_exp sub : L.expression -> L.expression = function
     | Lexp_constant x -> Lexp_constant (map_unboxed_constant_exp sub x)
-    | Lexp_newtype (str, layout, inner_expr) ->
+    | Lexp_newtype (str, jkind, inner_expr) ->
       let str = map_loc sub str in
-      let layout = map_loc_txt sub sub.layout_annotation layout in
+      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
       let inner_expr = sub.expr sub inner_expr in
-      Lexp_newtype (str, layout, inner_expr)
+      Lexp_newtype (str, jkind, inner_expr)
 
   let map_function_param sub : N_ary.function_param -> N_ary.function_param =
     fun { pparam_loc = loc; pparam_desc = desc } ->
@@ -568,10 +569,10 @@ module E = struct
         match desc with
         | Pparam_val (label, def, pat) ->
             Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
-        | Pparam_newtype (newtype, layout) ->
+        | Pparam_newtype (newtype, jkind) ->
             Pparam_newtype
               ( map_loc sub newtype
-              , map_opt (map_loc_txt sub sub.layout_annotation) layout
+              , map_opt (map_loc_txt sub sub.jkind_annotation) jkind
               )
       in
       { pparam_loc = loc; pparam_desc = desc }
@@ -973,11 +974,11 @@ let default_mapper =
           let vars = List.map (map_loc this) pcd_vars in
           let attrs = this.attributes this pcd_attributes in
           Type.constructor name ~vars ~args ?res ~loc ~attrs
-        | Some (vars_layouts, attributes) ->
-          let vars_layouts = List.map (T.var_layout this) vars_layouts in
+        | Some (vars_jkinds, attributes) ->
+          let vars_jkinds = List.map (T.var_jkind this) vars_jkinds in
           let attrs = this.attributes this attributes in
           Jane_syntax.Layouts.constructor_declaration_of
-            name ~vars_layouts ~args ~res ~loc ~attrs
+            name ~vars_jkinds ~args ~res ~loc ~attrs
             ~info:Docstrings.empty_info
       );
 
@@ -1022,7 +1023,7 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
-    layout_annotation = (fun _this l -> l);
+    jkind_annotation = (fun _this l -> l);
 
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;
