@@ -1542,15 +1542,6 @@ Error: This expression has type < m : 'x. [< `Foo of 'x ] -> 'x >
        but an expression was expected of type
          < m : 'a. [< `Foo of int ] -> 'a >
        The universal variable 'x would escape its scope
-|}, Principal{|
-Line 2, characters 2-72:
-2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type < m : 'x. [< `Foo of 'x ] -> 'x >
-       but an expression was expected of type < m : 'a. 'b -> 'a >
-       The method m has type 'x. [< `Foo of 'x ] -> 'x,
-       but the expected method type was 'a. 'b -> 'a
-       The universal variable 'x would escape its scope
 |}];;
 (* ok *)
 let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =

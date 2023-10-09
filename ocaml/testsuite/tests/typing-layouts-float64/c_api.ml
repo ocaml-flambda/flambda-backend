@@ -1,6 +1,14 @@
 (* TEST
    modules = "stubs.c"
-   flags = "-extension layouts_alpha"
+   reference = "${test_source_directory}/c_api.reference"
+   * native
+     flags = "-extension layouts_alpha"
+   * bytecode
+     flags = "-extension layouts_alpha"
+   * native
+     flags = "-extension layouts_beta"
+   * bytecode
+     flags = "-extension layouts_beta"
 *)
 
 (* This file tests using external C functions with float#. *)
@@ -51,4 +59,9 @@ let sum_of_one_to_seven =
   in
   print_floatu "Function with many args, sum_of_one_to_seven" f
 
+(* Non-inlined eta expansion *)
+let[@inline never] sin_U_U' x = sin_U_U x
 
+let sin_seven =
+  let f = sin_U_U' (of_float 7.) in
+  print_floatu "Test U -> U eta expansion, sin seven" f

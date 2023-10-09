@@ -1,7 +1,6 @@
 (* TEST
    include ocamlcommon
    flags = "-I ${ocamlsrcdir}/parsing"
-   reference = "${test_source_directory}/reference.txt"
 *)
 
 (* Change these two variables to change which extension is being tested *)

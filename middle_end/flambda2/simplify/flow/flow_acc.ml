@@ -277,7 +277,7 @@ let add_apply_conts ~result_cont ~exn_cont ~result_arity t =
         | None -> apply_cont_args
         | Some (rewrite_id, result_cont) ->
           add_func_result result_cont rewrite_id
-            ~result_arity:(Flambda_arity.cardinal result_arity)
+            ~result_arity:(Flambda_arity.cardinal_unarized result_arity)
             ~extra_args:[] apply_cont_args
       in
       { elt with apply_cont_args })

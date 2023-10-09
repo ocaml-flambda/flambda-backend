@@ -1,4 +1,3 @@
-open Layouts
 open Lambda
 open Typedtree
 open Asttypes
@@ -451,7 +450,7 @@ let iterator ~transl_exp ~scopes ~loc
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
       let bound name value =
         Let_binding.make (Immutable Strict) (Pvalue Pintval)
-          name (transl_exp ~scopes Sort.for_predef_value value)
+          name (transl_exp ~scopes Jkind.Sort.for_predef_value value)
       in
       let start = bound "start" start in
       let stop  = bound "stop"  stop  in
@@ -468,7 +467,7 @@ let iterator ~transl_exp ~scopes ~loc
   | Texp_comp_in { pattern; sequence = iter_arr_exp } ->
       let iter_arr =
         Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_arr" (transl_exp ~scopes Sort.for_predef_value iter_arr_exp)
+          "iter_arr" (transl_exp ~scopes Jkind.Sort.for_predef_value iter_arr_exp)
       in
       let iter_arr_kind = Typeopt.array_kind iter_arr_exp in
       let iter_len =
@@ -490,7 +489,7 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_body   =
                  Matching.for_let
                    ~scopes
-                   ~arg_sort:Sort.for_array_element
+                   ~arg_sort:Jkind.Sort.for_array_element
                    ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
                    (Lprim(Parrayrefu
@@ -546,7 +545,7 @@ let clause ~transl_exp ~scopes ~loc = function
                     (Iterator_bindings.all_let_bindings var_bindings)
                     (make_clause body)
   | Texp_comp_when cond ->
-      fun body -> Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
+      fun body -> Lifthenelse(transl_exp ~scopes Jkind.Sort.for_predef_value cond,
                     body,
                     lambda_unit,
                     (Pvalue Pintval) (* [unit] is immediate *))
@@ -829,7 +828,7 @@ let comprehension
               ~index
               (* CR layouts v4: Ensure that the [transl_exp] here can cope
                  with non-values. *)
-              ~body:(transl_exp ~scopes Sort.for_array_element comp_body)),
+              ~body:(transl_exp ~scopes Jkind.Sort.for_array_element comp_body)),
          (* If it was dynamically grown, cut it down to size *)
          match array_sizing with
          | Fixed_size -> array.var

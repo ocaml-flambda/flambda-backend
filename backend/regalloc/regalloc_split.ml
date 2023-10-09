@@ -90,7 +90,7 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
       propagate_substitution state cfg substs block subst
   in
   Cfg_dominators.iter_breadth_dominator_tree
-    (Cfg_with_infos.dominators cfg_with_infos).dominator_tree
+    (Cfg_with_infos.dominators cfg_with_infos)
     ~f:compute_substitution_for_block;
   substs
 
@@ -411,8 +411,8 @@ let split_at_destruction_points :
   if split_debug
   then (
     let doms = Cfg_with_infos.dominators cfg_with_infos in
-    log_dominance_frontier ~indent:1 doms.dominance_frontiers;
-    log_dominator_tree ~indent:1 doms.dominator_tree);
+    log_dominance_frontier ~indent:1 (Cfg_with_infos.cfg cfg_with_infos) doms;
+    log_dominator_tree ~indent:1 (Cfg_dominators.dominator_tree doms));
   match Label.Map.is_empty (State.definitions_at_beginning state) with
   | true ->
     log ~indent:1 "renaming_infos is empty (no new names introduced)";
@@ -456,7 +456,8 @@ let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
   | true, false -> fatal "Regalloc_split: flambda is currently not supported"
   | false, true ->
     (* note: classic mode is not properly supported, but is used in the
-       "tests/backend/frame-too-long" tests. *)
+       "tests/backend/frame-too-long" tests. We now implicitly disable split (in
+       `Regalloc_rewrite.prelude`) if classic mode is enabled. *)
     (* if Flambda2_ui.Flambda_features.classic_mode () then fatal
        "Regalloc_split: classic mode is currently not supported" *)
     ()

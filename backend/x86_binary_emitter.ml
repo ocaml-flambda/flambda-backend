@@ -274,6 +274,8 @@ let is_imm32L n = n < 0x8000_0000L && n >= -0x8000_0000L
 
 let is_imm8L x = x < 128L && x >= -128L
 
+let is_imm16L n = n < 32768L && n >= -32768L
+
 let rd_of_regf regf =
   match regf with
   | XMM n -> n
@@ -384,6 +386,12 @@ let arch64 = Config.architecture = "amd64"
 
 let emit_rex b rexcode =
   if arch64 && rexcode <> 0 then buf_int8 b (rexcode lor rex)
+
+let buf_int16_imm b = function
+  | Imm n ->
+      assert (is_imm16L n);
+      buf_int16L b n
+  | _ -> assert false
 
 let buf_int32_imm b = function
   | Imm n ->
@@ -1136,6 +1144,7 @@ type simple_encoding = {
   al_imm8 : int list;
   rax_imm32 : int list;
   rm8_imm8 : int list;
+  rm16_imm16 : int list;
   rm64_imm32 : int list;
   rm64_imm8 : int list;
   reg : int;
@@ -1180,6 +1189,12 @@ let emit_simple_encoding enc b dst src =
   | { rax_imm32 = opcodes }, Reg32 RAX, ((Imm _ | Sym _) as n) ->
       buf_opcodes b opcodes;
       buf_int32_imm b n
+  | ( { rm16_imm16 = opcodes; reg },
+      ((Reg16 _ | Mem { typ = WORD })
+      as rm),
+      (Imm _ as n) ) ->
+      emit_mod_rm_reg b 0 opcodes rm reg;
+      buf_int16_imm b n
   | ( { rm64_imm32 = opcodes; reg },
       ((Reg32 _ | Mem { typ = NONE; arch = X86 } | Mem { typ = DWORD | REAL4 })
       as rm),
@@ -1205,6 +1220,7 @@ let emit_simple_encoding base reg =
       al_imm8 = [ base + 4 ];
       rax_imm32 = [ base + 5 ];
       rm8_imm8 = [ 0x80 ];
+      rm16_imm16 = [ 0x81 ];
       rm64_imm32 = [ 0x81 ];
       rm64_imm8 = [ 0x83 ];
       reg;

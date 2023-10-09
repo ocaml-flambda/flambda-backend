@@ -241,6 +241,7 @@ type operation =
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion
+  | Ctuple_field of int * machtype array
 
 type kind_for_unboxing =
   | Any
@@ -302,8 +303,9 @@ type codegen_option =
   | No_CSE
   | Use_linscan_regalloc
   | Ignore_assert_all of property
-  | Check of { property: property; strict: bool; assume: bool;
-               loc : Location.t; }
+  | Assume of { property: property; strict: bool; never_returns_normally: bool;
+                loc: Location.t }
+  | Check of { property: property; strict: bool; loc : Location.t; }
 
 type fundecl =
   { fun_name: symbol;

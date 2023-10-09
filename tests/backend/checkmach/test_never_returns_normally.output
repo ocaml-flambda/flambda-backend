@@ -1,0 +1,4 @@
+File "test_never_returns_normally.ml", line 9, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_never_returns_normally.foo (camlTest_never_returns_normally__foo_HIDE_STAMP)
+File "test_never_returns_normally.ml", line 9, characters 25-41:
+  indirect tailcall

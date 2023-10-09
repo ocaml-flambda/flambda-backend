@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -103,7 +102,7 @@ let transl_meth_list lst =
 
 let set_inst_var ~scopes obj id expr =
   Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
-    [Lvar obj; Lvar id; transl_exp ~scopes Sort.for_instance_var expr],
+    [Lvar obj; Lvar id; transl_exp ~scopes Jkind.Sort.for_instance_var expr],
         Loc_unknown)
 
 let transl_val tbl create name =
@@ -152,8 +151,8 @@ let create_object cl obj init =
 
 let name_pattern default p =
   match p.pat_desc with
-  | Tpat_var (id, _, _) -> id
-  | Tpat_alias(_, id, _, _) -> id
+  | Tpat_var (id, _, _, _) -> id
+  | Tpat_alias(_, id, _, _, _) -> id
   | _ -> Ident.create_local default
 
 let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
@@ -210,7 +209,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         let arg_sort = Sort.for_class_arg in
+         let arg_sort = Jkind.Sort.for_class_arg in
          let arg_layout =
            Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
          in
@@ -363,7 +362,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
             | Tcf_method (name, _, Tcfk_concrete (_, exp)) ->
                 let scopes = enter_method_definition ~scopes name.txt in
                 let met_code =
-                  msubst true (transl_scoped_exp ~scopes Sort.for_method exp)
+                  msubst true (transl_scoped_exp ~scopes Jkind.Sort.for_method exp)
                 in
                 let met_code =
                   if !Clflags.native_code && List.length met_code = 1 then
@@ -380,7 +379,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                  Lsequence(mkappl (oo_prim "add_initializer",
                                    Lvar cla :: msubst false
                                                  (transl_exp ~scopes
-                                                    Sort.for_initializer exp),
+                                                    Jkind.Sort.for_initializer exp),
                                    layout_unit),
                            cl_init),
                  methods, values)
@@ -498,7 +497,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        let arg_sort = Sort.for_class_arg in
+        let arg_sort = Jkind.Sort.for_class_arg in
         let arg_layout =
           Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
         in

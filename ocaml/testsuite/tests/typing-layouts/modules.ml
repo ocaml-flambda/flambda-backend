@@ -29,10 +29,10 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 |}];;
 
 (*********************************************************)
-(* Test 1: Simple with type constraints respect layouts. *)
+(* Test 1: Simple with type constraints respect jkinds. *)
 
 (* CR layouts: parts of this test moved to [modules_alpha.ml] because they
-   need a non-value layout.  Bring back here when we have one enabled by
+   need a non-value jkind.  Bring back here when we have one enabled by
    default. *)
 module type S1 = sig
   type ('a : void) t
@@ -79,7 +79,7 @@ Error: Layout immediate is more experimental than allowed by -extension layouts.
 |}];;
 
 (******************************************************************)
-(* Test 3: Recursive modules, with and without layout annotations *)
+(* Test 3: Recursive modules, with and without jkind annotations *)
 module rec Foo3 : sig
   val create : Bar3.t -> unit
 end = struct
@@ -97,7 +97,7 @@ and Bar3 : sig type t end
 |}];;
 
 (* CR layouts: parts of this test moved to [modules_alpha.ml] because they
-   need a non-value layout.  Bring back here when we have one enabled by
+   need a non-value jkind.  Bring back here when we have one enabled by
    default. *)
 module rec Foo3 : sig
   val create : Bar3.t -> unit
@@ -154,18 +154,18 @@ and Bar3 : sig type t : immediate end
 (* CR layouts: more bits moved to [modules_alpha.ml] from down here. *)
 
 (*************************************************************************)
-(* Test 4: Nondep typedecl layout approximation in the Nondep_cannot_erase
+(* Test 4: Nondep typedecl jkind approximation in the Nondep_cannot_erase
    case. *)
 
 (* CR layouts: This test moved to [modules_beta.ml] and [modules_alpha.ml].
    Parts of it can come back when we have the ability to annotate type parameter
-   layouts without extension flags, and other parts need a non-value layout. *)
+   jkinds without extension flags, and other parts need a non-value jkind. *)
 
 (************************************)
 (* Test 5: Destructive substitution *)
 
 (* CR layouts: The first part of this test has been moved to [modules_beta.ml].
-   It can come back when we have the ability to annotate layout parameters
+   It can come back when we have the ability to annotate jkind parameters
    without extensions. *)
 
 module type S3_2 = sig
@@ -184,9 +184,9 @@ Error: Type string has layout value, which is not a sublayout of immediate.
 (*****************************************)
 (* Test 6: With constraints on packages. *)
 
-(* CR layouts: The first part of this test needs a non-value layout and has
+(* CR layouts: The first part of this test needs a non-value jkind and has
    been moved to modules_alpha.ml.  Bring it back once we have a non-value
-   layout enabled by default. *)
+   jkind enabled by default. *)
 module type S6_1 = sig
   type t : void
 end
@@ -237,7 +237,7 @@ Error: In this `with' constraint, the new definition of t
 |}];;
 
 (* CR layouts: this is broken because of the package with-type hack.  It was
-   already broken before layouts, but it would be nice to fix.  See the comment
+   already broken before jkinds, but it would be nice to fix.  See the comment
    on See the comments in the [Ptyp_package] case of
    [Typetexp.transl_type_aux]. *)
 module type S6_6'' = sig

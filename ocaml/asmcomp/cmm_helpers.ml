@@ -922,6 +922,7 @@ module Extended_machtype = struct
     | Punboxed_vector _ ->
       Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | Pvalue _ -> typ_val
+    | Punboxed_product _ -> failwith "TODO"
 end
 
 let machtype_of_layout layout =
@@ -947,10 +948,11 @@ let unique_arity_identifier (arity : Cmm.machtype list) =
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
 
+let result_layout_suffix result =
+  match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
+
 let send_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
+  let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   "caml_send" ^ unique_arity_identifier arity ^ res ^ suff
 
@@ -1018,9 +1020,7 @@ let make_checkbound dbg = function
 (* Record application and currying functions *)
 
 let apply_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
+  let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
@@ -1031,25 +1031,23 @@ let apply_function_sym arity result mode =
   Compilenv.need_apply_fun arity result mode;
   apply_function_name arity result mode
 
+let tuplify_function_name arity result =
+  "caml_tuplify" ^ Int.to_string arity ^ result_layout_suffix result
+
 let curry_function_sym function_kind arity result =
   Compilenv.need_curry_fun function_kind arity result;
   match function_kind with
   | Lambda.Curried { nlocal } ->
     "caml_curry"
     ^ unique_arity_identifier arity
-    ^ (match result with
-      | [| Val |] -> ""
-      | _ -> "_R" ^ machtype_identifier result)
+    ^ result_layout_suffix result
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
-  | Lambda.Tupled -> (
+  | Lambda.Tupled ->
     if List.exists (function [| Val |] -> false | _ -> true) arity
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
-    "caml_tuplify"
-    ^ Int.to_string (List.length arity)
-    ^
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result)
+    tuplify_function_name (List.length arity) result
 
 (* Big arrays *)
 
@@ -2254,7 +2252,7 @@ let tuplify_function arity return =
     else get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
          :: access_components(i+1)
   in
-  let fun_name = "caml_tuplify" ^ Int.to_string arity in
+  let fun_name = tuplify_function_name arity return in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
    {fun_name;
@@ -3284,7 +3282,7 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ -> Any
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ -> Any
   | Pvalue (Pboxedvectorval _)
   | Punboxed_vector _ ->
     Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."

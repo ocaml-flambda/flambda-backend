@@ -29,6 +29,7 @@ let coeffects_of : Lambda.alloc_mode -> coeffects = function
 let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
   | Pmakeblock (_, _, _, m)
+  | Pmakeufloatblock (_, m)
   | Pmakearray (_, Mutable, m) -> Only_generative_effects, coeffects_of m
   | Pmakearray (_, (Immutable | Immutable_unique), m) ->
      No_effects, coeffects_of m
@@ -83,6 +84,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Poffsetint _ -> No_effects, No_coeffects
   | Poffsetref _ -> Arbitrary_effects, Has_coeffects
   | Punbox_float | Punbox_int _
+  | Pmake_unboxed_product _
+  | Punboxed_product_field _
   | Pintoffloat
   | Pfloatcomp _ -> No_effects, No_coeffects
   | Pbox_float m | Pbox_int (_, m)
@@ -118,6 +121,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pfield _
   | Pfield_computed
   | Pfloatfield _
+  | Pufloatfield _
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
@@ -138,6 +142,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psetfield _
   | Psetfield_computed _
   | Psetfloatfield _
+  | Psetufloatfield _
   | Parraysetu _
   | Parraysets _
   | Pbytessetu
@@ -185,6 +190,7 @@ let is_local_alloc = function
 let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   match prim with
   | Pmakeblock (_, _, _, m)
+  | Pmakeufloatblock (_, m)
   | Pmakearray (_, _, m) -> is_local_alloc m
   | Pduparray (_, _)
   | Pduprecord (_,_) -> false
@@ -214,6 +220,8 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Poffsetint _ -> false
   | Poffsetref _ -> false
   | Punbox_float | Punbox_int _
+  | Pmake_unboxed_product _
+  | Punboxed_product_field _
   | Pintoffloat
   | Pfloatcomp _ -> false
   | Pbox_float m | Pbox_int (_, m)
@@ -257,6 +265,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Pbigstring_load (_, Unsafe, _) ->
       false
   | Pfloatfield (_, m) -> is_local_alloc m
+  | Pufloatfield _ -> false
   | Pstring_load (_, Safe, m)
   | Pbytes_load (_, Safe, m)
   | Pbigstring_load (_, Safe, m) -> is_local_alloc m
@@ -267,6 +276,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Psetfield _
   | Psetfield_computed _
   | Psetfloatfield _
+  | Psetufloatfield _
   | Parraysetu _
   | Parraysets _
   | Pbytessetu

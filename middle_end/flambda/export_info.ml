@@ -142,7 +142,7 @@ type t = {
   values : descr Export_id.Map.t Compilation_unit.Map.t;
   symbol_id : Export_id.t Symbol.Map.t;
   offset_fun : int Closure_id.Map.t;
-  offset_fv : int Var_within_closure.Map.t;
+  offset_fv : Closure_offsets.parts Var_within_closure.Map.t;
   constant_closures : Closure_id.Set.t;
   invariant_params : Variable.Set.t Variable.Map.t Set_of_closures_id.Map.t;
   recursive : Variable.Set.t Set_of_closures_id.Map.t;
@@ -291,7 +291,7 @@ let merge (t1 : t) (t2 : t) : t =
     offset_fun = Closure_id.Map.disjoint_union
         ~eq:int_eq t1.offset_fun t2.offset_fun;
     offset_fv = Var_within_closure.Map.disjoint_union
-        ~eq:int_eq t1.offset_fv t2.offset_fv;
+        ~eq:Closure_offsets.equal_parts t1.offset_fv t2.offset_fv;
     constant_closures =
       Closure_id.Set.union t1.constant_closures t2.constant_closures;
     invariant_params =
@@ -544,8 +544,9 @@ let print_offsets ppf (t : t) =
         Closure_id.print cid off) t.offset_fun;
   Format.fprintf ppf "@]@ @[<v 2>offset_fv:@ ";
   Var_within_closure.Map.iter (fun vid off ->
-      Format.fprintf ppf "%a -> %i@ "
-        Var_within_closure.print vid off) t.offset_fv;
+      Format.fprintf ppf "%a -> %a@ "
+        Var_within_closure.print vid
+        Closure_offsets.print_parts off) t.offset_fv;
   Format.fprintf ppf "@]@ "
 
 let print_functions ppf (t : t) =

@@ -290,17 +290,17 @@ let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 let constant_string f s = pp f "%S" s
 
 let tyvar = Printast.tyvar
-let layout_annotation = Printast.layout_annotation 0
+let jkind_annotation = Jane_syntax.Layouts.Pprint.jkind_annotation
 
-let tyvar_layout_loc ~print_quote f (str,layout) =
+let tyvar_jkind_loc ~print_quote f (str,jkind) =
   let pptv =
     if print_quote
     then tyvar
     else fun ppf s -> Format.fprintf ppf "%s" s
   in
-  match layout with
+  match jkind with
   | None -> pptv f str.txt
-  | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt layout_annotation lay
+  | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt jkind_annotation lay
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
@@ -446,19 +446,19 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
       (attributes ctxt) filtered_attrs
   end
   else match x with
-  | Jtyp_layout (Ltyp_alias { aliased_type; name; layout }) ->
+  | Jtyp_layout (Ltyp_alias { aliased_type; name; jkind }) ->
     pp f "@[<2>%a@;as@;(%a :@ %a)@]"
       (core_type1 ctxt) aliased_type
       tyvar_option name
-      layout_annotation layout
+      jkind_annotation jkind
   | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   if has_non_curry_attr attrs then core_type_jane_syntax ctxt attrs f x
   else
     match x with
-    | Jtyp_layout (Ltyp_var { name; layout }) ->
-      pp f "(%a@;:@;%a)" tyvar_option name layout_annotation layout
+    | Jtyp_layout (Ltyp_var { name; jkind }) ->
+      pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
     | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
@@ -1428,7 +1428,7 @@ and pp_print_pexp_function ctxt sep f x =
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
-        layout_annotation lay
+        jkind_annotation lay
         (pp_print_pexp_function ctxt sep) e
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
@@ -1459,7 +1459,7 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; _} =
       | _ -> None in
     let rec gadt_exp tyvars e =
       match e with
-      (* no need to handle layout annotations here; the extracted variables
+      (* no need to handle jkind annotations here; the extracted variables
          don't get printed -- they're just used to decide how to print *)
       | {pexp_desc=Pexp_newtype (tyvar, e); pexp_attributes=[]} ->
           gadt_exp (tyvar :: tyvars) e
@@ -1768,13 +1768,13 @@ and type_declaration ctxt f x =
   in
   let constructor_declaration f pcd =
     pp f "|@;";
-    let vars_layouts, attrs =
+    let vars_jkinds, attrs =
       match Jane_syntax.Layouts.of_constructor_declaration pcd with
       | None -> List.map (fun v -> v, None) pcd.pcd_vars, pcd.pcd_attributes
       | Some stuff -> stuff
     in
     constructor_declaration ctxt f
-      (pcd.pcd_name.txt, vars_layouts, pcd.pcd_args, pcd.pcd_res, attrs)
+      (pcd.pcd_name.txt, vars_jkinds, pcd.pcd_args, pcd.pcd_res, attrs)
   in
   let repr f =
     let intro f =
@@ -1817,7 +1817,7 @@ and type_extension ctxt f x =
     x.ptyext_constructors
     (item_attributes ctxt) x.ptyext_attributes
 
-and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
+and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
   let name =
     match name with
     | "::" -> "(::)"
@@ -1825,7 +1825,7 @@ and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
   let pp_vars f vls =
     match vls with
     | [] -> ()
-    | _  -> pp f "%a@;.@;" (list (tyvar_layout_loc ~print_quote:true) ~sep:"@;")
+    | _  -> pp f "%a@;.@;" (list (tyvar_jkind_loc ~print_quote:true) ~sep:"@;")
                            vls
   in
   match res with
@@ -1840,7 +1840,7 @@ and constructor_declaration ctxt f (name, vars_layouts, args, res, attrs) =
         (attributes ctxt) attrs
   | Some r ->
       pp f "%s:@;%a%a@;%a" name
-        pp_vars vars_layouts
+        pp_vars vars_jkinds
         (fun f -> function
            | Pcstr_tuple [] -> core_type1 ctxt f r
            | Pcstr_tuple l -> pp f "%a@;->@;%a"
@@ -1980,10 +1980,10 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
   | Lexp_newtype _ when parens || ctxt.pipe || ctxt.semi ->
     paren true (layout_expr reset_ctxt ~parens:false) f x
   | Lexp_constant x -> unboxed_constant ctxt f x
-  | Lexp_newtype (lid, layout, inner_expr) ->
+  | Lexp_newtype (lid, jkind, inner_expr) ->
     pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
       lid.txt
-      layout_annotation layout
+      jkind_annotation jkind
       (pp_print_pexp_function ctxt "->") inner_expr
 
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
@@ -2000,7 +2000,7 @@ and function_param ctxt f
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
   | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
   | Pparam_newtype (ty, Some annot) ->
-      pp f "(type %s : %a)" ty.txt layout_annotation annot
+      pp f "(type %s : %a)" ty.txt jkind_annotation annot
 
 and function_body ctxt f (x : Jane_syntax.N_ary_functions.function_body) =
   match x with
@@ -2066,6 +2066,17 @@ and n_ary_function_expr
           function_params_then_body
             ctxt f params constraint_ body ~delimiter:"->")
 
+(******************************************************************************)
+(* All exported functions must be defined or redefined below here and wrapped in
+   [export_printer] in order to ensure they are invariant with respecto which
+   language extensions are enabled. *)
+
+let Language_extension.For_pprintast.{ print_with_maximal_extensions } =
+  Language_extension.For_pprintast.make_printer_exporter ()
+
+let print_reset_with_maximal_extensions f =
+  print_with_maximal_extensions (f reset_ctxt)
+
 let toplevel_phrase f x =
   match x with
   | Ptop_def (s) ->pp f "@[<hov0>%a@]"  (list (structure_item reset_ctxt)) s
@@ -2077,8 +2088,12 @@ let toplevel_phrase f x =
   | Ptop_dir {pdir_name; pdir_arg = Some pdir_arg; _} ->
    pp f "@[<hov2>#%s@ %a@]" pdir_name.txt directive_argument pdir_arg
 
+let toplevel_phrase = print_with_maximal_extensions toplevel_phrase
+
 let expression f x =
   pp f "@[%a@]" (expression reset_ctxt) x
+
+let expression = print_with_maximal_extensions expression
 
 let string_of_expression x =
   ignore (flush_str_formatter ()) ;
@@ -2086,10 +2101,12 @@ let string_of_expression x =
   expression f x;
   flush_str_formatter ()
 
+let structure = print_reset_with_maximal_extensions structure
+
 let string_of_structure x =
   ignore (flush_str_formatter ());
   let f = str_formatter in
-  structure reset_ctxt f x;
+  structure f x;
   flush_str_formatter ()
 
 let top_phrase f x =
@@ -2098,19 +2115,20 @@ let top_phrase f x =
   pp f ";;";
   pp_print_newline f ()
 
-let core_type = core_type reset_ctxt
-let pattern = pattern reset_ctxt
-let signature = signature reset_ctxt
-let structure = structure reset_ctxt
-let module_expr = module_expr reset_ctxt
-let module_type = module_type reset_ctxt
-let class_field = class_field reset_ctxt
-let class_type_field = class_type_field reset_ctxt
-let class_expr = class_expr reset_ctxt
-let class_type = class_type reset_ctxt
-let class_signature = class_signature reset_ctxt
-let structure_item = structure_item reset_ctxt
-let signature_item = signature_item reset_ctxt
-let binding = binding reset_ctxt
-let payload = payload reset_ctxt
-let type_declaration = type_declaration reset_ctxt
+let longident = print_with_maximal_extensions longident
+let core_type = print_reset_with_maximal_extensions core_type
+let pattern = print_reset_with_maximal_extensions pattern
+let signature = print_reset_with_maximal_extensions signature
+let module_expr = print_reset_with_maximal_extensions module_expr
+let module_type = print_reset_with_maximal_extensions module_type
+let class_field = print_reset_with_maximal_extensions class_field
+let class_type_field = print_reset_with_maximal_extensions class_type_field
+let class_expr = print_reset_with_maximal_extensions class_expr
+let class_type = print_reset_with_maximal_extensions class_type
+let class_signature = print_reset_with_maximal_extensions class_signature
+let structure_item = print_reset_with_maximal_extensions structure_item
+let signature_item = print_reset_with_maximal_extensions signature_item
+let binding = print_reset_with_maximal_extensions binding
+let payload = print_reset_with_maximal_extensions payload
+let type_declaration = print_reset_with_maximal_extensions type_declaration
+

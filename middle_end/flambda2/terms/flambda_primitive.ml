@@ -863,6 +863,8 @@ let compare_unary_primitive p1 p2 =
       Opaque_identity { middle_end_only = middle_end_only2; kind = kind2 } ) ->
     let c = Bool.compare middle_end_only1 middle_end_only2 in
     if c <> 0 then c else K.compare kind1 kind2
+  | Int_as_pointer alloc_mode1, Int_as_pointer alloc_mode2 ->
+    Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
@@ -889,7 +891,8 @@ let print_unary_primitive ppf p =
     if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
-  | Int_as_pointer _ -> fprintf ppf "Int_as_pointer"
+  | Int_as_pointer alloc_mode ->
+    fprintf ppf "Int_as_pointer[%a]" Alloc_mode.For_allocations.print alloc_mode
   | Opaque_identity { middle_end_only; kind } ->
     fprintf ppf "@[(Opaque_identity@ (middle_end_only %b) (kind %a))@]"
       middle_end_only K.print kind
@@ -1069,12 +1072,12 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
+  | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
     Destructive
-  | Box_number _ | Tag_immediate -> Constructive
+  | Box_number _ | Tag_immediate | Int_as_pointer _ -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | Begin_try_region | End_region -> Neither
@@ -1082,7 +1085,7 @@ let unary_classify_for_printing p =
 
 let free_names_unary_primitive p =
   match p with
-  | Box_number (_kind, alloc_mode) ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Project_function_slot { move_from; move_to } ->
     Name_occurrences.add_function_slot_in_projection
@@ -1095,8 +1098,8 @@ let free_names_unary_primitive p =
          value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Obj_dup | Get_header ->
@@ -1109,9 +1112,14 @@ let apply_renaming_unary_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Box_number (kind, alloc_mode')
+  | Int_as_pointer alloc_mode ->
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
+    if alloc_mode == alloc_mode' then p else Int_as_pointer alloc_mode'
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
@@ -1119,11 +1127,11 @@ let apply_renaming_unary_primitive p renaming =
 
 let ids_for_export_unary_primitive p =
   match p with
-  | Box_number (_kind, alloc_mode) ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->

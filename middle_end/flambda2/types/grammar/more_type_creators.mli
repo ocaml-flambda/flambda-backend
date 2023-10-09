@@ -147,7 +147,7 @@ val is_alias_of_name : Type_grammar.t -> Name.t -> bool
 
 val check_equation : Name.t -> Type_grammar.t -> unit
 
-val arity_of_list : Type_grammar.t list -> Flambda_arity.t
+val arity_of_list : Type_grammar.t list -> [`Unarized] Flambda_arity.t
 
 val unknown_with_subkind :
   ?alloc_mode:Alloc_mode.For_types.t ->
@@ -155,7 +155,5 @@ val unknown_with_subkind :
   Type_grammar.t
 
 (** For each of the kinds in an arity, create an "unknown" type. *)
-val unknown_types_from_arity : Flambda_arity.t -> Type_grammar.t list
-
-(** For each of the kinds in an arity, create an "bottom" type. *)
-val bottom_types_from_arity : Flambda_arity.t -> Type_grammar.t list
+val unknown_types_from_arity :
+  [`Unarized] Flambda_arity.t -> Type_grammar.t list

@@ -18,7 +18,6 @@
 open Asttypes
 open Primitive
 open Types
-open Layouts
 open Typedtree
 open Typeopt
 open Lambda
@@ -577,7 +576,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let shape =
         List.map (fun typ ->
           Lambda.must_be_value (Typeopt.layout env (to_location loc)
-                                  Sort.for_block_element typ))
+                                  Jkind.Sort.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
@@ -895,7 +894,7 @@ let transl_primitive loc p env ty ~poly_mode path =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort = sort_of_native_repr res_repr in
-      [], Typeopt.layout env (to_location loc) (Sort.of_const res_sort) ty
+      [], Typeopt.layout env (to_location loc) (Jkind.Sort.of_const res_sort) ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
@@ -904,7 +903,7 @@ let transl_primitive loc p env ty ~poly_mode path =
       | Some (arg_ty, ret_ty) ->
           let arg_sort = sort_of_native_repr arg_repr in
           let arg_layout =
-            Typeopt.layout env (to_location loc) (Sort.of_const arg_sort) arg_ty
+            Typeopt.layout env (to_location loc) (Jkind.Sort.of_const arg_sort) arg_ty
           in
           let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
@@ -973,8 +972,11 @@ let lambda_primitive_needs_event_after = function
   | Parray_to_iarray | Parray_of_iarray
   | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
+  | Pmakeufloatblock _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
+  | Pufloatfield _ | Psetufloatfield _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat

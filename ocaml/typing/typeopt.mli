@@ -35,30 +35,30 @@ val bigarray_type_kind_and_layout :
    take that check out.
 *)
 val layout :
-  Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
+  Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
 (* These translate a type system sort to a lambda layout.  The function [layout]
    gives a more precise result---this should only be used when the kind is
    needed for compilation but the precise Lambda.layout isn't needed for
    optimization.  [layout_of_sort] gracefully errors on void, while
    [layout_of_const_sort] loudly fails on void. *)
-val layout_of_sort : Location.t -> Layouts.sort -> Lambda.layout
-val layout_of_const_sort : Layouts.Sort.const -> Lambda.layout
+val layout_of_sort : Location.t -> Jkind.sort -> Lambda.layout
+val layout_of_const_sort : Jkind.Sort.const -> Lambda.layout
 
 (* Given a function type and the sort of its return type, compute the layout of
    its return type. *)
 val function_return_layout :
-  Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
+  Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
 (* Given a function type with two arguments and the sort of its return type,
    compute the layout of its return type. *)
 val function2_return_layout :
-  Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
+  Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
 (* Given a function type and the sort of its argument, compute the layout
    of its argument.  Fails loudly if the type isn't a function type. *)
 val function_arg_layout :
-  Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
+  Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
 
 val classify_lazy_argument : Typedtree.expression ->

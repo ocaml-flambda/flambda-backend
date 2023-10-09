@@ -81,7 +81,7 @@ Error: Layout immediate is more experimental than allowed by -extension layouts.
 (* Test 6: explicitly polymorphic types *)
 
 (* CR layouts: These tests can come back from [layouts_beta.ml] when we allow parameter
-   layout annotations by default. *)
+   jkind annotations by default. *)
 
 (*****************************************)
 (* Test 7: the layout check in unify_var *)
@@ -105,7 +105,7 @@ Error: Layout immediate is more experimental than allowed by -extension layouts.
    sort enabled by default. *)
 
 (*************************************************)
-(* Test 10: layouts are checked by "more general" *)
+(* Test 10: jkinds are checked by "more general" *)
 
 (* CR layouts: These tests moved to [basics_beta.ml] because they use annotated
    type parameters.  Bring them back here when we allow this by default. *)
@@ -250,7 +250,6 @@ Line 1, characters 14-18:
                   ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
-
 
 (* CR layouts v5: Once we allow non-value top-level module definitions, add
    tests showing that things get defaulted to value.

@@ -102,6 +102,8 @@ let prim_neither ppf = push ~fg:130 ppf
 
 let naked_number ppf = push ~fg:70 ppf
 
+let unboxed_product ppf = push ~fg:198 ppf
+
 let tagged_immediate ppf = push ~fg:70 ppf
 
 let constructor ppf = push ~fg:69 ppf

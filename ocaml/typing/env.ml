@@ -21,7 +21,6 @@ open Asttypes
 open Longident
 open Path
 open Types
-open Layouts
 
 open Local_store
 
@@ -721,7 +720,7 @@ type lookup_error =
   | Once_value_used_in of Longident.t * shared_context
   | Value_used_in_closure of Longident.t * closure_error
   | Local_value_used_in_exclave of Longident.t
-  | Non_value_used_in_object of Longident.t * type_expr * Layout.Violation.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -737,7 +736,7 @@ let lookup_error loc env err =
 
 let same_constr = ref (fun _ _ _ -> assert false)
 
-let constrain_type_layout = ref (fun _ _ _ -> assert false)
+let constrain_type_jkind = ref (fun _ _ _ -> assert false)
 
 let check_well_formed_module = ref (fun _ -> assert false)
 
@@ -1230,7 +1229,7 @@ let find_type_data path env =
       | decl ->
           {
             tda_declaration = decl;
-            tda_descriptions = Type_abstract;
+            tda_descriptions = Type_abstract Abstract_def;
             tda_shape = Shape.leaf decl.type_uid;
           }
       | exception Not_found -> find_type_full p env
@@ -1248,7 +1247,7 @@ let find_type_data path env =
               List.find (fun cstr -> cstr.cstr_name = s) cstrs
             with Not_found -> assert false
           end
-        | Type_record _ | Type_abstract | Type_open -> assert false
+        | Type_record _ | Type_abstract _ | Type_open -> assert false
         end
       in
       type_of_cstr path cstr
@@ -1485,7 +1484,7 @@ let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
   | Some body when decl.type_private = Public
-              || not (decl_is_abstract decl)
+              || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
@@ -1841,7 +1840,7 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
-              | Type_abstract -> Type_abstract
+              | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
@@ -2089,7 +2088,7 @@ and store_type ~check id info shape env =
           (fun env (lbl_id, lbl) ->
             store_label ~check info id lbl_id lbl env)
           env labels
-    | Type_abstract -> Type_abstract, env
+    | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
   in
   let tda =
@@ -2111,7 +2110,7 @@ and store_type_infos ~tda_shape id info env =
   let tda =
     {
       tda_declaration = info;
-      tda_descriptions = Type_abstract;
+      tda_descriptions = Type_abstract Abstract_def;
       tda_shape
     }
   in
@@ -3367,7 +3366,7 @@ let lookup_label ~errors ~use ~loc usage lid env =
 let lookup_all_labels_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_variant _ | Type_abstract | Type_open -> []
+  | Type_variant _ | Type_abstract _ | Type_open -> []
   | Type_record (lbls, _) ->
       List.map
         (fun lbl ->
@@ -3389,7 +3388,7 @@ let lookup_constructor ~errors ~use ~loc usage lid env =
 let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_record _ | Type_abstract | Type_open -> []
+  | Type_record _ | Type_abstract _ | Type_open -> []
   | Type_variant (cstrs, _) ->
       List.map
         (fun cstr ->
@@ -3453,8 +3452,8 @@ let lookup_value ?(use=true) ~loc lid env =
   in
   let vd = Subst.Lazy.force_value_description desc in
   if must_box then begin
-    match !constrain_type_layout env vd.val_type
-            (Layout.(value ~why:Captured_in_object))
+    match !constrain_type_jkind env vd.val_type
+            (Jkind.(value ~why:Captured_in_object))
     with
     | Ok () -> ()
     | Result.Error err ->
@@ -3889,7 +3888,12 @@ let report_lookup_error _loc env ppf = function
     end
   | Unbound_cltype lid ->
       fprintf ppf "Unbound class type %a" !print_longident lid;
-      spellcheck ppf extract_cltypes env lid;
+      begin match lid with
+      | Lident "float" ->
+        Misc.did_you_mean ppf (fun () -> ["float#"])
+      | Lident _ | Ldot _ | Lapply _ ->
+        spellcheck ppf extract_cltypes env lid
+      end;
   | Unbound_instance_variable s ->
       fprintf ppf "Unbound instance variable %s" s;
       spellcheck_name ppf extract_instance_variables env s;
@@ -3970,7 +3974,7 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[%a must have a type of layout value because it is \
                    captured by an object.@ %a@]"
         !print_longident lid
-        (Layout.Violation.report_with_offender
+        (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
 
 let report_error ppf = function

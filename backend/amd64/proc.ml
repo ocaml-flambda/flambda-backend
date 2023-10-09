@@ -554,7 +554,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
    spill registers that would spill anyway); we could also return `true`
    when `destroyed_at_terminator` returns `destroyed_at_c_call` for instance. *)
 (* note: keep this function in sync with `destroyed_at_terminator` above. *)
-let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Prim {op = Alloc _; _} ->
@@ -567,7 +567,10 @@ let is_destruction_point (terminator : Cfg_intf.S.terminator) =
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then true else false
+    if more_destruction_points then
+      true
+    else
+      if alloc then true else false
   | Call {op = Indirect | Direct _; _} ->
     true
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
@@ -733,6 +736,7 @@ let operation_supported = function
   | Ccheckbound
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
+  | Ctuple_field _
     -> true
 
 let trap_size_in_bytes = 16

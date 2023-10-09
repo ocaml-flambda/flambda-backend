@@ -64,7 +64,8 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return_arity : Flambda_arity.t
+      args_arity : [`Complex] Flambda_arity.t;
+      return_arity : [`Unarized] Flambda_arity.t
     }
 
   type switch =
@@ -287,10 +288,12 @@ module Env = struct
           Variable.Map.add var approx t.value_approximations
       }
 
-  let add_block_approximation t var approxs alloc_mode =
+  let add_block_approximation t var tag approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
     then t
-    else add_var_approximation t var (Block_approximation (approxs, alloc_mode))
+    else
+      add_var_approximation t var
+        (Block_approximation (tag, approxs, alloc_mode))
 
   let find_var_approximation t var =
     try Variable.Map.find var t.value_approximations
@@ -376,9 +379,9 @@ module Acc = struct
         let rec filter_inlinable approx =
           match (approx : Env.value_approximation) with
           | Value_unknown | Value_symbol _ | Value_int _ -> approx
-          | Block_approximation (approxs, alloc_mode) ->
+          | Block_approximation (tag, approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
-            Value_approximation.Block_approximation (approxs, alloc_mode)
+            Value_approximation.Block_approximation (tag, approxs, alloc_mode)
           | Closure_approximation
               { code_id;
                 function_slot;
@@ -455,7 +458,7 @@ module Acc = struct
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     let approx : _ Value_approximation.t =
       match (constant : Static_const.t) with
-      | Block (_tag, mut, fields) ->
+      | Block (tag, mut, fields) ->
         if not (Mutability.is_mutable mut)
         then
           let approx_of_field :
@@ -464,8 +467,9 @@ module Acc = struct
             | Tagged_immediate i -> Value_int i
             | Dynamically_computed _ -> Value_unknown
           in
+          let tag = Tag.Scannable.to_tag tag in
           let fields = List.map approx_of_field fields |> Array.of_list in
-          Block_approximation (fields, Alloc_mode.For_types.unknown ())
+          Block_approximation (tag, fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
       | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
@@ -684,7 +688,9 @@ module Function_decls = struct
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : param list;
-        return : Flambda_arity.t;
+        removed_params : Ident.Set.t;
+        params_arity : [`Complex] Flambda_arity.t;
+        return : [`Unarized] Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -698,11 +704,11 @@ module Function_decls = struct
         contains_no_escaping_local_allocs : bool
       }
 
-    let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~my_region ~body
-        ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
-        ~closure_alloc_mode ~first_complex_local_param
-        ~contains_no_escaping_local_allocs =
+    let create ~let_rec_ident ~function_slot ~kind ~params ~params_arity
+        ~removed_params ~return ~return_continuation ~exn_continuation
+        ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
+        ~free_idents_of_body recursive ~closure_alloc_mode
+        ~first_complex_local_param ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -712,6 +718,8 @@ module Function_decls = struct
         function_slot;
         kind;
         params;
+        params_arity;
+        removed_params;
         return;
         return_continuation;
         exn_continuation;
@@ -734,6 +742,8 @@ module Function_decls = struct
 
     let params t = t.params
 
+    let params_arity t = t.params_arity
+
     let return t = t.return
 
     let return_continuation t = t.return_continuation
@@ -744,7 +754,7 @@ module Function_decls = struct
 
     let body t = t.body
 
-    let free_idents t = t.free_idents_of_body
+    let free_idents t = Ident.Set.diff t.free_idents_of_body t.removed_params
 
     let inline t = t.attr.inline
 
@@ -950,7 +960,7 @@ module Let_with_acc = struct
             ~find_code_characteristics:(fun code_id ->
               let code = Code_id.Map.find code_id code_mapping in
               { cost_metrics = Code.cost_metrics code;
-                params_arity = Flambda_arity.cardinal (Code.params_arity code)
+                params_arity = Flambda_arity.num_params (Code.params_arity code)
               })
             set_of_closures
         | Rec_info _ -> Cost_metrics.zero
