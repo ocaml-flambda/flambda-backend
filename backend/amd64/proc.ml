@@ -184,9 +184,11 @@ let phys_reg ty n =
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
+let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
+let xmm0v () = phys_reg Vec128 100
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
 let destroy_xmm15 () =
@@ -472,7 +474,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_pushtrap
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
-  | Op (Store(Single, _, _)) ->
+  | Op(Store(Single, _, _)) ->
     destroy_xmm15 ()
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
@@ -545,7 +547,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
    spill registers that would spill anyway); we could also return `true`
    when `destroyed_at_terminator` returns `destroyed_at_c_call` for instance. *)
 (* note: keep this function in sync with `destroyed_at_terminator` above. *)
-let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Prim {op = Alloc _; _} ->
@@ -558,7 +560,10 @@ let is_destruction_point (terminator : Cfg_intf.S.terminator) =
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then true else false
+    if more_destruction_points then
+      true
+    else
+      if alloc then true else false
   | Call {op = Indirect | Direct _; _} ->
     true
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
@@ -721,6 +726,7 @@ let operation_supported = function
   | Ccheckalign _
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
+  | Ctuple_field _
     -> true
 
 let trap_size_in_bytes = 16

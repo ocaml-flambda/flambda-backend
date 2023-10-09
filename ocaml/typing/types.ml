@@ -16,7 +16,8 @@
 (* Representation of types and declarations *)
 
 open Asttypes
-open Layouts
+
+type jkind = Jkind.t
 
 (* Type expressions for the core language *)
 
@@ -29,7 +30,7 @@ type transient_expr =
 and type_expr = transient_expr
 
 and type_desc =
-  | Tvar of { name : string option; layout : layout }
+  | Tvar of { name : string option; jkind : Jkind.t }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of type_expr list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
@@ -39,7 +40,7 @@ and type_desc =
   | Tlink of type_expr
   | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
-  | Tunivar of { name : string option; layout : layout }
+  | Tunivar of { name : string option; jkind : Jkind.t }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
@@ -196,7 +197,7 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
-    type_layout: layout;
+    type_jkind: Jkind.t;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -212,24 +213,29 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract
+    Type_abstract of abstract_reason
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
-        | Extension of Path.t * layout array
+        | Extension of Path.t * Jkind.t array
+
+and abstract_reason =
+    Abstract_def
+  | Abstract_rec_check_regularity
 
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
-  | Record_boxed of layout array
+  | Record_boxed of Jkind.t array
   | Record_float
+  | Record_ufloat
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of layout array array
+  | Variant_boxed of jkind array array
   | Variant_extensible
 
 and global_flag =
@@ -242,7 +248,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
-    ld_layout : layout;
+    ld_jkind : Jkind.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -266,7 +272,7 @@ type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_layouts: layout array;
+    ext_arg_jkinds: Jkind.t array;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -479,7 +485,7 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
-    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
+    cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -505,7 +511,7 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
   | Variant_boxed lays1, Variant_boxed lays2 ->
-      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Layout.equal) lays1 lays2
+      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Jkind.equal) lays1 lays2
   | Variant_extensible, Variant_extensible ->
       true
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
@@ -517,10 +523,13 @@ let equal_record_representation r1 r2 = match r1, r2 with
   | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal Layout.equal lays1 lays2
+      Misc.Stdlib.Array.equal Jkind.equal lays1 lays2
   | Record_float, Record_float ->
       true
-  | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float), _ ->
+  | Record_ufloat, Record_ufloat ->
+      true
+  | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
+    | Record_ufloat ), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -532,11 +541,6 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
-let decl_is_abstract decl =
-  match decl.type_kind with
-  | Type_abstract -> true
-  | Type_record _ | Type_variant _ | Type_open -> false
-
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
@@ -546,10 +550,10 @@ let find_unboxed_type decl =
                   Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
-                    | Record_boxed _ | Record_float ))
+                    | Record_boxed _ | Record_float | Record_ufloat ))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
-  | Type_abstract | Type_open ->
+  | Type_abstract _ | Type_open ->
     None
 
 type label_description =
@@ -558,7 +562,7 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
     lbl_global: global_flag;        (* Is this a global field? *)
-    lbl_layout : layout;                (* Layout of the argument *)
+    lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
@@ -605,6 +609,7 @@ type change =
   | Ccommu : [`var] commutable_gen -> change
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
+  | Csort : Jkind.Sort.change -> change
 
 type changes =
     Change of change * changes ref
@@ -619,7 +624,8 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.change_log := (fun changes -> log_change (Cmodes changes))
+  Mode.change_log := (fun changes -> log_change (Cmodes changes));
+  Jkind.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -702,10 +708,10 @@ module Transient_expr = struct
     ty.desc <- d
   let set_level ty lv = ty.level <- lv
   let set_scope ty sc = ty.scope <- sc
-  let set_var_layout ty layout' =
+  let set_var_jkind ty jkind' =
     match ty.desc with
     | Tvar { name; _ } ->
-      set_desc ty (Tvar { name; layout = layout' })
+      set_desc ty (Tvar { name; jkind = jkind' })
     | _ -> assert false
   let coerce ty = ty
   let repr = repr
@@ -869,6 +875,7 @@ let undo_change = function
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
   | Cmodes ms -> Mode.undo_changes ms
+  | Csort change -> Jkind.Sort.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0
@@ -885,16 +892,16 @@ let link_type ty ty' =
   (* Name is a user-supplied name for this unification variable (obtained
    * through a type annotation for instance). *)
   match desc, ty'.desc with
-    Tvar { name }, Tvar { name = name'; layout = layout' } ->
+    Tvar { name }, Tvar { name = name'; jkind = jkind' } ->
       begin match name, name' with
       | Some _, None ->
         log_type ty';
-        Transient_expr.set_desc ty' (Tvar { name; layout = layout' })
+        Transient_expr.set_desc ty' (Tvar { name; jkind = jkind' })
       | None, Some _ -> ()
       | Some _, Some _ ->
         if ty.level < ty'.level then begin
           log_type ty';
-          Transient_expr.set_desc ty' (Tvar { name; layout = layout' })
+          Transient_expr.set_desc ty' (Tvar { name; jkind = jkind' })
         end
       | None, None   -> ()
       end
@@ -924,10 +931,10 @@ let set_scope ty scope =
     if ty.id <= !last_snapshot then log_change (Cscope (ty, ty.scope));
     Transient_expr.set_scope ty scope
   end
-let set_var_layout ty layout =
+let set_var_jkind ty jkind =
   let ty = repr ty in
   log_type ty;
-  Transient_expr.set_var_layout ty layout
+  Transient_expr.set_var_jkind ty jkind
 let set_univar rty ty =
   log_change (Cuniv (rty, !rty)); rty := Some ty
 let set_name nm v =
@@ -1026,5 +1033,3 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
-
-

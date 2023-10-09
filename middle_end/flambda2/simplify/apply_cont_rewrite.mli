@@ -42,7 +42,7 @@ val get_used_params : t -> Bound_parameters.t * Bound_parameters.t
 
 val get_unused_params : t -> Bound_parameters.t
 
-val original_params_arity : t -> Flambda_arity.t
+val original_params_arity : t -> [> ] Flambda_arity.t
 
 type rewrite_apply_cont_ctx =
   | Apply_cont

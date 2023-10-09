@@ -38,7 +38,7 @@ type locality_mode = private
   | Alloc_heap
   | Alloc_local
 
-(** For now we don't have strong update, and thus uniqueness is irrelavent in 
+(** For now we don't have strong update, and thus uniqueness is irrelevant in
     middle and back-end; in the future this will be extended with uniqueness *)
 type alloc_mode = locality_mode
 
@@ -81,24 +81,35 @@ type region_close =
   | Rc_nontail        (* do not close region, must not TCO *)
   | Rc_close_at_apply (* close region and tail call *)
 
+(* CR layouts v5: When we add more blocks of non-scannable values, consider
+   whether some of the primitives specific to ufloat records
+   ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
+   generalized, rather than just adding new primitives. *)
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-    (* Globals *)
+  (* Globals *)
   | Pgetglobal of Compilation_unit.t
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
+  | Pufloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * (layout list)
+      (* the [layout list] is the layout of the whole product *)
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -259,6 +270,7 @@ and layout =
   | Punboxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
@@ -313,6 +325,14 @@ val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
 val must_be_value : layout -> value_kind
+
+(* This is the layout of ocaml values used as arguments to or returned from
+   primitives for this [native_repr].  So the legacy [Unboxed_float] - which is
+   a float that is unboxed before being passed to a C function - is mapped to
+   [layout_any_value], while [Same_as_ocaml_repr Float64] is mapped to
+   [layout_unboxed_float].
+*)
+val layout_of_native_repr : Primitive.native_repr -> layout
 
 type structured_constant =
     Const_base of constant
@@ -381,11 +401,13 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
-               assume: bool;
-               (* [assume=true] assume without checking that the
-                  property holds *)
                loc: Location.t;
              }
+  | Assume of { property: property;
+                strict: bool;
+                loc: Location.t;
+                never_returns_normally: bool;
+              }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -582,6 +604,8 @@ val layout_letrec : layout
 (* The probe hack: Free vars in probes must have layout value. *)
 val layout_probe_arg : layout
 
+val layout_unboxed_product : layout list -> layout
+
 val layout_top : layout
 val layout_bottom : layout
 
@@ -695,7 +719,15 @@ val is_heap_mode : alloc_mode -> bool
 val primitive_may_allocate : primitive -> alloc_mode option
   (** Whether and where a primitive may allocate.
       [Some Alloc_local] permits both options: that is, primitives that
-      may allocate on both the GC heap and locally report this value. *)
+      may allocate on both the GC heap and locally report this value.
+
+      This treats projecting an unboxed float from a float record as
+      non-allocating, which is a lie for the bytecode backend (where unboxed
+      floats are boxed).  Presently this function is only used for stack
+      allocation, which doesn't happen in bytecode.  If that changes, or if we
+      want to use this for another purpose in bytecode, it will need to be
+      revised.
+  *)
 
 (***********************)
 (* For static failures *)

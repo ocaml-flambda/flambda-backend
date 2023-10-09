@@ -6,18 +6,16 @@
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
+type t_float64 : float64
 type t_any : any;;
 
 [%%expect{|
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
-Line 4, characters 13-16:
-4 | type t_any : any;;
-                 ^^^
-Error: Layout any is used here, but the appropriate layouts extension is not enabled
+type t_float64 : float64
+type t_any : any
 |}]
-(* CR layouts v1.5: the above test should be accepted; fix. *)
 
 type t_void : void;;
 
@@ -39,6 +37,16 @@ let x : int as ('a : any) = 5;;
 val x : int = 5
 val x : int = 5
 val x : int = 5
+|}]
+
+let x : int as ('a : float64) = 5;;
+[%%expect {|
+Line 1, characters 8-29:
+1 | let x : int as ('a : float64) = 5;;
+            ^^^^^^^^^^^^^^^^^^^^^
+Error: This alias is bound to type int but is used as an instance of type
+         ('a : float64)
+       int has layout immediate, which is not a sublayout of float64.
 |}]
 
 let x : (int as ('a : immediate)) list as ('b : value) = [3;4;5]
@@ -66,12 +74,19 @@ type ('a : immediate) t2_imm
 type (_ : immediate) t2_imm'
 type t1 = int t2_imm
 type t2 = bool t2_imm
+type ('a : float64) t2_float64
+type (_ : float64) t2_float64'
+type t3 = float# t2_float64
+
 
 [%%expect {|
 type ('a : immediate) t2_imm
 type (_ : immediate) t2_imm'
 type t1 = int t2_imm
 type t2 = bool t2_imm
+type ('a : float64) t2_float64
+type (_ : float64) t2_float64'
+type t3 = float# t2_float64
 |}]
 
 module M1 : sig
@@ -198,6 +213,12 @@ Error: The universal type variable 'a was declared to have
 (* CR layouts v2.5: This error message should change to complain
    about the [fun x], not the arrow type. *)
 
+let f : ('a : float64). 'a -> 'a = fun x -> x
+;;
+[%%expect {|
+val f : ('a : float64). 'a -> 'a = <fun>
+|}]
+
 (********************************************)
 (* Test 4: Annotation on record field types *)
 
@@ -207,6 +228,13 @@ let f { field } = field 5
 [%%expect {|
 type r = { field : ('a : immediate). 'a -> 'a; }
 val f : r -> int = <fun>
+|}]
+
+type rf = { fieldf : ('a : float64). 'a -> 'a }
+let f { fieldf } = fieldf (Stdlib__Float_u.of_float 3.14);;
+[%%expect {|
+type rf = { fieldf : ('a : float64). 'a -> 'a; }
+val f : rf -> float# = <fun>
 |}]
 
 let f { field } = field "hello"
@@ -286,6 +314,12 @@ let f = fun (type (a : immediate)) (x : a) -> x
 val f : ('a : immediate). 'a -> 'a = <fun>
 |}]
 
+let f = fun (type (a : float64)) (x : a) -> x
+;;
+[%%expect {|
+val f : ('a : float64). 'a -> 'a = <fun>
+|}]
+
 let f = fun (type (a : any)) (x : a) -> x
 ;;
 [%%expect {|
@@ -311,6 +345,12 @@ let f : type (a : immediate). a -> a = fun x -> x
 ;;
 [%%expect {|
 val f : ('a : immediate). 'a -> 'a = <fun>
+|}]
+
+let f : type (a : float64). a -> a = fun x -> x
+;;
+[%%expect {|
+val f : ('a : float64). 'a -> 'a = <fun>
 |}]
 
 let f : type (a : any). a -> a = fun x -> x
@@ -375,6 +415,19 @@ module type S =
   sig
     val f : ('a : immediate). 'a t2_imm -> 'a t2_imm
     val g : ('a : immediate). 'a t2_imm -> 'a t2_imm
+  end
+|}]
+
+module type S = sig
+  val f : 'a t2_float64 -> 'a t2_float64
+  val g : ('a : float64). 'a t2_float64 -> 'a t2_float64
+end
+;;
+[%%expect {|
+module type S =
+  sig
+    val f : ('a : float64). 'a t2_float64 -> 'a t2_float64
+    val g : ('a : float64). 'a t2_float64 -> 'a t2_float64
   end
 |}]
 

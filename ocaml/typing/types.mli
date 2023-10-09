@@ -24,8 +24,9 @@
 (** Asttypes exposes basic definitions shared both by Parsetree and Types. *)
 open Asttypes
 
-(** Layouts contains support for type layouts *)
-open Layouts
+(** Jkinds classify types. *)
+(* CR layouts v2.8: Say more here. *)
+type jkind = Jkind.t
 
 (** Type expressions for the core language.
 
@@ -65,7 +66,7 @@ type field_kind
 type commutable
 
 and type_desc =
-  | Tvar of { name : string option; layout : layout }
+  | Tvar of { name : string option; jkind : Jkind.t }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
@@ -124,7 +125,7 @@ and type_desc =
   | Tvariant of row_desc
   (** Representation of polymorphic variants, see [row_desc]. *)
 
-  | Tunivar of { name : string option; layout : layout }
+  | Tunivar of { name : string option; jkind : Jkind.t }
   (** Occurrence of a type variable introduced by a
       forall quantifier / [Tpoly]. *)
 
@@ -467,17 +468,17 @@ type type_declaration =
     type_arity: int;
     type_kind: type_decl_kind;
 
-    type_layout: layout;
+    type_jkind: Jkind.t;
     (* for an abstract decl kind or for [@@unboxed] types: this is the stored
-       layout for the type; expansion might find a type with a more precise
-       layout. See PR#10017 for motivating examples where subsitution or
+       jkind for the type; expansion might find a type with a more precise
+       jkind. See PR#10017 for motivating examples where subsitution or
        instantiation may refine the immediacy of a type.
 
-       for other decl kinds: this is a cached layout, computed from the
-       decl kind. EXCEPTION: if a type's layout is refined by a gadt equation,
-       the layout stored here might be a sublayout of the layout that would
+       for other decl kinds: this is a cached jkind, computed from the
+       decl kind. EXCEPTION: if a type's jkind is refined by a gadt equation,
+       the jkind stored here might be a subjkind of the jkind that would
        be computed from the decl kind. This happens in
-       Ctype.add_layout_equation. *)
+       Ctype.add_jkind_equation. *)
 
     type_private: private_flag;
     type_manifest: type_expr option;
@@ -496,7 +497,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract
+    Type_abstract of abstract_reason
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -507,31 +508,38 @@ and ('lbl, 'cstr) type_kind =
 
    In particular, lambda will need to do something about computing offsets for
    block projections when not everything is one word wide, whether that's
-   because of void or because of other layouts.  One option is to change these
-   projections to be more abstract and pass the layout information to other
+   because of void or because of other jkinds.  One option is to change these
+   projections to be more abstract and pass the jkind information to other
    stages of the compiler, as is currently done for unboxed projection
    operations, but at the moment our plan is to do this math in lambda in the
    case of normal projections from boxes. *)
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
-        | Extension of Path.t * layout array
+        | Extension of Path.t * Jkind.t array
+
+and abstract_reason =
+    Abstract_def
+  | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag of the relevant constructor of that variant. *)
-  | Record_boxed of layout array
+  | Record_boxed of Jkind.t array
   | Record_float (* All fields are floats *)
+  | Record_ufloat
+  (* All fields are [float#]s.  Same runtime representation as [Record_float],
+     but operations on these (e.g., projection, update) work with unboxed floats
+     rather than boxed floats. *)
 
-
-(* For unboxed variants, we record the layout of the mandatory single argument.
-   For boxed variants, we record the layouts for the arguments of each
+(* For unboxed variants, we record the jkind of the mandatory single argument.
+   For boxed variants, we record the jkinds for the arguments of each
    constructor.  For boxed inlined records, this is just a length 1 array with
-   the layout of the record itself, not the layouts of each field.  *)
+   the jkind of the record itself, not the jkinds of each field.  *)
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of layout array array
+  | Variant_boxed of jkind array array
   | Variant_extensible
 
 and global_flag =
@@ -544,7 +552,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
-    ld_layout : layout;
+    ld_jkind : Jkind.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -566,8 +574,6 @@ and constructor_arguments =
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
 
-val decl_is_abstract : type_declaration -> bool
-
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option
 
@@ -576,7 +582,7 @@ type extension_constructor =
     ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_layouts: layout array;
+    ext_arg_jkinds: Jkind.t array;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -735,7 +741,7 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
-    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
+    cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -772,7 +778,7 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
     lbl_global: global_flag;            (* Is this a global field? *)
-    lbl_layout : layout;                (* Layout of the argument *)
+    lbl_jkind : Jkind.t;                  (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)
@@ -782,6 +788,9 @@ type label_description =
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+(* CR layouts v5: once we allow [any] in record fields, change [lbl_jkind] to
+   be a [sort option].  This will allow a fast path for representability checks
+   at record construction, and currently only the sort is used anyway. *)
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.
@@ -823,14 +832,14 @@ val undo_compress: snapshot -> unit
 
 val link_type: type_expr -> type_expr -> unit
         (* Set the desc field of [t1] to [Tlink t2], logging the old value if
-           there is an active snapshot.  Any layout information in [t1]'s desc
+           there is an active snapshot.  Any jkind information in [t1]'s desc
            is thrown away without checking - calls to this in unification should
-           first check that [t2]'s layout is a sublayout of [t1]. *)
+           first check that [t2]'s jkind is a subjkind of [t1]. *)
 val set_type_desc: type_expr -> type_desc -> unit
         (* Set directly the desc field, without sharing *)
 val set_level: type_expr -> int -> unit
 val set_scope: type_expr -> int -> unit
-val set_var_layout: type_expr -> layout -> unit
+val set_var_jkind: type_expr -> Jkind.t -> unit
         (* May only be called on Tvars *)
 val set_name:
     (Path.t * type_expr list) option ref ->

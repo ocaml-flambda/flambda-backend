@@ -16,8 +16,10 @@
 (* Abstract syntax tree after typing *)
 
 open Asttypes
-open Layouts
+open Jane_asttypes
 open Types
+
+module Uid = Shape.Uid
 
 (* Value expressions for the core language *)
 
@@ -60,9 +62,9 @@ and pat_extra =
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
-  | Tpat_var : Ident.t * string loc * Mode.Value.t -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * Mode.Value.t -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : value general_pattern list -> value pattern_desc
   | Tpat_construct :
@@ -102,7 +104,7 @@ and exp_extra =
   | Texp_constraint of core_type
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
-  | Texp_newtype of string * const_layout option
+  | Texp_newtype of string * const_jkind option
 
 
 and fun_curry_state =
@@ -119,13 +121,13 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Mode.Alloc.t;
-      arg_sort : sort;
-      ret_sort : sort;
+      arg_sort : Jkind.sort;
+      ret_sort : Jkind.sort;
       alloc_mode : Mode.Alloc.t }
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
         Mode.Locality.t
-  | Texp_match of expression * sort * computation case list * partial
+  | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
   | Texp_tuple of expression list * Mode.Alloc.t
   | Texp_construct of
@@ -145,11 +147,11 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * sort * expression
+  | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_sort : sort
+      wh_body_sort : Jkind.sort
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -158,9 +160,9 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_sort : sort;
+      for_body_sort : Jkind.sort;
     }
-  | Texp_send of expression * meth * apply_position * Mode.Alloc.t
+  | Texp_send of expression * meth * apply_position
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
@@ -178,9 +180,9 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
-      param_sort : sort;
+      param_sort : Jkind.sort;
       body : value case;
-      body_sort : sort;
+      body_sort : Jkind.sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -242,8 +244,9 @@ and binding_op =
     bop_op_name : string loc;
     bop_op_val : Types.value_description;
     bop_op_type : Types.type_expr;
-    bop_op_return_sort : sort;
+    bop_op_return_sort : Jkind.sort;
     bop_exp : expression;
+    bop_exp_sort : Jkind.sort;
     bop_loc : Location.t;
   }
 
@@ -255,9 +258,9 @@ and omitted_parameter =
   { mode_closure : Mode.Alloc.t;
     mode_arg : Mode.Alloc.t;
     mode_ret : Mode.Alloc.t;
-    sort_arg : sort }
+    sort_arg : Jkind.sort }
 
-and apply_arg = (expression * sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail
@@ -359,7 +362,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * sort * attributes
+    Tstr_eval of expression * Jkind.sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list
@@ -388,7 +391,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
-    vb_sort: sort;
+    vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -536,15 +539,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * const_layout option
+  | Ttyp_var of string option * const_jkind option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * const_layout option
+  | Ttyp_alias of core_type * string option * const_jkind option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * const_layout option) list * core_type
+  | Ttyp_poly of (string * const_jkind option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -618,7 +621,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * const_layout option) list;
+     cd_vars: (string * const_jkind option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -658,7 +661,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * const_layout option) list *
+    Text_decl of (string * const_jkind option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc
@@ -773,7 +776,7 @@ type pattern_action =
 let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
-  | Tpat_alias(p, _, _, _) -> f.f p
+  | Tpat_alias(p, _, _, _, _) -> f.f p
   | Tpat_tuple patl -> List.iter f.f patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
@@ -793,8 +796,8 @@ type pattern_transformation =
 let shallow_map_pattern_desc
   : type k . pattern_transformation -> k pattern_desc -> k pattern_desc
   = fun f d -> match d with
-  | Tpat_alias (p1, id, s, m) ->
-      Tpat_alias (f.f p1, id, s, m)
+  | Tpat_alias (p1, id, s, uid, m) ->
+      Tpat_alias (f.f p1, id, s, uid, m)
   | Tpat_tuple pats ->
       Tpat_tuple (List.map f.f pats)
   | Tpat_record (lpats, closed) ->
@@ -855,11 +858,11 @@ let rec iter_bound_idents
   : type k . _ -> k general_pattern -> _
   = fun f pat ->
   match pat.pat_desc with
-  | Tpat_var (id, s, _mode) ->
-     f (id,s,pat.pat_type)
-  | Tpat_alias(p, id, s, _mode) ->
+  | Tpat_var (id, s, uid, _mode) ->
+     f (id,s,pat.pat_type, uid)
+  | Tpat_alias(p, id, s, uid, _mode) ->
       iter_bound_idents f p;
-      f (id,s,pat.pat_type)
+      f (id,s,pat.pat_type, uid)
   | Tpat_or(p1, _, _) ->
       (* Invariant : both arguments bind the same variables *)
       iter_bound_idents f p1
@@ -869,25 +872,25 @@ let rec iter_bound_idents
        d
 
 type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> Mode.Value.t -> sort -> unit
+  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.t -> Jkind.sort -> unit
 
 (* The intent is that the sort should be the sort of the type of the pattern.
-   It's used to avoid computing layouts from types.  `f` then gets passed
+   It's used to avoid computing jkinds from types.  `f` then gets passed
    the sorts of the variables.
 
    This is occasionally used in places where we don't actually know
    about the sort of the pattern but `f` doesn't care about the sorts. *)
 let iter_pattern_full ~both_sides_of_or f sort pat =
   let rec loop :
-    type k . full_bound_ident_action -> sort -> k general_pattern -> _ =
+    type k . full_bound_ident_action -> Jkind.sort -> k general_pattern -> _ =
     fun f sort pat ->
       match pat.pat_desc with
       (* Cases where we push the sort inwards: *)
-      | Tpat_var (id, s, mode) ->
-          f id s pat.pat_type mode sort
-      | Tpat_alias(p, id, s, mode) ->
+      | Tpat_var (id, s, uid, mode) ->
+          f id s pat.pat_type uid mode sort
+      | Tpat_alias(p, id, s, uid, mode) ->
           loop f sort p;
-          f id s pat.pat_type mode sort
+          f id s pat.pat_type uid mode sort
       | Tpat_or (p1, p2, _) ->
         if both_sides_of_or then (loop f sort p1; loop f sort p2)
         else loop f sort p1
@@ -898,21 +901,21 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
-              Array.to_list (Array.map Layout.sort_of_layout
-                                          cstr.cstr_arg_layouts)
+              Array.to_list (Array.map Jkind.sort_of_jkind
+                                          cstr.cstr_arg_jkinds)
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
-            (loop f) (Layout.sort_of_layout lbl.lbl_layout) pat)
+            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
-      | Tpat_variant (_, pat, _) -> Option.iter (loop f Sort.value) pat
-      | Tpat_tuple patl -> List.iter (loop f Sort.value) patl
+      | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
+      | Tpat_tuple patl -> List.iter (loop f Jkind.Sort.value) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
-      | Tpat_array (_, patl) -> List.iter (loop f Sort.value) patl
-      | Tpat_lazy p | Tpat_exception p -> loop f Sort.value p
+      | Tpat_array (_, patl) -> List.iter (loop f Jkind.Sort.value) patl
+      | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()
   in
@@ -920,7 +923,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
 
 let rev_pat_bound_idents_full sort pat =
   let idents_full = ref [] in
-  let add id sloc typ _ sort =
+  let add id sloc typ _uid _ sort =
     idents_full := (id, sloc, typ, sort) :: !idents_full
   in
   iter_pattern_full ~both_sides_of_or:false add sort pat;
@@ -938,9 +941,9 @@ let pat_bound_idents_full sort pat =
 (* In these two, we don't know the sort, but the sort information isn't used so
    it's fine to lie. *)
 let pat_bound_idents_with_types pat =
-  rev_only_idents_and_types (rev_pat_bound_idents_full Sort.value pat)
+  rev_only_idents_and_types (rev_pat_bound_idents_full Jkind.Sort.value pat)
 let pat_bound_idents pat =
-  rev_only_idents (rev_pat_bound_idents_full Sort.value pat)
+  rev_only_idents (rev_pat_bound_idents_full Jkind.Sort.value pat)
 
 let rev_let_bound_idents_full bindings =
   let idents_full = ref [] in
@@ -950,34 +953,34 @@ let rev_let_bound_idents_full bindings =
 
 let let_bound_idents_with_modes_and_sorts bindings =
   let modes_and_sorts = Ident.Tbl.create 3 in
-  let f id sloc _ mode sort =
+  let f id sloc _ _uid mode sort =
     Ident.Tbl.add modes_and_sorts id (sloc.loc, mode, sort)
   in
   List.iter (fun vb ->
     iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat)
     bindings;
   List.rev_map
-    (fun (id, _, _) -> id, List.rev (Ident.Tbl.find_all modes_and_sorts id))
+    (fun (id, _, _, _) -> id, List.rev (Ident.Tbl.find_all modes_and_sorts id))
     (rev_let_bound_idents_full bindings)
 
 let let_bound_idents_full bindings =
   List.rev (rev_let_bound_idents_full bindings)
 let let_bound_idents pat =
-  List.rev_map (fun (id,_,_) -> id) (rev_let_bound_idents_full pat)
+  List.rev_map (fun (id,_,_,_) -> id) (rev_let_bound_idents_full pat)
 
 let alpha_var env id = List.assoc id env
 
 let rec alpha_pat
   : type k . _ -> k general_pattern -> k general_pattern
   = fun env p -> match p.pat_desc with
-  | Tpat_var (id, s, mode) -> (* note the ``Not_found'' case *)
+  | Tpat_var (id, s, uid, mode) -> (* note the ``Not_found'' case *)
       {p with pat_desc =
-       try Tpat_var (alpha_var env id, s, mode) with
+       try Tpat_var (alpha_var env id, s, uid, mode) with
        | Not_found -> Tpat_any}
-  | Tpat_alias (p1, id, s, mode) ->
+  | Tpat_alias (p1, id, s, uid, mode) ->
       let new_p =  alpha_pat env p1 in
       begin try
-        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s, mode)}
+        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s, uid, mode)}
       with
       | Not_found -> new_p
       end

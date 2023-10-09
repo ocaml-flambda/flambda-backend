@@ -152,25 +152,7 @@ let pseudoregs_for_operation op arg res =
      and the result is in edx (high) and eax (low).
      Make it simple and force the argument in rcx, and rax and rdx clobbered *)
     ([| rcx |], res)
-  | Ispecific (Isimd op) ->
-    (match Simd_selection.register_behavior op with
-    | R_to_R | RM_to_R | R_to_RM -> (arg, res)
-    | R_to_fst ->
-      (* arg.(0) and res.(0) must be the same *)
-      ([|res.(0)|], res)
-    | R_R_to_fst | R_RM_to_fst ->
-      (* arg.(0) and res.(0) must be the same *)
-      ([|res.(0); arg.(1)|], res)
-    | R_RM_XMM0_to_fst ->
-      ([|res.(0); arg.(1); xmm0v ()|], res)
-    | String_length ->
-      ([|arg.(0); arg.(1); rax; rdx|], [| rcx |])
-    | String_length_mask ->
-      ([|arg.(0); arg.(1); rax; rdx|], [| xmm0v () |])
-    | String_no_length ->
-      (arg, [| rcx |])
-    | String_no_length_mask ->
-      (arg, [| xmm0v () |]))
+  | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -315,7 +297,7 @@ method! select_operation op args dbg =
          let (addr, arg) = self#select_addressing chunk loc in
          (Ispecific(Ifloatsqrtf addr), [arg])
      | [arg] ->
-         (Ispecific Simd.(Isimd (SSE2 Sqrt_sf64)), [arg])
+         (Ispecific Simd.(Isimd (SSE2 Sqrt_scalar_f64)), [arg])
      | _ ->
          assert false
     end

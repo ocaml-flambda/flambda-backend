@@ -72,7 +72,7 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
       let kinded_params =
         List.map
           (fun k -> Bound_parameter.create (Variable.create "wrapper_return") k)
-          (Flambda_arity.to_list result_arity)
+          (Flambda_arity.unarized_components result_arity)
       in
       let trap_action =
         Trap_action.Pop { exn_handler = wrapper; raise_kind = None }

@@ -121,6 +121,9 @@ let lifted_constants t = t.lifted_constants
 let get_and_clear_lifted_constants t =
   { t with lifted_constants = LCS.empty }, t.lifted_constants
 
+let add_lifted_constant t const =
+  { t with lifted_constants = LCS.add t.lifted_constants const }
+
 let cost_metrics t = t.cost_metrics
 
 let are_rebuilding_terms t = t.are_rebuilding_terms

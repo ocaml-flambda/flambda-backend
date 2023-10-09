@@ -190,7 +190,7 @@ module I : sig
   (* SSE instructions *)
 
   val cmpps: float_condition -> arg -> arg -> unit
-  val shufps: int -> arg -> arg -> unit
+  val shufps: arg -> arg -> arg -> unit
   val addps: arg -> arg -> unit
   val subps: arg -> arg -> unit
   val mulps: arg -> arg -> unit
@@ -240,8 +240,8 @@ module I : sig
   val pxor: arg -> arg -> unit
   val pmovmskb: arg -> arg -> unit
   val movmskpd: arg -> arg -> unit
-  val pslldq: int -> arg -> unit
-  val psrldq: int -> arg -> unit
+  val pslldq: arg -> arg -> unit
+  val psrldq: arg -> arg -> unit
   val pcmpeqb: arg -> arg -> unit
   val pcmpeqw: arg -> arg -> unit
   val pcmpeqd: arg -> arg -> unit
@@ -263,17 +263,17 @@ module I : sig
   val psrlq: arg -> arg -> unit
   val psraw: arg -> arg -> unit
   val psrad: arg -> arg -> unit
-  val psllwi: int -> arg -> unit
-  val pslldi: int -> arg -> unit
-  val psllqi: int -> arg -> unit
-  val psrlwi: int -> arg -> unit
-  val psrldi: int -> arg -> unit
-  val psrlqi: int -> arg -> unit
-  val psrawi: int -> arg -> unit
-  val psradi: int -> arg -> unit
-  val shufpd: int -> arg -> arg -> unit
-  val pshufhw: int -> arg -> arg -> unit
-  val pshuflw: int -> arg -> arg -> unit
+  val psllwi: arg -> arg -> unit
+  val pslldi: arg -> arg -> unit
+  val psllqi: arg -> arg -> unit
+  val psrlwi: arg -> arg -> unit
+  val psrldi: arg -> arg -> unit
+  val psrlqi: arg -> arg -> unit
+  val psrawi: arg -> arg -> unit
+  val psradi: arg -> arg -> unit
+  val shufpd: arg -> arg -> arg -> unit
+  val pshufhw: arg -> arg -> arg -> unit
+  val pshuflw: arg -> arg -> arg -> unit
   val punpckhbw: arg -> arg -> unit
   val punpckhwd: arg -> arg -> unit
   val punpckhqdq: arg -> arg -> unit
@@ -315,13 +315,13 @@ module I : sig
   val psignw: arg -> arg -> unit
   val psignd: arg -> arg -> unit
   val pshufb: arg -> arg -> unit
-  val palignr: int -> arg -> arg -> unit
+  val palignr: arg -> arg -> arg -> unit
 
   (* SSE4.1 instructions *)
 
-  val pblendw: int -> arg -> arg -> unit
-  val blendps: int -> arg -> arg -> unit
-  val blendpd: int -> arg -> arg -> unit
+  val pblendw: arg -> arg -> arg -> unit
+  val blendps: arg -> arg -> arg -> unit
+  val blendpd: arg -> arg -> arg -> unit
   val pblendvb: arg -> arg -> unit
   val blendvps: arg -> arg -> unit
   val blendvpd: arg -> arg -> unit
@@ -338,16 +338,16 @@ module I : sig
   val pmovzxwd: arg -> arg -> unit
   val pmovzxwq: arg -> arg -> unit
   val pmovzxdq: arg -> arg -> unit
-  val dpps: int -> arg -> arg -> unit
-  val dppd: int -> arg -> arg -> unit
-  val pextrb: int -> arg -> arg -> unit
-  val pextrw: int -> arg -> arg -> unit
-  val pextrd: int -> arg -> arg -> unit
-  val pextrq: int -> arg -> arg -> unit
-  val pinsrb: int -> arg -> arg -> unit
-  val pinsrw: int -> arg -> arg -> unit
-  val pinsrd: int -> arg -> arg -> unit
-  val pinsrq: int -> arg -> arg -> unit
+  val dpps: arg -> arg -> arg -> unit
+  val dppd: arg -> arg -> arg -> unit
+  val pextrb: arg -> arg -> arg -> unit
+  val pextrw: arg -> arg -> arg -> unit
+  val pextrd: arg -> arg -> arg -> unit
+  val pextrq: arg -> arg -> arg -> unit
+  val pinsrb: arg -> arg -> arg -> unit
+  val pinsrw: arg -> arg -> arg -> unit
+  val pinsrd: arg -> arg -> arg -> unit
+  val pinsrq: arg -> arg -> arg -> unit
   val pmaxsb: arg -> arg -> unit
   val pmaxsd: arg -> arg -> unit
   val pmaxuw: arg -> arg -> unit
@@ -358,15 +358,15 @@ module I : sig
   val pminud: arg -> arg -> unit
   val roundpd: rounding -> arg -> arg -> unit
   val roundps: rounding -> arg -> arg -> unit
-  val mpsadbw: int -> arg -> arg -> unit
+  val mpsadbw: arg -> arg -> arg -> unit
   val phminposuw: arg -> arg -> unit
 
   (* SSE4.2 instructions *)
 
   val pcmpgtq: arg -> arg -> unit
-  val pcmpestri: int -> arg -> arg -> unit
-  val pcmpestrm: int -> arg -> arg -> unit
-  val pcmpistri: int -> arg -> arg -> unit
-  val pcmpistrm: int -> arg -> arg -> unit
+  val pcmpestri: arg -> arg -> arg -> unit
+  val pcmpestrm: arg -> arg -> arg -> unit
+  val pcmpistri: arg -> arg -> arg -> unit
+  val pcmpistrm: arg -> arg -> arg -> unit
   val crc32: arg -> arg -> unit
 end
