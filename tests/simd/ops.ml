@@ -853,7 +853,7 @@ module Float32x4 = struct
         Float32.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "roundf32 %f %f\n%!" (Int32.float_of_bits f0) (Int32.float_of_bits f1));
             let fv = Float32.to_float32x4 f0 f1 f0 f1 in
-            let result = round 0 fv in
+            let result = round 0x8 fv in
             let expect = Float32.to_float32x4 (Float32.round f0) (Float32.round f1) (Float32.round f0) (Float32.round f1) in
             eq (float32x4_low_int64 result) (float32x4_high_int64 result)
             (float32x4_low_int64 expect) (float32x4_high_int64 expect)
@@ -1044,7 +1044,7 @@ module Float64x2 = struct
         Float64.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "roundf64 %f %f\n%!" f0 f1);
             let fv = to_float64x2 f0 f1 in
-            let result = round 0 fv in
+            let result = round 0x8 fv in
             let expect = to_float64x2 (Float64.round f0) (Float64.round f1) in
             eq (float64x2_low_int64 result) (float64x2_high_int64 result)
             (float64x2_low_int64 expect) (float64x2_high_int64 expect)
