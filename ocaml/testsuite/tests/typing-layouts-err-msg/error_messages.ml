@@ -84,18 +84,16 @@ Error: This expression has type v but an expression was expected of type
 (* Extensible_variant *)
 type ('a: void) t = 'a
 type attr = ..
-let f (x: attr): 'a t = x
+and w = attr t
 
 [%%expect{|
 type ('a : void) t = 'a
-type attr = ..
-Line 3, characters 24-25:
-3 | let f (x: attr): 'a t = x
-                            ^
-Error: This expression has type attr but an expression was expected of type
-         'a t = ('a : void)
+Line 2, characters 0-14:
+2 | type attr = ..
+    ^^^^^^^^^^^^^^
+Error:
        The layout of attr is value, because
-         of the definition of attr at Line 2, characters 0-14.
+         it's an extensible variant.
        But the layout of attr must be a sublayout of void, because
          of the definition of t at Line 1, characters 0-22.
 |}]
