@@ -1562,7 +1562,10 @@ method emit_stores env data regs_addr =
                 let r = regs.(i) in
                 let kind = match r.typ with
                   | Float -> Double
-                  | Vec128 -> Onetwentyeight_unaligned
+                  | Vec128 ->
+                    (* 128-bit memory operations are default unaligned. Aligned (big)array
+                       operations are handled separately via cmm. *)
+                    Onetwentyeight_unaligned
                   | Val | Addr | Int ->  Word_val
                 in
                 self#insert env
