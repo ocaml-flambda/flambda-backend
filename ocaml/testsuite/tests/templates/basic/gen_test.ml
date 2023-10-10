@@ -155,6 +155,6 @@ let tree_for_mode mode =
     ]);
   ]
 
-let test_tree = tree_for_mode Byte
+let test_tree = Par [ tree_for_mode Byte; tree_for_mode Native ]
 
 let () = generate ~in_:"test.in.ml" ~out:"test.ml" test_tree
