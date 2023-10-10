@@ -17,7 +17,6 @@
 
 open Asttypes
 open Path
-open Layouts
 open Types
 open Typedtree
 
@@ -98,7 +97,9 @@ let value_descriptions ~loc env name
          let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
          let ty2_global =
            let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-           Option.iter Alloc_mode.make_global_exn mode2;
+           Option.iter
+             (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
+             mode2;
            ty2
          in
          (try Ctype.moregeneral env true ty1_global ty2_global
@@ -106,7 +107,9 @@ let value_descriptions ~loc env name
          let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
          let ty2_local =
            let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-           Option.iter Alloc_mode.make_local_exn mode2;
+           Option.iter
+             (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
+             mode2;
            ty2
          in
          (try Ctype.moregeneral env true ty1_local ty2_local
@@ -183,6 +186,7 @@ type record_mismatch =
   | Label_mismatch of record_change list
   | Inlined_representation of position
   | Float_representation of position
+  | Ufloat_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -227,7 +231,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.t
+  | Jkind of Jkind.Violation.t
 
 let report_locality_mismatch first second ppf err =
   let {order} = err in
@@ -356,6 +360,14 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses unboxed float representation"
+  | Ufloat_representation ord ->
+      (* CR layouts: This case should unreachable now.  But it may be reachable
+         when we allow [any] types in structure declarations, using an example
+         like the "unboxed float representation" one in
+         [typing-unboxed-types/test.ml].  Add a test then. *)
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses float# representation"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -481,8 +493,8 @@ let report_type_mismatch first second decl env ppf err =
       pr "Their internal representations differ:@ %s %s %s."
          (choose ord first second) decl
          "is extensible"
-  | Layout v ->
-      Layout.Violation.report_with_name ~name:first ppf v
+  | Jkind v ->
+      Jkind.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
@@ -629,6 +641,12 @@ module Record_diffing = struct
         Some (Record_mismatch (Float_representation First))
      | _, Record_float ->
         Some (Record_mismatch (Float_representation Second))
+
+     | Record_ufloat, Record_ufloat -> None
+     | Record_ufloat, _ ->
+        Some (Record_mismatch (Ufloat_representation First))
+     | _, Record_ufloat ->
+        Some (Record_mismatch (Ufloat_representation Second))
 
      | Record_boxed _, Record_boxed _ -> None
 
@@ -793,7 +811,7 @@ let privacy_mismatch env decl1 decl2 =
       | Type_record  _, Type_record  _ -> Some Private_record_type
       | Type_variant _, Type_variant _ -> Some Private_variant_type
       | Type_open,      Type_open      -> Some Private_extensible_variant
-      | Type_abstract, Type_abstract
+      | Type_abstract _, Type_abstract _
         when Option.is_some decl2.type_manifest -> begin
           match decl1.type_manifest with
           | Some ty1 -> begin
@@ -930,7 +948,7 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
   | _ -> begin
       let is_private_abbrev_2 =
         match priv2, kind2 with
-        | Private, Type_abstract -> begin
+        | Private, Type_abstract _ -> begin
             (* Same checks as the [when] guards from above, inverted *)
             match get_desc ty2' with
             | Tvariant row ->
@@ -989,15 +1007,15 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract) ->
-       (* Note that [decl2.type_layout] is an upper bound.
+      (_, Type_abstract _) ->
+       (* Note that [decl2.type_jkind] is an upper bound.
           If it isn't tight, [decl2] must
           have a manifest, which we're already checking for equality
           above. Similarly, [decl1]'s kind may conservatively approximate its
-          layout, but [check_decl_layout] will expand its manifest.  *)
-        (match Ctype.check_decl_layout env decl1 decl2.type_layout with
+          jkind, but [check_decl_jkind] will expand its manifest.  *)
+        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
          | Ok _ -> None
-         | Error v -> Some (Layout v))
+         | Error v -> Some (Jkind v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =
@@ -1037,7 +1055,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     | (_, _) -> Some Kind
   in
   if err <> None then err else
-  let abstr = decl_is_abstract decl2 && decl2.type_manifest = None in
+  let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
   let need_variance =
     abstr || decl1.type_private = Private || decl1.type_kind = Type_open in
   if not need_variance then None else

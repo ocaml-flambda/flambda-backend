@@ -103,6 +103,7 @@ module Section_name : sig
   val alignment : t -> int64
   val is_text_like : t -> bool
   val is_data_like : t -> bool
+  val is_note_like : t -> bool
 
   module Map : Map.S with type key = t
   module Tbl : Hashtbl.S with type key = t

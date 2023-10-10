@@ -730,6 +730,7 @@ type unary_primitive =
   | Begin_try_region
   | End_region
   | Obj_dup
+  | Get_header
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -737,7 +738,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   match p with
   | Duplicate_array _ -> false
   | Duplicate_block { kind = _ } -> false
-  | Is_int _ | Get_tag -> true
+  | Is_int _ | Get_tag | Get_header -> true
   | Array_length -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
@@ -790,6 +791,7 @@ let compare_unary_primitive p1 p2 =
     | Begin_try_region -> 22
     | End_region -> 23
     | Obj_dup -> 24
+    | Get_header -> 25
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -861,13 +863,15 @@ let compare_unary_primitive p1 p2 =
       Opaque_identity { middle_end_only = middle_end_only2; kind = kind2 } ) ->
     let c = Bool.compare middle_end_only1 middle_end_only2 in
     if c <> 0 then c else K.compare kind1 kind2
+  | Int_as_pointer alloc_mode1, Int_as_pointer alloc_mode2 ->
+    Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
-      | Begin_try_region | End_region | Obj_dup ),
+      | Begin_try_region | End_region | Obj_dup | Get_header ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -887,7 +891,8 @@ let print_unary_primitive ppf p =
     if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
-  | Int_as_pointer _ -> fprintf ppf "Int_as_pointer"
+  | Int_as_pointer alloc_mode ->
+    fprintf ppf "Int_as_pointer[%a]" Alloc_mode.For_allocations.print alloc_mode
   | Opaque_identity { middle_end_only; kind } ->
     fprintf ppf "@[(Opaque_identity@ (middle_end_only %b) (kind %a))@]"
       middle_end_only K.print kind
@@ -921,6 +926,7 @@ let print_unary_primitive ppf p =
   | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
   | End_region -> Format.pp_print_string ppf "End_region"
   | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
+  | Get_header -> Format.pp_print_string ppf "Get_header"
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -945,6 +951,7 @@ let arg_kind_of_unary_primitive p =
   | Begin_try_region -> K.region
   | End_region -> K.region
   | Obj_dup -> K.value
+  | Get_header -> K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -971,6 +978,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value
   | Obj_dup -> Singleton K.value
+  | Get_header -> Singleton K.naked_nativeint
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1058,24 +1066,26 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     ( Only_generative_effects Mutable (* Mutable is conservative *),
       Has_coeffects,
       Strict )
+  | Get_header -> No_effects, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
+  | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
     Destructive
-  | Box_number _ | Tag_immediate -> Constructive
+  | Box_number _ | Tag_immediate | Int_as_pointer _ -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | Begin_try_region | End_region -> Neither
+  | Get_header -> Neither
 
 let free_names_unary_primitive p =
   match p with
-  | Box_number (_kind, alloc_mode) ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Project_function_slot { move_from; move_to } ->
     Name_occurrences.add_function_slot_in_projection
@@ -1088,11 +1098,11 @@ let free_names_unary_primitive p =
          value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Obj_dup ->
+  | Obj_dup | Get_header ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1102,24 +1112,29 @@ let apply_renaming_unary_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Box_number (kind, alloc_mode')
+  | Int_as_pointer alloc_mode ->
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
+    if alloc_mode == alloc_mode' then p else Int_as_pointer alloc_mode'
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
     p
 
 let ids_for_export_unary_primitive p =
   match p with
-  | Box_number (_kind, alloc_mode) ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
     Ids_for_export.empty
 
 type binary_int_arith_op =

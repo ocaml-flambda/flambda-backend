@@ -24,6 +24,8 @@ let equal (a : t) (b : t) = a = b
 
 let ( + ) (a : t) (b : t) : t = a + b
 
+let ( - ) (a : t) (b : t) : t = a - b
+
 let ( <= ) (a : t) (b : t) = a <= b
 
 let arch32 = Targetint_32_64.size = 32 (* are we compiling for a 32-bit arch *)
@@ -336,6 +338,7 @@ let unary_prim_size prim =
   | Begin_try_region -> 1
   | End_region -> 1
   | Obj_dup -> alloc_extcall_size + 1
+  | Get_header -> 2
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

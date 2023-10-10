@@ -108,9 +108,15 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Lambda.Rc_normal
     | Nontail -> Lambda.Rc_nontail
   in
-  let args_arity = Apply.args_arity apply |> Flambda_arity.to_list in
+  let args_arity =
+    Apply.args_arity apply |> Flambda_arity.unarize_per_parameter
+  in
   let return_arity = Apply.return_arity apply in
-  let args_ty = List.map C.extended_machtype_of_kind args_arity in
+  let args_ty =
+    List.map
+      (fun kinds -> List.map C.extended_machtype_of_kind kinds |> Array.concat)
+      args_arity
+  in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
@@ -176,7 +182,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let returns = Apply.returns apply in
     let wrap =
-      match Flambda_arity.to_list return_arity with
+      match Flambda_arity.unarized_components return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
          whether C code that returns an int32 returns one that is sign extended
          or not. There is no need to wrap other return arities. Note that
@@ -197,7 +203,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let ty_args =
       List.map C.exttype_of_kind
-        (Flambda_arity.to_list (Apply.args_arity apply)
+        (Flambda_arity.unarize (Apply.args_arity apply)
         |> List.map K.With_subkind.kind)
     in
     ( wrap dbg
@@ -917,7 +923,11 @@ and switch env res switch =
   let make_arm ~must_tag_discriminant env res (d, action) =
     let d = prepare_discriminant ~must_tag:must_tag_discriminant d in
     let cmm_action, action_free_vars, res = apply_cont env res action in
-    (d, cmm_action, action_free_vars, Apply_cont.debuginfo action), res
+    ( ( d,
+        cmm_action,
+        action_free_vars,
+        Env.add_inlined_debuginfo env (Apply_cont.debuginfo action) ),
+      res )
   in
   match Targetint_31_63.Map.cardinal arms with
   (* Binary case: if-then-else *)

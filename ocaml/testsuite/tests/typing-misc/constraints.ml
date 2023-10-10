@@ -371,3 +371,17 @@ val test_obj_with_expansion :
   'a tag -> ('b, < bar : bar -> 'b; foo : foo -> 'b; .. >) obj -> 'a -> 'b =
   <fun>
 |}]
+
+(* PR #12334 *)
+
+type 'a t = 'a foo foo
+and 'a foo = int constraint 'a = int
+[%%expect{|
+Line 1, characters 0-22:
+1 | type 'a t = 'a foo foo
+    ^^^^^^^^^^^^^^^^^^^^^^
+Error: Constraints are not satisfied in this type.
+       Type int should be an instance of 'a foo
+       Type foo was considered abstract when checking constraints in this
+       recursive type definition.
+|}]

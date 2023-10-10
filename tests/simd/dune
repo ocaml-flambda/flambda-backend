@@ -10,8 +10,8 @@
 ; Tests with external assembler
 
 (executables
- (names basic)
- (modules basic)
+ (names basic ops)
+ (modules basic ops)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
@@ -19,13 +19,16 @@
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out)
- (deps basic.exe)
+ (targets basic.out ops.out)
+ (deps basic.exe ops.exe)
  (action
   (progn
    (with-outputs-to
     basic.out
-    (run ./basic.exe)))))
+    (run ./basic.exe))
+   (with-outputs-to
+    ops.out
+    (run ./ops.exe)))))
 
 (rule
  (alias runtest)
@@ -33,7 +36,39 @@
   (= %{context_name} "main"))
  (action
   (progn
-   (diff empty.expected basic.out))))
+   (diff empty.expected basic.out)
+   (diff empty.expected ops.out))))
+
+; Constants - proper inlining not supported on closure
+; CR mslater: these should run on flambda1 and 2, but dune doesn't know about 2
+
+(executable
+ (name consts)
+ (modules consts)
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   %{ocaml-config:flambda}))
+ (target consts.out)
+ (deps consts.exe)
+ (action
+  (with-outputs-to
+   consts.out
+   (run ./consts.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   %{ocaml-config:flambda}))
+ (action
+  (diff empty.expected consts.out)))
 
 ; Tests with probes / internal assembler - not supported on macOS
 
@@ -47,15 +82,17 @@
   (:standard -extension simd)))
 
 (rule
- (targets basic_internal.ml)
- (deps basic.ml)
+ (targets basic_internal.ml ops_internal.ml consts_internal.ml)
+ (deps basic.ml ops.ml consts.ml)
  (action
   (progn
-   (copy basic.ml basic_internal.ml))))
+   (copy basic.ml basic_internal.ml)
+   (copy ops.ml ops_internal.ml)
+   (copy consts.ml consts_internal.ml))))
 
 (executables
- (names basic_internal)
- (modules basic_internal)
+ (names basic_internal ops_internal consts_internal)
+ (modules basic_internal ops_internal consts_internal)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
@@ -67,8 +104,8 @@
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets probes.out basic_internal.out)
- (deps probes.exe basic_internal.exe)
+ (targets probes.out basic_internal.out ops_internal.out)
+ (deps probes.exe basic_internal.exe ops_internal.exe)
  (action
   (progn
    (with-outputs-to
@@ -76,7 +113,24 @@
     (run ./probes.exe))
    (with-outputs-to
     basic_internal.out
-    (run ./basic_internal.exe)))))
+    (run ./basic_internal.exe))
+   (with-outputs-to
+    ops_internal.out
+    (run ./ops_internal.exe)))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)
+   %{ocaml-config:flambda}))
+ (targets consts_internal.out)
+ (deps consts_internal.exe)
+ (action
+  (progn
+   (with-outputs-to
+    consts_internal.out
+    (run ./consts_internal.exe)))))
 
 (rule
  (alias runtest)
@@ -87,4 +141,16 @@
  (action
   (progn
    (diff empty.expected probes.out)
-   (diff empty.expected basic_internal.out))))
+   (diff empty.expected basic_internal.out)
+   (diff empty.expected ops_internal.out))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)
+   %{ocaml-config:flambda}))
+ (action
+  (progn
+   (diff empty.expected consts_internal.out))))

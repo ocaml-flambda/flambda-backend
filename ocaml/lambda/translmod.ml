@@ -18,7 +18,6 @@
 
 open Misc
 open Asttypes
-open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -39,7 +38,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of type_expr * Layout.Violation.t
+| Non_value_jkind of type_expr * Jkind.sort
 
 exception Error of Location.t * error
 
@@ -55,14 +54,8 @@ exception Error of Location.t * error
    When this sanity check is removed, consider whether it must be replaced with
    some defaulting. *)
 let sort_must_not_be_void loc ty sort =
-  if Sort.is_void_defaulting sort then
-    let violation =
-      Layout.(Violation.of_
-                (Not_a_sublayout
-                   (Layout.of_sort ~why:V1_safety_check sort,
-                    value ~why:V1_safety_check)))
-    in
-    raise (Error (loc, Non_value_layout (ty, violation)))
+  if Jkind.Sort.is_void_defaulting sort then
+    raise (Error (loc, Non_value_jkind (ty, sort)))
 
 let cons_opt x_opt xs =
   match x_opt with
@@ -307,7 +300,8 @@ let init_shape id modl =
   let rec init_shape_mod subid loc env mty =
     match Mtype.scrape env mty with
       Mty_ident _
-    | Mty_alias _ ->
+    | Mty_alias _
+    | Mty_strengthen _ ->
         raise (Initialization_failure
                 (Unsafe {reason=Unsafe_module_binding;loc;subid}))
     | Mty_signature sg ->
@@ -631,7 +625,7 @@ and transl_module ~scopes cc rootpath mexp =
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
       apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Sort.for_module arg)
+        (Translcore.transl_exp ~scopes Jkind.Sort.for_module arg)
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items
@@ -1893,12 +1887,12 @@ let report_error loc = function
         print_cycle cycle chapter section
   | Conflicting_inline_attributes ->
       Location.errorf "@[Conflicting 'inline' attributes@]"
-  | Non_value_layout (ty, err) ->
+  | Non_value_jkind (ty, sort) ->
       Location.errorf
-        "Non-value detected in [translmod]:@ Please report this error to \
-         the Jane Street compilers team.@ %a"
-        (Layout.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+        "Non-value sort %a detected in [translmod] in type %a:@ \
+         Please report this error to the Jane Street compilers team."
+        Jkind.Sort.format sort
+        Printtyp.type_expr ty
 
 let () =
   Location.register_error_of_exn

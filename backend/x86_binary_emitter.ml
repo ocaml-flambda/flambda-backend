@@ -274,6 +274,8 @@ let is_imm32L n = n < 0x8000_0000L && n >= -0x8000_0000L
 
 let is_imm8L x = x < 128L && x >= -128L
 
+let is_imm16L n = n < 32768L && n >= -32768L
+
 let rd_of_regf regf =
   match regf with
   | XMM n -> n
@@ -384,6 +386,12 @@ let arch64 = Config.architecture = "amd64"
 
 let emit_rex b rexcode =
   if arch64 && rexcode <> 0 then buf_int8 b (rexcode lor rex)
+
+let buf_int16_imm b = function
+  | Imm n ->
+      assert (is_imm16L n);
+      buf_int16L b n
+  | _ -> assert false
 
 let buf_int32_imm b = function
   | Imm n ->
@@ -845,6 +853,44 @@ let emit_MOV b dst src =
       Format.printf "src = %a@." print_old_arg src;
       assert false
 
+let emit_rf_rm op b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; op ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_rf_rf op b dst src =
+  match (dst, src) with
+  | Regf reg, (Regf _ as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; op ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let suffix f op b suf dst src =
+  f op b dst src;
+  buf_int8 b suf
+
+let emit_cmpps = suffix emit_rf_rm 0xC2
+let emit_shufps = suffix emit_rf_rm 0xC6
+let emit_addps = emit_rf_rm 0x58
+let emit_subps = emit_rf_rm 0x5C
+let emit_mulps = emit_rf_rm 0x59
+let emit_divps = emit_rf_rm 0x5E
+let emit_minps = emit_rf_rm 0x5D
+let emit_maxps = emit_rf_rm 0x5F
+let emit_rcpps = emit_rf_rm 0x53
+let emit_sqrtps = emit_rf_rm 0x51
+let emit_rsqrtps = emit_rf_rm 0x52
+let emit_unpcklps = emit_rf_rm 0x14
+let emit_movhlps = emit_rf_rm 0x12
+let emit_movlhps = emit_rf_rf 0x16
+let emit_unpckhps = emit_rf_rf 0x15
+
+let emit_movmskps b dst src =
+  match (dst, src) with
+  | Reg64 reg, (Regf _ as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x50 ] rm (rd_of_reg64 reg)
+  | _ -> assert false
+
 type simple_encoding = {
   rm8_r8 : int list;
   rm64_r64 : int list;
@@ -853,6 +899,7 @@ type simple_encoding = {
   al_imm8 : int list;
   rax_imm32 : int list;
   rm8_imm8 : int list;
+  rm16_imm16 : int list;
   rm64_imm32 : int list;
   rm64_imm8 : int list;
   reg : int;
@@ -897,6 +944,12 @@ let emit_simple_encoding enc b dst src =
   | { rax_imm32 = opcodes }, Reg32 RAX, ((Imm _ | Sym _) as n) ->
       buf_opcodes b opcodes;
       buf_int32_imm b n
+  | ( { rm16_imm16 = opcodes; reg },
+      ((Reg16 _ | Mem { typ = WORD })
+      as rm),
+      (Imm _ as n) ) ->
+      emit_mod_rm_reg b 0 opcodes rm reg;
+      buf_int16_imm b n
   | ( { rm64_imm32 = opcodes; reg },
       ((Reg32 _ | Mem { typ = NONE; arch = X86 } | Mem { typ = DWORD | REAL4 })
       as rm),
@@ -922,6 +975,7 @@ let emit_simple_encoding base reg =
       al_imm8 = [ base + 4 ];
       rax_imm32 = [ base + 5 ];
       rm8_imm8 = [ 0x80 ];
+      rm16_imm16 = [ 0x81 ];
       rm64_imm32 = [ 0x81 ];
       rm64_imm8 = [ 0x83 ];
       reg;
@@ -1488,6 +1542,22 @@ let assemble_instr b loc = function
   | XCHG (src, dst) -> emit_XCHG b dst src
   | XOR (src, dst) -> emit_XOR b dst src
   | XORPD (src, dst) -> emit_xorpd b dst src
+  | CMPPS (cmp, src, dst) -> emit_cmpps b (imm8_of_float_condition cmp) dst src
+  | ADDPS (src, dst) -> emit_addps b dst src
+  | SUBPS (src, dst) -> emit_subps b dst src
+  | MULPS (src, dst) -> emit_mulps b dst src
+  | DIVPS (src, dst) -> emit_divps b dst src
+  | MAXPS (src, dst) -> emit_maxps b dst src
+  | MINPS (src, dst) -> emit_minps b dst src
+  | RCPPS (src, dst) -> emit_rcpps b dst src
+  | SQRTPS (src, dst) -> emit_sqrtps b dst src
+  | RSQRTPS (src, dst) -> emit_rsqrtps b dst src
+  | MOVHLPS (src, dst) -> emit_movhlps b dst src
+  | MOVLHPS (src, dst) -> emit_movlhps b dst src
+  | UNPCKHPS (src, dst) -> emit_unpckhps b dst src
+  | UNPCKLPS (src, dst) -> emit_unpcklps b dst src
+  | MOVMSKPS (src, dst) -> emit_movmskps b dst src
+  | SHUFPS (shuf, src, dst) -> emit_shufps b shuf dst src
 
 let assemble_line b loc ins =
   try

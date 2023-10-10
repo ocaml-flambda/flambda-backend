@@ -19,9 +19,9 @@ let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
-let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
+let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
-let cfg_peephole_optimize = ref false   (* -[no-]cfg-peephole-optimize *)
+let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
@@ -366,7 +366,7 @@ let opt_flag_handler : Clflags.Opt_flag_handler.t =
 
 let use_cached_generic_functions = ref false
 let cached_generic_functions_path =
-  ref (Filename.concat Config.standard_library ("cached-generic-functions" ^ Config.ext_obj))
+  ref (Filename.concat Config.standard_library ("cached-generic-functions" ^ Config.ext_lib))
 
 let () =
   if Clflags.is_flambda2 () then set_o2 ()

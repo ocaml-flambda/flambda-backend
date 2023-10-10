@@ -448,7 +448,9 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   | Invalid -> SPR.create_invalid dacc
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
-  assert (Flambda_features.flat_float_array ());
+  (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
+
+     assert (Flambda_features.flat_float_array ()); *)
   match T.prove_is_or_is_not_a_boxed_float (DA.typing_env dacc) arg_ty with
   | Proved is_a_boxed_float ->
     let imm = Targetint_31_63.bool is_a_boxed_float in
@@ -460,7 +462,9 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
-  assert (Flambda_features.flat_float_array ());
+  (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
+
+     assert (Flambda_features.flat_float_array ()); *)
   match T.meet_is_flat_float_array (DA.typing_env dacc) arg_ty with
   | Known_result is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
@@ -592,6 +596,12 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     | Proved ((Heap_or_local | Local), _) | Unknown ->
       SPR.create_unknown dacc ~result_var K.value ~original_term)
 
+let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -642,5 +652,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
+    | Get_header -> simplify_get_header ~original_prim
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

@@ -1126,7 +1126,7 @@ module Extended_machtype = struct
   let change_tagged_int_to_val t =
     Array.map Extended_machtype_component.change_tagged_int_to_val t
 
-  let of_layout (layout : Lambda.layout) =
+  let rec of_layout (layout : Lambda.layout) =
     match layout with
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
@@ -1138,6 +1138,7 @@ module Extended_machtype = struct
       typ_any_int
     | Pvalue Pintval -> typ_tagged_int
     | Pvalue _ -> typ_val
+    | Punboxed_product fields -> Array.concat (List.map of_layout fields)
 end
 
 let machtype_of_layout layout =
@@ -1164,10 +1165,11 @@ let unique_arity_identifier (arity : Cmm.machtype list) =
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
 
+let result_layout_suffix result =
+  match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
+
 let send_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
+  let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   global_symbol ("caml_send" ^ unique_arity_identifier arity ^ res ^ suff)
 
@@ -1263,9 +1265,7 @@ let make_checkbound dbg = function
 (* Record application and currying functions *)
 
 let apply_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
+  let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
@@ -1276,17 +1276,18 @@ let apply_function_sym arity result mode =
   Compilenv.need_apply_fun arity result mode;
   global_symbol (apply_function_name arity result mode)
 
+let tuplify_function_name arity result =
+  "caml_tuplify" ^ Int.to_string arity ^ result_layout_suffix result
+
 let curry_function_sym_name function_kind arity result =
   match function_kind with
   | Lambda.Curried { nlocal } ->
     Compilenv.need_curry_fun function_kind arity result;
     "caml_curry"
     ^ unique_arity_identifier arity
-    ^ (match result with
-      | [| Val |] -> ""
-      | _ -> "_R" ^ machtype_identifier result)
+    ^ result_layout_suffix result
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
-  | Lambda.Tupled -> (
+  | Lambda.Tupled ->
     if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
     then
       Misc.fatal_error
@@ -1296,10 +1297,7 @@ let curry_function_sym_name function_kind arity result =
     Compilenv.need_curry_fun function_kind
       (List.map (fun _ -> [| Val |]) arity)
       result;
-    "caml_tuplify"
-    ^ Int.to_string (List.length arity)
-    ^
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result)
+    tuplify_function_name (List.length arity) result
 
 let curry_function_sym function_kind arity result =
   { sym_name = curry_function_sym_name function_kind arity result;
@@ -2745,14 +2743,7 @@ let tuplify_function arity return =
       get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
       :: access_components (i + 1)
   in
-  let fun_name =
-    global_symbol
-      ("caml_tuplify" ^ Int.to_string arity
-      ^
-      match return with
-      | [| Val |] -> ""
-      | _ -> "_R" ^ machtype_identifier return)
-  in
+  let fun_name = global_symbol (tuplify_function_name arity return) in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;
@@ -3052,7 +3043,11 @@ module Generic_fns_tbl = struct
     }
 
   module Precomputed = struct
-    let check_result = function [| Val |] -> true | _ -> false
+    let has_singleton_layout_value = function [| Val |] -> true | _ -> false
+
+    let only_concerns_values ~arity ~result =
+      has_singleton_layout_value result
+      && List.for_all has_singleton_layout_value arity
 
     let len_arity arity =
       List.fold_left
@@ -3068,7 +3063,8 @@ module Generic_fns_tbl = struct
     let considered_as_small_threshold = 20
 
     let is_curry (kind, arity, result) =
-      if not (check_result result)
+      (* For now we don't cache generic functions involving unboxed types *)
+      if not (only_concerns_values ~arity ~result)
       then false
       else
         match kind with
@@ -3091,7 +3087,8 @@ module Generic_fns_tbl = struct
           else false
 
     let is_send (arity, result, alloc) =
-      if not (check_result result)
+      (* For now we don't cache generic functions involving unboxed types *)
+      if not (only_concerns_values ~arity ~result)
       then false
       else
         match alloc with
@@ -3099,7 +3096,8 @@ module Generic_fns_tbl = struct
         | Lambda.Alloc_heap -> len_arity arity <= max_send
 
     let is_apply (arity, result, alloc) =
-      if not (check_result result)
+      (* For now we don't cache generic functions involving unboxed types *)
+      if not (only_concerns_values ~arity ~result)
       then false
       else
         match alloc with
@@ -3121,43 +3119,91 @@ module Generic_fns_tbl = struct
          automatically derive a good search space in the future as the filters
          might become more complexed with unboxed types. *)
       assert (considered_as_small_threshold <= max_tuplify);
-      assert (considered_as_small_threshold <= max_apply);
       assert (considered_as_small_threshold <= max_send);
       assert (considered_as_small_threshold <= Lambda.max_arity ());
       let arity n = List.init n (fun _ -> [| Val |]) in
       let result = [| Val |] in
       let tuplify =
-        Seq.init max_tuplify (fun n -> Lambda.Tupled, arity n, result)
+        Seq.init (max_tuplify + 1) (fun n -> Lambda.Tupled, arity n, result)
       in
       let curry =
-        Seq.init (Lambda.max_arity ()) (fun n ->
-            Seq.init (Lambda.max_arity ()) (fun nlocal ->
-                Lambda.Curried { nlocal }, arity n, result))
+        Seq.init
+          (Lambda.max_arity () + 1)
+          (fun n ->
+            Seq.init
+              (Lambda.max_arity () + 1)
+              (fun nlocal -> Lambda.Curried { nlocal }, arity n, result))
         |> Seq.concat
       in
       let send =
-        Seq.init max_send (fun n ->
+        Seq.init (max_send + 1) (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
       in
       let apply =
-        Seq.init max_apply (fun n ->
+        Seq.init
+          (Lambda.max_arity () + 1)
+          (fun n ->
             Seq.cons
               (arity n, result, Lambda.alloc_local)
               (Seq.return (arity n, result, Lambda.alloc_heap)))
         |> Seq.concat
       in
-      let t = make () in
-      add_uncached t
-        Cmx_format.
-          { curry_fun =
-              Seq.filter is_curry (Seq.append tuplify curry) |> List.of_seq;
-            send_fun = Seq.filter is_send send |> List.of_seq;
-            apply_fun = Seq.filter is_apply apply |> List.of_seq
-          };
-      t
+      let category prefix arity =
+        let l = len_arity arity in
+        if l <= considered_as_small_threshold
+        then "small"
+        else prefix ^ string_of_int l
+      in
+      let module SMap = Misc.Stdlib.String.Map in
+      let map_of_seq_multi seq =
+        Seq.fold_left
+          (fun tbl (key, elt) ->
+            SMap.update key
+              (function None -> Some [elt] | Some s -> Some (elt :: s))
+              tbl)
+          SMap.empty seq
+      in
+      let curry_fns =
+        Seq.append tuplify curry |> Seq.filter is_curry
+        |> Seq.map (fun ((_, arity, _) as f) -> category "curry_" arity, f)
+        |> map_of_seq_multi
+        |> SMap.map (fun curry_fun ->
+               { Cmx_format.curry_fun; send_fun = []; apply_fun = [] })
+      in
+      let send_fns =
+        Seq.filter is_send send
+        |> Seq.map (fun ((arity, _, _) as f) -> category "send_" arity, f)
+        |> map_of_seq_multi
+        |> SMap.map (fun send_fun ->
+               { Cmx_format.send_fun; curry_fun = []; apply_fun = [] })
+      in
+      let apply_fns =
+        Seq.filter is_apply apply
+        |> Seq.map (fun ((arity, _, _) as f) -> category "apply_" arity, f)
+        |> map_of_seq_multi
+        |> SMap.map (fun apply_fun ->
+               { Cmx_format.apply_fun; send_fun = []; curry_fun = [] })
+      in
+      let out = Hashtbl.create 100 in
+      let add f =
+        SMap.iter
+          (fun key x ->
+            let t =
+              match Hashtbl.find_opt out key with
+              | None ->
+                let t = make () in
+                Hashtbl.add out key t;
+                t
+              | Some t -> t
+            in
+            add_uncached t x)
+          f
+      in
+      List.iter add [curry_fns; send_fns; apply_fns];
+      out
   end
 
   let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
@@ -4317,8 +4363,8 @@ let direct_call ~dbg ty pos f_code_sym args =
   Cop (Capply (ty, pos), f_code_sym :: args, dbg)
 
 let indirect_call ~dbg ty pos alloc_mode f args_type args =
-  match args with
-  | [arg] ->
+  match args_type with
+  | [_] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in
@@ -4326,10 +4372,10 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
       ~body:
         (Cop
            ( Capply (Extended_machtype.to_machtype ty, pos),
-             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
+             (load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v) :: args)
+             @ [Cvar v],
              dbg ))
-  | args ->
-    call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
+  | _ -> call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
   (* the single-argument case is already optimized by indirect_call *)
@@ -4450,8 +4496,15 @@ let transl_property : Lambda.property -> Cmm.property = function
 let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Default_check -> []
   | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Check { property; strict; assume; loc } ->
-    [Check { property = transl_property property; strict; assume; loc }]
+  | Assume { property; strict; never_returns_normally; loc } ->
+    [ Assume
+        { property = transl_property property;
+          strict;
+          never_returns_normally;
+          loc
+        } ]
+  | Check { property; strict; loc } ->
+    [Check { property = transl_property property; strict; loc }]
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
@@ -4459,5 +4512,6 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _ ->
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
+  | Punboxed_product _ ->
     Any

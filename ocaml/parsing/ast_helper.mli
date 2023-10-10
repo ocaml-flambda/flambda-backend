@@ -136,9 +136,20 @@ module Exp:
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> expression
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list
               -> expression -> expression
+
+    (* We can delete these "prefer_jane_syntax" nudges once we merge
+       syntactic arity from upstream OCaml.
+    *)
+
     val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option
               -> pattern -> expression -> expression
+    [@@alert
+      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
+
     val function_: ?loc:loc -> ?attrs:attrs -> case list -> expression
+    [@@alert
+      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
+
     val apply: ?loc:loc -> ?attrs:attrs -> expression
                -> (arg_label * expression) list -> expression
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
@@ -207,7 +218,7 @@ module Type:
   sig
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
-      ?layout:attribute ->
+      ?jkind:attribute ->
       ?cstrs:(core_type * core_type * loc) list ->
       ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
       type_declaration

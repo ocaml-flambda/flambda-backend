@@ -3,7 +3,7 @@
    flags = "-extension layouts"
 *)
 
-(* Tests for layouts in algebraic datatypes *)
+(* Tests for jkinds in algebraic datatypes *)
 
 (* CR layouts v5: add mixed block restriction tests. *)
 
@@ -33,7 +33,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (***************************************************)
 (* Test 1: constructor arguments may have any sort *)
 
-(* CR layouts: Needs non-value layout - moved to [datatypes_alpha.ml] *)
+(* CR layouts: Needs non-value jkind - moved to [datatypes_alpha.ml] *)
 
 (************************************)
 (* Test 2: but not the "any" layout *)
@@ -60,10 +60,10 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
    [datatypes_alpha.ml] *)
 
 (**************************************************************************)
-(* Test 6: fields in all-float records get layout value.  may change in the
+(* Test 6: fields in all-float records get jkind value.  may change in the
    future, but record fields must at least be representable. *)
 
-(* CR layouts: Needs layout annotations on type parameters.  Moved to
+(* CR layouts: Needs jkind annotations on type parameters.  Moved to
    [datatypes_beta.ml].  Bring back when that isn't behind an extension flag. *)
 
 type t6 = { fld6 : float }

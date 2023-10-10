@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Location
 open Longident
 open Parsetree
@@ -95,13 +96,13 @@ let handle_extension ext =
   | _ ->
     ()
 
-(* CR layouts: Remember to add this when layouts can have module
+(* CR layouts: Remember to add this when jkinds can have module
    prefixes. *)
-let add_layout _bv (_layout : Asttypes.layout_annotation) = ()
+let add_jkind _bv (_jkind : jkind_annotation) = ()
 
-let add_vars_layouts bv vars_layouts =
-  let add_one (_, layout) = Option.iter (add_layout bv) layout in
-  List.iter add_one vars_layouts
+let add_vars_jkinds bv vars_jkinds =
+  let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
+  List.iter add_one vars_jkinds
 
 let rec add_type bv ty =
   match Jane_syntax.Core_type.of_ast ty with
@@ -134,14 +135,14 @@ and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
 
 and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
-  | Ltyp_var { name = _; layout } ->
-    add_layout bv layout
+  | Ltyp_var { name = _; jkind } ->
+    add_jkind bv jkind
   | Ltyp_poly { bound_vars; inner_type } ->
-    add_vars_layouts bv bound_vars;
+    add_vars_jkinds bv bound_vars;
     add_type bv inner_type
-  | Ltyp_alias { aliased_type; name = _; layout } ->
+  | Ltyp_alias { aliased_type; name = _; jkind } ->
     add_type bv aliased_type;
-    add_layout bv layout
+    add_jkind bv jkind
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -175,8 +176,8 @@ let add_type_declaration bv td =
 
 let add_extension_constructor_jst bv :
   Jane_syntax.Extension_constructor.t -> _ = function
-  | Jext_layout (Lext_decl (vars_layouts, args, res)) ->
-    add_vars_layouts bv vars_layouts;
+  | Jext_layout (Lext_decl (vars_jkinds, args, res)) ->
+    add_vars_jkinds bv vars_jkinds;
     add_constructor_arguments bv args;
     Option.iter (add_type bv) res
 
@@ -323,6 +324,7 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
+  | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -363,9 +365,42 @@ and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
 
 and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
   | Lexp_constant _ -> add_constant
-  | Lexp_newtype (_, layout, inner_expr) ->
-    add_layout bv layout;
+  | Lexp_newtype (_, jkind, inner_expr) ->
+    add_jkind bv jkind;
     add_expr bv inner_expr
+
+and add_n_ary_function bv : Jane_syntax.N_ary_functions.expression -> _ =
+  fun (params, constraint_, body) ->
+    let bv = List.fold_left add_function_param bv params in
+    add_opt add_function_constraint bv constraint_;
+    add_function_body bv body
+
+and add_function_param bv : Jane_syntax.N_ary_functions.function_param -> _ =
+  fun { pparam_desc } ->
+    match pparam_desc with
+    | Pparam_val (_, opte, pat) ->
+      add_opt add_expr bv opte;
+      add_pattern bv pat
+    | Pparam_newtype _ -> bv
+
+and add_function_body bv : Jane_syntax.N_ary_functions.function_body -> _ =
+  function
+  | Pfunction_body e ->
+    add_expr bv e
+  | Pfunction_cases (cases, _, _) ->
+    add_cases bv cases
+
+and add_function_constraint bv
+    : Jane_syntax.N_ary_functions.function_constraint -> _ =
+  (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
+  *)
+  fun[@ocaml.warning "+9"] { mode_annotations = _; type_constraint } ->
+    match type_constraint with
+    | Pconstraint ty ->
+      add_type bv ty
+    | Pcoerce (ty1, ty2) ->
+      add_opt add_type bv ty1;
+      add_type bv ty2
 
 and add_cases bv cases =
   List.iter (add_case bv) cases

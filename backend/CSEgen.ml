@@ -202,12 +202,13 @@ let kill_addr_regs n =
 
 (* Prepend a set of moves before [i] to assign [srcs] to [dsts].  *)
 
-let insert_single_move i src dst = instr_cons (Iop Imove) [|src|] [|dst|] i
+let insert_single_move i src dst =
+  instr_cons_debug (Iop Imove) [|src|] [|dst|] i.dbg i
 
 let insert_move srcs dsts i =
   match Array.length srcs with
   | 0 -> i
-  | 1 -> instr_cons (Iop Imove) srcs dsts i
+  | 1 -> instr_cons_debug (Iop Imove) srcs dsts i.dbg i
   | _ -> (* Parallel move: first copy srcs into tmps one by one,
             then copy tmps into dsts one by one *)
          let tmps = Reg.createv_like srcs in
@@ -247,8 +248,8 @@ method class_of_operation op =
   | Iintop_atomic _ -> Op_store true
   | Icompf _
   | Icsel _
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue -> Op_pure
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Iscalarcast _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ -> Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_other
   | Iprobe_is_enabled _ -> Op_other

@@ -79,6 +79,8 @@ type operation =
   | Icsel of test
   | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
+  | Ivectorcast of Cmm.vector_cast
+  | Iscalarcast of Cmm.scalar_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
@@ -131,9 +133,6 @@ type fundecl =
 
 val dummy_instr: instruction
 val end_instr: unit -> instruction
-val instr_cons:
-      instruction_desc -> Reg.t array -> Reg.t array -> instruction ->
-        instruction
 val instr_cons_debug:
       instruction_desc -> Reg.t array -> Reg.t array -> Debuginfo.t ->
         instruction -> instruction

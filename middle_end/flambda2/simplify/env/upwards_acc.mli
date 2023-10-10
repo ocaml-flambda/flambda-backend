@@ -46,6 +46,8 @@ val with_lifted_constants : t -> Lifted_constant_state.t -> t
 
 val no_lifted_constants : t -> bool
 
+val add_lifted_constant : t -> Lifted_constant.t -> t
+
 (** Map the environment component of the given upwards accumulator. *)
 val map_uenv : t -> f:(Upwards_env.t -> Upwards_env.t) -> t
 

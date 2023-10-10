@@ -1,31 +1,33 @@
 open Typedtree
 open Types
+open Mode
 
-let dummy_layout = Layouts.Layout.value ~why:Type_argument
-let dummy_value_mode = { r_as_l = Amode Global; r_as_g = Amode Global }
-let mkTvar name = Tvar { name; layout = dummy_layout }
+let dummy_jkind = Jkind.value ~why:Type_argument
+let dummy_value_mode = Value.legacy
+let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
-  Tarrow ((label, Amode Global, Amode Global), t1, t2, comm)
+  Tarrow ((label, Alloc.legacy, Alloc.legacy), t1, t2, comm)
 
-type texp_ident_identifier = ident_kind
+type texp_ident_identifier = ident_kind * unique_use
 
-let mkTexp_ident ?id:(ident_kind = Id_value) (path, longident, vd) =
-  Texp_ident (path, longident, vd, ident_kind)
+let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
+    (path, longident, vd) =
+  Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
-type texp_apply_identifier = apply_position * alloc_mode
+type texp_apply_identifier = apply_position * Locality.t
 
-let mkTexp_apply ?id:(pos, mode = (Default, Amode Global)) (exp, args) =
+let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
   Texp_apply (exp, args, pos, mode)
 
-type texp_tuple_identifier = alloc_mode
+type texp_tuple_identifier = Alloc.t
 
-let mkTexp_tuple ?id:(mode = Amode Global) exps = Texp_tuple (exps, mode)
+let mkTexp_tuple ?id:(mode = Alloc.legacy) exps = Texp_tuple (exps, mode)
 
-type texp_construct_identifier = alloc_mode option
+type texp_construct_identifier = Alloc.t option
 
-let mkTexp_construct ?id:(mode = Some (Amode Global)) (name, desc, args) =
+let mkTexp_construct ?id:(mode = Some Alloc.legacy) (name, desc, args) =
   Texp_construct (name, desc, args, mode)
 
 type texp_function = {
@@ -36,25 +38,25 @@ type texp_function = {
 
 type texp_function_identifier = {
   partial : partial;
-  arg_mode : alloc_mode;
-  alloc_mode : alloc_mode;
+  arg_mode : Alloc.t;
+  alloc_mode : Alloc.t;
   region : bool;
   curry : fun_curry_state;
   warnings : Warnings.state;
-  arg_sort : Layouts.sort;
-  ret_sort : Layouts.sort;
+  arg_sort : Jkind.sort;
+  ret_sort : Jkind.sort;
 }
 
 let texp_function_defaults =
   {
     partial = Total;
-    arg_mode = Amode Global;
-    alloc_mode = Amode Global;
+    arg_mode = Alloc.legacy;
+    alloc_mode = Alloc.legacy;
     region = false;
-    curry = Final_arg { partial_mode = Amode Global };
+    curry = Final_arg { partial_mode = Alloc.legacy };
     warnings = Warnings.backup ();
-    arg_sort = Layouts.Sort.value;
-    ret_sort = Layouts.Sort.value;
+    arg_sort = Jkind.Sort.value;
+    ret_sort = Jkind.Sort.value;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -74,14 +76,14 @@ let mkTexp_function ?(id = texp_function_defaults)
       ret_sort = id.ret_sort;
     }
 
-type texp_sequence_identifier = Layouts.sort
+type texp_sequence_identifier = Jkind.sort
 
-let mkTexp_sequence ?id:(sort = Layouts.Sort.value) (e1, e2) =
+let mkTexp_sequence ?id:(sort = Jkind.Sort.value) (e1, e2) =
   Texp_sequence (e1, sort, e2)
 
-type texp_match_identifier = Layouts.sort
+type texp_match_identifier = Jkind.sort
 
-let mkTexp_match ?id:(sort = Layouts.Sort.value) (e, cases, partial) =
+let mkTexp_match ?id:(sort = Jkind.Sort.value) (e, cases, partial) =
   Texp_match (e, sort, cases, partial)
 
 type matched_expression_desc =
@@ -106,8 +108,8 @@ type matched_expression_desc =
 
 let view_texp (e : expression_desc) =
   match e with
-  | Texp_ident (path, longident, vd, ident_kind) ->
-      Texp_ident (path, longident, vd, ident_kind)
+  | Texp_ident (path, longident, vd, ident_kind, uu) ->
+      Texp_ident (path, longident, vd, (ident_kind, uu))
   | Texp_apply (exp, args, pos, mode) -> Texp_apply (exp, args, (pos, mode))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
@@ -142,15 +144,15 @@ let view_texp (e : expression_desc) =
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
-type tpat_var_identifier = value_mode
+type tpat_var_identifier = Value.t
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
-  Tpat_var (ident, name, mode)
+  Tpat_var (ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_alias_identifier = value_mode
+type tpat_alias_identifier = Value.t
 
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
-  Tpat_alias (p, ident, name, mode)
+  Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
 type tpat_array_identifier = Asttypes.mutable_flag
 
@@ -173,14 +175,14 @@ type 'a matched_pattern_desc =
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
-  | Tpat_var (ident, name, mode) -> Tpat_var (ident, name, mode)
-  | Tpat_alias (p, ident, name, mode) -> Tpat_alias (p, ident, name, mode)
+  | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
+  | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
   | Tpat_array (mut, l) -> Tpat_array (l, mut)
   | _ -> O p
 
-type tstr_eval_identifier = Layouts.sort
+type tstr_eval_identifier = Jkind.sort
 
-let mkTstr_eval ?id:(sort = Layouts.Sort.value) (e, attrs) =
+let mkTstr_eval ?id:(sort = Jkind.Sort.value) (e, attrs) =
   Tstr_eval (e, sort, attrs)
 
 type matched_structure_item_desc =
@@ -192,9 +194,9 @@ let view_tstr (si : structure_item_desc) =
   | Tstr_eval (e, sort, attrs) -> Tstr_eval (e, attrs, sort)
   | _ -> O si
 
-type arg_identifier = Layouts.sort
+type arg_identifier = Jkind.sort
 
-let mkArg ?id:(sort = Layouts.Sort.value) e = Arg (e, sort)
+let mkArg ?id:(sort = Jkind.Sort.value) e = Arg (e, sort)
 
 let map_arg_or_omitted f arg =
   match arg with Arg (e, sort) -> Arg (f e, sort) | Omitted o -> Omitted o
@@ -221,7 +223,7 @@ let mk_constructor_description cstr_name =
     cstr_attributes = [];
     cstr_inlined = None;
     cstr_uid = Uid.internal_not_actually_unique;
-    cstr_arg_layouts = [||];
+    cstr_arg_jkinds = [||];
     cstr_repr = Variant_boxed [||];
     cstr_constant = true;
   }
@@ -232,7 +234,7 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_expr;
     vb_attributes;
     vb_loc = Location.none;
-    vb_sort = Layouts.Sort.value;
+    vb_sort = Jkind.Sort.value;
   }
 
 let mkTtyp_any = Ttyp_var (None, None)

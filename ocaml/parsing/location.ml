@@ -18,6 +18,46 @@ open Lexing
 type t = Warnings.loc =
   { loc_start: position; loc_end: position; loc_ghost: bool };;
 
+let compare_position : position -> position -> int =
+  fun
+    { pos_fname = pos_fname_1
+    ; pos_lnum = pos_lnum_1
+    ; pos_bol = pos_bol_1
+    ; pos_cnum = pos_cnum_1
+    }
+    { pos_fname = pos_fname_2
+    ; pos_lnum = pos_lnum_2
+    ; pos_bol = pos_bol_2
+    ; pos_cnum = pos_cnum_2
+    }
+  ->
+    match String.compare pos_fname_1 pos_fname_2 with
+    | 0 -> begin match Int.compare pos_lnum_1 pos_lnum_2 with
+      | 0 -> begin match Int.compare pos_bol_1 pos_bol_2 with
+        | 0 -> Int.compare pos_cnum_1 pos_cnum_2
+        | i -> i
+      end
+      | i -> i
+    end
+    | i -> i
+;;
+
+let compare
+      { loc_start = loc_start_1
+      ; loc_end = loc_end_1
+      ; loc_ghost = loc_ghost_1 }
+      { loc_start = loc_start_2
+      ; loc_end = loc_end_2
+      ; loc_ghost = loc_ghost_2 }
+  =
+  match compare_position loc_start_1 loc_start_2 with
+  | 0 -> begin match compare_position loc_end_1 loc_end_2 with
+    | 0 -> Bool.compare loc_ghost_1 loc_ghost_2
+    | i -> i
+  end
+  | i -> i
+;;
+
 let in_file name =
   let loc = { dummy_pos with pos_fname = name } in
   { loc_start = loc; loc_end = loc; loc_ghost = true }
@@ -273,6 +313,11 @@ struct
 
   (* non overlapping intervals *)
   type 'a t = ('a bound * 'a bound) list
+
+  let compare (fst1, snd1) (fst2, snd2) =
+    match Int.compare fst1 fst2 with
+    | 0 -> Int.compare snd1 snd2
+    | i -> i
 
   let of_intervals intervals =
     let pos =
@@ -776,7 +821,7 @@ let batch_mode_printer : report_printer =
       (self.pp_submsg_txt self report) txt
   in
   let pp_submsg_loc self report ppf loc =
-    if not loc.loc_ghost then
+    if not (is_dummy_loc loc) then
       pp_loc self report ppf loc
   in
   let pp_submsg_txt _self _ ppf loc =
@@ -799,7 +844,7 @@ let terminfo_toplevel_printer (lb: lexbuf): report_printer =
   in
   let pp_main_loc _ _ _ _ = () in
   let pp_submsg_loc _ _ ppf loc =
-    if not loc.loc_ghost then
+    if not (is_dummy_loc loc) then
       Format.fprintf ppf "%a:@ " print_loc loc in
   { batch_mode_printer with pp; pp_main_loc; pp_submsg_loc }
 

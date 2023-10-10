@@ -56,15 +56,15 @@ type out_value =
   | Oval_tuple of out_value list
   | Oval_variant of string * out_value option
 
-type out_layout =
-  | Olay_const of Asttypes.const_layout
+type out_jkind =
+  | Olay_const of Jane_asttypes.const_jkind
   | Olay_var of string
 
 type out_type_param =
   { oparam_name : string;
     oparam_variance : Asttypes.variance;
     oparam_injectivity : Asttypes.injectivity;
-    oparam_layout : out_layout option }
+    oparam_jkind : out_jkind option }
 
 type out_mutable_or_global =
   | Ogom_mutable
@@ -75,8 +75,8 @@ type out_global =
   | Ogf_global
   | Ogf_unrestricted
 
-(* should be empty if all the layout annotations are missing *)
-type out_vars_layouts = (string * out_layout option) list
+(* should be empty if all the jkind annotations are missing *)
+type out_vars_jkinds = (string * out_jkind option) list
 
 type out_type =
   | Otyp_abstract
@@ -94,27 +94,42 @@ type out_type =
   | Otyp_var of bool * string
   | Otyp_variant of
       bool * out_variant * bool * (string list) option
-  | Otyp_poly of out_vars_layouts * out_type
+  | Otyp_poly of out_vars_jkinds * out_type
   | Otyp_module of out_ident * (string * out_type) list
   | Otyp_attribute of out_type * out_attribute
-  | Otyp_layout_annot of out_type * out_layout
+  | Otyp_jkind_annot of out_type * out_jkind
       (* Currently only introduced with very explicit code in [Printtyp] and not
          synthesized directly from the [Typedtree] *)
 
 and out_constructor = {
   ocstr_name: string;
   ocstr_args: (out_type * out_global) list;
-  ocstr_return_type: (out_vars_layouts * out_type) option;
+  ocstr_return_type: (out_vars_jkinds * out_type) option;
 }
 
 and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
   | Ovar_typ of out_type
 
+and out_locality =
+  | Olm_local
+  | Olm_global
+  | Olm_unknown
+
+and out_uniqueness =
+  | Oum_unique
+  | Oum_shared
+  | Oum_unknown
+
+and out_linearity =
+  | Olinm_many
+  | Olinm_once
+  | Olinm_unknown
+
 and out_alloc_mode =
-  | Oam_local
-  | Oam_global
-  | Oam_unknown
+  { oam_locality : out_locality;
+    oam_uniqueness : out_uniqueness;
+    oam_linearity : out_linearity }
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list
@@ -131,6 +146,8 @@ type out_module_type =
   | Omty_ident of out_ident
   | Omty_signature of out_sig_item list
   | Omty_alias of out_ident
+  | Omty_strengthen of out_module_type * out_ident * bool
+        (* the bool indicates whether we should print the unaliasable attribute *)
 and out_sig_item =
   | Osig_class of
       bool * string * out_type_param list * out_class_type *
@@ -151,8 +168,8 @@ and out_type_decl =
     otype_private: Asttypes.private_flag;
 
     (* Some <=> we should print this annotation;
-       see Note [When to print layout annotations] in Printtyp, Case (C1) *)
-    otype_layout: out_layout option;
+       see Note [When to print jkind annotations] in Printtyp, Case (C1) *)
+    otype_jkind: out_jkind option;
 
     otype_unboxed: bool;
     otype_cstrs: (out_type * out_type) list }
@@ -161,7 +178,7 @@ and out_extension_constructor =
     oext_type_name: string;
     oext_type_params: string list;
     oext_args: (out_type * out_global) list;
-    oext_ret_type: (out_vars_layouts * out_type) option;
+    oext_ret_type: (out_vars_jkinds * out_type) option;
     oext_private: Asttypes.private_flag }
 and out_type_extension =
   { otyext_name: string;

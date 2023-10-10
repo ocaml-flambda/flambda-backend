@@ -75,6 +75,8 @@ type operation =
   | Icsel of test
   | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
+  | Ivectorcast of Cmm.vector_cast
+  | Iscalarcast of Cmm.scalar_cast
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
@@ -140,13 +142,6 @@ let end_instr () =
     available_across = None;
   }
 
-let instr_cons d a r n =
-  { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty;
-    available_before = Reg_availability_set.Ok Reg_with_debug_info.Set.empty;
-    available_across = None;
-  }
-
 let instr_cons_debug d a r dbg n =
   { desc = d; next = n; arg = a; res = r; dbg = dbg; live = Reg.Set.empty;
     available_before = Reg_availability_set.Ok Reg_with_debug_info.Set.empty;
@@ -183,8 +178,8 @@ let rec instr_iter f i =
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
             | Icompf _
-            | Icsel _
-            | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+            | Icsel _ | Iscalarcast _
+            | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
             | Ibeginregion | Iendregion | Ipoll _) ->
@@ -207,7 +202,7 @@ let operation_is_pure = function
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Icsel _
-  | Ifloatofint | Iintoffloat
+  | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Iload (_, _, _) -> true
   | Iname_for_debugger _ -> false
@@ -226,8 +221,8 @@ let operation_can_raise op =
   | Iintop_atomic _
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Icsel _ | Iscalarcast _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
