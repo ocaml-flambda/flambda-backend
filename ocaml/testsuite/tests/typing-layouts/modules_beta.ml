@@ -216,7 +216,7 @@ Line 2, characters 2-29:
 Error: The layout of type Bar3.t is value, because
          of the annotation on the declaration of the type t.
        But the layout of type Bar3.t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t/2.
+         of the definition of t at Line 2, characters 2-29.
 |}];;
 
 module rec Foo3 : sig
@@ -346,7 +346,7 @@ Line 5, characters 30-46:
 Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}]
 
 (*****************************************)
@@ -386,7 +386,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 module type S6_6' = sig
@@ -406,7 +406,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 (* CR layouts: S6_6'' should be fixed *)
@@ -427,7 +427,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 (*****************************************)

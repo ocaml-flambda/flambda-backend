@@ -76,7 +76,7 @@ Line 3, characters 21-22:
 Error: This expression has type v but an expression was expected of type
          'a t = ('a : void)
        The layout of v is immediate, because
-         it's an enumeration variant (all constructors are constant).
+         of the definition of v at Line 2, characters 0-10.
        But the layout of v must be a sublayout of void, because
          of the definition of t at Line 1, characters 0-22.
 |}]
@@ -95,7 +95,7 @@ Line 3, characters 24-25:
 Error: This expression has type attr but an expression was expected of type
          'a t = ('a : void)
        The layout of attr is value, because
-         it's an extensible variant.
+         of the definition of attr at Line 2, characters 0-14.
        But the layout of attr must be a sublayout of void, because
          of the definition of t at Line 1, characters 0-22.
 |}]
@@ -133,7 +133,7 @@ Line 2, characters 15-37:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_1)
        The layout of t_any is any, because
-         of the annotation on the declaration of the type t_any.
+         of the definition of t_any at Line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_1, because
          it's matched against a pattern.
 |}]

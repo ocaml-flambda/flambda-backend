@@ -51,9 +51,9 @@ Line 1, characters 27-42:
 1 | module type S1'' = S1 with type s = t_void;;
                                ^^^^^^^^^^^^^^^
 Error: The layout of type t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at Line 5, characters 0-19.
        But the layout of type t_void must be a sublayout of value, because
-         an abstract type has the value layout by default.
+         of the definition of s at Line 11, characters 2-8.
 |}]
 
 module type S1_2 = sig
@@ -199,7 +199,7 @@ Line 2, characters 2-29:
 Error: The layout of type Bar3.t is value, because
          of the annotation on the declaration of the type t.
        But the layout of type Bar3.t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t/2.
+         of the definition of t at Line 2, characters 2-29.
 |}];;
 
 module rec Foo3 : sig
@@ -319,7 +319,7 @@ Line 1, characters 11-15:
                ^^^^
 Error: This type M4.s should be an instance of type ('a : void)
        The layout of M4.s is value, because
-         it's a boxed variant.
+         of the definition of s at Line 2, characters 2-21.
        But the layout of M4.s must be a sublayout of void, because
          of the definition of t4_void at Line 8, characters 0-24.
 |}]
@@ -349,7 +349,7 @@ Line 1, characters 10-15:
               ^^^^^
 Error: This type M4'.s should be an instance of type ('a : void)
        The layout of M4'.s is immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of s at Line 2, characters 2-45.
        But the layout of M4'.s must be a sublayout of void, because
          of the definition of t4_void at Line 8, characters 0-24.
 |}];;
@@ -400,7 +400,7 @@ Line 5, characters 30-46:
 Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}]
 
 (*****************************************)
@@ -426,7 +426,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of void, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-15.
 |}];;
 
 module type S6_3 = sig
@@ -443,7 +443,7 @@ Line 6, characters 33-34:
                                      ^
 Error: Signature package constraint types must have layout value.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at Line 5, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
          it's used as an element in a first-class module.
 |}];;
@@ -469,7 +469,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 module type S6_6' = sig
@@ -489,7 +489,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 (* CR layouts: S6_6'' should be fixed *)
@@ -510,7 +510,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 (*****************************************)
@@ -537,7 +537,7 @@ Line 1, characters 28-33:
                                 ^^^^^
 Error: This type signature for x is not a value type.
        The layout of x is any, because
-         of the annotation on the declaration of the type t_any.
+         of the definition of t_any at Line 1, characters 0-18.
        But the layout of x must be a sublayout of value, because
          it's stored in a module structure.
 |}]

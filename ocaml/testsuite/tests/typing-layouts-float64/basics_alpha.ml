@@ -112,7 +112,7 @@ Line 1, characters 27-28:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's a tuple element.
 |}];;
@@ -150,7 +150,7 @@ Line 1, characters 12-21:
                 ^^^^^^^^^
 Error: Tuple element types must have layout value.
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's a tuple element.
 |}];;
@@ -284,7 +284,7 @@ Line 1, characters 31-40:
                                    ^^^^^^^^^
 Error: This type signature for x is not a value type.
        The layout of x is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of x must be a sublayout of value, because
          it's stored in a module structure.
 |}];;
@@ -324,7 +324,7 @@ Line 1, characters 30-31:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's a field of a polymorphic variant.
 |}];;
@@ -362,7 +362,7 @@ Line 1, characters 20-29:
                         ^^^^^^^^^
 Error: Polymorpic variant constructor argument types must have layout value.
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's a field of a polymorphic variant.
 |}];;
@@ -403,7 +403,7 @@ Line 1, characters 20-39:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          of the definition of id_value at Line 5, characters 13-18.
 |}];;
@@ -585,7 +585,7 @@ Line 1, characters 15-28:
                    ^^^^^^^^^^^^^
 Error: Object field types must have layout value.
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's an object field.
 |}];;
@@ -610,7 +610,7 @@ Line 1, characters 21-56:
 Error: The method x has type t_float64 but is expected to have type
          ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's an object field.
 |}];;
@@ -637,7 +637,7 @@ Line 1, characters 25-26:
                              ^
 Error: Variables bound in a class must have layout value.
        The layout of x is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of x must be a sublayout of value, because
          it's an class field.
 |}];;
@@ -715,7 +715,7 @@ Line 3, characters 17-19:
 Error: This expression has type ('a : value)
        but an expression was expected of type t_float64
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's captured in an object.
 |}];;
@@ -732,7 +732,7 @@ Line 3, characters 17-19:
                      ^^
 Error: m1 must have a type of layout value because it is captured by an object.
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          it's captured in an object.
 |}];;
@@ -751,7 +751,7 @@ Line 1, characters 28-29:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          of layout requirements from an imported definition.
 |}];;
@@ -764,7 +764,7 @@ Line 1, characters 36-37:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          of layout requirements from an imported definition.
 |}];;
@@ -777,7 +777,7 @@ Line 1, characters 45-46:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          of layout requirements from an imported definition.
 |}];;
@@ -790,7 +790,7 @@ Line 1, characters 41-42:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at Line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
          of layout requirements from an imported definition.
 |}];;

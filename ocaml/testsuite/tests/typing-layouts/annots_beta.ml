@@ -227,7 +227,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on the universal variable a.
+         of the definition of r at Line 1, characters 0-47.
 |}]
 
 let r = { field = fun x -> x }
@@ -261,7 +261,7 @@ Line 2, characters 18-55:
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
        The layout of 'a is value, because
-         it's an unannotated universal variable.
+         of the definition of r_value at Line 1, characters 0-39.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on the abstract type declaration for a.
 |}]
