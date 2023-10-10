@@ -834,7 +834,7 @@ module Layout = struct
         let format_id ppf = function
           | Some id -> fprintf ppf " of %s" (Ident.name id)
           | None -> () in
-        fprintf ppf "of definition%a at %a" format_id id Location.print_loc loc
+        fprintf ppf "of the definition%a at %a" format_id id Location.print_loc loc
 
     let format_interact_reason ppf = function
       | Gadt_equation name ->
