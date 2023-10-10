@@ -1174,7 +1174,16 @@ let update_decls_layout_reason decls =
        List.iter
          (fun ty -> Ctype.update_generalized_ty_layout_reason ty reason)
          decl.type_params;
-       (id, decl))
+       Btype.iter_type_expr_kind
+         (fun ty -> Ctype.update_generalized_ty_layout_reason ty reason) decl.type_kind;
+       begin match decl.type_manifest with
+       | None    -> ()
+       | Some ty -> Ctype.update_generalized_ty_layout_reason ty reason
+       end;
+       let new_decl = {decl with type_layout =
+                                   Layout.(update_reason decl.type_layout reason)} in
+       (id, new_decl)
+    )
     decls
 
 let update_decls_layout env decls =
