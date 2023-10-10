@@ -645,7 +645,8 @@ method mark_instr = function
       self#mark_call (* caml_alloc*, caml_garbage_collection (incl. polls) *)
   | Iop (Iintop (Icheckbound) | Iintop_imm(Icheckbound, _))
   | Iop (Iintop(Icheckalign _) | Iintop_imm(Icheckalign _, _)) ->
-      self#mark_c_tailcall (* caml_ml_array_bound_error, caml_ml_array_align_error *)
+      (* caml_ml_array_bound_error, caml_ml_array_align_error *)
+      self#mark_c_tailcall
   | Iraise raise_kind ->
     begin match raise_kind with
       | Lambda.Raise_notrace -> ()

@@ -1983,8 +1983,8 @@ let max_or_zero a dbg =
       let sign_negation = Cop (Cxor, [sign; Cconst_int (-1, dbg)], dbg) in
       Cop (Cand, [sign_negation; a], dbg))
 
-let check_bound safety access_size dbg base length a2 k =
-  match (safety : Lambda.is_safe) with
+let check_bound ~is_safe access_size dbg base length a2 k =
+  match (is_safe : Lambda.is_safe) with
   | Unsafe -> k
   | Safe ->
     let offset, check_align =
@@ -3565,7 +3565,8 @@ let string_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
     (bind "index" (untag_int arg2 dbg) (fun idx ->
          bind "str" arg1 (fun str ->
-             check_bound unsafe size dbg str (string_length str dbg) idx
+             check_bound ~is_safe:unsafe size dbg str (string_length str dbg)
+               idx
                (unaligned_load size str idx dbg))))
 
 let bigstring_load size unsafe mode arg1 arg2 dbg =
@@ -3575,7 +3576,7 @@ let bigstring_load size unsafe mode arg1 arg2 dbg =
              bind "ba_data"
                (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
                (fun ba_data ->
-                 check_bound unsafe size dbg (bigstring_data ba dbg)
+                 check_bound ~is_safe:unsafe size dbg (bigstring_data ba dbg)
                    (bigstring_length ba dbg) idx
                    (unaligned_load size ba_data idx dbg)))))
 
@@ -3793,7 +3794,8 @@ let bytes_set size unsafe arg1 arg2 arg3 dbg =
     (bind "newval" arg3 (fun newval ->
          bind "index" (untag_int arg2 dbg) (fun idx ->
              bind "str" arg1 (fun str ->
-                 check_bound unsafe size dbg str (string_length str dbg) idx
+                 check_bound ~is_safe:unsafe size dbg str
+                   (string_length str dbg) idx
                    (unaligned_set size str idx newval dbg)))))
 
 let bigstring_set size unsafe arg1 arg2 arg3 dbg =
@@ -3805,8 +3807,8 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                    (Cop
                       (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
                    (fun ba_data ->
-                     check_bound unsafe size dbg (bigstring_data ba dbg)
-                       (bigstring_length ba dbg) idx
+                     check_bound ~is_safe:unsafe size dbg
+                       (bigstring_data ba dbg) (bigstring_length ba dbg) idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
 (* Symbols *)
