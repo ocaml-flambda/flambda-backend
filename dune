@@ -209,6 +209,7 @@
   proc
   simd
   simd_selection
+  simd_reload
   reg
   reload
   reloadgen

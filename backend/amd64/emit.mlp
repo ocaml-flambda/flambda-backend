@@ -1121,7 +1121,8 @@ let emit_simd_instr op i =
     I.pextrb (X86_dsl.int n) (arg i 0) (res i 0);
     I.movzx (res8 i 0) (res i 0)
   | SSE41 (Extract_i16 n) ->
-    (* CR mslater: (SIMD) change once we have unboxed int16 *)
+    (* CR mslater: (SIMD) change once we have unboxed int16, 
+       the result will not need to zero-extend. *)
     I.pextrw (X86_dsl.int n) (arg i 0) (res i 0);
     I.movzx (res16 i 0) (res i 0)
   | SSE41 (Extract_i32 n) -> I.pextrd (X86_dsl.int n) (arg i 0) (res32 i 0)
