@@ -2926,9 +2926,9 @@ let tree_of_path = tree_of_path Other
 let tree_of_module ident ?(ellipsis = false) =
   tree_of_module ident ?abbrev:(if ellipsis then Some (Abbrev.ellipsis ()) else None)
 let tree_of_signature sg = tree_of_signature sg
-let tree_of_modtype ~abbrev ty =
+let tree_of_modtype ?(abbrev = false) ty =
   abbreviate ~abbrev tree_of_modtype ty
-let tree_of_modtype_declaration ~abbrev id md =
+let tree_of_modtype_declaration ?(abbrev = false) id md =
   abbreviate ~abbrev tree_of_modtype_declaration id md
 let type_expansion mode ppf ty_exp =
   type_expansion ppf (trees_of_type_expansion mode ty_exp)
