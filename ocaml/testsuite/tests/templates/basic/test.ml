@@ -26,14 +26,16 @@ readonly_files = "\
   semigroup.mli \
   string_monoid.ml string_monoid.mli \
   string_semigroup.ml string_semigroup.mli \
+  test.reference \
   test_direct_access.ml test_direct_access.reference \
 "
 
 * setup-ocamlc.byte-build-env
 ** ocamlc.byte
-flags = "-g -as-parameter"
+flags = "-as-parameter"
 module = "monoid.mli"
 *** ocamlc.byte
+flags = ""
 module = "bad_ref_direct.ml"
 compiler_output = "bad_ref_direct.output"
 ocamlc_byte_exit_status = "2"
@@ -47,7 +49,7 @@ ocamlc_byte_exit_status = "2"
 **** check-ocamlc.byte-output
 compiler_reference = "bad_arg_impl.reference"
 *** ocamlc.byte
-flags = "-g -as-argument-for Monoid"
+flags = "-as-argument-for Monoid"
 module = "bad_arg_intf.mli"
 compiler_output = "bad_arg_intf.output"
 ocamlc_byte_exit_status = "2"
@@ -57,16 +59,20 @@ compiler_reference = "bad_arg_intf.reference"
 src = "string_monoid.ml"
 dst = "string_monoid_no_mli.ml"
 **** ocamlc.byte
-flags = "-g -as-argument-for Monoid"
+flags = "-as-argument-for Monoid"
 module = "string_monoid_no_mli.ml string_monoid.mli string_monoid.ml"
 ***** ocamlc.byte
-flags = "-g"
+flags = ""
 module = "test_direct_access.ml"
 ****** ocamlc.byte
-flags = "-g"
-program = "${test_build_directory}/test_direct_access.exe"
+flags = ""
+program = "${test_build_directory}/test_direct_access.bc"
 module = ""
-all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo"
+all_modules = "\
+   string_monoid.cmo \
+   string_monoid_no_mli.cmo \
+   test_direct_access.cmo \
+"
 ******* run
 output = "test_direct_access.output"
 ******** check-program-output
@@ -76,90 +82,88 @@ module = "semigroup.mli"
 **** ocamlc.byte
 module = "category.mli"
 ***** ocamlc.byte
-flags = "-g -parameter Semigroup -as-argument-for Monoid"
+flags = "-parameter Semigroup -as-argument-for Monoid"
 module = "monoid_of_semigroup.mli"
 ****** ocamlc.byte
-(* Invoke the compiler separately on .mli and .ml just this once to make sure
-   things work this way as well *)
 module = "monoid_of_semigroup.ml"
 ******* ocamlc.byte
-flags = "-g -as-parameter"
+flags = "-as-parameter"
 module = "list_element.mli"
 ******** ocamlc.byte
-flags = "-g -parameter List_element -as-argument-for Monoid"
+flags = "-parameter List_element -as-argument-for Monoid"
 module = "list_monoid.mli list_monoid.ml"
 ********* ocamlc.byte
-flags = "-g -parameter Monoid"
+flags = "-parameter Monoid"
 module = "monoid_utils.mli monoid_utils.ml"
 ********** ocamlc.byte
-flags = "-g"
+flags = ""
 module = "bad_ref_indirect.ml"
 compiler_output = "bad_ref_indirect.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_ref_indirect.reference"
 ********** ocamlc.byte
-flags = "-g -parameter List_element"
+flags = "-parameter List_element"
 module = "bad_instance_arg_name_not_found.ml"
 compiler_output = "bad_instance_arg_name_not_found.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_name_not_found.reference"
 ********** ocamlc.byte
-flags = "-g -parameter List_element"
+flags = "-parameter List_element"
 module = "bad_instance_arg_value_not_arg.ml"
 compiler_output = "bad_instance_arg_value_not_arg.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_not_arg.reference"
 ********** ocamlc.byte
-flags = "-g -parameter List_element"
+flags = "-parameter List_element"
 module = "bad_instance_arg_value_not_found.ml"
 compiler_output = "bad_instance_arg_value_not_found.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_not_found.reference"
 ********** ocamlc.byte
-flags = "-g -parameter Semigroup"
+flags = "-parameter Semigroup"
 module = "bad_ref_direct_imported.ml"
 compiler_output = "bad_ref_direct_imported.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_ref_direct_imported.reference"
 ********** ocamlc.byte
-flags = "-g -parameter Category"
+flags = "-parameter Category"
 module = "chain.mli chain.ml"
 *********** ocamlc.byte
-flags = "-g -parameter Category"
+flags = "-parameter Category"
 module = "category_utils.mli category_utils.ml"
 ************ ocamlc.byte
-flags = "-g -parameter Monoid -as-argument-for Category"
+flags = "-parameter Monoid -as-argument-for Category"
 module = "category_of_monoid.mli category_of_monoid.ml"
 ************* ocamlc.byte
-flags = "-g -parameter List_element"
+flags = "-parameter List_element"
 module = "bad_instance_arg_value_wrong_type.ml"
 compiler_output = "bad_instance_arg_value_wrong_type.output"
 ocamlc_byte_exit_status = "2"
 ************** check-ocamlc.byte-output
 compiler_reference = "bad_instance_arg_value_wrong_type.reference"
 ************* ocamlc.byte
-flags = "-g -parameter Semigroup -parameter List_element -w -misplaced-attribute"
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "import.ml"
 ************** ocamlc.byte
-flags = "-g -as-argument-for Semigroup"
+flags = "-as-argument-for Semigroup"
 module = "string_semigroup.mli"
 *************** ocamlc.byte
 module = "string_semigroup.ml"
 **************** ocamlc.byte
 module = ""
-flags = "-g -instantiate"
+flags = "-instantiate"
 program = "monoid_of_semigroup-String_semigroup.cmo"
 all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo"
 ***************** ocamlc.byte
-flags = "-g -parameter Semigroup -parameter List_element -w -misplaced-attribute"
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
 ****************** ocamlc.byte
-flags += " -i"
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i"
 module = "main.ml"
 compiler_output = "main.output"
 ******************* check-ocamlc.byte-output
@@ -172,7 +176,7 @@ output = "main-ocamlobjinfo.output"
 ******************** check-program-output
 reference = "main-ocamlobjinfo.reference"
 ******************* ocamlc.byte
-flags = "-g -as-argument-for List_element"
+flags = "-as-argument-for List_element"
 module = "int_list_element.mli int_list_element.ml"
 ******************** ocamlc.byte
 module = ""
@@ -226,16 +230,16 @@ program = "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semig
 all_modules = "category_utils.cmo category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
 ****************************** ocamlc.byte
 module = ""
-flags = "-g -instantiate"
+flags = "-instantiate"
 program = "main-Int_list_element-String_semigroup.cmo"
 all_modules = "main.cmo int_list_element.cmo string_semigroup.cmo"
 ******************************* ocamlc.byte
-flags = "-g -w -misplaced-attribute"
+flags = "-w -misplaced-attribute"
 module = "test.ml"
 ******************************** ocamlc.byte
-flags = "-g"
+flags = ""
+program = "${test_build_directory}/test.bc"
 module = ""
-program = "test.exe"
 all_modules = "\
    string_semigroup.cmo \
    monoid_of_semigroup.cmo \
@@ -261,8 +265,9 @@ all_modules = "\
    test.cmo \
 "
 ********************************* run
-program = "${test_build_directory}/test.exe"
+output = "test.output"
 ********************************** check-program-output
+reference = "test.reference"
 *)
 
 module M =
