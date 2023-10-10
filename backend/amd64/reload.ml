@@ -76,7 +76,7 @@ inherit Reloadgen.reload_generic as super
 
 method! reload_operation op arg res =
   match op with
-  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icheckbound) ->
+  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icheckbound|Icheckalign _) ->
       (* One of the two arguments can reside in the stack, but not both *)
       if stackp arg.(0) && stackp arg.(1)
       then ([|arg.(0); self#makereg arg.(1)|], res)
@@ -106,7 +106,7 @@ method! reload_operation op arg res =
         if stackp res.(0) then [| self#makereg res.(0) |] else res
       in
       arg, res
-  | Iintop(Imulh _ | Idiv | Imod | Ilsl | Ilsr | Iasr | Icheckalign _)
+  | Iintop(Imulh _ | Idiv | Imod | Ilsl | Ilsr | Iasr)
   | Iintop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
                | Imulh _ | Idiv | Imod | Icheckbound | Icheckalign _), _) ->
       (* The argument(s) and results can be either in register or on stack *)
