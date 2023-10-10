@@ -2413,7 +2413,7 @@ let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
     bind "fun" clos (fun clos ->
         Cop
           ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_gen mut clos 0 dbg; arg; clos],
+            [get_field_codepointer mut clos 0 dbg; arg; clos],
             dbg ))
   | _ -> call_caml_apply result arity mut clos args pos mode dbg
 
