@@ -21,5 +21,3 @@ Debian architecture name: `amd64`
   _x64 Software Conventions_ from MSDN
 * SIMD Intrinsics API
   [Intel Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)
-* x86 instruction encoding
-  [x86 and amd64 instruction reference (Felix Cloutier)](https://www.felixcloutier.com/x86/)
