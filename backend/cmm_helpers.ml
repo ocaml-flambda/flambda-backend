@@ -2339,8 +2339,7 @@ let split_arity_for_apply arity args =
      keep caml_apply as is; otherwise, split at caml_apply[max_arity] *)
   let max_arity = Lambda.max_arity () in
   if List.compare_length_with arity max_arity <= 0
-  then
-    (arity, args), None
+  then (arity, args), None
   else
     let a1, a2 = Misc.Stdlib.List.split_at max_arity arity in
     let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
@@ -2417,19 +2416,19 @@ let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
             dbg ))
   | _ -> call_caml_apply result arity mut clos args pos mode dbg
 
-
-let rec might_split_call_caml_apply ?old_region result arity
-    mut clos args pos mode dbg =
+let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
+    mode dbg =
   match split_arity_for_apply arity args with
-  | (arity, args), None ->
-    (match old_region with
-     | None ->
-       apply_or_call_caml_apply result arity mut clos args pos mode dbg
-     | Some old_region ->
-       maybe_reset_current_region ~dbg:placeholder_dbg
-         ~body_tail:(call_caml_apply result arity mut clos args pos mode dbg)
-         ~body_nontail:(call_caml_apply result arity mut clos args Rc_normal Lambda.alloc_local dbg)
-         old_region)
+  | (arity, args), None -> (
+    match old_region with
+    | None -> apply_or_call_caml_apply result arity mut clos args pos mode dbg
+    | Some old_region ->
+      maybe_reset_current_region ~dbg:placeholder_dbg
+        ~body_tail:(call_caml_apply result arity mut clos args pos mode dbg)
+        ~body_nontail:
+          (call_caml_apply result arity mut clos args Rc_normal
+             Lambda.alloc_local dbg)
+        old_region)
   | (arity, args), Some (arity', args') -> (
     let body old_region =
       bind "result"
