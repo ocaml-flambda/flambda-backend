@@ -196,34 +196,6 @@ let tree_for_mode mode =
     compile "string_semigroup.ml";
     instantiate "monoid_of_semigroup-String_semigroup"
       ("monoid_of_semigroup", [ "string_semigroup" ]) ~flags:"";
-    compile "main.mli"
-      ~flags:"-parameter Semigroup -parameter List_element -w -misplaced-attribute";
-    Branch (Seq [
-      Act (compiler, [
-        "flags", "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
-        "module", "main.ml";
-        "compiler_output", "main.output";
-      ]);
-      Act (!%"check-%s-output" compiler, [
-        "compiler_reference", "main.reference"
-      ]);
-    ]);
-    compile "main.ml";
-    Branch (
-      match mode with
-      | Byte -> Seq [
-          Act ("ocamlobjinfo", [
-            "program", !%"main.%s main.cmi" cmo;
-            "output", "main-ocamlobjinfo.output";
-          ]);
-          Act ("check-program-output", [
-            "reference", "main-ocamlobjinfo.reference";
-          ])
-        ]
-      | Native ->
-        (* flambda output is too noisy *)
-        Nop
-    );
     compile "int_list_element.mli int_list_element.ml"
       ~flags:"-as-argument-for List_element";
     instantiate "list_monoid-Int_list_element"
@@ -263,6 +235,34 @@ let tree_for_mode mode =
       "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup"
       ("category_utils", [ "category_of_monoid-Monoid_of_semigroup--String_semigroup" ])
       ~flags:"";
+    compile "main.mli"
+      ~flags:"-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+    Branch (Seq [
+      Act (compiler, [
+        "flags", "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+        "module", "main.ml";
+        "compiler_output", "main.output";
+      ]);
+      Act (!%"check-%s-output" compiler, [
+        "compiler_reference", "main.reference"
+      ]);
+    ]);
+    compile "main.ml";
+    Branch (
+      match mode with
+      | Byte -> Seq [
+          Act ("ocamlobjinfo", [
+            "program", !%"main.%s main.cmi" cmo;
+            "output", "main-ocamlobjinfo.output";
+          ]);
+          Act ("check-program-output", [
+            "reference", "main-ocamlobjinfo.reference";
+          ])
+        ]
+      | Native ->
+        (* flambda output is too noisy *)
+        Nop
+    );
     instantiate
       "main-Int_list_element-String_semigroup"
       ("main", [ "int_list_element"; "string_semigroup" ])
