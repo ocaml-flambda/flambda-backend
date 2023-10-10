@@ -163,7 +163,9 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
-    | Punboxed_vector (Pvec128 _) -> Onetwentyeight_unaligned
+    | Punboxed_vector (Pvec128 _) ->
+      (* Record fields are not 16-byte aligned. *)
+      Onetwentyeight_unaligned
     | Punboxed_product _ ->
       Misc.fatal_error "Unboxed products cannot be stored as fields for now."
     | Ptop ->
