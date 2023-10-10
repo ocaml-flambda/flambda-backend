@@ -72,7 +72,7 @@ let check_units members =
       | PM_impl infos ->
           Array.iter
             (fun import ->
-              let unit = Import_info.cu import in
+              let unit = Import_info.Impl.cu import in
               let name = CU.name unit in
               if List.mem name forbidden
               then raise(Error(Forward_reference(mb.pm_file, name))))
@@ -165,9 +165,14 @@ let get_approx ui =
 let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
-  let filter lst =
+  let filter_cmi lst =
     List.filter (fun import ->
-      not (List.mem (Import_info.name import) unit_names)) lst in
+      not (List.mem (Import_info.Intf.name import) unit_names)) lst
+  in
+  let filter_cmx lst =
+    List.filter (fun import ->
+      let name = Compilation_unit.name (Import_info.Impl.cu import) in
+      not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left
@@ -198,12 +203,12 @@ let build_package_cmx members cmxfile =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_unit];
       ui_imports_cmi =
-          (Import_info.create modname
+          (Import_info.Intf.create modname
             ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::
-            filter (Asmlink.extract_crc_interfaces ())
+            filter_cmi (Asmlink.extract_crc_interfaces ())
           |> Array.of_list;
       ui_imports_cmx =
-          (filter(Asmlink.extract_crc_implementations()))
+          (filter_cmx(Asmlink.extract_crc_implementations()))
           |> Array.of_list;
       ui_curry_fun =
           union(List.map (fun info -> info.ui_curry_fun) units);
