@@ -1,3 +1,6 @@
+(* If this is [test.ml], instead change [test.in.ml] and/or [gen_test.ml] and
+   re-run [gen_test.ml]. *)
+
 (* TEST
 
 readonly_files = "\
