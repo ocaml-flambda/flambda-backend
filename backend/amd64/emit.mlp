@@ -1138,7 +1138,10 @@ let emit_simd_instr op i =
   | SSE41 Min_i32 -> I.pminsd (arg i 1) (res i 0)
   | SSE41 Min_unsigned_i16 -> I.pminuw (arg i 1) (res i 0)
   | SSE41 Min_unsigned_i32 -> I.pminud (arg i 1) (res i 0)
-  | SSE41 (Round_scalar_f64 n) -> I.roundsd n (arg i 0) (res i 0)
+  | SSE41 (Round_scalar_f64 n) ->
+    if arg i 0 <> res i 0 then
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+    I.roundsd n (arg i 0) (res i 0)
   | SSE41 (Round_f64 n) -> I.roundpd n (arg i 0) (res i 0)
   | SSE41 (Round_f32 n) -> I.roundps n (arg i 0) (res i 0)
   | SSE41 (Multi_sad_unsigned_i8 n) -> I.mpsadbw (X86_dsl.int n) (arg i 1) (res i 0)
