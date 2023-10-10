@@ -365,8 +365,6 @@ val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
 
-val bigstring_data : expression -> Debuginfo.t -> expression
-
 val bigstring_get_alignment :
   expression -> expression -> int -> Debuginfo.t -> expression
 
@@ -472,13 +470,14 @@ val make_float_alloc :
 (** Generate a [Ccheckbound] term *)
 val make_checkbound : Debuginfo.t -> expression list -> expression
 
-(** [check_bound ~is_safe access_size dbg data length offset k] prefixes
-    expression [k] with a check that accessing [access_size] bits at
-    [data + offset] is valid, unless [is_safe] is [Unsafe].
+(** [check_bound_and_alignment
+        ~skip_if_unsafe access_size dbg data length offset k]
+    Prefixes expression [k] with a check that accessing [access_size] bits at
+    [data + offset] is valid, unless [skip_if_unsafe] is [Unsafe].
     An access is valid if it is within the bound specified by [length], and
     the resulting address is sufficiently aligned. *)
-val check_bound :
-  is_safe:Lambda.is_safe ->
+val check_bound_and_alignment :
+  skip_if_unsafe:Lambda.is_safe ->
   Clambda_primitives.memory_access_size ->
   Debuginfo.t ->
   expression ->
