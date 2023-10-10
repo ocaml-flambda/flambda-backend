@@ -104,11 +104,12 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
  fun state cfg_with_infos ->
   if split_debug then log ~indent:0 "compute_substitutions";
   let cfg = Cfg_with_infos.cfg cfg_with_infos in
-  let dom_tree =
-    Cfg_dominators.dominator_tree (Cfg_with_infos.dominators cfg_with_infos)
+  let dom_forest =
+    Cfg_dominators.dominator_forest (Cfg_with_infos.dominators cfg_with_infos)
   in
   let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
-  compute_substitution_tree state substs Reg.Map.empty dom_tree;
+  List.iter dom_forest ~f:(fun dom_tree ->
+      compute_substitution_tree state substs Reg.Map.empty dom_tree);
   substs
 
 let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
