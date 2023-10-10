@@ -223,6 +223,7 @@ type instruction =
   | MINPD of arg * arg
   | MULPD of arg * arg
   | DIVPD of arg * arg
+  | SQRTPD of arg * arg
   | PAND of arg * arg
   | PANDNOT of arg * arg
   | POR of arg * arg

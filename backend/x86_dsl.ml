@@ -235,6 +235,7 @@ module I = struct
   let minpd x y = emit (MINPD (x, y))
   let mulpd x y = emit (MULPD (x, y))
   let divpd x y = emit (DIVPD (x, y))
+  let sqrtpd x y = emit (SQRTPD (x, y))
   let pand x y = emit (PAND (x, y))
   let pandnot x y = emit (PANDNOT (x, y))
   let por x y = emit (POR (x, y))
