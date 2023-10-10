@@ -196,9 +196,9 @@ Line 5, characters 20-44:
 Error: This expression has type 'a t_vv = ('a : void)
        but an expression was expected of type 'b t_v = ('b : value)
        The layout of 'a is value, because
-         of definition of f2 at Line 4, characters 9-10.
+         of the definition of f2 at Line 4, characters 9-10.
        But the layout of 'a must overlap with void, because
-         of definition of t_vv at Line 2, characters 0-26.
+         of the definition of t_vv at Line 2, characters 0-26.
 |}]
 
 type ('a : value) t_v = 'a
@@ -219,9 +219,9 @@ Line 6, characters 19-43:
 Error: This expression has type 'a t_v2 = ('a : void)
        but an expression was expected of type 'b t_v = ('b : value)
        The layout of 'a is value, because
-         of definition of f at Line 4, characters 6-19.
+         of the definition of f at Line 4, characters 6-19.
        But the layout of 'a must overlap with void, because
-         of definition of t_v2 at Line 3, characters 0-22.
+         of the definition of t_v2 at Line 3, characters 0-22.
 |}]
 
 
@@ -251,7 +251,7 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : void)
        because their layouts are different.
        The layout of 'a is value, because
-         of definition of t at Line 8, characters 2-16.
+         of the definition of t at Line 8, characters 2-16.
        The layout of 'a is void, because
-         of definition of t at Line 2, characters 2-25.
+         of the definition of t at Line 2, characters 2-25.
 |}]

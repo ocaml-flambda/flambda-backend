@@ -238,7 +238,7 @@ Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of imm_id at Line 1, characters 0-33.
+         of the definition of imm_id at Line 1, characters 0-33.
 |}];;
 
 let id_for_imms (x : 'a imm_id) = x
@@ -261,7 +261,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of id_for_imms at Line 1, characters 16-35.
+         of the definition of id_for_imms at Line 1, characters 16-35.
 |}]
 
 (************************************)
@@ -378,7 +378,7 @@ Lines 4-5, characters 33-22:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
-         of definition of void5 at Line 1, characters 0-37.
+         of the definition of void5 at Line 1, characters 0-37.
        But the layout of 'a must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}];;
@@ -393,7 +393,7 @@ Error: This type int should be an instance of type ('a : void)
        The layout of int is immediate, because
          it is the primitive immediate type int.
        But the layout of int must be a sublayout of void, because
-         of definition of void5 at Line 1, characters 0-37.
+         of the definition of void5 at Line 1, characters 0-37.
 |}];;
 
 let h5' (x : int any5) = Void5 x
@@ -406,7 +406,7 @@ Error: This expression has type int any5
        The layout of int any5 is value, because
          it's a boxed variant.
        But the layout of int any5 must be a sublayout of void, because
-         of definition of void5 at Line 1, characters 0-37.
+         of the definition of void5 at Line 1, characters 0-37.
 |}];;
 
 (* disallowed - tries to return void *)
@@ -421,7 +421,7 @@ Lines 1-3, characters 6-16:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
-         of definition of void5 at Line 1, characters 0-37.
+         of the definition of void5 at Line 1, characters 0-37.
        But the layout of 'a must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -452,7 +452,7 @@ Error: This definition has type 'b -> unit which is less general than
        The layout of 'a is value, because
          it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
-         of definition of t6_imm at Line 1, characters 0-42.
+         of the definition of t6_imm at Line 1, characters 0-42.
 |}];;
 
 let o6 = object
@@ -468,7 +468,7 @@ Error: This method has type 'b -> unit which is less general than
        The layout of 'a is value, because
          it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
-         of definition of t6_imm at Line 1, characters 0-42.
+         of the definition of t6_imm at Line 1, characters 0-42.
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -490,7 +490,7 @@ Error: This type int * int should be an instance of type ('a : immediate)
        The layout of int * int is value, because
          it's a tuple type.
        But the layout of int * int must be a sublayout of immediate, because
-         of definition of t7 at Line 1, characters 0-37.
+         of the definition of t7 at Line 1, characters 0-37.
 |}]
 
 (**********************************************************)
@@ -542,7 +542,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         of definition of t at Line 2, characters 2-42.
+         of the definition of t at Line 2, characters 2-42.
 |}];;
 
 module M8_4 = struct
@@ -656,7 +656,7 @@ Error: This type t_void should be an instance of type ('a : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         of definition of t at Line 2, characters 2-24.
+         of the definition of t at Line 2, characters 2-24.
 |}];;
 
 module M9_6 = struct
@@ -747,7 +747,7 @@ Error: Signature mismatch:
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of x at Line 8, characters 10-26.
+         of the definition of x at Line 8, characters 10-26.
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -787,7 +787,7 @@ Error: Signature mismatch:
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of x at Line 8, characters 10-26.
+         of the definition of x at Line 8, characters 10-26.
 |}]
 
 (**************************************************************)
@@ -804,7 +804,7 @@ Line 5, characters 4-7:
         ^^^
 Error: Methods must have layout value.
        The layout of this expression is void, because
-         of definition of t at Line 2, characters 2-42.
+         of the definition of t at Line 2, characters 2-42.
        But the layout of this expression must overlap with value, because
          it's an object.
 |}]
@@ -836,7 +836,7 @@ Line 4, characters 12-33:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
-         of definition of t at Line 2, characters 2-30.
+         of the definition of t at Line 2, characters 2-30.
        But the layout of 'a must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}];;
@@ -962,7 +962,7 @@ Error: This type ('a : void) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
          it's a term-level argument to a class constructor.
        But the layout of 'a must overlap with void, because
-         of definition of t at Line 2, characters 2-20.
+         of the definition of t at Line 2, characters 2-20.
 |}];;
 
 module M12_5 = struct
@@ -981,7 +981,7 @@ Error: This type ('a : void) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
          it's a term-level argument to a class constructor.
        But the layout of 'a must overlap with void, because
-         of definition of t at Line 2, characters 2-30.
+         of the definition of t at Line 2, characters 2-30.
 |}];;
 
 module type S12_6 = sig
@@ -1001,7 +1001,7 @@ Error: This type ('a : void) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
          it's a term-level argument to a class constructor.
        But the layout of 'a must overlap with void, because
-         of definition of t at Line 2, characters 2-30.
+         of the definition of t at Line 2, characters 2-30.
 |}];;
 
 module type S12_7 = sig
@@ -1336,7 +1336,7 @@ Lines 5-7, characters 6-20:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because
-         of definition of r at Line 3, characters 0-40.
+         of the definition of r at Line 3, characters 0-40.
        But the layout of 'a must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}];;
@@ -1712,7 +1712,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         of definition of eq at Line 2, characters 2-43.
+         of the definition of eq at Line 2, characters 2-43.
 |}]
 
 (**************************************)
@@ -1741,7 +1741,7 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         of definition of f at Line 3, characters 4-20.
+         of the definition of f at Line 3, characters 4-20.
 |}]
 
 (**************************************************)
@@ -1820,5 +1820,5 @@ Error: This expression has type t_void but an expression was expected of type
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
        But the layout of t_void must be a sublayout of value, because
-         of definition of t35 at Line 1, characters 0-16.
+         of the definition of t35 at Line 1, characters 0-16.
 |}]

@@ -105,7 +105,7 @@ Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of t2_imm at Line 1, characters 0-28.
+         of the definition of t2_imm at Line 1, characters 0-28.
 |}]
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -280,7 +280,7 @@ Line 3, characters 15-39:
 Error: The layout of type 'a is value, because
          of the annotation on the universal variable a.
        But the layout of type 'a must be a sublayout of immediate, because
-         of definition of t_imm at Line 1, characters 0-27.
+         of the definition of t_imm at Line 1, characters 0-27.
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard
    to improve, because it comes from re-checking typedtree, where we don't

@@ -85,9 +85,9 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
        The layout of 'a is value, because
-         of definition of t at Line 2, characters 2-21.
+         of the definition of t at Line 2, characters 2-21.
        The layout of 'a is immediate, because
-         of definition of t at Line 2, characters 2-25.
+         of the definition of t at Line 2, characters 2-25.
 |}]
 
 module M1_2''' : S1_2 = struct
@@ -111,9 +111,9 @@ Error: Signature mismatch:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
        The layout of 'a is value, because
-         of definition of t at Line 2, characters 2-21.
+         of the definition of t at Line 2, characters 2-21.
        The layout of 'a is immediate, because
-         of definition of t at Line 2, characters 2-25.
+         of the definition of t at Line 2, characters 2-25.
 |}]
 
 (************************************************************************)
@@ -157,7 +157,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of t at Line 2, characters 2-25.
+         of the definition of t at Line 2, characters 2-25.
 |}]
 
 (******************************************************************)
@@ -330,7 +330,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of definition of f at Line 3, characters 2-20.
+         of the definition of f at Line 3, characters 2-20.
 |}]
 
 module type S3_2 = sig
