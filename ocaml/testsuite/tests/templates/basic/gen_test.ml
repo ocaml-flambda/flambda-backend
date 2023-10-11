@@ -93,10 +93,11 @@ let tree_for_mode mode =
     | None -> vars
     | Some flags -> ("flags", flags) :: vars
   in
-  let compile ?flags filenames =
-    Act (compiler, add_flags ~flags [
+  let add_extra ?(extra = []) vars = extra @ vars in
+  let compile ?flags ?extra filenames =
+    Act (compiler, add_flags ~flags (add_extra ?extra [
       "module", filenames;
-    ])
+    ]))
   in
   let compile_bad ~ext ?flags module_ =
     Branch (Seq [
