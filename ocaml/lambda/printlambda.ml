@@ -868,7 +868,7 @@ let rec lam ppf = function
   | Lwhile {wh_cond; wh_body} ->
       fprintf ppf "@[<2>(while@ %a@ %a)@]"
         lam wh_cond lam wh_body
-  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+  | Lfor {for_id; for_loc = _; for_from; for_to; for_dir; for_body} ->
       fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
        Ident.print for_id lam for_from
        (match for_dir with Upto -> "to" | Downto -> "downto")

@@ -513,7 +513,10 @@ type ('dot,'index) array_family = {
 
 }
 
-let bigarray_untuplify = function
+let bigarray_untuplify exp =
+  match Jane_syntax.Expression.of_ast exp with
+  | Some _ -> [exp]
+  | None -> match exp with
     { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> explist
   | exp -> [exp]
 

@@ -62,10 +62,12 @@ let print_arms ppf arms =
         action)
     arms
 
-let print ppf { condition_dbg = _; scrutinee; arms } =
-  fprintf ppf "@[<v 0>(%tswitch%t %a@ @[<v 0>%a@])@]"
+let print ppf { condition_dbg; scrutinee; arms } =
+  fprintf ppf "@[<v 0>(%tswitch%t %a%s%t%a%t@ @[<v 0>%a@])@]"
     Flambda_colours.expr_keyword Flambda_colours.pop Simple.print scrutinee
-    print_arms arms
+    (if Debuginfo.is_none condition_dbg then "" else " ")
+    Flambda_colours.debuginfo Debuginfo.print_compact condition_dbg
+    Flambda_colours.pop print_arms arms
 
 let create ~condition_dbg ~scrutinee ~arms = { condition_dbg; scrutinee; arms }
 

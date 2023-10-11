@@ -691,6 +691,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let body = transl_exp ~scopes for_body_sort for_body in
       Lfor {
         for_id;
+        for_loc = of_location ~scopes e.exp_loc;
         for_from = transl_exp ~scopes Jkind.Sort.for_predef_value for_from;
         for_to = transl_exp ~scopes Jkind.Sort.for_predef_value for_to;
         for_dir;

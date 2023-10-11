@@ -19,7 +19,7 @@ let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
-let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
+let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 

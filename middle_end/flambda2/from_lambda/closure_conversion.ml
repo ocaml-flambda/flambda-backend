@@ -1236,19 +1236,20 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   in
   let acc, arms =
     List.fold_left_map
-      (fun acc (case, cont, trap_action, args) ->
+      (fun acc (case, cont, dbg, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
         let args_approx = List.map (find_value_approximation env) args in
         let action acc =
           Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
-            ~dbg:condition_dbg
+            ~dbg
         in
         acc, (Targetint_31_63.of_int case, action))
       acc sw.consts
   in
   match arms, sw.failaction with
-  | [(case, action)], Some (default_action, default_trap_action, default_args)
+  | ( [(case, action)],
+      Some (default_action, dbg, default_trap_action, default_args) )
     when sw.numconsts >= 3 ->
     (* Avoid enormous switches, where every arm goes to the same place except
        one, that arise from single-arm [Lambda] switches with a default case.
@@ -1267,8 +1268,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, default_action =
       let acc, args = find_simples acc env default_args in
       let trap_action = close_trap_action_opt default_trap_action in
-      Apply_cont_with_acc.create acc ?trap_action default_action ~args
-        ~dbg:condition_dbg
+      Apply_cont_with_acc.create acc ?trap_action default_action ~args ~dbg
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
@@ -1289,7 +1289,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, arms =
       match sw.failaction with
       | None -> acc, Targetint_31_63.Map.of_list arms
-      | Some (default, trap_action, args) ->
+      | Some (default, dbg, trap_action, args) ->
         Numeric_types.Int.Set.fold
           (fun case (acc, cases) ->
             let case = Targetint_31_63.of_int case in
@@ -1299,8 +1299,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
               let default acc =
-                Apply_cont_with_acc.create acc ?trap_action default ~args
-                  ~dbg:condition_dbg
+                Apply_cont_with_acc.create acc ?trap_action default ~args ~dbg
               in
               acc, Targetint_31_63.Map.add case default cases)
           (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
