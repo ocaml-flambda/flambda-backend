@@ -3,6 +3,9 @@
  * expect
 *)
 
+(*************************)
+(* Float64 layout errors *)
+
 (* Primitive *)
 let f (x: float#): ('a : value) = x
 [%%expect{|

@@ -3,8 +3,11 @@
  * expect
 *)
 
+(***************************)
+(* Immediate layout errors *)
+
 (* Empty_record *)
-(* CR layouts v2.9: Records with all void fields are not yet supported *)
+(* Records with all void fields are not yet supported *)
 
 (* Enumeration *)
 type ('a: void) t = 'a
@@ -57,7 +60,7 @@ Error: This expression has type [ `A | `B ]
 |}]
 
 (* Gc_ignorable_check *)
-(* CR layouts v2.9: Add test *)
+(* Only used within [Result.is_ok] and not thrown as an exception *)
 
 (* Value_kind *)
 (* Not used anywhere *)

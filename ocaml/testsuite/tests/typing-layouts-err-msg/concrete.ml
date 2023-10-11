@@ -3,6 +3,9 @@
  * expect
 *)
 
+(**************************)
+(* Concrete layout errors *)
+
 type t_any : any
 type t_void : void
 
@@ -68,10 +71,10 @@ Error: This type t_any should be an instance of type
 |}]
 
 (* Record_projection *)
-(* can't have a type with layout any in a record *)
+(* Can't have a type with layout any in a record *)
 
 (* Record_assignment *)
-(* can't have a type with layout any in a record *)
+(* Can't have a type with layout any in a record *)
 
 (* Let_binding *)
 let x: t_any = assert false
@@ -121,18 +124,18 @@ Error: This expression has type t_any but an expression was expected of type
 |}]
 
 (* Structure_item_expression *)
-(* see [concrete_struct_item_expr.ml] *)
+(* See [concrete_struct_item_expr.ml] *)
 
 (* V1_safety_check *)
-(* see [concrete_v1_check.ml] *)
+(* See [concrete_v1_check.ml] *)
 
 (* External_argument *)
 (* external eq : t_any -> 'a -> bool = "%equal" *)
-(* shadowed by Function_argument *)
+(* Shadowed by Function_argument *)
 
 (* External_result *)
 (* external eq : 'a -> 'a -> t_any = "%equal" *)
-(* shadowed by Function_result *)
+(* Shadowed by Function_result *)
 
 (* Statement *)
 let _ = (assert false : t_any); ()

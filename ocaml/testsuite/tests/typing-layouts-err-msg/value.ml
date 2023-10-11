@@ -3,6 +3,9 @@
  * expect
 *)
 
+(***********************)
+(* Value layout errors *)
+
 type t_any   : any
 type t_value : value
 type t_imm   : immediate
@@ -55,7 +58,7 @@ Error: Tuple element types must have layout value.
 |}];;
 
 (* Probe *)
-(* CR layouts v2.9: add test *)
+(* See [probe.ml] *)
 
 (* Package_hack *)
 module type S = sig
@@ -283,7 +286,7 @@ Error: This expression has type (module X_int)
 |}]
 
 (* Separability_check *)
-(* CR layouts v2.9: add test *)
+(* Only used within [Result.is_error] and not thrown as an exception *)
 
 (* Univar *)
 let f: 'a. 'a -> ('b : void) = fun x -> x
@@ -333,7 +336,7 @@ Error: This expression has type t but an expression was expected of type
 (* CR layouts v2.9: add test *)
 
 (* Existential_type_variable *)
-(* see [gadt_existential.ml] *)
+(* See [gadt_existential.ml] *)
 
 (* Array_element *)
 let f (x : t_float64) = [| x |]

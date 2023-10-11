@@ -3,6 +3,9 @@
  * expect
 *)
 
+(*********************)
+(* Any layout errors *)
+
 (* Missing_cmi *)
 (* Wildcard *)
 (* Unification_var *)

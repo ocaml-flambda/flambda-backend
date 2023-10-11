@@ -40,7 +40,7 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
 |}]
 
 (* With_constraint *)
-(* not used in the codebase *)
+(* Not used in the codebase *)
 
 (* Newtype_declaration *)
 let f (type a : void) (x: a value) = x
