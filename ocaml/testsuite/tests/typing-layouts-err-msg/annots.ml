@@ -39,9 +39,6 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
          of the definition of value at line 1, characters 0-30.
 |}]
 
-(* With_constraint *)
-(* Not used in the codebase *)
-
 (* Newtype_declaration *)
 let f (type a : void) (x: a value) = x
 

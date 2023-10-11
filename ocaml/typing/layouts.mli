@@ -149,7 +149,6 @@ module Layout : sig
   type annotation_context =
     | Type_declaration of Path.t
     | Type_parameter of Path.t * string option
-    | With_constraint of string
     | Newtype_declaration of string
     | Constructor_type_parameter of Path.t * string
     | Univar of string

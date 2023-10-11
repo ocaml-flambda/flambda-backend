@@ -316,7 +316,6 @@ module Layout = struct
   type annotation_context =
     | Type_declaration of Path.t
     | Type_parameter of Path.t * string option
-    | With_constraint of string
     | Newtype_declaration of string
     | Constructor_type_parameter of Path.t * string
     | Univar of string
@@ -690,8 +689,6 @@ module Layout = struct
           fprintf ppf "@[%s@ in the declaration of the type@ %a@]"
             var_string
             !printtyp_path path
-      | With_constraint s ->
-          fprintf ppf "the `with` constraint for %s" s
       | Newtype_declaration name ->
           fprintf ppf "the abstract type declaration for %s"
             name
@@ -1117,8 +1114,6 @@ module Layout = struct
           fprintf ppf "Type_parameter (%a, %a)"
             Path.print p
             (Misc.Stdlib.Option.print Misc.Stdlib.String.print) var
-      | With_constraint s ->
-          fprintf ppf "With_constraint %S" s
       | Newtype_declaration name ->
           fprintf ppf "Newtype_declaration %s" name
       | Constructor_type_parameter (cstr, name) ->
