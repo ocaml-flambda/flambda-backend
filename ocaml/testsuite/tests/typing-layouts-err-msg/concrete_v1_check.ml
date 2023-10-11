@@ -1,6 +1,6 @@
 (* TEST
    flags = "-extension layouts_alpha"
- * toplevel
+   * toplevel
 *)
 
 type t_void : void;;

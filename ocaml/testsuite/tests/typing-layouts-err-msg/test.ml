@@ -1,11 +1,10 @@
 (* TEST
-
-readonly_files = "a.ml"
-flags = "-extension layouts_alpha"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "a.ml"
-*** expect
+   readonly_files = "a.ml"
+   flags = "-extension layouts_alpha"
+   * setup-ocamlc.byte-build-env
+   ** ocamlc.byte
+   module = "a.ml"
+   *** expect
 *)
 
 #directory "ocamlc.byte";;
