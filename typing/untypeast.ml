@@ -147,6 +147,10 @@ let attribute sub a = {
 
 let attributes sub l = List.map (sub.attribute sub) l
 
+let var_jkind ~loc (var, jkind) =
+  let add_loc x = mkloc x loc in
+  add_loc var, Option.map add_loc jkind
+
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
 
@@ -198,7 +202,17 @@ let structure_item sub item =
              (fun (_id, _name, ct) -> sub.class_type_declaration sub ct)
              list)
     | Tstr_include incl ->
-        Pstr_include (sub.include_declaration sub incl)
+        let pincl = sub.include_declaration sub incl in
+        begin match incl.incl_kind with
+        | Tincl_structure ->
+            Pstr_include pincl
+        | Tincl_functor _ | Tincl_gen_functor _ ->
+          let stri =
+            Jane_syntax.Include_functor.str_item_of ~loc
+              (Jane_syntax.Include_functor.Ifstr_include_functor pincl)
+          in
+          stri.pstr_desc
+        end
     | Tstr_attribute x ->
         Pstr_attribute x
   in
@@ -251,10 +265,12 @@ let constructor_arguments sub = function
 let constructor_declaration sub cd =
   let loc = sub.location sub cd.cd_loc in
   let attrs = sub.attributes sub cd.cd_attributes in
-  Type.constructor ~loc ~attrs
-    ~vars:cd.cd_vars
+  let vars_jkinds = List.map (var_jkind ~loc) cd.cd_vars in
+  Jane_syntax.Layouts.constructor_declaration_of ~loc ~attrs
+    ~vars_jkinds
     ~args:(constructor_arguments sub cd.cd_args)
-    ?res:(Option.map (sub.typ sub) cd.cd_res)
+    ~res:(Option.map (sub.typ sub) cd.cd_res)
+    ~info:Docstrings.empty_info
     (map_loc sub cd.cd_name)
 
 let label_declaration sub ld =
@@ -281,24 +297,35 @@ let type_exception sub tyexn =
 let extension_constructor sub ext =
   let loc = sub.location sub ext.ext_loc in
   let attrs = sub.attributes sub ext.ext_attributes in
-  Te.constructor ~loc ~attrs
-    (map_loc sub ext.ext_name)
-    (match ext.ext_kind with
-      | Text_decl (vs, args, ret) ->
-          Pext_decl (vs, constructor_arguments sub args,
-                     Option.map (sub.typ sub) ret)
-      | Text_rebind (_p, lid) -> Pext_rebind (map_loc sub lid)
-    )
+  let name = map_loc sub ext.ext_name in
+  match ext.ext_kind with
+  | Text_decl (vs, args, ret) ->
+    let vs = List.map (var_jkind ~loc) vs in
+    let args = constructor_arguments sub args in
+    let ret = Option.map (sub.typ sub) ret in
+    Jane_syntax.Extension_constructor.extension_constructor_of
+      ~loc ~name ~attrs (Jext_layout (Lext_decl (vs, args, ret)))
+  | Text_rebind (_p, lid) ->
+    Te.constructor ~loc ~attrs name (Pext_rebind (map_loc sub lid))
 
 let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   let loc = sub.location sub pat.pat_loc in
   (* todo: fix attributes on extras *)
   let attrs = sub.attributes sub pat.pat_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes { ppat_attributes; ppat_desc; _ } =
+    attrs := ppat_attributes @ !attrs;
+    ppat_desc
+  in
   let desc =
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
         Ppat_unpack { txt = None; loc  }
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_); _ } ->
+    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_,_); _ } ->
         Ppat_unpack { name with txt = Some name.txt }
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
@@ -308,7 +335,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | _ ->
     match pat.pat_desc with
       Tpat_any -> Ppat_any
-    | Tpat_var (id, name,_) ->
+    | Tpat_var (id, name,_,_) ->
         begin
           match (Ident.name id).[0] with
             'A'..'Z' ->
@@ -321,11 +348,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
        The compiler transforms (x:t) into (_ as x : t).
        This avoids transforming a warning 27 into a 26.
      *)
-    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _mode)
+    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _uid, _mode)
          when pat_loc = pat.pat_loc ->
        Ppat_var name
 
-    | Tpat_alias (pat, _id, name, _mode) ->
+    | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
@@ -361,9 +388,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
-        | Immutable -> Extensions.Immutable_arrays.pat_of
-                         ~loc
-                         (Iapat_immutable_array pats)
+        | Immutable ->
+          Jane_syntax.Immutable_arrays.pat_of
+            ~loc
+            (Iapat_immutable_array pats)
+          |> add_jane_syntax_attributes
       end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
@@ -371,11 +400,21 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_value p -> (sub.pat sub (p :> pattern)).ppat_desc
     | Tpat_or (p1, p2, _) -> Ppat_or (sub.pat sub p1, sub.pat sub p2)
   in
-  Pat.mk ~loc ~attrs desc
+  Pat.mk ~loc ~attrs:!attrs desc
 
 let exp_extra sub (extra, loc, attrs) sexp =
   let loc = sub.location sub loc in
   let attrs = sub.attributes sub attrs in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes { pexp_attributes; pexp_desc; _ } =
+    attrs := pexp_attributes @ !attrs;
+    pexp_desc
+  in
+  let add_loc x = mkloc x loc in
   let desc =
     match extra with
       Texp_coerce (cty1, cty2) ->
@@ -385,9 +424,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_constraint cty ->
         Pexp_constraint (sexp, sub.typ sub cty)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
-    | Texp_newtype s -> Pexp_newtype (mkloc s loc, sexp)
+    | Texp_newtype (s, None) ->
+        Pexp_newtype (add_loc s, sexp)
+    | Texp_newtype (s, Some jkind) ->
+        Jane_syntax.Layouts.expr_of ~loc
+          (Lexp_newtype(add_loc s, add_loc jkind, sexp))
+        |> add_jane_syntax_attributes
   in
-  Exp.mk ~loc ~attrs desc
+  Exp.mk ~loc ~attrs:!attrs desc
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
   {
@@ -403,8 +447,8 @@ let value_binding sub vb =
     (sub.pat sub vb.vb_pat)
     (sub.expr sub vb.vb_expr)
 
-let comprehension ~loc sub comp_type comp =
-  let open Extensions.Comprehensions in
+let comprehension sub comp_type comp =
+  let open Jane_syntax.Comprehensions in
   let iterator = function
     | Texp_comp_range { ident = _; pattern; start ; stop ; direction } ->
         pattern,
@@ -429,16 +473,23 @@ let comprehension ~loc sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  Extensions.Comprehensions.expr_of
-    ~loc
-    (comp_type (comprehension comp))
+  Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes { pexp_attributes; pexp_desc; _ } =
+    attrs := pexp_attributes @ !attrs;
+    pexp_desc
+  in
   let desc =
     match exp.exp_desc with
-      Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
+      Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
     | Texp_constant cst -> Pexp_constant (constant cst)
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
@@ -465,7 +516,7 @@ let expression sub exp =
           List.fold_right (fun (label, arg) list ->
               match arg with
               | Omitted _ -> list
-              | Arg exp -> (label, sub.expr sub exp) :: list
+              | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) list [])
     | Texp_match (exp, _, cases, _) ->
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
@@ -491,7 +542,7 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
-    | Texp_field (exp, lid, _label, _) ->
+    | Texp_field (exp, lid, _label, _, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
@@ -503,21 +554,23 @@ let expression sub exp =
         | Mutable ->
             Pexp_array plist
         | Immutable ->
-            Extensions.Immutable_arrays.expr_of
-              ~loc
-              (Iaexp_immutable_array plist)
+            Jane_syntax.Immutable_arrays.expr_of
+              ~loc (Iaexp_immutable_array plist)
+            |> add_jane_syntax_attributes
       end
     | Texp_list_comprehension comp ->
         comprehension
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
+        |> add_jane_syntax_attributes
     | Texp_array_comprehension (amut, comp) ->
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
+        |> add_jane_syntax_attributes
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
           Option.map (sub.expr sub) expo)
-    | Texp_sequence (exp1, _layout, exp2) ->
+    | Texp_sequence (exp1, _jkind, exp2) ->
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
@@ -525,7 +578,7 @@ let expression sub exp =
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,
           for_dir, sub.expr sub for_body)
-    | Texp_send (exp, meth, _, _) ->
+    | Texp_send (exp, meth, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
           | Tmeth_val id -> mkloc (Ident.name id) loc
@@ -616,7 +669,7 @@ let expression sub exp =
       }, [Nolabel, sub.expr sub exp])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
-    (Exp.mk ~loc ~attrs desc)
+    (Exp.mk ~loc ~attrs:!attrs desc)
 
 let binding_op sub bop pat =
   let pbop_op = bop.bop_op_name in
@@ -667,7 +720,17 @@ let signature_item sub item =
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
     | Tsig_include incl ->
-        Psig_include (sub.include_description sub incl)
+        let pincl = sub.include_description sub incl in
+        begin match incl.incl_kind with
+        | Tincl_structure ->
+            Psig_include pincl
+        | Tincl_functor _ | Tincl_gen_functor _ ->
+          let sigi =
+            Jane_syntax.Include_functor.sig_item_of ~loc
+              (Jane_syntax.Include_functor.Ifsig_include_functor pincl)
+          in
+          sigi.psig_desc
+        end
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->
@@ -720,19 +783,29 @@ let functor_parameter sub : functor_parameter -> Parsetree.functor_parameter =
 let module_type (sub : mapper) mty =
   let loc = sub.location sub mty.mty_loc in
   let attrs = sub.attributes sub mty.mty_attributes in
-  let desc = match mty.mty_desc with
-      Tmty_ident (_path, lid) -> Pmty_ident (map_loc sub lid)
-    | Tmty_alias (_path, lid) -> Pmty_alias (map_loc sub lid)
-    | Tmty_signature sg -> Pmty_signature (sub.signature sub sg)
-    | Tmty_functor (arg, mtype2) ->
-        Pmty_functor (functor_parameter sub arg, sub.module_type sub mtype2)
-    | Tmty_with (mtype, list) ->
-        Pmty_with (sub.module_type sub mtype,
-          List.map (sub.with_constraint sub) list)
-    | Tmty_typeof mexpr ->
-        Pmty_typeof (sub.module_expr sub mexpr)
-  in
-  Mty.mk ~loc ~attrs desc
+  match mty.mty_desc with
+    Tmty_ident (_path, lid) ->
+      Mty.mk ~loc ~attrs (Pmty_ident (map_loc sub lid))
+  | Tmty_alias (_path, lid) ->
+      Mty.mk ~loc ~attrs (Pmty_alias (map_loc sub lid))
+  | Tmty_signature sg ->
+      Mty.mk ~loc ~attrs (Pmty_signature (sub.signature sub sg))
+  | Tmty_functor (arg, mtype2) ->
+      Mty.mk ~loc ~attrs
+        (Pmty_functor
+          (functor_parameter sub arg, sub.module_type sub mtype2))
+  | Tmty_with (mtype, list) ->
+      Mty.mk ~loc ~attrs
+        (Pmty_with (sub.module_type sub mtype,
+          List.map (sub.with_constraint sub) list))
+  | Tmty_typeof mexpr ->
+    Mty.mk ~loc ~attrs (Pmty_typeof (sub.module_expr sub mexpr))
+  | Tmty_strengthen (mtype, _path, lid) ->
+      Jane_syntax.Module_type.mty_of ~loc ~attrs
+        (Jane_syntax.Module_type.Jmty_strengthen
+            { mty = sub.module_type sub mtype;
+              mod_id = map_loc sub lid
+            })
 
 let with_constraint sub (_path, lid, cstr) =
   match cstr with
@@ -795,7 +868,7 @@ let class_expr sub cexpr =
           List.fold_right (fun (label, expo) list ->
               match expo with
               | Omitted _ -> list
-              | Arg exp -> (label, sub.expr sub exp) :: list
+              | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) args [])
 
     | Tcl_let (rec_flat, bindings, _ivars, cl) ->
@@ -852,9 +925,22 @@ let class_type_field sub ctf =
 let core_type sub ct =
   let loc = sub.location sub ct.ctyp_loc in
   let attrs = sub.attributes sub ct.ctyp_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes { ptyp_attributes; ptyp_desc; _ } =
+    attrs := ptyp_attributes @ !attrs;
+    ptyp_desc
+  in
   let desc = match ct.ctyp_desc with
-      Ttyp_any -> Ptyp_any
-    | Ttyp_var s -> Ptyp_var s
+    | Ttyp_var (None, None) -> Ptyp_any
+    | Ttyp_var (Some s, None) -> Ptyp_var s
+    | Ttyp_var (name, Some jkind) ->
+        Jane_syntax.Layouts.type_of ~loc
+          (Ltyp_var { name; jkind = mkloc jkind loc }) |>
+        add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list -> Ptyp_tuple (List.map (sub.typ sub) list)
@@ -866,20 +952,29 @@ let core_type sub ct =
           (List.map (sub.object_field sub) list, o)
     | Ttyp_class (_path, lid, list) ->
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
-    | Ttyp_alias (ct, s) ->
+    | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
+    | Ttyp_alias (ct, s, Some jkind) ->
+        Jane_syntax.Layouts.type_of ~loc
+          (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
+                        jkind = mkloc jkind loc }) |>
+        add_jane_syntax_attributes
+    | Ttyp_alias (_, None, None) ->
+      Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
     | Ttyp_variant (list, bool, labels) ->
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
-        let list = List.map (fun v -> mkloc v loc) list in
-        Ptyp_poly (list, sub.typ sub ct)
+        let bound_vars = List.map (var_jkind ~loc) list in
+        Jane_syntax.Layouts.type_of ~loc
+          (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
+        add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
   in
-  Typ.mk ~loc ~attrs desc
+  Typ.mk ~loc ~attrs:!attrs desc
 
 let class_structure sub cs =
   let rec remove_self = function
-    | { pat_desc = Tpat_alias (p, id, _s, _mode) }
+    | { pat_desc = Tpat_alias (p, id, _s, _uid, _mode) }
       when string_is_prefix "selfpat-" (Ident.name id) ->
         remove_self p
     | p -> p
@@ -909,7 +1004,7 @@ let object_field sub {of_loc; of_desc; of_attributes;} =
   Of.mk ~loc ~attrs desc
 
 and is_self_pat = function
-  | { pat_desc = Tpat_alias(_pat, id, _, _mode) } ->
+  | { pat_desc = Tpat_alias(_pat, id, _, _uid, _mode) } ->
       string_is_prefix "self-" (Ident.name id)
   | _ -> false
 

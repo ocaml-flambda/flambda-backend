@@ -273,6 +273,7 @@ let read_one_param ppf position name v =
   | "unboxed-types" -> set "unboxed-types" [ unboxed_types ] v
   | "unsafe" -> set "unsafe" [ unsafe ] v
   | "verbose" -> set "verbose" [ verbose ] v
+  | "verbose-types" -> set "verbose_types" [ verbose_types ] v
   | "nopervasives" -> set "nopervasives" [ nopervasives ] v
   | "slash" -> set "slash" [ force_slash ] v (* for ocamldep *)
   | "keep-docs" -> set "keep-docs" [ Clflags.keep_docs ] v
@@ -490,7 +491,7 @@ let read_one_param ppf position name v =
   | "dump-into-file" -> Clflags.dump_into_file := true
   | "dump-dir" -> Clflags.dump_dir := Some v
 
-  | "extension" -> Language_extension.(enable (of_string_exn v))
+  | "extension" -> Language_extension.enable_of_string_exn v
   | "disable-all-extensions" ->
     if check_bool ppf name v then Language_extension.disallow_extensions ()
 
@@ -534,7 +535,7 @@ type file_option = {
 }
 
 let scan_line ic =
-  Scanf.bscanf ic "%[0-9a-zA-Z_.*] : %[a-zA-Z_-] = %s "
+  Scanf.bscanf ic "%[0-9a-zA-Z/_.*] : %[a-zA-Z_-] = %s "
     (fun pattern name value ->
        let pattern =
          match pattern with

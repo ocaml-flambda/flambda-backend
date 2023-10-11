@@ -47,10 +47,12 @@ module type Common_options = sig
   val _unboxed_types : unit -> unit
   val _no_unboxed_types : unit -> unit
   val _unsafe_string : unit -> unit
+  val _verbose_types : unit -> unit
+  val _no_verbose_types : unit -> unit
   val _version : unit -> unit
   val _vnum : unit -> unit
   val _w : string -> unit
-
+  val _debug_ocaml : unit -> unit
 
   val anonymous : string -> unit
 end
@@ -246,7 +248,6 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
-  val _alloc_check : unit -> unit
 end;;
 
 module type Opttop_options = sig

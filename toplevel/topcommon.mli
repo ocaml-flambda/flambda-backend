@@ -49,7 +49,7 @@ val record_backtrace : unit -> unit
 
 val find_eval_phrase :
   Typedtree.structure ->
-    (Typedtree.expression * Typedtree.attributes * Location.t) option
+    (Typedtree.expression * Jkind.sort * Typedtree.attributes * Location.t) option
 
 val max_printer_depth: int ref
 val max_printer_steps: int ref

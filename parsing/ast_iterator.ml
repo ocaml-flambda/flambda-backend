@@ -41,11 +41,12 @@ type iterator = {
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
-  expr_extension: iterator -> Extensions.Expression.t -> unit;
+  expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
+  jkind_annotation:iterator -> Jane_asttypes.const_jkind -> unit;
   label_declaration: iterator -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
@@ -54,17 +55,20 @@ type iterator = {
   module_expr: iterator -> module_expr -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
-  module_type_extension: iterator -> Extensions.Module_type.t -> unit;
+  module_type_jane_syntax: iterator -> Jane_syntax.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
-  pat_extension: iterator -> Extensions.Pattern.t -> unit;
+  pat_jane_syntax: iterator -> Jane_syntax.Pattern.t -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
+  signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
+  structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
+  typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;
@@ -87,6 +91,9 @@ let iter_tuple3 f1 f2 f3 (x, y, z) = f1 x; f2 y; f3 z
 let iter_opt f = function None -> () | Some x -> f x
 
 let iter_loc sub {loc; txt = _} = sub.location sub loc
+let iter_loc_txt sub f { loc; txt } =
+  sub.location sub loc;
+  f sub txt
 
 module T = struct
   (* Type expressions for the core language *)
@@ -113,8 +120,34 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let iter sub {ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs} =
+  let jkind_annotation sub =
+    iter_loc_txt sub sub.jkind_annotation
+
+  let bound_var sub (_, jkind) = match jkind with
+    | None -> ()
+    | Some annot -> jkind_annotation sub annot
+
+  let iter_jst_layout sub : Jane_syntax.Layouts.core_type -> _ = function
+    | Ltyp_var { name = _; jkind } ->
+      iter_loc_txt sub sub.jkind_annotation jkind
+    | Ltyp_poly { bound_vars; inner_type } ->
+      List.iter (bound_var sub) bound_vars;
+      sub.typ sub inner_type
+    | Ltyp_alias { aliased_type; name = _; jkind } ->
+      sub.typ sub aliased_type;
+      iter_loc_txt sub sub.jkind_annotation jkind
+
+  let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
+    | Jtyp_layout typ -> iter_jst_layout sub typ
+
+  let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
+                  as typ) =
     sub.location sub loc;
+    match Jane_syntax.Core_type.of_ast typ with
+    | Some (jtyp, attrs) ->
+        sub.attributes sub attrs;
+        sub.typ_jane_syntax sub jtyp
+    | None ->
     sub.attributes sub attrs;
     match desc with
     | Ptyp_any
@@ -131,7 +164,8 @@ module T = struct
     | Ptyp_alias (t, _) -> sub.typ sub t
     | Ptyp_variant (rl, _b, _ll) ->
         List.iter (row_field sub) rl
-    | Ptyp_poly (_, t) -> sub.typ sub t
+    | Ptyp_poly (_, t) ->
+        sub.typ sub t;
     | Ptyp_package (lid, l) ->
         iter_loc sub lid;
         List.iter (iter_tuple (iter_loc sub) (sub.typ sub)) l
@@ -185,21 +219,33 @@ module T = struct
     sub.attributes sub ptyexn_attributes
 
   let iter_extension_constructor_kind sub = function
-      Pext_decl(vars, ctl, cto) ->
+      Pext_decl(vars, ctl, cto )->
         List.iter (iter_loc sub) vars;
         iter_constructor_arguments sub ctl;
         iter_opt (sub.typ sub) cto
     | Pext_rebind li ->
         iter_loc sub li
 
+  let iter_extension_constructor_jst sub :
+    Jane_syntax.Extension_constructor.t -> _ = function
+    | Jext_layout (Lext_decl (vls, ctl, cto)) ->
+      List.iter (bound_var sub) vls;
+      iter_constructor_arguments sub ctl;
+      iter_opt (sub.typ sub) cto
+
   let iter_extension_constructor sub
-      {pext_name;
+     ({pext_name;
        pext_kind;
        pext_loc;
-       pext_attributes} =
+       pext_attributes} as ext) =
     iter_loc sub pext_name;
-    iter_extension_constructor_kind sub pext_kind;
     sub.location sub pext_loc;
+    match Jane_syntax.Extension_constructor.of_ast ext with
+    | Some (jext, attrs) ->
+      sub.attributes sub attrs;
+      iter_extension_constructor_jst sub jext
+    | None ->
+    iter_extension_constructor_kind sub pext_kind;
     sub.attributes sub pext_attributes
 
 end
@@ -250,10 +296,12 @@ module MT = struct
   let iter sub
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
-    sub.attributes sub attrs;
-    match Extensions.Module_type.of_ast mty with
-    | Some emty -> sub.module_type_extension sub emty
+    match Jane_syntax.Module_type.of_ast mty with
+    | Some (jmty, attrs) ->
+        sub.attributes sub attrs;
+        sub.module_type_jane_syntax sub jmty
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s
@@ -281,8 +329,19 @@ module MT = struct
     | Pwith_modtypesubst (lid, mty) ->
         iter_loc sub lid; sub.module_type sub mty
 
-  let iter_signature_item sub {psig_desc = desc; psig_loc = loc} =
+  let iter_sig_include_functor sub
+    : Jane_syntax.Include_functor.signature_item -> unit = function
+    | Ifsig_include_functor incl -> sub.include_description sub incl
+
+  let iter_signature_item_jst sub : Jane_syntax.Signature_item.t -> unit =
+    function
+    | Jsig_include_functor ifincl -> iter_sig_include_functor sub ifincl
+
+  let iter_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
     sub.location sub loc;
+    match Jane_syntax.Signature_item.of_ast sigi with
+    | Some jsigi -> sub.signature_item_jane_syntax sub jsigi
+    | None ->
     match desc with
     | Psig_value vd -> sub.value_description sub vd
     | Psig_type (_, l)
@@ -305,8 +364,8 @@ module MT = struct
         sub.extension sub x
     | Psig_attribute x -> sub.attribute sub x
 
-  let iter_extension sub : Extensions.Module_type.t -> _ = function
-    | Emty_strengthen { mty; mod_id } ->
+  let iter_jane_syntax sub : Jane_syntax.Module_type.t -> _ = function
+    | Jmty_strengthen { mty; mod_id } ->
        iter sub mty;
        iter_loc sub mod_id
 end
@@ -331,8 +390,19 @@ module M = struct
     | Pmod_unpack e -> sub.expr sub e
     | Pmod_extension x -> sub.extension sub x
 
-  let iter_structure_item sub {pstr_loc = loc; pstr_desc = desc} =
+  let iter_str_include_functor sub
+    : Jane_syntax.Include_functor.structure_item -> unit = function
+    | Ifstr_include_functor incl -> sub.include_declaration sub incl
+
+  let iter_structure_item_jst sub : Jane_syntax.Structure_item.t -> unit =
+    function
+    | Jstr_include_functor ifincl -> iter_str_include_functor sub ifincl
+
+  let iter_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
     sub.location sub loc;
+    match Jane_syntax.Structure_item.of_ast stri with
+    | Some jstri -> sub.structure_item_jane_syntax sub jstri
+    | None ->
     match desc with
     | Pstr_eval (x, attrs) ->
         sub.attributes sub attrs; sub.expr sub x
@@ -354,11 +424,17 @@ module M = struct
     | Pstr_attribute x -> sub.attribute sub x
 end
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let iter_constant = ()
+
 module E = struct
   (* Value expressions for the core language *)
 
-  module C = Extensions.Comprehensions
-  module IA = Extensions.Immutable_arrays
+  module C = Jane_syntax.Comprehensions
+  module IA = Jane_syntax.Immutable_arrays
+  module L = Jane_syntax.Layouts
+  module N_ary = Jane_syntax.N_ary_functions
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -390,20 +466,66 @@ module E = struct
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
 
-  let iter_ext sub : Extensions.Expression.t -> _ = function
-    | Eexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
-    | Eexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+  let iter_layout_exp sub : L.expression -> _ = function
+    | Lexp_constant _ -> iter_constant
+    | Lexp_newtype (_str, jkind, inner_expr) ->
+      iter_loc_txt sub sub.jkind_annotation jkind;
+      sub.expr sub inner_expr
+
+  let iter_function_param sub : N_ary.function_param -> _ =
+    fun { pparam_loc = loc; pparam_desc = desc } ->
+      sub.location sub loc;
+      match desc with
+      | Pparam_val (_label, def, pat) ->
+          iter_opt (sub.expr sub) def;
+          sub.pat sub pat
+      | Pparam_newtype (newtype, jkind) ->
+          iter_loc sub newtype;
+          iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
+
+  let iter_function_constraint sub : N_ary.function_constraint -> _ =
+    (* Enable warning 9 to ensure that the record pattern doesn't miss any
+       field. *)
+    fun[@ocaml.warning "+9"] { mode_annotations = _; type_constraint } ->
+      match type_constraint with
+      | Pconstraint ty ->
+          sub.typ sub ty
+      | Pcoerce (ty1, ty2) ->
+          Option.iter (sub.typ sub) ty1;
+          sub.typ sub ty2
+
+  let iter_function_body sub : N_ary.function_body -> _ = function
+    | Pfunction_body expr ->
+        sub.expr sub expr
+    | Pfunction_cases (cases, loc, attrs) ->
+        sub.cases sub cases;
+        sub.location sub loc;
+        sub.attributes sub attrs
+
+  let iter_n_ary_function sub : N_ary.expression -> _ =
+    fun (params, constraint_, body) ->
+      List.iter (iter_function_param sub) params;
+      Option.iter (iter_function_constraint sub) constraint_;
+      iter_function_body sub body
+
+  let iter_jst sub : Jane_syntax.Expression.t -> _ = function
+    | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
+    | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+    | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
+    | Jexp_n_ary_function n_ary_exp -> iter_n_ary_function sub n_ary_exp
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
-    sub.attributes sub attrs;
-    match Extensions.Expression.of_ast expr with
-    | Some eexp -> sub.expr_extension sub eexp
+    match Jane_syntax.Expression.of_ast expr with
+    | Some (jexp, attrs) ->
+        sub.attributes sub attrs;
+        sub.expr_jane_syntax sub jexp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
-    | Pexp_constant _ -> ()
+    | Pexp_constant _ -> iter_constant
     | Pexp_let (_r, vbs, e) ->
         List.iter (sub.value_binding sub) vbs;
         sub.expr sub e
@@ -485,27 +607,30 @@ end
 module P = struct
   (* Patterns *)
 
-  module IA = Extensions.Immutable_arrays
+  module IA = Jane_syntax.Immutable_arrays
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
-  let iter_ext sub : Extensions.Pattern.t -> _ = function
-    | Epat_immutable_array iapat -> iter_iapat sub iapat
+  let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
+    | Jpat_immutable_array iapat -> iter_iapat sub iapat
+    | Jpat_layout (Lpat_constant _) -> iter_constant
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    sub.attributes sub attrs;
-    match Extensions.Pattern.of_ast pat with
-    | Some epat -> sub.pat_extension sub epat
+    match Jane_syntax.Pattern.of_ast pat with
+    | Some (jpat, attrs) ->
+        sub.attributes sub attrs;
+        sub.pat_jane_syntax sub jpat
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
-    | Ppat_constant _ -> ()
+    | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
     | Ppat_tuple pl -> List.iter (sub.pat sub) pl
     | Ppat_construct (l, p) ->
@@ -598,11 +723,13 @@ let default_iterator =
   {
     structure = (fun this l -> List.iter (this.structure_item this) l);
     structure_item = M.iter_structure_item;
+    structure_item_jane_syntax = M.iter_structure_item_jst;
     module_expr = M.iter;
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
+    signature_item_jane_syntax = MT.iter_signature_item_jst;
     module_type = MT.iter;
-    module_type_extension = MT.iter_extension;
+    module_type_jane_syntax = MT.iter_jane_syntax;
     with_constraint = MT.iter_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));
@@ -619,6 +746,7 @@ let default_iterator =
     type_declaration = T.iter_type_declaration;
     type_kind = T.iter_type_kind;
     typ = T.iter;
+    typ_jane_syntax = T.iter_jst;
     row_field = T.row_field;
     object_field = T.object_field;
     type_extension = T.iter_type_extension;
@@ -634,9 +762,9 @@ let default_iterator =
       );
 
     pat = P.iter;
-    pat_extension = P.iter_ext;
+    pat_jane_syntax = P.iter_jst;
     expr = E.iter;
-    expr_extension = E.iter_ext;
+    expr_jane_syntax = E.iter_jst;
     binding_op = E.iter_binding_op;
 
     module_declaration =
@@ -710,14 +838,22 @@ let default_iterator =
 
 
     constructor_declaration =
-      (fun this {pcd_name; pcd_vars; pcd_args;
-                 pcd_res; pcd_loc; pcd_attributes} ->
+      (fun this ({pcd_name; pcd_vars; pcd_args;
+                  pcd_res; pcd_loc; pcd_attributes} as pcd) ->
          iter_loc this pcd_name;
-         List.iter (iter_loc this) pcd_vars;
+         let attrs =
+           match Jane_syntax.Layouts.of_constructor_declaration pcd with
+           | None ->
+             List.iter (iter_loc this) pcd_vars;
+             pcd_attributes
+           | Some (vars_jkinds, attrs) ->
+             List.iter (T.bound_var this) vars_jkinds;
+             attrs
+         in
          T.iter_constructor_arguments this pcd_args;
          iter_opt (this.typ this) pcd_res;
          this.location this pcd_loc;
-         this.attributes this pcd_attributes
+         this.attributes this attrs
       );
 
     label_declaration =
@@ -752,4 +888,6 @@ let default_iterator =
          | PTyp x -> this.typ this x
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
+
+    jkind_annotation = (fun _this _l -> ());
   }

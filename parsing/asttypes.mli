@@ -20,6 +20,10 @@
 
 *)
 
+(** (Jane Street specific; delete when upstreaming.)
+    Don't add new types to this file; add them to [jane_asttypes.mli] instead.
+    This file is considered part of the parse tree, which we can't modify. *)
+
 type constant =
     Const_int of int
   | Const_char of char
@@ -43,20 +47,6 @@ type virtual_flag = Virtual | Concrete
 type override_flag = Override | Fresh
 
 type closed_flag = Closed | Open
-
-type global_flag =
-  | Global
-  | Nonlocal
-  | Nothing
-
-(* constant layouts are parsed as layout annotations, and also used
-   in the type checker as already-inferred (i.e. non-variable) layouts *)
-type const_layout =
-  | Any
-  | Value
-  | Void
-  | Immediate64
-  | Immediate
 
 type label = string
 

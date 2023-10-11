@@ -114,16 +114,22 @@ let get_units_with_used_primitives () =
 let gen_array_kind =
   if Config.flat_float_array then Pgenarray else Paddrarray
 
-let prim_sys_argv =
-  Primitive.simple ~name:"caml_sys_argv" ~arity:1 ~alloc:true
+let gen_array_ref_kind mode =
+  if Config.flat_float_array then Pgenarray_ref mode else Paddrarray_ref
 
-let to_alloc_mode ~poly = function
+let gen_array_set_kind mode =
+  if Config.flat_float_array then Pgenarray_set mode else Paddrarray_set mode
+
+let prim_sys_argv =
+  Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
+
+let to_locality ~poly = function
   | Prim_global, _ -> alloc_heap
   | Prim_local, _ -> alloc_local
   | Prim_poly, _ ->
     match poly with
     | None -> assert false
-    | Some mode -> transl_alloc_mode mode
+    | Some locality -> transl_locality_mode locality
 
 let to_modify_mode ~poly = function
   | Prim_global, _ -> modify_heap
@@ -134,8 +140,15 @@ let to_modify_mode ~poly = function
     | Some mode -> transl_modify_mode mode
 
 let lookup_primitive loc poly pos p =
-  let mode = to_alloc_mode ~poly p.prim_native_repr_res in
+  let mode = to_locality ~poly p.prim_native_repr_res in
   let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
+  let get_first_arg_mode () =
+    match arg_modes with
+    | mode :: _ -> mode
+    | [] ->
+        Misc.fatal_errorf "Primitive \"%s\" unexpectedly had zero arguments"
+          p.prim_name
+  in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -154,12 +167,8 @@ let lookup_primitive loc poly pos p =
     | "%field0_immut" -> Primitive ((Pfield (0, Reads_agree)), 1)
     | "%field1_immut" -> Primitive ((Pfield (1, Reads_agree)), 1)
     | "%setfield0" ->
-       let mode =
-         match arg_modes with
-         | mode :: _ -> Assignment mode
-         | [] -> assert false
-       in
-       Primitive ((Psetfield(0, Pointer, mode)), 2)
+       let mode = get_first_arg_mode () in
+       Primitive ((Psetfield(0, Pointer, Assignment mode)), 2)
     | "%makeblock" -> Primitive ((Pmakeblock(0, Immutable, None, mode)), 1)
     | "%makemutable" -> Primitive ((Pmakeblock(0, Mutable, None, mode)), 1)
     | "%raise" -> Raise Raise_regular
@@ -225,18 +234,23 @@ let lookup_primitive loc poly pos p =
     | "%bytes_unsafe_get" -> Primitive (Pbytesrefu, 2)
     | "%bytes_unsafe_set" -> Primitive (Pbytessetu, 3)
     | "%array_length" -> Primitive ((Parraylength gen_array_kind), 1)
-    | "%array_safe_get" -> Primitive ((Parrayrefs gen_array_kind), 2)
-    | "%array_safe_set" -> Primitive ((Parraysets gen_array_kind), 3)
-    | "%array_unsafe_get" -> Primitive ((Parrayrefu gen_array_kind), 2)
-    | "%array_unsafe_set" -> Primitive ((Parraysetu gen_array_kind), 3)
-    | "%obj_size" -> Primitive ((Parraylength gen_array_kind), 1)
-    | "%obj_field" -> Primitive ((Parrayrefu gen_array_kind), 2)
-    | "%obj_set_field" -> Primitive ((Parraysetu gen_array_kind), 3)
+    | "%array_safe_get" -> Primitive ((Parrayrefs (gen_array_ref_kind mode)), 2)
+    | "%array_safe_set" ->
+       Primitive (Parraysets (gen_array_set_kind (get_first_arg_mode ())), 3)
+    | "%array_unsafe_get" -> Primitive (Parrayrefu (gen_array_ref_kind mode), 2)
+    | "%array_unsafe_set" ->
+       Primitive ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()))), 3)
+    | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
+    | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode)), 2)
+    | "%obj_set_field" ->
+       Primitive ((Parraysetu (Pgenarray_set (get_first_arg_mode ()))), 3)
     | "%floatarray_length" -> Primitive ((Parraylength Pfloatarray), 1)
-    | "%floatarray_safe_get" -> Primitive ((Parrayrefs Pfloatarray), 2)
-    | "%floatarray_safe_set" -> Primitive ((Parraysets Pfloatarray), 3)
-    | "%floatarray_unsafe_get" -> Primitive ((Parrayrefu Pfloatarray), 2)
-    | "%floatarray_unsafe_set" -> Primitive ((Parraysetu Pfloatarray), 3)
+    | "%floatarray_safe_get" ->
+       Primitive ((Parrayrefs (Pfloatarray_ref mode)), 2)
+    | "%floatarray_safe_set" -> Primitive (Parraysets Pfloatarray_set, 3)
+    | "%floatarray_unsafe_get" ->
+       Primitive ((Parrayrefu (Pfloatarray_ref mode)), 2)
+    | "%floatarray_unsafe_set" -> Primitive ((Parraysetu Pfloatarray_set), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
     | "%lazy_force" -> Lazy_force pos
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
@@ -384,7 +398,7 @@ let lookup_primitive loc poly pos p =
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
     | "%bswap_native" -> Primitive ((Pbbswap(Pnativeint, mode)), 1)
-    | "%int_as_pointer" -> Primitive (Pint_as_pointer, 1)
+    | "%int_as_pointer" -> Primitive (Pint_as_pointer mode, 1)
     | "%opaque" -> Primitive (Popaque Lambda.layout_any_value, 1)
     | "%sys_argv" -> Sys_argv
     | "%send" -> Send (pos, Lambda.layout_any_value)
@@ -401,6 +415,9 @@ let lookup_primitive loc poly pos p =
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    | "%unbox_float" -> Primitive(Punbox_float, 1)
+    | "%box_float" -> Primitive(Pbox_float mode, 1)
+    | "%get_header" -> Primitive (Pget_header mode, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -435,16 +452,70 @@ let simplify_constant_constructor = function
 *)
 let glb_array_type t1 t2 =
   match t1, t2 with
+  (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray, (Paddrarray | Pintarray)
   | (Paddrarray | Pintarray), Pfloatarray -> t1
 
+  (* Compute the correct GLB *)
   | Pgenarray, x | x, Pgenarray -> x
   | Paddrarray, x | x, Paddrarray -> x
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
 
+let glb_array_ref_type t1 t2 =
+  match t1, t2 with
+  (* No GLB; only used in the [Obj.magic] case *)
+  | Pfloatarray_ref _, (Paddrarray | Pintarray)
+  | (Paddrarray_ref | Pintarray_ref), Pfloatarray -> t1
+
+  (* Compute the correct GLB *)
+
+  (* Pgenarray >= _ *)
+  | (Pgenarray_ref _ as x), Pgenarray -> x
+  | Pgenarray_ref _, Pintarray -> Pintarray_ref
+  | Pgenarray_ref _, Paddrarray -> Paddrarray_ref
+  | Pgenarray_ref mode, Pfloatarray -> Pfloatarray_ref mode
+  | (Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _ as x), Pgenarray -> x
+
+  (* Paddrarray > Pintarray *)
+  | Paddrarray_ref, Paddrarray -> Paddrarray_ref
+  | Paddrarray_ref, Pintarray -> Pintarray_ref
+  | Pintarray_ref, Paddrarray -> Pintarray_ref
+
+  (* Pintarray is a minimum *)
+  | Pintarray_ref, Pintarray -> Pintarray_ref
+
+  (* Pfloatarray is a minimum *)
+  | (Pfloatarray_ref _ as x), Pfloatarray -> x
+
+let glb_array_set_type t1 t2 =
+  match t1, t2 with
+  (* No GLB; only used in the [Obj.magic] case *)
+  | Pfloatarray_set, (Paddrarray | Pintarray)
+  | (Paddrarray_set _ | Pintarray_set), Pfloatarray -> t1
+
+  (* Compute the correct GLB *)
+
+  (* Pgenarray >= _ *)
+  | (Pgenarray_set _ as x), Pgenarray -> x
+  | Pgenarray_set _, Pintarray -> Pintarray_set
+  | Pgenarray_set mode, Paddrarray -> Paddrarray_set mode
+  | Pgenarray_set _, Pfloatarray -> Pfloatarray_set
+  | (Paddrarray_set _ | Pintarray_set | Pfloatarray_set as x), Pgenarray -> x
+
+  (* Paddrarray > Pintarray *)
+  | (Paddrarray_set _ as x), Paddrarray -> x
+  | Paddrarray_set _, Pintarray -> Pintarray_set
+  | Pintarray_set, Paddrarray -> Pintarray_set
+
+  (* Pintarray is a minimum *)
+  | Pintarray_set, Pintarray -> Pintarray_set
+
+  (* Pfloatarray is a minimum *)
+  | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
+
 (* Specialize a primitive from available type information. *)
-(* CR layouts v2: This function had a loc argument added just to support the void
+(* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
 let specialize_primitive env loc ty ~has_constant_constructor prim =
   let param_tys =
@@ -466,25 +537,26 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
-  | Primitive (Parrayrefu t, arity), p1 :: _ -> begin
-      let array_type = glb_array_type t (array_type_kind env p1) in
-      if t = array_type then None
-      else Some (Primitive (Parrayrefu array_type, arity))
+  | Primitive (Parrayrefu rt, arity), p1 :: _ -> begin
+      let array_ref_type = glb_array_ref_type rt (array_type_kind env p1)
+      in
+      if rt = array_ref_type then None
+      else Some (Primitive (Parrayrefu array_ref_type, arity))
     end
-  | Primitive (Parraysetu t, arity), p1 :: _ -> begin
-      let array_type = glb_array_type t (array_type_kind env p1) in
-      if t = array_type then None
-      else Some (Primitive (Parraysetu array_type, arity))
+  | Primitive (Parraysetu st, arity), p1 :: _ -> begin
+      let array_set_type = glb_array_set_type st (array_type_kind env p1) in
+      if st = array_set_type then None
+      else Some (Primitive (Parraysetu array_set_type, arity))
     end
-  | Primitive (Parrayrefs t, arity), p1 :: _ -> begin
-      let array_type = glb_array_type t (array_type_kind env p1) in
-      if t = array_type then None
-      else Some (Primitive (Parrayrefs array_type, arity))
+  | Primitive (Parrayrefs rt, arity), p1 :: _ -> begin
+      let array_ref_type = glb_array_ref_type rt (array_type_kind env p1) in
+      if rt = array_ref_type then None
+      else Some (Primitive (Parrayrefs array_ref_type, arity))
     end
-  | Primitive (Parraysets t, arity), p1 :: _ -> begin
-      let array_type = glb_array_type t (array_type_kind env p1) in
-      if t = array_type then None
-      else Some (Primitive (Parraysets array_type, arity))
+  | Primitive (Parraysets st, arity), p1 :: _ -> begin
+      let array_set_type = glb_array_set_type st (array_type_kind env p1) in
+      if st = array_set_type then None
+      else Some (Primitive (Parraysets array_set_type, arity))
     end
   | Primitive (Pbigarrayref(unsafe, n, Pbigarray_unknown,
                             Pbigarray_unknown_layout), arity), p1 :: _ -> begin
@@ -503,7 +575,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
       let shape =
         List.map (fun typ ->
-          Lambda.must_be_value (Typeopt.layout env (to_location loc) typ))
+          Lambda.must_be_value (Typeopt.layout env (to_location loc)
+                                  Jkind.Sort.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
@@ -537,47 +610,51 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | _ -> None
 
 let caml_equal =
-  Primitive.simple ~name:"caml_equal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_equal" ~arity:2 ~alloc:true
 let caml_string_equal =
-  Primitive.simple ~name:"caml_string_equal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_equal" ~arity:2 ~alloc:false
 let caml_bytes_equal =
-  Primitive.simple ~name:"caml_bytes_equal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_equal" ~arity:2 ~alloc:false
 let caml_notequal =
-  Primitive.simple ~name:"caml_notequal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_notequal" ~arity:2 ~alloc:true
 let caml_string_notequal =
-  Primitive.simple ~name:"caml_string_notequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2 ~alloc:false
 let caml_bytes_notequal =
-  Primitive.simple ~name:"caml_bytes_notequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_notequal" ~arity:2 ~alloc:false
 let caml_lessequal =
-  Primitive.simple ~name:"caml_lessequal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_lessequal" ~arity:2 ~alloc:true
 let caml_string_lessequal =
-  Primitive.simple ~name:"caml_string_lessequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_lessequal" ~arity:2 ~alloc:false
 let caml_bytes_lessequal =
-  Primitive.simple ~name:"caml_bytes_lessequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_lessequal" ~arity:2 ~alloc:false
 let caml_lessthan =
-  Primitive.simple ~name:"caml_lessthan" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_lessthan" ~arity:2 ~alloc:true
 let caml_string_lessthan =
-  Primitive.simple ~name:"caml_string_lessthan" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_lessthan" ~arity:2 ~alloc:false
 let caml_bytes_lessthan =
-  Primitive.simple ~name:"caml_bytes_lessthan" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_lessthan" ~arity:2 ~alloc:false
 let caml_greaterequal =
-  Primitive.simple ~name:"caml_greaterequal" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_greaterequal" ~arity:2 ~alloc:true
 let caml_string_greaterequal =
-  Primitive.simple ~name:"caml_string_greaterequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_greaterequal" ~arity:2
+    ~alloc:false
 let caml_bytes_greaterequal =
-  Primitive.simple ~name:"caml_bytes_greaterequal" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_greaterequal" ~arity:2
+    ~alloc:false
 let caml_greaterthan =
-  Primitive.simple ~name:"caml_greaterthan" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_greaterthan" ~arity:2 ~alloc:true
 let caml_string_greaterthan =
-  Primitive.simple ~name:"caml_string_greaterthan" ~arity:2 ~alloc: false
+  Primitive.simple_on_values ~name:"caml_string_greaterthan" ~arity:2
+    ~alloc:false
 let caml_bytes_greaterthan =
-  Primitive.simple ~name:"caml_bytes_greaterthan" ~arity:2 ~alloc: false
+  Primitive.simple_on_values ~name:"caml_bytes_greaterthan" ~arity:2
+    ~alloc:false
 let caml_compare =
-  Primitive.simple ~name:"caml_compare" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_compare" ~arity:2 ~alloc:true
 let caml_string_compare =
-  Primitive.simple ~name:"caml_string_compare" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2 ~alloc:false
 let caml_bytes_compare =
-  Primitive.simple ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
 
 let comparison_primitive comparison comparison_kind =
   match comparison, comparison_kind with
@@ -678,7 +755,8 @@ let lambda_of_loc kind sloc =
     Lconst (Const_immstring scope_name)
 
 let caml_restore_raw_backtrace =
-  Primitive.simple ~name:"caml_restore_raw_backtrace" ~arity:2 ~alloc:false
+  Primitive.simple_on_values ~name:"caml_restore_raw_backtrace" ~arity:2
+    ~alloc:false
 
 let try_ids = Hashtbl.create 8
 
@@ -776,8 +854,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some Alloc_mode.global
-    | Prim_local, _ -> Some Alloc_mode.local
+    | Prim_global, _ | Prim_poly, _ -> Some Mode.Locality.global
+    | Prim_local, _ -> Some Mode.Locality.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
@@ -811,20 +889,34 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
-  let rec make_params ty n =
-    if n <= 0 then [], Typeopt.layout env (to_location loc) ty
-    else
+  let to_locality = to_locality ~poly:poly_mode in
+  let rec make_params ty repr_args repr_res =
+    match repr_args, repr_res with
+    | [], (_, res_repr) ->
+      let res_sort = sort_of_native_repr res_repr in
+      [], Typeopt.layout env (to_location loc) (Jkind.Sort.of_const res_sort) ty
+    | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
-          let arg_layout = Typeopt.layout env (to_location loc) arg_ty in
-          let params, return = make_params ret_ty (n-1) in
-          (Ident.create_local "prim", arg_layout) :: params, return
+          let arg_sort = sort_of_native_repr arg_repr in
+          let arg_layout =
+            Typeopt.layout env (to_location loc) (Jkind.Sort.of_const arg_sort) arg_ty
+          in
+          let arg_mode = to_locality arg in
+          let params, return = make_params ret_ty repr_args repr_res in
+          { name = Ident.create_local "prim";
+            layout = arg_layout;
+            attributes = Lambda.default_param_attribute;
+            mode = arg_mode }
+          :: params, return
   in
-  let params, return = make_params ty p.prim_arity in
-  let args = List.map (fun (id, _) -> Lvar id) params in
+  let params, return =
+    make_params ty p.prim_native_repr_args p.prim_native_repr_res
+  in
+  let args = List.map (fun p -> Lvar p.name) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
   | _ ->
@@ -834,10 +926,8 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
-     let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
      let region =
-       match to_alloc_mode p.prim_native_repr_res with
+       match to_locality p.prim_native_repr_res with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
@@ -847,7 +937,7 @@ let transl_primitive loc p env ty ~poly_mode path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal arg_modes in
+     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args) in
      lfunction
        ~kind:(Curried {nlocal})
        ~params
@@ -866,7 +956,7 @@ let lambda_primitive_needs_event_after = function
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pstringrefs | Pbytesrefs
   | Pbox_float _ | Pbox_int _
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
-  | Parrayrefu (Pgenarray | Pfloatarray) | Parraysetu (Pgenarray | Pfloatarray)
+  | Parrayrefu (Pgenarray_ref _ | Pfloatarray_ref _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
@@ -876,14 +966,17 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-  | Pbbswap _ | Pobj_dup -> true
+  | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
   | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
+  | Pmakeufloatblock _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
+  | Pufloatfield _ | Psetufloatfield _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
@@ -892,7 +985,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

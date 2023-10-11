@@ -32,7 +32,7 @@ val simplify_lambda: lambda -> lambda
 val split_default_wrapper
    : id:Ident.t
   -> kind:function_kind
-  -> params:(Ident.t * Lambda.layout) list
+  -> params:Lambda.lparam list
   -> return:Lambda.layout
   -> body:lambda
   -> attr:function_attribute

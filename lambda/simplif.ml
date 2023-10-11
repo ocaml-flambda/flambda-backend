@@ -373,8 +373,9 @@ let exact_application {kind; params; _} args =
   Lambda.find_exact_application kind ~arity args
 
 let beta_reduce params body args =
-  List.fold_left2 (fun l (param, kind) arg -> Llet(Strict, kind, param, arg, l))
-                  body params args
+  List.fold_left2
+    (fun l param arg -> Llet(Strict, param.layout, param.name, arg, l))
+    body params args
 
 (* Simplification of lets *)
 
@@ -492,7 +493,10 @@ let simplify_lets lam =
   | Lregion (l, _) ->
       count bv l
   | Lexclave l ->
-      count bv l
+      (* Not safe in general to move code into an exclave, so block
+         single-use optimizations by treating them the same as lambdas
+         and loops *)
+      count Ident.Map.empty l
 
   and count_default bv sw = match sw.sw_failaction with
   | None -> ()
@@ -775,7 +779,8 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     | Llet(Strict, k, id,
            (Lifthenelse(Lprim (Pisint _, [Lvar optparam], _), _, _, _) as def),
            rest) when
-        Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+        String.starts_with (Ident.name optparam) ~prefix:"*opt*" &&
+        List.exists (fun p -> Ident.same p.name optparam) params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
@@ -790,14 +795,19 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         List.iter (fun (id, _) -> if Ident.Set.mem id fv then raise Exit) map;
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
-        let map_param p layout =
+        let map_param (p : Lambda.lparam) =
           try
             (* If the param is optional, then it must be a value *)
-            List.assoc p map, Lambda.layout_field
+            {
+              name = List.assoc p.name map;
+              layout = Lambda.layout_field;
+              attributes = Lambda.default_param_attribute;
+              mode = p.mode
+            }
           with
-            Not_found -> p, layout
+            Not_found -> p
         in
-        let args = List.map (fun (p, layout) -> Lvar (fst (map_param p layout))) params in
+        let args = List.map (fun p -> Lvar (map_param p).name) params in
         let wrapper_body =
           Lapply {
             ap_func = Lvar inner_id;
@@ -812,11 +822,13 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_probe=None;
           }
         in
-        let inner_params = List.map (fun (param, layout) -> map_param param layout) params in
-        let new_ids = List.map (fun (param, layout) -> (Ident.rename param, layout)) inner_params in
+        let inner_params = List.map map_param params in
+        let new_ids =
+          List.map (fun p -> { p with name = Ident.rename p.name }) inner_params
+        in
         let subst =
-          List.fold_left2 (fun s (id, _) (new_id, _) ->
-            Ident.Map.add id new_id s
+          List.fold_left2 (fun s p new_p ->
+            Ident.Map.add p.name new_p.name s
           ) Ident.Map.empty inner_params new_ids
         in
         let body = Lambda.rename subst body in
@@ -836,7 +848,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     | _ -> assert orig_region
     end;
     let body, inner = aux [] false body in
-    let attr = default_stub_attribute in
+    let attr = { default_stub_attribute with check = attr.check } in
     [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
   with Exit ->
     [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
@@ -1002,9 +1014,13 @@ let simplify_local_functions lam =
       | lam ->
           Lambda.shallow_map ~tail:rewrite ~non_tail:rewrite lam
     in
+    let new_params lf =
+      List.map
+        (fun p -> (p.name, p.layout)) lf.params
+    in
     List.fold_right
       (fun (st, lf) lam ->
-         Lstaticcatch (lam, (st, lf.params), rewrite lf.body, lf.return)
+         Lstaticcatch (lam, (st, new_params lf), rewrite lf.body, lf.return)
       )
       (LamTbl.find_all static lam0)
       lam

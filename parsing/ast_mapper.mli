@@ -75,12 +75,22 @@ type mapper = {
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
   expr: mapper -> expression -> expression;
-  expr_extension: mapper -> Extensions.Expression.t -> Extensions.Expression.t;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
+
   include_declaration: mapper -> include_declaration -> include_declaration;
+  (** In Jane Street's OCaml, this may be called for [include functor]s, and
+      thus the thing being included might be a functor and not a plain module
+      type *)
+
   include_description: mapper -> include_description -> include_description;
+  (** In Jane Street's OCaml, this may be called for [include functor]s, and
+      thus the thing being included might be a functor and not a plain module
+      type *)
+
+  jkind_annotation:
+    mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
   label_declaration: mapper -> label_declaration -> label_declaration;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
@@ -90,12 +100,9 @@ type mapper = {
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;
-  module_type_extension: mapper ->
-    Extensions.Module_type.t -> Extensions.Module_type.t;
   open_declaration: mapper -> open_declaration -> open_declaration;
   open_description: mapper -> open_description -> open_description;
   pat: mapper -> pattern -> pattern;
-  pat_extension: mapper -> Extensions.Pattern.t -> Extensions.Pattern.t;
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
@@ -109,6 +116,21 @@ type mapper = {
   value_binding: mapper -> value_binding -> value_binding;
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
+
+  expr_jane_syntax:
+    mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
+  extension_constructor_jane_syntax:
+    mapper ->
+    Jane_syntax.Extension_constructor.t -> Jane_syntax.Extension_constructor.t;
+  module_type_jane_syntax: mapper ->
+    Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
+  pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
+  signature_item_jane_syntax: mapper ->
+    Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
+  structure_item_jane_syntax: mapper ->
+    Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
+  typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
+
 }
 (** A mapper record implements one "method" per syntactic category,
     using an open recursion style: each method takes as its first

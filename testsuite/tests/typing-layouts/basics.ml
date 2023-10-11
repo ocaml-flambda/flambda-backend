@@ -1,41 +1,45 @@
 (* TEST
    * expect
+   flags = "-extension layouts"
 *)
-type t_value [@@value]
-type t_imm   [@@immediate]
-type t_imm64 [@@immediate64];;
+type t_value : value
+type t_imm   : immediate
+type t_imm64 : immediate64;;
 
 [%%expect{|
-type t_value [@@value]
-type t_imm [@@immediate]
-type t_imm64 [@@immediate64]
+type t_value : value
+type t_imm : immediate
+type t_imm64 : immediate64
 |}]
 
-type t_any   [@@any];;
+type t_any   : any;;
 [%%expect{|
-Line 1, characters 13-20:
-1 | type t_any   [@@any];;
-                 ^^^^^^^
+Line 1, characters 15-18:
+1 | type t_any   : any;;
+                   ^^^
 Error: Layout any is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-type t_void  [@@void];;
+type t_void  : void;;
 [%%expect{|
-Line 1, characters 13-21:
-1 | type t_void  [@@void];;
-                 ^^^^^^^^
+Line 1, characters 15-19:
+1 | type t_void  : void;;
+                   ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 
-(*************************************************)
-(* Test 1: Reject non-value function arg/returns *)
+(************************************************************)
+(* Test 1: Disallow non-representable function args/returns *)
 
-(* CR layouts: moved to [basics_alpha.ml].  Bring back here when non-value layouts
-   are enabled by default. *)
+(* CR layouts v3: moved to layouts alpha.  Bring here when we have
+   non-representable layouts enabled by default. *)
 
-(*********************************************)
-(* Test 2: Permit value function arg/returns *)
+(*****************************************************)
+(* Test 2: Permit representable function arg/returns *)
+
+(* CR layouts v3: much of this test moved to basics_alpha.  Add #float versions
+   and bring them here when #float is allowed by default. *)
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
@@ -50,12 +54,13 @@ module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
 
 (* CR layouts: mostly moved to [basics_beta.ml].  Bring back here when we allow
    annotations on parameters by default. *)
-type 'a [@immediate] imm_id = 'a;;
+type ('a : immediate) imm_id = 'a;;
 [%%expect{|
-Line 1, characters 8-20:
-1 | type 'a [@immediate] imm_id = 'a;;
-            ^^^^^^^^^^^^
-Error: Layout immediate is used here, but the appropriate layouts extension is not enabled
+Line 1, characters 11-20:
+1 | type ('a : immediate) imm_id = 'a;;
+               ^^^^^^^^^
+Error: Layout immediate is more experimental than allowed by -extension layouts.
+       You must enable -extension layouts_beta to use this feature.
 |}];;
 
 (************************************)
@@ -76,7 +81,7 @@ Error: Layout immediate is used here, but the appropriate layouts extension is n
 (* Test 6: explicitly polymorphic types *)
 
 (* CR layouts: These tests can come back from [layouts_beta.ml] when we allow parameter
-   layout annotations by default. *)
+   jkind annotations by default. *)
 
 (*****************************************)
 (* Test 7: the layout check in unify_var *)
@@ -100,7 +105,7 @@ Error: Layout immediate is used here, but the appropriate layouts extension is n
    sort enabled by default. *)
 
 (*************************************************)
-(* Test 10: layouts are checked by "more general" *)
+(* Test 10: jkinds are checked by "more general" *)
 
 (* CR layouts: These tests moved to [basics_beta.ml] because they use annotated
    type parameters.  Bring them back here when we allow this by default. *)
@@ -118,7 +123,8 @@ end;;
 Line 4, characters 13-22:
 4 |   type ('a : immediate) t = 'a
                  ^^^^^^^^^
-Error: Layout immediate is used here, but the appropriate layouts extension is not enabled
+Error: Layout immediate is more experimental than allowed by -extension layouts.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 (**************************************************************)
@@ -136,7 +142,8 @@ end;;
 Line 2, characters 13-17:
 2 |   type ('a : void) t = { x : int; v : 'a }
                  ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by -extension layouts.
+       You must enable -extension layouts_alpha to use this feature.
 |}]
 
 (*******************************************************************)
@@ -175,11 +182,11 @@ and foo14 = string
 (* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one enabled by default. *)
 
-type 'a t_void_16 [@@void];;
+type 'a t_void_16 : void;;
 [%%expect{|
-Line 1, characters 18-26:
-1 | type 'a t_void_16 [@@void];;
-                      ^^^^^^^^
+Line 1, characters 20-24:
+1 | type 'a t_void_16 : void;;
+                        ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
@@ -236,15 +243,87 @@ val f18 : 'a -> 'a = <fun>
 (* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one enabled by default. *)
 
-type t_void [@@void];;
+type t_void : void;;
 [%%expect{|
-Line 1, characters 12-20:
-1 | type t_void [@@void];;
-                ^^^^^^^^
+Line 1, characters 14-18:
+1 | type t_void : void;;
+                  ^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-
-(* CR layouts v2: Once we allow non-value top-level module definitions, add
+(* CR layouts v5: Once we allow non-value top-level module definitions, add
    tests showing that things get defaulted to value.
 *)
+
+(********************************************************************)
+(* Test 23: checking the error message from impossible GADT matches *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(**************************************************)
+(* Test 25: Optional parameter with exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*********************************************************)
+(* Test 26: Inferring an application to an exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(******************************************)
+(* Test 27: Exotic layouts in approx_type *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(************************************)
+(* Test 28: Exotic layouts in letop *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*******************************************)
+(* Test 29: [external]s default to [value] *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(**************************************)
+(* Test 30: [val]s default to [value] *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(**************************************************)
+(* Test 31: checking that #poly_var patterns work *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(******************************************************)
+(* Test 33: Externals must have representable types *)
+
+(* CR layouts v2.5: This test moved to [basics_alpha.ml] as it needs a
+   non-representable layout.  Bring it back here when we can mention [t_any] in
+   [-extension layouts]. *)
+
+(****************************************************)
+(* Test 34: Layout clash in polymorphic record type *)
+
+(* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
+   type parameter.  Bring back here when we have one enabled by default. *)

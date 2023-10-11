@@ -50,8 +50,12 @@ CAMLextern void caml_leave_blocking_section (void);
    use the runtime system (typically, a blocking I/O operation).
 */
 
-CAMLextern int caml_c_thread_register(void);
-CAMLextern int caml_c_thread_unregister(void);
+/* These functions are defined in the threads library, not the runtime */
+#ifndef CAMLextern_libthreads
+#define CAMLextern_libthreads CAMLextern
+#endif
+CAMLextern_libthreads int caml_c_thread_register(void);
+CAMLextern_libthreads int caml_c_thread_unregister(void);
 
 /* If a thread is created by C code (instead of by OCaml itself),
    it must be registered with the OCaml runtime system before
@@ -60,6 +64,51 @@ CAMLextern int caml_c_thread_unregister(void);
    Before the thread finishes, it must call [caml_c_thread_unregister].
    Both functions return 1 on success, 0 on error.
 */
+
+enum caml_thread_type { Thread_type_caml, Thread_type_c_registered };
+struct caml_locking_scheme {
+  void* context;
+  void (*lock)(void*);
+  void (*unlock)(void*);
+
+  /* If non-NULL, these functions are called when threads start and stop.
+     For threads created by OCaml, that's at creation and termination.
+     For threads created by C, that's at caml_c_thread_register/unregister.
+     The lock is not held when these functions are called. */
+  void (*thread_start)(void*, enum caml_thread_type);
+  void (*thread_stop)(void*, enum caml_thread_type);
+
+  /* Called after fork().
+     The lock should be held after this function returns. */
+  void (*reinitialize_after_fork)(void*);
+
+  /* can_skip_yield and yield are both called with the lock held,
+     and expect it held on return */
+  int (*can_skip_yield)(void*);
+  void (*yield)(void*);
+};
+
+extern struct caml_locking_scheme caml_default_locking_scheme;
+
+/* Switch to a new runtime locking scheme.
+
+   The old runtime lock must be held (i.e. not in a blocking section),
+   and the new runtime lock must not be held. After this function
+   returns, the old lock is released and the new one is held.
+
+   There is a period during this function when neither lock is held,
+   so context-switches may occur. */
+CAMLextern_libthreads
+void caml_switch_runtime_locking_scheme(struct caml_locking_scheme*);
+
+CAMLextern_libthreads
+void caml_thread_switch_runtime_state(void);
+
+/* A prior version of this API used save/restore rather than a single switch.
+   For compatibility, aliases are defined for the old API.
+   (These will be removed when the lone user of this API is updated) */
+#define caml_thread_save_runtime_state()
+#define caml_thread_restore_runtime_state caml_thread_switch_runtime_state
 
 #ifdef __cplusplus
 }

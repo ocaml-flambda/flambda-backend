@@ -78,10 +78,10 @@ type ('a : immediate) t = 'a or_null
 
 [%%expect {|
 success
-success (inferring an immediate layout for [t] and non_null_immediate for ['a])
+success (inferring an immediate jkind for [t] and non_null_immediate for ['a])
 |}]
 
-(* more layout checking *)
+(* more jkind checking *)
 type t : non_null_value = string or_null
 
 [%%expect {|
@@ -265,7 +265,7 @@ let measure_alloc f =
   (* NB: right-to-left evaluation order gets this right *)
   let baseline_allocation = Gc.allocated_bytes() -. Gc.allocated_bytes() in
   let before = Gc.allocated_bytes () in
-  let result = f () in
+  let result = (f[@inlined never]) () in
   let after = Gc.allocated_bytes () in
   (after -. before) -. baseline_allocation, result
 

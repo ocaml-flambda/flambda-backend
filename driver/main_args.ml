@@ -632,6 +632,14 @@ let mk_verbose f =
   "-verbose", Arg.Unit f, " Print calls to external commands"
 ;;
 
+let mk_verbose_types f =
+  "-verbose-types", Arg.Unit f, " Print detailed information within types"
+;;
+
+let mk_no_verbose_types f =
+  "-no-verbose-types", Arg.Unit f,
+  " Omit expert information within types (default)"
+
 let mk_version f =
   "-version", Arg.Unit f, " Print version and exit"
 ;;
@@ -732,7 +740,7 @@ let mk_dump_into_file f =
 
 let mk_extension f =
   let available_extensions =
-    Language_extension.(List.map to_string all)
+    Language_extension.Exist.(List.concat_map to_command_line_strings all)
   in
   "-extension", Arg.Symbol (available_extensions, f),
   "  Enable the specified extension (may be specified more than once)"
@@ -740,7 +748,7 @@ let mk_extension f =
 
 let mk_no_extension f =
   let available_extensions =
-    Language_extension.(List.map to_string all)
+    Language_extension.Exist.(List.concat_map to_command_line_strings all)
   in
   "-no-extension", Arg.Symbol (available_extensions, f),
   "  Disable the specified extension (may be specified more than once)"
@@ -756,8 +764,11 @@ let mk_disable_all_extensions f =
 
 let mk_only_erasable_extensions f =
   let erasable_extensions =
-    let open Language_extension in
-    all |> List.filter is_erasable |> List.map to_string |> String.concat ", "
+    let open Language_extension.Exist in
+    all |>
+    List.filter is_erasable |>
+    List.concat_map to_command_line_strings |>
+    String.concat ", "
   in
 "-only-erasable-extensions", Arg.Unit f,
   "  Disable all extensions that cannot be \"erased\" to attributes,\n\
@@ -921,6 +932,10 @@ let mk_dstartup f =
   "-dstartup", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_debug_ocaml f =
+  "-debug-ocaml", Arg.Unit f, " Debugging output for the compiler\n\
+                               (internal use only)"
+
 let mk_opaque f =
   "-opaque", Arg.Unit f,
   " Does not generate cross-module optimization information\n\
@@ -966,9 +981,6 @@ let mk_afl_inst_ratio f =
   \     (advanced, see afl-fuzz docs for AFL_INST_RATIO)"
 ;;
 
-let mk_alloc_check f =
-  "-zero-alloc-check", Arg.Unit f, "<ignored>"
-
 let mk__ f =
   "-", Arg.String f,
   "<file>  Treat <file> as a file name (even if it starts with `-')"
@@ -1005,9 +1017,12 @@ module type Common_options = sig
   val _unboxed_types : unit -> unit
   val _no_unboxed_types : unit -> unit
   val _unsafe_string : unit -> unit
+  val _verbose_types : unit -> unit
+  val _no_verbose_types : unit -> unit
   val _version : unit -> unit
   val _vnum : unit -> unit
   val _w : string -> unit
+  val _debug_ocaml : unit -> unit
 
   val anonymous : string -> unit
 end
@@ -1204,7 +1219,6 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
-  val _alloc_check : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1316,6 +1330,8 @@ struct
     mk_use_runtime_2 F._use_runtime;
     mk_v F._v;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_vmthread F._vmthread;
@@ -1345,6 +1361,7 @@ struct
     mk_dprofile F._dprofile;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
+    mk_debug_ocaml F._debug_ocaml;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1391,6 +1408,8 @@ struct
     mk_no_unboxed_types F._no_unboxed_types;
     mk_unsafe F._unsafe;
     mk_unsafe_string F._unsafe_string;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_no_version F._no_version;
@@ -1413,6 +1432,7 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
+    mk_debug_ocaml F._debug_ocaml;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1531,6 +1551,8 @@ struct
     mk_unsafe_string F._unsafe_string;
     mk_v F._v;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_vnum F._vnum;
@@ -1582,7 +1604,7 @@ struct
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
-    mk_alloc_check F._alloc_check;
+    mk_debug_ocaml F._debug_ocaml;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1653,6 +1675,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_unsafe F._unsafe;
     mk_unsafe_string F._unsafe_string;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_no_version F._no_version;
@@ -1691,6 +1715,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;
+    mk_debug_ocaml F._debug_ocaml;
+
     mk_eval F._eval;
   ]
 end;;
@@ -1737,12 +1763,15 @@ struct
     mk_unsafe_string F._unsafe_string;
     mk_v F._v;
     mk_verbose F._verbose;
+    mk_verbose_types F._verbose_types;
+    mk_no_verbose_types F._no_verbose_types;
     mk_version F._version;
     mk__version F._version;
     mk_vmthread F._vmthread;
     mk_vnum F._vnum;
     mk_w F._w;
     mk__ F.anonymous;
+    mk_debug_ocaml F._debug_ocaml;
   ]
 end;;
 
@@ -1809,11 +1838,12 @@ module Default = struct
     let _no_strict_formats = clear strict_formats
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
+    let _no_verbose_types = clear verbose_types
     let _disable_all_extensions = Language_extension.disallow_extensions
     let _only_erasable_extensions =
       Language_extension.restrict_to_erasable_extensions
-    let _extension s = Language_extension.(enable (of_string_exn s))
-    let _no_extension s = Language_extension.(disable (of_string_exn s))
+    let _extension s = Language_extension.(enable_of_string_exn s)
+    let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -1826,8 +1856,10 @@ module Default = struct
     let _strict_sequence = set strict_sequence
     let _unboxed_types = set unboxed_types
     let _unsafe_string = set unsafe_string
+    let _verbose_types = set verbose_types
     let _w s =
       Warnings.parse_options false s |> Option.iter Location.(prerr_alert none)
+    let _debug_ocaml = set debug_ocaml
 
     let anonymous = Compenv.anonymous
 
@@ -2074,7 +2106,6 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
-    let _alloc_check () = ()
   end
 
   module Odoc_args = struct

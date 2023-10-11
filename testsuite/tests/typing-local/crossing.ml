@@ -161,7 +161,7 @@ let f: local_ _ -> int lazy_t =
 Line 2, characters 16-17:
 2 |   fun n -> lazy n
                     ^
-Error: The value n is local, so cannot be used inside a closure that might escape
+Error: The value n is local, so cannot be used inside a lazy expression.
 |}]
 
 (* record field crosses mode at projection  *)
@@ -224,7 +224,7 @@ val f : unit -> local_ int = <fun>
 |}]
 
 let g : _ -> _ =
-  fun () -> f ()
+  fun () -> let x = f () in x
 [%%expect{|
 val g : unit -> int = <fun>
 |}]
@@ -236,11 +236,11 @@ val f : unit -> local_ string = <fun>
 |}]
 
 let g : _ -> _ =
-  fun () -> f ()
+  fun () -> let x = f () in x
 [%%expect{|
-Line 2, characters 12-16:
-2 |   fun () -> f ()
-                ^^^^
+Line 2, characters 28-29:
+2 |   fun () -> let x = f () in x
+                                ^
 Error: This value escapes its region
 |}]
 
@@ -339,13 +339,13 @@ let f : local_ _ -> M.t =
 let f : local_ _ -> t2 =
   fun x -> x
 [%%expect{|
-module M : sig type t [@@immediate] end
+module M : sig type t : immediate end
 type t2 = { x : int; } [@@unboxed]
 val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
 |}]
 
-(* This test needs the snapshotting in is_always_global to prevent a type error
+(* This test needs the snapshotting in [is_immediate] to prevent a type error
    from the use of the gadt equation in the inner scope. *)
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a }
@@ -357,4 +357,94 @@ let f (type a) (x : a t_gadt) (y : a) =
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a; }
 val f : 'a t_gadt -> 'a -> 'a = <fun>
+|}]
+
+(* Mode crossing in coercing arrow types *)
+let foo : int -> int = fun x -> x
+[%%expect{|
+val foo : int -> int = <fun>
+|}]
+
+let foo' : int -> local_ int = fun x -> local_ x
+[%%expect{|
+val foo' : int -> local_ int = <fun>
+|}]
+
+
+
+let bar (f : local_ int -> int) = f 42
+[%%expect{|
+val bar : (local_ int -> int) -> int = <fun>
+|}]
+
+(* Implicit mode crossing is not good enough *)
+let _ = bar foo
+[%%expect{|
+Line 1, characters 12-15:
+1 | let _ = bar foo
+                ^^^
+Error: This expression has type int -> int
+       but an expression was expected of type local_ int -> int
+|}]
+
+let _ = bar (foo :> local_ int -> int)
+[%%expect{|
+- : int = 42
+|}]
+
+let _ = bar (foo : int -> int :> local_ int -> int)
+[%%expect{|
+- : int = 42
+|}]
+
+(* Only the RHS type of :> is looked at for mode crossing *)
+let _ = bar (foo : int -> int :> local_ _ -> _)
+[%%expect{|
+Line 1, characters 12-47:
+1 | let _ = bar (foo : int -> int :> local_ _ -> _)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type int -> int is not a subtype of local_ 'a -> 'b
+|}]
+
+
+(* An example: the RHS allows mode crossing but the LHS doesn't *)
+let foo = function
+  | `A -> ()
+  | `B (s : string) -> ()
+[%%expect{|
+val foo : [< `A | `B of string ] -> unit = <fun>
+|}]
+
+let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`A] -> unit)
+[%%expect{|
+val foo_ : local_ [ `A ] -> unit = <fun>
+|}]
+
+let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
+[%%expect{|
+Line 1, characters 11-79:
+1 | let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type [ `A | `B of string ] -> unit is not a subtype of
+         local_ [ `B of string ] -> unit
+|}]
+
+(* You can't erase the info that a function might allocate in parent region *)
+let _ = bar (foo' :> local_ int -> int)
+[%%expect{|
+Line 1, characters 12-39:
+1 | let _ = bar (foo' :> local_ int -> int)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type int -> local_ int is not a subtype of local_ int -> int
+|}]
+
+(* Mode crossing at identifiers - in the following, x and y are added to the
+environment at mode local, but they cross to global when they are refered to
+again. Note that ref is polymorphic and thus doesn't trigger crossing. *)
+let foo () =
+  let x, y = local_ (42, 24) in
+  let _ = ref x, ref y in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
 |}]

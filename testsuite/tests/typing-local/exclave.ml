@@ -8,22 +8,19 @@ let escape x =
   ()
 [%%expect{|
 val escape : 'a -> unit = <fun>
-|}]  
+|}]
 
-(* Any function ending with exclave is always typed to 
-   return local value. 
-  This is to accomadate some code in compiler that relies 
-  on the function's type to know if it allocates in caller's 
-  region. *)
-let foo () = 
-  [%exclave] (
-    let local_ y = Some 42 in 
+(* Any function ending with exclave is always typed to return local value. This is to
+   accommodate some code in compiler that relies on the function's type to know if it
+   allocates in caller's region. *)
+let foo () =
+  exclave_
+    let local_ y = Some 42 in
     y
-  )
 [%%expect{|
 val foo : unit -> local_ int option = <fun>
 |}]
-(* sidenote: in the above, 
+(* sidenote: in the above,
    y escapes the function even though local_
    - indeed y is in the outer region!
    *)
@@ -31,26 +28,24 @@ val foo : unit -> local_ int option = <fun>
 (* Of course this applies even when the exclave returns a global value,
   because it might still allocate in outer region
     *)
-let foo () = 
-  [%exclave] (
-    let local_ _y = Some 42 in 
-    let x = Some 42 in 
-    let _ = escape x in 
+let foo () =
+  exclave_
+    let local_ _y = Some 42 in
+    let x = Some 42 in
+    let _ = escape x in
     x
-  )
 [%%expect{|
 val foo : unit -> local_ int option = <fun>
 |}]
 
 (* this still applies even when the exclave doesn't allocate in outer region at all,
-  because I don't know any reliable mechanisms in type checker to do that. 
+  because I don't know any reliable mechanisms in type checker to do that.
   So it's better to be safe and say that "it might allocate in outer region". *)
 let foo x =
-  [%exclave] (
-    let x = Some 42 in 
+  exclave_
+    let x = Some 42 in
     let _ = escape x in
     x
-  )
 [%%expect{|
 val foo : 'a -> local_ int option = <fun>
 |}]
@@ -58,11 +53,10 @@ val foo : 'a -> local_ int option = <fun>
 
 (* Below we do some usual testing  *)
 let foo x =
-  [%exclave] (
+  exclave_
     let local_ y = None in
     (* y is not global *)
     ref y
-  )
 [%%expect{|
 Line 5, characters 8-9:
 5 |     ref y
@@ -73,22 +67,22 @@ Error: This value escapes its region
 (* following we check error detection *)
 let foo x =
   let local_ y = "foo" in
-  [%exclave] (Some y)
+  exclave_ Some y
 [%%expect{|
-Line 3, characters 19-20:
-3 |   [%exclave] (Some y)
-                       ^
-Error: The value y is local, so cannot be used inside exclave
+Line 3, characters 16-17:
+3 |   exclave_ Some y
+                    ^
+Error: The value y is local, so it cannot be used inside an exclave_
 |}]
 
 let foo x =
   let local_ y = "foo" in
-  let z = [%exclave] (Some y) in
+  let z = exclave_ Some y in
   z
 [%%expect{|
-Line 3, characters 10-29:
-3 |   let z = [%exclave] (Some y) in
-              ^^^^^^^^^^^^^^^^^^^
+Line 3, characters 10-25:
+3 |   let z = exclave_ Some y in
+              ^^^^^^^^^^^^^^^
 Error: Exclave expression should only be in tail position of the current region
 |}]
 
@@ -96,7 +90,7 @@ Error: Exclave expression should only be in tail position of the current region
 (* exclave in loop is allowed*)
 let foo () =
   while true do
-    [%exclave] ()
+    exclave_ ()
   done
 
 [%%expect{|
@@ -106,12 +100,12 @@ val foo : unit -> unit = <fun>
 (* we also require tail position *)
 let foo () =
   while true do
-    [%exclave] ();
+    (exclave_ ());
     ()
   done
 [%%expect{|
 Line 3, characters 4-17:
-3 |     [%exclave] ();
+3 |     (exclave_ ());
         ^^^^^^^^^^^^^
 Error: Exclave expression should only be in tail position of the current region
 |}]
@@ -119,7 +113,7 @@ Error: Exclave expression should only be in tail position of the current region
 (* following we test FOR loop *)
 let foo () =
   for i = 1 to 42 do
-    [%exclave] ()
+    exclave_ ()
   done
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -127,36 +121,25 @@ val foo : unit -> unit = <fun>
 
 let foo () =
   for i = 1 to 42 do
-    [%exclave] ();
+    (exclave_ ());
     ()
   done
 [%%expect{|
 Line 3, characters 4-17:
-3 |     [%exclave] ();
+3 |     (exclave_ ());
         ^^^^^^^^^^^^^
 Error: Exclave expression should only be in tail position of the current region
 |}]
 
-type t = { nonlocal_ x : int option }
-
-let foo (local_ x) =
-  let __ = { x } in
-  [%exclave] x
-
-[%%expect{|
-type t = { nonlocal_ x : int option; }
-val foo : local_ int option -> local_ int option = <fun>
-|}]
+type t = { x : int option }
 
 let foo (local_ x) =
   let _ = { x } in
-  [%exclave] { x }
+  exclave_ x
 
 [%%expect{|
-Line 3, characters 15-16:
-3 |   [%exclave] { x }
-                   ^
-Error: This local value escapes its region
+type t = { x : int option; }
+val foo : local_ int option -> local_ int option = <fun>
 |}]
 
 (* semantics tests *)
@@ -168,10 +151,9 @@ let foo () =
   let local_ z = "hello" in
   x.a <- z;
   while true do
-    [%exclave] (
+    exclave_
       let local_ y = "hello" in
       x.a <- y
-    )
   done
 
 [%%expect{|
@@ -183,10 +165,10 @@ Error: This value escapes its region
 |}]
 
 let foo x =
-  [%exclave] (
+  exclave_
     let local_ y = Some x in
     y
-  );;
+  ;;
 
 let bar _ =
   match foo 5 with
@@ -199,3 +181,35 @@ val bar : 'a -> string = <fun>
 - : string = "Some of 5"
 |}]
 
+(* Ensure that Alias bindings are not substituted by Simplif (PR1448) *)
+type 'a glob = Glob of ('a[@global])
+
+let[@inline never] return_local a = [%local] (Glob a)
+
+let f () =
+  let (Glob x) = return_local 1 in
+  [%exclave]
+    (let (_ : _) = return_local 99 in
+     assert (x = 1))
+;;
+f ();;
+[%%expect{|
+type 'a glob = Glob of global_ 'a
+val return_local : 'a -> local_ 'a glob = <fun>
+val f : unit -> local_ unit = <fun>
+- : unit = ()
+|}]
+
+(* exclave_ should follow the allocation behaviour of local_. That means the
+   body must be strictly local (which only matters when allocating functions) *)
+let f () =
+  exclave_ (
+    (fun x y -> ()) : (string -> string -> unit)
+  )
+[%%expect{|
+Line 3, characters 4-19:
+3 |     (fun x y -> ()) : (string -> string -> unit)
+        ^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}]

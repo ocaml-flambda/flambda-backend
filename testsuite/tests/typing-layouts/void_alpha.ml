@@ -8,11 +8,11 @@
 (* CR layouts v5: eliminate various restructions about how void is used from
    this file. *)
 
-type t_void [@@void]
+type t_void : void
 
 type void_rec = { v : t_void } [@@unboxed];;
 [%%expect{|
-type t_void [@@void]
+type t_void : void
 type void_rec = { v : t_void; } [@@unboxed]
 |}]
 
@@ -885,7 +885,7 @@ Error: Unbound value test8
 
 (***********************************)
 (* Test 9: voids in let rec groups *)
-(* CR layouts v2: hard to do much interesting here, considering the restrictions
+(* CR layouts v2.5: hard to do much interesting here, considering the restrictions
    on non-function let-recs.  Revisit when we have more interesting functions?
 *)
 let () = r := []
@@ -973,8 +973,8 @@ Error: Non-value detected in [value_kind].
 
 
 
-(* CR layouts v5: When we allow voidat the module level, we'll want
-   test cases, including cases where the term has an indeterminate
+(* CR layouts v5: When we allow void at the module level, we'll want
+   test cases, including cases where the term has an unrepresentable
    layout, and the signature a) mentions the term and specifies its layout, b)
    mentions the term and doesn't specify its layout, and c) doesn't mention the
    term. Do we want to allow "empty" modules?

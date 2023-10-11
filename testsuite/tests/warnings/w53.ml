@@ -208,27 +208,6 @@ module TestCurryStruct = struct
   [@@@curry 42] (* rejected *)
 end
 
-(* No "accepted" test for include_functor because the user shouldn't write it *)
-module type TestIncludeFunctor = sig
-  type 'a t1 = 'a [@@include_functor 42] (* rejected *)
-
-  type s1 = Foo1 [@include_functor 42] (* rejected *)
-
-  val x : int [@include_functor 42] (* rejected *)
-
-  [@@@include_functor 42] (* rejected *)
-end
-
-module TestIncludeFunctorStruct = struct
-  type 'a t1 = 'a [@@include_functor 42] (* rejected *)
-
-  type s1 = Foo1 [@include_functor 42] (* rejected *)
-
-  let x = 5 [@include_functor 42] (* rejected *)
-
-  [@@@include_functor 42] (* rejected *)
-end
-
 module type TestLocalOptSig = sig
   type 'a t1 = 'a [@@local_opt] (* rejected *)
   type s1 = Foo1 [@local_opt] (* rejected *)
@@ -250,41 +229,32 @@ end
 module type TestLocalGlobalSig = sig
   type 'a t1 = 'a [@local] (* rejected *)
   type 'a t1' = 'a [@global] (* rejected *)
-  type 'a t1'' = 'a [@nonlocal] (* rejected *)
 
   type t2 = { x : int [@local] } (* rejected *)
   type t2' = { x : int [@global] } (* accepted *)
-  type t2'' = { x : int [@nonlocal] } (* accepted *)
 
   val x : 'a list -> ('a [@local]) list (* rejected *)
   val x' : 'a list -> ('a [@global]) list (* rejected *)
-  val x'' : 'a list -> ('a [@nonlocal]) list (* rejected *)
 
   val y : 'a -> f:(('a -> 'b) [@local]) -> 'b (* accepted *)
   val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b (* rejected *)
-  val y'' : 'a -> f:(('a -> 'b) [@nonlocal]) -> 'b (* rejected *)
 
   val z : 'a [@@local] (* rejected *)
   val z' : 'a [@@global] (* rejected *)
-  val z'' : 'a [@@nonlocal] (* rejected *)
 
   val w : 'a [@@@local] (* rejected *)
   val w' : 'a [@@@global] (* rejected *)
-  val w'' : 'a [@@@nonlocal] (* rejected *)
 end
 
 module TestLocalGlobalStruct = struct
   type 'a t1 = 'a [@local] (* rejected *)
   type 'a t1' = 'a [@global] (* rejected *)
-  type 'a t1'' = 'a [@nonlocal] (* rejected *)
 
   type t2 = { x : int [@local] } (* rejected *)
   type t2' = { x : int [@global] } (* accepted *)
-  type t2'' = { x : int [@nonlocal] } (* accepted *)
 
   let f (a [@local]) = a (* accepted *)
   let g (a [@global]) = a (* rejected *)
-  let h (a [@nonlocal]) = a (* rejected *)
 end
 
 
@@ -383,8 +353,77 @@ module TestNewtypeAttr = struct
   (* Check for handling of attributes on Pexp_newtype *)
   let f1 = fun [@inline] (type a) (x : a) -> x (* accepted *)
 
-  let f2 = fun [@value] (type a) (x : a) -> x
-  (* accepted (it's a layout annotation) *)
+  let f2 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
+end
 
-  let f3 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
+module type TestBuiltinSig = sig
+  type 'a t1 = 'a [@@builtin] (* rejected *)
+  type s1 = Foo1 [@builtin] (* rejected *)
+  val x : int [@@builtin] (* rejected *)
+
+  external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@builtin] (* accepted *)
+end
+
+module TestBuiltinStruct = struct
+  type 'a t1 = 'a [@@builtin] (* rejected *)
+  type s1 = Foo1 [@builtin] (* rejected *)
+  let x : int = 42 [@@builtin] (* rejected *)
+
+  external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@builtin] (* accepted *)
+end
+
+module type TestNoEffectsSig = sig
+  type 'a t1 = 'a [@@no_effects] (* rejected *)
+  type s1 = Foo1 [@no_effects] (* rejected *)
+  val x : int [@@no_effects] (* rejected *)
+
+  external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@no_effects] (* accepted *)
+end
+
+module TestNoEffectsStruct = struct
+  type 'a t1 = 'a [@@no_effects] (* rejected *)
+  type s1 = Foo1 [@no_effects] (* rejected *)
+  let x : int = 42 [@@no_effects] (* rejected *)
+
+  external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@no_effects] (* accepted *)
+end
+
+module type TestNoCoeffectsSig = sig
+  type 'a t1 = 'a [@@no_coeffects] (* rejected *)
+  type s1 = Foo1 [@no_coeffects] (* rejected *)
+  val x : int [@@no_coeffects] (* rejected *)
+
+  external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@no_coeffects] (* accepted *)
+end
+
+module TestNoCoeffectsStruct = struct
+  type 'a t1 = 'a [@@no_coeffects] (* rejected *)
+  type s1 = Foo1 [@no_coeffects] (* rejected *)
+  let x : int = 42 [@@no_coeffects] (* rejected *)
+
+  external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@no_coeffects] (* accepted *)
+end
+
+module type TestOnlyGenerativeEffectsSig = sig
+  type 'a t1 = 'a [@@only_generative_effects] (* rejected *)
+  type s1 = Foo1 [@only_generative_effects] (* rejected *)
+  val x : int [@@only_generative_effects] (* rejected *)
+
+  external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@only_generative_effects] (* accepted *)
+end
+
+module TestOnlyGenerativeEffectsStruct = struct
+  type 'a t1 = 'a [@@only_generative_effects] (* rejected *)
+  type s1 = Foo1 [@only_generative_effects] (* rejected *)
+  let x : int = 42 [@@only_generative_effects] (* rejected *)
+
+  external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
+  external z : int -> int = "x" "y" [@@only_generative_effects] (* accepted *)
 end

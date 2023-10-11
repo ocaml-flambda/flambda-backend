@@ -34,6 +34,8 @@ UTILS = \
   utils/local_store.cmo \
   utils/load_path.cmo \
   utils/clflags.cmo \
+  utils/debug.cmo \
+  utils/language_extension_kernel.cmo \
   utils/language_extension.cmo \
   utils/profile.cmo \
   utils/terminfo.cmo \
@@ -52,15 +54,16 @@ UTILS = \
   utils/lazy_backtrack.cmo \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo
-UTILS_CMI =
+UTILS_CMI = \
 
 PARSING = \
   parsing/location.cmo \
   parsing/longident.cmo \
   parsing/docstrings.cmo \
+  parsing/printast.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
-  parsing/extensions_parsing.cmo parsing/extensions.cmo \
+  parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
   parsing/pprintast.cmo \
   parsing/ast_iterator.cmo \
   parsing/builtin_attributes.cmo \
@@ -68,20 +71,21 @@ PARSING = \
   parsing/parser.cmo \
   parsing/lexer.cmo \
   parsing/parse.cmo \
-  parsing/printast.cmo \
   parsing/ast_mapper.cmo \
   parsing/attr_helper.cmo \
   parsing/ast_invariants.cmo \
   parsing/depend.cmo
 PARSING_CMI = \
   parsing/asttypes.cmi \
+  parsing/jane_asttypes.cmi \
   parsing/parsetree.cmi
 
 TYPING = \
   typing/path.cmo \
+  typing/jkind.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
-  typing/layouts.cmo \
+  typing/mode.cmo \
   typing/types.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
@@ -120,6 +124,7 @@ TYPING = \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \
   typing/typeopt.cmo \
+  typing/uniqueness_analysis.cmo \
   typing/rec_check.cmo \
   typing/typecore.cmo \
   typing/typeclass.cmo \

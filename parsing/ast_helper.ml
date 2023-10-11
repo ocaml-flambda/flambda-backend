@@ -82,9 +82,15 @@ module Typ = struct
     let check_variable vl loc v =
       if List.mem v vl then
         raise Syntaxerr.(Error(Variable_in_scope(loc,v))) in
-    let var_names = List.map (fun v -> v.txt) var_names in
+    let var_names = List.map Location.get_txt var_names in
     let rec loop t =
       let desc =
+        (* This *ought* to match on [Jane_syntax.Core_type.ast_of] first, but
+           that would be a dependency cycle -- [Jane_syntax] depends rather
+           crucially on [Ast_helper].  However, this just recurses looking for
+           constructors and variables, so it *should* be fine even so.  If
+           Jane-syntax embeddings ever change so that this breaks, we'll need to
+           resolve this knot. *)
         match t.ptyp_desc with
         | Ptyp_any -> Ptyp_any
         | Ptyp_var x ->
@@ -102,6 +108,10 @@ module Typ = struct
             Ptyp_object (List.map loop_object_field lst, o)
         | Ptyp_class (longident, lst) ->
             Ptyp_class (longident, List.map loop lst)
+        (* A Ptyp_alias might be a jkind annotation (that is, it might have
+           attributes which mean it should be interpreted as a
+           [Jane_syntax.Layouts.Ltyp_alias]), but the code here still has the
+           correct behavior. *)
         | Ptyp_alias(core_type, string) ->
             check_variable var_names t.ptyp_loc string;
             Ptyp_alias(loop core_type, string)
@@ -511,11 +521,13 @@ module Type = struct
   let mk ?(loc = !default_loc) ?(attrs = [])
         ?(docs = empty_docs) ?(text = [])
       ?(params = [])
+      ?jkind
       ?(cstrs = [])
       ?(kind = Ptype_abstract)
       ?(priv = Public)
       ?manifest
       name =
+    let jkind_attrs = Option.to_list jkind in
     {
      ptype_name = name;
      ptype_params = params;
@@ -524,7 +536,7 @@ module Type = struct
      ptype_private = priv;
      ptype_manifest = manifest;
      ptype_attributes =
-       add_text_attrs text (add_docs_attrs docs attrs);
+       jkind_attrs @ add_text_attrs text (add_docs_attrs docs attrs);
      ptype_loc = loc;
     }
 

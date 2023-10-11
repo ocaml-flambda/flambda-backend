@@ -1,4 +1,6 @@
 (* TEST
+   modules = "cstubs.c"
+   include ocamlcommon
    * native *)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
@@ -15,7 +17,50 @@ let check_empty name =
   end;
   last_offset := offs
 
+let check_not_empty name =
+  let offs = local_stack_offset ()in
+  if offs <> !last_offset then begin
+    Printf.printf "%25s: OK\n%!" name
+  end else begin
+    Printf.printf "%25s: not leaking while expected so\n%!" name
+  end;
+  last_offset := offs
+
 let () = check_empty "startup"
+
+let allocate_in_current_region x = local_
+  ignore_local (Some x);
+  ()
+
+let leak_in_current_region : 'a -> unit = Obj.magic allocate_in_current_region
+
+external make_dumb_external_block : unit -> int = "make_dumb_external_block"
+external follow : int -> ('a [@local_opt]) = "%int_as_pointer"
+
+let ext : int = make_dumb_external_block ()
+
+let[@inline never] int_as_pointer_local x =
+  leak_in_current_region x;
+  (* The region should be preserved by the following call; hence no stack space
+     leaking *)
+  let _ = opaque_identity (follow ext) in
+  ()
+
+let[@inline never] int_as_pointer_global x =
+  (* The current function region will be eliminated, because the following two
+     function calls don't allocate on the region (superficially). The first call
+     secretly does, hence stack space leaking. *)
+  leak_in_current_region x;
+  let _ = Sys.opaque_identity (follow ext) in
+  ()
+
+let () =
+  int_as_pointer_global 42;
+  check_not_empty "int_as_pointer (global)"
+
+let () =
+  int_as_pointer_local 42;
+  check_empty "int_as_pointer (local)"
 
 let[@inline never] uses_local x =
   let local_ r = ref x in
@@ -234,5 +279,42 @@ let () =
   check (!obj#local_ret "!" 5);
   check_empty "method overapply"
 
+type t = { x : int } [@@unboxed]
+let[@inline never] create_local () =
+  let local_ _extra = opaque_identity (Some (opaque_identity ())) in
+  local_ { x = opaque_identity 0 }
+let create_and_ignore () =
+  let x = create_local () in
+  ignore (Sys.opaque_identity x : t)
+
+let () =
+  create_and_ignore ();
+  check_empty "mode-crossed region"
+
+let[@inline never] allocate_in_exclave a =
+  (* This needs to be a [while] so that we're allowed to have an [exclave_] *)
+  while
+    let pair = local_ opaque_identity (a, a) in
+    let b, _ = pair in
+    let b : int = b in
+    exclave_ (
+      (* This should allocate in the function's region - in particular, the
+         function needs to have one *)
+      let pair = local_ opaque_identity (b, b) in
+      let c, _ = pair in
+      c = 42)
+  do
+    ()
+  done
+
+let () =
+  let () =
+    (* Temporarily disable this test for flambda1 until it's fixed there *)
+    if not Config.flambda then
+      allocate_in_exclave 1
+  in
+  (* If [allocate_in_exclave] had its region elided, the allocation will have
+     happened in our region instead *)
+  check_empty "allocation from exclave"
 
 let () = Gc.compact ()

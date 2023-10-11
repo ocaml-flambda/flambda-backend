@@ -1,5 +1,0 @@
-File "user_error3.ml", line 21, characters 25-69:
-21 | let _unknown_extension = [%extension.this_extension_doesn't_exist] ();;
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unknown extension "this_extension_doesn't_exist" referenced via an
-       [%extension.this_extension_doesn't_exist] extension node

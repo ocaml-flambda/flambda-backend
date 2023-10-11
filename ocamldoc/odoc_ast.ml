@@ -50,7 +50,7 @@ module Typedtree_search =
 
     let iter_val_pattern = function
       | Typedtree.Tpat_any -> None
-      | Typedtree.Tpat_var (name, _, _) -> Some (Name.from_ident name)
+      | Typedtree.Tpat_var (name, _, _, _) -> Some (Name.from_ident name)
       | Typedtree.Tpat_tuple _ -> None (* FIXME when we will handle tuples *)
       | _ -> None
 
@@ -241,14 +241,14 @@ module Analyser =
     let tt_param_info_from_pattern env f_desc pat =
       let rec iter_pattern pat =
         match pat.pat_desc with
-          Typedtree.Tpat_var (ident, _, _) ->
+          Typedtree.Tpat_var (ident, _, _, _) ->
             let name = Name.from_ident ident in
             Simple_name { sn_name = name ;
                           sn_text = f_desc name ;
                           sn_type = Odoc_env.subst_type env pat.pat_type
                         }
 
-        | Typedtree.Tpat_alias (pat, _, _, _) ->
+        | Typedtree.Tpat_alias (pat, _, _, _, _) ->
             iter_pattern pat
 
         | Typedtree.Tpat_tuple patlist ->
@@ -298,15 +298,16 @@ module Analyser =
 
           in
          (* For optional parameters with a default value, a special treatment is required *)
-         (* we look if the name of the parameter we just add is "*opt*", which means
+         (* we look if the name of the parameter we just add starts with "*opt*", which means
             that there is a let param_name = ... in ... just right now *)
           let (p, next_exp) =
             match parameter with
-              Simple_name { sn_name = "*opt*" } ->
+              Simple_name { sn_name }
+                when String.starts_with ~prefix:"*opt*" sn_name ->
                 (
                  (
                   match func_body.exp_desc with
-                    Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _) };
+                    Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _, _) };
                                             vb_expr=exp} :: _, func_body2) ->
                       let name = Name.from_ident id in
                       let new_param = Simple_name
@@ -336,7 +337,7 @@ module Analyser =
      let tt_analyse_value env current_module_name comment_opt loc pat_exp rec_flag =
        let (pat, exp) = pat_exp in
        match (pat.pat_desc, exp.exp_desc) with
-         (Typedtree.Tpat_var (ident, _, _), Typedtree.Texp_function { cases = pat_exp_list2; _ }) ->
+         (Typedtree.Tpat_var (ident, _, _, _), Typedtree.Texp_function { cases = pat_exp_list2; _ }) ->
            (* a new function is defined *)
            let name_pre = Name.from_ident ident in
            let name = Name.parens_if_infix name_pre in
@@ -361,7 +362,7 @@ module Analyser =
            in
            [ new_value ]
 
-       | (Typedtree.Tpat_var (ident, _, _), _) ->
+       | (Typedtree.Tpat_var (ident, _, _, _), _) ->
            (* a new value is defined *)
            let name_pre = Name.from_ident ident in
            let name = Name.parens_if_infix name_pre in
@@ -457,15 +458,16 @@ module Analyser =
                           pattern_param
                       in
                       (* For optional parameters with a default value, a special treatment is required. *)
-                      (* We look if the name of the parameter we just add is "*opt*", which means
+                      (* We look if the name of the parameter we just add starts with "*opt*", which means
                          that there is a let param_name = ... in ... just right now. *)
                       let (current_param, next_exp) =
                         match parameter with
-                          Simple_name { sn_name = "*opt*"} ->
+                          Simple_name { sn_name }
+                            when String.starts_with ~prefix:"*opt*" sn_name ->
                             (
                              (
                               match body.exp_desc with
-                                Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _) };
+                                Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _, _) };
                                                         vb_expr=exp} :: _, body2) ->
                                   let name = Name.from_ident id in
                                   let new_param = Simple_name
@@ -726,11 +728,11 @@ module Analyser =
               a default value. In this case, we look for the good parameter pattern *)
            let (parameter, next_tt_class_exp) =
              match pat.Typedtree.pat_desc with
-               Typedtree.Tpat_var (ident, _, _) when Name.from_ident ident = "*opt*" ->
+               Typedtree.Tpat_var (ident, _, _, _) when String.starts_with (Name.from_ident ident) ~prefix:"*opt*" ->
                  (
                   (* there must be a Tcl_let just after *)
                   match tt_class_expr2.Typedtree.cl_desc with
-                    Typedtree.Tcl_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id,_,_) };
+                    Typedtree.Tcl_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id,_,_,_) };
                                            vb_expr=exp} :: _, _, tt_class_expr3) ->
                       let name = Name.from_ident id in
                       let new_param = Simple_name
@@ -784,10 +786,12 @@ module Analyser =
               []
               arg_list
           in
-          let param_types = List.map (fun e -> e.Typedtree.exp_type) param_exps in
+          let param_types =
+            List.map (fun (e, _) -> e.Typedtree.exp_type) param_exps
+          in
           let params_code =
             List.map
-              (fun e -> get_string_of_file
+              (fun (e, _) -> get_string_of_file
                   e.exp_loc.Location.loc_start.Lexing.pos_cnum
                   e.exp_loc.Location.loc_end.Lexing.pos_cnum)
               param_exps
@@ -1037,13 +1041,13 @@ module Analyser =
                 [] -> pos_limit
               | item2 :: _ -> item2.Parsetree.pstr_loc.Location.loc_start.Lexing.pos_cnum
             in
-            let (maybe_more, new_env, elements) = analyse_structure_item
+            let (maybe_more, new_env, elements) = analyse_structure_item_nondesc
                 env
                 current_module_name
                 item.Parsetree.pstr_loc
                 pos_limit2
                 comment_opt
-                item.Parsetree.pstr_desc
+                item
                 typedtree
                 table
                 table_values
@@ -1051,6 +1055,27 @@ module Analyser =
             ele_comments @ elements @ (iter new_env (item.Parsetree.pstr_loc.Location.loc_end.Lexing.pos_cnum + maybe_more) q)
       in
       iter env last_pos parsetree
+
+   and analyse_structure_item_include ~env ~comment_opt _incl =
+     (* we add a dummy included module which will be replaced by a correct
+        one at the end of the module analysis,
+        to use the Path.t of the included modules in the typdtree. *)
+     let im =
+       {
+         im_name = "dummy" ;
+         im_module = None ;
+         im_info = comment_opt ;
+       }
+     in
+     (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
+
+   and analyse_structure_item_jst env _current_module_name _loc _pos_limit comment_opt jstritem _typedtree
+        _table _table_values =
+     match (jstritem : Jane_syntax.Structure_item.t) with
+      | Jstr_include_functor ifincl -> begin match ifincl with
+          | Ifstr_include_functor incl ->
+              analyse_structure_item_include ~env ~comment_opt incl
+        end
 
    (** Analysis of a parse tree structure item to obtain a new environment and a list of elements.*)
    and analyse_structure_item env current_module_name loc pos_limit comment_opt parsetree_item_desc _typedtree
@@ -1653,18 +1678,22 @@ module Analyser =
           in
           (0, new_env, f ~first: true loc.Location.loc_start.Lexing.pos_cnum class_type_decl_list)
 
-      | Parsetree.Pstr_include _ ->
-          (* we add a dummy included module which will be replaced by a correct
-             one at the end of the module analysis,
-             to use the Path.t of the included modules in the typdtree. *)
-          let im =
-            {
-              im_name = "dummy" ;
-              im_module = None ;
-              im_info = comment_opt ;
-            }
-          in
-          (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
+      | Parsetree.Pstr_include incl ->
+          analyse_structure_item_include ~env ~comment_opt incl
+
+   and analyse_structure_item_nondesc env current_module_name loc pos_limit comment_opt parsetree_item typedtree
+        table table_values =
+     match Jane_syntax.Structure_item.of_ast parsetree_item with
+     | Some jparsetree_item ->
+         analyse_structure_item_jst
+           env current_module_name loc pos_limit comment_opt
+           jparsetree_item
+           typedtree table table_values
+     | None ->
+         analyse_structure_item
+           env current_module_name loc pos_limit comment_opt
+           parsetree_item.Parsetree.pstr_desc
+           typedtree table table_values
 
      (** Analysis of a [Parsetree.module_expr] and a name to return a [t_module].*)
      and analyse_module env current_module_name module_name comment_opt p_module_expr tt_module_expr =

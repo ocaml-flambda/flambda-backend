@@ -295,6 +295,8 @@ external bytes_create :
   int -> local_ bytes = "caml_create_local_bytes"
 external bytes_set :
   local_ bytes -> int -> char -> unit = "%bytes_unsafe_set"
+external bytes_get :
+  local_ bytes -> int -> char = "%bytes_unsafe_get"
 external bytes_fill :
   local_ bytes -> int -> int -> char -> unit = "caml_fill_bytes"
 external bytes_blit_string :
@@ -419,6 +421,14 @@ let[@inline never] optionaleta () =
   use_clos (Sys.opaque_identity optarg);
   ()
 
+(* Test big local stack. The following will allocate 5G bytes on the local stack
+   , which is higher than the original 4G limit. *)
+let[@inline never] huge () =
+  let b = bytes_create (Int.shift_left 5 30) in
+  let pos = Int.shift_left 4 30 in
+  bytes_set b pos 'h';
+  assert (bytes_get b pos = 'h')
+
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -473,6 +483,10 @@ let () =
   run "optionalarg" optionalarg (fun_with_optional_arg, 10);
   run "optionaleta" optionaleta ()
 
+  (* The following test commented out as it require more memory than the CI has
+     *)
+  (* run "huge" huge () *)
 
-(* In debug mode, Gc.minor () checks for minor heap->local pointers *)
+(* In debug mode, Gc.minor () checks for minor heap->local pointers (and
+   backwards local pointers, which can't occur here) *)
 let () = Gc.minor ()

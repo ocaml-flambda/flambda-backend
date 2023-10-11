@@ -33,13 +33,13 @@ cvt_emit.cmx :
 debug_printers.cmo : \
     ../typing/printtyp.cmi \
     ../typing/path.cmi \
-    ../typing/layouts.cmi \
+    ../typing/jkind.cmi \
     ../typing/ident.cmi \
     ../typing/ctype.cmi
 debug_printers.cmx : \
     ../typing/printtyp.cmx \
     ../typing/path.cmx \
-    ../typing/layouts.cmx \
+    ../typing/jkind.cmx \
     ../typing/ident.cmx \
     ../typing/ctype.cmx
 dumpobj.cmo : \
@@ -84,8 +84,8 @@ lintapidiff.cmo : \
     ../parsing/parse.cmi \
     ../utils/misc.cmi \
     ../parsing/location.cmi \
-    ../typing/ident.cmi \
-    ../parsing/extensions.cmi
+    ../parsing/jane_syntax.cmi \
+    ../typing/ident.cmi
 lintapidiff.cmx : \
     ../typing/printtyp.cmx \
     ../driver/pparse.cmx \
@@ -94,8 +94,8 @@ lintapidiff.cmx : \
     ../parsing/parse.cmx \
     ../utils/misc.cmx \
     ../parsing/location.cmx \
-    ../typing/ident.cmx \
-    ../parsing/extensions.cmx
+    ../parsing/jane_syntax.cmx \
+    ../typing/ident.cmx
 make_opcodes.cmo :
 make_opcodes.cmx :
 objinfo.cmo : \
@@ -147,7 +147,6 @@ ocamlcmt.cmo : \
     ../driver/compmisc.cmi \
     ../utils/compilation_unit.cmi \
     ../file_formats/cmt_format.cmi \
-    ../file_formats/cms_format.cmi \
     ../typing/cmt2annot.cmo \
     ../utils/clflags.cmi \
     ../typing/annot.cmi
@@ -162,7 +161,6 @@ ocamlcmt.cmx : \
     ../driver/compmisc.cmx \
     ../utils/compilation_unit.cmx \
     ../file_formats/cmt_format.cmx \
-    ../file_formats/cms_format.cmx \
     ../typing/cmt2annot.cmx \
     ../utils/clflags.cmx \
     ../typing/annot.cmi
@@ -199,13 +197,13 @@ ocamlprof.cmo : \
     ../parsing/parsetree.cmi \
     ../parsing/parse.cmi \
     ../parsing/location.cmi \
-    ../parsing/extensions.cmi
+    ../parsing/jane_syntax.cmi
 ocamlprof.cmx : \
     ../utils/warnings.cmx \
     ../parsing/parsetree.cmi \
     ../parsing/parse.cmx \
     ../parsing/location.cmx \
-    ../parsing/extensions.cmx
+    ../parsing/jane_syntax.cmx
 opnames.cmo :
 opnames.cmx :
 primreq.cmo : \

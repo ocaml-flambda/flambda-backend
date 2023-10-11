@@ -16,7 +16,6 @@
 (* Type inference for the core language *)
 
 open Asttypes
-open Layouts
 open Types
 
 (* This variant is used for printing which type of comprehension something is
@@ -63,7 +62,8 @@ type type_expected = private {
 type pattern_variable =
   {
     pv_id: Ident.t;
-    pv_mode: Value_mode.t;
+    pv_uid: Uid.t;
+    pv_mode: Mode.Value.t;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -110,13 +110,9 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
-type module_patterns_restriction =
-  | Modules_allowed of { scope : int }
-  | Modules_rejected
-
 val type_binding:
         Env.t -> rec_flag ->
-          ?force_global:bool ->
+          ?force_toplevel:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
@@ -125,6 +121,9 @@ val type_let:
           Typedtree.value_binding list * Env.t
 val type_expression:
         Env.t -> Parsetree.expression -> Typedtree.expression
+val type_representable_expression:
+        why:Jkind.concrete_jkind_reason ->
+        Env.t -> Parsetree.expression -> Typedtree.expression * Jkind.sort
 val type_class_arg_pattern:
         string -> Env.t -> Env.t -> arg_label -> Parsetree.pattern ->
         Typedtree.pattern *
@@ -134,7 +133,7 @@ val type_self_pattern:
         Env.t -> Parsetree.pattern ->
         Typedtree.pattern * pattern_variable list
 val check_partial:
-        ?lev:int -> module_patterns_restriction -> Env.t -> type_expr ->
+        ?lev:int -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
         Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression
@@ -147,7 +146,7 @@ val type_argument:
         type_expr -> type_expr -> Typedtree.expression
 
 val option_some:
-  Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
+  Env.t -> Typedtree.expression -> Mode.Value.t -> Typedtree.expression
 val option_none:
   Env.t -> type_expr -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
@@ -172,7 +171,7 @@ type submode_reason =
 
   | Other (* add more cases here for better hints *)
 
-val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> value_mode -> unit
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> Mode.Value.t -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -198,7 +197,7 @@ type error =
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
   | Not_an_object of type_expr * type_forcing_context option
-  | Not_a_value of Layout.Violation.violation * type_forcing_context option
+  | Not_a_value of Jkind.Violation.t * type_forcing_context option
   | Undefined_method of type_expr * string * string list option
   | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
@@ -240,12 +239,11 @@ type error =
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
   | Probe_format
-  | Probe_name_too_long of string
   | Probe_name_format of string
   | Probe_name_undefined of string
   (* CR-soon mshinwell: Use an inlined record *)
   | Probe_is_enabled_format
-  | Extension_not_enabled of Language_extension.t
+  | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -258,17 +256,22 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
+  | Submode_failed of
+      Mode.Value.error * submode_reason *
+      Env.closure_context option * Env.shared_context option
   | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr
-  | Uncurried_function_escapes
+  | Param_mode_mismatch of type_expr * Mode.Alloc.error
+  | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
+  | Tail_call_local_returning
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
   | Exclave_in_nontail_position
-  | Layout_not_enabled of Layout.const
-
+  | Exclave_returns_not_local
+  | Unboxed_int_literals_not_supported
+  | Unboxed_float_literals_not_supported
+  | Function_type_not_rep of type_expr * Jkind.Violation.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

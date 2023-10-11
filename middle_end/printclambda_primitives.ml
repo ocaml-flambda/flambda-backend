@@ -41,6 +41,30 @@ let array_kind array_kind =
   | Pintarray -> "int"
   | Pfloatarray -> "float"
 
+let pp_array_ref_kind ppf k =
+  let open Lambda in
+  let pp_mode ppf = function
+    | Alloc_heap -> ()
+    | Alloc_local -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_ref mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_ref -> fprintf ppf "addr"
+  | Pintarray_ref -> fprintf ppf "int"
+  | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+
+let pp_array_set_kind ppf k =
+  let open Lambda in
+  let pp_mode ppf = function
+    | Modify_heap -> ()
+    | Modify_maybe_stack -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_set mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
+  | Pintarray_set -> fprintf ppf "int"
+  | Pfloatarray_set -> fprintf ppf "float"
+
 let access_size size =
   let open Clambda_primitives in
   match size with
@@ -72,6 +96,18 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       in
       let name = "make" ^ mode ^ mut in
       fprintf ppf "%s %i%a" name tag Printlambda.block_shape shape
+  | Pmakeufloatblock(mut, mode) ->
+      let mode = match mode with
+        | Alloc_heap -> ""
+        | Alloc_local -> "local"
+      in
+      let mut = match mut with
+        | Immutable -> "block"
+        | Immutable_unique -> "block_unique"
+        | Mutable -> "mutable"
+      in
+      let name = "make" ^ mode ^ "ufloat" ^ mut in
+      fprintf ppf "%s" name
   | Pfield (n, layout) -> fprintf ppf "field%a %i" Printlambda.layout layout n
   | Pfield_computed -> fprintf ppf "field_computed"
   | Psetfield(n, ptr, init) ->
@@ -104,6 +140,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
   | Pfloatfield (n, Alloc_local) -> fprintf ppf "floatfieldlocal %i" n
+  | Pufloatfield n -> fprintf ppf "ufloatfield %i" n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -113,6 +150,15 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfloatfield%s %i" init n
+  | Psetufloatfield (n, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) ->
       fprintf ppf "duprecord %a %i" Printlambda.record_rep rep size
   | Pccall p -> fprintf ppf "%s" p.Primitive.prim_name
@@ -171,10 +217,10 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
     fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
-  | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
-  | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
-  | Parraysets k -> fprintf ppf "array.set[%s]" (array_kind k)
+  | Parrayrefu rk -> fprintf ppf "array.unsafe_get[%a]" pp_array_ref_kind rk
+  | Parraysetu sk -> fprintf ppf "array.unsafe_set[%a]" pp_array_set_kind sk
+  | Parrayrefs rk -> fprintf ppf "array.get[%a]" pp_array_ref_kind rk
+  | Parraysets sk -> fprintf ppf "array.set[%a]" pp_array_set_kind sk
   | Pisint -> fprintf ppf "isint"
   | Pisout -> fprintf ppf "isout"
   | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m
@@ -227,7 +273,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         (access_safety safety) (access_size size)
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Pint_as_pointer m -> fprintf ppf "int_as_pointer.%s" (alloc_kind m)
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
@@ -235,3 +281,4 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbox_int (bi, m) ->
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pget_header m -> fprintf ppf "get_header.%s" (alloc_kind m)

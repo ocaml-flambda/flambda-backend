@@ -7,6 +7,7 @@ type token =
   | WHEN
   | VIRTUAL
   | VAL
+  | UNIQUE
   | UNDERSCORE
   | UIDENT of (string)
   | TYPE
@@ -38,10 +39,10 @@ type token =
   | OR
   | OPTLABEL of (string)
   | OPEN
+  | ONCE
   | OF
   | OBJECT
   | NONREC
-  | NONLOCAL
   | NEW
   | MUTABLE
   | MODULE
@@ -82,6 +83,9 @@ type token =
   | INCLUDE
   | IN
   | IF
+  | HASH_SUFFIX
+  | HASH_INT of (string * char option)
+  | HASH_FLOAT of (string * char option)
   | HASHOP of (string)
   | HASH
   | GREATERRBRACKET
@@ -95,6 +99,7 @@ type token =
   | FLOAT of (string * char option)
   | FALSE
   | EXTERNAL
+  | EXCLAVE
   | EXCEPTION
   | EQUAL
   | EOL

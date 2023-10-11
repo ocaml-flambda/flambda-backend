@@ -16,7 +16,6 @@
 (* Predefined type constructors (with special typing rules in typecore) *)
 
 open Path
-open Layouts
 open Types
 open Btype
 
@@ -47,6 +46,14 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+and ident_unboxed_float = ident_create "float#"
+
+and ident_int8x16 = ident_create "int8x16"
+and ident_int16x8 = ident_create "int16x8"
+and ident_int32x4 = ident_create "int32x4"
+and ident_int64x2 = ident_create "int64x2"
+and ident_float32x4 = ident_create "float32x4"
+and ident_float64x2 = ident_create "float64x2"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -66,6 +73,14 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+and path_unboxed_float = Pident ident_unboxed_float
+
+and path_int8x16 = Pident ident_int8x16
+and path_int16x8 = Pident ident_int16x8
+and path_int32x4 = Pident ident_int32x4
+and path_int64x2 = Pident ident_int64x2
+and path_float32x4 = Pident ident_float32x4
+and path_float64x2 = Pident ident_float64x2
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -86,6 +101,14 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
+
+and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
+and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
+and type_int32x4 = newgenty (Tconstr(path_int32x4, [], ref Mnil))
+and type_int64x2 = newgenty (Tconstr(path_int64x2, [], ref Mnil))
+and type_float32x4 = newgenty (Tconstr(path_float32x4, [], ref Mnil))
+and type_float64x2 = newgenty (Tconstr(path_float64x2, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -140,12 +163,15 @@ and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
 let mk_add_type add_type
-      ?manifest ?(kind=Types.kind_abstract_value)
-      type_ident env =
+      ?manifest type_ident
+      ?(kind=Type_abstract Abstract_def)
+      ?(jkind=Jkind.value ~why:(Primitive type_ident))
+      env =
   let decl =
     {type_params = [];
      type_arity = 0;
      type_kind = kind;
+     type_jkind = jkind;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -164,13 +190,16 @@ let mk_add_type add_type
    to work with non-values, and as we relax the mixed block restriction. *)
 let common_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
-  and add_type1 ?(kind=fun _ -> Types.kind_abstract_value) type_ident
+  and add_type1 type_ident
+        ?(kind=fun _ -> Type_abstract Abstract_def)
+        ?(jkind=Jkind.value ~why:(Primitive type_ident))
       ~variance ~separability env =
-    let param = newgenvar Layout.value in
+    let param = newgenvar (Jkind.value ~why:Type_argument) in
     let decl =
       {type_params = [param];
        type_arity = 1;
        type_kind = kind param;
+       type_jkind = jkind;
        type_loc = Location.none;
        type_private = Asttypes.Public;
        type_manifest = None;
@@ -185,12 +214,12 @@ let common_initial_env add_type add_extension empty_env =
     in
     add_type type_ident decl env
   in
-  let add_extension id args layouts =
+  let add_extension id args jkinds =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
         ext_args = Cstr_tuple (List.map (fun x -> (x, Unrestricted)) args);
-        ext_arg_layouts = layouts;
+        ext_arg_jkinds = jkinds;
         ext_constant = args = [];
         ext_ret_type = None;
         ext_private = Asttypes.Public;
@@ -201,9 +230,9 @@ let common_initial_env add_type add_extension empty_env =
         ext_uid = Uid.of_predef_id id;
       }
   in
-  let variant constrs layouts = Type_variant (constrs, Variant_boxed layouts) in
+  let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
   empty_env
-  (* Predefined types - alphabetical order *)
+  (* Predefined types *)
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
@@ -213,12 +242,15 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_bool
        ~kind:(variant [cstr ident_false []; cstr ident_true []]
                 [| [| |]; [| |] |])
-  |> add_type ident_char ~kind:Types.kind_abstract_immediate
-  |> add_type ident_exn ~kind:Type_open
+       ~jkind:(Jkind.immediate ~why:Enumeration)
+  |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
+  |> add_type ident_exn
+       ~kind:Type_open
+       ~jkind:(Jkind.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
   |> add_type ident_floatarray
-  |> add_type ident_int ~kind:Types.kind_abstract_immediate
+  |> add_type ident_int ~jkind:(Jkind.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
   |> add_type ident_int64
   |> add_type1 ident_lazy_t
@@ -231,36 +263,45 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| [| |]; [| Layout.value; Layout.value |] |] )
+           [| [| |]; [| Jkind.value ~why:Type_argument;
+                        Jkind.value ~why:Boxed_variant |] |] )
+       ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| Layout.value |] |])
+           [| [| |]; [| Jkind.value ~why:Type_argument |] |])
+       ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_string
+  |> add_type ident_unboxed_float
+       ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
+       ~jkind:(Jkind.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]
-       [| Layout.value |]
+       [| Jkind.value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
-  |> add_extension ident_failure [type_string] [| Layout.value |]
-  |> add_extension ident_invalid_argument [type_string] [| Layout.value |]
+  |> add_extension ident_failure [type_string]
+       [| Jkind.value ~why:(Primitive ident_string) |]
+  |> add_extension ident_invalid_argument [type_string]
+       [| Jkind.value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]
-       [| Layout.value |]
+       [| Jkind.value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
   |> add_extension ident_stack_overflow [] [||]
   |> add_extension ident_sys_blocked_io [] [||]
-  |> add_extension ident_sys_error [type_string] [| Layout.value |]
+  |> add_extension ident_sys_error [type_string]
+       [| Jkind.value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[type_string; type_int; type_int])]
-       [| Layout.value |]
+       [| Jkind.value ~why:Tuple |]
 
 let build_initial_env add_type add_exception empty_env =
   let common = common_initial_env add_type add_exception empty_env in
@@ -268,6 +309,16 @@ let build_initial_env add_type add_exception empty_env =
   let safe_string = add_type ident_bytes common in
   let unsafe_string = add_type ident_bytes ~manifest:type_string common in
   (safe_string, unsafe_string)
+
+let add_simd_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
+  |> add_type ident_int8x16
+  |> add_type ident_int16x8
+  |> add_type ident_int32x4
+  |> add_type ident_int64x2
+  |> add_type ident_float32x4
+  |> add_type ident_float64x2
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

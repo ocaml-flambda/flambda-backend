@@ -30,7 +30,7 @@
     - ocaml.afl_inst_ratio
     - ocaml.flambda_o3
     - ocaml.flambda_oclassic
-    - layout attributes:
+    - jkind attributes:
       - ocaml.any
       - ocaml.value
       - ocaml.void
@@ -168,36 +168,44 @@ val has_curry: Parsetree.attributes -> bool
    are present despite the extension being disabled *)
 val has_local: Parsetree.attributes -> (bool,unit) result
 val has_global: Parsetree.attributes -> (bool,unit) result
-val has_nonlocal: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
-val has_include_functor : Parsetree.attributes -> (bool,unit) result
 
-(* [layout] gets the layout in the attributes if one is present.  It is the
-   central point at which the layout extension flags are checked.  We always
+val has_unique: Parsetree.attributes -> (bool,unit) result
+
+val has_once : Parsetree.attributes -> (bool, unit) result
+
+(* [jkind] gets the jkind in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.
    If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
    attributes even if the layouts extensions are disabled - this is used to
    support the original immediacy attributes, which are now implemented in terms
-   of layouts.
+   of jkinds.
 
-   The return value is [Error <layout>] if a layout attribute is present but
+   The return value is [Error <jkind>] if a jkind attribute is present but
    not allowed by the current set of extensions.  Otherwise it is [Ok None] if
-   there is no layout annotation and [Ok (Some layout)] if there is one.
+   there is no jkind annotation and [Ok (Some jkind)] if there is one.
 
    - If no layout extensions are on and [~legacy_immediate] is false, this will
      always return [Ok None], [Ok (Some Value)], or [Error ...].
    - If no layout extensions are on and [~legacy_immediate] is true, this will
-     error on [void] or [any], but allow [immediate], [immediate64], and [value].
+     error on [void], [float64], or [any], but allow [immediate], [immediate64],
+     and [value].
    - If the [Layouts_beta] extension is on, this behaves like the previous case
-     regardless of the value of [~legacy_immediate].
-   - If the [Layouts_alpha] extension is on, this can return any layout and
+     regardless of the value of [~legacy_immediate], except that it allows
+     [float64] and [any].
+   - If the [Layouts_alpha] extension is on, this can return any jkind and
      never errors.
 
    Currently, the [Layouts] extension is ignored - it's no different than
    turning on no layout extensions.
+
+   This is not the only place the layouts extension level is checked.  If you're
+   changing what's allowed in a given level, you may also need to make changes
+   in the parser, Jkind.get_required_layouts_level, and Typeopt.
 *)
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
-val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Asttypes.const_layout option, Location.t * Asttypes.const_layout) result
+val jkind : legacy_immediate:bool -> Parsetree.attributes ->
+  (Jane_asttypes.jkind_annotation option,
+   Jane_asttypes.jkind_annotation) result

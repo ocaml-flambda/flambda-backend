@@ -12,17 +12,17 @@ script = "rm -f a.cmi"
 ***** expect
 *)
 
-(* CR layouts v2: The commented out code in this file uses void, but could
-   use any non-value layout.  Restore it after v2. *)
+(* CR layouts v2.5: The commented out code in this file uses void, but could
+   use any non-value layout. *)
 
 #directory "ocamlc.byte";;
 #load "b.cmo";;
 
 open B
 
-type 'a [@immediate] imm_arg
-type 'b [@value] value_arg
-(* type 'c [@void] void_arg *)
+type ('a : immediate) imm_arg
+type ('b : value) value_arg
+(* type ('c : @void) void_arg *)
 
 (* These should work *)
 type foo = b_imm imm_arg
@@ -45,7 +45,10 @@ Line 1, characters 12-19:
                 ^^^^^^^
 Error: This type B.b_value = A.a_value should be an instance of type
          ('a : immediate)
-       B.b_value has layout value, which is not a sublayout of immediate.
+       B.b_value has an unknown layout,
+         which might not be a sublayout of immediate.
+       No .cmi file found containing A.a_value.
+       Hint: Adding "a" to your dependencies might help.
 |}];;
 
 (* type err2 = b_void value_arg;;

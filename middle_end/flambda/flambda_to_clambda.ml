@@ -79,7 +79,7 @@ let check_closure t ulam named : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple ~name:"caml_check_value_is_closure"
+      Primitive.simple_on_values ~name:"caml_check_value_is_closure"
         ~arity:2 ~alloc:false
     in
     let str = Format.asprintf "%a" Flambda.print_named named in
@@ -108,7 +108,7 @@ let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple ~name:"caml_check_field_access"
+      Primitive.simple_on_values ~name:"caml_check_field_access"
         ~arity:3 ~alloc:false
     in
     let str =
@@ -710,8 +710,10 @@ and to_clambda_set_of_closures t env
              and not stored in a closure."
         | Punboxed_float -> true
         | Punboxed_int _ -> true
+        | Punboxed_vector _ -> true
         | Pvalue Pintval -> true
-        | Pvalue _ -> false)
+        | Pvalue _ -> false
+        | Punboxed_product _ -> Misc.fatal_error "TODO")
       free_vars
   in
   let to_closure_args free_vars =

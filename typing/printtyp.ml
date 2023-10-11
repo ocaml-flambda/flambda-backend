@@ -21,13 +21,92 @@ open Format
 open Longident
 open Path
 open Asttypes
-open Layouts
 open Types
+open Mode
 open Btype
 open Outcometree
 
 module String = Misc.Stdlib.String
 module Int = Misc.Stdlib.Int
+
+(* Note [When to print jkind annotations]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Jkind annotations are only occasionally necessary to write
+   (compilation can often infer jkinds), so when should we print
+   them? This Note addresses all the cases.
+
+   Case (C1). The jkind on a type declaration, like
+   [type 'a t : <<this one>> = ...].
+
+   We print the jkind when it cannot be inferred from the rest of what is
+   printed. Specifically, we print the user-written jkind in both of these
+   cases:
+
+   (C1.1) The type declaration is abstract and has no manifest (i.e.,
+   it's written without any [=]-signs).
+
+   In this case, there is no way to know the jkind without the annotation.
+   It is possible we might print a redundant [ : value ] annotation, but if the
+   user included this, they are probably happy to have it be printed, too.
+
+   (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
+   be impossible to deduce the jkind.  We thus defer to the user in determining
+   whether to print the jkind annotation.
+
+   Case (C2). The jkind on a type parameter to a type, like
+   [type ('a : <<this one>>) t = ...].
+
+   This jkind is printed if both of the following are true:
+
+   (C2.1) The jkind is something other than the default [value].
+   (* CR layouts reisenberg: update when the default changes *)
+
+   (C2.2) The variable has no constraints on it. (If there is a constraint,
+   the constraint determines the jkind, so printing the jkind is
+   redundant.)
+
+   We *could*, in theory, print this only when it cannot be inferred.
+   But this amounts to repeating inference. The heuristic also runs into
+   trouble when considering the possibility of a recursive type. So, in
+   order to keep the pretty-printer simple, we just always print the
+   (non-default) annotation.
+
+   Another design possibility is to pass in verbosity level as some kind
+   of flag.
+
+   Case (C3). The jkind on a universal type variable, like
+   [val f : ('a : <<this one>>). 'a -> 'a].
+
+   We should print this jkind annotation whenever it is neither the
+   default [value] nor an unfilled sort variable. (But see (X1) below.)
+   (* CR layouts reisenberg: update when the default changes *)
+   This is a challenge, though, because the type in a [val] does not
+   explicitly quantify its free variables. So we must collect the free
+   variables, look to see whether any have interesting jkinds, and
+   print the whole set of variables if any of them do. This is all
+   implemented in [extract_qtvs], used also in a number of other places
+   we do quantification (e.g. gadt-syntax constructors).
+
+   Exception (X1). When we are still in the process of inferring a type,
+   there may be an unfilled sort variable. Here is an example:
+
+   {[
+      module M : sig
+        val f : int -> bool -> char
+      end = struct
+        let f true _ = ()
+      end
+   ]}
+
+   The problem is that [f]'s first parameter is conflicted between being
+   [int] and [bool]. But the second parameter in the [struct] will have
+   type ['a : <<sort variable>>]. We generally do not want to print this,
+   however, and so we don't -- except when [-verbose-types] is set.
+
+   We imagine that merlin, when run verbosely, will set [-verbose-types].
+   This will allow an informative type to be printed for e.g. [let f x = x],
+   which can work with any sort.
+*)
 
 (* Print a long identifier *)
 
@@ -467,7 +546,7 @@ let strings_of_paths namespace p =
   List.map (Format.asprintf "%a" !Oprint.out_ident) trees
 
 let () = Env.print_path := path
-let () = Layouts.Layout.Violation.set_printtyp_path path
+let () = Jkind.set_printtyp_path path
 
 (* Print a recursive annotation *)
 
@@ -523,12 +602,14 @@ let rec raw_type ppf ty =
   end
 and raw_type_list tl = raw_list raw_type tl
 and raw_type_desc ppf = function
-    Tvar { name; layout } ->
+    Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%s)" print_name name
-        (Layout.to_string layout)
+        (Jkind.to_string jkind)
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
-        (string_of_label l) Alloc_mode.print arg Alloc_mode.print ret
+        (string_of_label l)
+        (Alloc.print' ~verbose:true) arg
+        (Alloc.print' ~verbose:true) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
@@ -552,9 +633,9 @@ and raw_type_desc ppf = function
   | Tsubst (t, None) -> fprintf ppf "@[<1>Tsubst@,(%a,None)@]" raw_type t
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
-  | Tunivar { name; layout } ->
+  | Tunivar { name; jkind } ->
       fprintf ppf "Tunivar (@,%a,@,%s)" print_name name
-        (Layout.to_string layout)
+        (Jkind.to_string jkind)
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1098,6 +1179,39 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
+(* returns None for [value], according to (C2.1) from
+   Note [When to print jkind annotations] *)
+let out_jkind_option_of_jkind jkind =
+  match Jkind.get jkind with
+  | Const Value -> None
+  | Const clay -> Some (Olay_const clay)
+  | Var v -> (* This handles (X1). *)
+    if !Clflags.verbose_types
+    then Some (Olay_var (Jkind.Sort.var_name v))
+    else None
+
+let tree_of_mode mode =
+  let {locality; uniqueness; linearity} = Alloc.check_const mode in
+  let oam_locality =
+    match locality with
+    | Some Global -> Olm_global
+    | Some Local -> Olm_local
+    | None -> Olm_unknown
+  in
+  let oam_uniqueness =
+    match uniqueness with
+    | Some Unique -> Oum_unique
+    | Some Shared -> Oum_shared
+    | None -> Oum_unknown
+  in
+  let oam_linearity =
+    match linearity with
+    | Some Many -> Olinm_many
+    | Some Once -> Olinm_once
+    | None -> Olinm_unknown
+  in
+  {oam_locality; oam_uniqueness; oam_linearity}
+
 let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
@@ -1129,19 +1243,9 @@ let rec tree_of_typexp mode ty =
           else
             tree_of_typexp mode ty1
         in
-        let am =
-          match Alloc_mode.check_const marg with
-          | Some Global -> Oam_global
-          | Some Local -> Oam_local
-          | None -> Oam_unknown
-        in
+        let am = tree_of_mode marg in
         let t2 = tree_of_typexp mode ty2 in
-        let rm =
-          match Alloc_mode.check_const mret with
-          | Some Global -> Oam_global
-          | Some Local -> Oam_local
-          | None -> Oam_unknown
-        in
+        let rm = tree_of_mode mret in
         Otyp_arrow (lab, am, t1, rm, t2)
     | Ttuple tyl ->
         Otyp_tuple (tree_of_typlist mode tyl)
@@ -1204,18 +1308,16 @@ let rec tree_of_typexp mode ty =
         (*let print_names () =
           List.iter (fun (_, name) -> prerr_string (name ^ " ")) !names;
           prerr_string "; " in *)
-        if tyl = [] then tree_of_typexp mode ty else begin
-          let tyl = List.map Transient_expr.repr tyl in
-          let old_delayed = !delayed in
-          (* Make the names delayed, so that the real type is
-             printed once when used as proxy *)
-          List.iter add_delayed tyl;
-          let tl = List.map (Names.name_of_type Names.new_name) tyl in
-          let tr = Otyp_poly (tl, tree_of_typexp mode ty) in
-          (* Forget names when we leave scope *)
-          Names.remove_names tyl;
-          delayed := old_delayed; tr
-        end
+        let tyl = List.map Transient_expr.repr tyl in
+        let old_delayed = !delayed in
+        (* Make the names delayed, so that the real type is
+           printed once when used as proxy *)
+        List.iter add_delayed tyl;
+        let tl = tree_of_qtvs tyl in
+        let tr = Otyp_poly (tl, tree_of_typexp mode ty) in
+        (* Forget names when we leave scope *)
+        Names.remove_names tyl;
+        delayed := old_delayed; tr
     | Tunivar _ ->
         Otyp_var (false, Names.name_of_type Names.new_name tty)
     | Tpackage (p, fl) ->
@@ -1232,6 +1334,20 @@ let rec tree_of_typexp mode ty =
     add_printed_alias_proxy px;
     Otyp_alias (pr_typ (), Names.name_of_type Names.new_name px) end
   else pr_typ ()
+
+(* qtvs = quantified type variables *)
+(* this silently drops any arguments that are not generic Tvar or Tunivar *)
+and tree_of_qtvs qtvs =
+  let tree_of_qtv v : (string * out_jkind option) option =
+    let tree jkind = Some (Names.name_of_type Names.new_name v,
+                            out_jkind_option_of_jkind jkind)
+    in
+    match v.desc with
+    | Tvar { jkind } when v.level = generic_level -> tree jkind
+    | Tunivar { jkind } -> tree jkind
+    | _ -> None
+  in
+  List.filter_map tree_of_qtv qtvs
 
 and tree_of_row_field mode (l, f) =
   match row_field_repr f with
@@ -1250,7 +1366,6 @@ and tree_of_typ_gf (ty, gf) =
   let gf =
     match gf with
     | Global -> Ogf_global
-    | Nonlocal -> Ogf_nonlocal
     | Unrestricted -> Ogf_unrestricted
   in
   (tree_of_typexp Type ty, gf)
@@ -1309,6 +1424,8 @@ let type_expr ppf ty =
   prepare_for_printing [ty];
   prepared_type_expr ppf ty
 
+let () = Env.print_type_expr := type_expr
+
 (* "Half-prepared" type expression: [ty] should have had its names reserved, but
    should not have had its loops marked. *)
 let type_expr_with_reserved_names ppf ty =
@@ -1360,19 +1477,29 @@ let filter_params tyl =
       [] tyl
   in List.rev params
 
-let prepare_type_constructor_arguments = function
-  | Cstr_tuple l -> List.iter (fun (ty, _) -> prepare_type ty) l
-  | Cstr_record l -> List.iter (fun l -> prepare_type l.ld_type) l
+let prepare_type_constructor_arguments args =
+  List.iter prepare_type (tys_of_constr_args args)
 
-let param_layout ty =
+(* returns an empty list if no variables in the list have a jkind annotation *)
+let zap_qtvs_if_boring qtvs =
+  if List.exists (fun (_v, l) -> Option.is_some l) qtvs
+  then qtvs
+  else []
+
+(* get the free variables with their jkinds; do this *after* converting the
+   type itself, so that the type names are available.
+   This implements Case (C3) from Note [When to print jkind annotations]. *)
+let extract_qtvs tyl =
+  let fvs = Ctype.free_non_row_variables_of_list tyl in
+  let tfvs = List.map Transient_expr.repr fvs in
+  let vars_jkinds = tree_of_qtvs tfvs in
+  zap_qtvs_if_boring vars_jkinds
+
+let param_jkind ty =
   match get_desc ty with
-  | Tvar { layout; _ } | Tunivar { layout; _ } ->
-    begin match Layouts.Layout.get layout with
-    | Const Value -> None
-    | Const clay -> Some (Olay_const clay)
-    | Var v -> Some (Olay_var (Sort.var_name v))
-    end
-  | _ -> None
+  | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
+     out_jkind_option_of_jkind jkind
+  | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let rec tree_of_type_decl id decl =
 
@@ -1386,9 +1513,9 @@ let rec tree_of_type_decl id decl =
       List.iter
         (fun ty ->
           match get_desc ty with
-          | Tvar { name = Some "_"; layout }
+          | Tvar { name = Some "_"; jkind }
               when List.exists (eq_type ty) vars ->
-            set_type_desc ty (Tvar {name = None; layout})
+            set_type_desc ty (Tvar {name = None; jkind})
           | _ -> ())
         params
   | None -> ()
@@ -1452,7 +1579,7 @@ let rec tree_of_type_decl id decl =
           let is_var = is_Tvar ty in
           if abstr || not is_var then
             let inj =
-              decl_is_abstract decl && Variance.mem Inj v &&
+              type_kind_is_abstract decl && Variance.mem Inj v &&
               match decl.type_manifest with
               | None -> true
               | Some ty -> (* only abstract or private row types *)
@@ -1469,7 +1596,7 @@ let rec tree_of_type_decl id decl =
       { oparam_name = type_param (tree_of_typexp Type ty);
         oparam_variance = variance;
         oparam_injectivity = injectivity;
-        oparam_layout = param_layout ty }
+        oparam_jkind = param_jkind ty }
     in
     (Ident.name id,
      List.map2 mk_param params vari)
@@ -1481,14 +1608,6 @@ let rec tree_of_type_decl id decl =
   in
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
-  let lay =
-    (* Here we're just printing, so we ignore whether the layout annotation was
-       allowed or not. *)
-    match Builtin_attributes.layout ~legacy_immediate:true decl.type_attributes
-    with
-    | Ok l -> l
-    | Error (_, l) -> Some l
-  in
   let ty, priv, unboxed =
     match decl.type_kind with
     | Type_abstract _ ->
@@ -1500,7 +1619,7 @@ let rec tree_of_type_decl id decl =
     | Type_variant (cstrs, rep) ->
         let unboxed =
           match rep with
-          | Variant_unboxed _ -> true
+          | Variant_unboxed -> true
           | Variant_boxed _ | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor cstrs)),
@@ -1509,17 +1628,34 @@ let rec tree_of_type_decl id decl =
     | Type_record(lbls, rep) ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
         decl.type_private,
-        (match rep with Record_unboxed _ -> true | _ -> false)
+        (match rep with Record_unboxed -> true | _ -> false)
     | Type_open ->
         tree_of_manifest Otyp_open,
         decl.type_private,
         false
   in
+  (* The algorithm for setting [lay] here is described as Case (C1) in
+     Note [When to print jkind annotations] *)
+  let lay = match ty, unboxed with
+    | (Otyp_abstract, _) | (_, true) ->
+        (* (C1.1) from the Note corresponds to Otyp_abstract. Anything
+           but the default must be user-written, so we just look in the
+           attributes. Similarly, look in the attributes for (C1.2), the
+           unboxed case. Because this is just printing, we liberally
+           allow [@@immediate]. *)
+       begin match
+         Builtin_attributes.jkind ~legacy_immediate:true decl.type_attributes
+       with
+       | Ok annot -> annot
+       | Error annot -> Some annot  (* don't care here about extensions *)
+       end
+    | _ -> None (* other cases have no jkind annotation *)
+  in
     { otype_name = name;
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_layout = lay;
+      otype_jkind = Option.map (fun { txt } -> Olay_const txt) lay;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -1527,31 +1663,29 @@ and tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l
   | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), Ogf_unrestricted ]
 
-and tree_of_constructor cd =
-  let name = Ident.name cd.cd_id in
-  let arg () = tree_of_constructor_arguments cd.cd_args in
-  match cd.cd_res with
-  | None -> {
-      ocstr_name = name;
-      ocstr_args = arg ();
-      ocstr_return_type = None;
-    }
+and tree_of_constructor_args_and_ret_type args ret_type =
+  match ret_type with
+  | None -> (tree_of_constructor_arguments args, None)
   | Some res ->
       Names.with_local_names (fun () ->
-        let ret = tree_of_typexp Type res in
-        let args = arg () in
-        {
-          ocstr_name = name;
-          ocstr_args = args;
-          ocstr_return_type = Some ret;
-        })
+        let out_ret = tree_of_typexp Type res in
+        let out_args = tree_of_constructor_arguments args in
+        let qtvs = extract_qtvs (res :: tys_of_constr_args args) in
+        (out_args, Some (qtvs, out_ret)))
+
+and tree_of_constructor cd =
+  let name = Ident.name cd.cd_id in
+  let args, ret = tree_of_constructor_args_and_ret_type cd.cd_args cd.cd_res in
+  { ocstr_name = name;
+    ocstr_args = args;
+    ocstr_return_type = ret
+  }
 
 and tree_of_label l =
   let gom =
     match l.ld_mutable, l.ld_global with
     | Mutable, _ -> Ogom_mutable
     | Immutable, Global -> Ogom_global
-    | Immutable, Nonlocal -> Ogom_nonlocal
     | Immutable, Unrestricted -> Ogom_immutable
   in
   (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
@@ -1579,15 +1713,6 @@ let constructor_arguments ppf a =
 
 (* Print an extension declaration *)
 
-let extension_constructor_args_and_ret_type_subtree ext_args ext_ret_type =
-  match ext_ret_type with
-  | None -> (tree_of_constructor_arguments ext_args, None)
-  | Some res ->
-      Names.with_local_names (fun () ->
-        let ret = tree_of_typexp Type res in
-        let args = tree_of_constructor_arguments ext_args in
-        (args, Some ret))
-
 let tree_of_extension_constructor id ext es =
   reset_except_context ();
   let ty_name = Path.name ext.ext_type_path in
@@ -1607,7 +1732,7 @@ let tree_of_extension_constructor id ext es =
   in
   let name = Ident.name id in
   let args, ret =
-    extension_constructor_args_and_ret_type_subtree
+    tree_of_constructor_args_and_ret_type
       ext.ext_args
       ext.ext_ret_type
   in
@@ -1636,7 +1761,7 @@ let extension_only_constructor id ppf ext =
   Option.iter prepare_type ext.ext_ret_type;
   let name = Ident.name id in
   let args, ret =
-    extension_constructor_args_and_ret_type_subtree
+    tree_of_constructor_args_and_ret_type
       ext.ext_args
       ext.ext_ret_type
   in
@@ -1653,9 +1778,12 @@ let tree_of_value_description id decl =
   (* Format.eprintf "@[%a@]@." raw_type_expr decl.val_type; *)
   let id = Ident.name id in
   let ty = tree_of_type_scheme decl.val_type in
+  (* Important: process the fvs *after* the type; tree_of_type_scheme
+     resets the naming context *)
+  let qtvs = extract_qtvs [decl.val_type] in
   let vd =
     { oval_name = id;
-      oval_type = ty;
+      oval_type = Otyp_poly(qtvs, ty);
       oval_prims = [];
       oval_attributes = [] }
   in
@@ -1683,17 +1811,20 @@ let prepare_method _lab (priv, _virt, ty) =
 let tree_of_method mode (lab, priv, virt, ty) =
   let (ty, tyl) = method_type priv ty in
   let tty = tree_of_typexp mode ty in
-  Names.remove_names (List.map Transient_expr.repr tyl);
+  let tyl = List.map Transient_expr.repr tyl in
+  let qtvs = tree_of_qtvs tyl in
+  let qtvs = zap_qtvs_if_boring qtvs in
+  Names.remove_names tyl;
   let priv = priv <> Mpublic in
   let virt = virt = Virtual in
-  Ocsg_method (lab, priv, virt, tty)
+  Ocsg_method (lab, priv, virt, Otyp_poly(qtvs, tty))
 
 let rec prepare_class_type params = function
   | Cty_constr (_p, tyl, cty) ->
       let row = Btype.self_type_row cty in
       if List.memq (proxy row) !visited_objects
       || not (List.for_all is_Tvar params)
-      || List.exists (deep_occur row) tyl
+      || deep_occur_list row tyl
       then prepare_class_type params cty
       else List.iter prepare_type tyl
   | Cty_signature sign ->
@@ -1774,11 +1905,11 @@ let class_type ppf cty =
   prepare_class_type [] cty;
   !Oprint.out_class_type ppf (tree_of_class_type Type [] cty)
 
-let tree_of_class_param param variance =
+let tree_of_class_param param var_inj =
   let variance, injectivity =
     if is_Tvar param
     then Asttypes.(NoVariance, NoInjectivity)
-    else variance
+    else var_inj
   in
   { oparam_name = begin match tree_of_typexp Type_scheme param with
       | Otyp_var (_, s) -> s
@@ -1786,7 +1917,9 @@ let tree_of_class_param param variance =
     end;
     oparam_variance = variance;
     oparam_injectivity = injectivity;
-    oparam_layout = param_layout param }
+    (* CR layouts: fix next line when adding support for jkind
+       annotations on class type parameters *)
+    oparam_jkind = param_jkind param }
 
 let class_variance =
   let open Variance in let open Asttypes in
@@ -1879,7 +2012,8 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Types.kind_abstract_value;
+    type_kind = Type_abstract Abstract_def;
+    type_jkind = Jkind.any ~why:Dummy_jkind;
     type_private = Public;
     type_manifest = None;
     type_variance = [];
@@ -1927,22 +2061,88 @@ let with_hidden_items ids f =
 let add_sigitem env x =
   Env.add_signature (Signature_group.flatten x) env
 
-let rec tree_of_modtype ?(ellipsis=false) = function
+let expand_module_type =
+  ref ((fun _env _mty -> assert false) :
+      Env.t -> module_type -> module_type)
+
+(** How to abbreviate signatures *)
+module Abbrev = struct
+  (* The code is substantially simpler if [width] is mutable. Strictly speaking, [depth]
+     doesn't have to be mutable here but mixed mutability would be quite confusing. *)
+  type t =
+    { (* To what depth to unfold the module tree *)
+      mutable depth : int
+      (* How many signature items to print in total across all signatures *)
+    ; mutable width : int
+    }
+
+  (** Standard abbreviation heuristic *)
+  let abbrev () =
+    { depth = 4
+    ; width = 16
+    }
+
+  (** Don't print any signature items *)
+  let ellipsis () =
+    { depth = 0
+    ; width =  0
+    }
+
+  (** Should we print anything in this signature *)
+  let exhausted = function
+    | Some {depth; width} -> depth <= 0 || width <= 0
+    | None -> false
+
+  (** Run [f] at one deeper unfolding level *)
+  let deeper t f =
+    match t with
+    | Some t ->
+        let saved = t.depth in
+        t.depth <- t.depth - 1;
+        let x = f () in
+        t.depth <- saved;
+        x
+    | None -> f ()
+
+  (** Reduce the remaining width by the number of items in [sg] and return the number of
+      items to print in [sg] and a flag that inidicates whether [sg] is being trimmed. *)
+  let items t sg =
+    match t with
+    | Some t ->
+        let n = List.length sg in
+        let k = min t.width n in
+        t.width <- t.width - n;
+        Some k, (k < n)
+    | None ->
+        None, false
+end
+
+let rec tree_of_modtype ?abbrev = function
   | Mty_ident p ->
       Omty_ident (tree_of_path Module_type p)
   | Mty_signature sg ->
-      Omty_signature (if ellipsis then [Osig_ellipsis]
-                      else tree_of_signature sg)
+      Omty_signature (tree_of_signature ?abbrev sg)
   | Mty_functor(param, ty_res) ->
       let param, env =
-        tree_of_functor_parameter param
+        tree_of_functor_parameter ?abbrev param
       in
-      let res = wrap_env env (tree_of_modtype ~ellipsis) ty_res in
+      let res = wrap_env env (tree_of_modtype ?abbrev) ty_res in
       Omty_functor (param, res)
   | Mty_alias p ->
       Omty_alias (tree_of_path Module p)
+  | Mty_strengthen _ as mty ->
+      begin match !expand_module_type !printing_env mty with
+      | Mty_strengthen (mty,p,a) ->
+          let unaliasable =
+            not (Aliasability.is_aliasable a)
+            && not (Env.is_functor_arg p !printing_env)
+          in
+          Omty_strengthen
+            (tree_of_modtype ?abbrev mty, tree_of_path Module p, unaliasable)
+      | mty -> tree_of_modtype ?abbrev mty
+      end
 
-and tree_of_functor_parameter = function
+and tree_of_functor_parameter ?abbrev = function
   | Unit ->
       None, fun k -> k
   | Named (param, ty_arg) ->
@@ -1953,30 +2153,59 @@ and tree_of_functor_parameter = function
             Some (Ident.name id),
             Env.add_module ~arg:true id Mp_present ty_arg
       in
-      Some (name, tree_of_modtype ~ellipsis:false ty_arg), env
+      Some (name, tree_of_modtype ?abbrev ty_arg), env
 
-and tree_of_signature sg =
-  wrap_env (fun env -> env)(fun sg ->
-      let tree_groups = tree_of_signature_rec !printing_env sg in
-      List.concat_map (fun (_env,l) -> List.map snd l) tree_groups
-    ) sg
+and tree_of_signature ?abbrev = function
+  | [] -> []
+  | _ when Abbrev.exhausted abbrev -> [Osig_ellipsis]
+  | sg ->
+    Abbrev.deeper abbrev (fun () ->
+      wrap_env (fun env -> env)(fun sg ->
+        (* Only expand signatures to 'abbrev.depth' depth and print at most 'abbrev.width'
+           items overall. We just keep decreasing 'abbrev.width' during the traversal but
+           make sure that we expand the current signature up to 'abbrev.width' before
+           expanding it's components. Below, 'max_items' is the number of items we should
+           print in the current signature and 'abbrev.width' is then be the remaining
+           number of items. This is simpler to implement than proper breadth-first. *)
+        let max_items, trimmed = Abbrev.items abbrev sg in
+        let tree_groups = tree_of_signature_rec ?abbrev ?max_items !printing_env sg in
+        let items = List.concat_map (fun (_env,l) -> List.map snd l) tree_groups in
+        if trimmed then items @ [Osig_ellipsis] else items
+        ) sg
+    )
 
-and tree_of_signature_rec env' sg =
+and tree_of_signature_rec ?abbrev ?max_items env' sg =
   let structured = List.of_seq (Signature_group.seq sg) in
-  let collect_trees_of_rec_group group =
-    let env = !printing_env in
-    let env', group_trees =
-      Naming_context.with_ctx
-        (fun () -> trees_of_recursive_sigitem_group env group)
-    in
-    set_printing_env env';
-    (env, group_trees) in
+  (* Don't descent into more than 'max_items' (if set) elements to save time. *)
+  let collect_trees_of_rec_group max_items group =
+    match max_items with
+    | Some n when n <= 0 -> (max_items, (!printing_env, []))
+    | Some _ | None ->
+        let env = !printing_env in
+        let env', group_trees =
+          Naming_context.with_ctx
+            (fun () -> trees_of_recursive_sigitem_group ?abbrev env group)
+        in
+        set_printing_env env';
+        let max_items, group_trees = match max_items with
+          | None -> None, group_trees
+          | Some n ->
+              let rec take n acc xs =
+                match n, xs with
+                | 0, _ | _, [] -> n, List.rev acc
+                | n, x :: xs -> take (n-1) (x :: acc) xs
+              in
+              let n, group_trees = take n [] group_trees in
+              Some n, group_trees
+        in
+        max_items, (env, group_trees)
+  in
   set_printing_env env';
-  List.map collect_trees_of_rec_group structured
+  snd (List.fold_left_map collect_trees_of_rec_group max_items structured)
 
-and trees_of_recursive_sigitem_group env
+and trees_of_recursive_sigitem_group ?abbrev env
     (syntactic_group: Signature_group.rec_group) =
-  let display (x:Signature_group.sig_item) = x.src, tree_of_sigitem x.src in
+  let display (x:Signature_group.sig_item) = x.src, tree_of_sigitem ?abbrev x.src in
   let env = Env.add_signature syntactic_group.pre_ghosts env in
   match syntactic_group.group with
   | Not_rec x -> add_sigitem env x, [display x]
@@ -1985,7 +2214,7 @@ and trees_of_recursive_sigitem_group env
       List.fold_left add_sigitem env items,
       with_hidden_items ids (fun () -> List.map display items)
 
-and tree_of_sigitem = function
+and tree_of_sigitem ?abbrev = function
   | Sig_value(id, decl, _) ->
       tree_of_value_description id decl
   | Sig_type(id, decl, rs, _) ->
@@ -1993,29 +2222,32 @@ and tree_of_sigitem = function
   | Sig_typext(id, ext, es, _) ->
       tree_of_extension_constructor id ext es
   | Sig_module(id, _, md, rs, _) ->
-      let ellipsis =
-        List.exists (function
-          | Parsetree.{attr_name = {txt="..."}; attr_payload = PStr []} -> true
-          | _ -> false)
-          md.md_attributes in
-      tree_of_module id md.md_type rs ~ellipsis
+      let abbrev =
+        if List.exists (function
+            | Parsetree.{attr_name = {txt="..."}; attr_payload = PStr []} -> true
+            | _ -> false)
+            md.md_attributes
+          then Some (Abbrev.ellipsis ())
+          else abbrev
+      in
+      tree_of_module ?abbrev id md.md_type rs
   | Sig_modtype(id, decl, _) ->
-      tree_of_modtype_declaration id decl
+      tree_of_modtype_declaration ?abbrev id decl
   | Sig_class(id, decl, rs, _) ->
       tree_of_class_declaration id decl rs
   | Sig_class_type(id, decl, rs, _) ->
       tree_of_cltype_declaration id decl rs
 
-and tree_of_modtype_declaration id decl =
+and tree_of_modtype_declaration ?abbrev id decl =
   let mty =
     match decl.mtd_type with
     | None -> Omty_abstract
-    | Some mty -> tree_of_modtype mty
+    | Some mty -> tree_of_modtype ?abbrev mty
   in
   Osig_modtype (Ident.name id, mty)
 
-and tree_of_module id ?ellipsis mty rs =
-  Osig_module (Ident.name id, tree_of_modtype ?ellipsis mty, tree_of_rec rs)
+and tree_of_module ?abbrev id mty rs =
+  Osig_module (Ident.name id, tree_of_modtype ?abbrev mty, tree_of_rec rs)
 
 let rec functor_parameters ~sep custom_printer = function
   | [] -> ignore
@@ -2114,17 +2346,17 @@ let same_path t t' =
 type 'a diff = Same of 'a | Diff of 'a * 'a
 
 let trees_of_type_expansion'
-      ~var_layouts mode Errortrace.{ty = t; expanded = t'} =
+      ~var_jkinds mode Errortrace.{ty = t; expanded = t'} =
   let tree_of_typexp' ty =
     let out = tree_of_typexp mode ty in
-    if var_layouts then
+    if var_jkinds then
       match get_desc ty with
-      | Tvar { layout; _ } | Tunivar { layout; _ } ->
-          let olay = match Layouts.Layout.get layout with
+      | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
+          let olay = match Jkind.get jkind with
             | Const clay -> Olay_const clay
-            | Var   v    -> Olay_var   (Sort.var_name v)
+            | Var v      -> Olay_var (Jkind.Sort.var_name v)
           in
-          Otyp_layout_annot (out, olay)
+          Otyp_jkind_annot (out, olay)
       | _ ->
           out
     else
@@ -2146,7 +2378,7 @@ let trees_of_type_expansion'
   end
 
 let trees_of_type_expansion =
-  trees_of_type_expansion' ~var_layouts:false
+  trees_of_type_expansion' ~var_jkinds:false
 
 let type_expansion ppf = function
   | Same t -> !Oprint.out_type ppf t
@@ -2243,7 +2475,8 @@ let hide_variant_name t =
       newty2 ~level:(get_level t)
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
-              ~more:(newvar2 (get_level more) Layout.value)))
+              ~more:(newvar2 (get_level more)
+                       (Jkind.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =
@@ -2444,16 +2677,18 @@ let explanation (type variety) intro prev env
              {[ The type int occurs inside int list -> 'a |}
         *)
     end
-  | Errortrace.Bad_layout (t,e) ->
+  | Errortrace.Bad_jkind (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
-              (Layout.Violation.report_with_offender
+              (Jkind.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
-  | Errortrace.Bad_layout_sort (t,e) ->
+  | Errortrace.Bad_jkind_sort (t,e) ->
       Some (dprintf "@ @[<hov>%a@]"
-              (Layout.Violation.report_with_offender_sort
+              (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
-  | Errortrace.Unequal_var_layouts (t1,l1,t2,l2) ->
-      let fmt_history t = Layout.format_history ~pp_name:type_expr ~name:t in
+  | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
+      let fmt_history t =
+        Jkind.format_history ~intro:(fun ppf -> type_expr ppf t)
+      in
       Some (dprintf "@ because their layouts are different.@[<v>%a%a@]"
               (fmt_history t1) l1 (fmt_history t2) l2)
 
@@ -2468,13 +2703,19 @@ let explain mis ppf =
 let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
-    begin
-      try
-        ignore(Env.find_type p env : Types.type_declaration)
-      with Not_found ->
+    begin match Env.find_type p env with
+    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
         fprintf ppf
-          "@,@[%a is abstract because no corresponding cmi file was found \
-           in path.@]" path p
+          "@,@[<hov>Type %a was considered abstract@ when checking\
+           @ constraints@ in this@ recursive type definition.@]"
+          path p
+    | exception Not_found ->
+        fprintf ppf
+          "@,@[<hov>Type %a is abstract because@ no corresponding\
+           @ cmi file@ was found@ in path.@]" path p
+    | {type_kind =
+       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
+      -> ()
     end
   | _ -> ()
 
@@ -2483,11 +2724,11 @@ let prepare_expansion_head empty_tr = function
       Some (Errortrace.map_diff (may_prepare_expansion empty_tr) d)
   | _ -> None
 
-let head_error_printer ~var_layouts mode txt_got txt_but = function
+let head_error_printer ~var_jkinds mode txt_got txt_but = function
   | None -> ignore
   | Some d ->
       let d =
-        Errortrace.map_diff (trees_of_type_expansion' ~var_layouts mode) d
+        Errortrace.map_diff (trees_of_type_expansion' ~var_jkinds mode) d
       in
       dprintf "%t@;<1 2>%a@ %t@;<1 2>%a"
         txt_got type_expansion d.Errortrace.got
@@ -2511,8 +2752,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
          Errortrace.{ty_exp with expanded = hide_variant_name ty_exp.expanded})
       tr
   in
-  let layout_error = match Misc.last tr with
-    | Some (Bad_layout _ | Bad_layout_sort _ | Unequal_var_layouts _) ->
+  let jkind_error = match Misc.last tr with
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)
@@ -2529,7 +2770,7 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       let head = prepare_expansion_head (tr=[]) elt in
       let tr = List.map (Errortrace.map_diff prepare_expansion) tr in
       let head_error =
-        head_error_printer ~var_layouts:layout_error mode txt1 txt2 head
+        head_error_printer ~var_jkinds:jkind_error mode txt1 txt2 head
       in
       let tr = trees_of_trace mode tr in
       fprintf ppf
@@ -2540,8 +2781,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
         ty_expect_explanation
         (trace false (incompatibility_phrase trace_format)) tr
         (explain mis);
-      if env <> Env.empty && not layout_error
-       (* the layouts mechanism has its own way of reporting missing cmis *)
+      if env <> Env.empty && not jkind_error
+       (* the jkinds mechanism has its own way of reporting missing cmis *)
       then warn_on_missing_defs env ppf head;
       Conflicts.print_explanations ppf;
       print_labels := true
@@ -2678,8 +2919,17 @@ let report_ambiguous_type_error ppf env tp0 tpl txt1 txt2 txt3 =
           txt3 type_path_expansion tp0)
 
 (* Adapt functions to exposed interface *)
+let abbreviate ~abbrev f =
+  f ?abbrev:(if abbrev then Some (Abbrev.abbrev ()) else None)
+
 let tree_of_path = tree_of_path Other
-let tree_of_modtype = tree_of_modtype ~ellipsis:false
+let tree_of_module ident ?(ellipsis = false) =
+  tree_of_module ident ?abbrev:(if ellipsis then Some (Abbrev.ellipsis ()) else None)
+let tree_of_signature sg = tree_of_signature sg
+let tree_of_modtype ?(abbrev = false) ty =
+  abbreviate ~abbrev tree_of_modtype ty
+let tree_of_modtype_declaration ?(abbrev = false) id md =
+  abbreviate ~abbrev tree_of_modtype_declaration id md
 let type_expansion mode ppf ty_exp =
   type_expansion ppf (trees_of_type_expansion mode ty_exp)
 let tree_of_type_declaration ident td rs =

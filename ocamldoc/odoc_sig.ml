@@ -16,7 +16,6 @@
 (** Analysis of interface files. *)
 
 open Asttypes
-open Layouts
 open Types
 open Odoc_parameter
 open Odoc_value
@@ -417,7 +416,7 @@ module Analyser =
           { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
         {Types.ld_id; ld_mutable; ld_global = Unrestricted;
-         ld_layout=Layout.any (* ignored *);
+         ld_jkind=Jkind.any ~why:Dummy_jkind (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in
       let open Typedtree in
@@ -480,10 +479,18 @@ module Analyser =
            pmty_attributes = []
          }
 
+    let filter_out_erased_item_from_signature_jst _erased acc
+      : Jane_syntax.Signature_item.t -> _ = function
+      | Jsig_include_functor (Ifsig_include_functor _) -> acc
+
     let filter_out_erased_items_from_signature erased signature =
       if Name.Map.is_empty erased then signature
       else List.fold_right (fun sig_item acc ->
         let take_item psig_desc = { sig_item with Parsetree.psig_desc } :: acc in
+        match Jane_syntax.Signature_item.of_ast sig_item with
+        | Some jsig_item ->
+            filter_out_erased_item_from_signature_jst erased acc jsig_item
+        | None ->
         match sig_item.Parsetree.psig_desc with
         | Parsetree.Psig_attribute _
         | Parsetree.Psig_extension _
@@ -736,7 +743,7 @@ module Analyser =
             let (assoc_com, ele_comments) =
               get_comments_in_module last_pos (Loc.psig_start ele)
             in
-            let (maybe_more, new_env, elements) = analyse_signature_item_desc
+            let (maybe_more, new_env, elements) = analyse_signature_item
                 acc_env
                 signat
                 table
@@ -749,7 +756,7 @@ module Analyser =
                 | ele2 :: _ -> Loc.psig_start ele2
                 )
                 assoc_com
-                ele.Parsetree.psig_desc
+                ele
             in
             let new_pos = Loc.psig_end ele + maybe_more
               (* for the comments of constructors in types,
@@ -762,6 +769,50 @@ module Analyser =
               q
       in
       f [] env last_pos sig_item_list
+
+    and analyse_signature_item_desc_include ~env ~comment_opt incl =
+      let rec f = function
+          Parsetree.Pmty_ident longident ->
+            Name.from_longident longident.txt
+        | Parsetree.Pmty_alias longident ->
+            Name.from_longident longident.txt
+        | Parsetree.Pmty_signature _ ->
+            "??"
+        | Parsetree.Pmty_functor _ ->
+            "??"
+        | Parsetree.Pmty_with (mt, _) ->
+            f mt.Parsetree.pmty_desc
+        | Parsetree.Pmty_typeof mexpr ->
+            let open Parsetree in
+            begin match mexpr.pmod_desc with
+              Pmod_ident longident -> Name.from_longident longident.txt
+            | Pmod_structure [
+                {pstr_desc=Pstr_include
+                     {pincl_mod={pmod_desc=Pmod_ident longident}}
+                }] -> (* include module type of struct include M end*)
+                Name.from_longident longident.txt
+            | _ -> "??"
+            end
+        | Parsetree.Pmty_extension _ -> assert false
+      in
+      let name = f incl.Parsetree.pincl_mod.Parsetree.pmty_desc in
+      let full_name = Odoc_env.full_module_or_module_type_name env name in
+      let im =
+        {
+          im_name = full_name ;
+          im_module = None ;
+          im_info = comment_opt;
+        }
+      in
+      (0, env, [ Element_included_module im ]) (* FIXME : extend the environment? How? *)
+
+    and analyse_signature_item_desc_jst env _signat _table _current_module_name
+        _sig_item_loc _pos_start_ele _pos_end_ele _pos_limit comment_opt
+        : Jane_syntax.Signature_item.t -> _ = function
+      | Jsig_include_functor ifincl -> begin match ifincl with
+          | Ifsig_include_functor incl ->
+              analyse_signature_item_desc_include ~env ~comment_opt incl
+        end
 
     (** Analyse the given signature_item_desc to create the corresponding module element
        (with the given attached comment).*)
@@ -1338,40 +1389,7 @@ module Analyser =
             (maybe_more, new_env2, [ Element_module_type mt ])
 
         | Parsetree.Psig_include incl ->
-            let rec f = function
-                Parsetree.Pmty_ident longident ->
-                  Name.from_longident longident.txt
-              | Parsetree.Pmty_alias longident ->
-                  Name.from_longident longident.txt
-              | Parsetree.Pmty_signature _ ->
-                  "??"
-              | Parsetree.Pmty_functor _ ->
-                  "??"
-              | Parsetree.Pmty_with (mt, _) ->
-                  f mt.Parsetree.pmty_desc
-              | Parsetree.Pmty_typeof mexpr ->
-                  let open Parsetree in
-                  begin match mexpr.pmod_desc with
-                    Pmod_ident longident -> Name.from_longident longident.txt
-                  | Pmod_structure [
-                      {pstr_desc=Pstr_include
-                           {pincl_mod={pmod_desc=Pmod_ident longident}}
-                      }] -> (* include module type of struct include M end*)
-                      Name.from_longident longident.txt
-                  | _ -> "??"
-                  end
-              | Parsetree.Pmty_extension _ -> assert false
-            in
-            let name = f incl.Parsetree.pincl_mod.Parsetree.pmty_desc in
-            let full_name = Odoc_env.full_module_or_module_type_name env name in
-            let im =
-              {
-                im_name = full_name ;
-                im_module = None ;
-                im_info = comment_opt;
-              }
-            in
-            (0, env, [ Element_included_module im ]) (* FIXME : extend the environment? How? *)
+            analyse_signature_item_desc_include ~env ~comment_opt incl
 
         | Parsetree.Psig_class class_description_list ->
             (* we start by extending the environment *)
@@ -1519,11 +1537,26 @@ module Analyser =
         | Parsetree.Psig_extension _ ->
             (0, env, [])
 
+    and analyse_signature_item env _signat table current_module_name
+        sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt sig_item =
+        match Jane_syntax.Signature_item.of_ast sig_item with
+        | Some jsig_item ->
+            analyse_signature_item_desc_jst
+              env _signat table current_module_name
+              sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt
+              jsig_item
+        | None ->
+            analyse_signature_item_desc
+              env _signat table current_module_name
+              sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt
+              sig_item.Parsetree.psig_desc
+
     (** Return a module_type_kind from a Parsetree.module_type and a Types.module_type *)
     and analyse_module_type_kind
       ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
-      match Extensions.Module_type.of_ast module_type with
-      | Some (Emty_strengthen _) -> failwith "strengthen not implemented yet"
+      match Jane_syntax.Module_type.of_ast module_type with
+      | Some (Jmty_strengthen _, _attrs) ->
+          failwith "strengthen not implemented yet"
       | None ->
       match module_type.Parsetree.pmty_desc with
         Parsetree.Pmty_ident longident ->
@@ -1623,8 +1656,9 @@ module Analyser =
     (** analyse of a Parsetree.module_type and a Types.module_type.*)
     and analyse_module_kind
         ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
-      match Extensions.Module_type.of_ast module_type with
-      | Some (Emty_strengthen _) -> failwith "strengthen not implemented yet"
+      match Jane_syntax.Module_type.of_ast module_type with
+      | Some (Jmty_strengthen _, _attrs) ->
+          failwith "strengthen not implemented yet"
       | None ->
       match module_type.Parsetree.pmty_desc with
       | Parsetree.Pmty_ident _longident ->

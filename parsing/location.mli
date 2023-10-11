@@ -52,6 +52,14 @@ type t = Warnings.loc = {
    Else all fields are correct.
 *)
 
+(** Strict comparison: Compares all fields of the two locations, irrespective of
+    whether or not they happen to refer to the same place.  For fully-defined
+    locations within the same file, is guaranteed to return them in source
+    order; otherwise, or if given two locations that differ only in ghostiness,
+    is just guaranteed to produce a consistent order, but which one is
+    unspecified. *)
+val compare : t -> t -> int
+
 val none : t
 (** An arbitrary value of type [t]; describes an empty ghost range. *)
 
@@ -67,6 +75,9 @@ val init : Lexing.lexbuf -> string -> unit
 
 val curr : Lexing.lexbuf -> t
 (** Get the location of the current token from the [lexbuf]. *)
+
+val ghostify : t -> t
+(** Return a version of the location with [loc_ghost = true] *)
 
 val symbol_rloc: unit -> t
 val symbol_gloc: unit -> t
@@ -87,7 +98,9 @@ type 'a loc = {
 
 val mknoloc : 'a -> 'a loc
 val mkloc : 'a -> t -> 'a loc
-
+val get_txt : 'a loc -> 'a
+val map : ('a -> 'b) -> 'a loc -> 'b loc
+val compare_txt : ('a -> 'b -> 'c) -> 'a loc -> 'b loc -> 'c
 
 (** {1 Input info} *)
 
