@@ -37,7 +37,10 @@ let make_inlined_body ~callee ~region_inlined_into ~params ~args ~my_closure
     Renaming.add_variable renaming my_region region_inlined_into
   in
   let body =
-    bind_params ~params:(my_closure :: params) ~args:(callee :: args) ~body
+    match callee with
+    | Some callee ->
+      bind_params ~params:(my_closure :: params) ~args:(callee :: args) ~body
+    | None -> bind_params ~params ~args ~body
   in
   let body = bind_depth ~my_depth ~rec_info ~body in
   apply_renaming body renaming

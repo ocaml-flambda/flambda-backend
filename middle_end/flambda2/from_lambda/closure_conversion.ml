@@ -540,9 +540,10 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =
-        Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~args_arity:param_arity ~return_arity
-          ~call_kind dbg ~inlined:Default_inlined
+        Apply.create ~callee:(Some callee)
+          ~continuation:(Return return_continuation) exn_continuation ~args
+          ~args_arity:param_arity ~return_arity ~call_kind dbg
+          ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
           ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
@@ -1183,7 +1184,7 @@ let close_exact_or_unknown_apply acc env
     | Rc_nontail -> Apply.Position.Nontail
   in
   let apply =
-    Apply.create ~callee ~continuation:(Return continuation)
+    Apply.create ~callee:(Some callee) ~continuation:(Return continuation)
       apply_exn_continuation ~args ~args_arity ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
@@ -2185,9 +2186,11 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       | Some (_, cont) -> Apply.Result_continuation.Return cont
     in
     let over_application =
-      Apply.create ~callee:(Simple.var returned_func) ~continuation
-        apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
-        ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
+      Apply.create
+        ~callee:(Some (Simple.var returned_func))
+        ~continuation apply_exn_continuation ~args:remaining
+        ~args_arity:remaining_arity ~return_arity:apply.return_arity ~call_kind
+        apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
         ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)

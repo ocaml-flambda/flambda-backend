@@ -202,8 +202,15 @@ let simplify_extcall dacc apply ~callee_ty:_ ~arg_types =
   let args = Apply.args apply in
   let exn_cont = Apply.exn_continuation apply in
   let fun_name =
-    Apply.callee apply |> fun_symbol |> Symbol.linkage_name
-    |> Linkage_name.to_string
+    let callee =
+      match Apply.callee apply with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for C call:@ %a"
+          Apply.print apply
+    in
+    callee |> fun_symbol |> Symbol.linkage_name |> Linkage_name.to_string
   in
   match Apply.continuation apply with
   | Never_returns -> Unchanged { return_types = Unknown }

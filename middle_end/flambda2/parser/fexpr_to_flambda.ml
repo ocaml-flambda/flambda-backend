@@ -1009,8 +1009,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let exn_continuation = find_exn_cont env exn_continuation in
     let region = find_region env region in
     let apply =
-      Flambda.Apply.create ~callee:(simple env func) ~continuation
-        exn_continuation
+      Flambda.Apply.create
+        ~callee:(Some (simple env func))
+        ~continuation exn_continuation
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
         ~inlining_state ~probe:None ~position:Normal

@@ -885,8 +885,14 @@ module Expr_with_acc = struct
         | C_call _ -> false)
     in
     let acc =
-      Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc
-        (Apply.callee apply)
+      let callee =
+        match Apply.callee apply with
+        | None ->
+          Misc.fatal_errorf "Did not expect [Apply] with missing callee:@ %a"
+            Apply.print apply
+        | Some callee -> callee
+      in
+      Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc callee
     in
     let acc =
       Acc.add_free_names_and_check_my_closure_use

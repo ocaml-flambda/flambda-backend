@@ -15,7 +15,7 @@
 (**************************************************************************)
 
 val make_inlined_body :
-  callee:Simple.t ->
+  callee:Simple.t option ->
   region_inlined_into:Variable.t ->
   params:'param list ->
   args:Simple.List.t ->

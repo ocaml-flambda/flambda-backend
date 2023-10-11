@@ -988,7 +988,15 @@ and cont_handler env cont_id (sort : Continuation.Sort.t) h =
       { name = cont_id; params; sort; handler })
 
 and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
-  let func = simple env (Apply_expr.callee app) in
+  (* CR mshinwell: support optional callee *)
+  let callee =
+    match Apply_expr.callee app with
+    | None ->
+      Misc.fatal_errorf "Missing callees are not yet supported:@ %a"
+        Apply_expr.print app
+    | Some callee -> callee
+  in
+  let func = simple env callee in
   let continuation : Fexpr.result_continuation =
     match Apply_expr.continuation app with
     | Return c -> Return (Env.find_continuation_exn env c)
