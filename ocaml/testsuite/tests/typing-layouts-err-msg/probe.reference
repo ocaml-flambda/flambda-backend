@@ -1,0 +1,10 @@
+File "probe.ml", line 11, characters 6-7:
+11 |   let f () = x in
+           ^
+Warning 26 [unused-var]: unused variable f.
+File "probe.ml", lines 10-13, characters 20-2:
+10 | ....................[%probe "a" (
+11 |   let f () = x in
+12 |   ()
+13 | )]
+Error: Variables in probe handlers must have layout value, but x in this handler does not.
