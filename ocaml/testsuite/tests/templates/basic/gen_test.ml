@@ -93,10 +93,11 @@ let tree_for_mode mode =
     | None -> vars
     | Some flags -> ("flags", flags) :: vars
   in
-  let compile ?flags filenames =
-    Act (compiler, add_flags ~flags [
+  let add_extra ?(extra = []) vars = extra @ vars in
+  let compile ?flags ?extra filenames =
+    Act (compiler, add_flags ~flags (add_extra ?extra [
       "module", filenames;
-    ])
+    ]))
   in
   let compile_bad ~ext ?flags module_ =
     Branch (Seq [
@@ -134,12 +135,12 @@ let tree_for_mode mode =
       Act ("check-program-output", [ "reference", !%"%s.reference" main ]);
     ]
   in
-  let instantiate ~flags out (module_, args) =
+  let instantiate ~flags ?extra out (module_, args) =
     let all_modules =
       List.map (module_ :: args) ~f:(fun m -> !%"%s.%s" m cmo)
       |> String.concat ~sep:" "
     in
-    Act (compiler, [
+    Act (compiler, add_extra ?extra [
       "module", "";
       "flags", sep_unless_empty "-instantiate" flags;
       "program", !%"%s.%s" out cmo;
