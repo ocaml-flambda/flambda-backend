@@ -132,7 +132,7 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
-  | Ispecific(Isimd op) -> Simd_selection.reload_operation self#makereg op arg res
+  | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
