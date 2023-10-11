@@ -333,7 +333,8 @@ Error: This expression has type t but an expression was expected of type
 |}];;
 
 (* Float_record_field *)
-(* CR layouts v2.9: add test *)
+(* The type is restricted to float which always has layout value.
+   Can't generate an error *)
 
 (* Existential_type_variable *)
 (* See [gadt_existential.ml] *)
@@ -395,10 +396,23 @@ Error: This type signature for x is not a value type.
 |}];;
 
 (* Debug_printer_argument *)
-(* CR layouts v2.9: add test *)
+(* See [debug_printer.ml] *)
 
 (* V1_safety_check *)
-(* CR layouts v2.9: add test *)
+type t = {a: t_void; b: int}
+let f (x: t) = match x with | {a; b} -> a
+[%%expect {|
+type t = { a : t_void; b : int; }
+Line 2, characters 6-41:
+2 | let f (x: t) = match x with | {a; b} -> a
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it has to be value for the V1 safety check.
+|}]
 
 (* Captured_in_object *)
 let f (m1 : t_float64) = object
