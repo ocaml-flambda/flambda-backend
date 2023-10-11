@@ -10,19 +10,19 @@ type ('a : value) value = unit
 
 (* Type_declaration *)
 type t_void : void
-type t = t_void value
+and t = t_void value
 
 [%%expect{|
 type 'a value = unit
-type t_void : void
-Line 5, characters 9-15:
-5 | type t = t_void value
-             ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
+Line 5, characters 8-14:
+5 | and t = t_void value
+            ^^^^^^
+Error: This type t_void = ('a : void) should be an instance of type
+         ('b : value)
        The layout of t_void is void, because
          of the annotation on the declaration of the type t_void.
-       But the layout of t_void must be a sublayout of value, because
-         of definition of value at Line 1, characters 0-30.
+       But the layout of t_void must overlap with value, because
+         of the definition of value at line 1, characters 0-30.
 |}]
 
 (* Type_parameter *)
@@ -36,7 +36,7 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
        The layout of 'a is void, because
          of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value, because
-         of definition of value at Line 1, characters 0-30.
+         of the definition of value at line 1, characters 0-30.
 |}]
 
 (* With_constraint *)
@@ -53,7 +53,7 @@ Error: This type a should be an instance of type ('a : value)
        The layout of a is void, because
          of the annotation on the abstract type declaration for a.
        But the layout of a must be a sublayout of value, because
-         of definition of value at Line 1, characters 0-30.
+         of the definition of value at line 1, characters 0-30.
 |}]
 
 (* Constructor_type_parameter *)
@@ -67,7 +67,7 @@ Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void, because
          of the annotation on a in the declaration of constructor A.
        But the layout of 'a must overlap with value, because
-         of definition of value at Line 1, characters 0-30.
+         of the definition of value at line 1, characters 0-30.
 |}]
 
 (* Univar *)
@@ -81,7 +81,7 @@ Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void, because
          of the annotation on the universal variable a.
        But the layout of 'a must overlap with value, because
-         of definition of value at Line 1, characters 0-30.
+         of the definition of value at line 1, characters 0-30.
 |}]
 
 (* Type_variable *)
@@ -110,5 +110,5 @@ Error: Bad layout annotation:
          The layout of 'a -> int is value, because
            it's a function type.
          But the layout of 'a -> int must be a sublayout of void, because
-           of the annotation on the wildcard _ at Line 1, characters 27-31.
+           of the annotation on the wildcard _ at line 1, characters 27-31.
 |}]

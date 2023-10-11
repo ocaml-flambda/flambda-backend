@@ -49,7 +49,7 @@ Line 1, characters 9-14:
              ^^^^^
 Error: Tuple element types must have layout value.
        The layout of t_any is any, because
-         of the annotation on the declaration of the type t_any.
+         of the definition of t_any at line 1, characters 0-18.
        But the layout of t_any must be a sublayout of value, because
          it's a tuple element.
 |}];;
@@ -79,7 +79,7 @@ Error: In this `with' constraint, the new definition of t
        The layout of the first is value, because
          it's used as an element in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at line 2, characters 2-20.
 |}];;
 
 (* Object *)
@@ -108,7 +108,7 @@ Line 4, characters 6-22:
           ^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of baz is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 6, characters 0-19.
        But the layout of baz must be a sublayout of value, because
          it's an instance variable.
 |}];;
@@ -122,7 +122,7 @@ Line 1, characters 18-25:
 Error: This expression has type ('a : value)
        but an expression was expected of type t_void
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
          it's an object field.
 |}];;
@@ -138,59 +138,45 @@ Line 3, characters 8-11:
             ^^^
 Error: Variables bound in a class must have layout value.
        The layout of bar is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 6, characters 0-19.
        But the layout of bar must be a sublayout of value, because
          it's an class field.
 |}];;
 
 (* Boxed_record *)
-type r = {a:string}
-let f : unit -> ('a : void) = fun () -> {a="a"}
+type r : void = {a:string}
 [%%expect{|
-type r = { a : string; }
-Line 2, characters 40-47:
-2 | let f : unit -> ('a : void) = fun () -> {a="a"}
-                                            ^^^^^^^
-Error: This expression has type r but an expression was expected of type
-         ('a : void)
-       The layout of r is value, because
+Line 1, characters 0-26:
+1 | type r : void = {a:string}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type r is value, because
          it's a boxed record.
-       But the layout of r must be a sublayout of void, because
-         of the annotation on the type variable 'a.
+       But the layout of type r must be a sublayout of void, because
+         of the annotation on the declaration of the type r.
 |}];;
 
 (* Boxed_variant *)
-type v = A of t_value
-let f : unit -> ('a : void) = fun () -> A (assert false)
+type v : void = A of t_value
 [%%expect{|
-type v = A of t_value
-Line 2, characters 40-56:
-2 | let f : unit -> ('a : void) = fun () -> A (assert false)
-                                            ^^^^^^^^^^^^^^^^
-Error: This expression has type v but an expression was expected of type
-         ('a : void)
-       The layout of v is value, because
+Line 1, characters 0-28:
+1 | type v : void = A of t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type v is value, because
          it's a boxed variant.
-       But the layout of v must be a sublayout of void, because
-         of the annotation on the type variable 'a.
+       But the layout of type v must be a sublayout of void, because
+         of the annotation on the declaration of the type v.
 |}];;
 
 (* Extensible_variant *)
-type ('a: void) t = 'a
-type attr = ..
-let f (x: attr): 'a t = x
+type attr : void = ..
 [%%expect{|
-type ('a : void) t = 'a
-type attr = ..
-Line 3, characters 24-25:
-3 | let f (x: attr): 'a t = x
-                            ^
-Error: This expression has type attr but an expression was expected of type
-         'a t = ('a : void)
-       The layout of attr is value, because
+Line 1, characters 0-21:
+1 | type attr : void = ..
+    ^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type attr is value, because
          it's an extensible variant.
-       But the layout of attr must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+       But the layout of type attr must be a sublayout of void, because
+         of the annotation on the declaration of the type attr.
 |}]
 
 (* Primitive *)
@@ -216,7 +202,7 @@ Line 1, characters 21-22:
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
          the type argument of list has layout value.
 |}];;
@@ -251,7 +237,7 @@ Error: This expression has type [ `A of int | `B ]
        The layout of [ `A of int | `B ] is value, because
          it's a polymorphic variant.
        But the layout of [ `A of int | `B ] must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Arrow *)
@@ -267,7 +253,7 @@ Error: This expression has type int -> int
        The layout of int -> int is value, because
          it's a function type.
        But the layout of int -> int must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Tfield *)
@@ -293,7 +279,7 @@ Error: This expression has type (module X_int)
        The layout of (module X_int) is value, because
          it's a first-class module type.
        But the layout of (module X_int) must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Separability_check *)
@@ -322,7 +308,7 @@ Line 1, characters 27-28:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
          it's a field of a polymorphic variant.
 |}];;
@@ -338,7 +324,7 @@ Line 2, characters 36-37:
 Error: This expression has type t but an expression was expected of type
          ('a : void)
        The layout of t is value, because
-         an abstract type has the value layout by default.
+         of the definition of t at line 1, characters 0-6.
        But the layout of t must be a sublayout of void, because
          of the annotation on the type variable 'a.
 |}];;
@@ -358,7 +344,7 @@ Line 1, characters 27-28:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
          it's an array element.
 |}];;
@@ -372,7 +358,7 @@ Line 1, characters 29-30:
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
          it's a lazy expression.
 |}];;
@@ -387,7 +373,7 @@ Line 1, characters 10-25:
 Error: This pattern matches values of type t_float64
        but a pattern was expected which matches values of type ('a : value)
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
          it's a term-level argument to a class constructor.
 |}];;
@@ -400,7 +386,7 @@ Line 1, characters 28-34:
                                 ^^^^^^
 Error: This type signature for x is not a value type.
        The layout of x is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 6, characters 0-19.
        But the layout of x must be a sublayout of value, because
          it's stored in a module structure.
 |}];;
@@ -421,7 +407,7 @@ Line 2, characters 20-22:
                         ^^
 Error: m1 must have a type of layout value because it is captured by an object.
        The layout of t_float64 is float64, because
-         of the annotation on the declaration of the type t_float64.
+         of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
          it's captured in an object.
 |}];;

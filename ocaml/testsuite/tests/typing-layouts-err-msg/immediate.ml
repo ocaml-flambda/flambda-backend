@@ -8,20 +8,20 @@
 
 (* Enumeration *)
 type ('a: void) t = 'a
-type v = A
+type v = unit
 let f (x: v): 'a t = x
 [%%expect{|
 type ('a : void) t = 'a
-type v = A
+type v = unit
 Line 3, characters 21-22:
 3 | let f (x: v): 'a t = x
                          ^
-Error: This expression has type v but an expression was expected of type
-         'a t = ('a : void)
-       The layout of v is immediate, because
+Error: This expression has type v = unit
+       but an expression was expected of type 'a t = ('a : void)
+       The layout of unit is immediate, because
          it's an enumeration variant (all constructors are constant).
-       But the layout of v must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+       But the layout of unit must be a sublayout of void, because
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Primitive *)
@@ -37,7 +37,7 @@ Error: This expression has type int but an expression was expected of type
        The layout of int is immediate, because
          it is the primitive immediate type int.
        But the layout of int must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+         of the definition of t at line 1, characters 0-22.
 |}];;
 
 (* Immediate_polymorphic_variant *)
@@ -53,7 +53,7 @@ Error: This expression has type [ `A | `B ]
        The layout of [ `A | `B ] is immediate, because
          it's an enumeration variant (all constructors are constant).
        But the layout of [ `A | `B ] must be a sublayout of void, because
-         of definition of t at Line 1, characters 0-22.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Gc_ignorable_check *)
