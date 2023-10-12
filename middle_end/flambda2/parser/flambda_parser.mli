@@ -1,7 +1,7 @@
 
 (* The type of tokens. *)
 
-type token =
+type token = 
   | TILDEMINUS
   | TILDE
   | SYMBOL of (Fexpr.compilation_unit option * string)
@@ -186,20 +186,20 @@ val flambda_unit: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Fexpr.flambda_un
 val expect_test_spec: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Fexpr.expect_test_spec)
 
 module MenhirInterpreter : sig
-
+  
   (* The incremental API. *)
-
+  
   include CamlinternalMenhirLib.IncrementalEngine.INCREMENTAL_ENGINE
     with type token = token
-
+  
 end
 
 (* The entry point(s) to the incremental API. *)
 
 module Incremental : sig
-
+  
   val flambda_unit: Lexing.position -> (Fexpr.flambda_unit) MenhirInterpreter.checkpoint
-
+  
   val expect_test_spec: Lexing.position -> (Fexpr.expect_test_spec) MenhirInterpreter.checkpoint
-
+  
 end

@@ -1147,7 +1147,8 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
           let check () =
             match skind with
             | Pfloatarray_set | Pgenarray_set _ -> ()
-            | Paddrarray_set _ | Pintarray_set ->
+            | Paddrarray_set _ | Pintarray_set
+            | Punboxedfloatarray_set | Punboxedintarray_set _ ->
               (* CR pchambart: Do a proper warning here *)
               Misc.fatal_errorf "Assignment of a float to a specialised \
                                  non-float array: %a"

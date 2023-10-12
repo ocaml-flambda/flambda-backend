@@ -285,6 +285,9 @@ let array_kind ~space ppf (ak : array_kind) =
     | Values -> None
     | Immediates -> Some "imm"
     | Naked_floats -> Some "float"
+    | Naked_int32s -> Some "int32"
+    | Naked_int64s -> Some "int64"
+    | Naked_nativeints -> Some "nativeint"
   in
   pp_option ~space Format.pp_print_string ppf str
 
@@ -510,7 +513,9 @@ let unop ppf u =
     | Naked_vec128 -> print verb_not_imm "vec128"
   in
   match (u : unop) with
-  | Array_length -> str "%array_length"
+  | Array_length _ak ->
+    (* XXX: print the kind *)
+    str "%array_length"
   | Begin_try_region -> str "%begin_try_region"
   | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->

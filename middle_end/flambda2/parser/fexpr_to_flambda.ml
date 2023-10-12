@@ -377,7 +377,7 @@ let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
-  | Array_length -> Array_length
+  | Array_length _ak -> (* XXX *) Array_length (Array_kind Values)
   | Begin_try_region -> Begin_try_region
   | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
@@ -454,6 +454,9 @@ let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
       | Immediates, _ -> Immediates
       | Naked_floats, _ -> Naked_floats
       | Values, ia -> Values (init_or_assign env ia)
+      | (Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
+        Misc.fatal_error
+          "XXX fexpr support for unboxed int32/64/nativeint arrays"
     in
     Array_set ask
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)

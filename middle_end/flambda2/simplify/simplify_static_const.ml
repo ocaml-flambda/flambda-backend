@@ -170,6 +170,63 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         (DA.are_rebuilding_terms dacc)
         fields,
       dacc )
+  | Immutable_int32_array fields ->
+    let fields_with_tys =
+      List.map
+        (fun field ->
+          simplify_or_variable dacc
+            (fun f -> T.this_naked_int32 f)
+            field K.naked_int32)
+        fields
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.naked_int32)
+           ~fields:field_tys Alloc_mode.For_types.heap)
+    in
+    ( Rebuilt_static_const.create_immutable_int32_array
+        (DA.are_rebuilding_terms dacc)
+        fields,
+      dacc )
+  | Immutable_int64_array fields ->
+    let fields_with_tys =
+      List.map
+        (fun field ->
+          simplify_or_variable dacc
+            (fun f -> T.this_naked_int64 f)
+            field K.naked_int64)
+        fields
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.naked_int64)
+           ~fields:field_tys Alloc_mode.For_types.heap)
+    in
+    ( Rebuilt_static_const.create_immutable_int64_array
+        (DA.are_rebuilding_terms dacc)
+        fields,
+      dacc )
+  | Immutable_nativeint_array fields ->
+    let fields_with_tys =
+      List.map
+        (fun field ->
+          simplify_or_variable dacc
+            (fun f -> T.this_naked_nativeint f)
+            field K.naked_nativeint)
+        fields
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.naked_nativeint)
+           ~fields:field_tys Alloc_mode.For_types.heap)
+    in
+    ( Rebuilt_static_const.create_immutable_nativeint_array
+        (DA.are_rebuilding_terms dacc)
+        fields,
+      dacc )
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map (fun field -> simplify_field_of_block dacc field) fields

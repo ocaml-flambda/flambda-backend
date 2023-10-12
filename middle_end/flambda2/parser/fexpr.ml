@@ -175,6 +175,9 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Immediates
   | Values
   | Naked_floats
+  | Naked_int32s
+  | Naked_int64s
+  | Naked_nativeints
 
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float
@@ -260,8 +263,12 @@ type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
   | Swap_byte_endianness
 
+type array_kind_for_length = Flambda_primitive.Array_kind_for_length.t =
+  | Array_kind of array_kind
+  | Float_array_opt_dynamic
+
 type unop =
-  | Array_length
+  | Array_length of array_kind_for_length
   | Begin_try_region
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
@@ -349,6 +356,7 @@ type binop =
   | Bigarray_get_alignment of int
 
 type ternop =
+  (* XXX mshinwell: Array_set should use "array_set_kind" *)
   | Array_set of array_kind * init_or_assign
   | Block_set of block_access_kind * init_or_assign
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width

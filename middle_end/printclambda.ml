@@ -34,6 +34,14 @@ let rec value_kind0 ppf kind =
   | Parrayval Pintarray -> Format.pp_print_string ppf ":intarray"
   | Parrayval Pfloatarray -> Format.pp_print_string ppf ":floatarray"
   | Parrayval Paddrarray -> Format.pp_print_string ppf ":addrarray"
+  | Parrayval Punboxedfloatarray ->
+    Format.pp_print_string ppf ":unboxedfloatarray"
+  | Parrayval (Punboxedintarray Pint32) ->
+    Format.pp_print_string ppf ":unboxedint32array"
+  | Parrayval (Punboxedintarray Pint64) ->
+    Format.pp_print_string ppf ":unboxedint64array"
+  | Parrayval (Punboxedintarray Pnativeint) ->
+    Format.pp_print_string ppf ":unboxednativeintarray"
   | Pboxedintval Pnativeint -> Format.pp_print_string ppf ":nativeint"
   | Pboxedintval Pint32 -> Format.pp_print_string ppf ":int32"
   | Pboxedintval Pint64 -> Format.pp_print_string ppf ":int64"

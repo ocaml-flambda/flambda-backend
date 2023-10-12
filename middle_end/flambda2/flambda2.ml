@@ -110,7 +110,10 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
   Misc.Color.setup (Flambda_features.colour ());
   (* CR-someday mshinwell: Note for future WebAssembly work: this thing about
      the length of arrays will need fixing, I don't think it only applies to the
-     Cmm translation. *)
+     Cmm translation.
+
+     This is partially fixed now, but the float array optimization case for
+     array length in the Cmm translation assumes the floats are word width. *)
   (* The Flambda 2 code won't currently operate on 32-bit hosts; see
      [Name_occurrences]. *)
   if Sys.word_size <> 64

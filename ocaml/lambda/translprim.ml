@@ -494,6 +494,8 @@ let glb_array_type t1 t2 =
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
 
+  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+
 let glb_array_ref_type t1 t2 =
   match t1, t2 with
   (* No GLB; only used in the [Obj.magic] case *)
@@ -520,6 +522,8 @@ let glb_array_ref_type t1 t2 =
   (* Pfloatarray is a minimum *)
   | (Pfloatarray_ref _ as x), Pfloatarray -> x
 
+  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+
 let glb_array_set_type t1 t2 =
   match t1, t2 with
   (* No GLB; only used in the [Obj.magic] case *)
@@ -545,6 +549,8 @@ let glb_array_set_type t1 t2 =
 
   (* Pfloatarray is a minimum *)
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
+
+  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void
@@ -1015,7 +1021,9 @@ let lambda_primitive_needs_event_after = function
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pcompare_ints | Pcompare_floats
   | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
+  | Pbytessetu
+  | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray
+      | Punboxedintarray _), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _

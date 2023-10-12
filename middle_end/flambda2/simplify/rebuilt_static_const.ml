@@ -153,6 +153,39 @@ let create_immutable_float_array are_rebuilding fields =
     Block_not_rebuilt { free_names }
   else create_normal_non_code (SC.immutable_float_array fields)
 
+let create_immutable_int32_array are_rebuilding fields =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then
+    let free_names =
+      ListLabels.fold_left fields ~init:Name_occurrences.empty
+        ~f:(fun free_names field ->
+          Name_occurrences.union free_names (Or_variable.free_names field))
+    in
+    Block_not_rebuilt { free_names }
+  else create_normal_non_code (SC.immutable_int32_array fields)
+
+let create_immutable_int64_array are_rebuilding fields =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then
+    let free_names =
+      ListLabels.fold_left fields ~init:Name_occurrences.empty
+        ~f:(fun free_names field ->
+          Name_occurrences.union free_names (Or_variable.free_names field))
+    in
+    Block_not_rebuilt { free_names }
+  else create_normal_non_code (SC.immutable_int64_array fields)
+
+let create_immutable_nativeint_array are_rebuilding fields =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then
+    let free_names =
+      ListLabels.fold_left fields ~init:Name_occurrences.empty
+        ~f:(fun free_names field ->
+          Name_occurrences.union free_names (Or_variable.free_names field))
+    in
+    Block_not_rebuilt { free_names }
+  else create_normal_non_code (SC.immutable_nativeint_array fields)
+
 let create_immutable_value_array are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding
   then
@@ -197,8 +230,9 @@ let map_set_of_closures t ~f =
           }
       | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
-      | Immutable_string _ ->
+      | Immutable_int32_array _ | Immutable_int64_array _
+      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array
+      | Mutable_string _ | Immutable_string _ ->
         t))
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->
     t

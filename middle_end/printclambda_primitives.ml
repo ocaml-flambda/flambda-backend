@@ -40,6 +40,10 @@ let array_kind array_kind =
   | Paddrarray -> "addr"
   | Pintarray -> "int"
   | Pfloatarray -> "float"
+  | Punboxedfloatarray -> "unboxed_float"
+  | Punboxedintarray Pint32 -> "unboxed_int32"
+  | Punboxedintarray Pint64 -> "unboxed_int64"
+  | Punboxedintarray Pnativeint -> "unboxed_nativeint"
 
 let pp_array_ref_kind ppf k =
   let open Lambda in
@@ -52,6 +56,10 @@ let pp_array_ref_kind ppf k =
   | Paddrarray_ref -> fprintf ppf "addr"
   | Pintarray_ref -> fprintf ppf "int"
   | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+  | Punboxedfloatarray_ref -> fprintf ppf "unboxed_float"
+  | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
 
 let pp_array_set_kind ppf k =
   let open Lambda in
@@ -64,6 +72,10 @@ let pp_array_set_kind ppf k =
   | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
   | Pintarray_set -> fprintf ppf "int"
   | Pfloatarray_set -> fprintf ppf "float"
+  | Punboxedfloatarray_set -> fprintf ppf "unboxed_float"
+  | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
 
 let access_size size =
   let open Clambda_primitives in

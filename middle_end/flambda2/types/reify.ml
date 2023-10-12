@@ -32,6 +32,9 @@ type to_lift =
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float_array of { fields : Float.t list }
+  | Immutable_int32_array of { fields : Int32.t list }
+  | Immutable_int64_array of { fields : Int64.t list }
+  | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
 
@@ -432,10 +435,73 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
             | Bottom -> Invalid
             | Ok fields_rev ->
               Lift (Immutable_float_array { fields = List.rev fields_rev }))
-          | Naked_number
-              ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-              | Naked_vec128 )
-          | Region | Rec_info ->
+          | Naked_number Naked_int32 -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_int32s env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Int32.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_int32_array { fields = List.rev fields_rev }))
+          | Naked_number Naked_int64 -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_int64s env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Int64.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_int64_array { fields = List.rev fields_rev }))
+          | Naked_number Naked_nativeint -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_nativeints env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Targetint_32_64.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_nativeint_array { fields = List.rev fields_rev }))
+          | Naked_number (Naked_immediate | Naked_vec128) | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"
