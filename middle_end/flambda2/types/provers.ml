@@ -516,7 +516,7 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
     | Unknown -> Unknown
     | Proved simples -> Proved (tag_and_size, List.rev simples))
 
-let meet_is_flat_float_array env t : bool meet_shortcut =
+let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
   match expand_head env t with
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
@@ -529,11 +529,10 @@ let meet_is_flat_float_array env t : bool meet_shortcut =
   | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
     match K.With_subkind.kind element_kind with
     | Value -> Known_result false
-    | Naked_number Naked_float -> Known_result true
-    | Naked_number
-        ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-        | Naked_vec128 )
-    | Region | Rec_info ->
+    | Naked_number naked_number_kind'
+      when K.Naked_number_kind.equal naked_number_kind naked_number_kind' ->
+      Known_result true
+    | Naked_number _ | Region | Rec_info ->
       Misc.fatal_errorf "Wrong element kind for array: %a" K.With_subkind.print
         element_kind)
   | Value
@@ -561,7 +560,8 @@ let prove_is_immediates_array env t : unit proof_of_property =
     | Tagged_immediate -> Proved ()
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Value_array | Generic_array | Unboxed_float_array | Unboxed_int32_array
+    | Unboxed_int64_array | Unboxed_nativeint_array ->
       Unknown)
   | Value
       (Ok

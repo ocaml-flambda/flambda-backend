@@ -381,7 +381,8 @@ unary_int_arith_op:
   | TILDEMINUS { Neg }
 
 unop:
-  | PRIM_ARRAY_LENGTH { Array_length }
+  (* XXX mshinwell this needs to accept the kind *)
+  | PRIM_ARRAY_LENGTH { Array_length (Array_kind Values) }
   | PRIM_BEGIN_TRY_REGION { Begin_try_region }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt

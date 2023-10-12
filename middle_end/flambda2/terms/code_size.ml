@@ -140,7 +140,7 @@ let block_load (kind : Flambda_primitive.Block_access_kind.t) =
 let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
-  | Naked_floats -> 1
+  | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints -> 1
   | Values -> 1
 
 let block_set (kind : Flambda_primitive.Block_access_kind.t)
@@ -154,7 +154,9 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   match kind with
   | Values (Assignment Heap) -> nonalloc_extcall_size
   | Values (Assignment Local | Initialization) -> 1
-  | Immediates | Naked_floats -> 1
+  | Immediates | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints
+    ->
+    1
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -318,7 +320,17 @@ let unary_prim_size prim =
   | Duplicate_array _ | Duplicate_block _ -> alloc_extcall_size + 1
   | Is_int _ -> 1
   | Get_tag -> 2
-  | Array_length -> array_length_size
+  | Array_length array_kind -> (
+    match array_kind with
+    | Array_kind
+        (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
+      ->
+      array_length_size
+    | Array_kind Naked_int32s ->
+      (* There is a dynamic check here to see if the array has an odd or even
+         number of elements *)
+      array_length_size + 2 (* compare + load *)
+    | Float_array_opt_dynamic -> array_length_size + 3 (* XXX guess *))
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
   | Int_as_pointer _ -> 1

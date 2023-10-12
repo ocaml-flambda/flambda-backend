@@ -930,6 +930,15 @@ and transl_make_array dbg env kind mode args =
   | Pfloatarray ->
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
+  | Punboxedfloatarray ->
+      make_float_alloc ~mode dbg Obj.double_array_tag
+        (List.map (transl env) args)
+  | Punboxedintarray Pint32 ->
+      Misc.fatal_error "XXX mshinwell: creation for unboxed int32 arrays"
+  | Punboxedintarray (Pint64 | Pnativeint) ->
+      (* XXX mshinwell: use custom blocks instead.  Need to fix the indexing
+         computations to skip the custom operations word. *)
+      make_alloc ~mode dbg Obj.abstract_tag (List.map (transl env) args)
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =

@@ -353,13 +353,40 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   let typing_env = DA.typing_env dacc in
   match array_kind with
   | Naked_floats -> (
-    match T.meet_is_flat_float_array typing_env array_ty with
+    match
+      T.meet_is_naked_number_array typing_env array_ty
+        K.Naked_number_kind.Naked_float
+    with
+    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result false | Invalid -> Bottom)
+  | Naked_int32s -> (
+    match
+      T.meet_is_naked_number_array typing_env array_ty
+        K.Naked_number_kind.Naked_int32
+    with
+    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result false | Invalid -> Bottom)
+  | Naked_int64s -> (
+    match
+      T.meet_is_naked_number_array typing_env array_ty
+        K.Naked_number_kind.Naked_int64
+    with
+    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result false | Invalid -> Bottom)
+  | Naked_nativeints -> (
+    match
+      T.meet_is_naked_number_array typing_env array_ty
+        K.Naked_number_kind.Naked_nativeint
+    with
     | Known_result true | Need_meet -> Ok array_kind
     | Known_result false | Invalid -> Bottom)
   | Immediates -> (
     (* The only thing worth checking is for float arrays, as that would allow us
        to remove the branch *)
-    match T.meet_is_flat_float_array typing_env array_ty with
+    match
+      T.meet_is_naked_number_array typing_env array_ty
+        K.Naked_number_kind.Naked_float
+    with
     | Known_result false | Need_meet -> Ok array_kind
     | Known_result true | Invalid -> Bottom)
   | Values -> (
@@ -370,7 +397,10 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       Ok P.Array_kind.Immediates
     | Unknown -> (
       (* Check for float arrays *)
-      match T.meet_is_flat_float_array typing_env array_ty with
+      match
+        T.meet_is_naked_number_array typing_env array_ty
+          K.Naked_number_kind.Naked_float
+      with
       | Known_result false | Need_meet -> Ok array_kind
       | Known_result true | Invalid -> Bottom))
 

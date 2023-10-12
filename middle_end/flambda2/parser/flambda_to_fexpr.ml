@@ -433,6 +433,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Value_array -> Value_array
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
+  | Unboxed_float_array | Unboxed_int32_array | Unboxed_int64_array
+  | Unboxed_nativeint_array ->
+    Misc.fatal_error
+      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -519,7 +523,7 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
 
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
-  | Array_length -> Array_length
+  | Array_length _ak -> Array_length (Array_kind Values) (* XXX *)
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
@@ -598,13 +602,18 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
     let ia : Flambda_primitive.Init_or_assign.t =
       match ak with
       | Values ia -> ia
-      | Immediates | Naked_floats -> Assignment Alloc_mode.For_assignments.heap
+      | Immediates | Naked_floats | Naked_int32s | Naked_int64s
+      | Naked_nativeints ->
+        Assignment Alloc_mode.For_assignments.heap
     in
     let ak : Flambda_primitive.Array_kind.t =
       match ak with
       | Immediates -> Immediates
       | Values _ -> Values
       | Naked_floats -> Naked_floats
+      | Naked_int32s -> Naked_int32s
+      | Naked_int64s -> Naked_int64s
+      | Naked_nativeints -> Naked_nativeints
     in
     Array_set (ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
@@ -708,6 +717,10 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_float_array (List.map (or_variable float env) elements)
   | Immutable_value_array elements ->
     Immutable_value_array (List.map (field_of_block env) elements)
+  | Immutable_int32_array _ | Immutable_int64_array _
+  | Immutable_nativeint_array _ ->
+    Misc.fatal_error
+      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
   | Empty_array -> Empty_array
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

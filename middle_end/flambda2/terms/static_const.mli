@@ -34,13 +34,16 @@ type t = private
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  | Immutable_int32_array of Int32.t Or_variable.t list
+  | Immutable_int64_array of Int64.t Or_variable.t list
+  | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
   | Immutable_value_array of Field_of_static_block.t list
-      (** [Immutable_value_array] and [Immutable_float_array] constructors
-          always have at least one field. For empty arrays, [Empty_array] must
-          be used, since it is not always possible to identify the kind (e.g.
-          when receiving [Pmakearray Pgenarray] from Lambda). This sort-of
-          doesn't matter at present but seems neater (also see comment on the
-          [Empty_array] case in [Simplify_static_const]). *)
+      (** [Immutable_*_array] constructors always have at least one field. For
+          empty arrays, [Empty_array] must be used, since it is not always
+          possible to identify the kind (e.g.  when receiving
+          [Pmakearray Pgenarray] from Lambda). This sort-of doesn't matter at
+          present but seems neater (also see comment on the [Empty_array] case
+          in [Simplify_static_const]). *)
   | Empty_array
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
@@ -72,6 +75,18 @@ val immutable_float_block :
     produced. *)
 val immutable_float_array :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_int32_array : Int32.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_int64_array : Int64.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_nativeint_array : Targetint_32_64.t Or_variable.t list -> t
 
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)

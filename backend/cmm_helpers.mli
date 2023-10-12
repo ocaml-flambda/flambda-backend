@@ -1307,3 +1307,50 @@ val send_function :
 
 val apply_function :
   Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+
+(** Allocate a block to hold an unboxed int32 array for the given number of
+    elements. *)
+val allocate_unboxed_int32_array :
+  num_elements:int -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed int64 array for the given number of
+    elements. *)
+val allocate_unboxed_int64_array :
+  num_elements:int -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed nativeint array for the given number of
+    elements. *)
+val allocate_unboxed_nativeint_array :
+  num_elements:int -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int32 array. *)
+val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int64 or unboxed nativeint array. *)
+val unboxed_int64_or_nativeint_array_length :
+  expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int32 array (without bounds check). *)
+val unboxed_int32_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int64 or unboxed nativeint array (without bounds
+    check). *)
+val unboxed_int64_or_nativeint_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Update an unboxed int64 or unboxed nativeint array. *)
+val unboxed_int32_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
+(** Update an unboxed int64 or unboxed nativeint array. *)
+val unboxed_int64_or_nativeint_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
