@@ -558,12 +558,22 @@ let is_noop_move instr =
       let ifnot = instr.arg.(len - 1) in
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
+<<<<<<< HEAD
       ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
       | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+=======
+      ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
+      | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
+      | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
+      | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
+      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region | Poll )
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+>>>>>>> 6c577f8e (Turn `Poll_and_jump` terminator into `Poll` basic instruction.)
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
