@@ -53,9 +53,11 @@ let print_compact_location ppf (loc : Location.t) =
 let name_for_function (func : Lambda.lfunction) =
   (* Name anonymous functions by their source location, if known. *)
   match func.loc with
-  | Loc_unknown -> "anon-fn"
+  | Loc_unknown -> "fn"
   | Loc_known { loc; _ } ->
-    Format.asprintf "anon-fn[%a]" print_compact_location loc
+    if Flambda_features.Expert.shorten_symbol_names ()
+    then "fn"
+    else Format.asprintf "fn[%a]" print_compact_location loc
 
 let extra_args_for_exn_continuation env exn_handler =
   List.map
