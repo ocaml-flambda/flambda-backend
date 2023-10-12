@@ -32,8 +32,11 @@ type to_lift =
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float_array of { fields : Float.t list }
+  | Immutable_int32_array of { fields : Int32.t list }
+  | Immutable_int64_array of { fields : Int64.t list }
+  | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_value_array of { fields : Simple.t list }
-  | Empty_array
+  | Empty_array of Empty_array_kind.t
 
 type reification_result =
   | Lift of to_lift
@@ -374,14 +377,23 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           (Array
             { contents = Unknown | Known Mutable;
               length;
-              element_kind = _;
+              element_kind;
               alloc_mode = _
             })) -> (
       match Provers.meet_equals_single_tagged_immediate env length with
-      | Known_result length ->
-        if Targetint_31_63.equal length Targetint_31_63.zero
-        then Lift Empty_array
-        else try_canonical_simple ()
+      | Known_result length -> (
+        if not (Targetint_31_63.equal length Targetint_31_63.zero)
+        then try_canonical_simple ()
+        else
+          match element_kind with
+          (* Lift Empty_array *)
+          | Ok element_kind ->
+            let array_kind =
+              Empty_array_kind.of_element_kind
+                (Flambda_kind.With_subkind.kind element_kind)
+            in
+            Lift (Empty_array array_kind)
+          | Unknown | Bottom -> try_canonical_simple ())
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid)
     | Value
@@ -393,7 +405,15 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               element_kind
             })) -> (
       match fields with
-      | [] -> Lift Empty_array
+      | [] -> (
+        match element_kind with
+        | Ok element_kind ->
+          let array_kind =
+            Empty_array_kind.of_element_kind
+              (Flambda_kind.With_subkind.kind element_kind)
+          in
+          Lift (Empty_array array_kind)
+        | Unknown | Bottom -> try_canonical_simple ())
       | _ :: _ -> (
         match element_kind with
         | Unknown -> try_canonical_simple ()
@@ -432,10 +452,73 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
             | Bottom -> Invalid
             | Ok fields_rev ->
               Lift (Immutable_float_array { fields = List.rev fields_rev }))
-          | Naked_number
-              ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-              | Naked_vec128 )
-          | Region | Rec_info ->
+          | Naked_number Naked_int32 -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_int32s env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Int32.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_int32_array { fields = List.rev fields_rev }))
+          | Naked_number Naked_int64 -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_int64s env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Int64.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_int64_array { fields = List.rev fields_rev }))
+          | Naked_number Naked_nativeint -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_nativeints env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Targetint_32_64.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_nativeint_array { fields = List.rev fields_rev }))
+          | Naked_number (Naked_immediate | Naked_vec128) | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"

@@ -285,8 +285,27 @@ let array_kind ~space ppf (ak : array_kind) =
     | Values -> None
     | Immediates -> Some "imm"
     | Naked_floats -> Some "float"
+    | Naked_int32s -> Some "int32"
+    | Naked_int64s -> Some "int64"
+    | Naked_nativeints -> Some "nativeint"
   in
   pp_option ~space Format.pp_print_string ppf str
+
+let empty_array_kind ~space ppf (ak : empty_array_kind) =
+  let str =
+    match ak with
+    | Values_or_immediates_or_naked_floats -> None
+    | Naked_int32s -> Some "int32"
+    | Naked_int64s -> Some "int64"
+    | Naked_nativeints -> Some "nativeint"
+  in
+  pp_option ~space Format.pp_print_string ppf str
+
+let array_kind_for_length ~space ppf (ak : array_kind_for_length) =
+  match ak with
+  | Array_kind ak -> array_kind ~space ppf ak
+  | Float_array_opt_dynamic ->
+    pp_option ~space Format.pp_print_string ppf (Some "generic")
 
 let alloc_mode_for_allocations_opt ppf (alloc : alloc_mode_for_allocations)
     ~space =
@@ -336,7 +355,8 @@ let static_data ppf : static_data -> unit = function
     Format.fprintf ppf "Value_array [|%a|]"
       (pp_semi_list field_of_block)
       elements
-  | Empty_array -> Format.fprintf ppf "Empty_array"
+  | Empty_array kind ->
+    Format.fprintf ppf "Empty_array%a" (empty_array_kind ~space:Before) kind
   | Mutable_string { initial_value = s } ->
     Format.fprintf ppf "mutable \"%s\"" (s |> String.escaped)
   | Immutable_string s -> Format.fprintf ppf "\"%s\"" (s |> String.escaped)
@@ -508,7 +528,9 @@ let unop ppf u =
     | Naked_vec128 -> print verb_not_imm "vec128"
   in
   match (u : unop) with
-  | Array_length -> str "%array_length"
+  | Array_length ak ->
+    str "%array_length";
+    array_kind_for_length ppf ~space:Before ak
   | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;

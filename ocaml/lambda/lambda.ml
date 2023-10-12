@@ -305,18 +305,24 @@ and block_shape =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Punboxedfloatarray
+  | Punboxedintarray of unboxed_integer
 
 and array_ref_kind =
   | Pgenarray_ref of alloc_mode
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
+  | Punboxedfloatarray_ref
+  | Punboxedintarray_ref of unboxed_integer
 
 and array_set_kind =
   | Pgenarray_set of modify_mode
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
+  | Punboxedfloatarray_set
+  | Punboxedintarray_set of unboxed_integer
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -1517,8 +1523,10 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray_ref | Pintarray_ref)
-  | Parrayrefs (Paddrarray_ref | Pintarray_ref) -> None
+  | Parrayrefu (Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref | Punboxedintarray_ref _)
+  | Parrayrefs (Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref | Punboxedintarray_ref _) -> None
   | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
   | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
   | Pisint _ | Pisout -> None
@@ -1606,7 +1614,14 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float
+  | Punboxedfloatarray_ref -> layout_unboxed_float
   | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+  | Punboxedintarray_ref Pint32 ->
+    Misc.fatal_error "XXX no layout yet for unboxed int32"
+  | Punboxedintarray_ref Pint64 ->
+    Misc.fatal_error "XXX no layout yet for unboxed int64"
+  | Punboxedintarray_ref Pnativeint ->
+    Misc.fatal_error "XXX no layout yet for unboxed nativeint"
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1741,12 +1756,16 @@ let array_ref_kind mode = function
   | Paddrarray -> Paddrarray_ref
   | Pintarray -> Pintarray_ref
   | Pfloatarray -> Pfloatarray_ref mode
+  | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
+  | Punboxedfloatarray -> Punboxedfloatarray_ref
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+  | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
+  | Punboxedfloatarray -> Punboxedfloatarray_set
 
 let is_check_enabled ~opt property =
   match property with

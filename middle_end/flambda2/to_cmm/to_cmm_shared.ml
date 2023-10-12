@@ -47,6 +47,7 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Tagged_immediate -> Cmm.typ_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
@@ -63,6 +64,7 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
@@ -80,6 +82,7 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Tagged_immediate -> Word_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)

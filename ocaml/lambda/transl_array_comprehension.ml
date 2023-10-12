@@ -703,6 +703,8 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
         Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
+    | _, (Punboxedfloatarray | Punboxedintarray _) ->
+      Misc.fatal_error "XXX mshinwell: for frontend devs"
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
@@ -792,6 +794,8 @@ let body
                (Pvalue Pintval) (* [unit] is immediate *)))
     | Pintarray | Paddrarray | Pfloatarray ->
         set_element_in_bounds body
+    | Punboxedfloatarray | Punboxedintarray _ ->
+        Misc.fatal_error "XXX mshinwell: for frontend devs"
   in
   Lsequence(
     set_element_known_kind_in_bounds,

@@ -39,18 +39,27 @@ module Array_kind : sig
     | Immediates  (** An array consisting only of immediate values. *)
     | Values
         (** An array consisting of elements of kind [value]. With the float
-            array optimisation enabled, such elements must never be [float]s. *)
+        array optimisation enabled, such elements must never be [float]s. *)
     | Naked_floats
         (** An array consisting of naked floats, represented using
-            [Double_array_tag]. *)
+        [Double_array_tag]. *)
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val to_lambda : t -> Lambda.array_kind
-
   val element_kind : t -> Flambda_kind.With_subkind.t
+
+  val for_empty_array : t -> Empty_array_kind.t
+end
+
+module Array_kind_for_length : sig
+  type t =
+    | Array_kind of Array_kind.t
+    | Float_array_opt_dynamic
 end
 
 module Init_or_assign : sig
@@ -66,16 +75,17 @@ module Array_set_kind : sig
     | Immediates  (** An array consisting only of immediate values. *)
     | Values of Init_or_assign.t
         (** An array consisting of elements of kind [value]. With the float
-            array optimisation enabled, such elements must never be [float]s. *)
+        array optimisation enabled, such elements must never be [float]s. *)
     | Naked_floats
         (** An array consisting of naked floats, represented using
-            [Double_array_tag]. *)
+        [Double_array_tag]. *)
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
-
-  val to_lambda : t -> Lambda.array_set_kind
 
   val array_kind : t -> Array_kind.t
 
@@ -100,6 +110,9 @@ module Duplicate_array_kind : sig
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.t option }
+    | Naked_int32s of { length : Targetint_31_63.t option }
+    | Naked_int64s of { length : Targetint_31_63.t option }
+    | Naked_nativeints of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -266,7 +279,7 @@ type unary_primitive =
       }
   | Is_int of { variant_only : bool }
   | Get_tag
-  | Array_length
+  | Array_length of Array_kind_for_length.t
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
