@@ -1984,11 +1984,12 @@ let max_or_zero a dbg =
       let sign_negation = Cop (Cxor, [sign; Cconst_int (-1, dbg)], dbg) in
       Cop (Cand, [sign_negation; a], dbg))
 
-let check_bound_and_alignment ~skip_if_unsafe access_size dbg base length a2 k =
-  match (skip_if_unsafe : Lambda.is_safe) with
+let check_bound_and_alignment unsafe access_size dbg ~address ~length ~offset k
+    =
+  match (unsafe : Lambda.is_safe) with
   | Unsafe -> k
   | Safe ->
-    let offset, check_align =
+    let access_length, access_align =
       match (access_size : Clambda_primitives.memory_access_size) with
       | Sixteen -> 1, 0
       | Thirty_two -> 3, 0
@@ -1997,12 +1998,14 @@ let check_bound_and_alignment ~skip_if_unsafe access_size dbg base length a2 k =
       | One_twenty_eight { aligned = true } -> 15, 16
     in
     let check_align =
-      match check_align with
+      match access_align with
       | 0 -> k
-      | align -> Csequence (make_checkalign dbg align [add_int base a2 dbg], k)
+      | align ->
+        Csequence (make_checkalign dbg align [add_int address offset dbg], k)
     in
-    let a1 = sub_int length (Cconst_int (offset, dbg)) dbg in
-    Csequence (make_checkbound dbg [max_or_zero a1 dbg; a2], check_align)
+    let valid_length = sub_int length (Cconst_int (access_length, dbg)) dbg in
+    Csequence
+      (make_checkbound dbg [max_or_zero valid_length dbg; offset], check_align)
 
 let opaque e dbg = Cop (Copaque, [e], dbg)
 
@@ -3571,8 +3574,8 @@ let string_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
     (bind "index" (untag_int arg2 dbg) (fun idx ->
          bind "str" arg1 (fun str ->
-             check_bound_and_alignment ~skip_if_unsafe:unsafe size dbg str
-               (string_length str dbg) idx
+             check_bound_and_alignment unsafe size dbg ~address:str
+               ~length:(string_length str dbg) ~offset:idx
                (unaligned_load size str idx dbg))))
 
 let bigstring_load size unsafe mode arg1 arg2 dbg =
@@ -3582,8 +3585,8 @@ let bigstring_load size unsafe mode arg1 arg2 dbg =
              bind "ba_data"
                (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
                (fun ba_data ->
-                 check_bound_and_alignment ~skip_if_unsafe:unsafe size dbg
-                   ba_data (bigstring_length ba dbg) idx
+                 check_bound_and_alignment unsafe size dbg ~address:ba_data
+                   ~length:(bigstring_length ba dbg) ~offset:idx
                    (unaligned_load size ba_data idx dbg)))))
 
 let arrayref_unsafe rkind arg1 arg2 dbg =
@@ -3800,8 +3803,8 @@ let bytes_set size unsafe arg1 arg2 arg3 dbg =
     (bind "newval" arg3 (fun newval ->
          bind "index" (untag_int arg2 dbg) (fun idx ->
              bind "str" arg1 (fun str ->
-                 check_bound_and_alignment ~skip_if_unsafe:unsafe size dbg str
-                   (string_length str dbg) idx
+                 check_bound_and_alignment unsafe size dbg ~address:str
+                   ~length:(string_length str dbg) ~offset:idx
                    (unaligned_set size str idx newval dbg)))))
 
 let bigstring_set size unsafe arg1 arg2 arg3 dbg =
@@ -3813,8 +3816,8 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                    (Cop
                       (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
                    (fun ba_data ->
-                     check_bound_and_alignment ~skip_if_unsafe:unsafe size dbg
-                       ba_data (bigstring_length ba dbg) idx
+                     check_bound_and_alignment unsafe size dbg ~address:ba_data
+                       ~length:(bigstring_length ba dbg) ~offset:idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
 (* Symbols *)

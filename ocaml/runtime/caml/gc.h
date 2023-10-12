@@ -64,6 +64,14 @@
 #define Colornum_hd(hd) ((color_t) (((hd) >> 8) & 3))
 #define Coloredhd_hd(hd,colnum) (((hd) & ~Caml_black) | ((colnum) << 8))
 
+/* Colors for locally allocated values.
+   (Only used during root-scanning, never visible to the rest of the GC) */
+#define Local_marked Caml_black
+#define Local_unmarked Caml_blue /* allocation color of local objects */
+#define Local_scanned Caml_gray
+
+#define Is_stack(blk) (Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked)
+
 #ifdef CAML_INTERNALS
 
 
@@ -90,12 +98,6 @@ typedef struct caml_local_arenas {
   intnat next_length;
   struct caml_local_arena arenas[Max_local_arenas];
 } caml_local_arenas;
-
-/* Colors for locally allocated values.
-   (Only used during root-scanning, never visible to the rest of the GC) */
-#define Local_marked Caml_black
-#define Local_unmarked Caml_blue /* allocation color of local objects */
-#define Local_scanned Caml_gray
 
 #define With_color_hd(hd, color) \
   (((hd) & ~Caml_black) | color)
