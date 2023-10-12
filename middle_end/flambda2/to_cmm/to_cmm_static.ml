@@ -49,6 +49,18 @@ let rec static_block_updates symb env res acc i = function
       in
       static_block_updates symb env res acc (i + 1) r)
 
+let rec static_unboxed_int_array_updates symb env res acc i = function
+  | [] -> env, res, acc
+  | sv :: r -> (
+    match (sv : _ Or_variable.t) with
+    | Const _ -> static_unboxed_int_array_updates symb env res acc (i + 1) r
+    | Var (var, dbg) ->
+      let env, res, acc =
+        C.make_update env res dbg Word_int ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
+      in
+      static_unboxed_int_array_updates symb env res acc (i + 1) r)
+
 let rec static_float_array_updates symb env res acc i = function
   | [] -> env, res, acc
   | sv :: r -> (
@@ -187,6 +199,46 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let float_array = C.emit_float_array_constant sym static_fields in
     let env, res, e = static_float_array_updates sym env res updates 0 fields in
     env, R.update_data res float_array, e
+  | Block_like s, Immutable_int64_array fields ->
+    let sym = R.symbol res s in
+    let header = C.custom_header ~size:(1 + List.length fields) in
+    let static_fields =
+      C.symbol_address (Cmm.global_symbol "_unboxed_int64_array")
+      :: List.map
+           (Or_variable.value_map ~default:(Cmm.Cint 0n) ~f:(fun i ->
+                Cmm.Cint (Int64.to_nativeint i)))
+           fields
+    in
+    let block = C.emit_block sym header static_fields in
+    let env, res, updates =
+      static_unboxed_int_array_updates sym env res updates 0 fields
+    in
+    env, R.set_data res block, updates
+  | Block_like s, Immutable_nativeint_array fields ->
+    let sym = R.symbol res s in
+    let header = C.custom_header ~size:(1 + List.length fields) in
+    let static_fields =
+      C.symbol_address (Cmm.global_symbol "_unboxed_nativeint_array")
+      :: List.map
+           (Or_variable.value_map ~default:(Cmm.Cint 0n) ~f:(fun i ->
+                Cmm.Cint (Int64.to_nativeint (Targetint_32_64.to_int64 i))))
+           fields
+    in
+    let block = C.emit_block sym header static_fields in
+    let env, res, updates =
+      static_unboxed_int_array_updates sym env res updates 0 fields
+    in
+    env, R.set_data res block, updates
+  | Block_like _s, Immutable_int32_array _fields ->
+    (* CR gbury: we could support this case if needed. However, the
+       [static_unboxed_int_array_updates] function cannot be used as is for
+       int32s arrays because the memory chunk given as argument of the
+       [C.make_update] function would be wrong: it currently is [Word_int]
+       unconditionally, whereas it would need to be [Thirtytwo_signed] for an
+       array of int32s unboxed, plus the index computation would need to be
+       different. *)
+    Misc.fatal_error
+      "Emission of static unboxed int32 arrays is not currently supported"
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -200,11 +252,35 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let block = C.emit_block sym header static_fields in
     let env, res, updates = static_block_updates sym env res updates 0 fields in
     env, R.set_data res block, updates
-  | Block_like s, Empty_array ->
+  | Block_like s, Empty_array Values_or_immediates_or_naked_floats ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
     let sym = R.symbol res s in
     let header = C.black_block_header 0 0 in
     let block = C.emit_block sym header [] in
+    env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_int32s ->
+    let sym = R.symbol res s in
+    let header = C.custom_header ~size:1 in
+    let block =
+      C.emit_block sym header
+        [C.symbol_address (Cmm.global_symbol "_unboxed_int32_even_array")]
+    in
+    env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_int64s ->
+    let sym = R.symbol res s in
+    let header = C.custom_header ~size:1 in
+    let block =
+      C.emit_block sym header
+        [C.symbol_address (Cmm.global_symbol "_unboxed_int64_array")]
+    in
+    env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_nativeints ->
+    let sym = R.symbol res s in
+    let header = C.custom_header ~size:1 in
+    let block =
+      C.emit_block sym header
+        [C.symbol_address (Cmm.global_symbol "_unboxed_nativeint_array")]
+    in
     env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
@@ -217,8 +293,9 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | ( (Code _ | Set_of_closures _),
       ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
-      | Immutable_string _ ) ) ->
+      | Immutable_int32_array _ | Immutable_int64_array _
+      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
+      | Mutable_string _ | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

@@ -216,8 +216,11 @@ let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
   simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
     ~result_var ~make_shape:(fun block -> T.get_tag_for_block ~block)
 
-let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
-    ~result_var =
+let simplify_array_length _array_kind dacc ~original_term ~arg:_
+    ~arg_ty:array_ty ~result_var =
+  (* CR mshinwell: we could make use of [array_kind], but maybe not for much.
+     Need to be careful in the float case because of the float array
+     optimisation (see lambda_to_flambda_primitives.ml and flambda2.ml). *)
   let result = Simple.var (Bound_var.var result_var) in
   Simplify_common.simplify_projection dacc ~original_term
     ~deconstructing:array_ty
@@ -466,7 +469,10 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
 
      assert (Flambda_features.flat_float_array ()); *)
-  match T.meet_is_flat_float_array (DA.typing_env dacc) arg_ty with
+  match
+    T.meet_is_naked_number_array (DA.typing_env dacc) arg_ty
+      K.Naked_number_kind.Naked_float
+  with
   | Known_result is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
@@ -630,7 +636,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Untag_immediate -> simplify_untag_immediate
     | Is_int { variant_only } -> simplify_is_int ~variant_only
     | Get_tag -> simplify_get_tag
-    | Array_length -> simplify_array_length
+    | Array_length array_kind -> simplify_array_length array_kind
     | String_length _ -> simplify_string_length
     | Int_arith (kind, op) -> (
       match kind with

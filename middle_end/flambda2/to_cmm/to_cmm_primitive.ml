@@ -124,19 +124,32 @@ let make_array ~dbg kind alloc_mode args =
   | Immediates | Values -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+  | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
+  | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
+  | Naked_nativeints ->
+    C.allocate_unboxed_nativeint_array ~elements:args mode dbg
 
-let array_length ~dbg arr =
-  (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
-     width of floats is equal to the machine word width (see flambda2.ml). This
-     means that [arraylength] will not use the kind information. *)
+let array_length ~dbg arr (kind : P.Array_kind.t) =
   assert (C.wordsize_shift = C.numfloat_shift);
-  C.arraylength Paddrarray arr dbg
+  match kind with
+  | Immediates | Values | Naked_floats ->
+    (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
+       width of floats is equal to the machine word width (see flambda2.ml). *)
+    C.arraylength Paddrarray arr dbg
+  | Naked_int32s -> C.unboxed_int32_array_length arr dbg
+  | Naked_int64s | Naked_nativeints ->
+    (* These need a special case as they are represented by custom blocks, even
+       though the contents are of word width. *)
+    C.unboxed_int64_or_nativeint_array_length arr dbg
 
 let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
   match kind with
   | Immediates -> C.int_array_ref arr index dbg
+  | Naked_int64s | Naked_nativeints ->
+    C.unboxed_int64_or_nativeint_array_ref arr index dbg
   | Values -> C.addr_array_ref arr index dbg
   | Naked_floats -> C.unboxed_float_array_ref arr index dbg
+  | Naked_int32s -> C.unboxed_int32_array_ref arr index dbg
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
@@ -150,6 +163,9 @@ let array_set ~dbg (kind : P.Array_set_kind.t) ~arr ~index ~new_value =
     | Immediates -> C.int_array_set arr index new_value dbg
     | Values init -> addr_array_store init ~arr ~index ~new_value dbg
     | Naked_floats -> C.float_array_set arr index new_value dbg
+    | Naked_int32s -> C.unboxed_int32_array_set arr ~index ~new_value dbg
+    | Naked_int64s | Naked_nativeints ->
+      C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
   in
   C.return_unit dbg expr
 
@@ -543,7 +559,11 @@ let unary_primitive env res dbg f arg =
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
-  | Array_length -> None, res, array_length ~dbg arg
+  | Array_length (Array_kind array_kind) ->
+    None, res, array_length ~dbg arg array_kind
+  | Array_length Float_array_opt_dynamic ->
+    (* See flambda2.ml. *)
+    None, res, array_length ~dbg arg Values
   | Bigarray_length { dimension } ->
     ( None,
       res,

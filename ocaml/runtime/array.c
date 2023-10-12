@@ -24,6 +24,7 @@
 #include "caml/mlvalues.h"
 #include "caml/signals.h"
 #include "caml/runtime_events.h"
+#include "caml/custom.h"
 
 static const mlsize_t mlsize_t_max = -1;
 
@@ -780,3 +781,70 @@ CAMLprim value caml_array_of_iarray(value a)
 {
   return a;
 }
+
+/* Unboxed arrays */
+
+static int no_polymorphic_compare(value v1, value v2)
+{
+  caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
+}
+
+static intnat no_polymorphic_hash(value v)
+{
+  caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
+}
+
+static void unboxed_array_serialize(value v, uintnat* bsize_32,
+                                    uintnat* bsize_64)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+static uintnat unboxed_array_deserialize(void* dst)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+CAMLexport struct custom_operations caml_unboxed_int32_odd_array_ops = {
+  "_unboxed_int32_odd_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_int32_even_array_ops = {
+  "_unboxed_int32_even_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
+  "_unboxed_int64_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
+  "_unboxed_nativeint_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
