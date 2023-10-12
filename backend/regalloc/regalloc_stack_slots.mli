@@ -8,7 +8,7 @@ val make : unit -> t
 
 val size_for_all_stack_classes : t -> int
 
-val get_and_incr : t -> stack_class:int -> slot
+val get_and_incr : t -> stack_class:Stack_class.t -> slot
 
 val get_or_create : t -> Reg.t -> slot
 

@@ -16,4 +16,4 @@
 
 (* Linear scan register allocation. *)
 
-val allocate_registers: unit -> int array
+val allocate_registers: unit -> int Stack_class.Tbl.t

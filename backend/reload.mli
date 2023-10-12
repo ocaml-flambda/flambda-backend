@@ -15,4 +15,4 @@
 
 (* Insert load/stores for pseudoregs that got assigned to stack locations. *)
 
-val fundecl: Mach.fundecl -> int array -> Mach.fundecl * bool
+val fundecl: Mach.fundecl -> int Stack_class.Tbl.t -> Mach.fundecl * bool

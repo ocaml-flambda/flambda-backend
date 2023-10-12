@@ -221,6 +221,8 @@
   selection
   spill
   split
+  stack_class
+  stack_class_utils
   string_table
   strmatch
   symbol_entry

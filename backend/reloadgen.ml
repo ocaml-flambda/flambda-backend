@@ -67,7 +67,9 @@ method reload_operation op arg res =
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2
-          && Proc.stack_slot_class arg.(0).typ = Proc.stack_slot_class res.(0).typ then
+          && Stack_class.equal
+               (Stack_class.of_machtype arg.(0).typ)
+               (Stack_class.of_machtype res.(0).typ) then
             (* nothing will be emitted later,
                not necessary to apply constraints *)
             (arg, res)
@@ -153,7 +155,7 @@ method fundecl f num_stack_slots =
     fun_dbg  = f.fun_dbg;
     fun_poll = f.fun_poll;
     fun_contains_calls = f.fun_contains_calls;
-    fun_num_stack_slots = Array.copy num_stack_slots;
+    fun_num_stack_slots = Stack_class.Tbl.copy num_stack_slots;
    },
    redo_regalloc)
 end

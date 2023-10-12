@@ -30,7 +30,7 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
       wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name typ r))
   | Stack(Local s) ->
       wrap_out ppf (fun ppf ->
-        fprintf ppf "s[%s:%i]" (Proc.stack_class_tag (Proc.stack_slot_class typ)) s)
+        fprintf ppf "s[%s:%i]" (Stack_class.tag (Stack_class.of_machtype typ)) s)
   | Stack(Incoming s) ->
       wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
   | Stack(Outgoing s) ->
