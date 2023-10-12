@@ -7069,7 +7069,10 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
     exp, Jkind.Sort.value
   else begin
     check_partial_application ~statement:true exp;
-    unify_var env tv ty;
+    with_explanation explanation (fun () ->
+      try unify_var env ty tv
+      with Unify err ->
+        raise(Error(exp.exp_loc, env, Expr_type_clash(err, None, Some exp.exp_desc))));
     exp, sort
   end
 
