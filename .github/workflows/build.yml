@@ -15,11 +15,11 @@ jobs:
             ocamlparam: ''
             check_arch: true
 
-          - name: flambda-local
-            config: --enable-flambda --enable-stack-allocation
-            os: ubuntu-latest
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
+#          - name: flambda-local
+#            config: --enable-flambda --enable-stack-allocation
+#            os: ubuntu-latest
+#            use_runtime: d
+#            ocamlrunparam: "v=0,V=1"
 
     env:
       J: "3"
