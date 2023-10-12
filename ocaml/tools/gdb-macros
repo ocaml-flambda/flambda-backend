@@ -85,25 +85,25 @@ define camlheader
       printf "black "
     end
 
-    if $tag < 246
+    if $tag < 244
       printf "tag%d ", $tag
     end
-    if $tag == 246
+    if $tag == 244
       printf "Lazy "
     end
-    if $tag == 247
+    if $tag == 245
       printf "Closure "
     end
-    if $tag == 248
+    if $tag == 246
       printf "Object "
     end
-    if $tag == 249
+    if $tag == 247
       printf "Infix "
     end
-    if $tag == 250
+    if $tag == 248
       printf "Forward "
     end
-    if $tag == 251
+    if $tag == 249
       printf "Abstract "
     end
     if $tag == 252
@@ -187,16 +187,16 @@ define camlblock
     end
   end
 
-  if $tag == 249
+  if $tag == 247
     printf "... infix header, displaying enclosing block:\n"
     set $mybaseaddr = $arg0 - $camlwordsize * $mysize
     camlblock $mybaseaddr
     # reset $tag, which was clobbered by the recursive call (yuck)
-    set $tag = 249
+    set $tag = 247
   end
 
-  if $tag != 249 && $tag != 252 && $tag != 253 && $tag != 254
-    set $isvalues = $tag < 251
+  if $tag != 247 && $tag != 252 && $tag != 253 && $tag != 254
+    set $isvalues = $tag < 249
     set $count = 0
     while $count < $mysize && $count < 10
       set $adr = $arg0 + $camlwordsize * $count

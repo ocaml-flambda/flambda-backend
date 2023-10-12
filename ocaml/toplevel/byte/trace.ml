@@ -44,11 +44,13 @@ let is_traced clos =
 (* Get or overwrite the code pointer of a closure *)
 
 let get_code_pointer cls =
-  assert (let t = Obj.tag cls in t = Obj.closure_tag || t = Obj.infix_tag);
+  assert (let t = Obj.tag cls in t = Runtimetags.closure_tag
+                              || t = Runtimetags.infix_tag);
   Obj.raw_field cls 0
 
 let set_code_pointer cls ptr =
-  assert (let t = Obj.tag cls in t = Obj.closure_tag || t = Obj.infix_tag);
+  assert (let t = Obj.tag cls in t = Runtimetags.closure_tag
+                              || t = Runtimetags.infix_tag);
   Obj.set_raw_field cls 0 ptr
 
 (* Call a traced function (use old code pointer, but new closure as

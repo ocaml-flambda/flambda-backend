@@ -541,7 +541,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_inlined (Ordinary {runtime_tag}, _) ->
             [runtime_tag, fields]
           | Record_float | Record_ufloat ->
-            [ Obj.double_array_tag, fields ]
+            [ Runtimetags.double_array_tag, fields ]
           | Record_boxed _ ->
             [0, fields]
           | Record_inlined (Extension _, _) ->

@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                      Max Slater, Jane Street                           *)
 (*                                                                        *)
-(*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,22 +12,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
-open! Int_replace_polymorphic_compare
-
-type t = int
-
-include Identifiable.Make (Numbers.Int)
-
-let create_exn tag =
-  if tag < 0 || tag > 255 then
-    Misc.fatal_error (Printf.sprintf "Tag.create_exn %d" tag)
-  else
-    tag
-
-let to_int t = t
-
-let zero = 0
-let object_tag = Runtimetags.object_tag
-
-let compare : t -> t -> int = Stdlib.compare
+val first_non_constant_constructor_tag : int
+val last_non_constant_constructor_tag : int
+val lazy_tag : int
+val closure_tag : int
+val object_tag : int
+val infix_tag : int
+val forward_tag : int
+val no_scan_tag : int
+val abstract_tag : int
+val string_tag : int
+val double_tag : int
+val double_array_tag : int
+val custom_tag : int
+val final_tag : int
+val int_tag : int
+val out_of_heap_tag : int
+val unaligned_tag : int

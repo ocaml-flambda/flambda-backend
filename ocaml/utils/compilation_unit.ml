@@ -196,7 +196,7 @@ end = struct
 
   let for_pack_prefix_and_name t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
+    assert (tag = 0 || tag = Runtimetags.string_tag);
     if tag <> 0
     then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
     else
@@ -205,7 +205,7 @@ end = struct
 
   let name t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
+    assert (tag = 0 || tag = Runtimetags.string_tag);
     if tag <> 0
     then Sys.opaque_identity (Obj.obj t : Name.t)
     else
@@ -214,7 +214,7 @@ end = struct
 
   let for_pack_prefix t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
+    assert (tag = 0 || tag = Runtimetags.string_tag);
     if tag <> 0
     then Prefix.empty
     else

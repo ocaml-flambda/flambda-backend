@@ -263,7 +263,7 @@ module Remote_value =
         output_remote_value !conn.io_out v;
         flush !conn.io_out;
         let header = input_binary_int !conn.io_in in
-        if header land 0xFF = Obj.double_array_tag && Sys.word_size = 32
+        if header land 0xFF = Runtimetags.double_array_tag && Sys.word_size = 32
         then header lsr 11
         else header lsr 10
 
@@ -301,7 +301,7 @@ module Remote_value =
             floatbuf
           end
 
-    let double_array_tag = Obj.double_array_tag
+    let double_array_tag = Runtimetags.double_array_tag
 
     let of_int n =
       Local(Obj.repr n)

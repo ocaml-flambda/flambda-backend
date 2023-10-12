@@ -157,7 +157,7 @@ let init () =
         with Not_found -> fatal_error "Symtable.init" in
       let c = slot_for_setglobal id in
       let cst = Const_block
-          (Obj.object_tag,
+          (Runtimetags.object_tag,
            [Const_base(Const_string (name, Location.none,None));
             Const_base(Const_int (-i-1))
            ])

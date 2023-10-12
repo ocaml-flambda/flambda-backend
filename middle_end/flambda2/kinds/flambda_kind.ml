@@ -533,9 +533,9 @@ module With_subkind = struct
     | Pvariant { consts; non_consts } -> (
       match consts, non_consts with
       | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-      | [], [(tag, fields)] when tag = Obj.double_array_tag ->
-        (* If we have [Obj.double_array_tag] here, this is always an all-float
-           block, not an array. *)
+      | [], [(tag, fields)] when tag = Runtimetags.double_array_tag ->
+        (* If we have [Runtimetags.double_array_tag] here, this is always an
+           all-float block, not an array. *)
         float_block ~num_fields:(List.length fields)
       | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
         let consts =

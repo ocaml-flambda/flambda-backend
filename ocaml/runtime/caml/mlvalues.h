@@ -195,7 +195,7 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #endif
 
 /* The lowest tag for blocks containing no value. */
-#define No_scan_tag 251
+#define No_scan_tag 249
 
 
 /* 1- If tag < No_scan_tag : a tuple of fields.  */
@@ -217,7 +217,7 @@ typedef opcode_t * code_t;
 
 /* Forward_tag: forwarding pointer that the GC may silently shortcut.
    See stdlib/lazy.ml. */
-#define Forward_tag 250
+#define Forward_tag 248
 #define Forward_val(v) Field(v, 0)
 
 /* If tag == Infix_tag : an infix header inside a closure */
@@ -225,12 +225,12 @@ typedef opcode_t * code_t;
 /* Infix_tag must be 1 modulo 2 and infix headers can only occur in blocks
    with tag Closure_tag (see compact.c). */
 
-#define Infix_tag 249
+#define Infix_tag 247
 #define Infix_offset_hd(hd) (Bosize_hd(hd))
 #define Infix_offset_val(v) Infix_offset_hd(Hd_val(v))
 
 /* Another special case: objects */
-#define Object_tag 248
+#define Object_tag 246
 #define Class_val(val) Field((val), 0)
 #define Oid_val(val) Long_val(Field((val), 1))
 CAMLextern value caml_get_public_method (value obj, value tag);
@@ -241,7 +241,7 @@ CAMLextern value caml_get_public_method (value obj, value tag);
    same method name. */
 
 /* Special case of tuples of fields: closures */
-#define Closure_tag 247
+#define Closure_tag 245
 #define Code_val(val) (((code_t *) (val)) [0])     /* Also an l-value. */
 #define Closinfo_val(val) Field((val), 1)          /* Arity and start env */
 /* In the closure info field, the top 8 bits are the arity (signed).
@@ -272,7 +272,7 @@ CAMLextern value caml_get_public_method (value obj, value tag);
 
 /* This tag is used (with Forward_tag) to implement lazy values.
    See major_gc.c and stdlib/lazy.ml. */
-#define Lazy_tag 246
+#define Lazy_tag 244
 
 /* Another special case: variants */
 CAMLextern value caml_hash_variant(char const * tag);

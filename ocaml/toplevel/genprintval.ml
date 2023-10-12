@@ -97,10 +97,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           if not (O.is_block arg) then
             list := Oval_int (O.obj arg : int) :: !list
                (* Note: this could be a char or a constant constructor... *)
-          else if O.tag arg = Obj.string_tag then
+          else if O.tag arg = Runtimetags.string_tag then
             list :=
               Oval_string ((O.obj arg : string), max_int, Ostr_string) :: !list
-          else if O.tag arg = Obj.double_tag then
+          else if O.tag arg = Runtimetags.double_tag then
             list := Oval_float (O.obj arg : float) :: !list
           else
             list := Oval_constr (Oide_ident (Out_name.create "_"), []) :: !list
@@ -332,10 +332,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 (debugger/printval instantiates Genprintval.Make with
                 an Obj module talking over a socket).
               *)
-             if obj_tag = Obj.lazy_tag then Oval_stuff "<lazy>"
+             if obj_tag = Runtimetags.lazy_tag then Oval_stuff "<lazy>"
              else begin
                  let forced_obj =
-                   if obj_tag = Obj.forward_tag then O.field obj 0 else obj
+                   if obj_tag = Runtimetags.forward_tag then O.field obj 0 else obj
                  in
                  (* calling oneself recursively on forced_obj risks
                     having a false positive for cycle detection;
@@ -357,7 +357,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     (detect head cycles) on forward tags.
                   *)
                  let v =
-                   if obj_tag = Obj.forward_tag
+                   if obj_tag = Runtimetags.forward_tag
                    then nest tree_of_val depth forced_obj ty_arg
                    else      tree_of_val depth forced_obj ty_arg
                  in
@@ -520,7 +520,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                   tree_of_val (depth - 1) obj ty_arg
                 else begin
                   let fld =
-                    if O.tag obj = O.double_array_tag then
+                    if O.tag obj = Runtimetags.double_array_tag then
                       O.repr (O.double_field obj pos)
                     else
                       O.field obj pos

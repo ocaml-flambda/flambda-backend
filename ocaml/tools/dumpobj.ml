@@ -120,11 +120,11 @@ let same_custom x y =
 let rec print_obj x =
   if Obj.is_block x then begin
     let tag = Obj.tag x in
-    if tag = Obj.string_tag then
+    if tag = Runtimetags.string_tag then
         printf "%S" (Obj.magic x : string)
-    else if tag = Obj.double_tag then
+    else if tag = Runtimetags.double_tag then
         printf "%.12g" (Obj.magic x : float)
-    else if tag = Obj.double_array_tag then begin
+    else if tag = Runtimetags.double_array_tag then begin
         let a = (Obj.magic x : floatarray) in
         printf "[|";
         for i = 0 to Array.Floatarray.length a - 1 do
@@ -132,13 +132,13 @@ let rec print_obj x =
           printf "%.12g" (Array.Floatarray.get a i)
         done;
         printf "|]"
-    end else if tag = Obj.custom_tag && same_custom x 0l then
+    end else if tag = Runtimetags.custom_tag && same_custom x 0l then
         printf "%ldl" (Obj.magic x : int32)
-    else if tag = Obj.custom_tag && same_custom x 0n then
+    else if tag = Runtimetags.custom_tag && same_custom x 0n then
         printf "%ndn" (Obj.magic x : nativeint)
-    else if tag = Obj.custom_tag && same_custom x 0L then
+    else if tag = Runtimetags.custom_tag && same_custom x 0L then
         printf "%LdL" (Obj.magic x : int64)
-    else if tag < Obj.no_scan_tag then begin
+    else if tag < Runtimetags.no_scan_tag then begin
         printf "<%d>" (Obj.tag x);
         match Obj.size x with
           0 -> ()
