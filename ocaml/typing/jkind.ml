@@ -359,6 +359,7 @@ type creation_reason =
   | Float64_creation of float64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
+  | Ensure_attr of string
 
 type interact_reason =
   | Gadt_equation of Path.t
@@ -820,6 +821,7 @@ end = struct
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Concrete_creation concrete -> format_concrete_jkind_reason ppf concrete
     | Imported -> fprintf ppf "imported from another compilation unit"
+    | Ensure_attr msg -> fprintf ppf "[@ensure_layout]: %s" msg
 
   let format_interact_reason ppf = function
     | Gadt_equation name ->
@@ -1221,6 +1223,7 @@ module Debug_printers = struct
     | Concrete_creation concrete ->
       fprintf ppf "Concrete_creation %a" concrete_jkind_reason concrete
     | Imported -> fprintf ppf "Imported"
+    | Ensure_attr msg -> fprintf ppf "Ensure_attr %s" msg
 
   let interact_reason ppf = function
     | Gadt_equation p -> fprintf ppf "Gadt_equation %a" Path.print p

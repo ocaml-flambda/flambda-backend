@@ -197,6 +197,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Ensure_attr_error of type_expr * Jkind.Violation.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -6895,6 +6896,16 @@ and type_application env app_loc expected_mode pm
       in
       let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
+      let jkind_constraints =
+        Builtin_attributes.ensure_layout_attrs funct.exp_attributes in
+      List.iter (fun (_attr, jkind_const, message) ->
+        let jkind = Jkind.of_const ~why:(Ensure_attr message) jkind_const in
+        match Ctype.constrain_type_jkind env exp.exp_type jkind with
+        | Ok () -> ()
+        | Error violation ->
+          raise (Error(sarg.pexp_loc, env,
+                       Ensure_attr_error (exp.exp_type,violation))))
+        jkind_constraints;
       ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, pm)
   | _ ->
       let ty = funct.exp_type in
@@ -8970,6 +8981,11 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Ensure_attr_error (ty,violation) ->
+      Location.errorf ~loc "@[Layout requirement not satisfied.@]@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

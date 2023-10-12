@@ -268,6 +268,7 @@ type creation_reason =
   | Float64_creation of float64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
+  | Ensure_attr of string
 
 type interact_reason =
   | Gadt_equation of Path.t

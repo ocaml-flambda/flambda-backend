@@ -209,3 +209,6 @@ val has_once : Parsetree.attributes -> (bool, unit) result
 val jkind : legacy_immediate:bool -> Parsetree.attributes ->
   (Jane_asttypes.jkind_annotation option,
    Jane_asttypes.jkind_annotation) result
+
+val ensure_layout_attrs : Parsetree.attributes ->
+  (Parsetree.attribute * Jane_asttypes.const_jkind * string) list

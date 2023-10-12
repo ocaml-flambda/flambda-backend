@@ -671,3 +671,37 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
+
+
+let string_to_jkind = function
+  | "void" -> Some Void
+  | "value" -> Some Value
+  | "any" -> Some Any
+  | "immediate" -> Some Immediate
+  | "immediate64" -> Some Immediate64
+  | "float64" -> Some Float64
+  | _ -> None
+
+let ensure_layout_attr x =
+  match x.attr_name.txt with
+  | "ocaml.ensure_layout"|"ensure_layout" ->
+    begin match kind_and_message x.attr_payload with
+    | Some (kind, message) -> begin
+        match string_to_jkind kind with
+        | Some j ->
+          mark_used x.attr_name;
+          Some (x, j, message)
+        | None ->
+          warn_payload x.attr_loc x.attr_name.txt "Unknown layout encountered";
+          None
+      end
+    | None -> begin
+        warn_payload x.attr_loc x.attr_name.txt
+          "Expecting a layout plus optional message";
+        None
+      end
+    end
+  | _ -> None
+
+let ensure_layout_attrs l =
+  List.filter_map ensure_layout_attr l
