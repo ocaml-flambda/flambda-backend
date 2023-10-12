@@ -132,27 +132,7 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
-  | Ispecific(Isimd op) ->
-    (match Simd_selection.register_behavior op with
-    | RM_to_R ->
-      (* Result must be in a register. *)
-      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
-      (arg, [|res0|])
-    | R_to_R ->
-      (* Argument and result must be in registers. *)
-      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
-      ([|arg0|], [|res0|])
-    | R_R_to_fst ->
-      (* Both arguments must be registers; the result must be the first arg. *)
-      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      let arg1 = if stackp arg.(1) then self#makereg arg.(1) else arg.(1) in
-      ([|arg0; arg1|], [|arg0|])
-    | R_RM_to_fst ->
-      (* First argument must be a register; the result must be the first arg.
-         Note that stack-spilled vectors are properly aligned. *)
-      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      ([|arg0; arg.(1)|], [|arg0|]))
+  | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))

@@ -90,6 +90,7 @@ exception Use_default
 let rax = phys_reg Int 0
 let rcx = phys_reg Int 5
 let rdx = phys_reg Int 4
+let xmm0v () = phys_reg Vec128 100
 
 let pseudoregs_for_operation op arg res =
   match op with
@@ -154,12 +155,7 @@ let pseudoregs_for_operation op arg res =
   | Ispecific (Ifloat_min | Ifloat_max) ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
-  | Ispecific (Isimd op) ->
-    (match Simd_selection.register_behavior op with
-    | RM_to_R | R_to_R -> (arg, res)
-    | R_R_to_fst | R_RM_to_fst ->
-      (* arg.(0) and res.(0) must be the same *)
-      ([|res.(0); arg.(1)|], res))
+  | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
