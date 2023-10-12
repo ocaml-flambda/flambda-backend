@@ -44,6 +44,11 @@ let log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit =
   in
   ldt ~indent dom_tree
 
+let log_dominator_forest :
+    indent:int -> Cfg_dominators.dominator_tree list -> unit =
+ fun ~indent dom_forest ->
+  List.iter dom_forest ~f:(fun dom_tree -> log_dominator_tree ~indent dom_tree)
+
 let log_substitution : indent:int -> Substitution.t -> unit =
  fun ~indent subst ->
   Reg.Tbl.iter

@@ -810,7 +810,8 @@ method insert_debug _env desc dbg arg res =
   instr_seq <- instr_cons_debug desc arg res dbg instr_seq
 
 method insert _env desc arg res =
-  instr_seq <- instr_cons desc arg res instr_seq
+  (* CR mshinwell: fix debuginfo *)
+  instr_seq <- instr_cons_debug desc arg res Debuginfo.none instr_seq
 
 method extract_onto o =
   let rec extract res i =
@@ -1112,7 +1113,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         None -> None
       | Some _ -> self#emit_expr_aux env e2 ~bound_name
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env earg ~bound_name:None with
         None -> None
@@ -1124,11 +1125,11 @@ method emit_expr_aux (env:environment) exp ~bound_name :
             self#emit_sequence env eelse ~bound_name
           in
           let r = join env rif sif relse selse ~bound_name in
-          self#insert env (Iifthenelse(cond, sif#extract, selse#extract))
-                      rarg [||];
+          self#insert_debug env (Iifthenelse(cond, sif#extract, selse#extract))
+            dbg rarg [||];
           r
       end
-  | Cswitch(esel, index, ecases, _dbg, _kind) ->
+  | Cswitch(esel, index, ecases, dbg, _kind) ->
       begin match self#emit_expr env esel ~bound_name:None with
         None -> None
       | Some rsel ->
@@ -1138,9 +1139,9 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               ecases
           in
           let r = join_array env rscases ~bound_name in
-          self#insert env (Iswitch(index,
-                                   Array.map (fun (_, s) -> s#extract) rscases))
-                      rsel [||];
+          self#insert_debug env
+            (Iswitch(index, Array.map (fun (_, s) -> s#extract) rscases))
+            dbg rsel [||];
           r
       end
   | Ccatch(_, [], e1, _) ->
@@ -1275,7 +1276,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               end
           end
       end
-  | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
+  | Ctrywith(e1, kind, v, e2, dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It must not be ended in the non-exception case
          as local allocations may be returned from the body of the "try". *)
@@ -1285,7 +1286,8 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
-          fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
+          fun handler_instruction ->
+            instr_cons_debug (Iop Iendregion) reg [| |] dbg handler_instruction
         end
         else
           fun handler_instruction -> handler_instruction
@@ -1316,7 +1318,8 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         self#insert env
           (Itrywith(s1#extract, kind,
                     (env_handler.trap_stack,
-                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                     instr_cons_debug (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                       dbg
                        (end_region s2#extract))))
           [||] [||];
         r
@@ -1678,17 +1681,17 @@ method emit_tail (env:environment) exp =
         None -> ()
       | Some _ -> self#emit_tail env e2
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env earg ~bound_name:None with
         None -> ()
       | Some rarg ->
-          self#insert env
+          self#insert_debug env
                       (Iifthenelse(cond, self#emit_tail_sequence env eif,
                                          self#emit_tail_sequence env eelse))
-                      rarg [||]
+                      dbg rarg [||]
       end
-  | Cswitch(esel, index, ecases, _dbg, _kind) ->
+  | Cswitch(esel, index, ecases, dbg, _kind) ->
       begin match self#emit_expr env esel ~bound_name:None with
         None -> ()
       | Some rsel ->
@@ -1696,7 +1699,7 @@ method emit_tail (env:environment) exp =
             Array.map (fun (case, _dbg) -> self#emit_tail_sequence env case)
               ecases
           in
-          self#insert env (Iswitch (index, cases)) rsel [||]
+          self#insert_debug env (Iswitch (index, cases)) dbg rsel [||]
       end
   | Ccatch(_, [], e1, _) ->
       self#emit_tail env e1
@@ -1773,14 +1776,15 @@ method emit_tail (env:environment) exp =
       (* The final trap stack doesn't matter, as it's not reachable. *)
       self#insert env (Icatch(rec_flag, env.trap_stack, new_handlers, s_body))
         [||] [||]
-  | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
+  | Ctrywith(e1, kind, v, e2, dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
       let end_region =
         if Config.stack_allocation then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
-          fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
+          fun handler_instruction ->
+            instr_cons_debug (Iop Iendregion) reg [| |] dbg handler_instruction
         end
         else
           fun handler_instruction -> handler_instruction
@@ -1811,7 +1815,7 @@ method emit_tail (env:environment) exp =
         self#insert env
           (Itrywith(s1, kind,
                     (env_handler.trap_stack,
-                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                     instr_cons_debug (Iop Imove) [|Proc.loc_exn_bucket|] rv dbg
                        (end_region s2))))
           [||] [||]
       in

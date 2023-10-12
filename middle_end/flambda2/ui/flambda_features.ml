@@ -241,6 +241,10 @@ module Expert = struct
   let max_function_simplify_run () =
     !Flambda_backend_flags.Flambda2.Expert.max_function_simplify_run
     |> with_default ~f:(fun d -> d.max_function_simplify_run)
+
+  let shorten_symbol_names () =
+    !Flambda_backend_flags.Flambda2.Expert.shorten_symbol_names
+    |> with_default ~f:(fun d -> d.shorten_symbol_names)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

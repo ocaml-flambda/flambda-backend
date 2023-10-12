@@ -71,7 +71,8 @@ end = struct
     let definitions_at_beginning = ref definitions_at_beginning in
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     let stack = Stack.create () in
-    Cfg_dominators.iter_breadth_dominator_tree doms ~f:(fun (label : Label.t) ->
+    Cfg_dominators.iter_breadth_dominator_forest doms
+      ~f:(fun (label : Label.t) ->
         Stack.push label stack;
         let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
         match Label.Map.find_opt label !definitions_at_beginning with
@@ -402,9 +403,11 @@ end = struct
           log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
         num_sets);
     let doms = Cfg_with_infos.dominators cfg_with_infos in
-    remove_dominated_spills doms
-      (Cfg_dominators.dominator_tree doms)
-      ~num_sets ~already_spilled:Reg.Map.empty ~destructions_at_end
+    let forest = Cfg_dominators.dominator_forest doms in
+    List.fold_left forest ~init:destructions_at_end
+      ~f:(fun destructions_at_end dominator_tree ->
+        remove_dominated_spills doms dominator_tree ~num_sets
+          ~already_spilled:Reg.Map.empty ~destructions_at_end)
 end
 
 let add_destruction_point_at_end :
@@ -604,9 +607,11 @@ let compute_phis :
   let phi_at_beginning = fix_point_phi cfg_with_infos phi_at_beginning in
   phi_at_beginning
 
+let[@inline] remove_empty_sets (map : 'a Label.Map.t) ~(f : 'a -> Reg.Set.t) :
+    'a Label.Map.t =
+  Label.Map.filter (fun _ data -> not (Reg.Set.is_empty (f data))) map
+
 let make cfg_with_infos ~next_instruction_id =
-  (* CR-soon xclerc for xclerc: the calls to the various `optimize` functions
-     can result in empty sets in the map; can they be removed? *)
   let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end
@@ -615,9 +620,6 @@ let make cfg_with_infos ~next_instruction_id =
     MoveSpillsAndReloads.optimize cfg_with_infos ~destructions_at_end
       ~definitions_at_beginning
   in
-  let phi_at_beginning =
-    compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
-  in
   let destructions_at_end, definitions_at_beginning =
     RemoveReloadSpillInSameBlock.optimize cfg_with_infos ~destructions_at_end
       ~definitions_at_beginning
@@ -625,6 +627,13 @@ let make cfg_with_infos ~next_instruction_id =
   let destructions_at_end =
     RemoveDominatedSpillsForConstants.optimize cfg_with_infos
       ~destructions_at_end
+  in
+  let definitions_at_beginning =
+    remove_empty_sets definitions_at_beginning ~f:Fun.id
+  in
+  let destructions_at_end = remove_empty_sets destructions_at_end ~f:snd in
+  let phi_at_beginning =
+    compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
   in
   let stack_slots = Regalloc_stack_slots.make () in
   { destructions_at_end;

@@ -47,29 +47,37 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
-    =
+let manufacture_symbol acc proposed_name =
+  let acc, linkage_name =
+    if Flambda_features.Expert.shorten_symbol_names ()
+    then Acc.manufacture_symbol_short_name acc
+    else acc, Linkage_name.of_string proposed_name
+  in
   let symbol =
-    Symbol.create
-      (Compilation_unit.get_current_exn ())
-      (Linkage_name.of_string (Function_slot.to_string function_slot))
+    Symbol.create (Compilation_unit.get_current_exn ()) linkage_name
+  in
+  acc, symbol
+
+let declare_symbol_for_function_slot env acc ident function_slot :
+    Env.t * Acc.t * Symbol.t =
+  let acc, symbol =
+    manufacture_symbol acc (Function_slot.to_string function_slot)
   in
   let env =
     Env.add_simple_to_substitute env ident (Simple.symbol symbol)
       K.With_subkind.any_value
   in
-  env, symbol
+  env, acc, symbol
 
 let register_const0 acc constant name =
   match Static_const.Map.find constant (Acc.shareable_constants acc) with
   | exception Not_found ->
     (* Create a variable to ensure uniqueness of the symbol. *)
     let var = Variable.create name in
-    let symbol =
-      Symbol.create
-        (Compilation_unit.get_current_exn ())
+    let acc, symbol =
+      manufacture_symbol acc
         (* CR mshinwell: this Variable.rename looks to be redundant *)
-        (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
+        (Variable.unique_name (Variable.rename var))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
     let acc =
@@ -954,10 +962,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             (* This is a inconstant statically-allocated value, so cannot go
                through [register_const0]. The definition must be placed right
                away. *)
-            let symbol =
-              Symbol.create
-                (Compilation_unit.get_current_exn ())
-                (Linkage_name.of_string (Variable.unique_name var))
+            let acc, symbol =
+              manufacture_symbol acc (Variable.unique_name var)
             in
             let static_const = Static_const.block tag Immutable static_fields in
             let static_consts =
@@ -996,11 +1002,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                && Env.at_toplevel env
                && Flambda_features.classic_mode () ->
           (* Special case to lift toplevel exception declarations *)
-          let symbol =
-            Symbol.create
-              (Compilation_unit.get_current_exn ())
-              (Linkage_name.of_string (Variable.unique_name var))
-          in
+          let acc, symbol = manufacture_symbol acc (Variable.unique_name var) in
           let transform_arg arg =
             Simple.pattern_match' arg
               ~var:(fun var ~coercion:_ ->
@@ -1237,19 +1239,20 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   in
   let acc, arms =
     List.fold_left_map
-      (fun acc (case, cont, trap_action, args) ->
+      (fun acc (case, cont, dbg, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
         let args_approx = List.map (find_value_approximation env) args in
         let action acc =
           Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
-            ~dbg:condition_dbg
+            ~dbg
         in
         acc, (Targetint_31_63.of_int case, action))
       acc sw.consts
   in
   match arms, sw.failaction with
-  | [(case, action)], Some (default_action, default_trap_action, default_args)
+  | ( [(case, action)],
+      Some (default_action, dbg, default_trap_action, default_args) )
     when sw.numconsts >= 3 ->
     (* Avoid enormous switches, where every arm goes to the same place except
        one, that arise from single-arm [Lambda] switches with a default case.
@@ -1268,8 +1271,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, default_action =
       let acc, args = find_simples acc env default_args in
       let trap_action = close_trap_action_opt default_trap_action in
-      Apply_cont_with_acc.create acc ?trap_action default_action ~args
-        ~dbg:condition_dbg
+      Apply_cont_with_acc.create acc ?trap_action default_action ~args ~dbg
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
@@ -1290,7 +1292,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, arms =
       match sw.failaction with
       | None -> acc, Targetint_31_63.Map.of_list arms
-      | Some (default, trap_action, args) ->
+      | Some (default, dbg, trap_action, args) ->
         Numeric_types.Int.Set.fold
           (fun case (acc, cases) ->
             let case = Targetint_31_63.of_int case in
@@ -1300,8 +1302,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
               let default acc =
-                Apply_cont_with_acc.create acc ?trap_action default ~args
-                  ~dbg:condition_dbg
+                Apply_cont_with_acc.create acc ?trap_action default ~args ~dbg
               in
               acc, Targetint_31_63.Map.add case default cases)
           (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
@@ -1794,8 +1795,8 @@ let close_functions acc external_env ~current_region function_declarations =
     then
       Ident.Map.fold
         (fun ident function_slot (acc, env, symbol_map) ->
-          let env, symbol =
-            declare_symbol_for_function_slot env ident function_slot
+          let env, acc, symbol =
+            declare_symbol_for_function_slot env acc ident function_slot
           in
           let approx =
             match Function_slot.Map.find function_slot approx_map with
