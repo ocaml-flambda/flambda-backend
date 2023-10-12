@@ -117,7 +117,11 @@ and ufunction = {
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
+<<<<<<< HEAD
   mode   : Lambda.alloc_mode;
+||||||| merged common ancestors
+=======
+>>>>>>> ocaml/5.1
   poll   : poll_attribute;
 }
 
@@ -135,8 +139,13 @@ type function_description =
     mutable fun_closed: bool;           (* True if environment not used *)
     mutable fun_inline: (Backend_var.With_provenance.t list * ulambda) option;
     mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
+<<<<<<< HEAD
     fun_region: bool;                   (* If false, may locally allocate
                                            in caller's region *)
+||||||| merged common ancestors
+    mutable fun_float_const_prop: bool  (* Can propagate FP consts *)
+=======
+>>>>>>> ocaml/5.1
     fun_poll: poll_attribute;           (* Behaviour for polls *)
   }
 

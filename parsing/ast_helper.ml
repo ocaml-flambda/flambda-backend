@@ -255,8 +255,8 @@ module Mty = struct
 end
 
 module Mod = struct
-let mk ?(loc = !default_loc) ?(attrs = []) d =
-  {pmod_desc = d; pmod_loc = loc; pmod_attributes = attrs}
+  let mk ?(loc = !default_loc) ?(attrs = []) d =
+    {pmod_desc = d; pmod_loc = loc; pmod_attributes = attrs}
   let attr d a = {d with pmod_attributes = d.pmod_attributes @ [a]}
 
   let ident ?loc ?attrs x = mk ?loc ?attrs (Pmod_ident x)
@@ -264,6 +264,7 @@ let mk ?(loc = !default_loc) ?(attrs = []) d =
   let functor_ ?loc ?attrs arg body =
     mk ?loc ?attrs (Pmod_functor (arg, body))
   let apply ?loc ?attrs m1 m2 = mk ?loc ?attrs (Pmod_apply (m1, m2))
+  let apply_unit ?loc ?attrs m1 = mk ?loc ?attrs (Pmod_apply_unit m1)
   let constraint_ ?loc ?attrs m mty = mk ?loc ?attrs (Pmod_constraint (m, mty))
   let unpack ?loc ?attrs e = mk ?loc ?attrs (Pmod_unpack e)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmod_extension a)
@@ -492,10 +493,11 @@ end
 
 module Vb = struct
   let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs)
-        ?(text = []) pat expr =
+        ?(text = []) ?value_constraint pat expr =
     {
      pvb_pat = pat;
      pvb_expr = expr;
+     pvb_constraint=value_constraint;
      pvb_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
      pvb_loc = loc;

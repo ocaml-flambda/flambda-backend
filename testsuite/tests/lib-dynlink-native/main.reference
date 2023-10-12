@@ -6,10 +6,16 @@ Registering module Plugin2
 1
 2
 6
+<<<<<<< HEAD
 1
 Raised by primitive operation at Plugin2.foo in file "plugin2.ml", line 4, characters 38-64
 Called from Plugin2.test_frametable in file "plugin2.ml", line 10, characters 2-72
 Called from Plugin2 in file "plugin2.ml", line 19, characters 2-20
+||||||| merged common ancestors
+1
+=======
+2
+>>>>>>> ocaml/5.1
 XXX
 Loading plugin_thread.so
 Registering module Plugin_thread

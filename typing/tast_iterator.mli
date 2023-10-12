@@ -23,6 +23,8 @@ open Typedtree
 
 type iterator =
   {
+    attribute: iterator -> attribute -> unit;
+    attributes: iterator -> attributes -> unit;
     binding_op: iterator -> binding_op -> unit;
     case: 'k . iterator -> 'k case -> unit;
     class_declaration: iterator -> class_declaration -> unit;
@@ -37,7 +39,12 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
+<<<<<<< HEAD
     jkind_annotation: iterator -> const_jkind -> unit;
+||||||| merged common ancestors
+=======
+    location: iterator -> Location.t -> unit;
+>>>>>>> ocaml/5.1
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;

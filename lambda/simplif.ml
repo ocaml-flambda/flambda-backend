@@ -42,7 +42,13 @@ let rec eliminate_ref id = function
   | Lletrec(idel, e2) ->
       Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
               eliminate_ref id e2)
+<<<<<<< HEAD
   | Lprim(Pfield (0, _sem), [Lvar v], _) when Ident.same v id ->
+||||||| merged common ancestors
+  | Lprim(Pfield 0, [Lvar v], _) when Ident.same v id ->
+=======
+  | Lprim(Pfield (0, _, _), [Lvar v], _) when Ident.same v id ->
+>>>>>>> ocaml/5.1
       Lmutvar id
   | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
       Lassign(id, eliminate_ref id e)
@@ -231,11 +237,23 @@ let simplify_exits lam =
     match l with
   | Lvar _| Lmutvar _ | Lconst _ -> l
   | Lapply ap ->
+<<<<<<< HEAD
       Lapply{ap with ap_func = simplif ~layout:None ~try_depth ap.ap_func;
                      ap_args = List.map (simplif ~layout:None ~try_depth) ap.ap_args}
   | Lfunction{kind; params; return; mode; region; body = l; attr; loc} ->
      lfunction ~kind ~params ~return ~mode ~region
        ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
+||||||| merged common ancestors
+      Lapply{ap with ap_func = simplif ~try_depth ap.ap_func;
+                     ap_args = List.map (simplif ~try_depth) ap.ap_args}
+  | Lfunction{kind; params; return; body = l; attr; loc} ->
+     Lfunction{kind; params; return; body = simplif ~try_depth l; attr; loc}
+=======
+      Lapply{ap with ap_func = simplif ~try_depth ap.ap_func;
+                     ap_args = List.map (simplif ~try_depth) ap.ap_args}
+  | Lfunction{kind; params; return; body = l; attr; loc} ->
+     lfunction ~kind ~params ~return ~body:(simplif ~try_depth l) ~attr ~loc
+>>>>>>> ocaml/5.1
   | Llet(str, kind, v, l1, l2) ->
       Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lmutlet(kind, v, l1, l2) ->
@@ -571,9 +589,19 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
+<<<<<<< HEAD
           lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~region
       | kind, region, body ->
           lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~region
+||||||| merged common ancestors
+          Lfunction{kind; params = params @ params'; return; body; attr; loc}
+      | body ->
+          Lfunction{kind; params; return = return1; body; attr; loc}
+=======
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc
+      | body ->
+          lfunction ~kind ~params ~return:return1 ~body ~attr ~loc
+>>>>>>> ocaml/5.1
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
@@ -834,13 +862,24 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = Lambda.rename subst body in
         let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
+<<<<<<< HEAD
           lfunction ~kind:(Curried {nlocal=0})
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~region:true
+||||||| merged common ancestors
+          Lfunction { kind = Curried;
+            params = List.map (fun id -> id, Pgenval) new_ids;
+            return; body; attr; loc; }
+=======
+          lfunction ~kind:Curried
+            ~params:(List.map (fun id -> id, Pgenval) new_ids)
+            ~return ~body ~attr ~loc
+>>>>>>> ocaml/5.1
         in
         (wrapper_body, (inner_id, inner_fun))
   in
   try
+<<<<<<< HEAD
     (* TODO: enable this optimisation even in the presence of local returns *)
     begin match kind with
     | Curried {nlocal} when nlocal > 0 -> raise Exit
@@ -850,8 +889,23 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
     [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
+||||||| merged common ancestors
+    let body, inner = aux [] body in
+    let attr = default_stub_attribute in
+    [(fun_id, Lfunction{kind; params; return; body; attr; loc}); inner]
+=======
+    let body, inner = aux [] body in
+    let attr = default_stub_attribute in
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc); inner]
+>>>>>>> ocaml/5.1
   with Exit ->
+<<<<<<< HEAD
     [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
+||||||| merged common ancestors
+    [(fun_id, Lfunction{kind; params; return; body; attr; loc})]
+=======
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc)]
+>>>>>>> ocaml/5.1
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the
@@ -882,7 +936,13 @@ let simplify_local_functions lam =
      by the outermost lambda for which the the current lambda
      is in tail position. *)
   let current_scope = ref lam in
+<<<<<<< HEAD
   let current_region_scope = ref None in
+||||||| merged common ancestors
+=======
+  (* PR11383: We will only apply the transformation if we don't have to move
+     code across function boundaries *)
+>>>>>>> ocaml/5.1
   let current_function_scope = ref lam in
   let check_static lf =
     if lf.attr.local = Always_local then
@@ -908,7 +968,15 @@ let simplify_local_functions lam =
   let rec tail = function
     | Llet (_str, _kind, id, Lfunction lf, cont) when enabled lf.attr ->
         let r =
+<<<<<<< HEAD
           {func = lf; function_scope = !current_function_scope; scope = None}
+||||||| merged common ancestors
+        let r = {func = lf; scope = None} in
+=======
+          { func = lf;
+            function_scope = !current_function_scope;
+            scope = None }
+>>>>>>> ocaml/5.1
         in
         Hashtbl.add slots id r;
         tail cont;
@@ -947,7 +1015,12 @@ let simplify_local_functions lam =
             Hashtbl.remove slots id
         | Some {function_scope = fscope; _}
           when fscope != !current_function_scope ->
+<<<<<<< HEAD
             (* Different function *)
+||||||| merged common ancestors
+=======
+            (* Non local function *)
+>>>>>>> ocaml/5.1
             Hashtbl.remove slots id
         | Some ({scope = None; _} as slot) ->
             (* First use of the function: remember the current tail scope *)
@@ -961,12 +1034,18 @@ let simplify_local_functions lam =
     | Lfunction lf ->
         check_static lf;
         function_definition lf
+<<<<<<< HEAD
     | Lregion (lam, _) -> region lam
     | Lexclave lam -> exclave lam
+||||||| merged common ancestors
+        Lambda.shallow_iter ~tail ~non_tail lam
+=======
+>>>>>>> ocaml/5.1
     | lam ->
         Lambda.shallow_iter ~tail ~non_tail lam
   and non_tail lam =
     with_scope ~scope:lam lam
+<<<<<<< HEAD
   and region lam =
     let old_tail_scope = !current_region_scope in
     let old_scope = !current_scope in
@@ -983,6 +1062,9 @@ let simplify_local_functions lam =
     tail lam;
     current_region_scope := old_tail_scope;
     current_scope := old_current_scope
+||||||| merged common ancestors
+=======
+>>>>>>> ocaml/5.1
   and function_definition lf =
     let old_function_scope = !current_function_scope in
     current_function_scope := lf.body;

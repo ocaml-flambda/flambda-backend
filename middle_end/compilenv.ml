@@ -29,7 +29,14 @@ module CU = Compilation_unit
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
+<<<<<<< HEAD
   | Illegal_renaming of CU.t * CU.t * string
+||||||| merged common ancestors
+  | Illegal_renaming of string * string * string
+=======
+  | Illegal_renaming of string * string * string
+  | Mismatching_for_pack of string * string * string * string option
+>>>>>>> ocaml/5.1
 
 exception Error of error
 
@@ -87,10 +94,66 @@ let current_unit =
     ui_apply_fun = [];
     ui_send_fun = [];
     ui_force_link = false;
-    ui_export_info = default_ui_export_info }
+    ui_export_info = default_ui_export_info;
+    ui_for_pack = None }
 
+let concat_symbol unitname id =
+  unitname ^ "." ^ id
+
+<<<<<<< HEAD
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
+||||||| merged common ancestors
+let symbolname_for_pack pack name =
+  match pack with
+  | None -> name
+  | Some p ->
+      let b = Buffer.create 64 in
+      for i = 0 to String.length p - 1 do
+        match p.[i] with
+        | '.' -> Buffer.add_string b "__"
+        |  c  -> Buffer.add_char b c
+      done;
+      Buffer.add_string b "__";
+      Buffer.add_string b name;
+      Buffer.contents b
+
+let unit_id_from_name name = Ident.create_persistent name
+
+let concat_symbol unitname id =
+  unitname ^ "__" ^ id
+
+let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
+  let prefix = "caml" ^ unitname in
+  match idopt with
+  | None -> prefix
+  | Some id -> concat_symbol prefix id
+
+let current_unit_linkage_name () =
+  Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
+
+let reset ?packname name =
+  Hashtbl.clear global_infos_table;
+=======
+let symbolname_for_pack pack name =
+  match pack with
+  | None -> name
+  | Some p -> concat_symbol p name
+
+let unit_id_from_name name = Ident.create_persistent name
+
+let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
+  let prefix = "caml" ^ unitname in
+  match idopt with
+  | None -> prefix
+  | Some id -> concat_symbol prefix id
+
+let current_unit_linkage_name () =
+  Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
+
+let reset ?packname name =
+  Hashtbl.clear global_infos_table;
+>>>>>>> ocaml/5.1
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
@@ -101,6 +164,7 @@ let reset compilation_unit =
   current_unit.ui_apply_fun <- [];
   current_unit.ui_send_fun <- [];
   current_unit.ui_force_link <- !Clflags.link_everything;
+  current_unit.ui_for_pack <- packname;
   Hashtbl.clear exported_constants;
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
@@ -159,8 +223,26 @@ let get_unit_info comp_unit =
             let filename =
               Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
+<<<<<<< HEAD
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
+||||||| merged common ancestors
+            if ui.ui_name <> modname then
+              raise(Error(Illegal_renaming(modname, ui.ui_name, filename)));
+=======
+            if ui.ui_name <> modname then
+              raise(Error(Illegal_renaming(modname, ui.ui_name, filename)));
+            (* Linking to a compilation unit expected to go into a
+               pack (ui_for_pack = Some ...) is possible only from
+               inside the same pack, but it is perfectly ok to link to
+               an unit outside of the pack. *)
+            (match ui.ui_for_pack, current_unit.ui_for_pack with
+             | None, _ -> ()
+             | Some p1, Some p2 when String.equal p1 p2 -> ()
+             | Some p1, p2 ->
+               raise (Error (Mismatching_for_pack
+                               (filename, p1, current_unit.ui_name, p2))));
+>>>>>>> ocaml/5.1
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
@@ -351,10 +433,26 @@ let report_error ppf = function
         Location.print_filename filename
   | Illegal_renaming(name, modname, filename) ->
       fprintf ppf "%a@ contains the description for unit\
+<<<<<<< HEAD
                    @ %a when %a was expected"
         Location.print_filename filename
         CU.print name
         CU.print modname
+||||||| merged common ancestors
+                   @ %s when %s was expected"
+        Location.print_filename filename name modname
+=======
+                   @ %s when %s was expected"
+        Location.print_filename filename name modname
+  | Mismatching_for_pack(filename, pack_1, current_unit, None) ->
+      fprintf ppf "%a@ was built with -for-pack %s, but the \
+                   @ current unit %s is not"
+        Location.print_filename filename pack_1 current_unit
+  | Mismatching_for_pack(filename, pack_1, current_unit, Some pack_2) ->
+      fprintf ppf "%a@ was built with -for-pack %s, but the \
+                   @ current unit %s is built with -for-pack %s"
+        Location.print_filename filename pack_1 current_unit pack_2
+>>>>>>> ocaml/5.1
 
 let () =
   Location.register_error_of_exn

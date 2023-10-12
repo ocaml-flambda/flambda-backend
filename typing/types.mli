@@ -420,11 +420,14 @@ module Variance : sig
   val inter  : t -> t -> t
   val subset : t -> t -> bool
   val eq : t -> t -> bool
-  val set : f -> bool -> t -> t
+  val set : f -> t -> t
+  val set_if : bool -> f -> t -> t
   val mem : f -> t -> bool
   val conjugate : t -> t                (* exchange positive and negative *)
-  val get_upper : t -> bool * bool                  (* may_pos, may_neg   *)
-  val get_lower : t -> bool * bool * bool * bool    (* pos, neg, inv, inj *)
+  val compose : t -> t -> t
+  val strengthen : t -> t                (* remove May_weak when possible *)
+  val get_upper : t -> bool * bool                    (* may_pos, may_neg *)
+  val get_lower : t -> bool * bool * bool                (* pos, neg, inj *)
   val unknown_signature : injective:bool -> arity:int -> t list
   (** The most pessimistic variance for a completely unknown type. *)
 end
@@ -502,9 +505,26 @@ and ('lbl, 'cstr) type_kind =
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
+<<<<<<< HEAD
 (* CR layouts: after removing the void translation from lambda, we could get rid of
    this src_index / runtime_tag distinction.  But I am leaving it in because it
    may not be long before we need it again.
+||||||| merged common ancestors
+and record_representation =
+    Record_regular                      (* All fields are boxed / tagged *)
+  | Record_float                        (* All fields are floats *)
+  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
+  | Record_inlined of int               (* Inlined record *)
+  | Record_extension of Path.t          (* Inlined record under extension *)
+=======
+and record_representation =
+    Record_regular                      (* All fields are boxed / tagged *)
+  | Record_float                        (* All fields are floats *)
+  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
+  | Record_inlined of int               (* Inlined record *)
+  | Record_extension of Path.t          (* Inlined record under extension *)
+                             (* The argument is the path of the extension *)
+>>>>>>> ocaml/5.1
 
    In particular, lambda will need to do something about computing offsets for
    block projections when not everything is one word wide, whether that's
@@ -618,6 +638,7 @@ type class_type_declaration =
   { clty_params: type_expr list;
     clty_type: class_type;
     clty_path: Path.t;
+    clty_hash_type: type_declaration; (* object type with an open row *)
     clty_variance: Variance.t list;
     clty_loc: Location.t;
     clty_attributes: Parsetree.attributes;
@@ -718,6 +739,7 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
       map_type_expr: mapper -> type_expr From.wrapped -> type_expr To.wrapped
     }
 
+<<<<<<< HEAD
   val value_description :
     mapper -> From.value_description -> To.value_description
   val module_declaration :
@@ -732,6 +754,10 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
 end
 
 include Wrapped with type 'a wrapped = 'a
+||||||| merged common ancestors
+=======
+val item_visibility : signature_item -> visibility
+>>>>>>> ocaml/5.1
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

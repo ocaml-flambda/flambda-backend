@@ -82,8 +82,14 @@ void caml_fixup_endianness(code_t code, asize_t len)
 
 #ifdef THREADED_CODE
 
-char ** caml_instr_table;
-char * caml_instr_base;
+static char ** caml_instr_table;
+static char * caml_instr_base;
+
+void caml_init_thread_code(void ** instr_table, void * instr_base)
+{
+  caml_instr_table = (char **) instr_table;
+  caml_instr_base = (char *) instr_base;
+}
 
 static int* opcode_nargs = NULL;
 int* caml_init_opcode_nargs(void)
@@ -106,7 +112,8 @@ int* caml_init_opcode_nargs(void)
       l[BRANCH] = l[BRANCHIF] = l[BRANCHIFNOT] = l[PUSHTRAP] =
       l[C_CALL1] = l[C_CALL2] = l[C_CALL3] = l[C_CALL4] = l[C_CALL5] =
       l[CONSTINT] = l[PUSHCONSTINT] = l[OFFSETINT] =
-      l[OFFSETREF] = l[OFFSETCLOSURE] = l[PUSHOFFSETCLOSURE] = 1;
+      l[OFFSETREF] = l[OFFSETCLOSURE] = l[PUSHOFFSETCLOSURE] =
+      l[RESUMETERM] = l[REPERFORMTERM] = 1;
 
     /* Instructions with two operands */
     l[APPTERM] = l[CLOSURE] = l[PUSHGETGLOBALFIELD] =
@@ -152,7 +159,7 @@ void caml_thread_code (code_t code, asize_t len)
 
 #else
 
-int* caml_init_opcode_nargs()
+int* caml_init_opcode_nargs(void)
 {
   return NULL;
 }

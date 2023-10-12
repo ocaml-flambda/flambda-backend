@@ -44,7 +44,9 @@ type stat =
     (** Total size of the major heap, in words. *)
 
     heap_chunks : int;
-    (** Number of contiguous pieces of memory that make up the major heap. *)
+    (** Number of contiguous pieces of memory that make up the major heap.
+        This metrics is currently not available in OCaml 5: the field value is
+        always [0]. *)
 
     live_words : int;
     (** Number of words of live data in the major heap, including the header
@@ -71,10 +73,14 @@ type stat =
     (** Number of words in the free list. *)
 
     free_blocks : int;
-    (** Number of blocks in the free list. *)
+    (** Number of blocks in the free list.
+        This metrics is currently not available in OCaml 5: the field value is
+        always [0]. *)
 
     largest_free : int;
-    (** Size (in words) of the largest block in the free list. *)
+    (** Size (in words) of the largest block in the free list.
+        This metrics is currently not available in OCaml 5: the field value
+        is always [0]. *)
 
     fragments : int;
     (** Number of wasted words due to fragmentation.  These are
@@ -89,14 +95,29 @@ type stat =
 
     stack_size: int;
     (** Current size of the stack, in words.
+<<<<<<< HEAD
         @since 3.12.0 *)
+||||||| merged common ancestors
+    (** Current size of the stack, in words. @since 3.12.0 *)
+=======
+        This metrics is currently not available in OCaml 5: the field value is
+        always [0].
+        @since 3.12 *)
+>>>>>>> ocaml/5.1
 
     forced_major_collections: int;
     (** Number of forced full major collections completed since the program
         was started.
+<<<<<<< HEAD
         @since 4.12.0 *)
+||||||| merged common ancestors
+        was started. @since 4.12.0 *)
+=======
+        @since 4.12 *)
+>>>>>>> ocaml/5.1
 }
-(** The memory management counters are returned in a [stat] record.
+(** The memory management counters are returned in a [stat] record. These
+   counters give values for the whole program.
 
    The total amount of memory allocated by the program since it was started
    is (in words) [minor_words + major_words - promoted_words].  Multiply by
@@ -105,22 +126,20 @@ type stat =
 *)
 
 type control =
-  { mutable minor_heap_size : int;
-    [@ocaml.deprecated_mutable "Use {(Gc.get()) with Gc.minor_heap_size = ...}"]
+  { minor_heap_size : int;
     (** The size (in words) of the minor heap.  Changing
-       this parameter will trigger a minor collection.  Default: 256k. *)
+       this parameter will trigger a minor collection. The total size of the
+       minor heap used by this program is the sum of the heap sizes of the
+       active domains. Default: 256k. *)
 
-    mutable major_heap_increment : int;
-    [@ocaml.deprecated_mutable
-         "Use {(Gc.get()) with Gc.major_heap_increment = ...}"]
+    major_heap_increment : int;
     (** How much to add to the major heap when increasing it. If this
         number is less than or equal to 1000, it is a percentage of
         the current heap size (i.e. setting it to 100 will double the heap
         size at each increase). If it is more than 1000, it is a fixed
         number of words that will be added to the heap. Default: 15. *)
 
-    mutable space_overhead : int;
-    [@ocaml.deprecated_mutable "Use {(Gc.get()) with Gc.space_overhead = ...}"]
+    space_overhead : int;
     (** The major GC speed is computed from this parameter.
        This is the memory that will be "wasted" because the GC does not
        immediately collect unreachable blocks.  It is expressed as a
@@ -129,8 +148,7 @@ type control =
        blocks more eagerly) if [space_overhead] is smaller.
        Default: 120. *)
 
-    mutable verbose : int;
-    [@ocaml.deprecated_mutable "Use {(Gc.get()) with Gc.verbose = ...}"]
+    verbose : int;
     (** This value controls the GC messages on standard error output.
        It is a sum of some of the following flags, to print messages
        on the corresponding events:
@@ -147,8 +165,7 @@ type control =
        - [0x400] Output GC statistics at program exit.
        Default: 0. *)
 
-    mutable max_overhead : int;
-    [@ocaml.deprecated_mutable "Use {(Gc.get()) with Gc.max_overhead = ...}"]
+    max_overhead : int;
     (** Heap compaction is triggered when the estimated amount
        of "wasted" memory is more than [max_overhead] percent of the
        amount of live data.  If [max_overhead] is set to 0, heap
@@ -159,15 +176,11 @@ type control =
        to set [allocation_policy] to 2.
        Default: 500. *)
 
-    mutable stack_limit : int;
-    [@ocaml.deprecated_mutable "Use {(Gc.get()) with Gc.stack_limit = ...}"]
-    (** The maximum size of the stack (in words).  This is only
-       relevant to the byte-code runtime, as the native code runtime
-       uses the operating system's stack.  Default: 1024k. *)
+    stack_limit : int;
+    (** The maximum size of the fiber stacks (in words).
+       Default: 1024k. *)
 
-    mutable allocation_policy : int;
-    [@ocaml.deprecated_mutable
-         "Use {(Gc.get()) with Gc.allocation_policy = ...}"]
+    allocation_policy : int;
     (** The policy used for allocating in the major heap.
         Possible values are 0, 1 and 2.
 
@@ -201,14 +214,20 @@ type control =
 
         Default: 2.
 
-        @since 3.11.0 *)
+        @since 3.11 *)
 
     window_size : int;
     (** The size of the window used by the major GC for smoothing
         out variations in its workload. This is an integer between
         1 and 50.
         Default: 1.
+<<<<<<< HEAD
         @since 4.03.0 *)
+||||||| merged common ancestors
+        Default: 1. @since 4.03.0 *)
+=======
+        @since 4.03 *)
+>>>>>>> ocaml/5.1
 
     custom_major_ratio : int;
     (** Target ratio of floating garbage to major heap size for
@@ -221,7 +240,7 @@ type control =
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
         Default: 44.
-        @since 4.08.0 *)
+        @since 4.08 *)
 
     custom_minor_ratio : int;
     (** Bound on floating garbage for out-of-heap memory held by
@@ -231,7 +250,7 @@ type control =
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
         Default: 100.
-        @since 4.08.0 *)
+        @since 4.08 *)
 
     custom_minor_max_size : int;
     (** Maximum amount of out-of-heap memory for each custom value
@@ -242,7 +261,7 @@ type control =
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
         Default: 8192 bytes.
-        @since 4.08.0 *)
+        @since 4.08 *)
   }
 (** The GC parameters are given as a [control] record.  Note that
     these parameters can also be initialised by setting the
@@ -251,34 +270,43 @@ type control =
 
 external stat : unit -> stat = "caml_gc_stat"
 (** Return the current values of the memory management counters in a
-   [stat] record.  This function examines every heap block to get the
-   statistics. *)
+   [stat] record that represent the program's total memory stats.
+   This function causes a full major collection. *)
 
 external quick_stat : unit -> stat = "caml_gc_quick_stat"
 (** Same as [stat] except that [live_words], [live_blocks], [free_words],
-    [free_blocks], [largest_free], and [fragments] are set to 0.  This
-    function is much faster than [stat] because it does not need to go
-    through the heap. *)
+    [free_blocks], [largest_free], and [fragments] are set to 0. Due to
+    per-domain buffers it may only represent the state of the program's
+    total memory usage since the last minor collection. This function is
+    much faster than [stat] because it does not need to trigger a full
+    major collection. *)
 
 external counters : unit -> float * float * float = "caml_gc_counters"
-(** Return [(minor_words, promoted_words, major_words)].  This function
-    is as fast as [quick_stat]. *)
+(** Return [(minor_words, promoted_words, major_words)] for the current
+    domain or potentially previous domains.  This function is as fast as
+    [quick_stat]. *)
 
 external minor_words : unit -> (float [@unboxed])
   = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
-(** Number of words allocated in the minor heap since the program was
-    started. This number is accurate in byte-code programs, but only an
-    approximation in programs compiled to native code.
+(** Number of words allocated in the minor heap by this domain or potentially
+    previous domains. This number is accurate in byte-code programs, but
+    only an approximation in programs compiled to native code.
 
     In native code this function does not allocate.
 
     @since 4.04 *)
 
 external get : unit -> control = "caml_gc_get"
+[@@alert unsynchronized_access
+    "GC parameters are a mutable global state."
+]
 (** Return the current values of the GC parameters in a [control] record. *)
 
 external set : control -> unit = "caml_gc_set"
-(** [set r] changes the GC parameters according to the [control] record [r].
+[@@alert unsynchronized_access
+    "GC parameters are a mutable global state."
+]
+ (** [set r] changes the GC parameters according to the [control] record [r].
    The normal usage is: [Gc.set { (Gc.get()) with Gc.verbose = 0x00d }] *)
 
 external minor : unit -> unit = "caml_gc_minor"
@@ -306,37 +334,18 @@ external compact : unit -> unit = "caml_gc_compaction"
 
 val print_stat : out_channel -> unit
 (** Print the current values of the memory management counters (in
-   human-readable form) into the channel argument. *)
+   human-readable form) of the total program into the channel argument. *)
 
 val allocated_bytes : unit -> float
-(** Return the total number of bytes allocated since the program was
-   started.  It is returned as a [float] to avoid overflow problems
+(** Return the number of bytes allocated by this domain and potentially
+   a previous domain. It is returned as a [float] to avoid overflow problems
    with [int] on 32-bit machines. *)
 
 external get_minor_free : unit -> int = "caml_get_minor_free"
-(** Return the current size of the free space inside the minor heap.
+(** Return the current size of the free space inside the minor heap of this
+   domain.
 
-    @since 4.03.0 *)
-
-external get_bucket : int -> int = "caml_get_major_bucket" [@@noalloc]
-(** [get_bucket n] returns the current size of the [n]-th future bucket
-    of the GC smoothing system. The unit is one millionth of a full GC.
-    @raise Invalid_argument if [n] is negative, return 0 if n is larger
-    than the smoothing window.
-
-    @since 4.03.0 *)
-
-external get_credit : unit -> int = "caml_get_major_credit" [@@noalloc]
-(** [get_credit ()] returns the current size of the "work done in advance"
-    counter of the GC smoothing system. The unit is one millionth of a
-    full GC.
-
-    @since 4.03.0 *)
-
-external huge_fallback_count : unit -> int = "caml_gc_huge_fallback_count"
-(** Return the number of times we tried to map huge pages and had to fall
-    back to small pages. This is always 0 if [OCAMLRUNPARAM] contains [H=1].
-    @since 4.03.0 *)
+    @since 4.03 *)
 
 val finalise : ('a -> unit) -> 'a -> unit
 (** [finalise f v] registers [f] as a finalisation function for [v].
@@ -431,7 +440,8 @@ type alarm
 
 val create_alarm : (unit -> unit) -> alarm
 (** [create_alarm f] will arrange for [f] to be called at the end of each
-   major GC cycle, starting with the current cycle or the next one.
+   major GC cycle, not caused by [f] itself, starting with the current
+   cycle or the next one.
    A value of type [alarm] is returned that you can
    use to call [delete_alarm]. *)
 
@@ -439,6 +449,7 @@ val delete_alarm : alarm -> unit
 (** [delete_alarm a] will stop the calls to the function associated
    to [a]. Calling [delete_alarm a] again has no effect. *)
 
+<<<<<<< HEAD
 external eventlog_pause : unit -> unit = "caml_eventlog_pause"
 (** [eventlog_pause ()] will pause the collection of traces in the
    runtime.
@@ -461,7 +472,30 @@ external eventlog_resume : unit -> unit = "caml_eventlog_resume"
 
    @since 4.11
   *)
+||||||| merged common ancestors
+external eventlog_pause : unit -> unit = "caml_eventlog_pause"
+(** [eventlog_pause ()] will pause the collection of traces in the
+   runtime.
+   Traces are collected if the program is linked to the instrumented runtime
+   and started with the environment variable OCAML_EVENTLOG_ENABLED.
+   Events are flushed to disk after pausing, and no new events will be
+   recorded until [eventlog_resume] is called. *)
 
+external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+(** [eventlog_resume ()] will resume the collection of traces in the
+   runtime.
+   Traces are collected if the program is linked to the instrumented runtime
+   and started with the environment variable OCAML_EVENTLOG_ENABLED.
+   This call can be used after calling [eventlog_pause], or if the program
+   was started with OCAML_EVENTLOG_ENABLED=p. (which pauses the collection of
+   traces before the first event.) *)
+=======
+val eventlog_pause : unit -> unit
+[@@ocaml.deprecated "Use Runtime_events.pause instead."]
+>>>>>>> ocaml/5.1
+
+val eventlog_resume : unit -> unit
+[@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
 (** [Memprof] is a sampling engine for allocated memory words. Every
    allocated word has a probability of being sampled equal to a

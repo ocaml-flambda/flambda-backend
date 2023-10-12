@@ -283,6 +283,7 @@ module Mod:
       functor_parameter -> module_expr -> module_expr
     val apply: ?loc:loc -> ?attrs:attrs -> module_expr -> module_expr ->
       module_expr
+    val apply_unit: ?loc:loc -> ?attrs:attrs -> module_expr -> module_expr
     val constraint_: ?loc:loc -> ?attrs:attrs -> module_expr -> module_type ->
       module_expr
     val unpack: ?loc:loc -> ?attrs:attrs -> expression -> module_expr
@@ -381,7 +382,8 @@ module Incl:
 module Vb:
   sig
     val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
-      pattern -> expression -> value_binding
+      ?value_constraint:value_constraint -> pattern -> expression ->
+      value_binding
   end
 
 

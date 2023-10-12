@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <signal.h>
 #include "caml/alloc.h"
-#include "caml/domain.h"
 #include "caml/fail.h"
 #include "caml/io.h"
 #include "caml/gc.h"
@@ -31,6 +30,7 @@
 #include "caml/stack.h"
 #include "caml/roots.h"
 #include "caml/callback.h"
+#include "caml/signals.h"
 
 /* The globals holding predefined exceptions */
 
@@ -56,11 +56,11 @@ CAMLnoreturn_start
   extern void caml_raise_exception (caml_domain_state* state, value bucket)
 CAMLnoreturn_end;
 
-/* Used by the stack overflow handler -> deactivate ASAN (see
-   segv_handler in signals_nat.c). */
-CAMLno_asan
 void caml_raise(value v)
 {
+  Caml_check_caml_state();
+  char* exception_pointer;
+
   Unlock_exn();
 
   CAMLassert(!Is_exception_result(v));
@@ -70,10 +70,15 @@ void caml_raise(value v)
   if (Is_exception_result(v))
     v = Extract_exception(v);
 
-  if (Caml_state->exception_pointer == NULL) caml_fatal_uncaught_exception(v);
+  exception_pointer = (char*)Caml_state->c_stack;
+
+  if (exception_pointer == NULL) {
+    caml_terminate_signals();
+    caml_fatal_uncaught_exception(v);
+  }
 
   while (Caml_state->local_roots != NULL &&
-         (char *) Caml_state->local_roots < Caml_state->exception_pointer) {
+         (char *) Caml_state->local_roots < exception_pointer) {
     Caml_state->local_roots = Caml_state->local_roots->next;
   }
 
@@ -107,8 +112,7 @@ void caml_raise_with_args(value tag, int nargs, value args[])
   value bucket;
   int i;
 
-  CAMLassert(1 + nargs <= Max_young_wosize);
-  bucket = caml_alloc_small (1 + nargs, 0);
+  bucket = caml_alloc (1 + nargs, 0);
   Field(bucket, 0) = tag;
   for (i = 0; i < nargs; i++) Field(bucket, 1 + i) = args[i];
   caml_raise(bucket);
@@ -190,21 +194,32 @@ CAMLexport value caml_raise_if_exception(value res)
 /* We use a pre-allocated exception because we can't
    do a GC before the exception is raised (lack of stack descriptors
    for the ccall to [caml_array_bound_error]).  */
-
-static const value * caml_array_bound_error_exn = NULL;
+static value array_bound_exn(void)
+{
+  static atomic_uintnat exn_cache = ATOMIC_UINTNAT_INIT(0);
+  const value* exn = (const value*)atomic_load_acquire(&exn_cache);
+  if (!exn) {
+    exn = caml_named_value("Pervasives.array_bound_error");
+    if (!exn) {
+      fprintf(stderr, "Fatal error: exception "
+        "Invalid_argument(\"index out of bounds\")\n");
+      exit(2);
+    }
+    atomic_store_release(&exn_cache, (uintnat)exn);
+  }
+  return *exn;
+}
 
 void caml_array_bound_error(void)
 {
-  if (caml_array_bound_error_exn == NULL) {
-    caml_array_bound_error_exn =
-      caml_named_value("Pervasives.array_bound_error");
-    if (caml_array_bound_error_exn == NULL) {
-      fprintf(stderr, "Fatal error: exception "
-                      "Invalid_argument(\"index out of bounds\")\n");
-      exit(2);
-    }
-  }
-  caml_raise(*caml_array_bound_error_exn);
+  caml_raise(array_bound_exn());
+}
+
+void caml_array_bound_error_asm(void)
+{
+  /* This exception is raised directly from ocamlopt-compiled OCaml,
+     not C, so we jump directly to the OCaml handler (and avoid GC) */
+  caml_raise_exception(Caml_state, array_bound_exn());
 }
 
 int caml_is_special_exception(value exn) {

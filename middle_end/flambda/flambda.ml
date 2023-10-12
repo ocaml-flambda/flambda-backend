@@ -1058,6 +1058,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     poll = func_decl.poll;
   }
 
+<<<<<<< HEAD
 let rec check_param_modes mode = function
   | [] -> ()
   | p :: params ->
@@ -1065,6 +1066,36 @@ let rec check_param_modes mode = function
      if not (Lambda.sub_mode mode m) then
        Misc.fatal_errorf "Nonmonotonic partial modes";
      check_param_modes m params
+||||||| merged common ancestors
+let update_function_decl's_params_and_body
+      (func_decl : function_declaration) ~params ~body =
+  { closure_origin = func_decl.closure_origin;
+    params;
+    body;
+    free_variables = free_variables body;
+    free_symbols = free_symbols body;
+    stub = func_decl.stub;
+    dbg = func_decl.dbg;
+    inline = func_decl.inline;
+    specialise = func_decl.specialise;
+    is_a_functor = func_decl.is_a_functor;
+  }
+=======
+let update_function_decl's_params_and_body
+      (func_decl : function_declaration) ~params ~body =
+  { closure_origin = func_decl.closure_origin;
+    params;
+    body;
+    free_variables = free_variables body;
+    free_symbols = free_symbols body;
+    stub = func_decl.stub;
+    dbg = func_decl.dbg;
+    inline = func_decl.inline;
+    specialise = func_decl.specialise;
+    is_a_functor = func_decl.is_a_functor;
+    poll = func_decl.poll;
+  }
+>>>>>>> ocaml/5.1
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
       ~(return_layout : Lambda.layout)

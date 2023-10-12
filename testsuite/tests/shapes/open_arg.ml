@@ -22,7 +22,12 @@ end = struct end
 
 [%%expect{|
 {
+<<<<<<< HEAD
  "Make"[module] -> Abs<.3>(I/279, {
+||||||| merged common ancestors
+=======
+ "Make"[module] -> Abs<.3>(I/281, {
+>>>>>>> ocaml/5.1
                                    });
  }
 module Make : functor (I : sig end) -> sig end

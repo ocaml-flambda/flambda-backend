@@ -43,6 +43,9 @@ module Error: sig
     | Anonymous
     | Named of Path.t
     | Unit
+    | Empty_struct
+     (** For backward compatibility's sake, an empty struct can be implicitly
+         converted to an unit module. *)
 
   type core_sigitem_symptom =
     | Value_descriptions of
@@ -92,6 +95,13 @@ module Error: sig
     env: Env.t;
     missings: Types.signature_item list;
     incompatibles: (Ident.t * sigitem_symptom) list;
+<<<<<<< HEAD
+||||||| merged common ancestors
+    oks: (int * Typedtree.module_coercion) list;
+=======
+    oks: (int * Typedtree.module_coercion) list;
+    leftovers: ((Types.signature_item as 'it) * 'it * int) list
+>>>>>>> ocaml/5.1
     (** signature items that could not be compared due to type divergence *)
   }
   and sigitem_symptom =
