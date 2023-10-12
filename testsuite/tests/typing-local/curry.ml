@@ -21,9 +21,9 @@ end = struct
 end
 
 
-external is_local : local_ 'a -> bool = "caml_obj_is_local"
+external is_stack : local_ 'a -> bool = "caml_obj_is_stack"
 let loc (local_ x) =
-  if is_local x then 1 else 0
+  if is_stack x then 1 else 0
 
 let[@inline never] flocal (local_ arg) =
   let g = M.part_local in
