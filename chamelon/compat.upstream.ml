@@ -115,6 +115,7 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   | Tpat_var (ident, name) -> Tpat_var (ident, name, ())
   | Tpat_alias (p, ident, name) -> Tpat_alias (p, ident, name, ())
   | Tpat_array l -> Tpat_array (l, ())
+  | Tpat_tuple l -> Tpat_tuple (l, ())
   | _ -> O p
 
 type tstr_eval_identifier = unit
