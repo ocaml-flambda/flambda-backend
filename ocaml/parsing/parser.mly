@@ -3395,50 +3395,6 @@ reversed_labeled_tuple_body:
     { xs }
 ;
 
-(* We do not use [labeled_simple_expr] for labeled tuples because we do not
-   permit optional tuple fields, and because we want don't want to parse tuples
-   with no labels as labeled tuples. *)
-(*
-%inline strict_ltuple_component:
-  | LABEL simple_expr
-      { Some $1, $2 }
-  | TILDE label = LIDENT
-      { let loc = $loc(label) in
-        Some label, mkexpvar ~loc label }
-  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
-      { Some label,
-        mkexp_constraint
-          ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
-;
-
-%inline ltuple_component:
-  | expr
-      { None, $1 }
-  | strict_ltuple_component
-      { $1 }
-;
-
-// Length >= 2, at least one label
-reversed_ltuple_component_comma_list:
-  // Base case: the next three rules are the ways to produce a list of length 2
-  | strict_ltuple_component COMMA strict_ltuple_component
-      { [$3; $1] }
-  | expr COMMA strict_ltuple_component
-      { [$3; None, $1]}
-  | strict_ltuple_component COMMA expr
-      { [None, $3; $1]}
-  // One label, length > 2
-  | separated_nontrivial_llist(COMMA, expr) COMMA strict_ltuple_component
-      { $3 :: List.map (fun x -> None, x) $1 }
-  // Recursive case
-  | reversed_ltuple_component_comma_list COMMA ltuple_component
-      { $3 :: $1 }
-;
-
-%inline ltuple_component_comma_list:
-  | rev(reversed_ltuple_component_comma_list) { $1 }
-;
-*)
 record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
   fields = separated_or_terminated_nonempty_list(SEMI, record_expr_field)
