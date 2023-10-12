@@ -2065,17 +2065,68 @@ let expand_module_type =
   ref ((fun _env _mty -> assert false) :
       Env.t -> module_type -> module_type)
 
-let rec tree_of_modtype ?(ellipsis=false) = function
+(** How to abbreviate signatures *)
+module Abbrev = struct
+  (* The code is substantially simpler if [width] is mutable. Strictly speaking, [depth]
+     doesn't have to be mutable here but mixed mutability would be quite confusing. *)
+  type t =
+    { (* To what depth to unfold the module tree *)
+      mutable depth : int
+      (* How many signature items to print in total across all signatures *)
+    ; mutable width : int
+    }
+
+  (** Standard abbreviation heuristic *)
+  let abbrev () =
+    { depth = 4
+    ; width = 16
+    }
+
+  (** Don't print any signature items *)
+  let ellipsis () =
+    { depth = 0
+    ; width =  0
+    }
+
+  (** Should we print anything in this signature *)
+  let exhausted = function
+    | Some {depth; width} -> depth <= 0 || width <= 0
+    | None -> false
+
+  (** Run [f] at one deeper unfolding level *)
+  let deeper t f =
+    match t with
+    | Some t ->
+        let saved = t.depth in
+        t.depth <- t.depth - 1;
+        let x = f () in
+        t.depth <- saved;
+        x
+    | None -> f ()
+
+  (** Reduce the remaining width by the number of items in [sg] and return the number of
+      items to print in [sg] and a flag that inidicates whether [sg] is being trimmed. *)
+  let items t sg =
+    match t with
+    | Some t ->
+        let n = List.length sg in
+        let k = min t.width n in
+        t.width <- t.width - n;
+        Some k, (k < n)
+    | None ->
+        None, false
+end
+
+let rec tree_of_modtype ?abbrev = function
   | Mty_ident p ->
       Omty_ident (tree_of_path Module_type p)
   | Mty_signature sg ->
-      Omty_signature (if ellipsis then [Osig_ellipsis]
-                      else tree_of_signature sg)
+      Omty_signature (tree_of_signature ?abbrev sg)
   | Mty_functor(param, ty_res) ->
       let param, env =
-        tree_of_functor_parameter param
+        tree_of_functor_parameter ?abbrev param
       in
-      let res = wrap_env env (tree_of_modtype ~ellipsis) ty_res in
+      let res = wrap_env env (tree_of_modtype ?abbrev) ty_res in
       Omty_functor (param, res)
   | Mty_alias p ->
       Omty_alias (tree_of_path Module p)
@@ -2087,11 +2138,11 @@ let rec tree_of_modtype ?(ellipsis=false) = function
             && not (Env.is_functor_arg p !printing_env)
           in
           Omty_strengthen
-            (tree_of_modtype ~ellipsis mty, tree_of_path Module p, unaliasable)
-      | mty -> tree_of_modtype ~ellipsis mty
+            (tree_of_modtype ?abbrev mty, tree_of_path Module p, unaliasable)
+      | mty -> tree_of_modtype ?abbrev mty
       end
 
-and tree_of_functor_parameter = function
+and tree_of_functor_parameter ?abbrev = function
   | Unit ->
       None, fun k -> k
   | Named (param, ty_arg) ->
@@ -2102,30 +2153,59 @@ and tree_of_functor_parameter = function
             Some (Ident.name id),
             Env.add_module ~arg:true id Mp_present ty_arg
       in
-      Some (name, tree_of_modtype ~ellipsis:false ty_arg), env
+      Some (name, tree_of_modtype ?abbrev ty_arg), env
 
-and tree_of_signature sg =
-  wrap_env (fun env -> env)(fun sg ->
-      let tree_groups = tree_of_signature_rec !printing_env sg in
-      List.concat_map (fun (_env,l) -> List.map snd l) tree_groups
-    ) sg
+and tree_of_signature ?abbrev = function
+  | [] -> []
+  | _ when Abbrev.exhausted abbrev -> [Osig_ellipsis]
+  | sg ->
+    Abbrev.deeper abbrev (fun () ->
+      wrap_env (fun env -> env)(fun sg ->
+        (* Only expand signatures to 'abbrev.depth' depth and print at most 'abbrev.width'
+           items overall. We just keep decreasing 'abbrev.width' during the traversal but
+           make sure that we expand the current signature up to 'abbrev.width' before
+           expanding it's components. Below, 'max_items' is the number of items we should
+           print in the current signature and 'abbrev.width' is then be the remaining
+           number of items. This is simpler to implement than proper breadth-first. *)
+        let max_items, trimmed = Abbrev.items abbrev sg in
+        let tree_groups = tree_of_signature_rec ?abbrev ?max_items !printing_env sg in
+        let items = List.concat_map (fun (_env,l) -> List.map snd l) tree_groups in
+        if trimmed then items @ [Osig_ellipsis] else items
+        ) sg
+    )
 
-and tree_of_signature_rec env' sg =
+and tree_of_signature_rec ?abbrev ?max_items env' sg =
   let structured = List.of_seq (Signature_group.seq sg) in
-  let collect_trees_of_rec_group group =
-    let env = !printing_env in
-    let env', group_trees =
-      Naming_context.with_ctx
-        (fun () -> trees_of_recursive_sigitem_group env group)
-    in
-    set_printing_env env';
-    (env, group_trees) in
+  (* Don't descent into more than 'max_items' (if set) elements to save time. *)
+  let collect_trees_of_rec_group max_items group =
+    match max_items with
+    | Some n when n <= 0 -> (max_items, (!printing_env, []))
+    | Some _ | None ->
+        let env = !printing_env in
+        let env', group_trees =
+          Naming_context.with_ctx
+            (fun () -> trees_of_recursive_sigitem_group ?abbrev env group)
+        in
+        set_printing_env env';
+        let max_items, group_trees = match max_items with
+          | None -> None, group_trees
+          | Some n ->
+              let rec take n acc xs =
+                match n, xs with
+                | 0, _ | _, [] -> n, List.rev acc
+                | n, x :: xs -> take (n-1) (x :: acc) xs
+              in
+              let n, group_trees = take n [] group_trees in
+              Some n, group_trees
+        in
+        max_items, (env, group_trees)
+  in
   set_printing_env env';
-  List.map collect_trees_of_rec_group structured
+  snd (List.fold_left_map collect_trees_of_rec_group max_items structured)
 
-and trees_of_recursive_sigitem_group env
+and trees_of_recursive_sigitem_group ?abbrev env
     (syntactic_group: Signature_group.rec_group) =
-  let display (x:Signature_group.sig_item) = x.src, tree_of_sigitem x.src in
+  let display (x:Signature_group.sig_item) = x.src, tree_of_sigitem ?abbrev x.src in
   let env = Env.add_signature syntactic_group.pre_ghosts env in
   match syntactic_group.group with
   | Not_rec x -> add_sigitem env x, [display x]
@@ -2134,7 +2214,7 @@ and trees_of_recursive_sigitem_group env
       List.fold_left add_sigitem env items,
       with_hidden_items ids (fun () -> List.map display items)
 
-and tree_of_sigitem = function
+and tree_of_sigitem ?abbrev = function
   | Sig_value(id, decl, _) ->
       tree_of_value_description id decl
   | Sig_type(id, decl, rs, _) ->
@@ -2142,29 +2222,32 @@ and tree_of_sigitem = function
   | Sig_typext(id, ext, es, _) ->
       tree_of_extension_constructor id ext es
   | Sig_module(id, _, md, rs, _) ->
-      let ellipsis =
-        List.exists (function
-          | Parsetree.{attr_name = {txt="..."}; attr_payload = PStr []} -> true
-          | _ -> false)
-          md.md_attributes in
-      tree_of_module id md.md_type rs ~ellipsis
+      let abbrev =
+        if List.exists (function
+            | Parsetree.{attr_name = {txt="..."}; attr_payload = PStr []} -> true
+            | _ -> false)
+            md.md_attributes
+          then Some (Abbrev.ellipsis ())
+          else abbrev
+      in
+      tree_of_module ?abbrev id md.md_type rs
   | Sig_modtype(id, decl, _) ->
-      tree_of_modtype_declaration id decl
+      tree_of_modtype_declaration ?abbrev id decl
   | Sig_class(id, decl, rs, _) ->
       tree_of_class_declaration id decl rs
   | Sig_class_type(id, decl, rs, _) ->
       tree_of_cltype_declaration id decl rs
 
-and tree_of_modtype_declaration id decl =
+and tree_of_modtype_declaration ?abbrev id decl =
   let mty =
     match decl.mtd_type with
     | None -> Omty_abstract
-    | Some mty -> tree_of_modtype mty
+    | Some mty -> tree_of_modtype ?abbrev mty
   in
   Osig_modtype (Ident.name id, mty)
 
-and tree_of_module id ?ellipsis mty rs =
-  Osig_module (Ident.name id, tree_of_modtype ?ellipsis mty, tree_of_rec rs)
+and tree_of_module ?abbrev id mty rs =
+  Osig_module (Ident.name id, tree_of_modtype ?abbrev mty, tree_of_rec rs)
 
 let rec functor_parameters ~sep custom_printer = function
   | [] -> ignore
@@ -2836,8 +2919,17 @@ let report_ambiguous_type_error ppf env tp0 tpl txt1 txt2 txt3 =
           txt3 type_path_expansion tp0)
 
 (* Adapt functions to exposed interface *)
+let abbreviate ~abbrev f =
+  f ?abbrev:(if abbrev then Some (Abbrev.abbrev ()) else None)
+
 let tree_of_path = tree_of_path Other
-let tree_of_modtype = tree_of_modtype ~ellipsis:false
+let tree_of_module ident ?(ellipsis = false) =
+  tree_of_module ident ?abbrev:(if ellipsis then Some (Abbrev.ellipsis ()) else None)
+let tree_of_signature sg = tree_of_signature sg
+let tree_of_modtype ?(abbrev = false) ty =
+  abbreviate ~abbrev tree_of_modtype ty
+let tree_of_modtype_declaration ?(abbrev = false) id md =
+  abbreviate ~abbrev tree_of_modtype_declaration id md
 let type_expansion mode ppf ty_exp =
   type_expansion ppf (trees_of_type_expansion mode ty_exp)
 let tree_of_type_declaration ident td rs =

@@ -5,76 +5,76 @@ open! Regalloc_split_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module State = Regalloc_split_state
 
-(* [propagate_substitution state cfg substs start subst] propagates the
-   substitution [subst], from block [start] until new ones are defined.
-
-   In practice, it means that we stop propagating when we encounter a node with
-   either "definitions at beginning" or a "phi" because: - when there are new
-   definitions, they follow a destruction point, which means that every live
-   register will get a new name (thus replacing the binding in the current
-   substitution); - when there is a phi, it means that every register in the
-   substitution we are currently propagating is either no longer live, or needs
-   a phi move (thus replacing the binding in the current substitution).
-
-   The effect of the propagation is the addition of [subst] to the relevant
-   blocks in [substs]. *)
-let propagate_substitution :
+(* [remove_from_bindings state label ~field ~extract bindings] removes registers
+   in a set from [bindings]. The set is determined by (i) calling [field] on
+   [state] in order to get a map, (ii) retrieving the data associated with
+   [label] from this map, and (iii) calling [extract] on the data. *)
+let[@inline] remove_from_bindings :
     State.t ->
-    Cfg.t ->
-    Substitution.map ->
-    Cfg.basic_block ->
-    Substitution.t ->
-    unit =
- fun state cfg substs start subst ->
-  if split_debug then log ~indent:1 "propagate_substitution";
-  let visited = ref Label.Set.empty in
-  let rec iter (block : Cfg.basic_block) : unit =
-    if not (Label.Set.mem block.start !visited)
-    then (
-      if split_debug then log ~indent:2 "iter %d" block.start;
-      visited := Label.Set.add block.start !visited;
-      if Label.Tbl.mem substs block.start
-      then fatal "block %d already has a substitution" block.start;
-      Label.Tbl.replace substs block.start subst;
-      match destruction_point_at_end block with
-      | Some Destruction_on_all_paths -> ()
-      | None | Some Destruction_only_on_exceptional_path ->
-        let successor_labels =
-          Cfg.successor_labels block ~normal:true ~exn:false
-        in
-        Label.Set.iter
-          (fun successor_label ->
-            let definitions =
-              Label.Map.mem successor_label
-                (State.definitions_at_beginning state)
-            in
-            let phi =
-              Label.Map.mem successor_label (State.phi_at_beginning state)
-            in
-            if not (definitions || phi)
-            then iter (Cfg.get_block_exn cfg successor_label))
-          successor_labels)
-    else if split_debug
-    then log ~indent:2 "block %d already visited" block.start
-  in
-  iter start
+    Label.t ->
+    field:(State.t -> 'a Label.Map.t) ->
+    extract:('a -> Reg.Set.t) ->
+    Reg.t Reg.Map.t ->
+    Reg.t Reg.Map.t =
+ fun state label ~field ~extract bindings ->
+  match Label.Map.find_opt label (field state) with
+  | None -> bindings
+  | Some data ->
+    let regs = extract data in
+    Reg.Map.filter
+      (fun reg _ ->
+        let remove = Reg.Set.mem reg regs in
+        if split_debug
+        then if remove then log ~indent:3 "removing %a" Printmach.reg reg;
+        not remove)
+      bindings
 
-(* Computes the substitutions for all blocks, by introducing new registers at
-   reload points and then propagating the substitution until a new one takes
-   over. *)
-let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
- fun state cfg_with_infos ->
-  if split_debug then log ~indent:0 "compute_substitutions";
-  let cfg = Cfg_with_infos.cfg cfg_with_infos in
-  let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
-  let compute_substitution_for_block label =
-    if split_debug then log ~indent:1 "visiting block %d" label;
+(* [compute_substitution_tree state substs bindings tree] populates [substs]
+   with the substitutions computed for each block seen by iterating over the
+   tree in a prefix manner. [bindings] is the part of the substitutions
+   propagating from the parent node in the tree. In effect, the way names are
+   distributed is quite similar to what happens in SSA. *)
+let rec compute_substitution_tree :
+    State.t ->
+    Substitution.map ->
+    Reg.t Reg.Map.t ->
+    Cfg_dominators.dominator_tree ->
+    unit =
+ fun state substs bindings tree ->
+  let label = tree.label in
+  if split_debug then log ~indent:1 "compute_substitution_tree %d" label;
+  (* First, remove the phi and definitions from the bindings. *)
+  if split_debug then log ~indent:2 "removing from phis";
+  let bindings =
+    remove_from_bindings state label ~field:State.phi_at_beginning
+      ~extract:Fun.id bindings
+  in
+  if split_debug then log ~indent:2 "removing from definitions";
+  (* note: it is possible to have two definitions in a row (i.e. without any
+     destruction or phi between them), since we delete the dominated
+     destructions of constant values. *)
+  let bindings =
+    remove_from_bindings state label ~field:State.definitions_at_beginning
+      ~extract:Fun.id bindings
+  in
+  let subst = Reg.Tbl.create 17 in
+  Label.Tbl.replace substs label subst;
+  (* Second, add the bindings to the substitution. *)
+  if split_debug then log ~indent:2 "adding from bindings";
+  Reg.Map.iter
+    (fun old_reg new_reg ->
+      if split_debug
+      then log ~indent:3 "%a -> %a" Printmach.reg old_reg Printmach.reg new_reg;
+      Reg.Tbl.replace subst old_reg new_reg)
+    bindings;
+  (* Third, add the definitions to the substitution and bindings. *)
+  if split_debug then log ~indent:2 "adding from definitions";
+  let bindings =
     match Label.Map.find_opt label (State.definitions_at_beginning state) with
-    | None -> ()
+    | None -> bindings
     | Some renames ->
-      let subst = Reg.Tbl.create (Reg.Set.cardinal renames) in
-      Reg.Set.iter
-        (fun old_reg ->
+      Reg.Set.fold
+        (fun old_reg bindings ->
           let slots = State.stack_slots state in
           let (_ : int) = Regalloc_stack_slots.get_or_create slots old_reg in
           let new_reg = Reg.clone old_reg in
@@ -82,16 +82,34 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
             ~existing:old_reg;
           if split_debug
           then
-            log ~indent:2 "renaming %a to %a" Printmach.reg old_reg
+            log ~indent:3 "renaming %a to %a" Printmach.reg old_reg
               Printmach.reg new_reg;
-          Reg.Tbl.replace subst old_reg new_reg)
-        renames;
-      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      propagate_substitution state cfg substs block subst
+          Reg.Tbl.replace subst old_reg new_reg;
+          Reg.Map.add old_reg new_reg bindings)
+        renames bindings
   in
-  Cfg_dominators.iter_breadth_dominator_tree
-    (Cfg_with_infos.dominators cfg_with_infos)
-    ~f:compute_substitution_for_block;
+  (* Fourth, remove the destroyed registers from the bindings. *)
+  if split_debug then log ~indent:2 "removing from destructions";
+  let bindings =
+    remove_from_bindings state label ~field:State.destructions_at_end
+      ~extract:snd bindings
+  in
+  (* Finally, propagate the bindings to the children. *)
+  List.iter tree.children ~f:(fun child ->
+      compute_substitution_tree state substs bindings child)
+
+(* Computes the substitutions for all blocks, by introducing new registers at
+   reload points and then propagating names until new ones take over. *)
+let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
+ fun state cfg_with_infos ->
+  if split_debug then log ~indent:0 "compute_substitutions";
+  let cfg = Cfg_with_infos.cfg cfg_with_infos in
+  let dom_forest =
+    Cfg_dominators.dominator_forest (Cfg_with_infos.dominators cfg_with_infos)
+  in
+  let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+  List.iter dom_forest ~f:(fun dom_tree ->
+      compute_substitution_tree state substs Reg.Map.empty dom_tree);
   substs
 
 let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
@@ -412,7 +430,7 @@ let split_at_destruction_points :
   then (
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     log_dominance_frontier ~indent:1 (Cfg_with_infos.cfg cfg_with_infos) doms;
-    log_dominator_tree ~indent:1 (Cfg_dominators.dominator_tree doms));
+    log_dominator_forest ~indent:1 (Cfg_dominators.dominator_forest doms));
   match Label.Map.is_empty (State.definitions_at_beginning state) with
   | true ->
     log ~indent:1 "renaming_infos is empty (no new names introduced)";
