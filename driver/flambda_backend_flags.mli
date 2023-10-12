@@ -128,6 +128,7 @@ module Flambda2 : sig
       val max_unboxing_depth : int
       val can_inline_recursive_functions : bool
       val max_function_simplify_run : int
+      val shorten_symbol_names : bool
     end
 
     type flags = {
@@ -138,6 +139,7 @@ module Flambda2 : sig
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
+      shorten_symbol_names : bool;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -149,6 +151,7 @@ module Flambda2 : sig
     val max_unboxing_depth : int or_default ref
     val can_inline_recursive_functions : bool or_default ref
     val max_function_simplify_run : int or_default ref
+    val shorten_symbol_names : bool or_default ref
   end
 
   module Debug : sig

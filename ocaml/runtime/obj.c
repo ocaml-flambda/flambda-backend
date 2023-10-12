@@ -68,9 +68,9 @@ CAMLprim value caml_obj_make_forward (value blk, value fwd)
   return Val_unit;
 }
 
-CAMLprim value caml_obj_is_local(value blk)
+CAMLprim value caml_obj_is_stack(value blk)
 {
-  return Val_int(Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked);
+  return Val_int(Is_stack(blk));
 }
 
 CAMLprim value caml_get_header(value blk)

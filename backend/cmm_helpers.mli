@@ -471,18 +471,18 @@ val make_float_alloc :
 val make_checkbound : Debuginfo.t -> expression list -> expression
 
 (** [check_bound_and_alignment
-        ~skip_if_unsafe access_size dbg data length offset k]
+        ~skip_if_unsafe access_size dbg ~address ~length ~offset k]
     Prefixes expression [k] with a check that accessing [access_size] bits at
     [data + offset] is valid, unless [skip_if_unsafe] is [Unsafe].
     An access is valid if it is within the bound specified by [length], and
     the resulting address is sufficiently aligned. *)
 val check_bound_and_alignment :
-  skip_if_unsafe:Lambda.is_safe ->
+  Lambda.is_safe ->
   Clambda_primitives.memory_access_size ->
   Debuginfo.t ->
-  expression ->
-  expression ->
-  expression ->
+  address:expression ->
+  length:expression ->
+  offset:expression ->
   expression ->
   expression
 
