@@ -1599,3 +1599,51 @@ Error: This type signature for foo33 is not a value type.
 (* Test 34: Layout clash in polymorphic record type *)
 
 (* tested elsewhere *)
+
+(****************************************************)
+(* Test 35: check bad layout error in filter_arrow *)
+
+type ('a : immediate) t35 = 'a
+let f35 : 'a t35 = fun () -> ()
+
+[%%expect {|
+type ('a : immediate) t35 = 'a
+Line 2, characters 19-31:
+2 | let f35 : 'a t35 = fun () -> ()
+                       ^^^^^^^^^^^^
+Error:
+       'a -> 'b has layout value, which is not a sublayout of immediate.
+|}]
+
+(**************************************************)
+(* Test 36: Disallow non-representable statements *)
+
+let () = (assert false : t_any); ()
+[%%expect{|
+Line 1, characters 9-31:
+1 | let () = (assert false : t_any); ()
+             ^^^^^^^^^^^^^^^^^^^^^^
+Warning 10 [non-unit-statement]: this expression should have type unit.
+Uncaught exception: Ctype.Unify(_)
+
+|}]
+
+let () = while false do (assert false : t_any); done
+[%%expect{|
+Line 1, characters 24-46:
+1 | let () = while false do (assert false : t_any); done
+                            ^^^^^^^^^^^^^^^^^^^^^^
+Warning 10 [non-unit-statement]: this expression should have type unit.
+Uncaught exception: Ctype.Unify(_)
+
+|}]
+
+let () = for i = 0 to 0 do (assert false : t_any); done
+[%%expect{|
+Line 1, characters 27-49:
+1 | let () = for i = 0 to 0 do (assert false : t_any); done
+                               ^^^^^^^^^^^^^^^^^^^^^^
+Warning 10 [non-unit-statement]: this expression should have type unit.
+Uncaught exception: Ctype.Unify(_)
+
+|}]
