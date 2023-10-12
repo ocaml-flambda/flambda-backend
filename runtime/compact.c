@@ -261,18 +261,16 @@ static void do_compaction (intnat new_allocation_policy)
 
           if (t == Closure_tag){
             /* Revert the infix pointers to this block. */
-            mlsize_t i;
+            mlsize_t i, startenv;
             value v;
 
             v = Val_hp (p);
+            startenv = Start_env_closinfo (Closinfo_val (v));
             i = 0;
             while (1){
-              int arity;
-              uintnat closinfo = Field (v, i+1);
-              if (Is_last_closinfo (closinfo)) break;
-              arity = Arity_closinfo (closinfo);
+              int arity = Arity_closinfo (Field (v, i+1));
               i += 2 + (arity != 0 && arity != 1);
-              CAMLassert (i < Start_env_closinfo (Closinfo_val (v)));
+              if (i >= startenv) break;
 
               /* Revert the inverted list for infix header at offset [i]. */
               q = Field (v, i);

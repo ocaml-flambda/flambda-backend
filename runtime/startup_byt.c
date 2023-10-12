@@ -572,11 +572,8 @@ CAMLexport void caml_main(char_os **argv)
   caml_close_channel(chan); /* this also closes fd */
   caml_stat_free(trail.section);
   /* Ensure that the globals are in the major heap. */
-  {
-    CAMLparam1(caml_global_data);
-    caml_minor_collection();
-    CAMLdrop;
-  }
+  caml_oldify_one (caml_global_data, &caml_global_data);
+  caml_oldify_mopup ();
   /* Initialize system libraries */
   caml_sys_init(exe_name, argv + pos);
   /* Load debugging info, if b>=2 */
@@ -665,11 +662,8 @@ CAMLexport value caml_startup_code_exn(
   /* Load the globals */
   caml_global_data = caml_input_value_from_block(data, data_size);
   /* Ensure that the globals are in the major heap. */
-  {
-    CAMLparam1(caml_global_data);
-    caml_minor_collection();
-    CAMLdrop;
-  }
+  caml_oldify_one (caml_global_data, &caml_global_data);
+  caml_oldify_mopup ();
   /* Record the sections (for caml_get_section_table in meta.c) */
   caml_section_table = section_table;
   caml_section_table_size = section_table_size;

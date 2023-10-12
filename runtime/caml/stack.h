@@ -44,11 +44,9 @@
 #else
 #error "TARGET_power: wrong MODEL"
 #endif
-/* Already_scanned optimisation not supported on this branch
 #define Already_scanned(sp, retaddr) ((retaddr) & 1)
 #define Mask_already_scanned(retaddr) ((retaddr) & ~1)
 #define Mark_scanned(sp, retaddr) Saved_return_address(sp) = (retaddr) | 1
-*/
 #endif
 
 #ifdef TARGET_s390x
@@ -86,8 +84,9 @@ struct caml_context {
 };
 
 /* Structure of frame descriptors */
+
 typedef struct {
-  int32_t retaddr_rel;
+  uintnat retaddr;
   unsigned short frame_size;
   unsigned short num_live;
   unsigned short live_ofs[1 /* num_live */];
@@ -102,29 +101,6 @@ typedef struct {
     Debug info is stored as relative offsets to debuginfo structures.
     num_debug is num_alloc if frame_size & 2, otherwise 1. */
 } frame_descr;
-
-typedef struct {
-  int32_t retaddr_rel;
-  unsigned short marker;        /* LONG_FRAME_MARKER */
-  unsigned short _pad;  /* Ensure frame_size is 4-byte aligned */
-  uint32_t frame_size;
-  uint32_t num_live;
-  uint32_t live_ofs[1 /* num_live */];
-  /*
-    If frame_size & 2, then allocation info follows:
-  unsigned char num_allocs;
-  unsigned char alloc_lengths[num_alloc];
-
-    If frame_size & 1, then debug info follows:
-  uint32_t debug_info_offset[num_debug];
-
-    Debug info is stored as relative offsets to debuginfo structures.
-    num_debug is num_alloc if frame_size & 2, otherwise 1. */
-} frame_descr_long;
-
-/* Helpers for long frames */
-uint32_t caml_get_frame_size(frame_descr *);
-unsigned char * caml_get_end_of_live_ofs (frame_descr *d);
 
 /* Allocation lengths are encoded as 0-255, giving sizes 1-256 */
 #define Wosize_encoded_alloc_len(n) ((uintnat)(n) + 1)
@@ -142,10 +118,6 @@ extern uintnat caml_frame_descriptors_mask;
 
 #define Hash_retaddr(addr) \
   (((uintnat)(addr) >> 3) & caml_frame_descriptors_mask)
-
-#define Retaddr_frame(d) \
-  ((uintnat)&(d)->retaddr_rel + \
-   (uintnat)(intnat)((d)->retaddr_rel))
 
 extern void caml_init_frame_descriptors(void);
 extern void caml_register_frametable(intnat *);
@@ -167,7 +139,6 @@ extern intnat * caml_frametable[];
 #define caml_last_return_address (Caml_state_field(last_return_address))
 #define caml_gc_regs (Caml_state_field(gc_regs))
 #define caml_exception_pointer (Caml_state_field(exception_pointer))
-#define caml_async_exception_pointer (Caml_state_field(async_exception_pointer))
 
 CAMLextern frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp);
 

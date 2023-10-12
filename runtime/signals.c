@@ -32,7 +32,6 @@
 #include "caml/sys.h"
 #include "caml/memprof.h"
 #include "caml/finalise.h"
-#include "caml/printexc.h"
 
 #ifndef NSIG
 #define NSIG 64
@@ -154,8 +153,7 @@ CAMLexport void caml_enter_blocking_section(void)
 {
   while (1){
     /* Process all pending signals now */
-    caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-                                  "signal handler");
+    caml_raise_if_exception(caml_process_pending_signals_exn());
     caml_enter_blocking_section_hook ();
     /* Check again for pending signals.
        If none, done; otherwise, try again */
@@ -194,35 +192,6 @@ CAMLexport void caml_leave_blocking_section(void)
   }
 
   errno = saved_errno;
-}
-
-static void check_async_exn(value res, const char *msg)
-{
-  value exn;
-  const value *break_exn;
-
-  if (!Is_exception_result(res))
-    return;
-
-  exn = Extract_exception(res);
-
-  /* [Break] is not introduced as a predefined exception (in predef.ml and
-     stdlib.ml) since it causes trouble in conjunction with warnings about
-     constructor shadowing e.g. in format.ml.
-     "Sys.Break" must match stdlib/sys.mlp. */
-  break_exn = caml_named_value("Sys.Break");
-  if (break_exn != NULL && exn == *break_exn)
-    return;
-
-  caml_fatal_uncaught_exception_with_message(exn, msg);
-}
-
-void caml_raise_async_if_exception(value res, const char* where)
-{
-  if (Is_exception_result(res)) {
-    check_async_exn(res, where);
-    caml_raise_async(Extract_exception(res));
-  }
 }
 
 /* Execute a signal handler immediately */
@@ -301,17 +270,14 @@ value caml_do_pending_actions_exn(void)
 
   // Call signal handlers first
   exn = caml_process_pending_signals_exn();
-  check_async_exn(exn, "signal handler");
   if (Is_exception_result(exn)) goto exception;
 
   // Call memprof callbacks
   exn = caml_memprof_handle_postponed_exn();
-  check_async_exn(exn, "memprof callback");
   if (Is_exception_result(exn)) goto exception;
 
   // Call finalisers
   exn = caml_final_do_calls_exn();
-  check_async_exn(exn, "finaliser");
   if (Is_exception_result(exn)) goto exception;
 
   return Val_unit;
@@ -352,8 +318,7 @@ value caml_process_pending_actions_with_root_exn(value extra_root)
 value caml_process_pending_actions_with_root(value extra_root)
 {
   value res = process_pending_actions_with_root_exn(extra_root);
-  caml_raise_async_if_exception(res, "");
-  return res;
+  return caml_raise_if_exception(res);
 }
 
 CAMLexport value caml_process_pending_actions_exn(void)
@@ -364,7 +329,7 @@ CAMLexport value caml_process_pending_actions_exn(void)
 CAMLexport void caml_process_pending_actions(void)
 {
   value exn = process_pending_actions_with_root_exn(Val_unit);
-  caml_raise_async_if_exception(exn, "");
+  caml_raise_if_exception(exn);
 }
 
 /* OS-independent numbering of signals */
@@ -521,7 +486,6 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     }
     caml_modify(&Field(caml_signal_handlers, sig), Field(action, 0));
   }
-  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-                                "signal handler");
+  caml_raise_if_exception(caml_process_pending_signals_exn());
   CAMLreturn (res);
 }

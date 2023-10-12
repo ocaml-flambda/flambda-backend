@@ -130,20 +130,10 @@ static void reset_table (struct generic_table *tbl)
   tbl->base = tbl->ptr = tbl->threshold = tbl->limit = tbl->end = NULL;
 }
 
-static void clear_table (struct generic_table *tbl,
-                         asize_t element_size,
-                         const char* name)
+static void clear_table (struct generic_table *tbl)
 {
-  asize_t maxsz = Caml_state->minor_heap_wsz;
-  if (tbl->size <= maxsz) {
     tbl->ptr = tbl->base;
     tbl->limit = tbl->threshold;
-  } else {
-    caml_gc_message (0x08, "Shrinking %s to %ldk bytes\n",
-                     name,
-                     (long)((maxsz * element_size) / 1024));
-    alloc_generic_table(tbl, Caml_state->minor_heap_wsz, 256, element_size);
-  }
 }
 
 void caml_set_minor_heap_size (asize_t bsz)
@@ -164,9 +154,9 @@ void caml_set_minor_heap_size (asize_t bsz)
   }
   CAMLassert (Caml_state->young_ptr == Caml_state->young_alloc_end);
   new_heap = caml_stat_alloc_aligned_noexc(bsz, 0, &new_heap_base);
-  if (new_heap == NULL) caml_fatal_out_of_memory();
+  if (new_heap == NULL) caml_raise_out_of_memory();
   if (caml_page_table_add(In_young, new_heap, new_heap + bsz) != 0)
-    caml_fatal_out_of_memory();
+    caml_raise_out_of_memory();
 
   if (Caml_state->young_start != NULL){
     caml_page_table_remove(In_young, Caml_state->young_start,
@@ -358,48 +348,6 @@ void caml_oldify_mopup (void)
   if (redo) goto again;
 }
 
-#ifdef DEBUG
-static void verify_minor_heap()
-{
-  header_t* p;
-  struct caml_local_arena* arena = Caml_state->local_arenas ?
-    &Caml_state->local_arenas->arenas[Caml_state->local_arenas->count-1] : NULL;
-  for (p = (header_t*)Caml_state->young_ptr;
-       p < (header_t*)Caml_state->young_alloc_end;
-       p += Whsize_hp(p)) {
-    header_t hd = *p;
-    CAMLassert_young_header(hd);
-    if (Tag_hd(hd) < No_scan_tag) {
-      intnat i = 0;
-      if (Tag_hd(hd) == Closure_tag)
-        i = Start_env_closinfo(Closinfo_val(Val_hp(p)));
-      for (; i < Wosize_hd(hd); i++) {
-        value v = Field(Val_hp(p), i);
-        if (Is_block(v)) {
-          if (Is_young(v)) CAMLassert ((value)Caml_state->young_ptr < v);
-          if (arena) {
-            CAMLassert(!(arena->base <= (char*)v &&
-                         (char*)v < arena->base + arena->length));
-          }
-        }
-      }
-    }
-  }
-  if (arena) {
-    value** r;
-    for (r = Caml_state->ref_table->base;
-         r < Caml_state->ref_table->ptr; r++) {
-      CAMLassert(!(arena->base <= (char*)*r &&
-                   (char*)*r < arena->base + arena->length));
-      if (Is_block(**r)) {
-        CAMLassert(!(arena->base <= (char*)**r &&
-                     (char*)**r < arena->base + arena->length));
-      }
-    }
-  }
-}
-#endif
-
 /* Make sure the minor heap is empty by performing a minor collection
    if needed.
 */
@@ -412,13 +360,8 @@ void caml_empty_minor_heap (void)
 
   if (Caml_state->young_ptr != Caml_state->young_alloc_end){
     CAMLassert_young_header(*(header_t*)Caml_state->young_ptr);
-#ifdef DEBUG
-    verify_minor_heap();
-#endif
     if (caml_minor_gc_begin_hook != NULL) (*caml_minor_gc_begin_hook) ();
     prev_alloc_words = caml_allocated_words;
-    if (Caml_state->in_minor_collection)
-      caml_fatal_error("Minor GC triggered recursively");
     Caml_state->in_minor_collection = 1;
     caml_gc_message (0x02, "<");
     CAML_EV_BEGIN(EV_MINOR_LOCAL_ROOTS);
@@ -478,15 +421,9 @@ void caml_empty_minor_heap (void)
       (double) (Caml_state->young_alloc_end - Caml_state->young_ptr)
       / Caml_state->minor_heap_wsz;
     Caml_state->young_ptr = Caml_state->young_alloc_end;
-    clear_table ((struct generic_table *) Caml_state->ref_table,
-                 sizeof(value *),
-                 "ref_table");
-    clear_table ((struct generic_table *) Caml_state->ephe_ref_table,
-                 sizeof(struct caml_ephe_ref_elt),
-                 "ephe_ref_table");
-    clear_table ((struct generic_table *) Caml_state->custom_table,
-                 sizeof(struct caml_custom_elt),
-                 "custom_table");
+    clear_table ((struct generic_table *) Caml_state->ref_table);
+    clear_table ((struct generic_table *) Caml_state->ephe_ref_table);
+    clear_table ((struct generic_table *) Caml_state->custom_table);
     Caml_state->extra_heap_resources_minor = 0;
     caml_gc_message (0x02, ">");
     Caml_state->in_minor_collection = 0;
@@ -582,7 +519,7 @@ void caml_alloc_small_dispatch (intnat wosize, int flags,
     if (flags & CAML_FROM_CAML)
       /* In the case of allocations performed from OCaml, execute
          asynchronous callbacks. */
-      caml_raise_async_if_exception(caml_do_pending_actions_exn (), "minor GC");
+      caml_raise_if_exception(caml_do_pending_actions_exn ());
     else {
       caml_check_urgent_gc (Val_unit);
       /* In the case of long-running C code that regularly polls with

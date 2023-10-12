@@ -49,13 +49,10 @@ CAMLextern value caml_alloc_shr_no_track_noexc (mlsize_t, tag_t);
    parameter. */
 CAMLextern value caml_alloc_shr_for_minor_gc (mlsize_t, tag_t, header_t);
 
-CAMLextern value caml_alloc_local(mlsize_t, tag_t);
-
 CAMLextern void caml_adjust_gc_speed (mlsize_t, mlsize_t);
 CAMLextern void caml_alloc_dependent_memory (mlsize_t bsz);
 CAMLextern void caml_free_dependent_memory (mlsize_t bsz);
 CAMLextern void caml_modify (value *, value);
-CAMLextern void caml_modify_local (value obj, intnat i, value val);
 CAMLextern void caml_initialize (value *, value);
 CAMLextern value caml_check_urgent_gc (value);
 CAMLextern color_t caml_allocation_color (void *hp);
@@ -251,9 +248,6 @@ extern void caml_alloc_small_dispatch (intnat wosize, int flags,
   CAML_DEPRECATED("Modify", "caml_modify") \
   caml_modify((fp), (val))
 
-struct caml_local_arenas* caml_get_local_arenas();
-void caml_set_local_arenas(struct caml_local_arenas* s);
-
 #endif /* CAML_INTERNALS */
 
 struct caml__roots_block {
@@ -298,7 +292,6 @@ struct caml__roots_block {
 */
 
 #define CAMLparam0() \
-  int caml__missing_CAMLreturn = 0; \
   struct caml__roots_block *caml__frame = Caml_state_field(local_roots)
 
 #define CAMLparam1(x) \
@@ -336,7 +329,7 @@ struct caml__roots_block {
   #define CAMLunused_start __attribute__ ((unused))
   #define CAMLunused_end
   #define CAMLunused __attribute__ ((unused))
-#elif defined(_MSC_VER) && _MSC_VER >= 1500
+#elif _MSC_VER >= 1500
   #define CAMLunused_start  __pragma( warning (push) )           \
     __pragma( warning (disable:4189 ) )
   #define CAMLunused_end __pragma( warning (pop))
@@ -458,10 +451,7 @@ struct caml__roots_block {
   CAMLxparamN (x, (size))
 
 
-#define CAMLdrop do { \
-  (void)caml__missing_CAMLreturn; \
-  Caml_state_field(local_roots) = caml__frame; \
-} while (0)
+#define CAMLdrop Caml_state_field(local_roots) = caml__frame
 
 #define CAMLreturn0 do{ \
   CAMLdrop; \
@@ -476,7 +466,7 @@ struct caml__roots_block {
 
 #define CAMLreturn(result) CAMLreturnT(value, result)
 
-#define CAMLnoreturn ((void) caml__missing_CAMLreturn, (void) caml__frame)
+#define CAMLnoreturn ((void) caml__frame)
 
 
 /* convenience macro */

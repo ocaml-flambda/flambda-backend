@@ -1723,7 +1723,6 @@ static void bf_make_free_blocks (value *p, mlsize_t size, int do_merge,
                                  int color)
 {
   mlsize_t sz, wosz;
-  tag_t tag;
 
   while (size > 0){
     if (size > Whsize_wosize (Max_wosize)){
@@ -1738,12 +1737,10 @@ static void bf_make_free_blocks (value *p, mlsize_t size, int do_merge,
       }else{
         color = Caml_blue;
       }
-      tag = color == Caml_blue ? 0 : Abstract_tag;
-      *(header_t *)p = Make_header (wosz, tag, color);
+      *(header_t *)p = Make_header (wosz, 0, color);
       bf_insert_remnant (Val_hp (p));
     }else{
-      tag = color == Caml_blue ? 0 : Abstract_tag;
-      *(header_t *)p = Make_header (wosz, tag, color);
+      *(header_t *)p = Make_header (wosz, 0, color);
     }
     size -= sz;
     p += sz;

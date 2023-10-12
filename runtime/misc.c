@@ -70,9 +70,6 @@ void caml_gc_message (int level, char *msg, ...)
   if ((caml_verb_gc & level) != 0){
     va_list ap;
     va_start(ap, msg);
-    if (caml_verb_gc & 0x1000) {
-      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
-    }
     vfprintf (stderr, msg, ap);
     va_end(ap);
     fflush (stderr);
@@ -94,11 +91,6 @@ CAMLexport void caml_fatal_error (char *msg, ...)
   }
   va_end(ap);
   abort();
-}
-
-void caml_fatal_out_of_memory(void)
-{
-  caml_fatal_error("Out of memory");
 }
 
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)
@@ -210,19 +202,3 @@ int caml_runtime_warnings_active(void)
   }
   return 1;
 }
-
-/* Flambda 2 invalid term markers */
-
-CAMLnoreturn_start
-void caml_flambda2_invalid (value message)
-CAMLnoreturn_end;
-
-void caml_flambda2_invalid (value message)
-{
-  fprintf (stderr, "[ocaml] [flambda2] Invalid code:\n%s\n\n",
-    String_val(message));
-  fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
-  fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
-  abort ();
-}
-

@@ -346,7 +346,7 @@ caml_system__code_end:
         .type   caml_system__frametable, @object
 caml_system__frametable:
         .quad   1               /* one descriptor */
-        .4byte  .L105 - .           /* return address into callback */
+        .quad   .L105           /* return address into callback */
         .short  -1              /* negative size count => use callback link */
         .short  0               /* no roots here */
         .align  8

@@ -35,7 +35,7 @@
   /* Supported since at least GCC 3.1 */
   #define CAMLdeprecated_typedef(name, type) \
     typedef type name __attribute ((deprecated))
-#elif defined(_MSC_VER) && _MSC_VER >= 1310
+#elif _MSC_VER >= 1310
   /* NB deprecated("message") only supported from _MSC_VER >= 1400 */
   #define CAMLdeprecated_typedef(name, type) \
     typedef __declspec(deprecated) type name
@@ -43,8 +43,7 @@
   #define CAMLdeprecated_typedef(name, type) typedef type name
 #endif
 
-#if defined(__GNUC__) && __STDC_VERSION__ >= 199901L \
- || defined(_MSC_VER) && _MSC_VER >= 1925
+#if defined(__GNUC__) && __STDC_VERSION__ >= 199901L || _MSC_VER >= 1925
 
 #define CAML_STRINGIFY(x) #x
 #ifdef _MSC_VER
@@ -91,7 +90,7 @@ CAMLdeprecated_typedef(addr, char *);
   #define CAMLnoreturn_start
   #define CAMLnoreturn_end __attribute__ ((noreturn))
   #define Noreturn __attribute__ ((noreturn))
-#elif defined(_MSC_VER) && _MSC_VER >= 1500
+#elif _MSC_VER >= 1500
   #define CAMLnoreturn_start __declspec(noreturn)
   #define CAMLnoreturn_end
   #define Noreturn
@@ -139,12 +138,11 @@ CAMLdeprecated_typedef(addr, char *);
 /* we need to be able to compute the exact offset of each member. */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #define CAMLalign(n) _Alignas(n)
-#elif defined(__cplusplus) \
-   && (__cplusplus >= 201103L || defined(_MSC_VER) && _MSC_VER >= 1900)
+#elif defined(__cplusplus) && (__cplusplus >= 201103L || _MSC_VER >= 1900)
 #define CAMLalign(n) alignas(n)
 #elif defined(SUPPORTS_ALIGNED_ATTRIBUTE)
 #define CAMLalign(n) __attribute__((aligned(n)))
-#elif defined(_MSC_VER) && _MSC_VER >= 1500
+#elif _MSC_VER >= 1500
 #define CAMLalign(n) __declspec(align(n))
 #else
 #error "How do I align values on this platform?"
@@ -172,7 +170,7 @@ CAMLdeprecated_typedef(addr, char *);
   #define CAMLunused_start __attribute__ ((unused))
   #define CAMLunused_end
   #define CAMLunused __attribute__ ((unused))
-#elif defined(_MSC_VER) && _MSC_VER >= 1500
+#elif _MSC_VER >= 1500
   #define CAMLunused_start  __pragma( warning (push) )           \
     __pragma( warning (disable:4189 ) )
   #define CAMLunused_end __pragma( warning (pop))
@@ -249,10 +247,6 @@ CAMLextern void caml_fatal_error (char *, ...)
 #ifdef __GNUC__
   __attribute__ ((format (printf, 1, 2)))
 #endif
-CAMLnoreturn_end;
-
-CAMLnoreturn_start
-CAMLextern void caml_fatal_out_of_memory (void)
 CAMLnoreturn_end;
 
 /* Detection of available C built-in functions, the Clang way. */
@@ -471,11 +465,9 @@ int caml_runtime_warnings_active(void);
 #define Debug_free_shrink    Debug_tag (0x03)
 #define Debug_free_truncate  Debug_tag (0x04)
 #define Debug_free_unused    Debug_tag (0x05)
-#define Debug_free_local     Debug_tag (0x06)
 #define Debug_uninit_minor   Debug_tag (0x10)
 #define Debug_uninit_major   Debug_tag (0x11)
 #define Debug_uninit_align   Debug_tag (0x15)
-#define Debug_uninit_local   Debug_tag (0x16)
 #define Debug_filler_align   Debug_tag (0x85)
 #define Debug_pool_magic     Debug_tag (0x99)
 

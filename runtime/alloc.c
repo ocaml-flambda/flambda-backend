@@ -95,20 +95,6 @@ CAMLexport value caml_alloc_string (mlsize_t len)
 }
 
 /* [len] is a number of bytes (chars) */
-CAMLexport value caml_alloc_local_string (mlsize_t len)
-{
-  mlsize_t offset_index;
-  mlsize_t wosize = (len + sizeof (value)) / sizeof (value);
-  value result;
-
-  result = caml_alloc_local(wosize, String_tag);
-  Field (result, wosize - 1) = 0;
-  offset_index = Bsize_wsize (wosize) - 1;
-  Byte (result, offset_index) = offset_index - len;
-  return result;
-}
-
-/* [len] is a number of bytes (chars) */
 CAMLexport value caml_alloc_initialized_string (mlsize_t len, const char *p)
 {
   value result = caml_alloc_string (len);
@@ -229,7 +215,7 @@ CAMLprim value caml_alloc_dummy_infix(value vsize, value voffset)
      block contains no pointers into the heap.  However, the block
      cannot be marshaled or hashed, because not all closinfo fields
      and infix header fields are correctly initialized. */
-  Closinfo_val(v) = Make_closinfo(0, wosize, 1);
+  Closinfo_val(v) = Make_closinfo(0, wosize);
   if (offset > 0) {
     v += Bsize_wsize(offset);
     Hd_val(v) = Make_header(offset, Infix_tag, Caml_white);

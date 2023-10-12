@@ -436,7 +436,7 @@ caml_system__code_end:
         .globl  caml_system__frametable
 caml_system__frametable:
         .word   1               /* one descriptor */
-        .word   .Lcaml_retaddr - .  /* return address into callback */
+        .word   .Lcaml_retaddr  /* return address into callback */
         .short  -1              /* negative frame size => use callback link */
         .short  0               /* no roots */
         .align  2

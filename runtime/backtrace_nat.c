@@ -41,13 +41,13 @@ frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp)
     while (1) {
       d = caml_frame_descriptors[h];
       if (d == NULL) return NULL; /* happens if some code compiled without -g */
-      if (Retaddr_frame(d) == *pc) break;
+      if (d->retaddr == *pc) break;
       h = (h+1) & caml_frame_descriptors_mask;
     }
     /* Skip to next frame */
     if (d->frame_size != 0xFFFF) {
       /* Regular frame, update sp/pc and return the frame descriptor */
-      *sp += (caml_get_frame_size(d) & 0xFFFFFFFC);
+      *sp += (d->frame_size & 0xFFFC);
       *pc = Saved_return_address(*sp);
 #ifdef Mask_already_scanned
       *pc = Mask_already_scanned(*pc);
@@ -164,19 +164,17 @@ static debuginfo debuginfo_extract(frame_descr* d, int alloc_idx)
 {
   unsigned char* infoptr;
   uint32_t debuginfo_offset;
-  uint32_t frame_size;
 
   /* The special frames marking the top of an ML stack chunk are never
      returned by caml_next_frame_descriptor, so should never reach here. */
-  CAMLassert(d->frame_size != 0xFFFF);
-  frame_size = caml_get_frame_size(d);
+  CAMLassert(d->frame_size != 0xffff);
 
-  if ((frame_size & 1) == 0) {
+  if ((d->frame_size & 1) == 0) {
     return NULL;
   }
   /* Recover debugging info */
-  infoptr = caml_get_end_of_live_ofs(d);
-  if (frame_size & 2) {
+  infoptr = (unsigned char*)&d->live_ofs[d->num_live];
+  if (d->frame_size & 2) {
     CAMLassert(alloc_idx == -1 || (0 <= alloc_idx && alloc_idx < *infoptr));
     /* skip alloc_lengths */
     infoptr += *infoptr + 1;

@@ -54,13 +54,7 @@ void caml_init_domain ()
   Caml_state->trapsp = NULL;
   Caml_state->trap_barrier = NULL;
   Caml_state->external_raise = NULL;
-  Caml_state->external_raise_async = NULL;
   Caml_state->exn_bucket = Val_unit;
-
-  Caml_state->local_arenas = NULL;
-  Caml_state->local_sp = 0;
-  Caml_state->local_top = NULL;
-  Caml_state->local_limit = 0;
 
   Caml_state->top_of_stack = NULL;
   Caml_state->bottom_of_stack = NULL; /* no stack initially */
@@ -78,7 +72,6 @@ void caml_init_domain ()
   Caml_state->stat_forced_major_collections = 0;
   Caml_state->stat_heap_chunks = 0;
 
-  Caml_state->raising_async_exn = 0;
   Caml_state->backtrace_active = 0;
   Caml_state->backtrace_pos = 0;
   Caml_state->backtrace_buffer = NULL;

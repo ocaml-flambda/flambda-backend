@@ -50,9 +50,9 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
 #ifdef THREADED_CODE
 #  define Instruct(name) lbl_##name
 #  if defined(ARCH_SIXTYFOUR) && !defined(ARCH_CODE32)
-#    define Jumptbl_base &&lbl_ACC0
+#    define Jumptbl_base ((char *) &&lbl_ACC0)
 #  else
-#    define Jumptbl_base 0
+#    define Jumptbl_base ((char *) 0)
 #    define jumptbl_base ((char *) 0)
 #  endif
 #  ifdef DEBUG
@@ -232,14 +232,11 @@ value caml_interprete(code_t prog, asize_t prog_size)
   value env;
   intnat extra_args;
   struct longjmp_buffer * initial_external_raise;
-  struct longjmp_buffer * initial_external_raise_async;
   intnat initial_sp_offset;
-  intnat initial_trapsp_offset;
-  /* volatile ensures that initial_local_roots will keep correct values across
-     longjmp.  The other "initial_..." variables don't need "volatile"
-     because they aren't changed between the setjmp and any longjmp. */
+  /* volatile ensures that initial_local_roots
+     will keep correct value across longjmp */
   struct caml__roots_block * volatile initial_local_roots;
-  struct longjmp_buffer raise_buf, raise_async_buf;
+  struct longjmp_buffer raise_buf;
 #ifndef THREADED_CODE
   opcode_t curr_instr;
 #endif
@@ -252,7 +249,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
   if (prog == NULL) {           /* Interpreter is initializing */
 #ifdef THREADED_CODE
-    caml_init_thread_code(jumptable, Jumptbl_base);
+    caml_instr_table = (char **) jumptable;
+    caml_instr_base = Jumptbl_base;
 #endif
     return Val_unit;
   }
@@ -264,10 +262,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
   initial_sp_offset =
     (char *) Caml_state->stack_high - (char *) Caml_state->extern_sp;
   initial_external_raise = Caml_state->external_raise;
-  initial_external_raise_async = Caml_state->external_raise_async;
-  initial_trapsp_offset =
-    (char *) Caml_state->stack_high - (char *) Caml_state->trapsp;
-
   caml_callback_depth++;
 
   if (sigsetjmp(raise_buf.buf, 0)) {
@@ -285,29 +279,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
     goto raise_notrace;
   }
   Caml_state->external_raise = &raise_buf;
-
-  if (sigsetjmp(raise_async_buf.buf, 0)) {
-    Caml_state->local_roots = initial_local_roots;
-    sp = Caml_state->extern_sp;
-    accu = Caml_state->exn_bucket;
-
-    Check_trap_barrier;
-    if (Caml_state->backtrace_active) {
-      caml_stash_backtrace(accu, sp, 0);
-    }
-
-    /* Skip any exception handlers installed by this invocation of
-       [caml_interprete].  This will cause the [raise_notrace] code below to
-       return asynchronous exceptions to the caller, typically in
-       [caml_callbackN_exn0].  When that function reraises such an exception
-       then [Caml_state->trapsp] will correctly be pointing at the most
-       recent prior trap. */
-    Caml_state->trapsp = (value *) ((char *) Caml_state->stack_high
-                                      - initial_trapsp_offset);
-
-    goto raise_notrace;
-  }
-  Caml_state->external_raise_async = &raise_async_buf;
 
   sp = Caml_state->extern_sp;
   pc = prog;
@@ -568,7 +539,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         Field(accu, 2) = env;
         for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
         Code_val(accu) = pc - 3; /* Point to the preceding RESTART instr. */
-        Closinfo_val(accu) = Make_closinfo(0, 2, 1);
+        Closinfo_val(accu) = Make_closinfo(0, 2);
         sp += num_args;
         pc = (code_t)(sp[0]);
         env = sp[1];
@@ -596,7 +567,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       /* The code pointer is not in the heap, so no need to go through
          caml_initialize. */
       Code_val(accu) = pc + *pc;
-      Closinfo_val(accu) = Make_closinfo(0, 2, 1);
+      Closinfo_val(accu) = Make_closinfo(0, 2);
       pc++;
       sp += nvars;
       Next;
@@ -628,14 +599,13 @@ value caml_interprete(code_t prog, asize_t prog_size)
       *--sp = accu;
       p = &Field(accu, 0);
       *p++ = (value) (pc + pc[0]);
-      *p++ = Make_closinfo(0, envofs, nfuncs < 2);
+      *p++ = Make_closinfo(0, envofs);
       for (i = 1; i < nfuncs; i++) {
         *p++ = Make_header(i * 3, Infix_tag, Caml_white); /* color irrelevant */
         *--sp = (value) p;
         *p++ = (value) (pc + pc[i]);
         envofs -= 3;
-        CAMLassert(i <= nfuncs - 1);
-        *p++ = Make_closinfo(0, envofs, i == nfuncs - 1);
+        *p++ = Make_closinfo(0, envofs);
       }
       pc += nfuncs;
       Next;
@@ -919,7 +889,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
       if ((char *) Caml_state->trapsp
           >= (char *) Caml_state->stack_high - initial_sp_offset) {
         Caml_state->external_raise = initial_external_raise;
-        Caml_state->external_raise_async = initial_external_raise_async;
         Caml_state->extern_sp = (value *) ((char *) Caml_state->stack_high
                                     - initial_sp_offset);
         caml_callback_depth--;
@@ -1178,7 +1147,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(STOP):
       Caml_state->external_raise = initial_external_raise;
-      Caml_state->external_raise_async = initial_external_raise_async;
       Caml_state->extern_sp = sp;
       caml_callback_depth--;
       return accu;

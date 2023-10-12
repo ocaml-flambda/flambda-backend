@@ -25,7 +25,6 @@
 #endif
 #include "misc.h"
 #include "mlvalues.h"
-#include "fail.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,10 +87,8 @@ value caml_do_pending_actions_exn (void);
 value caml_process_pending_actions_with_root (value extra_root); // raises
 value caml_process_pending_actions_with_root_exn (value extra_root);
 int caml_set_signal_action(int signo, int action);
-CAMLextern void * caml_setup_stack_overflow_detection(void);
-CAMLextern int caml_stop_stack_overflow_detection(void *);
-CAMLextern void caml_init_signals(void);
-CAMLextern void caml_terminate_signals(void);
+CAMLextern int caml_setup_stack_overflow_detection(void);
+
 CAMLextern void (*caml_enter_blocking_section_hook)(void);
 CAMLextern void (*caml_leave_blocking_section_hook)(void);
 #ifdef POSIX_SIGNALS

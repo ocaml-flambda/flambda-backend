@@ -36,7 +36,6 @@
 #include "caml/mlvalues.h"
 #include "caml/osdeps.h"
 #include "caml/printexc.h"
-#include "caml/signals.h"
 #include "caml/stack.h"
 #include "caml/startup_aux.h"
 #include "caml/sys.h"
@@ -92,6 +91,7 @@ struct longjmp_buffer caml_termination_jmpbuf;
 void (*caml_termination_hook)(void *) = NULL;
 
 extern value caml_start_program (caml_domain_state*);
+extern void caml_init_signals (void);
 #ifdef _WIN32
 extern void caml_win32_overflow_detection (void);
 #endif
@@ -107,7 +107,6 @@ value caml_startup_common(char_os **argv, int pooling)
 {
   char_os * exe_name, * proc_self_exe;
   char tos;
-  value res;
 
   /* Initialize the domain */
   caml_init_domain();
@@ -153,16 +152,10 @@ value caml_startup_common(char_os **argv, int pooling)
     exe_name = caml_search_exe_in_path(exe_name);
   caml_sys_init(exe_name, argv);
   if (sigsetjmp(caml_termination_jmpbuf.buf, 0)) {
-    caml_terminate_signals();
     if (caml_termination_hook != NULL) caml_termination_hook(NULL);
     return Val_unit;
   }
-  res = caml_start_program(Caml_state);
-  /* ignore distinction between async and normal,
-     it's an uncaught exception either way */
-  Caml_state->raising_async_exn = 0;
-  caml_terminate_signals();
-  return res;
+  return caml_start_program(Caml_state);
 }
 
 value caml_startup_exn(char_os **argv)

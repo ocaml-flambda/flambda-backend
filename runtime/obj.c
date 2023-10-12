@@ -68,18 +68,6 @@ CAMLprim value caml_obj_make_forward (value blk, value fwd)
   return Val_unit;
 }
 
-CAMLprim value caml_obj_is_local(value blk)
-{
-  return Val_int(Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked);
-}
-
-CAMLprim value caml_get_header(value blk)
-{
-  // undefined behaviour if blk is not a block
-  intnat r = Hd_val(blk);
-  return caml_copy_nativeint(r);
-}
-
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {
@@ -115,7 +103,7 @@ CAMLprim value caml_obj_block(value tag, value size)
     /* Closinfo_val is the second field, so we need size at least 2 */
     if (sz < 2) caml_invalid_argument ("Obj.new_block");
     res = caml_alloc(sz, tg);
-    Closinfo_val(res) = Make_closinfo(0, 2, 1); /* does not allocate */
+    Closinfo_val(res) = Make_closinfo(0, 2); /* does not allocate */
     break;
   }
   case String_tag: {
@@ -174,7 +162,6 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
 
 CAMLprim value caml_obj_dup(value arg)
 {
-  if (!Is_block(arg)) return arg;
   return caml_obj_with_tag(Val_long(Tag_val(arg)), arg);
 }
 

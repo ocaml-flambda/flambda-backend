@@ -115,8 +115,8 @@ static int64_t time_counter(void)
   return
     (int64_t)t.tv_sec  * (int64_t)1000000000 +
     (int64_t)t.tv_nsec;
-#else
-  return 0;
+
+
 #endif
 }
 

@@ -963,7 +963,8 @@ void caml_memprof_track_young(uintnat wosize, int from_caml,
      [local->entries] to make sure the floag is not set back to 1. */
   caml_memprof_set_suspended(0);
 
-  caml_raise_async_if_exception(res, "memprof callback");
+  if (Is_exception_result(res))
+    caml_raise(Extract_exception(res));
 
   /* /!\ Since the heap is in an invalid state before initialization,
      very little heap operations are allowed until then. */
