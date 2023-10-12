@@ -22,6 +22,6 @@
           ../Makefile.build_config
           domainstate.ml.c
           domainstate.mli.c
-          ../runtime/caml/domain_state.tbl
+          ../runtime4/caml/domain_state.tbl
           config.mlp)
  (action  (system "make -sf %{mk} %{targets}")))

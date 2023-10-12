@@ -187,6 +187,9 @@ AC_CONFIG_FILES([tools/eventlog_metadata])
 AC_CONFIG_HEADERS([runtime/caml/m.h])
 AC_CONFIG_HEADERS([runtime/caml/s.h])
 AC_CONFIG_HEADERS([runtime/caml/version.h])
+AC_CONFIG_HEADERS([runtime4/caml/m.h])
+AC_CONFIG_HEADERS([runtime4/caml/s.h])
+AC_CONFIG_HEADERS([runtime4/caml/version.h])
 
 # Definitions related to the version of OCaml
 AC_DEFINE([OCAML_VERSION_MAJOR], [OCAML__VERSION_MAJOR])

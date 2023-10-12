@@ -19,11 +19,11 @@ ROOTDIR = ..
 
 include $(ROOTDIR)/Makefile.common
 
-domainstate.ml: domainstate.ml.c ../runtime/caml/domain_state.tbl
-	$(CPP) -I ../runtime/caml $< > $@
+domainstate.ml: domainstate.ml.c ../runtime4/caml/domain_state.tbl
+	$(CPP) -I ../runtime4/caml $< > $@
 
-domainstate.mli: domainstate.mli.c ../runtime/caml/domain_state.tbl
-	$(CPP) -I ../runtime/caml $< > $@
+domainstate.mli: domainstate.mli.c ../runtime4/caml/domain_state.tbl
+	$(CPP) -I ../runtime4/caml $< > $@
 
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
   FLEXDLL_DIR =

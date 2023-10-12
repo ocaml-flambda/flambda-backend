@@ -25,6 +25,10 @@
   (flags
    (:standard -warn-error +A))))
 
+; Disable the runtime/ directory for now
+; (We're currently using runtime4/ instead)
+(dirs (:standard \ runtime))
+
 (copy_files# utils/*.ml{,i})
 (copy_files# parsing/*.ml{,i})
 (copy_files# typing/*.ml{,i})

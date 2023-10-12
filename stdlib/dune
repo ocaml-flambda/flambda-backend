@@ -35,7 +35,7 @@
 
 (rule
   (targets camlheader camlheaderd camlheaderi camlheader_ur)
-  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime/sak)
+  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime4/sak)
   (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (copy_files ../Makefile.config)

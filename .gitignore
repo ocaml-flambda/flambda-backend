@@ -191,6 +191,25 @@ _build
 /parsing/camlinternalMenhirLib.ml
 /parsing/camlinternalMenhirLib.mli
 
+/runtime4/caml/jumptbl.h
+/runtime4/caml/m.h
+/runtime4/caml/s.h
+/runtime4/primitives
+/runtime4/primitives.new
+/runtime4/prims.c
+/runtime4/caml/opnames.h
+/runtime4/caml/version.h
+/runtime4/ocamlrun
+/runtime4/ocamlrund
+/runtime4/ocamlruni
+/runtime4/ld.conf
+/runtime4/.gdb_history
+/runtime4/.dep
+/runtime4/build_config.h
+/runtime4/sak
+/runtime4/domain_state32.inc
+/runtime4/domain_state64.inc
+
 /runtime/caml/jumptbl.h
 /runtime/caml/m.h
 /runtime/caml/s.h
