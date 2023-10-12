@@ -19,14 +19,9 @@ type region_closure_continuation =
     continuation_after_closing_region : Continuation.t
   }
 
-type region_stack_element =
-  | Regular of Ident.t
-  | Try_with of Ident.t
+type region_stack_element = Ident.t
 
-let same_region region1 region2 =
-  match region1, region2 with
-  | Regular _, Try_with _ | Try_with _, Regular _ -> false
-  | Regular id1, Regular id2 | Try_with id1, Try_with id2 -> Ident.same id1 id2
+let same_region = Ident.same
 
 type t =
   { current_unit : Compilation_unit.t;
@@ -295,7 +290,7 @@ let get_unboxed_product_fields t id =
 let entering_region t id ~continuation_closing_region
     ~continuation_after_closing_region =
   { t with
-    region_stack = Regular id :: t.region_stack;
+    region_stack = id :: t.region_stack;
     region_closure_continuations =
       Ident.Map.add id
         { continuation_closing_region; continuation_after_closing_region }
@@ -305,21 +300,7 @@ let entering_region t id ~continuation_closing_region
 let leaving_region t =
   match t.region_stack with
   | [] -> Misc.fatal_error "Cannot pop region, region stack is empty"
-  | Regular _ :: region_stack -> { t with region_stack }
-  | Try_with region :: _ ->
-    Misc.fatal_errorf "Attempted to pop region but found try region %a"
-      Ident.print region
-
-let entering_try_region t region =
-  { t with region_stack = Try_with region :: t.region_stack }
-
-let leaving_try_region t =
-  match t.region_stack with
-  | [] -> Misc.fatal_error "Cannot pop try region, region stack is empty"
-  | Try_with _ :: region_stack -> { t with region_stack }
-  | Regular region :: _ ->
-    Misc.fatal_errorf "Attempted to pop try region but found regular region %a"
-      Ident.print region
+  | _ :: region_stack -> { t with region_stack }
 
 let current_region t =
   if not (Flambda_features.stack_allocation_enabled ())
@@ -327,18 +308,7 @@ let current_region t =
   else
     match t.region_stack with
     | [] -> t.my_region
-    | (Regular region | Try_with region) :: _ -> region
-
-let current_region_opt t =
-  if not (Flambda_features.stack_allocation_enabled ())
-  then None
-  else
-    match t.region_stack with
-    | (Regular region | Try_with region) :: _ -> Some region
-    | [] -> (
-      match t.ret_mode with
-      | Alloc_local -> Some t.my_region
-      | Alloc_heap -> None)
+    | region :: _ -> region
 
 let my_region t = t.my_region
 
@@ -353,25 +323,22 @@ let region_stack_in_cont_scope t continuation =
 
 let pop_region = function
   | [] -> None
-  | ((Try_with _ | Regular _) as region) :: rest -> Some (region, rest)
+  | region :: rest -> Some (region, rest)
 
 let pop_regions_up_to_context t continuation =
   let initial_stack_context = region_stack_in_cont_scope t continuation in
   let rec pop to_pop region_stack =
     match initial_stack_context, region_stack with
     | [], [] -> to_pop
-    | ([] | Try_with _ :: _), Regular region :: regions ->
+    | [], region :: regions ->
       pop (Some region) regions
-    | ([] | Regular _ :: _), Try_with _ :: regions -> pop to_pop regions
     | _initial_stack_top :: _, [] ->
       Misc.fatal_errorf "Unable to restore region stack for %a"
         Continuation.print continuation
-    | Regular initial_stack_top :: _, Regular region :: regions ->
+    | initial_stack_top :: _, region :: regions ->
       if Ident.same initial_stack_top region
       then to_pop
       else pop (Some region) regions
-    | Try_with initial_stack_top :: _, Try_with region :: regions ->
-      if Ident.same initial_stack_top region then to_pop else pop to_pop regions
   in
   pop None t.region_stack
 

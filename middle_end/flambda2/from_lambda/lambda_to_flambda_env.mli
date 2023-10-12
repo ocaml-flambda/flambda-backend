@@ -16,9 +16,7 @@
 
 type t
 
-type region_stack_element = private
-  | Regular of Ident.t
-  | Try_with of Ident.t
+type region_stack_element = Ident.t
 
 val same_region : region_stack_element -> region_stack_element -> bool
 
@@ -143,13 +141,7 @@ val entering_region :
 
 val leaving_region : t -> t
 
-val entering_try_region : t -> Ident.t -> t
-
-val leaving_try_region : t -> t
-
 val current_region : t -> Ident.t
-
-val current_region_opt : t -> Ident.t option
 
 val my_region : t -> Ident.t
 

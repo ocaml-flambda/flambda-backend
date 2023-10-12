@@ -249,7 +249,7 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
   | Unsigned
 
-type nullop = Begin_region
+type nullop = Begin_region | Begin_try_region
 
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
@@ -257,10 +257,10 @@ type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
 
 type unop =
   | Array_length
-  | Begin_try_region
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
+  | End_try_region
   | Get_tag
   | Int_arith of standard_int * unary_int_arith_op
   | Is_flat_float_array

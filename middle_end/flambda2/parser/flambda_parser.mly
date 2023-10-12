@@ -204,6 +204,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
 %token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
+%token PRIM_END_TRY_REGION [@symbol "%end_try_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
@@ -375,6 +376,7 @@ recursive:
 
 nullop:
   | PRIM_BEGIN_REGION { Begin_region }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
 ;
 
 unary_int_arith_op:
@@ -383,7 +385,6 @@ unary_int_arith_op:
 
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -395,6 +396,7 @@ unop:
     { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
   | PRIM_END_REGION { End_region }
+  | PRIM_END_TRY_REGION { End_try_region }
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }

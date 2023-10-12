@@ -1785,7 +1785,7 @@ method emit_tail (env:environment) exp =
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
       let end_region =
-        if Config.stack_allocation then begin
+        if Config.stack_allocation && match kind with Regular -> true | Delayed _ -> false then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
           fun handler_instruction ->

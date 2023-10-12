@@ -139,13 +139,10 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       in
       let body = add_remaining_end_regions acc after_everything in
       fun acc ccenv ->
-        match region with
-        | Try_with _ -> body acc ccenv
-        | Regular region_ident ->
-          CC.close_let acc ccenv
-            [ ( Ident.create_local "unit",
-                Flambda_kind.With_subkind.tagged_immediate ) ]
-            Not_user_visible (End_region region_ident) ~body
+        CC.close_let acc ccenv
+          [ ( Ident.create_local "unit",
+              Flambda_kind.With_subkind.tagged_immediate ) ]
+          Not_user_visible (End_region { is_try_region = false; region }) ~body
     in
     let no_end_region after_everything = after_everything in
     match
@@ -156,7 +153,7 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       if Env.same_region region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | Some (((Regular _ | Try_with _) as region), region_stack_now), None ->
+    | Some (region, region_stack_now), None ->
       add_end_region region ~region_stack_now
     | None, Some _ -> assert false
     (* see above *)
@@ -469,7 +466,7 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
     then
       CC.close_let acc ccenv
         [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-        Not_user_visible (End_region region)
+        Not_user_visible (End_region { is_try_region = false; region })
         ~body:(fun acc ccenv -> body acc ccenv cont)
     else
       let ({ continuation_closing_region; continuation_after_closing_region }
@@ -1120,36 +1117,22 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        same toplevel context, here we need to assume that all of the body could
        be behind a branch. *)
     let ccenv = CCenv.set_not_at_toplevel ccenv in
-    let try_region_parent = Env.current_region_opt env in
     let handler k acc env ccenv =
-      if Option.is_some try_region_parent
-      then
         CC.close_let acc ccenv
           [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-          Not_user_visible (End_region region)
-          ~body:(fun acc ccenv ->
-            let env = Env.leaving_try_region env in
-            cps_tail acc env ccenv handler k k_exn)
-      else cps_tail acc env ccenv handler k k_exn
+          Not_user_visible (End_region { is_try_region = true; region })
+          ~body:(fun acc ccenv -> cps_tail acc env ccenv handler k k_exn)
     in
     let begin_try_region body =
-      if Option.is_some try_region_parent
-      then
         CC.close_let acc ccenv
           [region, Flambda_kind.With_subkind.region]
           Not_user_visible
-          (Begin_region { try_region_parent })
+          (Begin_region { is_try_region = true })
           ~body
-      else body acc ccenv
     in
     begin_try_region (fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
           (fun acc env ccenv k ->
-            let env =
-              if Option.is_some try_region_parent
-              then Env.entering_try_region env region
-              else env
-            in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
               ~params:[id, is_user_visible env id, Lambda.layout_block]
@@ -1169,11 +1152,6 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    let env =
-                      if Option.is_some try_region_parent
-                      then Env.leaving_try_region env
-                      else env
-                    in
                     apply_cont_with_extra_args acc env ccenv ~dbg k
                       (Some (IR.Pop { exn_handler = handler_continuation }))
                       [IR.Var body_result]))
@@ -1232,7 +1210,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let region = Env.current_region env in
     CC.close_let acc ccenv
       [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-      Not_user_visible (End_region region)
+      Not_user_visible (End_region { is_try_region = false; region })
       ~body:(fun acc ccenv ->
         let env = Env.leaving_region env in
         cps acc env ccenv body k k_exn)
@@ -1245,7 +1223,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     CC.close_let acc ccenv
       [region, Flambda_kind.With_subkind.region]
       Not_user_visible
-      (Begin_region { try_region_parent = None })
+      (Begin_region { is_try_region = false })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "body_return" layout k acc env ccenv
           (fun acc env ccenv k ->
@@ -1283,7 +1261,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                 CC.close_let acc ccenv
                   [ ( Ident.create_local "unit",
                       Flambda_kind.With_subkind.tagged_immediate ) ]
-                  Not_user_visible (End_region region)
+                  Not_user_visible (End_region { is_try_region = false; region })
                   ~body:(fun acc ccenv ->
                     (* Both body and handler will continue at
                        [return_continuation] by default.

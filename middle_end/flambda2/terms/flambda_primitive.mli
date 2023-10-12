@@ -230,6 +230,9 @@ type nullary_primitive =
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
+  | Begin_try_region
+      (** Starting delimiter of local allocation region, when used for a "try"
+          body. *)
   | Enter_inlined_apply of { dbg : Debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
@@ -318,11 +321,10 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
-  | Begin_try_region
-      (** Starting delimiter of local allocation region, when used for a "try"
-          body, accepting the parent region as argument. *)
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
+  | End_try_region
+      (** Corresponding delimiter for [Begin_try_region]. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with

@@ -809,20 +809,16 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
-  | Begin_region { try_region_parent } ->
+  | Begin_region { is_try_region } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      match try_region_parent with
-      | None -> Nullary Begin_region
-      | Some try_region_parent ->
-        let try_region_parent = find_simple_from_id env try_region_parent in
-        Unary (Begin_try_region, Simple try_region_parent)
+      Nullary (if is_try_region then Begin_try_region else Begin_region)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
-  | End_region id ->
-    let named = find_simple_from_id env id in
+  | End_region { is_try_region; region } ->
+    let named = find_simple_from_id env region in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Unary (End_region, Simple named)
+      Unary ((if is_try_region then End_try_region else End_region), Simple named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
