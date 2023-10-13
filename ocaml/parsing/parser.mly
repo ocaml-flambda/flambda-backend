@@ -3323,7 +3323,7 @@ fun_params:
      labeled_tuple_element := expr | ~x:expr | ~x | ~(x:ty)
      labeled_tuple := lt_element [, lt_element]+
 
-   (The last case of [labled_tuple_element] is a punned label with a type
+   (The last case of [labeled_tuple_element] is a punned label with a type
    constraint, which is allowed for functions, so we allow it here).
 
    So you might think [labeled_tuple] could therefore just be:
@@ -3342,7 +3342,7 @@ fun_params:
      that are used in non-tail position.
 
    To get around this, we do mark it inlined, and then because we can only use
-   it in tail position it is _manually_ inlined into the occurances in
+   it in tail position it is _manually_ inlined into the occurrences in
    [separated_nontrivial_llist] where it doesn't appear in tail position.  This
    results in [labeled_tuple] and [reversed_labeled_tuple_body] below.  So the
    latter is just a list of comma-separated labeled tuple elements, with length
@@ -3499,16 +3499,78 @@ pattern_no_exn:
         { Ppat_alias($1, $3) }
     | self AS error
         { expecting $loc($3) "identifier" }
-    | pattern_comma_list(self) %prec below_COMMA
-        { Ppat_tuple(List.rev $1) }
-    | self COLONCOLON error
+  ) { $1 }
+  | reversed_labeled_tuple_pattern(self)
+      { let closed, pats = $1 in
+        if    closed = Closed
+           && List.for_all (fun (l,_) -> Option.is_none l) pats
+        then
+          mkpat ~loc:$sloc (Ppat_tuple(List.rev_map snd pats))
+        else
+          ppat_lttuple $sloc (List.rev pats) closed
+      }
+  | mkpat(
+      self COLONCOLON error
         { expecting $loc($3) "pattern" }
     | self BAR pattern
         { Ppat_or($1, $3) }
     | self BAR error
-        { expecting $loc($3) "pattern" }
-  ) { $1 }
+        { expecting $loc($3) "pattern" }  ) { $1 }
 ;
+
+(* Parsing labeled tuple patterns
+
+   Here we play essentially the same game we did for expressions - see the
+   comment beginning "Parsing labeled tuple expressions".
+
+   One difference is that we would need to manually inline the definition of
+   individual elements in two places: Once in the base case for lists 2 or more
+   elements, and once in the special case for open patterns with just one
+   element (e.g., [~x, ..]).  Rather than manually inlining
+   [labeled_tuple_pat_element] twice, we simply define it twice: once with the
+   [%prec] annotations needed for its occurrences in tail position, and once
+   without them suitable for use in other locations.
+*)
+%inline labeled_tuple_pat_element(self):
+  | self { None, $1 }
+  | LABEL simple_pattern %prec COMMA
+      { Some $1, $2 }
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkpatvar ~loc label }
+  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN %prec COMMA
+      { let loc = $loc(label) in
+        let pat = mkpatvar ~loc label in
+        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+
+%inline labeled_tuple_pat_element_noprec(self):
+  | self { None, $1 }
+  | LABEL simple_pattern
+      { Some $1, $2 }
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkpatvar ~loc label }
+  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
+      { let loc = $loc(label) in
+        let pat = mkpatvar ~loc label in
+        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+
+labeled_tuple_pat_element_list(self):
+  | labeled_tuple_pat_element_list(self) COMMA labeled_tuple_pat_element(self)
+      { $3 :: $1 }
+  | labeled_tuple_pat_element_noprec(self) COMMA labeled_tuple_pat_element(self)
+      { [ $3; $1 ] }
+  | self COMMA error
+      { expecting $loc($3) "pattern" }
+;
+
+reversed_labeled_tuple_pattern(self):
+  | labeled_tuple_pat_element_list(self) %prec below_COMMA
+      { Closed, $1 }
+  | labeled_tuple_pat_element_list(self) COMMA DOTDOT
+      { Open, $1 }
+  | labeled_tuple_pat_element_noprec(self) COMMA DOTDOT
+      { Open, [ $1 ] }
 
 pattern_gen:
     simple_pattern
@@ -3535,10 +3597,6 @@ simple_pattern:
 simple_pattern_not_ident:
   | LPAREN pattern RPAREN
       { reloc_pat ~loc:$sloc $2 }
-  | LPAREN args = labeled_tuple_pattern RPAREN
-      { let l, closed = args in
-        ppat_lttuple $sloc l closed
-      }
   | simple_delimited_pattern
       { $1 }
   | LPAREN MODULE ext_attributes mkrhs(module_name) RPAREN
@@ -3614,64 +3672,11 @@ simple_delimited_pattern:
           $1
       }
 
-pattern_comma_list(self):
-    pattern_comma_list(self) COMMA pattern      { $3 :: $1 }
-  | self COMMA pattern                          { [$3; $1] }
-  | self COMMA error                            { expecting $loc($3) "pattern" }
-;
-
-strict_ltuple_component_pat:
-  | LABEL pattern %prec below_HASH
-      { Some $1, $2 }
-  (* Punning *)
-  | TILDE label = LIDENT
-      { let loc = $loc(label) in
-        Some label, mkpatvar ~loc label }
-  (* Punning + type annotation *)
-  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
-      { let loc = $loc(label) in
-        let pat = mkpatvar ~loc label in
-        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
-;
-
-%inline ltuple_component_pat:
-  | pattern
-      { None, $1 }
-  | strict_ltuple_component_pat
-      { $1 }
-;
-
-// Length >= 2, at least one label
-reversed_ltuple_component_pat_comma_list:
-  // Base case: the next three rules are the ways to produce a list of length 2
-  | strict_ltuple_component_pat COMMA strict_ltuple_component_pat
-      { [$3; $1] }
-  | pattern COMMA strict_ltuple_component_pat
-      { [$3; None, $1]}
-  | strict_ltuple_component_pat COMMA pattern %prec below_HASH
-      { [None, $3; $1]}
-  // One label, length > 2
-  | pattern_comma_list(pattern) COMMA strict_ltuple_component_pat
-      { $3 :: List.rev_map (fun x -> None, x) $1 }
-  // Recursive case
-  | reversed_ltuple_component_pat_comma_list COMMA ltuple_component_pat
-      %prec below_HASH
-      { $3 :: $1 }
-;
-
-labeled_tuple_pattern:
-  | rev(reversed_ltuple_component_pat_comma_list)
-      { $1, Closed }
-  | rev(reversed_ltuple_component_pat_comma_list) COMMA DOTDOT
-      { $1, Open }
-  // Partial patterns are allowed to be length-one
-  | ltuple_component_pat COMMA DOTDOT
-      { [$1], Open }
-
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)
     { ps }
 ;
+
 (* A label-pattern list is a nonempty list of label-pattern pairs, optionally
    followed with an UNDERSCORE, separated-or-terminated with semicolons. *)
 %inline record_pat_content:
