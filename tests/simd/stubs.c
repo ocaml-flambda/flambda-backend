@@ -1,7 +1,6 @@
 
-#include <caml/mlvalues.h>
-#include <caml/alloc.h>
 #include <caml/memory.h>
+#include <caml/simd.h>
 #include <smmintrin.h>
 #include <assert.h>
 
@@ -23,15 +22,12 @@ __m128i vec128_of_int64s(int64_t low, int64_t high)
 CAMLprim value boxed_combine(value v0, value v1)
 {
   CAMLparam2(v0, v1);
-  CAMLlocal1(res);
 
-  __m128i l = _mm_loadu_si128((__m128i*)v0);
-  __m128i r = _mm_loadu_si128((__m128i*)v1);
+  __m128i l = Vec128_vali(v0);
+  __m128i r = Vec128_vali(v1);
   __m128i result = _mm_add_epi64(l, r);
-  res = caml_alloc_small(2, Abstract_tag);
-  _mm_storeu_si128((__m128i*)res, result);
 
-  CAMLreturn(res);
+  CAMLreturn(caml_copy_vec128i(result));
 }
 
 __m128i lots_of_vectors(
