@@ -290,6 +290,7 @@ module With_shorthand = struct
     | Types.Mty_alias _
     | Types.Mty_signature []
     | Types.Mty_strengthen _
+    | Types.Mty_with _
       -> Original r.item
     | Types.Mty_signature _ | Types.Mty_functor _
       -> Synthetic r

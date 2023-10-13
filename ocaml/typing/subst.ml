@@ -177,7 +177,7 @@ let rec module_path s path =
 let modtype_path s path =
       match Path.Map.find path s.modtypes with
       | Mty_ident p -> p
-      | Mty_alias _ | Mty_signature _ | Mty_functor _| Mty_strengthen _ ->
+      | Mty_alias _ | Mty_signature _ | Mty_functor _| Mty_strengthen _ | Mty_with _ ->
          fatal_error "Subst.modtype_path"
       | exception Not_found ->
          match path with
@@ -713,6 +713,7 @@ let lazy_functor_parameter = To_lazy.functor_parameter to_lazy
 let lazy_modtype = To_lazy.module_type to_lazy
 let lazy_modtype_decl = To_lazy.modtype_declaration to_lazy
 let lazy_signature_item = To_lazy.signature_item to_lazy
+let lazy_module_constraint = To_lazy.module_constraint to_lazy
 
 module From_lazy = Types.Map_wrapped(Lazy_types)(Types)
 
@@ -763,6 +764,12 @@ and subst_lazy_modtype scoping s = function
       Mty_alias (module_path s p)
   | Mty_strengthen (mty, p, a) ->
       Mty_strengthen (subst_lazy_modtype scoping s mty, module_path s p, a)
+  | Mty_with (mty, p, c) ->
+      let mty = subst_lazy_modtype scoping s mty in
+      let c = match c with
+        | Modc_module mty -> Modc_module (subst_lazy_modtype scoping s mty)
+      in
+      Mty_with (mty, p, c)
 
 and subst_lazy_modtype_decl scoping s mtd =
   { mtd_type = Option.map (subst_lazy_modtype scoping s) mtd.mtd_type;
@@ -879,6 +886,7 @@ module Lazy = struct
   let of_signature_item = lazy_signature_item
   let of_functor_parameter = lazy_functor_parameter
   let of_value_description = lazy_value_description
+  let of_module_constraint = lazy_module_constraint
 
   let module_decl = subst_lazy_module_decl
   let modtype = subst_lazy_modtype

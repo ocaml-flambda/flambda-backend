@@ -352,7 +352,7 @@ module type Wrap = sig
   type 'a t
 end
 
-module type Wrapped = sig
+module type Wrapped_types = sig
   type 'a wrapped
 
   type value_description =
@@ -370,6 +370,10 @@ module type Wrapped = sig
   | Mty_alias of Path.t
   | Mty_strengthen of module_type * Path.t * Aliasability.t
       (* See comments about the aliasability of strengthening in mtype.ml *)
+  | Mty_with of module_type * string list * module_constraint
+
+  and module_constraint =
+  | Modc_module of module_type
 
   and functor_parameter =
   | Unit
@@ -404,10 +408,26 @@ module type Wrapped = sig
   }
 end
 
+module type Wrapped = sig
+  include Wrapped_types
+
+  val signature_item_id : signature_item -> Ident.t
+end
+
 module Make_wrapped(Wrap : Wrap) = struct
   (* Avoid repeating everything in Wrapped *)
-  module rec M : Wrapped with type 'a wrapped = 'a Wrap.t = M
+  module rec M : Wrapped_types with type 'a wrapped = 'a Wrap.t = M
   include M
+
+  let signature_item_id = function
+  | Sig_value (id, _, _)
+  | Sig_type (id, _, _, _)
+  | Sig_typext (id, _, _, _)
+  | Sig_module (id, _, _, _, _)
+  | Sig_modtype (id, _, _)
+  | Sig_class (id, _, _, _)
+  | Sig_class_type (id, _, _, _)
+    -> id
 end
 
 module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
@@ -428,6 +448,11 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
     | Mty_signature sg -> To.Mty_signature (signature m sg)
     | Mty_strengthen (mty,p,aliasable) ->
         To.Mty_strengthen (module_type m mty, p, aliasable)
+    | Mty_with (mty,p,c) ->
+        To.Mty_with (module_type m mty, p, module_constraint m c)
+
+  and module_constraint m = function
+    | Modc_module mty -> To.Modc_module (module_type m mty)
 
   and functor_parameter m = function
       | Unit -> To.Unit

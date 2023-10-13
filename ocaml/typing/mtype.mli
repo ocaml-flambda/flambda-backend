@@ -56,6 +56,12 @@ val expand_to: Env.t -> signature -> Path.t list -> signature
         (* Expand Mty_strengthen nodes in a signature up to the
            given paths. *)
 
+val apply_with: string list -> module_constraint -> module_type -> module_type
+        (* Apply a with constraint to a module type. This pushes the
+           constraint into signatures etc., thus avoiding pointless
+           types like Mty_with (Mty_signature) and should be preferred
+           to constructing Mty_with directly. *)
+
 val sig_make_manifest : signature -> signature
         (* Make abstract types manifest.  Similar to strengthening, but rather
            than providing definitions by making the name of the current module
