@@ -192,7 +192,8 @@ type memory_chunk =
   | Word_val
   | Single
   | Double
-  | Onetwentyeight
+  | Onetwentyeight_unaligned
+  | Onetwentyeight_aligned
 
 type vector_cast =
   | Bits128
@@ -237,6 +238,7 @@ type operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
+  | Ccheckalign of { bytes_pow2: int }
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque
@@ -581,40 +583,44 @@ let equal_memory_chunk left right =
   | Word_val, Word_val -> true
   | Single, Single -> true
   | Double, Double -> true
-  | Onetwentyeight, Onetwentyeight -> true
+  | Onetwentyeight_unaligned, Onetwentyeight_unaligned
+  | Onetwentyeight_aligned, Onetwentyeight_aligned -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
-                   | Onetwentyeight)
+                   | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
                  | Thirtytwo_signed | Word_int | Word_val | Single | Double
-                 | Onetwentyeight)
+                 | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
                       | Thirtytwo_signed | Word_int | Word_val | Single | Double
-                      | Onetwentyeight)
+                      | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
                     | Thirtytwo_signed | Word_int | Word_val | Single | Double
-                    | Onetwentyeight)
+                    | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                         | Thirtytwo_signed | Word_int | Word_val | Single | Double
-                        | Onetwentyeight)
+                        | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                       | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
-                      | Onetwentyeight)
+                      | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
               | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
-              | Onetwentyeight)
+              | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
               | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
-              | Onetwentyeight)
+              | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
-            | Onetwentyeight)
+            | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
-            | Onetwentyeight)
-  | Onetwentyeight, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Onetwentyeight_unaligned | Onetwentyeight_aligned)
+  | Onetwentyeight_unaligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
-            | Double) ->
+            | Double | Onetwentyeight_aligned)
+  | Onetwentyeight_aligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Double | Onetwentyeight_unaligned) ->
     false
 
 let equal_integer_comparison left right =

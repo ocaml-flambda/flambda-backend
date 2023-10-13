@@ -161,6 +161,7 @@ let prim_table =
     "unbox_int32", PRIM_UNBOX_INT32;
     "unbox_int64", PRIM_UNBOX_INT64;
     "unbox_nativeint", PRIM_UNBOX_NATIVEINT;
+    "unbox_vec128", PRIM_UNBOX_VEC128;
     "untag_imm", PRIM_UNTAG_IMM;
 ]
 

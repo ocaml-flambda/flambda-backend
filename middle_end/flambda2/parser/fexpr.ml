@@ -319,6 +319,7 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 type string_like_value = Flambda_primitive.string_like_value =
   | String

@@ -438,14 +438,14 @@ let destroyed_at_oper = function
                  | Ifloat_iround | Ifloat_min | Ifloat_max
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-              | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
+              | Ipopcnt | Iclz _ | Ictz _ | Icheckbound | Icheckalign _))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
-                   | Icheckbound),_))
+                   | Icheckbound | Icheckalign _),_))
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double | Onetwentyeight ), _, _))
+               | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
        | Icsel _
@@ -484,7 +484,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
     [| rax; rdx |]
-  | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
+  | Op (Intop (Icheckbound | Icheckalign _)
+  | Intop_imm ((Icheckbound | Icheckalign _), _)) ->
     assert false
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
@@ -492,7 +493,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
                          | Thirtytwo_signed | Word_int | Word_val
-                         | Double | Onetwentyeight ), _, _)
+                         | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _)
        | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
@@ -528,7 +529,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = Checkbound _ | Probe _; _}
+  | Prim {op = Checkbound _ | Checkalign _ | Probe _; _}
   ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
@@ -561,7 +562,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = Checkbound _ | Probe _; _} ->
+  | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _} ->
     false
   | Switch _ ->
     false
@@ -621,13 +622,13 @@ let max_register_pressure =
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-           | Ipopcnt|Iclz _| Ictz _|Icheckbound)
+           | Ipopcnt|Iclz _| Ictz _|Icheckbound|Icheckalign _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
-                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound), _)
+                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound|Icheckalign _), _)
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Double | Onetwentyeight ),
+            | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
@@ -734,6 +735,7 @@ let operation_supported = function
   | Ccmpf _
   | Craise _
   | Ccheckbound
+  | Ccheckalign _
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
   | Ctuple_field _

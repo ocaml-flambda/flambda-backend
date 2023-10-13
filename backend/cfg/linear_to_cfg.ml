@@ -588,6 +588,10 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iintop Icheckbound -> terminator_prim (Checkbound { immediate = None })
     | Iintop_imm (Icheckbound, i) ->
       terminator_prim (Checkbound { immediate = Some i })
+    | Iintop (Icheckalign { bytes_pow2 }) ->
+      terminator_prim (Checkalign { bytes_pow2; immediate = None })
+    | Iintop_imm (Icheckalign { bytes_pow2 }, i) ->
+      terminator_prim (Checkalign { bytes_pow2; immediate = Some i })
     | Ialloc { bytes; dbginfo; mode } ->
       terminator_prim (Alloc { bytes; dbginfo; mode })
     | Iprobe { name; handler_code_sym; enabled_at_init } ->

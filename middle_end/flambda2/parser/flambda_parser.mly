@@ -223,6 +223,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_UNBOX_INT32 [@symbol "%unbox_int32"]
 %token PRIM_UNBOX_INT64 [@symbol "%unbox_int64"]
 %token PRIM_UNBOX_NATIVEINT [@symbol "%unbox_nativeint"]
+%token PRIM_UNBOX_VEC128 [@symbol "%unbox_vec128"]
 %token PRIM_UNTAG_IMM [@symbol "%untag_imm"]
 
 %token STATIC_CONST_BLOCK [@symbol "Block"]
@@ -415,6 +416,7 @@ unop:
   | PRIM_UNBOX_INT32 { Unbox_number Naked_int32 }
   | PRIM_UNBOX_INT64 { Unbox_number Naked_int64 }
   | PRIM_UNBOX_NATIVEINT { Unbox_number Naked_nativeint }
+  | PRIM_UNBOX_VEC128 { Unbox_number Naked_vec128 }
   | PRIM_UNTAG_IMM { Untag_immediate }
 
 infix_binop:
@@ -455,6 +457,8 @@ string_accessor_width:
       | 16, None -> Sixteen
       | 32, None -> Thirty_two
       | 64, None -> Sixty_four
+      | 128, Some 'a' -> One_twenty_eight {aligned = true}
+      | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
 array_kind:

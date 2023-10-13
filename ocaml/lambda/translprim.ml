@@ -364,36 +364,68 @@ let lookup_primitive loc poly pos p =
     | "%caml_string_get32u" -> Primitive ((Pstring_load_32(true, mode)), 2)
     | "%caml_string_get64" -> Primitive ((Pstring_load_64(false, mode)), 2)
     | "%caml_string_get64u" -> Primitive ((Pstring_load_64(true, mode)), 2)
+    | "%caml_string_getu128" ->
+      Primitive ((Pstring_load_128 {unsafe = false; mode}), 2)
+    | "%caml_string_getu128u" ->
+      Primitive ((Pstring_load_128 {unsafe = true; mode}), 2)
     | "%caml_string_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_string_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_string_set32" -> Primitive ((Pbytes_set_32(false)), 3)
     | "%caml_string_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
     | "%caml_string_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_string_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
+    | "%caml_string_setu128" ->
+      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
+    | "%caml_string_setu128u" ->
+      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bytes_get16" -> Primitive ((Pbytes_load_16(false)), 2)
     | "%caml_bytes_get16u" -> Primitive ((Pbytes_load_16(true)), 2)
     | "%caml_bytes_get32" -> Primitive ((Pbytes_load_32(false, mode)), 2)
     | "%caml_bytes_get32u" -> Primitive ((Pbytes_load_32(true, mode)), 2)
     | "%caml_bytes_get64" -> Primitive ((Pbytes_load_64(false, mode)), 2)
     | "%caml_bytes_get64u" -> Primitive ((Pbytes_load_64(true, mode)), 2)
+    | "%caml_bytes_getu128" ->
+      Primitive ((Pbytes_load_128 {unsafe = false; mode}), 2)
+    | "%caml_bytes_getu128u" ->
+      Primitive ((Pbytes_load_128 {unsafe = true; mode}), 2)
     | "%caml_bytes_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_bytes_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_bytes_set32" -> Primitive ((Pbytes_set_32(false)), 3)
     | "%caml_bytes_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
     | "%caml_bytes_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_bytes_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
+    | "%caml_bytes_setu128" ->
+      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
+    | "%caml_bytes_setu128u" ->
+      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bigstring_get16" -> Primitive ((Pbigstring_load_16(false)), 2)
     | "%caml_bigstring_get16u" -> Primitive ((Pbigstring_load_16(true)), 2)
     | "%caml_bigstring_get32" -> Primitive ((Pbigstring_load_32(false, mode)), 2)
     | "%caml_bigstring_get32u" -> Primitive ((Pbigstring_load_32(true, mode)), 2)
     | "%caml_bigstring_get64" -> Primitive ((Pbigstring_load_64(false, mode)), 2)
     | "%caml_bigstring_get64u" -> Primitive ((Pbigstring_load_64(true, mode)), 2)
+    | "%caml_bigstring_getu128" ->
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode}), 2)
+    | "%caml_bigstring_getu128u" ->
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode}), 2)
+    | "%caml_bigstring_geta128" ->
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode}), 2)
+    | "%caml_bigstring_geta128u" ->
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode}), 2)
     | "%caml_bigstring_set16" -> Primitive ((Pbigstring_set_16(false)), 3)
     | "%caml_bigstring_set16u" -> Primitive ((Pbigstring_set_16(true)), 3)
     | "%caml_bigstring_set32" -> Primitive ((Pbigstring_set_32(false)), 3)
     | "%caml_bigstring_set32u" -> Primitive ((Pbigstring_set_32(true)), 3)
     | "%caml_bigstring_set64" -> Primitive ((Pbigstring_set_64(false)), 3)
     | "%caml_bigstring_set64u" -> Primitive ((Pbigstring_set_64(true)), 3)
+    | "%caml_bigstring_setu128" ->
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false}), 3)
+    | "%caml_bigstring_setu128u" ->
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true}), 3)
+    | "%caml_bigstring_seta128" ->
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false}), 3)
+    | "%caml_bigstring_seta128u" ->
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
@@ -962,10 +994,11 @@ let lambda_primitive_needs_event_after = function
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
   | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
-  | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _ | Pbytes_load_32 _
-  | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+  | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
+  | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _
+  | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
+  | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string
