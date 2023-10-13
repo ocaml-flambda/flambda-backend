@@ -152,9 +152,6 @@ let pseudoregs_for_operation op arg res =
      and the result is in edx (high) and eax (low).
      Make it simple and force the argument in rcx, and rax and rdx clobbered *)
     ([| rcx |], res)
-  | Ispecific (Ifloat_min | Ifloat_max) ->
-    (* arg.(0) and res.(0) must be the same *)
-    ([|res.(0); arg.(1)|], res)
   | Ispecific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
   | Icsel _ ->
     (* last arg must be the same as res.(0) *)
@@ -166,8 +163,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound|Icheckalign _)
   | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound|Icheckalign _
                 |Ipopcnt|Iclz _|Ictz _), _)
-  | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ifloat_iround|Ifloat_round _
+  | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
@@ -294,13 +290,14 @@ method! select_operation op args dbg =
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
+  (* Special cases overriding C implementations. *)
   | Cextcall { func = "sqrt"; alloc = false; } ->
      begin match args with
        [Cop(Cload ((Double as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
          (Ispecific(Ifloatsqrtf addr), [arg])
      | [arg] ->
-         (Ispecific Isqrtf, [arg])
+         (Ispecific Simd.(Isimd (SSE2 Sqrt_scalar_f64)), [arg])
      | _ ->
          assert false
     end
@@ -320,26 +317,11 @@ method! select_operation op args dbg =
         let (addr, arg) = self#select_addressing c loc in
         Iload(c, addr, Selectgen.select_mutable_flag mut), [arg]
       | _ -> Imove, args)
+  (* x86 intrinsics ([@@builtin]) *)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
       | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
-      | "caml_float_iround_half_to_even_unboxed", [|Int|] ->
-         Ispecific Ifloat_iround, args
-      | "caml_float_round_half_to_even_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Half_to_even), args
-      | "caml_float_round_up_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Up), args
-      | "caml_float_round_down_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Down), args
-      | "caml_float_round_towards_zero_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Towards_zero), args
-      | "caml_float_round_current_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Current), args
-      | "caml_float_min_unboxed", [|Float|] ->
-         Ispecific Ifloat_min, args
-      | "caml_float_max_unboxed", [|Float|] ->
-         Ispecific Ifloat_max, args
       | "caml_pause_hint", ([|Val|] | [| |]) ->
          Ispecific Ipause, args
       | "caml_load_fence", ([|Val|] | [| |]) ->
