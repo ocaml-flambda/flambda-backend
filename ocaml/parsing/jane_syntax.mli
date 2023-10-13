@@ -204,7 +204,7 @@ end
 module Labeled_tuples : sig
   type core_type =
     | Lttyp_tuple of (string option * Parsetree.core_type) list
-    (** [Lttyp_tuple(tl)] represents a product type:
+        (** [Lttyp_tuple(tl)] represents a product type:
           - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
           - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
           - A mix, e.g. [L1:T1,T2] when [tl] is [(Some L1,T1);(None,T2)]
@@ -214,7 +214,7 @@ module Labeled_tuples : sig
 
   type expression =
     | Ltexp_tuple of (string option * Parsetree.expression) list
-    (** [Ltexp_tuple(el)] represents
+        (** [Ltexp_tuple(el)] represents
           - [(E1, ..., En)]
               when [el] is [(None, E1);...;(None, En)]
           - [(~L1:E1, ..., ~Ln:En)]
@@ -227,8 +227,8 @@ module Labeled_tuples : sig
 
   type pattern =
     | Ltpat_tuple of
-      (string option * Parsetree.pattern) list * Asttypes.closed_flag
-    (** [Ltpat_tuple(pl, Closed)] represents
+        (string option * Parsetree.pattern) list * Asttypes.closed_flag
+        (** [Ltpat_tuple(pl, Closed)] represents
           - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
           - [(L1:P1, ..., Ln:Pn)] when [pl] is
                                               [(Some L1, P1);...;(Some Ln, Pn)]
@@ -241,16 +241,19 @@ module Labeled_tuples : sig
       *)
 
   val typ_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    core_type -> Parsetree.core_type
+    loc:Location.t ->
+    attrs:Parsetree.attributes ->
+    core_type ->
+    Parsetree.core_type
 
   val expr_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    expression -> Parsetree.expression
+    loc:Location.t ->
+    attrs:Parsetree.attributes ->
+    expression ->
+    Parsetree.expression
 
   val pat_of :
-    loc:Location.t -> attrs:Parsetree.attributes ->
-    pattern -> Parsetree.pattern
+    loc:Location.t -> attrs:Parsetree.attributes -> pattern -> Parsetree.pattern
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -462,7 +465,7 @@ end
 (** Novel syntax in types *)
 module Core_type : sig
   type t =
-      Jtyp_layout of Layouts.core_type
+    | Jtyp_layout of Layouts.core_type
     | Jtyp_tuple of Labeled_tuples.core_type
 
   include
@@ -492,7 +495,7 @@ module Expression : sig
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
-    | Jexp_tuple            of Labeled_tuples.expression
+    | Jexp_tuple of Labeled_tuples.expression
 
   include
     AST

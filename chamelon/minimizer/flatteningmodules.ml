@@ -105,7 +105,8 @@ let rec replace_in_pat : type k. _ -> k general_pattern -> k general_pattern =
       (* p) -> as_computation_pattern (replace_in_pat mod_name p) *)
       | O (Tpat_any | Tpat_constant _ | Tpat_variant _ | Tpat_exception _) ->
           pat.pat_desc
-      | O (Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _) -> assert false);
+      | O (Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _) ->
+          assert false);
   }
 
 (** [add_module_name_mapper mod_name l] is a mapper which stores in [l] type and value variables defined

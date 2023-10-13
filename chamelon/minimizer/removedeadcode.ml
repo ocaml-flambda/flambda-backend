@@ -75,7 +75,8 @@ let rec var_from_pat pat_desc acc =
   match view_tpat pat_desc with
   | Tpat_var (id, _, _) -> id :: acc
   | Tpat_alias (pat, id, _, _) -> var_from_pat pat.pat_desc (id :: acc)
-  | Tpat_tuple (vl, _) | Tpat_array (vl, _) | O (Tpat_construct (_, _, vl, _)) ->
+  | Tpat_tuple (vl, _) | Tpat_array (vl, _) | O (Tpat_construct (_, _, vl, _))
+    ->
       List.fold_left (fun l pat -> var_from_pat pat.pat_desc l) acc vl
   | O (Tpat_record (r, _)) ->
       List.fold_left (fun l (_, _, pat) -> var_from_pat pat.pat_desc l) acc r
@@ -105,7 +106,8 @@ let rec rem_in_pat str pat should_remove =
       {
         pat with
         pat_desc =
-          mkTpat_tuple ~id (List.map (fun pat -> rem_in_pat str pat should_remove) vl)
+          mkTpat_tuple ~id
+            (List.map (fun pat -> rem_in_pat str pat should_remove) vl);
       }
   | Tpat_array (vl, id) ->
       {
