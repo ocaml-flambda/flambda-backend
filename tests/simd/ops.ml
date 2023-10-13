@@ -954,6 +954,8 @@ module Float64x2 = struct
         [@@noalloc] [@@unboxed] [@@builtin]
     external min : t -> t -> t = "caml_vec128_unreachable" "caml_sse2_float64x2_min"
         [@@noalloc] [@@unboxed] [@@builtin]
+    external sqrt : t -> t = "caml_vec128_unreachable" "caml_sse2_float64x2_sqrt"
+        [@@noalloc] [@@unboxed] [@@builtin]
 
     let check_binop scalar vector f0 f1 =
         failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
@@ -974,7 +976,14 @@ module Float64x2 = struct
         Float64.check_floats (check_binop Float.mul mul);
         Float64.check_floats (check_binop Float.div div);
         Float64.check_floats (check_binop (Float.max |> preserve_nan |> preserve_zero) max);
-        Float64.check_floats (check_binop (Float.min |> preserve_nan |> preserve_zero) min)
+        Float64.check_floats (check_binop (Float.min |> preserve_nan |> preserve_zero) min);
+        Float64.check_floats (fun f0 f1 ->
+            failmsg := (fun () -> Printf.printf "sqrt %f | %f\n%!" f0 f1);
+            let fv = to_float64x2 f0 f1 in
+            let res = sqrt fv in
+            eq (float64x2_low_int64 res) (float64x2_high_int64 res)
+               (Int64.bits_of_float (Float.sqrt f0)) (Int64.bits_of_float (Float.sqrt f1))
+        )
     ;;
 
     external cvt_int32x4 : t -> int32x4 = "caml_vec128_unreachable" "caml_sse2_cvt_float64x2_int32x4"

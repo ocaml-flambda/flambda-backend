@@ -992,6 +992,7 @@ let emit_simd_instr op i =
     if arg i 0 <> res i 0 then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtsd (arg i 0) (res i 0)
+  | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
   | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
   | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
   | SSE2 Add_i32 -> I.paddd (arg i 1) (res i 0)
@@ -1121,7 +1122,7 @@ let emit_simd_instr op i =
     I.pextrb (X86_dsl.int n) (arg i 0) (res i 0);
     I.movzx (res8 i 0) (res i 0)
   | SSE41 (Extract_i16 n) ->
-    (* CR mslater: (SIMD) change once we have unboxed int16, 
+    (* CR mslater: (SIMD) change once we have unboxed int16,
        the result will not need to zero-extend. *)
     I.pextrw (X86_dsl.int n) (arg i 0) (res i 0);
     I.movzx (res16 i 0) (res i 0)

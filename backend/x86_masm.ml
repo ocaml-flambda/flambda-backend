@@ -245,6 +245,7 @@ let print_instr b = function
   | MINPD (arg1, arg2) -> i2 b "minpd" arg1 arg2
   | MULPD (arg1, arg2) -> i2 b "mulpd" arg1 arg2
   | DIVPD (arg1, arg2) -> i2 b "divpd" arg1 arg2
+  | SQRTPD (arg1, arg2) -> i2 b "sqrtpd" arg1 arg2
   | PAND (arg1, arg2) -> i2 b "pand" arg1 arg2
   | PANDNOT (arg1, arg2) -> i2 b "pandn" arg1 arg2
   | POR (arg1, arg2) -> i2 b "por" arg1 arg2

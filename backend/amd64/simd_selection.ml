@@ -95,6 +95,7 @@ let select_operation_sse2 op args =
   | "caml_sse2_float64_max" -> Some (Max_scalar_f64, args)
   | "caml_sse2_float64_min" -> Some (Min_scalar_f64, args)
   | "caml_sse2_float64_sqrt" -> Some (Sqrt_scalar_f64, args)
+  | "caml_sse2_float64x2_sqrt" -> Some (Sqrt_f64, args)
   | "caml_sse2_int8x16_add" -> Some (Add_i8, args)
   | "caml_sse2_int16x8_add" -> Some (Add_i16, args)
   | "caml_sse2_int32x4_add" -> Some (Add_i32, args)
@@ -424,7 +425,7 @@ let register_behavior_sse2 = function
   | I16_to_unsigned_i8 | I32_to_unsigned_i16 ->
     R_RM_to_fst
   | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
-  | Cast_scalar_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 ->
+  | Cast_scalar_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_f64 ->
     RM_to_R
   | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
   | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->

@@ -84,6 +84,7 @@ type sse2_operation =
   | Sqrt_scalar_f64
   | Min_scalar_f64
   | Max_scalar_f64
+  | Sqrt_f64
   | Add_i8
   | Add_i16
   | Add_i32
@@ -293,6 +294,7 @@ let equal_operation_sse2 l r =
   | Max_scalar_f64, Max_scalar_f64
   | Sqrt_scalar_f64, Sqrt_scalar_f64
   | Cast_scalar_f64_i64, Cast_scalar_f64_i64
+  | Sqrt_f64, Sqrt_f64
   | Add_i8, Add_i8
   | Add_i16, Add_i16
   | Add_i32, Add_i32
@@ -376,7 +378,7 @@ let equal_operation_sse2 l r =
     true
   | Cmp_f64 l, Cmp_f64 r when float_condition_equal l r -> true
   | ( ( Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Min_scalar_f64
-      | Max_scalar_f64 | Cast_scalar_f64_i64 | Sqrt_scalar_f64
+      | Max_scalar_f64 | Cast_scalar_f64_i64 | Sqrt_scalar_f64 | Sqrt_f64
       | Add_saturating_unsigned_i8 | Add_saturating_unsigned_i16
       | Add_saturating_i8 | Add_saturating_i16 | Sub_i8 | Sub_i16 | Sub_i32
       | Sub_i64 | Sub_f64 | Sub_saturating_unsigned_i8
@@ -562,8 +564,8 @@ let print_operation_sse printreg op ppf arg =
   | Max_f32 -> fprintf ppf "max_f32 %a %a" printreg arg.(0) printreg arg.(1)
   | Min_f32 -> fprintf ppf "min_f32 %a %a" printreg arg.(0) printreg arg.(1)
   | Rcp_f32 -> fprintf ppf "rcp_f32 %a %a" printreg arg.(0) printreg arg.(1)
-  | Sqrt_f32 -> fprintf ppf "sqrt_f32 %a %a" printreg arg.(0) printreg arg.(1)
-  | Rsqrt_f32 -> fprintf ppf "rsqrt_f32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Sqrt_f32 -> fprintf ppf "sqrt_f32 %a" printreg arg.(0)
+  | Rsqrt_f32 -> fprintf ppf "rsqrt_f32 %a" printreg arg.(0)
   | Movemask_32 -> fprintf ppf "movemask_32 %a" printreg arg.(0)
   | Shuffle_32 i ->
     fprintf ppf "shuffle_32[%d] %a %a" i printreg arg.(0) printreg arg.(1)
@@ -578,12 +580,12 @@ let print_operation_sse printreg op ppf arg =
 
 let print_operation_sse2 printreg op ppf arg =
   match op with
-  | Sqrt_scalar_f64 ->
-    fprintf ppf "sqrt_scalar_f64 %a %a" printreg arg.(0) printreg arg.(1)
+  | Sqrt_scalar_f64 -> fprintf ppf "sqrt_scalar_f64 %a" printreg arg.(0)
   | Min_scalar_f64 ->
     fprintf ppf "min_scalar_f64 %a %a" printreg arg.(0) printreg arg.(1)
   | Max_scalar_f64 ->
     fprintf ppf "max_scalar_f64 %a %a" printreg arg.(0) printreg arg.(1)
+  | Sqrt_f64 -> fprintf ppf "sqrt_f64 %a" printreg arg.(0)
   | Add_i8 -> fprintf ppf "add_i8 %a %a" printreg arg.(0) printreg arg.(1)
   | Add_i16 -> fprintf ppf "add_i16 %a %a" printreg arg.(0) printreg arg.(1)
   | Add_i32 -> fprintf ppf "add_i32 %a %a" printreg arg.(0) printreg arg.(1)
@@ -866,7 +868,7 @@ let class_of_operation_sse = function
 let class_of_operation_sse2 = function
   | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Add_saturating_i8
   | Cast_scalar_f64_i64 | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64
-  | Add_saturating_i16 | Add_saturating_unsigned_i8
+  | Sqrt_f64 | Add_saturating_i16 | Add_saturating_unsigned_i8
   | Add_saturating_unsigned_i16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
   | Sub_saturating_i8 | Sub_saturating_i16 | Sub_saturating_unsigned_i8
   | Sub_saturating_unsigned_i16 | Max_unsigned_i8 | Max_i16 | Max_f64

@@ -234,6 +234,7 @@ module I : sig
   val minpd: arg -> arg -> unit
   val mulpd: arg -> arg -> unit
   val divpd: arg -> arg -> unit
+  val sqrtpd: arg -> arg -> unit
   val pand: arg -> arg -> unit
   val pandnot: arg -> arg -> unit
   val por: arg -> arg -> unit

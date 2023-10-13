@@ -190,6 +190,7 @@ BUILTIN(caml_sse2_int16x8_min);
 BUILTIN(caml_sse2_float64x2_min);
 BUILTIN(caml_sse2_float64x2_mul);
 BUILTIN(caml_sse2_float64x2_div);
+BUILTIN(caml_sse2_float64x2_sqrt);
 BUILTIN(caml_sse2_vec128_and);
 BUILTIN(caml_sse2_vec128_andnot);
 BUILTIN(caml_sse2_vec128_or);
