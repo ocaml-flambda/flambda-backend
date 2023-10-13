@@ -6898,21 +6898,18 @@ and type_application env app_loc expected_mode pm
         Builtin_attributes.ensure_layout_attrs funct.exp_attributes in
       let is_ensure_layout = List.length jkind_constraints > 0 in
       if is_ensure_layout then begin
-        let env_decl_snapshot = Env.get_declaration_caches_snapshot () in
-        Env.reset_declaration_caches ();
-        let snap = snapshot () in
+        let ty_arg_copy = newvar (Jkind.any ~why:Dummy_jkind) in
         List.iter (fun (_attr, jkind_const, message) ->
           let jkind = Jkind.of_const ~why:(Ensure_attr message) jkind_const in
-          match Ctype.constrain_type_jkind env ty_arg jkind with
+          match Ctype.constrain_type_jkind env ty_arg_copy jkind with
           | Ok () -> ()
           | Error violation ->
-            raise (Error(sarg.pexp_loc, env,
-                         Ensure_attr_error (ty_arg,violation))))
+            raise (Error(sarg.pexp_loc, env, Ensure_attr_error (ty_arg_copy,violation))))
           jkind_constraints;
-        let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
-        check_partial_application ~statement:false exp;
-        backtrack snap;
-        Env.restore_from_declaration_caches_snapshot env_decl_snapshot;
+        Env.with_temp_declaration_caches (fun () ->
+          let previous_saved_types = Cmt_format.get_saved_types () in
+          let exp = type_expect env arg_mode sarg (mk_expected ty_arg_copy) in
+          Cmt_format.set_saved_types previous_saved_types);
         (* Omit exp from typedtree, replace with unit *)
         let desc = Pexp_construct ({txt = Lident "()"; loc = sarg.pexp_loc}, None) in
         let exp = type_expect env arg_mode ({

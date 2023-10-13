@@ -1068,6 +1068,13 @@ let restore_from_declaration_caches_snapshot snapshot =
   uid_to_loc := Types.Uid.Tbl.of_list snapshot.uid_to_loc_list;
   ()
 
+let with_temp_declaration_caches f =
+  let snap = get_declaration_caches_snapshot () in
+  reset_declaration_caches ();
+  Fun.protect
+    f
+    ~finally:(fun () -> restore_from_declaration_caches_snapshot snap)
+
 (* get_components *)
 
 let get_components_res c =
