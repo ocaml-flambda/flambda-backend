@@ -926,6 +926,7 @@ let emit_pminsw = emit_osize_rf_rfm 0xEA
 let emit_minpd = emit_osize_rf_rfm 0x5D
 let emit_mulpd = emit_osize_rf_rfm 0x59
 let emit_divpd = emit_osize_rf_rfm 0x5E
+let emit_sqrtpd = emit_osize_rf_rfm 0x51
 let emit_pand = emit_osize_rf_rfm 0xDB
 let emit_pandnot = emit_osize_rf_rfm 0xDF
 let emit_por = emit_osize_rf_rfm 0xEB
@@ -1831,6 +1832,7 @@ let assemble_instr b loc = function
   | MINPD (src, dst) -> emit_minpd b dst src
   | MULPD (src, dst) -> emit_mulpd b dst src
   | DIVPD (src, dst) -> emit_divpd b dst src
+  | SQRTPD (src, dst) -> emit_sqrtpd b dst src
   | PAND (src, dst) -> emit_pand b dst src
   | PANDNOT (src, dst) -> emit_pandnot b dst src
   | POR (src, dst) -> emit_por b dst src
