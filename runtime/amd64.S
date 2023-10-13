@@ -755,6 +755,13 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_ml_array_bound_error))
 
+FUNCTION(G(caml_ml_array_align_error))
+CFI_STARTPROC
+        LEA_VAR(caml_array_align_error, %rax)
+        jmp     LBL(caml_c_call)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_ml_array_align_error))
+
         TEXT_SECTION(caml_system__code_end)
         .globl  G(caml_system__code_end)
 G(caml_system__code_end):
