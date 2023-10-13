@@ -1203,7 +1203,7 @@ The precedences must be listed from low to high.
 %nonassoc AS
 %left     BAR                           /* pattern (p|p|p) */
 %nonassoc below_COMMA
-%left     COMMA                         /* expr/expr_comma_list (e,e,e) */
+%left     COMMA                         /* expr/labeled_tuple (e,e,e) */
 %nonassoc below_FUNCTOR                 /* include M */
 %nonassoc FUNCTOR                       /* include functor M */
 %right    MINUSGREATER                  /* function_type (t -> t -> t) */
@@ -2787,10 +2787,8 @@ fun_expr:
         in
         mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2
       }
-  | mkexp(expr_)
+  | expr_
       { $1 }
-  | expr_comma_list %prec below_COMMA
-      { mkexp ~loc:$sloc (Pexp_tuple $1) }
   | let_bindings(ext) IN seq_expr
       { expr_of_let_bindings ~loc:$sloc $1 $3 }
   | pbop_op = mkrhs(LETOP) bindings = letop_bindings IN body = seq_expr
@@ -2860,20 +2858,24 @@ fun_expr:
 ;
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
-      { Pexp_apply($1, $2) }
+      { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
+  | labeled_tuple %prec below_COMMA
+      { if List.for_all (fun (l,_) -> Option.is_none l) $1 then
+          mkexp ~loc:$sloc (Pexp_tuple (List.map snd $1))
+        else
+          pexp_lttuple $sloc $1
+      }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
-      { Pexp_construct($1, Some $2) }
+      { mkexp ~loc:$sloc (Pexp_construct($1, Some $2)) }
   | name_tag simple_expr %prec below_HASH
-      { Pexp_variant($1, Some $2) }
+      { mkexp ~loc:$sloc (Pexp_variant($1, Some $2)) }
   | e1 = fun_expr op = op(infix_operator) e2 = expr
-      { mkinfix e1 op e2 }
+      { mkexp ~loc:$sloc (mkinfix e1 op e2) }
 ;
 
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
-  | LPAREN args = ltuple_component_comma_list RPAREN
-      { pexp_lttuple $sloc args }
   | LPAREN seq_expr error
       { unclosed "(" $loc($1) ")" $loc($3) }
   | LPAREN seq_expr type_constraint RPAREN
@@ -3312,52 +3314,85 @@ fun_param_as_list:
 ;
 fun_params:
   | nonempty_concat(fun_param_as_list) { $1 }
-%inline expr_comma_list:
-  es = separated_nontrivial_llist(COMMA, expr)
-    { es }
 ;
 
-(* We do not use [labeled_simple_expr] for labeled tuples because we do not
-   permit optional tuple fields, and because we want don't want to parse tuples
-   with no labels as labeled tuples. *)
-%inline strict_ltuple_component:
-  | LABEL simple_expr
-      { Some $1, $2 }
+(* Parsing labeled tuple expressions
+
+   The grammar we want to parse is something like:
+
+     labeled_tuple_element := expr | ~x:expr | ~x | ~(x:ty)
+     labeled_tuple := lt_element [, lt_element]+
+
+   (The last case of [labled_tuple_element] is a punned label with a type
+   constraint, which is allowed for functions, so we allow it here).
+
+   So you might think [labeled_tuple] could therefore just be:
+
+     labeled_tuple :
+       separated_nontrivial_llist(COMMA, labeled_tuple_element)
+
+   But this doesn't work:
+
+   - If we don't mark [labeled_tuple_element] %inline, this causes many
+     reduce/reduce conflicts (basically just ambiguities) because
+     [labeled_tuple_element] trivially reduces to [expr].
+
+   - If we do mark [labeled_tuple_element] %inline, it is not allowed to have
+     %prec annotations.  Menhir doesn't permit these on %inline non-terminals
+     that are used in non-tail position.
+
+   To get around this, we do mark it inlined, and then because we can only use
+   it in tail position it is _manually_ inlined into the occurances in
+   [separated_nontrivial_llist] where it doesn't appear in tail position.  This
+   results in [labeled_tuple] and [reversed_labeled_tuple_body] below.  So the
+   latter is just a list of comma-separated labeled tuple elements, with length
+   at least two, where the first element in the base case is inlined (resulting
+   in one base case for each case of [labeled_tuple_element].  *)
+%inline labeled_tuple_element :
+  | expr
+     { None, $1 }
+  | LABEL simple_expr %prec below_HASH
+     { Some $1, $2 }
   | TILDE label = LIDENT
-      { let loc = $loc(label) in
-        Some label, mkexpvar ~loc label }
-  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
+     { let loc = $loc(label) in
+       Some label, mkexpvar ~loc label }
+  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN %prec below_HASH
       { Some label,
         mkexp_constraint
           ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
 ;
-
-%inline ltuple_component:
-  | expr
-      { None, $1 }
-  | strict_ltuple_component
-      { $1 }
+reversed_labeled_tuple_body:
+  (* > 2 elements *)
+  xs = reversed_labeled_tuple_body
+  COMMA
+  x = labeled_tuple_element
+    { x :: xs }
+  (* base cases (2 elements) *)
+| x1 = expr
+  COMMA
+  x2 = labeled_tuple_element
+    { [ x2; None, x1 ] }
+| l1 = LABEL x1 = simple_expr
+  COMMA
+  x2 = labeled_tuple_element
+    { [ x2; Some l1, x1 ] }
+| TILDE l1 = LIDENT
+  COMMA
+  x2 = labeled_tuple_element
+  { let loc = $loc(l1) in
+    [ x2; Some l1, mkexpvar ~loc l1] }
+| TILDE LPAREN l1 = LIDENT ty1 = type_constraint RPAREN
+  COMMA
+  x2 = labeled_tuple_element
+  { let x1 =
+      mkexp_constraint
+        ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(l1) l1) ty1
+    in
+    [ x2; Some l1, x1] }
 ;
-
-// Length >= 2, at least one label
-reversed_ltuple_component_comma_list:
-  // Base case: the next three rules are the ways to produce a list of length 2
-  | strict_ltuple_component COMMA strict_ltuple_component
-      { [$3; $1] }
-  | expr COMMA strict_ltuple_component
-      { [$3; None, $1]}
-  | strict_ltuple_component COMMA expr
-      { [None, $3; $1]}
-  // One label, length > 2
-  | separated_nontrivial_llist(COMMA, expr) COMMA strict_ltuple_component
-      { $3 :: List.map (fun x -> None, x) $1 }
-  // Recursive case
-  | reversed_ltuple_component_comma_list COMMA ltuple_component
-      { $3 :: $1 }
-;
-
-%inline ltuple_component_comma_list:
-  | rev(reversed_ltuple_component_comma_list) { $1 }
+%inline labeled_tuple:
+  xs = rev(reversed_labeled_tuple_body)
+    { xs }
 ;
 
 record_expr_content:
