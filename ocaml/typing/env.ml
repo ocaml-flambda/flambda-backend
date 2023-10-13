@@ -1039,6 +1039,35 @@ let reset_cache_toplevel () =
   reset_declaration_caches ();
   ()
 
+type 'a usage_list = (Shape.Uid.T.t * ('a -> unit)) list
+type declaration_caches_snapshot = {
+  value_declarations_list : unit usage_list;
+  type_declarations_list : unit usage_list;
+  module_declarations_list : unit usage_list;
+  used_constructors_list : constructor_usage usage_list;
+  used_labels_list : label_usage usage_list;
+  uid_to_loc_list : (Shape.Uid.T.t * Location.t) list;
+}
+
+let get_declaration_caches_snapshot () =
+  {
+    value_declarations_list = Types.Uid.Tbl.to_list !value_declarations;
+    type_declarations_list = Types.Uid.Tbl.to_list !type_declarations;
+    module_declarations_list = Types.Uid.Tbl.to_list !module_declarations;
+    used_constructors_list = Types.Uid.Tbl.to_list !used_constructors;
+    used_labels_list = Types.Uid.Tbl.to_list !used_labels;
+    uid_to_loc_list = Types.Uid.Tbl.to_list !uid_to_loc;
+  }
+
+let restore_from_declaration_caches_snapshot snapshot =
+  value_declarations := Types.Uid.Tbl.of_list snapshot.value_declarations_list;
+  type_declarations := Types.Uid.Tbl.of_list snapshot.type_declarations_list;
+  module_declarations := Types.Uid.Tbl.of_list snapshot.module_declarations_list;
+  used_constructors := Types.Uid.Tbl.of_list snapshot.used_constructors_list;
+  used_labels := Types.Uid.Tbl.of_list snapshot.used_labels_list;
+  uid_to_loc := Types.Uid.Tbl.of_list snapshot.uid_to_loc_list;
+  ()
+
 (* get_components *)
 
 let get_components_res c =

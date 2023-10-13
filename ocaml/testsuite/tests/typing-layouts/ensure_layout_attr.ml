@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_alpha"
+   flags = "-extension layouts_alpha -w +A"
    * expect
 *)
 
@@ -44,8 +44,21 @@ Unknown layout encountered
 val f : 'a -> unit = <fun>
 |}]
 
+let f x = ()
+[%%expect {|
+Line 1, characters 6-7:
+1 | let f x = ()
+          ^
+Warning 27 [unused-var-strict]: unused variable x.
+val f : 'a -> unit = <fun>
+|}]
+
 let f x = (ignore[@ensure_layout value "custom message"]) x
 [%%expect {|
+Line 1, characters 6-7:
+1 | let f x = (ignore[@ensure_layout value "custom message"]) x
+          ^
+Warning 27 [unused-var-strict]: unused variable x.
 val f : 'a -> unit = <fun>
 |}]
 
@@ -80,4 +93,50 @@ Line 1, characters 59-81:
 Error: This expression has type t_any but an expression was expected of type
          ('a : value)
        t_any has layout any, which is not a sublayout of value.
+|}]
+
+type t =
+  { x : int
+  ; y : int
+  }
+
+(* the statement does not mark variables as used *)
+let sum ({ x; y } as t) = (ignore[@ensure_layout value "custom message"]) t; x + y
+
+[%%expect{|
+type t = { x : int; y : int; }
+Line 7, characters 21-22:
+7 | let sum ({ x; y } as t) = (ignore[@ensure_layout value "custom message"]) t; x + y
+                         ^
+Warning 26 [unused-var]: unused variable t.
+val sum : t -> int = <fun>
+|}]
+
+
+let f x = (ignore[@ensure_layout value "custom message"]) (let y = 1 in x)
+
+[%%expect{|
+Line 1, characters 6-7:
+1 | let f x = (ignore[@ensure_layout value "custom message"]) (let y = 1 in x)
+          ^
+Warning 27 [unused-var-strict]: unused variable x.
+Line 1, characters 63-64:
+1 | let f x = (ignore[@ensure_layout value "custom message"]) (let y = 1 in x)
+                                                                   ^
+Warning 26 [unused-var]: unused variable y.
+val f : 'a -> unit = <fun>
+|}]
+
+(* body of the ensure_layout is only type checked and ommitted from the typedtree *)
+let f x =
+  let y = ref [] in
+  (ignore) (y := 1 :: !y; x);
+  (ignore[@ensure_layout value "custom message"]) (y := 2 :: !y; x);
+  !y;;
+
+f ()
+
+[%%expect{|
+val f : 'a -> int list = <fun>
+- : int list = [1]
 |}]

@@ -6894,19 +6894,39 @@ and type_application env app_loc expected_mode pm
         mode_argument ~funct ~index:0 ~position:(pm.apply_position)
           ~partial_app:false arg_mode
       in
-      let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
-      check_partial_application ~statement:false exp;
       let jkind_constraints =
         Builtin_attributes.ensure_layout_attrs funct.exp_attributes in
-      List.iter (fun (_attr, jkind_const, message) ->
-        let jkind = Jkind.of_const ~why:(Ensure_attr message) jkind_const in
-        match Ctype.constrain_type_jkind env exp.exp_type jkind with
-        | Ok () -> ()
-        | Error violation ->
-          raise (Error(sarg.pexp_loc, env,
-                       Ensure_attr_error (exp.exp_type,violation))))
-        jkind_constraints;
-      ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, pm)
+      let is_ensure_layout = List.length jkind_constraints > 0 in
+      if is_ensure_layout then begin
+        let env_decl_snapshot = Env.get_declaration_caches_snapshot () in
+        Env.reset_declaration_caches ();
+        let snap = snapshot () in
+        List.iter (fun (_attr, jkind_const, message) ->
+          let jkind = Jkind.of_const ~why:(Ensure_attr message) jkind_const in
+          match Ctype.constrain_type_jkind env ty_arg jkind with
+          | Ok () -> ()
+          | Error violation ->
+            raise (Error(sarg.pexp_loc, env,
+                         Ensure_attr_error (ty_arg,violation))))
+          jkind_constraints;
+        let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
+        check_partial_application ~statement:false exp;
+        backtrack snap;
+        Env.restore_from_declaration_caches_snapshot env_decl_snapshot;
+        (* Omit exp from typedtree, replace with unit *)
+        let desc = Pexp_construct ({txt = Lident "()"; loc = sarg.pexp_loc}, None) in
+        let exp = type_expect env arg_mode ({
+          pexp_desc = desc;
+          pexp_attributes = [];
+          pexp_loc_stack = [];
+          pexp_loc = sarg.pexp_loc;
+        }) (mk_expected ty_arg) in
+        ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, pm)
+      end else begin
+        let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
+        check_partial_application ~statement:false exp;
+        ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, pm)
+      end
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =

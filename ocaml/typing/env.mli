@@ -593,3 +593,9 @@ type address_head =
   | AHlocal of Ident.t
 
 val address_head : address -> address_head
+
+type declaration_caches_snapshot
+
+val get_declaration_caches_snapshot : unit -> declaration_caches_snapshot
+val restore_from_declaration_caches_snapshot : declaration_caches_snapshot -> unit
+val reset_declaration_caches : unit -> unit
