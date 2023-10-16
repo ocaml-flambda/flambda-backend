@@ -33,7 +33,7 @@ define dune_boot_context
   (name default)
   (profile dev)
   (env (_
-    (flags (:standard -warn-error +A -opaque))
+    (flags (:standard -g -warn-error +A -opaque))
     (env-vars ("OCAMLPARAM" ""))))))
 endef
 
