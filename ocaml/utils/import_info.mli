@@ -26,7 +26,7 @@ module CU := Compilation_unit
    here, or somewhere alongside, rather than being duplicated around the
    tree. *)
 
-module Impl : sig
+module Intf : sig
   type t
 
   val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
@@ -50,7 +50,7 @@ end
 
 (* CR-soon lmaurer: Change the APIs to reflect the differences between the two
    types. (In particular, an [Impl.t] always has a [CU.t].)*)
-module Intf : sig
+module Impl : sig
   type t
 
   val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
