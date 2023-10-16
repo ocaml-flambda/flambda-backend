@@ -209,3 +209,5 @@ val has_once : Parsetree.attributes -> (bool, unit) result
 val jkind : legacy_immediate:bool -> Parsetree.attributes ->
   (Jane_asttypes.jkind_annotation option,
    Jane_asttypes.jkind_annotation) result
+
+val error_message_attr : Parsetree.attributes -> string option

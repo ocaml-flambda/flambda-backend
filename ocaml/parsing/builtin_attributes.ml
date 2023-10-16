@@ -671,3 +671,29 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
+
+
+let error_message_attr l =
+  let inner x =
+    match x.attr_name.txt with
+    | "ocaml.error_message"|"error_message" ->
+      begin match string_of_payload x.attr_payload with
+      | Some s ->
+        mark_used x.attr_name;
+        Some (x, s)
+      | None -> warn_payload x.attr_loc x.attr_name.txt
+                  "Error_message attribute expects a string argument";
+        None
+      end
+    | _ -> None in
+  let attrs = List.filter_map inner l in
+  match List.length attrs with
+  | 0 -> None
+  | 1 ->
+    let _, msg = List.hd attrs in
+    Some msg
+  | _ ->
+    let x, _ = List.nth attrs 1 in
+    warn_payload x.attr_loc x.attr_name.txt
+      "More than one error_message attribute present. All of them will be ignored.";
+    None

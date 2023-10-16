@@ -197,6 +197,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Error_messsage_attr_hint of string * error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -5369,7 +5370,14 @@ and type_expect_
       end_def ();
       generalize_structure ty;
       let ty' = instance ty in
-      let arg = type_argument env expected_mode sarg ty (instance ty) in
+      let error_message_attr_opt =
+        Builtin_attributes.error_message_attr sexp.pexp_attributes in
+      let arg = try type_argument env expected_mode sarg ty (instance ty)
+        with Error (loc, env, err) as exn -> match error_message_attr_opt with
+          | Some msg when Location.compare loc sarg.pexp_loc = 0 ->
+            raise (Error (loc, env, Error_messsage_attr_hint (msg, err)))
+          | _ -> raise exn
+      in
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
@@ -8459,7 +8467,7 @@ let report_unification_error ~loc ?sub env err
       ?type_expected_explanation txt1 txt2
   ) ()
 
-let report_error ~loc env = function
+let rec report_error ~loc env = function
   | Constructor_arity_mismatch(lid, expected, provided) ->
       Location.errorf ~loc
        "@[The constructor %a@ expects %i argument(s),@ \
@@ -8973,6 +8981,10 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Error_messsage_attr_hint (msg, err) ->
+    let report : Location.report = report_error ~loc env err in
+    let new_sub = Location.msg "@?@\nHint: %s@?" msg in
+    ({report with sub = new_sub :: report.sub})
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
