@@ -214,19 +214,13 @@ WITH_OCAMLDOC=@ocamldoc@
 WITH_OCAMLTEST=@ocamltest@
 ASM_CFI_SUPPORTED=@asm_cfi_supported@
 WITH_FRAME_POINTERS=@frame_pointers@
-<<<<<<< HEAD
 WITH_CPP_MANGLING=@cpp_mangling@
 WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
-||||||| merged common ancestors
-WITH_PROFINFO=@profinfo@
-PROFINFO_WIDTH=@profinfo_width@
-=======
 HEADER_RESERVED_BITS=@reserved_header_bits@
 LIBUNWIND_AVAILABLE=@libunwind_available@
 LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
 LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@
->>>>>>> ocaml/5.1
 WITH_FPIC=@fpic@
 TARGET=@target@
 HOST=@host@
@@ -243,51 +237,11 @@ FUNCTION_SECTIONS=@function_sections@
 PROBES=@probes@
 AWK=@AWK@
 STDLIB_MANPAGES=@stdlib_manpages@
-<<<<<<< HEAD
 NAKED_POINTERS=@naked_pointers@
 INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
 STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
-
-### Native command to build ocamlrun.exe
-
-ifeq "$(TOOLCHAIN)" "msvc"
-  MERGEMANIFESTEXE=test ! -f $(1).manifest \
-          || mt -nologo -outputresource:$(1) -manifest $(1).manifest \
-          && rm -f $(1).manifest
-  MKEXE_USING_COMPILER=$(CC) $(OC_CFLAGS) $(CFLAGS) $(OUTPUTEXE)$(1) $(2) \
-    /link /subsystem:console $(OC_LDFLAGS) $(LDFLAGS) && ($(MERGEMANIFESTEXE))
-else
-  MKEXE_USING_COMPILER=$(CC) $(OC_CFLAGS) $(CFLAGS) $(OC_LDFLAGS) $(LDFLAGS) \
-    $(OUTPUTEXE)$(1) $(2)
-endif # ifeq "$(TOOLCHAIN)" "msvc"
-
-FLEXLINK_FLAGS=@flexlink_flags@
-FLEXLINK_CMD=flexlink
-FLEXLINK=$(FLEXLINK_CMD) $(FLEXLINK_FLAGS)
-||||||| merged common ancestors
-NAKED_POINTERS=@naked_pointers@
-
-### Native command to build ocamlrun.exe
-
-ifeq "$(TOOLCHAIN)" "msvc"
-  MERGEMANIFESTEXE=test ! -f $(1).manifest \
-          || mt -nologo -outputresource:$(1) -manifest $(1).manifest \
-          && rm -f $(1).manifest
-  MKEXE_USING_COMPILER=$(CC) $(OC_CFLAGS) $(CFLAGS) $(OUTPUTEXE)$(1) $(2) \
-    /link /subsystem:console $(OC_LDFLAGS) $(LDFLAGS) && ($(MERGEMANIFESTEXE))
-else
-  MKEXE_USING_COMPILER=$(CC) $(OC_CFLAGS) $(CFLAGS) $(OC_LDFLAGS) $(LDFLAGS) \
-    $(OUTPUTEXE)$(1) $(2)
-endif # ifeq "$(TOOLCHAIN)" "msvc"
-
-FLEXLINK_FLAGS=@flexlink_flags@
-FLEXLINK_CMD=flexlink
-FLEXLINK=$(FLEXLINK_CMD) $(FLEXLINK_FLAGS)
-=======
-NAKED_POINTERS=false
->>>>>>> ocaml/5.1
 
 # Deprecated variables
 

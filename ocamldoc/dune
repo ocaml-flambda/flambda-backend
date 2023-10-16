@@ -31,7 +31,6 @@
     odoc_comments
     odoc_comments_global
     odoc_config
-    odoc_control
     odoc_cross
     odoc_dag2html
     odoc_dep
@@ -43,7 +42,6 @@
     odoc_global
     odoc_html
     odoc_info
-    odoc_inherit
     odoc_latex
     odoc_latex_style
     odoc_lexer

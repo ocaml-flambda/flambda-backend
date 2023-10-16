@@ -375,7 +375,9 @@ let find_in_path_uncap path name =
 
 let remove_file filename =
   try
-    if Sys.is_regular_file filename
+    (* merge5: Partial revert of upstream PR 11412, to allow building
+       with OCaml 4.14 (which does not have is_regular_file *)
+    if Sys.file_exists filename
     then Sys.remove filename
   with Sys_error _msg ->
     ()

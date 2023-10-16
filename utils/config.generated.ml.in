@@ -76,6 +76,7 @@ let mkdll, mkexe, mkmaindll =
     {@QS@|@mkmaindll_exp@|@QS@}
 
 let flambda = @flambda@
+let flambda2 = @flambda2@
 let with_flambda_invariants = @flambda_invariants@
 let with_cmm_invariants = @cmm_invariants@
 let windows_unicode = @windows_unicode@ != 0
@@ -83,7 +84,10 @@ let windows_unicode = @windows_unicode@ != 0
 let flat_float_array = @flat_float_array@
 
 let function_sections = @function_sections@
+let probes = @probes@
 let afl_instrument = @afl@
+let stack_allocation = @stack_allocation@
+let poll_insertion = @poll_insertion@
 
 let native_compiler = @native_compiler@
 
@@ -94,6 +98,7 @@ let system = {@QS@|@system@|@QS@}
 let asm = {@QS@|@AS@|@QS@}
 let asm_cfi_supported = @asm_cfi_supported@
 let with_frame_pointers = @frame_pointers@
+let with_cpp_mangling = @cpp_mangling@
 let reserved_header_bits = @reserved_header_bits@
 
 let ext_exe = {@QS@|@exeext@|@QS@}

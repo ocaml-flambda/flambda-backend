@@ -18,7 +18,6 @@
    (exit_module std_exit)
    (internal_modules Camlinternal*)
    (modules_before_stdlib
-<<<<<<< HEAD
      camlinternalFormatBasics
      camlinternalAtomic))
  (flags (
@@ -27,14 +26,6 @@
      -safe-string -strict-formats
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
-||||||| merged common ancestors
-     camlinternalFormatBasics
-     camlinternalAtomic))
- (flags (:standard -w -9 -nolabels))
-=======
-     camlinternalFormatBasics))
- (flags (:standard -w -9 -nolabels))
->>>>>>> ocaml/5.1
  (preprocess
    (per_module
     ((action

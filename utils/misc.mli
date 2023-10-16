@@ -94,15 +94,10 @@ val list_remove: 'a -> 'a list -> 'a list
            element equal to [x] removed. *)
 
 val split_last: 'a list -> 'a list * 'a
-<<<<<<< HEAD
-        (* Return the last element and the other elements of the given list. *)
+        (** Return the last element and the other elements of the given list. *)
+
 val last : 'a list -> 'a option
-        (* Return the last element of a list if it's nonempty *)
-||||||| merged common ancestors
-        (* Return the last element and the other elements of the given list. *)
-=======
-       (** Return the last element and the other elements of the given list. *)
->>>>>>> ocaml/5.1
+        (** Return the last element of a list if it's nonempty *)
 
 (** {1 Hash table operations} *)
 
@@ -611,16 +606,6 @@ val debug_prefix_map_flags: unit -> string list
 (** Returns the list of [--debug-prefix-map] flags to be passed to the
     assembler, built from the [BUILD_PATH_PREFIX_MAP] environment variable. *)
 
-<<<<<<< HEAD
-val print_if :
-  Format.formatter -> bool ref -> (Format.formatter -> 'a -> unit) -> 'a -> 'a
-(** [print_if ppf flag fmt x] prints [x] with [fmt] on [ppf] if [b] is true. *)
-
-
-type filepath = string
-
-type alerts = string Stdlib.String.Map.t
-
 module Bitmap : sig
   type t
   val make : int -> t
@@ -629,21 +614,8 @@ module Bitmap : sig
   val get : t -> int -> bool
   val iter : (int -> unit) -> t -> unit
 end
-||||||| merged common ancestors
-val print_if :
-  Format.formatter -> bool ref -> (Format.formatter -> 'a -> unit) -> 'a -> 'a
-(** [print_if ppf flag fmt x] prints [x] with [fmt] on [ppf] if [b] is true. *)
 
-
-type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
-
-type alerts = string Stdlib.String.Map.t
-
-=======
 (** {1 Handling of magic numbers} *)
->>>>>>> ocaml/5.1
 
 module Magic_number : sig
   (** a typical magic number is "Caml1999I011"; it is formed of an
@@ -842,18 +814,12 @@ module Magic_number : sig
   val all_kinds : kind list
 end
 
-<<<<<<< HEAD
 (** Propositional equality *)
 type (_, _) eq = Refl : ('a, 'a) eq
 
 
-||||||| merged common ancestors
-=======
 (** {1 Miscellaneous type aliases} *)
 
 type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
->>>>>>> ocaml/5.1

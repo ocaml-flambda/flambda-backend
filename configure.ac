@@ -204,12 +204,8 @@ AC_SUBST([cmm_invariants])
 AC_SUBST([windows_unicode])
 AC_SUBST([flat_float_array])
 AC_SUBST([function_sections])
-<<<<<<< HEAD
 AC_SUBST([probes])
-||||||| merged common ancestors
-=======
 AC_SUBST([oc_native_compflags])
->>>>>>> ocaml/5.1
 AC_SUBST([afl])
 AC_SUBST([flexlink_cmd])
 AC_SUBST([flexdll_chain])
@@ -218,22 +214,16 @@ AC_SUBST([mkexe_ldflags_exp])
 AC_SUBST([PACKLD])
 AC_SUBST([stdlib_manpages])
 AC_SUBST([compute_deps])
-<<<<<<< HEAD
 AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
 AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
 AC_SUBST([poll_insertion])
 AC_SUBST([dune])
-||||||| merged common ancestors
-AC_SUBST([naked_pointers])
-AC_SUBST([naked_pointers_checker])
-=======
 AC_SUBST([ocaml_bindir])
 AC_SUBST([ocaml_libdir])
 AC_SUBST([QS])
 AC_SUBST([ar_supports_response_files])
->>>>>>> ocaml/5.1
 
 ## Generated files
 
@@ -247,17 +237,13 @@ AC_CONFIG_FILES([utils/config.generated.ml])
 AC_CONFIG_HEADERS([runtime/caml/m.h])
 AC_CONFIG_HEADERS([runtime/caml/s.h])
 AC_CONFIG_HEADERS([runtime/caml/version.h])
-<<<<<<< HEAD
 AC_CONFIG_HEADERS([runtime4/caml/m.h])
 AC_CONFIG_HEADERS([runtime4/caml/s.h])
 AC_CONFIG_HEADERS([runtime4/caml/version.h])
-||||||| merged common ancestors
-=======
 AC_CONFIG_FILES([compilerlibs/META])
 AC_CONFIG_FILES([otherlibs/dynlink/META])
 AC_CONFIG_FILES([otherlibs/runtime_events/META])
 AC_CONFIG_FILES([stdlib/META])
->>>>>>> ocaml/5.1
 
 # Definitions related to the version of OCaml
 AC_DEFINE([OCAML_VERSION_MAJOR], [OCAML__VERSION_MAJOR])
@@ -403,7 +389,6 @@ AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
 
-<<<<<<< HEAD
 AC_ARG_ENABLE([cpp-mangling],
   [AS_HELP_STRING([--enable-cpp-mangling],
     [use cpp mangling for exported symbols])])
@@ -411,16 +396,6 @@ AC_ARG_ENABLE([cpp-mangling],
 AC_ARG_ENABLE([naked-pointers],
   [AS_HELP_STRING([--disable-naked-pointers],
     [do not allow naked pointers])])
-||||||| merged common ancestors
-AC_ARG_ENABLE([naked-pointers],
-  [AS_HELP_STRING([--disable-naked-pointers],
-    [do not allow naked pointers])])
-=======
-AC_ARG_ENABLE([naked-pointers], [],
-  [AS_IF([test "x$enableval" != 'xno'],
-    [AC_MSG_ERROR([Naked pointers were prohibited in OCaml 5.0.])])],
-  [])
->>>>>>> ocaml/5.1
 
 AC_ARG_ENABLE([naked-pointers-checker], [],
   [AS_IF([test "x$enableval" != 'xno'],
@@ -1154,17 +1129,6 @@ AS_IF([test x"$enable_shared" != "xno"],
       [sharedlib_cflags="-fPIC"
        AS_CASE([$cc_basename,$host],
            [*gcc*,powerpc-*-linux*],
-<<<<<<< HEAD
-           [mksharedlib="$CC -shared -mbss-plt \$(LDFLAGS)"],
-           [[*,i[3456]86-*]],
-           # Disable DT_TEXTREL warnings on Linux and BSD i386
-           # See https://github.com/ocaml/ocaml/issues/9800
-           [mksharedlib="$CC -shared \$(LDFLAGS) -Wl,-z,notext"],
-           [mksharedlib="$CC -shared \$(LDFLAGS)"])
-||||||| merged common ancestors
-           [mksharedlib="$CC -shared -mbss-plt \$(LDFLAGS)"],
-           [mksharedlib="$CC -shared \$(LDFLAGS)"])
-=======
            [mkdll_flags='-shared -mbss-plt'],
            [[*,i[3456]86-*]],
            # Disable DT_TEXTREL warnings on Linux and BSD i386
@@ -1174,7 +1138,6 @@ AS_IF([test x"$enable_shared" != "xno"],
        AS_CASE([$host],
            [[*-*-openbsd7.[3-9]|*-*-openbsd[89].*]],
            [mkdll_flags="${mkdll_flags} -Wl,--no-execute-only"])
->>>>>>> ocaml/5.1
       oc_ldflags="$oc_ldflags -Wl,-E"
       rpath="-Wl,-rpath,"
       mksharedlibrpath="-Wl,-rpath,"
@@ -1232,11 +1195,7 @@ AS_IF([test x"$supports_shared_libraries" = 'xtrue'],
     [aarch64-*-linux*], [natdynlink=true],
     [aarch64-*-freebsd*], [natdynlink=true],
     [aarch64-*-openbsd*], [natdynlink=true],
-<<<<<<< HEAD
-||||||| merged common ancestors
-=======
     [aarch64-*-netbsd*], [natdynlink=true],
->>>>>>> ocaml/5.1
     [riscv*-*-linux*], [natdynlink=true])])
 
 AS_CASE([$enable_native_toplevel,$natdynlink],
@@ -1351,19 +1310,11 @@ AS_CASE([$host],
        [has_native_backend=yes; arch=arm64; system=linux],
        [arch=arm; model=armv8; system=linux])],
   [aarch64-*-freebsd*],
-<<<<<<< HEAD
-    [arch=arm64; system=freebsd],
-  [aarch64-*-openbsd*],
-    [arch=arm64; system=openbsd],
-||||||| merged common ancestors
-    [arch=arm64; system=freebsd],
-=======
     [has_native_backend=yes; arch=arm64; system=freebsd],
   [aarch64-*-openbsd*],
     [has_native_backend=yes; arch=arm64; system=openbsd],
   [aarch64-*-netbsd*],
     [has_native_backend=yes; arch=arm64; system=netbsd],
->>>>>>> ocaml/5.1
   [x86_64-*-cygwin*],
     [has_native_backend=yes; arch=amd64; system=cygwin],
   [riscv64-*-linux*],
@@ -2175,7 +2126,6 @@ AS_IF([test x"$enable_frame_pointers" = "xyes"],
   [AC_MSG_NOTICE([not using frame pointers])
   frame_pointers=false])
 
-<<<<<<< HEAD
 ## CPP mangling
 
 AS_IF([test x"$enable_cpp_mangling" = "xyes"],
@@ -2207,33 +2157,6 @@ AS_IF([test x"$enable_naked_pointers_checker" = "xyes" ],
   )],
   [naked_pointers_checker=false])
 
-||||||| merged common ancestors
-## No naked pointers
-
-AS_IF([test x"$enable_naked_pointers" = "xno" ],
-  [naked_pointers=false
-   AC_DEFINE([NO_NAKED_POINTERS])],
-  [naked_pointers=true])
-
-AS_IF([test x"$enable_naked_pointers_checker" = "xyes" ],
-  [AS_IF([test x"$enable_naked_pointers" = "xno" ],
-         [AC_MSG_ERROR(m4_normalize([
-               --enable-naked-pointers-checker and --disable-naked-pointers
-               are incompatible]))])
-   AS_CASE(["$arch","$system"],
-    [amd64,linux|amd64,macosx \
-    |amd64,openbsd|amd64,win64 \
-    |amd64,freebsd|amd64,solaris \
-    |arm64,linux|arm64,macosx],
-      [naked_pointers_checker=true
-      AC_DEFINE([NAKED_POINTERS_CHECKER])],
-    [*],
-      [AC_MSG_ERROR([naked pointers checker not supported on this platform])]
-  )],
-  [naked_pointers_checker=false])
-
-=======
->>>>>>> ocaml/5.1
 ## Check for mmap support for huge pages and contiguous heap
 OCAML_MMAP_SUPPORTS_HUGE_PAGES
 

@@ -1,16 +1,4 @@
-<<<<<<< HEAD
-4.14.1+jst
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-4.12.0+dev4-2020-10-30
-||||||||| 24dbb0976a
-4.12.0+dev1-2020-10-19
-=========
-4.14.0+dev1-2021-10-05
->>>>>>>>> Temporary merge branch 2
-=======
-5.1.1+dev0-2023-09-14
->>>>>>> ocaml/5.1
+5.1.1+jst-runtime4
 
 # Starting with OCaml 4.14, although the version string that appears above is
 # still correct and this file can thus still be used to figure it out,
