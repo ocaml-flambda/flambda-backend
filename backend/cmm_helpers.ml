@@ -2335,7 +2335,7 @@ let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
 let split_arity_for_apply arity args =
-  (* Decides wether a caml_applyN needs to be splitted. If N <= max_arity, then
+  (* Decides whether a caml_applyN needs to be split. If N <= max_arity, then
      keep caml_apply as is; otherwise, split at caml_apply[max_arity] *)
   let max_arity = Lambda.max_arity () in
   if List.compare_length_with arity max_arity <= 0
