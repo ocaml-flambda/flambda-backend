@@ -113,14 +113,14 @@ module Cache = struct
 
   let all () =
     (* [is_curry], [is_send] and [is_apply] are also used to determine if a
-        generate function was cached. When we generate the cached generated
-        functions, we explore the space of all potential candidates and rely on
-        these functions to filter out the one that we'll actually generate.
-        It's okay to have a search space bigger than needed, however it's not
-        okay to have a search space that does not englobe all candidates as it
-        will result in weird errors at link-time. We maybe could use Z3 to
-        automatically derive a good search space in the future as the filters
-        might become more complexed with unboxed types. *)
+       generate function was cached. When we generate the cached generated
+       functions, we explore the space of all potential candidates and rely on
+       these functions to filter out the one that we'll actually generate. It's
+       okay to have a search space bigger than needed, however it's not okay to
+       have a search space that does not englobe all candidates as it will
+       result in weird errors at link-time. We maybe could use Z3 to
+       automatically derive a good search space in the future as the filters
+       might become more complexed with unboxed types. *)
     assert (considered_as_small_threshold <= max_tuplify);
     assert (considered_as_small_threshold <= max_send);
     assert (considered_as_small_threshold <= Lambda.max_arity ());
@@ -174,21 +174,21 @@ module Cache = struct
       |> Seq.map (fun ((_, arity, _) as f) -> category "curry_" arity, f)
       |> map_of_seq_multi
       |> SMap.map (fun curry_fun ->
-              { Cmx_format.curry_fun; send_fun = []; apply_fun = [] })
+             { Cmx_format.curry_fun; send_fun = []; apply_fun = [] })
     in
     let send_fns =
       Seq.filter mem_send send
       |> Seq.map (fun ((arity, _, _) as f) -> category "send_" arity, f)
       |> map_of_seq_multi
       |> SMap.map (fun send_fun ->
-              { Cmx_format.send_fun; curry_fun = []; apply_fun = [] })
+             { Cmx_format.send_fun; curry_fun = []; apply_fun = [] })
     in
     let apply_fns =
       Seq.filter mem_apply apply
       |> Seq.map (fun ((arity, _, _) as f) -> category "apply_" arity, f)
       |> map_of_seq_multi
       |> SMap.map (fun apply_fun ->
-              { Cmx_format.apply_fun; send_fun = []; curry_fun = [] })
+             { Cmx_format.apply_fun; send_fun = []; curry_fun = [] })
     in
     let out = Hashtbl.create 100 in
     let add f =
@@ -211,20 +211,18 @@ end
 
 module Tbl = struct
   include Tbl0
+
   let add (t : t) (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
     if !Flambda_backend_flags.use_cached_generic_functions
     then (
       List.iter
-        (fun f ->
-          if not (Cache.mem_curry f) then Hashtbl.replace t.curry f ())
+        (fun f -> if not (Cache.mem_curry f) then Hashtbl.replace t.curry f ())
         curry_fun;
       List.iter
-        (fun f ->
-          if not (Cache.mem_apply f) then Hashtbl.replace t.apply f ())
+        (fun f -> if not (Cache.mem_apply f) then Hashtbl.replace t.apply f ())
         apply_fun;
       List.iter
-        (fun f ->
-          if not (Cache.mem_send f) then Hashtbl.replace t.send f ())
+        (fun f -> if not (Cache.mem_send f) then Hashtbl.replace t.send f ())
         send_fun)
     else add_uncached t f
 end
@@ -236,8 +234,9 @@ let default_generic_fns : Cmx_format.generic_fns =
         [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ];
     send_fun = []
   }
+
 (* These apply funs are always present in the main program because the run-time
-    system needs them (cf. runtime/<arch>.S) . *)
+   system needs them (cf. runtime/<arch>.S) . *)
 let compile ~shared tbl =
   if not shared then Tbl.add tbl default_generic_fns;
   let ({ curry_fun; apply_fun; send_fun } : Cmx_format.generic_fns) =
