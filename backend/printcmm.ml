@@ -99,7 +99,8 @@ let chunk = function
   | Sixteen_signed -> "signed int16"
   | Thirtytwo_unsigned -> "unsigned int32"
   | Thirtytwo_signed -> "signed int32"
-  | Onetwentyeight -> "vec128"
+  | Onetwentyeight_unaligned -> "unaligned vec128"
+  | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
   | Single -> "float32"
@@ -236,6 +237,7 @@ let operation d = function
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
+  | Ccheckalign { bytes_pow2 } -> Printf.sprintf "checkalign[%d]%s" bytes_pow2 (location d)
   | Cprobe { name; handler_code_sym; enabled_at_init; } ->
     Printf.sprintf "probe[%s %s%s]" name handler_code_sym
       (if enabled_at_init then " enabled_at_init" else "")

@@ -89,9 +89,11 @@ let pbigarrayset = "Pbigarrayset"
 let pbigstring_load_16 = "Pbigstring_load_16"
 let pbigstring_load_32 = "Pbigstring_load_32"
 let pbigstring_load_64 = "Pbigstring_load_64"
+let pbigstring_load_128 = "Pbigstring_load_128"
 let pbigstring_set_16 = "Pbigstring_set_16"
 let pbigstring_set_32 = "Pbigstring_set_32"
 let pbigstring_set_64 = "Pbigstring_set_64"
+let pbigstring_set_128 = "Pbigstring_set_128"
 let pbintcomp = "Pbintcomp"
 let pbintofint = "Pbintofint"
 let pbswap16 = "Pbswap16"
@@ -99,9 +101,11 @@ let pbytes_of_string = "Pbytes_of_string"
 let pbytes_load_16 = "Pbytes_load_16"
 let pbytes_load_32 = "Pbytes_load_32"
 let pbytes_load_64 = "Pbytes_load_64"
+let pbytes_load_128 = "Pbytes_load_128"
 let pbytes_set_16 = "Pbytes_set_16"
 let pbytes_set_32 = "Pbytes_set_32"
 let pbytes_set_64 = "Pbytes_set_64"
+let pbytes_set_128 = "Pbytes_set_128"
 let pbytes_to_string = "Pbytes_to_string"
 let pbyteslength = "Pbyteslength"
 let pbytesrefs = "Pbytesrefs"
@@ -172,6 +176,7 @@ let psetglobal = "Psetglobal"
 let pstring_load_16 = "Pstring_load_16"
 let pstring_load_32 = "Pstring_load_32"
 let pstring_load_64 = "Pstring_load_64"
+let pstring_load_128 = "Pstring_load_128"
 let pstringlength = "Pstringlength"
 let pstringrefs = "Pstringrefs"
 let pstringrefu = "Pstringrefu"
@@ -205,9 +210,11 @@ let pbigarrayset_arg = "Pbigarrayset_arg"
 let pbigstring_load_16_arg = "Pbigstring_load_16_arg"
 let pbigstring_load_32_arg = "Pbigstring_load_32_arg"
 let pbigstring_load_64_arg = "Pbigstring_load_64_arg"
+let pbigstring_load_128_arg = "Pbigstring_load_128_arg"
 let pbigstring_set_16_arg = "Pbigstring_set_16_arg"
 let pbigstring_set_32_arg = "Pbigstring_set_32_arg"
 let pbigstring_set_64_arg = "Pbigstring_set_64_arg"
+let pbigstring_set_128_arg = "Pbigstring_set_128_arg"
 let pbintcomp_arg = "Pbintcomp_arg"
 let pbintofint_arg = "Pbintofint_arg"
 let pbswap16_arg = "Pbswap16_arg"
@@ -279,12 +286,15 @@ let psetglobal_arg = "Psetglobal_arg"
 let pstring_load_16_arg = "Pstring_load_16_arg"
 let pstring_load_32_arg = "Pstring_load_32_arg"
 let pstring_load_64_arg = "Pstring_load_64_arg"
+let pstring_load_128_arg = "Pstring_load_128_arg"
 let pbytes_load_16_arg = "Pbytes_load_16_arg"
 let pbytes_load_32_arg = "Pbytes_load_32_arg"
 let pbytes_load_64_arg = "Pbytes_load_64_arg"
+let pbytes_load_128_arg = "Pbytes_load_128_arg"
 let pbytes_set_16_arg = "Pbytes_set_16_arg"
 let pbytes_set_32_arg = "Pbytes_set_32_arg"
 let pbytes_set_64_arg = "Pbytes_set_64_arg"
+let pbytes_set_128_arg = "Pbytes_set_128_arg"
 let pstringlength_arg = "Pstringlength_arg"
 let pstringrefs_arg = "Pstringrefs_arg"
 let pstringrefu_arg = "Pstringrefu_arg"
@@ -434,18 +444,23 @@ let of_primitive : Lambda.primitive -> string = function
   | Pstring_load_16 _ -> pstring_load_16
   | Pstring_load_32 _ -> pstring_load_32
   | Pstring_load_64 _ -> pstring_load_64
+  | Pstring_load_128 _ -> pstring_load_128
   | Pbytes_load_16 _ -> pbytes_load_16
   | Pbytes_load_32 _ -> pbytes_load_32
   | Pbytes_load_64 _ -> pbytes_load_64
+  | Pbytes_load_128 _ -> pbytes_load_128
   | Pbytes_set_16 _ -> pbytes_set_16
   | Pbytes_set_32 _ -> pbytes_set_32
   | Pbytes_set_64 _ -> pbytes_set_64
+  | Pbytes_set_128 _ -> pbytes_set_128
   | Pbigstring_load_16 _ -> pbigstring_load_16
   | Pbigstring_load_32 _ -> pbigstring_load_32
   | Pbigstring_load_64 _ -> pbigstring_load_64
+  | Pbigstring_load_128 _ -> pbigstring_load_128
   | Pbigstring_set_16 _ -> pbigstring_set_16
   | Pbigstring_set_32 _ -> pbigstring_set_32
   | Pbigstring_set_64 _ -> pbigstring_set_64
+  | Pbigstring_set_128 _ -> pbigstring_set_128
   | Pbswap16 -> pbswap16
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer _ -> pint_as_pointer
@@ -554,18 +569,23 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pstring_load_16 _ -> pstring_load_16_arg
   | Pstring_load_32 _ -> pstring_load_32_arg
   | Pstring_load_64 _ -> pstring_load_64_arg
+  | Pstring_load_128 _ -> pstring_load_128_arg
   | Pbytes_load_16 _ -> pbytes_load_16_arg
   | Pbytes_load_32 _ -> pbytes_load_32_arg
   | Pbytes_load_64 _ -> pbytes_load_64_arg
+  | Pbytes_load_128 _ -> pbytes_load_128_arg
   | Pbytes_set_16 _ -> pbytes_set_16_arg
   | Pbytes_set_32 _ -> pbytes_set_32_arg
   | Pbytes_set_64 _ -> pbytes_set_64_arg
+  | Pbytes_set_128 _ -> pbytes_set_128_arg
   | Pbigstring_load_16 _ -> pbigstring_load_16_arg
   | Pbigstring_load_32 _ -> pbigstring_load_32_arg
   | Pbigstring_load_64 _ -> pbigstring_load_64_arg
+  | Pbigstring_load_128 _ -> pbigstring_load_128_arg
   | Pbigstring_set_16 _ -> pbigstring_set_16_arg
   | Pbigstring_set_32 _ -> pbigstring_set_32_arg
   | Pbigstring_set_64 _ -> pbigstring_set_64_arg
+  | Pbigstring_set_128 _ -> pbigstring_set_128_arg
   | Pbswap16 -> pbswap16_arg
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer _ -> pint_as_pointer_arg

@@ -184,9 +184,11 @@ let phys_reg ty n =
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
+let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
+let xmm0v () = phys_reg Vec128 100
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
 let destroy_xmm15 () =
@@ -427,23 +429,19 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Ilea _
+  | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Ipause
-                 | Iprefetch _
-                 | Ifloat_round _
-                 | Isimd _
-                 | Ifloat_iround | Ifloat_min | Ifloat_max
-                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
+                 | Ipause | Iprefetch _ | Isimd _
+                 | Ifloatarithmem (_, _) | Ifloatsqrtf _ | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-              | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
+              | Ipopcnt | Iclz _ | Ictz _ | Icheckbound | Icheckalign _))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
-                   | Icheckbound),_))
+                   | Icheckbound | Icheckalign _),_))
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double | Onetwentyeight ), _, _))
+               | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
        | Icsel _
@@ -482,7 +480,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
     [| rax; rdx |]
-  | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
+  | Op (Intop (Icheckbound | Icheckalign _)
+  | Intop_imm ((Icheckbound | Icheckalign _), _)) ->
     assert false
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
@@ -490,7 +489,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
                          | Thirtytwo_signed | Word_int | Word_val
-                         | Double | Onetwentyeight ), _, _)
+                         | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _)
        | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
@@ -508,9 +507,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
-                  | Ifloatarithmem _ | Ibswap _ | Isqrtf
-                  | Ifloatsqrtf _ | Ifloat_iround | Isimd _
-                  | Ifloat_round _ | Ifloat_min | Ifloat_max
+                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ | Isimd _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _)
@@ -526,7 +523,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = Checkbound _ | Probe _; _}
+  | Prim {op = Checkbound _ | Checkalign _ | Probe _; _}
   ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
@@ -536,13 +533,11 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     if alloc then all_phys_regs () else destroyed_at_c_call ()
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs ()
-  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Ifloatsqrtf _
-                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-                       | Irdtsc | Irdpmc | Ipause | Isimd _
-                       | Ilfence | Isfence | Imfence
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _ | Irdtsc | Irdpmc | Ipause
+                       | Isimd _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                              | Iprefetch _); _ } ->
+                       | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
@@ -559,7 +554,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = Checkbound _ | Probe _; _} ->
+  | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _} ->
     false
   | Switch _ ->
     false
@@ -571,13 +566,11 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
       if alloc then true else false
   | Call {op = Indirect | Direct _; _} ->
     true
-  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
-                       | Ifloatarithmem _ | Ifloatsqrtf _
-                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-                       | Irdtsc | Irdpmc | Ipause | Isimd _
-                       | Ilfence | Isfence | Imfence
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _ | Irdtsc | Irdpmc | Ipause
+                       | Isimd _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                              | Iprefetch _); _ } ->
+                       | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
   | Poll_and_jump _ -> false
 
@@ -619,13 +612,13 @@ let max_register_pressure =
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-           | Ipopcnt|Iclz _| Ictz _|Icheckbound)
+           | Ipopcnt|Iclz _| Ictz _|Icheckbound|Icheckalign _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
-                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound), _)
+                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound|Icheckalign _), _)
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Double | Onetwentyeight ),
+            | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
@@ -635,11 +628,9 @@ let max_register_pressure =
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
-             | Ilfence | Isfence | Imfence
-             | Ifloat_round _ | Isimd _
-             | Ifloat_iround | Ifloat_min | Ifloat_max
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
+             | Ilfence | Isfence | Imfence | Isimd _
+             | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
+             | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
     -> consumes ~int:0 ~float:0
@@ -732,6 +723,7 @@ let operation_supported = function
   | Ccmpf _
   | Craise _
   | Ccheckbound
+  | Ccheckalign _
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
   | Ctuple_field _

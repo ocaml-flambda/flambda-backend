@@ -743,7 +743,7 @@ let emit_instr i =
     | Lop(Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop(Ivectorcast _ | Iscalarcast _) -> 
+    | Lop(Ivectorcast _ | Iscalarcast _) ->
       (* Never generated; SIMD instructions are not yet translated *)
       assert false
     | Lop(Imove | Ispill | Ireload) ->
@@ -829,8 +829,9 @@ let emit_instr i =
             `	fcvt	{emit_reg dst}, s7\n`
         | Word_int | Word_val | Double ->
             `	ldr	{emit_reg dst}, {emit_addressing addr base}\n`
-        (* CR mslater: (SIMD) arm64 *)
-        | Onetwentyeight -> fatal_error "arm64: got 128 bit memory chunk"
+        | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
+            (* CR mslater: (SIMD) arm64 *)
+            fatal_error "arm64: got 128 bit memory chunk"
         end
     | Lop(Istore(size, addr, _)) ->
         let src = i.arg.(0) in
@@ -853,8 +854,9 @@ let emit_instr i =
             `	str	s7, {emit_addressing addr base}\n`;
         | Word_int | Word_val | Double ->
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
-        (* CR mslater: (SIMD) arm64 *)
-        | Onetwentyeight -> fatal_error "arm64: got 128 bit memory chunk"
+        | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
+            (* CR mslater: (SIMD) arm64 *)
+            fatal_error "arm64: got 128 bit memory chunk"
         end
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
         assembly_code_for_allocation i ~n ~far:false ~dbginfo
@@ -880,6 +882,9 @@ let emit_instr i =
     | Lop(Iintop_imm(Icomp cmp, n)) ->
         emit_cmpimm i.arg.(0) n;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
+    | Lop(Iintop (Icheckalign _) | Iintop_imm(Icheckalign _, _)) ->
+        (* CR mslater: (SIMD) arm64 *)
+        fatal_error "arm64: got 128 bit alignment check"
     | Lop(Iintop (Icheckbound)) ->
         let lbl = bound_error_label i.dbg in
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;

@@ -351,7 +351,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Tailcall_func _ | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _}
   | Specific_can_raise _ ->
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
@@ -373,7 +373,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Tailcall_func _ | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _}
   | Specific_can_raise _ ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
@@ -436,6 +436,7 @@ let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
   | Cvectorcast _ | Cscalarcast _
+  | Ccheckalign _
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _

@@ -192,6 +192,7 @@ type string_accessor_width =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 

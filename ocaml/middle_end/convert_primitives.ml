@@ -176,6 +176,11 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pgetpredef _
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pbigstring_load_128 _
+  | Pbigstring_set_128 _
+  | Pstring_load_128 _
+  | Pbytes_load_128 _
+  | Pbytes_set_128 _
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

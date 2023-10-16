@@ -204,7 +204,7 @@ let print_instr b = function
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
   | CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
-  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" (Imm (Int64.of_int shuf)) arg1 arg2
+  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" shuf arg1 arg2
   | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
   | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
   | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
@@ -219,10 +219,158 @@ let print_instr b = function
   | UNPCKHPS (arg1, arg2) -> i2 b "unpckhps" arg1 arg2
   | UNPCKLPS (arg1, arg2) -> i2 b "unpcklps" arg1 arg2
   | MOVMSKPS (arg1, arg2) -> i2 b "movmskps" arg1 arg2
+  | PADDB (arg1, arg2) -> i2 b "paddb" arg1 arg2
+  | PADDW (arg1, arg2) -> i2 b "paddw" arg1 arg2
+  | PADDD (arg1, arg2) -> i2 b "paddd" arg1 arg2
+  | PADDQ (arg1, arg2) -> i2 b "paddq" arg1 arg2
+  | ADDPD (arg1, arg2) -> i2 b "addpd" arg1 arg2
+  | PADDSB (arg1, arg2) -> i2 b "paddsb" arg1 arg2
+  | PADDSW (arg1, arg2) -> i2 b "paddsw" arg1 arg2
+  | PADDUSB (arg1, arg2) -> i2 b "paddusb" arg1 arg2
+  | PADDUSW (arg1, arg2) -> i2 b "paddusw" arg1 arg2
+  | PSUBB (arg1, arg2) -> i2 b "psubb" arg1 arg2
+  | PSUBW (arg1, arg2) -> i2 b "psubw" arg1 arg2
+  | PSUBD (arg1, arg2) -> i2 b "psubd" arg1 arg2
+  | PSUBQ (arg1, arg2) -> i2 b "psubq" arg1 arg2
+  | SUBPD (arg1, arg2) -> i2 b "subpd" arg1 arg2
+  | PSUBSB (arg1, arg2) -> i2 b "psubsb" arg1 arg2
+  | PSUBSW (arg1, arg2) -> i2 b "psubsw" arg1 arg2
+  | PSUBUSB (arg1, arg2) -> i2 b "psubusb" arg1 arg2
+  | PSUBUSW (arg1, arg2) -> i2 b "psubusw" arg1 arg2
+  | PMAXUB (arg1, arg2) -> i2 b "pmaxub" arg1 arg2
+  | PMAXSW (arg1, arg2) -> i2 b "pmaxsw" arg1 arg2
+  | MAXPD (arg1, arg2) -> i2 b "maxpd" arg1 arg2
+  | PMINUB (arg1, arg2) -> i2 b "pminub" arg1 arg2
+  | PMINSW (arg1, arg2) -> i2 b "pminsw" arg1 arg2
+  | MINPD (arg1, arg2) -> i2 b "minpd" arg1 arg2
+  | MULPD (arg1, arg2) -> i2 b "mulpd" arg1 arg2
+  | DIVPD (arg1, arg2) -> i2 b "divpd" arg1 arg2
+  | SQRTPD (arg1, arg2) -> i2 b "sqrtpd" arg1 arg2
+  | PAND (arg1, arg2) -> i2 b "pand" arg1 arg2
+  | PANDNOT (arg1, arg2) -> i2 b "pandn" arg1 arg2
+  | POR (arg1, arg2) -> i2 b "por" arg1 arg2
+  | PXOR (arg1, arg2) -> i2 b "pxor" arg1 arg2
+  | PMOVMSKB (arg1, arg2) -> i2 b "pmovmskb" arg1 arg2
+  | MOVMSKPD (arg1, arg2) -> i2 b "movmskpd" arg1 arg2
+  | PSLLDQ (bytes, arg1) -> i2 b "pslldq" bytes arg1
+  | PSRLDQ (bytes, arg1) -> i2 b "psrldq" bytes arg1
+  | PCMPEQB (arg1, arg2) -> i2 b "pcmpeqb" arg1 arg2
+  | PCMPEQW (arg1, arg2) -> i2 b "pcmpeqw" arg1 arg2
+  | PCMPEQD (arg1, arg2) -> i2 b "pcmpeqd" arg1 arg2
+  | PCMPGTB (arg1, arg2) -> i2 b "pcmpgtb" arg1 arg2
+  | PCMPGTW (arg1, arg2) -> i2 b "pcmpgtw" arg1 arg2
+  | PCMPGTD (arg1, arg2) -> i2 b "pcmpgtd" arg1 arg2
+  | CMPPD (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "pd") arg1 arg2
+  | CVTDQ2PD (arg1, arg2) -> i2 b "cvtdq2pd" arg1 arg2
+  | CVTDQ2PS (arg1, arg2) -> i2 b "cvtdq2ps" arg1 arg2
+  | CVTPD2DQ (arg1, arg2) -> i2 b "cvtpd2dq" arg1 arg2
+  | CVTPD2PS (arg1, arg2) -> i2 b "cvtpd2ps" arg1 arg2
+  | CVTPS2DQ (arg1, arg2) -> i2 b "cvtps2dq" arg1 arg2
+  | CVTPS2PD (arg1, arg2) -> i2 b "cvtps2pd" arg1 arg2
+  | PSLLW (arg1, arg2) -> i2 b "psllw" arg1 arg2
+  | PSLLD (arg1, arg2) -> i2 b "pslld" arg1 arg2
+  | PSLLQ (arg1, arg2) -> i2 b "psllq" arg1 arg2
+  | PSRLW (arg1, arg2) -> i2 b "psrlw" arg1 arg2
+  | PSRLD (arg1, arg2) -> i2 b "psrld" arg1 arg2
+  | PSRLQ (arg1, arg2) -> i2 b "psrlq" arg1 arg2
+  | PSRAW (arg1, arg2) -> i2 b "psraw" arg1 arg2
+  | PSRAD (arg1, arg2) -> i2 b "psrad" arg1 arg2
+  | PSLLWI (bits, arg1) -> i2 b "psllw" bits arg1
+  | PSLLDI (bits, arg1) -> i2 b "pslld" bits arg1
+  | PSLLQI (bits, arg1) -> i2 b "psllq" bits arg1
+  | PSRLWI (bits, arg1) -> i2 b "psrlw" bits arg1
+  | PSRLDI (bits, arg1) -> i2 b "psrld" bits arg1
+  | PSRLQI (bits, arg1) -> i2 b "psrlq" bits arg1
+  | PSRAWI (bits, arg1) -> i2 b "psraw" bits arg1
+  | PSRADI (bits, arg1) -> i2 b "psrad" bits arg1
+  | SHUFPD (shuf, arg1, arg2) -> i3 b "shufpd" shuf arg1 arg2
+  | PSHUFHW (shuf, arg1, arg2) -> i3 b "pshufhw" shuf arg1 arg2
+  | PSHUFLW (shuf, arg1, arg2) -> i3 b "pshuflw" shuf arg1 arg2
+  | PUNPCKHBW (arg1, arg2) -> i2 b "punpckhbw" arg1 arg2
+  | PUNPCKHWD (arg1, arg2) -> i2 b "punpckhwd" arg1 arg2
+  | PUNPCKHQDQ (arg1, arg2) -> i2 b "punpckhqdq" arg1 arg2
+  | PUNPCKLBW (arg1, arg2) -> i2 b "punpcklbw" arg1 arg2
+  | PUNPCKLWD (arg1, arg2) -> i2 b "punpcklwd" arg1 arg2
+  | PUNPCKLQDQ (arg1, arg2) -> i2 b "punpcklqdq" arg1 arg2
+  | ADDSUBPS (arg1, arg2) -> i2 b "addsubps" arg1 arg2
+  | ADDSUBPD (arg1, arg2) -> i2 b "addsubpd" arg1 arg2
+  | HADDPS (arg1, arg2) -> i2 b "haddps" arg1 arg2
+  | HADDPD (arg1, arg2) -> i2 b "haddpd" arg1 arg2
+  | HSUBPS (arg1, arg2) -> i2 b "hsubps" arg1 arg2
+  | HSUBPD (arg1, arg2) -> i2 b "hsubpd" arg1 arg2
+  | MOVDDUP (arg1, arg2) -> i2 b "movddup" arg1 arg2
+  | MOVSHDUP (arg1, arg2) -> i2 b "movshdup" arg1 arg2
+  | MOVSLDUP (arg1, arg2) -> i2 b "movsldup" arg1 arg2
+  | PABSB (arg1, arg2) -> i2 b "pabsb" arg1 arg2
+  | PABSW (arg1, arg2) -> i2 b "pabsw" arg1 arg2
+  | PABSD (arg1, arg2) -> i2 b "pabsd" arg1 arg2
+  | PHADDW (arg1, arg2) -> i2 b "phaddw" arg1 arg2
+  | PHADDD (arg1, arg2) -> i2 b "phaddd" arg1 arg2
+  | PHADDSW (arg1, arg2) -> i2 b "phaddsw" arg1 arg2
+  | PHSUBW (arg1, arg2) -> i2 b "phsubw" arg1 arg2
+  | PHSUBD (arg1, arg2) -> i2 b "phsubd" arg1 arg2
+  | PHSUBSW (arg1, arg2) -> i2 b "phsubsw" arg1 arg2
+  | PSIGNB (arg1, arg2) -> i2 b "psignb" arg1 arg2
+  | PSIGNW (arg1, arg2) -> i2 b "psignw" arg1 arg2
+  | PSIGND (arg1, arg2) -> i2 b "psignd" arg1 arg2
+  | PSHUFB (arg1, arg2) -> i2 b "pshufb" arg1 arg2
+  | PBLENDW (lanes, arg1, arg2) -> i3 b "pblendw" lanes arg1 arg2
+  | BLENDPS (lanes, arg1, arg2) -> i3 b "blendps" lanes arg1 arg2
+  | BLENDPD (lanes, arg1, arg2) -> i3 b "blendpd" lanes arg1 arg2
+  | PBLENDVB (arg1, arg2) -> i2 b "pblendvb" arg1 arg2
+  | BLENDVPS (arg1, arg2) -> i2 b "blendvps" arg1 arg2
+  | BLENDVPD (arg1, arg2) -> i2 b "blendvpd" arg1 arg2
+  | PCMPEQQ (arg1, arg2) -> i2 b "pcmpeqq" arg1 arg2
+  | PMOVSXBW (arg1, arg2) -> i2 b "pmovsxbw" arg1 arg2
+  | PMOVSXBD (arg1, arg2) -> i2 b "pmovsxbd" arg1 arg2
+  | PMOVSXBQ (arg1, arg2) -> i2 b "pmovsxbq" arg1 arg2
+  | PMOVSXWD (arg1, arg2) -> i2 b "pmovsxwd" arg1 arg2
+  | PMOVSXWQ (arg1, arg2) -> i2 b "pmovsxwq" arg1 arg2
+  | PMOVSXDQ (arg1, arg2) -> i2 b "pmovsxdq" arg1 arg2
+  | PMOVZXBW (arg1, arg2) -> i2 b "pmovzxbw" arg1 arg2
+  | PMOVZXBD (arg1, arg2) -> i2 b "pmovzxbd" arg1 arg2
+  | PMOVZXBQ (arg1, arg2) -> i2 b "pmovzxbq" arg1 arg2
+  | PMOVZXWD (arg1, arg2) -> i2 b "pmovzxwd" arg1 arg2
+  | PMOVZXWQ (arg1, arg2) -> i2 b "pmovzxwq" arg1 arg2
+  | PMOVZXDQ (arg1, arg2) -> i2 b "pmovzxdq" arg1 arg2
+  | DPPS (sel, arg1, arg2) -> i3 b "dpps" sel arg1 arg2
+  | DPPD (sel, arg1, arg2) -> i3 b "dppd" sel arg1 arg2
+  | PEXTRB (n, arg1, arg2) -> i3 b "pextrb" n arg1 arg2
+  | PEXTRW (n, arg1, arg2) -> i3 b "pextrw" n arg1 arg2
+  | PEXTRD (n, arg1, arg2) -> i3 b "pextrd" n arg1 arg2
+  | PEXTRQ (n, arg1, arg2) -> i3 b "pextrq" n arg1 arg2
+  | PINSRB (n, arg1, arg2) -> i3 b "pinsrb" n arg1 arg2
+  | PINSRW (n, arg1, arg2) -> i3 b "pinsrw" n arg1 arg2
+  | PINSRD (n, arg1, arg2) -> i3 b "pinsrd" n arg1 arg2
+  | PINSRQ (n, arg1, arg2) -> i3 b "pinsrq" n arg1 arg2
+  | PMAXSB (arg1, arg2) -> i2 b "pmaxsb" arg1 arg2
+  | PMAXSD (arg1, arg2) -> i2 b "pmaxsd" arg1 arg2
+  | PMAXUW (arg1, arg2) -> i2 b "pmaxuw" arg1 arg2
+  | PMAXUD (arg1, arg2) -> i2 b "pmaxud" arg1 arg2
+  | PMINSB (arg1, arg2) -> i2 b "pminsb" arg1 arg2
+  | PMINSD (arg1, arg2) -> i2 b "pminsd" arg1 arg2
+  | PMINUW (arg1, arg2) -> i2 b "pminuw" arg1 arg2
+  | PMINUD (arg1, arg2) -> i2 b "pminud" arg1 arg2
+  | ROUNDPD (rd, arg1, arg2) -> i3 b "roundpd" (imm_of_rounding rd) arg1 arg2
+  | ROUNDPS (rd, arg1, arg2) -> i3 b "roundps" (imm_of_rounding rd) arg1 arg2
+  | PCMPGTQ (arg1, arg2) -> i2 b "pcmpgtq" arg1 arg2
+  | PCMPESTRI (n, arg1, arg2) -> i3 b "pcmpestri" n arg1 arg2
+  | PCMPESTRM (n, arg1, arg2) -> i3 b "pcmpestrm" n arg1 arg2
+  | PCMPISTRI (n, arg1, arg2) -> i3 b "pcmpistri" n arg1 arg2
+  | PCMPISTRM (n, arg1, arg2) -> i3 b "pcmpistrm" n arg1 arg2
+  | PAVGB (arg1, arg2) -> i2 b "pavgb" arg1 arg2
+  | PAVGW (arg1, arg2) -> i2 b "pavgw" arg1 arg2
+  | PSADBW (arg1, arg2) -> i2 b "psadbw" arg1 arg2
+  | PACKSSWB (arg1, arg2) -> i2 b "packsswb" arg1 arg2
+  | PACKSSDW (arg1, arg2) -> i2 b "packssdw" arg1 arg2
+  | PACKUSWB (arg1, arg2) -> i2 b "packuswb" arg1 arg2
+  | PACKUSDW (arg1, arg2) -> i2 b "packusdw" arg1 arg2
+  | PALIGNR (n, arg1, arg2) -> i3 b "palignr" n arg1 arg2
+  | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
+  | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
 
 let print_line b = function
   | Ins instr -> print_instr b instr
-
   | Align (_data,n) -> bprintf b "\tALIGN\t%d" n
   | Byte n -> bprintf b "\tBYTE\t%a" cst n
   | Bytes s -> buf_bytes_directive b "BYTE" s

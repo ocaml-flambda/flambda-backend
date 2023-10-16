@@ -163,7 +163,9 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
-    | Punboxed_vector (Pvec128 _) -> Onetwentyeight
+    | Punboxed_vector (Pvec128 _) ->
+      (* Record fields are not 16-byte aligned. *)
+      Onetwentyeight_unaligned
     | Punboxed_product _ ->
       Misc.fatal_error "Unboxed products cannot be stored as fields for now."
     | Ptop ->
@@ -1345,6 +1347,7 @@ and transl_unbox_sized size dbg env exp =
      ignore_high_bit_int (untag_int (transl env exp) dbg)
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
+  | One_twenty_eight _ -> transl_unbox_vec128 dbg env exp
 
 and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
   let dbg = Debuginfo.none in

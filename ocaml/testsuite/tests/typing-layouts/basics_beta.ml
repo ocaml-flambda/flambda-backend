@@ -1404,3 +1404,51 @@ Line 2, characters 19-31:
 Error:
        'a -> 'b has layout value, which is not a sublayout of immediate.
 |}]
+
+(**************************************************)
+(* Test 36: Disallow non-representable statements *)
+
+let () = (assert false : t_any); ()
+[%%expect{|
+Line 1, characters 9-31:
+1 | let () = (assert false : t_any); ()
+             ^^^^^^^^^^^^^^^^^^^^^^
+Warning 10 [non-unit-statement]: this expression should have type unit.
+Line 1, characters 10-22:
+1 | let () = (assert false : t_any); ()
+              ^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_5)
+       because it is in the left-hand side of a sequence
+       t_any has layout any, which is not representable.
+|}]
+
+let () = while false do (assert false : t_any); done
+[%%expect{|
+Line 1, characters 24-46:
+1 | let () = while false do (assert false : t_any); done
+                            ^^^^^^^^^^^^^^^^^^^^^^
+Warning 10 [non-unit-statement]: this expression should have type unit.
+Line 1, characters 25-37:
+1 | let () = while false do (assert false : t_any); done
+                             ^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_6)
+       because it is in the body of a while-loop
+       t_any has layout any, which is not representable.
+|}]
+
+let () = for i = 0 to 0 do (assert false : t_any); done
+[%%expect{|
+Line 1, characters 27-49:
+1 | let () = for i = 0 to 0 do (assert false : t_any); done
+                               ^^^^^^^^^^^^^^^^^^^^^^
+Warning 10 [non-unit-statement]: this expression should have type unit.
+Line 1, characters 28-40:
+1 | let () = for i = 0 to 0 do (assert false : t_any); done
+                                ^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_7)
+       because it is in the body of a for-loop
+       t_any has layout any, which is not representable.
+|}]

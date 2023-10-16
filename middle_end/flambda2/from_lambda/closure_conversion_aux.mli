@@ -213,6 +213,8 @@ module Acc : sig
 
   val create : slot_offsets:Slot_offsets.t -> cmx_loader:Flambda_cmx.loader -> t
 
+  val manufacture_symbol_short_name : t -> t * Linkage_name.t
+
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
   val lifted_sets_of_closures :

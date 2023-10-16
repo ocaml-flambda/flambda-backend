@@ -122,30 +122,40 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pstring_load (Thirty_two, convert_unsafety is_unsafe, m)
   | Pstring_load_64 (is_unsafe, m) ->
       Pstring_load (Sixty_four, convert_unsafety is_unsafe, m)
+  | Pstring_load_128 {unsafe; mode} ->
+      Pstring_load (One_twenty_eight {aligned=false}, convert_unsafety unsafe, mode)
   | Pbytes_load_16 is_unsafe ->
       Pbytes_load (Sixteen, convert_unsafety is_unsafe, Lambda.alloc_heap)
   | Pbytes_load_32 (is_unsafe, m) ->
       Pbytes_load (Thirty_two, convert_unsafety is_unsafe, m)
   | Pbytes_load_64 (is_unsafe, m) ->
       Pbytes_load (Sixty_four, convert_unsafety is_unsafe, m)
+  | Pbytes_load_128 {unsafe; mode} ->
+      Pbytes_load (One_twenty_eight {aligned=false}, convert_unsafety unsafe, mode)
   | Pbytes_set_16 is_unsafe ->
       Pbytes_set (Sixteen, convert_unsafety is_unsafe)
   | Pbytes_set_32 is_unsafe ->
       Pbytes_set (Thirty_two, convert_unsafety is_unsafe)
   | Pbytes_set_64 is_unsafe ->
       Pbytes_set (Sixty_four, convert_unsafety is_unsafe)
+  | Pbytes_set_128 {unsafe} ->
+      Pbytes_set (One_twenty_eight {aligned=false}, convert_unsafety unsafe)
   | Pbigstring_load_16 is_unsafe ->
       Pbigstring_load (Sixteen, convert_unsafety is_unsafe, Lambda.alloc_heap)
   | Pbigstring_load_32 (is_unsafe, m) ->
       Pbigstring_load (Thirty_two, convert_unsafety is_unsafe, m)
   | Pbigstring_load_64 (is_unsafe, m) ->
       Pbigstring_load (Sixty_four, convert_unsafety is_unsafe, m)
+  | Pbigstring_load_128 {aligned; unsafe; mode} ->
+      Pbigstring_load (One_twenty_eight {aligned}, convert_unsafety unsafe, mode)
   | Pbigstring_set_16 is_unsafe ->
       Pbigstring_set (Sixteen, convert_unsafety is_unsafe)
   | Pbigstring_set_32 is_unsafe ->
       Pbigstring_set (Thirty_two, convert_unsafety is_unsafe)
   | Pbigstring_set_64 is_unsafe ->
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
+  | Pbigstring_set_128 {aligned; unsafe} ->
+      Pbigstring_set (One_twenty_eight {aligned}, convert_unsafety unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
   | Pint_as_pointer m -> Pint_as_pointer m

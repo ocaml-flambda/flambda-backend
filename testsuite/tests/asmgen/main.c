@@ -32,6 +32,12 @@ void caml_ml_array_bound_error(void)
   exit(2);
 }
 
+void caml_ml_array_align_error(void)
+{
+  fprintf(stderr, "Fatal error: misaligned access in array or string\n");
+  exit(2);
+}
+
 void print_string(char * s)
 {
   fputs(s, stdout);

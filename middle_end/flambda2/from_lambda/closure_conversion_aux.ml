@@ -347,8 +347,15 @@ module Acc = struct
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
       regions_closed_early : Ident.Set.t;
-      closure_infos : closure_info list
+      closure_infos : closure_info list;
+      symbol_short_name_counter : int
     }
+
+  let manufacture_symbol_short_name t =
+    let counter = t.symbol_short_name_counter in
+    let t = { t with symbol_short_name_counter = counter + 1 } in
+    let name = Linkage_name.of_string ("s" ^ string_of_int counter) in
+    t, name
 
   let cost_metrics t = t.cost_metrics
 
@@ -436,7 +443,8 @@ module Acc = struct
       seen_a_function = false;
       slot_offsets;
       regions_closed_early = Ident.Set.empty;
-      closure_infos = []
+      closure_infos = [];
+      symbol_short_name_counter = 0
     }
 
   let declared_symbols t = t.declared_symbols

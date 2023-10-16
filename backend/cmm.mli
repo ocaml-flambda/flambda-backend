@@ -181,8 +181,8 @@ type memory_chunk =
   | Single
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
-  | Onetwentyeight                     (* word-aligned 128-bit vector
-                                          CR mslater: (SIMD) alignment *)
+  | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
+  | Onetwentyeight_aligned             (* 16-byte-aligned 128-bit vector *)
 
 type vector_cast =
   | Bits128
@@ -234,6 +234,8 @@ type operation =
                    then the index.
                    It results in a bounds error if the index is greater than
                    or equal to the bound. *)
+  | Ccheckalign of { bytes_pow2: int } (* Takes one argument : the address to
+                                          check. May raise alignment error. *)
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)

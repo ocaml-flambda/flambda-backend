@@ -14,8 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(* SIMD instruction selection for ARM64 *)
+(* SIMD instruction reload for ARM64 *)
 
-let select_operation _ = None
-
-let pseudoregs_for_operation _ arg res = arg, res
+let reload_operation _ _ arg res = arg, res

@@ -202,7 +202,7 @@ let oper_result_type = function
       begin match c with
       | Word_val -> typ_val
       | Single | Double -> typ_float
-      | Onetwentyeight -> typ_vec128
+      | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
   | Calloc _ -> typ_val
@@ -228,6 +228,7 @@ let oper_result_type = function
   | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
+  | Ccheckalign _ -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
@@ -526,7 +527,7 @@ method is_simple_expr = function
         List.for_all self#is_simple_expr args
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
-      | Craise _ | Ccheckbound | Catomic _
+      | Craise _ | Ccheckbound | Ccheckalign _ | Catomic _
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
@@ -582,7 +583,7 @@ method effects_of exp =
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Cprefetch _ -> EC.arbitrary
       | Catomic _ -> EC.arbitrary
-      | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
+      | Craise _ | Ccheckbound | Ccheckalign _ -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
@@ -642,8 +643,10 @@ method mark_instr = function
       self#mark_tailcall
   | Iop (Ialloc _) | Iop (Ipoll _) ->
       self#mark_call (* caml_alloc*, caml_garbage_collection (incl. polls) *)
-  | Iop (Iintop (Icheckbound) | Iintop_imm(Icheckbound, _)) ->
-      self#mark_c_tailcall (* caml_ml_array_bound_error *)
+  | Iop (Iintop (Icheckbound) | Iintop_imm(Icheckbound, _))
+  | Iop (Iintop(Icheckalign _) | Iintop_imm(Icheckalign _, _)) ->
+      (* caml_ml_array_bound_error, caml_ml_array_align_error *)
+      self#mark_c_tailcall
   | Iraise raise_kind ->
     begin match raise_kind with
       | Lambda.Raise_notrace -> ()
@@ -734,6 +737,8 @@ method select_operation op args _dbg =
     (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
+  | (Ccheckalign {bytes_pow2}, _) ->
+    self#select_arith (Icheckalign { bytes_pow2 }) args
   | (Cprobe { name; handler_code_sym; enabled_at_init; }, _) ->
     Iprobe { name; handler_code_sym; enabled_at_init; }, args
   | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
@@ -1561,7 +1566,10 @@ method emit_stores env data regs_addr =
                 let r = regs.(i) in
                 let kind = match r.typ with
                   | Float -> Double
-                  | Vec128 -> Onetwentyeight
+                  | Vec128 ->
+                    (* 128-bit memory operations are default unaligned. Aligned (big)array
+                       operations are handled separately via cmm. *)
+                    Onetwentyeight_unaligned
                   | Val | Addr | Int ->  Word_val
                 in
                 self#insert env

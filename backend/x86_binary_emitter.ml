@@ -853,41 +853,287 @@ let emit_MOV b dst src =
       Format.printf "src = %a@." print_old_arg src;
       assert false
 
-let emit_rf_rm op b dst src =
+let check_rf_rfm ops b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      emit_mod_rm_reg b 0 [ 0x0f; op ] rm (rd_of_regf reg)
+      emit_mod_rm_reg b 0 ops rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_rf_rf op b dst src =
+let check_rf_rf ops b dst src =
   match (dst, src) with
   | Regf reg, (Regf _ as rm) ->
-      emit_mod_rm_reg b 0 [ 0x0f; op ] rm (rd_of_regf reg)
+      emit_mod_rm_reg b 0 ops rm (rd_of_regf reg)
   | _ -> assert false
 
 let suffix f op b suf dst src =
   f op b dst src;
   buf_int8 b suf
 
-let emit_cmpps = suffix emit_rf_rm 0xC2
-let emit_shufps = suffix emit_rf_rm 0xC6
-let emit_addps = emit_rf_rm 0x58
-let emit_subps = emit_rf_rm 0x5C
-let emit_mulps = emit_rf_rm 0x59
-let emit_divps = emit_rf_rm 0x5E
-let emit_minps = emit_rf_rm 0x5D
-let emit_maxps = emit_rf_rm 0x5F
-let emit_rcpps = emit_rf_rm 0x53
-let emit_sqrtps = emit_rf_rm 0x51
-let emit_rsqrtps = emit_rf_rm 0x52
-let emit_unpcklps = emit_rf_rm 0x14
-let emit_movhlps = emit_rf_rm 0x12
+let prefix pref f op b dst src =
+  buf_int8 b pref;
+  f op b dst src
+
+let emit_rf_rf op b dst src = check_rf_rf [ 0x0f; op ] b dst src
+let emit_rf_rfm op b dst src = check_rf_rfm [ 0x0f; op ] b dst src
+let emit_rep_rf_rfm = prefix 0xF3 emit_rf_rfm
+let emit_repne_rf_rfm = prefix 0xF2 emit_rf_rfm
+let emit_osize_rf_rfm = prefix 0x66 emit_rf_rfm
+let emit_osize_rf_rfm_38 =
+  let emit op b dst src = check_rf_rfm [ 0x0f; 0x38; op ] b dst src in
+  prefix 0x66 emit
+let emit_osize_rf_rfm_3A =
+  let emit op b dst src = check_rf_rfm [ 0x0f; 0x3A; op ] b dst src in
+  prefix 0x66 emit
+
+let emit_cmpps = suffix emit_rf_rfm 0xC2
+let emit_shufps = suffix emit_rf_rfm 0xC6
+let emit_addps = emit_rf_rfm 0x58
+let emit_subps = emit_rf_rfm 0x5C
+let emit_mulps = emit_rf_rfm 0x59
+let emit_divps = emit_rf_rfm 0x5E
+let emit_minps = emit_rf_rfm 0x5D
+let emit_maxps = emit_rf_rfm 0x5F
+let emit_rcpps = emit_rf_rfm 0x53
+let emit_sqrtps = emit_rf_rfm 0x51
+let emit_rsqrtps = emit_rf_rfm 0x52
+let emit_unpcklps = emit_rf_rfm 0x14
+let emit_movhlps = emit_rf_rfm 0x12
 let emit_movlhps = emit_rf_rf 0x16
 let emit_unpckhps = emit_rf_rf 0x15
+let emit_paddb = emit_osize_rf_rfm 0xFC
+let emit_paddw = emit_osize_rf_rfm 0xFD
+let emit_paddd = emit_osize_rf_rfm 0xFE
+let emit_paddq = emit_osize_rf_rfm 0xD4
+let emit_addpd = emit_osize_rf_rfm 0x58
+let emit_paddsb = emit_osize_rf_rfm 0xEC
+let emit_paddsw = emit_osize_rf_rfm 0xED
+let emit_paddusb = emit_osize_rf_rfm 0xDC
+let emit_paddusw = emit_osize_rf_rfm 0xDD
+let emit_psubb = emit_osize_rf_rfm 0xF8
+let emit_psubw = emit_osize_rf_rfm 0xF9
+let emit_psubd = emit_osize_rf_rfm 0xFA
+let emit_psubq = emit_osize_rf_rfm 0xFB
+let emit_subpd = emit_osize_rf_rfm 0x5C
+let emit_psubsb = emit_osize_rf_rfm 0xE8
+let emit_psubsw = emit_osize_rf_rfm 0xE9
+let emit_psubusb = emit_osize_rf_rfm 0xD8
+let emit_psubusw = emit_osize_rf_rfm 0xD9
+let emit_pmaxub = emit_osize_rf_rfm 0xDE
+let emit_pmaxsw = emit_osize_rf_rfm 0xEE
+let emit_maxpd = emit_osize_rf_rfm 0x5F
+let emit_pminub = emit_osize_rf_rfm 0xDA
+let emit_pminsw = emit_osize_rf_rfm 0xEA
+let emit_minpd = emit_osize_rf_rfm 0x5D
+let emit_mulpd = emit_osize_rf_rfm 0x59
+let emit_divpd = emit_osize_rf_rfm 0x5E
+let emit_sqrtpd = emit_osize_rf_rfm 0x51
+let emit_pand = emit_osize_rf_rfm 0xDB
+let emit_pandnot = emit_osize_rf_rfm 0xDF
+let emit_por = emit_osize_rf_rfm 0xEB
+let emit_pxor = emit_osize_rf_rfm 0xEF
+let emit_pcmpeqb = emit_osize_rf_rfm 0x74
+let emit_pcmpeqw = emit_osize_rf_rfm 0x75
+let emit_pcmpeqd = emit_osize_rf_rfm 0x76
+let emit_pcmpgtb = emit_osize_rf_rfm 0x64
+let emit_pcmpgtw = emit_osize_rf_rfm 0x65
+let emit_pcmpgtd = emit_osize_rf_rfm 0x66
+let emit_cvtdq2pd = emit_rep_rf_rfm 0xE6
+let emit_cvtdq2ps = emit_rf_rfm 0x5B
+let emit_cvtpd2dq = emit_repne_rf_rfm 0xE6
+let emit_cvtpd2ps = emit_osize_rf_rfm 0x5A
+let emit_cvtps2dq = emit_osize_rf_rfm 0x5B
+let emit_cvtps2pd = emit_rf_rfm 0x5A
+let emit_psllw = emit_osize_rf_rfm 0xF1
+let emit_pslld = emit_osize_rf_rfm 0xF2
+let emit_psllq = emit_osize_rf_rfm 0xF3
+let emit_psrlw = emit_osize_rf_rfm 0xD1
+let emit_psrld = emit_osize_rf_rfm 0xD2
+let emit_psrlq = emit_osize_rf_rfm 0xD3
+let emit_psraw = emit_osize_rf_rfm 0xE1
+let emit_psrad = emit_osize_rf_rfm 0xE2
+let emit_punpckhbw = emit_osize_rf_rfm 0x68
+let emit_punpckhwd = emit_osize_rf_rfm 0x69
+let emit_punpckhqdq = emit_osize_rf_rfm 0x6D
+let emit_punpcklbw = emit_osize_rf_rfm 0x60
+let emit_punpcklwd = emit_osize_rf_rfm 0x61
+let emit_punpcklqdq = emit_osize_rf_rfm 0x6C
+let emit_addsubps = emit_repne_rf_rfm 0xD0
+let emit_addsubpd = emit_osize_rf_rfm 0xD0
+let emit_haddps = emit_repne_rf_rfm 0x7C
+let emit_haddpd = emit_osize_rf_rfm 0x7C
+let emit_hsubps = emit_repne_rf_rfm 0x7D
+let emit_hsubpd = emit_osize_rf_rfm 0x7D
+let emit_movddup = emit_repne_rf_rfm 0x12
+let emit_movshdup = emit_rep_rf_rfm 0x16
+let emit_movsldup = emit_rep_rf_rfm 0x12
+let emit_pabsb = emit_osize_rf_rfm_38 0x1C
+let emit_pabsw = emit_osize_rf_rfm_38 0x1D
+let emit_pabsd = emit_osize_rf_rfm_38 0x1E
+let emit_phaddw = emit_osize_rf_rfm_38 0x01
+let emit_phaddd = emit_osize_rf_rfm_38 0x02
+let emit_phaddsw = emit_osize_rf_rfm_38 0x03
+let emit_phsubw = emit_osize_rf_rfm_38 0x05
+let emit_phsubd = emit_osize_rf_rfm_38 0x06
+let emit_phsubsw = emit_osize_rf_rfm_38 0x07
+let emit_psignb = emit_osize_rf_rfm_38 0x08
+let emit_psignw = emit_osize_rf_rfm_38 0x09
+let emit_psignd = emit_osize_rf_rfm_38 0x0A
+let emit_pshufb = emit_osize_rf_rfm_38 0x00
+let emit_pblendvb = emit_osize_rf_rfm_38 0x10
+let emit_blendvps = emit_osize_rf_rfm_38 0x14
+let emit_blendvpd = emit_osize_rf_rfm_38 0x15
+let emit_pcmpeqq = emit_osize_rf_rfm_38 0x29
+let emit_pmovsxbw = emit_osize_rf_rfm_38 0x20
+let emit_pmovsxbd = emit_osize_rf_rfm_38 0x21
+let emit_pmovsxbq = emit_osize_rf_rfm_38 0x22
+let emit_pmovsxwd = emit_osize_rf_rfm_38 0x23
+let emit_pmovsxwq = emit_osize_rf_rfm_38 0x24
+let emit_pmovsxdq = emit_osize_rf_rfm_38 0x25
+let emit_pmovzxbw = emit_osize_rf_rfm_38 0x30
+let emit_pmovzxbd = emit_osize_rf_rfm_38 0x31
+let emit_pmovzxbq = emit_osize_rf_rfm_38 0x32
+let emit_pmovzxwd = emit_osize_rf_rfm_38 0x33
+let emit_pmovzxwq = emit_osize_rf_rfm_38 0x34
+let emit_pmovzxdq = emit_osize_rf_rfm_38 0x35
+let emit_pmaxsb = emit_osize_rf_rfm_38 0x3C
+let emit_pmaxsd = emit_osize_rf_rfm_38 0x3D
+let emit_pmaxuw = emit_osize_rf_rfm_38 0x3E
+let emit_pmaxud = emit_osize_rf_rfm_38 0x3F
+let emit_pminsb = emit_osize_rf_rfm_38 0x38
+let emit_pminsd = emit_osize_rf_rfm_38 0x39
+let emit_pminuw = emit_osize_rf_rfm_38 0x3A
+let emit_pminud = emit_osize_rf_rfm_38 0x3B
+let emit_pcmpgtq = emit_osize_rf_rfm_38 0x37
+let emit_pcmpestrm = suffix emit_osize_rf_rfm_3A 0x60
+let emit_pcmpestri = suffix emit_osize_rf_rfm_3A 0x61
+let emit_pcmpistrm = suffix emit_osize_rf_rfm_3A 0x62
+let emit_pcmpistri = suffix emit_osize_rf_rfm_3A 0x63
+
+let emit_pavgb = emit_osize_rf_rfm 0xE0
+let emit_pavgw = emit_osize_rf_rfm 0xE3
+let emit_psadbw = emit_osize_rf_rfm 0xF6
+let emit_packsswb = emit_osize_rf_rfm 0x63
+let emit_packssdw = emit_osize_rf_rfm 0x6B
+let emit_packuswb = emit_osize_rf_rfm 0x67
+let emit_packusdw = emit_osize_rf_rfm_38 0x2B
+let emit_palignr = suffix emit_osize_rf_rfm_3A 0x0F
+let emit_mpsadbw = suffix emit_osize_rf_rfm_3A 0x42
+let emit_phminposuw = emit_osize_rf_rfm_38 0x41
+
+let emit_cmppd = suffix emit_osize_rf_rfm 0xC2
+let emit_shufpd = suffix emit_osize_rf_rfm 0xC6
+let emit_pshufhw = suffix emit_rep_rf_rfm 0x70
+let emit_pshuflw = suffix emit_repne_rf_rfm 0x70
+let emit_pblendw = suffix emit_osize_rf_rfm_3A 0x0E
+let emit_blendps = suffix emit_osize_rf_rfm_3A 0x0C
+let emit_blendpd = suffix emit_osize_rf_rfm_3A 0x0D
+let emit_dpps = suffix emit_osize_rf_rfm_3A 0x40
+let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
+let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
+let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
+
+let emit_osize_rf op rmod b dst =
+  match dst with
+  | Regf reg ->
+      buf_int8 b 0x66;
+      let rm = rd_of_regf reg in
+      emit_rex b (rex lor rexb_rm rm);
+      buf_opcodes b [ 0x0F; op ];
+      buf_int8 b (mod_rm_reg 0b11 rm rmod)
+  | _ -> assert false
+
+let emit_psllwi b n dst = emit_osize_rf 0x71 0x06 b dst; buf_int8 b n
+let emit_pslldi b n dst = emit_osize_rf 0x72 0x06 b dst; buf_int8 b n
+let emit_psllqi b n dst = emit_osize_rf 0x73 0x06 b dst; buf_int8 b n
+let emit_psrlwi b n dst = emit_osize_rf 0x71 0x02 b dst; buf_int8 b n
+let emit_psrldi b n dst = emit_osize_rf 0x72 0x02 b dst; buf_int8 b n
+let emit_psrlqi b n dst = emit_osize_rf 0x73 0x02 b dst; buf_int8 b n
+let emit_psrawi b n dst = emit_osize_rf 0x71 0x04 b dst; buf_int8 b n
+let emit_psradi b n dst = emit_osize_rf 0x72 0x04 b dst; buf_int8 b n
+let emit_pslldq b n dst = emit_osize_rf 0x73 0x07 b dst; buf_int8 b n
+let emit_psrldq b n dst = emit_osize_rf 0x73 0x03 b dst; buf_int8 b n
+
+let emit_pextrb b n dst src =
+  match (dst, src) with
+  | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x14 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pextrw b n dst src =
+  match (dst, src) with
+  | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x15 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pextrd b n dst src =
+  match (dst, src) with
+  | ((Reg32 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x16 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pextrq b n dst src =
+  match (dst, src) with
+  | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b rexw [ 0x0f; 0x3A; 0x16 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pinsrb b n dst src =
+  match (dst, src) with
+  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x20 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pinsrw b n dst src =
+  match (dst, src) with
+  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0xC4 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pinsrd b n dst src  =
+  match (dst, src) with
+  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x22 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
+
+let emit_pinsrq b n dst src  =
+  match (dst, src) with
+  | Regf reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b rexw [ 0x0f; 0x3A; 0x22 ] rm (rd_of_regf reg);
+      buf_int8 b n
+  | _ -> assert false
 
 let emit_movmskps b dst src =
   match (dst, src) with
   | Reg64 reg, (Regf _ as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x50 ] rm (rd_of_reg64 reg)
+  | _ -> assert false
+
+let emit_pmovmskb b dst src =
+  match (dst, src) with
+  | Reg64 reg, (Regf _ as rm) ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0xD7 ] rm (rd_of_reg64 reg)
+  | _ -> assert false
+
+let emit_movmskpd b dst src =
+  match (dst, src) with
+  | Reg64 reg, (Regf _ as rm) ->
+      buf_int8 b 0x66;
       emit_mod_rm_reg b 0 [ 0x0f; 0x50 ] rm (rd_of_reg64 reg)
   | _ -> assert false
 
@@ -1467,6 +1713,8 @@ let emit_XCHG b src dst =
       emit_mod_rm_reg b no_rex [ 0x86 ] rm (rd_of_reg8 reg)
   | _ -> assert false
 
+let imm arg = match arg with Imm n -> Int64.to_int n | _ -> assert false
+
 let assemble_instr b loc = function
   | ADD (src, dst) -> emit_ADD b dst src
   | ADDSD (src, dst) -> emit_addsd b dst src
@@ -1557,7 +1805,156 @@ let assemble_instr b loc = function
   | UNPCKHPS (src, dst) -> emit_unpckhps b dst src
   | UNPCKLPS (src, dst) -> emit_unpcklps b dst src
   | MOVMSKPS (src, dst) -> emit_movmskps b dst src
-  | SHUFPS (shuf, src, dst) -> emit_shufps b shuf dst src
+  | SHUFPS (shuf, src, dst) -> emit_shufps b (imm shuf) dst src
+  | PADDB (src, dst) -> emit_paddb b dst src
+  | PADDW (src, dst) -> emit_paddw b dst src
+  | PADDD (src, dst) -> emit_paddd b dst src
+  | PADDQ (src, dst) -> emit_paddq b dst src
+  | ADDPD (src, dst) -> emit_addpd b dst src
+  | PADDSB (src, dst) -> emit_paddsb b dst src
+  | PADDSW (src, dst) -> emit_paddsw b dst src
+  | PADDUSB (src, dst) -> emit_paddusb b dst src
+  | PADDUSW (src, dst) -> emit_paddusw b dst src
+  | PSUBB (src, dst) -> emit_psubb b dst src
+  | PSUBW (src, dst) -> emit_psubw b dst src
+  | PSUBD (src, dst) -> emit_psubd b dst src
+  | PSUBQ (src, dst) -> emit_psubq b dst src
+  | SUBPD (src, dst) -> emit_subpd b dst src
+  | PSUBSB (src, dst) -> emit_psubsb b dst src
+  | PSUBSW (src, dst) -> emit_psubsw b dst src
+  | PSUBUSB (src, dst) -> emit_psubusb b dst src
+  | PSUBUSW (src, dst) -> emit_psubusw b dst src
+  | PMAXUB (src, dst) -> emit_pmaxub b dst src
+  | PMAXSW (src, dst) -> emit_pmaxsw b dst src
+  | MAXPD (src, dst) -> emit_maxpd b dst src
+  | PMINUB (src, dst) -> emit_pminub b dst src
+  | PMINSW (src, dst) -> emit_pminsw b dst src
+  | MINPD (src, dst) -> emit_minpd b dst src
+  | MULPD (src, dst) -> emit_mulpd b dst src
+  | DIVPD (src, dst) -> emit_divpd b dst src
+  | SQRTPD (src, dst) -> emit_sqrtpd b dst src
+  | PAND (src, dst) -> emit_pand b dst src
+  | PANDNOT (src, dst) -> emit_pandnot b dst src
+  | POR (src, dst) -> emit_por b dst src
+  | PXOR (src, dst) -> emit_pxor b dst src
+  | PMOVMSKB (src, dst) -> emit_pmovmskb b dst src
+  | MOVMSKPD (src, dst) -> emit_movmskpd b dst src
+  | PSLLDQ (n, dst) -> emit_pslldq b (imm n) dst
+  | PSRLDQ (n, dst) -> emit_psrldq b (imm n) dst
+  | PCMPEQB (src, dst) -> emit_pcmpeqb b dst src
+  | PCMPEQW (src, dst) -> emit_pcmpeqw b dst src
+  | PCMPEQD (src, dst) -> emit_pcmpeqd b dst src
+  | PCMPGTB (src, dst) -> emit_pcmpgtb b dst src
+  | PCMPGTW (src, dst) -> emit_pcmpgtw b dst src
+  | PCMPGTD (src, dst) -> emit_pcmpgtd b dst src
+  | CMPPD (n, src, dst) -> emit_cmppd b (imm8_of_float_condition n) dst src
+  | CVTDQ2PD (src, dst) -> emit_cvtdq2pd b dst src
+  | CVTDQ2PS (src, dst) -> emit_cvtdq2ps b dst src
+  | CVTPD2DQ (src, dst) -> emit_cvtpd2dq b dst src
+  | CVTPD2PS (src, dst) -> emit_cvtpd2ps b dst src
+  | CVTPS2DQ (src, dst) -> emit_cvtps2dq b dst src
+  | CVTPS2PD (src, dst) -> emit_cvtps2pd b dst src
+  | PSLLW (src, dst) -> emit_psllw b dst src
+  | PSLLD (src, dst) -> emit_pslld b dst src
+  | PSLLQ (src, dst) -> emit_psllq b dst src
+  | PSRLW (src, dst) -> emit_psrlw b dst src
+  | PSRLD (src, dst) -> emit_psrld b dst src
+  | PSRLQ (src, dst) -> emit_psrlq b dst src
+  | PSRAW (src, dst) -> emit_psraw b dst src
+  | PSRAD (src, dst) -> emit_psrad b dst src
+  | PSLLWI (n, dst) -> emit_psllwi b (imm n) dst
+  | PSLLDI (n, dst) -> emit_pslldi b (imm n) dst
+  | PSLLQI (n, dst) -> emit_psllqi b (imm n) dst
+  | PSRLWI (n, dst) -> emit_psrlwi b (imm n) dst
+  | PSRLDI (n, dst) -> emit_psrldi b (imm n) dst
+  | PSRLQI (n, dst) -> emit_psrlqi b (imm n) dst
+  | PSRAWI (n, dst) -> emit_psrawi b (imm n) dst
+  | PSRADI (n, dst) -> emit_psradi b (imm n) dst
+  | SHUFPD (n, src, dst) -> emit_shufpd b (imm n) dst src
+  | PSHUFHW (n, src, dst) -> emit_pshufhw b (imm n) dst src
+  | PSHUFLW (n, src, dst) -> emit_pshuflw b (imm n) dst src
+  | PUNPCKHBW (src, dst) -> emit_punpckhbw b dst src
+  | PUNPCKHWD (src, dst) -> emit_punpckhwd b dst src
+  | PUNPCKHQDQ (src, dst) -> emit_punpckhqdq b dst src
+  | PUNPCKLBW (src, dst) -> emit_punpcklbw b dst src
+  | PUNPCKLWD (src, dst) -> emit_punpcklwd b dst src
+  | PUNPCKLQDQ (src, dst) -> emit_punpcklqdq b dst src
+  | ADDSUBPS (src, dst) -> emit_addsubps b dst src
+  | ADDSUBPD (src, dst) -> emit_addsubpd b dst src
+  | HADDPS (src, dst) -> emit_haddps b dst src
+  | HADDPD (src, dst) -> emit_haddpd b dst src
+  | HSUBPS (src, dst) -> emit_hsubps b dst src
+  | HSUBPD (src, dst) -> emit_hsubpd b dst src
+  | MOVDDUP (src, dst) -> emit_movddup b dst src
+  | MOVSHDUP (src, dst) -> emit_movshdup b dst src
+  | MOVSLDUP (src, dst) -> emit_movsldup b dst src
+  | PABSB (src, dst) -> emit_pabsb b dst src
+  | PABSW (src, dst) -> emit_pabsw b dst src
+  | PABSD (src, dst) -> emit_pabsd b dst src
+  | PHADDW (src, dst) -> emit_phaddw b dst src
+  | PHADDD (src, dst) -> emit_phaddd b dst src
+  | PHADDSW (src, dst) -> emit_phaddsw b dst src
+  | PHSUBW (src, dst) -> emit_phsubw b dst src
+  | PHSUBD (src, dst) -> emit_phsubd b dst src
+  | PHSUBSW (src, dst) -> emit_phsubsw b dst src
+  | PSIGNB (src, dst) -> emit_psignb b dst src
+  | PSIGNW (src, dst) -> emit_psignw b dst src
+  | PSIGND (src, dst) -> emit_psignd b dst src
+  | PSHUFB (src, dst) -> emit_pshufb b dst src
+  | PBLENDW (n, src, dst) -> emit_pblendw b (imm n) dst src
+  | BLENDPS (n, src, dst) -> emit_blendps b (imm n) dst src
+  | BLENDPD (n, src, dst) -> emit_blendpd b (imm n) dst src
+  | PBLENDVB (src, dst) -> emit_pblendvb b dst src
+  | BLENDVPS (src, dst) -> emit_blendvps b dst src
+  | BLENDVPD (src, dst) -> emit_blendvpd b dst src
+  | PCMPEQQ (src, dst) -> emit_pcmpeqq b dst src
+  | PMOVSXBW (src, dst) -> emit_pmovsxbw b dst src
+  | PMOVSXBD (src, dst) -> emit_pmovsxbd b dst src
+  | PMOVSXBQ (src, dst) -> emit_pmovsxbq b dst src
+  | PMOVSXWD (src, dst) -> emit_pmovsxwd b dst src
+  | PMOVSXWQ (src, dst) -> emit_pmovsxwq b dst src
+  | PMOVSXDQ (src, dst) -> emit_pmovsxdq b dst src
+  | PMOVZXBW (src, dst) -> emit_pmovzxbw b dst src
+  | PMOVZXBD (src, dst) -> emit_pmovzxbd b dst src
+  | PMOVZXBQ (src, dst) -> emit_pmovzxbq b dst src
+  | PMOVZXWD (src, dst) -> emit_pmovzxwd b dst src
+  | PMOVZXWQ (src, dst) -> emit_pmovzxwq b dst src
+  | PMOVZXDQ (src, dst) -> emit_pmovzxdq b dst src
+  | DPPS (n, src, dst) -> emit_dpps b (imm n) dst src
+  | DPPD (n, src, dst) -> emit_dppd b (imm n) dst src
+  | PEXTRB (n, src, dst) -> emit_pextrb b (imm n) dst src
+  | PEXTRW (n, src, dst) -> emit_pextrw b (imm n) dst src
+  | PEXTRD (n, src, dst) -> emit_pextrd b (imm n) dst src
+  | PEXTRQ (n, src, dst) -> emit_pextrq b (imm n) dst src
+  | PINSRB (n, src, dst) -> emit_pinsrb b (imm n) dst src
+  | PINSRW (n, src, dst) -> emit_pinsrw b (imm n) dst src
+  | PINSRD (n, src, dst) -> emit_pinsrd b (imm n) dst src
+  | PINSRQ (n, src, dst) -> emit_pinsrq b (imm n) dst src
+  | PMAXSB (src, dst) -> emit_pmaxsb b dst src
+  | PMAXSD (src, dst) -> emit_pmaxsd b dst src
+  | PMAXUW (src, dst) -> emit_pmaxuw b dst src
+  | PMAXUD (src, dst) -> emit_pmaxud b dst src
+  | PMINSB (src, dst) -> emit_pminsb b dst src
+  | PMINSD (src, dst) -> emit_pminsd b dst src
+  | PMINUW (src, dst) -> emit_pminuw b dst src
+  | PMINUD (src, dst) -> emit_pminud b dst src
+  | ROUNDPD (n, src, dst) -> emit_roundpd b (imm8_of_rounding n) dst src
+  | ROUNDPS (n, src, dst) -> emit_roundps b (imm8_of_rounding n) dst src
+  | PCMPGTQ (src, dst) -> emit_pcmpgtq b dst src
+  | PCMPESTRI (n, src, dst) -> emit_pcmpestri b (imm n) dst src
+  | PCMPESTRM (n, src, dst) -> emit_pcmpestrm b (imm n) dst src
+  | PCMPISTRI (n, src, dst) -> emit_pcmpistri b (imm n) dst src
+  | PCMPISTRM (n, src, dst) -> emit_pcmpistrm b (imm n) dst src
+  | PAVGB (src, dst) -> emit_pavgb b dst src
+  | PAVGW (src, dst) -> emit_pavgw b dst src
+  | PSADBW (src, dst) -> emit_psadbw b dst src
+  | PACKSSWB (src, dst) -> emit_packsswb b dst src
+  | PACKSSDW (src, dst) -> emit_packssdw b dst src
+  | PACKUSWB (src, dst) -> emit_packuswb b dst src
+  | PACKUSDW (src, dst) -> emit_packusdw b dst src
+  | PALIGNR (n, src, dst) -> emit_palignr b (imm n) dst src
+  | MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
+  | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
 
 let assemble_line b loc ins =
   try

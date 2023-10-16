@@ -714,6 +714,8 @@ let rec unbox_float dbg =
 let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg)
 
 let rec unbox_vec128 dbg =
+  (* Boxed vectors are not 16-byte aligned by the GC, so we must use an
+     unaligned load. *)
   map_tail ~kind:Any (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr boxedvec128_header
@@ -723,7 +725,7 @@ let rec unbox_vec128 dbg =
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
       | Some (Uconst_vec128 { low; high }) ->
         Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
-      | _ -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
+      | _ -> Cop (Cload (Onetwentyeight_unaligned, Immutable), [cmm], dbg))
     | Cregion e as cmm -> (
       (* It is valid to push unboxing inside a Cregion except when the extra
          unboxing logic pushes a tail call out of tail position *)
@@ -736,9 +738,10 @@ let rec unbox_vec128 dbg =
           e
       with
       | e -> Cregion e
-      | exception Exit -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
+      | exception Exit ->
+        Cop (Cload (Onetwentyeight_unaligned, Immutable), [cmm], dbg))
     | Ctail e -> Ctail (unbox_vec128 dbg e)
-    | cmm -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
+    | cmm -> Cop (Cload (Onetwentyeight_unaligned, Immutable), [cmm], dbg))
 
 (* Complex *)
 
@@ -1032,15 +1035,14 @@ let string_length exp dbg =
 let bigstring_length ba dbg =
   Cop (Cload (Word_int, Mutable), [field_address ba 5 dbg], dbg)
 
-let bigstring_data ba dbg =
-  Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg)
-
 let bigstring_get_alignment ba idx align dbg =
-  Cop
-    ( Cand,
-      [ Cconst_int (align - 1, dbg);
-        Cop (Caddi, [bigstring_data ba dbg; idx], dbg) ],
-      dbg )
+  bind "ba_data"
+    (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
+    (fun ba_data ->
+      Cop
+        ( Cand,
+          [Cconst_int (align - 1, dbg); Cop (Caddi, [ba_data; idx], dbg)],
+          dbg ))
 
 (* Message sending *)
 
@@ -1261,6 +1263,9 @@ let make_checkbound dbg = function
     ->
     Cop (Ccheckbound, [a1; Cconst_int ((m lsl n) + (1 lsl n) - 1, dbg)], dbg)
   | args -> Cop (Ccheckbound, args, dbg)
+
+let make_checkalign dbg bytes_pow2 args =
+  Cop (Ccheckalign { bytes_pow2 }, args, dbg)
 
 (* Record application and currying functions *)
 
@@ -1561,6 +1566,9 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
         Cconst_symbol (operations_boxed_int bi, dbg);
         arg' ],
       dbg )
+
+let box_vec128_gen dbg mode arg =
+  Cop (Calloc mode, [alloc_boxedvec128_header mode dbg; arg], dbg)
 
 let split_int64_for_32bit_target arg dbg =
   bind "split_int64" arg (fun arg ->
@@ -1939,6 +1947,28 @@ let unaligned_set_64 ptr idx newval dbg =
                     [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
                     dbg ) ) ) )
 
+let unaligned_load_128 ptr idx dbg =
+  assert (size_vec128 = 16);
+  Cop (Cload (Onetwentyeight_unaligned, Mutable), [add_int ptr idx dbg], dbg)
+
+let unaligned_set_128 ptr idx newval dbg =
+  assert (size_vec128 = 16);
+  Cop
+    ( Cstore (Onetwentyeight_unaligned, Assignment),
+      [add_int ptr idx dbg; newval],
+      dbg )
+
+let aligned_load_128 ptr idx dbg =
+  assert (size_vec128 = 16);
+  Cop (Cload (Onetwentyeight_aligned, Mutable), [add_int ptr idx dbg], dbg)
+
+let aligned_set_128 ptr idx newval dbg =
+  assert (size_vec128 = 16);
+  Cop
+    ( Cstore (Onetwentyeight_aligned, Assignment),
+      [add_int ptr idx dbg; newval],
+      dbg )
+
 let max_or_zero a dbg =
   bind "size" a (fun a ->
       (* equivalent to:
@@ -1954,38 +1984,57 @@ let max_or_zero a dbg =
       let sign_negation = Cop (Cxor, [sign; Cconst_int (-1, dbg)], dbg) in
       Cop (Cand, [sign_negation; a], dbg))
 
-let check_bound safety access_size dbg length a2 k =
-  match (safety : Lambda.is_safe) with
+let check_bound_and_alignment unsafe access_size dbg ~address ~length ~offset k
+    =
+  match (unsafe : Lambda.is_safe) with
   | Unsafe -> k
   | Safe ->
-    let offset =
+    let access_length, access_align =
       match (access_size : Clambda_primitives.memory_access_size) with
-      | Sixteen -> 1
-      | Thirty_two -> 3
-      | Sixty_four -> 7
+      | Sixteen -> 1, 0
+      | Thirty_two -> 3, 0
+      | Sixty_four -> 7, 0
+      | One_twenty_eight { aligned = false } -> 15, 0
+      | One_twenty_eight { aligned = true } -> 15, 16
     in
-    let a1 = sub_int length (Cconst_int (offset, dbg)) dbg in
-    Csequence (make_checkbound dbg [max_or_zero a1 dbg; a2], k)
+    let check_align =
+      match access_align with
+      | 0 -> k
+      | align ->
+        Csequence (make_checkalign dbg align [add_int address offset dbg], k)
+    in
+    let valid_length = sub_int length (Cconst_int (access_length, dbg)) dbg in
+    Csequence
+      (make_checkbound dbg [max_or_zero valid_length dbg; offset], check_align)
 
 let opaque e dbg = Cop (Copaque, [e], dbg)
 
+(* The alignment of 128-bit stores is determined by [size], and may be
+   aligned. *)
 let unaligned_set size ptr idx newval dbg =
   match (size : Clambda_primitives.memory_access_size) with
   | Sixteen -> unaligned_set_16 ptr idx newval dbg
   | Thirty_two -> unaligned_set_32 ptr idx newval dbg
   | Sixty_four -> unaligned_set_64 ptr idx newval dbg
+  | One_twenty_eight { aligned = false } -> unaligned_set_128 ptr idx newval dbg
+  | One_twenty_eight { aligned = true } -> aligned_set_128 ptr idx newval dbg
 
+(* The alignment of 128-bit loads is determined by [size], and may be
+   aligned. *)
 let unaligned_load size ptr idx dbg =
   match (size : Clambda_primitives.memory_access_size) with
   | Sixteen -> unaligned_load_16 ptr idx dbg
   | Thirty_two -> unaligned_load_32 ptr idx dbg
   | Sixty_four -> unaligned_load_64 ptr idx dbg
+  | One_twenty_eight { aligned = false } -> unaligned_load_128 ptr idx dbg
+  | One_twenty_eight { aligned = true } -> aligned_load_128 ptr idx dbg
 
 let box_sized size mode dbg exp =
   match (size : Clambda_primitives.memory_access_size) with
   | Sixteen -> tag_int exp dbg
   | Thirty_two -> box_int_gen dbg Pint32 mode exp
   | Sixty_four -> box_int_gen dbg Pint64 mode exp
+  | One_twenty_eight _ -> box_vec128_gen dbg mode exp
 
 (* Simplification of some primitives into C calls *)
 
@@ -2055,6 +2104,12 @@ let simplif_primitive_32bits :
     Pccall (default_prim "caml_ba_uint8_get64")
   | Pbigstring_set (Sixty_four, _) ->
     Pccall (default_prim "caml_ba_uint8_set64")
+  | Pstring_load (One_twenty_eight _, _, _)
+  | Pbytes_load (One_twenty_eight _, _, _)
+  | Pbytes_set (One_twenty_eight _, _)
+  | Pbigstring_load (One_twenty_eight _, _, _)
+  | Pbigstring_set (One_twenty_eight _, _) ->
+    Misc.fatal_error "128-bit load/store is not supported in 32-bit mode."
   | Pbbswap (Pint64, _) -> Pccall (default_prim "caml_int64_bswap")
   | p -> p
 
@@ -2843,8 +2898,9 @@ let read_from_closure_given_machtype t clos base_offset dbg =
           ( (non_scanned_pos + ints_per_float, scanned_pos),
             load Double non_scanned_pos )
         | Vec128 ->
+          (* Vectors stored in closures may not be 16-byte aligned. *)
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
-            load Onetwentyeight non_scanned_pos )
+            load Onetwentyeight_unaligned non_scanned_pos )
         | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
         | Addr -> Misc.fatal_error "[Addr] cannot be read")
       (base_offset, base_offset + machtype_non_scanned_size t)
@@ -3518,7 +3574,8 @@ let string_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
     (bind "index" (untag_int arg2 dbg) (fun idx ->
          bind "str" arg1 (fun str ->
-             check_bound unsafe size dbg (string_length str dbg) idx
+             check_bound_and_alignment unsafe size dbg ~address:str
+               ~length:(string_length str dbg) ~offset:idx
                (unaligned_load size str idx dbg))))
 
 let bigstring_load size unsafe mode arg1 arg2 dbg =
@@ -3528,7 +3585,8 @@ let bigstring_load size unsafe mode arg1 arg2 dbg =
              bind "ba_data"
                (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
                (fun ba_data ->
-                 check_bound unsafe size dbg (bigstring_length ba dbg) idx
+                 check_bound_and_alignment unsafe size dbg ~address:ba_data
+                   ~length:(bigstring_length ba dbg) ~offset:idx
                    (unaligned_load size ba_data idx dbg)))))
 
 let arrayref_unsafe rkind arg1 arg2 dbg =
@@ -3745,7 +3803,8 @@ let bytes_set size unsafe arg1 arg2 arg3 dbg =
     (bind "newval" arg3 (fun newval ->
          bind "index" (untag_int arg2 dbg) (fun idx ->
              bind "str" arg1 (fun str ->
-                 check_bound unsafe size dbg (string_length str dbg) idx
+                 check_bound_and_alignment unsafe size dbg ~address:str
+                   ~length:(string_length str dbg) ~offset:idx
                    (unaligned_set size str idx newval dbg)))))
 
 let bigstring_set size unsafe arg1 arg2 arg3 dbg =
@@ -3757,7 +3816,8 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                    (Cop
                       (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
                    (fun ba_data ->
-                     check_bound unsafe size dbg (bigstring_length ba dbg) idx
+                     check_bound_and_alignment unsafe size dbg ~address:ba_data
+                       ~length:(bigstring_length ba dbg) ~offset:idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
 (* Symbols *)

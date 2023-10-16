@@ -173,6 +173,10 @@ let basic_or_terminator_of_operation :
     With_next_label
       (fun label_after ->
         Prim { op = Checkbound { immediate = None }; label_after })
+  | Iintop (Icheckalign { bytes_pow2 }) ->
+    With_next_label
+      (fun label_after ->
+        Prim { op = Checkalign { bytes_pow2; immediate = None }; label_after })
   | Ipoll { return_label = None } ->
     With_next_label (fun label_after -> Poll_and_jump label_after)
   | Ipoll { return_label = Some return_label } ->
@@ -182,6 +186,10 @@ let basic_or_terminator_of_operation :
     With_next_label
       (fun label_after ->
         Prim { op = Checkbound { immediate = Some i }; label_after })
+  | Iintop_imm (Icheckalign { bytes_pow2 }, i) ->
+    With_next_label
+      (fun label_after ->
+        Prim { op = Checkalign { bytes_pow2; immediate = Some i }; label_after })
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->

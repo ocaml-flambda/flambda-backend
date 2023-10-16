@@ -53,9 +53,11 @@ let print_compact_location ppf (loc : Location.t) =
 let name_for_function (func : Lambda.lfunction) =
   (* Name anonymous functions by their source location, if known. *)
   match func.loc with
-  | Loc_unknown -> "anon-fn"
+  | Loc_unknown -> "fn"
   | Loc_known { loc; _ } ->
-    Format.asprintf "anon-fn[%a]" print_compact_location loc
+    if Flambda_features.Expert.shorten_symbol_names ()
+    then "fn"
+    else Format.asprintf "fn[%a]" print_compact_location loc
 
 let extra_args_for_exn_continuation env exn_handler =
   List.map
@@ -562,18 +564,23 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pstring_load_16 false
   | Pstring_load_32 (false, _)
   | Pstring_load_64 (false, _)
+  | Pstring_load_128 { unsafe = false; _ }
   | Pbytes_load_16 false
   | Pbytes_load_32 (false, _)
   | Pbytes_load_64 (false, _)
+  | Pbytes_load_128 { unsafe = false; _ }
   | Pbytes_set_16 false
   | Pbytes_set_32 false
   | Pbytes_set_64 false
+  | Pbytes_set_128 { unsafe = false; _ }
   | Pbigstring_load_16 false
   | Pbigstring_load_32 (false, _)
   | Pbigstring_load_64 (false, _)
+  | Pbigstring_load_128 { unsafe = false; _ }
   | Pbigstring_set_16 false
   | Pbigstring_set_32 false
   | Pbigstring_set_64 false
+  | Pbigstring_set_128 { unsafe = false; _ }
   | Pdivbint { is_safe = Safe; _ }
   | Pmodbint { is_safe = Safe; _ }
   | Pbigarrayref (false, _, _, _)
@@ -622,18 +629,23 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pstring_load_16 true
   | Pstring_load_32 (true, _)
   | Pstring_load_64 (true, _)
+  | Pstring_load_128 { unsafe = true; _ }
   | Pbytes_load_16 true
   | Pbytes_load_32 (true, _)
   | Pbytes_load_64 (true, _)
+  | Pbytes_load_128 { unsafe = true; _ }
   | Pbytes_set_16 true
   | Pbytes_set_32 true
   | Pbytes_set_64 true
+  | Pbytes_set_128 { unsafe = true; _ }
   | Pbigstring_load_16 true
   | Pbigstring_load_32 (true, _)
   | Pbigstring_load_64 (true, _)
+  | Pbigstring_load_128 { unsafe = true; _ }
   | Pbigstring_set_16 true
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
+  | Pbigstring_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _

@@ -47,29 +47,37 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
-    =
+let manufacture_symbol acc proposed_name =
+  let acc, linkage_name =
+    if Flambda_features.Expert.shorten_symbol_names ()
+    then Acc.manufacture_symbol_short_name acc
+    else acc, Linkage_name.of_string proposed_name
+  in
   let symbol =
-    Symbol.create
-      (Compilation_unit.get_current_exn ())
-      (Linkage_name.of_string (Function_slot.to_string function_slot))
+    Symbol.create (Compilation_unit.get_current_exn ()) linkage_name
+  in
+  acc, symbol
+
+let declare_symbol_for_function_slot env acc ident function_slot :
+    Env.t * Acc.t * Symbol.t =
+  let acc, symbol =
+    manufacture_symbol acc (Function_slot.to_string function_slot)
   in
   let env =
     Env.add_simple_to_substitute env ident (Simple.symbol symbol)
       K.With_subkind.any_value
   in
-  env, symbol
+  env, acc, symbol
 
 let register_const0 acc constant name =
   match Static_const.Map.find constant (Acc.shareable_constants acc) with
   | exception Not_found ->
     (* Create a variable to ensure uniqueness of the symbol. *)
     let var = Variable.create name in
-    let symbol =
-      Symbol.create
-        (Compilation_unit.get_current_exn ())
+    let acc, symbol =
+      manufacture_symbol acc
         (* CR mshinwell: this Variable.rename looks to be redundant *)
-        (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
+        (Variable.unique_name (Variable.rename var))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
     let acc =
@@ -755,14 +763,15 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
       | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
       | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
-      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
-      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
-      | Pbbswap _ | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _
-      | Pobj_dup | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _
-      | Pbox_int _ | Pmake_unboxed_product _ | Punboxed_product_field _
-      | Pget_header _ ->
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _
+      | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
+      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
+      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+      | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
+      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
+      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -953,10 +962,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             (* This is a inconstant statically-allocated value, so cannot go
                through [register_const0]. The definition must be placed right
                away. *)
-            let symbol =
-              Symbol.create
-                (Compilation_unit.get_current_exn ())
-                (Linkage_name.of_string (Variable.unique_name var))
+            let acc, symbol =
+              manufacture_symbol acc (Variable.unique_name var)
             in
             let static_const = Static_const.block tag Immutable static_fields in
             let static_consts =
@@ -995,11 +1002,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                && Env.at_toplevel env
                && Flambda_features.classic_mode () ->
           (* Special case to lift toplevel exception declarations *)
-          let symbol =
-            Symbol.create
-              (Compilation_unit.get_current_exn ())
-              (Linkage_name.of_string (Variable.unique_name var))
-          in
+          let acc, symbol = manufacture_symbol acc (Variable.unique_name var) in
           let transform_arg arg =
             Simple.pattern_match' arg
               ~var:(fun var ~coercion:_ ->
@@ -1792,8 +1795,8 @@ let close_functions acc external_env ~current_region function_declarations =
     then
       Ident.Map.fold
         (fun ident function_slot (acc, env, symbol_map) ->
-          let env, symbol =
-            declare_symbol_for_function_slot env ident function_slot
+          let env, acc, symbol =
+            declare_symbol_for_function_slot env acc ident function_slot
           in
           let approx =
             match Function_slot.Map.find function_slot approx_map with

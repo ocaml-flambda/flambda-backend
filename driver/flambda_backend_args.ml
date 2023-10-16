@@ -315,6 +315,18 @@ let mk_flambda2_expert_max_function_simplify_run f =
     Flambda2.Expert.Default.max_function_simplify_run
 ;;
 
+let mk_flambda2_expert_shorten_symbol_names f =
+  "-flambda2-expert-shorten-symbol-names", Arg.Unit f,
+  " Shorten symbol names (Flambda 2 only, set by\n\
+    \     default in classic mode)"
+;;
+
+let mk_no_flambda2_expert_shorten_symbol_names f =
+  "-no-flambda2-expert-shorten-symbol-names", Arg.Unit f,
+  " Do not shorten symbol names (Flambda 2 only, set by\n\
+    \     default except for classic mode)"
+;;
+
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
   "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
   Printf.sprintf " Check that concrete\n\
@@ -614,6 +626,8 @@ module type Flambda_backend_options = sig
   val flambda2_expert_can_inline_recursive_functions : unit -> unit
   val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
   val flambda2_expert_max_function_simplify_run : int -> unit
+  val flambda2_expert_shorten_symbol_names : unit -> unit
+  val no_flambda2_expert_shorten_symbol_names : unit -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -734,6 +748,10 @@ struct
       F.no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_expert_max_function_simplify_run
       F.flambda2_expert_max_function_simplify_run;
+    mk_flambda2_expert_shorten_symbol_names
+      F.flambda2_expert_shorten_symbol_names;
+    mk_no_flambda2_expert_shorten_symbol_names
+      F.no_flambda2_expert_shorten_symbol_names;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -885,6 +903,10 @@ module Flambda_backend_options_impl = struct
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
   let flambda2_expert_max_function_simplify_run runs =
     Flambda2.Expert.max_function_simplify_run := Flambda_backend_flags.Set runs
+  let flambda2_expert_shorten_symbol_names () =
+    Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set true
+  let no_flambda2_expert_shorten_symbol_names () =
+    Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set false
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
