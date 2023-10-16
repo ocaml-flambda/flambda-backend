@@ -1,8 +1,4 @@
-File "fail23.ml", line 2, characters 5-15:
+File "fail23.ml", line 3, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Fail23.test1 (camlFail23__test1_HIDE_STAMP)
-File "fail23.ml", line 6, characters 13-58:
-  direct call camlStdlib__^_HIDE_STAMP on a path to exceptional return
-File "fail23.ml", line 6, characters 4-58:
-  allocate 24 bytes (fail23.ml:6,4--58;stdlib.ml:32,22--33) on a path to exceptional return
-File "fail23.ml", line 6, characters 40-57:
-  external call to caml_format_int (fail23.ml:6,40--57;stdlib.ml:271,2--19) on a path to exceptional return
+File "fail23.ml", line 7, characters 10-40:
+  allocate 32 bytes on a path to exceptional return
