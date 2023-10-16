@@ -323,8 +323,7 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
-  | End_try_region
-      (** Corresponding delimiter for [Begin_try_region]. *)
+  | End_try_region  (** Corresponding delimiter for [Begin_try_region]. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with

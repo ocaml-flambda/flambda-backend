@@ -818,7 +818,8 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
   | End_region { is_try_region; region } ->
     let named = find_simple_from_id env region in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Unary ((if is_try_region then End_try_region else End_region), Simple named)
+      Unary
+        ((if is_try_region then End_try_region else End_region), Simple named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k

@@ -611,8 +611,8 @@ type nullary_primitive =
   | Enter_inlined_apply of { dbg : Debuginfo.t }
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
-  | Enter_inlined_apply _ ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Begin_try_region | Enter_inlined_apply _ ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -629,18 +629,24 @@ let compare_nullary_primitive p1 p2 =
       ( Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
       | Enter_inlined_apply _ ) ) ->
     -1
-  | Optimised_out _, (Probe_is_enabled _ | Begin_region | Begin_try_region | Enter_inlined_apply _)
-    ->
+  | ( Optimised_out _,
+      ( Probe_is_enabled _ | Begin_region | Begin_try_region
+      | Enter_inlined_apply _ ) ) ->
     -1
   | Optimised_out _, Invalid _ -> 1
-  | Probe_is_enabled _, (Begin_region | Begin_try_region | Enter_inlined_apply _) -> -1
+  | Probe_is_enabled _, (Begin_region | Begin_try_region | Enter_inlined_apply _)
+    ->
+    -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
   | Begin_region, (Begin_try_region | Enter_inlined_apply _) -> -1
   | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
   | Begin_try_region, Enter_inlined_apply _ -> -1
-  | Begin_try_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) -> 1
+  | ( Begin_try_region,
+      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ) ->
+    1
   | ( Enter_inlined_apply _,
-      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region) ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Begin_try_region ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -694,8 +700,8 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
-  | Enter_inlined_apply _ ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Begin_try_region | Enter_inlined_apply _ ->
     Neither
 
 type unary_primitive =
@@ -881,8 +887,8 @@ let compare_unary_primitive p1 p2 =
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
-      | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
-      | End_region | End_try_region | Obj_dup | Get_header ),
+      | Project_value_slot _ | Is_boxed_float | Is_flat_float_array | End_region
+      | End_try_region | Obj_dup | Get_header ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -1111,8 +1117,8 @@ let free_names_unary_primitive p =
   | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | End_region | End_try_region
-  | Obj_dup | Get_header ->
+  | Is_boxed_float | Is_flat_float_array | End_region | End_try_region | Obj_dup
+  | Get_header ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1736,8 +1742,8 @@ let equal t1 t2 = compare t1 t2 = 0
 let free_names t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
-      | Enter_inlined_apply _ ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Begin_try_region | Enter_inlined_apply _ ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1763,8 +1769,8 @@ let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
-      | Enter_inlined_apply _ ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Begin_try_region | Enter_inlined_apply _ ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -1793,8 +1799,8 @@ let apply_renaming t renaming =
 let ids_for_export t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
-      | Enter_inlined_apply _ ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Begin_try_region | Enter_inlined_apply _ ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
@@ -2069,7 +2075,9 @@ end
 
 let is_begin_or_end_region t =
   match t with
-  | Nullary (Begin_region | Begin_try_region) | Unary ((End_region | End_try_region), _) -> true
+  | Nullary (Begin_region | Begin_try_region)
+  | Unary ((End_region | End_try_region), _) ->
+    true
   | _ -> false
   [@@ocaml.warning "-fragile-match"]
 

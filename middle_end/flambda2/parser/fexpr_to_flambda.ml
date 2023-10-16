@@ -367,7 +367,9 @@ let init_or_assign _env (ia : Fexpr.init_or_assign) :
   | Assignment alloc -> Assignment (alloc_mode_for_assignments alloc)
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
-  match nullop with Begin_region -> Begin_region | Begin_try_region -> Begin_try_region
+  match nullop with
+  | Begin_region -> Begin_region
+  | Begin_try_region -> Begin_try_region
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with

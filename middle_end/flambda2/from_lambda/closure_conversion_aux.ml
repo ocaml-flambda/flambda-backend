@@ -35,8 +35,11 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
-    | Begin_region of { is_try_region : bool  }
-    | End_region of { is_try_region : bool ; region : Ident.t }
+    | Begin_region of { is_try_region : bool }
+    | End_region of
+        { is_try_region : bool;
+          region : Ident.t
+        }
     | Prim of
         { prim : Lambda.primitive;
           args : simple list list;
@@ -90,15 +93,13 @@ module IR = struct
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
     | Begin_region { is_try_region } ->
-      if is_try_region then
-        fprintf ppf "Begin_try_region"
-      else
-        fprintf ppf "Begin_region"
+      if is_try_region
+      then fprintf ppf "Begin_try_region"
+      else fprintf ppf "Begin_region"
     | End_region { is_try_region; region } ->
-      if is_try_region then
-        fprintf ppf "@[<2>(End_try_region@ %a)@]" Ident.print region
-      else
-        fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print region
+      if is_try_region
+      then fprintf ppf "@[<2>(End_try_region@ %a)@]" Ident.print region
+      else fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print region
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
         (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf arg ->

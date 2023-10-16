@@ -636,7 +636,8 @@ let unary_primitive env res dbg f arg =
         ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
-  | End_region | End_try_region -> None, res, C.return_unit dbg (C.endregion ~dbg arg)
+  | End_region | End_try_region ->
+    None, res, C.return_unit dbg (C.endregion ~dbg arg)
   | Get_header -> None, res, C.get_header arg dbg
 
 let binary_primitive env dbg f x y =

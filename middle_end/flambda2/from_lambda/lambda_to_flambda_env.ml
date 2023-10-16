@@ -305,10 +305,7 @@ let leaving_region t =
 let current_region t =
   if not (Flambda_features.stack_allocation_enabled ())
   then t.my_region
-  else
-    match t.region_stack with
-    | [] -> t.my_region
-    | region :: _ -> region
+  else match t.region_stack with [] -> t.my_region | region :: _ -> region
 
 let my_region t = t.my_region
 
@@ -321,17 +318,14 @@ let region_stack_in_cont_scope t continuation =
       Continuation.print continuation
   | stack -> stack
 
-let pop_region = function
-  | [] -> None
-  | region :: rest -> Some (region, rest)
+let pop_region = function [] -> None | region :: rest -> Some (region, rest)
 
 let pop_regions_up_to_context t continuation =
   let initial_stack_context = region_stack_in_cont_scope t continuation in
   let rec pop to_pop region_stack =
     match initial_stack_context, region_stack with
     | [], [] -> to_pop
-    | [], region :: regions ->
-      pop (Some region) regions
+    | [], region :: regions -> pop (Some region) regions
     | _initial_stack_top :: _, [] ->
       Misc.fatal_errorf "Unable to restore region stack for %a"
         Continuation.print continuation

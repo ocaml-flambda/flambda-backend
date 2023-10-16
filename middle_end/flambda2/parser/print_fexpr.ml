@@ -345,7 +345,8 @@ let static_data_binding ppf { symbol = s; defining_expr = sp } =
   Format.fprintf ppf "%a =@ %a" symbol s static_data sp
 
 let nullop ppf (o : nullop) =
-  Format.pp_print_string ppf @@
+  Format.pp_print_string ppf
+  @@
   match o with
   | Begin_region -> "%begin_region"
   | Begin_try_region -> "%begin_try_region"

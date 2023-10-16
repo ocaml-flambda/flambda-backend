@@ -249,7 +249,9 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
   | Unsigned
 
-type nullop = Begin_region | Begin_try_region
+type nullop =
+  | Begin_region
+  | Begin_try_region
 
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg

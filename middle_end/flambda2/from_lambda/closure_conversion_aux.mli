@@ -38,7 +38,10 @@ module IR : sig
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
     | Begin_region of { is_try_region : bool }
-    | End_region of { is_try_region : bool ; region : Ident.t }
+    | End_region of
+        { is_try_region : bool;
+          region : Ident.t
+        }
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)
     | Prim of
