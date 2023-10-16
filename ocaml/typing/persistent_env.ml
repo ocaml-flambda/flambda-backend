@@ -56,7 +56,7 @@ type can_load_cmis =
 
 type pers_struct = {
   ps_name: CU.t;
-  ps_crcs: Import_info.t array;
+  ps_crcs: Import_info.Intf.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
 }
@@ -122,8 +122,8 @@ let find_in_cache {persistent_structures; _} s =
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
-    let name = Import_info.name import_info in
-    let crco = Import_info.crc_with_unit import_info in
+    let name = Import_info.Intf.name import_info in
+    let crco = Import_info.Intf.crc_with_unit import_info in
     match crco with
     | None -> ()
     | Some (unit, crc) ->
@@ -345,10 +345,10 @@ let crc_of_unit penv f name =
   | Some (_, crc) -> crc
   | None ->
     let (ps, _pm) = find_pers_struct penv f true name in
-    match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
+    match Array.find_opt (Import_info.Intf.has_name ~name) ps.ps_crcs with
     | None -> assert false
     | Some import_info ->
-      match Import_info.crc import_info with
+      match Import_info.Intf.crc import_info with
       | None -> assert false
       | Some crc -> crc
 
@@ -358,7 +358,7 @@ let imports {imported_units; crc_units; _} =
       crc_units
   in
   List.map (fun (cu_name, crc_with_unit) ->
-      Import_info.create cu_name ~crc_with_unit)
+      Import_info.Intf.create cu_name ~crc_with_unit)
     imports
 
 let looked_up {persistent_structures; _} modname =

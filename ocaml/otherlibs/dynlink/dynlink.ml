@@ -24,8 +24,8 @@ module DC = Dynlink_common
 module DT = Dynlink_types
 
 let convert_cmi_import import =
-  let name = Import_info.name import |> Compilation_unit.Name.to_string in
-  let crc = Import_info.crc import in
+  let name = Import_info.Intf.name import |> Compilation_unit.Name.to_string in
+  let crc = Import_info.Intf.crc import in
   name, crc
 
 module Bytecode = struct
@@ -91,8 +91,8 @@ module Bytecode = struct
 
   let fold_initial_units ~init ~f =
     Array.fold_left (fun acc import ->
-        let modname = Import_info.name import in
-        let crc = Import_info.crc import in
+        let modname = Import_info.Intf.name import in
+        let crc = Import_info.Intf.crc import in
         let id =
           Compilation_unit.to_global_ident_for_bytecode
             (assume_no_prefix modname)
@@ -237,8 +237,8 @@ module Native = struct
     let crc (t : t) = Some t.dynu_crc
 
     let convert_cmx_import import =
-      let cu = Import_info.cu import |> Compilation_unit.name_as_string in
-      let crc = Import_info.crc import in
+      let cu = Import_info.Impl.cu import |> Compilation_unit.name_as_string in
+      let crc = Import_info.Impl.crc import in
       cu, crc
 
     let interface_imports (t : t) =

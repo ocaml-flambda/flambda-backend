@@ -467,7 +467,7 @@ val save_signature:
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Import_info.t array
+  -> Import_info.Intf.t array
   -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
@@ -476,10 +476,10 @@ val save_signature_with_imports:
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> Import_info.t list
+val imports: unit -> Import_info.Intf.t list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> Import_info.t array -> unit
+val import_crcs: source:string -> Import_info.Intf.t array -> unit
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool

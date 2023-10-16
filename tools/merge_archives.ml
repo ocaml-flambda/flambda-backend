@@ -65,7 +65,7 @@ let merge_cmxa0 ~archives =
   |> List.iter (fun (lib : Cmx_format.library_infos) ->
          lib.lib_imports_cmi
          |> Array.iter (fun import ->
-                let name = Import_info.name import in
+                let name = Import_info.Intf.name import in
                 if not (Hashtbl.mem cmi_table name)
                 then begin
                   Hashtbl.add cmi_table name (import, !ncmis);
@@ -73,15 +73,15 @@ let merge_cmxa0 ~archives =
                 end);
          lib.lib_imports_cmx
          |> Array.iter (fun import ->
-                let cu = Import_info.cu import in
+                let cu = Import_info.Impl.cu import in
                 if not (Hashtbl.mem cmx_table cu)
                 then begin
                   Hashtbl.add cmx_table cu (import, !ncmxs);
                   incr ncmxs
                 end));
-  let cmis = Array.make !ncmis Import_info.dummy in
+  let cmis = Array.make !ncmis Import_info.Intf.dummy in
   Hashtbl.iter (fun name (import, i) -> cmis.(i) <- import) cmi_table;
-  let cmxs = Array.make !ncmxs Import_info.dummy in
+  let cmxs = Array.make !ncmxs Import_info.Impl.dummy in
   Hashtbl.iter (fun name (import, i) -> cmxs.(i) <- import) cmx_table;
   let genfns = Cmm_helpers.Generic_fns_tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
@@ -115,10 +115,10 @@ let merge_cmxa0 ~archives =
               { li with
                 li_imports_cmi =
                   remap cmxa.lib_imports_cmi cmis cmi_table li.li_imports_cmi
-                    ~get_key:Import_info.name;
+                    ~get_key:Import_info.Intf.name;
                 li_imports_cmx =
                   remap cmxa.lib_imports_cmx cmxs cmx_table li.li_imports_cmx
-                    ~get_key:Import_info.cu
+                    ~get_key:Import_info.Impl.cu
               })
             cmxa.lib_units
         in

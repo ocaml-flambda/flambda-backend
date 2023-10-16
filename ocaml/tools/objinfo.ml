@@ -61,13 +61,13 @@ let print_name_crc name crco =
 (* CR-someday mshinwell: consider moving to [Import_info.print] *)
 
 let print_intf_import import =
-  let name = Import_info.name import in
-  let crco = Import_info.crc import in
+  let name = Import_info.Intf.name import in
+  let crco = Import_info.Intf.crc import in
   print_name_crc name crco
 
 let print_impl_import import =
-  let unit = Import_info.cu import in
-  let crco = Import_info.crc import in
+  let unit = Import_info.Impl.cu import in
+  let crco = Import_info.Impl.crc import in
   print_name_crc (Compilation_unit.name unit) crco
 
 let print_line name =
@@ -280,7 +280,7 @@ let dump_byte ic =
                p_list
                  "Imported units"
                  print_intf_import
-                 ((input_value ic : Import_info.t array) |> Array.to_list)
+                 ((input_value ic : Import_info.Intf.t array) |> Array.to_list)
            | "DLLS" ->
                p_list
                  "Used DLLs"

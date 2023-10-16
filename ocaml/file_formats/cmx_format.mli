@@ -45,9 +45,9 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: Import_info.t array;
+    mutable ui_imports_cmi: Import_info.Intf.t array;
                                           (* Interfaces imported *)
-    mutable ui_imports_cmx: Import_info.t array;
+    mutable ui_imports_cmx: Import_info.Impl.t array;
                                           (* Infos imported *)
     mutable ui_curry_fun:
       (Lambda.function_kind * machtype list * machtype) list;

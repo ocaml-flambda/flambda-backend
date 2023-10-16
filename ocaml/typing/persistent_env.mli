@@ -101,10 +101,10 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
 
 (* may raise Consistbl.Inconsistency *)
 val import_crcs : 'a t -> source:filepath ->
-  Import_info.t array -> unit
+  Import_info.Intf.t array -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> Import_info.t list
+val imports : 'a t -> Import_info.Intf.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a)

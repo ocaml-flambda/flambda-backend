@@ -88,7 +88,7 @@ let print_info cmt =
   let imports =
     let imports =
       Array.map (fun import ->
-          Import_info.name import, Import_info.crc_with_unit import)
+          Import_info.Intf.name import, Import_info.Intf.crc_with_unit import)
         cmt.cmt_imports
     in
     Array.sort compare_imports imports;

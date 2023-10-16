@@ -22,7 +22,7 @@ val reset : unit -> unit
 
 val check_consistency: filepath -> Cmo_format.compilation_unit_descr -> unit
 
-val extract_crc_interfaces: unit -> Import_info.t list
+val extract_crc_interfaces: unit -> Import_info.Intf.t list
 
 type error =
   | File_not_found of filepath

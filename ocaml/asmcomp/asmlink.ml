@@ -51,8 +51,8 @@ let check_consistency file_name unit crc =
   begin try
     Array.iter
       (fun import ->
-        let name = Import_info.name import in
-        let crco = Import_info.crc_with_unit import in
+        let name = Import_info.Intf.name import in
+        let crco = Import_info.Intf.crc_with_unit import in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
@@ -72,8 +72,8 @@ let check_consistency file_name unit crc =
   begin try
     Array.iter
       (fun import ->
-        let name = Import_info.cu import in
-        let crco = Import_info.crc import in
+        let name = Import_info.Impl.cu import in
+        let crco = Import_info.Impl.crc import in
         implementations := name :: !implementations;
         match crco with
             None ->
@@ -105,13 +105,13 @@ let check_consistency file_name unit crc =
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-      Import_info.create name ~crc_with_unit)
+      Import_info.Intf.create name ~crc_with_unit)
 
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
   |> List.map (fun (cu, crc) ->
        let crc = Option.map (fun ((), crc) -> crc) crc in
-       Import_info.create_normal cu ~crc)
+       Import_info.Impl.create_normal cu ~crc)
 
 
 (* Add C objects and options and "custom" info from a library descriptor.
@@ -148,7 +148,7 @@ let is_required name =
   with Not_found -> false
 
 let add_required by import =
-  let name = Import_info.cu import in
+  let name = Import_info.Impl.cu import in
   try
     let rq = Hashtbl.find missing_globals name in
     rq := by :: !rq
@@ -243,7 +243,7 @@ let make_globals_map units_list ~crc_interfaces =
   let crc_interfaces =
     crc_interfaces
     |> List.map (fun import ->
-         Import_info.name import, Import_info.crc_with_unit import)
+         Import_info.Intf.name import, Import_info.Intf.crc_with_unit import)
     |> CU.Name.Tbl.of_list
   in
   let defined =
