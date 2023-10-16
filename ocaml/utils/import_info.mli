@@ -14,11 +14,8 @@
 
 module CU := Compilation_unit
 
-(* CR mshinwell: maybe there should be a phantom type allowing to distinguish
-   the .cmx case from the others. Unclear it's worth it.
-
-   xclerc: I also wonder whether it could be useful to have an abstract Array.t
-   in this module. Indeed the import infos are now mutable; we could hide the
+(* CR xclerc: I wonder whether it could be useful to have an abstract Array.t in
+   this module. Indeed the import infos are now mutable; we could hide the
    mutability behind an abstract type. I reckon we use only a handful of array
    operations on such values, so it should not be too bad. If that happens, it
    should probably be in another PR.

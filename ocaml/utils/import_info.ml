@@ -17,15 +17,16 @@ module CU = Compilation_unit
 module Intf = struct
   type t =
     | Normal of CU.Name.t * Digest.t (* Unpacked, so compilation unit = name *)
-    | Name_only of CU.Name.t
+    | Name_only of CU.Name.t (* Same but digest unknown *)
     | Other of CU.Name.t * (CU.t * Digest.t) option
+  (* Packed, so the CU isn't just the name *)
 
   let create cu_name ~crc_with_unit =
     match crc_with_unit with
     | None -> Other (cu_name, None)
     | Some (cu, crc) ->
-      (* For the moment be conservative and only use the [Normal] constructor
-         when there is no pack prefix at all. *)
+      (* If there's no pack prefix, the CU is just the name, so we don't need to
+         store both. *)
       if CU.Prefix.is_empty (CU.for_pack_prefix cu)
          && CU.Name.equal (CU.name cu) cu_name
       then Normal (cu_name, crc)
