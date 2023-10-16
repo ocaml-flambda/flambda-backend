@@ -1,7 +1,7 @@
 (executable
  (name t)
  (modules t)
- (ocamlopt_flags (:standard -linscan -Oclassic -debug-long-frames-threshold 100)))
+ (ocamlopt_flags (:standard -g -linscan -Oclassic -debug-long-frames-threshold 100)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
