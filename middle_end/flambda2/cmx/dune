@@ -32,7 +32,7 @@
    -open
    Flambda2_ui))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard))
  (libraries
   ocamlcommon
   flambda_backend_utils

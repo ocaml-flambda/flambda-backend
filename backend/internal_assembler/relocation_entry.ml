@@ -25,7 +25,7 @@ type t =
     r_addend : Compiler_owee.Owee_buf.u64
   }
 
-let create_relocation ~offset ~info ~addend =
+let _create_relocation ~offset ~info ~addend =
   { r_offset = offset; r_info = info; r_addend = addend }
 
 let is_label name =

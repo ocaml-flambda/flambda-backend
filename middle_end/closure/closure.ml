@@ -1598,7 +1598,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
      does not use its environment parameter is invalidated. *)
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
-  let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
+  let clos_fundef (id, params, _return, body, mode, check, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
     let decomposition =
       Clambda_layout.decompose_free_vars

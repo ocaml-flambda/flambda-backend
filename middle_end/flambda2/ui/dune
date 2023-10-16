@@ -7,5 +7,5 @@
  (flags
   (:standard -principal))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard))
  (libraries ocamlcommon flambda_backend_common))

@@ -443,7 +443,7 @@ type safety_check_sites = {
 let bound_checks = { sc_sites = []; sc_call = 0 }
 let align_checks = { sc_sites = []; sc_call = 0 }
 
-let safety_check_failure_label kind fdo dbg =
+let safety_check_failure_label kind _fdo dbg =
   if !Clflags.debug then begin
     let lbl_error = new_label() in
     let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in

@@ -394,7 +394,7 @@ let codegen_option = function
   | Use_linscan_regalloc -> "linscan"
   | Ignore_assert_all property ->
     Printf.sprintf "ignore %s" (property_to_string property)
-  | Assume { property; strict; never_returns_normally; loc = _ } ->
+  | Assume { property; strict; never_returns_normally = _; loc = _ } ->
     Printf.sprintf "assume_%s%s%s"
       (property_to_string property)
       (if strict then "_strict" else "")

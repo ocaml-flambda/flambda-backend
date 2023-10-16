@@ -69,7 +69,7 @@ let create_section_symbol st_shndx =
   in
   symbol_entry
 
-let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
+let create_symbol (symbol : X86_binary_emitter.symbol) _symbol_table sections
     string_table =
   let value = Option.value ~default:0 symbol.sy_pos in
   let size = Option.value ~default:0 symbol.sy_size in
@@ -101,7 +101,7 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
   String_table.add_string string_table symbol.sy_name;
   symbol_entry
 
-let create_got_symbol symbol_table string_table =
+let create_got_symbol _symbol_table string_table =
   create_undef_symbol "_GLOBAL_OFFSET_TABLE_" string_table
 
 let get_bind t =

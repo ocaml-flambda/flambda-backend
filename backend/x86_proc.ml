@@ -46,7 +46,7 @@ module Section_name = struct
       let rec align = function
         | [] -> 0L
         | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
-        | hd :: tl -> align tl
+        | _hd :: tl -> align tl
       in align t.args
 
     let is_text_like t = String.starts_with ~prefix:".text" t.name_str

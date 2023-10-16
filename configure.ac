@@ -36,6 +36,13 @@ AC_ARG_ENABLE([middle-end],
     [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
   [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
 
+AC_ARG_ENABLE([dev],
+  [AS_HELP_STRING([--enable-dev],
+    [Optimize the compiler build for fast compilation speed
+     (WARNING: do not use for production compiler deployments)])],
+  [dev_mode=yes],
+  [dev_mode=no])
+
 AC_ARG_ENABLE([coverage],
   [AS_HELP_STRING([--enable-coverage],
     [Run compiler tests instrumented to output coverage data using bisect_ppx
@@ -55,6 +62,7 @@ AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
 AC_SUBST([coverage])
+AC_SUBST([dev_mode])
 AC_SUBST([legacy_layout])
 
 # Don't error on options that this configure script doesn't understand but

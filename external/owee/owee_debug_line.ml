@@ -1,5 +1,7 @@
 open Owee_buf
 
+(* For the moment suppress warnings about record fields not being read *)
+[@@@ocaml.warning "-69"]
 type header = {
   is_64bit                   : bool;
   total_length               : u64;
@@ -109,7 +111,7 @@ let skip_directories t ~is_64bit ~version ~address_size =
 let read_filenames_version_lt_5 t =
   let rec loop acc =
     match read_filename_version_lt_5 t with
-    | "" -> acc 
+    | "" -> acc
     | fname ->
       (*Printf.eprintf "%S\n%!" fname;*)
       loop (fname :: acc)
@@ -168,7 +170,7 @@ let read_filenames
     let address_size = unwrap_address_size_v5_only address_size in
     read_filenames_version_gte_5
       t
-      ~pointers_to_other_sections 
+      ~pointers_to_other_sections
       ~is_64bit
       ~address_size
   end

@@ -3,6 +3,9 @@ let size = Bigarray.Array1.dim
 type t =
   (int, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
+(* For the moment suppress warnings about record fields not being read *)
+[@@@ocaml.warning "-69"]
+
 type cursor = {
   buffer: t;
   mutable position: int;
