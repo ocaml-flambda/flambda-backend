@@ -273,8 +273,11 @@ type any_creation_reason =
   | Inside_of_Tarrow
   | Wildcard
   | Unification_var
+  | Array_type_argument
 
-type float64_creation_reason = Primitive of Ident.t
+type float64_creation_reason =
+  | Primitive of Ident.t
+  | Float64_check
 
 type word_creation_reason = Primitive of Ident.t
 

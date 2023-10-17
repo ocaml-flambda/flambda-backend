@@ -240,6 +240,13 @@ let lookup_primitive loc poly pos p =
     | "%array_unsafe_get" -> Primitive (Parrayrefu (gen_array_ref_kind mode), 2)
     | "%array_unsafe_set" ->
        Primitive ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()))), 3)
+    | "%float_u_array_length" -> Primitive ((Parraylength Punboxedfloatarray), 1)
+    | "%float_u_array_safe_get" -> Primitive ((Parrayrefs Punboxedfloatarray_ref), 2)
+    | "%float_u_array_safe_set" ->
+      Primitive ((Parraysets Punboxedfloatarray_set), 3)
+    | "%float_u_array_unsafe_get" -> Primitive (Parrayrefu Punboxedfloatarray_ref, 2)
+    | "%float_u_array_unsafe_set" ->
+      Primitive ((Parraysetu Punboxedfloatarray_set), 3)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode)), 2)
     | "%obj_set_field" ->
@@ -509,6 +516,7 @@ let glb_array_type t1 t2 =
   | Paddrarray, x | x, Paddrarray -> x
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
+  | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
 
   | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 
@@ -538,6 +546,8 @@ let glb_array_ref_type t1 t2 =
   (* Pfloatarray is a minimum *)
   | (Pfloatarray_ref _ as x), Pfloatarray -> x
 
+  | Punboxedfloatarray_ref, Punboxedfloatarray -> Punboxedfloatarray_ref
+
   | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 
 let glb_array_set_type t1 t2 =
@@ -565,6 +575,8 @@ let glb_array_set_type t1 t2 =
 
   (* Pfloatarray is a minimum *)
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
+
+  | Punboxedfloatarray_set, Punboxedfloatarray -> Punboxedfloatarray_set
 
   | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 

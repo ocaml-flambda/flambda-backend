@@ -368,6 +368,30 @@ stdlib__Float_u.cmx : float_u.ml \
     stdlib__Float_u.cmi
 stdlib__Float_u.cmi : float_u.mli \
     stdlib.cmi
+stdlib__Float_u_array.cmo : float_u_array.ml \
+    stdlib.cmi \
+    stdlib__Float.cmi \
+    stdlib__Array.cmi \
+    stdlib__Float_u_array.cmi
+stdlib__Float_u_array.cmx : float_u_array.ml \
+    stdlib.cmx \
+    stdlib__Float.cmx \
+    stdlib__Array.cmx \
+    stdlib__Float_u_array.cmi
+stdlib__Float_u_array.cmi : float_u_array.mli \
+    stdlib.cmi
+stdlib__Float_u_arrayLabels.cmo : float_u_arrayLabels.ml \
+    stdlib.cmi \
+    stdlib__Float.cmi \
+    stdlib__Array.cmi \
+    stdlib__Float_u_arrayLabels.cmi
+stdlib__Float_u_arrayLabels.cmx : float_u_arrayLabels.ml \
+    stdlib.cmx \
+    stdlib__Float.cmx \
+    stdlib__Array.cmx \
+    stdlib__Float_u_arrayLabels.cmi
+stdlib__Float_u_arrayLabels.cmi : float_u_arrayLabels.mli \
+    stdlib.cmi
 stdlib__Format.cmo : format.ml \
     stdlib__String.cmi \
     stdlib.cmi \

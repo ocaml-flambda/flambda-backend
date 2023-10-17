@@ -49,6 +49,7 @@ LABELSDOTREGEX="s/([A-Z][a-z_]*)Labels\./\1./g"
 perl -p -e "$LABREGEX" stdlib/listLabels.mli > stdlib/list.temp.mli
 perl -p -e "$LABREGEX" stdlib/arrayLabels.mli > stdlib/array.temp.mli
 perl -p -e "$LABREGEX" stdlib/iarrayLabels.mli > stdlib/iarray.temp.mli
+perl -p -e "$LABREGEX" stdlib/float_u_arrayLabels.mli > stdlib/float_u_array.temp.mli
 perl -p -e "$LABREGEX" stdlib/stringLabels.mli > stdlib/string.temp.mli
 perl -p -e "$LABREGEX" stdlib/bytesLabels.mli > stdlib/bytes.temp.mli
 
@@ -56,6 +57,7 @@ perl -p -e "$LABREGEX" stdlib/bytesLabels.mli > stdlib/bytes.temp.mli
 perl -p -e "$TILDEREGEX" stdlib/list.temp.mli > stdlib/list.mli
 perl -p -e "$TILDEREGEX" stdlib/array.temp.mli > stdlib/array.2temp.mli
 perl -p -e "$TILDEREGEX" stdlib/iarray.temp.mli > stdlib/iarray.2temp.mli
+perl -p -e "$TILDEREGEX" stdlib/float_u_array.temp.mli > stdlib/float_u_array.mli
 perl -p -e "$TILDEREGEX" stdlib/string.temp.mli > stdlib/string.mli
 perl -p -e "$TILDEREGEX" stdlib/bytes.temp.mli > stdlib/bytes.mli
 

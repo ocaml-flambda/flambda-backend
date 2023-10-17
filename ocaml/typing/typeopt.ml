@@ -80,6 +80,10 @@ let is_base_type env ty base_ty_path =
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
+let is_jkind_float64 env ty =
+  let jkind = Jkind.float64 ~why:Float64_check in
+  Result.is_ok (Ctype.check_type_jkind env ty jkind)
+
 let is_always_gc_ignorable env ty =
   let jkind =
     (* We check that we're compiling to (64-bit) native code before counting
@@ -100,6 +104,7 @@ let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 type classification =
   | Int   (* any immediate type *)
   | Float
+  | Unboxed_float
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
@@ -111,6 +116,7 @@ type classification =
 let classify env ty : classification =
   let ty = scrape_ty env ty in
   if is_always_gc_ignorable env ty then Int
+  else if is_jkind_float64 env ty then Unboxed_float
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
       Any
@@ -150,6 +156,7 @@ let array_type_kind env ty =
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
       | Addr | Lazy -> Paddrarray
       | Int -> Pintarray
+      | Unboxed_float -> Punboxedfloatarray
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
@@ -627,6 +634,9 @@ let function_arg_layout env loc sort ty =
 let lazy_val_requires_forward env ty =
   match classify env ty with
   | Any | Lazy -> true
+  | Unboxed_float ->
+    if !Clflags.native_code then true
+    else Config.flat_float_array
   | Float -> Config.flat_float_array
   | Addr | Int -> false
 

@@ -848,3 +848,178 @@ CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
   custom_compare_ext_default,
   custom_fixed_length_default
 };
+
+/* Unboxed float arrays */
+
+static void caml_make_float_u_array_gen(mlsize_t size, double d, value* res)
+{
+  mlsize_t i;
+
+  if (size == 0) {
+    *res = Atom(0);
+  } else {
+    mlsize_t wsize;
+    wsize = size * Double_wosize;
+    if (wsize > Max_wosize) caml_invalid_argument("Array.make");
+    *res = caml_alloc(wsize, Double_array_tag);
+    for (i = 0; i < size; i++) {
+      Store_double_flat_field(*res, i, d);
+    }
+  }
+}
+
+CAMLprim value caml_make_float_u_array(value len, double init)
+{
+  CAMLparam1 (len);
+  CAMLlocal1 (res);
+
+  caml_make_float_u_array_gen(Long_val(len), init, &res);
+  // Give the GC a chance to run, and run memprof callbacks
+  caml_process_pending_actions ();
+  CAMLreturn (res);
+}
+
+CAMLprim value caml_make_float_u_array_byte(value len, value init)
+{
+  CAMLparam2 (len, init);
+  CAMLlocal1 (res);
+
+  caml_make_float_u_array_gen(Long_val(len), Double_val(init), &res);
+  // Give the GC a chance to run, and run memprof callbacks
+  caml_process_pending_actions ();
+  CAMLreturn (res);
+}
+
+
+CAMLprim value caml_float_u_array_fill(value array,
+                                            value v_ofs,
+                                            value v_len,
+                                            double d)
+{
+  intnat ofs = Long_val(v_ofs);
+  intnat len = Long_val(v_len);
+
+  for (; len > 0; len--, ofs++)
+    Store_double_flat_field(array, ofs, d);
+  return Val_unit;
+}
+
+CAMLprim value caml_float_u_array_fill_byte(value array,
+                                            value v_ofs,
+                                            value v_len,
+                                            value val)
+{
+  return caml_float_u_array_fill(array, v_ofs, v_len, Double_val(val));
+}
+
+CAMLprim value caml_float_u_array_empty(value unit)
+{
+  return Atom(0);
+}
+
+static value caml_float_u_array_gather(intnat num_arrays,
+                               value arrays[/*num_arrays*/],
+                               intnat offsets[/*num_arrays*/],
+                               intnat lengths[/*num_arrays*/],
+                               int local)
+{
+  CAMLparamN(arrays, num_arrays);
+  value res;                    /* no need to register it as a root */
+  mlsize_t wsize;
+  mlsize_t i, size, pos;
+
+  /* Determine total size */
+  size = 0;
+  for (i = 0; i < num_arrays; i++) {
+    if (mlsize_t_max - lengths[i] < size) caml_invalid_argument("Array.concat");
+    size += lengths[i];
+  }
+  if (size == 0) {
+    /* If total size = 0, just return empty array */
+    res = Atom(0);
+  }
+  else {
+    /* This is an array of floats.  We can use memcpy directly. */
+    if (size > Max_wosize/Double_wosize) caml_invalid_argument("Array.concat");
+    wsize = size * Double_wosize;
+    res = local ?
+      caml_alloc_local(wsize, Double_array_tag) :
+      caml_alloc(wsize, Double_array_tag);
+    for (i = 0, pos = 0; i < num_arrays; i++) {
+      memcpy((double *)res + pos,
+             (double *)arrays[i] + offsets[i],
+             lengths[i] * sizeof(double));
+      pos += lengths[i];
+    }
+    CAMLassert(pos == size);
+  }
+  CAMLreturn (res);
+}
+
+static mlsize_t caml_float_u_array_length(value array)
+{
+  return Wosize_val(array) / Double_wosize;
+}
+
+CAMLprim value caml_float_u_array_concat(value al)
+{
+#define STATIC_SIZE 16
+  value static_arrays[STATIC_SIZE], * arrays;
+  intnat static_offsets[STATIC_SIZE], * offsets;
+  intnat static_lengths[STATIC_SIZE], * lengths;
+  intnat n, i;
+  value l, res;
+
+  /* Length of list = number of arrays */
+  for (n = 0, l = al; l != Val_int(0); l = Field(l, 1)) n++;
+  /* Allocate extra storage if too many arrays */
+  if (n <= STATIC_SIZE) {
+    arrays = static_arrays;
+    offsets = static_offsets;
+    lengths = static_lengths;
+  } else {
+    arrays = caml_stat_alloc(n * sizeof(value));
+    offsets = caml_stat_alloc_noexc(n * sizeof(intnat));
+    if (offsets == NULL) {
+      caml_stat_free(arrays);
+      caml_raise_out_of_memory();
+    }
+    lengths = caml_stat_alloc_noexc(n * sizeof(value));
+    if (lengths == NULL) {
+      caml_stat_free(offsets);
+      caml_stat_free(arrays);
+      caml_raise_out_of_memory();
+    }
+  }
+  /* Build the parameters to caml_array_gather */
+  for (i = 0, l = al; l != Val_int(0); l = Field(l, 1), i++) {
+    arrays[i] = Field(l, 0);
+    offsets[i] = 0;
+    lengths[i] = caml_float_u_array_length(Field(l, 0));
+  }
+  /* Do the concatenation */
+  res = caml_float_u_array_gather(n, arrays, offsets, lengths, 0);
+  /* Free the extra storage if needed */
+  if (n > STATIC_SIZE) {
+    caml_stat_free(arrays);
+    caml_stat_free(offsets);
+    caml_stat_free(lengths);
+  }
+  return res;
+}
+
+CAMLprim value caml_float_u_array_append(value a1, value a2)
+{
+  value arrays[2] = { a1, a2 };
+  intnat offsets[2] = { 0, 0 };
+  intnat lengths[2] = { caml_float_u_array_length(a1), caml_float_u_array_length(a2) };
+  return caml_float_u_array_gather(2, arrays, offsets, lengths, 0);
+}
+
+CAMLprim value caml_float_u_array_sub(value a, value ofs, value len)
+{
+  value arrays[1] = { a };
+  intnat offsets[1] = { Long_val(ofs) };
+  intnat lengths[1] = { Long_val(len) };
+  return caml_float_u_array_gather(1, arrays, offsets, lengths, 0);
+}

@@ -711,8 +711,11 @@ type any_creation_reason =
   | Inside_of_Tarrow
   | Wildcard
   | Unification_var
+  | Array_type_argument
 
-type float64_creation_reason = Primitive of Ident.t
+type float64_creation_reason =
+  | Primitive of Ident.t
+  | Float64_check
 
 type word_creation_reason = Primitive of Ident.t
 
@@ -1092,6 +1095,8 @@ end = struct
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
     | Wildcard -> fprintf ppf "a _ in a type"
     | Unification_var -> fprintf ppf "a fresh unification variable"
+    | Array_type_argument ->
+      fprintf ppf "it's the type argument to the array type"
 
   let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
     function
@@ -1173,6 +1178,7 @@ end = struct
     function
     | Primitive id ->
       fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+    | Float64_check -> fprintf ppf "float64 check"
 
   let format_word_creation_reason ppf : word_creation_reason -> _ = function
     | Primitive id ->
@@ -1484,6 +1490,7 @@ module Debug_printers = struct
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
+    | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : immediate_creation_reason -> _ = function
     | Empty_record -> fprintf ppf "Empty_record"
@@ -1541,6 +1548,7 @@ module Debug_printers = struct
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+    | Float64_check -> fprintf ppf "Float64_check"
 
   let word_creation_reason ppf : word_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
