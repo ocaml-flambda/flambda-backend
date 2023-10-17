@@ -23,7 +23,6 @@ type error =
   | Variable_in_scope of Location.t * string
   | Other of Location.t
   | Ill_formed_ast of Location.t * string
-  | Singleton_labeled_tuple_type of Location.t
   | Invalid_package_type of Location.t * string
 
 exception Error of error
@@ -37,7 +36,6 @@ let location_of_error = function
   | Not_expecting (l, _)
   | Ill_formed_ast (l, _)
   | Invalid_package_type (l, _)
-  | Singleton_labeled_tuple_type l
   | Expecting (l, _) -> l
 
 
@@ -73,9 +71,6 @@ let prepare_error err =
   | Ill_formed_ast (loc, s) ->
       Location.errorf ~loc
         "broken invariant in parsetree: %s" s
-  | Singleton_labeled_tuple_type loc ->
-      Location.errorf ~loc
-        "Labeled tuple types must have length 2 or greater"
   | Invalid_package_type (loc, s) ->
       Location.errorf ~loc "invalid package type: %s" s
 

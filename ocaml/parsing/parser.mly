@@ -458,6 +458,12 @@ let ptyp_lttuple loc tl =
     ~loc:(make_loc loc) ~attrs:[]
     (Lttyp_tuple tl)
 
+let mktyp_tuple loc ltys =
+  if List.for_all (fun (lbl, _) -> Option.is_none lbl) ltys then
+    mktyp ~loc (Ptyp_tuple (List.map snd ltys))
+  else
+    ptyp_lttuple loc ltys
+
 let pexp_lttuple loc args =
   Jane_syntax.Labeled_tuples.expr_of
     ~loc:(make_loc loc) ~attrs:[]
@@ -4245,17 +4251,17 @@ function_type:
   | ty = tuple_type
     %prec MINUSGREATER
       { ty }
-  | ty = strict_function_type
+  | ty = strict_function_or_labeled_tuple_type
       { ty }
 ;
 
-strict_function_type:
+strict_function_or_labeled_tuple_type:
   | mktyp(
       label = arg_label
       unique_local = mode_flags
       domain = extra_rhs(param_type)
       MINUSGREATER
-      codomain = strict_function_type
+      codomain = strict_function_or_labeled_tuple_type
         { Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
     )
     { $1 }
@@ -4272,6 +4278,53 @@ strict_function_type:
             mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain))) }
     )
     { $1 }
+  (* These next three cases are for labled tuples - see comment on [tuple_type]
+     below.
+
+     The first two cases are present just to resolve a shift reduce conflict
+     in a module type [S with t := x:t1 * t2 -> ...] which might be the
+     beginning of
+       [S with t := x:t1 * t2 -> S']    or    [S with t := x:t1 * t2 -> t3]
+     They are the same as the previous two cases, but with [arg_label] replaced
+     with the more specific [LIDENT COLON] and [param_type] replaced with the
+     more specific [proper_tuple_type].  Apparently, this is sufficient for
+     menhir to be able to delay a decision about which of the above module type
+     cases we are in.  *)
+  | mktyp(
+      label = LIDENT COLON
+      unique_local = mode_flags
+      tuple = proper_tuple_type
+      MINUSGREATER
+      codomain = strict_function_or_labeled_tuple_type
+         {
+           let ty, ltys = tuple in
+           let label = Labelled label in
+           let domain = mktyp_tuple $sloc ((None, ty) :: ltys) in
+           let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
+           Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
+    )
+    { $1 }
+  | mktyp(
+      label = LIDENT COLON
+      arg_unique_local = mode_flags
+      tuple = proper_tuple_type
+      MINUSGREATER
+      ret_unique_local = mode_flags
+      codomain = tuple_type
+         { let ty, ltys = tuple in
+           let label = Labelled label in
+           let domain = mktyp_tuple $sloc ((None, ty) :: ltys) in
+           let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
+           Ptyp_arrow(label,
+            mktyp_with_modes arg_unique_local domain ,
+            mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain)))
+         }
+    )
+    { $1 }
+  | label = LIDENT COLON proper_tuple_type %prec MINUSGREATER
+    { let ty, ltys = $3 in
+      ptyp_lttuple $sloc ((Some label, ty) :: ltys)
+    }
 ;
 
 %inline strict_arg_label:
@@ -4308,56 +4361,40 @@ strict_function_type:
   | ty = tuple_type
     { ty }
 ;
+
 (* Tuple types include:
    - atomic types (see below);
    - proper tuple types:                  int * int * int list
    A proper tuple type is a star-separated list of at least two atomic types.
-   Tuple components can also be labeled, as an [x:int * int list * y:bool].
- *)
+   Tuple components can also be labeled, as an [int * int list * y:bool].
+
+   However, the special case of labeled tuples where the first element has a
+   label is not parsed as a proper_tuple_type, but rather as a case of
+   strict_function_or_labled_tuple_type above.  This helps in dealing with
+   ambiguities around [x:t1 * t2 -> t3] which must continue to parse as a
+   function with one labeled argument even in the presense of labled tuples.
+*)
 tuple_type:
   | ty = atomic_type
     %prec below_HASH
       { ty }
-  | mktyp(
-      tys = separated_nontrivial_llist(STAR, atomic_type)
-        { Ptyp_tuple tys }
-    )
-      { $1 }
+  | proper_tuple_type %prec below_FUNCTOR
+    { let ty, ltys = $1 in
+      mktyp_tuple $sloc ((None, ty) :: ltys)
+    }
 ;
 
-%inline strict_labeled_atomic_type:
-  | label = LIDENT COLON ty = atomic_type
-      { Some label, ty }
+%inline proper_tuple_type:
+  | ty = atomic_type
+    STAR
+    ltys = separated_nonempty_llist(STAR, labeled_tuple_typ_element)
+      { ty, ltys }
 
-labeled_atomic_type:
-  atomic_type
-      { None, $1 }
-  | strict_labeled_atomic_type
-      { $1 }
-;
-
-(* Star-separated of >= 1 type(s) with at least one label total *)
-reversed_labeled_type_list:
-  (* 0 unlabeled types before the first label *)
-  | strict_labeled_atomic_type %prec below_HASH
-      { [$1] }
-  (* 1 unlabeled type before the first label *)
-  | atomic_type STAR strict_labeled_atomic_type
-      { [$3; None, $1]}
-  (* 2+ unlabeled types before the first label *)
-  | separated_nontrivial_llist(STAR, atomic_type)
-    STAR strict_labeled_atomic_type
-      { $3 :: List.map (fun x -> None, x) $1 }
-  (* Once we have a label, we can append either *)
-  | reversed_labeled_type_list STAR labeled_atomic_type
-      { $3 :: $1 }
-
-%inline nontrivial_labeled_type_list:
-  | rev(reversed_labeled_type_list)
-      { if List.length $1 == 1 then
-          raise
-            Syntaxerr.(Error(Singleton_labeled_tuple_type (make_loc $loc($1))));
-        $1 }
+%inline labeled_tuple_typ_element :
+  | atomic_type %prec STAR
+     { None, $1 }
+  | label = LIDENT COLON ty = atomic_type %prec STAR
+     { Some label, ty }
 
 (* Atomic types are the most basic level in the syntax of types.
    Atomic types include:
@@ -4372,15 +4409,6 @@ atomic_type:
       { $2 }
   | LPAREN MODULE ext_attributes package_type RPAREN
       { wrap_typ_attrs ~loc:$sloc (reloc_typ ~loc:$sloc $4) $3 }
-  | LPAREN
-      tys = nontrivial_labeled_type_list
-    RPAREN
-      {
-        if List.for_all (fun (lbl, _) -> Option.is_none lbl) tys then
-          mktyp ~loc:$sloc (Ptyp_tuple (List.map snd tys))
-        else
-          ptyp_lttuple $sloc tys
-      }
   | mktyp( /* begin mktyp group */
       QUOTE ident
         { Ptyp_var $2 }
