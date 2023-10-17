@@ -76,11 +76,11 @@ jobs:
             check_arch: true
 
           - name: build_upstream_closure
-            config: --enable-middle-end=closure
+            build_upstream: true
             os: ubuntu-20.04
 
           - name: build_upstream_closure_runtime5
-            config: --enable-middle-end=closure --enable-runtime5
+            build_upstream: true
             os: ubuntu-20.04
             expected_fail: true
 
@@ -184,12 +184,19 @@ jobs:
 
     - name: Configure Flambda backend
       working-directory: flambda_backend
+      if: matrix.build_upstream != true
       run: |
         autoconf
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
           --with-dune=$GITHUB_WORKSPACE/ocaml-414/_install/bin/dune \
           ${{ matrix.config }}
+
+    - name: Configure Flambda backend (ocaml/ subtree)
+      working-directory: flambda_backend
+      if: matrix.build_upstream == true
+      run: |
+        (cd ocaml && ./configure --prefix=$GITHUB_WORKSPACE/_install)
 
     - name: Build, install and test Flambda backend
       working-directory: flambda_backend

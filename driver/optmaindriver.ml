@@ -15,22 +15,6 @@
 
 open Clflags
 
-module Backend = struct
-  (* See backend_intf.mli. *)
-
-  let really_import_approx = Import_approx.really_import_approx
-  let import_symbol = Import_approx.import_symbol
-
-  let size_int = Arch.size_int
-  let big_endian = Arch.big_endian
-
-  let max_sensible_number_of_arguments =
-    (* The "-1" is to allow for a potential closure environment parameter. *)
-    Proc.max_arguments_for_tailcalls - 1
-end
-
-let backend = (module Backend : Backend_intf.S)
-
 let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 
 module Options = Flambda_backend_args.Make_optcomp_options
@@ -83,7 +67,7 @@ let main unix argv ppf ~flambda2 =
     begin try
       Compenv.process_deferred_actions
         (ppf,
-         Optcompile.implementation unix ~backend ~flambda2,
+         Optcompile.implementation unix ~flambda2,
          Optcompile.interface,
          ".cmx",
          ".cmxa");
@@ -128,7 +112,7 @@ let main unix argv ppf ~flambda2 =
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
         Asmpackager.package_files unix
           ~ppf_dump (Compmisc.initial_env ())
-          (Compenv.get_objfiles ~with_ocamlparam:false) target ~backend
+          (Compenv.get_objfiles ~with_ocamlparam:false) target
           ~flambda2);
       Warnings.check_fatal ();
     end

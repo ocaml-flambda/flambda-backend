@@ -193,28 +193,6 @@ let print_cmx_infos (uir, sections, crc) =
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
     match uir.uir_export_info with
-    | Clambda_raw approx ->
-      if not !no_approx
-      then begin
-        printf "Clambda approximation:\n";
-        Format.fprintf Format.std_formatter "  %a@." Printclambda.approx approx
-      end
-      else Format.printf "Clambda unit@."
-    | Flambda1_raw export ->
-      if (not !no_approx) || not !no_code
-      then printf "Flambda export information:\n"
-      else printf "Flambda unit\n";
-      if not !no_approx
-      then begin
-        Compilation_unit.set_current (Some uir.uir_unit);
-        let root_symbols =
-          List.map Symbol.for_compilation_unit uir.uir_defines
-        in
-        Format.printf "approximations@ %a@.@." Export_info.print_approx
-          (export, root_symbols)
-      end;
-      if not !no_code
-      then Format.printf "functions@ %a@.@." Export_info.print_functions export
     | Flambda2_raw None ->
       printf "Flambda 2 unit (with no export information)\n"
     | Flambda2_raw (Some cmx) ->

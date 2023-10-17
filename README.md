@@ -37,10 +37,8 @@ The Flambda backend tree has to be configured before building.  The configure sc
 in; you have to run `autoconf`.  For example:
 ```
 $ autoconf
-$ ./configure --prefix=/path/to/install/dir --enable-middle-end=closure
+$ ./configure --prefix=/path/to/install/dir
 ```
-You can also specify `--enable-middle-end=flambda` or `--enable-middle-end=flambda2`.  (The Flambda 2
-compiler is not yet ready for production use.)
 
 ## Building and installing
 
