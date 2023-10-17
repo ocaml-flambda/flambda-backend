@@ -6606,7 +6606,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     not tvar && List.for_all ((=) Nolabel) ls
   in
   let inferred = is_inferred sarg in
-  let rec loosen_ret_modes ty' ty =
+  let rec loosen_arrow_modes ty' ty =
     let expty = expand_head env ty in
     let expty' = expand_head env ty' in
     let lv = get_level expty in
@@ -6615,9 +6615,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     | Tarrow((l, marg, mret), ty_arg', ty_res', _),
       Tarrow(_, ty_arg,  ty_res,  _)
       when lv' = generic_level || not !Clflags.principal ->
-      let ty_res', ty_res, changed = loosen_ret_modes ty_res' ty_res in
+      let ty_res', ty_res, changed = loosen_arrow_modes ty_res' ty_res in
       let mret, changed' = Alloc.newvar_below_comonadic mret in
-      if changed || changed' then
+      let marg, changed'' = Alloc.newvar_above marg in
+      if changed || changed' || changed'' then
         newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),
         newty2 ~level:lv  (Tarrow((l, marg, mret), ty_arg,  ty_res,  commu_ok)),
         true
@@ -6634,7 +6635,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         then Some (Btype.snapshot ())
         else None
       in
-      let t', t, changed = loosen_ret_modes ty_expected' ty_expected in
+      let t', t, changed = loosen_arrow_modes ty_expected' ty_expected in
       if not changed then Option.iter Btype.backtrack snap;
       t', t
     else
