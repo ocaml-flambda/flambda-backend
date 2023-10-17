@@ -70,7 +70,7 @@ type basic_block =
   }
 
 (** Control Flow Graph of a function. *)
-type t = private
+type t =
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
     fun_name : string;  (** Function name, used for printing messages *)
     fun_args : Reg.t array;
@@ -81,9 +81,10 @@ type t = private
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
     fun_fast : bool;  (** Precomputed based on cmmgen information. *)
-    fun_contains_calls : bool;  (** Precomputed at selection time. *)
-    fun_num_stack_slots : int array
+    mutable fun_contains_calls : bool;  (** Precomputed at selection time. *)
+    fun_num_stack_slots : int array;
         (** Precomputed at register allocation time *)
+    fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
   }
 
 val create :
@@ -93,6 +94,7 @@ val create :
   fun_fast:bool ->
   fun_contains_calls:bool ->
   fun_num_stack_slots:int array ->
+  fun_poll:Lambda.poll_attribute ->
   t
 
 val fun_name : t -> string

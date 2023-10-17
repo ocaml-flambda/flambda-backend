@@ -760,11 +760,7 @@ let fundecl :
         fun_dbg;
         fun_num_stack_slots;
         fun_contains_calls;
-        (* CR-someday mshinwell: [fun_poll] will need to be propagated in the
-           future, e.g. when writing a [Polling] equivalent on [Cfg]. We don't
-           do this at present since there is no need, and because
-           [Linear_to_cfg] doesn't have [fun_poll] available. *)
-        fun_poll = _
+        fun_poll
       } =
     fundecl
   in
@@ -781,7 +777,7 @@ let fundecl :
   in
   let cfg =
     Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
-      ~fun_num_stack_slots
+      ~fun_num_stack_slots ~fun_poll
   in
   let state =
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls

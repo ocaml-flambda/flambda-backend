@@ -52,13 +52,14 @@ type t =
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
     fun_fast : bool;
-    fun_contains_calls : bool;
+    mutable fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
-    fun_num_stack_slots : int array
+    fun_num_stack_slots : int array;
+    fun_poll : Lambda.poll_attribute
   }
 
 let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
-    ~fun_num_stack_slots =
+    ~fun_num_stack_slots ~fun_poll =
   { fun_name;
     fun_args;
     fun_dbg;
@@ -68,7 +69,8 @@ let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
     blocks = Label.Tbl.create 31;
     fun_fast;
     fun_contains_calls;
-    fun_num_stack_slots
+    fun_num_stack_slots;
+    fun_poll
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label

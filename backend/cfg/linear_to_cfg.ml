@@ -655,6 +655,8 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
       Cfg.create ~fun_name:f.fun_name ~fun_args:[||] ~fun_dbg:f.fun_dbg
         ~fun_fast:f.fun_fast ~fun_contains_calls:f.fun_contains_calls
         ~fun_num_stack_slots:f.fun_num_stack_slots
+          (* CR xclerc for xclerc: temporarily rely on the default. *)
+        ~fun_poll:Lambda.Default_poll
     in
     create cfg ~tailrec_label:f.fun_tailrec_entry_point_label
   in

@@ -244,6 +244,7 @@
   cfg_dominators
   cfg_loop_infos
   cfg_to_linear_desc
+  cfg_polling
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
