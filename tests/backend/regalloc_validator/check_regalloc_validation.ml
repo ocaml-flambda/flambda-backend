@@ -1,3 +1,6 @@
+(* CR mshinwell: fix warnings + remove directive *)
+[@@@ocaml.warning "-27"]
+
 open Cfg_intf.S
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
