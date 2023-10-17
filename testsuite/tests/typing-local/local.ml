@@ -776,6 +776,45 @@ Line 2, characters 20-45:
 Error: This function is local-returning, but was expected otherwise
 |}]
 
+(*
+ * Modification of parameter modes in argument position
+ *)
+
+let use_local (local_ f : _ -> _ -> _) x y =
+  f x y
+let use_global (f : _ -> _ -> _) x y = f x y
+
+let foo x y = x +. y
+let bar (local_ x) (local_ y) = let _ = x +. y in ()
+
+let result = use_local foo 1. 2.
+[%%expect{|
+val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val foo : float -> float -> float = <fun>
+val bar : local_ float -> local_ float -> unit = <fun>
+val result : float = 3.
+|}]
+
+let result = use_local bar 1. 2.
+[%%expect{|
+val result : unit = ()
+|}]
+
+let result = use_global foo 1. 2.
+[%%expect{|
+val result : float = 3.
+|}]
+
+let result = use_global bar 1. 2.
+[%%expect{|
+Line 1, characters 24-27:
+1 | let result = use_global bar 1. 2.
+                            ^^^
+Error: This expression has type local_ float -> local_ float -> unit
+       but an expression was expected of type local_ 'a -> ('b -> 'c)
+|}]
+
 
 (*
  * Closures and context locks
@@ -2123,24 +2162,31 @@ let foo f = ignore (f :> string -> float); ()
 val foo : (string -> float) -> unit = <fun>
 |}]
 
-let local_to_global (local_ _s : string) = 42.0
+let global_to_global_to_global (f : float -> string) = f 42.0
 
-let foo f = ignore (f :> string -> float); [f; local_to_global]
+let foo f =
+  ignore (f :> (local_ float -> string) -> string);
+  [f; global_to_global_to_global]
 [%%expect{|
-val local_to_global : local_ string -> float = <fun>
-val foo : (local_ string -> float) -> (local_ string -> float) list = <fun>
+val global_to_global_to_global : (float -> string) -> string = <fun>
+val foo : ((float -> string) -> string) -> ((float -> string) -> string) list =
+  <fun>
 |}]
 
-let global_to_local (_s : string) = local_ 42.0
+let local_to_global_to_global (f : local_ float -> string) = f 42.0
 
-let foo f = ignore (f :> string -> float); [f; global_to_local]
+let foo f =
+  ignore (f :> (float -> string) -> string);
+  [f; local_to_global_to_global]
 [%%expect{|
-val global_to_local : string -> local_ float = <fun>
-Line 3, characters 47-62:
-3 | let foo f = ignore (f :> string -> float); [f; global_to_local]
-                                                   ^^^^^^^^^^^^^^^
-Error: This expression has type string -> local_ float
-       but an expression was expected of type string -> float
+val local_to_global_to_global : (local_ float -> string) -> string = <fun>
+Line 5, characters 6-31:
+5 |   [f; local_to_global_to_global]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type (local_ float -> string) -> string
+       but an expression was expected of type (float -> string) -> string
+       Type local_ float -> string is not compatible with type
+         float -> string
 |}]
 
 (* Submoding during module inclusion *)
@@ -2721,5 +2767,5 @@ Line 2, characters 33-58:
 2 |   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> int -> int
+       but an expression was expected of type int -> (int -> int)
 |}];;
