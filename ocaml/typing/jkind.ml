@@ -336,6 +336,7 @@ type any_creation_reason =
   | Initial_typedecl_env
   | Dummy_jkind
   | Type_expression_call
+  | Array_type_argument
 
 type float64_creation_reason = Primitive of Ident.t
 
@@ -728,6 +729,8 @@ end = struct
     (* CR layouts: Improve output or remove this constructor ^^ *)
     | Type_expression_call ->
       fprintf ppf "a call to [type_expression] via the ocaml API"
+    | Array_type_argument ->
+      fprintf ppf "it's the type argument to the array type"
 
   let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
     function
@@ -1145,6 +1148,7 @@ module Debug_printers = struct
     | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
     | Dummy_jkind -> fprintf ppf "Dummy_jkind"
     | Type_expression_call -> fprintf ppf "Type_expression_call"
+    | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : immediate_creation_reason -> _ = function
     | Empty_record -> fprintf ppf "Empty_record"
