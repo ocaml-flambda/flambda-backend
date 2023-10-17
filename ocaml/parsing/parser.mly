@@ -3515,7 +3515,8 @@ pattern_no_exn:
     | self BAR pattern
         { Ppat_or($1, $3) }
     | self BAR error
-        { expecting $loc($3) "pattern" }  ) { $1 }
+        { expecting $loc($3) "pattern" }
+  ) { $1 }
 ;
 
 (* Parsing labeled tuple patterns
@@ -3676,7 +3677,6 @@ simple_delimited_pattern:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)
     { ps }
 ;
-
 (* A label-pattern list is a nonempty list of label-pattern pairs, optionally
    followed with an UNDERSCORE, separated-or-terminated with semicolons. *)
 %inline record_pat_content:
