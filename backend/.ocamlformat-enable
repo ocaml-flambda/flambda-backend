@@ -18,3 +18,5 @@ regalloc/**/*.ml
 regalloc/**/*.mli
 amd64/simd*.ml
 arm64/simd*.ml
+generic_fns.ml
+generic_fns.mli

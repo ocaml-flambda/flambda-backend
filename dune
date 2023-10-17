@@ -190,6 +190,7 @@
   deadcode
   emit
   emitaux
+  generic_fns
   interf
   interval
   linear

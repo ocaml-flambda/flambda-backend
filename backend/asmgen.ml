@@ -410,8 +410,8 @@ let compile_genfuns ~ppf_dump f =
        | (Cfunction {fun_name = name}) as ph when f name.sym_name ->
            compile_phrase ~ppf_dump ph
        | _ -> ())
-    (Cmm_helpers.generic_functions true
-       (Cmm_helpers.Generic_fns_tbl.of_fns
+    (Generic_fns.compile ~shared:true
+       (Generic_fns.Tbl.of_fns
           (Compilenv.current_unit_infos ()).ui_generic_fns))
 
 let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap

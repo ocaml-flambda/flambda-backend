@@ -890,25 +890,6 @@ val region : expression -> expression
 
 (** Generic Cmm fragments *)
 
-(** Generate generic functions *)
-module Generic_fns_tbl : sig
-  type t
-
-  val make : unit -> t
-
-  val add : t -> Cmx_format.generic_fns -> unit
-
-  val of_fns : Cmx_format.generic_fns -> t
-
-  val entries : t -> Cmx_format.generic_fns
-
-  module Precomputed : sig
-    val gen : unit -> (string, t) Hashtbl.t
-  end
-end
-
-val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list
-
 val placeholder_dbg : unit -> Debuginfo.t
 
 val placeholder_fun_dbg : human_name:string -> Debuginfo.t
@@ -1316,3 +1297,13 @@ val machtype_of_layout : Lambda.layout -> machtype
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
+
+(* Generated functions *)
+val curry_function :
+  Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
+
+val send_function :
+  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+
+val apply_function :
+  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
