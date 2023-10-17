@@ -2424,9 +2424,9 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
     | None -> apply_or_call_caml_apply result arity mut clos args pos mode dbg
     | Some old_region ->
       maybe_reset_current_region ~dbg:placeholder_dbg
-        ~body_tail:(call_caml_apply result arity mut clos args pos mode dbg)
+        ~body_tail:(apply_or_call_caml_apply result arity mut clos args pos mode dbg)
         ~body_nontail:
-          (call_caml_apply result arity mut clos args Rc_normal
+          (apply_or_call_caml_apply result arity mut clos args Rc_normal
              Lambda.alloc_local dbg)
         old_region)
   | (arity, args), Some (arity', args') -> (
