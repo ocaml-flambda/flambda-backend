@@ -542,6 +542,14 @@ let check_arg_type styp =
     | _ -> ()
   end
 
+let enrich_with_attributes attrs annotation_context =
+  match Builtin_attributes.error_message_attr attrs with
+  | Some msg -> Layout.With_error_message (msg, annotation_context)
+  | None -> annotation_context
+
+let layout_of_annotation annotation_context attrs layout =
+  Layout.of_annotation ~context:(enrich_with_attributes attrs annotation_context) layout
+
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,
    returning something suitable as the first argument of Ttyp_poly and
    a [poly_univars] *)
@@ -577,7 +585,7 @@ and transl_type_aux env policy mode styp =
      in
      ctyp (Ttyp_var (None, None)) ty
   | Ptyp_var name ->
-      let desc, typ = transl_type_var env policy styp.ptyp_loc name None in
+      let desc, typ = transl_type_var env policy styp.ptyp_attributes styp.ptyp_loc name None in
       ctyp desc typ
   | Ptyp_arrow _ ->
       let args, ret, ret_mode = extract_params styp in
@@ -778,7 +786,7 @@ and transl_type_aux env policy mode styp =
       in
       ctyp (Ttyp_class (path, lid, args)) ty
   | Ptyp_alias(st, alias) ->
-    let desc, typ = transl_type_alias env policy mode loc st (Some alias) None in
+    let desc, typ = transl_type_alias env policy mode styp.ptyp_attributes loc st (Some alias) None in
     ctyp desc typ
   | Ptyp_variant(fields, closed, present) ->
       let name = ref None in
@@ -935,28 +943,28 @@ and transl_type_aux env policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_type_aux_jst env policy mode _attrs loc :
+and transl_type_aux_jst env policy mode attrs loc :
       Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_layout typ -> transl_type_aux_jst_layout env policy mode loc typ
+  | Jtyp_layout typ -> transl_type_aux_jst_layout env policy mode attrs loc typ
 
-and transl_type_aux_jst_layout env policy mode loc :
+and transl_type_aux_jst_layout env policy mode attrs loc :
       Jane_syntax.Layouts.core_type -> _ = function
   | Ltyp_var { name = None; layout } ->
-    let tlayout = Layout.of_annotation ~context:(Type_wildcard loc) layout in
+    let tlayout = layout_of_annotation (Type_wildcard loc) attrs layout in
     Ttyp_var (None, Some layout.txt),
     TyVarEnv.new_anon_var loc env tlayout policy
   | Ltyp_var { name = Some name; layout } ->
-    transl_type_var env policy loc name (Some layout)
+    transl_type_var env policy attrs loc name (Some layout)
   | Ltyp_poly { bound_vars; inner_type } ->
     transl_type_poly env policy mode loc (Either.Right bound_vars) inner_type
   | Ltyp_alias { aliased_type; name; layout } ->
-    transl_type_alias env policy mode loc aliased_type name (Some layout)
+    transl_type_alias env policy mode attrs loc aliased_type name (Some layout)
 
-and transl_type_var env policy loc name layout_annot_opt =
+and transl_type_var env policy attrs loc name layout_annot_opt =
   let print_name = "'" ^ name in
   if not (valid_tyvar_name name) then
     raise (Error (loc, env, Invalid_variable_name print_name));
-  let of_annot = Layout.of_annotation ~context:(Type_variable print_name) in
+  let of_annot = layout_of_annotation (Type_variable print_name) attrs in
   let ty = try
       let ty = TyVarEnv.lookup_local name in
       begin match layout_annot_opt with
@@ -995,7 +1003,7 @@ and transl_type_poly env policy mode loc (vars : (_, _) Either.t) st =
   unify_var env (newvar (Layout.any ~why:Dummy_layout)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
-and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
+and transl_type_alias env policy mode attrs alias_loc styp name_opt layout_annot_opt =
   let cty = match name_opt with
     | Some alias ->
       begin try
@@ -1009,7 +1017,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         | None -> ()
         | Some layout_annot ->
           let layout =
-            Layout.of_annotation ~context:(Type_variable ("'" ^ alias)) layout_annot
+            layout_of_annotation (Type_variable ("'" ^ alias)) attrs layout_annot
           in
           begin match constrain_type_layout env t layout with
           | Ok () -> ()
@@ -1020,11 +1028,10 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         cty
       with Not_found ->
         if !Clflags.principal then begin_def ();
-        let layout =
-          Layout.(of_annotation_option_default
-            ~default:(any ~why:Dummy_layout)
-            ~context:(Type_variable ("'" ^ alias))
-            layout_annot_opt)
+        let layout = match layout_annot_opt with
+          | None -> Layout.any ~why:Dummy_layout
+          | Some layout_annot ->
+            layout_of_annotation (Type_variable ("'" ^ alias)) attrs layout_annot
         in
         let t = newvar layout in
         TyVarEnv.remember_used alias t alias_loc;
@@ -1056,8 +1063,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         | Some layout_annot -> layout_annot
       in
       let layout =
-          Layout.of_annotation
-            ~context:(Type_wildcard layout_annot.loc) layout_annot
+        layout_of_annotation (Type_wildcard layout_annot.loc) attrs layout_annot
       in
       begin match constrain_type_layout env cty_expr layout with
       | Ok () -> ()

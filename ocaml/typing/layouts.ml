@@ -319,6 +319,7 @@ module Layout = struct
     | Univar of string
     | Type_variable of string
     | Type_wildcard of Location.t
+    | With_error_message of string * annotation_context
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
@@ -684,7 +685,7 @@ module Layout = struct
       | Statement ->
         fprintf ppf "it's used as a statement"
 
-    let format_annotation_context ppf : annotation_context -> unit = function
+    let rec format_annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
           fprintf ppf "the declaration of the type %a"
             !printtyp_path p
@@ -707,6 +708,9 @@ module Layout = struct
           fprintf ppf "the type variable %s" name
       | Type_wildcard loc ->
           fprintf ppf "the wildcard _ at %a" Location.print_loc_in_lowercase loc
+      | With_error_message (_message, context) ->
+          (* message gets printed in [format_flattened_history] so we ignore it here *)
+          format_annotation_context ppf context
 
     let format_any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p ->
@@ -865,7 +869,13 @@ module Layout = struct
         end
       | _ -> assert false
       end;
-      fprintf ppf ".@]"
+      fprintf ppf ".";
+      begin match t.history with
+      | Creation (Annotated (With_error_message (message, _), _)) ->
+        fprintf ppf "@ @[%s@]" message
+      | _ -> ()
+      end;
+      fprintf ppf "@]"
 
 
     (* this isn't really formatted for user consumption *)
@@ -1000,17 +1010,27 @@ module Layout = struct
 
   let equate = equate_or_equal ~allow_mutation:true
 
+  (* Not all layout history reasons are created equal. Some are more helpful than others.
+     This function encodes that information.
+
+     The reason with higher score should get preserved when combined with one of lower
+     score. *)
+  let score_reason = function
+    (* error_message annotated by the user should always take priority *)
+    | Creation (Annotated (With_error_message _, _)) -> 1
+    (* Concrete creation is quite vague, prefer more specific reasons *)
+    | Creation (Concrete_creation _) -> -1
+    | _ -> 0
+
   let combine_histories reason lhs rhs =
     if flattened_histories
     then begin match sub_desc (get_internal lhs.layout) (get_internal rhs.layout) with
       | Sub -> lhs.history
       | Not_sub -> rhs.history  (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
-      | Equal -> begin match lhs.history, rhs.history with
-        (* Prefer other creation_reasons over Concrete_creation *)
-        | h, Creation (Concrete_creation _)
-        | Creation (Concrete_creation _), h -> h
-        | h, _ -> h
-        end
+      | Equal ->
+        if score_reason lhs.history >= score_reason rhs.history
+        then lhs.history
+        else rhs.history
     end else Interact { reason; lhs_layout = lhs.layout; lhs_history = lhs.history;
                         rhs_layout = rhs.layout; rhs_history = rhs.history }
 
@@ -1115,7 +1135,7 @@ module Layout = struct
       | Statement ->
           fprintf ppf "Statement"
 
-    let annotation_context ppf : annotation_context -> unit = function
+    let rec annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
           fprintf ppf "Type_declaration %a" Path.print p
       | Type_parameter (p, var) ->
@@ -1132,6 +1152,8 @@ module Layout = struct
           fprintf ppf "Type_variable %S" name
       | Type_wildcard loc ->
           fprintf ppf "Type_wildcard (%a)" Location.print_loc loc
+      | With_error_message (message, context) ->
+          fprintf ppf "With_error_message (%s, %a)" message annotation_context context
 
     let any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
