@@ -31,7 +31,7 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_region
       None, Rec_info_expr.do_not_inline
     | Some callee -> (
       match unroll_to with
-      | None -> None, rec_info
+      | None -> Some callee, rec_info
       | Some unroll_depth ->
         let unrolled_rec_info = Rec_info_expr.unroll_to unroll_depth rec_info in
         let coercion_from_callee_to_unrolled_callee =
