@@ -1286,7 +1286,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_arg = check_uniqueness_exp ienv arg in
     let uf_write = Value.mark_implicit_borrow_memory_address Write value in
     UF.pars [uf_rcd; uf_arg; uf_write]
-  | Texp_array (_, es, _) ->
+  | Texp_array (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_ifthenelse (if_, then_, else_opt) ->
     (* if' is only borrowed, not used; but probably doesn't matter because of
@@ -1311,7 +1311,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_body = check_uniqueness_exp ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
-  | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+  | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
     let uf_body = check_uniqueness_exp ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses

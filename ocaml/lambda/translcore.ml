@@ -589,12 +589,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
                      transl_exp ~scopes lbl_sort newval],
             of_location ~scopes e.exp_loc)
-  | Texp_array (amut, expr_list, alloc_mode) ->
+  | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode_r alloc_mode in
-      let kind = array_kind e in
+      let kind = array_kind e element_sort in
       let ll =
         transl_list ~scopes
-          (List.map (fun e -> (e, Jkind.Sort.for_array_element)) expr_list)
+          (List.map (fun e -> (e, element_sort)) expr_list)
       in
       let loc = of_location ~scopes e.exp_loc in
       let makearray mutability =
@@ -663,12 +663,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
         ~transl_exp ~scopes ~loc comp
-  | Texp_array_comprehension (_amut, comp) ->
+  | Texp_array_comprehension (_amut, elt_sort, comp) ->
       (* We can ignore mutability here since we've already checked in in the
          type checker; both mutable and immutable arrays are created the same
          way *)
       let loc = of_location ~scopes e.exp_loc in
-      let array_kind = Typeopt.array_kind e in
+      let array_kind = Typeopt.array_kind e elt_sort in
       Transl_array_comprehension.comprehension
         ~transl_exp ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->

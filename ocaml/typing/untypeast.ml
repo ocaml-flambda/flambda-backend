@@ -607,7 +607,7 @@ let expression sub exp =
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
-    | Texp_array (amut, list, _) -> begin
+    | Texp_array (amut, _, list, _) -> begin
         (* Can be inlined when we get to upstream immutable arrays *)
         let plist = List.map (sub.expr sub) list in
         match amut with
@@ -622,7 +622,7 @@ let expression sub exp =
         comprehension
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
         |> add_jane_syntax_attributes
-    | Texp_array_comprehension (amut, comp) ->
+    | Texp_array_comprehension (amut, _, comp) ->
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
         |> add_jane_syntax_attributes

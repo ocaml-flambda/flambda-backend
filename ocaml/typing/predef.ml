@@ -238,9 +238,14 @@ let build_initial_env add_type add_extension empty_env =
         (* See the comment on the [jkind_annotation] argument to [mk_add_type]
         *)
         ?jkind_annotation
+        ?(param_jkind=Jkind.value ~why:(
+          Type_argument {
+            parent_path = Path.Pident type_ident;
+            position = 1;
+            arity = 1}
+        ))
       ~variance ~separability env =
-    let param = newgenvar (Jkind.value ~why:(
-      Type_argument {parent_path = Path.Pident type_ident; position = 1; arity = 1})) in
+    let param = newgenvar param_jkind in
     let decl =
       {type_params = [param];
        type_arity = 1;
@@ -283,6 +288,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
+       ~param_jkind:(Jkind.any ~why:Array_type_argument)
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind

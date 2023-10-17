@@ -155,9 +155,9 @@ and expression_desc =
       expression * Longident.t loc * label_description * unique_use * Mode.Alloc.r option
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * expression list * Mode.Alloc.r
+  | Texp_array of mutable_flag * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * comprehension
+  | Texp_array_comprehension of mutable_flag * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {

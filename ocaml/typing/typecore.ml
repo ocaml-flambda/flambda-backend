@@ -1616,11 +1616,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     | Immutable -> Predef.type_iarray
     | Mutable -> Predef.type_array
   in
-  (* CR layouts v4: The code below is written this way to make it easier to update
-     when we generalize array to contain non-value jkinds. When that happens,
-     change the next two lines to use [Jkind.of_new_sort_var]. *)
-  let jkind = Jkind.value ~why:Array_element in
-  let arg_sort = Jkind.sort_of_jkind jkind in
+  let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
@@ -3757,7 +3753,7 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
-  | Texp_array (_, [], _) -> true
+  | Texp_array (_, _, [], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
@@ -3836,7 +3832,7 @@ let rec is_nonexpansive exp =
              Id_prim _, _) },
       [Nolabel, Arg (e, _)], _, _) ->
      is_nonexpansive e
-  | Texp_array (_, _ :: _, _)
+  | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
   | Texp_try _
   | Texp_setfield _
@@ -8621,8 +8617,8 @@ and type_generic_array
     | Immutable -> Predef.type_iarray, mode_subcomponent expected_mode
   in
   let alloc_mode = register_allocation expected_mode in
-  (* CR layouts v4: non-values in arrays *)
-  let ty = newgenvar (Jkind.value ~why:Array_element) in
+  let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
+  let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
@@ -8633,7 +8629,7 @@ and type_generic_array
       sargl
   in
   re {
-    exp_desc = Texp_array (mutability, argl, alloc_mode);
+    exp_desc = Texp_array (mutability, elt_sort, argl, alloc_mode);
     exp_loc = loc; exp_extra = [];
     exp_type = instance ty_expected;
     exp_attributes = attributes;
@@ -8936,12 +8932,14 @@ and type_comprehension_expr
         in
         Array_comprehension amut,
         container_type,
-        (fun tcomp -> Texp_array_comprehension (amut, tcomp)),
+        (fun tcomp ->
+          Texp_array_comprehension
+            (amut, Jkind.Sort.for_array_comprehension_element, tcomp)),
         comp,
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See
            a companion CR layouts v4 at the point of interest in that file. *)
-        Jkind.value ~why:Jkind.Array_element
+        Jkind.value ~why:Jkind.Array_comprehension_element
   in
   let element_ty =
     with_local_level_if_principal begin fun () ->
