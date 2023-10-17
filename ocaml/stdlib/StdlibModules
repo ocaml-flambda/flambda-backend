@@ -58,6 +58,7 @@ STDLIB_MODULE_BASENAMES = \
   marshal \
   array \
   iarray \
+  float_u_array \
   float \
   float_u \
   int32 \
@@ -99,6 +100,7 @@ STDLIB_MODULE_BASENAMES = \
   complex \
   arrayLabels \
   iarrayLabels \
+  float_u_arrayLabels \
   listLabels \
   bytesLabels \
   stringLabels \

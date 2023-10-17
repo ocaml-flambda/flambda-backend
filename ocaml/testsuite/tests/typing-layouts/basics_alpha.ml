@@ -1147,14 +1147,7 @@ Error: This expression has type ('a : value)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
 [%%expect{|
-Line 1, characters 11-17:
-1 | type t13 = t_void array;;
-               ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13 = t_void array
 |}];;
 
 let x13 (VV v) = [| v |];;

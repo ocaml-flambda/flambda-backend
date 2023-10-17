@@ -1316,14 +1316,7 @@ Error: This expression has type ('a : value)
 (* array *)
 type t13f = t_float64 array;;
 [%%expect{|
-Line 1, characters 12-21:
-1 | type t13f = t_float64 array;;
-                ^^^^^^^^^
-Error: This type t_float64 should be an instance of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13f = t_float64 array
 |}];;
 
 let x13f (v : t_float64) = [| v |];;

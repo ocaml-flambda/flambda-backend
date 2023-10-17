@@ -8,3 +8,7 @@ ocaml/stdlib/int32_u.mli : extension = layouts_alpha
 ocaml/stdlib/int32_u.ml : extension = layouts_alpha
 ocaml/stdlib/int64_u.mli : extension = layouts_alpha
 ocaml/stdlib/int64_u.ml : extension = layouts_alpha
+ocaml/stdlib/float_u_array.mli : extension = layouts_alpha
+ocaml/stdlib/float_u_array.ml : extension = layouts_alpha
+ocaml/stdlib/float_u_arrayLabels.mli : extension = layouts_alpha
+ocaml/stdlib/float_u_arrayLabels.ml : extension = layouts_alpha

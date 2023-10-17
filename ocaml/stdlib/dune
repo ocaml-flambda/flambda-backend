@@ -124,6 +124,10 @@
   float.mli
   float_u.ml
   float_u.mli
+  float_u_array.ml
+  float_u_array.mli
+  float_u_arrayLabels.ml
+  float_u_arrayLabels.mli
   format.ml
   format.mli
   fun.ml
@@ -280,6 +284,12 @@
   .stdlib.objs/byte/stdlib__Float_u.cmi
   .stdlib.objs/byte/stdlib__Float_u.cmt
   .stdlib.objs/byte/stdlib__Float_u.cmti
+  .stdlib.objs/byte/stdlib__Float_u_array.cmi
+  .stdlib.objs/byte/stdlib__Float_u_array.cmt
+  .stdlib.objs/byte/stdlib__Float_u_array.cmti
+  .stdlib.objs/byte/stdlib__Float_u_arrayLabels.cmi
+  .stdlib.objs/byte/stdlib__Float_u_arrayLabels.cmt
+  .stdlib.objs/byte/stdlib__Float_u_arrayLabels.cmti
   .stdlib.objs/byte/stdlib__Format.cmi
   .stdlib.objs/byte/stdlib__Format.cmt
   .stdlib.objs/byte/stdlib__Format.cmti
@@ -457,6 +467,8 @@
   .stdlib.objs/native/stdlib__Weak.cmx
   .stdlib.objs/native/stdlib__Float.cmx
   .stdlib.objs/native/stdlib__Float_u.cmx
+  .stdlib.objs/native/stdlib__Float_u_array.cmx
+  .stdlib.objs/native/stdlib__Float_u_arrayLabels.cmx
   .stdlib.objs/native/stdlib__Fun.cmx
   .stdlib.objs/native/stdlib__Bigarray.cmx
   .stdlib.objs/native/stdlib__Array.cmx
