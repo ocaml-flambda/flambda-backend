@@ -288,6 +288,8 @@ module Native = struct
     Callback.register "Register_dyn_global_duplicate"
       Register_dyn_global_duplicate
 
+  let[@inline never] ndl_run handle cu = ndl_run handle cu
+
   let ndl_run handle cu ~filename ~priv =
     try ndl_run handle cu
     with
