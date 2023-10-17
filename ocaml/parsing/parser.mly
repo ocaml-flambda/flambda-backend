@@ -3499,6 +3499,12 @@ pattern_no_exn:
         { Ppat_alias($1, $3) }
     | self AS error
         { expecting $loc($3) "identifier" }
+    | self COLONCOLON error
+        { expecting $loc($3) "pattern" }
+    | self BAR pattern
+        { Ppat_or($1, $3) }
+    | self BAR error
+        { expecting $loc($3) "pattern" }
   ) { $1 }
   | reversed_labeled_tuple_pattern(self)
       { let closed, pats = $1 in
@@ -3509,14 +3515,6 @@ pattern_no_exn:
         else
           ppat_lttuple $sloc (List.rev pats) closed
       }
-  | mkpat(
-      self COLONCOLON error
-        { expecting $loc($3) "pattern" }
-    | self BAR pattern
-        { Ppat_or($1, $3) }
-    | self BAR error
-        { expecting $loc($3) "pattern" }
-  ) { $1 }
 ;
 
 (* Parsing labeled tuple patterns
