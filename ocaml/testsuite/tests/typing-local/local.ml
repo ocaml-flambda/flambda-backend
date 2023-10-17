@@ -2767,5 +2767,5 @@ Line 2, characters 33-58:
 2 |   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> int -> int
+       but an expression was expected of type int -> (int -> int)
 |}];;
