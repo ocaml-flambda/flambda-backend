@@ -84,7 +84,7 @@ type t =
     mutable fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int array;
-    fun_poll: Lambda.poll_attribute;
+    fun_poll : Lambda.poll_attribute
   }
 
 let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls

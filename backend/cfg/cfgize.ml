@@ -698,7 +698,7 @@ let fundecl :
         fun_dbg;
         fun_num_stack_slots;
         fun_contains_calls;
-        fun_poll;
+        fun_poll
       } =
     fundecl
   in

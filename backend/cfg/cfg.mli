@@ -102,8 +102,7 @@ type t =
     mutable fun_contains_calls : bool;  (** Precomputed at selection time. *)
     fun_num_stack_slots : int array
         (** Precomputed at register allocation time *)
-    fun_poll: Lambda.poll_attribute;
-        (* Whether to insert polling points. *)
+    fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
   }
 
 val create :
