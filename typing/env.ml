@@ -154,7 +154,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Types.value_mode
+  | Env_value of summary * Ident.t * value_description * Mode.Value.t
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -314,16 +314,37 @@ module TycompTbl =
 
 type empty = |
 
-type escaping_context =
-  | Return
-  | Tailcall_argument
+type closure_context =
   | Tailcall_function
+  | Tailcall_argument
   | Partial_application
+  | Return
+
+type escaping_context =
+  | Letop
+  | Probe
+  | Class
+  | Module
+  | Lazy
+
+type shared_context =
+  | For_loop
+  | While_loop
+  | Letop
+  | Closure
+  | Comprehension
+  | Class
+  | Module
+  | Probe
+  | Lazy
 
 type value_lock =
-  | Lock of { mode : Alloc_mode.t; escaping_context : escaping_context option }
+  | Escape_lock of escaping_context
+  | Share_lock of shared_context
+  | Closure_lock of closure_context option * Mode.Locality.t * Mode.Linearity.t
   | Region_lock
   | Exclave_lock
+  | Unboxed_lock (* to prevent capture of terms with non-value types *)
 
 module IdTbl =
   struct
@@ -613,7 +634,7 @@ and address_lazy = (address_unforced, address) Lazy_backtrack.t
 and value_data =
   { vda_description : Subst.Lazy.value_description;
     vda_address : address_lazy;
-    vda_mode : Value_mode.t;
+    vda_mode : Mode.Value.t;
     vda_shape : Shape.t }
 
 and value_entry =
@@ -670,6 +691,10 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
+type closure_error =
+  | Locality of closure_context option
+  | Linearity
+
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -691,8 +716,11 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_used_in_closure of Longident.t * escaping_context option
+  | Local_value_escaping of Longident.t * escaping_context
+  | Once_value_used_in of Longident.t * shared_context
+  | Value_used_in_closure of Longident.t * closure_error
   | Local_value_used_in_exclave of Longident.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -707,6 +735,8 @@ let lookup_error loc env err =
   error (Lookup_error(loc, env, err))
 
 let same_constr = ref (fun _ _ _ -> assert false)
+
+let constrain_type_jkind = ref (fun _ _ _ -> assert false)
 
 let check_well_formed_module = ref (fun _ -> assert false)
 
@@ -921,7 +951,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+let read_sign_of_cmi { Persistent_env.Persistent_signature.cmi; _ } =
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
@@ -932,6 +962,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
       Misc.Stdlib.String.Map.empty
       flags
   in
+  let sign = Subst.Lazy.signature Make_local Subst.identity sign in
   let md =
     { Subst.Lazy.md_type = Mty_signature sign;
       md_loc = Location.none;
@@ -940,20 +971,12 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     }
   in
   let mda_address = Lazy_backtrack.create_forced (Aunit name) in
-  let mda_declaration =
-    Subst.(Lazy.module_decl Make_local identity md)
-  in
+  let mda_declaration = md in
   let mda_shape =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
   in
   let mda_components =
-    let mty = Subst.Lazy.Mty_signature sign in
-    let mty =
-      if freshen then
-        Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
-          Subst.identity mty
-      else mty
-    in
+    let mty = md.md_type in
     components_of_module ~alerts ~uid:md.md_uid
       empty Subst.identity
       path mda_address mty mda_shape
@@ -964,10 +987,6 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_address;
     mda_shape;
   }
-
-let read_sign_of_cmi = sign_of_cmi ~freshen:true
-
-let save_sign_of_cmi = sign_of_cmi ~freshen:false
 
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
@@ -980,8 +999,9 @@ let imports () = Persistent_env.imports !persistent_env
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
-let read_pers_mod modname filename =
+let read_pers_mod modname filename ~add_binding =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
+    ~add_binding
 
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
@@ -1209,7 +1229,7 @@ let find_type_data path env =
       | decl ->
           {
             tda_declaration = decl;
-            tda_descriptions = kind_abstract_any;
+            tda_descriptions = Type_abstract Abstract_def;
             tda_shape = Shape.leaf decl.type_uid;
           }
       | exception Not_found -> find_type_full p env
@@ -1464,7 +1484,7 @@ let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
   | Some body when decl.type_private = Public
-              || not (decl_is_abstract decl)
+              || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
@@ -1784,7 +1804,7 @@ let rec components_of_module_maker
             let vda_shape = Shape.proj cm_shape (Shape.Item.value id) in
             let vda =
               { vda_description = decl'; vda_address = addr;
-                vda_mode = Value_mode.global; vda_shape }
+                vda_mode = Mode.Value.legacy; vda_shape }
             in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
         | Sig_type(id, decl, _, _) ->
@@ -1820,7 +1840,7 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
-              | Type_abstract imm -> Type_abstract imm
+              | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
@@ -1930,7 +1950,7 @@ let rec components_of_module_maker
           fcomp_shape = cm_shape;
           fcomp_cache = Hashtbl.create 17;
           fcomp_subst_cache = Hashtbl.create 17 })
-  | Mty_ident _ -> Error No_components_abstract
+  | Mty_ident _ | Mty_strengthen _ -> Error No_components_abstract
   | Mty_alias p -> Error (No_components_alias p)
 
 (* Insertion of bindings by identifier + path *)
@@ -2068,7 +2088,7 @@ and store_type ~check id info shape env =
           (fun env (lbl_id, lbl) ->
             store_label ~check info id lbl_id lbl env)
           env labels
-    | Type_abstract imm -> Type_abstract imm, env
+    | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
   in
   let tda =
@@ -2090,7 +2110,7 @@ and store_type_infos ~tda_shape id info env =
   let tda =
     {
       tda_declaration = info;
-      tda_descriptions = kind_abstract_any;
+      tda_descriptions = Type_abstract Abstract_def;
       tda_shape
     }
   in
@@ -2235,7 +2255,7 @@ let add_functor_arg id env =
    functor_args = Ident.add id () env.functor_args;
    summary = Env_functor_arg (env.summary, id)}
 
-let add_value_lazy ?check ?shape ?(mode = Value_mode.global) id desc env =
+let add_value_lazy ?check ?shape ?(mode = Mode.Value.legacy) id desc env =
   let addr = value_declaration_address env id desc in
   let shape = shape_or_leaf desc.Subst.Lazy.val_uid shape in
   store_value ?check mode id addr desc shape env
@@ -2308,7 +2328,7 @@ let enter_value ?check name desc env =
   let id = Ident.create_local name in
   let desc = Subst.Lazy.of_value_description desc in
   let addr = value_declaration_address env id desc in
-  let env = store_value ?check Value_mode.global id addr desc (Shape.leaf desc.val_uid) env in
+  let env = store_value ?check (Mode.Value.legacy) id addr desc (Shape.leaf desc.val_uid) env in
   (id, env)
 
 let enter_type ~scope name info env =
@@ -2347,8 +2367,16 @@ let enter_cltype ~scope name desc env =
 let enter_module ~scope ?arg s presence mty env =
   enter_module_declaration ~scope ?arg s presence (md mty) env
 
-let add_lock ?escaping_context mode env =
-  let lock = Lock { mode; escaping_context } in
+let add_escape_lock escaping_context env =
+  let lock = Escape_lock escaping_context in
+  { env with values = IdTbl.add_lock lock env.values }
+
+let add_share_lock shared_context env =
+  let lock = Share_lock shared_context in
+  { env with values = IdTbl.add_lock lock env.values }
+
+let add_closure_lock ?closure_context locality linearity env =
+  let lock = Closure_lock (closure_context, locality, linearity) in
   { env with values = IdTbl.add_lock lock env.values }
 
 let add_region_lock env =
@@ -2356,6 +2384,9 @@ let add_region_lock env =
 
 let add_exclave_lock env =
   { env with values = IdTbl.add_lock Exclave_lock env.values }
+
+let add_unboxed_lock env =
+  { env with values = IdTbl.add_lock Unboxed_lock env.values }
 
 (* Insertion of all components of a signature *)
 
@@ -2620,12 +2651,14 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
-let read_signature modname filename =
-  let mda = read_pers_mod (Compilation_unit.name modname) filename in
+let read_signature modname filename ~add_binding =
+  let mda =
+    read_pers_mod (Compilation_unit.name modname) filename ~add_binding
+  in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
   | Mty_signature sg -> sg
-  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+  | Mty_ident _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _ -> assert false
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2654,17 +2687,16 @@ let persistent_structures_of_dir dir =
 (* Save a signature to a file *)
 let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   Btype.cleanup_abbrev ();
-  Subst.reset_for_saving ();
+  Subst.reset_additional_action_type_id ();
   let sg = Subst.Lazy.of_signature sg
-    |> Subst.Lazy.signature Make_local (Subst.for_saving Subst.identity)
+    |> Subst.Lazy.signature Make_local
+        (Subst.with_additional_action Prepare_for_saving Subst.identity)
   in
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in
-  let pm = save_sign_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } in
   Persistent_env.save_cmi !persistent_env
-    { Persistent_env.Persistent_signature.filename; cmi } pm;
+    { Persistent_env.Persistent_signature.filename; cmi };
   cmi
 
 let save_signature ~alerts sg modname filename =
@@ -2676,12 +2708,29 @@ let save_signature_with_imports ~alerts sg modname filename imports =
   save_signature_with_transform with_imports
     ~alerts sg modname filename
 
-(* Make the initial environment *)
+(* Make the initial environment, without language extensions *)
 let (initial_safe_string, initial_unsafe_string) =
   Predef.build_initial_env
     (add_type ~check:false)
     (add_extension ~check:false ~rebind:false)
     empty
+
+let add_language_extension_types env =
+  lazy
+    (if Language_extension.is_enabled SIMD
+     then Predef.add_simd_extension_types (add_type ~check:false) env
+     else env)
+
+(* Some predefined types are part of language extensions, and we don't want to
+   make them available in the initial environment if those extensions are not
+   turned on.  We can't do this at startup because command line flags haven't
+   been parsed yet. So, we make the initial environment lazy.
+
+   If language extensions are adjusted after [initial_safe_string] and
+   [initial_unsafe_string] are forced, these environments may be inaccurate.
+*)
+let initial_safe_string = add_language_extension_types initial_safe_string
+let initial_unsafe_string = add_language_extension_types initial_unsafe_string
 
 (* Tracking usage *)
 
@@ -2899,34 +2948,96 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
         end
     end
 
-let lock_mode ~errors ~loc env id vmode locks =
+let escape_mode ~errors ~env ~loc id vmode escaping_context =
+  match
+  Mode.Regionality.submode
+    (Mode.Value.locality vmode)
+    (Mode.Regionality.global)
+  with
+  | Ok () -> ()
+  | Error _ ->
+      may_lookup_error errors loc env
+        (Local_value_escaping (id, escaping_context))
+
+let share_mode ~errors ~env ~loc id vmode shared_context =
+  match
+    Mode.Linearity.submode
+      (Mode.Value.linearity vmode)
+      Mode.Linearity.many
+  with
+  | Error _ ->
+      may_lookup_error errors loc env
+        (Once_value_used_in (id, shared_context))
+  | Ok () -> Mode.Value.with_uniqueness Mode.Uniqueness.shared vmode
+
+let closure_mode ~errors ~env ~loc id vmode closure_context locality linearity =
+  begin
+    match
+      Mode.Regionality.submode
+        (Mode.Value.locality vmode)
+        (Mode.Regionality.of_locality locality)
+      with
+    | Error _ ->
+        may_lookup_error errors loc env
+          (Value_used_in_closure (id, Locality closure_context))
+    | Ok () -> ()
+  end;
+  begin
+    match Mode.Linearity.submode (Mode.Value.linearity vmode) linearity with
+    | Error _ ->
+        may_lookup_error errors loc env
+          (Value_used_in_closure (id, Linearity))
+    | Ok () -> ()
+  end;
+  let uniqueness =
+    Mode.Uniqueness.join
+      [ Mode.Value.uniqueness vmode;
+        Mode.Linearity.to_dual linearity]
+  in
+  Mode.Value.with_uniqueness uniqueness vmode
+
+let exclave_mode ~errors ~env ~loc id vmode =
+  match
+  Mode.Regionality.submode
+    (Mode.Value.locality vmode)
+    Mode.Regionality.regional
+with
+| Ok () -> Mode.Value.regional_to_local vmode
+| Error _ ->
+    may_lookup_error errors loc env
+      (Local_value_used_in_exclave id)
+
+let lock_mode ~errors ~loc env id vda locks =
+  let vmode = vda.vda_mode in
   List.fold_left
-    (fun vmode lock ->
+    (fun (vmode, must_lock, reason) lock ->
       match lock with
-      | Region_lock -> Value_mode.local_to_regional vmode
-      | Lock {mode; escaping_context} ->
-        begin
-          match Value_mode.submode vmode (Value_mode.of_alloc mode) with
-          | Ok () -> vmode
-          | Error _ ->
-              may_lookup_error errors loc env
-                (Local_value_used_in_closure (id, escaping_context))
-        end
+      | Region_lock -> (Mode.Value.local_to_regional vmode, must_lock, reason)
+      | Escape_lock escaping_context ->
+          escape_mode ~errors ~env ~loc id vmode escaping_context;
+          (vmode, must_lock, reason)
+      | Share_lock shared_context ->
+          let vmode = share_mode ~errors ~env ~loc id vmode shared_context in
+          vmode, must_lock, Some shared_context
+      | Closure_lock (closure_context, locality, linearity) ->
+          let vmode =
+            closure_mode ~errors ~env ~loc id vmode closure_context
+              locality linearity
+          in
+          vmode, must_lock, reason
       | Exclave_lock ->
-        match Value_mode.submode vmode Value_mode.regional with
-        | Ok () -> Value_mode.regional_to_local vmode
-        | Error _ ->
-          may_lookup_error errors loc env
-            (Local_value_used_in_exclave id);
-    )
-    vmode locks
+          let vmode = exclave_mode ~errors ~env ~loc id vmode in
+          vmode, must_lock, reason
+      | Unboxed_lock ->
+          vmode, true, reason
+    ) (vmode, false, None) locks
 
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_modes wrap_value ~mark:use name env.values with
   | (path, locks, Val_bound vda) ->
-      let mode = lock_mode ~errors ~loc env (Lident name) vda.vda_mode locks in
+      let mode, must_box, reasons = lock_mode ~errors ~loc env (Lident name) vda locks in
       use_value ~use ~loc path vda;
-      path, vda.vda_description, mode
+      path, vda.vda_description, mode, must_box, reasons
   | (_, _, Val_unbound reason) ->
       report_value_unbound ~errors ~loc env reason (Lident name)
   | exception Not_found ->
@@ -3173,7 +3284,7 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
   | Longident.Lident "*predef*" ->
       (* Hack to support compilation of default arguments *)
       lookup_all_ident_constructors
-        ~errors ~use ~loc usage s initial_safe_string
+        ~errors ~use ~loc usage s (Lazy.force initial_safe_string)
   | _ ->
       let (_, comps) = lookup_structure_components ~errors ~use ~loc l env in
       match NameMap.find s comps.comp_constrs with
@@ -3205,8 +3316,8 @@ let lookup_value_lazy ~errors ~use ~loc lid env =
   | Lident s -> lookup_ident_value ~errors ~use ~loc s env
   | Ldot(l, s) ->
     let path, desc = lookup_dot_value ~errors ~use ~loc l s env in
-    let mode = Value_mode.global in
-    path, desc, mode
+    let mode = Mode.Value.legacy in
+    path, desc, mode, false, None
   | Lapply _ -> assert false
 
 let lookup_type_full ~errors ~use ~loc lid env =
@@ -3297,7 +3408,9 @@ let find_module_by_name lid env =
 
 let find_value_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, desc, _ = lookup_value_lazy ~errors:false ~use:false ~loc lid env in
+  let path, desc, _, _, _ =
+    lookup_value_lazy ~errors:false ~use:false ~loc lid env
+  in
   path, Subst.Lazy.force_value_description desc
 
 let find_type_by_name lid env =
@@ -3334,8 +3447,19 @@ let lookup_module ?(use=true) ~loc lid env =
 
 let lookup_value ?(use=true) ~loc lid env =
   check_value_name (Longident.last lid) loc;
-  let path, desc, mode = lookup_value_lazy ~errors:true ~use ~loc lid env in
-  path, Subst.Lazy.force_value_description desc, mode
+  let path, desc, mode, must_box, reasons =
+    lookup_value_lazy ~errors:true ~use ~loc lid env
+  in
+  let vd = Subst.Lazy.force_value_description desc in
+  if must_box then begin
+    match !constrain_type_jkind env vd.val_type
+            (Jkind.(value ~why:Captured_in_object))
+    with
+    | Ok () -> ()
+    | Result.Error err ->
+      lookup_error loc env (Non_value_used_in_object (lid, vd.val_type, err))
+  end;
+  path, vd, mode, reasons
 
 let lookup_type ?(use=true) ~loc lid env =
   lookup_type ~errors:true ~use ~loc lid env
@@ -3645,6 +3769,9 @@ let print_longident =
 let print_path =
   ref ((fun _ _ -> assert false) : formatter -> Path.t -> unit)
 
+let print_type_expr =
+  ref ((fun _ _ -> assert false) : formatter -> Types.type_expr -> unit)
+
 let spellcheck ppf extract env lid =
   let choices ~path name = Misc.spellcheck (extract path env) name in
   match lid with
@@ -3680,6 +3807,26 @@ let extract_instance_variables env =
        match descr.val_kind with
        | Val_ivar _ -> name :: acc
        | _ -> acc) None env []
+
+let string_of_escaping_context : escaping_context -> string =
+  function
+  | Letop -> "a letop"
+  | Probe -> "a probe"
+  | Class -> "a class"
+  | Module -> "a module"
+  | Lazy -> "a lazy expression"
+
+let string_of_shared_context =
+  function
+  | For_loop -> "a for loop"
+  | While_loop -> "a while loop"
+  | Letop -> "a letop"
+  | Closure -> "a closure that is not once"
+  | Comprehension -> "a comprehension"
+  | Class -> "a class"
+  | Module -> "a module"
+  | Probe -> "a probe"
+  | Lazy -> "a lazy expression"
 
 let report_lookup_error _loc env ppf = function
   | Unbound_value(lid, hint) -> begin
@@ -3741,7 +3888,12 @@ let report_lookup_error _loc env ppf = function
     end
   | Unbound_cltype lid ->
       fprintf ppf "Unbound class type %a" !print_longident lid;
-      spellcheck ppf extract_cltypes env lid;
+      begin match lid with
+      | Lident "float" ->
+        Misc.did_you_mean ppf (fun () -> ["float#"])
+      | Lident _ | Ldot _ | Lapply _ ->
+        spellcheck ppf extract_cltypes env lid
+      end;
   | Unbound_instance_variable s ->
       fprintf ppf "Unbound instance variable %s" s;
       spellcheck_name ppf extract_instance_variables env s;
@@ -3788,21 +3940,42 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf
         "The module %a is an alias for module %a, which %s"
         !print_longident lid !print_path p cause
-  | Local_value_used_in_closure (lid, context) ->
+  | Local_value_escaping (lid, context) ->
       fprintf ppf
         "@[The value %a is local, so cannot be used \
-           inside a closure that might escape@]"
-        !print_longident lid;
-      begin match context with
-      | Some Tailcall_argument ->
+          inside %s.@]"
+        !print_longident lid (string_of_escaping_context context);
+  | Once_value_used_in (lid, context) ->
+      fprintf ppf
+        "@[The value %a is once, so cannot be used \
+            inside %s@]"
+        !print_longident lid (string_of_shared_context context)
+  | Value_used_in_closure (lid, error) ->
+      let e0, e1 =
+        match error with
+        | Locality _ -> "local", "might escape"
+        | Linearity -> "once", "is many"
+      in
+      fprintf ppf
+      "@[The value %a is %s, so cannot be used \
+            inside a closure that %s.@]"
+      !print_longident lid e0 e1;
+      begin match error with
+      | Locality (Some Tailcall_argument) ->
          fprintf ppf "@.@[Hint: The closure might escape because it \
                           is an argument to a tail call@]"
       | _ -> ()
       end
   | Local_value_used_in_exclave lid ->
-    fprintf ppf "@[The value %a is local, so cannot be used \
-                 inside exclave @]"
-      !print_longident lid
+      fprintf ppf "@[The value %a is local, so it cannot be used \
+                  inside an exclave_@]"
+        !print_longident lid
+  | Non_value_used_in_object (lid, typ, err) ->
+      fprintf ppf "@[%a must have a type of layout value because it is \
+                   captured by an object.@ %a@]"
+        !print_longident lid
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

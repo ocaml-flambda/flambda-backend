@@ -2,8 +2,9 @@
 
 * hassysthreads
 include systhreads
-** bytecode
-** native
+** not-macos
+*** bytecode
+*** native
 
 *)
 

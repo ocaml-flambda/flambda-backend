@@ -85,6 +85,7 @@ val binary_annotations_cms : bool ref
 val use_threads : bool ref
 val noassert : bool ref
 val verbose : bool ref
+val verbose_types : bool ref
 val noprompt : bool ref
 val nopromptcont : bool ref
 val init_file : string option ref
@@ -138,6 +139,7 @@ val dump_reload : bool ref
 val dump_scheduling : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
+val debug_ocaml : bool ref
 val keep_startup_file : bool ref
 val dump_combine : bool ref
 val native_code : bool ref

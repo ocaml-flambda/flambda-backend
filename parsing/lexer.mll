@@ -51,6 +51,7 @@ let keyword_table =
     "else", ELSE;
     "end", END;
     "exception", EXCEPTION;
+    "exclave_", EXCLAVE;
     "external", EXTERNAL;
     "false", FALSE;
     "for", FOR;
@@ -71,10 +72,10 @@ let keyword_table =
     "module", MODULE;
     "mutable", MUTABLE;
     "new", NEW;
-    "nonlocal_", NONLOCAL;
     "nonrec", NONREC;
     "object", OBJECT;
     "of", OF;
+    "once_", ONCE;
     "open", OPEN;
     "or", OR;
 (*  "parser", PARSER; *)
@@ -87,6 +88,7 @@ let keyword_table =
     "true", TRUE;
     "try", TRY;
     "type", TYPE;
+    "unique_", UNIQUE;
     "val", VAL;
     "virtual", VIRTUAL;
     "when", WHEN;
@@ -126,6 +128,110 @@ let in_comment () = !comment_start_loc <> [];;
 let is_in_string = ref false
 let in_string () = !is_in_string
 let print_warnings = ref true
+
+let at_beginning_of_line pos = (pos.pos_cnum = pos.pos_bol)
+
+(* See the comment on the [directive] lexer. *)
+type directive_lexing_already_consumed =
+   | Hash
+   | Hash_and_line_num of { line_num : string }
+
+type deferred_token =
+  { token : token
+  ; start_pos : Lexing.position
+  ; end_pos : Lexing.position
+  }
+
+(* This queue will only ever have 0 or 1 elements in it. We use it
+   instead of an [option ref] for its convenient interface.
+*)
+let deferred_tokens : deferred_token Queue.t = Queue.create ()
+
+(* Effectively splits the text in the lexer's current "window" (defined below)
+   into two halves. The current call to the lexer will return the first half of
+   the text in the window, and the next call to the lexer will return the second
+   half (of length [len]) of the text in the window.
+
+   "window" refers to the text matched by a production of the lexer. It spans
+   from [lexer.lex_start_p] to [lexer.lex_curr_p].
+
+   The function accomplishes this splitting by doing two things:
+    - It sets the current window of the lexbuf to only account for the
+      first half of the text. (The first half is of length: |text|-len.)
+    - It enqueues a token into [deferred_tokens] such that, the next time the
+      lexer is called, it will return the specified [token] *and* set the window
+      of the lexbuf to account for the second half of the text. (The second half
+      is of length: |text|.)
+
+   This business with setting the window of the lexbuf is only so that error
+   messages point at the right place in the program text.
+*)
+let enqueue_token_from_end_of_lexbuf_window (lexbuf : Lexing.lexbuf) token ~len =
+  let suffix_end = lexbuf.lex_curr_p in
+  let suffix_start =
+    { suffix_end with pos_cnum = suffix_end.pos_cnum - len }
+  in
+  lexbuf.lex_curr_p <- suffix_start;
+  Queue.add
+    { token; start_pos = suffix_start; end_pos = suffix_end }
+    deferred_tokens
+
+(* Note [Lexing hack for float#]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   This note describes a non-backward-compatible Jane Street--internal change to
+   the lexer.
+
+   We want the lexer to lex [float#] differently than [float #]. [float#] is the
+   new syntax for the unboxed float type. It veers close to the syntax for the
+   type of all objects belonging to a class [c], which is [#c]. The way we
+   navigate this veering is by producing the following tokens for these source
+   program examples, where LIDENT(s) is an LIDENT with text [s].
+
+   float#c   ==> LIDENT(float) HASH_SUFFIX LIDENT(c)
+   float# c  ==> LIDENT(float) HASH_SUFFIX LIDENT(c)
+   float # c ==> LIDENT(float) HASH LIDENT(c)
+   float #c  ==> LIDENT(float) HASH LIDENT(c)
+
+   (A) The parser interprets [LIDENT(float) HASH_SUFFIX LIDENT(c)] as
+       "the type constructor [c] applied to the unboxed float type."
+   (B) The parser interprets [LIDENT(float) HASH LIDENT(c)] as
+       "the type constructor [#c] applied to the usual boxed float type."
+
+   This is not a backward-compatible change. In upstream ocaml, the lexer
+   produces [LIDENT(float) HASH LIDENT(c)] for all the above source programs.
+
+   But, this isn't problematic: everybody puts a space before '#c' to mean (B).
+   No existing code writes things like [float#c] or indeed [float# c].
+
+   We accomplish this hack by setting some global mutable state upon seeing
+   an identifier immediately followed by a hash. When that state is set, we
+   will produce [HASH_SUFFIX] the next time the lexer is called. This is
+   done in [enqueue_hash_suffix_from_end_of_lexbuf_window].
+
+   Note [Lexing hack for hash operators]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   To complicate the above story, we don't want to treat the # in the
+   below program as HASH_SUFFIX:
+
+   x#~#y
+
+   We instead want:
+
+   x#~#y ==> LIDENT(x) HASHOP(#~#) LIDENT(y)
+
+   This is to allow for infix hash operators. We add an additional hack, in
+   the style of Note [Lexing hack for float#], where the lexer consumes [x#~#]
+   all at once, but produces LIDENT(x) from the current call to the lexer and
+   HASHOP(#~#) from the next call to the lexer. This is done in
+   [enqueue_hashop_from_end_of_lexbuf_window].
+ *)
+
+let enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf =
+  enqueue_token_from_end_of_lexbuf_window lexbuf HASH_SUFFIX ~len:1
+
+let enqueue_hashop_from_end_of_lexbuf_window lexbuf ~hashop =
+  enqueue_token_from_end_of_lexbuf_window lexbuf (HASHOP hashop)
+    ~len:(String.length hashop)
 
 (* Escaped chars are interpreted in strings unless they are in comments. *)
 let store_escaped_char lexbuf c =
@@ -168,6 +274,25 @@ let wrap_comment_lexer comment lexbuf =
 
 let error lexbuf e = raise (Error(e, Location.curr lexbuf))
 let error_loc loc e = raise (Error(e, loc))
+
+let directive_error
+    (lexbuf : Lexing.lexbuf) explanation ~directive ~already_consumed
+  =
+  let directive_prefix =
+    match already_consumed with
+    | Hash -> "#"
+    | Hash_and_line_num { line_num } -> "#" ^ line_num
+  in
+  (* Set the lexbuf's current window to extend to the start of
+     the directive so the error message's location is more accurate.
+  *)
+  lexbuf.lex_start_p <-
+    { lexbuf.lex_start_p with
+      pos_cnum =
+        lexbuf.lex_start_p.pos_cnum - String.length directive_prefix
+    };
+  error lexbuf
+    (Invalid_directive (directive_prefix ^ directive, Some explanation))
 
 (* to translate escape sequences *)
 
@@ -285,6 +410,18 @@ let add_docstring_comment ds =
     add_comment com
 
 let comments () = List.rev !comment_list
+
+let float ~maybe_hash lit modifier =
+  match maybe_hash with
+  | "#" -> HASH_FLOAT (lit, modifier)
+  | "" -> FLOAT (lit, modifier)
+  | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
+
+let int ~maybe_hash lit modifier =
+  match maybe_hash with
+  | "#" -> HASH_INT (lit, modifier)
+  | "" -> INT (lit, modifier)
+  | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
 
 (* Error report *)
 
@@ -418,22 +555,61 @@ rule token = parse
   | "?" (lowercase_latin1 identchar_latin1 * as name) ':'
       { warn_latin1 lexbuf;
         OPTLABEL name }
+  (* Lowercase identifiers are split into 3 cases, and the order matters
+     (longest to shortest).
+  *)
+  | (lowercase identchar * as name) ('#' symbolchar_or_hash+ as hashop)
+      (* See Note [Lexing hack for hash operators] *)
+      { enqueue_hashop_from_end_of_lexbuf_window lexbuf ~hashop;
+        lookup_keyword name }
+  | (lowercase identchar * as name) '#'
+      (* See Note [Lexing hack for float#] *)
+      { enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf;
+        lookup_keyword name }
   | lowercase identchar * as name
       { lookup_keyword name }
+  (* Lowercase latin1 identifiers are split into 3 cases, and the order matters
+     (longest to shortest).
+  *)
+  | (lowercase_latin1 identchar_latin1 * as name)
+      ('#' symbolchar_or_hash+ as hashop)
+      (* See Note [Lexing hack for hash operators] *)
+      { warn_latin1 lexbuf;
+        enqueue_hashop_from_end_of_lexbuf_window lexbuf ~hashop;
+        LIDENT name }
+  | (lowercase_latin1 identchar_latin1 * as name) '#'
+      (* See Note [Lexing hack for float#] *)
+      { warn_latin1 lexbuf;
+        enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf;
+        LIDENT name }
   | lowercase_latin1 identchar_latin1 * as name
       { warn_latin1 lexbuf; LIDENT name }
   | uppercase identchar * as name
       { UIDENT name } (* No capitalized keywords *)
   | uppercase_latin1 identchar_latin1 * as name
       { warn_latin1 lexbuf; UIDENT name }
-  | int_literal as lit { INT (lit, None) }
-  | (int_literal as lit) (literal_modifier as modif)
-      { INT (lit, Some modif) }
-  | float_literal | hex_float_literal as lit
-      { FLOAT (lit, None) }
-  | (float_literal | hex_float_literal as lit) (literal_modifier as modif)
-      { FLOAT (lit, Some modif) }
-  | (float_literal | hex_float_literal | int_literal) identchar+ as invalid
+  (* This matches either an integer literal or a directive. If the text "#2"
+     appears at the beginning of a line that lexes as a directive, then it
+     should be treated as a directive and not an unboxed int. This is acceptable
+     because "#2" isn't a valid unboxed int anyway because it lacks a suffix;
+     the parser rejects unboxed-ints-lacking-suffixes with a more descriptive
+     error message.
+  *)
+  | ('#'? as maybe_hash) (int_literal as lit)
+      { if at_beginning_of_line lexbuf.lex_start_p && maybe_hash = "#" then
+          try directive (Hash_and_line_num { line_num = lit }) lexbuf
+          with Failure _ -> int ~maybe_hash lit None
+        else int ~maybe_hash lit None
+      }
+  | ('#'? as maybe_hash) (int_literal as lit) (literal_modifier as modif)
+      { int ~maybe_hash lit (Some modif) }
+  | ('#'? as maybe_hash)
+    (float_literal | hex_float_literal as lit)
+      { float ~maybe_hash lit None }
+  | ('#'? as maybe_hash)
+    (float_literal | hex_float_literal as lit) (literal_modifier as modif)
+      { float ~maybe_hash lit (Some modif) }
+  | '#'? (float_literal | hex_float_literal | int_literal) identchar+ as invalid
       { error lexbuf (Invalid_literal invalid) }
   | "\""
       { let s, loc = wrap_string_lexer string lexbuf in
@@ -518,10 +694,9 @@ rule token = parse
         STAR
       }
   | "#"
-      { let at_beginning_of_line pos = (pos.pos_cnum = pos.pos_bol) in
-        if not (at_beginning_of_line lexbuf.lex_start_p)
+      { if not (at_beginning_of_line lexbuf.lex_start_p)
         then HASH
-        else try directive lexbuf with Failure _ -> HASH
+        else try directive Hash lexbuf with Failure _ -> HASH
       }
   | "&"  { AMPERSAND }
   | "&&" { AMPERAMPER }
@@ -598,16 +773,43 @@ rule token = parse
   | (_ as illegal_char)
       { error lexbuf (Illegal_character illegal_char) }
 
-and directive = parse
-  | ([' ' '\t']* (['0'-'9']+ as num) [' ' '\t']*
-        ("\"" ([^ '\010' '\013' '\"' ] * as name) "\"") as directive)
+(* An example of a directive is:
+
+#4 "filename.ml"
+
+   Here, 4 is the line number and filename.ml is the file name. The '#' must
+   appear in column 0.
+
+   The [directive] lexer is called when some portion of the start of
+   the line was already consumed, either just the '#' or the '#4'. That's
+   indicated by the [already_consumed] argument. The caller is responsible
+   for checking that the '#' appears in column 0.
+
+   The [directive] lexer always attempts to read the line number from the
+   lexbuf. It expects to receive a line number from exactly one source (either
+   the lexbuf or the [already_consumed] argument, but not both) and will fail if
+   this isn't the case.
+*)
+and directive already_consumed = parse
+  | ([' ' '\t']* (['0'-'9']+? as line_num_opt) [' ' '\t']*
+     ("\"" ([^ '\010' '\013' '\"' ] * as name) "\"") as directive)
         [^ '\010' '\013'] *
-      {
+      { let num =
+          match already_consumed, line_num_opt with
+          | Hash_and_line_num { line_num }, "" -> line_num
+          | Hash, "" ->
+              directive_error lexbuf "expected line number"
+                ~already_consumed ~directive
+          | Hash_and_line_num _, _ ->
+              directive_error lexbuf "expected just one line number"
+                ~already_consumed ~directive
+          | Hash, num -> num
+        in
         match int_of_string num with
         | exception _ ->
             (* PR#7165 *)
-            let explanation = "line number out of range" in
-            error lexbuf (Invalid_directive ("#" ^ directive, Some explanation))
+            directive_error lexbuf "line number out of range"
+              ~already_consumed ~directive
         | line_num ->
            (* Documentation says that the line number should be
               positive, but we have never guarded against this and it
@@ -774,6 +976,13 @@ and skip_hash_bang = parse
   | "" { () }
 
 {
+  let token lexbuf =
+    match Queue.take_opt deferred_tokens with
+    | None -> token lexbuf
+    | Some { token; start_pos; end_pos } ->
+        lexbuf.lex_start_p <- start_pos;
+        lexbuf.lex_curr_p <- end_pos;
+        token
 
   let token_with_comments lexbuf =
     match !preprocessor with

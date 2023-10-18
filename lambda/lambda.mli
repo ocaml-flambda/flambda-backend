@@ -34,18 +34,22 @@ type immediate_or_pointer =
   | Immediate
   | Pointer
 
-type alloc_mode = private
+type locality_mode = private
   | Alloc_heap
   | Alloc_local
+
+(** For now we don't have strong update, and thus uniqueness is irrelevant in
+    middle and back-end; in the future this will be extended with uniqueness *)
+type alloc_mode = locality_mode
 
 type modify_mode = private
   | Modify_heap
   | Modify_maybe_stack
 
-val alloc_heap : alloc_mode
+val alloc_heap : locality_mode
 
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
-val alloc_local : alloc_mode
+val alloc_local : locality_mode
 
 val modify_heap : modify_mode
 
@@ -77,24 +81,35 @@ type region_close =
   | Rc_nontail        (* do not close region, must not TCO *)
   | Rc_close_at_apply (* close region and tail call *)
 
+(* CR layouts v5: When we add more blocks of non-scannable values, consider
+   whether some of the primitives specific to ufloat records
+   ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
+   generalized, rather than just adding new primitives. *)
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-    (* Globals *)
+  (* Globals *)
   | Pgetglobal of Compilation_unit.t
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
+  | Pufloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * (layout list)
+      (* the [layout list] is the layout of the whole product *)
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -127,10 +142,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -182,7 +197,7 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer
+  | Pint_as_pointer of alloc_mode
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -199,6 +214,11 @@ type primitive =
                         one; O(1) *)
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
+  | Pget_header of alloc_mode
+  (* Get the header of a block. This primitive is invalid if provided with an
+     immediate value.
+     Note: The GC color bits in the header are not reliable except for checking
+     if the value is locally allocated *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -208,6 +228,22 @@ and float_comparison =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+
+(** When accessing a flat float array, we need to know the mode which we should
+    box the resulting float at. *)
+and array_ref_kind =
+  | Pgenarray_ref of alloc_mode (* This might be a flat float array *)
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+(** When updating an array that might contain pointers, we need to know what
+    mode they're at; otherwise, access is uniform. *)
+and array_set_kind =
+  | Pgenarray_set of modify_mode (* This might be an array of pointers *)
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
@@ -219,6 +255,7 @@ and value_kind =
           expected to be significant. *)
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector
 
 (* Because we check for and error on void in the translation to lambda, we don't
    need a constructor for it here. *)
@@ -227,6 +264,8 @@ and layout =
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
@@ -234,6 +273,18 @@ and block_shape =
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and vec128_type =
+  | Unknown128
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
+and boxed_vector =
+  | Pvec128 of vec128_type
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -254,7 +305,9 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-val equal_primitive : primitive -> primitive -> bool
+val vec128_name: vec128_type -> string
+
+val join_boxed_vector_layout: boxed_vector -> boxed_vector -> layout
 
 val equal_value_kind : value_kind -> value_kind -> bool
 
@@ -264,7 +317,17 @@ val compatible_layout : layout -> layout -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
+val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
+
 val must_be_value : layout -> value_kind
+
+(* This is the layout of ocaml values used as arguments to or returned from
+   primitives for this [native_repr].  So the legacy [Unboxed_float] - which is
+   a float that is unboxed before being passed to a C function - is mapped to
+   [layout_any_value], while [Same_as_ocaml_repr Float64] is mapped to
+   [layout_unboxed_float].
+*)
+val layout_of_native_repr : Primitive.native_repr -> layout
 
 type structured_constant =
     Const_base of constant
@@ -298,7 +361,7 @@ type inlined_attribute =
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
 val equal_inlined_attribute : inlined_attribute -> inlined_attribute -> bool
 
-type probe_desc = { name: string }
+type probe_desc = { name: string; enabled_at_init: bool; }
 type probe = probe_desc option
 
 type specialise_attribute =
@@ -333,11 +396,13 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
-               assume: bool;
-               (* [assume=true] assume without checking that the
-                  property holds *)
                loc: Location.t;
              }
+  | Assume of { property: property;
+                strict: bool;
+                loc: Location.t;
+                never_returns_normally: bool;
+              }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -380,6 +445,14 @@ type function_attribute = {
   tmc_candidate: bool;
 }
 
+type parameter_attribute = No_attributes
+
+type lparam = {
+  name : Ident.t;
+  layout : layout;
+  attributes : parameter_attribute;
+  mode : alloc_mode
+}
 
 type scoped_location = Debuginfo.Scoped_location.t
 
@@ -417,7 +490,7 @@ type lambda =
 
 and lfunction = private
   { kind: function_kind;
-    params: (Ident.t * layout) list;
+    params: lparam list;
     return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
@@ -434,6 +507,7 @@ and lambda_while =
 
 and lambda_for =
   { for_id : Ident.t;
+    for_loc : scoped_location;
     for_from : lambda;
     for_to : lambda;
     for_dir : direction_flag;
@@ -511,8 +585,10 @@ val layout_module : layout
 val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
-val layout_float : layout
+val layout_boxed_float : layout
+val layout_unboxed_float : layout
 val layout_boxedint : boxed_integer -> layout
+val layout_boxed_vector : Primitive.boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a block *)
 val layout_field : layout
 val layout_lazy : layout
@@ -521,6 +597,10 @@ val layout_lazy_contents : layout
 val layout_any_value : layout
 (* A layout that is Pgenval because it is bound by a letrec *)
 val layout_letrec : layout
+(* The probe hack: Free vars in probes must have layout value. *)
+val layout_probe_arg : layout
+
+val layout_unboxed_product : layout list -> layout
 
 val layout_top : layout
 val layout_bottom : layout
@@ -530,7 +610,7 @@ val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambd
 
 val lfunction :
   kind:function_kind ->
-  params:(Ident.t * layout) list ->
+  params:lparam list ->
   return:layout ->
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
@@ -615,6 +695,7 @@ val swap_float_comparison : float_comparison -> float_comparison
 
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
+val default_param_attribute : parameter_attribute
 
 val find_exact_application :
   function_kind -> arity:int -> lambda list -> lambda list option
@@ -634,7 +715,15 @@ val is_heap_mode : alloc_mode -> bool
 val primitive_may_allocate : primitive -> alloc_mode option
   (** Whether and where a primitive may allocate.
       [Some Alloc_local] permits both options: that is, primitives that
-      may allocate on both the GC heap and locally report this value. *)
+      may allocate on both the GC heap and locally report this value.
+
+      This treats projecting an unboxed float from a float record as
+      non-allocating, which is a lie for the bytecode backend (where unboxed
+      floats are boxed).  Presently this function is only used for stack
+      allocation, which doesn't happen in bytecode.  If that changes, or if we
+      want to use this for another purpose in bytecode, it will need to be
+      revised.
+  *)
 
 (***********************)
 (* For static failures *)
@@ -669,4 +758,10 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
-val compute_expr_layout : layout Ident.Map.t -> lambda -> layout
+val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
+
+(** The mode will be discarded if unnecessary for the given [array_kind] *)
+val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
+
+(** The mode will be discarded if unnecessary for the given [array_kind] *)
+val array_set_kind : modify_mode -> array_kind -> array_set_kind

@@ -1,5 +1,0 @@
-File "user_error1.ml", line 21, characters 41-60:
-21 | let _malformed_extension_has_payload = [%extension.something "no payloads"] ();;
-                                              ^^^^^^^^^^^^^^^^^^^
-Error: Modular extension nodes are not allowed to have a payload,
-       but "extension.something" does

@@ -17,7 +17,6 @@
 
 open Misc
 open Longident
-open Layouts
 open Types
 
 (* Error report *)
@@ -99,21 +98,21 @@ let init () =
   let topdirs =
     Filename.concat !Parameters.topdirs_path "topdirs.cmi" in
   let topdirs_unit = "Topdirs" |> Compilation_unit.of_string in
-  ignore (Env.read_signature topdirs_unit topdirs)
+  ignore (Env.read_signature topdirs_unit topdirs ~add_binding:true)
 
 let match_printer_type desc typename =
   let printer_type =
     match
       Env.find_type_by_name
-        (Ldot(Lident "Topdirs", typename)) Env.initial_safe_string
+        (Ldot(Lident "Topdirs", typename)) (Lazy.force Env.initial_safe_string)
     with
     | path, _ -> path
     | exception Not_found ->
         raise (Error(Unbound_identifier(Ldot(Lident "Topdirs", typename))))
   in
   Ctype.begin_def();
-  let ty_arg = Ctype.newvar Layout.any in
-  Ctype.unify Env.initial_safe_string
+  let ty_arg = Ctype.newvar Jkind.(value ~why:Debug_printer_argument) in
+  Ctype.unify (Lazy.force Env.initial_safe_string)
     (Ctype.newconstr printer_type [ty_arg])
     (Ctype.instance desc.val_type);
   Ctype.end_def();

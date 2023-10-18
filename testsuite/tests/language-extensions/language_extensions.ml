@@ -1,7 +1,6 @@
 (* TEST
    include ocamlcommon
    flags = "-I ${ocamlsrcdir}/parsing"
-   reference = "${test_source_directory}/reference.txt"
 *)
 
 (* Change these two variables to change which extension is being tested *)
@@ -22,11 +21,11 @@ let report ~name ~text =
 
 let typecheck_with_extension ?(full_name = false) name =
   let success =
-    match Typecore.type_expression Env.initial_safe_string
+    match Typecore.type_expression (Lazy.force Env.initial_safe_string)
             extension_parsed_expression
     with
     | _ -> true
-    | exception (Extensions_parsing.Error.Error _) -> false
+    | exception (Jane_syntax_parsing.Error.Error _) -> false
   in
   report
     ~name:(if full_name
@@ -60,19 +59,20 @@ let try_disallowing_extensions name =
 
 type goal = Fail | Succeed
 
+let with_goal goal ~name ~what test = match goal with
+  | Fail    -> should_fail    name      test
+  | Succeed -> should_succeed name what test
+
 let when_disallowed goal f_str f =
   let can_or_can't = match goal with
     | Fail    -> "can't"
     | Succeed -> "can"
   in
   let f_code = "[" ^ f_str ^ "]" in
-  let name =
-    can_or_can't ^ " call " ^ f_code ^ " when extensions are disallowed"
-  in
-  let action () = f extension in
-  match goal with
-  | Fail    -> should_fail    name                                   action
-  | Succeed -> should_succeed name ("redundantly calling " ^ f_code) action
+  with_goal goal
+    ~name:(can_or_can't ^ " call " ^ f_code ^ " when extensions are disallowed")
+    ~what:("redundantly calling " ^ f_code)
+    (fun () -> f extension)
 ;;
 
 let lift_with with_fn extension = with_fn extension Fun.id;;
@@ -83,15 +83,15 @@ typecheck_with_extension "in its default state";
 
 (* Disable all extensions for testing *)
 
-List.iter Language_extension.disable Language_extension.all;
+Language_extension.disable_all ();
 typecheck_with_extension ~full_name:true "no extensions enabled";
 
 (* Test globally toggling a language extension *)
 
-Language_extension.enable extension;
+Language_extension.enable extension ();
 typecheck_with_extension "enabled";
 
-Language_extension.enable extension;
+Language_extension.enable extension ();
 typecheck_with_extension "still enabled";
 
 Language_extension.disable extension;
@@ -103,7 +103,7 @@ typecheck_with_extension "still disabled";
 Language_extension.set extension ~enabled:true;
 typecheck_with_extension "enabled via [set]";
 
-Language_extension.enable extension;
+Language_extension.enable extension ();
 typecheck_with_extension "still enabled, via [set] and [enable]";
 
 Language_extension.set extension ~enabled:false;
@@ -118,7 +118,7 @@ typecheck_with_extension "still disabled, via [set] and [disable]";
    but it's more robust to do this explicitly) *)
 Language_extension.disable extension;
 
-Language_extension.with_enabled extension (fun () ->
+Language_extension.with_enabled extension () (fun () ->
   typecheck_with_extension "enabled locally and disabled globally");
 
 Language_extension.with_disabled extension (fun () ->
@@ -132,12 +132,12 @@ Language_extension.with_set extension ~enabled:false (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
 (* Globally enable the language extension *)
-Language_extension.enable extension;
+Language_extension.enable extension ();
 
 Language_extension.with_disabled extension (fun () ->
   typecheck_with_extension "disabled locally and enabled globally");
 
-Language_extension.with_enabled extension (fun () ->
+Language_extension.with_enabled extension () (fun () ->
   typecheck_with_extension "enabled locally and globally");
 
 Language_extension.with_set extension ~enabled:false (fun () ->
@@ -147,16 +147,32 @@ Language_extension.with_set extension ~enabled:false (fun () ->
 Language_extension.with_set extension ~enabled:true (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
-(* Test that we only allow you to pass one layouts extension flag *)
-should_fail "Enable two layouts"
-  (fun () ->
-     Language_extension.(enable (Layouts Alpha));
-     Language_extension.(enable (Layouts Beta)));
+(* Test behavior of layouts extensions *)
+Language_extension.(enable Layouts Beta);;
+Language_extension.(enable Layouts Alpha);;
+report ~name:"Enable two layouts"
+  ~text:(if Language_extension.is_at_least Layouts Alpha
+              && Language_extension.is_at_least Layouts Beta
+              && Language_extension.is_at_least Layouts Stable
+         then "Succeeded"
+         else "Failed");;
 
-should_fail "Enable and disable layouts"
-  (fun () ->
-     Language_extension.(enable (Layouts Alpha));
-     Language_extension.(disable (Layouts Beta)));
+Language_extension.disable Layouts;;
+report ~name:"Disable layouts"
+  ~text:(if Language_extension.is_at_least Layouts Alpha
+            || Language_extension.is_at_least Layouts Beta
+            || Language_extension.is_at_least Layouts Stable
+         then "Failed"
+         else "Succeeded");;
+
+Language_extension.(enable Layouts Alpha);;
+Language_extension.(enable Layouts Beta);;
+report ~name:"Enable two layouts, in reverse order"
+  ~text:(if Language_extension.is_at_least Layouts Alpha
+              && Language_extension.is_at_least Layouts Beta
+              && Language_extension.is_at_least Layouts Stable
+         then "Succeeded"
+         else "Failed");;
 
 (* Test disallowing extensions *)
 
@@ -175,7 +191,7 @@ when_disallowed Succeed "set ~enabled:false"
   (Language_extension.set ~enabled:false);
 
 when_disallowed Fail "enable"
-  Language_extension.enable;
+  (fun x -> Language_extension.enable x ());
 
 when_disallowed Succeed "disable"
   Language_extension.disable;
@@ -187,7 +203,7 @@ when_disallowed Succeed "with_set ~enabled:false"
   (Language_extension.with_set ~enabled:false |> lift_with);
 
 when_disallowed Fail "with_enabled"
-  (Language_extension.with_enabled |> lift_with);
+  ((fun x -> Language_extension.with_enabled x ()) |> lift_with);
 
 when_disallowed Succeed "with_disabled"
   (Language_extension.with_disabled |> lift_with);
@@ -199,4 +215,16 @@ report
   ~text:("\"" ^ extension_name ^ "\" is " ^
          if Language_extension.is_enabled extension
          then "INCORRECTLY enabled"
-         else "correctly disabled")
+         else "correctly disabled");
+
+(* Test that language extensions round-trip via string *)
+List.iter
+  (fun (Language_extension.Exist.Pack x) ->
+     let str = Language_extension.to_string x in
+     let Pack x' =
+       match Language_extension.of_string str with
+       | None -> failwith str
+       | Some x' -> x'
+     in
+     if not (Language_extension.equal x x') then failwith str)
+  Language_extension.Exist.all;

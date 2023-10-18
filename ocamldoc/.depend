@@ -5,7 +5,8 @@ odoc.cmo : \
     odoc_gen.cmi \
     odoc_config.cmi \
     odoc_args.cmi \
-    odoc_analyse.cmi
+    odoc_analyse.cmi \
+    ../utils/language_extension.cmi
 odoc.cmx : \
     odoc_messages.cmx \
     odoc_info.cmx \
@@ -13,7 +14,8 @@ odoc.cmx : \
     odoc_gen.cmx \
     odoc_config.cmx \
     odoc_args.cmx \
-    odoc_analyse.cmx
+    odoc_analyse.cmx \
+    ../utils/language_extension.cmx
 odoc_analyse.cmo : \
     ../utils/warnings.cmi \
     ../typing/types.cmi \
@@ -126,6 +128,7 @@ odoc_ast.cmo : \
     odoc_env.cmi \
     odoc_class.cmo \
     ../parsing/location.cmi \
+    ../parsing/jane_syntax.cmi \
     ../typing/ident.cmi \
     ../typing/btype.cmi \
     ../parsing/asttypes.cmi \
@@ -149,6 +152,7 @@ odoc_ast.cmx : \
     odoc_env.cmx \
     odoc_class.cmx \
     ../parsing/location.cmx \
+    ../parsing/jane_syntax.cmx \
     ../typing/ident.cmx \
     ../typing/btype.cmx \
     ../parsing/asttypes.cmi \
@@ -661,9 +665,9 @@ odoc_sig.cmo : \
     odoc_class.cmo \
     ../parsing/longident.cmi \
     ../parsing/location.cmi \
-    ../typing/layouts.cmi \
+    ../typing/jkind.cmi \
+    ../parsing/jane_syntax.cmi \
     ../typing/ident.cmi \
-    ../parsing/extensions.cmi \
     ../typing/ctype.cmi \
     ../typing/btype.cmi \
     ../parsing/asttypes.cmi \
@@ -687,9 +691,9 @@ odoc_sig.cmx : \
     odoc_class.cmx \
     ../parsing/longident.cmx \
     ../parsing/location.cmx \
-    ../typing/layouts.cmx \
+    ../typing/jkind.cmx \
+    ../parsing/jane_syntax.cmx \
     ../typing/ident.cmx \
-    ../parsing/extensions.cmx \
     ../typing/ctype.cmx \
     ../typing/btype.cmx \
     ../parsing/asttypes.cmi \

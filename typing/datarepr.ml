@@ -17,7 +17,6 @@
    determining their representation. *)
 
 open Asttypes
-open Layouts
 open Types
 open Btype
 
@@ -47,11 +46,7 @@ let free_vars ?(param=false) ty =
 let newgenconstr path tyl = newgenty (Tconstr (path, tyl, ref Mnil))
 
 let constructor_existentials cd_args cd_res =
-  let tyl =
-    match cd_args with
-    | Cstr_tuple l -> List.map (fun (ty, _) -> ty) l
-    | Cstr_record l -> List.map (fun l -> l.ld_type) l
-  in
+  let tyl = tys_of_constr_args cd_args in
   let existentials =
     match cd_res with
     | None -> []
@@ -70,11 +65,16 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       let arg_vars_set = free_vars ~param:true (newgenty (Ttuple tyl)) in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
+      let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
+      let jkind =
+        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
+      in
       let tdecl =
         {
           type_params;
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
+          type_jkind = jkind;
           type_private = priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;
@@ -93,21 +93,21 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let ty_res = newgenconstr ty_path decl.type_params in
-  let cstr_arg_layouts : layout array array =
+  let cstr_arg_jkinds : Jkind.t array array =
     match rep with
     | Variant_extensible -> assert false
-    | Variant_boxed layouts -> layouts
-    | Variant_unboxed layout -> [| [| layout |] |]
+    | Variant_boxed jkinds -> jkinds
+    | Variant_unboxed -> [| [| decl.type_jkind |] |]
   in
-  let all_void layouts = Array.for_all Layout.is_void layouts in
+  let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
-      (fun layouts ->
-         let all_void = all_void layouts in
+      (fun jkinds ->
+         let all_void = all_void jkinds in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
-      cstr_arg_layouts
+      cstr_arg_jkinds
   in
   let describe_constructor (src_index, const_tag, nonconst_tag, acc)
         {cd_id; cd_args; cd_res; cd_loc; cd_attributes; cd_uid} =
@@ -117,7 +117,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       | Some ty_res' -> ty_res'
       | None -> ty_res
     in
-    let cstr_arg_layouts = cstr_arg_layouts.(src_index) in
+    let cstr_arg_jkinds = cstr_arg_jkinds.(src_index) in
     let cstr_constant = cstr_constant.(src_index) in
     let runtime_tag, const_tag, nonconst_tag =
       if cstr_constant
@@ -136,7 +136,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_res;
         cstr_existentials;
         cstr_args;
-        cstr_arg_layouts;
+        cstr_arg_jkinds;
         cstr_arity = List.length cstr_args;
         cstr_tag;
         cstr_repr = rep;
@@ -161,7 +161,7 @@ let extension_descr ~current_unit path_ext ext =
         Some type_ret -> type_ret
       | None -> newgenconstr ext.ext_type_path ext.ext_type_params
   in
-  let cstr_tag = Extension (path_ext, ext.ext_arg_layouts) in
+  let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
       path_ext (Record_inlined (cstr_tag, Variant_extensible))
@@ -170,7 +170,7 @@ let extension_descr ~current_unit path_ext ext =
       cstr_res = ty_res;
       cstr_existentials = existentials;
       cstr_args;
-      cstr_arg_layouts = ext.ext_arg_layouts;
+      cstr_arg_jkinds = ext.ext_arg_jkinds;
       cstr_arity = List.length cstr_args;
       cstr_tag;
       cstr_repr = Variant_extensible;
@@ -192,9 +192,9 @@ let none =
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_global = Unrestricted;
-    lbl_layout = Layout.any;
+    lbl_jkind = Jkind.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
-    lbl_repres = Record_unboxed Layout.any;
+    lbl_repres = Record_unboxed;
     lbl_private = Public;
     lbl_loc = Location.none;
     lbl_attributes = [];
@@ -206,14 +206,14 @@ let label_descrs ty_res lbls repres priv =
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
-        let is_void = Layout.is_void l.ld_layout  in
+        let is_void = Jkind.is_void_defaulting l.ld_jkind  in
         let lbl =
           { lbl_name = Ident.name l.ld_id;
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
             lbl_global = l.ld_global;
-            lbl_layout = l.ld_layout;
+            lbl_jkind = l.ld_jkind;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;
             lbl_all = all_labels;

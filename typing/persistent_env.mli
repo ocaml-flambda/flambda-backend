@@ -59,8 +59,10 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
+(* If [add_binding] is false, reads the signature from the .cmi but does not
+   bind the module name in the environment. *)
 val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> filepath -> 'a
+  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> 'a
 val find : 'a t -> (Persistent_signature.t -> 'a)
   -> Compilation_unit.Name.t -> 'a
 
@@ -89,7 +91,7 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 val make_cmi : 'a t -> Compilation_unit.t -> Subst.Lazy.signature -> alerts
   -> Cmi_format.cmi_infos_lazy
 
-val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit
+val save_cmi : 'a t -> Persistent_signature.t -> unit
 
 val can_load_cmis : 'a t -> can_load_cmis
 val set_can_load_cmis : 'a t -> can_load_cmis -> unit

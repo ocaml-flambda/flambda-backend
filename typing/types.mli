@@ -24,8 +24,9 @@
 (** Asttypes exposes basic definitions shared both by Parsetree and Types. *)
 open Asttypes
 
-(** Layouts contains support for type layouts *)
-open Layouts
+(** Jkinds classify types. *)
+(* CR layouts v2.8: Say more here. *)
+type jkind = Jkind.t
 
 (** Type expressions for the core language.
 
@@ -65,7 +66,7 @@ type field_kind
 type commutable
 
 and type_desc =
-  | Tvar of { name : string option; layout : layout }
+  | Tvar of { name : string option; jkind : Jkind.t }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
@@ -124,7 +125,7 @@ and type_desc =
   | Tvariant of row_desc
   (** Representation of polymorphic variants, see [row_desc]. *)
 
-  | Tunivar of { name : string option; layout : layout }
+  | Tunivar of { name : string option; jkind : Jkind.t }
   (** Occurrence of a type variable introduced by a
       forall quantifier / [Tpoly]. *)
 
@@ -137,21 +138,9 @@ and type_desc =
   (** Type of a first-class module (a.k.a package). *)
 
 and arrow_desc =
-  arg_label * alloc_mode * alloc_mode
+  arg_label * Mode.Alloc.t * Mode.Alloc.t
 
-and alloc_mode_const = Global | Local
 
-and alloc_mode_var = {
-  mutable upper: alloc_mode_const;
-  mutable lower: alloc_mode_const;
-  mutable vlower: alloc_mode_var list;
-  mutable mark: bool;
-  mvid: int;
-}
-
-and alloc_mode =
-  | Amode of alloc_mode_const
-  | Amodevar of alloc_mode_var
 
 and fixed_explanation =
   | Univar of type_expr (** The row type was bound to an univar *)
@@ -478,6 +467,19 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
+
+    type_jkind: Jkind.t;
+    (* for an abstract decl kind or for [@@unboxed] types: this is the stored
+       jkind for the type; expansion might find a type with a more precise
+       jkind. See PR#10017 for motivating examples where subsitution or
+       instantiation may refine the immediacy of a type.
+
+       for other decl kinds: this is a cached jkind, computed from the
+       decl kind. EXCEPTION: if a type's jkind is refined by a gadt equation,
+       the jkind stored here might be a subjkind of the jkind that would
+       be computed from the decl kind. This happens in
+       Ctype.add_jkind_equation. *)
+
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -495,18 +497,10 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {layout : layout}
-  (* The layout here is authoritative if the manifest is [None].  Otherwise,
-     it's an upper bound; look at the manifest for the most precise layout. *)
+    Type_abstract of abstract_reason
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
-(* In the case of abbreviations (declarations whose kind is [Type_abstract] and
-   which have a manifest), the [immediate] field of [Type_abstract] is a
-   conservative approximation (it may be [Unknown] when the type is actually
-   immediate).  It is therefore necessary to check the manifest.  See PR#10017
-   for motivating examples where subsitution or instantiation may refine the
-   immediacy of a type.  *)
 
 (* CR layouts: after removing the void translation from lambda, we could get rid of
    this src_index / runtime_tag distinction.  But I am leaving it in because it
@@ -514,36 +508,42 @@ and ('lbl, 'cstr) type_kind =
 
    In particular, lambda will need to do something about computing offsets for
    block projections when not everything is one word wide, whether that's
-   because of void or because of other layouts.  One option is to change these
-   projections to be more abstract and pass the layout information to other
+   because of void or because of other jkinds.  One option is to change these
+   projections to be more abstract and pass the jkind information to other
    stages of the compiler, as is currently done for unboxed projection
    operations, but at the moment our plan is to do this math in lambda in the
    case of normal projections from boxes. *)
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
-        | Extension of Path.t * layout array
+        | Extension of Path.t * Jkind.t array
+
+and abstract_reason =
+    Abstract_def
+  | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
 and record_representation =
-  | Record_unboxed of layout
+  | Record_unboxed
   | Record_inlined of tag * variant_representation
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag of the relevant constructor of that variant. *)
-  | Record_boxed of layout array
+  | Record_boxed of Jkind.t array
   | Record_float (* All fields are floats *)
+  | Record_ufloat
+  (* All fields are [float#]s.  Same runtime representation as [Record_float],
+     but operations on these (e.g., projection, update) work with unboxed floats
+     rather than boxed floats. *)
 
-
-(* For unboxed variants, we record the layout of the mandatory single argument.
-   For boxed variants, we record the layouts for the arguments of each
+(* For unboxed variants, we record the jkind of the mandatory single argument.
+   For boxed variants, we record the jkinds for the arguments of each
    constructor.  For boxed inlined records, this is just a length 1 array with
-   the layout of the record itself, not the layouts of each field.  *)
+   the jkind of the record itself, not the jkinds of each field.  *)
 and variant_representation =
-  | Variant_unboxed of layout
-  | Variant_boxed of layout array array
+  | Variant_unboxed
+  | Variant_boxed of jkind array array
   | Variant_extensible
 
 and global_flag =
   | Global
-  | Nonlocal
   | Unrestricted
 
 and label_declaration =
@@ -552,7 +552,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
-    ld_layout : layout;
+    ld_jkind : Jkind.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -572,15 +572,7 @@ and constructor_arguments =
   | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
 
-val kind_abstract : layout:layout -> ('a,'b) type_kind
-val kind_abstract_value : ('a,'b) type_kind
-val kind_abstract_immediate : ('a,'b) type_kind
-val kind_abstract_any : ('a,'b) type_kind
-val decl_is_abstract : type_declaration -> bool
-
-(** Type kinds provide an upper bound on layouts of a type (which is precise if
-    the type has no manifest). *)
-val layout_bound_of_kind : ('a,'b) type_kind -> layout
+val tys_of_constr_args : constructor_arguments -> type_expr list
 
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option
@@ -590,7 +582,7 @@ type extension_constructor =
     ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_layouts: layout array;
+    ext_arg_jkinds: Jkind.t array;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -652,6 +644,14 @@ type module_presence =
   | Mp_present
   | Mp_absent
 
+(* Module aliasability for strengthening *)
+module Aliasability : sig
+  type t = Not_aliasable | Aliasable
+
+  val aliasable : bool -> t
+  val is_aliasable : t -> bool
+end
+
 (* Wrap.t encapsulates bits of module types which can be lazy *)
 module type Wrap = sig
   type 'a t
@@ -673,6 +673,8 @@ module type Wrapped = sig
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
+  | Mty_strengthen of module_type * Path.t * Aliasability.t
+      (* See comments about the aliasability of strengthening in mtype.ml *)
 
   and functor_parameter =
   | Unit
@@ -739,7 +741,7 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
-    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
+    cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -775,8 +777,8 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: global_flag;        (* Is this a nonlocal field? *)
-    lbl_layout : layout;                (* Layout of the argument *)
+    lbl_global: global_flag;            (* Is this a global field? *)
+    lbl_jkind : Jkind.t;                  (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)
@@ -786,11 +788,14 @@ type label_description =
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+(* CR layouts v5: once we allow [any] in record fields, change [lbl_jkind] to
+   be a [sort option].  This will allow a fast path for representability checks
+   at record construction, and currently only the sort is used anyway. *)
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.
 
-    CR-someday layouts: This should be removed once we have unarization, as it
+    CR layouts v5: This should be removed once we have unarization, as it
     will be up to a later stage of the compiler to erase void.
 *)
 val lbl_pos_void : int
@@ -802,11 +807,6 @@ val lbl_pos_void : int
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
-
-type value_mode =
-  (* See Value_mode below *)
-  { r_as_l : alloc_mode;
-    r_as_g : alloc_mode; }
 
 (**** Utilities for backtracking ****)
 
@@ -832,14 +832,14 @@ val undo_compress: snapshot -> unit
 
 val link_type: type_expr -> type_expr -> unit
         (* Set the desc field of [t1] to [Tlink t2], logging the old value if
-           there is an active snapshot.  Any layout information in [t1]'s desc
+           there is an active snapshot.  Any jkind information in [t1]'s desc
            is thrown away without checking - calls to this in unification should
-           first check that [t2]'s layout is a sublayout of [t1]. *)
+           first check that [t2]'s jkind is a subjkind of [t1]. *)
 val set_type_desc: type_expr -> type_desc -> unit
         (* Set directly the desc field, without sharing *)
 val set_level: type_expr -> int -> unit
 val set_scope: type_expr -> int -> unit
-val set_var_layout: type_expr -> layout -> unit
+val set_var_jkind: type_expr -> Jkind.t -> unit
         (* May only be called on Tvars *)
 val set_name:
     (Path.t * type_expr list) option ref ->
@@ -852,148 +852,3 @@ val link_kind: inside:field_kind -> field_kind -> unit
 val link_commu: inside:commutable -> commutable -> unit
 val set_commu_ok: commutable -> unit
 
-
-(**** Allocation modes ****)
-
-module Alloc_mode : sig
-
-  (* Modes are ordered so that [global] is a submode of [local] *)
-  type t = alloc_mode
-  type const = alloc_mode_const = Global | Local
-
-  val global : t
-
-  val local : t
-
-  val of_const : const -> t
-
-  val min_mode : t
-
-  val max_mode : t
-
-  val submode : t -> t -> (unit, unit) result
-
-  val submode_exn : t -> t -> unit
-
-  val equate : t -> t -> (unit, unit) result
-
-  val make_global_exn : t -> unit
-
-  val make_local_exn : t -> unit
-
-  val join_const : const -> const -> const
-
-  val join : t list -> t
-
-  (* Force a mode variable to its upper bound *)
-  val constrain_upper : t -> const
-
-  (* Force a mode variable to its lower bound *)
-  val constrain_lower : t -> const
-
-  val newvar : unit -> t
-
-  val newvar_below : t -> t * bool
-
-  val newvar_above : t -> t * bool
-
-  val check_const : t -> const option
-
-  val print : Format.formatter -> t -> unit
-
-end
-
-module Value_mode : sig
-
- type const =
-   | Global
-   | Regional
-   | Local
-
-  type t = value_mode
-
-  val global : t
-
-  val regional : t
-
-  val local : t
-
-  val of_const : const -> t
-
-  val max_mode : t
-
-  val min_mode : t
-
-  (** Injections from [Alloc_mode.t] into [Value_mode.t] *)
-
-  (** [of_alloc] maps [Global] to [Global] and [Local] to [Local] *)
-  val of_alloc : Alloc_mode.t -> t
-
-  (** Kernel operators *)
-
-  (** The kernel operator [local_to_regional] maps [Local] to
-      [Regional] and leaves the others unchanged. *)
-  val local_to_regional : t -> t
-
-  (** The kernel operator [regional_to_global] maps [Regional]
-      to [Global] and leaves the others unchanged. *)
-  val regional_to_global : t -> t
-
-  (** Closure operators *)
-
-  (** The closure operator [regional_to_local] maps [Regional]
-      to [Local] and leaves the others unchanged. *)
-  val regional_to_local : t -> t
-
-  (** The closure operator [global_to_regional] maps [Global] to
-      [Regional] and leaves the others unchanged. *)
-  val global_to_regional : t -> t
-
-  (** Note that the kernal and closure operators are in the following
-      adjunction relationship:
-      {v
-        local_to_regional
-        -| regional_to_local
-        -| regional_to_global
-        -| global_to_regional
-      v}
-
-      Equivalently,
-      {v
-        local_to_regional a <= b  iff  a <= regional_to_local b
-        regional_to_local a <= b  iff  a <= regional_to_global b
-        regional_to_global a <= b  iff  a <= global_to_regional b
-      v}
-   *)
-
-  (** Versions of the operators that return [Alloc.t] *)
-
-  (** Maps [Regional] to [Global] and leaves the others unchanged. *)
-  val regional_to_global_alloc : t -> Alloc_mode.t
-
-  (** Maps [Regional] to [Local] and leaves the others unchanged. *)
-  val regional_to_local_alloc : t -> Alloc_mode.t
-
-  type error = [`Regionality | `Locality]
-
-  val submode : t -> t -> (unit, error) result
-
-  val submode_exn : t -> t -> unit
-
-  val submode_meet : t -> t list -> (unit, error) result
-
-  val join : t list -> t
-
-  val constrain_upper : t -> const
-
-  val constrain_lower : t -> const
-
-  val newvar : unit -> t
-
-  val newvar_below : t -> t
-
-  val check_const : t -> const option
-
-  val print : Format.formatter -> t -> unit
-
-end

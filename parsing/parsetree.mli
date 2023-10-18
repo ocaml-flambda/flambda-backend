@@ -212,9 +212,9 @@ and pattern =
     {
      ppat_desc: pattern_desc;
      (** (Jane Street specific; delete when upstreaming.)
-         Consider using [Extensions.Pattern.of_ast] before matching on
+         Consider using [Jane_syntax.Pattern.of_ast] before matching on
          this field directly, as the former will detect extension nodes
-         correctly. Extensions are encoded as
+         correctly. Our syntax extensions are encoded as
          [Ppat_tuple [Ppat_extension _; _]]; if your pattern match avoids
          matching that pattern, it is OK to skip [of_ast]. *)
 
@@ -285,9 +285,9 @@ and expression =
     {
      pexp_desc: expression_desc;
      (** (Jane Street specific; delete when upstreaming.)
-         Consider using [Extensions.Expression.of_ast] before matching on
+         Consider using [Jane_syntax.Expression.of_ast] before matching on
          this field directly, as the former will detect extension nodes
-         correctly. Extensions are encoded as
+         correctly. Our syntax extensions are encoded as
          [Pexp_apply(Pexp_extension _, _)]; if your pattern match avoids
          matching that pattern, it is OK to skip [of_ast]. *)
 
@@ -817,9 +817,9 @@ and module_type =
     {
      pmty_desc: module_type_desc;
      (** (Jane Street specific; delete when upstreaming.)
-         Consider using [Extensions.Module_type.of_ast] before matching on
+         Consider using [Jane_syntax.Module_type.of_ast] before matching on
          this field directly, as the former will detect extension nodes
-         correctly. Extensions are encoded as
+         correctly. Our syntax extensions are encoded as
          [Pmty_functor(Named(_, Pmty_extension _), _)];
          if your pattern match avoids
          matching that pattern, it is OK to skip [of_ast]. *)

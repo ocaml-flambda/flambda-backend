@@ -57,6 +57,7 @@ val is_global_or_predef: t -> bool
 val is_predef: t -> bool
 val is_instance: t -> bool
 
+val stamp: t -> int
 val scope: t -> int
 
 val lowest_scope : int

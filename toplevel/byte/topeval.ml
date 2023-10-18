@@ -143,7 +143,7 @@ let execute_phrase print_outcome ppf phr =
                   | [] -> Ophr_signature []
                   | _ ->
                       match find_eval_phrase str with
-                      | Some (exp, _, _) ->
+                      | Some (exp, _, _, _) ->
                         let outv = outval_of_value newenv v exp.exp_type in
                         let ty = Printtyp.tree_of_type_scheme exp.exp_type in
                         Ophr_eval (outv, ty)

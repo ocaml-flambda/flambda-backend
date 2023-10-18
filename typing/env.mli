@@ -34,7 +34,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Types.value_mode
+  | Env_value of summary * Ident.t * value_description * Mode.Value.t
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -59,8 +59,15 @@ type address =
 type t
 
 val empty: t
-val initial_safe_string: t
-val initial_unsafe_string: t
+
+(* These environments are lazy so that they may depend on the enabled
+   extensions, typically adjusted via command line flags.  If extensions are
+   changed after these environments are forced, they may be inaccurate.  This
+   could happen, for example, if extensions are adjusted via the
+   compiler-libs. *)
+val initial_safe_string: t Lazy.t
+val initial_unsafe_string: t Lazy.t
+
 val diff: t -> t -> Ident.t list
 
 type type_descr_kind =
@@ -170,11 +177,33 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
-type escaping_context =
-  | Return
-  | Tailcall_argument
+type closure_context =
   | Tailcall_function
+  | Tailcall_argument
   | Partial_application
+  | Return
+
+type escaping_context =
+  | Letop
+  | Probe
+  | Class
+  | Module
+  | Lazy
+
+type shared_context =
+  | For_loop
+  | While_loop
+  | Letop
+  | Closure
+  | Comprehension
+  | Class
+  | Module
+  | Probe
+  | Lazy
+
+type closure_error =
+  | Locality of closure_context option
+  | Linearity
 
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
@@ -197,8 +226,11 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_used_in_closure of Longident.t * escaping_context option
+  | Local_value_escaping of Longident.t * escaping_context
+  | Once_value_used_in of Longident.t * shared_context
+  | Value_used_in_closure of Longident.t * closure_error
   | Local_value_used_in_exclave of Longident.t
+  | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -214,9 +246,16 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
    [lookup_foo ~use:true] exactly one time -- otherwise warnings may be
    emitted the wrong number of times. *)
 
+(** The returned shared_context looks strange, but useful for error printing
+    when the returned uniqueness mode is too high because of some linearity_lock
+    during lookup, and fail to satisfy expected_mode in the caller.
+
+    TODO: A better approach is passing down the expected mode to this function
+    as argument, so that sub-moding error is triggered at the place where error
+    hints are immediately available. *)
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Types.value_mode
+  Path.t * value_description * Mode.Value.t * shared_context option
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
@@ -296,10 +335,10 @@ val make_copy_of_types: t -> (t -> t)
 (* Insertion by identifier *)
 
 val add_value_lazy:
-    ?check:(string -> Warnings.t) -> ?mode:(Types.value_mode) ->
+    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
-    ?check:(string -> Warnings.t) -> ?mode:(Types.value_mode) ->
+    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
     Ident.t -> Types.value_description -> t -> t
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
@@ -394,9 +433,17 @@ val enter_unbound_module : string -> module_unbound_reason -> t -> t
 
 (* Lock the environment *)
 
-val add_lock : ?escaping_context:escaping_context -> Types.alloc_mode -> t -> t
+val add_escape_lock : escaping_context -> t -> t
+
+(** `once` variables beyond the share lock cannot be accessed. Moreover,
+    `unique` variables beyond the lock can still be accessed, but will be
+    relaxed to `shared` *)
+val add_share_lock : shared_context -> t -> t
+val add_closure_lock : ?closure_context:closure_context -> Mode.Locality.t
+  -> Mode.Linearity.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
+val add_unboxed_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)
 val reset_cache: preserve_persistent_env:bool -> unit
@@ -409,8 +456,11 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.t -> filepath -> signature
-        (* Arguments: module name, file name. Results: signature. *)
+val read_signature:
+  Compilation_unit.t -> filepath -> add_binding:bool -> signature
+        (* Arguments: module name, file name, [add_binding] flag.
+           Results: signature. If [add_binding] is true, creates an entry for
+           the module in the environment. *)
 val save_signature:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
   -> Cmi_format.cmi_infos_lazy
@@ -491,10 +541,15 @@ val scrape_alias:
     (t -> Subst.Lazy.module_type -> Subst.Lazy.module_type) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
+(* Forward declaration to break mutual recursion with Ctype. *)
+val constrain_type_jkind:
+  (t -> type_expr -> jkind -> (unit, Jkind.Violation.t) result) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_longident: (Format.formatter -> Longident.t -> unit) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_path: (Format.formatter -> Path.t -> unit) ref
+(* Forward declaration to break mutual recursion with Printtyp. *)
+val print_type_expr: (Format.formatter -> Types.type_expr -> unit) ref
 
 
 (** Folds *)

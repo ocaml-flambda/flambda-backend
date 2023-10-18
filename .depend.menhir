@@ -3,7 +3,7 @@ parsing/parser.cmo : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    parsing/extensions.cmi \
+    parsing/jane_syntax.cmi \
     parsing/docstrings.cmi \
     utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
@@ -15,7 +15,7 @@ parsing/parser.cmx : \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
-    parsing/extensions.cmx \
+    parsing/jane_syntax.cmx \
     parsing/docstrings.cmx \
     utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
@@ -27,4 +27,4 @@ parsing/parser.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     parsing/docstrings.cmi
-parsing/parser.ml parsing/parser.mli: parsing/ast_helper.cmi parsing/asttypes.cmi parsing/builtin_attributes.cmi utils/clflags.cmi parsing/docstrings.cmi parsing/extensions.cmi parsing/location.cmi parsing/longident.cmi parsing/parsetree.cmi parsing/syntaxerr.cmi
+parsing/parser.ml parsing/parser.mli: parsing/ast_helper.cmi parsing/asttypes.cmi parsing/builtin_attributes.cmi utils/clflags.cmi parsing/docstrings.cmi parsing/jane_syntax.cmi parsing/location.cmi parsing/longident.cmi parsing/parsetree.cmi parsing/syntaxerr.cmi

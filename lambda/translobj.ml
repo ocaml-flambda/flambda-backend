@@ -83,8 +83,9 @@ let reset_labels () =
 
 let int n = Lconst (Const_base (Const_int n))
 
+(* CR layouts v5: To change when we have arrays of other sorts *)
 let prim_makearray =
-  Primitive.simple ~name:"caml_make_vect" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_make_vect" ~arity:2 ~alloc:true
 
 (* Also use it for required globals *)
 let transl_label_init_general f =

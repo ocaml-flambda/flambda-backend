@@ -57,15 +57,6 @@ Line 2, characters 2-21:
 Error: The local extension is disabled
        To enable it, pass the '-extension local' flag
 |}]
-type gfoo'' = {
-  x : string [@ocaml.global] [@ocaml.nonlocal]
-}
-[%%expect{|
-Line 2, characters 2-46:
-2 |   x : string [@ocaml.global] [@ocaml.nonlocal]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: A type cannot be both global and nonlocal
-|}]
 
 let cast  ((r : foo)[@ocaml.local]) : gfoo =
   match r with
@@ -94,13 +85,6 @@ Error: The local extension is disabled
        To enable it, pass the '-extension local' flag
 |}]
 
-type gfoo'' = Gfoo of (string [@ocaml.global] [@ocaml.nonlocal])
-[%%expect{|
-Line 1, characters 23-29:
-1 | type gfoo'' = Gfoo of (string [@ocaml.global] [@ocaml.nonlocal])
-                           ^^^^^^
-Error: A type cannot be both global and nonlocal
-|}]
 
 let cast ((r : foo)[@ocaml.local]) : gfoo =
   match r with

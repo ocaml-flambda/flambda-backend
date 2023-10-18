@@ -291,7 +291,3 @@ _build
 /yacc/.gdb_history
 
 /otherlibs/dynlink/natdynlinkops
-
-# Jane Street Merlin support
-/.local-merlin-binaries
-/.local-ocaml-lib

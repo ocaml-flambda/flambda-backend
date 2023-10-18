@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Jane_asttypes
 open Parsetree
 open Ast_helper
 
@@ -30,11 +31,7 @@ let mark_used t = Attribute_table.remove unused_attrs t
 (* [attr_order] is used to issue unused attribute warnings in the order the
    attributes occur in the file rather than the random order of the hash table
 *)
-let attr_order a1 a2 =
-  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
-  with
-  | 0 -> Int.compare a1.loc.loc_start.pos_lnum a2.loc.loc_start.pos_lnum
-  | n -> n
+let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
 let unchecked_properties = Attribute_table.create 1
 let mark_property_checked txt loc =
@@ -80,6 +77,7 @@ let builtin_attrs =
   ; "ppwarning"; "ocaml.ppwarning"
   ; "explicit_arity"; "ocaml.explicit_arity"
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
+  ; "float64"; "ocaml.float64"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
   ; "void"; "ocaml.void"
@@ -96,25 +94,58 @@ let builtin_attrs =
   ; "local_opt"; "ocaml.local_opt"
   ; "curry"; "ocaml.curry"; "extension.curry"
   ; "global"; "ocaml.global"; "extension.global"
-  ; "nonlocal"; "ocaml.nonlocal"; "extension.nonlocal"
   ; "local"; "ocaml.local"; "extension.local"
   ; "nontail"; "ocaml.nontail"; "extension.nontail"
   ; "tail"; "ocaml.tail"; "extension.tail"
-  ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
   ; "zero_alloc"; "ocaml.zero_alloc"
   ; "untagged"; "ocaml.untagged"
   ; "poll"; "ocaml.poll"
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
+  ; "unaliasable"; "ocaml.unaliasable"
+  ; "builtin"; "ocaml.builtin"
+  ; "no_effects"; "ocaml.no_effects"
+  ; "no_coeffects"; "ocaml.no_coeffects"
+  ; "only_generative_effects"; "ocaml.only_generative_effects";
   ]
 
-let builtin_attrs =
-  let tbl = Hashtbl.create 128 in
-  List.iter (fun attr -> Hashtbl.add tbl attr ()) builtin_attrs;
-  tbl
+(* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
+   upstream the "jane" prefix.
+     - Internally, we use "jane.*" to encode our changes to the parsetree,
+       and our compiler should not drop these attributes.
+     - Upstream, ppxes may produce attributes with the "jane.*" prefix.
+       The upstream compiler does not use these attributes. We want it to be
+       able to drop these attributes without a warning.
 
-let is_builtin_attr s = Hashtbl.mem builtin_attrs s
+   It's an error for an upstream ppx to create an attribute that corresponds to
+   a *non-erasable* Jane language extension, like list comprehensions, which
+   should never reach the upstream compiler. So, we distinguish that in the
+   attribute prefix: upstream ppxlib will error out if it sees a ppx creating a
+   "jane.non_erasable" attribute and be happy to accept a "jane.erasable"
+   attribute. Meanwhile, an internal patched version of ppxlib will be happy for
+   a ppx to produce either of these attributes.
+*)
+let builtin_attr_prefixes =
+  [ "jane"
+  ]
+
+let is_builtin_attr =
+  let builtin_attrs =
+    let tbl = Hashtbl.create 128 in
+    List.iter
+      (fun attr -> Hashtbl.add tbl attr ())
+      (builtin_attr_prefixes @ builtin_attrs);
+    tbl
+  in
+  let builtin_attr_prefixes_with_trailing_dot =
+    List.map (fun x -> x ^ ".") builtin_attr_prefixes
+  in
+  fun s ->
+    Hashtbl.mem builtin_attrs s
+    || List.exists
+        (fun prefix -> String.starts_with ~prefix s)
+        builtin_attr_prefixes_with_trailing_dot
 
 type attr_tracking_time = Parser | Invariant_check
 
@@ -422,35 +453,39 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-let layout ~legacy_immediate attrs =
-  let layout =
+let jkind ~legacy_immediate attrs =
+  let jkind =
     List.find_map
-      (fun a -> match a.attr_name.txt with
+      (fun a ->
+         match a.attr_name.txt with
          | "ocaml.void"|"void" -> Some (a, Void)
          | "ocaml.value"|"value" -> Some (a, Value)
          | "ocaml.any"|"any" -> Some (a, Any)
          | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
          | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
+         | "ocaml.float64"|"float64" -> Some (a, Float64)
          | _ -> None
         ) attrs
   in
-  match layout with
+  match jkind with
   | None -> Ok None
-  | Some (a, Value) ->
-    mark_used a.attr_name;
-    Ok (Some Value)
-  | Some (a, (Immediate | Immediate64 as l)) ->
-    mark_used a.attr_name;
-    if   legacy_immediate
-      || Language_extension.(   is_enabled (Layouts Beta)
-                             || is_enabled (Layouts Alpha))
-    then Ok (Some l)
-    else Error (a.attr_loc, l)
-  | Some (a, (Any | Void as l)) ->
-    mark_used a.attr_name;
-    if Language_extension.is_enabled (Layouts Alpha)
-    then Ok (Some l)
-    else Error (a.attr_loc, l)
+  | Some (a, l) ->
+     mark_used a.attr_name;
+     let l_loc = Location.mkloc l a.attr_loc in
+     let check b =
+       if b
+       then Ok (Some l_loc)
+       else Error l_loc
+     in
+     match l with
+     | Value -> check true
+     | Immediate | Immediate64 ->
+        check  (legacy_immediate
+             || Language_extension.(is_at_least Layouts Beta))
+     | Any | Float64 ->
+        check Language_extension.(is_at_least Layouts Beta)
+     | Void ->
+        check Language_extension.(is_at_least Layouts Alpha)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the
@@ -604,8 +639,20 @@ let has_local attr =
 let has_global attrs =
   check_local ["extension.global"] ["ocaml.global"; "global"] attrs
 
-let has_nonlocal attrs =
-  check_local ["extension.nonlocal"] ["ocaml.nonlocal"; "nonlocal"] attrs
+let check_unique ext_names other_names attr =
+  if has_attribute ext_names attr then
+    if not (Language_extension.is_enabled Unique) then
+      Error ()
+    else
+      Ok true
+  else
+    Ok (has_attribute other_names attr)
+
+let has_unique attrs =
+  check_unique ["extension.unique"] ["ocaml.unique"; "unique"] attrs
+
+let has_once attr =
+  check_unique ["extension.once"] ["ocaml.once"; "once"] attr
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
@@ -624,12 +671,3 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
-
-let has_include_functor attr =
-  if has_attribute ["extension.include_functor"] attr then
-    if not (Language_extension.is_enabled Include_functor) then
-      Error ()
-    else
-      Ok true
-  else
-    Ok false
