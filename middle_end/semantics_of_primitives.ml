@@ -45,6 +45,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pccall _ -> Arbitrary_effects, Has_coeffects
   | Pprobe_is_enabled _ -> No_effects, Has_coeffects
   | Praise _ -> Arbitrary_effects, No_coeffects
+  | Prunstack | Pperform | Presume | Preperform ->
+      Arbitrary_effects, Has_coeffects
   | Pnot
   | Pnegint
   | Paddint
@@ -83,8 +85,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pmulfloat m
   | Pdivfloat m -> No_effects, coeffects_of m
   | Pstringlength | Pbyteslength
-  | Parraylength _ ->
-      No_effects, Has_coeffects  (* That old chestnut: [Obj.truncate]. *)
+  | Parraylength _ -> No_effects, No_coeffects
   | Pisint
   | Pisout
   | Pintofbint _
@@ -128,7 +129,15 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psetfield _
   | Psetfield_computed _
   | Psetfloatfield _
+<<<<<<< HEAD
   | Psetufloatfield _
+||||||| merged common ancestors
+=======
+  | Patomic_load _
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+>>>>>>> ocaml/5.1
   | Parraysetu _
   | Parraysets _
   | Pbytessetu
@@ -147,7 +156,14 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psequor ->
       (* Removed by [Closure_conversion] in the flambda pipeline. *)
       No_effects, No_coeffects
+<<<<<<< HEAD
   | Pget_header _ -> No_effects, No_coeffects
+||||||| merged common ancestors
+=======
+  | Pdls_get ->
+      (* only read *)
+      No_effects, No_coeffects
+>>>>>>> ocaml/5.1
 
 type return_type =
   | Float

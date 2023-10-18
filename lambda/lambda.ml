@@ -133,11 +133,21 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
+<<<<<<< HEAD
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
+||||||| merged common ancestors
+  | Pmakeblock of int * mutable_flag * block_shape
+  | Pfield of int
+  | Pfield_computed
+=======
+  | Pmakeblock of int * mutable_flag * block_shape
+  | Pfield of int * immediate_or_pointer * mutable_flag
+  | Pfield_computed
+>>>>>>> ocaml/5.1
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
@@ -145,10 +155,20 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+<<<<<<< HEAD
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
   (* Force lazy values *)
+||||||| merged common ancestors
+  (* Force lazy values *)
+=======
+  (* Context switches *)
+  | Prunstack
+  | Pperform
+  | Presume
+  | Preperform
+>>>>>>> ocaml/5.1
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -232,8 +252,20 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
+<<<<<<< HEAD
   | Pint_as_pointer of alloc_mode
+||||||| merged common ancestors
+  | Pint_as_pointer
+=======
+  | Pint_as_pointer
+  (* Atomic operations *)
+  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+>>>>>>> ocaml/5.1
   (* Inhibition of optimisation *)
+<<<<<<< HEAD
   | Popaque of layout
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
@@ -248,6 +280,13 @@ type primitive =
   | Parray_to_iarray
   | Parray_of_iarray
   | Pget_header of alloc_mode
+||||||| merged common ancestors
+  | Popaque
+=======
+  | Popaque
+  (* Fetching domain-local state *)
+  | Pdls_get
+>>>>>>> ocaml/5.1
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -492,6 +531,7 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+<<<<<<< HEAD
 type property =
   | Zero_alloc
 
@@ -518,6 +558,15 @@ type loop_attribute =
   | Default_loop (* no [@loop] attribute *)
 
 type function_kind = Curried of {nlocal: int} | Tupled
+||||||| merged common ancestors
+type function_kind = Curried | Tupled
+=======
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
+
+type function_kind = Curried | Tupled
+>>>>>>> ocaml/5.1
 
 type let_kind = Strict | Alias | StrictOpt
 
@@ -538,9 +587,14 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+<<<<<<< HEAD
   check : check_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
+||||||| merged common ancestors
+=======
+  poll: poll_attribute;
+>>>>>>> ocaml/5.1
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
@@ -657,6 +711,7 @@ let max_arity () =
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
+<<<<<<< HEAD
 let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
@@ -681,6 +736,12 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
      if is_local_mode mode then assert (nlocal = nparams)
   end;
   Lfunction { kind; params; return; body; attr; loc; mode; region }
+||||||| merged common ancestors
+=======
+let lfunction ~kind ~params ~return ~body ~attr ~loc =
+  assert (List.length params <= max_arity ());
+  Lfunction { kind; params; return; body; attr; loc }
+>>>>>>> ocaml/5.1
 
 let lambda_unit = Lconst const_unit
 
@@ -726,9 +787,14 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
+<<<<<<< HEAD
   check = Default_check ;
   poll = Default_poll;
   loop = Default_loop;
+||||||| merged common ancestors
+=======
+  poll = Default_poll;
+>>>>>>> ocaml/5.1
   is_a_functor = false;
   stub = false;
   tmc_candidate = false;
@@ -1036,7 +1102,14 @@ let rec transl_address loc = function
       then Lprim (Pgetpredef id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
+<<<<<<< HEAD
       Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
+||||||| merged common ancestors
+      Lprim(Pfield pos, [transl_address loc addr], loc)
+=======
+      Lprim(Pfield(pos, Pointer, Immutable),
+                   [transl_address loc addr], loc)
+>>>>>>> ocaml/5.1
 
 let transl_path find loc env path =
   match find path env with

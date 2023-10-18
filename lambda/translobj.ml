@@ -134,7 +134,14 @@ let transl_label_init_flambda f =
 let transl_store_label_init glob size f arg =
   assert(not (Config.flambda || Config.flambda2));
   assert(!Clflags.native_code);
+<<<<<<< HEAD
   method_cache := Lprim(mod_field ~read_semantics:Reads_vary size,
+||||||| merged common ancestors
+  method_cache := Lprim(Pfield size,
+=======
+  method_cache := Lprim(Pfield (size, Pointer, Mutable),
+                        (* XXX KC: conservative *)
+>>>>>>> ocaml/5.1
                         [Lprim(Pgetglobal glob, [], Loc_unknown)],
                         Loc_unknown);
   let expr = f arg in

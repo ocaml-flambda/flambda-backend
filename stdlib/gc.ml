@@ -40,13 +40,13 @@ type stat = {
 }
 
 type control = {
-  mutable minor_heap_size : int;
-  mutable major_heap_increment : int;
-  mutable space_overhead : int;
-  mutable verbose : int;
-  mutable max_overhead : int;
-  mutable stack_limit : int;
-  mutable allocation_policy : int;
+  minor_heap_size : int;
+  major_heap_increment : int;
+  space_overhead : int;
+  verbose : int;
+  max_overhead : int;
+  stack_limit : int;
+  allocation_policy : int;
   window_size : int;
   custom_major_ratio : int;
   custom_minor_ratio : int;
@@ -66,11 +66,9 @@ external major : unit -> unit = "caml_gc_major"
 external full_major : unit -> unit = "caml_gc_full_major"
 external compact : unit -> unit = "caml_gc_compaction"
 external get_minor_free : unit -> int = "caml_get_minor_free"
-external get_bucket : int -> int = "caml_get_major_bucket" [@@noalloc]
-external get_credit : unit -> int = "caml_get_major_credit" [@@noalloc]
-external huge_fallback_count : unit -> int = "caml_gc_huge_fallback_count"
-external eventlog_pause : unit -> unit = "caml_eventlog_pause"
-external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+
+let eventlog_pause () = ()
+let eventlog_resume () = ()
 
 open Printf
 
@@ -110,25 +108,33 @@ external finalise_last : (unit -> unit) -> 'a -> unit =
 external finalise_release : unit -> unit = "caml_final_release"
 
 
-type alarm = bool ref
+type alarm = bool Atomic.t
 type alarm_rec = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =
-  if !(arec.active) then begin
-    finalise call_alarm arec;
-    arec.f ();
+  if Atomic.get arec.active then begin
+    let finally () = finalise call_alarm arec in
+    Fun.protect ~finally arec.f
   end
 
 
+<<<<<<< HEAD
 (* We use [@inline never] to ensure [arec] is never statically allocated
    (which would prevent installation of the finaliser). *)
 let [@inline never] create_alarm f =
   let arec = { active = ref true; f = f } in
+||||||| merged common ancestors
+let create_alarm f =
+  let arec = { active = ref true; f = f } in
+=======
+let create_alarm f =
+  let arec = { active = Atomic.make true; f = f } in
+>>>>>>> ocaml/5.1
   finalise call_alarm arec;
   arec.active
 
 
-let delete_alarm a = a := false
+let delete_alarm a = Atomic.set a false
 
 module Memprof =
   struct
