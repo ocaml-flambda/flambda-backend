@@ -120,6 +120,18 @@ let gen_array_ref_kind mode =
 let gen_array_set_kind mode =
   if Config.flat_float_array then Pgenarray_set mode else Paddrarray_set mode
 
+let gen_float_u_array_kind () =
+  if !Clflags.native_code then Punboxedfloatarray
+  else if Config.flat_float_array then Pfloatarray else Paddrarray
+
+let gen_float_u_array_ref_kind mode =
+  if !Clflags.native_code then Punboxedfloatarray_ref
+  else if Config.flat_float_array then Pfloatarray_ref mode else Paddrarray_ref
+
+let gen_float_u_array_set_kind mode =
+  if !Clflags.native_code then Punboxedfloatarray_set
+  else if Config.flat_float_array then Pfloatarray_set else Paddrarray_set mode
+
 let prim_sys_argv =
   Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
@@ -240,13 +252,13 @@ let lookup_primitive loc poly pos p =
     | "%array_unsafe_get" -> Primitive (Parrayrefu (gen_array_ref_kind mode), 2)
     | "%array_unsafe_set" ->
        Primitive ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()))), 3)
-    | "%float_u_array_length" -> Primitive ((Parraylength Punboxedfloatarray), 1)
-    | "%float_u_array_safe_get" -> Primitive ((Parrayrefs Punboxedfloatarray_ref), 2)
+    | "%float_u_array_length" -> Primitive ((Parraylength (gen_float_u_array_kind ())), 1)
+    | "%float_u_array_safe_get" -> Primitive ((Parrayrefs (gen_float_u_array_ref_kind mode)), 2)
     | "%float_u_array_safe_set" ->
-      Primitive ((Parraysets Punboxedfloatarray_set), 3)
-    | "%float_u_array_unsafe_get" -> Primitive (Parrayrefu Punboxedfloatarray_ref, 2)
+      Primitive ((Parraysets (gen_float_u_array_set_kind (get_first_arg_mode ()))), 3)
+    | "%float_u_array_unsafe_get" -> Primitive (Parrayrefu (gen_float_u_array_ref_kind mode), 2)
     | "%float_u_array_unsafe_set" ->
-      Primitive ((Parraysetu Punboxedfloatarray_set), 3)
+      Primitive ((Parraysetu (gen_float_u_array_set_kind (get_first_arg_mode ()))), 3)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode)), 2)
     | "%obj_set_field" ->
