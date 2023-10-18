@@ -3125,113 +3125,53 @@ labeled_simple_expr:
 ;
 let_binding_body_no_punning:
     let_ident strict_binding
-<<<<<<< HEAD
-      { ($1, $2) }
+      { ($1, $2, None) }
   | mode_flags let_ident type_constraint EQUAL seq_expr
       { let v = $2 in (* PR#7344 *)
-||||||| merged common ancestors
-      { ($1, $2) }
-  | let_ident type_constraint EQUAL seq_expr
-      { let v = $1 in (* PR#7344 *)
-=======
-      { ($1, $2, None) }
-  | let_ident type_constraint EQUAL seq_expr
-      { let v = $1 in (* PR#7344 *)
->>>>>>> ocaml/5.1
         let t =
-<<<<<<< HEAD
           match $3 with
-          | N_ary.Pconstraint t -> t
-          | N_ary.Pcoerce (_, t) -> t
-||||||| merged common ancestors
-          match $2 with
-            Some t, None -> t
-          | _, Some t -> t
-          | _ -> assert false
-=======
-          match $2 with
-            Some t, None ->
+          | N_ary.Pconstraint t ->
              Pvc_constraint { locally_abstract_univars = []; typ=t }
-          | ground, Some coercion -> Pvc_coercion { ground; coercion}
-          | _ -> assert false
->>>>>>> ocaml/5.1
+          | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
         in
-<<<<<<< HEAD
-        let loc = Location.(t.ptyp_loc.loc_start, t.ptyp_loc.loc_end) in
-        let typ = ghtyp ~loc (Ptyp_poly([],t)) in
-        let patloc = ($startpos($2), $endpos($3)) in
-        let pat =
-          mkpat_with_modes $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
-        in
-        let exp =
-          ghexp_with_modes $sloc $1
-            (wrap_exp_with_modes $1 (mkexp_constraint ~loc:$sloc $5 $3))
-        in
-        (pat, exp) }
+        let pat = mkpat_with_modes $1 v in
+        let exp = ghexp_with_modes $sloc $1 (wrap_exp_with_modes $1 $5) in
+        (pat, exp, Some t)
+      }
   | mode_flags let_ident COLON poly(core_type) EQUAL seq_expr
-      { let patloc = ($startpos($2), $endpos($4)) in
-        let bound_vars, inner_type = $4 in
+      { let bound_vars, inner_type = $4 in
         let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
         let typ_loc = Location.ghostify (make_loc $loc($4)) in
         let typ =
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let pat =
-          mkpat_with_modes $1
-            (ghpat ~loc:patloc
-               (Ppat_constraint($2, typ)))
-        in
+        let pat = mkpat_with_modes $1 $2 in
         let exp = ghexp_with_modes $sloc $1 $6 in
-        (pat, exp) }
+        (pat, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }))
+      }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
-      { let exp, poly =
-          wrap_type_annotation ~loc:$sloc $4 $6 $8 in
+      (* The code upstream looks like:
+         {[
+           let constraint' =
+             Pvc_constraint { locally_abstract_univars=$4; typ = $6}
+           in
+           ($1, $8, Some constraint')
+         ]}
+
+         But this would require encoding [newtypes] (which, internally, may
+         associate a layout with a newtype) in Jane Syntax, which will require
+         a small amount of work.
+      *)
+      { let exp, poly = wrap_type_annotation ~loc:$sloc $4 $6 $8 in
         let loc = ($startpos($1), $endpos($6)) in
-        (ghpat ~loc (Ppat_constraint($1, poly)), exp) }
-||||||| merged common ancestors
-        let loc = Location.(t.ptyp_loc.loc_start, t.ptyp_loc.loc_end) in
-        let typ = ghtyp ~loc (Ptyp_poly([],t)) in
-        let patloc = ($startpos($1), $endpos($2)) in
-        (ghpat ~loc:patloc (Ppat_constraint(v, typ)),
-         mkexp_constraint ~loc:$sloc $4 $2) }
-  | let_ident COLON poly(core_type) EQUAL seq_expr
-      { let patloc = ($startpos($1), $endpos($3)) in
-        (ghpat ~loc:patloc
-           (Ppat_constraint($1, ghtyp ~loc:($loc($3)) $3)),
-         $5) }
-  | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
-      { let exp, poly =
-          wrap_type_annotation ~loc:$sloc $4 $6 $8 in
-        let loc = ($startpos($1), $endpos($6)) in
-        (ghpat ~loc (Ppat_constraint($1, poly)), exp) }
-=======
-        (v, $4, Some t)
-        }
-  | let_ident COLON poly(core_type) EQUAL seq_expr
-    {
-      let t = ghtyp ~loc:($loc($3)) $3 in
-      ($1, $5, Some (Pvc_constraint { locally_abstract_univars = []; typ=t }))
-    }
-  | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
-    { let constraint' =
-        Pvc_constraint { locally_abstract_univars=$4; typ = $6}
-      in
-      ($1, $8, Some constraint') }
->>>>>>> ocaml/5.1
+        (ghpat ~loc (Ppat_constraint($1, poly)), exp, None)
+       }
   | pattern_no_exn EQUAL seq_expr
       { ($1, $3, None) }
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
-<<<<<<< HEAD
-      { let loc = ($startpos($1), $endpos($3)) in
-        (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
-  | mode_flag+ let_ident strict_binding_modes
-    { ($2, ghexp_with_modes $sloc $1 ($3 $1)) }
-||||||| merged common ancestors
-      { let loc = ($startpos($1), $endpos($3)) in
-        (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
-=======
       { ($1, $5, Some(Pvc_constraint { locally_abstract_univars=[]; typ=$3 })) }
->>>>>>> ocaml/5.1
+  | mode_flag+ let_ident strict_binding_modes
+      { ($2, ghexp_with_modes $sloc $1 ($3 $1), None) }
 ;
 let_binding_body:
   | let_binding_body_no_punning

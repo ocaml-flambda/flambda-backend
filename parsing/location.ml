@@ -18,7 +18,6 @@ open Lexing
 type t = Warnings.loc =
   { loc_start: position; loc_end: position; loc_ghost: bool }
 
-<<<<<<< HEAD
 let compare_position : position -> position -> int =
   fun
     { pos_fname = pos_fname_1
@@ -59,18 +58,7 @@ let compare
   | i -> i
 ;;
 
-let in_file name =
-  let loc = { dummy_pos with pos_fname = name } in
-  { loc_start = loc; loc_end = loc; loc_ghost = true }
-;;
-||||||| merged common ancestors
-let in_file name =
-  let loc = { dummy_pos with pos_fname = name } in
-  { loc_start = loc; loc_end = loc; loc_ghost = true }
-;;
-=======
 let in_file = Warnings.ghost_loc_in_file
->>>>>>> ocaml/5.1
 
 let none = in_file "_none_"
 let is_none l = (l = none)

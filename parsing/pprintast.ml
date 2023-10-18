@@ -304,11 +304,6 @@ let tyvar_jkind_loc ~print_quote f (str,jkind) =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
-let non_jane_syntax_expr_attributes expr =
-  match Jane_syntax.Expression.of_ast expr with
-  | Some (_, attrs) -> attrs
-  | None -> expr.pexp_attributes
-
 let maybe_local_type pty ctxt f c =
   let cattrs, is_local = check_local_attr c.ptyp_attributes in
   let c = { c with ptyp_attributes = cattrs } in
@@ -1448,125 +1443,6 @@ and pp_print_pexp_function ctxt sep f x =
 (* transform [f = fun g h -> ..] to [f g h = ... ] could be improved *)
 and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
   (* .pvb_attributes have already been printed by the caller, #bindings *)
-<<<<<<< HEAD
-  let tyvars_str tyvars = List.map (fun v -> v.txt) tyvars in
-  let is_desugared_gadt p e =
-    let gadt_pattern =
-      match p with
-      | {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var _} as pat,
-                                   {ptyp_desc=Ptyp_poly (args_tyvars, rt)});
-         ppat_attributes=[]}->
-          Some (pat, args_tyvars, rt)
-      | _ -> None in
-    let rec gadt_exp tyvars e =
-      match e with
-      (* no need to handle jkind annotations here; the extracted variables
-         don't get printed -- they're just used to decide how to print *)
-      | {pexp_desc=Pexp_newtype (tyvar, e); pexp_attributes=[]} ->
-          gadt_exp (tyvar :: tyvars) e
-      | {pexp_desc=Pexp_constraint (e, ct); pexp_attributes=[]} ->
-          Some (List.rev tyvars, e, ct)
-      | _ -> None in
-    let gadt_exp = gadt_exp [] e in
-    match gadt_pattern, gadt_exp with
-    | Some (p, pt_tyvars, pt_ct), Some (e_tyvars, e, e_ct)
-      when tyvars_str pt_tyvars = tyvars_str e_tyvars ->
-      let ety = Typ.varify_constructors e_tyvars e_ct in
-      if ety = pt_ct then
-      Some (p, pt_tyvars, e_ct, e) else None
-    | _ -> None in
-  if non_jane_syntax_expr_attributes x <> []
-  then
-    match p with
-    | {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var _; _} as pat,
-                                 ({ptyp_desc=Ptyp_poly _; _} as typ));
-       ppat_attributes=[]; _} ->
-        pp f "%a@;: %a@;=@;%a"
-          (simple_pattern ctxt) pat (core_type ctxt) typ (expression ctxt) x
-    | _ ->
-        pp f "%a@;=@;%a" (pattern ctxt) p (expression ctxt) x
-  else
-  match is_desugared_gadt p x with
-  | Some (p, [], ct, e) ->
-      pp f "%a@;: %a@;=@;%a"
-        (simple_pattern ctxt) p (core_type ctxt) ct (expression ctxt) e
-  | Some (p, tyvars, ct, e) -> begin
-    pp f "%a@;: type@;%a.@;%a@;=@;%a"
-    (simple_pattern ctxt) p (list pp_print_string ~sep:"@;")
-    (tyvars_str tyvars) (core_type ctxt) ct (expression ctxt) e
-    end
-||||||| merged common ancestors
-  let rec pp_print_pexp_function f x =
-    if x.pexp_attributes <> [] then pp f "=@;%a" (expression ctxt) x
-    else match x.pexp_desc with
-      | Pexp_fun (label, eo, p, e) ->
-          if label=Nolabel then
-            pp f "%a@ %a" (simple_pattern ctxt) p pp_print_pexp_function e
-          else
-            pp f "%a@ %a"
-              (label_exp ctxt) (label,eo,p) pp_print_pexp_function e
-      | Pexp_newtype (str,e) ->
-          pp f "(type@ %s)@ %a" str.txt pp_print_pexp_function e
-      | _ -> pp f "=@;%a" (expression ctxt) x
-  in
-  let tyvars_str tyvars = List.map (fun v -> v.txt) tyvars in
-  let is_desugared_gadt p e =
-    let gadt_pattern =
-      match p with
-      | {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var _} as pat,
-                                   {ptyp_desc=Ptyp_poly (args_tyvars, rt)});
-         ppat_attributes=[]}->
-          Some (pat, args_tyvars, rt)
-      | _ -> None in
-    let rec gadt_exp tyvars e =
-      match e with
-      | {pexp_desc=Pexp_newtype (tyvar, e); pexp_attributes=[]} ->
-          gadt_exp (tyvar :: tyvars) e
-      | {pexp_desc=Pexp_constraint (e, ct); pexp_attributes=[]} ->
-          Some (List.rev tyvars, e, ct)
-      | _ -> None in
-    let gadt_exp = gadt_exp [] e in
-    match gadt_pattern, gadt_exp with
-    | Some (p, pt_tyvars, pt_ct), Some (e_tyvars, e, e_ct)
-      when tyvars_str pt_tyvars = tyvars_str e_tyvars ->
-      let ety = Typ.varify_constructors e_tyvars e_ct in
-      if ety = pt_ct then
-      Some (p, pt_tyvars, e_ct, e) else None
-    | _ -> None in
-  if x.pexp_attributes <> []
-  then
-    match p with
-    | {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var _; _} as pat,
-                                 ({ptyp_desc=Ptyp_poly _; _} as typ));
-       ppat_attributes=[]; _} ->
-        pp f "%a@;: %a@;=@;%a"
-          (simple_pattern ctxt) pat (core_type ctxt) typ (expression ctxt) x
-    | _ ->
-        pp f "%a@;=@;%a" (pattern ctxt) p (expression ctxt) x
-  else
-  match is_desugared_gadt p x with
-  | Some (p, [], ct, e) ->
-      pp f "%a@;: %a@;=@;%a"
-        (simple_pattern ctxt) p (core_type ctxt) ct (expression ctxt) e
-  | Some (p, tyvars, ct, e) -> begin
-    pp f "%a@;: type@;%a.@;%a@;=@;%a"
-    (simple_pattern ctxt) p (list pp_print_string ~sep:"@;")
-    (tyvars_str tyvars) (core_type ctxt) ct (expression ctxt) e
-    end
-=======
-  let rec pp_print_pexp_function f x =
-    if x.pexp_attributes <> [] then pp f "=@;%a" (expression ctxt) x
-    else match x.pexp_desc with
-      | Pexp_fun (label, eo, p, e) ->
-          if label=Nolabel then
-            pp f "%a@ %a" (simple_pattern ctxt) p pp_print_pexp_function e
-          else
-            pp f "%a@ %a"
-              (label_exp ctxt) (label,eo,p) pp_print_pexp_function e
-      | Pexp_newtype (str,e) ->
-          pp f "(type@ %s)@ %a" str.txt pp_print_pexp_function e
-      | _ -> pp f "=@;%a" (expression ctxt) x
-  in
   match ct with
   | Some (Pvc_constraint { locally_abstract_univars = []; typ }) ->
       pp f "%a@;:@;%a@;=@;%a"
@@ -1585,15 +1461,53 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
         (core_type ctxt) ground
         (core_type ctxt) coercion
         (expression ctxt) x
->>>>>>> ocaml/5.1
-  | None -> begin
-      match p with
-      | {ppat_desc=Ppat_var _; ppat_attributes=[]} ->
-          pp f "%a@ %a" (simple_pattern ctxt) p
-            (pp_print_pexp_function ctxt "=") x
+  | None ->
+      (* CR layouts 1.5: We just need to check for [is_desugared_gadt] because
+         the parser hasn't been upgraded to parse [let x : type a. ... = ...] as
+         [Pvb_constraint] as it has been upstream. Once we encode that with Jane
+         Syntax appropriately, we can delete this code.
+      *)
+      let tyvars_str tyvars = List.map (fun v -> v.txt) tyvars in
+      let is_desugared_gadt p e =
+        let gadt_pattern =
+          match p with
+          | {ppat_desc=Ppat_constraint({ppat_desc=Ppat_var _} as pat,
+                                      {ptyp_desc=Ptyp_poly (args_tyvars, rt)});
+            ppat_attributes=[]}->
+              Some (pat, args_tyvars, rt)
+          | _ -> None in
+        let rec gadt_exp tyvars e =
+          match e with
+          (* no need to handle jkind annotations here; the extracted variables
+            don't get printed -- they're just used to decide how to print *)
+          | {pexp_desc=Pexp_newtype (tyvar, e); pexp_attributes=[]} ->
+              gadt_exp (tyvar :: tyvars) e
+          | {pexp_desc=Pexp_constraint (e, ct); pexp_attributes=[]} ->
+              Some (List.rev tyvars, e, ct)
+          | _ -> None in
+        let gadt_exp = gadt_exp [] e in
+        match gadt_pattern, gadt_exp with
+        | Some (p, pt_tyvars, pt_ct), Some (e_tyvars, e, e_ct)
+          when tyvars_str pt_tyvars = tyvars_str e_tyvars ->
+            let ety = Ast_helper.Typ.varify_constructors e_tyvars e_ct in
+            if ety = pt_ct then
+              Some (p, pt_tyvars, e_ct, e) else None
+        | _ -> None
+      in
+      begin match is_desugared_gadt p x with
+      | Some (p, (_ :: _ as tyvars), ct, e) ->
+          pp f "%a@;: type@;%a.@;%a@;=@;%a"
+            (simple_pattern ctxt) p (list pp_print_string ~sep:"@;")
+            (tyvars_str tyvars) (core_type ctxt) ct (expression ctxt) e
       | _ ->
-          pp f "%a@;=@;%a" (pattern ctxt) p (expression ctxt) x
-    end
+        begin match p with
+        | {ppat_desc=Ppat_var _; ppat_attributes=[]} ->
+            pp f "%a@ %a" (simple_pattern ctxt) p
+              (pp_print_pexp_function ctxt "=") x
+        | _ ->
+            pp f "%a@;=@;%a" (pattern ctxt) p (expression ctxt) x
+        end
+      end
 
 (* [in] is not printed *)
 and bindings ctxt f (rf,l) =
@@ -2213,4 +2127,3 @@ let signature_item = print_reset_with_maximal_extensions signature_item
 let binding = print_reset_with_maximal_extensions binding
 let payload = print_reset_with_maximal_extensions payload
 let type_declaration = print_reset_with_maximal_extensions type_declaration
-
