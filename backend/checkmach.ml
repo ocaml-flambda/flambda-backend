@@ -372,16 +372,7 @@ module Annotation : sig
 
   val is_assume : t -> bool
 
-  val report_error : exn -> Location.error option
-
-  exception
-    Invalid of
-      { a : t;
-        fun_name : string;
-        fun_dbg : Debuginfo.t;
-        property : Cmm.property;
-        witnesses : Witnesses.components
-      }
+  val is_strict : t -> bool
 end = struct
   (**
    ***************************************************************************
@@ -415,6 +406,8 @@ end = struct
     if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
+
+  let is_strict t = t.strict
 
   let find codegen_options spec fun_name dbg =
     let ignore_assert_all = ref false in
@@ -450,25 +443,28 @@ end = struct
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
+end
 
-  exception
-    Invalid of
-      { a : t;
-        fun_name : string;
-        fun_dbg : Debuginfo.t;
-        property : Cmm.property;
-        witnesses : Witnesses.components
-      }
+module Report : sig
+  type t =
+    { a : Annotation.t;
+      fun_name : string;
+      fun_dbg : Debuginfo.t;
+      witnesses : Witnesses.components
+    }
 
-  let print_error ppf t ~fun_name ~fun_dbg ~property =
-    Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
-      (Printcmm.property_to_string property)
-      (if t.strict then " strict" else "")
-      (fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
-      |> List.map (fun dbg ->
-             Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
-      |> String.concat ",")
-      fun_name
+  exception Fail of t list * Cmm.property
+
+  val print : exn -> Location.error option
+end = struct
+  type t =
+    { a : Annotation.t;
+      fun_name : string;
+      fun_dbg : Debuginfo.t;
+      witnesses : Witnesses.components
+    }
+
+  exception Fail of t list * Cmm.property
 
   let print_witnesses w : Location.msg list =
     let { Witnesses.nor; exn; div } = Witnesses.simplify w in
@@ -498,13 +494,37 @@ end = struct
         let details, _ = Misc.Stdlib.List.split_at cutoff l in
         print_with_dots details
 
-  let report_error = function
-    | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
-      let sub = print_witnesses witnesses in
-      Some
-        (Location.error_of_printer ~loc:a.loc ~sub
-           (print_error ~fun_name ~fun_dbg ~property)
-           a)
+  let error_message ~property_name t =
+    let { a; fun_name; fun_dbg; witnesses } = t in
+    let sub = print_witnesses witnesses in
+    let loc = Annotation.get_loc a in
+    Location.errorf ~loc ~sub
+      "Annotation check for %s%s failed on function %s (%s)" property_name
+      (if Annotation.is_strict a then " strict" else "")
+      (fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
+      |> List.map (fun dbg ->
+             Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+      |> String.concat ",")
+      fun_name
+
+  let print_one ~property_name t =
+    error_message ~property_name t |> Location.print_report Format.err_formatter
+
+  let print = function
+    | Fail (reports, property) -> (
+      match reports with
+      | [] -> assert false
+      | last_error :: rev_other_errors ->
+        (* Print all errors in a compilation unit as separate messages to make
+           editor integration easier. *)
+        (* CR-someday gyorsh: adjust Location and editor integration to make it
+           easier to print an error message with nested sub-locations.
+           Location.msg currently allows only one level of nesting, but here we
+           have two levels. *)
+        let property_name = Printcmm.property_to_string property in
+        rev_other_errors |> List.rev |> List.iter (print_one ~property_name);
+        (* Finally, raise Error with the last function. *)
+        Some (error_message ~property_name last_error))
     | _ -> None
 end
 
@@ -799,6 +819,7 @@ end = struct
   let record_unit unit_info ppf =
     report_unit_info ppf unit_info ~msg:"before resolve_all";
     Unit_info.resolve_all unit_info;
+    let errors = ref [] in
     let record (func_info : Func_info.t) =
       (match func_info.annotation with
       | None -> ()
@@ -823,18 +844,20 @@ end = struct
             Value.diff_witnesses ~expected:expected_value
               ~actual:func_info.value
           in
-          raise
-            (Annotation.Invalid
-               { a;
+          errors
+            := { Report.a;
                  fun_name = func_info.name;
                  fun_dbg = func_info.dbg;
-                 property = S.property;
                  witnesses
-               }));
+               }
+               :: !errors);
       report_func_info ~msg:"record" ppf func_info;
       S.set_value func_info.name func_info.value
     in
-    Unit_info.iter unit_info ~f:record
+    Unit_info.iter unit_info ~f:record;
+    match !errors with
+    | [] -> ()
+    | errors -> raise (Report.Fail (errors, S.property))
 
   let record_unit unit_info ppf =
     Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
@@ -1213,4 +1236,4 @@ let iter_witnesses f =
       f func_info.name
         (Value.get_witnesses func_info.value |> Witnesses.simplify))
 
-let () = Location.register_error_of_exn Annotation.report_error
+let () = Location.register_error_of_exn Report.print
