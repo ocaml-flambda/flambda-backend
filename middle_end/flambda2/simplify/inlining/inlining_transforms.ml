@@ -26,8 +26,8 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_region
   let callee, rec_info =
     match callee with
     | None ->
-      (* XXX maybe instead of [None] for the callee we need something that
-         allows the rec-info to be stored? *)
+      (* CR ncourant: maybe instead of [None] for the callee we need something
+         that allows the rec-info to be stored? *)
       None, Rec_info_expr.do_not_inline
     | Some callee -> (
       match unroll_to with

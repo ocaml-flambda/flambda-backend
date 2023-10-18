@@ -1142,34 +1142,34 @@ let close_exact_or_unknown_apply acc env
     | Some region -> region
   in
   let mode = Alloc_mode.For_types.from_lambda mode in
-  let acc, call_kind =
+  let acc, call_kind, can_erase_callee =
     match kind with
     | Function -> (
-      ( acc,
-        match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
-          let is_tupled =
-            let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.is_tupled meta
+      match (callee_approx : Env.value_approximation option) with
+      | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
+        let meta = Code_or_metadata.code_metadata code_or_meta in
+        if Code_metadata.is_tupled meta
+        then
+          (* CR keryan : We could do better here since we know the arity, but we
+             would have to untuple the arguments and we lack information for
+             now *)
+          acc, Call_kind.indirect_function_call_unknown_arity mode, false
+        else
+          let can_erase_callee =
+            Flambda_features.classic_mode ()
+            && not (Code_metadata.is_my_closure_used meta)
           in
-          if is_tupled
-          then
-            (* CR keryan : We could do better here since we know the arity, but
-               we would have to untuple the arguments and we lack information
-               for now *)
-            Call_kind.indirect_function_call_unknown_arity mode
-          else Call_kind.direct_function_call code_id mode
-        | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some
-            ( Value_unknown | Value_symbol _ | Value_int _
-            | Block_approximation _ ) ->
-          assert false
-        (* See [close_apply] *) ))
+          acc, Call_kind.direct_function_call code_id mode, can_erase_callee
+      | None -> acc, Call_kind.indirect_function_call_unknown_arity mode, false
+      | Some
+          (Value_unknown | Value_symbol _ | Value_int _ | Block_approximation _)
+        ->
+        assert false (* See [close_apply] *))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
       ( acc,
-        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode
-      )
+        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode,
+        false )
   in
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
@@ -1184,8 +1184,10 @@ let close_exact_or_unknown_apply acc env
     | Rc_nontail -> Apply.Position.Nontail
   in
   let apply =
-    Apply.create ~callee:(Some callee) ~continuation:(Return continuation)
-      apply_exn_continuation ~args ~args_arity ~return_arity ~call_kind
+    Apply.create
+      ~callee:(if can_erase_callee then None else Some callee)
+      ~continuation:(Return continuation) apply_exn_continuation ~args
+      ~args_arity ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)

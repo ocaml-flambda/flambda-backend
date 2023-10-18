@@ -885,14 +885,16 @@ module Expr_with_acc = struct
         | C_call _ -> false)
     in
     let acc =
-      let callee =
-        match Apply.callee apply with
-        | None ->
-          Misc.fatal_errorf "Did not expect [Apply] with missing callee:@ %a"
-            Apply.print apply
-        | Some callee -> callee
-      in
-      Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc callee
+      match Apply.callee apply with
+      | None ->
+        (* Since [is_my_closure_used] is initialized to [true] by default for
+           recursive functions, this can't affect the result of the loopify
+           attribute, because the recursive calls will keep the callee. Besides,
+           if we are in this case, we are compiling in classic mode, and loopify
+           won't run anyway. *)
+        acc
+      | Some callee ->
+        Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc callee
     in
     let acc =
       Acc.add_free_names_and_check_my_closure_use

@@ -157,14 +157,14 @@ let invariant
   | Function _ | Method _ -> ()
   | C_call _ -> (
     (match callee with
-    | Some callee when not (Simple.is_symbol callee) ->
+    | Some callee when Simple.is_symbol callee -> ()
+    | None | Some _ ->
       (* CR-someday mshinwell: We could expose indirect C calls at the source
          language level. *)
       Misc.fatal_errorf
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
-        print t
-    | Some _ | None -> ());
+        print t);
     match Flambda_arity.unarized_components return_arity with
     | [] | [_] -> ()
     | _ :: _ :: _ ->

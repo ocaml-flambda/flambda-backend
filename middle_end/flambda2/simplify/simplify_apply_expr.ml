@@ -155,7 +155,7 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
   simplify_expr dacc expr ~down_to_up
 
 let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
-    ~result_arity ~coming_from_indirect ~callee's_code_metadata uacc
+    ~result_arity ~coming_from_indirect ~callee's_code_metadata:_ uacc
     ~after_rebuild =
   let uacc =
     if coming_from_indirect
@@ -168,13 +168,16 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
   in
-  let erase_callee =
-    match Apply.callee apply with
-    | None -> false
-    | Some callee ->
-      Simple.is_symbol callee
-      && not (Code_metadata.is_my_closure_used callee's_code_metadata)
-  in
+  let erase_callee = false in
+  (* CR ncourant: find out how we can erase the callee in simplify mode and
+     still update to newer code pointers after resimplification. *)
+  (* let erase_callee =
+   *   match Apply.callee apply with
+   *   | None -> false
+   *   | Some callee ->
+   *     Simple.is_symbol callee
+   *     && not (Code_metadata.is_my_closure_used callee's_code_metadata)
+   * in *)
   let apply = if erase_callee then Apply.erase_callee apply else apply in
   let uacc, expr =
     match use_id with
