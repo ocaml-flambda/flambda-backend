@@ -981,7 +981,8 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
   in
   let ok = ref atomic_things_equal in
   let callee1' =
-    options ~f:simple_exprs ~subst:subst_simple env (Apply.callee apply1) (Apply.callee apply2)
+    options ~f:simple_exprs ~subst:subst_simple env (Apply.callee apply1)
+      (Apply.callee apply2)
     |> Comparison.chain ~if_equivalent:(Apply.callee apply2) ~ok
   in
   let args1' =
