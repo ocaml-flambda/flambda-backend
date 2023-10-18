@@ -982,22 +982,8 @@ and module_expr_desc =
   | Pmod_structure of structure  (** [struct ... end] *)
   | Pmod_functor of functor_parameter * module_expr
       (** [functor(X : MT1) -> ME] *)
-<<<<<<< HEAD
   | Pmod_apply of module_expr * module_expr  (** [ME1(ME2)] *)
-||||||| merged common ancestors
-        (* functor(X : MT1) -> ME *)
-  | Pmod_apply of module_expr * module_expr
-        (* ME1(ME2) *)
-  | Pmod_constraint of module_expr * module_type
-        (* (ME : MT) *)
-  | Pmod_unpack of expression
-        (* (val E) *)
-  | Pmod_extension of extension
-        (* [%id] *)
-=======
-  | Pmod_apply of module_expr * module_expr (** [ME1(ME2)] *)
   | Pmod_apply_unit of module_expr (** [ME1()] *)
->>>>>>> ocaml/5.1
   | Pmod_constraint of module_expr * module_type  (** [(ME : MT)] *)
   | Pmod_unpack of expression  (** [(val E)] *)
   | Pmod_extension of extension  (** [[%id]] *)
@@ -1040,16 +1026,6 @@ and structure_item_desc =
   | Pstr_include of include_declaration  (** [include ME] *)
   | Pstr_attribute of attribute  (** [[\@\@\@id]] *)
   | Pstr_extension of extension * attributes  (** [[%%id]] *)
-<<<<<<< HEAD
-||||||| merged common ancestors
-        (* class type ct1 = ... and ... and ctn = ... *)
-  | Pstr_include of include_declaration
-        (* include ME *)
-  | Pstr_attribute of attribute
-        (* [@@@id] *)
-  | Pstr_extension of extension * attributes
-        (* [%%id] *)
-=======
 
 and value_constraint =
   | Pvc_constraint of {
@@ -1066,7 +1042,6 @@ and value_constraint =
      - [Pvc_coercion { ground=None; coercion }] represents [let x :> typ]
      - [Pvc_coercion { ground=Some g; coercion }] represents [let x : g :> typ]
   *)
->>>>>>> ocaml/5.1
 
 and value_binding =
   {

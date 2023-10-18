@@ -254,13 +254,8 @@ module Compiler_ir : sig
 end
 
 module Compiler_pass : sig
-<<<<<<< HEAD
-  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
-||||||| merged common ancestors
-  type t = Parsing | Typing | Scheduling | Emit
-=======
-  type t = Parsing | Typing | Lambda | Scheduling | Emit
->>>>>>> ocaml/5.1
+  type t = Parsing | Typing | Lambda
+         | Scheduling | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool

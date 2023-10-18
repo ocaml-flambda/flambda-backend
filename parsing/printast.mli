@@ -23,20 +23,10 @@
 open Parsetree
 open Format
 
-<<<<<<< HEAD
-val interface : formatter -> signature_item list -> unit;;
-val implementation : formatter -> structure_item list -> unit;;
-val top_phrase : formatter -> toplevel_phrase -> unit;;
-val constant: formatter -> constant -> unit;;
-||||||| merged common ancestors
-val interface : formatter -> signature_item list -> unit;;
-val implementation : formatter -> structure_item list -> unit;;
-val top_phrase : formatter -> toplevel_phrase -> unit;;
-=======
 val interface : formatter -> signature_item list -> unit
 val implementation : formatter -> structure_item list -> unit
 val top_phrase : formatter -> toplevel_phrase -> unit
->>>>>>> ocaml/5.1
+val constant: formatter -> constant -> unit
 
 val expression: int -> formatter -> expression -> unit
 val pattern: int -> formatter -> pattern -> unit

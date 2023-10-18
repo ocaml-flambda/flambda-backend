@@ -111,16 +111,10 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
-<<<<<<< HEAD
+  | Generative_application_expects_unit     (* 73 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
-;;
-||||||| merged common ancestors
-;;
-=======
-  | Generative_application_expects_unit     (* 73 *)
->>>>>>> ocaml/5.1
 
 type alert = {kind:string; message:string; def:loc; use:loc}
 

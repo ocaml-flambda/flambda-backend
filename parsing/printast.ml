@@ -988,12 +988,7 @@ let interface ppf x = list 0 signature_item ppf x
 
 let implementation ppf x = list 0 structure_item ppf x
 
-<<<<<<< HEAD
-let top_phrase ppf x = toplevel_phrase 0 ppf x;;
-
-let constant = fmt_constant;;
-||||||| merged common ancestors
-let top_phrase ppf x = toplevel_phrase 0 ppf x;;
-=======
 let top_phrase ppf x = toplevel_phrase 0 ppf x
->>>>>>> ocaml/5.1
+
+let constant = fmt_constant
+

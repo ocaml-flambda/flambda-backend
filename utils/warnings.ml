@@ -108,15 +108,9 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
-<<<<<<< HEAD
+  | Generative_application_expects_unit     (* 73 *)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
-;;
-||||||| merged common ancestors
-;;
-=======
-  | Generative_application_expects_unit     (* 73 *)
->>>>>>> ocaml/5.1
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -197,27 +191,16 @@ let number = function
   | Missing_mli -> 70
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
-<<<<<<< HEAD
+  | Generative_application_expects_unit -> 73
   | Probe_name_too_long _ -> 190
   | Unchecked_property_attribute _ -> 199
-||||||| merged common ancestors
-=======
-  | Generative_application_expects_unit -> 73
->>>>>>> ocaml/5.1
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
    the  definition of the number function above ends *)
 
-<<<<<<< HEAD
 let last_warning_number = 199
 ;;
-||||||| merged common ancestors
-let last_warning_number = 72
-;;
-=======
-let last_warning_number = 73
->>>>>>> ocaml/5.1
 
 type description =
   { number : int;
@@ -549,18 +532,6 @@ let descriptions = [
   { number = 72;
     names = ["tmc-breaks-tailcall"];
     description = "A tail call is turned into a non-tail call \
-<<<<<<< HEAD
-                   by the @tail_mod_cons transformation." };
-  { number = 190;
-    names = ["probe-name-too-long"];
-    description = "Probe name must be at most 100 characters long." };
-  { number = 199;
-    names = ["unchecked-property-attribute"];
-    description = "A property of a function that was \
-                   optimized away cannot be checked." };
-||||||| merged common ancestors
-                   by the @tail_mod_cons transformation." };
-=======
                    by the @tail_mod_cons transformation.";
     since = since 4 14 };
   { number = 73;
@@ -568,7 +539,15 @@ let descriptions = [
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
     since = since 5 1 };
->>>>>>> ocaml/5.1
+  { number = 190;
+    names = ["probe-name-too-long"];
+    description = "Probe name must be at most 100 characters long.";
+    since = since 4 14 };
+  { number = 199;
+    names = ["unchecked-property-attribute"];
+    description = "A property of a function that was \
+                   optimized away cannot be checked.";
+    since = since 4 14 };
 ]
 
 let name_to_number =
@@ -1087,13 +1066,7 @@ let message = function
   | Inlining_impossible reason ->
       Printf.sprintf "Cannot inline: %s" reason
   | Ambiguous_var_in_pattern_guard vars ->
-<<<<<<< HEAD
-||||||| merged common ancestors
-      let msg =
-        let vars = List.sort String.compare vars in
-=======
       let[@manual.ref "ss:warn57"] ref_manual = [ 13; 5; 4 ] in
->>>>>>> ocaml/5.1
       let vars = List.sort String.compare vars in
       let vars_explanation =
         let in_different_places =
@@ -1106,27 +1079,12 @@ let message = function
             let vars = String.concat ", " vars in
             "variables " ^ vars ^ " appear " ^ in_different_places
       in
-<<<<<<< HEAD
-      Printf.sprintf
-||||||| merged common ancestors
-            "variables " ^ String.concat "," vars in
-      Printf.sprintf
-=======
       Format.asprintf
->>>>>>> ocaml/5.1
         "Ambiguous or-pattern variables under guard;\n\
          %s.\n\
          Only the first match will be used to evaluate the guard expression.\n\
-<<<<<<< HEAD
-         %t"
-        vars_explanation ref_manual_explanation
-||||||| merged common ancestors
-         %s may match different arguments. %t"
-        msg ref_manual_explanation
-=======
          %a"
         vars_explanation Misc.print_see_manual ref_manual
->>>>>>> ocaml/5.1
   | No_cmx_file name ->
       Printf.sprintf
         "no cmx file was found in path for module %s, \
@@ -1182,19 +1140,15 @@ let message = function
        but is never applied in TMC position."
   | Tmc_breaks_tailcall ->
       "This call\n\
-<<<<<<< HEAD
-       is in tail-modulo-cons positionin a TMC function,\n\
-||||||| merged common ancestors
-      "This call is in tail-modulo-cons position in a TMC function,\n\
-=======
        is in tail-modulo-cons position in a TMC function,\n\
->>>>>>> ocaml/5.1
        but the function called is not itself specialized for TMC,\n\
        so the call will not be transformed into a tail call.\n\
        Please either mark the called function with the [@tail_mod_cons]\n\
        attribute, or mark this call with the [@tailcall false] attribute\n\
        to make its non-tailness explicit."
-<<<<<<< HEAD
+  | Generative_application_expects_unit ->
+      "A generative functor\n\
+       should be applied to '()'; using '(struct end)' is deprecated."
   | Probe_name_too_long name ->
       Printf.sprintf
         "This probe name is too long: `%s'. \
@@ -1205,16 +1159,6 @@ let message = function
       You can try to mark this function as [@inline never] \n\
       or move the attribute to the relevant callers of this function."
       property
-||||||| merged common ancestors
-       Please either mark the called function with\n\
-       the [@tail_mod_cons] attribute, or mark this call with\n\
-       the [@tailcall false] attribute to make its non-tailness \
-       explicit."
-=======
-  | Generative_application_expects_unit ->
-      "A generative functor\n\
-       should be applied to '()'; using '(struct end)' is deprecated."
->>>>>>> ocaml/5.1
 ;;
 
 let nerrors = ref 0
