@@ -35,14 +35,7 @@ val type_structure:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_toplevel_phrase:
-<<<<<<< HEAD
   Env.t -> Types.signature -> Parsetree.structure ->
-||||||| merged common ancestors
-  Env.t -> Parsetree.structure ->
-  Typedtree.structure * Types.signature * Signature_names.t * Env.t
-=======
-  Env.t -> Parsetree.structure ->
->>>>>>> ocaml/5.1
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_implementation:

@@ -39,12 +39,10 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
-<<<<<<< HEAD
     jkind_annotation: mapper -> const_jkind -> const_jkind;
-||||||| merged common ancestors
-=======
     location: mapper -> Location.t -> Location.t;
->>>>>>> ocaml/5.1
+    (* CR ccasinghino: remember to check that any new forms we've added have
+       locations mapped over now that there is a mapper for it. *)
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;

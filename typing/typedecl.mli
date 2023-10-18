@@ -63,16 +63,13 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 
 type native_repr_kind = Unboxed | Untagged
 
-<<<<<<< HEAD
 (* Records reason for a jkind representability requirement in errors. *)
 type jkind_sort_loc = Cstr_tuple | Record | External
-||||||| merged common ancestors
-=======
+
 type reaching_type_path = reaching_type_step list
 and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
->>>>>>> ocaml/5.1
 
 type error =
     Repeated_parameter

@@ -39,12 +39,10 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-<<<<<<< HEAD
     jkind_annotation: iterator -> const_jkind -> unit;
-||||||| merged common ancestors
-=======
     location: iterator -> Location.t -> unit;
->>>>>>> ocaml/5.1
+    (* CR ccasinghino: remember to check that any new forms we've added have
+       locations iterated over now that there is a iterator for it. *)
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;

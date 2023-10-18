@@ -46,10 +46,8 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-<<<<<<< HEAD
 type locality_mismatch = { order : position }
-||||||| merged common ancestors
-=======
+
 type type_kind =
   | Kind_abstract
   | Kind_record
@@ -57,7 +55,6 @@ type type_kind =
   | Kind_open
 
 type kind_mismatch = type_kind * type_kind
->>>>>>> ocaml/5.1
 
 type label_mismatch =
   | Type of Errortrace.equality_error

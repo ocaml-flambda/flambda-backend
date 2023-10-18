@@ -95,13 +95,8 @@ module Error: sig
     env: Env.t;
     missings: Types.signature_item list;
     incompatibles: (Ident.t * sigitem_symptom) list;
-<<<<<<< HEAD
-||||||| merged common ancestors
-    oks: (int * Typedtree.module_coercion) list;
-=======
     oks: (int * Typedtree.module_coercion) list;
     leftovers: ((Types.signature_item as 'it) * 'it * int) list
->>>>>>> ocaml/5.1
     (** signature items that could not be compared due to type divergence *)
   }
   and sigitem_symptom =
