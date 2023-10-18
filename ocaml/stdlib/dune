@@ -107,6 +107,10 @@
     float.mli
     float_u.ml
     float_u.mli
+    float_u_array.ml
+    float_u_array.mli
+    float_u_arrayLabels.ml
+    float_u_arrayLabels.mli
     format.ml
     format.mli
     fun.ml
