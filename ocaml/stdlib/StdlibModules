@@ -38,7 +38,8 @@ STDLIB_MODULE_BASENAMES = \
   stdlib pervasives either \
   sys obj camlinternalLazy lazy \
   seq option result bool char uchar \
-  list int bytes string unit marshal array iarray float float_u int32 int64 nativeint \
+  list int bytes string unit marshal array iarray float float_u float_u_array \
+  float_u_arrayLabels int32 int64 nativeint \
   lexing parsing set map stack queue stream buffer \
   camlinternalFormat printf arg atomic \
   printexc fun gc digest random hashtbl weak \

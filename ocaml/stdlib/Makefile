@@ -243,6 +243,48 @@ float_u.cmo: %.ml
 float_u.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
 
+stdlib__Float_u_array.cmi:
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	         -o $@ -c $(filter %.mli, $^)
+
+stdlib__Float_u_array.cmo:
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	         -o $@ -c $(filter %.ml, $^)
+
+stdlib__Float_u_array.cmx:
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha \
+	           -o $@ -c $(filter %.ml, $^)
+
+float_u_array.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+
+float_u_array.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+
+float_u_array.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
+
+stdlib__Float_u_arrayLabels.cmi:
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	         -o $@ -c $(filter %.mli, $^)
+
+stdlib__Float_u_arrayLabels.cmo:
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	         -o $@ -c $(filter %.ml, $^)
+
+stdlib__Float_u_arrayLabels.cmx:
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha \
+	           -o $@ -c $(filter %.ml, $^)
+
+float_u_arrayLabels.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+
+float_u_arrayLabels.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+
+float_u_arrayLabels.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
+
 %.cmi: %.mli
 	$(CAMLC) $(COMPFLAGS) -c $<
 
