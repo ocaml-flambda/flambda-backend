@@ -6615,10 +6615,16 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     | Tarrow((l, marg, mret), ty_arg', ty_res', _),
       Tarrow(_, ty_arg,  ty_res,  _)
       when lv' = generic_level || not !Clflags.principal ->
+<<<<<<< HEAD
       let ty_res', ty_res, changed = loosen_arrow_modes ty_res' ty_res in
       let mret, changed' = Alloc.newvar_below_comonadic mret in
       let marg, changed'' = Alloc.newvar_above marg in
       if changed || changed' || changed'' then
+=======
+      let ty_res', ty_res, changed = loosen_ret_modes ty_res' ty_res in
+      let mret, changed' = Alloc.newvar_below_comonadic mret in
+      if changed || changed' then
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
         newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),
         newty2 ~level:lv  (Tarrow((l, marg, mret), ty_arg,  ty_res,  commu_ok)),
         true
@@ -7070,10 +7076,14 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
     exp, Jkind.Sort.value
   else begin
     check_partial_application ~statement:true exp;
+<<<<<<< HEAD
     with_explanation explanation (fun () ->
       try unify_var env ty tv
       with Unify err ->
         raise(Error(exp.exp_loc, env, Expr_type_clash(err, None, Some exp.exp_desc))));
+=======
+    unify_var env tv ty;
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
     exp, sort
   end
 

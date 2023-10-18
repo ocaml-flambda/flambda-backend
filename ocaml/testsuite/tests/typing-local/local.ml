@@ -774,6 +774,7 @@ Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
                         ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This function is local-returning, but was expected otherwise
+<<<<<<< HEAD
 |}]
 
 (*
@@ -813,6 +814,8 @@ Line 1, characters 24-27:
                             ^^^
 Error: This expression has type local_ float -> local_ float -> unit
        but an expression was expected of type local_ 'a -> ('b -> 'c)
+=======
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 |}]
 
 
@@ -2767,5 +2770,9 @@ Line 2, characters 33-58:
 2 |   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type int -> local_ (int -> int)
+<<<<<<< HEAD
        but an expression was expected of type int -> (int -> int)
+=======
+       but an expression was expected of type int -> int -> int
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 |}];;

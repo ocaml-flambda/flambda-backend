@@ -1404,6 +1404,7 @@ Line 2, characters 19-31:
 Error:
        'a -> 'b has layout value, which is not a sublayout of immediate.
 |}]
+<<<<<<< HEAD
 
 (**************************************************)
 (* Test 36: Disallow non-representable statements *)
@@ -1452,3 +1453,5 @@ Error: This expression has type t_any but an expression was expected of type
        because it is in the body of a for-loop
        t_any has layout any, which is not representable.
 |}]
+=======
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8

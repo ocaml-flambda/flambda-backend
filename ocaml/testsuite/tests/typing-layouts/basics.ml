@@ -327,6 +327,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
    type parameter.  Bring back here when we have one enabled by default. *)
+<<<<<<< HEAD
 
 (****************************************************)
 (* Test 35: check bad layout error in filter_arrow *)
@@ -339,3 +340,5 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moved to [basics_beta.ml]. Bring here when we have
    non-representable layouts enabled by default. *)
+=======
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8

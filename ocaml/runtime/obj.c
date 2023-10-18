@@ -80,6 +80,13 @@ CAMLprim value caml_get_header(value blk)
   return caml_copy_nativeint(r);
 }
 
+CAMLprim value caml_get_header(value blk)
+{
+  // undefined behaviour if blk is not a block
+  intnat r = Hd_val(blk);
+  return caml_copy_nativeint(r);
+}
+
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {

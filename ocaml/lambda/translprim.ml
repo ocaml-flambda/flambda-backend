@@ -994,11 +994,18 @@ let lambda_primitive_needs_event_after = function
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
   | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
+<<<<<<< HEAD
   | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _
   | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
   | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+=======
+  | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+  | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string

@@ -1599,6 +1599,7 @@ Error: This type signature for foo33 is not a value type.
 (* Test 34: Layout clash in polymorphic record type *)
 
 (* tested elsewhere *)
+<<<<<<< HEAD
 
 (****************************************************)
 (* Test 35: check bad layout error in filter_arrow *)
@@ -1662,3 +1663,5 @@ Error: This expression has type t_any but an expression was expected of type
        because it is in the body of a for-loop
        t_any has layout any, which is not representable.
 |}]
+=======
+>>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
