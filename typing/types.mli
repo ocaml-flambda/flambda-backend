@@ -505,26 +505,9 @@ and ('lbl, 'cstr) type_kind =
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
-<<<<<<< HEAD
 (* CR layouts: after removing the void translation from lambda, we could get rid of
    this src_index / runtime_tag distinction.  But I am leaving it in because it
    may not be long before we need it again.
-||||||| merged common ancestors
-and record_representation =
-    Record_regular                      (* All fields are boxed / tagged *)
-  | Record_float                        (* All fields are floats *)
-  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension of Path.t          (* Inlined record under extension *)
-=======
-and record_representation =
-    Record_regular                      (* All fields are boxed / tagged *)
-  | Record_float                        (* All fields are floats *)
-  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension of Path.t          (* Inlined record under extension *)
-                             (* The argument is the path of the extension *)
->>>>>>> ocaml/5.1
 
    In particular, lambda will need to do something about computing offsets for
    block projections when not everything is one word wide, whether that's
@@ -739,7 +722,6 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
       map_type_expr: mapper -> type_expr From.wrapped -> type_expr To.wrapped
     }
 
-<<<<<<< HEAD
   val value_description :
     mapper -> From.value_description -> To.value_description
   val module_declaration :
@@ -754,10 +736,8 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
 end
 
 include Wrapped with type 'a wrapped = 'a
-||||||| merged common ancestors
-=======
+
 val item_visibility : signature_item -> visibility
->>>>>>> ocaml/5.1
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

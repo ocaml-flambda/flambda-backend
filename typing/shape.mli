@@ -22,7 +22,6 @@ module Uid : sig
 
   val reinit : unit -> unit
 
-<<<<<<< HEAD
   val mk : current_unit:Compilation_unit.t option -> t
   val of_compilation_unit_id : Compilation_unit.t -> t
   val of_predef_id : Ident.t -> t
@@ -93,78 +92,6 @@ val leaf : Uid.t -> t
 val decompose_abs : t -> (var * t) option
 
 (* CR lmaurer: Should really take a [Compilation_unit.t] *)
-||||||| merged common ancestors
-=======
-  val mk : current_unit:string -> t
-  val of_compilation_unit_id : Ident.t -> t
-  val of_predef_id : Ident.t -> t
-  val internal_not_actually_unique : t
-
-  val for_actual_declaration : t -> bool
-
-  include Identifiable.S with type t := t
-end
-
-module Sig_component_kind : sig
-  type t =
-    | Value
-    | Type
-    | Module
-    | Module_type
-    | Extension_constructor
-    | Class
-    | Class_type
-
-  val to_string : t -> string
-
-  (** Whether the name of a component of that kind can appear in a type. *)
-  val can_appear_in_types : t -> bool
-end
-
-module Item : sig
-  type t
-
-  val make : string -> Sig_component_kind.t -> t
-
-  val value : Ident.t -> t
-  val type_ : Ident.t -> t
-  val module_ : Ident.t -> t
-  val module_type : Ident.t -> t
-  val extension_constructor : Ident.t -> t
-  val class_ : Ident.t -> t
-  val class_type : Ident.t -> t
-
-  module Map : Map.S with type key = t
-end
-
-type var = Ident.t
-type t = { uid: Uid.t option; desc: desc }
-and desc =
-  | Var of var
-  | Abs of var * t
-  | App of t * t
-  | Struct of t Item.Map.t
-  | Leaf
-  | Proj of t * Item.t
-  | Comp_unit of string
-
-val print : Format.formatter -> t -> unit
-
-(* Smart constructors *)
-
-val for_unnamed_functor_param : var
-val fresh_var : ?name:string -> Uid.t -> var * t
-
-val var : Uid.t -> Ident.t -> t
-val abs : ?uid:Uid.t -> var -> t -> t
-val app : ?uid:Uid.t -> t -> arg:t -> t
-val str : ?uid:Uid.t -> t Item.Map.t -> t
-val proj : ?uid:Uid.t -> t -> Item.t -> t
-val leaf : Uid.t -> t
-
-val decompose_abs : t -> (var * t) option
-
->>>>>>> ocaml/5.1
 val for_persistent_unit : string -> t
 val leaf_for_unpack : t
 

@@ -18,17 +18,10 @@
 open Types
 open Misc
 
-<<<<<<< HEAD
 val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
 
 val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
 val get_uid_to_attributes_tbl : unit ->  Parsetree.attribute list Types.Uid.Tbl.t
-||||||| merged common ancestors
-=======
-val register_uid : Uid.t -> Location.t -> unit
-
-val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
->>>>>>> ocaml/5.1
 
 type value_unbound_reason =
   | Val_unbound_instance_variable
@@ -66,22 +59,13 @@ type address =
 type t
 
 val empty: t
-<<<<<<< HEAD
 
-(* These environments are lazy so that they may depend on the enabled
-   extensions, typically adjusted via command line flags.  If extensions are
-   changed after these environments are forced, they may be inaccurate.  This
-   could happen, for example, if extensions are adjusted via the
-   compiler-libs. *)
-val initial_safe_string: t Lazy.t
-val initial_unsafe_string: t Lazy.t
+(* This environment is lazy so that it may depend on the enabled extensions,
+   typically adjusted via command line flags.  If extensions are changed after
+   theis environment is forced, they may be inaccurate.  This could happen, for
+   example, if extensions are adjusted via the compiler-libs. *)
+val initial: t Lazy.t
 
-||||||| merged common ancestors
-val initial_safe_string: t
-val initial_unsafe_string: t
-=======
-val initial: t
->>>>>>> ocaml/5.1
 val diff: t -> t -> Ident.t list
 
 type type_descr_kind =
@@ -374,26 +358,11 @@ val add_extension:
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
-<<<<<<< HEAD
   Ident.t -> module_presence -> Subst.Lazy.module_type -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
   Ident.t -> module_presence -> module_declaration -> t -> t
 val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_declaration -> t -> t
-||||||| merged common ancestors
-val add_module:
-  ?arg:bool -> Ident.t -> module_presence -> module_type -> t -> t
-val add_module_declaration: ?arg:bool -> check:bool -> Ident.t ->
-  module_presence -> module_declaration -> t -> t
-val add_module_declaration_lazy: update_summary:bool ->
-  Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
-=======
-  Ident.t -> module_presence -> Subst.Lazy.modtype -> t -> t
-val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
-  Ident.t -> module_presence -> module_declaration -> t -> t
-val add_module_declaration_lazy: update_summary:bool ->
-  Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
->>>>>>> ocaml/5.1
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
 val add_modtype_lazy: update_summary:bool ->
    Ident.t -> Subst.Lazy.modtype_declaration -> t -> t

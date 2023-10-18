@@ -84,12 +84,7 @@ and pat_extra =
         (** (module P)     { pat_desc  = Tpat_var "P"
                            ; pat_extra = (Tpat_unpack, _, _) :: ... }
             (module _)     { pat_desc  = Tpat_any
-<<<<<<< HEAD
-                           ; pat_extra = (Tpat_unpack, _, _) :: ... }
-||||||| merged common ancestors
-=======
             ; pat_extra = (Tpat_unpack, _, _) :: ... }
->>>>>>> ocaml/5.1
          *)
 
 and 'k pattern_desc =
@@ -426,13 +421,7 @@ and 'k case =
     }
 
 and record_label_definition =
-<<<<<<< HEAD
-  | Kept of Types.type_expr * unique_use
-||||||| merged common ancestors
-  | Kept of Types.type_expr
-=======
-  | Kept of Types.type_expr * mutable_flag
->>>>>>> ocaml/5.1
+  | Kept of Types.type_expr * mutable_flag * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =

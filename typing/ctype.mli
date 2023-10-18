@@ -139,12 +139,8 @@ val lower_contravariant: Env.t -> type_expr -> unit
            to be used before generalize for expansive expressions *)
 val lower_variables_only: Env.t -> int -> type_expr -> unit
         (* Lower all variables to the given level *)
-<<<<<<< HEAD
-||||||| merged common ancestors
-=======
 val enforce_current_level: Env.t -> type_expr -> unit
         (* Lower whole type to !current_level *)
->>>>>>> ocaml/5.1
 val generalize_structure: type_expr -> unit
         (* Generalize the structure of a type, lowering variables
            to !current_level *)
@@ -182,23 +178,14 @@ val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
         Jkind.t -> type_declaration
 val existential_name: constructor_description -> type_expr -> string
-<<<<<<< HEAD
-val instance_constructor:
-        ?in_pattern:Env.t ref * int ->
-        constructor_description -> (type_expr * global_flag) list * type_expr * type_expr list
-||||||| merged common ancestors
-val instance_constructor:
-        ?in_pattern:Env.t ref * int ->
-        constructor_description -> type_expr list * type_expr * type_expr list
-=======
 
 type existential_treatment =
   | Keep_existentials_flexible
   | Make_existentials_abstract of { env: Env.t ref; scope: int }
 
 val instance_constructor: existential_treatment ->
-        constructor_description -> type_expr list * type_expr * type_expr list
->>>>>>> ocaml/5.1
+        constructor_description ->
+        (type_expr * global_flag) list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->
@@ -476,35 +463,15 @@ val nondep_cltype_declaration:
 val is_contractive: Env.t -> Path.t -> bool
 val normalize_type: type_expr -> unit
 
-<<<<<<< HEAD
 val remove_mode_and_jkind_variables: type_expr -> unit
         (* Ensure mode and jkind variables are fully determined *)
 
-val nongen_schema: Env.t -> type_expr -> bool
-        (* Check whether the given type scheme contains no non-generic
-           type variables, and ensure mode variables are fully determined *)
-||||||| merged common ancestors
-val nongen_schema: Env.t -> type_expr -> bool
-        (* Check whether the given type scheme contains no non-generic
-           type variables *)
-=======
 val nongen_vars_in_schema: Env.t -> type_expr -> Btype.TypeSet.t option
         (* Return any non-generic variables in the type scheme *)
->>>>>>> ocaml/5.1
 
-<<<<<<< HEAD
-val nongen_class_declaration: class_declaration -> bool
-        (* Check whether the given class type contains no non-generic
-           type variables, and ensures mode variables are fully determined.
-           Uses the empty environment.  *)
-||||||| merged common ancestors
-val nongen_class_declaration: class_declaration -> bool
-        (* Check whether the given class type contains no non-generic
-           type variables. Uses the empty environment.  *)
-=======
 val nongen_vars_in_class_declaration:class_declaration -> Btype.TypeSet.t option
-        (* Return any non-generic variables in the class type.
-           Uses the empty environment.  *)
+        (* Return any non-generic variables in the class type.  Also ensures
+           mode variables are fully determined. Uses the empty environment.  *)
 
 type variable_kind = Row_variable | Type_variable
 type closed_class_failure = {
@@ -512,7 +479,6 @@ type closed_class_failure = {
   meth: string;
   meth_ty: type_expr;
 }
->>>>>>> ocaml/5.1
 
 val free_variables: ?env:Env.t -> type_expr -> type_expr list
         (* If env present, then check for incomplete definitions too;
