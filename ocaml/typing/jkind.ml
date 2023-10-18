@@ -338,7 +338,9 @@ type any_creation_reason =
   | Type_expression_call
   | Array_type_argument
 
-type float64_creation_reason = Primitive of Ident.t
+type float64_creation_reason =
+  | Primitive of Ident.t
+  | Float64_check
 
 type annotation_context =
   | Type_declaration of Path.t
@@ -809,6 +811,8 @@ end = struct
     function
     | Primitive id ->
       fprintf ppf "it equals the primitive value type %s" (Ident.name id)
+    | Float64_check ->
+      fprintf ppf "float64 check"
 
   let format_creation_reason ppf : creation_reason -> unit = function
     | Annotated (ctx, _) ->
@@ -1205,6 +1209,7 @@ module Debug_printers = struct
 
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+    | Float64_check -> fprintf ppf "Float64_check"
 
   let creation_reason ppf : creation_reason -> unit = function
     | Annotated (ctx, loc) ->

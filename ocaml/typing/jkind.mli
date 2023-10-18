@@ -257,7 +257,9 @@ type any_creation_reason =
   | Type_expression_call
   | Array_type_argument
 
-type float64_creation_reason = Primitive of Ident.t
+type float64_creation_reason =
+  | Primitive of Ident.t
+  | Float64_check
 
 type creation_reason =
   | Annotated of annotation_context * Location.t

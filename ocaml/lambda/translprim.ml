@@ -512,6 +512,7 @@ let glb_array_type t1 t2 =
   | Paddrarray, x | x, Paddrarray -> x
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
+  | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
 
   | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 
@@ -541,6 +542,8 @@ let glb_array_ref_type t1 t2 =
   (* Pfloatarray is a minimum *)
   | (Pfloatarray_ref _ as x), Pfloatarray -> x
 
+  | Punboxedfloatarray_ref, Punboxedfloatarray -> Punboxedfloatarray_ref
+
   | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 
 let glb_array_set_type t1 t2 =
@@ -568,6 +571,8 @@ let glb_array_set_type t1 t2 =
 
   (* Pfloatarray is a minimum *)
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
+
+  | Punboxedfloatarray_set, Punboxedfloatarray -> Punboxedfloatarray_set
 
   | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
 
