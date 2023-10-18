@@ -31,24 +31,45 @@ exception Cannot_apply
 exception Incompatible
   (* Raised from [mcomp] *)
 
-val init_def: int -> unit
-        (* Set the initial variable level *)
-val begin_def: unit -> unit
-        (* Raise the variable level by one at the beginning of a definition. *)
-val end_def: unit -> unit
-        (* Lower the variable level by one at the end of a definition *)
-val begin_class_def: unit -> unit
-val raise_nongen_level: unit -> unit
+(* All the following wrapper functions revert to the original level,
+   even in case of exception. *)
+val with_local_level: ?post:('a -> unit) -> (unit -> 'a) -> 'a
+        (* [with_local_level (fun () -> cmd) ~post] evaluates [cmd] at a
+           raised level.
+           If given, [post] is applied to the result, at the original level.
+           It is expected to contain only level related post-processing. *)
+val with_local_level_if: bool -> (unit -> 'a) -> post:('a -> unit) -> 'a
+        (* Same as [with_local_level], but only raise the level conditionally.
+           [post] also is only called if the level is raised. *)
+val with_local_level_iter: (unit -> 'a * 'b list) -> post:('b -> unit) -> 'a
+        (* Variant of [with_local_level], where [post] is iterated on the
+           returned list. *)
+val with_local_level_iter_if:
+    bool -> (unit -> 'a * 'b list) -> post:('b -> unit) -> 'a
+        (* Conditional variant of [with_local_level_iter] *)
+val with_level: level: int -> (unit -> 'a) -> 'a
+        (* [with_level ~level (fun () -> cmd)] evaluates [cmd] with
+           [current_level] set to [level] *)
+val with_level_if: bool -> level: int -> (unit -> 'a) -> 'a
+        (* Conditional variant of [with_level] *)
+val with_local_level_if_principal: (unit -> 'a) -> post:('a -> unit) -> 'a
+val with_local_level_iter_if_principal:
+    (unit -> 'a * 'b list) -> post:('b -> unit) -> 'a
+        (* Applications of [with_local_level_if] and [with_local_level_iter_if]
+           to [!Clflags.principal] *)
+
+val with_local_level_for_class: ?post:('a -> unit) -> (unit -> 'a) -> 'a
+        (* Variant of [with_local_level], where the current level is raised but
+           the nongen level is not touched *)
+val with_raised_nongen_level: (unit -> 'a) -> 'a
+        (* Variant of [with_local_level],
+           raises the nongen level to the current level *)
+
 val reset_global_level: unit -> unit
         (* Reset the global level before typing an expression *)
 val increase_global_level: unit -> int
 val restore_global_level: int -> unit
         (* This pair of functions is only used in Typetexp *)
-type levels =
-    { current_level: int; nongen_level: int; global_level: int;
-      saved_level: (int * int) list; }
-val save_levels: unit -> levels
-val set_levels: levels -> unit
 
 val create_scope : unit -> int
 
@@ -118,6 +139,8 @@ val lower_contravariant: Env.t -> type_expr -> unit
            to be used before generalize for expansive expressions *)
 val lower_variables_only: Env.t -> int -> type_expr -> unit
         (* Lower all variables to the given level *)
+val enforce_current_level: Env.t -> type_expr -> unit
+        (* Lower whole type to !current_level *)
 val generalize_structure: type_expr -> unit
         (* Generalize the structure of a type, lowering variables
            to !current_level *)
@@ -155,16 +178,18 @@ val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
         Jkind.t -> type_declaration
 val existential_name: constructor_description -> type_expr -> string
-val instance_constructor:
-        ?in_pattern:Env.t ref * int ->
-        constructor_description -> (type_expr * global_flag) list * type_expr * type_expr list
+
+type existential_treatment =
+  | Keep_existentials_flexible
+  | Make_existentials_abstract of { env: Env.t ref; scope: int }
+
+val instance_constructor: existential_treatment ->
+        constructor_description ->
+        (type_expr * global_flag) list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->
         type_expr list -> type_expr -> type_expr list * type_expr
-val instance_parameterized_type_2:
-        type_expr list -> type_expr list -> type_expr ->
-        type_expr list * type_expr list * type_expr
 val instance_declaration: type_declaration -> type_declaration
 val generic_instance_declaration: type_declaration -> type_declaration
         (* Same as instance_declaration, but new nodes at generic_level *)
@@ -186,10 +211,14 @@ val instance_prim_mode:
         Primitive.description -> type_expr -> type_expr * Mode.Locality.t option
 
 val apply:
+        ?use_current_level:bool ->
         Env.t -> type_expr list -> type_expr -> type_expr list -> type_expr
-        (* [apply [p1...pN] t [a1...aN]] match the arguments [ai] to
-        the parameters [pi] and returns the corresponding instance of
-        [t]. Exception [Cannot_apply] is raised in case of failure. *)
+        (* [apply [p1...pN] t [a1...aN]] applies the type function
+           [fun p1 ... pN -> t] to the arguments [a1...aN] and returns the
+           resulting instance of [t].
+           New nodes default to generic level except if [use_current_level] is
+           set to true.
+           Exception [Cannot_apply] is raised in case of failure. *)
 
 val try_expand_once_opt: Env.t -> type_expr -> type_expr
 val try_expand_safe_opt: Env.t -> type_expr -> type_expr
@@ -437,14 +466,19 @@ val normalize_type: type_expr -> unit
 val remove_mode_and_jkind_variables: type_expr -> unit
         (* Ensure mode and jkind variables are fully determined *)
 
-val nongen_schema: Env.t -> type_expr -> bool
-        (* Check whether the given type scheme contains no non-generic
-           type variables, and ensure mode variables are fully determined *)
+val nongen_vars_in_schema: Env.t -> type_expr -> Btype.TypeSet.t option
+        (* Return any non-generic variables in the type scheme *)
 
-val nongen_class_declaration: class_declaration -> bool
-        (* Check whether the given class type contains no non-generic
-           type variables, and ensures mode variables are fully determined.
-           Uses the empty environment.  *)
+val nongen_vars_in_class_declaration:class_declaration -> Btype.TypeSet.t option
+        (* Return any non-generic variables in the class type.  Also ensures
+           mode variables are fully determined. Uses the empty environment.  *)
+
+type variable_kind = Row_variable | Type_variable
+type closed_class_failure = {
+  free_variable: type_expr * variable_kind;
+  meth: string;
+  meth_ty: type_expr;
+}
 
 val free_variables: ?env:Env.t -> type_expr -> type_expr list
         (* If env present, then check for incomplete definitions too;
@@ -456,7 +490,7 @@ val closed_type_decl: type_declaration -> type_expr option
 val closed_extension_constructor: extension_constructor -> type_expr option
 val closed_class:
         type_expr list -> class_signature ->
-        (type_expr * bool * string * type_expr) option
+        closed_class_failure option
         (* Check whether all type variables are bound *)
 
 val unalias: type_expr -> type_expr
@@ -469,7 +503,6 @@ val collapse_conj_params: Env.t -> type_expr list -> unit
 
 val get_current_level: unit -> int
 val wrap_trace_gadt_instances: Env.t -> ('a -> 'b) -> 'a -> 'b
-val reset_reified_var_counter: unit -> unit
 
 (* Stubs *)
 val package_subtype :

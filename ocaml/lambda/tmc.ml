@@ -900,6 +900,12 @@ let rec choice ctx t =
     | Punbox_float | Pbox_float _
     | Punbox_int _ | Pbox_int _
 
+    (* we don't handle effect or DLS primitives *)
+    | Prunstack | Pperform | Presume | Preperform | Pdls_get
+
+    (* we don't handle atomic primitives *)
+    | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
+
     (* we don't handle array indices as destinations yet *)
     | (Pmakearray _ | Pduparray _)
 
@@ -989,9 +995,17 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       (Debuginfo.Scoped_location.to_location lfun.loc)
       Warnings.Unused_tmc_attribute;
   let direct =
+<<<<<<< HEAD
     let { kind; params; return; body = _; attr; loc; mode; region } = lfun in
     let body = Choice.direct fun_choice in
     lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
+||||||| merged common ancestors
+    Lfunction { lfun with body = Choice.direct fun_choice } in
+=======
+    let { kind; params; return; body = _; attr; loc } = lfun in
+    let body = Choice.direct fun_choice in
+    lfunction ~kind ~params ~return ~body ~attr ~loc in
+>>>>>>> ocaml/5.1
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -999,6 +1013,7 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       loc = lfun.loc;
     } in
     let dst = { dst_param with offset = Offset (Lvar dst_param.offset) } in
+<<<<<<< HEAD
     let params = add_dst_params dst_param lfun.params in
     let kind =
       match lfun.mode, lfun.kind with
@@ -1020,6 +1035,25 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       ~loc:lfun.loc
       ~mode:lfun.mode
       ~region:true
+||||||| merged common ancestors
+    Lambda.duplicate @@ Lfunction { lfun with
+      kind =
+        (* Support of Tupled function: see [choice_apply]. *)
+        Curried;
+      params = add_dst_params dst_param lfun.params;
+      body = Choice.dps ~tail:true ~dst:dst fun_choice;
+    } in
+=======
+    Lambda.duplicate @@ lfunction
+      ~kind:
+        (* Support of Tupled function: see [choice_apply]. *)
+        Curried
+      ~params:(add_dst_params dst_param lfun.params)
+      ~return:lfun.return
+      ~body:(Choice.dps ~tail:true ~dst:dst fun_choice)
+      ~attr:lfun.attr
+      ~loc:lfun.loc
+>>>>>>> ocaml/5.1
   in
   let dps_var = special.dps_id in
   [(var, direct); (dps_var, dps)]

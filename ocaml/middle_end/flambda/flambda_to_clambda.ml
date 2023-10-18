@@ -469,9 +469,16 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
         Flambda.print_named named
     end
   | Read_symbol_field (symbol, field) ->
+<<<<<<< HEAD
     Uprim (Pfield (field, Pvalue Pgenval),
       [to_clambda_symbol env symbol], Debuginfo.none),
     Lambda.layout_any_value
+||||||| merged common ancestors
+    Uprim (Pfield field, [to_clambda_symbol env symbol], Debuginfo.none)
+=======
+    Uprim (Pfield (field, Pointer, Mutable),
+           [to_clambda_symbol env symbol], Debuginfo.none)
+>>>>>>> ocaml/5.1
   | Set_of_closures set_of_closures ->
     to_clambda_set_of_closures t env set_of_closures,
     Lambda.layout_any_value
@@ -503,9 +510,16 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     let fun_offset = get_fun_offset t closure_id in
     let var_offset = get_fv_offset t var in
     let pos = var_offset - fun_offset in
+<<<<<<< HEAD
     Uprim (Pfield (pos, kind),
+||||||| merged common ancestors
+    Uprim (Pfield pos,
+=======
+    Uprim (Pfield (pos, Pointer, Mutable),
+>>>>>>> ocaml/5.1
       [check_field t (check_closure t ulam (Expr (Var closure)))
          pos (Some named)],
+<<<<<<< HEAD
       Debuginfo.none),
     kind
   | Prim (Pfield (index, layout), [block], dbg) ->
@@ -518,6 +532,16 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     let block, _block_layout = subst_var env block in
     Uprim (Pfield (index, layout), [check_field t block index None], dbg),
     Lambda.layout_field
+||||||| merged common ancestors
+      Debuginfo.none)
+  | Prim (Pfield index, [block], dbg) ->
+    Uprim (Pfield index, [check_field t (subst_var env block) index None], dbg)
+=======
+      Debuginfo.none)
+  | Prim (Pfield (index, ptr, mut), [block], dbg) ->
+    Uprim (Pfield (index, ptr, mut),
+           [check_field t (subst_var env block) index None], dbg)
+>>>>>>> ocaml/5.1
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in
     let new_value, _new_value_layout = subst_var env new_value in
@@ -656,8 +680,15 @@ and to_clambda_set_of_closures t env
         in
         let pos = var_offset - fun_offset in
         Env.add_subst env id
+<<<<<<< HEAD
           (Uprim (Pfield (pos, spec_to.kind), [Clambda.Uvar env_var], Debuginfo.none))
           spec_to.kind
+||||||| merged common ancestors
+          (Uprim (Pfield pos, [Clambda.Uvar env_var], Debuginfo.none))
+=======
+          (Uprim (Pfield (pos, Pointer, Mutable),
+                  [Clambda.Uvar env_var], Debuginfo.none))
+>>>>>>> ocaml/5.1
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
       (* Add the Clambda expressions for all functions defined in the current
@@ -695,7 +726,11 @@ and to_clambda_set_of_closures t env
       body;
       dbg = function_decl.dbg;
       env = Some env_var;
+<<<<<<< HEAD
       mode = set_of_closures.alloc_mode;
+||||||| merged common ancestors
+=======
+>>>>>>> ocaml/5.1
       poll = function_decl.poll;
     }
   in
@@ -779,7 +814,11 @@ and to_clambda_closed_set_of_closures t env symbol
       body;
       dbg = function_decl.dbg;
       env = None;
+<<<<<<< HEAD
       mode = Lambda.alloc_heap;
+||||||| merged common ancestors
+=======
+>>>>>>> ocaml/5.1
       poll = function_decl.poll;
     }
   in

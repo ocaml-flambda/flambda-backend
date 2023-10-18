@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
   * poll-insertion
   ** setup-ocamlopt.byte-build-env
   *** ocamlopt.byte
@@ -9,6 +10,18 @@ ocamlopt_byte_exit_status = "2"
   *** ocamlopt.opt
 ocamlopt_opt_exit_status = "2"
   **** check-ocamlopt.opt-output
+||||||| merged common ancestors
+=======
+  * setup-ocamlopt.byte-build-env
+  ** ocamlopt.byte
+ocamlopt_byte_exit_status = "2"
+  *** check-ocamlopt.byte-output
+
+  * setup-ocamlopt.opt-build-env
+  ** ocamlopt.opt
+ocamlopt_opt_exit_status = "2"
+  *** check-ocamlopt.opt-output
+>>>>>>> ocaml/5.1
 *)
 
 let[@poll error] c x =

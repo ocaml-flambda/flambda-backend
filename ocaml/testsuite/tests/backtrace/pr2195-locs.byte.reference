@@ -1,8 +1,22 @@
 Fatal error: exception Stdlib.Exit
 <<<<<<< HEAD
+<<<<<<< HEAD
 Raised at Stdlib.open_in_gen in file "stdlib.ml", line 410, characters 28-54
 =======
 Raised at Stdlib.open_in_gen in file "stdlib.ml", line 408, characters 28-54
 >>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
+=======
+Raised at Stdlib.open_in_gen in file "stdlib.ml", line 408, characters 28-54
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+Raised by primitive operation at Stdlib.open_in_gen in file "stdlib.ml", line 399, characters 28-54
+||||||||| 24dbb0976a
+=========
+Raised by primitive operation at Stdlib.open_in_gen in file "stdlib.ml", line 405, characters 28-54
+>>>>>>>>> Temporary merge branch 2
+=======
+Raised by primitive operation at Stdlib.open_in_gen in file "stdlib.ml", line 405, characters 28-54
+>>>>>>> ocaml/5.1
+>>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 Called from Pr2195 in file "pr2195.ml", line 24, characters 6-19
 Re-raised at Pr2195 in file "pr2195.ml", line 29, characters 4-41

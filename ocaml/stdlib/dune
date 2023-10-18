@@ -28,14 +28,14 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocess
    (per_module
-     ((action
-          (run awk -f %{dep:expand_module_aliases.awk} %{input-file}))
+    ((action
+      (run awk -f %{dep:expand_module_aliases.awk} %{input-file}))
       stdlib)
 )))
 
 (rule
   (targets camlheader camlheaderd camlheaderi camlheader_ur)
-  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime/sak)
+  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime4/sak)
   (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (copy_files ../Makefile.config)

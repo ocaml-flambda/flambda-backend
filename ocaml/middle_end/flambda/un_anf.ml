@@ -152,7 +152,13 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       List.iter (loop ~depth) not_scanned_slots;
       List.iter (loop ~depth) scanned_slots;
       List.iter (fun (
+<<<<<<< HEAD
         { Clambda. label; arity=_; params; body; dbg; env; mode=_; poll=_} as clos) ->
+||||||| merged common ancestors
+        { Clambda. label; arity; params; return; body; dbg; env; } as clos) ->
+=======
+        { Clambda. label; arity; params; return; body; dbg; env; _ } as clos) ->
+>>>>>>> ocaml/5.1
           (match closure_environment_var clos with
            | None -> ()
            | Some env_var ->
@@ -332,7 +338,14 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_ulambda_list not_scanned_slots;
       ignore_ulambda_list scanned_slots;
       (* Start a new let stack for speed. *)
+<<<<<<< HEAD
       List.iter (fun {Clambda. label; arity=_; params; body; dbg; env; mode=_; poll=_} ->
+||||||| merged common ancestors
+      List.iter (fun {Clambda. label; arity; params; return; body; dbg; env} ->
+=======
+      List.iter
+        (fun {Clambda. label; arity; params; return; body; dbg; env; _} ->
+>>>>>>> ocaml/5.1
           ignore_function_label label;
           ignore_params params;
           let_stack := [];

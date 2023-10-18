@@ -155,6 +155,7 @@ let return_kind ppf (mode, kind) =
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
+<<<<<<< HEAD
 let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"
   | Pintval -> pp_print_string ppf "int"
@@ -191,6 +192,13 @@ let boxed_integer_mark name bi m =
 
 let print_boxed_integer name ppf bi m =
   fprintf ppf "%s" (boxed_integer_mark name bi m);;
+||||||| merged common ancestors
+let print_boxed_integer name ppf bi =
+  fprintf ppf "%s" (boxed_integer_mark name bi);;
+=======
+let print_boxed_integer name ppf bi =
+  fprintf ppf "%s" (boxed_integer_mark name bi)
+>>>>>>> ocaml/5.1
 
 let print_bigarray name unsafe kind ppf layout =
   fprintf ppf "Bigarray.%s[%s,%s]"
@@ -219,7 +227,14 @@ let record_rep ppf r = match r with
   | Record_boxed _ -> fprintf ppf "boxed"
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
+<<<<<<< HEAD
   | Record_ufloat -> fprintf ppf "ufloat"
+||||||| merged common ancestors
+  | Record_extension path -> fprintf ppf "ext(%a)" Printtyp.path path
+;;
+=======
+  | Record_extension path -> fprintf ppf "ext(%a)" Printtyp.path path
+>>>>>>> ocaml/5.1
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -262,6 +277,7 @@ let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"
+<<<<<<< HEAD
   | Pgetglobal cu -> fprintf ppf "global %a!" Compilation_unit.print cu
   | Psetglobal cu -> fprintf ppf "setglobal %a!" Compilation_unit.print cu
   | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
@@ -296,6 +312,32 @@ let primitive ppf = function
       fprintf ppf "field%a %i" field_read_semantics sem n
   | Pfield_computed sem ->
       fprintf ppf "field_computed%a" field_read_semantics sem
+||||||| merged common ancestors
+  | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
+  | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
+  | Pmakeblock(tag, Immutable, shape) ->
+      fprintf ppf "makeblock %i%a" tag block_shape shape
+  | Pmakeblock(tag, Mutable, shape) ->
+      fprintf ppf "makemutable %i%a" tag block_shape shape
+  | Pfield n -> fprintf ppf "field %i" n
+  | Pfield_computed -> fprintf ppf "field_computed"
+=======
+  | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
+  | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
+  | Pmakeblock(tag, Immutable, shape) ->
+      fprintf ppf "makeblock %i%a" tag block_shape shape
+  | Pmakeblock(tag, Mutable, shape) ->
+      fprintf ppf "makemutable %i%a" tag block_shape shape
+  | Pfield(n, ptr, mut) ->
+      let instr =
+        match ptr, mut with
+        | Immediate, _ -> "field_int "
+        | Pointer, Mutable -> "field_mut "
+        | Pointer, Immutable -> "field_imm "
+      in
+      fprintf ppf "%s%i" instr n
+  | Pfield_computed -> fprintf ppf "field_computed"
+>>>>>>> ocaml/5.1
   | Psetfield(n, ptr, init) ->
       let instr =
         match ptr with
@@ -349,12 +391,20 @@ let primitive ppf = function
       in
       fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+<<<<<<< HEAD
   | Pmake_unboxed_product layouts ->
       fprintf ppf "make_unboxed_product [%a]"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
   | Punboxed_product_field (n, layouts) ->
       fprintf ppf "unboxed_product_field %d [%a]" n
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+||||||| merged common ancestors
+=======
+  | Prunstack -> fprintf ppf "runstack"
+  | Pperform -> fprintf ppf "perform"
+  | Presume -> fprintf ppf "resume"
+  | Preperform -> fprintf ppf "reperform"
+>>>>>>> ocaml/5.1
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -427,6 +477,7 @@ let primitive ppf = function
   | Pisint { variant_only } ->
       fprintf ppf (if variant_only then "isint" else "obj_is_int")
   | Pisout -> fprintf ppf "isout"
+<<<<<<< HEAD
   | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m
   | Pintofbint bi -> print_boxed_integer "to_int" ppf bi alloc_heap
   | Pcvtbint (bi1, bi2, m) -> print_boxed_integer_conversion ppf bi1 bi2 m
@@ -454,6 +505,63 @@ let primitive ppf = function
   | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
   | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
   | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
+||||||| merged common ancestors
+  | Pbintofint bi -> print_boxed_integer "of_int" ppf bi
+  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi
+  | Pcvtbint (bi1, bi2) -> print_boxed_integer_conversion ppf bi1 bi2
+  | Pnegbint bi -> print_boxed_integer "neg" ppf bi
+  | Paddbint bi -> print_boxed_integer "add" ppf bi
+  | Psubbint bi -> print_boxed_integer "sub" ppf bi
+  | Pmulbint bi -> print_boxed_integer "mul" ppf bi
+  | Pdivbint { size = bi; is_safe = Safe } ->
+      print_boxed_integer "div" ppf bi
+  | Pdivbint { size = bi; is_safe = Unsafe } ->
+      print_boxed_integer "div_unsafe" ppf bi
+  | Pmodbint { size = bi; is_safe = Safe } ->
+      print_boxed_integer "mod" ppf bi
+  | Pmodbint { size = bi; is_safe = Unsafe } ->
+      print_boxed_integer "mod_unsafe" ppf bi
+  | Pandbint bi -> print_boxed_integer "and" ppf bi
+  | Porbint bi -> print_boxed_integer "or" ppf bi
+  | Pxorbint bi -> print_boxed_integer "xor" ppf bi
+  | Plslbint bi -> print_boxed_integer "lsl" ppf bi
+  | Plsrbint bi -> print_boxed_integer "lsr" ppf bi
+  | Pasrbint bi -> print_boxed_integer "asr" ppf bi
+  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi
+  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi
+  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi
+  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi
+  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi
+  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi
+=======
+  | Pbintofint bi -> print_boxed_integer "of_int" ppf bi
+  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi
+  | Pcvtbint (bi1, bi2) -> print_boxed_integer_conversion ppf bi1 bi2
+  | Pnegbint bi -> print_boxed_integer "neg" ppf bi
+  | Paddbint bi -> print_boxed_integer "add" ppf bi
+  | Psubbint bi -> print_boxed_integer "sub" ppf bi
+  | Pmulbint bi -> print_boxed_integer "mul" ppf bi
+  | Pdivbint { size; is_safe = Safe } ->
+      print_boxed_integer "div" ppf size
+  | Pdivbint { size; is_safe = Unsafe } ->
+      print_boxed_integer "div_unsafe" ppf size
+  | Pmodbint { size; is_safe = Safe } ->
+      print_boxed_integer "mod" ppf size
+  | Pmodbint { size; is_safe = Unsafe } ->
+      print_boxed_integer "mod_unsafe" ppf size
+  | Pandbint bi -> print_boxed_integer "and" ppf bi
+  | Porbint bi -> print_boxed_integer "or" ppf bi
+  | Pxorbint bi -> print_boxed_integer "xor" ppf bi
+  | Plslbint bi -> print_boxed_integer "lsl" ppf bi
+  | Plsrbint bi -> print_boxed_integer "lsr" ppf bi
+  | Pasrbint bi -> print_boxed_integer "asr" ppf bi
+  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi
+  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi
+  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi
+  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi
+  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi
+  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi
+>>>>>>> ocaml/5.1
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -533,6 +641,7 @@ let primitive ppf = function
   | Pbigstring_set_128 {unsafe = false; aligned = true} ->
      fprintf ppf "bigarray.array1.aligned_set128"
   | Pbswap16 -> fprintf ppf "bswap16"
+<<<<<<< HEAD
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
   | Popaque _ -> fprintf ppf "opaque"
@@ -548,6 +657,23 @@ let primitive ppf = function
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
   | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
+||||||| merged common ancestors
+  | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
+  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Popaque -> fprintf ppf "opaque"
+=======
+  | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
+  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_load_imm"
+        | Pointer -> fprintf ppf "atomic_load_ptr")
+  | Patomic_exchange -> fprintf ppf "atomic_exchange"
+  | Patomic_cas -> fprintf ppf "atomic_cas"
+  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
+  | Popaque -> fprintf ppf "opaque"
+  | Pdls_get -> fprintf ppf "dls_get"
+>>>>>>> ocaml/5.1
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -661,6 +787,7 @@ let name_of_primitive = function
   | Pbigstring_set_128 _ -> "Pbigstring_set_128"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
+<<<<<<< HEAD
   | Pint_as_pointer _ -> "Pint_as_pointer"
   | Popaque _ -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
@@ -691,6 +818,25 @@ let check_attribute ppf check =
     fprintf ppf "assert_%s%s@ "
       (check_property p)
       (if strict then "_strict" else "")
+||||||| merged common ancestors
+  | Pint_as_pointer -> "Pint_as_pointer"
+  | Popaque -> "Popaque"
+=======
+  | Pint_as_pointer -> "Pint_as_pointer"
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_load_imm"
+        | Pointer -> "atomic_load_ptr")
+  | Patomic_exchange -> "Patomic_exchange"
+  | Patomic_cas -> "Patomic_cas"
+  | Patomic_fetch_add -> "Patomic_fetch_add"
+  | Popaque -> "Popaque"
+  | Prunstack -> "Prunstack"
+  | Presume -> "Presume"
+  | Pperform -> "Pperform"
+  | Preperform -> "Preperform"
+  | Pdls_get -> "Pdls_get"
+>>>>>>> ocaml/5.1
 
 let function_attribute ppf t =
   if t.is_a_functor then
@@ -717,11 +863,16 @@ let function_attribute ppf t =
   check_attribute ppf t.check;
   if t.tmc_candidate then
     fprintf ppf "tail_mod_cons@ ";
+<<<<<<< HEAD
   begin match t.loop with
   | Default_loop -> ()
   | Always_loop -> fprintf ppf "always_loop@ "
   | Never_loop -> fprintf ppf "never_loop@ "
   end;
+||||||| merged common ancestors
+    fprintf ppf "tail_mod_cons@ "
+=======
+>>>>>>> ocaml/5.1
   begin match t.poll with
   | Default_poll -> ()
   | Error_poll -> fprintf ppf "error_poll@ "

@@ -32,23 +32,126 @@ let interface ~source_file ~output_prefix =
 
 (** Native compilation backend for .ml files. *)
 
+<<<<<<< HEAD
 let compile i ~backend ~middle_end ~transl_style
       Typedtree.{structure; coercion; _} =
+||||||| merged common ancestors
+let flambda i backend Typedtree.{structure; coercion; _} =
+  if !Clflags.classic_inlining then begin
+    Clflags.default_simplify_rounds := 1;
+    Clflags.use_inlining_arguments_set Clflags.classic_arguments;
+    Clflags.unbox_free_vars_of_closures := false;
+    Clflags.unbox_specialised_args := false
+  end;
+=======
+let flambda i backend Typedtree.{structure; coercion; _} =
+  if !Clflags.classic_inlining then begin
+    Clflags.default_simplify_rounds := 1;
+    Clflags.use_inlining_arguments_set Clflags.classic_arguments;
+    Clflags.unbox_free_vars_of_closures := false;
+    Clflags.unbox_specialised_args := false
+  end;
+
+>>>>>>> ocaml/5.1
   (structure, coercion)
   |> Profile.(record transl)
+<<<<<<< HEAD
     (Translmod.transl_implementation i.module_name ~style:transl_style)
+||||||| merged common ancestors
+      (Translmod.transl_implementation_flambda i.module_name)
+  |> Profile.(record generate)
+    (fun {Lambda.module_ident; main_module_block_size;
+          required_globals; code } ->
+    ((module_ident, main_module_block_size), code)
+    |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
+    |>> Simplif.simplify_lambda
+    |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+    |> (fun ((module_ident, main_module_block_size), code) ->
+      let program : Lambda.program =
+        { Lambda.
+          module_ident;
+          main_module_block_size;
+          required_globals;
+          code;
+        }
+      in
+      Asmgen.compile_implementation
+        ~backend
+        ~prefixname:i.output_prefix
+        ~middle_end:Flambda_middle_end.lambda_to_clambda
+        ~ppf_dump:i.ppf_dump
+        program);
+    Compilenv.save_unit_info (cmx i))
+
+let clambda i backend Typedtree.{structure; coercion; _} =
+  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
+  (structure, coercion)
+  |> Profile.(record transl)
+    (Translmod.transl_store_implementation i.module_name)
+=======
+      (Translmod.transl_implementation_flambda i.module_name)
+  |> Profile.(record generate)
+    (fun {Lambda.module_ident; main_module_block_size;
+          required_globals; code } ->
+      let () =
+        let (module_ident, main_module_block_size), code =
+          ((module_ident, main_module_block_size), code)
+          |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
+          |>> Simplif.simplify_lambda
+          |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+        in
+
+        if Clflags.(should_stop_after Compiler_pass.Lambda) then () else (
+          let program : Lambda.program =
+            { Lambda.
+              module_ident;
+              main_module_block_size;
+              required_globals;
+              code;
+            }
+          in
+          Asmgen.compile_implementation
+            ~backend
+            ~prefixname:i.output_prefix
+            ~middle_end:Flambda_middle_end.lambda_to_clambda
+            ~ppf_dump:i.ppf_dump
+            program)
+      in
+      Compilenv.save_unit_info (cmx i))
+
+
+let clambda i backend Typedtree.{structure; coercion; _} =
+  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
+  (structure, coercion)
+  |> Profile.(record transl)
+    (Translmod.transl_store_implementation i.module_name)
+>>>>>>> ocaml/5.1
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
     (fun program ->
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
-       |> Asmgen.compile_implementation
+       |>(fun lambda ->
+          if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
+          Asmgen.compile_implementation
             ~backend
             ~prefixname:i.output_prefix
+<<<<<<< HEAD
             ~middle_end
             ~ppf_dump:i.ppf_dump;
        Compilenv.save_unit_info (cmx i))
+||||||| merged common ancestors
+            ~middle_end:Closure_middle_end.lambda_to_clambda
+            ~ppf_dump:i.ppf_dump;
+       Compilenv.save_unit_info (cmx i))
+=======
+            ~middle_end:Closure_middle_end.lambda_to_clambda
+            ~ppf_dump:i.ppf_dump
+            lambda;
+          Compilenv.save_unit_info (cmx i)))
+
+>>>>>>> ocaml/5.1
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

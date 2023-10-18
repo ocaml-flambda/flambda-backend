@@ -887,8 +887,13 @@ and simplify_partial_application env r ~lhs_of_application
       ~alloc_mode:partial_mode
       ~region:function_decl.A.region
       ~params:remaining_args
+<<<<<<< HEAD
       ~return_layout:function_decl.A.return_layout
       ~free_variables
+||||||| merged common ancestors
+      ~stub:true
+=======
+>>>>>>> ocaml/5.1
   in
   let with_known_args =
     Flambda_utils.bind
@@ -1072,7 +1077,13 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
       in
       begin match prim, args, args_approxs with
       (* CR-someday mshinwell: Optimise [Pfield_computed]. *)
+<<<<<<< HEAD
       | Pfield (field_index, _), [arg], [arg_approx] ->
+||||||| merged common ancestors
+      | Pfield field_index, [arg], [arg_approx] ->
+=======
+      | Pfield (field_index, _, _), [arg], [arg_approx] ->
+>>>>>>> ocaml/5.1
         let projection : Projection.t = Field (field_index, arg) in
         begin match E.find_projection env ~projection with
         | Some var ->

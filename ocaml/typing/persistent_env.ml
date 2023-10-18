@@ -25,6 +25,7 @@ module Consistbl = Consistbl.Make (CU.Name) (CU)
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
 type error =
+<<<<<<< HEAD
   | Illegal_renaming of CU.Name.t * CU.Name.t * filepath
   | Inconsistent_import of CU.Name.t * filepath * filepath
   | Need_recursive_types of CU.t
@@ -34,6 +35,16 @@ type error =
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
+||||||| merged common ancestors
+  | Illegal_renaming of modname * modname * filepath
+  | Inconsistent_import of modname * filepath * filepath
+  | Need_recursive_types of modname
+  | Depend_on_unsafe_string_unit of modname
+=======
+  | Illegal_renaming of modname * modname * filepath
+  | Inconsistent_import of modname * filepath * filepath
+  | Need_recursive_types of modname
+>>>>>>> ocaml/5.1
 
 exception Error of error
 let error err = raise (Error err)
@@ -175,10 +186,17 @@ let save_pers_struct penv crc comp_unit flags filename =
     (function
         | Rectypes -> ()
         | Alerts _ -> ()
-        | Unsafe_string -> ()
         | Opaque -> register_import_as_opaque penv modname)
+<<<<<<< HEAD
     flags;
   Consistbl.set crc_units modname comp_unit crc filename;
+||||||| merged common ancestors
+    ps.ps_flags;
+  Consistbl.set crc_units modname crc ps.ps_filename;
+=======
+    ps.ps_flags;
+  Consistbl.check crc_units modname crc ps.ps_filename;
+>>>>>>> ocaml/5.1
   add_import penv modname
 
 let process_pers_struct penv check modname pers_sig =
@@ -199,9 +217,6 @@ let process_pers_struct penv check modname pers_sig =
         | Rectypes ->
             if not !Clflags.recursive_types then
               error (Need_recursive_types(ps.ps_name))
-        | Unsafe_string ->
-            if Config.safe_string then
-              error (Depend_on_unsafe_string_unit(ps.ps_name));
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
@@ -289,6 +304,7 @@ let check_pers_struct penv f ~loc name =
               CU.Name.print name
         | Inconsistent_import _ -> assert false
         | Need_recursive_types name ->
+<<<<<<< HEAD
             Format.asprintf
               "%a uses recursive types"
               CU.print name
@@ -301,6 +317,18 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf "%a is inaccessible from %a"
               CU.print unit
               describe_prefix prefix
+||||||| merged common ancestors
+            Format.sprintf
+              "%s uses recursive types"
+              name
+        | Depend_on_unsafe_string_unit name ->
+            Printf.sprintf "%s uses -unsafe-string"
+              name
+=======
+            Format.sprintf
+              "%s uses recursive types"
+              name
+>>>>>>> ocaml/5.1
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -375,7 +403,6 @@ let make_cmi penv modname sign alerts =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
-      (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       [Alerts alerts];
     ]
   in
@@ -422,6 +449,7 @@ let report_error ppf =
       CU.Name.print name
   | Need_recursive_types(import) ->
       fprintf ppf
+<<<<<<< HEAD
         "@[<hov>Invalid import of %a, which uses recursive types.@ %s@]"
         CU.print import
         "The compilation flag -rectypes is required"
@@ -449,6 +477,18 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
+||||||| merged common ancestors
+        "@[<hov>Invalid import of %s, which uses recursive types.@ %s@]"
+        import "The compilation flag -rectypes is required"
+  | Depend_on_unsafe_string_unit(import) ->
+      fprintf ppf
+        "@[<hov>Invalid import of %s, compiled with -unsafe-string.@ %s@]"
+        import "This compiler has been configured in strict \
+                                  safe-string mode (-force-safe-string)"
+=======
+        "@[<hov>Invalid import of %s, which uses recursive types.@ %s@]"
+        import "The compilation flag -rectypes is required"
+>>>>>>> ocaml/5.1
 
 let () =
   Location.register_error_of_exn

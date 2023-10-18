@@ -48,9 +48,22 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
 
   | Mty_functor(Named (Some param, arg), res)
     when !Clflags.applicative_functors ->
+<<<<<<< HEAD
       Some (Mty_functor(Named (Some param, arg),
         strengthen_lazy ~aliasable:false res (Papply(p, Pident param))))
   | Mty_functor(Named (None, arg), res)
+||||||| merged common ancestors
+      MtyL_functor(Named (Some param, arg),
+        strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
+  | MtyL_functor(Named (None, arg), res)
+=======
+      let env =
+        Env.add_module_lazy ~update_summary:false param Mp_present arg env
+      in
+      MtyL_functor(Named (Some param, arg),
+        strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
+  | MtyL_functor(Named (None, arg), res)
+>>>>>>> ocaml/5.1
     when !Clflags.applicative_functors ->
       let param = Ident.create_scoped ~scope:(Path.scope p) "Arg" in
       Some (Mty_functor(Named (Some param, arg),
@@ -658,12 +671,12 @@ let contains_type env mty =
 
 let rec get_prefixes = function
   | Pident _ -> Path.Set.empty
-  | Pdot (p, _)
-  | Papply (p, _) -> Path.Set.add p (get_prefixes p)
+  | Pdot (p, _) | Papply (p, _) | Pextra_ty (p, _)
+    -> Path.Set.add p (get_prefixes p)
 
 let rec get_arg_paths = function
   | Pident _ -> Path.Set.empty
-  | Pdot (p, _) -> get_arg_paths p
+  | Pdot (p, _) | Pextra_ty (p, _) -> get_arg_paths p
   | Papply (p1, p2) ->
       Path.Set.add p2
         (Path.Set.union (get_prefixes p2)
@@ -677,6 +690,10 @@ let rec rollback_path subst p =
     | Pdot (p1, s) ->
         let p1' = rollback_path subst p1 in
         if Path.same p1 p1' then p else rollback_path subst (Pdot (p1', s))
+    | Pextra_ty (p1, extra) ->
+        let p1' = rollback_path subst p1 in
+        if Path.same p1 p1' then p
+        else rollback_path subst (Pextra_ty (p1', extra))
 
 let rec collect_ids subst bindings p =
     begin match rollback_path subst p with
