@@ -811,8 +811,7 @@ end = struct
     function
     | Primitive id ->
       fprintf ppf "it equals the primitive value type %s" (Ident.name id)
-    | Float64_check ->
-      fprintf ppf "float64 check"
+    | Float64_check -> fprintf ppf "float64 check"
 
   let format_creation_reason ppf : creation_reason -> unit = function
     | Annotated (ctx, _) ->
