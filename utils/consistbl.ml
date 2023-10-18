@@ -63,22 +63,12 @@ end) = struct
     with Not_found ->
       raise (Not_available name)
 
-<<<<<<< HEAD
-  let set tbl name data crc source = Module_name.Tbl.add tbl name (data, crc, source)
-
   let source tbl name = thd3 (Module_name.Tbl.find tbl name)
 
   let find t name =
     match Module_name.Tbl.find t name with
     | exception Not_found -> None
     | (data, crc, _) -> Some (data, crc)
-||||||| merged common ancestors
-  let set tbl name crc source = Module_name.Tbl.add tbl name (crc, source)
-
-  let source tbl name = snd (Module_name.Tbl.find tbl name)
-=======
-  let source tbl name = snd (Module_name.Tbl.find tbl name)
->>>>>>> ocaml/5.1
 
   let extract l tbl =
     let l = List.sort_uniq Module_name.compare l in

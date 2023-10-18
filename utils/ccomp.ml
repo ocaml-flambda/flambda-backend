@@ -143,20 +143,9 @@ let create_archive archive file_list =
     | _ ->
         assert(String.length Config.ar > 0);
         command(Printf.sprintf "%s rc %s %s"
-<<<<<<< HEAD
-                Config.ar quoted_archive (quote_files file_list))
-||||||| merged common ancestors
-        let r1 =
-          command(Printf.sprintf "%s rc %s %s"
-                  Config.ar quoted_archive (quote_files file_list)) in
-        if r1 <> 0 || String.length Config.ranlib = 0
-        then r1
-        else command(Config.ranlib ^ " " ^ quoted_archive)
-=======
                 Config.ar quoted_archive
                 (quote_files ~response_files:Config.ar_supports_response_files
                   file_list))
->>>>>>> ocaml/5.1
 
 let expand_libname cclibs =
   cclibs |> List.map (fun cclib ->
@@ -210,14 +199,9 @@ let call_linker ?(native_toplevel = false) mode output_name files extra =
           )
           (Filename.quote output_name)
           ""  (*(Clflags.std_include_flag "-I")*)
-<<<<<<< HEAD
           (if native_toplevel then ""
-           else quote_prefixed "-L" (Load_path.get_paths ()))
-||||||| merged common ancestors
-          (quote_prefixed "-L" (Load_path.get_paths ()))
-=======
-          (quote_prefixed ~response_files:true "-L" (Load_path.get_paths ()))
->>>>>>> ocaml/5.1
+           else
+             quote_prefixed ~response_files:true "-L" (Load_path.get_paths ()))
           (String.concat " " (List.rev !Clflags.all_ccopts))
           (quote_files ~response_files:true files)
           extra
