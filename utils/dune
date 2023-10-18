@@ -26,7 +26,7 @@
  (deps    (:conf ../Makefile.config)
           (:c domainstate.ml.c)
           (:tbl ../runtime4/caml/domain_state.tbl)
-          (glob_files ../runtime4/caml/*.h))
+          (glob_files ../runtime4/caml/{config,m,s}.h))
  (action
    (with-stdout-to %{targets}
      (bash
@@ -39,7 +39,7 @@
  (deps    (:conf ../Makefile.config)
           (:c domainstate.mli.c)
           (:tbl ../runtime4/caml/domain_state.tbl)
-          (glob_files ../runtime4/caml/*.h))
+          (glob_files ../runtime4/caml/{config,m,s}.h))
  (action
    (with-stdout-to %{targets}
      (bash

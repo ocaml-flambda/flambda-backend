@@ -190,10 +190,24 @@ typedef uint64_t uintnat;
 #define Page_size (1 << Page_log)
 
 /* Initial size of stack (bytes). */
+#ifdef DEBUG
+#define Stack_size (64 * sizeof(value))
+#else
 #define Stack_size (4096 * sizeof(value))
+#endif
 
 /* Minimum free size of stack (bytes); below that, it is reallocated. */
-#define Stack_threshold (256 * sizeof(value))
+#define Stack_threshold_words 32
+#define Stack_threshold (Stack_threshold_words * sizeof(value))
+
+/* Definition of fiber control structure sizes from OCaml 5
+   (Backported here because it is used to generate stack overflow check
+   code, even though that logic can never trigger on runtime4) */
+#ifdef ARCH_SIXTYFOUR
+#define Stack_ctx_words (6 + 1)
+#else
+#define Stack_ctx_words (6 + 2)
+#endif
 
 /* Default maximum size of the stack (words). */
 #define Max_stack_def (1024 * 1024)

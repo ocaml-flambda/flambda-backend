@@ -38,6 +38,7 @@
    ../Makefile.config_if_required
    ../Makefile.common Makefile
    (glob_files caml/*.h)
+   caml/domain_state.tbl
    primitives
    signals_osdep.h (glob_files *.S)
    (glob_files *.c)
@@ -46,6 +47,7 @@
  (no-infer
    (progn
      (bash "touch .depend") ; hack.
+     (run make "SAK_LINK=cc -o $(1) $(2)" COMPUTE_DEPS=false sak)
      (run make -sj8 %{targets} COMPUTE_DEPS=false)
      (bash "rm .depend")))))
 

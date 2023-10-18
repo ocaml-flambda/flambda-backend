@@ -15,6 +15,7 @@
 /**************************************************************************/
 
 #define CAML_CONFIG_H_NO_TYPEDEFS
+#define CAML_NAME_SPACE
 #include "config.h"
 let stack_ctx_words = Stack_ctx_words
 

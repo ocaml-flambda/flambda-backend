@@ -117,6 +117,11 @@ endif
 
 OC_CPPFLAGS += -DCAMLDLLIMPORT=
 
+# merge5: runtime4 requires -DCAML_NAME_SPACE and doesn't compile cleanly with two
+# new warnings added to the build in ocaml5
+OC_CPPFLAGS += -DCAML_NAME_SPACE
+OC_CFLAGS := $(filter-out -Wstrict-prototypes -Wold-style-definition, $(OC_CFLAGS))
+
 OC_NATIVE_CPPFLAGS = -DNATIVE_CODE -DTARGET_$(ARCH)
 
 ifeq "$(UNIX_OR_WIN32)" "unix"
