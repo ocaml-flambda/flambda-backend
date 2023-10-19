@@ -259,10 +259,12 @@ let process_pers_struct penv check modname pers_sig =
   end;
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
-      if CU.is_current name then
-        error (Cannot_implement_parameter (modname, filename))
-      else
-        error (Illegal_import_of_parameter(modname, filename))
+      begin match CU.get_current () with
+      | Some current_unit when CU.Name.equal modname (CU.name current_unit) ->
+          error (Cannot_implement_parameter (modname, filename))
+      | _ ->
+          error (Illegal_import_of_parameter(modname, filename))
+      end
   | false, true ->
       error (Not_compiled_as_parameter(modname, filename))
   | true, true
