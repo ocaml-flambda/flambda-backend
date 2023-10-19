@@ -32,6 +32,7 @@ type error =
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
+  | Cannot_implement_parameter of Compilation_unit.Name.t * filepath
 
 exception Error of error
 
