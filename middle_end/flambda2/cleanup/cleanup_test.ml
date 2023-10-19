@@ -89,6 +89,7 @@ type tail_expr =
   | Raw of Flambda.Expr.t
   | Apply_cont of Apply_cont_expr.t
   | Switch of Switch_expr.t
+  | Apply of Apply_expr.t
 
 type rev_expr_holed =
   | Up
@@ -163,9 +164,10 @@ module Deps = struct
     type t =
       | Alias of Name.t
       | Use of Name.t
+      | Contains of Name.t
       | Field of field * Name.t
       | Block of (field * Name.t) list
-      | Apply of Name.t
+      | Apply of Name.t * Code_id.t
 
     let compare = compare
   end
@@ -174,7 +176,7 @@ module Deps = struct
 
   type graph =
     { name_to_dep : (Name.t, DepSet.t) Hashtbl.t;
-      used : (Name.t, unit) Hashtbl.t
+      used : (Name.t, unit) Hashtbl.t (* TODO: Conditionnal on a Code_id *)
     }
 
   let create () =
@@ -268,9 +270,10 @@ module Dot = struct
           (* ignore name; *)
           (* "red", [] *)
           "red", [name]
+        | Contains name -> "yellow", [name]
         | Field (_, name) -> "green", [name]
         | Block fields -> "blue", List.map snd fields
-        | Apply name -> "pink", [name]
+        | Apply (name, _code) -> "pink", [name]
       in
       List.iter
         (fun dst ->
@@ -443,21 +446,22 @@ let prepare_code dacc (code_id : Code_id.t) (code : Code.t) =
   let exn = [Variable.create "function_exn"] in
   let params =
     (* TODO: better. We just need the arity *)
-    let arity =
-      let params_and_body = Code.params_and_body code in
-      Flambda.Function_params_and_body.pattern_match params_and_body
-        ~f:(fun
-             ~return_continuation:_
-             ~exn_continuation:_
-             params
-             ~body:_
-             ~my_closure:_
-             ~is_my_closure_used:_
-             ~my_region:_
-             ~my_depth:_
-             ~free_names_of_body:_
-           -> Bound_parameters.arity params)
-    in
+    let arity = Code.params_arity code in
+    (* let arity = *)
+    (*   let params_and_body = Code.params_and_body code in *)
+    (*   Flambda.Function_params_and_body.pattern_match params_and_body *)
+    (*     ~f:(fun *)
+    (*          ~return_continuation:_ *)
+    (*          ~exn_continuation:_ *)
+    (*          params *)
+    (*          ~body:_ *)
+    (*          ~my_closure:_ *)
+    (*          ~is_my_closure_used:_ *)
+    (*          ~my_region:_ *)
+    (*          ~my_depth:_ *)
+    (*          ~free_names_of_body:_ *)
+    (*        -> Bound_parameters.arity params) *)
+    (* in *)
     List.init (Flambda_arity.cardinal arity) (fun i ->
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
@@ -767,6 +771,7 @@ let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
     | Raw expr -> expr
     | Apply_cont ac -> Flambda.Expr.create_apply_cont ac
     | Switch switch -> Flambda.Expr.create_switch switch
+    | Apply apply -> Flambda.Expr.create_apply apply
   in
   rebuild_holed holed_expr (RE.from_expr ~expr ~free_names)
 
