@@ -8,7 +8,7 @@ let () =
       {|(enabled_if (= %{context_name} "main"))|}
   in
   let buf = Buffer.create 1000 in
-  let print_test ?(extra_flags="-zero-alloc-check") ~flambda_only deps =
+  let print_test ?(extra_flags="-zero-alloc-check default") ~flambda_only deps =
     let enabled_if = enabled_if flambda_only in
     let subst = function
       | "enabled_if" -> enabled_if
@@ -27,7 +27,7 @@ let () =
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ?(extra_flags="-zero-alloc-check") ~cutoff ~flambda_only ~extra_dep ~exit_code name =
+  let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~flambda_only ~extra_dep ~exit_code name =
     let enabled_if = enabled_if flambda_only in
     let ml_deps =
       let s =
@@ -120,8 +120,8 @@ let () =
   (* closure does not delete dead functions *)
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
-  print_test_expected_output ~extra_flags:"-zero-alloc-check-opt" ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail22";
-  print_test_expected_output ~extra_flags:"-zero-alloc-check-opt" ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail23";
-  print_test ~extra_flags:"-zero-alloc-check-opt" ~flambda_only:false "test_zero_alloc_opt1.ml";
-  print_test ~extra_flags:"-zero-alloc-check-opt" ~flambda_only:false "test_zero_alloc_opt2.ml";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail22";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail23";
+  print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt1.ml";
+  print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt2.ml";
   ()

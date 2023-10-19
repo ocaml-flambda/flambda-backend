@@ -3,19 +3,19 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps s.ml t.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps t5.ml test_assume.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps test_flambda.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
@@ -26,7 +26,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -45,7 +45,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -64,7 +64,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -83,7 +83,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -102,7 +102,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -121,7 +121,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -140,7 +140,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -159,7 +159,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -178,7 +178,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -197,7 +197,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -216,7 +216,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -235,7 +235,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -254,7 +254,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -273,7 +273,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -292,7 +292,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -311,7 +311,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -330,7 +330,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -349,7 +349,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -368,7 +368,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -387,7 +387,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -406,7 +406,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -425,7 +425,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -444,7 +444,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 0
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -463,7 +463,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 0
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -477,19 +477,19 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps t7.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps test_stub_dep.ml test_stub.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps t1.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
@@ -500,7 +500,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 0
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -519,7 +519,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -538,7 +538,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check-opt -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check opt -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -557,7 +557,7 @@
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check-opt -checkmach-details-cutoff 20 -O3))
+          -zero-alloc-check opt -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -571,10 +571,10 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps test_zero_alloc_opt1.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check-opt -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check opt -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps test_zero_alloc_opt2.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check-opt -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check opt -dcse -dcheckmach -dump-into-file -O3)))
