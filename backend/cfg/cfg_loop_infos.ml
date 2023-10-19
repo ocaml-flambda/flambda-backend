@@ -124,7 +124,7 @@ type t =
 
 let build : Cfg.t -> Cfg_dominators.t -> t =
  fun cfg doms ->
-  let back_edges = compute_back_edges cfg doms.dominators in
+  let back_edges = compute_back_edges cfg doms in
   let loops = compute_loops_of_back_edges cfg back_edges in
   let header_map = compute_header_map loops in
   let loop_depths = compute_loop_depths cfg header_map in

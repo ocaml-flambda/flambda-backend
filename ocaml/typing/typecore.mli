@@ -63,7 +63,8 @@ type type_expected = private {
 type pattern_variable =
   {
     pv_id: Ident.t;
-    pv_mode: Value_mode.t;
+    pv_uid: Uid.t;
+    pv_mode: Mode.Value.t;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -112,7 +113,7 @@ type existential_restriction =
 
 val type_binding:
         Env.t -> rec_flag ->
-          ?force_global:bool ->
+          ?force_toplevel:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
@@ -146,7 +147,7 @@ val type_argument:
         type_expr -> type_expr -> Typedtree.expression
 
 val option_some:
-  Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
+  Env.t -> Typedtree.expression -> Mode.Value.t -> Typedtree.expression
 val option_none:
   Env.t -> type_expr -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
@@ -171,7 +172,7 @@ type submode_reason =
 
   | Other (* add more cases here for better hints *)
 
-val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> value_mode -> unit
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> Mode.Value.t -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -256,16 +257,19 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
+  | Submode_failed of
+      Mode.Value.error * submode_reason *
+      Env.closure_context option * Env.shared_context option
   | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr
-  | Uncurried_function_escapes
+  | Param_mode_mismatch of type_expr * Mode.Alloc.error
+  | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
   | Tail_call_local_returning
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
   | Exclave_in_nontail_position
+  | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t

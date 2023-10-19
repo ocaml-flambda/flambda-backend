@@ -40,6 +40,7 @@ type t =
     unit_toplevel_exn_continuation : Continuation.t;
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
+    comparison_results : Comparison_result.t Variable.Map.t;
     do_not_rebuild_terms : bool;
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
@@ -57,7 +58,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlined_debuginfo; can_inline;
                 inlining_state; propagating_float_consts;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
-                variables_defined_at_toplevel; cse;
+                variables_defined_at_toplevel; cse; comparison_results;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
@@ -75,6 +76,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(unit_toplevel_exn_continuation@ %a)@]@ \
       @[<hov 1>(variables_defined_at_toplevel@ %a)@]@ \
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
+      @[<hov 1>(comparison_results@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
@@ -91,6 +93,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     Continuation.print unit_toplevel_exn_continuation
     Variable.Set.print variables_defined_at_toplevel
     CSE.print cse
+    (Variable.Map.print Comparison_result.print) comparison_results
     do_not_rebuild_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
@@ -118,6 +121,7 @@ let create ~round ~(resolver : resolver)
     unit_toplevel_exn_continuation;
     variables_defined_at_toplevel = Variable.Set.empty;
     cse = CSE.empty;
+    comparison_results = Variable.Map.empty;
     do_not_rebuild_terms = false;
     closure_info = Closure_info.not_in_a_closure;
     all_code = Code_id.Map.empty;
@@ -179,6 +183,7 @@ let enter_set_of_closures
       unit_toplevel_exn_continuation;
       variables_defined_at_toplevel;
       cse = _;
+      comparison_results = _;
       do_not_rebuild_terms;
       closure_info = _;
       get_imported_code;
@@ -197,6 +202,7 @@ let enter_set_of_closures
     unit_toplevel_exn_continuation;
     variables_defined_at_toplevel;
     cse = CSE.empty;
+    comparison_results = Variable.Map.empty;
     do_not_rebuild_terms;
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
@@ -463,12 +469,26 @@ let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
 
 let cse t = t.cse
 
+let comparison_results t = t.comparison_results
+
 let add_cse t prim ~bound_to =
   let scope = get_continuation_scope t in
   let cse = CSE.add t.cse prim ~bound_to scope in
-  { t with cse }
+  let comparison_results =
+    let prim = Flambda_primitive.Eligible_for_cse.to_primitive prim in
+    match
+      ( Comparison_result.create ~prim ~comparison_results:t.comparison_results,
+        Simple.must_be_var bound_to )
+    with
+    | None, _ | _, None -> t.comparison_results
+    | Some comp, Some (var, _) -> Variable.Map.add var comp t.comparison_results
+  in
+  { t with cse; comparison_results }
 
 let find_cse t prim = CSE.find t.cse prim
+
+let find_comparison_result t var =
+  Variable.Map.find_opt var t.comparison_results
 
 let with_cse t cse = { t with cse }
 

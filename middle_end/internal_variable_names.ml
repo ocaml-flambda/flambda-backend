@@ -120,6 +120,7 @@ let pfield = "Pfield"
 let pfield_computed = "Pfield_computed"
 let pfloatcomp = "Pfloatcomp"
 let pfloatfield = "Pfloatfield"
+let pufloatfield = "Pufloatfield"
 let pfloatofint = "Pfloatofint"
 let pgetglobal = "Pgetglobal"
 let pgetpredef = "Pgetpredef"
@@ -142,6 +143,7 @@ let plsrint = "Plsrint"
 let pmakearray = "Pmakearray"
 let pmakeblock = "Pmakeblock"
 let pmakefloatblock = "Pmakefloatblock"
+let pmakeufloatblock = "Pmakeufloatblock"
 let pmodbint = "Pmodbint"
 let pmodint = "Pmodint"
 let pmulbint = "Pmulbint"
@@ -165,6 +167,7 @@ let psequor = "Psequor"
 let psetfield = "Psetfield"
 let psetfield_computed = "Psetfield_computed"
 let psetfloatfield = "Psetfloatfield"
+let psetufloatfield = "Psetufloatfield"
 let psetglobal = "Psetglobal"
 let pstring_load_16 = "Pstring_load_16"
 let pstring_load_32 = "Pstring_load_32"
@@ -180,6 +183,7 @@ let pxorint = "Pxorint"
 let pprobe_is_enabled = "Pprobe_is_enabled"
 let parray_of_iarray = "Parray_of_iarray"
 let parray_to_iarray = "Parray_to_iarray"
+let pget_header = "Pget_header"
 let pabsfloat_arg = "Pabsfloat_arg"
 let paddbint_arg = "Paddbint_arg"
 let paddfloat_arg = "Paddfloat_arg"
@@ -226,6 +230,7 @@ let pfield_arg = "Pfield_arg"
 let pfield_computed_arg = "Pfield_computed_arg"
 let pfloatcomp_arg = "Pfloatcomp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
+let pufloatfield_arg = "Pufloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
 let pgetglobal_arg = "Pgetglobal_arg"
 let pgetpredef_arg = "Pgetpredef_arg"
@@ -248,6 +253,7 @@ let plsrint_arg = "Plsrint_arg"
 let pmakearray_arg = "Pmakearray_arg"
 let pmakeblock_arg = "Pmakeblock_arg"
 let pmakefloatblock_arg = "Pmakefloatblock_arg"
+let pmakeufloatblock_arg = "Pmakeufloatblock_arg"
 let pmodbint_arg = "Pmodbint_arg"
 let pmodint_arg = "Pmodint_arg"
 let pmulbint_arg = "Pmulbint_arg"
@@ -268,6 +274,7 @@ let psequor_arg = "Psequor_arg"
 let psetfield_arg = "Psetfield_arg"
 let psetfield_computed_arg = "Psetfield_computed_arg"
 let psetfloatfield_arg = "Psetfloatfield_arg"
+let psetufloatfield_arg = "Psetufloatfield_arg"
 let psetglobal_arg = "Psetglobal_arg"
 let pstring_load_16_arg = "Pstring_load_16_arg"
 let pstring_load_32_arg = "Pstring_load_32_arg"
@@ -289,6 +296,7 @@ let pxorint_arg = "Pxorint_arg"
 let pprobe_is_enabled_arg = "Pprobe_is_enabled_arg"
 let parray_of_iarray_arg = "Parray_of_iarray_arg"
 let parray_to_iarray_arg = "Parray_to_iarray_arg"
+let pget_header_arg = "Pget_header_arg"
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -319,6 +327,10 @@ let punbox_int = "Punbox_int"
 let pbox_int = "Pbox_int"
 let punbox_int_arg = "Punbox_int_arg"
 let pbox_int_arg = "Pbox_int_arg"
+let pmake_unboxed_product = "Pmake_unboxed_product"
+let punboxed_product_field = "Punboxed_product_field"
+let pmake_unboxed_product_arg = "Pmake_unboxed_product_arg"
+let punboxed_product_field_arg = "Punboxed_product_field_arg"
 
 let anon_fn_with_loc (sloc: Lambda.scoped_location) =
   let loc = Debuginfo.Scoped_location.to_location sloc in
@@ -340,12 +352,15 @@ let of_primitive : Lambda.primitive -> string = function
   | Pgetpredef _ -> pgetpredef
   | Pmakeblock _ -> pmakeblock
   | Pmakefloatblock _ -> pmakefloatblock
+  | Pmakeufloatblock _ -> pmakeufloatblock
   | Pfield _ -> pfield
   | Pfield_computed _ -> pfield_computed
   | Psetfield _ -> psetfield
   | Psetfield_computed _ -> psetfield_computed
   | Pfloatfield _ -> pfloatfield
   | Psetfloatfield _ -> psetfloatfield
+  | Pufloatfield _ -> pufloatfield
+  | Psetufloatfield _ -> psetufloatfield
   | Pduprecord _ -> pduprecord
   | Pccall _ -> pccall
   | Praise _ -> praise
@@ -442,8 +457,11 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbox_float _ -> pbox_float
   | Punbox_int _ -> punbox_int
   | Pbox_int _ -> pbox_int
+  | Pmake_unboxed_product _ -> pmake_unboxed_product
+  | Punboxed_product_field _ -> punboxed_product_field
   | Parray_of_iarray -> parray_of_iarray
   | Parray_to_iarray -> parray_to_iarray
+  | Pget_header _ -> pget_header
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -454,12 +472,15 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pgetpredef _ -> pgetpredef_arg
   | Pmakeblock _ -> pmakeblock_arg
   | Pmakefloatblock _ -> pmakefloatblock_arg
+  | Pmakeufloatblock _ -> pmakeufloatblock_arg
   | Pfield _ -> pfield_arg
   | Pfield_computed _ -> pfield_computed_arg
   | Psetfield _ -> psetfield_arg
   | Psetfield_computed _ -> psetfield_computed_arg
   | Pfloatfield _ -> pfloatfield_arg
   | Psetfloatfield _ -> psetfloatfield_arg
+  | Pufloatfield _ -> pufloatfield_arg
+  | Psetufloatfield _ -> psetufloatfield_arg
   | Pduprecord _ -> pduprecord_arg
   | Pccall _ -> pccall_arg
   | Praise _ -> praise_arg
@@ -556,5 +577,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbox_float _ -> pbox_float_arg
   | Punbox_int _ -> punbox_int_arg
   | Pbox_int _ -> pbox_int_arg
+  | Pmake_unboxed_product _ -> pmake_unboxed_product_arg
+  | Punboxed_product_field _ -> punboxed_product_field_arg
   | Parray_of_iarray -> parray_of_iarray_arg
   | Parray_to_iarray -> parray_to_iarray_arg
+  | Pget_header _ -> pget_header_arg

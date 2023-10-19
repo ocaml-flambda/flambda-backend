@@ -128,13 +128,31 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
-  | Ispecific(Ifloat_min | Ifloat_max)
-  | Ispecific Icrc32q ->
-    (* First argument and result must be in the same register.
-       Second argument can be either in a register or on stack. *)
+  | Ispecific(Ifloat_min | Ifloat_max) ->
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
+  | Ispecific(Isimd op) ->
+    (match Simd_selection.register_behavior op with
+    | RM_to_R ->
+      (* Result must be in a register. *)
+      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
+      (arg, [|res0|])
+    | R_to_R ->
+      (* Argument and result must be in registers. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
+      ([|arg0|], [|res0|])
+    | R_R_to_fst ->
+      (* Both arguments must be registers; the result must be the first arg. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+      let arg1 = if stackp arg.(1) then self#makereg arg.(1) else arg.(1) in
+      ([|arg0; arg1|], [|arg0|])
+    | R_RM_to_fst ->
+      (* First argument must be a register; the result must be the first arg.
+         Note that stack-spilled vectors are properly aligned. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+      ([|arg0; arg.(1)|], [|arg0|]))
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
@@ -169,6 +187,26 @@ method! reload_operation op arg res =
         done;
         arg'.(len - 1) <- r;
         (arg', [|r|])
+  | Iscalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2)) ->
+    (* These are just moves; either the argument or result may be on the stack. *)
+    begin match stackp arg.(0), stackp res.(0) with
+    | true, true -> ([| self#makereg arg.(0) |], res)
+    | _ -> (arg, res)
+    end
+  | Iscalarcast (V128_to_scalar (Float32x4) | V128_of_scalar (Float32x4)) ->
+    (* These do additional logic requiring the result to be a register.
+       CR mslater: (SIMD) replace once we have unboxed float32 *)
+    (arg, [| self#makereg res.(0) |])
+  | Iscalarcast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16)) ->
+    (* Int -> Vec regs need the result to be a register. *)
+    (arg, [| self#makereg res.(0) |])
+  | Iscalarcast (V128_to_scalar (Int64x2 | Int32x4)) ->
+    (* Vec -> Int regs need the argument to be a register. *)
+    ([| self#makereg arg.(0) |], res)
+  | Iscalarcast (V128_to_scalar (Int16x8 | Int8x16)) ->
+    (* These do additional logic requiring the result to be a register.
+       CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
+    ([| self#makereg arg.(0) |], [| self#makereg res.(0) |])
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Iintop_atomic _
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
@@ -182,10 +220,10 @@ method! reload_operation op arg res =
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
-  | Ivalueofint | Iintofvalue | Iopaque
+  | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _
   | Ibeginregion | Iendregion | Ipoll _
     -> (* Other operations: all args and results in registers,
-          except moves and probes. *)
+          except moves, probes, and vector casts. *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =

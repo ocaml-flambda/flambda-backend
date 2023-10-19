@@ -81,6 +81,7 @@ val is_Tconstr: type_expr -> bool
 val is_Tpoly: type_expr -> bool
 
 val dummy_method: label
+val type_kind_is_abstract: type_declaration -> bool
 
 (**** polymorphic variants ****)
 

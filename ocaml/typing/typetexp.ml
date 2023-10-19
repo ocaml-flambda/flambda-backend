@@ -18,11 +18,13 @@
 (* Typechecking of type expressions for the core language *)
 
 open Asttypes
+open Jane_asttypes
 open Misc
 open Parsetree
 open Typedtree
 open Layouts
 open Types
+open Mode
 open Ctype
 
 exception Already_bound
@@ -493,11 +495,28 @@ let get_type_param_name styp =
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
 let get_alloc_mode styp =
-  match Builtin_attributes.has_local styp.ptyp_attributes with
-  | Ok true -> Alloc_mode.Local
-  | Ok false -> Alloc_mode.Global
-  | Error () ->
-     raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Local))
+  let locality =
+    match Builtin_attributes.has_local styp.ptyp_attributes with
+    | Ok true -> Locality.Const.Local
+    | Ok false -> Locality.Const.Global
+    | Error () ->
+      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Local))
+  in
+  let uniqueness =
+    match Builtin_attributes.has_unique styp.ptyp_attributes with
+    | Ok true -> Uniqueness.Const.Unique
+    | Ok false -> Uniqueness.Const.Shared
+    | Error () ->
+      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
+  in
+  let linearity =
+    match Builtin_attributes.has_once styp.ptyp_attributes with
+    | Ok true -> Linearity.Const.Once
+    | Ok false -> Linearity.Const.Many
+    | Error () ->
+      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
+  in
+  { locality = locality; uniqueness; linearity }
 
 let rec extract_params styp =
   let final styp =
@@ -566,7 +585,15 @@ and transl_type_aux env policy mode styp =
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
           let arg_cty = transl_type env policy arg_mode arg in
-          let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
+          let acc_mode =
+            Alloc.Const.join
+              (Alloc.Const.close_over arg_mode)
+              (Alloc.Const.partial_apply acc_mode)
+          in
+          let acc_mode =
+            Alloc.Const.join acc_mode
+              (Alloc.Const.min_with_uniqueness Uniqueness.Const.Shared)
+          in
           let ret_mode =
             match rest with
             | [] -> ret_mode
@@ -586,8 +613,8 @@ and transl_type_aux env policy mode styp =
                 (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
             end
           in
-          let arg_mode = Alloc_mode.of_const arg_mode in
-          let ret_mode = Alloc_mode.of_const ret_mode in
+          let arg_mode = Alloc.of_const arg_mode in
+          let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
           (* CR layouts v3: For now, we require function arguments and returns
              to have a representable layout.  See comment in
@@ -614,7 +641,7 @@ and transl_type_aux env policy mode styp =
       loop mode args
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);
-    let ctys = List.map (transl_type env policy Alloc_mode.Global) stl in
+    let ctys = List.map (transl_type env policy Alloc.Const.legacy) stl in
     List.iter (fun {ctyp_type; ctyp_loc} ->
       (* CR layouts v5: remove value requirement *)
       match
@@ -640,7 +667,7 @@ and transl_type_aux env policy mode styp =
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
-      let args = List.map (transl_type env policy Alloc_mode.Global) stl in
+      let args = List.map (transl_type env policy Alloc.Const.legacy) stl in
       let params = instance_list decl.type_params in
       let unify_param =
         match decl.type_manifest with
@@ -696,7 +723,7 @@ and transl_type_aux env policy mode styp =
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
-      let args = List.map (transl_type env policy Alloc_mode.Global) stl in
+      let args = List.map (transl_type env policy Alloc.Const.legacy) stl in
       let params = instance_list decl.type_params in
       List.iter2
         (fun (sty, cty) ty' ->
@@ -767,7 +794,7 @@ and transl_type_aux env policy mode styp =
             let tl =
               Builtin_attributes.warning_scope rf_attributes
                 (fun () ->
-                   List.map (transl_type env policy Alloc_mode.Global) stl)
+                   List.map (transl_type env policy Alloc.Const.legacy) stl)
             in
             List.iter (fun {ctyp_type; ctyp_loc} ->
               (* CR layouts: at some point we'll allow different layouts in
@@ -796,7 +823,7 @@ and transl_type_aux env policy mode styp =
             add_typed_field styp.ptyp_loc l.txt f;
               Ttag (l,c,tl)
         | Rinherit sty ->
-            let cty = transl_type env policy Alloc_mode.Global sty in
+          let cty = transl_type env policy Alloc.Const.legacy sty in
             let ty = cty.ctyp_type in
             let nm =
               match get_desc cty.ctyp_type with
@@ -868,7 +895,7 @@ and transl_type_aux env policy mode styp =
       let l, mty = create_package_mty true styp.ptyp_loc env (p, l) in
       let mty = TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
       let ptys = List.map (fun (s, pty) ->
-                             s, transl_type env policy Alloc_mode.Global pty
+                             s, transl_type env policy Alloc.Const.legacy pty
                           ) l in
       List.iter (fun (s,{ctyp_type=ty}) ->
         match
@@ -1045,7 +1072,9 @@ and transl_fields env policy o fields =
     | Otag (s, ty1) -> begin
         let ty1 =
           Builtin_attributes.warning_scope of_attributes
-            (fun () -> transl_type env policy Alloc_mode.Global (Ast_helper.Typ.force_poly ty1))
+            (fun () ->
+               transl_type env policy Alloc.Const.legacy
+                 (Ast_helper.Typ.force_poly ty1))
         in
         begin
           match
@@ -1063,7 +1092,7 @@ and transl_fields env policy o fields =
         field
       end
     | Oinherit sty -> begin
-        let cty = transl_type env policy Alloc_mode.Global sty in
+        let cty = transl_type env policy Alloc.Const.legacy sty in
         let nm =
           match get_desc cty.ctyp_type with
             Tconstr(p, _, _) -> Some p
@@ -1146,7 +1175,7 @@ let transl_simple_type_univars env styp =
   let typ, univs = TyVarEnv.collect_univars begin fun () ->
     begin_def ();
     let policy = TyVarEnv.univars_policy in
-    let typ = transl_type env policy Alloc_mode.Global styp in
+    let typ = transl_type env policy Alloc.Const.legacy styp in
     TyVarEnv.globalize_used_variables policy env ();
     end_def ();
     generalize typ.ctyp_type;
@@ -1173,7 +1202,7 @@ let transl_simple_type_delayed env mode styp =
 
 let transl_type_scheme_mono env styp =
   begin_def();
-  let typ = transl_simple_type env ~closed:false Alloc_mode.Global styp in
+  let typ = transl_simple_type env ~closed:false Alloc.Const.legacy styp in
   end_def();
   (* This next line is very important: it stops [val] and [external]
      declarations from having undefaulted layout variables. Without
@@ -1187,7 +1216,7 @@ let transl_type_scheme_poly env attrs loc vars inner_type =
   begin_def();
   let typed_vars, univars = transl_bound_vars vars in
   let typ =
-    transl_simple_type env ~univars ~closed:true Alloc_mode.Global inner_type
+    transl_simple_type env ~univars ~closed:true Alloc.Const.legacy inner_type
   in
   end_def();
   generalize typ.ctyp_type;
@@ -1340,7 +1369,7 @@ let report_error env ppf = function
     let s =
       match vloc with
       | Tuple -> "Tuple element"
-      | Poly_variant -> "Polymorpic variant constructor argument"
+      | Poly_variant -> "Polymorphic variant constructor argument"
       | Package_constraint -> "Signature package constraint"
       | Object_field -> "Object field"
     in

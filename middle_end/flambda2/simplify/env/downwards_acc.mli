@@ -103,3 +103,7 @@ val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 
 val with_slot_offsets : t -> slot_offsets:Slot_offsets.t Code_id.Map.t -> t
+
+val merge_debuginfo_rewrite : t -> bound_to:Simple.t -> Debuginfo.t -> t
+
+val find_debuginfo_rewrite : t -> bound_to:Simple.t -> Debuginfo.t option

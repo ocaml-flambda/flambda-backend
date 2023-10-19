@@ -303,8 +303,8 @@ let extension_constructor sub ext =
     let vs = List.map (var_layout ~loc) vs in
     let args = constructor_arguments sub args in
     let ret = Option.map (sub.typ sub) ret in
-    Jane_syntax.Layouts.extension_constructor_of
-      ~loc ~name ~attrs (Lext_decl (vs, args, ret))
+    Jane_syntax.Extension_constructor.extension_constructor_of
+      ~loc ~name ~attrs (Jext_layout (Lext_decl (vs, args, ret)))
   | Text_rebind (_p, lid) ->
     Te.constructor ~loc ~attrs name (Pext_rebind (map_loc sub lid))
 
@@ -325,7 +325,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
         Ppat_unpack { txt = None; loc  }
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_); _ } ->
+    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_,_); _ } ->
         Ppat_unpack { name with txt = Some name.txt }
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
@@ -335,7 +335,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | _ ->
     match pat.pat_desc with
       Tpat_any -> Ppat_any
-    | Tpat_var (id, name,_) ->
+    | Tpat_var (id, name,_,_) ->
         begin
           match (Ident.name id).[0] with
             'A'..'Z' ->
@@ -348,11 +348,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
        The compiler transforms (x:t) into (_ as x : t).
        This avoids transforming a warning 27 into a 26.
      *)
-    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _mode)
+    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _uid, _mode)
          when pat_loc = pat.pat_loc ->
        Ppat_var name
 
-    | Tpat_alias (pat, _id, name, _mode) ->
+    | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
@@ -390,7 +390,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         | Mutable   -> Ppat_array pats
         | Immutable ->
           Jane_syntax.Immutable_arrays.pat_of
-            ~loc ~attrs:[]
+            ~loc
             (Iapat_immutable_array pats)
           |> add_jane_syntax_attributes
       end
@@ -427,7 +427,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
     | Texp_newtype (s, Some layout) ->
-        Jane_syntax.Layouts.expr_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, add_loc layout, sexp))
         |> add_jane_syntax_attributes
   in
@@ -473,7 +473,7 @@ let comprehension sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  Jane_syntax.Comprehensions.expr_of ~attrs:[] (comp_type (comprehension comp))
+  Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -489,7 +489,7 @@ let expression sub exp =
   in
   let desc =
     match exp.exp_desc with
-      Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
+      Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
     | Texp_constant cst -> Pexp_constant (constant cst)
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
@@ -542,7 +542,7 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
-    | Texp_field (exp, lid, _label, _) ->
+    | Texp_field (exp, lid, _label, _, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
@@ -555,7 +555,7 @@ let expression sub exp =
             Pexp_array plist
         | Immutable ->
             Jane_syntax.Immutable_arrays.expr_of
-              ~loc ~attrs:[] (Iaexp_immutable_array plist)
+              ~loc (Iaexp_immutable_array plist)
             |> add_jane_syntax_attributes
       end
     | Texp_list_comprehension comp ->
@@ -783,19 +783,29 @@ let functor_parameter sub : functor_parameter -> Parsetree.functor_parameter =
 let module_type (sub : mapper) mty =
   let loc = sub.location sub mty.mty_loc in
   let attrs = sub.attributes sub mty.mty_attributes in
-  let desc = match mty.mty_desc with
-      Tmty_ident (_path, lid) -> Pmty_ident (map_loc sub lid)
-    | Tmty_alias (_path, lid) -> Pmty_alias (map_loc sub lid)
-    | Tmty_signature sg -> Pmty_signature (sub.signature sub sg)
-    | Tmty_functor (arg, mtype2) ->
-        Pmty_functor (functor_parameter sub arg, sub.module_type sub mtype2)
-    | Tmty_with (mtype, list) ->
-        Pmty_with (sub.module_type sub mtype,
-          List.map (sub.with_constraint sub) list)
-    | Tmty_typeof mexpr ->
-        Pmty_typeof (sub.module_expr sub mexpr)
-  in
-  Mty.mk ~loc ~attrs desc
+  match mty.mty_desc with
+    Tmty_ident (_path, lid) ->
+      Mty.mk ~loc ~attrs (Pmty_ident (map_loc sub lid))
+  | Tmty_alias (_path, lid) ->
+      Mty.mk ~loc ~attrs (Pmty_alias (map_loc sub lid))
+  | Tmty_signature sg -> 
+      Mty.mk ~loc ~attrs (Pmty_signature (sub.signature sub sg))
+  | Tmty_functor (arg, mtype2) ->
+      Mty.mk ~loc ~attrs
+        (Pmty_functor
+          (functor_parameter sub arg, sub.module_type sub mtype2))
+  | Tmty_with (mtype, list) ->
+      Mty.mk ~loc ~attrs
+        (Pmty_with (sub.module_type sub mtype,
+          List.map (sub.with_constraint sub) list))
+  | Tmty_typeof mexpr ->
+    Mty.mk ~loc ~attrs (Pmty_typeof (sub.module_expr sub mexpr))
+  | Tmty_strengthen (mtype, _path, lid) ->
+      Jane_syntax.Module_type.mty_of ~loc ~attrs
+        (Jane_syntax.Module_type.Jmty_strengthen
+            { mty = sub.module_type sub mtype;
+              mod_id = map_loc sub lid
+            })
 
 let with_constraint sub (_path, lid, cstr) =
   match cstr with
@@ -928,7 +938,7 @@ let core_type sub ct =
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
     | Ttyp_var (name, Some layout) ->
-        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.type_of ~loc
           (Ltyp_var { name; layout = mkloc layout loc }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
@@ -945,7 +955,7 @@ let core_type sub ct =
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
     | Ttyp_alias (ct, s, Some layout) ->
-        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
                         layout = mkloc layout loc }) |>
         add_jane_syntax_attributes
@@ -955,7 +965,7 @@ let core_type sub ct =
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
         let bound_vars = List.map (var_layout ~loc) list in
-        Jane_syntax.Layouts.type_of ~loc ~attrs:[]
+        Jane_syntax.Layouts.type_of ~loc
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
@@ -964,7 +974,7 @@ let core_type sub ct =
 
 let class_structure sub cs =
   let rec remove_self = function
-    | { pat_desc = Tpat_alias (p, id, _s, _mode) }
+    | { pat_desc = Tpat_alias (p, id, _s, _uid, _mode) }
       when string_is_prefix "selfpat-" (Ident.name id) ->
         remove_self p
     | p -> p
@@ -994,7 +1004,7 @@ let object_field sub {of_loc; of_desc; of_attributes;} =
   Of.mk ~loc ~attrs desc
 
 and is_self_pat = function
-  | { pat_desc = Tpat_alias(_pat, id, _, _mode) } ->
+  | { pat_desc = Tpat_alias(_pat, id, _, _uid, _mode) } ->
       string_is_prefix "self-" (Ident.name id)
   | _ -> false
 
