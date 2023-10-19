@@ -238,32 +238,12 @@ let compute_variance_type env ~check (required, loc) decl tyl =
         else (false, false) (* only check *)
       and i = concr  || i && tr = Private in
       let v = union v (make p n i) in
-<<<<<<< HEAD
-      let v =
-        if not concr then v else
-        if mem Pos v && mem Neg v then full else
-        if Btype.is_Tvar ty then v else
-        union v
-          (if p then if n then full else covariant else conjugate covariant)
-      in
-      if Btype.type_kind_is_abstract decl && tr = Public then v else
-      set May_weak (mem May_neg v) v)
-||||||| merged common ancestors
-      let v =
-        if not concr then v else
-        if mem Pos v && mem Neg v then full else
-        if Btype.is_Tvar ty then v else
-        union v
-          (if p then if n then full else covariant else conjugate covariant)
-      in
-      if decl.type_kind = Type_abstract && tr = Public then v else
-      set May_weak (mem May_neg v) v)
-=======
       if not concr || Btype.is_Tvar ty then v else
       union v
         (if p then if n then full else covariant else conjugate covariant))
->>>>>>> ocaml/5.1
     params required
+
+let add_false = List.map (fun ty -> false, ty)
 
 (* A parameter is constrained if it is either instantiated,
    or it is a variable appearing in another parameter *)
@@ -325,87 +305,16 @@ let compute_variance_gadt_constructor env ~check rloc decl tl =
     (tl.Types.cd_args, tl.Types.cd_res)
 
 let compute_variance_decl env ~check decl (required, _ as rloc) =
-<<<<<<< HEAD
-  let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || decl.type_kind = Type_open)
-||||||| merged common ancestors
-  if (decl.type_kind = Type_abstract || decl.type_kind = Type_open)
-=======
   let check =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
-  if (decl.type_kind = Type_abstract || decl.type_kind = Type_open)
->>>>>>> ocaml/5.1
+  let abstract = Btype.type_kind_is_abstract decl in
+  if (abstract || decl.type_kind = Type_open)
        && decl.type_manifest = None then
     List.map
       (fun (c, n, i) ->
         make (not n) (not c) (not abstract || i))
       required
-<<<<<<< HEAD
-  else
-  let mn =
-    match decl.type_manifest with
-      None -> []
-    | Some ty -> [false, ty]
-  in
-  match decl.type_kind with
-    Type_abstract _ | Type_open ->
-      compute_variance_type env ~check rloc decl mn
-  | Type_variant (tll,_rep) ->
-      if List.for_all (fun c -> c.Types.cd_res = None) tll then
-        compute_variance_type env ~check rloc decl
-          (mn @ List.flatten (List.map (fun c -> for_constr c.Types.cd_args)
-                                tll))
-      else begin
-        let mn =
-          List.map (fun (_,ty) -> (Types.Cstr_tuple [ty, Unrestricted],None)) mn in
-        let tll =
-          mn @ List.map (fun c -> c.Types.cd_args, c.Types.cd_res) tll in
-        match List.map (compute_variance_gadt env ~check rloc decl) tll with
-        | vari :: rem ->
-            let varl = List.fold_left (List.map2 Variance.union) vari rem in
-            List.map
-              Variance.(fun v -> if mem Pos v && mem Neg v then full else v)
-              varl
-        | _ -> assert false
-      end
-  | Type_record (ftl, _) ->
-      compute_variance_type env ~check rloc decl
-        (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
-             (ld_mutable = Mutable, ld_type)) ftl)
-||||||| merged common ancestors
-  else
-  let mn =
-    match decl.type_manifest with
-      None -> []
-    | Some ty -> [false, ty]
-  in
-  match decl.type_kind with
-    Type_abstract | Type_open ->
-      compute_variance_type env ~check rloc decl mn
-  | Type_variant (tll,_rep) ->
-      if List.for_all (fun c -> c.Types.cd_res = None) tll then
-        compute_variance_type env ~check rloc decl
-          (mn @ List.flatten (List.map (fun c -> for_constr c.Types.cd_args)
-                                tll))
-      else begin
-        let mn =
-          List.map (fun (_,ty) -> (Types.Cstr_tuple [ty],None)) mn in
-        let tll =
-          mn @ List.map (fun c -> c.Types.cd_args, c.Types.cd_res) tll in
-        match List.map (compute_variance_gadt env ~check rloc decl) tll with
-        | vari :: rem ->
-            let varl = List.fold_left (List.map2 Variance.union) vari rem in
-            List.map
-              Variance.(fun v -> if mem Pos v && mem Neg v then full else v)
-              varl
-        | _ -> assert false
-      end
-  | Type_record (ftl, _) ->
-      compute_variance_type env ~check rloc decl
-        (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
-             (ld_mutable = Mutable, ld_type)) ftl)
-=======
   else begin
     let mn =
       match decl.type_manifest with
@@ -414,7 +323,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     in
     let vari =
       match decl.type_kind with
-        Type_abstract | Type_open ->
+        Type_abstract _ | Type_open ->
           compute_variance_type env ~check rloc decl mn
       | Type_variant (tll,_rep) ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then
@@ -446,11 +355,10 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (ld_mutable = Mutable, ld_type)) ftl)
     in
-    if mn = [] || decl.type_kind <> Type_abstract then
+    if mn = [] || not abstract then
       List.map Variance.strengthen vari
     else vari
   end
->>>>>>> ocaml/5.1
 
 let is_hash id =
   let s = Ident.name id in

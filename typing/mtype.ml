@@ -48,22 +48,9 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
 
   | Mty_functor(Named (Some param, arg), res)
     when !Clflags.applicative_functors ->
-<<<<<<< HEAD
       Some (Mty_functor(Named (Some param, arg),
         strengthen_lazy ~aliasable:false res (Papply(p, Pident param))))
   | Mty_functor(Named (None, arg), res)
-||||||| merged common ancestors
-      MtyL_functor(Named (Some param, arg),
-        strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
-  | MtyL_functor(Named (None, arg), res)
-=======
-      let env =
-        Env.add_module_lazy ~update_summary:false param Mp_present arg env
-      in
-      MtyL_functor(Named (Some param, arg),
-        strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
-  | MtyL_functor(Named (None, arg), res)
->>>>>>> ocaml/5.1
     when !Clflags.applicative_functors ->
       let param = Ident.create_scoped ~scope:(Path.scope p) "Arg" in
       Some (Mty_functor(Named (Some param, arg),

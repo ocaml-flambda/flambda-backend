@@ -576,7 +576,6 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
-<<<<<<< HEAD
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
@@ -591,8 +590,7 @@ let find_unboxed_type decl =
                      | Variant_extensible ))
   | Type_abstract _ | Type_open ->
     None
-||||||| merged common ancestors
-=======
+
 let item_visibility = function
   | Sig_value (_, _, vis)
   | Sig_type (_, _, _, vis)
@@ -601,7 +599,6 @@ let item_visibility = function
   | Sig_modtype (_, _, vis)
   | Sig_class (_, _, _, vis)
   | Sig_class_type (_, _, _, vis) -> vis
->>>>>>> ocaml/5.1
 
 type label_description =
   { lbl_name: string;                   (* Short name *)

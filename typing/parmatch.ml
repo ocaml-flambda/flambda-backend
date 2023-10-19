@@ -847,13 +847,7 @@ let pats_of_type env ty =
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
-<<<<<<< HEAD
       | Type_variant _ | Type_abstract _ | Type_open -> [omega]
-||||||| merged common ancestors
-      | Type_variant _ | Type_abstract | Type_open -> [omega]
-=======
-      | _ -> [omega]
->>>>>>> ocaml/5.1
       end
   | Has_no_typedecl ->
       begin match get_desc (Ctype.expand_head env ty) with
@@ -861,7 +855,7 @@ let pats_of_type env ty =
           [make_pat (Tpat_tuple (omegas (List.length tl))) ty env]
       | _ -> [omega]
       end
-  | Typedecl (_, _, {type_kind = Type_abstract | Type_open})
+  | Typedecl (_, _, {type_kind = Type_abstract _ | Type_open})
   | May_have_typedecl -> [omega]
 
 let get_variant_constructors env ty =
@@ -1864,144 +1858,6 @@ let rec initial_only_guarded = function
 (* Exhaustiveness check *)
 (************************)
 
-<<<<<<< HEAD
-(* conversion from Typedtree.pattern to Parsetree.pattern list *)
-module Conv = struct
-  open Parsetree
-  let mkpat ?attrs desc = Ast_helper.Pat.mk ?attrs desc
-
-  let name_counter = ref 0
-  let fresh name =
-    let current = !name_counter in
-    name_counter := !name_counter + 1;
-    "#$" ^ name ^ Int.to_string current
-
-  let conv typed =
-    let constrs = Hashtbl.create 7 in
-    let labels = Hashtbl.create 7 in
-    let rec loop pat =
-      match pat.pat_desc with
-        Tpat_or (pa,pb,_) ->
-          mkpat (Ppat_or (loop pa, loop pb))
-      | Tpat_var (_, ({txt="*extension*"} as nm), _, _) -> (* PR#7330 *)
-          mkpat (Ppat_var nm)
-      | Tpat_any
-      | Tpat_var _ ->
-          mkpat Ppat_any
-      | Tpat_constant c ->
-          mkpat (Ppat_constant (Untypeast.constant c))
-      | Tpat_alias (p,_,_,_,_) -> loop p
-      | Tpat_tuple lst ->
-          mkpat (Ppat_tuple (List.map loop lst))
-      | Tpat_construct (cstr_lid, cstr, lst, _) ->
-          let id = fresh cstr.cstr_name in
-          let lid = { cstr_lid with txt = Longident.Lident id } in
-          Hashtbl.add constrs id cstr;
-          let arg =
-            match List.map loop lst with
-            | []  -> None
-            | [p] -> Some ([], p)
-            | lst -> Some ([], mkpat (Ppat_tuple lst))
-          in
-          mkpat (Ppat_construct(lid, arg))
-      | Tpat_variant(label,p_opt,_row_desc) ->
-          let arg = Option.map loop p_opt in
-          mkpat (Ppat_variant(label, arg))
-      | Tpat_record (subpatterns, _closed_flag) ->
-          let fields =
-            List.map
-              (fun (_, lbl, p) ->
-                let id = fresh lbl.lbl_name in
-                Hashtbl.add labels id lbl;
-                (mknoloc (Longident.Lident id), loop p))
-              subpatterns
-          in
-          mkpat (Ppat_record (fields, Open))
-      | Tpat_array (am, lst) ->
-          let pats = (List.map loop lst) in
-          let ppat, attrs = match am with
-            | Mutable   -> Ppat_array pats, []
-            | Immutable ->
-                let ppat =
-                  Jane_syntax.Immutable_arrays.pat_of
-                    ~loc:pat.pat_loc (Iapat_immutable_array pats)
-                in
-                ppat.ppat_desc, ppat.ppat_attributes
-          in
-          mkpat ~attrs ppat
-      | Tpat_lazy p ->
-          mkpat (Ppat_lazy (loop p))
-    in
-    let ps = loop typed in
-    (ps, constrs, labels)
-end
-
-
-||||||| merged common ancestors
-(* conversion from Typedtree.pattern to Parsetree.pattern list *)
-module Conv = struct
-  open Parsetree
-  let mkpat desc = Ast_helper.Pat.mk desc
-
-  let name_counter = ref 0
-  let fresh name =
-    let current = !name_counter in
-    name_counter := !name_counter + 1;
-    "#$" ^ name ^ Int.to_string current
-
-  let conv typed =
-    let constrs = Hashtbl.create 7 in
-    let labels = Hashtbl.create 7 in
-    let rec loop pat =
-      match pat.pat_desc with
-        Tpat_or (pa,pb,_) ->
-          mkpat (Ppat_or (loop pa, loop pb))
-      | Tpat_var (_, ({txt="*extension*"} as nm)) -> (* PR#7330 *)
-          mkpat (Ppat_var nm)
-      | Tpat_any
-      | Tpat_var _ ->
-          mkpat Ppat_any
-      | Tpat_constant c ->
-          mkpat (Ppat_constant (Untypeast.constant c))
-      | Tpat_alias (p,_,_) -> loop p
-      | Tpat_tuple lst ->
-          mkpat (Ppat_tuple (List.map loop lst))
-      | Tpat_construct (cstr_lid, cstr, lst, _) ->
-          let id = fresh cstr.cstr_name in
-          let lid = { cstr_lid with txt = Longident.Lident id } in
-          Hashtbl.add constrs id cstr;
-          let arg =
-            match List.map loop lst with
-            | []  -> None
-            | [p] -> Some ([], p)
-            | lst -> Some ([], mkpat (Ppat_tuple lst))
-          in
-          mkpat (Ppat_construct(lid, arg))
-      | Tpat_variant(label,p_opt,_row_desc) ->
-          let arg = Option.map loop p_opt in
-          mkpat (Ppat_variant(label, arg))
-      | Tpat_record (subpatterns, _closed_flag) ->
-          let fields =
-            List.map
-              (fun (_, lbl, p) ->
-                let id = fresh lbl.lbl_name in
-                Hashtbl.add labels id lbl;
-                (mknoloc (Longident.Lident id), loop p))
-              subpatterns
-          in
-          mkpat (Ppat_record (fields, Open))
-      | Tpat_array lst ->
-          mkpat (Ppat_array (List.map loop lst))
-      | Tpat_lazy p ->
-          mkpat (Ppat_lazy (loop p))
-    in
-    let ps = loop typed in
-    (ps, constrs, labels)
-end
-
-
-=======
->>>>>>> ocaml/5.1
 (* Whether the counter-example contains an extension pattern *)
 let contains_extension pat =
   exists_pattern
@@ -2480,34 +2336,8 @@ let all_rhs_idents exp =
   let open Tast_iterator in
   let expr_iter iter exp =
     match exp.exp_desc with
-<<<<<<< HEAD
     | Texp_ident (path, _lid, _descr, _kind, _mode) ->
       List.iter (fun id -> ids := Ident.Set.add id !ids) (Path.heads path)
-||||||| merged common ancestors
-    (match exp.exp_desc with
-      | Texp_ident (path, _lid, _descr) ->
-        List.iter (fun id -> ids := Ident.Set.add id !ids) (Path.heads path)
-      (* Use default iterator methods for rest of match.*)
-      | _ -> Tast_iterator.default_iterator.expr iter exp);
-
-    if is_unpack exp then begin match exp.exp_desc with
-    | Texp_letmodule
-        (id_mod,_,_,
-         {mod_desc=
-          Tmod_unpack ({exp_desc=Texp_ident (Path.Pident id_exp,_,_)},_)},
-         _) ->
-           assert (Ident.Set.mem id_exp !ids) ;
-           begin match id_mod with
-           | Some id_mod when not (Ident.Set.mem id_mod !ids) ->
-             ids := Ident.Set.remove id_exp !ids
-           | _ -> ()
-           end
-    | _ -> assert false
-    end
-=======
-    | Texp_ident (path, _lid, _descr) ->
-        List.iter (fun id -> ids := Ident.Set.add id !ids) (Path.heads path)
->>>>>>> ocaml/5.1
     (* Use default iterator methods for rest of match.*)
     | _ -> Tast_iterator.default_iterator.expr iter exp
   in

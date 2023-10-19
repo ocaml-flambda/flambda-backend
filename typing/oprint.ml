@@ -269,15 +269,9 @@ let rec print_list pr sep ppf =
 let pr_present =
   print_list (fun ppf s -> fprintf ppf "`%s" s) (fun ppf -> fprintf ppf "@ ")
 
-<<<<<<< HEAD
 let pr_var = Printast.tyvar
-||||||| merged common ancestors
-let pr_var = Pprintast.tyvar
-=======
-let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
->>>>>>> ocaml/5.1
 
 let print_out_jkind ppf = function
   | Olay_const lay -> fprintf ppf "%s" (Jkind.string_of_const lay)
@@ -405,20 +399,12 @@ let is_once mode =
 
 let rec print_out_type_0 mode ppf =
   function
-<<<<<<< HEAD
-  | Otyp_alias (ty, s) ->
-      fprintf ppf "@[%a@ as %a@]" (print_out_type_0 mode) ty pr_var s
+  | Otyp_alias {non_gen; aliased; alias } ->
+    fprintf ppf "@[%a@ as %a@]"
+      (print_out_type_0 mode) aliased
+      (ty_var ~non_gen) alias
   | Otyp_poly ([], ty) ->
       print_out_type_0 mode ppf ty  (* no "." if there are no vars *)
-||||||| merged common ancestors
-  | Otyp_alias (ty, s) ->
-      fprintf ppf "@[%a@ as %a@]" print_out_type ty pr_var s
-=======
-  | Otyp_alias {non_gen; aliased; alias } ->
-      fprintf ppf "@[%a@ as %a@]"
-        print_out_type aliased
-        (ty_var ~non_gen) alias
->>>>>>> ocaml/5.1
   | Otyp_poly (sl, ty) ->
       fprintf ppf "@[<hov 2>%a.@ %a@]"
         pr_var_jkinds sl

@@ -186,15 +186,9 @@ let mk_add_type add_type
   in
   add_type type_ident decl env
 
-<<<<<<< HEAD
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
-let common_initial_env add_type add_extension empty_env =
-||||||| merged common ancestors
-let common_initial_env add_type add_extension empty_env =
-=======
 let build_initial_env add_type add_extension empty_env =
->>>>>>> ocaml/5.1
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract Abstract_def)
@@ -281,13 +275,9 @@ let build_initial_env add_type add_extension empty_env =
            [| [| |]; [| Jkind.value ~why:Type_argument |] |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_string
-<<<<<<< HEAD
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
-||||||| merged common ancestors
-=======
   |> add_type ident_bytes
->>>>>>> ocaml/5.1
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
@@ -314,14 +304,6 @@ let build_initial_env add_type add_extension empty_env =
        [newgenty (Ttuple[type_string; type_int; type_int])]
        [| Jkind.value ~why:Tuple |]
 
-<<<<<<< HEAD
-let build_initial_env add_type add_exception empty_env =
-  let common = common_initial_env add_type add_exception empty_env in
-  let add_type = mk_add_type add_type in
-  let safe_string = add_type ident_bytes common in
-  let unsafe_string = add_type ident_bytes ~manifest:type_string common in
-  (safe_string, unsafe_string)
-
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
@@ -332,16 +314,6 @@ let add_simd_extension_types add_type env =
   |> add_type ident_float32x4
   |> add_type ident_float64x2
 
-||||||| merged common ancestors
-let build_initial_env add_type add_exception empty_env =
-  let common = common_initial_env add_type add_exception empty_env in
-  let add_type = mk_add_type add_type in
-  let safe_string = add_type ident_bytes common in
-  let unsafe_string = add_type ident_bytes ~manifest:type_string common in
-  (safe_string, unsafe_string)
-
-=======
->>>>>>> ocaml/5.1
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns
 

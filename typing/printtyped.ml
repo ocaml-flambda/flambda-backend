@@ -154,15 +154,7 @@ let typevar_jkind ~print_quote ppf (v, l) =
                     Jane_syntax.Layouts.Pprint.const_jkind lay
 
 let typevars ppf vs =
-<<<<<<< HEAD
   List.iter (typevar_jkind ~print_quote:true ppf) vs
-;;
-||||||| merged common ancestors
-  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
-;;
-=======
-  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
->>>>>>> ocaml/5.1
 
 let jkind_array i ppf jkinds =
   array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.format l)

@@ -235,13 +235,7 @@ and 'k case =
     }
 
 and record_label_definition =
-<<<<<<< HEAD
-  | Kept of Types.type_expr * unique_use
-||||||| merged common ancestors
-  | Kept of Types.type_expr
-=======
-  | Kept of Types.type_expr * mutable_flag
->>>>>>> ocaml/5.1
+  | Kept of Types.type_expr * mutable_flag * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -1039,7 +1033,8 @@ let rec exp_is_nominal exp =
   | _ when exp.exp_attributes <> [] -> false
   | Texp_ident _ | Texp_instvar _ | Texp_constant _
   | Texp_variant (_, None)
-  | Texp_construct (_, _, []) ->
+  | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _) | Texp_send (parent, _) -> exp_is_nominal parent
+  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
+      exp_is_nominal parent
   | _ -> false

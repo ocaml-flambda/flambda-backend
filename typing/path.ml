@@ -85,16 +85,8 @@ let exists_free ids p =
 
 let rec scope = function
     Pident id -> Ident.scope id
-<<<<<<< HEAD
-  | Pdot(p, _s) -> scope p
-  | Papply(p1, p2) -> Misc.Stdlib.Int.max (scope p1) (scope p2)
-||||||| merged common ancestors
-  | Pdot(p, _s) -> scope p
-  | Papply(p1, p2) -> Int.max (scope p1) (scope p2)
-=======
   | Pdot(p, _) | Pextra_ty (p, _) -> scope p
   | Papply(p1, p2) -> Int.max (scope p1) (scope p2)
->>>>>>> ocaml/5.1
 
 let kfalse _ = false
 

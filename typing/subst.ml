@@ -750,16 +750,8 @@ and subst_lazy_modtype scoping s = function
           begin match p with
           | Pident _ -> Mty_ident p
           | Pdot(p, n) ->
-<<<<<<< HEAD
              Mty_ident(Pdot(module_path s p, n))
-          | Papply _ ->
-||||||| merged common ancestors
-             MtyL_ident(Pdot(module_path s p, n))
-          | Papply _ ->
-=======
-             MtyL_ident(Pdot(module_path s p, n))
           | Papply _ | Pextra_ty _ ->
->>>>>>> ocaml/5.1
              fatal_error "Subst.modtype"
           end
       end

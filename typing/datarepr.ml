@@ -101,7 +101,6 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
-<<<<<<< HEAD
   let cstr_constant =
     Array.map
       (fun jkinds ->
@@ -130,7 +129,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, rep) in
       constructor_args ~current_unit decl.type_private cd_args cd_res
-        (Path.Pdot (ty_path, cstr_name)) record_repr
+        Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
       { cstr_name;
@@ -155,111 +154,6 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
   in
   let (_,_,_,cstrs) = List.fold_left describe_constructor (0,0,0,[]) cstrs in
   List.rev cstrs
-||||||| merged common ancestors
-  List.iter
-    (fun {cd_args; _} ->
-      if cd_args = Cstr_tuple [] then incr num_consts else incr num_nonconsts)
-    cstrs;
-  let rec describe_constructors idx_const idx_nonconst = function
-      [] -> []
-    | {cd_id; cd_args; cd_res; cd_loc; cd_attributes; cd_uid} :: rem ->
-        let ty_res =
-          match cd_res with
-          | Some ty_res' -> ty_res'
-          | None -> ty_res
-        in
-        let (tag, descr_rem) =
-          match cd_args, rep with
-          | _, Variant_unboxed ->
-            assert (rem = []);
-            (Cstr_unboxed, [])
-          | Cstr_tuple [], Variant_regular ->
-             (Cstr_constant idx_const,
-              describe_constructors (idx_const+1) idx_nonconst rem)
-          | _, Variant_regular  ->
-             (Cstr_block idx_nonconst,
-              describe_constructors idx_const (idx_nonconst+1) rem) in
-        let cstr_name = Ident.name cd_id in
-        let existentials, cstr_args, cstr_inlined =
-          let representation =
-            match rep with
-            | Variant_unboxed -> Record_unboxed true
-            | Variant_regular -> Record_inlined idx_nonconst
-          in
-          constructor_args ~current_unit decl.type_private cd_args cd_res
-            (Path.Pdot (ty_path, cstr_name)) representation
-        in
-        let cstr =
-          { cstr_name;
-            cstr_res = ty_res;
-            cstr_existentials = existentials;
-            cstr_args;
-            cstr_arity = List.length cstr_args;
-            cstr_tag = tag;
-            cstr_consts = !num_consts;
-            cstr_nonconsts = !num_nonconsts;
-            cstr_private = decl.type_private;
-            cstr_generalized = cd_res <> None;
-            cstr_loc = cd_loc;
-            cstr_attributes = cd_attributes;
-            cstr_inlined;
-            cstr_uid = cd_uid;
-          } in
-        (cd_id, cstr) :: descr_rem in
-  describe_constructors 0 0 cstrs
-=======
-  List.iter
-    (fun {cd_args; _} ->
-      if cd_args = Cstr_tuple [] then incr num_consts else incr num_nonconsts)
-    cstrs;
-  let rec describe_constructors idx_const idx_nonconst = function
-      [] -> []
-    | {cd_id; cd_args; cd_res; cd_loc; cd_attributes; cd_uid} :: rem ->
-        let ty_res =
-          match cd_res with
-          | Some ty_res' -> ty_res'
-          | None -> ty_res
-        in
-        let (tag, descr_rem) =
-          match cd_args, rep with
-          | _, Variant_unboxed ->
-            assert (rem = []);
-            (Cstr_unboxed, [])
-          | Cstr_tuple [], Variant_regular ->
-             (Cstr_constant idx_const,
-              describe_constructors (idx_const+1) idx_nonconst rem)
-          | _, Variant_regular  ->
-             (Cstr_block idx_nonconst,
-              describe_constructors idx_const (idx_nonconst+1) rem) in
-        let cstr_name = Ident.name cd_id in
-        let existentials, cstr_args, cstr_inlined =
-          let representation =
-            match rep with
-            | Variant_unboxed -> Record_unboxed true
-            | Variant_regular -> Record_inlined idx_nonconst
-          in
-          constructor_args ~current_unit decl.type_private cd_args cd_res
-            Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) representation
-        in
-        let cstr =
-          { cstr_name;
-            cstr_res = ty_res;
-            cstr_existentials = existentials;
-            cstr_args;
-            cstr_arity = List.length cstr_args;
-            cstr_tag = tag;
-            cstr_consts = !num_consts;
-            cstr_nonconsts = !num_nonconsts;
-            cstr_private = decl.type_private;
-            cstr_generalized = cd_res <> None;
-            cstr_loc = cd_loc;
-            cstr_attributes = cd_attributes;
-            cstr_inlined;
-            cstr_uid = cd_uid;
-          } in
-        (cd_id, cstr) :: descr_rem in
-  describe_constructors 0 0 cstrs
->>>>>>> ocaml/5.1
 
 let extension_descr ~current_unit path_ext ext =
   let ty_res =
@@ -270,13 +164,8 @@ let extension_descr ~current_unit path_ext ext =
   let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
-<<<<<<< HEAD
-      path_ext (Record_inlined (cstr_tag, Variant_extensible))
-||||||| merged common ancestors
-      path_ext (Record_extension path_ext)
-=======
-      Path.(Pextra_ty (path_ext, Pext_ty)) (Record_extension path_ext)
->>>>>>> ocaml/5.1
+      Path.(Pextra_ty (path_ext, Pext_ty))
+      (Record_inlined (cstr_tag, Variant_extensible))
   in
     { cstr_name = Path.last path_ext;
       cstr_res = ty_res;
