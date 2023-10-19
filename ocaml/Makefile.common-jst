@@ -20,7 +20,10 @@ define dune_boot_context
 (context (default
   (name default)
   ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile boot)))
+  (profile boot)
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" ""))))))
 endef
 
 define dune_runtime_stdlib_context
@@ -31,8 +34,9 @@ define dune_runtime_stdlib_context
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
-  (env (_ (env-vars
-    ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
 define dune_main_context
@@ -43,8 +47,9 @@ define dune_main_context
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
-  (env (_ (env-vars
-    ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
 

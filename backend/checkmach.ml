@@ -95,7 +95,7 @@ module Witness = struct
           pp ppf;
           (* Show inlined locations. If dbg has only one item, it will already
              be shown as [loc]. *)
-          if List.length t.dbg > 1
+          if Debuginfo.Dbg.length (Debuginfo.get_dbg t.dbg) > 1
           then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg;
           if not (String.equal "" component)
           then Format.fprintf ppf " on a path to %s" component;
@@ -403,13 +403,16 @@ end = struct
   type t =
     { strict : bool;  (** strict or relaxed? *)
       assume : bool;
+      never_returns_normally : bool;
       loc : Location.t
           (** Source location of the annotation, used for error messages. *)
     }
 
   let get_loc t = t.loc
 
-  let expected_value t = if t.strict then Value.safe else Value.relaxed
+  let expected_value t =
+    let res = if t.strict then Value.safe else Value.relaxed in
+    if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
 
@@ -419,12 +422,15 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check { property; strict; assume; loc } when property = spec ->
-            Some { strict; assume; loc }
+          | Check { property; strict; loc } when property = spec ->
+            Some { strict; assume = false; never_returns_normally = false; loc }
+          | Assume { property; strict; never_returns_normally; loc }
+            when property = spec ->
+            Some { strict; assume = true; never_returns_normally; loc }
           | Ignore_assert_all property when property = spec ->
             ignore_assert_all := true;
             None
-          | Ignore_assert_all _ | Check _ | Reduce_code_size | No_CSE
+          | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)
         codegen_options
@@ -433,7 +439,12 @@ end = struct
     | [] ->
       if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
       then
-        Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
+        Some
+          { strict = false;
+            assume = false;
+            never_returns_normally = false;
+            loc = Debuginfo.to_location dbg
+          }
       else None
     | [p] -> Some p
     | _ :: _ ->
@@ -453,7 +464,7 @@ end = struct
     Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
       (Printcmm.property_to_string property)
       (if t.strict then " strict" else "")
-      (fun_dbg
+      (fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
       |> List.map (fun dbg ->
              Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
       |> String.concat ",")
@@ -915,25 +926,36 @@ end = struct
     let r = Value.join next exn in
     report t r ~msg:"transform join" ~desc dbg;
     let r = transform_diverge ~effect:effect.div r in
-    report t r ~msg:"transform_call result" ~desc dbg;
+    report t r ~msg:"transform result" ~desc dbg;
     check t r desc dbg
+
+  let transform_top t ~next ~exn w desc dbg =
+    let effect =
+      if Debuginfo.assume_zero_alloc dbg then Value.safe else Value.top w
+    in
+    transform t ~next ~exn ~effect desc dbg
 
   let transform_call t ~next ~exn callee w ~desc dbg =
     report t next ~msg:"transform_call next" ~desc dbg;
     report t exn ~msg:"transform_call exn" ~desc dbg;
-    let callee_value, new_dep = find_callee t callee dbg in
-    update_deps t callee_value new_dep w desc dbg;
-    (* Abstract witnesses of a call to the single witness for the callee name.
-       Summary of tailcall self won't be affected because it is set to Safe not
-       Top by [find_callee]. *)
-    let callee_value = Value.replace_witnesses w callee_value in
-    transform t ~next ~exn ~effect:callee_value desc dbg
+    let effect =
+      if Debuginfo.assume_zero_alloc dbg
+      then Value.safe
+      else
+        let callee_value, new_dep = find_callee t callee dbg in
+        update_deps t callee_value new_dep w desc dbg;
+        (* Abstract witnesses of a call to the single witness for the callee
+           name. Summary of tailcall self won't be affected because it is set to
+           Safe not Top by [find_callee]. *)
+        Value.replace_witnesses w callee_value
+    in
+    transform t ~next ~exn ~effect desc dbg
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
     | Iconst_vec128 _ | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf
-    | Imulf | Idivf | Ifloatofint | Iintoffloat
+    | Imulf | Idivf | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
@@ -968,22 +990,23 @@ end = struct
       next
     | Ialloc { mode = Alloc_heap; bytes; dbginfo } ->
       assert (not (Mach.operation_can_raise op));
-      let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
-      let r = Value.transform w next in
-      check t r "heap allocation" dbg
+      if Debuginfo.assume_zero_alloc dbg
+      then next
+      else
+        let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
+        let r = Value.transform w next in
+        check t r "heap allocation" dbg
     | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
       transform_call t ~next ~exn handler_code_sym w ~desc dbg
     | Icall_ind ->
       let w = create_witnesses t Indirect_call dbg in
-      let effect = Value.top w in
-      transform t ~next ~exn ~effect "indirect call" dbg
+      transform_top t ~next ~exn w "indirect call" dbg
     | Itailcall_ind ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       let w = create_witnesses t Indirect_tailcall dbg in
-      let effect = Value.top w in
-      transform t ~next:Value.normal_return ~exn:Value.exn_escape ~effect
+      transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
         "indirect tailcall" dbg
     | Icall_imm { func = { sym_name = func; _ } } ->
       let w = create_witnesses t (Direct_call { callee = func }) dbg in
@@ -1004,12 +1027,22 @@ end = struct
       Value.bot
     | Iextcall { func; alloc = true; _ } ->
       let w = create_witnesses t (Extcall { callee = func }) dbg in
-      let effect = Value.top w in
-      transform t ~next ~exn ~effect ("external call to " ^ func) dbg
+      transform_top t ~next ~exn w ("external call to " ^ func) dbg
     | Ispecific s ->
-      let w = create_witnesses t Arch_specific dbg in
-      transform t ~next ~exn ~effect:(S.transform_specific w s)
-        "Arch.specific_operation" dbg
+      let effect =
+        if Debuginfo.assume_zero_alloc dbg
+        then
+          (* Conservatively assume that operation can return normally. *)
+          let nor = V.Safe in
+          let exn = if Arch.operation_can_raise s then V.Safe else V.Bot in
+          (* Assume that the operation does not diverge. *)
+          let div = V.Bot in
+          { Value.nor; exn; div }
+        else
+          let w = create_witnesses t Arch_specific dbg in
+          S.transform_specific w s
+      in
+      transform t ~next ~exn ~effect "Arch.specific_operation" dbg
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 

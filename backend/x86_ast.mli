@@ -182,6 +182,22 @@ type instruction =
   | XCHG of arg * arg
   | XOR of arg * arg
   | XORPD of arg * arg
+  | CMPPS of float_condition * arg * arg
+  | SHUFPS of int * arg * arg
+  | ADDPS of arg * arg
+  | SUBPS of arg * arg
+  | MULPS of arg * arg
+  | DIVPS of arg * arg
+  | MAXPS of arg * arg
+  | MINPS of arg * arg
+  | RCPPS of arg * arg
+  | SQRTPS of arg * arg
+  | RSQRTPS of arg * arg
+  | MOVHLPS of arg * arg
+  | MOVLHPS of arg * arg
+  | UNPCKHPS of arg * arg
+  | UNPCKLPS of arg * arg
+  | MOVMSKPS of arg * arg
 
 (* ELF specific *)
 type reloc_type =

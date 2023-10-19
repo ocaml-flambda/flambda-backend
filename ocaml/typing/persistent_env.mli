@@ -35,6 +35,7 @@ type error = private
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
+  | Cannot_implement_parameter of Compilation_unit.Name.t * filepath
 
 exception Error of error
 
@@ -87,9 +88,13 @@ val check : 'a t -> 'a sig_reader
 
 (* Lets it be known that the given module is a parameter and thus is expected
    to have been compiled as such. It may or may not be a parameter to _this_
-   module (see [register_parameter]). Raises an exception if the module has
-   already been imported as a non-parameter. *)
+   module (see the forthcoming [register_exported_parameter]). Raises an
+   exception if the module has already been imported as a non-parameter. *)
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
+
+(* [is_registered_parameter_import penv md] checks if [md] has been passed to
+   [register_parameter_import penv] *)
+val is_registered_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
@@ -107,10 +112,6 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 (* [register_import_as_opaque penv md] registers [md] in [penv] as an
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
-
-(* [is_parameter_unit penv md] checks if [md] has been imported in [penv] and
-   was compiled as a parameter *)
-val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t

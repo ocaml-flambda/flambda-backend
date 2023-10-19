@@ -34,6 +34,8 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Intoffloat -> Iintoffloat
       | Valueofint -> Ivalueofint
       | Intofvalue -> Iintofvalue
+      | Vectorcast cast -> Ivectorcast cast
+      | Scalarcast cast -> Iscalarcast cast
       | Probe_is_enabled { name } -> Iprobe_is_enabled { name }
       | Opaque -> Iopaque
       | Specific op -> Ispecific op

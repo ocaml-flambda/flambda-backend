@@ -57,7 +57,7 @@ type out_value =
   | Oval_variant of string * out_value option
 
 type out_layout =
-  | Olay_const of Asttypes.const_layout
+  | Olay_const of Jane_asttypes.const_layout
   | Olay_var of string
 
 type out_type_param =
@@ -111,10 +111,25 @@ and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
   | Ovar_typ of out_type
 
+and out_locality =
+  | Olm_local
+  | Olm_global
+  | Olm_unknown
+
+and out_uniqueness =
+  | Oum_unique
+  | Oum_shared
+  | Oum_unknown
+
+and out_linearity =
+  | Olinm_many
+  | Olinm_once
+  | Olinm_unknown
+
 and out_alloc_mode =
-  | Oam_local
-  | Oam_global
-  | Oam_unknown
+  { oam_locality : out_locality;
+    oam_uniqueness : out_uniqueness;
+    oam_linearity : out_linearity }
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list
@@ -131,6 +146,8 @@ type out_module_type =
   | Omty_ident of out_ident
   | Omty_signature of out_sig_item list
   | Omty_alias of out_ident
+  | Omty_strengthen of out_module_type * out_ident * bool
+        (* the bool indicates whether we should print the unaliasable attribute *)
 and out_sig_item =
   | Osig_class of
       bool * string * out_type_param list * out_class_type *

@@ -16,9 +16,17 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
+type layout_atom = Clambda_layout.atom
+
+type decomposition = Clambda_layout.decomposition
+type parts = decomposition
+
+let equal_parts = Clambda_layout.equal_decomposition
+let print_parts = Clambda_layout.print_decomposition
+
 type result = {
   function_offsets : int Closure_id.Map.t;
-  free_variable_offsets : int Var_within_closure.Map.t;
+  free_variable_offsets : parts Var_within_closure.Map.t;
 }
 
 let add_closure_offsets
@@ -58,39 +66,19 @@ let add_closure_offsets
      accesses. *)
   (* CR-someday mshinwell: As discussed with lwhite, maybe this isn't
      ideal, and the self accesses should be explicitly marked too. *)
-  let assign_free_variable_offset var _ (map, pos) =
-    let var_within_closure = Var_within_closure.wrap var in
-    if Var_within_closure.Map.mem var_within_closure map then begin
-      Misc.fatal_errorf "Closure_offsets.add_closure_offsets: free variable \
-          offset for %a would be defined multiple times"
-        Var_within_closure.print var_within_closure
-    end;
-    let map = Var_within_closure.Map.add var_within_closure pos map in
-    (map, pos + 1)
+  let free_vars = Variable.Map.bindings free_vars in
+  let free_vars = List.map (fun (var, (free_var : Flambda.specialised_to)) ->
+      var, free_var.kind) free_vars in
+  let free_vars =
+    Clambda_layout.decompose_free_vars
+      ~base_offset:free_variable_pos
+      ~free_vars
   in
-  let gc_invisible_free_vars, gc_visible_free_vars =
-    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
-        match free_var.kind with
-        | Ptop ->
-          Misc.fatal_error "[Ptop] can't be stored in a closure."
-        | Pbottom ->
-          Misc.fatal_error
-            "[Pbottom] should have been eliminated as dead code \
-             and not stored in a closure."
-        | Punboxed_float -> true
-        | Punboxed_int _ -> true
-        | Punboxed_vector _ -> true
-        | Pvalue Pintval -> true
-        | Pvalue _ -> false)
-      free_vars
-  in
-  let free_variable_offsets, free_variable_pos =
-    Variable.Map.fold assign_free_variable_offset
-      gc_invisible_free_vars (free_variable_offsets, free_variable_pos)
-  in
-  let free_variable_offsets, _ =
-    Variable.Map.fold assign_free_variable_offset
-      gc_visible_free_vars (free_variable_offsets, free_variable_pos)
+  let free_variable_offsets =
+    List.fold_left (fun map (var, dec) ->
+        let var_within_closure = Var_within_closure.wrap var in
+        Var_within_closure.Map.add var_within_closure dec map)
+      free_variable_offsets free_vars
   in
   { function_offsets;
     free_variable_offsets;

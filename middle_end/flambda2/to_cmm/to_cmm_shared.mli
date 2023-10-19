@@ -98,7 +98,7 @@ val make_update :
   prev_updates:To_cmm_env.expr_with_info option ->
   To_cmm_env.t * To_cmm_result.t * To_cmm_env.expr_with_info option
 
-val check_arity : Flambda_arity.t -> _ list -> bool
+val check_arity : _ Flambda_arity.t -> _ list -> bool
 
 val extended_machtype_of_return_arity :
-  Flambda_arity.t -> Cmm_helpers.Extended_machtype.t
+  [`Unarized] Flambda_arity.t -> Cmm_helpers.Extended_machtype.t

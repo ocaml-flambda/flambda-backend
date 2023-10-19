@@ -177,10 +177,10 @@ val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
-        alloc_mode option -> (Primitive.mode * Primitive.native_repr)
-        -> alloc_mode
+        Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
+        -> Mode.Locality.t
 val instance_prim_mode:
-        Primitive.description -> type_expr -> type_expr * alloc_mode option
+        Primitive.description -> type_expr -> type_expr * Mode.Locality.t option
 
 val apply:
         Env.t -> type_expr list -> type_expr -> type_expr list -> type_expr
@@ -245,10 +245,10 @@ val unify_delaying_layout_checks :
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : alloc_mode;
+    arg_mode : Mode.Alloc.t;
     arg_sort : sort;
     ty_ret : type_expr;
-    ret_mode : alloc_mode;
+    ret_mode : Mode.Alloc.t;
     ret_sort : sort
   }
 
@@ -520,10 +520,15 @@ val check_type_layout :
 val constrain_type_layout :
   Env.t -> type_expr -> layout -> (unit, Layout.Violation.t) result
 
-(* True if a type is always global (i.e., it mode crosses for local).  This is
-   true for all immediate and immediate64 types.  To make it sound for
-   immediate64, we've disabled stack allocation on 32-bit builds. *)
-val is_always_global : Env.t -> type_expr -> bool
+(* False if running in principal mode and the type is not principal.
+   True otherwise. *)
+val is_principal : type_expr -> bool
+
+(* True if a type is immediate. *)
+val is_immediate : Env.t -> type_expr -> bool
+
+(* True if a type can cross to the minimum on all mode axes. *)
+val mode_cross : Env.t -> type_expr -> bool
 
 (* For use with ocamldebug *)
 type global_state

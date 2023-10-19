@@ -462,38 +462,6 @@ let link_shared unix ~ppf_dump objfiles output_name =
     remove_file startup_obj
   )
 
-let make_cached_generic_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
-  Location.input_name := "caml_cached_generic_functions"; (* set name of "current" input *)
-  let startup_comp_unit =
-    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions")
-  in
-  Compilenv.reset startup_comp_unit;
-  Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
-    sourcefile_for_dwarf;
-  let genfns = Cmm_helpers.Generic_fns_tbl.Precomputed.gen () in
-  Emit.begin_assembly unix;
-  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
-  Profile.record_call "genfns" (fun () ->
-  List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions false genfns)));
-  Emit.end_assembly ()
-
-let cached_generic_functions unix ~ppf_dump output_name =
-  Profile.record_call output_name (fun () ->
-    let startup = output_name ^ ext_asm in
-    let sourcefile_for_dwarf = sourcefile_for_dwarf ~named_startup_file:true startup in
-    Profile.record_call "compile_unit" (fun () ->
-      Asmgen.compile_unit ~output_prefix:output_name
-        ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
-        ~obj_filename:(output_name ^ ext_obj)
-        ~may_reduce_heap:true
-        ~ppf_dump
-        (fun () ->
-          make_cached_generic_functions unix ~ppf_dump ~sourcefile_for_dwarf)
-    );
-  )
-
 let call_linker file_list_rev startup_file output_name =
   let main_dll = !Clflags.output_c_object
                  && Filename.check_suffix output_name Config.ext_dll
