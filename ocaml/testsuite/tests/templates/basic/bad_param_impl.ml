@@ -11,8 +11,6 @@ flags = ""
 module = "bad_param_impl.ml"
 ocamlc_byte_exit_status = "2"
 compiler_output = "bad_param_impl.output"
-**** skip
-reason = "error currently broken"
-***** check-ocamlc.byte-output
+**** check-ocamlc.byte-output
 compiler_reference = "bad_param_impl.reference"
 *)

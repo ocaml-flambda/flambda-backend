@@ -1,5 +1,4 @@
 (* TEST
-   flags = "-extension immutable_arrays"
    * expect
 *)
 

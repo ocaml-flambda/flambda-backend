@@ -1,5 +1,0 @@
-File "unboxed_floats_beta.ml", line 74, characters 11-18:
-74 | type ('a : float64) t_float64 = 'a
-                ^^^^^^^
-Error: Layout float64 is more experimental than allowed by -extension layouts_beta.
-       You must enable -extension layouts_alpha to use this feature.

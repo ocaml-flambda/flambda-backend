@@ -20,6 +20,12 @@
 val simplify_simple :
   Downwards_acc.t -> Simple.t -> min_name_mode:Name_mode.t -> Flambda2_types.t
 
+val simplify_simple_if_in_scope :
+  Downwards_acc.t ->
+  Simple.t ->
+  min_name_mode:Name_mode.t ->
+  Flambda2_types.t option
+
 type simplify_simples_result = private
   { simples : Simple.t list;
     simple_tys : Flambda2_types.t list

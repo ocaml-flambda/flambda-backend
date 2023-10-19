@@ -152,12 +152,51 @@ let binary_operation
       end
   end
 
+let unary_operation_argument_or_result_on_stack
+  : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun map instr ->
+  if debug then check_lengths instr ~of_arg:1 ~of_res:1;
+  if is_stack_operand instr.arg.(0) || is_stack_operand instr.res.(0)
+  then May_still_have_spilled_registers
+  else match is_spilled map instr.arg.(0), is_spilled map instr.res.(0) with
+  | false, false -> All_spilled_registers_rewritten
+  | false, true ->
+    use_stack_operand map instr.res 0;
+    All_spilled_registers_rewritten
+  | true, false ->
+    use_stack_operand map instr.arg 0;
+    All_spilled_registers_rewritten
+  | true, true ->
+    if Reg.same instr.arg.(0) instr.res.(0)
+    then May_still_have_spilled_registers
+    else begin
+      use_stack_operand map instr.arg 0;
+      May_still_have_spilled_registers
+    end
+
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
   | Op (Addf | Subf | Mulf | Divf)
-  | Op (Specific (Ifloat_min | Ifloat_max | Icrc32q)) ->
+  | Op (Specific (Ifloat_min | Ifloat_max)) ->
     may_use_stack_operand_for_second_argument map instr
-  | Op (Floatofint | Intoffloat) ->
+  | Op (Specific (Isimd op)) ->
+    (match Simd_selection.register_behavior op with
+    | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
+    | R_RM_to_fst -> may_use_stack_operand_for_second_argument map instr
+    | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
+  | Op (Scalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2))) ->
+    unary_operation_argument_or_result_on_stack map instr
+  | Op (Scalarcast (V128_to_scalar (Float32x4) | V128_of_scalar (Float32x4))) ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    may_use_stack_operand_for_only_argument map instr ~has_result:true
+  | Op (Scalarcast (V128_of_scalar (Int64x2 | Int32x4 | Int16x8 | Int8x16))) ->
+    may_use_stack_operand_for_only_argument map instr ~has_result:true
+  | Op (Scalarcast (V128_to_scalar (Int64x2 | Int32x4))) ->
+    may_use_stack_operand_for_result map instr ~num_args:1
+  | Op (Scalarcast (V128_to_scalar (Int16x8 | Int8x16))) ->
+    (* CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
+    May_still_have_spilled_registers
+  | Op (Floatofint | Intoffloat | Vectorcast _) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Const_symbol _) ->
     if !Clflags.pic_code || !Clflags.dlcode || Arch.win64 then

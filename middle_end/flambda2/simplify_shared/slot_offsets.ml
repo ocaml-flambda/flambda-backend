@@ -727,7 +727,7 @@ end = struct
         let module CM = Code_metadata in
         let is_tupled = CM.is_tupled code_metadata in
         let params_arity = CM.params_arity code_metadata in
-        let arity = Flambda_arity.cardinal params_arity in
+        let arity = Flambda_arity.num_params params_arity in
         if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
@@ -873,10 +873,13 @@ end = struct
           | Region | Rec_info ->
             Misc.fatal_errorf "Value slot %a has Region or Rec_info kind"
               Value_slot.print value_slot
-          | Naked_number _ ->
+          | Naked_number
+              ( Naked_immediate | Naked_float | Naked_int32 | Naked_int64
+              | Naked_nativeint ) ->
             1, true
-            (* flambda only supports 64-bits for now, so naked numbers can only
-               be of size 1 *)
+          (* flambda2 only supports 64-bit targets for now, so naked numbers can
+             only be of size 1 *)
+          | Naked_number Naked_vec128 -> 2, true
           | Value -> (
             match[@ocaml.warning "-4"]
               Flambda_kind.With_subkind.subkind kind

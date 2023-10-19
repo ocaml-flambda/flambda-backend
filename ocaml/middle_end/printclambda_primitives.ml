@@ -96,6 +96,18 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       in
       let name = "make" ^ mode ^ mut in
       fprintf ppf "%s %i%a" name tag Printlambda.block_shape shape
+  | Pmakeufloatblock(mut, mode) ->
+      let mode = match mode with
+        | Alloc_heap -> ""
+        | Alloc_local -> "local"
+      in
+      let mut = match mut with
+        | Immutable -> "block"
+        | Immutable_unique -> "block_unique"
+        | Mutable -> "mutable"
+      in
+      let name = "make" ^ mode ^ "ufloat" ^ mut in
+      fprintf ppf "%s" name
   | Pfield (n, layout) -> fprintf ppf "field%a %i" Printlambda.layout layout n
   | Pfield_computed -> fprintf ppf "field_computed"
   | Psetfield(n, ptr, init) ->
@@ -128,6 +140,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
   | Pfloatfield (n, Alloc_local) -> fprintf ppf "floatfieldlocal %i" n
+  | Pufloatfield n -> fprintf ppf "ufloatfield %i" n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -137,6 +150,15 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfloatfield%s %i" init n
+  | Psetufloatfield (n, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) ->
       fprintf ppf "duprecord %a %i" Printlambda.record_rep rep size
   | Pccall p -> fprintf ppf "%s" p.Primitive.prim_name
@@ -259,3 +281,4 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbox_int (bi, m) ->
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pget_header m -> fprintf ppf "get_header.%s" (alloc_kind m)

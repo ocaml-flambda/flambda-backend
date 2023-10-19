@@ -42,9 +42,11 @@ type field_read_semantics =
 
 include (struct
 
-  type alloc_mode =
+  type locality_mode =
     | Alloc_heap
     | Alloc_local
+
+  type alloc_mode = locality_mode
 
   type modify_mode =
     | Modify_heap
@@ -64,31 +66,24 @@ include (struct
   let modify_heap = Modify_heap
 
   let modify_maybe_stack : modify_mode =
-    (* CR zqian: possible to move this check to a better place? *)
-    (* idealy I don't want to do the checking here.
-       if stack allocations are disabled, then the alloc_mode which this modify_mode
-        depends on should be heap, which makes this modify_mode to be heap *)
-
-    (* one suggestion: move the check to optimize_allocation;
-      if stack_allocation not enabled, force all allocations to be heap,
-        which then propagates to all the other modes.
-       *)
     if Config.stack_allocation then Modify_maybe_stack
     else Modify_heap
 
 end : sig
 
-  type alloc_mode = private
+  type locality_mode = private
     | Alloc_heap
     | Alloc_local
+
+  type alloc_mode = locality_mode
 
   type modify_mode = private
     | Modify_heap
     | Modify_maybe_stack
 
-  val alloc_heap : alloc_mode
+  val alloc_heap : locality_mode
 
-  val alloc_local : alloc_mode
+  val alloc_local : locality_mode
 
   val modify_heap : modify_mode
 
@@ -140,13 +135,19 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
+  | Pufloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * layout list
   (* Force lazy values *)
   (* External call *)
   | Pccall of Primitive.description
@@ -246,6 +247,7 @@ type primitive =
   (* Jane Street extensions *)
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pget_header of alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -268,6 +270,7 @@ and layout =
   | Punboxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
@@ -385,7 +388,7 @@ let equal_layout x y =
   | Pbottom, Pbottom -> true
   | _, _ -> false
 
-let compatible_layout x y =
+let rec compatible_layout x y =
   match x, y with
   | Pbottom, _
   | _, Pbottom -> true
@@ -394,9 +397,13 @@ let compatible_layout x y =
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
   | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector_size bi1 bi2
+  | Punboxed_product layouts1, Punboxed_product layouts2 ->
+      List.compare_lengths layouts1 layouts2 = 0
+      && List.for_all2 compatible_layout layouts1 layouts2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ -> false
+  | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _), _ ->
+      false
 
 let must_be_value layout =
   match layout with
@@ -497,9 +504,13 @@ type check_attribute =
   | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
-               assume: bool;
                loc: Location.t;
              }
+  | Assume of { property: property;
+                strict: bool;
+                loc: Location.t;
+                never_returns_normally: bool;
+              }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -704,6 +715,7 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 let layout_probe_arg = Pvalue Pgenval
+let layout_unboxed_product layouts = Punboxed_product layouts
 
 (* CR ncourant: use [Ptop] or remove this as soon as possible. *)
 let layout_top = layout_any_value
@@ -1403,10 +1415,14 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
+  | Pmakeufloatblock (_, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
+  | Pufloatfield _ -> None
   | Psetfloatfield _ -> None
+  | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
+  | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
   | Pccall p ->
      if not p.prim_alloc then None
      else begin match p.prim_native_repr_res with
@@ -1462,7 +1478,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) -> Some m
+  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
   | Pbigstring_load_16 _ -> None
   | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m) -> Some m
@@ -1491,34 +1507,41 @@ let structured_constant_layout = function
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
+let layout_of_native_repr : Primitive.native_repr -> _ = function
+  | Untagged_int ->  layout_int
+  | Unboxed_vector v -> layout_boxed_vector v
+  | Unboxed_float -> layout_boxed_float
+  | Unboxed_integer bi -> layout_boxedint bi
+  | Same_as_ocaml_repr s ->
+    begin match s with
+    | Value -> layout_any_value
+    | Float64 -> layout_unboxed_float
+    | Void -> assert false
+    end
+
 let primitive_result_layout (p : primitive) =
+  assert !Clflags.native_code;
   match p with
   | Popaque layout | Pobj_magic layout -> layout
   | Pbytes_to_string | Pbytes_of_string -> layout_string
   | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
+  | Psetufloatfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
+  | Pmakeufloatblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
+  | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
+  | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
-  | Punbox_float -> Punboxed_float
-  | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
-  | Pccall { prim_native_repr_res = _, Unboxed_vector v; _} -> layout_boxed_vector v
-  | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_boxed_float
-  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr s; _} ->
-      begin match s with
-      | Value -> layout_any_value
-      | Float64 -> layout_unboxed_float
-      | Void -> assert false
-      end
-  | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
-      layout_boxedint bi
+  | Pufloatfield _ | Punbox_float -> Punboxed_float
+  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1576,6 +1599,7 @@ let primitive_result_layout (p : primitive) =
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
+  | Pget_header _ -> layout_boxedint Pnativeint
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

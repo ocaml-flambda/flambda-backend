@@ -287,7 +287,8 @@ let value_kind_with_subkind_opt :
   | Some kind -> value_kind_with_subkind kind
   | None -> Flambda_kind.With_subkind.any_value
 
-let arity a = Flambda_arity.create (List.map value_kind_with_subkind a)
+let arity a =
+  Flambda_arity.create_singletons (List.map value_kind_with_subkind a)
 
 let const (c : Fexpr.const) : Reg_width_const.t =
   match c with
@@ -814,11 +815,12 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (fun ({ kind; _ } : Fexpr.kinded_parameter) ->
                 value_kind_with_subkind_opt kind)
               params_and_body.params
-            |> Flambda_arity.create
+            |> Flambda_arity.create_singletons
         in
         let result_arity =
           match ret_arity with
-          | None -> Flambda_arity.create [Flambda_kind.With_subkind.any_value]
+          | None ->
+            Flambda_arity.create_singletons [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
         let ( _params,
@@ -850,7 +852,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let my_depth, env = fresh_var env depth_var in
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
-              ~arity:(Flambda_arity.cardinal result_arity)
+              ~arity:(Flambda_arity.cardinal_unarized result_arity)
           in
           let exn_continuation, env = fresh_exn_cont env exn_cont in
           assert (
@@ -890,13 +892,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let param_modes =
           List.map
             (fun _ -> Alloc_mode.For_types.heap)
-            (Flambda_arity.to_list params_arity)
+            (Flambda_arity.unarize params_arity)
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~param_modes
-            ~first_complex_local_param:(Flambda_arity.cardinal params_arity)
+            ~first_complex_local_param:(Flambda_arity.num_params params_arity)
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~check:Default_check
@@ -941,12 +943,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let params_arity =
           (* CR mshinwell: This needs fixing to cope with the fact that the
              arities have moved onto [Apply_expr] *)
-          Flambda_arity.create
+          Flambda_arity.create_singletons
             (List.map (fun _ -> Flambda_kind.With_subkind.any_value) args)
         in
         let return_arity =
           match arities with
-          | None -> Flambda_arity.create [Flambda_kind.With_subkind.any_value]
+          | None ->
+            Flambda_arity.create_singletons [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
         let alloc = alloc_mode_for_types alloc in
@@ -964,13 +967,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let params_arity =
             (* CR mshinwell: This needs fixing to cope with the fact that the
                arities have moved onto [Apply_expr] *)
-            Flambda_arity.create
+            Flambda_arity.create_singletons
               (List.map (fun _ -> Flambda_kind.With_subkind.any_value) args)
           in
           let return_arity =
             (* CR mshinwell: This needs fixing to cope with the fact that the
                arities have moved onto [Apply_expr] *)
-            Flambda_arity.create [Flambda_kind.With_subkind.any_value]
+            Flambda_arity.create_singletons [Flambda_kind.With_subkind.any_value]
           in
           ( Call_kind.indirect_function_call_unknown_arity alloc,
             params_arity,

@@ -286,7 +286,7 @@ let check_equation name ty =
         Name.print name TG.print ty
 
 let arity_of_list ts =
-  Flambda_arity.create
+  Flambda_arity.create_singletons
     (List.map (fun ty -> Flambda_kind.With_subkind.anything (TG.kind ty)) ts)
 
 let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
@@ -338,10 +338,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
       alloc_mode
 
-let bottom_with_subkind kind = bottom (Flambda_kind.With_subkind.kind kind)
-
 let unknown_types_from_arity arity =
-  List.map (fun kind -> unknown_with_subkind kind) (Flambda_arity.to_list arity)
-
-let bottom_types_from_arity arity =
-  List.map bottom_with_subkind (Flambda_arity.to_list arity)
+  List.map
+    (unknown_with_subkind ?alloc_mode:None)
+    (Flambda_arity.unarized_components arity)

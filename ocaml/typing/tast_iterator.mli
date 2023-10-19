@@ -18,6 +18,7 @@ Allows the implementation of typed tree inspection using open recursion
 *)
 
 open Asttypes
+open Jane_asttypes
 open Typedtree
 
 type iterator =

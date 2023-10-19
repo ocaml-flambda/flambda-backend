@@ -49,10 +49,15 @@ type error =
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of CU.Name.t * filepath
   | Not_compiled_as_parameter of CU.Name.t * filepath
+<<<<<<< HEAD
   | Imported_module_has_unset_parameter of
       { imported : CU.Name.t;
         parameter : CU.Name.t;
       }
+||||||| d530f6b2f
+=======
+  | Cannot_implement_parameter of CU.Name.t * filepath
+>>>>>>> as-argument-for
 
 exception Error of error
 let error err = raise (Error err)
@@ -314,7 +319,12 @@ let acknowledge_import penv ~check modname pers_sig =
      from a file, especially if it's our own .mli. *)
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
-      error (Illegal_import_of_parameter(modname, filename))
+      begin match CU.get_current () with
+      | Some current_unit when CU.Name.equal modname (CU.name current_unit) ->
+          error (Cannot_implement_parameter (modname, filename))
+      | _ ->
+          error (Illegal_import_of_parameter(modname, filename))
+      end
   | false, true ->
       error (Not_compiled_as_parameter(modname, filename))
   | true, true
@@ -504,7 +514,12 @@ let check_pers_struct penv f ~loc name =
               describe_prefix prefix
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
+<<<<<<< HEAD
         | Imported_module_has_unset_parameter _ -> assert false
+||||||| d530f6b2f
+=======
+        | Cannot_implement_parameter _ -> assert false
+>>>>>>> as-argument-for
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -595,9 +610,6 @@ let is_imported {imported_units; _} s =
 
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
-
-let is_parameter_unit penv s =
-  is_registered_parameter_import penv s
 
 let implemented_parameter penv modname =
   match find_import_info_in_cache penv modname with
@@ -703,6 +715,7 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
+<<<<<<< HEAD
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
@@ -714,6 +727,14 @@ let report_error ppf =
         CU.Name.print param
         CU.Name.print param
         CU.Name.print modname
+||||||| d530f6b2f
+=======
+  | Cannot_implement_parameter(modname, _filename) ->
+      fprintf ppf
+        "@[<hov>The interface for %a@ was compiled with -as-parameter.@ \
+         It cannot be implemented directly.@]"
+        CU.Name.print modname
+>>>>>>> as-argument-for
 
 let () =
   Location.register_error_of_exn

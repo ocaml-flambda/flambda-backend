@@ -119,14 +119,20 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let layout ppf layout =
-  match layout with
-  | Pvalue k -> value_kind ppf k
+let rec layout is_top ppf layout_ =
+  match layout_ with
+  | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
+  | Punboxed_product layouts ->
+    fprintf ppf "@[<hov 1>[%a]@]"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout false))
+      layouts
+
+let layout ppf layout_ = layout true ppf layout_
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -145,6 +151,7 @@ let return_kind ppf (mode, kind) =
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
+  | Punboxed_product _ -> fprintf ppf ": %a" layout kind
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
@@ -212,6 +219,7 @@ let record_rep ppf r = match r with
   | Record_boxed _ -> fprintf ppf "boxed"
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
+  | Record_ufloat -> fprintf ppf "ufloat"
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -275,6 +283,15 @@ let primitive ppf = function
   | Pmakefloatblock (Mutable, mode) ->
      fprintf ppf "make%sfloatblock Mutable"
         (alloc_mode mode)
+  | Pmakeufloatblock (Immutable, mode) ->
+      fprintf ppf "make%sufloatblock Immutable"
+        (alloc_mode mode)
+  | Pmakeufloatblock (Immutable_unique, mode) ->
+     fprintf ppf "make%sufloatblock Immutable_unique"
+        (alloc_mode mode)
+  | Pmakeufloatblock (Mutable, mode) ->
+     fprintf ppf "make%sufloatblock Mutable"
+        (alloc_mode mode)
   | Pfield (n, sem) ->
       fprintf ppf "field%a %i" field_read_semantics sem n
   | Pfield_computed sem ->
@@ -310,6 +327,9 @@ let primitive ppf = function
   | Pfloatfield (n, sem, mode) ->
       fprintf ppf "floatfield%a%s %i"
         field_read_semantics sem (alloc_mode mode) n
+  | Pufloatfield (n, sem) ->
+      fprintf ppf "ufloatfield%a %i"
+        field_read_semantics sem n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -319,7 +339,22 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfloatfield%s %i" init n
+  | Psetufloatfield (n, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+  | Pmake_unboxed_product layouts ->
+      fprintf ppf "make_unboxed_product [%a]"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+  | Punboxed_product_field (n, layouts) ->
+      fprintf ppf "unboxed_product_field %d [%a]" n
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -484,6 +519,7 @@ let primitive ppf = function
 
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
+  | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -494,13 +530,18 @@ let name_of_primitive = function
   | Pgetpredef _ -> "Pgetpredef"
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
+  | Pmakeufloatblock _ -> "Pmakeufloatblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
   | Psetfield_computed _ -> "Psetfield_computed"
   | Pfloatfield _ -> "Pfloatfield"
   | Psetfloatfield _ -> "Psetfloatfield"
+  | Pufloatfield _ -> "Pufloatfield"
+  | Psetufloatfield _ -> "Psetufloatfield"
   | Pduprecord _ -> "Pduprecord"
+  | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
+  | Punboxed_product_field _ -> "Punboxed_product_field"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"
   | Psequand -> "Psequand"
@@ -598,6 +639,7 @@ let name_of_primitive = function
   | Pbox_int _ -> "Pbox_int"
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
+  | Pget_header _ -> "Pget_header"
 
 let check_attribute ppf check =
   let check_property = function
@@ -607,11 +649,15 @@ let check_attribute ppf check =
   | Default_check -> ()
   | Ignore_assert_all p ->
     fprintf ppf "ignore assert all %s@ " (check_property p)
-  | Check {property=p; assume; strict; loc = _} ->
-    fprintf ppf "%s %s%s@ "
-      (if assume then "assume" else "assert")
+  | Assume {property=p; strict; never_returns_normally; loc = _} ->
+    fprintf ppf "assume_%s%s%s@ "
       (check_property p)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
+      (if never_returns_normally then "_never_returns_normally" else "")
+  | Check {property=p; strict; loc = _} ->
+    fprintf ppf "assert_%s%s@ "
+      (check_property p)
+      (if strict then "_strict" else "")
 
 let function_attribute ppf t =
   if t.is_a_functor then

@@ -457,15 +457,20 @@ let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind option =
   if is_default_kind_with_subkind k then None else Some (k |> kind_with_subkind)
 
-let is_default_arity (a : Flambda_arity.t) =
-  match Flambda_arity.to_list a with
+let is_default_arity (a : [`Unarized] Flambda_arity.t) =
+  match Flambda_arity.unarized_components a with
   | [k] -> is_default_kind_with_subkind k
   | _ -> false
 
-let arity (a : Flambda_arity.t) : Fexpr.arity =
-  Flambda_arity.to_list a |> List.map kind_with_subkind
+let complex_arity (a : [`Complex] Flambda_arity.t) : Fexpr.arity =
+  (* CR mshinwell: add unboxed arities to Fexpr *)
+  Flambda_arity.unarize a |> List.map kind_with_subkind
 
-let arity_opt (a : Flambda_arity.t) : Fexpr.arity option =
+let arity (a : [`Unarized] Flambda_arity.t) : Fexpr.arity =
+  (* CR mshinwell: add unboxed arities to Fexpr *)
+  Flambda_arity.unarized_components a |> List.map kind_with_subkind
+
+let arity_opt (a : [`Unarized] Flambda_arity.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
 
 let kinded_parameter env (kp : Bound_parameter.t) :
@@ -539,7 +544,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup ->
+  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
+  | Get_header ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -818,7 +824,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
       let newer_version_of =
         Option.map (Env.find_code_id_exn env) (Code.newer_version_of code)
       in
-      let param_arity = Some (arity (Code.params_arity code)) in
+      let param_arity = Some (complex_arity (Code.params_arity code)) in
       let ret_arity = Code.result_arity code |> arity_opt in
       let recursive = recursive_flag (Code.recursive code) in
       let inline =
@@ -1020,7 +1026,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let arities : Fexpr.function_arities option =
     match Apply_expr.call_kind app with
     | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
-      let params_arity = Some (arity param_arity) in
+      let params_arity = Some (complex_arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
     | Function { function_call = Direct _; alloc_mode = _ } ->
@@ -1034,7 +1040,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         let ret_arity = arity return_arity in
         Some { params_arity; ret_arity }
     | C_call _ ->
-      let params_arity = Some (arity param_arity) in
+      let params_arity = Some (complex_arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
     | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }

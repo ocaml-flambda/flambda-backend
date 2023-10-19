@@ -1,3 +1,0 @@
-File "test_warning198.ml", line 1, characters 5-15:
-Warning 198 [misplaced-assume-attribute]: the "zero_alloc assume" attribute will be ignored by the check when the function is inlined or specialised.
-Mark this function as [@inline never][@specialise never].

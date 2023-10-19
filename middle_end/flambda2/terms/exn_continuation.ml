@@ -108,7 +108,7 @@ let arity t =
   let exn_bucket_kind =
     Flambda_kind.With_subkind.create Flambda_kind.value Anything
   in
-  Flambda_arity.create (exn_bucket_kind :: extra_args)
+  Flambda_arity.create_singletons (exn_bucket_kind :: extra_args)
 
 let with_exn_handler t exn_handler = { t with exn_handler }
 

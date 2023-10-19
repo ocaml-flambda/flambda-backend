@@ -35,6 +35,7 @@ type error = private
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
+  | Cannot_implement_parameter of Compilation_unit.Name.t * filepath
   | Imported_module_has_unset_parameter of
       { imported : Compilation_unit.Name.t;
         parameter : Compilation_unit.Name.t;
@@ -95,6 +96,10 @@ val check : 'a t -> 'a sig_reader
    has already been imported as a non-parameter. *)
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
+(* [is_registered_parameter_import penv md] checks if [md] has been passed to
+   [register_parameter_import penv] *)
+val is_registered_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
+
 (* Declare a parameter to this module. Calls [register_parameter_import]. *)
 val register_exported_parameter : 'a t -> Compilation_unit.Name.t -> unit
 
@@ -114,10 +119,6 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 (* [register_import_as_opaque penv md] registers [md] in [penv] as an
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
-
-(* [is_parameter_unit penv md] checks if [md] has been imported in [penv] and
-   was compiled as a parameter *)
-val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)

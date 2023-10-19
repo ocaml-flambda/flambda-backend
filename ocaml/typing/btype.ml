@@ -127,6 +127,8 @@ let is_Tvar ty = match get_desc ty with Tvar _ -> true | _ -> false
 let is_Tunivar ty = match get_desc ty with Tunivar _ -> true | _ -> false
 let is_Tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false
 let is_Tpoly ty = match get_desc ty with Tpoly _ -> true | _ -> false
+let type_kind_is_abstract decl =
+  match decl.type_kind with Type_abstract _ -> true | _ -> false
 
 let dummy_method = "*dummy method*"
 
@@ -325,7 +327,7 @@ let map_type_expr_cstr_args f = function
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 
 let iter_type_expr_kind f = function
-  | Type_abstract -> ()
+  | Type_abstract _ -> ()
   | Type_variant (cstrs, _) ->
       List.iter
         (fun cd ->
@@ -384,6 +386,9 @@ let type_iterators =
     | Mty_functor (p, mt) ->
         it.it_functor_param it p;
         it.it_module_type it mt
+    | Mty_strengthen (mty, p, _) ->
+        it.it_module_type it mty;
+        it.it_path p
   and it_class_type it = function
       Cty_constr (p, tyl, cty) ->
         it.it_path p;

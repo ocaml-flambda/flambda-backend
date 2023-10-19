@@ -1128,7 +1128,6 @@ module Interactive_command = struct
     command
       "../../../ocaml"
       [ "-extension"; "comprehensions"
-      ; "-extension"; "immutable_arrays"
       ; "-noprompt"; "-no-version"
       ; "-w"; "no-unused-var" ]
       ~setup:(fun output ->
@@ -1165,7 +1164,7 @@ module Log_test_cases = struct
     try
       output_string oc
 {|(* TEST
-   flags = "-extension comprehensions -extension immutable_arrays"
+   flags = "-extension comprehensions"
    * expect
 *)
 
