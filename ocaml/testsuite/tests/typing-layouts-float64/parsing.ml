@@ -1,6 +1,8 @@
 (* TEST
    flags = "-extension layouts_alpha"
    * expect
+   flags = "-extension layouts_beta"
+   * expect
 *)
 
 (* These tests show how potential ambiguities are resolved
@@ -21,7 +23,7 @@ Line 1, characters 9-20:
 1 | type t = C of float#;;
              ^^^^^^^^^^^
 Error: Type float# has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t = C : float# -> t;;
@@ -30,7 +32,7 @@ Line 1, characters 9-24:
 1 | type t = C : float# -> t;;
              ^^^^^^^^^^^^^^^
 Error: Type float# has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 (* float# works as an argument to normal type constructors, not just classes,
@@ -248,3 +250,14 @@ Line 1, characters 9-26:
 Error: The type constructor float# expects 0 argument(s),
        but is here applied to 2 argument(s)
 |}];;
+
+(*******************)
+(* Hint for #float *)
+type t = #float;;
+[%%expect {|
+Line 1, characters 10-15:
+1 | type t = #float;;
+              ^^^^^
+Error: Unbound class type float
+Hint: Did you mean float#?
+|}]

@@ -74,6 +74,30 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
   let bindings =
     Simplify_named_result.bindings_to_place simplify_named_result
   in
+  let bindings =
+    List.map
+      (fun ({ Expr_builder.let_bound;
+              simplified_defining_expr;
+              original_defining_expr = _
+            } as binding) ->
+        match simplified_defining_expr.named with
+        | Prim (prim, _dbg) -> (
+          match Bound_pattern.must_be_singleton_opt let_bound with
+          | None -> binding
+          | Some bound_var -> (
+            let simple = Simple.var (Bound_var.var bound_var) in
+            match
+              DA.find_debuginfo_rewrite (UA.creation_dacc uacc) ~bound_to:simple
+            with
+            | None -> binding
+            | Some dbg ->
+              { binding with
+                simplified_defining_expr =
+                  Simplified_named.create (Named.create_prim prim dbg)
+              }))
+        | Simple _ | Set_of_closures _ | Rec_info _ -> binding)
+      bindings
+  in
   let uacc, bindings =
     let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } =
       UA.mutable_unboxing_result uacc

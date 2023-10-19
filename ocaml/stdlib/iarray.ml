@@ -105,9 +105,9 @@ external unsafe_set_local : local_ 'a array -> int -> local_ 'a -> unit =
 (* Really trusting the inliner here; to get maximum performance, it has to
    inline both [unsafe_init_local] *and* [f]. *)
 (** Precondition: [l >= 0]. *)
-let[@inline always] unsafe_init_local l (local_ f : int -> local_ 'a) = local_
+let[@inline always] unsafe_init_local l (local_ f : int -> local_ 'a) =
   if l = 0 then
-    unsafe_of_local_array [||]
+    exclave_ unsafe_of_local_array [||]
   else
     (* The design of this function is exceedingly delicate, and is the only way
        we can correctly allocate a local array on the stack via mutation.  We
@@ -120,17 +120,17 @@ let[@inline always] unsafe_init_local l (local_ f : int -> local_ 'a) = local_
        function, and why it's not tail-recursive; if it were tail-recursive,
        then we wouldn't have anywhere to put the array elements during the whole
        process. *)
-    let rec go i = local_ begin
+    let rec go ~l ~f i = local_ begin
       let x = f i in
       if i = l - 1 then
         make_mutable_local l x
       else begin
-        let res = go (i+1) in
+        let res = go ~l ~f (i+1) in
         unsafe_set_local res i x;
         res
       end
     end in
-    unsafe_of_local_array (go 0)
+    exclave_ unsafe_of_local_array (go ~l ~f 0)
 
 (* The implementation is copied from [Array] so that [f] can be [local_] *)
 let init l (local_ f) =

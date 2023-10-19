@@ -137,21 +137,9 @@ and type_desc =
   (** Type of a first-class module (a.k.a package). *)
 
 and arrow_desc =
-  arg_label * alloc_mode * alloc_mode
+  arg_label * Mode.Alloc.t * Mode.Alloc.t
 
-and alloc_mode_const = Global | Local
 
-and alloc_mode_var = {
-  mutable upper: alloc_mode_const;
-  mutable lower: alloc_mode_const;
-  mutable vlower: alloc_mode_var list;
-  mutable mark: bool;
-  mvid: int;
-}
-
-and alloc_mode =
-  | Amode of alloc_mode_const
-  | Amodevar of alloc_mode_var
 
 and fixed_explanation =
   | Univar of type_expr (** The row type was bound to an univar *)
@@ -508,7 +496,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract
+    Type_abstract of abstract_reason
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -528,6 +516,10 @@ and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t * layout array
 
+and abstract_reason =
+    Abstract_def
+  | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
@@ -535,7 +527,10 @@ and record_representation =
      contains it and the tag of the relevant constructor of that variant. *)
   | Record_boxed of layout array
   | Record_float (* All fields are floats *)
-
+  | Record_ufloat
+  (* All fields are [float#]s.  Same runtime representation as [Record_float],
+     but operations on these (e.g., projection, update) work with unboxed floats
+     rather than boxed floats. *)
 
 (* For unboxed variants, we record the layout of the mandatory single argument.
    For boxed variants, we record the layouts for the arguments of each
@@ -577,8 +572,6 @@ and constructor_arguments =
   | Cstr_record of label_declaration list
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
-
-val decl_is_abstract : type_declaration -> bool
 
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option
@@ -650,6 +643,14 @@ type module_presence =
   | Mp_present
   | Mp_absent
 
+(* Module aliasability for strengthening *)
+module Aliasability : sig
+  type t = Not_aliasable | Aliasable
+
+  val aliasable : bool -> t
+  val is_aliasable : t -> bool
+end
+
 (* Wrap.t encapsulates bits of module types which can be lazy *)
 module type Wrap = sig
   type 'a t
@@ -671,6 +672,8 @@ module type Wrapped = sig
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
+  | Mty_strengthen of module_type * Path.t * Aliasability.t
+      (* See comments about the aliasability of strengthening in mtype.ml *)
 
   and functor_parameter =
   | Unit
@@ -784,6 +787,9 @@ type label_description =
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+(* CR layouts v5: once we allow [any] in record fields, change [lbl_layout] to
+   be a [sort option].  This will allow a fast path for representability checks
+   at record construction, and currently only the sort is used anyway. *)
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.
@@ -800,11 +806,6 @@ val lbl_pos_void : int
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
-
-type value_mode =
-  (* See Value_mode below *)
-  { r_as_l : alloc_mode;
-    r_as_g : alloc_mode; }
 
 (**** Utilities for backtracking ****)
 
@@ -850,148 +851,3 @@ val link_kind: inside:field_kind -> field_kind -> unit
 val link_commu: inside:commutable -> commutable -> unit
 val set_commu_ok: commutable -> unit
 
-
-(**** Allocation modes ****)
-
-module Alloc_mode : sig
-
-  (* Modes are ordered so that [global] is a submode of [local] *)
-  type t = alloc_mode
-  type const = alloc_mode_const = Global | Local
-
-  val global : t
-
-  val local : t
-
-  val of_const : const -> t
-
-  val min_mode : t
-
-  val max_mode : t
-
-  val submode : t -> t -> (unit, unit) result
-
-  val submode_exn : t -> t -> unit
-
-  val equate : t -> t -> (unit, unit) result
-
-  val make_global_exn : t -> unit
-
-  val make_local_exn : t -> unit
-
-  val join_const : const -> const -> const
-
-  val join : t list -> t
-
-  (* Force a mode variable to its upper bound *)
-  val constrain_upper : t -> const
-
-  (* Force a mode variable to its lower bound *)
-  val constrain_lower : t -> const
-
-  val newvar : unit -> t
-
-  val newvar_below : t -> t * bool
-
-  val newvar_above : t -> t * bool
-
-  val check_const : t -> const option
-
-  val print : Format.formatter -> t -> unit
-
-end
-
-module Value_mode : sig
-
- type const =
-   | Global
-   | Regional
-   | Local
-
-  type t = value_mode
-
-  val global : t
-
-  val regional : t
-
-  val local : t
-
-  val of_const : const -> t
-
-  val max_mode : t
-
-  val min_mode : t
-
-  (** Injections from [Alloc_mode.t] into [Value_mode.t] *)
-
-  (** [of_alloc] maps [Global] to [Global] and [Local] to [Local] *)
-  val of_alloc : Alloc_mode.t -> t
-
-  (** Kernel operators *)
-
-  (** The kernel operator [local_to_regional] maps [Local] to
-      [Regional] and leaves the others unchanged. *)
-  val local_to_regional : t -> t
-
-  (** The kernel operator [regional_to_global] maps [Regional]
-      to [Global] and leaves the others unchanged. *)
-  val regional_to_global : t -> t
-
-  (** Closure operators *)
-
-  (** The closure operator [regional_to_local] maps [Regional]
-      to [Local] and leaves the others unchanged. *)
-  val regional_to_local : t -> t
-
-  (** The closure operator [global_to_regional] maps [Global] to
-      [Regional] and leaves the others unchanged. *)
-  val global_to_regional : t -> t
-
-  (** Note that the kernal and closure operators are in the following
-      adjunction relationship:
-      {v
-        local_to_regional
-        -| regional_to_local
-        -| regional_to_global
-        -| global_to_regional
-      v}
-
-      Equivalently,
-      {v
-        local_to_regional a <= b  iff  a <= regional_to_local b
-        regional_to_local a <= b  iff  a <= regional_to_global b
-        regional_to_global a <= b  iff  a <= global_to_regional b
-      v}
-   *)
-
-  (** Versions of the operators that return [Alloc.t] *)
-
-  (** Maps [Regional] to [Global] and leaves the others unchanged. *)
-  val regional_to_global_alloc : t -> Alloc_mode.t
-
-  (** Maps [Regional] to [Local] and leaves the others unchanged. *)
-  val regional_to_local_alloc : t -> Alloc_mode.t
-
-  type error = [`Regionality | `Locality]
-
-  val submode : t -> t -> (unit, error) result
-
-  val submode_exn : t -> t -> unit
-
-  val submode_meet : t -> t list -> (unit, error) result
-
-  val join : t list -> t
-
-  val constrain_upper : t -> const
-
-  val constrain_lower : t -> const
-
-  val newvar : unit -> t
-
-  val newvar_below : t -> t
-
-  val check_const : t -> const option
-
-  val print : Format.formatter -> t -> unit
-
-end

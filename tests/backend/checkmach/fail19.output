@@ -1,6 +1,8 @@
 File "fail19.ml", line 7, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail19.foo (camlFail19__foo_HIDE_STAMP)
 File "fail19.ml", line 18, characters 5-26:
+  allocate 48 bytes (fail19.ml:18,5--26;dep19.ml:1,38--52)
+File "fail19.ml", line 18, characters 5-26:
   external call to caml_make_array (fail19.ml:18,5--26;dep19.ml:1,38--52)
 File "fail19.ml", line 10, characters 12-17:
   allocate 24 bytes
@@ -15,10 +17,6 @@ File "fail19.ml", line 14, characters 46-54:
 File "fail19.ml", line 15, characters 11-20:
   allocate 24 bytes
 File "fail19.ml", line 17, characters 10-15:
-  allocate 72 bytes combining 2 allocations below
-File "fail19.ml", line 18, characters 5-26:
-  allocate 6 words
-File "fail19.ml", line 17, characters 10-15:
-  allocate 3 words
+  allocate 24 bytes
 File "fail19.ml", line 18, characters 2-27:
   allocate 24 bytes

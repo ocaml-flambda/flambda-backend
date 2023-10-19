@@ -146,7 +146,7 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * sort
-  | Cannot_implement_parameter of Misc.filepath
+  | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
   | Argument_for_non_parameter of Global.Name.t * Misc.filepath

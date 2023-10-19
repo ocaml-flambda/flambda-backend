@@ -13,8 +13,7 @@ val split_invariants : bool Lazy.t
 val log :
   indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
-val log_dominance_frontier :
-  indent:int -> Cfg_dominators.dominance_frontiers -> unit
+val log_dominance_frontier : indent:int -> Cfg.t -> Cfg_dominators.t -> unit
 
 val log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit
 

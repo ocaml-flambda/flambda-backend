@@ -28,7 +28,7 @@ let create ~dbg ~discriminator =
     }
 
 let equal_info left right =
-  Debuginfo.compare left.dbg right.dbg = 0
+  Debuginfo.(Dbg.compare (get_dbg left.dbg) (get_dbg right.dbg) = 0)
   && Int.equal left.discriminator right.discriminator
 
 let equal left right =

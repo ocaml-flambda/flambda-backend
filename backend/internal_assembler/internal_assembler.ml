@@ -200,6 +200,10 @@ let make_compiler_sections section_table compiler_sections symbol_table
       then
         make_data section_table name raw_section ~align:(Int64.of_int align)
           sh_string_table
+      else if Section_name.is_note_like name
+      then
+        make_custom_section section_table name raw_section ~sh_type:7
+          (* SHT_NOTE *) sh_string_table
       else
         make_custom_section section_table name raw_section ~sh_type:1
           (* SHT_PROGBITS *) sh_string_table;
