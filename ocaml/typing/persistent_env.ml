@@ -49,15 +49,11 @@ type error =
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of CU.Name.t * filepath
   | Not_compiled_as_parameter of CU.Name.t * filepath
-<<<<<<< HEAD
+  | Cannot_implement_parameter of CU.Name.t * filepath
   | Imported_module_has_unset_parameter of
       { imported : CU.Name.t;
         parameter : CU.Name.t;
       }
-||||||| d530f6b2f
-=======
-  | Cannot_implement_parameter of CU.Name.t * filepath
->>>>>>> as-argument-for
 
 exception Error of error
 let error err = raise (Error err)
@@ -514,12 +510,8 @@ let check_pers_struct penv f ~loc name =
               describe_prefix prefix
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
-<<<<<<< HEAD
-        | Imported_module_has_unset_parameter _ -> assert false
-||||||| d530f6b2f
-=======
         | Cannot_implement_parameter _ -> assert false
->>>>>>> as-argument-for
+        | Imported_module_has_unset_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -715,7 +707,11 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
-<<<<<<< HEAD
+  | Cannot_implement_parameter(modname, _filename) ->
+      fprintf ppf
+        "@[<hov>The interface for %a@ was compiled with -as-parameter.@ \
+         It cannot be implemented directly.@]"
+        CU.Name.print modname
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
@@ -727,14 +723,6 @@ let report_error ppf =
         CU.Name.print param
         CU.Name.print param
         CU.Name.print modname
-||||||| d530f6b2f
-=======
-  | Cannot_implement_parameter(modname, _filename) ->
-      fprintf ppf
-        "@[<hov>The interface for %a@ was compiled with -as-parameter.@ \
-         It cannot be implemented directly.@]"
-        CU.Name.print modname
->>>>>>> as-argument-for
 
 let () =
   Location.register_error_of_exn
