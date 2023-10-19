@@ -16,11 +16,11 @@
 open! Stdlib
 
 (* NOTE:
-   If this file is arrayLabels.mli, run tools/sync_stdlib_docs after editing it
-   to generate array.mli.
+   If this file is float_u_arrayLabels.mli, run tools/sync_stdlib_docs after editing it
+   to generate float_u_array.mli.
 
-   If this file is array.mli, do not edit it directly -- edit
-   arrayLabels.mli instead.
+   If this file is float_u_array.mli, do not edit it directly -- edit
+   float_u_arrayLabels.mli instead.
  *)
 
 (** Array operations.
