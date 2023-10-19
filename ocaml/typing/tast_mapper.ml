@@ -313,7 +313,8 @@ let expr sub x =
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
-            | (lbl, Omitted o) -> (lbl, Omitted o))
+            | (lbl, Omitted o) -> (lbl, Omitted o)
+            | (lbl, Dummy o) -> (lbl, Dummy o))
             list,
           pos, am
         )
@@ -629,7 +630,8 @@ let class_expr sub x =
           sub.class_expr sub cl,
           List.map (function
             | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
-            | (lbl, Omitted o) -> (lbl, Omitted o))
+            | (lbl, Omitted o) -> (lbl, Omitted o)
+            | (lbl, Dummy o) -> (lbl, Dummy o))
             args
         )
     | Tcl_let (rec_flag, value_bindings, ivars, cl) ->

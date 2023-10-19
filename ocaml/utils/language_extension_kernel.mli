@@ -20,6 +20,7 @@ type _ t =
   | Module_strengthening : unit t
   | Layouts : maturity t
   | SIMD : unit t
+  | Dummy_arguments : unit t
 
 module Exist : sig
   type 'a extn = 'a t

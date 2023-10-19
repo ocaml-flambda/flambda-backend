@@ -250,9 +250,10 @@ and binding_op =
     bop_loc : Location.t;
   }
 
-and ('a, 'b) arg_or_omitted =
+and ('a, 'b, 'c) arg_or_omitted =
   | Arg of 'a
   | Omitted of 'b
+  | Dummy of 'c
 
 and omitted_parameter =
   { mode_closure : Mode.Alloc.t;
@@ -260,7 +261,7 @@ and omitted_parameter =
     mode_ret : Mode.Alloc.t;
     sort_arg : Jkind.sort }
 
-and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail

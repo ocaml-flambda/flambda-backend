@@ -1,4 +1,5 @@
 (* TEST
+   flags="-extension dummy_arguments"
    * expect *)
 
 let leak n =
@@ -270,7 +271,7 @@ Line 1, characters 15-21:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 2 more arguments will make the value non-local
+        Specifying 2 more arguments will make the value non-local
 |}]
 let apply3 x = f4 x x x
 [%%expect{|
@@ -280,7 +281,7 @@ Line 1, characters 15-23:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 let apply4 x =
   f4 x x x x
@@ -318,7 +319,7 @@ Line 1, characters 15-18:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 let apply2 x = g x x
 [%%expect{|
@@ -341,7 +342,7 @@ Line 1, characters 23-32:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 let apply4 x = g x x x x
 [%%expect{|
@@ -478,7 +479,7 @@ Line 1, characters 52-65:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 let app42' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(ref 1) 2 ~c:4
@@ -633,7 +634,7 @@ Line 2, characters 11-25:
                ^^^^^^^^^^^^^^
 Error: This value escapes its region
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 
 (* The fixed version. Note that in the printed type, local returning is implicit
@@ -657,7 +658,7 @@ Line 3, characters 25-31:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument may make the value non-local
+        Specifying 1 more argument may make the value non-local
 |}]
 
 (*
@@ -701,7 +702,7 @@ Line 1, characters 61-65:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 
 (* Optional argument elimination eta-expands and therefore allocates *)
@@ -2673,7 +2674,7 @@ Line 11, characters 13-59:
 Error: This local value escapes its region
   Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Specifying 1 more argument will make the value non-local
 |}]
 
 (* Regression test for printing of [local_] *)
@@ -2769,3 +2770,71 @@ Line 2, characters 33-58:
 Error: This expression has type int -> local_ (int -> int)
        but an expression was expected of type int -> (int -> int)
 |}];;
+
+(* Testing underscore vs. mode *)
+
+(* The generated closure closes over local [f] is therefore local as well *)
+let foo (local_ f) = ref (f _)
+[%%expect{|
+Line 1, characters 25-30:
+1 | let foo (local_ f) = ref (f _)
+                             ^^^^^
+Error: This value escapes its region
+  Hint: This is a partial application
+        Specifying 1 more argument may make the value non-local
+|}]
+
+let foo (local_ f) = f _
+[%%expect{|
+Line 1, characters 21-24:
+1 | let foo (local_ f) = f _
+                         ^^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: This is a partial application
+        Specifying 1 more argument may make the value non-local
+|}]
+
+let foo (local_ f) = local_ f _
+[%%expect{|
+val foo : local_ ('a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+let f ~(x : string) ~(local_ y : string) (z :string) = "hello"
+[%%expect{|
+val f : x:string -> y:local_ string -> string -> string = <fun>
+|}]
+
+(* In the following, (x -> _ -> _) is implicitly local, because
+  it closes over the local [y]. *)
+let g = f ~y:_
+[%%expect{|
+val g : y:local_ string -> x:string -> string -> string = <fun>
+|}]
+
+let _ = ref (g ~y:"hello")
+[%%expect{|
+Line 1, characters 12-26:
+1 | let _ = ref (g ~y:"hello")
+                ^^^^^^^^^^^^^^
+Error: This value escapes its region
+  Hint: This is a partial application
+        Specifying 2 more arguments will make the value non-local
+|}]
+
+(* the closure generated by the second underscore closes over the
+   first underscore, and is thus local *)
+let g = f ~y:_ _
+[%%expect{|
+val g : y:local_ string -> string -> x:string -> string = <fun>
+|}]
+
+let _ = ref (g ~y:"hello")
+[%%expect{|
+Line 1, characters 12-26:
+1 | let _ = ref (g ~y:"hello")
+                ^^^^^^^^^^^^^^
+Error: This value escapes its region
+  Hint: This is a partial application
+        Specifying 2 more arguments will make the value non-local
+|}]

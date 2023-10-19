@@ -1361,6 +1361,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
             let omitted =
               match arg with
               | Omitted _ -> (l,ty0) :: omitted
+              | Dummy _ -> assert false
               | Arg _ -> omitted
             in
             type_args ((l,arg)::args) omitted ty_fun ty_fun0 remaining_sargs

@@ -118,6 +118,7 @@ let is_ref : Types.value_description -> bool = function
 (* See the note on abstracted arguments in the documentation for
     Typedtree.Texp_apply *)
 let is_abstracted_arg : arg_label * apply_arg -> bool = function
+  | (_, Dummy _) -> true
   | (_, Omitted _) -> true
   | (_, Arg _) -> false
 
@@ -594,7 +595,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_apply (e, args, _, _)  ->
         let arg (_, arg) =
           match arg with
-          | Omitted _ -> empty
+          | Omitted _ | Dummy _ -> empty
           | Arg (e, _) -> expression e
         in
         let app_mode = if List.exists is_abstracted_arg args
@@ -1070,6 +1071,7 @@ and class_expr : Typedtree.class_expr -> term_judg =
     | Tcl_apply (ce, args) ->
         let arg (_, arg) =
           match arg with
+          | Dummy _ -> empty
           | Omitted _ -> empty
           | Arg (e, _) -> expression e
         in

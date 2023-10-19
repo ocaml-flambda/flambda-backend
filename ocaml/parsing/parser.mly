@@ -154,6 +154,8 @@ let local_ext_loc loc = mkloc "extension.local" loc
 let unique_ext_loc loc = mkloc "extension.unique" loc
 let once_ext_loc loc = mkloc "extension.once" loc
 
+let dummy_ext_loc loc = mkloc "extension.dummy" loc
+
 let local_attr loc =
   mk_attr ~loc (local_ext_loc loc) (PStr [])
 
@@ -171,6 +173,9 @@ let unique_extension loc =
 
 let once_extension loc =
   Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
+
+let dummy_extension loc =
+  Exp.mk ~loc:(ghost_loc loc) (Pexp_extension(dummy_ext_loc (make_loc loc), PStr []))
 
 let mkexp_stack ~loc ~kwd_loc exp =
   Exp.mk ~loc (Pexp_apply(local_extension kwd_loc, [Nolabel, exp]))
@@ -3093,6 +3098,12 @@ labeled_simple_expr:
         (Optional label, mkexpvar ~loc label) }
   | OPTLABEL simple_expr %prec below_HASH
       { (Optional $1, $2) }
+  | UNDERSCORE
+      { (Nolabel, dummy_extension $loc($1)) }
+  | LABEL UNDERSCORE
+      { (Labelled $1, dummy_extension $loc($2)) }
+  | OPTLABEL UNDERSCORE
+      { (Optional $1, dummy_extension $loc($2)) }
 ;
 %inline lident_list:
   xs = mkrhs(LIDENT)+

@@ -1073,7 +1073,11 @@ and record_field i ppf = function
 and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
-  (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
+  (match e with
+  | Dummy _ -> line (i + 1) ppf "(underscore)\n"
+  | Omitted _ -> line (i + 1) ppf "(omitted)\n"
+  | Arg (e, _) -> expression (i+1) ppf e
+  )
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;
