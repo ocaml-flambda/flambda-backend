@@ -120,6 +120,7 @@ COMPILERLIBS_SOURCES=\
   typing/predef.ml \
   typing/datarepr.ml \
   file_formats/cmi_format.ml \
+  typing/address.ml \
   typing/persistent_env.ml \
   typing/env.ml \
   lambda/debuginfo.ml \
