@@ -20,21 +20,6 @@
   See {{!examples} the examples} below.
   See 'Memory model: The hard bits' chapter in the manual.
 
-<<<<<<< HEAD
-    This sequential implementation is provided in the interest of
-    compatibility: when people will start writing code to run on
-    Multicore, it would be nice if their use of Atomic was
-    backward-compatible with older versions of OCaml without having to
-    import additional compatibility layers.
-
-||||||| merged common ancestors
-    This sequential implementation is provided in the interest of
-    compatibility: when people will start writing code to run on
-    Multicore, it would be nice if their use of Atomic was
-    backward-compatible with older versions of OCaml without having to
-    import additional compatibility layers. *)
-=======
->>>>>>> ocaml/5.1
     @since 4.12
 *)
 

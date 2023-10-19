@@ -113,19 +113,9 @@ module type S =
 
     val elements: t -> elt list
     (** Return the list of all elements of the given set.
-<<<<<<< HEAD
-       The returned list is sorted in increasing order with respect
-       to the ordering [Ord.compare], where [Ord] is the argument
-       given to {!Stdlib.Set.Make}. *)
-||||||| merged common ancestors
-       The returned list is sorted in increasing order with respect
-       to the ordering [Ord.compare], where [Ord] is the argument
-       given to {!Make}. *)
-=======
         The returned list is sorted in increasing order with respect
         to the ordering [Ord.compare], where [Ord] is the argument
-        given to {!Set.Make}. *)
->>>>>>> ocaml/5.1
+        given to {!Stdlib.Set.Make}. *)
 
     val min_elt: t -> elt
     (** Return the smallest element of the given set
@@ -140,14 +130,7 @@ module type S =
 
     val max_elt: t -> elt
     (** Same as {!min_elt}, but returns the largest element of the
-<<<<<<< HEAD
-       given set. *)
-||||||| merged common ancestors
-    (** Same as {!S.min_elt}, but returns the largest element of the
-       given set. *)
-=======
         given set. *)
->>>>>>> ocaml/5.1
 
     val max_elt_opt: t -> elt option
     (** Same as {!min_elt_opt}, but returns the largest element of the

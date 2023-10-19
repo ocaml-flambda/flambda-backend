@@ -440,19 +440,9 @@ module type SeededHashedType =
     val seeded_hash: int -> t -> int
       (** A seeded hashing function on keys.  The first argument is
           the seed.  It must be the case that if [equal x y] is true,
-<<<<<<< HEAD
-          then [hash seed x = hash seed y] for any value of [seed].
-          A suitable choice for [hash] is the function
-          {!Stdlib.Hashtbl.seeded_hash} below. *)
-||||||| merged common ancestors
-          then [hash seed x = hash seed y] for any value of [seed].
-          A suitable choice for [hash] is the function {!seeded_hash}
-          below. *)
-=======
           then [seeded_hash seed x = seeded_hash seed y] for any value of
           [seed].  A suitable choice for [seeded_hash] is the function
-          {!Hashtbl.seeded_hash} below. *)
->>>>>>> ocaml/5.1
+          {!Stdlib.Hashtbl.seeded_hash} below. *)
   end
 (** The input signature of the functor {!MakeSeeded}.
     @since 4.00 *)

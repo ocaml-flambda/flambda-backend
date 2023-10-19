@@ -18,14 +18,8 @@ open! Stdlib
 
 (** Operations on objects *)
 
-<<<<<<< HEAD
 [@@@ocaml.noprincipal] (* preserve structure sharing in copy (PR#9767) *)
 
-val copy : (< .. > as 'a) -> 'a
-||||||| merged common ancestors
-val copy : (< .. > as 'a) -> 'a
-=======
->>>>>>> ocaml/5.1
 (** [Oo.copy o] returns a copy of object [o], that is a fresh
    object with the same methods and instance variables as [o]. *)
 val copy : (< .. > as 'a) -> 'a

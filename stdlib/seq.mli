@@ -184,13 +184,7 @@ val iteri : (int -> 'a -> unit) -> 'a t -> unit
 
     @since 4.14 *)
 
-<<<<<<< HEAD
-val fold_lefti : ('b -> int -> 'a -> 'b) -> 'b -> 'a t -> 'b
-||||||| merged common ancestors
-val fold_lefti : (int -> 'b -> 'a -> 'b) -> 'b -> 'a t -> 'b
-=======
 val fold_lefti : ('acc -> int -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
->>>>>>> ocaml/5.1
 (** [fold_lefti f _ xs] invokes [f _ i x] successively
     for every element [x] located at index [i] of the sequence [xs].
 

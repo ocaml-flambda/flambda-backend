@@ -975,13 +975,7 @@ external genarray_of_array0 :
   ('a, 'b, 'c) Array0.t -> ('a, 'b, 'c) Genarray.t = "%identity"
 (** Return the generic Bigarray corresponding to the given zero-dimensional
     Bigarray.
-<<<<<<< HEAD
-    @since 4.05.0 *)
-||||||| merged common ancestors
-   Bigarray. @since 4.05.0 *)
-=======
     @since 4.05 *)
->>>>>>> ocaml/5.1
 
 external genarray_of_array1 :
   ('a, 'b, 'c) Array1.t -> ('a, 'b, 'c) Genarray.t = "%identity"

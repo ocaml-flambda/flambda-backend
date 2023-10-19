@@ -67,8 +67,13 @@ external full_major : unit -> unit = "caml_gc_full_major"
 external compact : unit -> unit = "caml_gc_compaction"
 external get_minor_free : unit -> int = "caml_get_minor_free"
 
-let eventlog_pause () = ()
-let eventlog_resume () = ()
+(* CR ocaml 5 runtime: These functions are no-ops upstream. We should make them
+   no-ops internally when we delete the corresponding C functions from the
+   runtime -- they're already marked as deprecated in the mli.
+*)
+
+external eventlog_pause : unit -> unit = "caml_eventlog_pause"
+external eventlog_resume : unit -> unit = "caml_eventlog_resume"
 
 open Printf
 

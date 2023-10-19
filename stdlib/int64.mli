@@ -256,20 +256,9 @@ val seeded_hash : int -> t -> int
 
     @since 5.1 *)
 
-<<<<<<< HEAD
-external format : string -> int64 -> string = "caml_int64_format"
-[@@ocaml.deprecated "Use Printf.sprintf with a [%L...] format instead."]
-(** Do not use this deprecated function.  Instead,
-   used {!Printf.sprintf} with a [%L...] format. *)
-||||||| merged common ancestors
-external format : string -> int64 -> string = "caml_int64_format"
-(** Do not use this deprecated function.  Instead,
-   used {!Printf.sprintf} with a [%L...] format. *)
-=======
 val hash : t -> int
 (** An unseeded hash function for 64-bit ints, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}.
 
     @since 5.1 *)
->>>>>>> ocaml/5.1

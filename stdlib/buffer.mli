@@ -33,10 +33,8 @@ open! Stdlib
 
 *)
 
-<<<<<<< HEAD
 [@@@ocaml.warning "A"]
-||||||| merged common ancestors
-=======
+
 (** {b Unsynchronized accesses} *)
 
 [@@@alert unsynchronized_access
@@ -48,7 +46,6 @@ open! Stdlib
     Thus, concurrent accesses to a buffer must be synchronized (for instance
     with a {!Mutex.t}).
 *)
->>>>>>> ocaml/5.1
 
 type t
 (** The abstract type of buffers. *)

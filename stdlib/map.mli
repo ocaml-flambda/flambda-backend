@@ -290,121 +290,8 @@ module type S =
         [m1] contains all the bindings of [m] that satisfy the
         predicate [f], and [m2] is the map with all the bindings of
         [m] that do not satisfy [f].
-<<<<<<< HEAD
-        @since 3.12.0
+        @since 3.12
      *)
-
-    val cardinal: 'a t -> int
-    (** Return the number of bindings of a map.
-        @since 3.12.0
-     *)
-
-    val bindings: 'a t -> (key * 'a) list
-    (** Return the list of all bindings of the given map.
-       The returned list is sorted in increasing order of keys with respect
-       to the ordering [Ord.compare], where [Ord] is the argument
-       given to {!Stdlib.Map.Make}.
-        @since 3.12.0
-     *)
-
-    val min_binding: 'a t -> (key * 'a)
-    (** Return the binding with the smallest key in a given map
-       (with respect to the [Ord.compare] ordering), or raise
-       [Not_found] if the map is empty.
-        @since 3.12.0
-     *)
-
-    val min_binding_opt: 'a t -> (key * 'a) option
-    (** Return the binding with the smallest key in the given map
-       (with respect to the [Ord.compare] ordering), or [None]
-       if the map is empty.
-        @since 4.05
-     *)
-
-    val max_binding: 'a t -> (key * 'a)
-    (** Same as {!min_binding}, but returns the binding with
-        the largest key in the given map.
-        @since 3.12.0
-     *)
-
-    val max_binding_opt: 'a t -> (key * 'a) option
-    (** Same as {!min_binding_opt}, but returns the binding with
-        the largest key in the given map.
-        @since 4.05
-     *)
-
-    val choose: 'a t -> (key * 'a)
-    (** Return one binding of the given map, or raise [Not_found] if
-       the map is empty. Which binding is chosen is unspecified,
-       but equal bindings will be chosen for equal maps.
-        @since 3.12.0
-     *)
-
-    val choose_opt: 'a t -> (key * 'a) option
-    (** Return one binding of the given map, or [None] if
-       the map is empty. Which binding is chosen is unspecified,
-       but equal bindings will be chosen for equal maps.
-        @since 4.05
-     *)
-||||||| merged common ancestors
-        @since 3.12.0
-     *)
-
-    val cardinal: 'a t -> int
-    (** Return the number of bindings of a map.
-        @since 3.12.0
-     *)
-
-    val bindings: 'a t -> (key * 'a) list
-    (** Return the list of all bindings of the given map.
-       The returned list is sorted in increasing order of keys with respect
-       to the ordering [Ord.compare], where [Ord] is the argument
-       given to {!Make}.
-        @since 3.12.0
-     *)
-
-    val min_binding: 'a t -> (key * 'a)
-    (** Return the binding with the smallest key in a given map
-       (with respect to the [Ord.compare] ordering), or raise
-       [Not_found] if the map is empty.
-        @since 3.12.0
-     *)
-
-    val min_binding_opt: 'a t -> (key * 'a) option
-    (** Return the binding with the smallest key in the given map
-       (with respect to the [Ord.compare] ordering), or [None]
-       if the map is empty.
-        @since 4.05
-     *)
-
-    val max_binding: 'a t -> (key * 'a)
-    (** Same as {!S.min_binding}, but returns the binding with
-        the largest key in the given map.
-        @since 3.12.0
-     *)
-
-    val max_binding_opt: 'a t -> (key * 'a) option
-    (** Same as {!S.min_binding_opt}, but returns the binding with
-        the largest key in the given map.
-        @since 4.05
-     *)
-
-    val choose: 'a t -> (key * 'a)
-    (** Return one binding of the given map, or raise [Not_found] if
-       the map is empty. Which binding is chosen is unspecified,
-       but equal bindings will be chosen for equal maps.
-        @since 3.12.0
-     *)
-
-    val choose_opt: 'a t -> (key * 'a) option
-    (** Return one binding of the given map, or [None] if
-       the map is empty. Which binding is chosen is unspecified,
-       but equal bindings will be chosen for equal maps.
-        @since 4.05
-     *)
-=======
-        @since 3.12 *)
->>>>>>> ocaml/5.1
 
     val split: key -> 'a t -> 'a t * 'a option * 'a t
     (** [split x m] returns a triple [(l, data, r)], where
@@ -451,25 +338,11 @@ module type S =
     (** [to_list m] is {!bindings}[ m].
         @since 5.1 *)
 
-<<<<<<< HEAD
-    val mapi: (key -> 'a -> 'b) -> 'a t -> 'b t
-    (** Same as {!map}, but the function receives as arguments both the
-       key and the associated value for each binding of the map. *)
-
-    (** {1 Maps and Sequences} *)
-||||||| merged common ancestors
-    val mapi: (key -> 'a -> 'b) -> 'a t -> 'b t
-    (** Same as {!S.map}, but the function receives as arguments both the
-       key and the associated value for each binding of the map. *)
-
-    (** {1 Maps and Sequences} *)
-=======
     val of_list : (key * 'a) list -> 'a t
     (** [of_list bs] adds the bindings of [bs] to the empty map,
         in list order (if a key is bound twice in [bs] the last one
         takes over).
         @since 5.1 *)
->>>>>>> ocaml/5.1
 
     val to_seq : 'a t -> (key * 'a) Seq.t
     (** Iterate on the whole map, in ascending order of keys

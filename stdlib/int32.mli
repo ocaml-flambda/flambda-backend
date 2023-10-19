@@ -242,15 +242,4 @@ val hash : t -> int
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}.
 
-<<<<<<< HEAD
-external format : string -> int32 -> string = "caml_int32_format"
-[@@ocaml.deprecated "Use Printf.sprintf with a [%l...] format instead."]
-(** Do not use this deprecated function.  Instead,
-   used {!Printf.sprintf} with a [%l...] format. *)
-||||||| merged common ancestors
-external format : string -> int32 -> string = "caml_int32_format"
-(** Do not use this deprecated function.  Instead,
-   used {!Printf.sprintf} with a [%l...] format. *)
-=======
     @since 5.1 *)
->>>>>>> ocaml/5.1

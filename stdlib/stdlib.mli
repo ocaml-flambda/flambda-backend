@@ -222,47 +222,13 @@ external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-<<<<<<< HEAD
-external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
-  [@@ocaml.deprecated "Use (&&) instead."]
-(** @deprecated {!Stdlib.( && )} should be used instead.
-    Right-associative operator, see {!Ocaml_operators} for more information.
-*)
-
 external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
-||||||| merged common ancestors
-external ( & ) : bool -> bool -> bool = "%sequand"
-  [@@ocaml.deprecated "Use (&&) instead."]
-(** @deprecated {!Stdlib.( && )} should be used instead.
-    Right-associative operator, see {!Ocaml_operators} for more information.
-*)
-
-external ( || ) : bool -> bool -> bool = "%sequor"
-=======
-external ( || ) : bool -> bool -> bool = "%sequor"
->>>>>>> ocaml/5.1
 (** The boolean 'or'. Evaluation is sequential, left-to-right:
    in [e1 || e2], [e1] is evaluated first, and if it returns [true],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-<<<<<<< HEAD
-external ( or ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
-  [@@ocaml.deprecated "Use (||) instead."]
-(** @deprecated {!Stdlib.( || )} should be used instead.
-    Right-associative operator, see {!Ocaml_operators} for more information.
-*)
-
-||||||| merged common ancestors
-external ( or ) : bool -> bool -> bool = "%sequor"
-  [@@ocaml.deprecated "Use (||) instead."]
-(** @deprecated {!Stdlib.( || )} should be used instead.
-    Right-associative operator, see {!Ocaml_operators} for more information.
-*)
-
-=======
->>>>>>> ocaml/5.1
 (** {1 Debugging} *)
 
 external __LOC__ : string = "%loc_LOC"
@@ -692,18 +658,8 @@ val nan : float
     IEEE 754 standard.  As for floating-point comparisons,
     [=], [<], [<=], [>] and [>=] return [false] and [<>] returns [true]
     if one or both of their arguments is [nan].
-<<<<<<< HEAD
-    Returns [quiet_nan] since 5.0.0. *)
-||||||| merged common ancestors
-   undefined operation such as [0.0 /. 0.0].  Stands for
-   'not a number'.  Any floating-point operation with [nan] as
-   argument returns [nan] as result.  As for floating-point comparisons,
-   [=], [<], [<=], [>] and [>=] return [false] and [<>] returns [true]
-   if one or both of their arguments is [nan]. *)
-=======
 
     [nan] is a quiet NaN since 5.1;  it was a signaling NaN before. *)
->>>>>>> ocaml/5.1
 
 val max_float : float
 (** The largest positive finite value of type [float]. *)

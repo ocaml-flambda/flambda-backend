@@ -15,13 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
-(** Pseudo-random number generators (PRNG). *)
-||||||| merged common ancestors
-(** Pseudo-random number generators (PRNG). *)
-=======
 (** Pseudo-random number generators (PRNG).
 
     With multiple domains, each domain has its own generator that evolves
@@ -33,7 +28,6 @@ open! Stdlib
     generator.  Independent generators can be created with the {!Random.split}
     function and used with the functions from the {!Random.State} module.
 *)
->>>>>>> ocaml/5.1
 
 (** {1 Basic functions} *)
 

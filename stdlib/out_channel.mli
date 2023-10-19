@@ -15,22 +15,15 @@
 
 (** Output channels.
 
-<<<<<<< HEAD
-    @since 4.14.0 *)
-open! Stdlib
-||||||| merged common ancestors
-    @since 4.14.0 *)
-
-=======
     This module provides functions for working with output channels.
 
     See {{!examples} the example section} below.
 
     @since 4.14 *)
+open! Stdlib
 
 (** {1:channels Channels}  *)
 
->>>>>>> ocaml/5.1
 type t = out_channel
 (** The type of output channel. *)
 

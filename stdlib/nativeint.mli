@@ -251,23 +251,4 @@ val hash : t -> int
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}.
 
-<<<<<<< HEAD
-external format : string -> nativeint -> string = "caml_nativeint_format"
-[@@ocaml.deprecated "Use Printf.sprintf with a [%n...] format instead."]
-(** [Nativeint.format fmt n] return the string representation of the
-   native integer [n] in the format specified by [fmt].
-   [fmt] is a [Printf]-style format consisting of exactly
-   one [%d], [%i], [%u], [%x], [%X] or [%o] conversion specification.
-   This function is deprecated; use {!Printf.sprintf} with a [%nx] format
-   instead. *)
-||||||| merged common ancestors
-external format : string -> nativeint -> string = "caml_nativeint_format"
-(** [Nativeint.format fmt n] return the string representation of the
-   native integer [n] in the format specified by [fmt].
-   [fmt] is a [Printf]-style format consisting of exactly
-   one [%d], [%i], [%u], [%x], [%X] or [%o] conversion specification.
-   This function is deprecated; use {!Printf.sprintf} with a [%nx] format
-   instead. *)
-=======
     @since 5.1 *)
->>>>>>> ocaml/5.1

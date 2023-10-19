@@ -15,13 +15,6 @@
 
 (** Input channels.
 
-<<<<<<< HEAD
-    @since 4.14.0 *)
-open! Stdlib
-||||||| merged common ancestors
-    @since 4.14.0 *)
-
-=======
     This module provides functions for working with input channels.
 
     See {{!examples} the example section} below.
@@ -30,7 +23,6 @@ open! Stdlib
 
 (** {1:channels Channels} *)
 
->>>>>>> ocaml/5.1
 type t = in_channel
 (** The type of input channel. *)
 
