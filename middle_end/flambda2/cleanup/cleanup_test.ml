@@ -166,7 +166,7 @@ module Deps = struct
       | Use of Name.t
       | Contains of Name.t
       | Field of field * Name.t
-      | Block of (field * Name.t) list
+      | Block of field * Name.t
       | Apply of Name.t * Code_id.t
 
     let compare = compare
@@ -202,6 +202,10 @@ module Deps = struct
     let bound_to = Bound_pattern.free_names bp in
     let f () bound_to = insert tbl bound_to (Dep.Field (field, name)) in
     Name_occurrences.fold_names bound_to ~f ~init:()
+
+  let add_dep t bound_to dep =
+    let tbl = t.name_to_dep in
+    insert tbl bound_to dep
 
   let add_let_dep t bp dep =
     let tbl = t.name_to_dep in
@@ -272,7 +276,7 @@ module Dot = struct
           "red", [name]
         | Contains name -> "yellow", [name]
         | Field (_, name) -> "green", [name]
-        | Block fields -> "blue", List.map snd fields
+        | Block (_, name) -> "blue", [name]
         | Apply (name, _code) -> "pink", [name]
       in
       List.iter
@@ -319,6 +323,8 @@ module Dacc : sig
   val func : t -> t
 
   val let_dep : Bound_pattern.t -> Deps.Dep.t -> t -> t
+
+  val record_dep : Name.t -> Deps.Dep.t -> t -> t
 
   val cont_dep : Variable.t -> Simple.t -> t -> t
 
@@ -389,6 +395,10 @@ end = struct
 
   let let_dep pat dep t =
     Deps.add_let_dep t.deps pat dep;
+    t
+
+  let record_dep name dep t =
+    Deps.add_dep t.deps name dep;
     t
 
   let cont_dep pat dep t =
@@ -497,7 +507,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       dacc )
   | Apply apply ->
     (* TODO apply_dep *)
-    let expr = Raw expr in
+    let expr = Apply apply in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Apply.free_names apply
@@ -583,10 +593,40 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     in
     let dacc = Dacc.let_ dacc in
     let defining_expr = Flambda.Let_expr.defining_expr let_expr in
-    let dep : Deps.Dep.t option =
+    let known_field_of_block field block =
+      Simple.pattern_match field
+        ~name:(fun _ ~coercion:_ -> None)
+        ~const:(fun cst ->
+          let block =
+            Simple.pattern_match block
+              ~name:(fun name ~coercion:_ -> name)
+              ~const:(fun _ -> assert false)
+          in
+          match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
+          | Tagged_immediate i ->
+            let i = Targetint_31_63.to_int_exn i in
+            Some (i, block)
+          | _ -> assert false)
+    in
+    let default_bp dep : (Name.t * Deps.Dep.t) list =
+      let bound_to = Bound_pattern.free_names bound_pattern in
+      Name_occurrences.fold_names bound_to
+        ~f:(fun acc bound_to -> (bound_to, dep) :: acc)
+        ~init:[]
+    in
+    let default_bps dep : (Name.t * Deps.Dep.t) list =
+      List.concat_map default_bp dep
+    in
+    let default () : (Name.t * Deps.Dep.t) list =
+      Name_occurrences.fold_names
+        ~f:(fun acc free_name -> default_bp (Deps.Dep.Use free_name) @ acc)
+        ~init:[]
+        (Flambda.Named.free_names defining_expr)
+    in
+    let dep : (Name.t * Deps.Dep.t) list =
       match defining_expr with
-      | Set_of_closures _set_of_closures -> None
-      | Static_consts _group -> None
+      | Set_of_closures _set_of_closures -> default ()
+      | Static_consts _group -> default ()
       | Prim (prim, _dbg) -> begin
         match[@ocaml.warning "-4"] prim with
         | Variadic (Make_block (_, Immutable, _), fields) ->
@@ -595,18 +635,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             (fun i field ->
               Simple.pattern_match field
                 ~name:(fun name ~coercion:_ ->
-                  acc := (Deps.Block i, name) :: !acc)
+                  acc := Deps.Dep.Block (Deps.Block i, name) :: !acc)
                 ~const:(fun _ -> ()))
             fields;
-          Some (Block !acc)
+          default_bps !acc
         | Unary (Project_function_slot { move_from = _; move_to }, block) ->
           let block =
             Simple.pattern_match block
               ~name:(fun name ~coercion:_ -> name)
               ~const:(fun _ -> assert false)
           in
-          let dep = Some (Deps.Dep.Field (Function_slot move_to, block)) in
-          dep
+          let dep = Deps.Dep.Field (Function_slot move_to, block) in
+          default_bp dep
         | Unary
             ( Project_value_slot { project_from = _; value_slot; kind = _ },
               block ) ->
@@ -615,35 +655,30 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               ~name:(fun name ~coercion:_ -> name)
               ~const:(fun _ -> assert false)
           in
-          let dep = Some (Deps.Dep.Field (Value_slot value_slot, block)) in
-          dep
-        | Binary (Block_load (_access_kind, Immutable), block, field) ->
-          let dep =
-            Simple.pattern_match field
-              ~name:(fun _ ~coercion:_ -> None)
-              ~const:(fun cst ->
-                let block =
-                  Simple.pattern_match block
-                    ~name:(fun name ~coercion:_ -> name)
-                    ~const:(fun _ -> assert false)
-                in
-                match Int_ids.Const.descr cst with
-                | Tagged_immediate i ->
-                  let i = Targetint_31_63.to_int_exn i in
-                  Some (Deps.Dep.Field (Block i, block))
-                | _ -> assert false)
-          in
-          dep
-        | _ -> None
+          let dep = Deps.Dep.Field (Value_slot value_slot, block) in
+          default_bp dep
+        | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
+          match known_field_of_block field block with
+          | None -> default ()
+          | Some (field, block) ->
+            default_bp (Deps.Dep.Field (Block field, block))
+        end
+        | Ternary
+            (Block_set (_access_kind, _init_or_assign), block, field, value) ->
+          begin
+          match known_field_of_block field block with
+          | None ->
+            ignore value;
+            assert false
+          | Some _ -> assert false
+        end
+        | _ -> default ()
       end
       | Simple s ->
-        let dep =
-          Simple.pattern_match s
-            ~name:(fun name ~coercion:_ -> Some (Deps.Dep.Alias name))
-            ~const:(fun _ -> None)
-        in
-        dep
-      | Rec_info _ -> None
+        Simple.pattern_match s
+          ~name:(fun name ~coercion:_ -> default_bp (Deps.Dep.Alias name))
+          ~const:(fun _ -> default ())
+      | Rec_info _ -> default ()
     in
     let (named, dacc) : rev_named * dacc =
       match defining_expr with
@@ -690,12 +725,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       | Rec_info _ as defining_expr -> Named defining_expr, dacc
     in
     let dacc =
-      match dep with
-      | None ->
-        Dacc.opaque_let_dependency bound_pattern
-          (Flambda.Named.free_names defining_expr)
-          dacc
-      | Some dep -> Dacc.let_dep bound_pattern dep dacc
+      List.fold_left
+        (fun dacc (name, dep) -> Dacc.record_dep name dep dacc)
+        dacc dep
     in
     let let_acc =
       Let { bound_pattern; defining_expr = named; parent = denv.parent }
