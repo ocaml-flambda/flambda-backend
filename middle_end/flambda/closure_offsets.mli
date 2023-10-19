@@ -19,9 +19,16 @@
 (** Assign numerical offsets, within closure blocks, for code pointers and
     environment entries. *)
 
+type layout_atom = Clambda_layout.atom
+
+type parts = Clambda_layout.decomposition
+
+val equal_parts : parts -> parts -> bool
+val print_parts : Format.formatter -> parts -> unit
+
 type result = private {
   function_offsets : int Closure_id.Map.t;
-  free_variable_offsets : int Var_within_closure.Map.t;
+  free_variable_offsets : parts Var_within_closure.Map.t;
 }
 
 val compute : Flambda.program -> result

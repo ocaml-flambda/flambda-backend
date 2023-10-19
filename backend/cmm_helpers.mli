@@ -892,7 +892,7 @@ module Generic_fns_tbl : sig
   val entries : t -> Cmx_format.generic_fns
 
   module Precomputed : sig
-    val gen : unit -> t
+    val gen : unit -> (string, t) Hashtbl.t
   end
 end
 

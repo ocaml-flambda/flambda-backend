@@ -1,6 +1,8 @@
 (* TEST
-   flags = "-extension layouts_alpha"
    * expect
+     flags = "-extension layouts_alpha"
+   * expect
+     flags = "-extension layouts_beta"
 *)
 
 (* This file contains typing tests for the layout [float64].
@@ -170,37 +172,31 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
        'a has layout float64, which does not overlap with value.
 |}]
 
-(****************************************************)
-(* Test 5: Can't be put in structures in typedecls. *)
+(******************************************************************************)
+(* Test 5: Can't be put in structures in typedecls, except all-float records. *)
 
 type t5_1 = { x : t_float64 };;
 [%%expect{|
-Line 1, characters 14-27:
-1 | type t5_1 = { x : t_float64 };;
-                  ^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+type t5_1 = { x : t_float64; }
 |}];;
 
 (* CR layouts v5: this should work *)
 type t5_2 = { y : int; x : t_float64 };;
 [%%expect{|
-Line 1, characters 23-36:
+Line 1, characters 0-38:
 1 | type t5_2 = { y : int; x : t_float64 };;
-                           ^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Records may not contain both unboxed floats and normal values.
 |}];;
 
 (* CR layouts: this runs afoul of the mixed block restriction, but should work
    once we relax that. *)
 type t5_2' = { y : string; x : t_float64 };;
 [%%expect{|
-Line 1, characters 27-40:
+Line 1, characters 0-42:
 1 | type t5_2' = { y : string; x : t_float64 };;
-                               ^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Records may not contain both unboxed floats and normal values.
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -210,7 +206,7 @@ Line 1, characters 14-27:
 1 | type t5_3 = { x : t_float64 } [@@unboxed];;
                   ^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Unboxed records may not yet contain types of this layout.
 |}];;
 
 type t5_4 = A of t_float64;;
@@ -219,7 +215,7 @@ Line 1, characters 12-26:
 1 | type t5_4 = A of t_float64;;
                 ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t5_5 = A of int * t_float64;;
@@ -228,7 +224,7 @@ Line 1, characters 12-32:
 1 | type t5_5 = A of int * t_float64;;
                 ^^^^^^^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t5_6 = A of t_float64 [@@unboxed];;
@@ -237,7 +233,7 @@ Line 1, characters 12-26:
 1 | type t5_6 = A of t_float64 [@@unboxed];;
                 ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type ('a : float64) t5_7 = A of int
@@ -248,8 +244,39 @@ Line 2, characters 27-34:
 2 | type ('a : float64) t5_8 = A of 'a;;
                                ^^^^^^^
 Error: Type 'a has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
+
+type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
+
+type 'a t5_10 = 'a t_float64_id
+and 'a t5_11 = {x : 'a t5_10; y : 'a}
+
+type ('a : float64) t5_12 = {x : 'a; y : float#};;
+[%%expect{|
+type ('a : float64, 'b : float64) t5_9 = { x : 'a; y : 'b; z : 'a; }
+type ('a : float64) t5_10 = 'a t_float64_id
+and ('a : float64) t5_11 = { x : 'a t5_10; y : 'a; }
+type ('a : float64) t5_12 = { x : 'a; y : float#; }
+|}];;
+
+type ('a : float64) t5_13 = {x : 'a; y : float#};;
+[%%expect{|
+type ('a : float64) t5_13 = { x : 'a; y : float#; }
+|}];;
+
+type 'a t5_14 = {x : 'a; y : float#};;
+[%%expect{|
+Line 1, characters 0-36:
+1 | type 'a t5_14 = {x : 'a; y : float#};;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Records may not contain both unboxed floats and normal values.
+|}];;
+
+type ufref = { mutable contents : float# };;
+[%%expect{|
+type ufref = { mutable contents : float#; }
+|}];;
 
 (****************************************************)
 (* Test 6: Can't be put at top level of signatures. *)
@@ -320,7 +347,7 @@ type f7_4 = [ `A of t_float64 ];;
 Line 1, characters 20-29:
 1 | type f7_4 = [ `A of t_float64 ];;
                         ^^^^^^^^^
-Error: Polymorpic variant constructor argument types must have layout value.
+Error: Polymorphic variant constructor argument types must have layout value.
         t_float64 has layout float64, which is not a sublayout of value.
 |}];;
 
@@ -491,7 +518,7 @@ Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
 Error: Type t_float64 has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 type t11_1 += B of float#;;
@@ -500,7 +527,7 @@ Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
 Error: Type float# has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -516,7 +543,7 @@ Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
 Error: Type 'a has layout float64.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 (***************************************)
@@ -697,3 +724,67 @@ Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        t_float64 has layout float64, which is not a sublayout of value.
 |}];;
+
+(***********************************************************)
+(* Test 14: unboxed float records work like normal records *)
+
+module FU = Stdlib__Float_u
+
+type t14_1 = { x : float#; y : float# }
+
+(* pattern matching *)
+let f14_1 {x;y} = FU.sub x y
+
+(* construction *)
+let r14 = { x = FU.of_float 3.14; y = FU.of_float 2.72 }
+
+let sum14_1 = FU.to_float (f14_1 r14)
+
+(* projection *)
+let f14_2 ({y;_} as r) = FU.sub r.x y
+
+let sum14_2 = FU.to_float (f14_1 r14)
+
+type t14_2 = { mutable a : float#; b : float#; mutable c : float# }
+
+let f14_3 ({b; c; _} as r) =
+  (* pure record update *)
+  let r' = { r with b = FU.of_float 20.0; c = r.a } in
+  (* mutation *)
+  r.a <- FU.sub r.a r'.b;
+  r'.a <- FU.of_float 42.0;
+  r'
+
+let a, b, c, a', b', c' =
+  let r = {a = FU.of_float 3.1; b = FU.of_float (-0.42); c = FU.of_float 27.7 } in
+  let r' = f14_3 r in
+  FU.to_float r.a,
+  FU.to_float r.b,
+  FU.to_float r.c,
+  FU.to_float r'.a,
+  FU.to_float r'.b,
+  FU.to_float r'.c
+
+let f14_4 r =
+  let {x; y} = r in
+  FU.add x y
+
+
+[%%expect{|
+module FU = Stdlib__Float_u
+type t14_1 = { x : float#; y : float#; }
+val f14_1 : t14_1 -> float# = <fun>
+val r14 : t14_1 = {x = <abstr>; y = <abstr>}
+val sum14_1 : float = 0.419999999999999929
+val f14_2 : t14_1 -> float# = <fun>
+val sum14_2 : float = 0.419999999999999929
+type t14_2 = { mutable a : float#; b : float#; mutable c : float#; }
+val f14_3 : t14_2 -> t14_2 = <fun>
+val a : float = -16.9
+val b : float = -0.42
+val c : float = 27.7
+val a' : float = 42.
+val b' : float = 20.
+val c' : float = 3.1
+val f14_4 : t14_1 -> float# = <fun>
+|}]

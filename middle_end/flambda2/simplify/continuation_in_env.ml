@@ -22,10 +22,10 @@ type t =
         cost_metrics_of_handler : Cost_metrics.t
       }
   | Non_inlinable_zero_arity of { handler : Rebuilt_expr.t Or_unknown.t }
-  | Non_inlinable_non_zero_arity of { arity : Flambda_arity.t }
+  | Non_inlinable_non_zero_arity of { arity : [`Unarized] Flambda_arity.t }
   | Toplevel_or_function_return_or_exn_continuation of
-      { arity : Flambda_arity.t }
-  | Invalid of { arity : Flambda_arity.t }
+      { arity : [`Unarized] Flambda_arity.t }
+  | Invalid of { arity : [`Unarized] Flambda_arity.t }
 
 let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
   match t with

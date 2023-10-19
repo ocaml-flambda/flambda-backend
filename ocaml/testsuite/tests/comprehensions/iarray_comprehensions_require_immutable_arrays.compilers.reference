@@ -1,4 +1,0 @@
-File "iarray_comprehensions_require_immutable_arrays.ml", line 9, characters 0-21:
-9 | [:x for x = 1 to 10:];;
-    ^^^^^^^^^^^^^^^^^^^^^
-Error: The extension "immutable_arrays" is disabled and cannot be used

@@ -73,8 +73,8 @@ type t =
     continuation : Result_continuation.t;
     exn_continuation : Exn_continuation.t;
     args : Simple.t list;
-    args_arity : Flambda_arity.t;
-    return_arity : Flambda_arity.t;
+    args_arity : [`Complex] Flambda_arity.t;
+    return_arity : [`Unarized] Flambda_arity.t;
     call_kind : Call_kind.t;
     dbg : Debuginfo.t;
     inlined : Inlined_attribute.t;
@@ -158,12 +158,12 @@ let invariant
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
         print t;
-    match Flambda_arity.to_list return_arity with
+    match Flambda_arity.unarized_components return_arity with
     | [] | [_] -> ()
     | _ :: _ :: _ ->
       Misc.fatal_errorf "Illegal return arity for C call:@ %a"
         Flambda_arity.print return_arity));
-  if List.compare_lengths args (Flambda_arity.to_list args_arity) <> 0
+  if List.compare_lengths args (Flambda_arity.unarize args_arity) <> 0
   then
     Misc.fatal_errorf
       "Length of argument and arity lists disagree in [Apply]:@ %a" print t

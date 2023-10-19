@@ -79,6 +79,35 @@ function types, see below) then inference will resolve them according to what
 appears in the `.mli`. If there is no `.mli` file, then inference will always
 choose `global` for anything that can be accessed from another file.
 
+Local annotations (or the lack thereof) in the mli don't affect inference
+within the ml. In the below example, the `~foo` parameter is inferred to
+be local internally to `A`, so `foo:(Some x)` can be constructed locally.
+
+```ocaml
+(* in a.mli *)
+val f1 : foo:local_ int option -> unit
+val f2 : int -> unit
+
+(* in a.ml *)
+let f1 ~foo:_ = ()
+let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
+```
+
+<!-- See Note [Inference affects allocation in mli-less files] in [ocaml/testsuite/tests/typing-local/alloc_arg_with_mli.ml]
+     in the flambda-backend Git repo. The ensuing paragraph is related to that
+     note; we can remove this comment when the note is resolved.
+-->
+However, a missing mli *does* affect inference within the ml. As a conservative rule of thumb,
+function arguments in an mli-less file will be heap-allocated unless the function parameter or argument
+is annotated with `local_`. This is due to an implementation detail of the type-checker and
+is not fundamental, but for now, it's yet another reason to prefer writing mlis.
+
+```ocaml
+(* in a.ml; a.mli is missing *)
+let f1 ~foo:_ = ()
+let f2 x = f1 ~foo:(Some x) (* [Some x] is heap allocated *)
+```
+
 ## Regions
 
 Every local allocation takes places inside a _region_, which is a block of code

@@ -205,6 +205,8 @@ let basic_or_terminator_of_operation :
   | Iintoffloat -> Basic (Op Intoffloat)
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
+  | Ivectorcast cast -> Basic (Op (Vectorcast cast))
+  | Iscalarcast cast -> Basic (Op (Scalarcast cast))
   | Ispecific op ->
     if Arch.operation_can_raise op
     then
@@ -691,8 +693,8 @@ module Stack_offset_and_exn = struct
         | Const_vec128 _ | Load _ | Store _ | Intop _ | Intop_imm _
         | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
         | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-        | Name_for_debugger _ )
+        | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Specific _ | Name_for_debugger _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 

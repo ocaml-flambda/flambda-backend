@@ -23,6 +23,7 @@ open Path
 open Asttypes
 open Layouts
 open Types
+open Mode
 open Btype
 open Outcometree
 
@@ -607,7 +608,9 @@ and raw_type_desc ppf = function
         (Layout.to_string layout)
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
-        (string_of_label l) Alloc_mode.print arg Alloc_mode.print ret
+        (string_of_label l)
+        (Alloc.print' ~verbose:true) arg
+        (Alloc.print' ~verbose:true) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
@@ -1188,6 +1191,28 @@ let out_layout_option_of_layout layout =
     then Some (Olay_var (Sort.var_name v))
     else None
 
+let tree_of_mode mode =
+  let {locality; uniqueness; linearity} = Alloc.check_const mode in
+  let oam_locality =
+    match locality with
+    | Some Global -> Olm_global
+    | Some Local -> Olm_local
+    | None -> Olm_unknown
+  in
+  let oam_uniqueness =
+    match uniqueness with
+    | Some Unique -> Oum_unique
+    | Some Shared -> Oum_shared
+    | None -> Oum_unknown
+  in
+  let oam_linearity =
+    match linearity with
+    | Some Many -> Olinm_many
+    | Some Once -> Olinm_once
+    | None -> Olinm_unknown
+  in
+  {oam_locality; oam_uniqueness; oam_linearity}
+
 let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
@@ -1219,19 +1244,9 @@ let rec tree_of_typexp mode ty =
           else
             tree_of_typexp mode ty1
         in
-        let am =
-          match Alloc_mode.check_const marg with
-          | Some Global -> Oam_global
-          | Some Local -> Oam_local
-          | None -> Oam_unknown
-        in
+        let am = tree_of_mode marg in
         let t2 = tree_of_typexp mode ty2 in
-        let rm =
-          match Alloc_mode.check_const mret with
-          | Some Global -> Oam_global
-          | Some Local -> Oam_local
-          | None -> Oam_unknown
-        in
+        let rm = tree_of_mode mret in
         Otyp_arrow (lab, am, t1, rm, t2)
     | Ttuple tyl ->
         Otyp_tuple (tree_of_typlist mode tyl)
@@ -1529,7 +1544,7 @@ let rec tree_of_type_decl id decl =
         Some ty
   in
   begin match decl.type_kind with
-  | Type_abstract -> ()
+  | Type_abstract _ -> ()
   | Type_variant (cstrs, _rep) ->
       List.iter
         (fun c ->
@@ -1549,7 +1564,7 @@ let rec tree_of_type_decl id decl =
   let type_defined decl =
     let abstr =
       match decl.type_kind with
-        Type_abstract ->
+        Type_abstract _ ->
           decl.type_manifest = None || decl.type_private = Private
       | Type_record _ ->
           decl.type_private = Private
@@ -1565,7 +1580,7 @@ let rec tree_of_type_decl id decl =
           let is_var = is_Tvar ty in
           if abstr || not is_var then
             let inj =
-              decl_is_abstract decl && Variance.mem Inj v &&
+              type_kind_is_abstract decl && Variance.mem Inj v &&
               match decl.type_manifest with
               | None -> true
               | Some ty -> (* only abstract or private row types *)
@@ -1596,7 +1611,7 @@ let rec tree_of_type_decl id decl =
   let constraints = tree_of_constraints params in
   let ty, priv, unboxed =
     match decl.type_kind with
-    | Type_abstract ->
+    | Type_abstract _ ->
         begin match ty_manifest with
         | None -> (Otyp_abstract, Public, false)
         | Some ty ->
@@ -1998,7 +2013,7 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract;
+    type_kind = Type_abstract Abstract_def;
     type_layout = Layout.any ~why:Dummy_layout;
     type_private = Public;
     type_manifest = None;
@@ -2047,6 +2062,10 @@ let with_hidden_items ids f =
 let add_sigitem env x =
   Env.add_signature (Signature_group.flatten x) env
 
+let expand_module_type =
+  ref ((fun _env _mty -> assert false) :
+      Env.t -> module_type -> module_type)
+
 let rec tree_of_modtype ?(ellipsis=false) = function
   | Mty_ident p ->
       Omty_ident (tree_of_path Module_type p)
@@ -2061,6 +2080,17 @@ let rec tree_of_modtype ?(ellipsis=false) = function
       Omty_functor (param, res)
   | Mty_alias p ->
       Omty_alias (tree_of_path Module p)
+  | Mty_strengthen _ as mty ->
+      begin match !expand_module_type !printing_env mty with
+      | Mty_strengthen (mty,p,a) ->
+          let unaliasable =
+            not (Aliasability.is_aliasable a)
+            && not (Env.is_functor_arg p !printing_env)
+          in
+          Omty_strengthen
+            (tree_of_modtype ~ellipsis mty, tree_of_path Module p, unaliasable)
+      | mty -> tree_of_modtype ~ellipsis mty
+      end
 
 and tree_of_functor_parameter = function
   | Unit ->
@@ -2591,13 +2621,19 @@ let explain mis ppf =
 let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
-    begin
-      try
-        ignore(Env.find_type p env : Types.type_declaration)
-      with Not_found ->
+    begin match Env.find_type p env with
+    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
         fprintf ppf
-          "@,@[%a is abstract because no corresponding cmi file was found \
-           in path.@]" path p
+          "@,@[<hov>Type %a was considered abstract@ when checking\
+           @ constraints@ in this@ recursive type definition.@]"
+          path p
+    | exception Not_found ->
+        fprintf ppf
+          "@,@[<hov>Type %a is abstract because@ no corresponding\
+           @ cmi file@ was found@ in path.@]" path p
+    | {type_kind =
+       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
+      -> ()
     end
   | _ -> ()
 

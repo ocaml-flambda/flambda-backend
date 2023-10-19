@@ -213,13 +213,11 @@ module Sort = struct
   let for_probe_body = value
   let for_poly_variant = value
   let for_record = value
-  let for_record_field = value
   let for_constructor_arg = value
   let for_object = value
   let for_lazy_body = value
   let for_tuple_element = value
   let for_instance_var = value
-  let for_bop_exp = value
   let for_class_arg = value
   let for_method = value
   let for_initializer = value
@@ -396,7 +394,7 @@ module Layout = struct
   let float64 ~why =
     fresh_layout (Sort Sort.float64) ~why:(Float64_creation why)
 
-  type const = Asttypes.const_layout =
+  type const = Jane_asttypes.const_layout =
     | Any
     | Value
     | Void
@@ -432,7 +430,7 @@ module Layout = struct
   (******************************)
   (*** user errors ***)
   type error =
-    | Insufficient_level of annotation_context * Asttypes.const_layout
+    | Insufficient_level of annotation_context * Jane_asttypes.const_layout
 
   exception User_error of Location.t * error
 
@@ -444,8 +442,8 @@ module Layout = struct
         Language_extension.maturity =
     match context, layout with
     | _, Value -> Stable
-    | _, (Immediate | Immediate64 | Any) -> Beta
-    | _, (Void | Float64) -> Alpha
+    | _, (Immediate | Immediate64 | Any | Float64) -> Beta
+    | _, Void -> Alpha
 
   (******************************)
   (* construction *)
