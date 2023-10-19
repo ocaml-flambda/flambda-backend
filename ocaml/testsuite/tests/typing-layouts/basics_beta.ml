@@ -702,8 +702,8 @@ end
 Line 4, characters 8-9:
 4 |     let d = f u in
             ^
-Error: Variables bound in a class must have layout value.
-       d has layout float64, which is not a sublayout of value.
+Error: The types of variables bound by a 'let' in a class function
+       must have layout value. Instead, d's type has layout float64.
 |}];;
 
 (* Hits the Cfk_concrete case of Pcf_val *)

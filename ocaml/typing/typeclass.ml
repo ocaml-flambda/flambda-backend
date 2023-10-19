@@ -109,6 +109,7 @@ type error =
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
+  | Non_value_let_binding of string * Jkind.sort
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1397,12 +1398,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
                   if not (Jkind.Sort.(equate sort value))
-                  then let viol = Jkind.Violation.of_ (Not_a_subjkind(
-                    Jkind.of_sort_for_error ~why:Let_binding sort,
-                    Jkind.value ~why:Class_let_binding))
-                    in
+                  then
                     raise (Error(loc, met_env,
-                                 Non_value_binding (Ident.name id, viol)))
+                                 Non_value_let_binding (Ident.name id, sort)))
                )
                modes_and_sorts;
              let path = Pident id in
@@ -2248,6 +2246,11 @@ let report_error env ppf = function
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
       (Jkind.Violation.report_with_name ~name:nm) err
+  | Non_value_let_binding (nm, sort) ->
+    fprintf ppf
+      "@[The types of variables bound by a 'let' in a class function@ \
+       must have layout value. Instead, %s's type has layout %a.@]"
+      nm Jkind.Sort.format sort
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true
