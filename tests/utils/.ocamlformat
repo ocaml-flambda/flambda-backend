@@ -1,0 +1,18 @@
+# Please make a pull request to change this file.
+disable=false
+# There is an .ocamlformat-enable file in this directory.
+# Keep the remainder of this file in sync with other .ocamlformat files in this repo.
+assignment-operator=begin-line
+cases-exp-indent=2
+doc-comments=before
+dock-collection-brackets=false
+exp-grouping=preserve
+if-then-else=keyword-first
+module-item-spacing=sparse
+parens-tuple=multi-line-only
+sequence-blank-line=compact
+space-around-lists=false
+space-around-variants=false
+type-decl=sparse
+wrap-comments=true
+version=0.24.1
