@@ -37,17 +37,9 @@ type modify_mode = Lambda.modify_mode
 type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
-<<<<<<< HEAD
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * layout
-||||||| merged common ancestors
-  | Pmakeblock of int * mutable_flag * block_shape
-  | Pfield of int
-=======
-  | Pmakeblock of int * mutable_flag * block_shape
-  | Pfield of int * immediate_or_pointer * mutable_flag
->>>>>>> ocaml/5.1
+  | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -138,21 +130,14 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-<<<<<<< HEAD
   | Pint_as_pointer of alloc_mode
-||||||| merged common ancestors
-  | Pint_as_pointer
-=======
-  | Pint_as_pointer
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
->>>>>>> ocaml/5.1
   (* Inhibition of optimisation *)
   | Popaque
-<<<<<<< HEAD
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
   | Punbox_float
@@ -160,12 +145,9 @@ type primitive =
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
   | Pget_header of alloc_mode
-||||||| merged common ancestors
-=======
   (* Fetch domain-local state *)
   | Pdls_get
 
->>>>>>> ocaml/5.1
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

@@ -93,13 +93,7 @@ val save_cmt :
   binary_annots ->
   string option ->  (* source file *)
   Env.t -> (* initial env *)
-<<<<<<< HEAD
   Cmi_format.cmi_infos_lazy option -> (* if a .cmi was generated *)
-||||||| merged common ancestors
-  Cmi_format.cmi_infos option -> (* if a .cmi was generated *)
-=======
-  Cmi_format.cmi_infos option -> (* if a .cmi was generated *)
->>>>>>> ocaml/5.1
   Shape.t option ->
   unit
 

@@ -110,14 +110,8 @@ val read_library_info: string -> library_infos
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-<<<<<<< HEAD
   | Illegal_renaming of Compilation_unit.t * Compilation_unit.t * string
-||||||| merged common ancestors
-  | Illegal_renaming of string * string * string
-=======
-  | Illegal_renaming of string * string * string
   | Mismatching_for_pack of string * string * string * string option
->>>>>>> ocaml/5.1
 
 exception Error of error
 
