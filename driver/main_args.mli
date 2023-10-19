@@ -48,14 +48,9 @@ module type Common_options = sig
   val _no_strict_formats : unit -> unit
   val _unboxed_types : unit -> unit
   val _no_unboxed_types : unit -> unit
-<<<<<<< HEAD
   val _unsafe_string : unit -> unit
   val _verbose_types : unit -> unit
   val _no_verbose_types : unit -> unit
-||||||| merged common ancestors
-  val _unsafe_string : unit -> unit
-=======
->>>>>>> ocaml/5.1
   val _version : unit -> unit
   val _vnum : unit -> unit
   val _w : string -> unit
@@ -252,15 +247,9 @@ module type Optcomp_options = sig
   val _afl_inst_ratio : int -> unit
   val _function_sections : unit -> unit
   val _save_ir_after : string -> unit
-<<<<<<< HEAD
   val _probes : unit -> unit
   val _no_probes : unit -> unit
-end;;
-||||||| merged common ancestors
-end;;
-=======
 end
->>>>>>> ocaml/5.1
 
 module type Opttop_options = sig
   include Toplevel_options

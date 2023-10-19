@@ -21,16 +21,10 @@ val initial_env : unit -> Env.t
 val set_from_env : 'a option ref -> 'a Clflags.env_reader -> unit
 val read_clflags_from_env : unit -> unit
 
-<<<<<<< HEAD
 val with_ppf_dump : ?stdout:unit ->
   file_prefix:string -> (Format.formatter -> 'a) -> 'a
-||||||| merged common ancestors
-val with_ppf_dump : file_prefix:string -> (Format.formatter -> 'a) -> 'a
-=======
-val with_ppf_dump : file_prefix:string -> (Format.formatter -> 'a) -> 'a
 
 val auto_include : Load_path.auto_include_callback
 (** [auto_include find_in_dir fn] is a callback function to be passed to
     {!Load_path.init} and automatically adds [-I +lib] to the load path after
     displaying an alert. *)
->>>>>>> ocaml/5.1
