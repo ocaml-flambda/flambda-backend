@@ -626,10 +626,12 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     let dep : (Name.t * Deps.Dep.t) list =
       match defining_expr with
       | Set_of_closures _set_of_closures -> default ()
-      | Static_consts _group -> default ()
+      | Static_consts _group ->
+        (* TODO makeblock makeclosure *)
+        default ()
       | Prim (prim, _dbg) -> begin
         match[@ocaml.warning "-4"] prim with
-        | Variadic (Make_block (_, Immutable, _), fields) ->
+        | Variadic (Make_block (_, _mutability, _), fields) ->
           let acc = ref [] in
           List.iteri
             (fun i field ->
@@ -658,6 +660,10 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let dep = Deps.Dep.Field (Value_slot value_slot, block) in
           default_bp dep
         | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
+          (* Loads from mutable blocks are tracked here. This is ok as long as
+             store are properly tracked also. This is a flow insensitive
+             dependency analysis: this might produce surprising results
+             sometimes *)
           match known_field_of_block field block with
           | None -> default ()
           | Some (field, block) ->
@@ -668,11 +674,46 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           begin
           match known_field_of_block field block with
           | None ->
-            ignore value;
-            assert false
-          | Some _ -> assert false
+            (* When the field is unknown, the value (and the field) escapes, but
+               only if the block is live *)
+            let block =
+              Simple.pattern_match block
+                ~name:(fun name ~coercion:_ -> name)
+                ~const:(fun _ -> assert false)
+            in
+            let field_dep =
+              Simple.pattern_match field
+                ~name:(fun name ~coercion:_ -> [block, Deps.Dep.Use name])
+                ~const:(fun _ -> [])
+              (* TODO improve ! *)
+            in
+            let value_dep =
+              Simple.pattern_match value
+                ~name:(fun name ~coercion:_ -> [block, Deps.Dep.Contains name])
+                ~const:(fun _ -> [])
+            in
+            let effect_dep =
+              (* A bit too hackish ? *)
+              (* If the block is used: effects on it have to happen, otherwise
+                 we can drop it *)
+              let bound_to = Bound_pattern.free_names bound_pattern in
+              Name_occurrences.fold_names bound_to
+                ~f:(fun acc bound_to -> (block, Deps.Dep.Use bound_to) :: acc)
+                ~init:[]
+            in
+            let dep = field_dep @ value_dep @ effect_dep in
+            dep
+          | Some (field, block) ->
+            let value_dep =
+              Simple.pattern_match value
+                ~name:(fun name ~coercion:_ -> [block, Deps.Dep.Block (Block field, name)])
+                ~const:(fun _ -> [])
+            in
+            value_dep
         end
-        | _ -> default ()
+        | _ ->
+          (* TODO: if side effects record use *)
+          default ()
       end
       | Simple s ->
         Simple.pattern_match s
