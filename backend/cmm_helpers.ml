@@ -920,6 +920,57 @@ let array_indexing ?typ log2size ptr ofs dbg =
           Cconst_int (-1 lsl (log2size - 1), dbg) ],
         dbg )
 
+(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
+   cross-compiling for 64-bit on a 32-bit host *)
+let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
+
+let custom_ops_unboxed_int32_odd_array =
+  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_odd_array", Debuginfo.none)
+
+let custom_ops_unboxed_int32_even_array =
+  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_even_array", Debuginfo.none)
+
+let custom_ops_unboxed_int64_array =
+  Cconst_symbol (Cmm.global_symbol "_unboxed_int64_array", Debuginfo.none)
+
+let custom_ops_unboxed_nativeint_array =
+  Cconst_symbol (Cmm.global_symbol "_unboxed_nativeint_array", Debuginfo.none)
+
+let unboxed_int32_array_length arr dbg =
+  (* A dynamic test is needed to determine if the array contains an odd or even
+     number of elements *)
+  bind "arr" arr (fun arr ->
+      let custom_ops_var = Backend_var.create_local "custom_ops" in
+      let num_words_var = Backend_var.create_local "num_words" in
+      Clet
+        ( VP.create num_words_var,
+          (* need to subtract so as not to count the custom_operations field *)
+          sub_int (get_size arr dbg) (int ~dbg 1) dbg,
+          Clet
+            ( VP.create custom_ops_var,
+              Cop (Cload (Word_int, Immutable), [arr], dbg),
+              Cifthenelse
+                ( Cop
+                    ( Ccmpa Ceq,
+                      [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
+                      dbg ),
+                  dbg,
+                  (* unboxed int32 odd *)
+                  (sub_int
+                     (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                     (int ~dbg 1))
+                    dbg,
+                  dbg,
+                  (* assumed to be unboxed int32 even *)
+                  mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
+                  dbg,
+                  Any ) ) ))
+
+let unboxed_int64_or_nativeint_array_length arr dbg =
+  bind "arr" arr (fun arr ->
+      (* need to subtract so as not to count the custom_operations field *)
+      sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+
 let addr_array_ref arr ofs dbg =
   Cop
     (Cload (Word_val, Mutable), [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -998,6 +1049,54 @@ let addr_array_initialize arr ofs newval dbg =
         },
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
+
+let unboxed_int32_array_ref arr index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          let index =
+            (* Need to skip the custom_operations field. We add 2 not 1 since
+               the call to [array_indexing], below, is in terms of 32-bit
+               words. *)
+            add_int index (int ~dbg 2) dbg
+          in
+          let log2_size_addr = 2 in
+          Cop
+            ( Cload (Thirtytwo_signed, Mutable),
+              [array_indexing log2_size_addr arr index dbg],
+              dbg )))
+
+let unboxed_int64_or_nativeint_array_ref arr index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          let index =
+            (* Need to skip the custom_operations field *)
+            add_int index (int ~dbg 1) dbg
+          in
+          int_array_ref arr index dbg))
+
+let unboxed_int32_array_set arr ~index ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let index =
+                (* See comment in [unboxed_int32_array_ref]. *)
+                add_int index (int ~dbg 2) dbg
+              in
+              let log2_size_addr = 2 in
+              Cop
+                ( Cstore (Thirtytwo_signed, Assignment),
+                  [array_indexing log2_size_addr arr index dbg; new_value],
+                  dbg ))))
+
+let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let index =
+                (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
+                add_int index (int ~dbg 1) dbg
+              in
+              int_array_set arr index new_value dbg)))
 
 (* Get the field of a block given a possibly inconstant index *)
 
@@ -3118,17 +3217,15 @@ let arraylength kind arg dbg =
                 Any ))
     in
     Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
-  | Paddrarray | Pintarray | Punboxedfloatarray
-  | Punboxedintarray Pint64
-  | Punboxedintarray Pnativeint ->
+  | Paddrarray | Pintarray | Punboxedfloatarray ->
     (* Note we only support 64 bit targets now, so this is ok for
        Punboxedfloatarray *)
     Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
+    unboxed_int64_or_nativeint_array_length arg dbg
   | Pfloatarray ->
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Punboxedintarray Pint32 ->
-    Misc.fatal_error
-      "XXX mshinwell: need implementation for array length for Pint32"
+  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
@@ -3380,17 +3477,14 @@ let arrayref_unsafe rkind arg1 arg2 dbg =
                 dbg,
                 Any )))
   | Paddrarray_ref -> addr_array_ref arg1 arg2 dbg
-  | Pintarray_ref
-  | Punboxedintarray_ref Pint64
-  | Punboxedintarray_ref Pnativeint ->
+  | Pintarray_ref ->
     (* CR mshinwell: for int/addr_array_ref move "dbg" to first arg *)
     int_array_ref arg1 arg2 dbg
+  | Punboxedintarray_ref Pint64 | Punboxedintarray_ref Pnativeint ->
+    unboxed_int64_or_nativeint_array_ref arg1 arg2 dbg
   | Punboxedfloatarray_ref -> unboxed_float_array_ref arg1 arg2 dbg
   | Pfloatarray_ref mode -> float_array_ref mode arg1 arg2 dbg
-  | Punboxedintarray_ref Pint32 ->
-    Misc.fatal_error
-      "XXX mshinwell: need arrayref_unsafe implementation for 32-bit unboxed \
-       int arrays"
+  | Punboxedintarray_ref Pint32 -> unboxed_int32_array_ref arg1 arg2 dbg
 
 let arrayref_safe rkind arg1 arg2 dbg =
   match (rkind : Lambda.array_ref_kind) with
@@ -3436,9 +3530,7 @@ let arrayref_safe rkind arg1 arg2 dbg =
                       dbg;
                     idx ],
                 addr_array_ref arr idx dbg )))
-  | Pintarray_ref
-  | Punboxedintarray_ref Pint64
-  | Punboxedintarray_ref Pnativeint ->
+  | Pintarray_ref ->
     bind "index" arg2 (fun idx ->
         bind "arr" arg1 (fun arr ->
             Csequence
@@ -3469,10 +3561,19 @@ let arrayref_safe rkind arg1 arg2 dbg =
                       dbg;
                     idx ],
                 unboxed_float_array_ref arr idx dbg )))
+  | Punboxedintarray_ref (Pint64 | Pnativeint) ->
+    bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
+            Csequence
+              ( make_checkbound dbg
+                  [unboxed_int64_or_nativeint_array_length arr dbg; idx],
+                unboxed_int64_or_nativeint_array_ref arr idx dbg )))
   | Punboxedintarray_ref Pint32 ->
-    Misc.fatal_error
-      "XXX mshinwell: need arrayref_safe implementation for unboxed 32-bit int \
-       arrays"
+    bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
+            Csequence
+              ( make_checkbound dbg [unboxed_int32_array_length arr dbg; idx],
+                unboxed_int32_array_ref arr idx dbg )))
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -3522,16 +3623,13 @@ let arrayset_unsafe skind arg1 arg2 arg3 dbg =
                       dbg,
                       Any ))))
     | Paddrarray_set mode -> addr_array_set mode arg1 arg2 arg3 dbg
-    | Pintarray_set
-    | Punboxedintarray_set Pint64
-    | Punboxedintarray_set Pnativeint ->
-      int_array_set arg1 arg2 arg3 dbg
+    | Pintarray_set -> int_array_set arg1 arg2 arg3 dbg
     | Pfloatarray_set | Punboxedfloatarray_set ->
       float_array_set arg1 arg2 arg3 dbg
+    | Punboxedintarray_set (Pint64 | Pnativeint) ->
+      unboxed_int64_or_nativeint_array_set arg1 ~index:arg2 ~new_value:arg3 dbg
     | Punboxedintarray_set Pint32 ->
-      Misc.fatal_error
-        "XXX mshinwell: need arrayset_unsafe implementation for unboxed 32-bit \
-         arrays")
+      unboxed_int32_array_set arg1 ~index:arg2 ~new_value:arg3 dbg)
 
 let arrayset_safe skind arg1 arg2 arg3 dbg =
   return_unit dbg
@@ -3583,9 +3681,7 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
                             dbg;
                           idx ],
                       addr_array_set mode arr idx newval dbg ))))
-    | Pintarray_set
-    | Punboxedintarray_set Pint64
-    | Punboxedintarray_set Pnativeint ->
+    | Pintarray_set ->
       bind "newval" arg3 (fun newval ->
           bind "index" arg2 (fun idx ->
               bind "arr" arg1 (fun arr ->
@@ -3607,10 +3703,24 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
                             dbg;
                           idx ],
                       float_array_set arr idx newval dbg ))))
+    | Punboxedintarray_set (Pint64 | Pnativeint) ->
+      bind "newval" arg3 (fun newval ->
+          bind "index" arg2 (fun idx ->
+              bind "arr" arg1 (fun arr ->
+                  Csequence
+                    ( make_checkbound dbg
+                        [unboxed_int64_or_nativeint_array_length arr dbg; idx],
+                      unboxed_int64_or_nativeint_array_set arr ~index:idx
+                        ~new_value:newval dbg ))))
     | Punboxedintarray_set Pint32 ->
-      Misc.fatal_error
-        "XXX mshinwell: need arrayset_safe implementation for unboxed 32-bit \
-         arrays")
+      bind "newval" arg3 (fun newval ->
+          bind "index" arg2 (fun idx ->
+              bind "arr" arg1 (fun arr ->
+                  Csequence
+                    ( make_checkbound dbg
+                        [unboxed_int32_array_length arr dbg; idx],
+                      unboxed_int32_array_set arr ~index:idx ~new_value:newval
+                        dbg )))))
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =
   return_unit dbg
@@ -4043,10 +4153,6 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
-(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
-   cross-compiling for 64-bit on a 32-bit host *)
-let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
-
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
 (* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
@@ -4390,18 +4496,6 @@ let kind_of_layout (layout : Lambda.layout) =
   | Punboxed_product _ ->
     Any
 
-let custom_ops_unboxed_int32_odd_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_odd_array", Debuginfo.none)
-
-let custom_ops_unboxed_int32_even_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_even_array", Debuginfo.none)
-
-let custom_ops_unboxed_int64_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int64_array", Debuginfo.none)
-
-let custom_ops_unboxed_nativeint_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_nativeint_array", Debuginfo.none)
-
 let allocate_unboxed_int32_array ~num_elements (mode : Lambda.alloc_mode) dbg =
   let header =
     let size = 1 (* custom_ops field *) + ((num_elements + 1) / 2) in
@@ -4433,86 +4527,3 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
-
-let unboxed_int32_array_length arr dbg =
-  (* A dynamic test is needed to determine if the array contains an odd or even
-     number of elements *)
-  bind "arr" arr (fun arr ->
-      let custom_ops_var = Backend_var.create_local "custom_ops" in
-      let num_words_var = Backend_var.create_local "num_words" in
-      Clet
-        ( VP.create num_words_var,
-          (* need to subtract so as not to count the custom_operations field *)
-          sub_int (get_size arr dbg) (int ~dbg 1) dbg,
-          Clet
-            ( VP.create custom_ops_var,
-              Cop (Cload (Word_int, Immutable), [arr], dbg),
-              Cifthenelse
-                ( Cop
-                    ( Ccmpa Ceq,
-                      [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
-                      dbg ),
-                  dbg,
-                  (* unboxed int32 odd *)
-                  (sub_int
-                     (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
-                     (int ~dbg 1))
-                    dbg,
-                  dbg,
-                  (* assumed to be unboxed int32 even *)
-                  mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
-                  dbg,
-                  Any ) ) ))
-
-let unboxed_int64_or_nativeint_array_length arr dbg =
-  bind "arr" arr (fun arr ->
-      (* need to subtract so as not to count the custom_operations field *)
-      sub_int (get_size arr dbg) (int ~dbg 1) dbg)
-
-let unboxed_int32_array_ref arr index dbg =
-  bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
-          let index =
-            (* Need to skip the custom_operations field. We add 2 not 1 since
-               the call to [array_indexing], below, is in terms of 32-bit
-               words. *)
-            add_int index (int ~dbg 2) dbg
-          in
-          let log2_size_addr = 2 in
-          Cop
-            ( Cload (Thirtytwo_signed, Mutable),
-              [array_indexing log2_size_addr arr index dbg],
-              dbg )))
-
-let unboxed_int64_or_nativeint_array_ref arr index dbg =
-  bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
-          let index =
-            (* Need to skip the custom_operations field *)
-            add_int index (int ~dbg 1) dbg
-          in
-          int_array_ref arr index dbg))
-
-let unboxed_int32_array_set arr ~index ~new_value dbg =
-  bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
-          bind "new_value" new_value (fun new_value ->
-              let index =
-                (* See comment in [unboxed_int32_array_ref]. *)
-                add_int index (int ~dbg 2) dbg
-              in
-              let log2_size_addr = 2 in
-              Cop
-                ( Cstore (Thirtytwo_signed, Assignment),
-                  [array_indexing log2_size_addr arr index dbg; new_value],
-                  dbg ))))
-
-let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
-  bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
-          bind "new_value" new_value (fun new_value ->
-              let index =
-                (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
-                add_int index (int ~dbg 1) dbg
-              in
-              int_array_set arr index new_value dbg)))
