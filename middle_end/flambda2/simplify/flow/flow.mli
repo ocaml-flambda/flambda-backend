@@ -82,7 +82,7 @@ module Acc : sig
   val add_apply_conts :
     result_cont:(Apply_cont_rewrite_id.t * Continuation.t) option ->
     exn_cont:Apply_cont_rewrite_id.t * Exn_continuation.t ->
-    result_arity:Flambda_arity.t ->
+    result_arity:[`Unarized] Flambda_arity.t ->
     t ->
     t
 

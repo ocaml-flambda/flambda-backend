@@ -78,6 +78,7 @@ PARSING = \
   parsing/depend.cmo
 PARSING_CMI = \
   parsing/asttypes.cmi \
+  parsing/jane_asttypes.cmi \
   parsing/parsetree.cmi
 
 TYPING = \
@@ -85,6 +86,7 @@ TYPING = \
   typing/layouts.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
+  typing/mode.cmo \
   typing/types.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
@@ -92,6 +94,7 @@ TYPING = \
   typing/predef.cmo \
   typing/datarepr.cmo \
   file_formats/cmi_format.cmo \
+  typing/address.cmo \
   typing/persistent_env.cmo \
   typing/env.cmo \
   typing/errortrace.cmo \
@@ -123,6 +126,7 @@ TYPING = \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \
   typing/typeopt.cmo \
+  typing/uniqueness_analysis.cmo \
   typing/rec_check.cmo \
   typing/typecore.cmo \
   typing/typeclass.cmo \

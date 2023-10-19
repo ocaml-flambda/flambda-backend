@@ -1,5 +1,4 @@
 (* TEST
-   flags = "-extension immutable_arrays"
    * bytecode
      reference = "${test_source_directory}/iarray.heap.reference"
    * stack-allocation

@@ -101,6 +101,7 @@ module Scoped_location = Debuginfo.Scoped_location
 
 type error =
     Non_value_layout of Layout.Violation.t
+  | Illegal_record_field of Layout.const
 
 exception Error of Location.t * error
 
@@ -112,6 +113,18 @@ let layout_must_be_value loc layout =
   match Layout.(sub layout (value ~why:V1_safety_check)) with
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
+
+(* CR layouts v5: This function is only used for sanity checking the
+   typechecker.  When we allow arbitrary layouts in structures, it will have
+   outlived its usefulness and should be deleted. *)
+let check_record_field_layout lbl =
+  match Layout.(get_default_value lbl.lbl_layout), lbl.lbl_repres with
+  | (Value | Immediate | Immediate64), _ -> ()
+  | Float64, Record_ufloat -> ()
+  | Float64, (Record_boxed _ | Record_inlined _
+             | Record_unboxed | Record_float) ->
+    raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
+  | (Any | Void) as c, _ -> raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors
@@ -221,8 +234,8 @@ end = struct
     | Tpat_any
     | Tpat_var _ ->
         p
-    | Tpat_alias (q, id, s, mode) ->
-        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s, mode) }
+    | Tpat_alias (q, id, s, uid, mode) ->
+        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s, uid, mode) }
     | Tpat_or (p1, p2, o) ->
         let p1, p2 = (simpl_under_orpat p1, simpl_under_orpat p2) in
         if le_pat p1 p2 then
@@ -245,8 +258,9 @@ end = struct
       in
       match p.pat_desc with
       | `Any -> stop p `Any
-      | `Var (id, s, mode) -> continue p (`Alias (Patterns.omega, id, s, mode))
-      | `Alias (p, id, _, _) ->
+      | `Var (id, s, uid, mode) ->
+        continue p (`Alias (Patterns.omega, id, s, uid, mode))
+      | `Alias (p, id, _, _, _) ->
           aux
             ( (General.view p, patl),
               bind_alias p id ~arg ~arg_sort ~action )
@@ -341,10 +355,10 @@ end = struct
       match p.pat_desc with
       | `Or (p1, p2, _) ->
           split_explode p1 aliases (split_explode p2 aliases rem)
-      | `Alias (p, id, _, _) -> split_explode p (id :: aliases) rem
-      | `Var (id, str, mode) ->
+      | `Alias (p, id, _, _, _) -> split_explode p (id :: aliases) rem
+      | `Var (id, str, uid, mode) ->
           explode
-            { p with pat_desc = `Alias (Patterns.omega, id, str, mode) }
+            { p with pat_desc = `Alias (Patterns.omega, id, str, uid, mode) }
             aliases rem
       | #view as view ->
           (* We are doing two things here:
@@ -582,7 +596,7 @@ end = struct
           match p.pat_desc with
           | `Or (p1, p2, _) ->
               filter_rec ((left, p1, right) :: (left, p2, right) :: rem)
-          | `Alias (p, _, _, _) -> filter_rec ((left, p, right) :: rem)
+          | `Alias (p, _, _, _, _) -> filter_rec ((left, p, right) :: rem)
           | `Var _ -> filter_rec ((left, Patterns.omega, right) :: rem)
           | #Simple.view as view -> (
               let p = { p with pat_desc = view } in
@@ -632,7 +646,7 @@ let rec flatten_pat_line size p k =
   | Tpat_tuple args -> args :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
-  | Tpat_alias (p, _, _, _) ->
+  | Tpat_alias (p, _, _, _, _) ->
       (* Note: we are only called from flatten_matrix,
          which is itself only ever used in places
          where variables do not matter (default environments,
@@ -709,7 +723,7 @@ end = struct
       | (p, ps) :: rem -> (
           let p = General.view p in
           match p.pat_desc with
-          | `Alias (p, _, _, _) -> filter_rec ((p, ps) :: rem)
+          | `Alias (p, _, _, _, _) -> filter_rec ((p, ps) :: rem)
           | `Var _ -> filter_rec ((Patterns.omega, ps) :: rem)
           | `Or (p1, p2, _) -> filter_rec_or p1 p2 ps rem
           | #Simple.view as view -> (
@@ -1195,7 +1209,7 @@ let rec omega_like p =
   | Tpat_any
   | Tpat_var _ ->
       true
-  | Tpat_alias (p, _, _, _) -> omega_like p
+  | Tpat_alias (p, _, _, _, _) -> omega_like p
   | Tpat_or (p1, p2, _) -> omega_like p1 || omega_like p2
   | _ -> false
 
@@ -2024,7 +2038,7 @@ let inline_lazy_force arg pos loc =
         ap_result_layout = Lambda.layout_lazy_contents;
         ap_region_close = pos;
         ap_mode = alloc_heap;
-        ap_inlined = Default_inlined;
+        ap_inlined = Never_inlined;
         ap_specialised = Default_specialise;
         ap_probe=None;
       }
@@ -2084,7 +2098,7 @@ let record_matching_line num_fields lbl_pat_list =
   List.iter (fun (_, lbl, pat) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
-    layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
+    check_record_field_layout lbl;
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
@@ -2111,35 +2125,34 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-      layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
+      check_record_field_layout lbl;
+      let lbl_sort = Layout.sort_of_layout lbl.lbl_layout in
+      let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
         match lbl.lbl_mut with
         | Immutable -> Reads_agree
         | Mutable -> Reads_vary
       in
       let access, sort, layout =
-        (* CR layouts v5: Here we'll need to get the layout from the
-           record_representation and translate it to `Lambda.layout`, rather
-           than just using layout_field everywhere.  (Though layout_field is
-           safe for now, particularly after checking for void above.)  I think
-           only the sort information matters here, so when we make that change
-           we may want to use `Typeopt.layout_of_sort` rather than
-           `Typeopt.layout`.  *)
         match lbl.lbl_repres with
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc),
-            Sort.for_record_field, layout_field
+            lbl_sort, lbl_layout
         | Record_unboxed
         | Record_inlined (_, Variant_unboxed) -> arg, sort, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
            (* Here we are projecting a boxed float from a float record. *)
-           Sort.for_predef_value, layout_boxed_float
+           lbl_sort, lbl_layout
+        | Record_ufloat ->
+           Lprim (Pufloatfield (lbl.lbl_pos, sem), [ arg ], loc),
+           (* Here we are projecting an unboxed float from a float record. *)
+           lbl_sort, lbl_layout
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc),
-            Sort.for_record_field, layout_field
+            lbl_sort, lbl_layout
       in
       let str =
         match lbl.lbl_mut with
@@ -3302,8 +3315,8 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
 let rec name_pattern default = function
   | ((pat, _), _) :: rem -> (
       match pat.pat_desc with
-      | Tpat_var (id, _, _) -> id
-      | Tpat_alias (_, id, _, _) -> id
+      | Tpat_var (id, _, _, _) -> id
+      | Tpat_alias (_, id, _, _, _) -> id
       | _ -> name_pattern default rem
     )
   | _ -> Ident.create_local default
@@ -3807,21 +3820,21 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       (* This eliminates a useless variable (and stack slot in bytecode)
          for "let _ = ...". See #6865. *)
       Lsequence (param, body)
-  | Tpat_var (id, _, _) ->
+  | Tpat_var (id, _, _, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
       let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
-      let catch_ids = pat_bound_idents_with_types pat in
+      let catch_ids = pat_bound_idents_full arg_sort pat in
       let ids_with_kinds =
         List.map
-          (fun (id, typ) ->
-             (id, Typeopt.layout pat.pat_env pat.pat_loc arg_sort typ))
+          (fun (id, _, typ, sort) ->
+             (id, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
           catch_ids
       in
-      let ids = List.map (fun (id, _) -> id) catch_ids in
+      let ids = List.map (fun (id, _, _, _) -> id) catch_ids in
       let bind =
         map_return (assign_pat ~scopes return_layout opt nraise ids loc pat
                       arg_sort)
@@ -4010,6 +4023,11 @@ let report_error ppf = function
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
         (Layout.Violation.report_with_name ~name:"This expression") err
+  | Illegal_record_field c ->
+      fprintf ppf
+        "Sort %s detected where value was expected in a record field:@ Please \
+         report this error to the Jane Street compilers team."
+        (Layout.string_of_const c)
 
 let () =
   Location.register_error_of_exn

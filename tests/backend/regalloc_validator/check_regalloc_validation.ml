@@ -25,7 +25,7 @@ module Instruction = struct
       arg = map_regs arg;
       res = map_regs res;
       id;
-      dbg = [];
+      dbg = Debuginfo.none;
       fdo = None;
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
@@ -91,7 +91,7 @@ module Cfg_desc = struct
   let make ~remove_regalloc ~remove_locs
       ({ fun_args; blocks; fun_contains_calls } : t) : Cfg_with_layout.t =
     let cfg =
-      Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:[]
+      Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:Debuginfo.none
         ~fun_fast:false ~fun_contains_calls
         ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
     in
@@ -170,7 +170,7 @@ let entry_label =
        let cfg =
          Cfg.create ~fun_name:"foo"
            ~fun_args:[| Proc.phys_reg 0 |]
-           ~fun_dbg:[] ~fun_fast:false ~fun_contains_calls:false
+           ~fun_dbg:Debuginfo.none ~fun_fast:false ~fun_contains_calls:false
            ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
        in
        Label.Tbl.add cfg.Cfg.blocks (Cfg.entry_label cfg)
@@ -187,7 +187,7 @@ let entry_label =
              { desc = Return;
                arg = [| Proc.phys_reg 0 |];
                res = [||];
-               dbg = [];
+               dbg = Debuginfo.none;
                fdo = None;
                stack_offset = 0;
                id = 1;

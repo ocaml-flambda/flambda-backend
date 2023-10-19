@@ -114,7 +114,8 @@ let pack_expr ~layouts (expr : Flambda.t) =
   | Pvalue _ -> expr, []
   | Punboxed_float
   | Punboxed_int _
-  | Punboxed_vector _ ->
+  | Punboxed_vector _
+  | Punboxed_product _ ->
     (* Unboxed float/int/vector could be boxed in simpler constructions.
        This can be changed when all the unboxed types and have been
        introduced *)

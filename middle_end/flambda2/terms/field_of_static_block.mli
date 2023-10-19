@@ -27,3 +27,5 @@ include Container_types.S with type t := t
 include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
+
+val tagged_immediate : Targetint_31_63.t -> t

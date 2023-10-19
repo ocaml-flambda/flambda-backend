@@ -80,3 +80,5 @@ let ids_for_export t =
     Ids_for_export.add_variable Ids_for_export.empty var
   | Symbol sym -> Ids_for_export.add_symbol Ids_for_export.empty sym
   | Tagged_immediate _ -> Ids_for_export.empty
+
+let tagged_immediate i = Tagged_immediate i

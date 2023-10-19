@@ -325,7 +325,7 @@ val add_inline_cont :
 val add_exn_handler :
   t ->
   Continuation.t ->
-  Flambda_arity.t ->
+  [`Unarized] Flambda_arity.t ->
   t * (Backend_var.t * Flambda_kind.With_subkind.t) list
 
 (** Return whether the given continuation has been registered as an exception

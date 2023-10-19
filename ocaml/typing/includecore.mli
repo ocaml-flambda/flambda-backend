@@ -61,6 +61,7 @@ type record_mismatch =
   | Label_mismatch of record_change list
   | Inlined_representation of position
   | Float_representation of position
+  | Ufloat_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error

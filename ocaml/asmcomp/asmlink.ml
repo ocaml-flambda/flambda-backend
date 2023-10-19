@@ -37,7 +37,10 @@ exception Error of error
 
 (* Consistency check between interfaces and implementations *)
 
-module Cmi_consistbl = Consistbl.Make (CU.Name) (CU)
+module Impl = struct
+  type t = CU.t option
+end
+module Cmi_consistbl = Consistbl.Make (CU.Name) (Impl)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
 
@@ -52,11 +55,12 @@ let check_consistency file_name unit crc =
     Array.iter
       (fun import ->
         let name = Import_info.name import in
-        let crco = Import_info.crc_with_unit import in
+        let crco = Import_info.crc import in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
-        | Some (full_name, crc) ->
+        | Some crc ->
+            let full_name = Import_info.Intf.impl import in
             if CU.Name.equal name (CU.name unit.ui_unit)
             then Cmi_consistbl.set crc_interfaces name full_name crc file_name
             else
@@ -105,7 +109,12 @@ let check_consistency file_name unit crc =
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-      Import_info.create name ~crc_with_unit)
+      let cu, crc =
+        match crc_with_unit with
+        | None -> None, None
+        | Some (impl, crc) -> impl, Some crc
+      in
+      Import_info.Intf.create name cu ~crc)
 
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
@@ -243,7 +252,7 @@ let make_globals_map units_list ~crc_interfaces =
   let crc_interfaces =
     crc_interfaces
     |> List.map (fun import ->
-         Import_info.name import, Import_info.crc_with_unit import)
+         Import_info.name import, Import_info.crc import)
     |> CU.Name.Tbl.of_list
   in
   let defined =
@@ -251,7 +260,6 @@ let make_globals_map units_list ~crc_interfaces =
         let name = CU.name unit.ui_unit in
         let intf_crc =
           CU.Name.Tbl.find crc_interfaces name
-          |> Option.map (fun (_unit, crc) -> crc)
         in
         CU.Name.Tbl.remove crc_interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.ui_defines in
@@ -259,7 +267,6 @@ let make_globals_map units_list ~crc_interfaces =
       units_list
   in
   CU.Name.Tbl.fold (fun name intf acc ->
-      let intf = Option.map (fun (_unit, crc) -> crc) intf in
       (assume_no_prefix name, intf, None, []) :: acc)
     crc_interfaces defined
 

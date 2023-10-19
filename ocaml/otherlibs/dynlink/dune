@@ -57,6 +57,7 @@
     shape
     layouts
     primitive
+    mode
     types
     btype
     lazy_backtrack
@@ -76,6 +77,7 @@
     meta
     symtable
     asttypes
+    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -89,6 +91,7 @@
     global)
   (modules_without_implementation
     asttypes
+    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -147,6 +150,7 @@
 (copy_files ../../typing/address.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/mode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -208,6 +212,7 @@
 (copy_files ../../typing/address.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/mode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
@@ -229,6 +234,7 @@
 
 ; .mli-only:
 (copy_files ../../parsing/asttypes.mli)
+(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/parsetree.mli)
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
@@ -304,6 +310,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Layouts.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -380,6 +387,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Layouts.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

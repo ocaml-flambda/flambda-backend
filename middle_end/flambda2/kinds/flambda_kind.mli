@@ -211,7 +211,7 @@ module With_subkind : sig
 
   val from_lambda_value_kind : Lambda.value_kind -> t
 
-  val from_lambda : Lambda.layout -> t
+  val from_lambda_values_and_unboxed_numbers_only : Lambda.layout -> t
 
   val compatible : t -> when_used_at:t -> bool
 

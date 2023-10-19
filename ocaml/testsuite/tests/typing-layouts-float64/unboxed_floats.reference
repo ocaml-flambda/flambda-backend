@@ -86,3 +86,64 @@ Test 5, pi+e+1: 6.86
 Test 6, 0.17: 0.17
 Test 6, 34.00: 34.00
 Test 6, -46.88: -46.88
+Test 7, 36.50: 36.50
+Test 7, 32.20: 32.20
+Test 8, 610.68: : 610.68
+  Test 8, step 0: 0.00
+  Test 8, step 1: 0.00
+  Test 8, step 2: 0.00
+  Test 8, step 3: 0.00
+  Test 8, step 4: 458.01
+  Test 8, step 5: 305.34
+  Test 8, step 6: 152.67
+  Test 8, step 7: 0.00
+  Test 8, step 8: 0.00
+  Test 8, step 9: 0.00
+Test 9, construction:
+  a: 3.14
+  b: 2.72
+  c: 1.62
+  d: 1.41
+  a: -3.14
+  b: -2.72
+  c: -1.62
+  d: -1.41
+Test 9, matching and projection:
+  a: 1.62
+  b: -4.55
+  c: 0.00
+  d: 4.13
+Test 9, record update and mutation:
+  a: 3.14
+  b: 2.72
+  c: 1.62
+  d: 42.00
+  a: -3.14
+  b: 17.00
+  c: -1.62
+  d: -1.41
+  a: -3.14
+  b: 4.55
+  c: 42.00
+  d: 25.00
+Test 10, float# records in recursive groups.
+  a: 1.10
+  b: 2.20
+  c: 3.20
+  d: 4.40
+  a: -5.10
+  b: -6.20
+  c: -7.30
+  d: -8.40
+  result (-4.00): -4.00
+  a: 1.10
+  b: 2.20
+  c: 3.20
+  d: 2.20
+  a: -5.10
+  b: 42.00
+  c: -7.30
+  d: -8.40
+Test 11, heterogeneous polymorphic equality.
+  equal: true
+  unequal: false
