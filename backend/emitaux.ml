@@ -127,14 +127,16 @@ type frame_descr =
 
 let frame_descriptors = ref([] : frame_descr list)
 
+let is_none_dbg d = Debuginfo.Dbg.is_none (Debuginfo.get_dbg d)
+
 let get_flags debuginfo =
   match debuginfo with
   | Dbg_other d | Dbg_raise d ->
-    if Debuginfo.is_none d then 0 else 1
+    if is_none_dbg d then 0 else 1
   | Dbg_alloc dbgs ->
     if !Clflags.debug &&
        List.exists (fun d ->
-         not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
+         not (is_none_dbg d.Debuginfo.alloc_dbg)) dbgs
     then 3 else 2
 
 let is_long n =
@@ -198,19 +200,19 @@ let emit_frames a =
   in
   let module Label_table =
     Hashtbl.Make (struct
-      type t = bool * Debuginfo.t
+      type t = bool * Debuginfo.Dbg.t
 
       let equal ((rs1 : bool), dbg1) (rs2, dbg2) =
-        rs1 = rs2 && Debuginfo.compare dbg1 dbg2 = 0
+        rs1 = rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
 
       let hash (rs, dbg) =
-        Hashtbl.hash (rs, Debuginfo.hash dbg)
+        Hashtbl.hash (rs, Debuginfo.Dbg.hash dbg)
     end)
   in
   let debuginfos = Label_table.create 7 in
   let label_debuginfos rs dbg =
-    let rdbg = List.rev dbg in
-    let key = (rs, rdbg) in
+    let dbg = Debuginfo.get_dbg dbg in
+    let key = (rs, dbg) in
     try Label_table.find debuginfos key
     with Not_found ->
       let lbl = Cmm.new_label () in
@@ -254,7 +256,7 @@ let emit_frames a =
       if flags = 3 then begin
         a.efa_align 4;
         List.iter (fun Debuginfo.{alloc_dbg; _} ->
-          if Debuginfo.is_none alloc_dbg then
+          if is_none_dbg alloc_dbg then
             a.efa_32 Int32.zero
           else
             a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero) dbg
@@ -287,7 +289,8 @@ let emit_frames a =
                    (add (shift_left (of_int kind) 1)
                       (of_int has_next)))))
   in
-  let emit_debuginfo (rs, rdbg) lbl =
+  let emit_debuginfo (rs, dbg) lbl =
+    let rdbg = dbg |> Debuginfo.Dbg.to_list |> List.rev in
     (* Due to inlined functions, a single debuginfo may have multiple locations.
        These are represented sequentially in memory (innermost frame first),
        with the low bit of the packed debuginfo being 0 on the last entry. *)
@@ -381,6 +384,7 @@ let get_file_num ~file_emitter file_name =
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
 let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
+  let dbg = Debuginfo.Dbg.to_list (Debuginfo.get_dbg dbg) in
   if is_cfi_enabled () &&
     (!Clflags.debug || Config.with_frame_pointers) then begin
     match List.rev dbg with

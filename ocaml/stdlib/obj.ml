@@ -37,6 +37,7 @@ external tag : t -> int = "caml_obj_tag" [@@noalloc]
 external size : t -> int = "%obj_size"
 let [@inline always] size t = size (Sys.opaque_identity t)
 external reachable_words : t -> int = "caml_obj_reachable_words"
+external uniquely_reachable_words : t array -> int array * int = "caml_obj_uniquely_reachable_words"
 external field : t -> int -> t = "%obj_field"
 let [@inline always] field t index = field (Sys.opaque_identity t) index
 external set_field : t -> int -> t -> unit = "%obj_set_field"

@@ -134,7 +134,7 @@ let init_rewrite modes mod_name =
   end
 
 let final_rewrite add_function =
-  to_insert := List.sort (fun x y -> compare (snd x) (snd y)) !to_insert;
+  to_insert := List.sort (fun x y -> Int.compare (snd x) (snd y)) !to_insert;
   prof_counter := 0;
   List.iter add_function !to_insert;
   copy (in_channel_length !inchan);
@@ -149,6 +149,13 @@ let final_rewrite add_function =
     close_out !outchan;
   *)
 ;;
+
+type case =
+  { rhs : expression;
+    guard : expression option;
+  }
+
+let case { pc_rhs; pc_guard } = { rhs = pc_rhs; guard = pc_guard }
 
 let rec rewrite_patexp_list iflag l =
   rewrite_exp_list iflag (List.map (fun x -> x.pvb_expr) l)
@@ -186,30 +193,21 @@ and rw_exp iflag sexp =
     rewrite_patexp_list iflag spat_sexp_list;
     rewrite_exp iflag sbody
 
-  | Pexp_function caselist ->
-    if !instr_fun then
-      rewrite_function iflag caselist
-    else
-      rewrite_cases iflag caselist
+  | Pexp_function caselist -> rewrite_function_cases iflag caselist
 
-  | Pexp_fun (_, _, p, e) ->
-      let l = [{pc_lhs=p; pc_guard=None; pc_rhs=e}] in
-      if !instr_fun then
-        rewrite_function iflag l
-      else
-        rewrite_cases iflag l
+  | Pexp_fun (_, _, _, e) -> rewrite_function_body iflag e
 
   | Pexp_match(sarg, caselist) ->
     rewrite_exp iflag sarg;
     if !instr_match && not sexp.pexp_loc.loc_ghost then
-      rewrite_funmatching caselist
+      rewrite_funmatching (List.map case caselist)
     else
       rewrite_cases iflag caselist
 
   | Pexp_try(sbody, caselist) ->
     rewrite_exp iflag sbody;
     if !instr_try && not sexp.pexp_loc.loc_ghost then
-      rewrite_trymatching caselist
+      rewrite_trymatching (List.map case caselist)
     else
       rewrite_cases iflag caselist
 
@@ -314,6 +312,24 @@ and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x
   | Jexp_layout (Lexp_constant _) -> rewrite_constant
   | Jexp_layout (Lexp_newtype (_, _, sexp)) -> rewrite_exp iflag sexp
+  | Jexp_n_ary_function x -> rewrite_n_ary_function iflag x
+
+and rewrite_n_ary_function iflag :
+  Jane_syntax.N_ary_functions.expression -> _ = function
+  | (_, _, Pfunction_body e) -> rewrite_function_body iflag e
+  | (_, _, Pfunction_cases (cases, _, _)) -> rewrite_function_cases iflag cases
+
+and rewrite_function_body iflag e =
+  if !instr_fun then
+    rewrite_function iflag [{ rhs = e; guard = None }]
+  else
+    rewrite_exp iflag e
+
+and rewrite_function_cases iflag caselist =
+  if !instr_fun then
+    rewrite_function iflag (List.map case caselist)
+  else
+    rewrite_cases iflag caselist
 
 and rewrite_comprehension_exp iflag :
   Jane_syntax.Comprehensions.expression -> _ = function
@@ -359,17 +375,17 @@ and rewrite_ifbody iflag ghost sifbody =
 and rewrite_annotate_exp_list l =
   List.iter
     (function
-     | {pc_guard=Some scond; pc_rhs=sbody} ->
+     | {guard=Some scond; rhs=sbody} ->
          insert_profile rw_exp scond;
          insert_profile rw_exp sbody;
-     | {pc_rhs={pexp_desc = Pexp_constraint(sbody, _)}} (* let f x : t = e *)
+     | {rhs={pexp_desc = Pexp_constraint(sbody, _)}} (* let f x : t = e *)
         -> insert_profile rw_exp sbody
-     | {pc_rhs=sexp} -> insert_profile rw_exp sexp)
+     | {rhs=sexp} -> insert_profile rw_exp sexp)
     l
 
 and rewrite_function iflag = function
-  | [{pc_lhs=_; pc_guard=None;
-      pc_rhs={pexp_desc = (Pexp_function _|Pexp_fun _)} as sexp}] ->
+  | [{guard=None;
+      rhs={pexp_desc = (Pexp_function _|Pexp_fun _)} as sexp}] ->
         rewrite_exp iflag sexp
   | l -> rewrite_funmatching l
 

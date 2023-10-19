@@ -4,6 +4,7 @@ type maturity = Stable | Beta | Alpha
 type _ t =
   | Comprehensions : unit t
   | Local : unit t
+  | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
@@ -19,6 +20,7 @@ module Exist = struct
   let all =
     [ Pack Comprehensions
     ; Pack Local
+    ; Pack Unique
     ; Pack Include_functor
     ; Pack Polymorphic_parameters
     ; Pack Immutable_arrays
@@ -36,6 +38,7 @@ end
 let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
   | Local -> "local"
+  | Unique -> "unique"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"
@@ -51,6 +54,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   match String.lowercase_ascii extn_name with
   | "comprehensions" -> Some (Pair (Comprehensions, ()))
   | "local" -> Some (Pair (Local, ()))
+  | "unique" -> Some (Pair (Unique, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
   | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
@@ -81,6 +85,7 @@ let of_string extn_name : Exist.t option =
 *)
 let is_erasable : type a. a t -> bool = function
   | Local
+  | Unique
   | Layouts ->
       true
   | Comprehensions

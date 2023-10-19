@@ -42,10 +42,14 @@ let get_func_decl_params_arity t code_id =
      cmm_helpers.ml. *)
   let params_ty =
     List.map
-      (fun k ->
-        C.extended_machtype_of_kind k
-        |> C.Extended_machtype.change_tagged_int_to_val)
-      (Flambda_arity.to_list (Code_metadata.params_arity info))
+      (fun ks ->
+        List.map
+          (fun k ->
+            C.extended_machtype_of_kind k
+            |> C.Extended_machtype.change_tagged_int_to_val)
+          ks
+        |> Array.concat)
+      (Flambda_arity.unarize_per_parameter (Code_metadata.params_arity info))
   in
   let result_machtype =
     C.extended_machtype_of_return_arity (Code_metadata.result_arity info)
@@ -56,7 +60,7 @@ let get_func_decl_params_arity t code_id =
     then Lambda.Tupled
     else
       let nlocal =
-        Flambda_arity.cardinal (Code_metadata.params_arity info)
+        Flambda_arity.num_params (Code_metadata.params_arity info)
         - Code_metadata.first_complex_local_param info
       in
       Lambda.Curried { nlocal }
@@ -324,8 +328,15 @@ let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
   | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Check { property; strict; assume; loc } ->
-    [Check { property = transl_property property; strict; assume; loc }]
+  | Assume { property; strict; never_returns_normally; loc } ->
+    [ Assume
+        { property = transl_property property;
+          strict;
+          never_returns_normally;
+          loc
+        } ]
+  | Check { property; strict; loc } ->
+    [Check { property = transl_property property; strict; loc }]
 
 (* Translation of the bodies of functions. *)
 

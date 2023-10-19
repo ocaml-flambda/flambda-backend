@@ -82,34 +82,43 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
     ~apply_alloc_mode ~current_region ~callee's_code_id ~callee's_code_metadata
     ~down_to_up =
   let dbg = Apply.dbg apply in
-  let n =
-    Flambda_arity.cardinal (Code_metadata.params_arity callee's_code_metadata)
+  let tuple_size =
+    (* The code for the function being applied has exactly as many parameters as
+       there are components of the tuple (which is the first element of
+       [Apply.args apply]). The components must be of kind [Value] (in Lambda,
+       [layout_field]) and therefore cannot be unboxed products themselves. *)
+    Flambda_arity.cardinal_unarized
+      (Code_metadata.params_arity callee's_code_metadata)
   in
-  (* Split the tuple argument from other potential over application arguments *)
-  let tuple, over_application_args =
+  (* Split the tuple argument from any over application arguments *)
+  let tuple_arg, over_application_args =
     match Apply.args apply with
     | tuple :: others -> tuple, others
-    | _ -> Misc.fatal_errorf "Empty argument list for direct application"
-  in
-  let over_application_arity =
-    List.tl (Flambda_arity.to_list (Apply.args_arity apply))
+    | _ ->
+      Misc.fatal_errorf "Empty argument list for direct tuple application:@ %a"
+        Apply.print apply
   in
   (* Create the list of variables and projections *)
   let vars_and_fields =
-    List.init n (fun i ->
-        let var = Variable.create "tuple_field" in
-        let e = Simplify_common.project_tuple ~dbg ~size:n ~field:i tuple in
-        var, e)
+    List.init tuple_size (fun field ->
+        ( Variable.create "tuple_field",
+          Simplify_common.project_tuple ~dbg ~size:tuple_size ~field tuple_arg ))
+  in
+  (* Construct the arities for the tuple and any over application arguments *)
+  let args_arity =
+    let tuple_arity =
+      Flambda_arity.create_singletons
+        (List.init tuple_size (fun _ -> K.With_subkind.any_value))
+    in
+    let over_application_arity =
+      (* Any over application might involve complex arities. *)
+      Flambda_arity.partially_apply (Apply.args_arity apply)
+        ~num_non_unarized_params_provided:1
+    in
+    Flambda_arity.concat tuple_arity over_application_arity
   in
   (* Change the application to operate on the fields of the tuple *)
   let apply =
-    let args_arity =
-      (* The components of the tuple must always be of kind [Value] (in Lambda,
-         [layout_field]). *)
-      Flambda_arity.create
-        (List.init n (fun _ -> K.With_subkind.any_value)
-        @ over_application_arity)
-    in
     Apply.with_args apply
       (List.map (fun (v, _) -> Simple.var v) vars_and_fields
       @ over_application_args)
@@ -236,7 +245,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
         | Return apply_return_continuation, Ok result_types ->
           Result_types.pattern_match result_types
             ~f:(fun ~params ~results env_extension ->
-              if Flambda_arity.cardinal params_arity
+              if Flambda_arity.cardinal_unarized params_arity
                  <> Bound_parameters.cardinal params
               then
                 Misc.fatal_errorf
@@ -244,7 +253,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                    types structure:@ %a@ for application:@ %a"
                   Flambda_arity.print params_arity Result_types.print
                   result_types Apply.print apply;
-              if Flambda_arity.cardinal result_arity
+              if Flambda_arity.cardinal_unarized result_arity
                  <> Bound_parameters.cardinal results
               then
                 Misc.fatal_errorf
@@ -270,7 +279,9 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                          arg))
                   denv params args
               in
-              let result_arity = Flambda_arity.to_list result_arity in
+              let result_arity =
+                Flambda_arity.unarized_components result_arity
+              in
               let denv =
                 List.fold_left2
                   (fun denv kind result ->
@@ -322,7 +333,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
 
 let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
-    ~param_arity ~param_modes ~result_arity ~recursive ~down_to_up
+    ~param_arity ~param_modes ~args_arity ~result_arity ~recursive ~down_to_up
     ~coming_from_indirect
     ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t) ~current_region
     ~first_complex_local_param =
@@ -363,14 +374,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
          Inlining_helpers.(
            inlined_attribute_on_partial_application_msg Unrolled))
   | Default_inlined | Hint_inlined -> ());
-  let arity = Flambda_arity.cardinal param_arity in
-  let args_arity = List.length args in
-  assert (arity > args_arity);
-  let applied_args, remaining_param_arity =
+  let num_non_unarized_params = Flambda_arity.num_params param_arity in
+  let num_non_unarized_args = Flambda_arity.num_params args_arity in
+  assert (num_non_unarized_params > num_non_unarized_args);
+  let remaining_param_arity =
+    Flambda_arity.partially_apply param_arity
+      ~num_non_unarized_params_provided:num_non_unarized_args
+  in
+  let applied_unarized_args, _ =
     Misc.Stdlib.List.map2_prefix
       (fun arg kind -> arg, kind)
       args
-      (Flambda_arity.to_list param_arity)
+      (Flambda_arity.unarize param_arity)
   in
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -382,8 +397,10 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     (* If the closure has a local suffix, and we've supplied enough args to hit
        it, then the closure must be local (because the args or closure might
        be). *)
-    if args_arity <= first_complex_local_param
-    then Alloc_mode.For_allocations.heap, first_complex_local_param - args_arity
+    if num_non_unarized_args <= first_complex_local_param
+    then
+      ( Alloc_mode.For_allocations.heap,
+        first_complex_local_param - num_non_unarized_args )
     else Alloc_mode.For_allocations.local ~region:current_region, 0
   in
   (match closure_alloc_mode_from_type with
@@ -424,7 +441,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun kind ->
           let param = Variable.create "param" in
           Bound_parameter.create param kind)
-        remaining_param_arity
+        (Flambda_arity.unarize remaining_param_arity)
       |> Bound_parameters.create
     in
     let _, remaining_params_alloc_modes =
@@ -478,8 +495,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     let applied_callee =
       applied_value (Apply.callee apply, K.With_subkind.any_value)
     in
-    let applied_args = List.map applied_value applied_args in
-    let applied_values = applied_callee :: applied_args in
+    let applied_unarized_args = List.map applied_value applied_unarized_args in
+    let applied_values = applied_callee :: applied_unarized_args in
     let my_closure = Variable.create "my_closure" in
     let my_region = Variable.create "my_region" in
     let my_depth = Variable.create "my_depth" in
@@ -496,7 +513,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       in
       let callee = arg applied_callee in
       let args =
-        List.map arg applied_args @ Bound_parameters.simples remaining_params
+        List.map arg applied_unarized_args
+        @ Bound_parameters.simples remaining_params
       in
       let full_application =
         Apply.create ~callee ~continuation:(Return return_continuation)
@@ -569,7 +587,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       let code =
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
-          ~params_arity:(Bound_parameters.arity remaining_params)
+          ~params_arity:remaining_param_arity
           ~param_modes:remaining_params_alloc_modes ~first_complex_local_param
           ~result_arity ~result_types:Unknown ~contains_no_escaping_local_allocs
           ~stub:true ~inline:Default_inline ~poll_attribute:Default
@@ -725,9 +743,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         ~apply_alloc_mode ~current_region ~callee's_code_id
         ~callee's_code_metadata ~down_to_up
     else
-      let args = Apply.args apply in
-      let provided_num_args = List.length args in
-      let num_params = Flambda_arity.cardinal params_arity in
+      let args_arity = Apply.args_arity apply in
+      let provided_num_args = Flambda_arity.num_params args_arity in
+      let num_params = Flambda_arity.num_params params_arity in
       let result_arity_of_application = Apply.return_arity apply in
       if provided_num_args = num_params
       then (
@@ -756,7 +774,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > num_params
       then (
         (* See comment above. *)
-        if not (Flambda_arity.is_singleton_value result_arity)
+        if not (Flambda_arity.is_one_param_of_kind_value result_arity)
         then
           Misc.fatal_errorf
             "Non-singleton-value return arity for overapplied OCaml function:@ \
@@ -768,7 +786,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > 0 && provided_num_args < num_params
       then (
         (* See comment above. *)
-        if not (Flambda_arity.is_singleton_value result_arity_of_application)
+        if not
+             (Flambda_arity.is_one_param_of_kind_value
+                result_arity_of_application)
         then
           Misc.fatal_errorf
             "Non-singleton-value return arity for partially-applied OCaml \
@@ -778,7 +798,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity
           ~param_modes:(Code_metadata.param_modes callee's_code_metadata)
-          ~result_arity ~recursive ~down_to_up ~coming_from_indirect
+          ~args_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
           ~closure_alloc_mode_from_type ~current_region
           ~first_complex_local_param:
             (Code_metadata.first_complex_local_param callee's_code_metadata))
@@ -945,7 +965,7 @@ let simplify_apply_shared dacc apply =
           "Argument kind %a from arity does not match kind from type %a for \
            application:@ %a"
           K.print kind T.print arg_type Apply.print apply)
-    (Flambda_arity.to_list (Apply.args_arity apply))
+    (Flambda_arity.unarize (Apply.args_arity apply))
     arg_types;
   let inlining_state =
     Inlining_state.meet
@@ -999,7 +1019,8 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   let args_arity = Apply.args_arity apply in
   let args_arity_from_types = T.arity_of_list arg_types in
   if not
-       (Flambda_arity.equal_ignoring_subkinds args_arity_from_types args_arity)
+       (Flambda_arity.equal_ignoring_subkinds args_arity_from_types
+          (Flambda_arity.unarize_t args_arity))
   then
     Misc.fatal_errorf
       "Arity %a of [Apply] arguments doesn't match parameter arity %a of \
@@ -1058,7 +1079,8 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
       callee_kind T.print callee_ty;
   let args_arity_from_types = T.arity_of_list arg_types in
   if not
-       (Flambda_arity.equal_ignoring_subkinds args_arity_from_types args_arity)
+       (Flambda_arity.equal_ignoring_subkinds args_arity_from_types
+          (Flambda_arity.unarize_t args_arity))
   then
     Misc.fatal_errorf
       "Arity %a of [Apply] arguments doesn't match parameter arity %a of C \

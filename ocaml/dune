@@ -51,7 +51,7 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags -linkall)
  (modules_without_implementation
-   annot asttypes cmo_format outcometree parsetree debug_event)
+   annot asttypes jane_asttypes cmo_format outcometree parsetree debug_event)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
@@ -65,16 +65,16 @@
    location longident docstrings printast syntaxerr ast_helper
    camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
    attr_helper builtin_attributes ast_invariants depend jane_syntax_parsing
-   jane_syntax ; manual update: mli only files asttypes parsetree
+   jane_syntax ; manual update: mli only files asttypes jane_asttypes parsetree
 
    ;; TYPING
    ident path layouts primitive shape types btype oprint subst predef datarepr
-   cmi_format persistent_env env errortrace
+   cmi_format persistent_env env errortrace mode
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter address
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
-   typecore
+   typecore mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot
    ; manual update: mli only files
@@ -93,7 +93,7 @@
    ;; some of COMP
    pparse main_args compenv compmisc makedepend compile_common
    ; manual update: mli only files
-   annot asttypes cmo_format outcometree parsetree debug_event
+   annot asttypes jane_asttypes cmo_format outcometree parsetree debug_event
  ))
 
 (library
@@ -260,6 +260,7 @@
     (ast_invariants.mli as compiler-libs/ast_invariants.mli)
     (depend.mli as compiler-libs/depend.mli)
     (asttypes.mli as compiler-libs/asttypes.mli)
+    (jane_asttypes.mli as compiler-libs/jane_asttypes.mli)
     (parsetree.mli as compiler-libs/parsetree.mli)
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
@@ -299,6 +300,8 @@
     (typeopt.mli as compiler-libs/typeopt.mli)
     (rec_check.mli as compiler-libs/rec_check.mli)
     (typecore.mli as compiler-libs/typecore.mli)
+    (mode.mli as compiler-libs/mode.mli)
+    (uniqueness_analysis.mli as compiler-libs/uniqueness_analysis.mli)
     (typeclass.mli as compiler-libs/typeclass.mli)
     (typemod.mli as compiler-libs/typemod.mli)
     (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)
