@@ -635,6 +635,31 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-let zero_alloc_check = ref false            (* -zero-alloc-check *)
-let zero_alloc_check_opt = ref false        (* -zero-alloc-check-opt *)
+module Annotations = struct
+  type t = Check_default | Check_all | Check_opt_only | No_check
+
+  let all = [ Check_default; Check_all; Check_opt_only; No_check ]
+
+  let to_string = function
+    | Check_default -> "default"
+    | Check_all -> "all"
+    | Check_opt_only -> "opt"
+    | No_check -> "none"
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Check_default, Check_default -> true
+    | Check_all, Check_all -> true
+    | No_check, No_check -> true
+    | Check_opt_only, Check_opt_only -> true
+    | (Check_default | Check_all | Check_opt_only | No_check), _ -> false
+
+  let of_string v =
+    let f t =
+      if String.equal (to_string t) v then Some t else None
+    in
+    List.find_map f all
+end
+
+let zero_alloc_check = ref Annotations.No_check         (* -zero-alloc-check *)
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)

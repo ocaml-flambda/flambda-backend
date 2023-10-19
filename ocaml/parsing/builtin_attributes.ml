@@ -586,7 +586,7 @@ let parse_attribute_with_ident_payload attr ~name ~f =
 let zero_alloc_attribute (attr : Parsetree.attribute)  =
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := true
+      | "check" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_default
       | "all" ->
         Clflags.zero_alloc_check_assert_all := true
       | _ ->

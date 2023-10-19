@@ -1667,5 +1667,8 @@ let array_set_kind mode = function
 let is_check_enabled ~opt property =
   match property with
   | Zero_alloc ->
-    (!Clflags.zero_alloc_check && not opt) ||
-    (!Clflags.zero_alloc_check_opt && opt)
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_all -> true
+    | Check_default -> not opt
+    | Check_opt_only -> opt

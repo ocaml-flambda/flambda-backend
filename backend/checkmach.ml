@@ -1162,7 +1162,13 @@ end
 module Spec_zero_alloc : Spec = struct
   let property = Cmm.Zero_alloc
 
-  let enabled () = !Clflags.zero_alloc_check || !Clflags.zero_alloc_check_opt
+  let enabled () =
+    (* Checkmach no longer distinguishes between opt and default checks. *)
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_default -> true
+    | Check_all -> true
+    | Check_opt_only -> true
 
   (* Compact the mapping from function name to Value.t to reduce size of Checks
      in cmx and memory consumption Compilenv. Different components have
