@@ -371,11 +371,6 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
-  let name_list =
-    if !Flambda_backend_flags.use_cached_generic_functions then
-      name_list
-    else name_list
-  in
   compile_phrase
     (Cmm_helpers.data_segment_table (startup_comp_unit :: name_list));
   (* CR mshinwell: We should have a separate notion of "backend compilation
@@ -389,6 +384,11 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
       hot_comp_unit :: startup_comp_unit :: name_list
     else
       startup_comp_unit :: name_list
+  in
+  let code_comp_units =
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      Generic_fns.imported_units cached_gen @ code_comp_units
+    else code_comp_units
   in
   compile_phrase (Cmm_helpers.code_segment_table code_comp_units);
   let all_comp_units = startup_comp_unit :: system_comp_unit :: name_list in
