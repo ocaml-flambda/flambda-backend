@@ -30,10 +30,31 @@ echo "==========="
 echo "Testing mls"
 echo "==========="
 
+typing_mls=(
+  datarepr
+  includecore
+  mtype
+  oprint
+  parmatch
+  path
+  persistent_env
+  predef
+  printtyped
+  shape
+  subst
+  tast_iterator
+  tast_mapper
+  typedecl_variance
+  typedtree
+  types)
+
 # ocamlcommon mls
 mls=$(
   { echo parsing/parser.ml
     echo {utils,parsing}/*.ml
+    for f in "${typing_mls[@]}"; do
+        echo "typing/${f}.ml"
+    done
   } |
     tr ' ' '\n' |
     grep -v "utils/config.common.ml" |

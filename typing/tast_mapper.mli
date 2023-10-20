@@ -41,8 +41,6 @@ type mapper =
       extension_constructor;
     jkind_annotation: mapper -> const_jkind -> const_jkind;
     location: mapper -> Location.t -> Location.t;
-    (* CR ccasinghino: remember to check that any new forms we've added have
-       locations mapped over now that there is a mapper for it. *)
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;

@@ -35,12 +35,8 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-<<<<<<< HEAD
     jkind_annotation: iterator -> const_jkind -> unit;
-||||||| merged common ancestors
-=======
     location: iterator -> Location.t -> unit;
->>>>>>> ocaml/5.1
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
@@ -109,7 +105,12 @@ let module_declaration sub {md_loc; md_name; md_type; md_attributes; _} =
   iter_loc sub md_name;
   sub.module_type sub md_type
 
-<<<<<<< HEAD
+let module_substitution sub {ms_loc; ms_name; ms_txt; ms_attributes; _} =
+  sub.location sub ms_loc;
+  sub.attributes sub ms_attributes;
+  iter_loc sub ms_name;
+  iter_loc sub ms_txt
+
 let include_kind sub = function
   | Tincl_structure -> ()
   | Tincl_functor ccs ->
@@ -117,23 +118,11 @@ let include_kind sub = function
   | Tincl_gen_functor ccs ->
       List.iter (fun (_, cc) -> sub.module_coercion sub cc) ccs
 
-let str_include_infos sub {incl_mod; incl_kind} =
-  sub.module_expr sub incl_mod;
-  include_kind sub incl_kind
-||||||| merged common ancestors
-let include_infos f {incl_mod; _} = f incl_mod
-=======
-let module_substitution sub {ms_loc; ms_name; ms_txt; ms_attributes; _} =
-  sub.location sub ms_loc;
-  sub.attributes sub ms_attributes;
-  iter_loc sub ms_name;
-  iter_loc sub ms_txt
-
-let include_infos sub f {incl_loc; incl_mod; incl_attributes; _} =
+let str_include_infos sub {incl_loc; incl_mod; incl_attributes; incl_kind; _} =
   sub.location sub incl_loc;
   sub.attributes sub incl_attributes;
-  f incl_mod
->>>>>>> ocaml/5.1
+  sub.module_expr sub incl_mod;
+  include_kind sub incl_kind
 
 let class_type_declaration sub x =
   class_infos sub (sub.class_type sub) x
@@ -145,13 +134,7 @@ let structure_item sub {str_loc; str_desc; str_env; _} =
   sub.location sub str_loc;
   sub.env sub str_env;
   match str_desc with
-<<<<<<< HEAD
-  | Tstr_eval   (exp, _, _) -> sub.expr sub exp
-||||||| merged common ancestors
-  | Tstr_eval   (exp, _) -> sub.expr sub exp
-=======
-  | Tstr_eval   (exp, attrs) -> sub.expr sub exp; sub.attributes sub attrs
->>>>>>> ocaml/5.1
+  | Tstr_eval   (exp, _, attrs) -> sub.expr sub exp; sub.attributes sub attrs
   | Tstr_value  (rec_flag, list) -> sub.value_bindings sub (rec_flag, list)
   | Tstr_primitive v -> sub.value_description sub v
   | Tstr_type (rec_flag, list) -> sub.type_declarations sub (rec_flag, list)
@@ -163,17 +146,9 @@ let structure_item sub {str_loc; str_desc; str_env; _} =
   | Tstr_class list ->
       List.iter (fun (cls,_) -> sub.class_declaration sub cls) list
   | Tstr_class_type list ->
-<<<<<<< HEAD
-      List.iter (fun (_, _, cltd) -> sub.class_type_declaration sub cltd) list
-  | Tstr_include incl -> str_include_infos sub incl
-||||||| merged common ancestors
-      List.iter (fun (_, _, cltd) -> sub.class_type_declaration sub cltd) list
-  | Tstr_include incl -> include_infos (sub.module_expr sub) incl
-=======
       List.iter (fun (_, s, cltd) ->
         iter_loc sub s; sub.class_type_declaration sub cltd) list
-  | Tstr_include incl -> include_infos sub (sub.module_expr sub) incl
->>>>>>> ocaml/5.1
+  | Tstr_include incl -> str_include_infos sub incl
   | Tstr_open od -> sub.open_declaration sub od
   | Tstr_attribute attr -> sub.attribute sub attr
 
@@ -199,7 +174,6 @@ let constructor_decl sub x =
   sub.location sub x.cd_loc;
   sub.attributes sub x.cd_attributes;
   iter_loc sub x.cd_name;
-  List.iter (iter_loc sub) x.cd_vars;
   constructor_args sub x.cd_args;
   Option.iter (sub.typ sub) x.cd_res
 
@@ -242,8 +216,7 @@ let extension_constructor sub {ext_loc; ext_name; ext_kind; ext_attributes; _} =
   sub.attributes sub ext_attributes;
   iter_loc sub ext_name;
   match ext_kind with
-  | Text_decl (ids, ctl, cto) ->
-      List.iter (iter_loc sub) ids;
+  | Text_decl (_, ctl, cto) ->
       constructor_args sub ctl;
       Option.iter (sub.typ sub) cto
   | Text_rebind (_, lid) -> iter_loc sub lid
@@ -266,7 +239,7 @@ let pat
   List.iter (pat_extra sub) extra;
   match pat_desc with
   | Tpat_any  -> ()
-  | Tpat_var (_, s) -> iter_loc sub s
+  | Tpat_var (_, s, _, _) -> iter_loc sub s
   | Tpat_constant _ -> ()
   | Tpat_tuple l -> List.iter (sub.pat sub) l
   | Tpat_construct (lid, _, l, vto) ->
@@ -275,20 +248,10 @@ let pat
       Option.iter (fun (ids, ct) ->
         List.iter (iter_loc sub) ids; sub.typ sub ct) vto
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
-<<<<<<< HEAD
-  | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
-  | Tpat_array (_, l) -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, _, _, _) -> sub.pat sub p
-||||||| merged common ancestors
-  | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
-  | Tpat_array l -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, _) -> sub.pat sub p
-=======
   | Tpat_record (l, _) ->
       List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l
-  | Tpat_array l -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, s) -> sub.pat sub p; iter_loc sub s
->>>>>>> ocaml/5.1
+  | Tpat_array (_, l) -> List.iter (sub.pat sub) l
+  | Tpat_alias (p, _, s, _, _) -> sub.pat sub p; iter_loc sub s
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)
   | Tpat_exception p -> sub.pat sub p
@@ -310,7 +273,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   List.iter (fun (e, loc, _) -> extra e; sub.location sub loc) exp_extra;
   sub.env sub exp_env;
   match exp_desc with
-  | Texp_ident (_, lid, _)  -> iter_loc sub lid
+  | Texp_ident (_, lid, _, _, _)  -> iter_loc sub lid
   | Texp_constant _ -> ()
   | Texp_let (rec_flag, list, exp) ->
       sub.value_bindings sub (rec_flag, list);
@@ -329,40 +292,23 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_try (exp, cases) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
-<<<<<<< HEAD
   | Texp_tuple (list, _) -> List.iter (sub.expr sub) list
-  | Texp_construct (_, _, args, _) -> List.iter (sub.expr sub) args
-  | Texp_variant (_, expo) -> Option.iter (fun (expr, _) -> sub.expr sub expr) expo
-||||||| merged common ancestors
-  | Texp_tuple list -> List.iter (sub.expr sub) list
-  | Texp_construct (_, _, args) -> List.iter (sub.expr sub) args
-  | Texp_variant (_, expo) -> Option.iter (sub.expr sub) expo
-=======
-  | Texp_tuple list -> List.iter (sub.expr sub) list
-  | Texp_construct (lid, _, args) ->
+  | Texp_construct (lid, _, args, _) ->
       iter_loc sub lid;
       List.iter (sub.expr sub) args
-  | Texp_variant (_, expo) -> Option.iter (sub.expr sub) expo
->>>>>>> ocaml/5.1
+  | Texp_variant (_, expo) ->
+      Option.iter (fun (expr, _) -> sub.expr sub expr) expo
   | Texp_record { fields; extended_expression; _} ->
       Array.iter (function
         | _, Kept _ -> ()
         | _, Overridden (lid, exp) -> iter_loc sub lid; sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
-<<<<<<< HEAD
-  | Texp_field (exp, _, _, _, _) -> sub.expr sub exp
-  | Texp_setfield (exp1, _,  _, _, exp2) ->
-||||||| merged common ancestors
-  | Texp_field (exp, _, _) -> sub.expr sub exp
-  | Texp_setfield (exp1, _, _, exp2) ->
-=======
-  | Texp_field (exp, lid, _) ->
+  | Texp_field (exp, lid, _, _, _) ->
       iter_loc sub lid;
       sub.expr sub exp
-  | Texp_setfield (exp1, lid, _, exp2) ->
+  | Texp_setfield (exp1, _, lid, _, exp2) ->
       iter_loc sub lid;
->>>>>>> ocaml/5.1
       sub.expr sub exp1;
       sub.expr sub exp2
   | Texp_array (_, list, _) -> List.iter (sub.expr sub) list
@@ -373,7 +319,8 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
         (function
           | Texp_comp_for bindings ->
               List.iter
-                (fun { comp_cb_iterator; comp_cb_attributes = _ } ->
+                (fun { comp_cb_iterator; comp_cb_attributes } ->
+                   sub.attributes sub comp_cb_attributes;
                    match comp_cb_iterator with
                    | Texp_comp_range { ident = _; start; stop; direction = _ } ->
                        sub.expr sub start;
@@ -401,7 +348,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       sub.expr sub for_body
   | Texp_send (exp, _, _) ->
       sub.expr sub exp
-  | Texp_new (_, lid, _) -> iter_loc sub lid
+  | Texp_new (_, lid, _, _) -> iter_loc sub lid
   | Texp_instvar (_, _, s) -> iter_loc sub s
   | Texp_setinstvar (_, _, s, exp) ->
       iter_loc sub s;
@@ -446,18 +393,14 @@ let signature sub {sig_items; sig_final_env; _} =
   sub.env sub sig_final_env;
   List.iter (sub.signature_item sub) sig_items
 
-<<<<<<< HEAD
-let sig_include_infos sub {incl_mod; incl_kind} =
+let sig_include_infos sub {incl_loc; incl_mod; incl_attributes; incl_kind; _} =
+  sub.location sub incl_loc;
+  sub.attributes sub incl_attributes;
   sub.module_type sub incl_mod;
   include_kind sub incl_kind
 
-let signature_item sub {sig_desc; sig_env; _} =
-||||||| merged common ancestors
-let signature_item sub {sig_desc; sig_env; _} =
-=======
 let signature_item sub {sig_loc; sig_desc; sig_env; _} =
   sub.location sub sig_loc;
->>>>>>> ocaml/5.1
   sub.env sub sig_env;
   match sig_desc with
   | Tsig_value v -> sub.value_description sub v
@@ -470,13 +413,7 @@ let signature_item sub {sig_loc; sig_desc; sig_env; _} =
   | Tsig_recmodule list -> List.iter (sub.module_declaration sub) list
   | Tsig_modtype x -> sub.module_type_declaration sub x
   | Tsig_modtypesubst x -> sub.module_type_declaration sub x
-<<<<<<< HEAD
   | Tsig_include incl -> sig_include_infos sub incl
-||||||| merged common ancestors
-  | Tsig_include incl -> include_infos (sub.module_type sub) incl
-=======
-  | Tsig_include incl -> include_infos sub (sub.module_type sub) incl
->>>>>>> ocaml/5.1
   | Tsig_class list -> List.iter (sub.class_description sub) list
   | Tsig_class_type list -> List.iter (sub.class_type_declaration sub) list
   | Tsig_open od -> sub.open_description sub od
@@ -651,20 +588,12 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       iter_loc sub lid;
       List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
-<<<<<<< HEAD
-  | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list
-  | Ttyp_alias (ct, _, jkind) ->
-    sub.typ sub ct;
-    Option.iter (sub.jkind_annotation sub) jkind
-||||||| merged common ancestors
-  | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list
-  | Ttyp_alias (ct, _) -> sub.typ sub ct
-=======
   | Ttyp_class (_, lid, list) ->
       iter_loc sub lid;
       List.iter (sub.typ sub) list
-  | Ttyp_alias (ct, _) -> sub.typ sub ct
->>>>>>> ocaml/5.1
+  | Ttyp_alias (ct, _, jkind) ->
+      sub.typ sub ct;
+      Option.iter (sub.jkind_annotation sub) jkind
   | Ttyp_variant (list, _, _) -> List.iter (sub.row_field sub) list
   | Ttyp_poly (vars, ct) ->
       List.iter (fun (_, l) -> Option.iter (sub.jkind_annotation sub) l) vars;
@@ -741,12 +670,8 @@ let default_iterator =
     env;
     expr;
     extension_constructor;
-<<<<<<< HEAD
     jkind_annotation;
-||||||| merged common ancestors
-=======
     location;
->>>>>>> ocaml/5.1
     module_binding;
     module_coercion;
     module_declaration;
