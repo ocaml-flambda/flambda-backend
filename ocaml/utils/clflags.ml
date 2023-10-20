@@ -659,6 +659,12 @@ module Annotations = struct
       if String.equal (to_string t) v then Some t else None
     in
     List.find_map f all
+
+  let doc =
+    "\n\    The argument specifies which annotations to check: \n\
+     \      \"opt\" means attributes with \"opt\" payload and is intended for debugging;\n\
+     \      \"default\" means attributes without \"opt\" payload; \n\
+     \      \"all\" covers both \"opt\" and \"default\" and is intended for optimized builds."
 end
 
 let zero_alloc_check = ref Annotations.No_check         (* -zero-alloc-check *)

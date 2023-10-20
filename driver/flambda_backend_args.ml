@@ -92,8 +92,8 @@ let mk_heap_reduction_threshold f =
 let mk_zero_alloc_check f =
   let annotations = Clflags.Annotations.(List.map to_string all) in
   "-zero-alloc-check", Arg.Symbol (annotations, f),
-  " Check that annoted functions do not allocate \
-   and do not have indirect calls"
+  " Check that annotated functions do not allocate \
+   and do not have indirect calls. "^Clflags.Annotations.doc
 
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"

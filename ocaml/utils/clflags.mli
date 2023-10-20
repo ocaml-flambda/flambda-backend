@@ -293,6 +293,7 @@ module Annotations : sig
   val to_string : t -> string
   val of_string : string -> t option
   val equal : t -> t -> bool
+  val doc : string
 end
 val zero_alloc_check : Annotations.t ref
 val zero_alloc_check_assert_all : bool ref
