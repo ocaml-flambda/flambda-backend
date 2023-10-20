@@ -154,8 +154,57 @@ let tree_for_mode mode =
           ["string_monoid"; "string_monoid_no_mli"; "test_direct_access"];
       ]);
     ]);
+    compile "semigroup.mli";
+    compile "category.mli";
+    compile "monoid_of_semigroup.mli"
+      ~flags:"-parameter Semigroup -as-argument-for Monoid";
+    (* Invoke the compiler separately on .mli and .ml just this once to make sure
+       things work this way as well *)
+    compile "monoid_of_semigroup.ml";
+    compile "list_element.mli" ~flags:"-as-parameter";
+    compile "list_monoid.mli list_monoid.ml"
+      ~flags:"-parameter List_element -as-argument-for Monoid";
     compile "monoid_utils.mli monoid_utils.ml" ~flags:"-parameter Monoid";
     compile_bad_ml "bad_ref_indirect" ~flags:"";
+    compile_bad_ml "bad_instance_arg_name_not_found"
+      ~flags:"-parameter List_element";
+    compile_bad_ml "bad_instance_arg_value_not_arg"
+      ~flags:"-parameter List_element";
+    compile_bad_ml "bad_instance_arg_value_not_found"
+      ~flags:"-parameter List_element";
+    compile_bad_ml "bad_ref_direct_imported" ~flags:"-parameter Semigroup";
+    compile "chain.mli chain.ml" ~flags:"-parameter Category";
+    compile "category_utils.mli category_utils.ml" ~flags:"-parameter Category";
+    compile "category_of_monoid.mli category_of_monoid.ml"
+      ~flags:"-parameter Monoid -as-argument-for Category";
+    compile_bad_ml "bad_instance_arg_value_wrong_type"
+      ~flags:"-parameter List_element";
+    compile "import.ml"
+      ~flags:"-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+    compile "main.mli"
+      ~flags:"-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+    Branch (Seq [
+      Act (compiler, [
+        "flags", "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+        "module", "main.ml";
+      ]);
+      Act (!%"check-%s-output" compiler, [
+        "compiler_reference", "main.reference"
+      ]);
+    ]);
+    compile "main.ml";
+    Branch (
+      match mode with
+      | Byte -> Seq [
+          Act ("ocamlobjinfo", [
+            "program", !%"main.%s main.cmi" cmo;
+          ]);
+          Act ("check-program-output", [])
+        ]
+      | Native ->
+        (* flambda output is too noisy *)
+        Nop
+    );
   ]
 
 let test_tree = Par [ tree_for_mode Byte; tree_for_mode Native ]

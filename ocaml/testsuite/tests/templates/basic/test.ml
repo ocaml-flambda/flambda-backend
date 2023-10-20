@@ -1,3 +1,6 @@
+(* If this is [test.ml], instead change [test.in.ml] and/or [gen_test.ml] and
+   re-run [gen_test.ml]. *)
+
 (* TEST
 
 readonly_files = "\
@@ -31,6 +34,7 @@ readonly_files = "\
 flags = "-as-parameter"
 module = "monoid.mli"
 *** ocamlc.byte
+flags = ""
 module = "bad_ref_direct.ml"
 compiler_output = "bad_ref_direct.output"
 ocamlc_byte_exit_status = "2"
@@ -61,9 +65,13 @@ flags = ""
 module = "test_direct_access.ml"
 ****** ocamlc.byte
 flags = ""
-program = "${test_build_directory}/test_direct_access.exe"
+program = "${test_build_directory}/test_direct_access.bc"
 module = ""
-all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo"
+all_modules = "\
+   string_monoid.cmo \
+   string_monoid_no_mli.cmo \
+   test_direct_access.cmo \
+"
 ******* run
 output = "test_direct_access.output"
 ******** check-program-output
@@ -76,8 +84,6 @@ module = "category.mli"
 flags = "-parameter Semigroup -as-argument-for Monoid"
 module = "monoid_of_semigroup.mli"
 ****** ocamlc.byte
-(* Invoke the compiler separately on .mli and .ml just this once to make sure
-   things work this way as well *)
 module = "monoid_of_semigroup.ml"
 ******* ocamlc.byte
 flags = "-as-parameter"
@@ -146,7 +152,7 @@ module = "import.ml"
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
 *************** ocamlc.byte
-flags += " -i"
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i"
 module = "main.ml"
 **************** check-ocamlc.byte-output
 compiler_reference = "main.reference"
@@ -155,4 +161,133 @@ module = "main.ml"
 **************** ocamlobjinfo
 program = "main.cmo main.cmi"
 ***************** check-program-output
+* setup-ocamlopt.byte-build-env
+** ocamlopt.byte
+flags = "-as-parameter"
+module = "monoid.mli"
+*** ocamlopt.byte
+flags = ""
+module = "bad_ref_direct.ml"
+compiler_output = "bad_ref_direct.output"
+ocamlopt_byte_exit_status = "2"
+**** check-ocamlopt.byte-output
+compiler_reference = "bad_ref_direct.reference"
+*** ocamlopt.byte
+flags = "-as-argument-for Monoid"
+module = "bad_arg_impl.ml"
+compiler_output = "bad_arg_impl.output"
+ocamlopt_byte_exit_status = "2"
+**** check-ocamlopt.byte-output
+compiler_reference = "bad_arg_impl.reference"
+*** ocamlopt.byte
+flags = "-as-argument-for Monoid"
+module = "bad_arg_intf.mli"
+compiler_output = "bad_arg_intf.output"
+ocamlopt_byte_exit_status = "2"
+**** check-ocamlopt.byte-output
+compiler_reference = "bad_arg_intf.reference"
+*** copy
+src = "string_monoid.ml"
+dst = "string_monoid_no_mli.ml"
+**** ocamlopt.byte
+flags = "-as-argument-for Monoid"
+module = "string_monoid_no_mli.ml string_monoid.mli string_monoid.ml"
+***** ocamlopt.byte
+flags = ""
+module = "test_direct_access.ml"
+****** ocamlopt.byte
+flags = ""
+program = "${test_build_directory}/test_direct_access.exe"
+module = ""
+all_modules = "\
+   string_monoid.cmx \
+   string_monoid_no_mli.cmx \
+   test_direct_access.cmx \
+"
+******* run
+output = "test_direct_access.output"
+******** check-program-output
+reference = "test_direct_access.reference"
+*** ocamlopt.byte
+module = "semigroup.mli"
+**** ocamlopt.byte
+module = "category.mli"
+***** ocamlopt.byte
+flags = "-parameter Semigroup -as-argument-for Monoid"
+module = "monoid_of_semigroup.mli"
+****** ocamlopt.byte
+module = "monoid_of_semigroup.ml"
+******* ocamlopt.byte
+flags = "-as-parameter"
+module = "list_element.mli"
+******** ocamlopt.byte
+flags = "-parameter List_element -as-argument-for Monoid"
+module = "list_monoid.mli list_monoid.ml"
+********* ocamlopt.byte
+flags = "-parameter Monoid"
+module = "monoid_utils.mli monoid_utils.ml"
+********** ocamlopt.byte
+flags = ""
+module = "bad_ref_indirect.ml"
+compiler_output = "bad_ref_indirect.output"
+ocamlopt_byte_exit_status = "2"
+*********** check-ocamlopt.byte-output
+compiler_reference = "bad_ref_indirect.reference"
+********** ocamlopt.byte
+flags = "-parameter List_element"
+module = "bad_instance_arg_name_not_found.ml"
+compiler_output = "bad_instance_arg_name_not_found.output"
+ocamlopt_byte_exit_status = "2"
+*********** check-ocamlopt.byte-output
+compiler_reference = "bad_instance_arg_name_not_found.reference"
+********** ocamlopt.byte
+flags = "-parameter List_element"
+module = "bad_instance_arg_value_not_arg.ml"
+compiler_output = "bad_instance_arg_value_not_arg.output"
+ocamlopt_byte_exit_status = "2"
+*********** check-ocamlopt.byte-output
+compiler_reference = "bad_instance_arg_value_not_arg.reference"
+********** ocamlopt.byte
+flags = "-parameter List_element"
+module = "bad_instance_arg_value_not_found.ml"
+compiler_output = "bad_instance_arg_value_not_found.output"
+ocamlopt_byte_exit_status = "2"
+*********** check-ocamlopt.byte-output
+compiler_reference = "bad_instance_arg_value_not_found.reference"
+********** ocamlopt.byte
+flags = "-parameter Semigroup"
+module = "bad_ref_direct_imported.ml"
+compiler_output = "bad_ref_direct_imported.output"
+ocamlopt_byte_exit_status = "2"
+*********** check-ocamlopt.byte-output
+compiler_reference = "bad_ref_direct_imported.reference"
+********** ocamlopt.byte
+flags = "-parameter Category"
+module = "chain.mli chain.ml"
+*********** ocamlopt.byte
+flags = "-parameter Category"
+module = "category_utils.mli category_utils.ml"
+************ ocamlopt.byte
+flags = "-parameter Monoid -as-argument-for Category"
+module = "category_of_monoid.mli category_of_monoid.ml"
+************* ocamlopt.byte
+flags = "-parameter List_element"
+module = "bad_instance_arg_value_wrong_type.ml"
+compiler_output = "bad_instance_arg_value_wrong_type.output"
+ocamlopt_byte_exit_status = "2"
+************** check-ocamlopt.byte-output
+compiler_reference = "bad_instance_arg_value_wrong_type.reference"
+************* ocamlopt.byte
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
+module = "import.ml"
+************** ocamlopt.byte
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
+module = "main.mli"
+*************** ocamlopt.byte
+flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i"
+module = "main.ml"
+**************** check-ocamlopt.byte-output
+compiler_reference = "main.reference"
+*************** ocamlopt.byte
+module = "main.ml"
 *)
