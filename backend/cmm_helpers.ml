@@ -4563,8 +4563,10 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
           never_returns_normally;
           loc
         } ]
-  | Check { property; strict; loc } ->
-    [Check { property = transl_property property; strict; loc }]
+  | Check { property; strict; loc; opt } ->
+    if Lambda.is_check_enabled ~opt property
+    then [Check { property = transl_property property; strict; loc }]
+    else []
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
