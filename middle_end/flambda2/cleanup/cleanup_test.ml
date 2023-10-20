@@ -455,23 +455,7 @@ let prepare_code dacc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
   let exn = [Variable.create "function_exn"] in
   let params =
-    (* TODO: better. We just need the arity *)
     let arity = Code.params_arity code in
-    (* let arity = *)
-    (*   let params_and_body = Code.params_and_body code in *)
-    (*   Flambda.Function_params_and_body.pattern_match params_and_body *)
-    (*     ~f:(fun *)
-    (*          ~return_continuation:_ *)
-    (*          ~exn_continuation:_ *)
-    (*          params *)
-    (*          ~body:_ *)
-    (*          ~my_closure:_ *)
-    (*          ~is_my_closure_used:_ *)
-    (*          ~my_region:_ *)
-    (*          ~my_depth:_ *)
-    (*          ~free_names_of_body:_ *)
-    (*        -> Bound_parameters.arity params) *)
-    (* in *)
     List.init (Flambda_arity.cardinal arity) (fun i ->
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
