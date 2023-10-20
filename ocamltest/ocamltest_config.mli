@@ -79,19 +79,9 @@ val ocamlsrcdir : string
 val flambda : bool
 (** Whether flambda has been enabled at configure time *)
 
-<<<<<<< HEAD
 val flambda2 : bool
 (** Whether flambda2 has been enabled at configure time *)
 
-val safe_string : bool
-(** Whether the compiler was configured with -safe-string *)
-
-||||||| merged common ancestors
-val safe_string : bool
-(** Whether the compiler was configured with -safe-string *)
-
-=======
->>>>>>> ocaml/5.1
 val flat_float_array : bool
 (* Whether the compiler was configured with --enable-flat-float-array *)
 
@@ -138,7 +128,10 @@ val function_sections : bool
 val instrumented_runtime : bool
 (** Whether the instrumented runtime is available *)
 
-<<<<<<< HEAD
+(* CR ocaml 5 runtime: We should delete this flag, as this option
+   is no longer supported in the OCaml 5 runtime. (We could probably delete
+   it now, but it's hard for me to tell offhand whether any tests use this.)
+ *)
 val naked_pointers : bool
 (** Whether the runtime system supports naked pointers outside the heap *)
 
@@ -150,10 +143,6 @@ val stack_allocation : bool
 
 val poll_insertion : bool
 (** Whether poll insertion is enabled *)
-||||||| merged common ancestors
-val naked_pointers : bool
-(** Whether the runtime system supports naked pointers outside the heap *)
-=======
+
 val frame_pointers : bool
 (** Whether frame-pointers have been enabled at configure time *)
->>>>>>> ocaml/5.1

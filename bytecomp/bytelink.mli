@@ -17,7 +17,7 @@ open Misc
 
 (* Link .cmo files and produce a bytecode executable. *)
 
-module Dep : Set.OrderedType with type t = modname * modname
+module Dep : Set.OrderedType with type t = string * string
 module DepSet : Set.S with type elt = Dep.t
 
 val link : filepath list -> filepath -> unit
@@ -38,14 +38,8 @@ type error =
   | Cannot_open_dll of filepath
   | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
-<<<<<<< HEAD
-  | Wrong_link_order of (string * string) list
-||||||| merged common ancestors
-  | Wrong_link_order of (modname * modname) list
-=======
   | Wrong_link_order of DepSet.t
-  | Multiple_definition of modname * filepath * filepath
->>>>>>> ocaml/5.1
+  | Multiple_definition of string * filepath * filepath
 
 exception Error of error
 

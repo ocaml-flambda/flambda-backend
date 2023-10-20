@@ -46,7 +46,6 @@ val id : t -> int
    It can be used to build data structures indexed by threads. *)
 
 exception Exit
-<<<<<<< HEAD
 (** Exception that can be raised by user code to initiate termination
     of the current thread.
     Compared to calling the {!Thread.exit} function, raising the
@@ -56,21 +55,6 @@ exception Exit
 
     @since 4.14.0
 *)
-
-val exit : unit -> unit
-(** Terminate prematurely the currently executing thread. *)
-||||||| merged common ancestors
-val exit : unit -> unit
-(** Terminate prematurely the currently executing thread. *)
-=======
-(** Exception raised by user code to initiate termination of the
-    current thread.
-    In a thread created by {!Thread.create} [funct] [arg], if the
-    {!Thread.Exit} exception reaches the top of the application
-    [funct arg], it has the effect of terminating the current thread
-    silently.  In other contexts, there is no implicit handling of the
-    {!Thread.Exit} exception. *)
->>>>>>> ocaml/5.1
 
 val exit : unit -> unit
 [@@ocaml.deprecated "Use 'raise Thread.Exit' instead."]

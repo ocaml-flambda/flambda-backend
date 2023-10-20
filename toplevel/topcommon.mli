@@ -54,12 +54,7 @@ val record_backtrace : unit -> unit
 
 val find_eval_phrase :
   Typedtree.structure ->
-<<<<<<< HEAD
     (Typedtree.expression * Jkind.sort * Typedtree.attributes * Location.t) option
-||||||| merged common ancestors
-=======
-    (Typedtree.expression * Typedtree.attributes * Location.t) option
->>>>>>> ocaml/5.1
 
 val max_printer_depth: int ref
 val max_printer_steps: int ref
