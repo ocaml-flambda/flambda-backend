@@ -154,6 +154,8 @@ let tree_for_mode mode =
           ["string_monoid"; "string_monoid_no_mli"; "test_direct_access"];
       ]);
     ]);
+    compile "monoid_utils.mli monoid_utils.ml" ~flags:"-parameter Monoid";
+    compile_bad_ml "bad_ref_indirect" ~flags:"";
   ]
 
 let test_tree = Par [ tree_for_mode Byte; tree_for_mode Native ]

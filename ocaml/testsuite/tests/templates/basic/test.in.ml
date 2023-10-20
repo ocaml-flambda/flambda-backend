@@ -7,7 +7,9 @@ readonly_files = "\
   bad_arg_impl.ml bad_arg_impl.reference \
   bad_arg_intf.mli bad_arg_intf.reference \
   bad_ref_direct.ml bad_ref_direct.reference \
+  bad_ref_indirect.ml bad_ref_indirect.reference \
   monoid.mli \
+  monoid_utils.ml monoid_utils.mli \
   string_monoid.ml string_monoid.mli \
   test_direct_access.ml test_direct_access.reference \
 "

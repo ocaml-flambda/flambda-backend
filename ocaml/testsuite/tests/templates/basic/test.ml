@@ -61,6 +61,16 @@ all_modules = "\
 output = "test_direct_access.output"
 ******** check-program-output
 reference = "test_direct_access.reference"
+*** ocamlc.byte
+flags = "-parameter Monoid"
+module = "monoid_utils.mli monoid_utils.ml"
+**** ocamlc.byte
+flags = ""
+module = "bad_ref_indirect.ml"
+compiler_output = "bad_ref_indirect.output"
+ocamlc_byte_exit_status = "2"
+***** check-ocamlc.byte-output
+compiler_reference = "bad_ref_indirect.reference"
 * setup-ocamlopt.byte-build-env
 ** ocamlopt.byte
 flags = "-as-parameter"
@@ -108,14 +118,14 @@ all_modules = "\
 output = "test_direct_access.output"
 ******** check-program-output
 reference = "test_direct_access.reference"
-********* ocamlc.byte
+*** ocamlopt.byte
 flags = "-parameter Monoid"
 module = "monoid_utils.mli monoid_utils.ml"
-********** ocamlc.byte
+**** ocamlopt.byte
 flags = ""
 module = "bad_ref_indirect.ml"
 compiler_output = "bad_ref_indirect.output"
-ocamlc_byte_exit_status = "2"
-*********** check-ocamlc.byte-output
+ocamlopt_byte_exit_status = "2"
+***** check-ocamlopt.byte-output
 compiler_reference = "bad_ref_indirect.reference"
 *)
