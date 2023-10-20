@@ -7,6 +7,7 @@ type token =
   | WHEN
   | VIRTUAL
   | VAL
+  | UNIQUE
   | UNDERSCORE
   | UIDENT of (string)
   | TYPE
@@ -38,6 +39,7 @@ type token =
   | OR
   | OPTLABEL of (string)
   | OPEN
+  | ONCE
   | OF
   | OBJECT
   | NONREC

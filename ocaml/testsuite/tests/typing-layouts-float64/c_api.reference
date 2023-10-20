@@ -4,3 +4,4 @@ Test U -> B, sin four: -0.76
 Test (B[@unboxed]) -> U, sin five: -0.96
 Test U -> (B[@unboxed]), sin six: -0.28
 Function with many args, sum_of_one_to_seven: 28.00
+Test U -> U eta expansion, sin seven: 0.66

@@ -8,9 +8,6 @@
 
 autoconf-aux            @mshinwell @xclerc
 configure.ac            @mshinwell @xclerc
-**/dune                 @mshinwell @xclerc
-**/dune-project         @mshinwell @xclerc
-Makefile.in             @mshinwell @xclerc
 
 flambda_backend.opam    @mshinwell @lthls
 

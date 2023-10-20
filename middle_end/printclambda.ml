@@ -64,6 +64,10 @@ let layout (layout : Lambda.layout) =
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"
   | Punboxed_vector (Pvec128 ty) ->
     Format.sprintf ":unboxed_%s" (Lambda.vec128_name ty)
+  | Punboxed_product layouts ->
+    Format.asprintf ":unboxed_product(%a)"
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+         Printlambda.layout) layouts
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
@@ -105,7 +109,7 @@ and one_fun ppf f =
     in
     iter f.params f.arity.params_layout
   in
-  fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%t@]@ @[<2>%a@])"
+  fprintf ppf "(fun@ %s%s@ %a@ %d@ @[<2>%t@]@ @[<2>%a@])"
     f.label (layout f.arity.return_layout) Printlambda.check_attribute f.check
     (List.length f.arity.params_layout) idents lam f.body
 

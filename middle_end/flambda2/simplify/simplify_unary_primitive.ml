@@ -592,6 +592,12 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     | Proved ((Heap_or_local | Local), _) | Unknown ->
       SPR.create_unknown dacc ~result_var K.value ~original_term)
 
+let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -642,5 +648,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
+    | Get_header -> simplify_get_header ~original_prim
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

@@ -203,7 +203,22 @@ let print_instr b = function
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
-
+  | CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
+  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" (Imm (Int64.of_int shuf)) arg1 arg2
+  | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
+  | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
+  | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
+  | DIVPS (arg1, arg2) -> i2 b "divps" arg1 arg2
+  | MAXPS (arg1, arg2) -> i2 b "maxps" arg1 arg2
+  | MINPS (arg1, arg2) -> i2 b "minps" arg1 arg2
+  | RCPPS (arg1, arg2) -> i2 b "rcpps" arg1 arg2
+  | SQRTPS (arg1, arg2) -> i2 b "sqrtps" arg1 arg2
+  | RSQRTPS (arg1, arg2) -> i2 b "rsqrtps" arg1 arg2
+  | MOVHLPS (arg1, arg2) -> i2 b "movhlps" arg1 arg2
+  | MOVLHPS (arg1, arg2) -> i2 b "movlhps" arg1 arg2
+  | UNPCKHPS (arg1, arg2) -> i2 b "unpckhps" arg1 arg2
+  | UNPCKLPS (arg1, arg2) -> i2 b "unpcklps" arg1 arg2
+  | MOVMSKPS (arg1, arg2) -> i2 b "movmskps" arg1 arg2
 
 let print_line b = function
   | Ins instr -> print_instr b instr

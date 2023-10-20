@@ -288,13 +288,112 @@ let pr_var_layout ppf (v, l) = match l with
 let pr_var_layouts =
   print_list pr_var_layout (fun ppf -> fprintf ppf "@ ")
 
-let join_modes rm1 am2 =
-  match rm1, am2 with
-  | Oam_local, _ -> Oam_local
-  | _, Oam_local -> Oam_local
-  | Oam_unknown, _ -> Oam_unknown
-  | _, Oam_unknown -> Oam_unknown
-  | Oam_global, Oam_global -> Oam_global
+let join_locality lm1 lm2 =
+  match lm1, lm2 with
+  | Olm_local, _ -> Olm_local
+  | _, Olm_local -> Olm_local
+  | Olm_unknown, _ -> Olm_unknown
+  | _, Olm_unknown -> Olm_unknown
+  | Olm_global, Olm_global -> Olm_global
+
+let join_uniqueness u1 u2 =
+  match u1, u2 with
+  | Oum_shared, _ -> Oum_shared
+  | _, Oum_shared -> Oum_shared
+  | Oum_unknown, _ -> Oum_unknown
+  | _, Oum_unknown -> Oum_unknown
+  | Oum_unique, Oum_unique -> Oum_unique
+
+let join_linearity l1 l2 =
+  match l1, l2 with
+  | Olinm_once, _
+  | _, Olinm_once -> Olinm_once
+  | Olinm_unknown, _
+  | _, Olinm_unknown -> Olinm_unknown
+  | Olinm_many, Olinm_many -> Olinm_many
+
+let uniqueness_to_linearity = function
+  | Oum_unique -> Olinm_once
+  | Oum_shared -> Olinm_many
+  | Oum_unknown -> Olinm_unknown
+
+let join_modes m1 m2 =
+  { oam_locality = join_locality m1.oam_locality m2.oam_locality;
+    oam_uniqueness = join_uniqueness m1.oam_uniqueness m2.oam_uniqueness;
+    oam_linearity = join_linearity m1.oam_linearity m2.oam_linearity }
+
+let default_mode =
+  { oam_locality = Olm_global;
+    oam_uniqueness = Oum_shared;
+    oam_linearity = Olinm_many; }
+
+let close_over arg_mode =
+  let oam_locality = arg_mode.oam_locality in
+  let oam_uniqueness = Oum_shared in
+  let oam_linearity =
+    join_linearity
+      arg_mode.oam_linearity
+      (uniqueness_to_linearity arg_mode.oam_uniqueness)
+  in
+  { oam_locality;
+    oam_uniqueness;
+    oam_linearity }
+
+let partial_apply alloc_mode =
+  let oam_locality = alloc_mode.oam_locality in
+  let oam_uniqueness = Oum_shared in
+  let oam_linearity = alloc_mode.oam_linearity in
+  { oam_locality; oam_uniqueness; oam_linearity }
+
+(* Following functions are used to check if the return mode can omitted in the
+   case of currying *)
+let locality_agree expected real =
+  match expected, real with
+  (* If expected and real matches, can omit *)
+  | Olm_local, Olm_local | Olm_global, Olm_global -> true
+  (* If the real mode is unknown, we'd rather not put extra parentheses, because
+     we wouldn't put "unknown" around the parentheses either, which would make
+     the printing even less precise *)
+  | _, Olm_unknown -> true
+  (* In all other cases (the real mode is known), we will print the mode to be
+     safe*)
+  | _, _ -> false
+
+let uniqueness_agree expected real =
+  match expected, real with
+  | Oum_unique, Oum_unique | Oum_shared, Oum_shared -> true
+  | _, Oum_unknown -> true
+  | _, _ -> false
+
+let linearity_agree expected real =
+  match expected, real with
+  | Olinm_many, Olinm_many | Olinm_once, Olinm_once -> true
+  | _, Olinm_unknown -> true
+  | _, _ -> false
+
+let mode_agree expected real =
+  locality_agree expected.oam_locality real.oam_locality &&
+  uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
+  linearity_agree expected.oam_linearity real.oam_linearity
+
+let print_out_layout ppf = function
+  | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
+  | Olay_var v     -> fprintf ppf "%s" v
+
+let is_local mode =
+  match mode.oam_locality with
+  | Olm_local -> true
+  | _ -> false
+
+let is_unique mode =
+  match mode.oam_uniqueness with
+  | Oum_unique -> true
+  | _ -> false
+
+let is_once mode =
+  match mode.oam_linearity with
+  | Olinm_once -> true
+  | _ -> false
 
 let rec print_out_type_0 mode ppf =
   function
@@ -309,6 +408,33 @@ let rec print_out_type_0 mode ppf =
   | ty ->
       print_out_type_1 mode ppf ty
 
+and print_out_type_mode mode ppf ty =
+  let is_local = is_local mode in
+  let is_unique = is_unique mode in
+  let is_once = is_once mode in
+  if (not is_local || Language_extension.is_enabled Local) &&
+     (not is_unique || Language_extension.is_enabled Unique) &&
+     (not is_once || Language_extension.is_enabled Unique)
+  (* this branch does not need attributes at all *)
+  then begin
+    if is_local then begin
+      pp_print_string ppf "local_";
+      pp_print_space ppf () end;
+    if is_unique then begin
+      pp_print_string ppf "unique_";
+      pp_print_space ppf () end;
+    if is_once then begin
+      pp_print_string ppf "once_";
+      pp_print_space ppf () end;
+    print_out_type_2 mode ppf ty end
+  else
+    (* otherwise we would rather print everything in attributes
+       even if extensions are enabled *)
+    let ty = if is_unique then Otyp_attribute (ty, {oattr_name="unique"}) else ty in
+    let ty = if is_local then Otyp_attribute (ty, {oattr_name="local"}) else ty in
+    let ty = if is_once then Otyp_attribute (ty, {oattr_name="once"}) else ty in
+    print_out_type ppf ty
+
 and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
@@ -317,40 +443,26 @@ and print_out_type_1 mode ppf =
       print_out_arg am ppf ty1;
       pp_print_string ppf " ->";
       pp_print_space ppf ();
-      let mode = join_modes mode am in
+      let mode =
+        join_modes
+          (partial_apply mode)
+          (close_over am)
+      in
       print_out_ret mode rm ppf ty2;
       pp_close_box ppf ()
-  | ty ->
-    match mode with
-    | Oam_local ->
-        print_out_type_local mode ppf ty
-    | Oam_unknown -> print_out_type_2 mode ppf ty
-    | Oam_global -> print_out_type_2 mode ppf ty
+  | ty -> print_out_type_mode mode ppf ty
 
 and print_out_arg am ppf ty =
-  match am with
-  | Oam_local ->
-      print_out_type_local am ppf ty
-  | Oam_global -> print_out_type_2 am ppf ty
-  | Oam_unknown -> print_out_type_2 am ppf ty
+  print_out_type_mode am ppf ty
 
-and print_out_ret mode rm ppf ty =
-  match mode, rm with
-  | Oam_local, Oam_local
-  | Oam_global, Oam_global -> print_out_type_1 rm ppf ty
-  | _, Oam_local ->
-      print_out_type_local rm ppf ty
-  | _, Oam_global -> print_out_type_2 rm ppf ty
-  | _, Oam_unknown -> print_out_type_1 rm ppf ty
-
-and print_out_type_local m ppf ty =
-  if Language_extension.is_enabled Local then begin
-    pp_print_string ppf "local_";
-    pp_print_space ppf ();
-    print_out_type_2 m ppf ty
-  end else begin
-    print_out_type ppf (Otyp_attribute (ty, {oattr_name="local"}))
-  end
+and print_out_ret mode rm ppf =
+  function
+  (* the 'mode' argument only has meaning if we are talking about closure *)
+  | Otyp_arrow _ as ty ->
+    if mode_agree mode rm
+      then print_out_type_1 rm ppf ty
+      else print_out_type_mode rm ppf ty
+  | ty -> print_out_type_mode rm ppf ty
 
 and print_out_type_2 mode ppf =
   function
@@ -418,9 +530,9 @@ and print_out_type_3 mode ppf =
       (print_out_type_0 mode) t
       print_out_layout lay
 and print_out_type ppf typ =
-  print_out_type_0 Oam_global ppf typ
+  print_out_type_0 default_mode ppf typ
 and print_simple_out_type ppf typ =
-  print_out_type_3 Oam_global ppf typ
+  print_out_type_3 default_mode ppf typ
 and print_record_decl ppf lbls =
   fprintf ppf "{%a@;<1 -2>}"
     (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
@@ -520,7 +632,7 @@ let rec print_out_class_type ppf =
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
       fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
-        (print_out_type_2 Oam_global) ty print_out_class_type cty
+        (print_out_type_2 default_mode) ty print_out_class_type cty
   | Octy_signature (self_ty, csil) ->
       let pr_param ppf =
         function
@@ -652,6 +764,11 @@ and print_simple_out_module_type ppf =
   | Omty_alias id -> fprintf ppf "(module %a)" print_ident id
   | Omty_functor _ as non_simple ->
      fprintf ppf "(%a)" print_out_module_type non_simple
+  | Omty_strengthen (mty, id, unaliasable) ->
+     fprintf ppf "(%a with %a%s)"
+       print_simple_out_module_type mty
+       print_ident id
+       (if unaliasable then " [@unaliasable]" else "")
 and print_out_signature ppf =
   function
     [] -> ()

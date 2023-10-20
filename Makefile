@@ -183,4 +183,4 @@ ocamlopt:
 
 .ocamldebug: install
 	find _build/main -name '*.cmo' -type f -printf 'directory %h\n' | sort -u > .ocamldebug
-	echo "source ocaml/tools/debug_printers" >> .ocamldebug
+	echo "source _build/main/$(ocamldir)/tools/debug_printers" >> .ocamldebug

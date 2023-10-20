@@ -17,13 +17,13 @@
 type t =
   { code_id : Code_id.t;
     newer_version_of : Code_id.t option;
-    params_arity : Flambda_arity.t;
+    params_arity : [`Complex] Flambda_arity.t;
     param_modes : Alloc_mode.For_types.t list;
     first_complex_local_param : int;
     (* Note: first_complex_local_param cannot be computed from param_modes,
        because it might be 0 if the closure itself has to be allocated locally,
        for instance as a result of a partial application. *)
-    result_arity : Flambda_arity.t;
+    result_arity : [`Unarized] Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
@@ -123,10 +123,10 @@ include Code_metadata_accessors [@inlined hint] (Metadata_view)
 type 'a create_type =
   Code_id.t ->
   newer_version_of:Code_id.t option ->
-  params_arity:Flambda_arity.t ->
+  params_arity:[`Complex] Flambda_arity.t ->
   param_modes:Alloc_mode.For_types.t list ->
   first_complex_local_param:int ->
-  result_arity:Flambda_arity.t ->
+  result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
@@ -161,12 +161,13 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
   if first_complex_local_param < 0
-     || first_complex_local_param > Flambda_arity.cardinal params_arity
+     || first_complex_local_param > Flambda_arity.num_params params_arity
   then
     Misc.fatal_errorf
       "Illegal first_complex_local_param=%d for params arity: %a"
       first_complex_local_param Flambda_arity.print params_arity;
-  if List.compare_length_with param_modes (Flambda_arity.cardinal params_arity)
+  if List.compare_length_with param_modes
+       (Flambda_arity.cardinal_unarized params_arity)
      <> 0
   then
     Misc.fatal_errorf "Parameter modes do not match arity: %a and (%a)"
@@ -281,12 +282,12 @@ let [@ocamlformat "disable"] print ppf
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
     Flambda_colours.pop
-    (if Flambda_arity.is_singleton_value params_arity
+    (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     Flambda_arity.print params_arity
-    (if Flambda_arity.is_singleton_value params_arity
+    (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
@@ -306,12 +307,12 @@ let [@ocamlformat "disable"] print ppf
     else Flambda_colours.none)
     Flambda_colours.pop
     first_complex_local_param
-    (if Flambda_arity.is_singleton_value result_arity
+    (if Flambda_arity.is_one_param_of_kind_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     Flambda_arity.print result_arity
-    (if Flambda_arity.is_singleton_value result_arity
+    (if Flambda_arity.is_one_param_of_kind_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop

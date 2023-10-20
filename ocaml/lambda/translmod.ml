@@ -316,7 +316,8 @@ let init_shape id modl =
   let rec init_shape_mod subid loc env mty =
     match Mtype.scrape env mty with
       Mty_ident _
-    | Mty_alias _ ->
+    | Mty_alias _
+    | Mty_strengthen _ ->
         raise (Initialization_failure
                 (Unsafe {reason=Unsafe_module_binding;loc;subid}))
     | Mty_signature sg ->

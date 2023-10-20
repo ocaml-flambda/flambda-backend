@@ -121,7 +121,6 @@ module I : sig
   val cmpsd : float_condition -> arg -> arg -> unit
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
-  val crc32 : arg -> arg -> unit
   val cvtsd2si: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
@@ -187,4 +186,27 @@ module I : sig
   val xchg: arg -> arg -> unit
   val xor: arg -> arg -> unit
   val xorpd: arg -> arg -> unit
+
+  (* SSE instructions *)
+
+  val cmpps: float_condition -> arg -> arg -> unit
+  val shufps: int -> arg -> arg -> unit
+  val addps: arg -> arg -> unit
+  val subps: arg -> arg -> unit
+  val mulps: arg -> arg -> unit
+  val divps: arg -> arg -> unit
+  val maxps: arg -> arg -> unit
+  val minps: arg -> arg -> unit
+  val rcpps: arg -> arg -> unit
+  val sqrtps: arg -> arg -> unit
+  val rsqrtps: arg -> arg -> unit
+  val movhlps: arg -> arg -> unit
+  val movlhps: arg -> arg -> unit
+  val unpckhps: arg -> arg -> unit
+  val unpcklps: arg -> arg -> unit
+  val movmskps: arg -> arg -> unit
+
+  (* SSE4.2 instructions *)
+
+  val crc32 : arg -> arg -> unit
 end

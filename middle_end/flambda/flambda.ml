@@ -208,12 +208,27 @@ let print_move_within_set_of_closures =
   Projection.print_move_within_set_of_closures
 let print_project_closure = Projection.print_project_closure
 
+let print_call_attrs ppf (mode, reg_close) =
+  let mode ppf () =
+    match (mode : Lambda.alloc_mode) with
+    | Alloc_local -> fprintf ppf "<local>"
+    | Alloc_heap -> ()
+  in
+  let reg_close ppf () =
+    match (reg_close : Lambda.region_close) with
+    | Rc_nontail -> fprintf ppf "<nontail>"
+    | Rc_close_at_apply -> fprintf ppf "<close>"
+    | Rc_normal -> ()
+  in
+  fprintf ppf "%a%a" mode () reg_close ()
+
 (** CR-someday lwhite: use better name than this *)
-let rec lam ppf (flam : t) =
+let [@warning "+missing-record-field-pattern"] rec lam ppf (flam : t) =
   match flam with
   | Var (id) ->
       Variable.print ppf id
-  | Apply({func; args; kind; inlined; probe; dbg; result_layout}) ->
+  | Apply({func; args; kind; inlined; probe; dbg; result_layout;
+           mode; reg_close; specialise = _}) ->
     let direct ppf () =
       match kind with
       | Indirect -> ()
@@ -230,9 +245,11 @@ let rec lam ppf (flam : t) =
     let probe ppf () =
       match probe with
       | None -> ()
-      | Some {name} -> fprintf ppf "<probe %s>" name
+      | Some {name; enabled_at_init = _} -> fprintf ppf "<probe %s>" name
     in
-    fprintf ppf "@[<2>(apply%a%a%a<%s>%a@ %a%a)@]" direct () inlined () probe ()
+    fprintf ppf "@[<2>(apply%a%a%a%a<%s>%a@ %a%a)@]" direct ()
+      print_call_attrs (mode, reg_close)
+      inlined () probe ()
       (Debuginfo.to_string dbg)
       Printlambda.layout result_layout
       Variable.print func Variable.print_list args
@@ -240,7 +257,8 @@ let rec lam ppf (flam : t) =
     fprintf ppf "@[<2>(assign@ %a@ %a)@]"
       Mutable_variable.print being_assigned
       Variable.print new_value
-  | Send { kind; meth; obj; args; dbg = _; } ->
+  | Send { kind; meth; obj; args; mode; reg_close;
+           result_layout = _; dbg = _; } ->
     let print_args ppf args =
       List.iter (fun l -> fprintf ppf "@ %a" Variable.print l) args
     in
@@ -250,7 +268,8 @@ let rec lam ppf (flam : t) =
       | Public -> "public"
       | Cached -> "cached"
     in
-    fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind
+    fprintf ppf "@[<2>(send%s%a@ %a@ %a%a)@]" kind
+      print_call_attrs (mode, reg_close)
       Variable.print obj Variable.print meth
       print_args args
   | Proved_unreachable ->

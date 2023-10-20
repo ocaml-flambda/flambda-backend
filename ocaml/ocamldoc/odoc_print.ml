@@ -55,7 +55,8 @@ let simpl_module_type ?code t =
   let rec iter t =
     match t with
       Mty_ident _
-    | Mty_alias _ -> t
+    | Mty_alias _
+    | Mty_strengthen _ -> t
     | Mty_signature _ ->
         (
          match code with

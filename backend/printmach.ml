@@ -225,6 +225,15 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
+  | Ivectorcast Bits128 ->
+    fprintf ppf "vec128->vec128 %a"
+      reg arg.(0)
+  | Iscalarcast (V128_of_scalar ty) ->
+    fprintf ppf "scalar->%s %a"
+      (Primitive.vec128_name ty) reg arg.(0)
+  | Iscalarcast (V128_to_scalar ty) ->
+    fprintf ppf "%s->scalar %a"
+      (Primitive.vec128_name ty) reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; regs = r } ->
     fprintf ppf "%a holds the value of %a%s"

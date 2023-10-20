@@ -87,6 +87,7 @@
   backend_var
   clambda
   clambda_primitives
+  clambda_layout
   compilenv
   mangling
   convert_primitives
@@ -207,6 +208,8 @@
   printmach
   checkmach
   proc
+  simd
+  simd_selection
   reg
   reload
   reloadgen
