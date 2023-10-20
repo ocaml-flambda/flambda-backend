@@ -26,6 +26,7 @@ val maybe_pointer : Typedtree.expression -> Lambda.immediate_or_pointer
 val array_type_kind : Env.t -> Types.type_expr -> Lambda.array_kind
 val array_kind : Typedtree.expression -> Lambda.array_kind
 val array_pattern_kind : Typedtree.pattern -> Lambda.array_kind
+val array_element_sort : Lambda.array_kind -> Jkind.Sort.t
 val bigarray_type_kind_and_layout :
       Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
 

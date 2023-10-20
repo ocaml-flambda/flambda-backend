@@ -502,7 +502,7 @@ let glb_array_type t1 t2 =
   | Pfloatarray, Pfloatarray -> Pfloatarray
   | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
 
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs - glb logic"
 
 let glb_array_ref_type t1 t2 =
   match t1, t2 with
@@ -532,7 +532,7 @@ let glb_array_ref_type t1 t2 =
 
   | Punboxedfloatarray_ref, Punboxedfloatarray -> Punboxedfloatarray_ref
 
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs - glb logic"
 
 let glb_array_set_type t1 t2 =
   match t1, t2 with
@@ -562,7 +562,7 @@ let glb_array_set_type t1 t2 =
 
   | Punboxedfloatarray_set, Punboxedfloatarray -> Punboxedfloatarray_set
 
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs - glb logic"
 
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void

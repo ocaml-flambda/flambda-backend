@@ -80,6 +80,7 @@ let is_base_type env ty base_ty_path =
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
+(* Require sort variables to be determined before calling this *)
 let is_jkind_float64 env ty =
   let jkind = Jkind.float64 ~why:Float64_check in
   Result.is_ok (Ctype.check_type_jkind env ty jkind)
@@ -115,6 +116,7 @@ type classification =
    be updated to check for unboxed float. *)
 let classify env ty : classification =
   let ty = scrape_ty env ty in
+  Ctype.remove_mode_and_jkind_variables ty;
   if is_always_gc_ignorable env ty then Int
   else if is_jkind_float64 env ty then Unboxed_float
   else match get_desc ty with
@@ -167,6 +169,15 @@ let array_type_kind env ty =
 let array_kind exp = array_type_kind exp.exp_env exp.exp_type
 
 let array_pattern_kind pat = array_type_kind pat.pat_env pat.pat_type
+
+let array_element_sort array_kind =
+  match array_kind with
+  | Pgenarray | Paddrarray | Pfloatarray | Pintarray ->
+    Jkind.Sort.value
+  | Punboxedfloatarray -> Jkind.Sort.float64
+  (* CR layouts v4: Unboxed int array not yet supported.
+     Change this when that happens *)
+  | Punboxedintarray _ -> Jkind.Sort.value
 
 let bigarray_decode_type env ty tbl dfl =
   match scrape env ty with

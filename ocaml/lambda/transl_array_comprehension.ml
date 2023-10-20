@@ -491,7 +491,7 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_body   =
                  Matching.for_let
                    ~scopes
-                   ~arg_sort:Jkind.Sort.for_array_element
+                   ~arg_sort:(Typeopt.array_element_sort iter_arr_kind)
                    ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
                    (Lprim(Parrayrefu
@@ -834,7 +834,7 @@ let comprehension
               ~index
               (* CR layouts v4: Ensure that the [transl_exp] here can cope
                  with non-values. *)
-              ~body:(transl_exp ~scopes Jkind.Sort.for_array_element comp_body)),
+              ~body:(transl_exp ~scopes (Typeopt.array_element_sort array_kind) comp_body)),
          (* If it was dynamically grown, cut it down to size *)
          match array_sizing with
          | Fixed_size -> array.var

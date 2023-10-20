@@ -819,7 +819,11 @@ let rec comp_expr env exp sz cont =
           else comp_args env args sz
                  (Kmakeblock(List.length args, 0) ::
                   Kccall("caml_make_array", 1) :: cont)
-      | Punboxedfloatarray | Punboxedintarray _ ->
+      | Punboxedfloatarray ->
+          if Config.flat_float_array
+          then comp_args env args sz (Kmakefloatblock(List.length args) :: cont)
+          else comp_args env args sz (Kmakeblock(List.length args, 0) :: cont)
+      | Punboxedintarray _ ->
           Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
       end
   | Lprim (Pduparray (kind, mutability),

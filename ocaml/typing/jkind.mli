@@ -118,8 +118,6 @@ module Sort : sig
 
   val for_array_get_result : t
 
-  val for_array_element : t
-
   val for_list_element : t
 
   (** These are sorts for the types of ocaml expressions that we expect will
@@ -183,6 +181,7 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
+  | Array_element
 
 type annotation_context =
   | Type_declaration of Path.t
@@ -221,7 +220,6 @@ type value_creation_reason =
   | Default_type_jkind
   | Float_record_field
   | Existential_type_variable
-  | Array_element
   | Lazy_expression
   | Class_argument
   | Structure_element

@@ -586,9 +586,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_array (amut, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
       let kind = array_kind e in
+      let element_sort = array_element_sort kind in
       let ll =
         transl_list ~scopes
-          (List.map (fun e -> (e, Jkind.Sort.for_array_element)) expr_list)
+          (List.map (fun e -> (e, element_sort)) expr_list)
       in
       let loc = of_location ~scopes e.exp_loc in
       let makearray mutability =
