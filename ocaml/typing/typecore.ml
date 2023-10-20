@@ -3737,7 +3737,7 @@ end = struct
   let function_ cases =
     let rec loop_cases cases =
       match cases with
-      | [] -> Misc.fatal_error "empty cases in function_"
+      | [] -> Either
       | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
           loop_body e
       | case :: cases ->
