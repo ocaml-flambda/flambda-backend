@@ -509,6 +509,7 @@ type check_attribute =
   | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
@@ -1662,3 +1663,12 @@ let array_set_kind mode = function
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+
+let is_check_enabled ~opt property =
+  match property with
+  | Zero_alloc ->
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_all -> true
+    | Check_default -> not opt
+    | Check_opt_only -> opt
