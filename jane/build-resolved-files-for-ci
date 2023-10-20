@@ -70,6 +70,7 @@ mls=$(
   { echo driver/{compenv,compmisc,main_args}.ml
     echo parsing/parser.ml
     echo {utils,parsing}/*.ml
+    echo lambda/{lambda,tmc,simplif}.ml
     for f in "${typing_mls[@]}"; do
         echo "typing/${f}.ml"
     done
