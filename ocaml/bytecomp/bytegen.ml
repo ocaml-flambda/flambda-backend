@@ -470,23 +470,35 @@ let comp_primitive p args =
   | Parrayrefs (Pfloatarray_ref _) -> Kccall("caml_floatarray_get", 2)
   | Parrayrefs (Paddrarray_ref | Pintarray_ref) ->
       Kccall("caml_array_get_addr", 2)
-  | Parrayrefs (Punboxedfloatarray_ref | Punboxedintarray_ref _) ->
+  | Parrayrefs Punboxedfloatarray_ref ->
+      if Config.flat_float_array then Kccall("caml_floatarray_get", 2)
+      else Kccall("caml_array_get_addr", 2)
+  | Parrayrefs (Punboxedintarray_ref _) ->
       Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
   | Parraysets (Pgenarray_set _) -> Kccall("caml_array_set", 3)
   | Parraysets Pfloatarray_set -> Kccall("caml_floatarray_set", 3)
   | Parraysets (Paddrarray_set _ | Pintarray_set) ->
       Kccall("caml_array_set_addr", 3)
-  | Parraysets (Punboxedfloatarray_set | Punboxedintarray_set _) ->
+  | Parraysets Punboxedfloatarray_set ->
+      if Config.flat_float_array then Kccall("caml_floatarray_set", 3)
+      else Kccall("caml_array_set_addr", 3)
+  | Parraysets (Punboxedintarray_set _) ->
       Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
   | Parrayrefu (Pgenarray_ref _) -> Kccall("caml_array_unsafe_get", 2)
   | Parrayrefu (Pfloatarray_ref _) -> Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu (Paddrarray_ref | Pintarray_ref) -> Kgetvectitem
-  | Parrayrefu (Punboxedfloatarray_ref | Punboxedintarray_ref _) ->
+  | Parrayrefu Punboxedfloatarray_ref ->
+      if Config.flat_float_array then Kccall("caml_floatarray_unsafe_get", 2)
+      else Kgetvectitem
+  | Parrayrefu (Punboxedintarray_ref _) ->
       Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
   | Parraysetu (Pgenarray_set _) -> Kccall("caml_array_unsafe_set", 3)
   | Parraysetu Pfloatarray_set -> Kccall("caml_floatarray_unsafe_set", 3)
   | Parraysetu (Paddrarray_set _ | Pintarray_set) -> Ksetvectitem
-  | Parraysetu (Punboxedfloatarray_set | Punboxedintarray_set _) ->
+  | Parraysetu Punboxedfloatarray_set ->
+      if Config.flat_float_array then Kccall("caml_floatarray_unsafe_set", 3)
+      else Ksetvectitem
+  | Parraysetu (Punboxedintarray_set _) ->
       Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
   | Pctconst c ->
      let const_name = match c with
