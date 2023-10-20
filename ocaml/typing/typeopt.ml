@@ -156,10 +156,7 @@ let array_type_kind env ty =
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
       | Addr | Lazy -> Paddrarray
       | Int -> Pintarray
-      | Unboxed_float -> begin
-          if !Clflags.native_code then Punboxedfloatarray
-          else if Config.flat_float_array then Pfloatarray else Paddrarray
-        end
+      | Unboxed_float -> Punboxedfloatarray
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
