@@ -3658,7 +3658,6 @@ end = struct
     | Local of Location.t  (* location of a local return *)
     | Not of Location.t  (* location of a non-local return *)
     | Either
-      [@@warning "-unused-constructor"]
 
   let combine flag1 flag2 =
     match flag1, flag2 with
@@ -3738,7 +3737,7 @@ end = struct
   let function_ cases =
     let rec loop_cases cases =
       match cases with
-      | [] -> Misc.fatal_error "empty cases in function_"
+      | [] -> Either
       | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
           loop_body e
       | case :: cases ->
