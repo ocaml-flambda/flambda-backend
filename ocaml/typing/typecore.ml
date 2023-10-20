@@ -3658,7 +3658,6 @@ end = struct
     | Local of Location.t  (* location of a local return *)
     | Not of Location.t  (* location of a non-local return *)
     | Either
-      [@@warning "-unused-constructor"]
 
   let combine flag1 flag2 =
     match flag1, flag2 with
