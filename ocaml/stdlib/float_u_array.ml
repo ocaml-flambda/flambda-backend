@@ -33,11 +33,11 @@ external make: int -> ('a : float64) -> ('a : float64) array =
   "caml_make_float_u_array_byte" "caml_make_float_u_array"
 external create: int -> ('a : float64) -> ('a : float64) array =
   "caml_make_float_u_array_byte" "caml_make_float_u_array"
-external unsafe_sub : ('a : float64) array -> int -> int -> ('a : float64) array = "caml_array_sub" "caml_float_u_array_sub"
-external append_prim : ('a : float64) array -> ('a : float64) array -> ('a : float64) array = "caml_array_append" "caml_float_u_array_append"
-external concat : ('a : float64) array list -> ('a : float64) array = "caml_array_concat" "caml_float_u_array_concat"
+external unsafe_sub : ('a : float64) array -> int -> int -> ('a : float64) array = "caml_float_u_array_sub"
+external append_prim : ('a : float64) array -> ('a : float64) array -> ('a : float64) array = "caml_float_u_array_append"
+external concat : ('a : float64) array list -> ('a : float64) array = "caml_float_u_array_concat"
 external unsafe_blit :
-  ('a : float64) array -> int -> ('a : float64) array -> int -> int -> unit = "caml_array_blit" "caml_floatarray_blit"
+  ('a : float64) array -> int -> ('a : float64) array -> int -> int -> unit = "caml_floatarray_blit"
 external unsafe_fill :
   ('a : float64) array -> int -> int -> ('a : float64) -> unit = "caml_float_u_array_fill_byte" "caml_float_u_array_fill"
 (* external create_float: int -> float array = "caml_make_float_vect"

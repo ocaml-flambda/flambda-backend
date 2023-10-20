@@ -845,7 +845,6 @@ CAMLprim value caml_make_float_u_array(value len, double init)
 
 CAMLprim value caml_make_float_u_array_byte(value len, value init)
 {
-#ifdef FLAT_FLOAT_ARRAY
   CAMLparam2 (len, init);
   CAMLlocal1 (res);
 
@@ -853,9 +852,6 @@ CAMLprim value caml_make_float_u_array_byte(value len, value init)
   // Give the GC a chance to run, and run memprof callbacks
   caml_process_pending_actions ();
   CAMLreturn (res);
-#else
-  return caml_make_vect(len, init);
-#endif
 }
 
 
@@ -877,11 +873,7 @@ CAMLprim value caml_float_u_array_fill_byte(value array,
                                             value v_len,
                                             value val)
 {
-#ifdef FLAT_FLOAT_ARRAY
   return caml_float_u_array_fill(array, v_ofs, v_len, Double_val(val));
-#else
-  return caml_array_fill(array, v_ofs, v_len, val);
-#endif
 }
 
 CAMLprim value caml_float_u_array_empty(value unit)
