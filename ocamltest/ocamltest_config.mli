@@ -128,13 +128,6 @@ val function_sections : bool
 val instrumented_runtime : bool
 (** Whether the instrumented runtime is available *)
 
-(* CR ocaml 5 runtime: We should delete this flag, as this option
-   is no longer supported in the OCaml 5 runtime. (We could probably delete
-   it now, but it's hard for me to tell offhand whether any tests use this.)
- *)
-val naked_pointers : bool
-(** Whether the runtime system supports naked pointers outside the heap *)
-
 val probes : bool
 (** Whether the target supports tracing probes *)
 

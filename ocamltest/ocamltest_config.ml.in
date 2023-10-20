@@ -54,7 +54,7 @@ let ocamlsrcdir = {@QS@|@ocamlsrcdir@|@QS@}
 
 let flambda = @flambda@
 
-let flambda2 = %%FLAMBDA2%%
+let flambda2 = @flambda2@
 
 let ocamlc_default_flags = ""
 let ocamlopt_default_flags = ""
@@ -92,20 +92,10 @@ let function_sections = @function_sections@
 
 let instrumented_runtime = @instrumented_runtime@
 
-<<<<<<< HEAD
-let instrumented_runtime = %%INSTRUMENTED_RUNTIME%%
-
-let naked_pointers = %%NAKED_POINTERS%%
-
-let probes = %%PROBES%%
-
-let stack_allocation = %%STACK_ALLOCATION%%
-
-let poll_insertion = %%POLL_INSERTION%%
-||||||| merged common ancestors
-let instrumented_runtime = %%INSTRUMENTED_RUNTIME%%
-
-let naked_pointers = %%NAKED_POINTERS%%
-=======
 let frame_pointers = @frame_pointers@
->>>>>>> ocaml/5.1
+
+let probes = @probes@
+
+let stack_allocation = @stack_allocation@
+
+let poll_insertion = @poll_insertion@

@@ -1163,34 +1163,18 @@ let no_flat_float_array = make
     "compiler configured with --enable-flat-float")
 
 let flambda = Actions.make
-<<<<<<< HEAD
-  "flambda"
+  ~name:"flambda"
+  ~description:"Passes if the compiler is configured with flambda or flambda2 enabled"
   (Actions_helpers.pass_or_skip
      (Ocamltest_config.flambda || Ocamltest_config.flambda2)
-||||||| merged common ancestors
-  "flambda"
-  (Actions_helpers.pass_or_skip Ocamltest_config.flambda
-=======
-  ~name:"flambda"
-  ~description:"Passes if the compiler is configured with flambda enabled"
-  (Actions_helpers.pass_or_skip Ocamltest_config.flambda
->>>>>>> ocaml/5.1
     "support for flambda enabled"
     "support for flambda disabled")
 
 let no_flambda = make
-<<<<<<< HEAD
-  "no-flambda"
+  ~name:"no-flambda"
+  ~description:"Passes if the compiler is NOT configured with flambda or flambda2 enabled"
   (Actions_helpers.pass_or_skip
      (not (Ocamltest_config.flambda || Ocamltest_config.flambda2))
-||||||| merged common ancestors
-  "no-flambda"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.flambda)
-=======
-  ~name:"no-flambda"
-  ~description:"Passes if the compiler is NOT configured with flambda enabled"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.flambda)
->>>>>>> ocaml/5.1
     "support for flambda disabled"
     "support for flambda enabled")
 
@@ -1265,25 +1249,29 @@ let no_afl_instrument = Actions.make
     "AFL instrumentation enabled")
 
 let stack_allocation = Actions.make
-  "stack-allocation"
+  ~name:"stack-allocation"
+  ~description:"Passes if stack allocation is enabled"
   (Actions_helpers.pass_or_skip Ocamltest_config.stack_allocation
     "Stack allocation enabled"
     "Stack allocation disabled")
 
 let no_stack_allocation = Actions.make
-  "no-stack-allocation"
+  ~name:"no-stack-allocation"
+  ~description:"Passes if stack allocation is disabled"
   (Actions_helpers.pass_or_skip (not Ocamltest_config.stack_allocation)
     "Stack allocation disabled"
     "Stack allocation enabled")
 
 let poll_insertion = Actions.make
-  "poll-insertion"
+  ~name:"poll-insertion"
+  ~description:"Passes if poll insertion is enabled"
   (Actions_helpers.pass_or_skip Ocamltest_config.poll_insertion
     "Poll insertion enabled"
     "Poll insertion disabled")
 
 let no_poll_insertion = Actions.make
-  "no-poll-insertion"
+  ~name:"no-poll-insertion"
+  ~description:"Passes if poll insertion is disabled"
   (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
     "Stack allocation disabled"
     "Stack allocation enabled")

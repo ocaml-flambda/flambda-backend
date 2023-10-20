@@ -20,51 +20,6 @@ open Builtin_actions
 open Ocaml_actions
 
 let bytecode =
-<<<<<<< HEAD
-  let test_actions =
-    if not Ocamltest_config.native_compiler then
-      [
-        setup_ocamlc_byte_build_env;
-        ocamlc_byte;
-        check_ocamlc_byte_output;
-        run;
-        check_program_output;
-      ]
-    else
-      [
-        setup_ocamlc_opt_build_env;
-        ocamlc_opt;
-        check_ocamlc_opt_output;
-        run;
-        check_program_output
-      ]
-  in
-  {
-    test_name = "bytecode";
-    test_run_by_default = true;
-    test_actions;
-  }
-||||||| merged common ancestors
-  let opt_actions =
-  [
-    setup_ocamlc_opt_build_env;
-    ocamlc_opt;
-    check_ocamlc_opt_output;
-    compare_bytecode_programs
-  ] in
-{
-  test_name = "bytecode";
-  test_run_by_default = true;
-  test_actions =
-  [
-    setup_ocamlc_byte_build_env;
-    ocamlc_byte;
-    check_ocamlc_byte_output;
-    run;
-    check_program_output;
-  ] @ (if Ocamltest_config.native_compiler then opt_actions else [])
-}
-=======
   let byte_build =
   [
     setup_ocamlc_byte_build_env;
@@ -82,7 +37,7 @@ let bytecode =
   test_run_by_default = true;
   test_description = "Build bytecode program, run it and check its output";
   test_actions =
-  (if Sys.win32 && Ocamltest_config.native_compiler then
+  (if true && Ocamltest_config.native_compiler then
     opt_build
   else
     byte_build) @
@@ -90,40 +45,14 @@ let bytecode =
     run;
     check_program_output;
   ] @
-  (if not Sys.win32 && Ocamltest_config.native_compiler then
+  (if false && Ocamltest_config.native_compiler then
     opt_build @ [compare_bytecode_programs]
   else
     []
   )
 }
->>>>>>> ocaml/5.1
 
 let native =
-<<<<<<< HEAD
-  let test_actions =
-    if not Ocamltest_config.native_compiler then [skip]
-    else
-      [
-        setup_ocamlopt_opt_build_env;
-        ocamlopt_opt;
-        check_ocamlopt_opt_output;
-        run;
-        check_program_output
-      ]
-  in
-||||||| merged common ancestors
-  let opt_actions =
-  [
-    setup_ocamlopt_byte_build_env;
-    ocamlopt_byte;
-    check_ocamlopt_byte_output;
-    run;
-    check_program_output;
-    setup_ocamlopt_opt_build_env;
-    ocamlopt_opt;
-    check_ocamlopt_opt_output;
-  ] in
-=======
   let byte_build =
   [
     setup_ocamlopt_byte_build_env;
@@ -137,7 +66,7 @@ let native =
     check_ocamlopt_opt_output;
   ] in
   let opt_actions =
-  (if Sys.win32 then
+  (if true then
     opt_build
   else
     byte_build
@@ -146,25 +75,17 @@ let native =
     run;
     check_program_output;
   ] @
-  (if not Sys.win32 then
+  (if false then
     opt_build
   else
     []
   ) in
->>>>>>> ocaml/5.1
   {
     test_name = "native";
     test_run_by_default = true;
-<<<<<<< HEAD
-    test_actions;
-||||||| merged common ancestors
+    test_description = "Build native program, run it and check its output";
     test_actions =
       (if Ocamltest_config.native_compiler then opt_actions else [skip])
-=======
-  test_description = "Build native program, run it and check its output";
-    test_actions =
-      (if Ocamltest_config.native_compiler then opt_actions else [skip])
->>>>>>> ocaml/5.1
   }
 
 let toplevel = {
@@ -183,14 +104,9 @@ let toplevel = {
 let nattoplevel = {
   test_name = "toplevel.opt";
   test_run_by_default = false;
-<<<<<<< HEAD
-||||||| merged common ancestors
-(*
-=======
   test_description =
     "Run the program in the native OCaml toplevel (ocamlnat) and check its \
      output";
->>>>>>> ocaml/5.1
   test_actions =
   [
     shared_libraries;
