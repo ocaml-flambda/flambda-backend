@@ -112,16 +112,10 @@ let main argv ppf =
     n
   | exception Continue
   | () ->
-<<<<<<< HEAD
-    Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
-      (fun ppf -> Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision);
-||||||| merged common ancestors
-    Profile.print Format.std_formatter !Clflags.profile_columns;
-=======
     Compmisc.with_ppf_dump ~file_prefix:"profile"
-      (fun ppf -> Profile.print ppf !Clflags.profile_columns);
->>>>>>> ocaml/5.1
+      (fun ppf -> Profile.print ppf !Clflags.profile_columns
+        ~timings_precision:!Clflags.timings_precision);
     0
   | exception x ->
-  Location.report_exception ppf x;
-  2
+    Location.report_exception ppf x;
+    2

@@ -241,15 +241,6 @@ let parse_warnings error v =
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
-<<<<<<< HEAD
-  let handled =
-    match !extra_params with
-    | Some h -> h ppf position name v
-    | None -> false
-  in
-  if not handled then
-||||||| merged common ancestors
-=======
   let compat name s =
     let error_if_unset = function
       | true -> true
@@ -260,7 +251,12 @@ let read_one_param ppf position name v =
     in
     setter ppf error_if_unset name [ ref true ] s
   in
->>>>>>> ocaml/5.1
+  let handled =
+    match !extra_params with
+    | Some h -> h ppf position name v
+    | None -> false
+  in
+  if not handled then
   match name with
   | "g" -> set "g" [ Clflags.debug ] v
   | "bin-annot" -> set "bin-annot" [ Clflags.binary_annotations ] v
@@ -504,14 +500,10 @@ let read_one_param ppf position name v =
     end
   | "dump-into-file" -> Clflags.dump_into_file := true
   | "dump-dir" -> Clflags.dump_dir := Some v
-<<<<<<< HEAD
 
   | "extension" -> Language_extension.enable_of_string_exn v
   | "disable-all-extensions" ->
     if check_bool ppf name v then Language_extension.disallow_extensions ()
-||||||| merged common ancestors
-=======
->>>>>>> ocaml/5.1
 
   | _ ->
     if !warnings_for_discarded_params &&

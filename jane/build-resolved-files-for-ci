@@ -10,7 +10,8 @@ echo "==========="
 
 # ocamlcommon mlis
 mlis=$(
-  { echo parsing/parser.mli
+  { echo driver/{compenv,compmisc,main_args}.mli
+    echo parsing/parser.mli
     echo {utils,typing,parsing,lambda}/*.mli
   } |
     tr ' ' '\n'
@@ -22,6 +23,22 @@ dune_targets=$(
     echo _build/default/.ocamlcommon.objs/byte/$cmi.cmi
   done
 )
+echo "$mlis"
+# ocamlbytecomp mlis
+mlis=$(
+  { echo driver/{errors,compile,maindriver}.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    cmi=$(basename ${mli%.mli})
+    echo _build/default/.ocamlbytecomp.objs/byte/$cmi.cmi
+  done
+)
+
 echo "Dune targets:"
 echo "$dune_targets"
 dune b --workspace=duneconf/boot.ws $dune_targets
@@ -50,7 +67,8 @@ typing_mls=(
 
 # ocamlcommon mls
 mls=$(
-  { echo parsing/parser.ml
+  { echo driver/{compenv,compmisc,main_args}.ml
+    echo parsing/parser.ml
     echo {utils,parsing}/*.ml
     for f in "${typing_mls[@]}"; do
         echo "typing/${f}.ml"
@@ -66,6 +84,22 @@ dune_targets=$(
   for ml in $mls; do
     cmx=$(basename ${ml%.ml})
     echo _build/default/.ocamlcommon.objs/native/$cmx.cmx
+  done
+)
+
+# ocamlbytecomp mls
+mls=$(
+  { echo driver/{errors,compile,maindriver}.ml
+  } |
+    tr ' ' '\n'
+)
+
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/.ocamlbytecomp.objs/native/$cmx.cmx
   done
 )
 echo "Dune targets:"

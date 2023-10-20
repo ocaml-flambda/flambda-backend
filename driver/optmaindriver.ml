@@ -72,14 +72,8 @@ let main argv ppf =
       | None ->
           Compenv.fatal "Please specify at most one of -pack, -a, -shared, -c, \
                          -output-obj";
-<<<<<<< HEAD
-      | Some ((P.Parsing | P.Typing | P.Scheduling
+      | Some ((P.Parsing | P.Typing | P.Lambda | P.Scheduling
               | P.Simplify_cfg | P.Emit | P.Selection) as p) ->
-||||||| merged common ancestors
-      | Some ((P.Parsing | P.Typing | P.Scheduling | P.Emit) as p) ->
-=======
-      | Some ((P.Parsing | P.Typing | P.Lambda | P.Scheduling | P.Emit) as p) ->
->>>>>>> ocaml/5.1
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
@@ -140,14 +134,7 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
-<<<<<<< HEAD
       Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
-        (fun ppf -> Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision);
-||||||| merged common ancestors
-    Profile.print Format.std_formatter !Clflags.profile_columns;
-    0
-=======
-      Compmisc.with_ppf_dump ~file_prefix:"profile"
-        (fun ppf -> Profile.print ppf !Clflags.profile_columns);
->>>>>>> ocaml/5.1
+        (fun ppf -> Profile.print ppf !Clflags.profile_columns
+        ~timings_precision:!Clflags.timings_precision);
       0
