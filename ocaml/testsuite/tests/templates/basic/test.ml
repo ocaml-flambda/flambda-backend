@@ -14,6 +14,7 @@ readonly_files = "\
 flags = "-as-parameter"
 module = "monoid.mli"
 *** ocamlc.byte
+flags = ""
 module = "bad_ref_direct.ml"
 compiler_output = "bad_ref_direct.output"
 ocamlc_byte_exit_status = "2"
@@ -44,9 +45,13 @@ flags = ""
 module = "test_direct_access.ml"
 ****** ocamlc.byte
 flags = ""
-program = "${test_build_directory}/test_direct_access.exe"
+program = "${test_build_directory}/test_direct_access.bc"
 module = ""
-all_modules = "string_monoid.cmo string_monoid_no_mli.cmo test_direct_access.cmo"
+all_modules = "\
+   string_monoid.cmo \
+   string_monoid_no_mli.cmo \
+   test_direct_access.cmo \
+"
 ******* run
 output = "test_direct_access.output"
 ******** check-program-output
