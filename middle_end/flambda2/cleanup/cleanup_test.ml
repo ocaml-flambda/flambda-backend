@@ -489,14 +489,54 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         free_names = Flambda.Apply_cont.free_names apply_cont
       },
       dacc )
-  | Apply apply ->
-    (* TODO apply_dep *)
+  | Apply apply -> begin
+    let default_dacc dacc =
+      (* TODO dep *)
+      Dacc.todo' dacc
+    in
+    let dacc =
+      match Apply_expr.call_kind apply with
+      | Function { function_call = Direct code_id; _ } ->
+        (* TODO think about wether we should propagate that cross module.
+           Probably not *)
+        if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
+        then
+          let code_dep = Dacc.find_code dacc code_id in
+          let dacc =
+            List.fold_left2
+              (fun dacc param arg -> Dacc.cont_dep param arg dacc)
+              dacc code_dep.params (Apply_expr.args apply)
+          in
+          let dacc =
+            match Apply_expr.continuation apply with
+            | Never_returns -> dacc
+            | Return cont -> (
+              match Continuation.Map.find cont denv.conts with
+              | Return | Exn -> Dacc.todo' dacc
+              | Normal params ->
+                List.fold_left2
+                  (fun dacc param arg ->
+                    Dacc.cont_dep param (Simple.var arg) dacc)
+                  dacc params code_dep.return)
+          in
+          (* TODO record exn continuation *)
+          let dacc = Dacc.todo' dacc in
+          (* TODO record function use *)
+          let dacc = Dacc.todo' dacc in
+          dacc
+        else default_dacc dacc
+      | Function
+          { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
+      | Method _ | C_call _ ->
+        default_dacc dacc
+    in
     let expr = Apply apply in
     ( { expr;
         holed_expr = denv.parent;
         free_names = Flambda.Apply.free_names apply
       },
       dacc )
+  end
   | Let_cont let_cont -> begin
     match let_cont with
     | Non_recursive
@@ -690,9 +730,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           | Some (field, block) ->
             let value_dep =
               Simple.pattern_match value
-                ~name:(fun name ~coercion:_ -> [block, Deps.Dep.Block (Block field, name)])
+                ~name:(fun name ~coercion:_ ->
+                  [block, Deps.Dep.Block (Block field, name)])
                 ~const:(fun _ -> [])
             in
+            (* TODO: record dependency on the primitive for side effects *)
             value_dep
         end
         | _ ->
