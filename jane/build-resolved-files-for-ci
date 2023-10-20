@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -euo pipefail
+
+make -f Makefile.jst _build/_bootinstall
+
+echo "==========="
+echo "Testing mlis"
+echo "==========="
+
+# ocamlcommon mlis
+mlis=$(
+  { echo parsing/parser.mli
+    echo {utils,typing,parsing,lambda}/*.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  for mli in $mlis; do
+    cmi=$(basename ${mli%.mli})
+    echo _build/default/.ocamlcommon.objs/byte/$cmi.cmi
+  done
+)
+echo "Dune targets:"
+echo "$dune_targets"
+dune b --workspace=duneconf/boot.ws $dune_targets
+
+echo "==========="
+echo "Testing mls"
+echo "==========="
+
+# ocamlcommon mls
+mls=$(
+  { echo parsing/parser.ml
+    echo {utils,parsing}/*.ml
+  } |
+    tr ' ' '\n' |
+    grep -v "utils/config.common.ml" |
+    grep -v "utils/config.fixed.ml" |
+    grep -v "utils/config.generated.ml"
+)
+echo "$mls"
+dune_targets=$(
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/.ocamlcommon.objs/native/$cmx.cmx
+  done
+)
+echo "Dune targets:"
+echo "$dune_targets"
+dune b --workspace=duneconf/boot.ws $dune_targets
