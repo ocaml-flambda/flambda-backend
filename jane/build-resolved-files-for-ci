@@ -48,8 +48,10 @@ echo "Testing mls"
 echo "==========="
 
 typing_mls=(
+  ctype
   datarepr
   includecore
+  includemod
   mtype
   oprint
   parmatch

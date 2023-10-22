@@ -467,7 +467,8 @@ val remove_mode_and_jkind_variables: type_expr -> unit
         (* Ensure mode and jkind variables are fully determined *)
 
 val nongen_vars_in_schema: Env.t -> type_expr -> Btype.TypeSet.t option
-        (* Return any non-generic variables in the type scheme *)
+        (* Return any non-generic variables in the type scheme.  Also ensures
+           mode variables are fully determined. *)
 
 val nongen_vars_in_class_declaration:class_declaration -> Btype.TypeSet.t option
         (* Return any non-generic variables in the class type.  Also ensures

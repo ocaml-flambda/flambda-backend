@@ -85,13 +85,6 @@ module Error = struct
     env: Env.t;
     missings: signature_item list;
     incompatibles: (Ident.t * sigitem_symptom) list;
-<<<<<<< HEAD
-||||||| merged common ancestors
-    oks: (int * module_coercion) list;
-=======
-    oks: (int * module_coercion) list;
-    leftovers: (signature_item * signature_item * int) list;
->>>>>>> ocaml/5.1
   }
   and sigitem_symptom =
     | Core of core_sigitem_symptom
@@ -428,7 +421,6 @@ let mark_error_as_unrecoverable r =
 
 
 module Sign_diff = struct
-<<<<<<< HEAD
   type 'a t = {
     runtime_coercions: ('a * Typedtree.module_coercion) list;
     shape_map: Shape.Map.t;
@@ -493,36 +485,6 @@ and shallow_module_paths env subst p1 mty2 p2 =
           && equal_module_paths env p1 subst p2
     | Mty_alias _ | Mty_ident _ | Mty_signature _ | Mty_functor _
     | exception Not_found -> false
-||||||| merged common ancestors
-=======
-  type t = {
-    runtime_coercions: (int * Typedtree.module_coercion) list;
-    shape_map: Shape.Map.t;
-    deep_modifications:bool;
-    errors: (Ident.t * Error.sigitem_symptom) list;
-    leftovers: ((Types.signature_item as 'it) * 'it * int) list
-  }
-
-  let empty = {
-    runtime_coercions = [];
-    shape_map = Shape.Map.empty;
-    deep_modifications = false;
-    errors = [];
-    leftovers = []
-  }
-
-  let merge x y =
-    {
-      runtime_coercions = x.runtime_coercions @ y.runtime_coercions;
-      shape_map = y.shape_map;
-      (* the shape map is threaded the map during the difference computation,
-          the last shape map contains all previous elements. *)
-      deep_modifications = x.deep_modifications || y.deep_modifications;
-      errors = x.errors @ y.errors;
-      leftovers = x.leftovers @ y.leftovers
-    }
-end
->>>>>>> ocaml/5.1
 
 (**
    In the group of mutual functions below, the [~in_eq] argument is [true] when
@@ -551,7 +513,6 @@ let rec modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape =
     Error Error.(diff mty1 mty2 reason)
 
 and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
-<<<<<<< HEAD
   let open Subst.Lazy in
   (* Do a quick nominal comparison for simple types and if that fails, try to
       unfold one of them. For structured types, do a deep comparison. *)
@@ -559,12 +520,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
     | Mty_alias _ -> true
     | _ -> false
   in
-||||||| merged common ancestors
-and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 =
-=======
->>>>>>> ocaml/5.1
   match mty1, mty2 with
-<<<<<<< HEAD
   | _ when shallow_modtypes env subst mty1 mty2 ->
     Ok (Tcoerce_none, orig_shape)
 
@@ -582,125 +538,11 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 =
             with
             | Ok _ as x -> x
             | Error reason -> Error (Error.After_alias_expansion reason)
-||||||| merged common ancestors
-  | (Mty_alias p1, Mty_alias p2) ->
-      if Env.is_functor_arg p2 env then
-        Error (Error.Invalid_module_alias p2)
-      else if not (equal_module_paths env p1 subst p2) then
-          Error Error.(Mt_core Incompatible_aliases)
-      else Ok Tcoerce_none
-  | (Mty_alias p1, _) -> begin
-      match
-        Env.normalize_module_path (Some Location.none) env p1
-      with
-      | exception Env.Error (Env.Missing_module (_, _, path)) ->
-          Error Error.(Mt_core(Unbound_module_path path))
-      | p1 ->
-          begin match expand_module_alias ~strengthen:false env p1 with
-          | Error e -> Error (Error.Mt_core e)
-          | Ok mty1 ->
-              match strengthened_modtypes ~in_eq ~loc ~aliasable:true env ~mark
-                      subst mty1 p1 mty2
-              with
-              | Ok _ as x -> x
-              | Error reason -> Error (Error.After_alias_expansion reason)
-=======
-  | (Mty_alias p1, Mty_alias p2) ->
-      if Env.is_functor_arg p2 env then
-        Error (Error.Invalid_module_alias p2)
-      else if not (equal_module_paths env p1 subst p2) then
-          Error Error.(Mt_core Incompatible_aliases)
-      else Ok (Tcoerce_none, orig_shape)
-  | (Mty_alias p1, _) -> begin
-      match
-        Env.normalize_module_path (Some Location.none) env p1
-      with
-      | exception Env.Error (Env.Missing_module (_, _, path)) ->
-          Error Error.(Mt_core(Unbound_module_path path))
-      | p1 ->
-          begin match expand_module_alias ~strengthen:false env p1 with
-          | Error e -> Error (Error.Mt_core e)
-          | Ok mty1 ->
-              match strengthened_modtypes ~in_eq ~loc ~aliasable:true env ~mark
-                      subst mty1 p1 mty2 orig_shape
-              with
-              | Ok _ as x -> x
-              | Error reason -> Error (Error.After_alias_expansion reason)
->>>>>>> ocaml/5.1
           end
-<<<<<<< HEAD
         | exception Not_found ->
             Error (Error.Mt_core (Error.Unbound_module_path p1))
-||||||| merged common ancestors
-    end
-  | (Mty_ident p1, Mty_ident p2) ->
-      let p1 = Env.normalize_modtype_path env p1 in
-      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
-      if Path.same p1 p2 then Ok Tcoerce_none
-      else
-        begin match expand_modtype_path env p1, expand_modtype_path env p2 with
-        | Some mty1, Some mty2 ->
-            try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2
-        | None, _  | _, None -> Error (Error.Mt_core Abstract_module_type)
-=======
-    end
-  | (Mty_ident p1, Mty_ident p2) ->
-      let p1 = Env.normalize_modtype_path env p1 in
-      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
-      if Path.same p1 p2 then Ok (Tcoerce_none, orig_shape)
-      else
-        begin match expand_modtype_path env p1, expand_modtype_path env p2 with
-        | Some mty1, Some mty2 ->
-            try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape
-        | None, _  | _, None -> Error (Error.Mt_core Abstract_module_type)
->>>>>>> ocaml/5.1
         end
-<<<<<<< HEAD
     end
-
-||||||| merged common ancestors
-  | (Mty_ident p1, _) ->
-      let p1 = Env.normalize_modtype_path env p1 in
-      begin match expand_modtype_path env p1 with
-      | Some p1 ->
-          try_modtypes ~in_eq ~loc env ~mark subst p1 mty2
-      | None -> Error (Error.Mt_core Abstract_module_type)
-      end
-  | (_, Mty_ident p2) ->
-      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
-      begin match expand_modtype_path env p2 with
-      | Some p2 -> try_modtypes ~in_eq ~loc env ~mark subst mty1 p2
-      | None ->
-          begin match mty1 with
-          | Mty_functor _ ->
-              let params1 = retrieve_functor_params env mty1 in
-              let d = Error.sdiff params1 ([],mty2) in
-              Error Error.(Functor (Params d))
-          | _ -> Error Error.(Mt_core Not_an_identifier)
-          end
-      end
-=======
-  | (Mty_ident p1, _) ->
-      let p1 = Env.normalize_modtype_path env p1 in
-      begin match expand_modtype_path env p1 with
-      | Some p1 ->
-          try_modtypes ~in_eq ~loc env ~mark subst p1 mty2 orig_shape
-      | None -> Error (Error.Mt_core Abstract_module_type)
-      end
-  | (_, Mty_ident p2) ->
-      let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
-      begin match expand_modtype_path env p2 with
-      | Some p2 -> try_modtypes ~in_eq ~loc env ~mark subst mty1 p2 orig_shape
-      | None ->
-          begin match mty1 with
-          | Mty_functor _ ->
-              let params1 = retrieve_functor_params env mty1 in
-              let d = Error.sdiff params1 ([],mty2) in
-              Error Error.(Functor (Params d))
-          | _ -> Error Error.(Mt_core Not_an_identifier)
-          end
-      end
->>>>>>> ocaml/5.1
   | (Mty_signature sig1, Mty_signature sig2) ->
       begin match
         signatures ~in_eq ~loc env ~mark subst sig1 sig2 orig_shape
@@ -831,39 +673,7 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
         | Ok (cc, _) -> Ok cc
         | Error err -> Error (Error.Mismatch err)
       in
-<<<<<<< HEAD
-      let env, subst =
-        match name1, name2 with
-        | Some id1, Some id2 ->
-            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
-            Subst.add_module id2 (Path.Pident id1) subst
-        | None, Some id2 ->
-            let id1 = Ident.rename id2 in
-            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
-            Subst.add_module id2 (Path.Pident id1) subst
-        | Some id1, None ->
-            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env, subst
-        | None, None ->
-            env, subst
-      in
-||||||| merged common ancestors
-      let env, subst =
-        match name1, name2 with
-        | Some id1, Some id2 ->
-            Env.add_module id1 Mp_present arg2' env,
-            Subst.add_module id2 (Path.Pident id1) subst
-        | None, Some id2 ->
-            let id1 = Ident.rename id2 in
-            Env.add_module id1 Mp_present arg2' env,
-            Subst.add_module id2 (Path.Pident id1) subst
-        | Some id1, None ->
-            Env.add_module id1 Mp_present arg2' env, subst
-        | None, None ->
-            env, subst
-      in
-=======
       let env, subst = equate_one_functor_param subst env arg2' name1 name2 in
->>>>>>> ocaml/5.1
       cc_arg, env, subst
   | _, _ ->
       let param1 = force_functor_parameter param1 in
@@ -876,73 +686,33 @@ and equate_one_functor_param subst env arg2' name1 name2  =
   (* two matching abstract parameters: we add one identifier to the
      environment and record the equality between the two identifiers
      in the substitution *)
-      Env.add_module id1 Mp_present arg2' env,
+      Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
       Subst.add_module id2 (Path.Pident id1) subst
   | None, Some id2 ->
       let id1 = Ident.rename id2 in
-      Env.add_module id1 Mp_present arg2' env,
+      Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
       Subst.add_module id2 (Path.Pident id1) subst
   | Some id1, None ->
-      Env.add_module id1 Mp_present arg2' env, subst
+      Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env, subst
   | None, None ->
       env, subst
 
 and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
     subst mty1 path1 mty2 shape =
-<<<<<<< HEAD
   let mty1 = Mtype.strengthen_lazy ~aliasable mty1 path1 in
   modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape
-||||||| merged common ancestors
-    subst mty1 path1 mty2 =
-  match mty1, mty2 with
-  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
-      Ok Tcoerce_none
-  | _, _ ->
-      let mty1 = Mtype.strengthen ~aliasable env mty1 path1 in
-      modtypes ~in_eq ~loc env ~mark subst mty1 mty2
-=======
-  match mty1, mty2 with
-  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
-      Ok (Tcoerce_none, shape)
-  | _, _ ->
-      let mty1 = Mtype.strengthen ~aliasable env mty1 path1 in
-      modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape
->>>>>>> ocaml/5.1
 
 and strengthened_module_decl ~loc ~aliasable env ~mark
     subst md1 path1 md2 shape =
-<<<<<<< HEAD
   let md1 = Subst.Lazy.of_module_decl md1 in
   let md1 = Mtype.strengthen_lazy_decl ~aliasable md1 path1 in
   let mty2 = Subst.Lazy.of_modtype md2.md_type in
   modtypes ~in_eq:false ~loc env ~mark subst md1.md_type mty2 shape
-||||||| merged common ancestors
-and strengthened_module_decl ~loc ~aliasable env ~mark subst md1 path1 md2 =
-  match md1.md_type, md2.md_type with
-  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
-      Ok Tcoerce_none
-  | _, _ ->
-      let md1 = Mtype.strengthen_decl ~aliasable env md1 path1 in
-      modtypes ~in_eq:false ~loc env ~mark subst md1.md_type md2.md_type
-=======
-  match md1.md_type, md2.md_type with
-  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
-      Ok (Tcoerce_none, shape)
-  | _, _ ->
-      let md1 = Mtype.strengthen_decl ~aliasable env md1 path1 in
-      modtypes ~in_eq:false ~loc env ~mark subst md1.md_type md2.md_type shape
->>>>>>> ocaml/5.1
 
 (* Inclusion between signatures *)
 
-<<<<<<< HEAD
 and signatures ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
   let open Subst.Lazy in
-||||||| merged common ancestors
-and signatures  ~in_eq ~loc env ~mark subst sig1 sig2 =
-=======
-and signatures  ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
->>>>>>> ocaml/5.1
   (* Environment used to check inclusion of components *)
   let sig1 = force_signature_once sig1 in
   let sig2 = force_signature_once sig2 in
@@ -956,61 +726,8 @@ and signatures  ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
             ((id,pos,Tcoerce_none)::l , pos+1)
         | item -> (l, if is_runtime_component item then pos+1 else pos))
       ([], 0) sig1 in
-<<<<<<< HEAD
   let exported_len1, runtime_len1, comps1 =
     build_component_table (fun pos _name -> pos) sig1
-||||||| merged common ancestors
-  (* Build a table of the components of sig1, along with their positions.
-     The table is indexed by kind and name of component *)
-  let rec build_component_table pos tbl = function
-      [] -> pos, tbl
-    | (Sig_value (_, _, Hidden)
-      |Sig_type (_, _, _, Hidden)
-      |Sig_typext (_, _, _, Hidden)
-      |Sig_module (_, _, _, _, Hidden)
-      |Sig_modtype (_, _, Hidden)
-      |Sig_class (_, _, _, Hidden)
-      |Sig_class_type (_, _, _, Hidden)
-      ) as item :: rem ->
-        let pos = if is_runtime_component item then pos + 1 else pos in
-        build_component_table pos tbl rem (* do not pair private items. *)
-    | item :: rem ->
-        let (id, _loc, name) = item_ident_name item in
-        let pos, nextpos =
-          if is_runtime_component item then pos, pos + 1
-          else -1, pos
-        in
-        build_component_table nextpos
-                              (FieldMap.add name (id, item, pos) tbl) rem in
-  let len1, comps1 =
-    build_component_table 0 FieldMap.empty sig1 in
-  let len2 =
-    List.fold_left
-      (fun n i -> if is_runtime_component i then n + 1 else n)
-      0
-      sig2
-=======
-  (* Build a table of the components of sig1, along with their positions.
-     The table is indexed by kind and name of component *)
-  let rec build_component_table nb_exported pos tbl = function
-      [] -> nb_exported, pos, tbl
-    | item :: rem ->
-        let pos, nextpos =
-          if is_runtime_component item then pos, pos + 1
-          else -1, pos
-        in
-        match item_visibility item with
-        | Hidden ->
-            (* do not pair private items. *)
-            build_component_table nb_exported nextpos tbl rem
-        | Exported ->
-            let (id, _loc, name) = item_ident_name item in
-            build_component_table (nb_exported + 1) nextpos
-              (FieldMap.add name (id, item, pos) tbl) rem
-  in
-  let exported_len1, runtime_len1, comps1 =
-    build_component_table 0 0 FieldMap.empty sig1
->>>>>>> ocaml/5.1
   in
   let exported_len2, runtime_len2 =
     List.fold_left (fun (el, rl) i ->
@@ -1019,133 +736,6 @@ and signatures  ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
       el, rl
     ) (0, 0) sig2
   in
-<<<<<<< HEAD
-||||||| merged common ancestors
-  (* Pair each component of sig2 with a component of sig1,
-     identifying the names along the way.
-     Return a coercion list indicating, for all run-time components
-     of sig2, the position of the matching run-time components of sig1
-     and the coercion to be applied to it. *)
-  let rec pair_components subst paired unpaired = function
-      [] ->
-        let oks, errors =
-          signature_components ~in_eq ~loc env ~mark new_env subst
-            (List.rev paired)
-        in
-        begin match unpaired, errors, oks with
-            | [], [], cc ->
-                if len1 = len2 then (* see PR#5098 *)
-                  Ok (simplify_structure_coercion cc id_pos_list)
-                else
-                  Ok (Tcoerce_structure (cc, id_pos_list))
-            | missings, incompatibles, cc ->
-                Error { env=new_env; Error.missings; incompatibles; oks=cc }
-        end
-    | item2 :: rem ->
-        let (id2, _loc, name2) = item_ident_name item2 in
-        let name2, report =
-          match item2, name2 with
-            Sig_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
-            when Btype.is_row_name s ->
-              (* Do not report in case of failure,
-                 as the main type will generate an error *)
-              { kind=Field_type; name=String.sub s 0 (String.length s - 4) },
-              false
-          | _ -> name2, true
-        in
-        begin match FieldMap.find name2 comps1 with
-        | (id1, item1, pos1) ->
-          let new_subst =
-            match item2 with
-              Sig_type _ ->
-                Subst.add_type id2 (Path.Pident id1) subst
-            | Sig_module _ ->
-                Subst.add_module id2 (Path.Pident id1) subst
-            | Sig_modtype _ ->
-                Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
-            | Sig_value _ | Sig_typext _
-            | Sig_class _ | Sig_class_type _ ->
-                subst
-          in
-          pair_components new_subst
-            ((item1, item2, pos1) :: paired) unpaired rem
-        | exception Not_found ->
-          let unpaired =
-            if report then
-              item2 :: unpaired
-            else unpaired in
-          pair_components subst paired unpaired rem
-        end in
-=======
-  (* Pair each component of sig2 with a component of sig1,
-     identifying the names along the way.
-     Return a coercion list indicating, for all run-time components
-     of sig2, the position of the matching run-time components of sig1
-     and the coercion to be applied to it. *)
-  let rec pair_components subst paired unpaired = function
-      [] ->
-        let open Sign_diff in
-        let d =
-          signature_components ~in_eq ~loc env ~mark new_env subst mod_shape
-            Shape.Map.empty
-            (List.rev paired)
-        in
-        begin match unpaired, d.errors, d.runtime_coercions, d.leftovers with
-            | [], [], cc, [] ->
-                let shape =
-                  if not d.deep_modifications && exported_len1 = exported_len2
-                  then mod_shape
-                  else Shape.str ?uid:mod_shape.Shape.uid d.shape_map
-                in
-                if runtime_len1 = runtime_len2 then (* see PR#5098 *)
-                  Ok (simplify_structure_coercion cc id_pos_list, shape)
-                else
-                  Ok (Tcoerce_structure (cc, id_pos_list), shape)
-            | missings, incompatibles, runtime_coercions, leftovers ->
-                Error {
-                  Error.env=new_env;
-                  missings;
-                  incompatibles;
-                  oks=runtime_coercions;
-                  leftovers;
-                }
-        end
-    | item2 :: rem ->
-        let (id2, _loc, name2) = item_ident_name item2 in
-        let name2, report =
-          match item2, name2 with
-            Sig_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
-            when Btype.is_row_name s ->
-              (* Do not report in case of failure,
-                 as the main type will generate an error *)
-              { kind=Field_type; name=String.sub s 0 (String.length s - 4) },
-              false
-          | _ -> name2, true
-        in
-        begin match FieldMap.find name2 comps1 with
-        | (id1, item1, pos1) ->
-          let new_subst =
-            match item2 with
-              Sig_type _ ->
-                Subst.add_type id2 (Path.Pident id1) subst
-            | Sig_module _ ->
-                Subst.add_module id2 (Path.Pident id1) subst
-            | Sig_modtype _ ->
-                Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
-            | Sig_value _ | Sig_typext _
-            | Sig_class _ | Sig_class_type _ ->
-                subst
-          in
-          pair_components new_subst
-            ((item1, item2, pos1) :: paired) unpaired rem
-        | exception Not_found ->
-          let unpaired =
-            if report then
-              item2 :: unpaired
-            else unpaired in
-          pair_components subst paired unpaired rem
-        end in
->>>>>>> ocaml/5.1
   (* Do the pairing and checking, and return the final coercion *)
   let paired, unpaired, subst = pair_components subst comps1 sig2 in
   let d =
@@ -1165,7 +755,7 @@ and signatures  ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
           Ok (simplify_structure_coercion cc id_pos_list, shape)
         else
           Ok (Tcoerce_structure (cc, id_pos_list), shape)
-    | missings, incompatibles, _, _leftovers ->
+    | missings, incompatibles, _runtime_coercions, _leftovers ->
         Error {
           Error.env=new_env;
           missings = List.map force_signature_item missings;
@@ -1173,19 +763,10 @@ and signatures  ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
         }
 
 (* Inclusion between signature components *)
-<<<<<<< HEAD
 and signature_components :
   'a. in_eq:_ -> loc:_ -> mark:_ -> _ -> _ -> _ -> _ -> (_ * _ * 'a) list -> 'a Sign_diff.t =
   fun ~in_eq ~loc ~mark env subst orig_shape shape_map paired ->
   let open Subst.Lazy in
-||||||| merged common ancestors
-
-and signature_components  ~in_eq ~loc old_env ~mark env subst paired =
-=======
-
-and signature_components  ~in_eq ~loc old_env ~mark env subst
-    orig_shape shape_map paired =
->>>>>>> ocaml/5.1
   match paired with
   | [] -> Sign_diff.{ empty with shape_map }
   | (sigi1, sigi2, pos) :: rem ->
@@ -1301,7 +882,6 @@ and signature_components  ~in_eq ~loc old_env ~mark env subst
       in
       let rest =
         if continue then
-<<<<<<< HEAD
           signature_components ~in_eq ~loc ~mark env subst
             orig_shape shape_map rem
         else
@@ -1313,26 +893,11 @@ and signature_components  ~in_eq ~loc old_env ~mark env subst
             rem
           in
           Sign_diff.{ empty with leftovers=rem }
-||||||| merged common ancestors
-      match item with
-      | Ok x when present_at_runtime -> (pos,x) :: oks, errors
-      | Ok _ -> oks, errors
-      | Error y -> oks , (id,y) :: errors
-=======
-          signature_components ~in_eq ~loc old_env ~mark env subst
-            orig_shape shape_map rem
-        else Sign_diff.{ empty with leftovers=rem }
->>>>>>> ocaml/5.1
        in
        Sign_diff.merge first rest
 
 and module_declarations  ~in_eq ~loc env ~mark  subst id1 md1 md2 orig_shape =
-<<<<<<< HEAD
   let open Subst.Lazy in
-||||||| merged common ancestors
-and module_declarations  ~in_eq ~loc env ~mark  subst id1 md1 md2 =
-=======
->>>>>>> ocaml/5.1
   Builtin_attributes.check_alerts_inclusion
     ~def:md1.md_loc
     ~use:md2.md_loc
@@ -1412,7 +977,7 @@ let include_functor_signatures ~loc env ~mark subst sig1 sig2 mod_shape =
   | [], [], [] ->
      Ok d.runtime_coercions
   | missings, incompatibles, _leftovers ->
-    let missings = List.map Subst.Lazy.force_signature_item missings in
+     let missings = List.map Subst.Lazy.force_signature_item missings in
      Error Error.{ env; missings; incompatibles }
 
 let can_alias env path =
@@ -1585,7 +1150,8 @@ module Functor_inclusion_diff = struct
         let st, _expansion = update (Diffing.Delete delete) st in
         update (Diffing.Insert insert) st
     | Keep (Named (name1, _), Named (name2, arg2), _) ->
-        let arg = Subst.modtype Keep st.subst arg2 in
+        let arg2 = Subst.Lazy.of_modtype arg2 in
+        let arg = Subst.Lazy.modtype Keep st.subst arg2 in
         let env, subst =
           equate_one_functor_param st.subst st.env arg name1 name2
         in
