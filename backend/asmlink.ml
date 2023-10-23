@@ -437,7 +437,7 @@ let link_shared unix ~ppf_dump objfiles output_name =
          Frametables for the imported functions needs to be initialized, which is a bit
          tricky to do in the context of shared libraries as the frametables are
          initialized at runtime. *)
-      Flambda_backend_flags.use_cached_generic_functions := true;
+      Flambda_backend_flags.use_cached_generic_functions := false;
     if !Flambda_backend_flags.internal_assembler then
       (* CR-soon gyorsh: workaround to turn off internal assembler temporarily,
          until it is properly tested for shared library linking. *)

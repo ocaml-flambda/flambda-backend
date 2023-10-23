@@ -73,13 +73,7 @@ module Partition = struct
   module Hashtbl = Hashtbl.Make (struct
     type nonrec t = t
 
-    let equal a b =
-      match a, b with
-      | Small, Small -> true
-      | Curry a, Curry b -> a = b
-      | Apply a, Apply b -> a = b
-      | Send a, Send b -> a = b
-      | _ -> false
+    let equal a b = compare a b = 0
 
     let hash x = Hashtbl.hash x
   end)
@@ -181,8 +175,6 @@ module Cache = struct
         else if nlocal = 1
         then true
         else if nlocal = l
-        then true
-        else if l <= considered_as_small_threshold
         then true
         else false
 
