@@ -1170,16 +1170,11 @@ let update_decl_layout env dpath decl =
 let update_decls_layout_reason decls =
   List.map
     (fun (id, decl) ->
-       let reason =  Layout.(Generalized (Some id, decl.type_loc)) in
-       List.iter
-         (fun ty -> Ctype.update_generalized_ty_layout_reason ty reason)
-         decl.type_params;
-       Btype.iter_type_expr_kind
-         (fun ty -> Ctype.update_generalized_ty_layout_reason ty reason) decl.type_kind;
-       begin match decl.type_manifest with
-       | None    -> ()
-       | Some ty -> Ctype.update_generalized_ty_layout_reason ty reason
-       end;
+       let reason = Layout.(Generalized (Some id, decl.type_loc)) in
+       let update_generalized ty = Ctype.update_generalized_ty_layout_reason ty reason in
+       List.iter update_generalized decl.type_params;
+       Btype.iter_type_expr_kind update_generalized decl.type_kind;
+       Option.iter update_generalized decl.type_manifest;
        let new_decl = {decl with type_layout =
                                    Layout.(update_reason decl.type_layout reason)} in
        (id, new_decl)
