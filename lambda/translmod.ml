@@ -112,14 +112,8 @@ let rec apply_coercion loc strict restr arg =
       name_lambda strict arg Lambda.layout_module (fun id ->
         let get_field pos =
           if pos < 0 then lambda_unit
-<<<<<<< HEAD
           else
             Lprim(mod_field pos,[Lvar id], loc)
-||||||| merged common ancestors
-          else Lprim(Pfield pos,[Lvar id], loc)
-=======
-          else Lprim(Pfield (pos, Pointer, Mutable), [Lvar id], loc)
->>>>>>> ocaml/5.1
         in
         let lam =
           Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
@@ -159,38 +153,16 @@ and apply_coercion_result loc strict funct params args cc_res =
       name_lambda strict funct Lambda.layout_functor
         (fun id ->
            lfunction
-<<<<<<< HEAD
              ~kind:(Curried {nlocal=0})
              ~params:(List.rev params)
              ~return:Lambda.layout_module
-||||||| merged common ancestors
-           Lfunction
-             {
-               kind = Curried;
-               params = List.rev params;
-               return = Pgenval;
-               attr = { default_function_attribute with
-=======
-             ~kind:Curried
-             ~params:(List.rev params)
-             ~return:Pgenval
->>>>>>> ocaml/5.1
              ~attr:{ default_function_attribute with
                         is_a_functor = true;
-<<<<<<< HEAD
                         check = Ignore_assert_all Zero_alloc;
                         stub = true; }
              ~loc
              ~mode:alloc_heap
              ~region:true
-||||||| merged common ancestors
-                        stub = true; };
-               loc = loc;
-               body = apply_coercion
-=======
-                        stub = true; }
-             ~loc
->>>>>>> ocaml/5.1
              ~body:(apply_coercion
                    loc Strict cc_res
                    (Lapply{
@@ -203,12 +175,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_tailcall=Default_tailcall;
                       ap_inlined=Default_inlined;
                       ap_specialised=Default_specialise;
-<<<<<<< HEAD
                       ap_probe=None;
-||||||| merged common ancestors
-                    })})
-=======
->>>>>>> ocaml/5.1
                     })))
 
 and wrap_id_pos_list loc id_pos_list get_field lam =
@@ -220,18 +187,10 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
     List.fold_left (fun (lam, fv, s) (id',pos,c) ->
       if Ident.Set.mem id' fv then
         let id'' = Ident.create_local (Ident.name id') in
-<<<<<<< HEAD
-        (Llet(Alias, Lambda.layout_module_field, id'',
-             apply_coercion loc Alias c (get_field pos),lam),
-||||||| merged common ancestors
-        (Llet(Alias, Pgenval, id'',
-             apply_coercion loc Alias c (get_field pos),lam),
-=======
         let rhs = apply_coercion loc Alias c (get_field pos) in
         let fv_rhs = free_variables rhs in
-        (Llet(Alias, Pgenval, id'', rhs, lam),
+        (Llet(Alias, Lambda.layout_module_field, id'', rhs, lam),
          Ident.Set.union fv fv_rhs,
->>>>>>> ocaml/5.1
          Ident.Map.add id' id'' s)
       else (lam, fv, s))
       (lam, fv, Ident.Map.empty) id_pos_list
@@ -618,47 +577,23 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       functor_params_rev
   in
   lfunction
-<<<<<<< HEAD
     ~kind:(Curried {nlocal=0})
     ~params
     ~return:Lambda.layout_module
-||||||| merged common ancestors
-  Lfunction {
-    kind = Curried;
-    params;
-    return = Pgenval;
-    attr = {
-=======
-    ~kind:Curried
-    ~params
-    ~return:Pgenval
->>>>>>> ocaml/5.1
     ~attr:{
       inline = inline_attribute;
       specialise = Default_specialise;
       local = Default_local;
       poll = Default_poll;
-<<<<<<< HEAD
       loop = Never_loop;
-||||||| merged common ancestors
-=======
->>>>>>> ocaml/5.1
       is_a_functor = true;
       check = Ignore_assert_all Zero_alloc;
       stub = false;
       tmc_candidate = false;
     }
     ~loc
-<<<<<<< HEAD
     ~mode:alloc_heap
     ~region:true
-||||||| merged common ancestors
-    };
-    loc;
-    body;
-  }
-=======
->>>>>>> ocaml/5.1
     ~body
 
 (* Compile a module expression *)
@@ -675,42 +610,10 @@ and transl_module ~scopes cc rootpath mexp =
       oo_wrap mexp.mod_env true (fun () ->
         compile_functor ~scopes mexp cc rootpath loc) ()
   | Tmod_apply(funct, arg, ccarg) ->
-<<<<<<< HEAD
-      let inlined_attribute =
-        Translattribute.get_inlined_attribute_on_module funct
-      in
-      oo_wrap mexp.mod_env true
-        (apply_coercion loc Strict cc)
-        (Lapply{
-           ap_loc=loc;
-           ap_func=transl_module ~scopes Tcoerce_none None funct;
-           ap_args=[transl_module ~scopes ccarg None arg];
-           ap_result_layout = Lambda.layout_module;
-           ap_region_close=Rc_normal;
-           ap_mode=alloc_heap;
-           ap_tailcall=Default_tailcall;
-           ap_inlined=inlined_attribute;
-           ap_specialised=Default_specialise;
-           ap_probe=None;})
-||||||| merged common ancestors
-      let inlined_attribute, funct =
-        Translattribute.get_and_remove_inlined_attribute_on_module funct
-      in
-      oo_wrap mexp.mod_env true
-        (apply_coercion loc Strict cc)
-        (Lapply{
-           ap_loc=loc;
-           ap_func=transl_module ~scopes Tcoerce_none None funct;
-           ap_args=[transl_module ~scopes ccarg None arg];
-           ap_tailcall=Default_tailcall;
-           ap_inlined=inlined_attribute;
-           ap_specialised=Default_specialise})
-=======
       let translated_arg = transl_module ~scopes ccarg None arg in
       transl_apply ~scopes ~loc ~cc mexp.mod_env funct translated_arg
   | Tmod_apply_unit funct ->
       transl_apply ~scopes ~loc ~cc mexp.mod_env funct lambda_unit
->>>>>>> ocaml/5.1
   | Tmod_constraint(arg, _, _, ccarg) ->
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
@@ -718,8 +621,8 @@ and transl_module ~scopes cc rootpath mexp =
         (Translcore.transl_exp ~scopes Jkind.Sort.for_module arg)
 
 and transl_apply ~scopes ~loc ~cc mod_env funct translated_arg =
-  let inlined_attribute, funct =
-    Translattribute.get_and_remove_inlined_attribute_on_module funct
+  let inlined_attribute =
+    Translattribute.get_inlined_attribute_on_module funct
   in
   oo_wrap mod_env true
     (apply_coercion loc Strict cc)
@@ -727,9 +630,13 @@ and transl_apply ~scopes ~loc ~cc mod_env funct translated_arg =
        ap_loc=loc;
        ap_func=transl_module ~scopes Tcoerce_none None funct;
        ap_args=[translated_arg];
+       ap_result_layout = Lambda.layout_module;
+       ap_region_close=Rc_normal;
+       ap_mode=alloc_heap;
        ap_tailcall=Default_tailcall;
        ap_inlined=inlined_attribute;
-       ap_specialised=Default_specialise})
+       ap_specialised=Default_specialise;
+       ap_probe=None;})
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items
@@ -859,21 +766,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                                of_location ~scopes mb.mb_name.loc), body),
               size
           | Some id ->
-<<<<<<< HEAD
               Llet(pure_module mb.mb_expr, Lambda.layout_module, id, module_body, body), size
-||||||| merged common ancestors
-              let module_body =
-                Levent (module_body, {
-                  lev_loc = of_location ~scopes mb.mb_loc;
-                  lev_kind = Lev_module_definition id;
-                  lev_repr = None;
-                  lev_env = Env.empty;
-                })
-              in
-              Llet(pure_module mb.mb_expr, Pgenval, id, module_body, body), size
-=======
-              Llet(pure_module mb.mb_expr, Pgenval, id, module_body, body), size
->>>>>>> ocaml/5.1
           end
       | Tstr_module ({mb_presence=Mp_absent}) ->
           transl_structure ~scopes loc fields cc rootpath final_env rem
@@ -920,19 +813,9 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                 let body, size =
                   rebind_idents (pos + 1) (id :: newfields) ids
                 in
-<<<<<<< HEAD
                 Llet(Alias, Lambda.layout_module_field, id,
                      Lprim(mod_field pos, [Lvar mid],
                            of_location ~scopes incl.incl_loc), body),
-||||||| merged common ancestors
-                Llet(Alias, Pgenval, id,
-                     Lprim(Pfield pos, [Lvar mid],
-                           of_location ~scopes incl.incl_loc), body),
-=======
-                Llet(Alias, Pgenval, id,
-                     Lprim(Pfield (pos, Pointer, Mutable),
-                        [Lvar mid], of_location ~scopes incl.incl_loc), body),
->>>>>>> ocaml/5.1
                 size
           in
           let body, size = rebind_idents 0 fields ids in
@@ -970,16 +853,8 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                   let body, size =
                     rebind_idents (pos + 1) (id :: newfields) ids
                   in
-<<<<<<< HEAD
                   Llet(Alias, Lambda.layout_module_field, id,
                       Lprim(mod_field pos, [Lvar mid],
-||||||| merged common ancestors
-                  Llet(Alias, Pgenval, id,
-                      Lprim(Pfield pos, [Lvar mid],
-=======
-                  Llet(Alias, Pgenval, id,
-                      Lprim(Pfield (pos, Pointer, Mutable), [Lvar mid],
->>>>>>> ocaml/5.1
                             of_location ~scopes od.open_loc), body),
                   size
               in
@@ -1027,27 +902,12 @@ let _ =
 (* Introduce dependencies on modules referenced only by "external". *)
 
 let scan_used_globals lam =
-<<<<<<< HEAD
   let globals = ref Compilation_unit.Set.empty in
-||||||| merged common ancestors
-  let globals = ref Ident.Set.empty in
-=======
-  let is_compunit id = not (Ident.is_predef id) in
-  let globals = ref Ident.Set.empty in
->>>>>>> ocaml/5.1
   let rec scan lam =
     Lambda.iter_head_constructor scan lam;
     match lam with
-<<<<<<< HEAD
       Lprim ((Pgetglobal cu | Psetglobal cu), _, _) ->
         globals := Compilation_unit.Set.add cu !globals
-||||||| merged common ancestors
-      Lprim ((Pgetglobal id | Psetglobal id), _, _) ->
-        globals := Ident.Set.add id !globals
-=======
-      Lprim ((Pgetglobal id | Psetglobal id), _, _) when (is_compunit id) ->
-        globals := Ident.Set.add id !globals
->>>>>>> ocaml/5.1
     | _ -> ()
   in
   scan lam; !globals
@@ -1207,21 +1067,10 @@ and all_idents = function
       List.map (fun (ci, _) -> ci.ci_id_class) cl_list @ all_idents rem
     | Tstr_class_type _ -> all_idents rem
 
-<<<<<<< HEAD
-    | Tstr_include{incl_type; incl_mod={mod_desc =
-                              ( Tmod_constraint ({mod_desc = Tmod_structure str},
-                                              _, _, _)
-                              | Tmod_structure str ) }} ->
-||||||| merged common ancestors
-    | Tstr_include{incl_type; incl_mod={mod_desc =
-                             Tmod_constraint ({mod_desc = Tmod_structure str},
-                                              _, _, _)}} ->
-=======
     | Tstr_include{incl_type;
                    incl_mod={mod_desc =
                      ( Tmod_constraint({mod_desc=Tmod_structure str}, _, _, _)
                      | Tmod_structure str )}} ->
->>>>>>> ocaml/5.1
         bound_value_identifiers incl_type
         @ all_idents str.str_items
         @ all_idents rem
@@ -1260,13 +1109,7 @@ let transl_store_subst = ref Ident.Map.empty
 
 let nat_toplevel_name id =
   try match Ident.Map.find id !transl_store_subst with
-<<<<<<< HEAD
-    | Lprim(Pfield (pos, _),
-||||||| merged common ancestors
-    | Lprim(Pfield pos, [Lprim(Pgetglobal glob, [], _)], _) -> (glob,pos)
-=======
     | Lprim(Pfield (pos, _, _),
->>>>>>> ocaml/5.1
             [Lprim(Pgetglobal glob, [], _)], _) -> (glob,pos)
     | _ -> raise Not_found
   with Not_found ->
@@ -1461,35 +1304,11 @@ let transl_store_structure ~scopes glob map prims aliases str =
             incl_loc=loc;
             incl_mod= {
               mod_desc = Tmod_constraint (
-<<<<<<< HEAD
                   ({mod_desc = Tmod_structure str}), _, _,
                   (Tcoerce_structure _ | Tcoerce_none))}
             | ({ mod_desc = Tmod_structure str});
-||||||| merged common ancestors
-                  ({mod_desc = Tmod_structure str} as mexp), _, _,
-                  (Tcoerce_structure (map, _)))};
-            incl_attributes;
-=======
-                  ({mod_desc = Tmod_structure str} as mexp), _, _,
-                  (Tcoerce_structure _ | Tcoerce_none))}
-            | ({ mod_desc = Tmod_structure str} as mexp);
-            incl_attributes;
->>>>>>> ocaml/5.1
             incl_type;
           } as incl) ->
-<<<<<<< HEAD
-||||||| merged common ancestors
-          } ->
-            List.iter (Translattribute.check_attribute_on_module mexp)
-              incl_attributes;
-            (* Shouldn't we use mod_attributes instead of incl_attributes?
-               Same question for the Tstr_module cases above, btw. *)
-=======
-            List.iter (Translattribute.check_attribute_on_module mexp)
-              incl_attributes;
-            (* Shouldn't we use mod_attributes instead of incl_attributes?
-               Same question for the Tstr_module cases above, btw. *)
->>>>>>> ocaml/5.1
             let lam =
               transl_store ~scopes None subst lambda_unit str.str_items
                 (* It is tempting to pass rootpath instead of None
@@ -1522,13 +1341,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
               | _ -> assert false
             in
             Lsequence(lam, loop ids0 map)
-<<<<<<< HEAD
-||||||| merged common ancestors
 
-
-=======
-
->>>>>>> ocaml/5.1
         | Tstr_include incl ->
             let ids = bound_value_identifiers incl.incl_type in
             let modl = incl.incl_mod in
@@ -1538,20 +1351,9 @@ let transl_store_structure ~scopes glob map prims aliases str =
               | [] -> transl_store
                         ~scopes rootpath (add_idents true ids subst) cont rem
               | id :: idl ->
-<<<<<<< HEAD
                   Llet(Alias, Lambda.layout_module_field, id, Lprim(mod_field pos, [Lvar mid],
                                                  loc),
                        Lsequence(store_ident loc id,
-||||||| merged common ancestors
-                  Llet(Alias, Pgenval, id, Lprim(Pfield pos, [Lvar mid],
-                                                 of_location ~scopes loc),
-                       Lsequence(store_ident (of_location ~scopes loc) id,
-=======
-                  Llet(Alias, Pgenval, id,
-                       Lprim(Pfield (pos, Pointer, Mutable), [Lvar mid],
-                                                 of_location ~scopes loc),
-                       Lsequence(store_ident (of_location ~scopes loc) id,
->>>>>>> ocaml/5.1
                                  store_idents (pos + 1) idl))
             in
             let modl =
@@ -1602,16 +1404,8 @@ let transl_store_structure ~scopes glob map prims aliases str =
                         [] -> transl_store ~scopes rootpath
                                 (add_idents true ids subst) cont rem
                       | id :: idl ->
-<<<<<<< HEAD
                           Llet(Alias, Lambda.layout_module_field, id,
                                Lprim(mod_field pos,
-||||||| merged common ancestors
-                          Llet(Alias, Pgenval, id, Lprim(Pfield pos, [Lvar mid],
-                                                         loc),
-=======
-                          Llet(Alias, Pgenval, id,
-                               Lprim(Pfield (pos, Pointer, Mutable),
->>>>>>> ocaml/5.1
                                      [Lvar mid], loc),
                                Lsequence(store_ident loc id,
                                          store_idents (pos + 1) idl))
@@ -1646,13 +1440,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
       match cc with
         Tcoerce_none ->
           Ident.Map.add id
-<<<<<<< HEAD
             (Lprim(mod_field pos,
-||||||| merged common ancestors
-            (Lprim(Pfield pos,
-=======
-            (Lprim(Pfield (pos, Pointer, Immutable),
->>>>>>> ocaml/5.1
                    [Lprim(Pgetglobal glob, [], Loc_unknown)],
                    Loc_unknown))
             subst
@@ -1801,16 +1589,8 @@ let toplevel_name id =
 let toploop_getvalue id =
   Lapply{
     ap_loc=Loc_unknown;
-<<<<<<< HEAD
     ap_func=Lprim(mod_field toploop_getvalue_pos,
                   [Lprim(Pgetglobal toploop_unit, [], Loc_unknown)],
-||||||| merged common ancestors
-    ap_func=Lprim(Pfield toploop_getvalue_pos,
-                  [Lprim(Pgetglobal toploop_ident, [], Loc_unknown)],
-=======
-    ap_func=Lprim(Pfield (toploop_getvalue_pos, Pointer, Mutable),
-                  [Lprim(Pgetglobal toploop_ident, [], Loc_unknown)],
->>>>>>> ocaml/5.1
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
@@ -1826,16 +1606,8 @@ let toploop_getvalue id =
 let toploop_setvalue id lam =
   Lapply{
     ap_loc=Loc_unknown;
-<<<<<<< HEAD
     ap_func=Lprim(mod_field toploop_setvalue_pos,
                   [Lprim(Pgetglobal toploop_unit, [], Loc_unknown)],
-||||||| merged common ancestors
-    ap_func=Lprim(Pfield toploop_setvalue_pos,
-                  [Lprim(Pgetglobal toploop_ident, [], Loc_unknown)],
-=======
-    ap_func=Lprim(Pfield (toploop_setvalue_pos, Pointer, Mutable),
-                  [Lprim(Pgetglobal toploop_ident, [], Loc_unknown)],
->>>>>>> ocaml/5.1
                   Loc_unknown);
     ap_args=
       [Lconst(Const_base(
@@ -1943,14 +1715,7 @@ let transl_toplevel_item ~scopes item =
           lambda_unit
       | id :: ids ->
           Lsequence(toploop_setvalue id
-<<<<<<< HEAD
                       (Lprim(mod_field pos, [Lvar mid], Loc_unknown)),
-||||||| merged common ancestors
-                      (Lprim(Pfield pos, [Lvar mid], Loc_unknown)),
-=======
-                      (Lprim(Pfield (pos, Pointer, Mutable),
-                             [Lvar mid], Loc_unknown)),
->>>>>>> ocaml/5.1
                     set_idents (pos + 1) ids) in
       Llet(Strict, Lambda.layout_module, mid, modl, set_idents 0 ids)
   | Tstr_primitive descr ->
@@ -1972,14 +1737,7 @@ let transl_toplevel_item ~scopes item =
                 lambda_unit
             | id :: ids ->
                 Lsequence(toploop_setvalue id
-<<<<<<< HEAD
                             (Lprim(mod_field pos, [Lvar mid], Loc_unknown)),
-||||||| merged common ancestors
-                            (Lprim(Pfield pos, [Lvar mid], Loc_unknown)),
-=======
-                            (Lprim(Pfield (pos, Pointer, Mutable),
-                                  [Lvar mid], Loc_unknown)),
->>>>>>> ocaml/5.1
                           set_idents (pos + 1) ids)
           in
           Llet(pure, Lambda.layout_module, mid,
@@ -2078,14 +1836,7 @@ let transl_package_set_fields component_names target_name coercion =
                (fun pos _id ->
                  Lprim(mod_setfield pos,
                        [Lprim(Pgetglobal target_name, [], Loc_unknown);
-<<<<<<< HEAD
                         Lprim(mod_field pos, [Lvar blk], Loc_unknown)],
-||||||| merged common ancestors
-                        Lprim(Pfield pos, [Lvar blk], Loc_unknown)],
-=======
-                        Lprim(Pfield (pos, Pointer, Mutable),
-                              [Lvar blk], Loc_unknown)],
->>>>>>> ocaml/5.1
                        Loc_unknown))
                0 pos_cc_list))
   (*

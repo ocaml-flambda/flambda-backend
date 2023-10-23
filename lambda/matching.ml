@@ -1806,16 +1806,9 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
       if pos > last_pos then
         argl
       else
-<<<<<<< HEAD
-        (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), binding_kind,
+        (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), binding_kind,
          Jkind.Sort.for_constructor_arg, layout_field)
         :: make_args (pos + 1)
-||||||| merged common ancestors
-        (Lprim (Pfield pos, [ arg ], loc), binding_kind) :: make_args (pos + 1)
-=======
-        (Lprim (Pfield (pos, Pointer, Immutable), [ arg ], loc),
-               binding_kind) :: make_args (pos + 1)
->>>>>>> ocaml/5.1
     in
     make_args first_pos
   in
@@ -1841,21 +1834,15 @@ let divide_constructor ~scopes ctx pm =
 let get_expr_args_variant_constant = drop_expr_arg
 
 let nonconstant_variant_field index =
-  Lambda.Pfield(index, Reads_agree)
+  Lambda.Pfield(index, Pointer, Reads_agree)
 
 let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
       rem =
   let loc = head_loc ~scopes head in
-<<<<<<< HEAD
    let field_prim = nonconstant_variant_field 1 in
   (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Sort.for_constructor_arg,
    layout_field)
   :: rem
-||||||| merged common ancestors
-  (Lprim (Pfield 1, [ arg ], loc), Alias) :: rem
-=======
-  (Lprim (Pfield (1, Pointer, Immutable), [ arg ], loc), Alias) :: rem
->>>>>>> ocaml/5.1
 
 let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
   let rec divide = function
@@ -1924,14 +1911,8 @@ let get_mod_field modname field =
   lazy
     (let mod_ident = Ident.create_persistent modname in
      let env =
-<<<<<<< HEAD
        Env.add_persistent_structure mod_ident
-         (Lazy.force Env.initial_safe_string)
-||||||| merged common ancestors
-       Env.add_persistent_structure mod_ident Env.initial_safe_string
-=======
-       Env.add_persistent_structure mod_ident Env.initial
->>>>>>> ocaml/5.1
+         (Lazy.force Env.initial)
      in
      match Env.open_pers_signature modname env with
      | Error `Not_found ->
@@ -1957,14 +1938,7 @@ let code_force_lazy = get_mod_field "CamlinternalLazy" "force_gen"
    Forward(val_out_of_heap).
 *)
 
-<<<<<<< HEAD
-let lazy_forward_field = Lambda.Pfield (0, Reads_vary)
-
-let inline_lazy_force_cond arg pos loc =
-||||||| merged common ancestors
-let inline_lazy_force_cond arg loc =
-=======
-let call_force_lazy_block varg loc =
+let call_force_lazy_block ?(inlined = Default_inlined) varg loc ~pos =
   (* The argument is wrapped with [Popaque] to prevent the rest of the compiler
      from making any assumptions on its contents (see comments on
      [CamlinternalLazy.force_gen], and discussions on PRs #9998 and #10909).
@@ -1975,20 +1949,24 @@ let call_force_lazy_block varg loc =
     { ap_tailcall = Default_tailcall;
       ap_loc = loc;
       ap_func = force_fun;
-      ap_args = [ Lprim (Popaque, [ varg ], loc) ];
-      ap_inlined = Default_inline;
-      ap_specialised = Default_specialise
+      ap_args = [ Lprim (Popaque Lambda.layout_lazy, [ varg ], loc) ];
+      ap_result_layout = Lambda.layout_lazy_contents;
+      ap_region_close = pos;
+      ap_mode = alloc_heap;
+      ap_inlined = inlined;
+      ap_specialised = Default_specialise;
+      ap_probe = None;
     }
 
-let inline_lazy_force_cond arg loc =
->>>>>>> ocaml/5.1
+let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
+
+let inline_lazy_force_cond arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
   let test_tag t =
     Lprim(Pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
   in
-
   Llet
     ( Strict,
       Lambda.layout_lazy,
@@ -2000,67 +1978,19 @@ let inline_lazy_force_cond arg loc =
           tag,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
-<<<<<<< HEAD
-            (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
-            ( Lprim
-                ( Pintcomp Ceq,
-                  [ tag_var; Lconst (Const_base (Const_int Obj.forward_tag)) ],
-                  loc ),
-              Lprim (lazy_forward_field, [ varg ], loc),
-||||||| merged common ancestors
-            (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
-            ( Lprim
-                ( Pintcomp Ceq,
-                  [ tag_var; Lconst (Const_base (Const_int Obj.forward_tag)) ],
-                  loc ),
-              Lprim (Pfield 0, [ varg ], loc),
-=======
             ( (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
               test_tag Obj.forward_tag,
-              Lprim (Pfield (0, Pointer, Mutable), [ varg ], loc),
->>>>>>> ocaml/5.1
+              Lprim (lazy_forward_field, [ varg ], loc),
               Lifthenelse
-<<<<<<< HEAD
-                (* if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
-                ( Lprim
-                    ( Pintcomp Ceq,
-                      [ tag_var; Lconst (Const_base (Const_int Obj.lazy_tag)) ],
-                      loc ),
-                  Lapply
-                    { ap_tailcall = Default_tailcall;
-                      ap_loc = loc;
-                      ap_func = force_fun;
-                      ap_args = [ varg ];
-                      ap_result_layout = Lambda.layout_lazy_contents;
-                      ap_region_close = pos;
-                      ap_mode = alloc_heap;
-                      ap_inlined = Never_inlined;
-                      ap_specialised = Default_specialise;
-                      ap_probe=None
-                    },
-||||||| merged common ancestors
-                (* if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
-                ( Lprim
-                    ( Pintcomp Ceq,
-                      [ tag_var; Lconst (Const_base (Const_int Obj.lazy_tag)) ],
-                      loc ),
-                  Lapply
-                    { ap_tailcall = Default_tailcall;
-                      ap_loc = loc;
-                      ap_func = force_fun;
-                      ap_args = [ varg ];
-                      ap_inlined = Default_inline;
-                      ap_specialised = Default_specialise
-                    },
-=======
                 (
                   (* ... if tag == Obj.lazy_tag || tag == Obj.forcing_tag then
                          Lazy.force varg
                        else ... *)
                   Lprim (Psequor,
                        [test_tag Obj.lazy_tag; test_tag Obj.forcing_tag], loc),
-                  call_force_lazy_block varg loc,
->>>>>>> ocaml/5.1
+                  (* nroberts: We probably don't need [Never_inlined] anymore
+                     now that [ap_args] is opaque. *)
+                  call_force_lazy_block ~inlined:Never_inlined varg loc ~pos,
                   (* ... arg *)
                   varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
 
@@ -2081,42 +2011,11 @@ let inline_lazy_force_switch arg pos loc =
                 sw_blocks = [];
                 sw_numconsts = 256;
                 (* PR#6033 - tag ranges from 0 to 255 *)
-<<<<<<< HEAD
-                sw_blocks =
-                  [ ( Obj.forward_tag,
-                      Lprim (lazy_forward_field, [ varg ], loc) );
-                    ( Obj.lazy_tag,
-                      Lapply
-                        { ap_tailcall = Default_tailcall;
-                          ap_loc = loc;
-                          ap_func = force_fun;
-                          ap_args = [ varg ];
-                          ap_result_layout = Lambda.layout_lazy_contents;
-                          ap_region_close = pos;
-                          ap_mode = alloc_heap;
-                          ap_inlined = Default_inlined;
-                          ap_specialised = Default_specialise;
-                          ap_probe=None;
-                        } )
-||||||| merged common ancestors
-                sw_blocks =
-                  [ (Obj.forward_tag, Lprim (Pfield 0, [ varg ], loc));
-                    ( Obj.lazy_tag,
-                      Lapply
-                        { ap_tailcall = Default_tailcall;
-                          ap_loc = loc;
-                          ap_func = force_fun;
-                          ap_args = [ varg ];
-                          ap_inlined = Default_inline;
-                          ap_specialised = Default_specialise
-                        } )
-=======
                 sw_consts =
-                  [ (Obj.forward_tag, Lprim (Pfield(0, Pointer, Mutable),
+                  [ (Obj.forward_tag, Lprim (Pfield(0, Pointer, Reads_vary),
                                              [ varg ], loc));
-                    (Obj.lazy_tag, call_force_lazy_block varg loc);
-                    (Obj.forcing_tag, call_force_lazy_block varg loc)
->>>>>>> ocaml/5.1
+                    (Obj.lazy_tag, call_force_lazy_block varg loc ~pos);
+                    (Obj.forcing_tag, call_force_lazy_block varg loc ~pos)
                   ];
                 sw_failaction = Some varg
               },
@@ -2132,23 +2031,21 @@ let inline_lazy_force arg pos loc =
       { ap_tailcall = Default_tailcall;
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
-<<<<<<< HEAD
-        ap_args = [ arg ];
+        ap_args = [ Lconst (Const_base (Const_int 0)); arg ];
         ap_result_layout = Lambda.layout_lazy_contents;
         ap_region_close = pos;
         ap_mode = alloc_heap;
+        (* nroberts: To make sure this wasn't inlined:
+             - Upstream changed [code_force_lazy] to a non-inlineable
+               function when compiling with AFL support.
+             - We just changed this to Never_inlined.
+
+           If these two approaches are solving the same problem, we should
+           just converge to one.
+        *)
         ap_inlined = Never_inlined;
         ap_specialised = Default_specialise;
         ap_probe=None;
-||||||| merged common ancestors
-        ap_args = [ arg ];
-        ap_inlined = Default_inline;
-        ap_specialised = Default_specialise
-=======
-        ap_args = [ Lconst (Const_base (Const_int 0)); arg ];
-        ap_inlined = Default_inline;
-        ap_specialised = Default_specialise
->>>>>>> ocaml/5.1
       }
   else if !Clflags.native_code && not (Clflags.is_flambda2 ()) then
     (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
@@ -2186,16 +2083,9 @@ let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
     if pos >= arity then
       rem
     else
-<<<<<<< HEAD
-      (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), Alias,
+      (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
        Jkind.Sort.for_tuple_element, layout_field)
         :: make_args (pos + 1)
-||||||| merged common ancestors
-      (Lprim (Pfield pos, [ arg ], loc), Alias) :: make_args (pos + 1)
-=======
-      (Lprim (Pfield (pos, Pointer, Immutable), [ arg ], loc),
-             Alias) :: make_args (pos + 1)
->>>>>>> ocaml/5.1
   in
   make_args 0
 
@@ -2240,8 +2130,8 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-<<<<<<< HEAD
       check_record_field_jkind lbl;
+      let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
@@ -2250,17 +2140,10 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Mutable -> Reads_vary
       in
       let access, sort, layout =
-||||||| merged common ancestors
-      let access =
-=======
-      let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
-      let access =
->>>>>>> ocaml/5.1
         match lbl.lbl_repres with
-<<<<<<< HEAD
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
-            Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc),
+            Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
         | Record_unboxed
         | Record_inlined (_, Variant_unboxed) -> arg, sort, layout
@@ -2274,24 +2157,8 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
            (* Here we are projecting an unboxed float from a float record. *)
            lbl_sort, lbl_layout
         | Record_inlined (_, Variant_extensible) ->
-            Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc),
+            Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
-||||||| merged common ancestors
-        | Record_regular
-        | Record_inlined _ ->
-            Lprim (Pfield lbl.lbl_pos, [ arg ], loc)
-        | Record_unboxed _ -> arg
-        | Record_float -> Lprim (Pfloatfield lbl.lbl_pos, [ arg ], loc)
-        | Record_extension _ -> Lprim (Pfield (lbl.lbl_pos + 1), [ arg ], loc)
-=======
-        | Record_regular
-        | Record_inlined _ ->
-            Lprim (Pfield (lbl.lbl_pos, ptr, lbl.lbl_mut), [ arg ], loc)
-        | Record_unboxed _ -> arg
-        | Record_float -> Lprim (Pfloatfield lbl.lbl_pos, [ arg ], loc)
-        | Record_extension _ ->
-            Lprim (Pfield (lbl.lbl_pos + 1, ptr, lbl.lbl_mut), [ arg ], loc)
->>>>>>> ocaml/5.1
       in
       let str =
         match lbl.lbl_mut with
@@ -2624,12 +2491,7 @@ module SArg = struct
 
   let make_if kind cond ifso ifnot = Lifthenelse (cond, ifso, ifnot, kind)
 
-<<<<<<< HEAD
   let make_switch loc kind arg cases acts =
-||||||| merged common ancestors
-  let make_switch loc arg cases acts =
-=======
-  let make_switch loc arg cases acts =
     (* The [acts] array can contain arbitrary terms.
        If several entries in the [cases] array point to the same action,
        we must share it to avoid duplicating terms.
@@ -2642,13 +2504,12 @@ module SArg = struct
     let wrapper = ref (fun lam -> lam) in
     for j = 0 to Array.length acts - 1 do
       if act_uses.(j) > 1 then begin
-        let nfail, wrap = make_catch_delayed acts.(j) in
+        let nfail, wrap = make_catch_delayed kind acts.(j) in
         acts.(j) <- make_exit nfail;
         let prev_wrapper = !wrapper in
         wrapper := (fun lam -> wrap (prev_wrapper lam))
       end;
     done;
->>>>>>> ocaml/5.1
     let l = ref [] in
     for i = Array.length cases - 1 downto 0 do
       l := (i, acts.(cases.(i))) :: !l
@@ -2661,13 +2522,7 @@ module SArg = struct
           sw_blocks = [];
           sw_failaction = None
         },
-<<<<<<< HEAD
-        loc, kind )
-||||||| merged common ancestors
-        loc )
-=======
-        loc ))
->>>>>>> ocaml/5.1
+        loc, kind ))
 
   let make_catch = make_catch_delayed
 
@@ -3097,16 +2952,9 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                       (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
-<<<<<<< HEAD
               Llet (Alias, Lambda.layout_block, tag,
-                    Lprim (Pfield (0, Reads_agree), [ arg ], loc),
+                    Lprim (Pfield (0, Pointer, Reads_agree), [ arg ], loc),
                     tests)
-||||||| merged common ancestors
-              Llet (Alias, Pgenval, tag, Lprim (Pfield 0, [ arg ], loc), tests)
-=======
-              Llet (Alias, Pgenval, tag,
-                    Lprim (Pfield (0, Pointer, Immutable), [ arg ], loc), tests)
->>>>>>> ocaml/5.1
         in
         List.fold_right
           (fun (path, act) rem ->
@@ -3131,14 +2979,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
           mk_failaction_pos partial constrs ctx def
       in
       let descr_lambda_list = fails @ descr_lambda_list in
-<<<<<<< HEAD
       let consts, nonconsts = split_cases descr_lambda_list in
-||||||| merged common ancestors
-      let consts, nonconsts =
-        split_cases (List.map tag_lambda descr_lambda_list) in
-=======
-      let consts, nonconsts =
-        split_cases (List.map tag_lambda descr_lambda_list) in
       (* Our duty below is to generate code, for matching on a list of
          constructor+action cases, that is good for both bytecode and
          native-code compilation. (Optimizations that only work well
@@ -3161,7 +3002,6 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
          switcher directly can result in more compact code. This is
          a reason to deviate from the one-instruction policy.
       *)
->>>>>>> ocaml/5.1
       let lambda1 =
         match (fail_opt, same_actions descr_lambda_list) with
         | None, Some act ->
@@ -3171,52 +3011,24 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
             match
               (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts)
             with
-<<<<<<< HEAD
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
-||||||| merged common ancestors
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
-=======
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
                 (* This case is very frequent, it corresponds to
                    options and lists. *)
                 (* Keeping the Pisint test would make the bytecode
                    slightly worse, but it lets the native compiler generate
                    better code -- see #10681. *)
->>>>>>> ocaml/5.1
                 if !Clflags.native_code then
                   Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
                               act1, act2, value_kind)
                 else
-<<<<<<< HEAD
-                  (* PR#10681: we use [arg] directly as the test here;
-                     it generates better bytecode for this common case
-                     (typically options and lists), but would prevent
-                     some optimizations with the native compiler. *)
-                  Lifthenelse (arg, act2, act1, value_kind)
-||||||| merged common ancestors
-                  (* PR#10681: we use [arg] directly as the test here;
-                     it generates better bytecode for this common case
-                     (typically options and lists), but would prevent
-                     some optimizations with the native compiler. *)
-                  Lifthenelse (arg, act2, act1)
-=======
-                  Lifthenelse(arg, act2, act1)
->>>>>>> ocaml/5.1
+                  Lifthenelse(arg, act2, act1, value_kind)
             | n, 0, _, [] ->
-<<<<<<< HEAD
-                (* The type defines constant constructors only *)
-                call_switcher value_kind loc fail_opt arg 0 (n - 1) consts
-||||||| merged common ancestors
-                (* The type defines constant constructors only *)
-                call_switcher loc fail_opt arg 0 (n - 1) consts
-=======
                 (* The matched type defines constant constructors only.
                    (typically the constant cases are dense, so
                    call_switcher will generate a Lswitch, still one
                    instruction.) *)
-                call_switcher loc fail_opt arg 0 (n - 1) consts
->>>>>>> ocaml/5.1
+                call_switcher value_kind loc fail_opt arg 0 (n - 1) consts
             | n, _, _, _ -> (
                 let act0 =
                   (* = Some act when all non-const constructors match to act *)
@@ -3280,16 +3092,8 @@ let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
     ( Alias,
       Lambda.layout_int,
       v,
-<<<<<<< HEAD
       Lprim (nonconstant_variant_field 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
-||||||| merged common ancestors
-      Lprim (Pfield 0, [ arg ], loc),
-      call_switcher loc fail (Lvar v) min_int max_int int_lambda_list )
-=======
-      Lprim (Pfield (0, Pointer, Immutable), [ arg ], loc),
-      call_switcher loc fail (Lvar v) min_int max_int int_lambda_list )
->>>>>>> ocaml/5.1
 
 let combine_variant value_kind loc row arg partial ctx def
     (tag_lambda_list, total1, _pats)
@@ -3332,30 +3136,16 @@ let combine_variant value_kind loc row arg partial ctx def
         match (consts, nonconsts) with
         | [ (_, act1) ], [ (_, act2) ] when fail = None ->
             test_int_or_block arg act1 act2
-<<<<<<< HEAD
-        | _, [] ->
-            begin match fail with
-            | None ->
-              make_test_sequence_variant_constant value_kind fail arg consts
-            | Some act ->
-              test_int_or_block arg
-                (make_test_sequence_variant_constant value_kind fail arg consts)
-                act
-            end
-||||||| merged common ancestors
-        | _, [] ->
-            (* One can compare integers and pointers *)
-            make_test_sequence_variant_constant fail arg consts
-=======
         | _, [] -> (
-            let lam = make_test_sequence_variant_constant fail arg consts in
+            let lam =
+              make_test_sequence_variant_constant value_kind fail arg consts
+            in
             (* PR#11587: Switcher.test_sequence expects integer inputs, so
                if the type allows pointers we must filter them away. *)
             match fail with
             | None -> lam
             | Some fail -> test_int_or_block arg lam fail
           )
->>>>>>> ocaml/5.1
         | [], _ -> (
             let lam =
               call_switcher_variant_constr value_kind loc fail arg nonconsts
@@ -3870,13 +3660,7 @@ let failure_handler ~scopes loc ~failer () =
     let sloc = Scoped_location.of_location ~scopes loc in
     let slot =
       transl_extension_path sloc
-<<<<<<< HEAD
-        (Lazy.force Env.initial_safe_string) Predef.path_match_failure
-||||||| merged common ancestors
-        Env.initial_safe_string Predef.path_match_failure
-=======
-        Env.initial Predef.path_match_failure
->>>>>>> ocaml/5.1
+        (Lazy.force Env.initial) Predef.path_match_failure
     in
     let fname, line, char =
       Location.get_pos_info loc.Location.loc_start in

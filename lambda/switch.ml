@@ -627,13 +627,6 @@ let rec pkey chan  = function
     end ;
     !r, !rc
 
-<<<<<<< HEAD
-  let make_if_test kind test arg i ifso ifnot =
-    Arg.make_if kind
-||||||| merged common ancestors
-  let make_if_test test arg i ifso ifnot =
-    Arg.make_if
-=======
   (* Consider the following sequence of interval tests:
 
        if a in [2; 10] then
@@ -677,9 +670,8 @@ let rec pkey chan  = function
   *)
   type 'a t_ctx =  {off : int ; arg : 'a}
 
-  let make_if_test test arg i ifso ifnot =
-    Arg.make_if
->>>>>>> ocaml/5.1
+  let make_if_test kind test arg i ifso ifnot =
+    Arg.make_if kind
       (Arg.make_prim test [arg ; Arg.make_const i])
       ifso ifnot
 
@@ -737,14 +729,8 @@ let rec pkey chan  = function
              do_make_if_in kind
                (Arg.make_const d) arg (mk_ifso ctx) (mk_ifno ctx))
 
-<<<<<<< HEAD
-  let rec c_test kind ctx ({cases=cases ; actions=actions} as s) =
-||||||| merged common ancestors
-  let rec c_test ctx ({cases=cases ; actions=actions} as s) =
-=======
   (* Generate the code for a good test sequence. *)
-  let rec c_test ctx ({cases=cases ; actions=actions} as s) =
->>>>>>> ocaml/5.1
+  let rec c_test kind ctx ({cases=cases ; actions=actions} as s) =
     let lcases = Array.length cases in
     assert(lcases > 0) ;
     if lcases = 1 then
@@ -896,19 +882,11 @@ let rec pkey chan  = function
     done ;
     min_clusters.(len-1),k
 
-<<<<<<< HEAD
-  (* Assume j > i *)
-  let make_switch loc kind {cases=cases ; actions=actions} i j =
-||||||| merged common ancestors
-  (* Assume j > i *)
-  let make_switch loc {cases=cases ; actions=actions} i j =
-=======
   (* The code to generate a dense switch is provided
      by the functor parameter as Arg.make_switch
      (which will typically use a jump table) *)
-  let make_switch loc {cases=cases ; actions=actions} i j =
+  let make_switch loc kind {cases=cases ; actions=actions} i j =
     (* Assume j > i *)
->>>>>>> ocaml/5.1
     let ll,_,_ = cases.(i)
     and _,hh,_ = cases.(j) in
     let tbl = Array.make (hh-ll+1) 0
@@ -943,16 +921,8 @@ let rec pkey chan  = function
              (Arg.make_offset ctx.arg (-ll-ctx.off))
              (fun arg -> Arg.make_switch loc kind arg tbl acts))
 
-<<<<<<< HEAD
-
-  let make_clusters loc kind ({cases=cases ; actions=actions} as s) n_clusters k =
-||||||| merged common ancestors
-
-  let make_clusters loc ({cases=cases ; actions=actions} as s) n_clusters k =
-=======
   (* Generate code from a clustering choice. *)
-  let make_clusters loc ({cases=cases ; actions=actions} as s) n_clusters k =
->>>>>>> ocaml/5.1
+  let make_clusters loc kind ({cases=cases ; actions=actions} as s) n_clusters k =
     let len = Array.length cases in
     let r = Array.make n_clusters (0,0,0)
     and t = Hashtbl.create 17
@@ -1025,27 +995,15 @@ let rec pkey chan  = function
         actions in
     !handlers,actions
 
-<<<<<<< HEAD
-  let zyva loc kind lh arg cases actions =
-||||||| merged common ancestors
-  let zyva loc lh arg cases actions =
-=======
   (* Standard entry point. *)
-  let zyva loc lh arg cases actions =
->>>>>>> ocaml/5.1
+  let zyva loc kind lh arg cases actions =
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
     let hs,actions = abstract_shared kind actions in
     hs (do_zyva loc kind lh arg cases actions)
 
-<<<<<<< HEAD
-  and test_sequence kind arg cases actions =
-||||||| merged common ancestors
-  and test_sequence arg cases actions =
-=======
   (* Generate code using test sequences only, not Arg.make_switch *)
-  and test_sequence arg cases actions =
->>>>>>> ocaml/5.1
+  and test_sequence kind arg cases actions =
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
     let hs,actions = abstract_shared kind actions in
@@ -1060,14 +1018,6 @@ let rec pkey chan  = function
   pcases stderr cases ;
   prerr_endline "" ;
 *)
-<<<<<<< HEAD
     hs (c_test kind {arg=arg ; off=0} s)
-  ;;
-||||||| merged common ancestors
-    hs (c_test {arg=arg ; off=0} s)
-  ;;
-=======
-    hs (c_test {arg=arg ; off=0} s)
->>>>>>> ocaml/5.1
 
 end
