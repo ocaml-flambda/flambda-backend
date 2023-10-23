@@ -236,13 +236,9 @@ method class_of_operation op =
   | Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat -> Op_pure
   | Ispecific _ -> Op_other
-<<<<<<< HEAD
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
-||||||| merged common ancestors
-=======
   | Idls_get -> Op_load Mutable
->>>>>>> ocaml/5.1
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 method is_cheap_operation op =

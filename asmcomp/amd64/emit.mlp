@@ -691,28 +691,8 @@ let emit_instr env fallthrough i =
         cfi_restore_state ();
       end
   | Lop(Istackoffset n) ->
-<<<<<<< HEAD
       emit_stack_offset env n
-  | Lop(Iload(chunk, addr, _mut)) ->
-||||||| merged common ancestors
-      if n < 0
-      then I.add (int (-n)) rsp
-      else if n > 0
-      then I.sub (int n) rsp;
-      if n <> 0
-      then cfi_adjust_cfa_offset n;
-      env.stack_offset <- env.stack_offset + n
-  | Lop(Iload(chunk, addr, _mut)) ->
-=======
-      if n < 0
-      then I.add (int (-n)) rsp
-      else if n > 0
-      then I.sub (int n) rsp;
-      if n <> 0
-      then cfi_adjust_cfa_offset n;
-      env.stack_offset <- env.stack_offset + n
   | Lop(Iload { memory_chunk; addressing_mode; _ }) ->
->>>>>>> ocaml/5.1
       let dest = res i 0 in
       begin match memory_chunk with
       | Word_int | Word_val ->
@@ -899,7 +879,6 @@ let emit_instr env fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
-<<<<<<< HEAD
   | Lop(Ibeginregion) ->
       I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
   | Lop(Iendregion) ->
@@ -933,11 +912,8 @@ let emit_instr env fallthrough i =
     I.cmp (int 0) (res16 i 0);
     I.set (cond (Iunsigned Cne)) (res8 i 0);
     I.movzx (res8 i 0) (res i 0)
-||||||| merged common ancestors
-=======
   | Lop (Idls_get) ->
       I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
->>>>>>> ocaml/5.1
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -1075,7 +1051,6 @@ let rec emit_all env fallthrough i =
 
 let all_functions = ref []
 
-<<<<<<< HEAD
 let emit_function_type_and_size fun_name =
   match system with
   | S_gnu | S_linux ->
@@ -1085,9 +1060,6 @@ let emit_function_type_and_size fun_name =
          ConstThis,
          ConstLabel (emit_symbol fun_name)))
   | _ -> ()
-||||||| merged common ancestors
-=======
->>>>>>> ocaml/5.1
 
 (* Emission of a function declaration *)
 
@@ -1543,16 +1515,8 @@ let end_assembly() =
       efa_string = (fun s -> D.bytes (s ^ "\000"))
     };
 
-<<<<<<< HEAD
-  if system = S_linux then begin
-    let frametable = emit_symbol (Cmm_helpers.make_symbol "frametable") in
-||||||| merged common ancestors
-  if system = S_linux then begin
-    let frametable = emit_symbol (Compilenv.make_symbol (Some "frametable")) in
-=======
   if system = S_linux || system = S_freebsd || system = S_netbsd || system = S_openbsd then begin
-    let frametable = emit_symbol (Compilenv.make_symbol (Some "frametable")) in
->>>>>>> ocaml/5.1
+    let frametable = emit_symbol (Cmm_helpers.make_symbol "frametable") in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
 

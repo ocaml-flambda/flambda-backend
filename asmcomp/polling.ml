@@ -259,13 +259,8 @@ let find_poll_alloc_or_calls instr =
             Iconst_symbol _ | Iextcall { alloc = false } | Istackoffset _ |
             Iload _ | Istore _ | Iintop _ | Iintop_imm _ | Ifloatofint |
             Iintoffloat | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf |
-<<<<<<< HEAD
-            Iopaque | Ispecific _ |
+            Iopaque | Ispecific _ | Idls_get | Icompf _ |
             Ibeginregion | Iendregion | Iprobe _ | Iprobe_is_enabled _) -> None
-||||||| merged common ancestors
-=======
-            Iopaque | Ispecific _ | Idls_get | Icompf _) -> None
->>>>>>> ocaml/5.1
       | Iend | Ireturn | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _ |
         Itrywith _ | Iraise _ -> None
     in

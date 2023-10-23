@@ -386,14 +386,8 @@ method is_simple_expr = function
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
-<<<<<<< HEAD
-      | Ccmpf _ -> List.for_all self#is_simple_expr args
-||||||| merged common ancestors
-      | Ccmpf _ | Ccheckbound -> List.for_all self#is_simple_expr args
-=======
-      | Ccmpf _ | Ccheckbound | Cdls_get ->
+      | Ccmpf _ | Cdls_get ->
           List.for_all self#is_simple_expr args
->>>>>>> ocaml/5.1
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
   | Ctrywith _ | Cregion _ | Cexclave _ -> false
@@ -433,18 +427,10 @@ method effects_of exp =
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
-<<<<<<< HEAD
-      | Cload (_, Asttypes.Immutable) -> EC.none
-      | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
-      | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
-||||||| merged common ancestors
-      | Cload (_, Asttypes.Immutable) -> EC.none
-      | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
-=======
       | Cload {mutability = Asttypes.Immutable} -> EC.none
       | Cload {mutability = Asttypes.Mutable} | Cdls_get ->
           EC.coeffect_only Coeffect.Read_mutable
->>>>>>> ocaml/5.1
+      | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
       | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat | Ccmpf _ ->
@@ -539,14 +525,8 @@ method select_operation op args _dbg =
         (Istore(chunk, addr, is_assign), [arg2; eloc])
         (* Inversion addr/datum in Istore *)
       end
-<<<<<<< HEAD
   | (Calloc mode, _) -> (Ialloc {bytes = 0; dbginfo = []; mode}), args
-||||||| merged common ancestors
-  | (Calloc, _) -> (Ialloc {bytes = 0; dbginfo = []}), args
-=======
   | (Cdls_get, _) -> Idls_get, args
-  | (Calloc, _) -> (Ialloc {bytes = 0; dbginfo = []}), args
->>>>>>> ocaml/5.1
   | (Caddi, _) -> self#select_arith_comm Iadd args
   | (Csubi, _) -> self#select_arith Isub args
   | (Cmuli, _) -> self#select_arith_comm Imul args
@@ -793,22 +773,12 @@ method emit_expr_aux (env:environment) exp :
           self#insert_debug env  (Iraise k) dbg rd [||];
           None
       end
-<<<<<<< HEAD
   | Cop(Ccmpf _, _, dbg) ->
       self#emit_expr_aux env
         (Cifthenelse (exp,
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
           dbg, Any))
-||||||| merged common ancestors
-  | Cop(Ccmpf _, _, dbg) ->
-      self#emit_expr env
-        (Cifthenelse (exp,
-          dbg, Cconst_int (1, dbg),
-          dbg, Cconst_int (0, dbg),
-          dbg))
-=======
->>>>>>> ocaml/5.1
   | Cop(Copaque, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None
@@ -851,16 +821,8 @@ method emit_expr_aux (env:environment) exp :
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
-<<<<<<< HEAD
               Some (rd, unclosed_regions)
-          | Iextcall { ty_args; _} ->
-||||||| merged common ancestors
-              Some rd
-          | Iextcall { ty_args; _} ->
-=======
-              Some rd
           | Iextcall r ->
->>>>>>> ocaml/5.1
               let (loc_arg, stack_ofs) =
                 self#emit_extcall_args env r.ty_args new_args in
               let rd = self#regs_for ty in

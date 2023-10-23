@@ -67,14 +67,10 @@ type operation =
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Ipoll of { return_label: Cmm.label option }
-<<<<<<< HEAD
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
-||||||| merged common ancestors
-=======
   | Idls_get
->>>>>>> ocaml/5.1
 
 type instruction =
   { desc: instruction_desc;

@@ -397,47 +397,6 @@ let emit_instr env i =
       `	{emit_string instr}	{emit_reg i.arg.(0)}, {emit_int ofs}({emit_reg i.arg.(1)})\n`
   | Lop(Ialloc {bytes; dbginfo; mode = Alloc_heap}) ->
       let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc dbginfo) in
-<<<<<<< HEAD
-      let lbl_after_alloc = new_label () in
-      let lbl_call_gc = new_label () in
-      let n = -bytes in
-      let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-      if is_immediate n then
-        `	addi	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, {emit_int n}\n`
-      else begin
-        `	li	{emit_reg reg_tmp}, {emit_int n}\n`;
-        `	add	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}\n`
-      end;
-      `	ld	{emit_reg reg_tmp}, {emit_int offset}({emit_reg reg_domain_state_ptr})\n`;
-      `	bltu	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}, {emit_label lbl_call_gc}\n`;
-      `{emit_label lbl_after_alloc}:\n`;
-      `	addi	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, {emit_int size_addr}\n`;
-      env.call_gc_sites <-
-        { gc_lbl = lbl_call_gc;
-          gc_return_lbl = lbl_after_alloc;
-          gc_frame_lbl = lbl_frame_lbl } :: env.call_gc_sites
-  | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
-     Misc.fatal_error "Local allocations not supported on this architecture"
-||||||| merged common ancestors
-      let lbl_after_alloc = new_label () in
-      let lbl_call_gc = new_label () in
-      let n = -bytes in
-      let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-      if is_immediate n then
-        `	addi	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, {emit_int n}\n`
-      else begin
-        `	li	{emit_reg reg_tmp}, {emit_int n}\n`;
-        `	add	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}\n`
-      end;
-      `	ld	{emit_reg reg_tmp}, {emit_int offset}({emit_reg reg_domain_state_ptr})\n`;
-      `	bltu	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}, {emit_label lbl_call_gc}\n`;
-      `{emit_label lbl_after_alloc}:\n`;
-      `	addi	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, {emit_int size_addr}\n`;
-      env.call_gc_sites <-
-        { gc_lbl = lbl_call_gc;
-          gc_return_lbl = lbl_after_alloc;
-          gc_frame_lbl = lbl_frame_lbl } :: env.call_gc_sites
-=======
       if env.f.fun_fast then begin
         let lbl_after_alloc = new_label () in
         let lbl_call_gc = new_label () in
@@ -464,7 +423,8 @@ let emit_instr env i =
         `{emit_label lbl_frame_lbl}:\n`;
         `	addi	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, 8\n`
       end
->>>>>>> ocaml/5.1
+  | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+      Misc.fatal_error "Local allocations not supported on this architecture"
   | Lop(Ipoll { return_label }) ->
       let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc []) in
       let lbl_after_poll = match return_label with
@@ -541,15 +501,11 @@ let emit_instr env i =
   | Lop(Ispecific sop) ->
       let instr = name_for_specific sop in
       `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
-<<<<<<< HEAD
   | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
-||||||| merged common ancestors
-=======
   | Lop (Idls_get) ->
       let ofs = Domainstate.(idx_of_field Domain_dls_root) * 8 in
       `	ld	{emit_reg i.res.(0)}, {emit_int ofs}({emit_reg reg_domain_state_ptr})\n`
->>>>>>> ocaml/5.1
   | Lreloadretaddr ->
       let n = frame_size env in
       reload_ra n
@@ -791,14 +747,7 @@ let end_assembly() =
   `	.quad	0\n`;
   (* Emit the frame descriptors *)
   `	{emit_string data_space}\n`; (* not rodata because relocations inside *)
-<<<<<<< HEAD
   let lbl = Cmm_helpers.make_symbol "frametable" in
-||||||| merged common ancestors
-  `	{emit_string rodata_space}\n`;
-  let lbl = Compilenv.make_symbol (Some "frametable") in
-=======
-  let lbl = Compilenv.make_symbol (Some "frametable") in
->>>>>>> ocaml/5.1
   declare_global_data lbl;
   `{emit_symbol lbl}:\n`;
   emit_frames

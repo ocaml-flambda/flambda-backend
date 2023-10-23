@@ -425,46 +425,7 @@ let emit_instr env i =
           | Single -> assert false
           | Double -> "stdy" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
-
-<<<<<<< HEAD
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
-        let lbl_after_alloc = new_label() in
-        let lbl_call_gc = new_label() in
-        let lbl_frame =
-          record_frame_label env i.live (Dbg_alloc dbginfo)
-        in
-        env.call_gc_sites <-
-          { gc_lbl = lbl_call_gc;
-            gc_return_lbl = lbl_after_alloc;
-            gc_frame_lbl = lbl_frame; } :: env.call_gc_sites;
-        `	lay     %r11, {emit_int(-n)}(%r11)\n`;
-        let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-        `	clg	%r11, {emit_int offset}(%r10)\n`;
-        `	brcl    4, {emit_label lbl_call_gc}\n`;  (* less than *)
-        `{emit_label lbl_after_alloc}:`;
-        `	la      {emit_reg i.res.(0)}, 8(%r11)\n`
-
-    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
-||||||| merged common ancestors
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
-        let lbl_after_alloc = new_label() in
-        let lbl_call_gc = new_label() in
-        let lbl_frame =
-          record_frame_label env i.live (Dbg_alloc dbginfo)
-        in
-        env.call_gc_sites <-
-          { gc_lbl = lbl_call_gc;
-            gc_return_lbl = lbl_after_alloc;
-            gc_frame_lbl = lbl_frame; } :: env.call_gc_sites;
-        `	lay     %r11, {emit_int(-n)}(%r11)\n`;
-        let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-        `	clg	%r11, {emit_int offset}(%r10)\n`;
-        `	brcl    4, {emit_label lbl_call_gc}\n`;  (* less than *)
-        `{emit_label lbl_after_alloc}:`;
-        `	la      {emit_reg i.res.(0)}, 8(%r11)\n`
-=======
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
         let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc dbginfo) in
         if env.f.fun_fast then begin
           let lbl_after_alloc = new_label () in
@@ -491,8 +452,8 @@ let emit_instr env i =
           `{emit_label lbl_frame_lbl}:\n`;
           `	la      {emit_reg i.res.(0)}, 8(%r11)\n`
         end
->>>>>>> ocaml/5.1
-
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Ipoll { return_label }) ->
         let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
           `	clg	%r11, {emit_int offset}(%r10)\n`;
@@ -631,15 +592,11 @@ let emit_instr env i =
         assert (i.arg.(2).loc = i.res.(0).loc);
         let instr = name_for_specific sop in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
-<<<<<<< HEAD
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
-||||||| merged common ancestors
-=======
     | Lop (Idls_get) ->
         let ofs = Domainstate.(idx_of_field Domain_dls_root) * 8 in
         `	lg	{emit_reg i.res.(0)}, {emit_int ofs}(%r10)\n`
->>>>>>> ocaml/5.1
     | Lreloadretaddr ->
         let n = frame_size env in
         `	lg	%r14, {emit_int(n - size_addr)}(%r15)\n`
