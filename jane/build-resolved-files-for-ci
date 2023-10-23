@@ -11,6 +11,7 @@ echo "==========="
 # ocamlcommon mlis
 mlis=$(
   { echo driver/{compenv,compmisc,main_args}.mli
+    echo file_formats/{cmi,cmo,cms,cmt}_format.mli
     echo parsing/parser.mli
     echo {utils,typing,parsing,lambda}/*.mli
   } |
@@ -45,6 +46,7 @@ dune_targets=$(
 mlis=$(
   { echo middle_end/{,closure,flambda}/*.mli
     echo asmcomp/*.mli
+    echo file_formats/{cmx,cmxs,linear}_format.mli
   } |
     tr ' ' '\n' |
     sed "s/CSE/cSE/"
@@ -89,6 +91,7 @@ typing_mls=(
 # ocamlcommon mls
 mls=$(
   { echo driver/{compenv,compmisc,main_args}.ml
+    echo file_formats/{cmi,cms,cmt}_format.ml
     echo parsing/parser.ml
     echo {utils,parsing,lambda}/*.ml
     echo bytecomp/{meta,opcodes,bytesections,dll,symtable}.ml
@@ -133,6 +136,7 @@ mls=$(
   { echo middle_end/{,closure,flambda}/*.ml
     echo asmcomp/*.ml
     echo asmcomp/amd64/*.ml
+    echo file_formats/linear_format.ml
   } |
     tr ' ' '\n' |
     sed "s/CSE/cSE/"

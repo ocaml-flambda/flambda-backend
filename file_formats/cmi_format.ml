@@ -42,7 +42,7 @@ exception Error of error
   (again, shallowly) representation can be found. When deserializing, we read
   the entire data block into memory as one blob and then deserialize from it as
   needed when values are forced.
-  
+
   Note that we are deliberately using int for offsets here because int64 is more
   expensive. On 32 bits architectures, this imposes a constraint on the size of
   .cmi files. *)
@@ -150,7 +150,6 @@ let read_cmi_lazy filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-<<<<<<< HEAD
   let output_int64 oc n =
     let buf = Bytes.create 8 in
     Bytes.set_int64_ne buf 0 n;
@@ -167,12 +166,10 @@ let output_cmi filename oc cmi =
   let len = Int64.sub val_pos data_pos in
   output_int64 oc len;
   Out_channel.seek oc val_pos;
+  (* BACKPORT BEGIN *)
+  (* mshinwell: upstream uses [Compression] here *)
   output_value oc ((cmi.cmi_name, sign) : header);
-||||||| merged common ancestors
-  output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
-=======
-  Marshal.(to_channel oc ((cmi.cmi_name, cmi.cmi_sign) : header) [Compression]);
->>>>>>> ocaml/5.1
+  (* BACKPORT END *)
   flush oc;
   let crc = Digest.file filename in
   let crcs =
