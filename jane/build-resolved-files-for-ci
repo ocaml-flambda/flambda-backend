@@ -87,8 +87,7 @@ typing_mls=(
 mls=$(
   { echo driver/{compenv,compmisc,main_args}.ml
     echo parsing/parser.ml
-    echo {utils,parsing}/*.ml
-    echo lambda/{lambda,tmc,simplif}.ml
+    echo {utils,parsing,lambda}/*.ml
     for f in "${typing_mls[@]}"; do
         echo "typing/${f}.ml"
     done
@@ -96,7 +95,9 @@ mls=$(
     tr ' ' '\n' |
     grep -v "utils/config.common.ml" |
     grep -v "utils/config.fixed.ml" |
-    grep -v "utils/config.generated.ml"
+    grep -v "utils/config.generated.ml" |
+    grep -v "lambda/matching.ml" | # need Obj.forcing_tag in stdlib
+    cat;
 )
 echo "$mls"
 dune_targets=$(
