@@ -176,13 +176,10 @@ let psubfloat = "Psubfloat"
 let psubint = "Psubint"
 let pxorbint = "Pxorbint"
 let pxorint = "Pxorint"
-<<<<<<< HEAD
 let pprobe_is_enabled = "Pprobe_is_enabled"
 let parray_of_iarray = "Parray_of_iarray"
 let parray_to_iarray = "Parray_to_iarray"
 let pget_header = "Pget_header"
-||||||| merged common ancestors
-=======
 let patomic_cas = "Patomic_cas"
 let patomic_exchange = "Patomic_exchange"
 let patomic_fetch_add = "Patomic_fetch_add"
@@ -193,7 +190,6 @@ let presume = "Presume"
 let preperform = "Preperform"
 let pdls_get = "Pdls_get"
 
->>>>>>> ocaml/5.1
 let pabsfloat_arg = "Pabsfloat_arg"
 let paddbint_arg = "Paddbint_arg"
 let paddfloat_arg = "Paddfloat_arg"
@@ -303,13 +299,10 @@ let psubfloat_arg = "Psubfloat_arg"
 let psubint_arg = "Psubint_arg"
 let pxorbint_arg = "Pxorbint_arg"
 let pxorint_arg = "Pxorint_arg"
-<<<<<<< HEAD
 let pprobe_is_enabled_arg = "Pprobe_is_enabled_arg"
 let parray_of_iarray_arg = "Parray_of_iarray_arg"
 let parray_to_iarray_arg = "Parray_to_iarray_arg"
 let pget_header_arg = "Pget_header_arg"
-||||||| merged common ancestors
-=======
 let patomic_cas_arg = "Patomic_cas_arg"
 let patomic_exchange_arg = "Patomic_exchange_arg"
 let patomic_fetch_add_arg = "Patomic_fetch_add_arg"
@@ -320,7 +313,6 @@ let presume_arg = "Presume_arg"
 let preperform_arg = "Preperform_arg"
 let pdls_get_arg = "Pdls_get_arg"
 
->>>>>>> ocaml/5.1
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -471,7 +463,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbigstring_set_64 _ -> pbigstring_set_64
   | Pbswap16 -> pbswap16
   | Pbbswap _ -> pbbswap
-<<<<<<< HEAD
   | Pint_as_pointer _ -> pint_as_pointer
   | Popaque _ -> popaque
   | Pprobe_is_enabled _ -> pprobe_is_enabled
@@ -486,12 +477,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Pget_header _ -> pget_header
   | Pmake_unboxed_product _ -> pmake_unboxed_product
   | Punboxed_product_field _ -> punboxed_product_field
-||||||| merged common ancestors
-  | Pint_as_pointer -> pint_as_pointer
-  | Popaque -> popaque
-=======
-  | Pint_as_pointer -> pint_as_pointer
-  | Popaque -> popaque
   | Patomic_cas -> patomic_cas
   | Patomic_exchange -> patomic_exchange
   | Patomic_fetch_add -> patomic_fetch_add
@@ -501,7 +486,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Presume -> presume
   | Preperform -> preperform
   | Pdls_get -> pdls_get
->>>>>>> ocaml/5.1
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -608,7 +592,6 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbigstring_set_64 _ -> pbigstring_set_64_arg
   | Pbswap16 -> pbswap16_arg
   | Pbbswap _ -> pbbswap_arg
-<<<<<<< HEAD
   | Pint_as_pointer _ -> pint_as_pointer_arg
   | Popaque _ -> popaque_arg
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
@@ -623,12 +606,6 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pget_header _ -> pget_header_arg
   | Pmake_unboxed_product _ -> pmake_unboxed_product_arg
   | Punboxed_product_field _ -> punboxed_product_field_arg
-||||||| merged common ancestors
-  | Pint_as_pointer -> pint_as_pointer_arg
-  | Popaque -> popaque_arg
-=======
-  | Pint_as_pointer -> pint_as_pointer_arg
-  | Popaque -> popaque_arg
   | Patomic_cas -> patomic_cas_arg
   | Patomic_exchange -> patomic_exchange_arg
   | Patomic_fetch_add -> patomic_fetch_add_arg
@@ -638,4 +615,3 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Presume -> presume_arg
   | Preperform -> preperform_arg
   | Pdls_get -> pdls_get_arg
->>>>>>> ocaml/5.1

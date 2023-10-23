@@ -111,7 +111,9 @@ type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
   | Illegal_renaming of Compilation_unit.t * Compilation_unit.t * string
-  | Mismatching_for_pack of string * string * string * string option
+  | Mismatching_for_pack of
+      string * Compilation_unit.Prefix.t * Compilation_unit.Name.t
+      * Compilation_unit.Prefix.t option
 
 exception Error of error
 

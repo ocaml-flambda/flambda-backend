@@ -75,6 +75,7 @@ let first_non_constant_constructor_tag = 0
 let last_non_constant_constructor_tag = 243
 
 let forcing_tag = 244
+(* Note that cmmgen.ml contains a copy of [cont_tag] of its own *)
 let cont_tag = 245
 let lazy_tag = 246
 let closure_tag = 247

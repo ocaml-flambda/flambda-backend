@@ -96,14 +96,8 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let _, body =
     List.fold_left (fun (pos, body) param ->
         let lam : Flambda.named =
-<<<<<<< HEAD
-          Prim (Pfield (pos, Pvalue Pgenval), [tuple_param_var], Debuginfo.none)
-||||||| merged common ancestors
-          Prim (Pfield pos, [tuple_param_var], Debuginfo.none)
-=======
-          Prim (Pfield (pos, Pointer, Mutable),
+          Prim (Pfield (pos, Pvalue Pgenval, Pointer, Mutable),
                 [tuple_param_var], Debuginfo.none)
->>>>>>> ocaml/5.1
         in
         pos + 1, Flambda.create_let param lam body)
       (0, call) params
@@ -115,12 +109,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
     ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline ~return_layout
     ~specialise:Default_specialise ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
-<<<<<<< HEAD
     ~poll:Default_poll (* don't propogate attribute to wrappers *)
-||||||| merged common ancestors
-=======
-    ~poll:Default_poll (* don't propagate attribute to wrappers *)
->>>>>>> ocaml/5.1
 
 let register_const t (constant:Flambda.constant_defining_value) name
     : Flambda.constant_defining_value_block_field * Internal_variable_names.t =
@@ -749,22 +738,11 @@ let lambda_to_flambda ~backend ~compilation_unit ~size lam
       Flambda.create_let
         sym_v (Symbol block_symbol)
          (Flambda.create_let result_v
-<<<<<<< HEAD
-            (Prim (Pfield (0, Pvalue Pgenval), [sym_v], Debuginfo.none))
-||||||| merged common ancestors
-            (Prim (Pfield 0, [sym_v], Debuginfo.none))
-=======
-            (Prim (Pfield (0, Pointer, Mutable), [sym_v], Debuginfo.none))
->>>>>>> ocaml/5.1
+            (Prim (Pfield (0, Pvalue Pgenval, Pointer, Mutable), [sym_v],
+              Debuginfo.none))
             (Flambda.create_let value_v
-<<<<<<< HEAD
-              (Prim (Pfield (pos, Pvalue Pgenval), [result_v], Debuginfo.none))
-||||||| merged common ancestors
-              (Prim (Pfield pos, [result_v], Debuginfo.none))
-=======
-              (Prim (Pfield (pos, Pointer, Mutable),
+              (Prim (Pfield (pos, Pvalue Pgenval, Pointer, Mutable),
                      [result_v], Debuginfo.none))
->>>>>>> ocaml/5.1
               (Var value_v))))
   in
   let module_initializer : Flambda.program_body =

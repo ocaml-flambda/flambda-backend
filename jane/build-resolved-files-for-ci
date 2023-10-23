@@ -23,7 +23,7 @@ dune_targets=$(
     echo _build/default/.ocamlcommon.objs/byte/$cmi.cmi
   done
 )
-echo "$mlis"
+
 # ocamlbytecomp mlis
 mlis=$(
   { echo driver/{errors,compile,maindriver}.mli
@@ -36,6 +36,22 @@ dune_targets=$(
   for mli in $mlis; do
     cmi=$(basename ${mli%.mli})
     echo _build/default/.ocamlbytecomp.objs/byte/$cmi.cmi
+  done
+)
+
+# ocamloptcomp mlis
+mlis=$(
+  { echo middle_end/{,closure,flambda}/*.mli
+    echo asmcomp/*cmm*.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    cmi=$(basename ${mli%.mli})
+    echo _build/default/.ocamloptcomp.objs/byte/$cmi.cmi
   done
 )
 
@@ -96,13 +112,28 @@ mls=$(
   } |
     tr ' ' '\n'
 )
-
 echo "$mls"
 dune_targets=$(
   echo $dune_targets
   for ml in $mls; do
     cmx=$(basename ${ml%.ml})
     echo _build/default/.ocamlbytecomp.objs/native/$cmx.cmx
+  done
+)
+
+# ocamloptcomp mls
+mls=$(
+  { echo middle_end/{,closure,flambda}/*.ml
+    echo asmcomp/*cmm*.ml
+  } |
+    tr ' ' '\n'
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/.ocamloptcomp.objs/native/$cmx.cmx
   done
 )
 

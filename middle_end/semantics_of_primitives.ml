@@ -129,15 +129,11 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psetfield _
   | Psetfield_computed _
   | Psetfloatfield _
-<<<<<<< HEAD
   | Psetufloatfield _
-||||||| merged common ancestors
-=======
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
->>>>>>> ocaml/5.1
   | Parraysetu _
   | Parraysets _
   | Pbytessetu
@@ -156,14 +152,10 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psequor ->
       (* Removed by [Closure_conversion] in the flambda pipeline. *)
       No_effects, No_coeffects
-<<<<<<< HEAD
   | Pget_header _ -> No_effects, No_coeffects
-||||||| merged common ancestors
-=======
   | Pdls_get ->
       (* only read *)
       No_effects, No_coeffects
->>>>>>> ocaml/5.1
 
 type return_type =
   | Float
@@ -294,3 +286,6 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
       false
   | Pprobe_is_enabled _ -> false
   | Pget_header m -> is_local_alloc m
+  | Prunstack | Pperform | Presume | Preperform -> true
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Pdls_get
+  | Patomic_load _ -> false

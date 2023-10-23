@@ -570,14 +570,7 @@ let is_different_from x = function
   | Cconst_natint (n, _) -> n <> Nativeint.of_int x
   | _ -> false
 
-<<<<<<< HEAD
 let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
-||||||| merged common ancestors
-let safe_divmod_bi mkop is_safe mkm1 c1 c2 bi dbg =
-  bind "dividend" c1 (fun c1 ->
-=======
-let safe_divmod_bi mkop is_safe mkm1 c1 c2 bi dbg =
->>>>>>> ocaml/5.1
   bind "divisor" c2 (fun c2 ->
   bind "dividend" c1 (fun c1 ->
     let c = mkop c1 c2 is_safe dbg in
@@ -630,7 +623,6 @@ let rec unbox_float dbg =
           | _ ->
               Cop(mk_load_immut Double, [cmm], dbg)
           end
-<<<<<<< HEAD
       | Cregion e as cmm -> (
         (* It is valid to push unboxing inside a Cregion except when the extra
            unboxing logic pushes a tail call out of tail position *)
@@ -642,13 +634,8 @@ let rec unbox_float dbg =
             e
         with
         | e -> Cregion e
-        | exception Exit -> Cop (Cload (Double, Immutable), [cmm], dbg))
-      | cmm -> Cop(Cload (Double, Immutable), [cmm], dbg)
-||||||| merged common ancestors
-      | cmm -> Cop(Cload (Double, Immutable), [cmm], dbg)
-=======
+        | exception Exit -> Cop (mk_load_immut Double, [cmm], dbg))
       | cmm -> Cop(mk_load_immut Double, [cmm], dbg)
->>>>>>> ocaml/5.1
     )
 
 (* Complex *)
@@ -701,27 +688,15 @@ let field_address ptr n dbg =
   then ptr
   else Cop(Cadda, [ptr; Cconst_int(n * size_addr, dbg)], dbg)
 
-<<<<<<< HEAD
-let get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg =
-  Cop (Cload (memory_chunk, mut), [field_address ptr n dbg], dbg)
+let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
+  Cop(Cload {memory_chunk; mutability; is_atomic=false},
+    [field_address ptr n dbg], dbg)
 
 let get_field_gen mut ptr n dbg =
   get_field_gen_given_memory_chunk Word_val mut ptr n dbg
 
 let get_field_codepointer mut ptr n dbg =
   get_field_gen_given_memory_chunk Word_int mut ptr n dbg
-||||||| merged common ancestors
-let get_field_gen mut ptr n dbg =
-  Cop(Cload (Word_val, mut), [field_address ptr n dbg], dbg)
-=======
-let get_field_gen mutability ptr n dbg =
-  Cop(Cload {memory_chunk=Word_val; mutability; is_atomic=false},
-      [field_address ptr n dbg], dbg)
-
-let get_field_codepointer mutability ptr n dbg =
-  Cop(Cload {memory_chunk=Word_int; mutability; is_atomic=false},
-      [field_address ptr n dbg], dbg)
->>>>>>> ocaml/5.1
 
 let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
@@ -1585,134 +1560,6 @@ let box_sized size mode dbg exp =
 let default_prim name =
   Primitive.simple_on_values ~name ~arity:0(*ignored*) ~alloc:true
 
-<<<<<<< HEAD
-
-let int64_native_prim name arity ~alloc =
-  let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in
-  let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
-  let effects = Primitive.Arbitrary_effects in
-  let coeffects = Primitive.Has_coeffects in
-  Primitive.make ~name ~native_name:(name ^ "_native")
-    ~alloc
-    ~c_builtin:false
-    ~effects ~coeffects
-    ~native_repr_args:(make_args arity)
-    ~native_repr_res:u64
-
-(* TODO: On 32-bit, these will do heap allocations even in situations
-   where local allocs are allowed *)
-let simplif_primitive_32bits :
-  Clambda_primitives.primitive -> Clambda_primitives.primitive = function
-    Pbintofint (Pint64,_) -> Pccall (default_prim "caml_int64_of_int")
-  | Pintofbint Pint64 -> Pccall (default_prim "caml_int64_to_int")
-  | Pcvtbint(Pint32, Pint64,_) -> Pccall (default_prim "caml_int64_of_int32")
-  | Pcvtbint(Pint64, Pint32,_) -> Pccall (default_prim "caml_int64_to_int32")
-  | Pcvtbint(Pnativeint, Pint64,_) ->
-      Pccall (default_prim "caml_int64_of_nativeint")
-  | Pcvtbint(Pint64, Pnativeint,_) ->
-      Pccall (default_prim "caml_int64_to_nativeint")
-  | Pnegbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_neg" 1
-                                 ~alloc:false)
-  | Paddbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_add" 2
-                                 ~alloc:false)
-  | Psubbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_sub" 2
-                                 ~alloc:false)
-  | Pmulbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_mul" 2
-                                 ~alloc:false)
-  | Pdivbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_div" 2
-                                        ~alloc:true)
-  | Pmodbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_mod" 2
-                                        ~alloc:true)
-  | Pandbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_and" 2
-                                 ~alloc:false)
-  | Porbint(Pint64,_) ->  Pccall (int64_native_prim "caml_int64_or" 2
-                                 ~alloc:false)
-  | Pxorbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_xor" 2
-                                 ~alloc:false)
-  | Plslbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_left")
-  | Plsrbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_right_unsigned")
-  | Pasrbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_right")
-  | Pbintcomp(Pint64, Lambda.Ceq) -> Pccall (default_prim "caml_equal")
-  | Pbintcomp(Pint64, Lambda.Cne) -> Pccall (default_prim "caml_notequal")
-  | Pbintcomp(Pint64, Lambda.Clt) -> Pccall (default_prim "caml_lessthan")
-  | Pbintcomp(Pint64, Lambda.Cgt) -> Pccall (default_prim "caml_greaterthan")
-  | Pbintcomp(Pint64, Lambda.Cle) -> Pccall (default_prim "caml_lessequal")
-  | Pbintcomp(Pint64, Lambda.Cge) -> Pccall (default_prim "caml_greaterequal")
-  | Pcompare_bints Pint64 -> Pccall (default_prim "caml_int64_compare")
-  | Pbigarrayref(_unsafe, n, Pbigarray_int64, _layout) ->
-      Pccall (default_prim ("caml_ba_get_" ^ Int.to_string n))
-  | Pbigarrayset(_unsafe, n, Pbigarray_int64, _layout) ->
-      Pccall (default_prim ("caml_ba_set_" ^ Int.to_string n))
-  | Pstring_load(Sixty_four, _, _) -> Pccall (default_prim "caml_string_get64")
-  | Pbytes_load(Sixty_four, _, _) -> Pccall (default_prim "caml_bytes_get64")
-  | Pbytes_set(Sixty_four, _) -> Pccall (default_prim "caml_bytes_set64")
-  | Pbigstring_load(Sixty_four,_,_) -> Pccall (default_prim "caml_ba_uint8_get64")
-  | Pbigstring_set(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_set64")
-  | Pbbswap (Pint64,_) -> Pccall (default_prim "caml_int64_bswap")
-  | p -> p
-
-||||||| merged common ancestors
-
-let int64_native_prim name arity ~alloc =
-  let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
-  let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
-  Primitive.make ~name ~native_name:(name ^ "_native")
-    ~alloc
-    ~native_repr_args:(make_args arity)
-    ~native_repr_res:u64
-
-let simplif_primitive_32bits :
-  Clambda_primitives.primitive -> Clambda_primitives.primitive = function
-    Pbintofint Pint64 -> Pccall (default_prim "caml_int64_of_int")
-  | Pintofbint Pint64 -> Pccall (default_prim "caml_int64_to_int")
-  | Pcvtbint(Pint32, Pint64) -> Pccall (default_prim "caml_int64_of_int32")
-  | Pcvtbint(Pint64, Pint32) -> Pccall (default_prim "caml_int64_to_int32")
-  | Pcvtbint(Pnativeint, Pint64) ->
-      Pccall (default_prim "caml_int64_of_nativeint")
-  | Pcvtbint(Pint64, Pnativeint) ->
-      Pccall (default_prim "caml_int64_to_nativeint")
-  | Pnegbint Pint64 -> Pccall (int64_native_prim "caml_int64_neg" 1
-                                 ~alloc:false)
-  | Paddbint Pint64 -> Pccall (int64_native_prim "caml_int64_add" 2
-                                 ~alloc:false)
-  | Psubbint Pint64 -> Pccall (int64_native_prim "caml_int64_sub" 2
-                                 ~alloc:false)
-  | Pmulbint Pint64 -> Pccall (int64_native_prim "caml_int64_mul" 2
-                                 ~alloc:false)
-  | Pdivbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_div" 2
-                                        ~alloc:true)
-  | Pmodbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_mod" 2
-                                        ~alloc:true)
-  | Pandbint Pint64 -> Pccall (int64_native_prim "caml_int64_and" 2
-                                 ~alloc:false)
-  | Porbint Pint64 ->  Pccall (int64_native_prim "caml_int64_or" 2
-                                 ~alloc:false)
-  | Pxorbint Pint64 -> Pccall (int64_native_prim "caml_int64_xor" 2
-                                 ~alloc:false)
-  | Plslbint Pint64 -> Pccall (default_prim "caml_int64_shift_left")
-  | Plsrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right_unsigned")
-  | Pasrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right")
-  | Pbintcomp(Pint64, Lambda.Ceq) -> Pccall (default_prim "caml_equal")
-  | Pbintcomp(Pint64, Lambda.Cne) -> Pccall (default_prim "caml_notequal")
-  | Pbintcomp(Pint64, Lambda.Clt) -> Pccall (default_prim "caml_lessthan")
-  | Pbintcomp(Pint64, Lambda.Cgt) -> Pccall (default_prim "caml_greaterthan")
-  | Pbintcomp(Pint64, Lambda.Cle) -> Pccall (default_prim "caml_lessequal")
-  | Pbintcomp(Pint64, Lambda.Cge) -> Pccall (default_prim "caml_greaterequal")
-  | Pcompare_bints Pint64 -> Pccall (default_prim "caml_int64_compare")
-  | Pbigarrayref(_unsafe, n, Pbigarray_int64, _layout) ->
-      Pccall (default_prim ("caml_ba_get_" ^ Int.to_string n))
-  | Pbigarrayset(_unsafe, n, Pbigarray_int64, _layout) ->
-      Pccall (default_prim ("caml_ba_set_" ^ Int.to_string n))
-  | Pstring_load(Sixty_four, _) -> Pccall (default_prim "caml_string_get64")
-  | Pbytes_load(Sixty_four, _) -> Pccall (default_prim "caml_bytes_get64")
-  | Pbytes_set(Sixty_four, _) -> Pccall (default_prim "caml_bytes_set64")
-  | Pbigstring_load(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_get64")
-  | Pbigstring_set(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_set64")
-  | Pbbswap Pint64 -> Pccall (default_prim "caml_int64_bswap")
-  | p -> p
-
-=======
->>>>>>> ocaml/5.1
 let simplif_primitive p : Clambda_primitives.primitive =
   match (p : Clambda_primitives.primitive) with
   | Pduprecord _ ->
@@ -1995,13 +1842,8 @@ let generic_apply mut clos args extended_args_type extended_result (pos, mode)
   match args with
   | [arg] ->
       bind "fun" clos (fun clos ->
-<<<<<<< HEAD
-        Cop(Capply(result, pos), [get_field_gen mut clos 0 dbg; arg; clos],
-||||||| merged common ancestors
-        Cop(Capply typ_val, [get_field_gen mut clos 0 dbg; arg; clos],
-=======
-        Cop(Capply typ_val, [get_field_codepointer mut clos 0 dbg; arg; clos],
->>>>>>> ocaml/5.1
+        Cop(Capply(result, pos),
+          [get_field_codepointer mut clos 0 dbg; arg; clos],
           dbg))
   | _ ->
       let cargs =
@@ -2154,28 +1996,10 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
   let dbg = placeholder_dbg in
   let args = List.map (fun _ -> V.create_local "arg") arity in
   let clos = V.create_local "clos" in
-<<<<<<< HEAD
   (* In the slowpath, a region is necessary in case
      the initial applications do local allocations *)
   let region =
     if not Config.stack_allocation then None
-||||||| merged common ancestors
-  let rec app_fun clos n =
-    if n = arity-1 then
-      Cop(Capply typ_val,
-          [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-           Cvar arg.(n);
-           Cvar clos],
-          dbg ())
-=======
-  let rec app_fun clos n =
-    if n = arity-1 then
-      Cop(Capply typ_val,
-          [get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
-           Cvar arg.(n);
-           Cvar clos],
-          dbg ())
->>>>>>> ocaml/5.1
     else begin
       match mode with
       | Alloc_heap -> Some (V.create_local "region")
@@ -2189,7 +2013,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
       let app =
         Cop
           ( Capply (result, Rc_normal),
-            [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+            [ get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
               Cvar arg;
               Cvar clos ],
             dbg () )
@@ -2216,12 +2040,11 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
             Any ))
     | arg :: args ->
       let newclos = V.create_local "clos" in
-<<<<<<< HEAD
       Clet
         ( VP.create newclos,
           Cop
             ( Capply (typ_val, Rc_normal),
-              [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+              [ get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
                 Cvar arg;
                 Cvar clos ],
               dbg () ),
@@ -2233,25 +2056,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
     | Some reg ->
       Clet (VP.create reg, Cop (Cbeginregion, [], dbg ()), app_fun clos args)
   in
-||||||| merged common ancestors
-      Clet(VP.create newclos,
-           Cop(Capply typ_val,
-               [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-                Cvar arg.(n); Cvar clos], dbg ()),
-           app_fun newclos (n+1))
-    end in
-  let args = Array.to_list arg in
-=======
-      Clet(VP.create newclos,
-           Cop(Capply typ_val,
-               [get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
-                Cvar arg.(n); Cvar clos], dbg ()),
-           app_fun newclos (n+1))
-    end in
-  let args = Array.to_list arg in
->>>>>>> ocaml/5.1
   let all_args = args @ [clos] in
-<<<<<<< HEAD
   ( args,
     clos,
     if List.compare_length_with arity 1 = 0
@@ -2270,46 +2075,13 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           dbg (),
           Cop
             ( Capply (result, Rc_normal),
-              get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
+              get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
               :: List.map (fun s -> Cvar s) all_args,
               dbg () ),
           dbg (),
           code,
           dbg (),
           Any ) )
-||||||| merged common ancestors
-  (args, clos,
-   if arity = 1 then app_fun clos 0 else
-   Cifthenelse(
-   Cop(Ccmpi Ceq, [Cop(Casr,
-                       [get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg());
-                        Cconst_int(pos_arity_in_closinfo, dbg())], dbg());
-                   Cconst_int(arity, dbg())], dbg()),
-   dbg (),
-   Cop(Capply typ_val,
-       get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-       :: List.map (fun s -> Cvar s) all_args,
-       dbg ()),
-   dbg (),
-   app_fun clos 0,
-   dbg ()))
-=======
-  (args, clos,
-   if arity = 1 then app_fun clos 0 else
-   Cifthenelse(
-   Cop(Ccmpi Ceq, [Cop(Casr,
-                       [get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg());
-                        Cconst_int(pos_arity_in_closinfo, dbg())], dbg());
-                   Cconst_int(arity, dbg())], dbg()),
-   dbg (),
-   Cop(Capply typ_val,
-       get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
-       :: List.map (fun s -> Cvar s) all_args,
-       dbg ()),
-   dbg (),
-   app_fun clos 0,
-   dbg ()))
->>>>>>> ocaml/5.1
 
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
@@ -2340,16 +2112,8 @@ let send_function (arity, result, mode) =
                 cache_public_method (Cvar meths) tag cache (dbg ()),
                 dbg (),
                 cached_pos,
-<<<<<<< HEAD
                 dbg (), Any),
-    Cop(Cload (Word_val, Mutable),
-||||||| merged common ancestors
-                dbg ()),
-    Cop(Cload (Word_val, Mutable),
-=======
-                dbg ()),
     Cop(mk_load_mut Word_val,
->>>>>>> ocaml/5.1
       [Cop(Cadda, [Cop (Cadda, [Cvar real; Cvar meths], dbg ());
        cconst_int(2*size_addr-1)], dbg ())], dbg ()))))
 
@@ -2409,16 +2173,8 @@ let tuplify_function arity return =
    {fun_name;
     fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
     fun_body =
-<<<<<<< HEAD
       Cop(Capply(return, Rc_normal),
-          get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-||||||| merged common ancestors
-      Cop(Capply typ_val,
-          get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-=======
-      Cop(Capply typ_val,
           get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
->>>>>>> ocaml/5.1
           :: access_components 0 @ [Cvar clos],
           (dbg ()));
     fun_codegen_options = [];
@@ -2500,7 +2256,7 @@ let read_from_closure_given_machtype t clos base_offset dbg =
     | Float -> Double
   in
   Cop
-    ( Cload (memory_chunk, Asttypes.Mutable),
+    ( mk_load_mut memory_chunk,
       [field_address clos base_offset dbg],
       dbg )
 
@@ -2531,59 +2287,7 @@ let rec make_curry_apply result narity args_type args clos n =
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
   let last_clos = V.create_local "clos" in
-<<<<<<< HEAD
   let narity = List.length arity in
-||||||| merged common ancestors
-  let rec curry_fun args clos n =
-    if n = 0 then
-      Cop(Capply typ_val,
-          get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()) ::
-            args @ [Cvar last_arg; Cvar clos],
-          dbg ())
-    else
-      if n = arity - 1 || arity > max_arity_optimized then
-        begin
-      let newclos = V.create_local "clos" in
-      Clet(VP.create newclos,
-           get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ()),
-           curry_fun (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-                      :: args)
-             newclos (n-1))
-        end else
-        begin
-          let newclos = V.create_local "clos" in
-          Clet(VP.create newclos,
-               get_field_gen Asttypes.Mutable (Cvar clos) 4 (dbg ()),
-               curry_fun
-                 (get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ()) :: args)
-                 newclos (n-1))
-    end in
-=======
-  let rec curry_fun args clos n =
-    if n = 0 then
-      Cop(Capply typ_val,
-          get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ()) ::
-            args @ [Cvar last_arg; Cvar clos],
-          dbg ())
-    else
-      if n = arity - 1 || arity > max_arity_optimized then
-        begin
-      let newclos = V.create_local "clos" in
-      Clet(VP.create newclos,
-           get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ()),
-           curry_fun (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-                      :: args)
-             newclos (n-1))
-        end else
-        begin
-          let newclos = V.create_local "clos" in
-          Clet(VP.create newclos,
-               get_field_gen Asttypes.Mutable (Cvar clos) 4 (dbg ()),
-               curry_fun
-                 (get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ()) :: args)
-                 newclos (n-1))
-    end in
->>>>>>> ocaml/5.1
   let fun_name =
     curry_function_sym (Lambda.Curried { nlocal }) arity result
     ^ "_"
@@ -2592,156 +2296,16 @@ let final_curry_function nlocal arity result =
   let args_type = List.rev arity in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
-<<<<<<< HEAD
     { fun_name;
       fun_args =
         [VP.create last_arg, List.hd args_type; VP.create last_clos, typ_val];
-||||||| merged common ancestors
-   {fun_name;
-    fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
-    fun_body = curry_fun [] last_clos (arity-1);
-    fun_codegen_options = [];
-    fun_dbg;
-   }
-
-let rec intermediate_curry_functions arity num =
-  let dbg = placeholder_dbg in
-  if num = arity - 1 then
-    [final_curry_function arity]
-  else begin
-    let name1 = "caml_curry" ^ Int.to_string arity in
-    let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
-    let arg = V.create_local "arg" and clos = V.create_local "clos" in
-    let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-    Cfunction
-     {fun_name = name2;
-      fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
-=======
-   {fun_name;
-    fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
-    fun_body = curry_fun [] last_clos (arity-1);
-    fun_codegen_options = [];
-    fun_poll = Default_poll;
-    fun_dbg;
-   }
-
-let rec intermediate_curry_functions arity num =
-  let dbg = placeholder_dbg in
-  if num = arity - 1 then
-    [final_curry_function arity]
-  else begin
-    let name1 = "caml_curry" ^ Int.to_string arity in
-    let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
-    let arg = V.create_local "arg" and clos = V.create_local "clos" in
-    let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-    Cfunction
-     {fun_name = name2;
-      fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
->>>>>>> ocaml/5.1
       fun_body =
         make_curry_apply result narity (List.tl args_type) [Cvar last_arg]
           last_clos (narity - 1);
       fun_codegen_options = [];
-      fun_poll = Default_poll;
       fun_dbg;
-<<<<<<< HEAD
       fun_poll = Default_poll
     }
-||||||| merged common ancestors
-     }
-    ::
-      (if arity <= max_arity_optimized && arity - num > 2 then
-          let rec iter i =
-            if i <= arity then
-              let arg = V.create_local (Printf.sprintf "arg%d" i) in
-              (arg, typ_val) :: iter (i+1)
-            else []
-          in
-          let direct_args = iter (num+2) in
-          let rec iter i args clos =
-            if i = 0 then
-              Cop(Capply typ_val,
-                  (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()))
-                  :: args @ [Cvar clos],
-                  dbg ())
-            else
-              let newclos = V.create_local "clos" in
-              Clet(VP.create newclos,
-                   get_field_gen Asttypes.Mutable (Cvar clos) 4 (dbg ()),
-                   iter (i-1)
-                     (get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ())
-                      :: args)
-                     newclos)
-          in
-          let fun_args =
-            List.map (fun (arg, ty) -> VP.create arg, ty)
-              (direct_args @ [clos, typ_val])
-          in
-          let fun_name = name1 ^ "_" ^ Int.to_string (num+1) ^ "_app" in
-          let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
-          let cf =
-            Cfunction
-              {fun_name;
-               fun_args;
-               fun_body = iter (num+1)
-                  (List.map (fun (arg,_) -> Cvar arg) direct_args) clos;
-               fun_codegen_options = [];
-               fun_dbg;
-              }
-          in
-          cf :: intermediate_curry_functions arity (num+1)
-       else
-          intermediate_curry_functions arity (num+1))
-  end
-=======
-     }
-    ::
-      (if arity <= max_arity_optimized && arity - num > 2 then
-          let rec iter i =
-            if i <= arity then
-              let arg = V.create_local (Printf.sprintf "arg%d" i) in
-              (arg, typ_val) :: iter (i+1)
-            else []
-          in
-          let direct_args = iter (num+2) in
-          let rec iter i args clos =
-            if i = 0 then
-              Cop(Capply typ_val,
-                  (get_field_codepointer
-                     Asttypes.Mutable (Cvar clos) 2 (dbg ()))
-                  :: args @ [Cvar clos],
-                  dbg ())
-            else
-              let newclos = V.create_local "clos" in
-              Clet(VP.create newclos,
-                   get_field_gen Asttypes.Mutable (Cvar clos) 4 (dbg ()),
-                   iter (i-1)
-                     (get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ())
-                      :: args)
-                     newclos)
-          in
-          let fun_args =
-            List.map (fun (arg, ty) -> VP.create arg, ty)
-              (direct_args @ [clos, typ_val])
-          in
-          let fun_name = name1 ^ "_" ^ Int.to_string (num+1) ^ "_app" in
-          let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
-          let cf =
-            Cfunction
-              {fun_name;
-               fun_args;
-               fun_body = iter (num+1)
-                  (List.map (fun (arg,_) -> Cvar arg) direct_args) clos;
-               fun_codegen_options = [];
-               fun_poll = Default_poll;
-               fun_dbg;
-              }
-          in
-          cf :: intermediate_curry_functions arity (num+1)
-       else
-          intermediate_curry_functions arity (num+1))
-  end
->>>>>>> ocaml/5.1
 
 let intermediate_curry_functions ~nlocal ~arity result =
   let name1 = curry_function_sym (Lambda.Curried { nlocal }) arity result in
@@ -2968,36 +2532,21 @@ let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
-<<<<<<< HEAD
   | Assignment Modify_heap, Pointer -> Caml_modify
   | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
-  | Heap_initialization, _ ->
-     Caml_initialize
-  | (Assignment _), Immediate -> Simple Assignment
-  | Root_initialization, (Immediate | Pointer) -> Simple Initialization
-||||||| merged common ancestors
-  | Assignment, Pointer -> Caml_modify
-  | Heap_initialization, Pointer -> Caml_initialize
-  | Assignment, Immediate
-  | Heap_initialization, Immediate
-  | Root_initialization, (Immediate | Pointer) -> Simple
-=======
-  | Assignment, Pointer -> Caml_modify
   | Heap_initialization, Pointer
   | Root_initialization, Pointer -> Caml_initialize
-  | Assignment, Immediate
+  | (Assignment _), Immediate -> Simple Assignment
   | Heap_initialization, Immediate
-  | Root_initialization, Immediate -> Simple
->>>>>>> ocaml/5.1
+  | Root_initialization, Immediate -> Simple Initialization
 
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
   | Caml_modify ->
       return_unit dbg
         (Cop(Cextcall("caml_modify", typ_void, [], false),
-<<<<<<< HEAD
              [field_address arg1 n dbg; arg2],
              dbg))
   | Caml_modify_local ->
@@ -3005,13 +2554,6 @@ let setfield n ptr init arg1 arg2 dbg =
         (Cop(Cextcall("caml_modify_local", typ_void, [], false),
              [arg1; Cconst_int (n,dbg); arg2],
              dbg))
-||||||| merged common ancestors
-             [field_address arg1 n dbg; arg2],
-             dbg))
-=======
-            [field_address arg1 n dbg; arg2],
-            dbg))
->>>>>>> ocaml/5.1
   | Caml_initialize ->
       return_unit dbg
         (Cop(Cextcall("caml_initialize", typ_void, [], false),
@@ -3108,67 +2650,29 @@ let stringref_safe arg1 arg2 dbg =
           Cop(mk_load_mut Byte_unsigned,
             [add_int str idx dbg], dbg))))) dbg
 
-<<<<<<< HEAD
 let string_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
-||||||| merged common ancestors
-let string_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
-    (bind "str" arg1 (fun str ->
-     bind "index" (untag_int arg2 dbg) (fun idx ->
-=======
-let string_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
->>>>>>> ocaml/5.1
     (bind "index" (untag_int arg2 dbg) (fun idx ->
      bind "str" arg1 (fun str ->
        check_bound unsafe size dbg
           (string_length str dbg)
           idx (unaligned_load size str idx dbg))))
 
-<<<<<<< HEAD
 let bigstring_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
-    (bind "index" (untag_int arg2 dbg) (fun idx ->
-     bind "ba" arg1 (fun ba ->
-     bind "ba_data"
-     (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
-||||||| merged common ancestors
-let bigstring_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
-   (bind "ba" arg1 (fun ba ->
-    bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "ba_data"
-     (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
-=======
-let bigstring_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
    (bind "index" (untag_int arg2 dbg) (fun idx ->
     bind "ba" arg1 (fun ba ->
     bind "ba_data"
      (Cop(mk_load_mut Word_int, [field_address ba 1 dbg], dbg))
->>>>>>> ocaml/5.1
      (fun ba_data ->
         check_bound unsafe size dbg
           (bigstring_length ba dbg)
           idx
           (unaligned_load size ba_data idx dbg)))))
 
-<<<<<<< HEAD
 let arrayref_unsafe rkind arg1 arg2 dbg =
   match (rkind : Lambda.array_ref_kind) with
   | Pgenarray_ref mode ->
-||||||| merged common ancestors
-let arrayref_unsafe kind arg1 arg2 dbg =
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
-      bind "arr" arg1 (fun arr ->
-        bind "index" arg2 (fun idx ->
-=======
-let arrayref_unsafe kind arg1 arg2 dbg =
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
->>>>>>> ocaml/5.1
       bind "index" arg2 (fun idx ->
         bind "arr" arg1 (fun arr ->
           Cifthenelse(is_addr_array_ptr arr dbg,
@@ -3209,7 +2713,6 @@ let arrayref_safe rkind arg1 arg2 dbg =
             dbg,
             Csequence(
               make_checkbound dbg [float_array_length_shifted hdr dbg; idx],
-<<<<<<< HEAD
               float_array_ref mode arr idx dbg),
             dbg, Any))))
   | Paddrarray_ref ->
@@ -3218,7 +2721,7 @@ let arrayref_safe rkind arg1 arg2 dbg =
         Csequence(
           make_checkbound dbg [
             addr_array_length_shifted
-              (get_header_without_profinfo arr dbg) dbg; idx],
+              (get_header_masked arr dbg) dbg; idx],
           addr_array_ref arr idx dbg)))
   | Pintarray_ref ->
       bind "index" arg2 (fun idx ->
@@ -3226,7 +2729,7 @@ let arrayref_safe rkind arg1 arg2 dbg =
         Csequence(
           make_checkbound dbg [
             addr_array_length_shifted
-              (get_header_without_profinfo arr dbg) dbg; idx],
+              (get_header_masked arr dbg) dbg; idx],
           int_array_ref arr idx dbg)))
   | Pfloatarray_ref mode ->
       box_float dbg mode (
@@ -3235,68 +2738,9 @@ let arrayref_safe rkind arg1 arg2 dbg =
           Csequence(
             make_checkbound dbg [
               float_array_length_shifted
-                (get_header_without_profinfo arr dbg) dbg;
+                (get_header_masked arr dbg) dbg;
               idx],
             unboxed_float_array_ref arr idx dbg))))
-||||||| merged common ancestors
-              float_array_ref arr idx dbg),
-            dbg))))
-      | Paddrarray ->
-          bind "index" arg2 (fun idx ->
-          bind "arr" arg1 (fun arr ->
-            Csequence(
-              make_checkbound dbg [
-                addr_array_length_shifted
-                  (get_header_without_profinfo arr dbg) dbg; idx],
-              addr_array_ref arr idx dbg)))
-      | Pintarray ->
-          bind "index" arg2 (fun idx ->
-          bind "arr" arg1 (fun arr ->
-            Csequence(
-              make_checkbound dbg [
-                addr_array_length_shifted
-                  (get_header_without_profinfo arr dbg) dbg; idx],
-              int_array_ref arr idx dbg)))
-      | Pfloatarray ->
-          box_float dbg (
-            bind "index" arg2 (fun idx ->
-            bind "arr" arg1 (fun arr ->
-              Csequence(
-                make_checkbound dbg [
-                  float_array_length_shifted
-                    (get_header_without_profinfo arr dbg) dbg;
-                  idx],
-                unboxed_float_array_ref arr idx dbg))))
-=======
-              float_array_ref arr idx dbg),
-            dbg))))
-      | Paddrarray ->
-          bind "index" arg2 (fun idx ->
-          bind "arr" arg1 (fun arr ->
-            Csequence(
-              make_checkbound dbg [
-                addr_array_length_shifted
-                  (get_header_masked arr dbg) dbg; idx],
-              addr_array_ref arr idx dbg)))
-      | Pintarray ->
-          bind "index" arg2 (fun idx ->
-          bind "arr" arg1 (fun arr ->
-            Csequence(
-              make_checkbound dbg [
-                addr_array_length_shifted
-                  (get_header_masked arr dbg) dbg; idx],
-              int_array_ref arr idx dbg)))
-      | Pfloatarray ->
-          box_float dbg (
-            bind "index" arg2 (fun idx ->
-            bind "arr" arg1 (fun arr ->
-              Csequence(
-                make_checkbound dbg [
-                  float_array_length_shifted
-                    (get_header_masked arr dbg) dbg;
-                  idx],
-                unboxed_float_array_ref arr idx dbg))))
->>>>>>> ocaml/5.1
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression

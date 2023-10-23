@@ -26,20 +26,12 @@ let boxed_integer_mark name = function
   | Lambda.Pint32 -> Printf.sprintf "Int32.%s" name
   | Lambda.Pint64 -> Printf.sprintf "Int64.%s" name
 
-<<<<<<< HEAD
 let alloc_kind = function
   | Lambda.Alloc_heap -> ""
   | Lambda.Alloc_local -> "[L]"
 
 let print_boxed_integer name ppf bi m =
-  fprintf ppf "%s%s" (boxed_integer_mark name bi) (alloc_kind m);;
-||||||| merged common ancestors
-let print_boxed_integer name ppf bi =
-  fprintf ppf "%s" (boxed_integer_mark name bi);;
-=======
-let print_boxed_integer name ppf bi =
-  fprintf ppf "%s" (boxed_integer_mark name bi)
->>>>>>> ocaml/5.1
+  fprintf ppf "%s%s" (boxed_integer_mark name bi) (alloc_kind m)
 
 let array_kind array_kind =
   let open Lambda in
@@ -92,7 +84,6 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   match prim with
   | Pread_symbol sym ->
       fprintf ppf "read_symbol %s" sym
-<<<<<<< HEAD
   | Pmakeblock(tag, mut, shape, mode) ->
       let mode = match mode with
         | Alloc_heap -> ""
@@ -117,27 +108,15 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
       fprintf ppf "%s" name
-  | Pfield (n, layout) -> fprintf ppf "field%a %i" Printlambda.layout layout n
-||||||| merged common ancestors
-  | Pmakeblock(tag, Immutable, shape) ->
-      fprintf ppf "makeblock %i%a" tag Printlambda.block_shape shape
-  | Pmakeblock(tag, Mutable, shape) ->
-      fprintf ppf "makemutable %i%a" tag Printlambda.block_shape shape
-  | Pfield n -> fprintf ppf "field %i" n
-=======
-  | Pmakeblock(tag, Immutable, shape) ->
-      fprintf ppf "makeblock %i%a" tag Printlambda.block_shape shape
-  | Pmakeblock(tag, Mutable, shape) ->
-      fprintf ppf "makemutable %i%a" tag Printlambda.block_shape shape
-  | Pfield(n, ptr, mut) ->
+  | Pfield (n, layout, ptr, mut) ->
       let instr =
         match ptr, mut with
-        | Immediate, _ -> "field_int "
-        | Pointer, Mutable -> "field_mut "
-        | Pointer, Immutable -> "field_imm "
+        | Immediate, _ -> "field_int"
+        | Pointer, Mutable -> "field_mut"
+        | Pointer, Immutable -> "field_imm"
+        | Pointer, Immutable_unique -> "field_imm_unique"
       in
-      fprintf ppf "%s%i" instr n
->>>>>>> ocaml/5.1
+      fprintf ppf "%s%a %i" instr Printlambda.layout layout n
   | Pfield_computed -> fprintf ppf "field_computed"
   | Psetfield(n, ptr, init) ->
       let instr =
@@ -305,15 +284,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       fprintf ppf "bigarray.array1.%sset%s"
         (access_safety safety) (access_size size)
   | Pbswap16 -> fprintf ppf "bswap16"
-<<<<<<< HEAD
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer.%s" (alloc_kind m)
-||||||| merged common ancestors
-  | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
-=======
-  | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Patomic_load {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_load_imm"
@@ -321,9 +293,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Patomic_exchange -> fprintf ppf "atomic_exchange"
   | Patomic_cas -> fprintf ppf "atomic_cas"
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
->>>>>>> ocaml/5.1
   | Popaque -> fprintf ppf "opaque"
-<<<<<<< HEAD
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
   | Punbox_float -> fprintf ppf "unbox_float"
@@ -331,7 +301,4 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
   | Pget_header m -> fprintf ppf "get_header.%s" (alloc_kind m)
-||||||| merged common ancestors
-=======
   | Pdls_get -> fprintf ppf "dls_get"
->>>>>>> ocaml/5.1
