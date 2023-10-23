@@ -428,8 +428,14 @@ module Resizable_array = struct
   (** Create a new array that's twice the size of the old one.  The first half
       of the array contains the same elements, and the latter half's contents
       are unspecified.  Note that this does not update [array] itself. *)
-  let double ~loc array = array_append ~loc array array
-  (* Implementing array doubling in by appending an array to itself may not be
+  let double ~loc array_kind array =
+    let append_func = match array_kind with
+      | Pfloatarray | Pintarray | Paddrarray | Pgenarray -> array_append
+      | Punboxedfloatarray -> unboxed_float_array_append
+      | Punboxedintarray _ -> Misc.fatal_error "Not implemented for unboxed int"
+    in
+    append_func ~loc array array
+    (* Implementing array doubling in by appending an array to itself may not be
      the optimal way to do array doubling, but it's good enough for now *)
 end
 
@@ -696,14 +702,16 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Fixed_size, (Pintarray | Paddrarray) ->
         Immutable StrictOpt,
         make_vect ~loc ~length:array_size.var ~init:(int 0)
-    | Fixed_size, Pfloatarray ->
+    | Fixed_size, (Pfloatarray | Punboxedfloatarray) ->
         Immutable StrictOpt, make_float_vect ~loc array_size.var
     (* Case 3: Unknown size, known array kind *)
     | Dynamic_size, (Pintarray | Paddrarray) ->
         Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
-    | _, (Punboxedfloatarray | Punboxedintarray _) ->
+    | Dynamic_size, Punboxedfloatarray ->
+        Mutable, Resizable_array.make ~loc array_kind (unboxed_float ~loc 0.)
+    | _, (Punboxedintarray _) ->
       Misc.fatal_error "XXX mshinwell: for frontend devs"
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
@@ -772,7 +780,7 @@ let body
             Lsequence(
               Lassign(array_size.id, i 2 * array_size.var),
               Lassign(array.id,
-                      Resizable_array.double ~loc array.var)),
+                      Resizable_array.double ~loc array_kind array.var)),
             (Pvalue Pintval) (* [unit] is immediate *)),
           (* ...and then set the element now that the array is big enough *)
           set_element_raw elt)
@@ -792,10 +800,8 @@ let body
                Lassign(array.id, make_array),
                set_element_in_bounds elt.var,
                (Pvalue Pintval) (* [unit] is immediate *)))
-    | Pintarray | Paddrarray | Pfloatarray ->
+    | Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray | Punboxedintarray _ ->
         set_element_in_bounds body
-    | Punboxedfloatarray | Punboxedintarray _ ->
-        Misc.fatal_error "XXX mshinwell: for frontend devs"
   in
   Lsequence(
     set_element_known_kind_in_bounds,
@@ -839,8 +845,13 @@ let comprehension
          match array_sizing with
          | Fixed_size -> array.var
          | Dynamic_size ->
-             array_sub ~loc array.var ~offset:(int 0)
-               ~length:index.var))
+           let sub_func = match array_kind with
+             | Pintarray | Pfloatarray | Paddrarray | Pgenarray -> array_sub
+             | Punboxedfloatarray -> unboxed_float_array_sub
+             | Punboxedintarray _ -> Misc.fatal_error "Not implemented for unboxed int"
+           in
+           sub_func ~loc array.var ~offset:(int 0) ~length:index.var
+       ))
   in
   (* If we're in the fixed-size array case, do the extra setup necessary. *)
   match array_sizing_info with

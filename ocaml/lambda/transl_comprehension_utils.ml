@@ -36,6 +36,8 @@ module Lambda_utils = struct
 
     let float f = Lconst (Const_base (Const_float (Float.to_string f)))
 
+    let unboxed_float ~loc f = Lprim (Punbox_float, [float f], loc)
+
     let string ~loc s = Lconst (Const_base (Const_string(s, loc, None)))
   end
 
@@ -142,8 +144,14 @@ module Lambda_utils = struct
 
     let array_append = binary "caml_array_append"
 
+    let unboxed_float_array_append = binary "caml_float_u_array_append"
+
     let array_sub =
       let array_sub = ternary "caml_array_sub" in
+      fun ~loc a ~offset ~length -> array_sub ~loc a offset length
+
+    let unboxed_float_array_sub =
+      let array_sub = ternary "caml_float_u_array_sub" in
       fun ~loc a ~offset ~length -> array_sub ~loc a offset length
   end
 end

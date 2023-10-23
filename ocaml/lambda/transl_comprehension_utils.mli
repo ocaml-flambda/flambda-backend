@@ -57,6 +57,10 @@ module Lambda_utils : sig
         [Float.to_string] *)
     val float  : float -> lambda
 
+    (** Lambda unboxed float literals; be careful with unusual values, as this calls
+        [Float.to_string] *)
+    val unboxed_float : loc:scoped_location -> float -> lambda
+
     (** Lambda string literals; these require a location, and are constructed as
         "quoted strings", not {fancy|delimited strings|fancy}. *)
     val string : loc:Location.t -> string -> lambda
@@ -122,10 +126,20 @@ module Lambda_utils : sig
         creates a new array by appending [a1] and [a2] *)
     val array_append : loc:scoped_location -> lambda -> lambda -> lambda
 
+    (** [unboxed_float_array_append a1 a2] calls the [caml_float_u_array_append]
+        C primitive, which creates a new array by appending [a1] and [a2] *)
+    val unboxed_float_array_append : loc:scoped_location -> lambda -> lambda -> lambda
+
     (** [array_sub a ~offset ~length] calls the [caml_array_sub] C primitive,
         which creates a new subarray corresponding to the subarray of [a]
         starting at the given [offset] with the given [length] *)
     val array_sub :
+      loc:scoped_location -> lambda -> offset:lambda -> length:lambda -> lambda
+
+    (** [unboxed_float_array_sub a ~offset ~length] calls the [caml_float_u_array_sub]
+        C primitive, which creates a new subarray corresponding to the subarray of [a]
+        starting at the given [offset] with the given [length] *)
+    val unboxed_float_array_sub :
       loc:scoped_location -> lambda -> offset:lambda -> length:lambda -> lambda
   end
 end
