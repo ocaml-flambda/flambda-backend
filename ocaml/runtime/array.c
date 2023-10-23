@@ -876,11 +876,6 @@ CAMLprim value caml_float_u_array_fill_byte(value array,
   return caml_float_u_array_fill(array, v_ofs, v_len, Double_val(val));
 }
 
-CAMLprim value caml_float_u_array_empty(value unit)
-{
-  return Atom(0);
-}
-
 static value caml_float_u_array_gather(intnat num_arrays,
                                value arrays[/*num_arrays*/],
                                intnat offsets[/*num_arrays*/],

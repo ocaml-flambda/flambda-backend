@@ -53,10 +53,8 @@ external unsafe_fill :
  *       = "%floatarray_unsafe_set"
  * end *)
 
-external empty: unit -> ('a : float64) array = "caml_float_u_array_empty"
-
 let init l f =
-  if l = 0 then (empty ()) else
+  if l = 0 then [||] else
   if l < 0 then invalid_arg "Float_u_array.init"
   (* See #6575. We could also check for maximum array size, but this depends
      on whether we create a float array or a regular one... *)
@@ -68,7 +66,7 @@ let init l f =
    res
 
 let make_matrix sx sy init =
-  let res = Array.make sx (empty ()) in
+  let res = Array.make sx [||] in
   for x = 0 to pred sx do
     Array.unsafe_set res x (create sy init)
   done;
@@ -77,7 +75,7 @@ let make_matrix sx sy init =
 let create_matrix = make_matrix
 
 let copy a =
-  let l = length a in if l = 0 then (empty ()) else unsafe_sub a 0 l
+  let l = length a in if l = 0 then [||] else unsafe_sub a 0 l
 
 let append a1 a2 =
   let l1 = length a1 in
@@ -112,7 +110,7 @@ let iter2 f a b =
 
 let map f a =
   let l = length a in
-  if l = 0 then (empty ()) else begin
+  if l = 0 then [||] else begin
     let r = create l (f(unsafe_get a 0)) in
     for i = 1 to l - 1 do
       unsafe_set r i (f(unsafe_get a i))
@@ -126,7 +124,7 @@ let map2 f a b =
   if la <> lb then
     invalid_arg "Float_u_array.map2: arrays must have the same length"
   else begin
-    if la = 0 then (empty ()) else begin
+    if la = 0 then [||] else begin
       let r = create la (f (unsafe_get a 0) (unsafe_get b 0)) in
       for i = 1 to la - 1 do
         unsafe_set r i (f (unsafe_get a i) (unsafe_get b i))
@@ -140,7 +138,7 @@ let iteri f a =
 
 let mapi f a =
   let l = length a in
-  if l = 0 then (empty ()) else begin
+  if l = 0 then [||] else begin
     let r = create l (f 0 (unsafe_get a 0)) in
     for i = 1 to l - 1 do
       unsafe_set r i (f i (unsafe_get a i))
@@ -159,7 +157,7 @@ let mapi f a =
  *   | _::t -> list_length (succ accu) t
  *
  * let of_list = function
- *     [] -> (empty ())
+ *     [] -> [||]
  *   | hd::tl as l ->
  *       let a = create (list_length 0 l) hd in
  *       let rec fill i = function
@@ -176,7 +174,7 @@ let fold_left f x a =
 
 (* let fold_left_map f acc input_array =
  *   let len = length input_array in
- *   if len = 0 then (acc, (empty ())) else begin
+ *   if len = 0 then (acc, [||]) else begin
  *     let acc, elt = f acc (unsafe_get input_array 0) in
  *     let output_array = create len elt in
  *     let acc = ref acc in
@@ -273,7 +271,7 @@ let mem x a =
  *   loop 0
  *
  * let split x =
- *   if x = (empty ()) then (empty ()), (empty ())
+ *   if x = [||] then [||], [||]
  *   else begin
  *     let a0, b0 = unsafe_get x 0 in
  *     let n = length x in
@@ -291,7 +289,7 @@ let mem x a =
  *   let na = length a in
  *   let nb = length b in
  *   if na <> nb then invalid_arg "Float_u_array.combine";
- *   if na = 0 then (empty ())
+ *   if na = 0 then [||]
  *   else begin
  *     let x = create na (unsafe_get a 0, unsafe_get b 0) in
  *     for i = 1 to na - 1 do
@@ -428,7 +426,7 @@ let fast_sort = stable_sort
  *   aux 0
  *
  * let of_rev_list = function
- *     [] -> (empty ())
+ *     [] -> [||]
  *   | hd::tl as l ->
  *       let len = list_length 0 l in
  *       let a = create len hd in
