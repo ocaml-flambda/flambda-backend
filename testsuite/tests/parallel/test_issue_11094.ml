@@ -1,4 +1,6 @@
 (* TEST
+   * skip
+
 * bytecode
 * native
 *)

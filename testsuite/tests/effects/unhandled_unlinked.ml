@@ -1,4 +1,6 @@
 (* TEST
+   * skip
+
      exit_status= "2"
 *)
 

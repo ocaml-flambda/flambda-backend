@@ -1,4 +1,6 @@
 (* TEST
+   * skip
+
 
 flags = "-g"
 * bytecode

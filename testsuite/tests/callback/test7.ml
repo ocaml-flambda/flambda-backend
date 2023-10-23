@@ -1,4 +1,6 @@
 (* TEST
+   * skip
+
    include unix
    modules = "test7_.c"
    * libunix

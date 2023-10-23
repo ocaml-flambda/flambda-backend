@@ -12,6 +12,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR mshinwell: To be re-enabled in due course *)
+
+(*
+
 type 'a t = ..
 external perform : 'a t -> 'a = "%perform"
 
@@ -159,3 +163,5 @@ module Shallow = struct
     ('a,'b) continuation -> int -> Printexc.raw_backtrace =
     "caml_get_continuation_callstack"
 end
+
+*)
