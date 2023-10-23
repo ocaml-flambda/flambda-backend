@@ -109,15 +109,9 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-<<<<<<< HEAD
     Popaque _ | Psequor | Psequand
-  | Pobj_magic _ ->
-||||||| merged common ancestors
-  | Popaque | Psequor | Psequand ->
-=======
-  | Popaque | Psequor | Psequand
+  | Pobj_magic _
   | Prunstack | Pperform | Presume | Preperform ->
->>>>>>> ocaml/5.1
       true
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -146,16 +140,10 @@ let preserve_tailcall_for_prim = function
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-<<<<<<< HEAD
   | Pprobe_is_enabled _ | Pobj_dup
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ ->
-||||||| merged common ancestors
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
-=======
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pdls_get ->
->>>>>>> ocaml/5.1
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -437,16 +425,8 @@ let comp_primitive stack_info p sz args =
   | Pcompare_ints -> Kccall("caml_int_compare", 2)
   | Pcompare_floats -> Kccall("caml_float_compare", 2)
   | Pcompare_bints bi -> comp_bint_primitive bi "compare" args
-<<<<<<< HEAD
-  | Pfield (n, _sem) -> Kgetfield n
+  | Pfield (n, _ptr, _sem) -> Kgetfield n
   | Pfield_computed _sem -> Kgetvectitem
-||||||| merged common ancestors
-  | Pfield n -> Kgetfield n
-  | Pfield_computed -> Kgetvectitem
-=======
-  | Pfield(n, _ptr, _mut) -> Kgetfield n
-  | Pfield_computed -> Kgetvectitem
->>>>>>> ocaml/5.1
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
   | Pfloatfield (n, _sem, _mode) -> Kgetfloatfield n
@@ -575,30 +555,20 @@ let comp_primitive stack_info p sz args =
   | Pint_as_pointer _ -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
-<<<<<<< HEAD
   | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
   | Parray_of_iarray -> Kccall("caml_array_of_iarray", 1)
   | Pget_header _ -> Kccall("caml_get_header", 1)
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
-||||||| merged common ancestors
-=======
   | Patomic_load _ -> Kccall("caml_atomic_load", 1)
   | Patomic_exchange -> Kccall("caml_atomic_exchange", 2)
   | Patomic_cas -> Kccall("caml_atomic_cas", 3)
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
->>>>>>> ocaml/5.1
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
-<<<<<<< HEAD
-  | Pignore | Popaque _ | Pobj_magic _
-||||||| merged common ancestors
-  | Pignore | Popaque
-=======
   | Prunstack | Presume | Preperform
-  | Pignore | Popaque
->>>>>>> ocaml/5.1
+  | Pignore | Popaque _ | Pobj_magic _
   | Pnot | Psequand | Psequor
   | Praise _
   | Pmakearray _ | Pduparray _
@@ -654,19 +624,9 @@ let rec comp_expr stack_info env exp sz cont =
       Kconst cst :: cont
   | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
       let nargs = List.length args in
-<<<<<<< HEAD
       if is_tailcall cont && not (is_nontail rc) then begin
-        comp_args env args sz
-          (Kpush :: comp_expr env func (sz + nargs)
-||||||| merged common ancestors
-      if is_tailcall cont then begin
-        comp_args env args sz
-          (Kpush :: comp_expr env func (sz + nargs)
-=======
-      if is_tailcall cont then begin
         comp_args stack_info env args sz
           (Kpush :: comp_expr stack_info env func (sz + nargs)
->>>>>>> ocaml/5.1
             (Kappterm(nargs, sz + nargs) :: discard_dead_code cont))
       end else begin
         if nargs < 4 then
@@ -690,16 +650,8 @@ let rec comp_expr stack_info env exp sz cont =
           Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
         | _ -> (Kgetdynmet, met::obj::args)
       in
-<<<<<<< HEAD
       if is_tailcall cont && not (is_nontail rc) then
-        comp_args env args' sz
-||||||| merged common ancestors
-      if is_tailcall cont then
-        comp_args env args' sz
-=======
-      if is_tailcall cont then
         comp_args stack_info env args' sz
->>>>>>> ocaml/5.1
           (getmethod :: Kappterm(nargs, sz + nargs) :: discard_dead_code cont)
       else
         if nargs < 4 then
@@ -802,20 +754,12 @@ let rec comp_expr stack_info env exp sz cont =
         in
         comp_init env sz decl_size
       end
-<<<<<<< HEAD
   | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
-      comp_expr env arg sz cont
-  | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
-      comp_expr env arg sz cont
-  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
-      comp_expr env arg sz cont
-||||||| merged common ancestors
-  | Lprim(Popaque, [arg], _) ->
-      comp_expr env arg sz cont
-=======
-  | Lprim(Popaque, [arg], _) ->
       comp_expr stack_info env arg sz cont
->>>>>>> ocaml/5.1
+  | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
+      comp_expr stack_info env arg sz cont
+  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
+      comp_expr stack_info env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr stack_info env arg sz (add_const_unit cont)
   | Lprim(Pnot, [arg], _) ->
@@ -871,7 +815,8 @@ let rec comp_expr stack_info env exp sz cont =
       (* In bytecode, float# is boxed, so we can treat these two primitives the
          same. *)
       let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args env args sz (Kmakefloatblock (List.length args) :: cont)
+      comp_args stack_info env args sz
+        (Kmakefloatblock (List.length args) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
@@ -910,14 +855,8 @@ let rec comp_expr stack_info env exp sz cont =
   | Lprim (Pduparray (kind, mutability),
            [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
       assert (kind = kind');
-<<<<<<< HEAD
-      comp_expr env (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
-||||||| merged common ancestors
-      comp_expr env (Lprim (Pmakearray (kind, mutability), args, loc)) sz cont
-=======
       comp_expr stack_info env
-        (Lprim (Pmakearray (kind, mutability), args, loc)) sz cont
->>>>>>> ocaml/5.1
+        (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
   | Lprim (Pduparray _, [arg], loc) ->
       let prim_obj_dup =
         Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
@@ -946,43 +885,19 @@ let rec comp_expr stack_info env exp sz cont =
         | CFge -> Kccall("caml_ge_float", 2) :: cont
         | CFnge -> Kccall("caml_ge_float", 2) :: Kboolnot :: cont
       in
-<<<<<<< HEAD
-      comp_args env args sz cont
-  | Lprim(Pmakeblock(tag, _mut, _, _), args, loc) ->
-||||||| merged common ancestors
-      comp_args env args sz cont
-  | Lprim(Pmakeblock(tag, _mut, _), args, loc) ->
-=======
       comp_args stack_info env args sz cont
-  | Lprim(Pmakeblock(tag, _mut, _), args, loc) ->
->>>>>>> ocaml/5.1
+  | Lprim(Pmakeblock(tag, _mut, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
-<<<<<<< HEAD
-      comp_args env args sz (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim(Pfloatfield (n, _, _), args, loc) ->
-||||||| merged common ancestors
-      comp_args env args sz (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim(Pfloatfield n, args, loc) ->
-=======
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim(Pfloatfield n, args, loc) ->
->>>>>>> ocaml/5.1
+  | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
   | Lprim(p, args, _) ->
-<<<<<<< HEAD
-      comp_args env args sz (comp_primitive p args :: cont)
-  | Lstaticcatch (body, (i, vars) , handler, _) ->
-||||||| merged common ancestors
-      comp_args env args sz (comp_primitive p args :: cont)
-  | Lstaticcatch (body, (i, vars) , handler) ->
-=======
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
         (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
-  | Lstaticcatch (body, (i, vars) , handler) ->
->>>>>>> ocaml/5.1
+  | Lstaticcatch (body, (i, vars) , handler, _) ->
       let vars = List.map fst vars in
       let nvars = List.length vars in
       let branch1, cont1 = make_branch cont in
@@ -1040,77 +955,29 @@ let rec comp_expr stack_info env exp sz cont =
         { stack_info with try_blocks = sz :: stack_info.try_blocks } in
       let l = comp_expr stack_info env body (sz+4) body_cont in
       Kpushtrap lbl_handler :: l
-<<<<<<< HEAD
   | Lifthenelse(cond, ifso, ifnot, _kind) ->
-      comp_binary_test env cond ifso ifnot sz cont
-||||||| merged common ancestors
-  | Lifthenelse(cond, ifso, ifnot) ->
-      comp_binary_test env cond ifso ifnot sz cont
-=======
-  | Lifthenelse(cond, ifso, ifnot) ->
       comp_binary_test stack_info env cond ifso ifnot sz cont
->>>>>>> ocaml/5.1
   | Lsequence(exp1, exp2) ->
-<<<<<<< HEAD
-      comp_expr env exp1 sz (comp_expr env exp2 sz cont)
-  | Lwhile {wh_cond; wh_body} ->
-||||||| merged common ancestors
-      comp_expr env exp1 sz (comp_expr env exp2 sz cont)
-  | Lwhile(cond, body) ->
-=======
       comp_expr stack_info env exp1 sz (comp_expr stack_info env exp2 sz cont)
-  | Lwhile(cond, body) ->
->>>>>>> ocaml/5.1
+  | Lwhile {wh_cond; wh_body} ->
       let lbl_loop = new_label() in
       let lbl_test = new_label() in
       Kbranch lbl_test :: Klabel lbl_loop :: Kcheck_signals ::
-<<<<<<< HEAD
-        comp_expr env wh_body sz
-||||||| merged common ancestors
-        comp_expr env body sz
-=======
-        comp_expr stack_info env body sz
->>>>>>> ocaml/5.1
+        comp_expr stack_info env wh_body sz
           (Klabel lbl_test ::
-<<<<<<< HEAD
-            comp_expr env wh_cond sz
-              (Kbranchif lbl_loop :: add_const_unit cont))
-  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
-||||||| merged common ancestors
-            comp_expr env cond sz (Kbranchif lbl_loop :: add_const_unit cont))
-  | Lfor(param, start, stop, dir, body) ->
-=======
-           comp_expr stack_info env cond sz
+           comp_expr stack_info env wh_cond sz
+
              (Kbranchif lbl_loop :: add_const_unit cont))
-  | Lfor(param, start, stop, dir, body) ->
->>>>>>> ocaml/5.1
+  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
       let lbl_loop = new_label() in
       let lbl_exit = new_label() in
-<<<<<<< HEAD
       let offset = match for_dir with Upto -> 1 | Downto -> -1 in
       let comp = match for_dir with Upto -> Cgt | Downto -> Clt in
-      comp_expr env for_from sz
-        (Kpush :: comp_expr env for_to (sz+1)
-||||||| merged common ancestors
-      let offset = match dir with Upto -> 1 | Downto -> -1 in
-      let comp = match dir with Upto -> Cgt | Downto -> Clt in
-      comp_expr env start sz
-        (Kpush :: comp_expr env stop (sz+1)
-=======
-      let offset = match dir with Upto -> 1 | Downto -> -1 in
-      let comp = match dir with Upto -> Cgt | Downto -> Clt in
-      comp_expr stack_info env start sz
-        (Kpush :: comp_expr stack_info env stop (sz+1)
->>>>>>> ocaml/5.1
+      comp_expr stack_info env for_from sz
+        (Kpush :: comp_expr stack_info env for_to (sz+1)
           (Kpush :: Kpush :: Kacc 2 :: Kintcomp comp :: Kbranchif lbl_exit ::
            Klabel lbl_loop :: Kcheck_signals ::
-<<<<<<< HEAD
-           comp_expr (add_var for_id (sz+1) env) for_body (sz+2)
-||||||| merged common ancestors
-           comp_expr (add_var param (sz+1) env) body (sz+2)
-=======
-           comp_expr stack_info (add_var param (sz+1) env) body (sz+2)
->>>>>>> ocaml/5.1
+           comp_expr stack_info (add_var for_id (sz+1) env) for_body (sz+2)
              (Kacc 1 :: Kpush :: Koffsetint offset :: Kassign 2 ::
               Kacc 1 :: Kintcomp Cne :: Kbranchif lbl_loop ::
               Klabel lbl_exit :: add_const_unit (add_pop 2 cont))))
@@ -1160,20 +1027,10 @@ let rec comp_expr stack_info env exp sz cont =
       for i = sw.sw_numconsts - 1 downto 0 do
         lbl_consts.(i) <- lbls.(act_consts.(i))
       done;
-<<<<<<< HEAD
-      comp_expr env arg sz (Kswitch(lbl_consts, lbl_blocks) :: !c)
-  | Lstringswitch (arg,sw,d,loc, kind) ->
-      comp_expr env (Matching.expand_stringswitch loc kind arg sw d) sz cont
-||||||| merged common ancestors
-      comp_expr env arg sz (Kswitch(lbl_consts, lbl_blocks) :: !c)
-  | Lstringswitch (arg,sw,d,loc) ->
-      comp_expr env (Matching.expand_stringswitch loc arg sw d) sz cont
-=======
       comp_expr stack_info env arg sz (Kswitch(lbl_consts, lbl_blocks) :: !c)
-  | Lstringswitch (arg,sw,d,loc) ->
+  | Lstringswitch (arg,sw,d,loc, kind) ->
       comp_expr stack_info env
-        (Matching.expand_stringswitch loc arg sw d) sz cont
->>>>>>> ocaml/5.1
+        (Matching.expand_stringswitch loc kind arg sw d) sz cont
   | Lassign(id, expr) ->
       begin try
         let pos = Ident.find_same id env.ce_stack in
@@ -1248,17 +1105,11 @@ let rec comp_expr stack_info env exp sz cont =
           end
       end
   | Lifused (_, exp) ->
-<<<<<<< HEAD
-      comp_expr env exp sz cont
-  | Lregion (exp, _) ->
-      comp_expr env exp sz cont
-  | Lexclave exp ->
-      comp_expr env exp sz cont
-||||||| merged common ancestors
-      comp_expr env exp sz cont
-=======
       comp_expr stack_info env exp sz cont
->>>>>>> ocaml/5.1
+  | Lregion (exp, _) ->
+      comp_expr stack_info env exp sz cont
+  | Lexclave exp ->
+      comp_expr stack_info env exp sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.
    The values of eN ... e2 are pushed on the stack, e2 at top of stack,

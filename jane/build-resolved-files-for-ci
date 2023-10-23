@@ -27,6 +27,8 @@ dune_targets=$(
 # ocamlbytecomp mlis
 mlis=$(
   { echo driver/{errors,compile,maindriver}.mli
+    echo bytecomp/{bytegen,bytelibrarian,bytelink,bytepackager}.mli
+    echo bytecomp/{emitcode,printinstr,instruct}.mli
   } |
     tr ' ' '\n'
 )
@@ -88,6 +90,7 @@ mls=$(
   { echo driver/{compenv,compmisc,main_args}.ml
     echo parsing/parser.ml
     echo {utils,parsing,lambda}/*.ml
+    echo bytecomp/{meta,opcodes,bytesections,dll,symtable}.ml
     for f in "${typing_mls[@]}"; do
         echo "typing/${f}.ml"
     done
@@ -110,6 +113,8 @@ dune_targets=$(
 # ocamlbytecomp mls
 mls=$(
   { echo driver/{errors,compile,maindriver}.ml
+    echo bytecomp/{bytegen,bytelibrarian,bytelink,bytepackager}.ml
+    echo bytecomp/{emitcode,printinstr,instruct}.ml
   } |
     tr ' ' '\n'
 )

@@ -161,7 +161,7 @@ let rec transl_const = function
       in
       List.iteri transl_field fields;
       block
-  | Const_float_array fields ->
+  | Const_float_block fields | Const_float_array fields ->
       let res = Array.Floatarray.create (List.length fields) in
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
@@ -240,58 +240,6 @@ let patch_object buff patchlist =
           patch_int buff pos (of_prim name))
     patchlist
 
-<<<<<<< HEAD
-(* Translate structured constants *)
-
-let rec transl_const = function
-    Const_base(Const_int i) -> Obj.repr i
-  | Const_base(Const_char c) -> Obj.repr c
-  | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float f) -> Obj.repr (float_of_string f)
-  | Const_base(Const_int32 i) -> Obj.repr i
-  | Const_base(Const_int64 i) -> Obj.repr i
-  | Const_base(Const_nativeint i) -> Obj.repr i
-  | Const_immstring s -> Obj.repr s
-  | Const_block(tag, fields) ->
-      let block = Obj.new_block tag (List.length fields) in
-      let pos = ref 0 in
-      List.iter
-        (fun c -> Obj.set_field block !pos (transl_const c); incr pos)
-        fields;
-      block
-  | Const_float_block fields | Const_float_array fields ->
-      let res = Array.Floatarray.create (List.length fields) in
-      List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
-        fields;
-      Obj.repr res
-
-||||||| merged common ancestors
-(* Translate structured constants *)
-
-let rec transl_const = function
-    Const_base(Const_int i) -> Obj.repr i
-  | Const_base(Const_char c) -> Obj.repr c
-  | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float f) -> Obj.repr (float_of_string f)
-  | Const_base(Const_int32 i) -> Obj.repr i
-  | Const_base(Const_int64 i) -> Obj.repr i
-  | Const_base(Const_nativeint i) -> Obj.repr i
-  | Const_immstring s -> Obj.repr s
-  | Const_block(tag, fields) ->
-      let block = Obj.new_block tag (List.length fields) in
-      let pos = ref 0 in
-      List.iter
-        (fun c -> Obj.set_field block !pos (transl_const c); incr pos)
-        fields;
-      block
-  | Const_float_array fields ->
-      let res = Array.Floatarray.create (List.length fields) in
-      List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
-        fields;
-      Obj.repr res
-
-=======
->>>>>>> ocaml/5.1
 (* Build the initial table of globals *)
 
 let initial_global_table () =
@@ -374,17 +322,9 @@ let init_toplevel () =
     (* Recover CRC infos for interfaces *)
     let crcintfs =
       try
-<<<<<<< HEAD
-        (Obj.magic (sect.read_struct "CRCS") : Import_info.t array)
-      with Not_found -> [| |] in
-||||||| merged common ancestors
-        (Obj.magic (sect.read_struct "CRCS") : (string * Digest.t option) list)
-      with Not_found -> [] in
-=======
         (Obj.magic (sect.read_struct Bytesections.Name.CRCS)
-         : (string * Digest.t option) list)
-      with Not_found -> [] in
->>>>>>> ocaml/5.1
+         : Import_info.t array)
+      with Not_found -> [| |] in
     (* Done *)
     sect.close_reader();
     crcintfs

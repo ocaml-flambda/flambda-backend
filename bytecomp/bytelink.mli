@@ -17,6 +17,7 @@ open Misc
 
 (* Link .cmo files and produce a bytecode executable. *)
 
+(* CR mshinwell: seems like this should use [CU.Name.t] *)
 module Dep : Set.OrderedType with type t = string * string
 module DepSet : Set.S with type elt = Dep.t
 
@@ -39,6 +40,7 @@ type error =
   | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
   | Wrong_link_order of DepSet.t
+  (* CR mshinwell: seems like [Multiple_definition] should use [CU.t] *)
   | Multiple_definition of string * filepath * filepath
 
 exception Error of error

@@ -19,17 +19,14 @@ open Misc
 open Config
 open Cmo_format
 
-<<<<<<< HEAD
 module CU = Compilation_unit
-||||||| merged common ancestors
-=======
+
 module Dep = struct
   type t = string * string
   let compare = compare
 end
 
 module DepSet = Set.Make (Dep)
->>>>>>> ocaml/5.1
 
 type error =
   | File_not_found of filepath
@@ -42,14 +39,8 @@ type error =
   | Cannot_open_dll of filepath
   | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
-<<<<<<< HEAD
-  | Wrong_link_order of (string * string) list
-||||||| merged common ancestors
-  | Wrong_link_order of (modname * modname) list
-=======
   | Wrong_link_order of DepSet.t
-  | Multiple_definition of modname * filepath * filepath
->>>>>>> ocaml/5.1
+  | Multiple_definition of string * filepath * filepath
 
 exception Error of error
 
@@ -111,7 +102,7 @@ let provided_globals = ref Ident.Set.empty
 let badly_ordered_dependencies : DepSet.t ref = ref DepSet.empty
 
 let record_badly_ordered_dependency (id, compunit) =
-  let dep = ((Ident.name id), compunit.cu_name) in
+  let dep = ((Ident.name id), CU.name_as_string compunit.cu_name) in
   badly_ordered_dependencies := DepSet.add dep !badly_ordered_dependencies
 
 let is_required (rel, _pos) =
@@ -122,20 +113,9 @@ let is_required (rel, _pos) =
 
 let add_required compunit =
   let add id =
-<<<<<<< HEAD
     if Ident.Set.mem id !provided_globals then begin
-      let cu_name = CU.full_path_as_string compunit.cu_name in
-      badly_ordered_dependencies :=
-        ((Ident.name id), cu_name) :: !badly_ordered_dependencies;
+      record_badly_ordered_dependency (id, compunit)
     end;
-||||||| merged common ancestors
-    if Ident.Set.mem id !provided_globals then
-      badly_ordered_dependencies :=
-        ((Ident.name id), compunit.cu_name) :: !badly_ordered_dependencies;
-=======
-    if Ident.Set.mem id !provided_globals then
-      record_badly_ordered_dependency (id, compunit);
->>>>>>> ocaml/5.1
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
   in
   let add_unit unit =
@@ -212,39 +192,20 @@ let implementations_defined = ref ([] : (CU.Name.t * string) list)
 
 let check_consistency file_name cu =
   begin try
-<<<<<<< HEAD
+    let source = List.assoc (CU.name cu.cu_name) !implementations_defined in
+    raise (Error (Multiple_definition(cu.cu_name |> CU.full_path_as_string, file_name, source)));
+  with Not_found -> ()
+  end;
+  begin try
     Array.iter
       (fun import ->
         let name = Import_info.name import in
         let crco = Import_info.crc_with_unit import in
-||||||| merged common ancestors
-    List.iter
-      (fun (name, crco) ->
-=======
-    let source = List.assoc cu.cu_name !implementations_defined in
-    raise (Error (Multiple_definition(cu.cu_name, file_name, source)));
-  with Not_found -> ()
-  end;
-  begin try
-    List.iter
-      (fun (name, crco) ->
->>>>>>> ocaml/5.1
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
-<<<<<<< HEAD
         | Some (full_name, crc) ->
-            if CU.Name.equal name (CU.name cu.cu_name)
-            then Consistbl.set crc_interfaces name full_name crc file_name
-            else Consistbl.check crc_interfaces name full_name crc file_name)
-||||||| merged common ancestors
-        | Some crc ->
-            if name = cu.cu_name
-            then Consistbl.set crc_interfaces name crc file_name
-            else Consistbl.check crc_interfaces name crc file_name)
-=======
-        | Some crc -> Consistbl.check crc_interfaces name crc file_name)
->>>>>>> ocaml/5.1
+            Consistbl.check crc_interfaces name full_name crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;
@@ -253,26 +214,6 @@ let check_consistency file_name cu =
     } ->
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
-<<<<<<< HEAD
-  begin try
-    let source = List.assoc (CU.name cu.cu_name) !implementations_defined in
-    Location.prerr_warning (Location.in_file file_name)
-      (Warnings.Module_linked_twice(cu.cu_name |> CU.full_path_as_string,
-                                    Location.show_filename file_name,
-                                    Location.show_filename source))
-  with Not_found -> ()
-  end;
-||||||| merged common ancestors
-  begin try
-    let source = List.assoc cu.cu_name !implementations_defined in
-    Location.prerr_warning (Location.in_file file_name)
-      (Warnings.Module_linked_twice(cu.cu_name,
-                                    Location.show_filename file_name,
-                                    Location.show_filename source))
-  with Not_found -> ()
-  end;
-=======
->>>>>>> ocaml/5.1
   implementations_defined :=
     (CU.name cu.cu_name, file_name) :: !implementations_defined
 
@@ -468,16 +409,8 @@ let link_bytecode ?final_name tolink exec_name standalone =
        Symtable.output_global_map outchan;
        Bytesections.record toc_writer SYMB;
        (* CRCs for modules *)
-<<<<<<< HEAD
        output_value outchan ((extract_crc_interfaces() |> Array.of_list));
-       Bytesections.record outchan "CRCS";
-||||||| merged common ancestors
-       output_value outchan (extract_crc_interfaces());
-       Bytesections.record outchan "CRCS";
-=======
-       output_value outchan (extract_crc_interfaces());
        Bytesections.record toc_writer CRCS;
->>>>>>> ocaml/5.1
        (* Debug info *)
        if !Clflags.debug then begin
          output_debug_info outchan;
@@ -592,26 +525,14 @@ let link_bytecode_as_c tolink outfile with_main =
          (Marshal.to_string (Symtable.initial_global_table()) []);
        output_string outchan "\n};\n\n";
        (* The sections *)
-<<<<<<< HEAD
-       let sections =
-         [ "SYMB", Symtable.data_global_map();
-           "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces() |> Array.of_list) ] in
-||||||| merged common ancestors
-       let sections =
-         [ "SYMB", Symtable.data_global_map();
-           "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces()) ] in
-=======
        let sections : (string * Obj.t) list =
          [ Bytesections.Name.to_string SYMB,
            Symtable.data_global_map();
            Bytesections.Name.to_string PRIM,
            Obj.repr(Symtable.data_primitive_names());
            Bytesections.Name.to_string CRCS,
-           Obj.repr(extract_crc_interfaces()) ]
+           Obj.repr(extract_crc_interfaces() |> Array.of_list) ]
        in
->>>>>>> ocaml/5.1
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
          (Marshal.to_string sections []);

@@ -309,11 +309,17 @@ let emit_instr = function
   | Kgetpubmet tag -> out opGETPUBMET; out_int tag; out_int 0
   | Kgetdynmet -> out opGETDYNMET
   | Kevent ev -> record_event ev
+  (* CR mshinwell: enable for effects support
   | Kperform -> out opPERFORM
   | Kresume -> out opRESUME
   | Kresumeterm n -> out opRESUMETERM; out_int n
   | Kreperformterm n -> out opREPERFORMTERM; out_int n
-  | Kstop -> out opSTOP
+  | Kstop -> out opSTOP *)
+  | Kperform
+  | Kresume
+  | Kresumeterm _
+  | Kreperformterm _
+  | Kstop -> Misc.fatal_error "No effects support provided yet"
 
 (* Emission of a list of instructions. Include some peephole optimization. *)
 
@@ -416,9 +422,11 @@ let to_file outchan unit_name objfile ~required_globals code =
         (Filename.dirname (Location.absolute_path objfile))
         !debug_dirs;
       let p = pos_out outchan in
+      (* CR mshinwell: Compression not supported in the OCaml 4 runtime
       Marshal.(to_channel outchan !events [Compression]);
       Marshal.(to_channel outchan (String.Set.elements !debug_dirs)
                           [Compression]);
+      *)
       (p, pos_out outchan - p)
     end else
       (0, 0) in
