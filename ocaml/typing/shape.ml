@@ -454,7 +454,9 @@ module Local_reduce =
   end)
 
 let local_reduce shape =
-  Local_reduce.reduce () shape
+  Profile.record_call "shape.local_reduce" (fun () ->
+    Local_reduce.reduce () shape
+  )
 
 let dummy_mod = { uid = None; desc = Struct Item.Map.empty }
 
