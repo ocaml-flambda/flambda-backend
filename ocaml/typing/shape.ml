@@ -152,7 +152,9 @@ module Item = struct
       Format.fprintf fmt "%S[%s]"
         name
         (Sig_component_kind.to_string ns)
-      end
+
+    let hash x = Hashtbl.hash x
+  end
 
   include T
 
@@ -160,7 +162,7 @@ module Item = struct
 end
 
 type var = Ident.t
-type t = { uid: Uid.t option; desc: desc }
+type t = { hash:int; uid: Uid.t option; desc: desc }
 and desc =
   | Var of var
   | Abs of var * t
@@ -196,14 +198,15 @@ let rec equal_desc d1 d2 =
   | Comp_unit _, (Var _ | Abs _ | App _ | Struct _ | Leaf | Proj _) -> false
 
 and equal t1 t2 =
-  if not (Option.equal Uid.equal t1.uid t2.uid) then false
+  if t1.hash <> t2.hash then false
+  else if not (Option.equal Uid.equal t1.uid t2.uid) then false
   else equal_desc t1.desc t2.desc
 
 let print fmt =
   let print_uid_opt =
     Format.pp_print_option (fun fmt -> Format.fprintf fmt "<%a>" Uid.print)
   in
-  let rec aux fmt { uid; desc } =
+  let rec aux fmt { uid; desc; hash = _ } =
     match desc with
     | Var id ->
         Format.fprintf fmt "%a%a" Ident.print id print_uid_opt uid
@@ -240,23 +243,34 @@ let print fmt =
   in
   Format.fprintf fmt"@[%a@]@;" aux
 
+let hash_var = 1
+let hash_abs = 2
+let hash_struct = 3
+let hash_leaf = 4
+let hash_proj = 5
+let hash_app = 6
+let hash_comp_unit = 7
+
 let fresh_var ?(name="shape-var") uid =
   let var = Ident.create_local name in
-  var, { uid = Some uid; desc = Var var }
+  var, { uid = Some uid; desc = Var var; hash = Hashtbl.hash (hash_var, uid, var) }
 
 let for_unnamed_functor_param = Ident.create_local "()"
 
-let var uid id =
-  { uid = Some uid; desc = Var id }
+let var ?uid id =
+  { uid; desc = Var id; hash = Hashtbl.hash (hash_var, uid, id) }
 
 let abs ?uid var body =
-  { uid; desc = Abs (var, body) }
+  { uid; desc = Abs (var, body); hash = Hashtbl.hash (hash_abs, uid, body.hash) }
 
 let str ?uid map =
-  { uid; desc = Struct map }
+  let h = Item.Map.fold (fun key t acc ->
+    Hashtbl.hash (acc, Item.hash key, t.hash)) map 0
+  in
+  { uid; desc = Struct map; hash = Hashtbl.hash (hash_struct, uid, h)  }
 
-let leaf uid =
-  { uid = Some uid; desc = Leaf }
+let leaf ?uid () =
+  { uid; desc = Leaf; hash = Hashtbl.hash (hash_leaf, uid) }
 
 let proj ?uid t item =
   match t.desc with
@@ -269,10 +283,14 @@ let proj ?uid t item =
       with Not_found -> t (* ill-typed program *)
       end
   | _ ->
-      { uid; desc = Proj (t, item) }
+      { uid; desc = Proj (t, item);
+        hash = Hashtbl.hash (hash_proj, t.hash, item) }
 
 let app ?uid f ~arg =
-      { uid; desc = App (f, arg) }
+      { uid; desc = App (f, arg); hash = Hashtbl.hash (hash_app, f.hash, uid, arg.hash) }
+
+let comp_unit ?uid s =
+      { uid; desc = Comp_unit s; hash = Hashtbl.hash (hash_comp_unit, uid, s) }
 
 let decompose_abs t =
   match t.desc with
@@ -297,7 +315,7 @@ end) = struct
     | NProj of nf * Item.t
     | NLeaf
     | NComp_unit of string
-    | NoFuelLeft of desc
+    | NoFuelLeft of t
   (* A type of normal forms for strong call-by-need evaluation.
      The normal form of an abstraction
        Abs(x, t)
@@ -350,7 +368,7 @@ end) = struct
       if equal_nf v1 v2 then equal_nf t1 t2
       else false
     | NLeaf, NLeaf -> true
-    | NoFuelLeft d1, NoFuelLeft d2 -> equal_desc d1 d2
+    | NoFuelLeft d1, NoFuelLeft d2 -> equal d1 d2
     | NStruct t1, NStruct t2 ->
       Item.Map.equal equal_delayed_nf t1 t2
     | NProj (t1, i1), NProj (t2, i2) ->
@@ -386,12 +404,12 @@ end) = struct
 
       let hash t = Hashtbl.hash t
 
-      let equal a b = equal_nf a b
+  let equal a b = equal_nf a b
   end)
 
   let in_reduce_memo_table memo_table memo_key f arg =
     match ReduceMemoTable.find memo_table memo_key with
-    | res -> res
+        | res -> res
     | exception Not_found ->
         let res = f arg in
         ReduceMemoTable.replace memo_table memo_key res;
@@ -463,7 +481,7 @@ end) = struct
     let force (Thunk (local_env, t)) =
       reduce { env with local_env } t in
     let return desc : nf = { uid = t.uid; desc } in
-    if !fuel < 0 then return (NoFuelLeft t.desc)
+    if !fuel < 0 then return (NoFuelLeft t)
     else
       match t.desc with
       | Comp_unit unit_name ->
@@ -534,26 +552,32 @@ end) = struct
      over the term as a tree. *)
 
   and read_back_ env (nf : nf) : t =
-  { uid = nf.uid; desc = read_back_desc env nf.desc }
+  read_back_desc ~uid:nf.uid env nf.desc
 
-and read_back_desc env desc =
-  let read_back nf = read_back env nf in
-  let read_back_force (Thunk (local_env, t)) =
-    read_back (reduce_ { env with local_env } t) in
+  and read_back_desc ~uid env desc =
+    let read_back nf = read_back env nf in
+    let read_back_force (Thunk (local_env, t)) =
+    read_back (reduce_ { env with local_env } t)
+  in
   match desc with
   | NVar v ->
-    Var v
+    var ?uid v
   | NApp (nft, nfu) ->
-      App(read_back nft, read_back nfu)
+      let f = read_back nft in
+      let arg = read_back nfu in
+      app ?uid f ~arg
   | NAbs (_env, x, _t, nf) ->
-    Abs(x, read_back_force nf)
+    let body = read_back_force nf in
+    abs ?uid x body
   | NStruct nstr ->
-    Struct (Item.Map.map read_back_force nstr)
+    let map = Item.Map.map read_back_force nstr in
+    str ?uid map
   | NProj (nf, item) ->
-      Proj (read_back nf, item)
-  | NLeaf -> Leaf
-  | NComp_unit s -> Comp_unit s
-  | NoFuelLeft t -> t
+      let t = read_back nf in
+      proj ?uid t item
+  | NLeaf -> leaf ?uid ()
+  | NComp_unit s -> comp_unit ?uid s
+  | NoFuelLeft t -> { t with uid }
 
   let reduce global_env t =
     let fuel = ref Params.fuel in
@@ -588,7 +612,7 @@ let local_reduce shape =
     Local_reduce.reduce () shape
   )
 
-let dummy_mod = { uid = None; desc = Struct Item.Map.empty }
+let dummy_mod = str Item.Map.empty
 
 let of_path ~find_shape ~namespace =
   let rec aux : Sig_component_kind.t -> Path.t -> t = fun ns -> function
@@ -599,10 +623,9 @@ let of_path ~find_shape ~namespace =
   aux namespace
 
 let for_persistent_unit s =
-  { uid = Some (Compilation_unit s);
-    desc = Comp_unit s }
+  comp_unit ~uid:(Compilation_unit s) s
 
-let leaf_for_unpack = { uid = None; desc = Leaf }
+let leaf_for_unpack = leaf ()
 
 let set_uid_if_none t uid =
   match t.uid with
@@ -617,12 +640,12 @@ module Map = struct
 
   let add t item shape = Item.Map.add item shape t
 
-  let add_value t id uid = Item.Map.add (Item.value id) (leaf uid) t
+  let add_value t id uid = Item.Map.add (Item.value id) (leaf ~uid ()) t
   let add_value_proj t id shape =
     let item = Item.value id in
     Item.Map.add item (proj shape item) t
 
-  let add_type t id uid = Item.Map.add (Item.type_ id) (leaf uid) t
+  let add_type t id uid = Item.Map.add (Item.type_ id) (leaf ~uid ()) t
   let add_type_proj t id shape =
     let item = Item.type_ id in
     Item.Map.add item (proj shape item) t
@@ -633,23 +656,23 @@ module Map = struct
     Item.Map.add item (proj shape item) t
 
   let add_module_type t id uid =
-    Item.Map.add (Item.module_type id) (leaf uid) t
+    Item.Map.add (Item.module_type id) (leaf ~uid ()) t
   let add_module_type_proj t id shape =
     let item = Item.module_type id in
     Item.Map.add item (proj shape item) t
 
   let add_extcons t id uid =
-    Item.Map.add (Item.extension_constructor id) (leaf uid) t
+    Item.Map.add (Item.extension_constructor id) (leaf ~uid ()) t
   let add_extcons_proj t id shape =
     let item = Item.extension_constructor id in
     Item.Map.add item (proj shape item) t
 
-  let add_class t id uid = Item.Map.add (Item.class_ id) (leaf uid) t
+  let add_class t id uid = Item.Map.add (Item.class_ id) (leaf ~uid ()) t
   let add_class_proj t id shape =
     let item = Item.class_ id in
     Item.Map.add item (proj shape item) t
 
-  let add_class_type t id uid = Item.Map.add (Item.class_type id) (leaf uid) t
+  let add_class_type t id uid = Item.Map.add (Item.class_type id) (leaf ~uid ()) t
   let add_class_type_proj t id shape =
     let item = Item.class_type id in
     Item.Map.add item (proj shape item) t

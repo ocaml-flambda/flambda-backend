@@ -1216,7 +1216,7 @@ let type_of_cstr path = function
         {
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr);
-          tda_shape = Shape.leaf decl.type_uid;
+          tda_shape = Shape.leaf ~uid:decl.type_uid ();
         }
       | _ -> assert false
       end
@@ -1230,7 +1230,7 @@ let find_type_data path env =
           {
             tda_declaration = decl;
             tda_descriptions = Type_abstract Abstract_def;
-            tda_shape = Shape.leaf decl.type_uid;
+            tda_shape = Shape.leaf ~uid:decl.type_uid ();
           }
       | exception Not_found -> find_type_full p env
     end
@@ -1378,7 +1378,7 @@ let shape_of_path ~namespace env =
   Shape.of_path ~namespace ~find_shape:(find_shape env)
 
 let shape_or_leaf uid = function
-  | None -> Shape.leaf uid
+  | None -> Shape.leaf ~uid ()
   | Some shape -> shape
 
 let required_globals = s_ref []
@@ -1820,7 +1820,7 @@ let rec components_of_module_maker
                   in
                   List.iter
                     (fun descr ->
-                      let cda_shape = Shape.leaf descr.cstr_uid in
+                      let cda_shape = Shape.leaf ~uid:descr.cstr_uid () in
                       let cda = {
                         cda_description = descr;
                         cda_address = None;
@@ -2027,7 +2027,7 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
   Builtin_attributes.mark_alerts_used cstr.cstr_attributes;
   Builtin_attributes.mark_warn_on_literal_pattern_used
     cstr.cstr_attributes;
-  let cda_shape = Shape.leaf cstr.cstr_uid in
+  let cda_shape = Shape.leaf ~uid:cstr.cstr_uid () in
   { env with
     constrs =
       TycompTbl.add cstr_id
@@ -2328,18 +2328,18 @@ let enter_value ?check name desc env =
   let id = Ident.create_local name in
   let desc = Subst.Lazy.of_value_description desc in
   let addr = value_declaration_address env id desc in
-  let env = store_value ?check (Mode.Value.legacy) id addr desc (Shape.leaf desc.val_uid) env in
+  let env = store_value ?check (Mode.Value.legacy) id addr desc (Shape.leaf ~uid:desc.val_uid ()) env in
   (id, env)
 
 let enter_type ~scope name info env =
   let id = Ident.create_scoped ~scope name in
-  let env = store_type ~check:true id info (Shape.leaf info.type_uid) env in
+  let env = store_type ~check:true id info (Shape.leaf ~uid:info.type_uid ()) env in
   (id, env)
 
 let enter_extension ~scope ~rebind name ext env =
   let id = Ident.create_scoped ~scope name in
   let addr = extension_declaration_address env id ext in
-  let shape = Shape.leaf ext.ext_uid in
+  let shape = Shape.leaf ~uid:ext.ext_uid () in
   let env = store_extension ~check:true ~rebind id addr ext shape env in
   (id, env)
 
@@ -2349,19 +2349,19 @@ let enter_module_declaration ~scope ?arg ?shape s presence md env =
 
 let enter_modtype ~scope name mtd env =
   let id = Ident.create_scoped ~scope name in
-  let shape = Shape.leaf mtd.mtd_uid in
+  let shape = Shape.leaf ~uid:mtd.mtd_uid () in
   let env = store_modtype id (Subst.Lazy.of_modtype_decl mtd) shape env in
   (id, env)
 
 let enter_class ~scope name desc env =
   let id = Ident.create_scoped ~scope name in
   let addr = class_declaration_address env id desc in
-  let env = store_class id addr desc (Shape.leaf desc.cty_uid) env in
+  let env = store_class id addr desc (Shape.leaf ~uid:desc.cty_uid ()) env in
   (id, env)
 
 let enter_cltype ~scope name desc env =
   let id = Ident.create_scoped ~scope name in
-  let env = store_cltype id desc (Shape.leaf desc.clty_uid) env in
+  let env = store_cltype id desc (Shape.leaf ~uid:desc.clty_uid ()) env in
   (id, env)
 
 let enter_module ~scope ?arg s presence mty env =

@@ -65,7 +65,7 @@ module Item : sig
 end
 
 type var = Ident.t
-type t = { uid: Uid.t option; desc: desc }
+type t = { hash: int; uid: Uid.t option; desc: desc }
 and desc =
   | Var of var
   | Abs of var * t
@@ -82,12 +82,12 @@ val print : Format.formatter -> t -> unit
 val for_unnamed_functor_param : var
 val fresh_var : ?name:string -> Uid.t -> var * t
 
-val var : Uid.t -> Ident.t -> t
+val var : ?uid:Uid.t -> Ident.t -> t
 val abs : ?uid:Uid.t -> var -> t -> t
 val app : ?uid:Uid.t -> t -> arg:t -> t
 val str : ?uid:Uid.t -> t Item.Map.t -> t
 val proj : ?uid:Uid.t -> t -> Item.t -> t
-val leaf : Uid.t -> t
+val leaf : ?uid:Uid.t -> unit -> t
 
 val decompose_abs : t -> (var * t) option
 
