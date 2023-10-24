@@ -71,6 +71,7 @@ echo "==========="
 typing_mls=(
   ctype
   datarepr
+  env
   includecore
   includemod
   mtype
@@ -86,7 +87,8 @@ typing_mls=(
   tast_mapper
   typedecl_variance
   typedtree
-  types)
+  types
+  typetexp)
 
 # ocamlcommon mls
 mls=$(
