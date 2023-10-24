@@ -119,10 +119,6 @@ Pass the given option to the C compiler and linker.
 \nat{For instance, }%
 "-ccopt -L"\var{dir} causes the C linker to search for C libraries in
 directory \var{dir}. \comp{(See the "-custom" option.)}
-<<<<<<< HEAD
-||||||| merged common ancestors
-directory \var{dir}.\comp{(See the "-custom" option.)}
-=======
 }%notop
 
 \notop{%
@@ -133,7 +129,6 @@ with the same base name than the implementation it is compiling and in the
 same directory. If such a file is found, the compiler looks for a
 corresponding \var{.cmi} file in the included directories and reports an
 error if it fails to find one.
->>>>>>> ocaml/5.1
 }%notop
 
 \notop{%

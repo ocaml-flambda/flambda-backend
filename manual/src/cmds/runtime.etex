@@ -161,13 +161,6 @@ The following environment variables are also consulted:
         $2^{20}$, and $2^{30}$ respectively.
   \item[o] ("space_overhead")  The major GC speed setting.
         See the Gc module documentation for details.
-<<<<<<< HEAD
-  \item[O] ("max_overhead")  The heap compaction trigger setting.
-||||||| merged common ancestors
-  \item[O] ("max_overhead")  The heap compaction trigger setting.
->>>>>>>>> Temporary merge branch 2:manual/src/cmds/runtime.etex
-=======
->>>>>>> ocaml/5.1
   \item[p] (parser trace) Turn on debugging support for
         "ocamlyacc"-generated parsers.  When this option is on,
         the pushdown automaton that executes the parsers prints a
