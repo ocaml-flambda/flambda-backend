@@ -264,7 +264,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Psetfield (_, _, _), [L.Lprim (Pgetglobal _, [], _); _] ->
     Misc.fatal_error
       "[Psetfield (Pgetglobal ...)] is forbidden upon entry to the middle end"
-  | Pfield (index, _), _ when index < 0 ->
+  | Pfield (index, _, _), _ when index < 0 ->
     Misc.fatal_error "Pfield with negative field index"
   | Pfloatfield (i, _, _), _ when i < 0 ->
     Misc.fatal_error "Pfloatfield with negative field index"
@@ -651,6 +651,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
+  | Prunstack | Pperform | Presume | Preperform | Patomic_exchange | Patomic_cas
+  | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
+      Printlambda.primitive prim
 
 type non_tail_continuation =
   Acc.t ->
