@@ -1603,13 +1603,12 @@ let iter_env wrap proj1 proj2 f env () =
        | Mod_unbound _ -> ()
        | Mod_local data ->
            iter_components (Pident id) path data.mda_components
-       | Mod_persistent ->
-           let modname = modname_of_ident id in
-           match Persistent_env.find_in_cache !persistent_env modname with
-           | None -> ()
-           | Some data ->
-               iter_components (Pident id) path data.mda_components)
-    env.modules
+       | Mod_persistent -> ())
+    env.modules;
+  Persistent_env.fold !persistent_env (fun name data () ->
+    let id = Ident.create_persistent (Compilation_unit.Name.to_string name) in
+    let path = Pident id in
+    iter_components path path data.mda_components) ()
 
 let run_iter_cont l =
   iter_env_cont := [];
