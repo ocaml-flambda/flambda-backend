@@ -19,8 +19,7 @@ define dune_boot_context
 ; We need to call the boot context "default" so that dune selects it for merlin
 (context (default
   (name default)
-  ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile boot)
+  (profile dev)
   (env (_
     (flags (:standard -warn-error +A))
     (env-vars ("OCAMLPARAM" ""))))))
@@ -86,7 +85,7 @@ runtest: compiler
 duneconf/boot.ws: export contents = $(dune_boot_context)
 duneconf/runtime_stdlib.ws: export contents = $(dune_runtime_stdlib_context)
 duneconf/main.ws: export contents = $(dune_main_context)
-duneconf/%.ws:
+duneconf/%.ws: Makefile.common-jst
 	echo "$$contents" > $@
 
 # We need to disable ocaml/otherlibs when compiling with coverage, because we

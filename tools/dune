@@ -47,7 +47,7 @@
 (rule
   (target opnames.ml)
   (deps make_opcodes.exe (universe))
-  (action (system "./make_opcodes.exe -opnames < ../../ocaml/runtime/caml/instruct.h > opnames.ml")))
+  (action (system "./make_opcodes.exe -opnames < ../../ocaml/runtime4/caml/instruct.h > opnames.ml")))
 
 (library
   (name opnames)

@@ -23,7 +23,7 @@
  (libraries ocamlcommon)
  (modules_without_implementation x86_ast emitenv
    cmx_format cmxs_format backend_intf inlining_decision_intf
-   simplify_boxed_integer_ops_intf)
+   simplify_boxed_integer_ops_intf branch_relaxation_intf)
  (modules
    ;; asmcomp/
    afl_instrument arch asmgen asmlibrarian asmlink asmpackager branch_relaxation

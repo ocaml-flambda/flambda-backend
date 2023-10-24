@@ -2,7 +2,14 @@ File "w03.ml", line 14, characters 8-9:
 14 | let _ = A
              ^
 Alert deprecated: A
+<<<<<<< HEAD
 File "w03.ml", line 17, characters 15-25:
+||||||| merged common ancestors
+File "w03.ml", line 17, characters 12-26:
+=======
+
+File "w03.ml", line 17, characters 12-26:
+>>>>>>> ocaml/5.1
 17 | exception B [@@deprecated]
                     ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "deprecated" attribute cannot appear in this context

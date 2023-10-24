@@ -312,12 +312,11 @@ let event_function ~scopes exp lam =
 
 (* Assertions *)
 
-let assert_failed ~scopes exp =
+let assert_failed loc ~scopes exp =
   let slot =
     transl_extension_path Loc_unknown
-      (Lazy.force Env.initial_safe_string) Predef.path_assert_failure
+      (Lazy.force Env.initial) Predef.path_assert_failure
   in
-  let loc = exp.exp_loc in
   let (fname, line, char) =
     Location.get_pos_info loc.Location.loc_start
   in
@@ -329,7 +328,6 @@ let assert_failed ~scopes exp =
               [Const_base(Const_string (fname, exp.exp_loc, None));
                Const_base(Const_int line);
                Const_base(Const_int char)]))], loc))], loc)
-;;
 
 (* Translation of expressions *)
 
@@ -544,7 +542,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
       begin match lbl.lbl_repres with
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
-          Lprim (Pfield (lbl.lbl_pos, sem), [targ],
+          Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
@@ -555,7 +553,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pufloatfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_inlined (_, Variant_extensible) ->
-          Lprim (Pfield (lbl.lbl_pos + 1, sem), [targ],
+          Lprim (Pfield (lbl.lbl_pos + 1, maybe_pointer e, sem), [targ],
                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
@@ -733,7 +731,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       Lapply{
         ap_loc=loc;
         ap_func=
-          Lprim(Pfield (0, Reads_vary),
+          Lprim(Pfield (0, Pointer, Reads_vary),
               [transl_class_path loc e.exp_env cl], loc);
         ap_args=[lambda_unit];
         ap_result_layout=layout_exp sort e;
@@ -796,16 +794,16 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            transl_exp ~scopes sort body)
   | Texp_pack modl ->
       !transl_module ~scopes Tcoerce_none None modl
-  | Texp_assert {exp_desc=Texp_construct(_, {cstr_name="false"}, _, _)} ->
-      assert_failed ~scopes e
-  | Texp_assert (cond) ->
+  | Texp_assert ({exp_desc=Texp_construct(_, {cstr_name="false"}, _, _)}, loc) ->
+      assert_failed loc ~scopes e
+  | Texp_assert (cond, loc) ->
       if !Clflags.noassert
       then lambda_unit
       else begin
         Lifthenelse
           (transl_exp ~scopes Jkind.Sort.for_predef_value cond,
            lambda_unit,
-           assert_failed ~scopes e,
+           assert_failed loc ~scopes e,
            Lambda.layout_unit)
       end
   | Texp_lazy e ->
@@ -1050,7 +1048,7 @@ and transl_guard ~scopes guard rhs_sort rhs =
                      expr, staticfail, layout))
 
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
-  c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs
+  (c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs)
 
 and transl_cases ~scopes rhs_sort cases =
   let cases =
@@ -1488,22 +1486,23 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               typed tree, then. *)
            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
            match definition with
-           | Kept (typ, _) ->
+           | Kept (typ, mut, _) ->
                let field_kind =
                  record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
                in
                let sem =
-                 match lbl.lbl_mut with
+                 match mut with
                  | Immutable -> Reads_agree
                  | Mutable -> Reads_vary
                in
                let access =
                  match repres with
                    Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
-                   Pfield (i, sem)
+                   Pfield (i, maybe_pointer_type env typ, sem)
                  | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
                    assert false
-                 | Record_inlined (_, Variant_extensible) -> Pfield (i + 1, sem)
+                 | Record_inlined (_, Variant_extensible) ->
+                     Pfield (i + 1, maybe_pointer_type env typ, sem)
                  | Record_float ->
                     (* This allocation is always deleted,
                        so it's simpler to leave it Alloc_heap *)
@@ -1580,7 +1579,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort lbl.lbl_loc lbl_sort lbl.lbl_repres;
       match definition with
-      | Kept (_type, _uu) -> cont
+      | Kept _ -> cont
       | Overridden (_lid, expr) ->
           let upd =
             match repres with
