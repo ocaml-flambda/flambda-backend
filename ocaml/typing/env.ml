@@ -3889,8 +3889,8 @@ let report_lookup_error _loc env ppf = function
   | Unbound_cltype lid ->
       fprintf ppf "Unbound class type %a" !print_longident lid;
       begin match lid with
-      | Lident "float" ->
-        Misc.did_you_mean ppf (fun () -> ["float#"])
+      | Lident name when List.exists (String.equal (name^"#")) (extract_types None env) ->
+        Misc.did_you_mean ppf (fun () -> [name^"#"])
       | Lident _ | Ldot _ | Lapply _ ->
         spellcheck ppf extract_cltypes env lid
       end;
