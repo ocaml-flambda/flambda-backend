@@ -277,8 +277,7 @@ let rec make_named (symbol, (path:access list)) : Flambda.named =
     Expr (
       Flambda.create_let block (make_named (symbol, t))
         (Flambda.create_let field
-           (* CR mshinwell: double-check this change *)
-           (Prim (Pfield (h, Pvalue Pgenval, Pointer, Mutable), [block],
+           (Prim (Pfield (h, Pvalue Pgenval, Pointer, Immutable), [block],
              Debuginfo.none))
            (Var field)))
   | Project_var { var; kind; closure_id } :: t ->
