@@ -39,6 +39,7 @@ let compile i typed ~transl_style ~unix ~pipeline =
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
    (fun program ->
+      Builtin_attributes.warn_unused ();
       let code = Simplif.simplify_lambda program.Lambda.code in
       { program with Lambda.code }
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
