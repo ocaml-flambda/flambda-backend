@@ -15,6 +15,7 @@ module Float_u = Stdlib__Float_u
 let of_int = Float_u.of_int
 let (=) = Float_u.equal
 
+(* match statement *)
 let () =
   let d = [| of_int 1; of_int 2 |] in
   match d with
@@ -23,13 +24,7 @@ let () =
       assert (b = of_int 2)
     | _ -> assert false
 
-
-let () =
-  let d = [| of_int 1; of_int 2 |] in
-  match d with
-  | [| a; _ |] when a = of_int 1 -> ()
-  | _ -> assert false
-
+(* let statement pattern *)
 let () =
   let a = [||] in
   let b = [| of_int 1 |] in
@@ -37,9 +32,14 @@ let () =
   let[@warning "-8"] [| d |] = c in
   assert (d = of_int 1)
 
-let check_i = Float_u_array.iteri (fun i x -> assert (x = of_int i))
-
+(* function argument pattern *)
 let () =
+  let[@warning "-8"] f [| b |] = b in
+  assert (f [| of_int 1 |] = of_int 1)
+
+(* array comprehension *)
+let () =
+  let check_i = Float_u_array.iteri (fun i x -> assert (x = of_int i)) in
   (* fixed size *)
   let a = [|Float_u.of_int e for e = 0 to 9|] in
   check_i a;
