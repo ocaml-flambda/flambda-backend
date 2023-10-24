@@ -869,9 +869,9 @@ let best_type_path p =
   else
     let (p', s) = normalize_type_path !printing_env p in
     let get_path () =
-      match Path.Map.find p' !printing_map with
-      | path -> get_best_path path
-      | exception Not_found -> if path_size p' < path_size p then p' else p
+      try
+        get_best_path (Path.Map.find p' !printing_map)
+      with Not_found -> if path_size p' < path_size p then p' else p
     in
     while !printing_cont <> [] &&
       fst (path_size (get_path ())) > !printing_depth
