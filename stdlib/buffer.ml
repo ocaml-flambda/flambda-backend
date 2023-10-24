@@ -20,11 +20,8 @@ open! Stdlib
 
 (* Extensible buffers *)
 
-<<<<<<< HEAD
 [@@@ocaml.inline 3]
 [@@@ocaml.warning "A"]
-||||||| merged common ancestors
-=======
 (* The [inner_buffer] type ensures that the [length] and [buffer] fields are
    always synchronized, [length = Bytes.length buffer], even in presence
    of data races.
@@ -33,7 +30,6 @@ type inner_buffer = {
   buffer: bytes;
   length: int;
 }
->>>>>>> ocaml/5.1
 
 type t =
  {mutable inner : inner_buffer;

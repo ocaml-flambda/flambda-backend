@@ -255,81 +255,29 @@ let rec find_map f = function
        | None -> find_map f l
      end
 
-<<<<<<< HEAD
-let find_all p =
-  let rec find p accu = function
-  | [] -> rev accu
-  | x :: l -> if p x then find p (x :: accu) l else find p accu l in
-  find p []
-||||||| merged common ancestors
-let find_all p =
-  let rec find accu = function
-  | [] -> rev accu
-  | x :: l -> if p x then find (x :: accu) l else find accu l in
-  find []
-=======
 let find_mapi f =
-  let rec aux i = function
+  let rec aux f i = function
   | [] -> None
   | x :: l ->
      begin match f i x with
        | Some _ as result -> result
-       | None -> aux (i+1) l
+       | None -> aux f (i+1) l
      end in
-  aux 0
+  aux f 0
 
 let[@tail_mod_cons] rec find_all p = function
   | [] -> []
   | x :: l -> if p x then x :: find_all p l else find_all p l
->>>>>>> ocaml/5.1
 
 let filter = find_all
 
-<<<<<<< HEAD
-let filteri p l =
-  let rec aux p i acc = function
-  | [] -> rev acc
-  | x::l -> aux p (i + 1) (if p i x then x::acc else acc) l
-  in
-  aux p 0 [] l
-||||||| merged common ancestors
-let filteri p l =
-  let rec aux i acc = function
-  | [] -> rev acc
-  | x::l -> aux (i + 1) (if p i x then x::acc else acc) l
-  in
-  aux 0 [] l
-=======
 let[@tail_mod_cons] rec filteri p i = function
   | [] -> []
   | x::l ->
       let i' = i + 1 in
       if p i x then x :: filteri p i' l else filteri p i' l
->>>>>>> ocaml/5.1
 
-<<<<<<< HEAD
-let filter_map f =
-  let rec aux f accu = function
-    | [] -> rev accu
-    | x :: l ->
-        match f x with
-        | None -> aux f accu l
-        | Some v -> aux f (v :: accu) l
-  in
-  aux f []
-||||||| merged common ancestors
-let filter_map f =
-  let rec aux accu = function
-    | [] -> rev accu
-    | x :: l ->
-        match f x with
-        | None -> aux accu l
-        | Some v -> aux (v :: accu) l
-  in
-  aux []
-=======
 let filteri p l = filteri p 0 l
->>>>>>> ocaml/5.1
 
 let[@tail_mod_cons] rec filter_map f = function
   | [] -> []

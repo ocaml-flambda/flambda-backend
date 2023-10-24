@@ -14,7 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
 [@@@ocaml.inline 0]
@@ -23,22 +22,12 @@ open! Stdlib
 let magic x = Sys.opaque_identity (Obj.magic x)
 let of_repr x = Sys.opaque_identity (Obj.obj x)
 
-let repr = Obj.repr
-let dup = Obj.dup
-let new_block = Obj.new_block
-let set_field = Obj.set_field
-
 let set_object_field (arr : _ array) field new_value =
   Array.unsafe_set (Sys.opaque_identity arr) field new_value
 
 let get_object_field (arr : _ array) field =
   Array.unsafe_get (Sys.opaque_identity arr) field
 
-||||||| merged common ancestors
-open Obj
-
-=======
->>>>>>> ocaml/5.1
 (**** Object representation ****)
 
 external set_id: 'a -> 'a = "caml_set_oo_id" [@@noalloc]
@@ -46,7 +35,7 @@ external set_id: 'a -> 'a = "caml_set_oo_id" [@@noalloc]
 (**** Object copy ****)
 
 let copy o =
-  let o = (of_repr (dup (repr o))) in
+  let o = (of_repr (Obj.dup (Obj.repr o))) in
   set_id o
 
 (**** Compression options ****)
@@ -142,13 +131,7 @@ let dummy_table =
 let table_count = ref 0
 
 (* dummy_met should be a pointer, so use an atom *)
-<<<<<<< HEAD
-let dummy_met : item = of_repr (new_block 0 0)
-||||||| merged common ancestors
-let dummy_met : item = obj (Obj.new_block 0 0)
-=======
-let dummy_met : item = Obj.obj (Obj.new_block 0 0)
->>>>>>> ocaml/5.1
+let dummy_met : item = of_repr (Obj.new_block 0 0)
 (* if debugging is needed, this could be a good idea: *)
 (* let dummy_met () = failwith "Undefined method" *)
 
@@ -348,7 +331,7 @@ let init_class table =
 let inherits cla vals virt_meths concr_meths (_, super, _, env) top =
   narrow cla vals virt_meths concr_meths;
   let init =
-    if top then super cla env else repr (super cla) in
+    if top then super cla env else Obj.repr (super cla) in
   widen cla;
   Array.concat
     [[| Obj.repr init |];
@@ -361,7 +344,7 @@ let make_class pub_meths class_init =
   let table = create_table pub_meths in
   let env_init = class_init table in
   init_class table;
-  (env_init (repr 0), class_init, env_init, repr 0)
+  (env_init (Obj.repr 0), class_init, env_init, Obj.repr 0)
 
 type init_table = { mutable env_init: t; mutable class_init: table -> t }
 [@@warning "-unused-field"]
@@ -375,23 +358,23 @@ let make_class_store pub_meths class_init init_table =
 
 let dummy_class loc =
   let undef = fun _ -> raise (Undefined_recursive_module loc) in
-  (magic undef, undef, undef, repr 0)
+  (magic undef, undef, undef, Obj.repr 0)
 
 (**** Objects ****)
 
 let create_object table =
   (* XXX Appel de [obj_block] | Call to [obj_block]  *)
-  let obj = new_block Obj.object_tag table.size in
+  let obj = Obj.new_block Obj.object_tag table.size in
   (* XXX Appel de [caml_modify] | Call to [caml_modify] *)
-  set_field obj 0 (repr table.methods);
+  Obj.set_field obj 0 (Obj.repr table.methods);
   of_repr (set_id obj)
 
 let create_object_opt obj_0 table =
   if (magic obj_0 : bool) then obj_0 else begin
     (* XXX Appel de [obj_block] | Call to [obj_block]  *)
-    let obj = new_block Obj.object_tag table.size in
+    let obj = Obj.new_block Obj.object_tag table.size in
     (* XXX Appel de [caml_modify] | Call to [caml_modify] *)
-    set_field obj 0 (repr table.methods);
+    Obj.set_field obj 0 (Obj.repr table.methods);
     of_repr (set_id obj)
   end
 

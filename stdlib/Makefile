@@ -25,36 +25,18 @@ TARGET_BINDIR ?= $(BINDIR)
 
 COMPILER=$(ROOTDIR)/ocamlc$(EXE)
 CAMLC=$(OCAMLRUN) $(COMPILER)
-<<<<<<< HEAD
 COMPFLAGS=-strict-sequence -absname -w +a-4-9-41-42-44-45-48-66-70 \
           -g -warn-error +A -bin-annot -nostdlib -principal \
-          -safe-string -strict-formats -nopervasives -no-alias-deps
-||||||| merged common ancestors
-COMPFLAGS=-strict-sequence -absname -w +a-4-9-41-42-44-45-48-70 \
-          -g -warn-error +A -bin-annot -nostdlib -principal \
-          -safe-string -strict-formats
-=======
-COMPFLAGS=-strict-sequence -absname -w +a-4-9-41-42-44-45-48 \
-          -g -warn-error +A -bin-annot -nostdlib -principal
->>>>>>> ocaml/5.1
+          -nopervasives -no-alias-deps
 ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
 OPTCOMPILER=$(ROOTDIR)/ocamlopt
 CAMLOPT=$(OCAMLRUN) $(OPTCOMPILER)
-<<<<<<< HEAD
 CAMLDEP=$(BOOT_OCAMLC) -depend
 DEPFLAGS=-slash
 
 OC_CPPFLAGS += -I$(ROOTDIR)/runtime
-||||||| merged common ancestors
->>>>>>>>> Temporary merge branch 2
-CAMLDEP=$(BOOT_OCAMLC) -depend
-DEPFLAGS=-slash
-
-OC_CPPFLAGS += -I$(ROOTDIR)/runtime
-=======
->>>>>>> ocaml/5.1
 
 include StdlibModules
 
@@ -250,66 +232,30 @@ float_u.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
 
 %.cmi: %.mli
-<<<<<<< HEAD
-	$(CAMLC) $(COMPFLAGS) -c $<
-||||||| merged common ancestors
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -c $<
-=======
-	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -c $<
->>>>>>> ocaml/5.1
+	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) -c $<
 
 # The dependency on the .mli file is in .depend (since stdlib__Foo.cmi
 # depends on stdlib__foo.mli)
 stdlib__%.cmi:
-<<<<<<< HEAD
-	$(CAMLC) $(COMPFLAGS) \
-||||||| merged common ancestors
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) \
-=======
-	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) \
->>>>>>> ocaml/5.1
+	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) \
 	         -o $@ -c $(filter %.mli, $^)
 
 %.cmo: %.ml
-<<<<<<< HEAD
-	$(CAMLC) $(COMPFLAGS) -c $<
-||||||| merged common ancestors
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -c $<
-=======
-	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -c $<
->>>>>>> ocaml/5.1
+	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) -c $<
 
 # The dependency on the .ml file is in .depend (since stdlib__Foo.cmo
 # depends on stdlib__foo.ml)
 stdlib__%.cmo:
-<<<<<<< HEAD
-	$(CAMLC) $(COMPFLAGS) \
-||||||| merged common ancestors
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) \
-=======
-	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) \
->>>>>>> ocaml/5.1
+	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) \
 	         -o $@ -c $(filter %.ml, $^)
 
 %.cmx: %.ml
-<<<<<<< HEAD
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -c $<
-||||||| merged common ancestors
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) -c $<
-=======
-	$(V_OCAMLOPT)$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) -c $<
->>>>>>> ocaml/5.1
+	$(V_OCAMLOPT)$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -c $<
 
 # The dependency on the .ml file is in .depend (since stdlib__Foo.cmx
 # depends on stdlib__foo.ml)
 stdlib__%.cmx:
-<<<<<<< HEAD
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) \
-||||||| merged common ancestors
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) \
-=======
-	$(V_OCAMLOPT)$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) \
->>>>>>> ocaml/5.1
+	$(V_OCAMLOPT)$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) \
 	           -o $@ -c $(filter %.ml, $^)
 
 # Dependencies on the compiler

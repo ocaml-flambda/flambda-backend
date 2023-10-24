@@ -83,23 +83,9 @@ external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
 
 (* Boolean operations *)
 
-<<<<<<< HEAD
 external not : (bool[@local_opt]) -> bool = "%boolnot"
-external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
 external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
-external ( or ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
 external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
-||||||| merged common ancestors
-external not : bool -> bool = "%boolnot"
-external ( & ) : bool -> bool -> bool = "%sequand"
-external ( && ) : bool -> bool -> bool = "%sequand"
-external ( or ) : bool -> bool -> bool = "%sequor"
-external ( || ) : bool -> bool -> bool = "%sequor"
-=======
-external not : bool -> bool = "%boolnot"
-external ( && ) : bool -> bool -> bool = "%sequand"
-external ( || ) : bool -> bool -> bool = "%sequor"
->>>>>>> ocaml/5.1
 
 (* Integer operations *)
 

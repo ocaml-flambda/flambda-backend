@@ -14,17 +14,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
-[@@@ocaml.warning "-32"]
 
-||||||| merged common ancestors
-[@@@ocaml.warning "-32"]
-
-=======
->>>>>>> ocaml/5.1
 module type SeededS = sig
 
   type key

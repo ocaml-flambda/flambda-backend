@@ -15,37 +15,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-(* Pseudo-random number generator
-   This is a lagged-Fibonacci F(55, 24, +) with a modified addition
-   function to enhance the mixing of bits.
-   If we use normal addition, the low-order bit fails tests 1 and 7
-   of the Diehard test suite, and bits 1 and 2 also fail test 7.
-   If we use multiplication as suggested by Marsaglia, it doesn't fare
-   much better.
-   By mixing the bits of one of the numbers before addition (XOR the
-   5 high-order bits into the low-order bits), we get a generator that
-   passes all the Diehard tests.
-*)
-||||||| merged common ancestors
-(* Pseudo-random number generator
-   This is a lagged-Fibonacci F(55, 24, +) with a modified addition
-   function to enhance the mixing of bits.
-   If we use normal addition, the low-order bit fails tests 1 and 7
-   of the Diehard test suite, and bits 1 and 2 also fail test 7.
-   If we use multiplication as suggested by Marsaglia, it doesn't fare
-   much better.
-   By mixing the bits of one of the numbers before addition (XOR the
-   5 high-order bits into the low-order bits), we get a generator that
-   passes all the Diehard tests.
-*)
-=======
 (* Pseudo-random number generator *)
->>>>>>> ocaml/5.1
 
 external random_seed: unit -> int array = "caml_sys_random_seed"
 
