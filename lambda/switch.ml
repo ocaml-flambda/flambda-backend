@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* see high-level comments in switch.mli *)
 
 type 'a shared = Shared of 'a | Single of 'a
 
@@ -137,98 +136,37 @@ sig
   val make_exit : int -> act
 end
 
-(* The module will ``produce good code for the case statement''
-
+(* The module will ``produce good code for the case statement'' *)
+(*
   Adaptation of
-   Robert L. Berstein
+   R.L. Berstein
    ``Producing good code for the case statement''
    Software Practice and Experience, 15(10) (1985)
-  and
-   Sampath Kannan and Todd A. Proebsting
-   ``Correction to ``Producing good code for the case statement'' ''
-   Software Practice and Experience, 24(2) (1993)
-  and
-   David L. Spuler
+ and
+   D.L. Spuler
     ``Two-Way Comparison Search Trees, a Generalisation of Binary Search Trees
       and Split Trees''
     ``Compiler Code Generation for Multiway Branch Statement as
       a Static Search Problem''
    Technical Reports, James Cook University
-
- The article of Bernstein considers how to compile C-style switches:
- arrays of actions indexed over non-negative integers with some "missing"
- cases that are sent to a default action.
-
- The strategy proposed, which is followed in our implementation below,
- is as follows:
- 1. Compute a "clustering" of the cases as a disjoint union of smaller intervals
-    with a high enough "density" (few default cases on the interval).
- 2. Generate "dense switch" code for each cluster, typically using a jump table.
- 3. Generate a sequence of tests for the whole switch, whose leaves
-    are the dense switches generated for each cluster.
-
- Berstein believes that computing the optimal clustering
- (smaller number of clusters) is NP-complete, and only proposes
- a suboptimal heuristic method. Kannan and Proebsting remark that it
- can be solved by a quadratic dynamic algorithm, which is also used in
- our implementation.
-
- The article of Spuler explains how to generate good test sequences
- (optimal in worst-case number of tests) for a two-way tests instead
- of three-way tests: traditional dichotomic search assumes that we
- check at each step whether the key is (1) equal to the pivot, (2)
- strictly less or (3) strictly more, but the test instructions in our
- intermediate representations typically only let us test for (1)
- lesser or equal or (2) strictly bigger (or: (1) strictly less, (2)
- bigger or equal, which is symmetric.). Spuler proves that, even in
- this two-way setting, dichotomic search generates optimal test
- sequences.
-
- The code below uses two additional ideas from Luc Maranget.
-
- 1. The code to compute an optimal sequence of tests also makes use of
-    an interval check (is the input in the range [m; n]), which
-    (as remarked by Bernstein) can be implemented efficiently as
-    a subtraction and an unsigned comparison. We don't know of an
-    efficient algorithm to compute optimal test sequences using both
-    comparison and interval checks, so instead:
-    a. on large input intervals, we use the dichotomy
-    b. on medium-sized input intervals, we use the best of
-       the dichotomy and an interval check carving out
-       exactly the lowest and highest cases
-    c. on small input intervals, we use optimal exhaustive search.
-
- 2. The works of Bernstein and Kannan-Proebsting compute clusters of
-    sufficient density, where density is defined naturally as the
-    proportion of non-default cases. Maranget instead computes density
-    as the height of the test sequence divided by interval size
-    (note that the number of non-default cases is an upperbound on the
-    test sequence height, as the length of the linear test sequence).
-    As a result, sub-intervals that can be efficiently decided by
-    tests get a lower density, so they are more likely to be merged
-    into the toplevel test sequence instead of generating a less
-    compact jump table.
+*)
+(*
+  Main adaptation is considering interval tests
+ (implemented as one addition + one unsigned test and branch)
+  which leads to exhaustive search for finding the optimal
+  test sequence in small cases and heuristics otherwise.
 *)
 module Make (Arg : S) =
 struct
 
-  (* A representation of switches over intervals rather than discrete
-     values the [cases] array stores triples [(low, high, act)], where
-     [low] is the lowest input value of the interval, [high] is the
-     highest input value, and [act] is an index into the [actions]
-     array.
+  type 'a inter =
+    {cases : (int * int * int) array ;
+     actions : 'a array}
 
-     (There can be substantially less actions than intervals if many
-     actions are shared.)
-  *)
-  type 'a inter = {
-    cases : (int * int * int) array ;
-    actions : 'a array
-  }
+  type 'a t_ctx =  {off : int ; arg : 'a}
 
-  let small_size_limit = 8
-
-  and medium_size_limit = 16
+  let cut = ref 8
+  and more_cut = ref 16
 
 (*
 let pint chan i =
@@ -259,13 +197,6 @@ let prerr_inter i = Printf.fprintf stderr
     let _,r,_ = cases.(i) in
     r
 
-  (* a "cost" as a number of tests in the worst case;
-     [n] is the total number of tests
-     [ni] is the number of interval tests
-
-     If two choices have the same total number of tests, we will prefer
-     the one with less interval tests as they cost slightly more.
-  *)
   type ctests = {
     mutable n : int ;
     mutable ni : int ;
@@ -306,10 +237,6 @@ let pta chan t =
     t1.n <- t1.n + t2.n ;
     t1.ni <- t1.ni + t2.ni ;
 
-  (* Represents tests in a test sequence
-     [Inter (low, high)] is an interval test
-     [Sep bound] is [fun x -> x < bound]
-     [No] is when no tests are necessary. *)
   type t_ret = Inter of int * int  | Sep of int | No
 
 (*
@@ -340,19 +267,25 @@ let pret chan = function
           for i = 0 to len1-2 do
             r.(i) <- c1.(i)
           done ;
+
           let l =
-            if len1 < 2 then l1
-            else begin (* 0 <= len1 - 2 < len1 *)
+            if len1-2 >= 0 then begin
               let _,h,_ = r.(len1-2) in
-              min (h + 1) l1
-            end
+              if h+1 < l1 then
+                h+1
+              else
+                l1
+            end else
+              l1
           and h =
-            if len2 < 2 then h2
-            else begin (* 0 <= 1 < len2 *)
+            if 1 < len2-1 then begin
               let l,_,_ = c2.(1) in
-              max h2 (l - 1)
-            end
-          in
+              if h2+1 < l then
+                l-1
+              else
+                h2
+            end else
+              h2 in
           r.(len1-1) <- (l,h,act1) ;
           for i=1 to len2-1  do
             r.(len1-1+i) <- c2.(i)
@@ -471,8 +404,7 @@ let rec pkey chan  = function
 
   let ok_inter = ref false
 
-  (* Compute a good test sequence. *)
-  let rec opt_count cases =
+  let rec opt_count top cases =
     let key = make_key cases in
     try
       Hashtbl.find t key
@@ -484,35 +416,31 @@ let rec pkey chan  = function
           | 0 -> assert false
           | _ when same_act cases -> No, ({n=0; ni=0},{n=0; ni=0})
           | _ ->
-              if lcases < small_size_limit then
-                enum cases
-              else if lcases < medium_size_limit then
+              if lcases < !cut then
+                enum top cases
+              else if lcases < !more_cut then
                 heuristic cases
               else
                 divide cases in
         Hashtbl.add t key r ;
         r
 
-  (* Large inputs: dichotomic sequence. *)
   and divide cases =
     let lcases = Array.length cases in
     let m = lcases/2 in
     let _,left,right = coupe cases m in
     let ci = {n=1 ; ni=0}
     and cm = {n=1 ; ni=0}
-    and _,(cml,cleft) = opt_count left
-    and _,(cmr,cright) = opt_count right in
+    and _,(cml,cleft) = opt_count false left
+    and _,(cmr,cright) = opt_count false right in
     add_test ci cleft ;
     add_test ci cright ;
-    (* To compute a worst-case cost, we add the more costly of the
-       left/right branches to the running total. *)
     if less_tests cml cmr then
       add_test cm cmr
     else
       add_test cm cml ;
     Sep m,(cm, ci)
 
-  (* Medium-size inputs: dichotomy or interval tests. *)
   and heuristic cases =
     let lcases = Array.length cases in
 
@@ -524,8 +452,8 @@ let rec pkey chan  = function
         and _,_,act1 = cases.(lcases-1) in
         if act0 = act1 then begin
           let low, high, inside, outside = coupe_inter 1 (lcases-2) cases in
-          let _,(cmi,cinside) = opt_count inside
-          and _,(cmo,coutside) = opt_count outside
+          let _,(cmi,cinside) = opt_count false inside
+          and _,(cmo,coutside) = opt_count false outside
           and cmij = {n=1 ; ni=(if low=high then 0 else 1)}
           and cij = {n=1 ; ni=(if low=high then 0 else 1)} in
           add_test cij cinside ;
@@ -544,8 +472,8 @@ let rec pkey chan  = function
     else
       inter,cinter
 
-  (* Small inputs: exhaustive search for optimal sequence. *)
-  and enum cases =
+
+  and enum top cases =
     let lcases = Array.length cases in
     let lim, with_sep =
       let best = ref (-1) and best_cost = ref (too_much,too_much) in
@@ -554,8 +482,8 @@ let rec pkey chan  = function
         let _,left,right = coupe cases i in
         let ci = {n=1 ; ni=0}
         and cm = {n=1 ; ni=0}
-        and _,(cml,cleft) = opt_count left
-        and _,(cmr,cright) = opt_count right in
+        and _,(cml,cleft) = opt_count false left
+        and _,(cmr,cright) = opt_count false right in
         add_test ci cleft ;
         add_test ci cright ;
         if less_tests cml cmr then
@@ -566,6 +494,8 @@ let rec pkey chan  = function
         if
           less2tests (cm,ci) !best_cost
         then begin
+          if top then
+            Printf.fprintf stderr "Get it: %d\n" i ;
           best := i ;
           best_cost := (cm,ci)
         end
@@ -579,8 +509,8 @@ let rec pkey chan  = function
         for i=1 to lcases-2 do
           let low, high, inside, outside = coupe_inter i i cases in
           if low=high then begin
-            let _,(cmi,cinside) = opt_count inside
-            and _,(cmo,coutside) = opt_count outside
+            let _,(cmi,cinside) = opt_count false inside
+            and _,(cmo,coutside) = opt_count false outside
             and cmij = {n=1 ; ni=0}
             and cij = {n=1 ; ni=0} in
             add_test cij cinside ;
@@ -603,8 +533,8 @@ let rec pkey chan  = function
         for i=1 to lcases-2 do
           for j=i to lcases-2 do
             let low, high, inside, outside = coupe_inter i j cases in
-            let _,(cmi,cinside) = opt_count inside
-            and _,(cmo,coutside) = opt_count outside
+            let _,(cmi,cinside) = opt_count false inside
+            and _,(cmo,coutside) = opt_count false outside
             and cmij = {n=1 ; ni=(if low=high then 0 else 1)}
             and cij = {n=1 ; ni=(if low=high then 0 else 1)} in
             add_test cij cinside ;
@@ -627,59 +557,8 @@ let rec pkey chan  = function
     end ;
     !r, !rc
 
-<<<<<<< HEAD
   let make_if_test kind test arg i ifso ifnot =
     Arg.make_if kind
-||||||| merged common ancestors
-  let make_if_test test arg i ifso ifnot =
-    Arg.make_if
-=======
-  (* Consider the following sequence of interval tests:
-
-       if a in [2; 10] then
-         if a in [2; 4] then act24
-         else if a in [5; 8] then act58
-         else act810
-       else act_default
-
-     Our interval check works by subtracting the interval lower
-     bound, then checking a range [0; n] using an unsigned
-     comparison. Naively we would generate code with one subtraction
-     to [a] before each comparison:
-
-       let tmp1 = a - 2 in
-       if tmp1 <=u 8 then
-         let tmp2 = a - 2 in
-         if tmp2 <=u 2 then act24
-         else
-           let tmp3 = a - 5 in
-           if tmp3 <=u 3 then act58
-           else act810
-       else act_default
-
-     but we can avoid some substractions by working with the result
-     of the first subtraction, instead of the original index [a],
-     inside the interval.
-
-       let a2 = a - 2 in
-       if a2 <=u 8 then
-         if a2 in <=u 2 then act24
-         else
-           let a5 = a2 - 3 in
-           if a5 <=u 3 then act58
-           else act810
-       else act_default
-
-     The type [t_ctx] represents an input argument "shifted" by a certain
-     (negative) offset by repeated substractions.
-
-     In the example above, [a5] would be represented with [off = -5].
-  *)
-  type 'a t_ctx =  {off : int ; arg : 'a}
-
-  let make_if_test test arg i ifso ifnot =
-    Arg.make_if
->>>>>>> ocaml/5.1
       (Arg.make_prim test [arg ; Arg.make_const i])
       ifso ifnot
 
@@ -737,14 +616,7 @@ let rec pkey chan  = function
              do_make_if_in kind
                (Arg.make_const d) arg (mk_ifso ctx) (mk_ifno ctx))
 
-<<<<<<< HEAD
   let rec c_test kind ctx ({cases=cases ; actions=actions} as s) =
-||||||| merged common ancestors
-  let rec c_test ctx ({cases=cases ; actions=actions} as s) =
-=======
-  (* Generate the code for a good test sequence. *)
-  let rec c_test ctx ({cases=cases ; actions=actions} as s) =
->>>>>>> ocaml/5.1
     let lcases = Array.length cases in
     assert(lcases > 0) ;
     if lcases = 1 then
@@ -752,7 +624,7 @@ let rec pkey chan  = function
 
     else begin
 
-      let w,_c = opt_count cases in
+      let w,_c = opt_count false cases in
 (*
   Printf.fprintf stderr
   "off=%d tactic=%a for %a\n"
@@ -762,8 +634,8 @@ let rec pkey chan  = function
       | No -> actions.(get_act cases 0) ctx
       | Inter (i,j) ->
           let low,high,inside, outside = coupe_inter i j cases in
-          let _,(cinside,_) = opt_count inside
-          and _,(coutside,_) = opt_count outside in
+          let _,(cinside,_) = opt_count false inside
+          and _,(coutside,_) = opt_count false outside in
           (* Costs are retrieved to put the code with more remaining tests
              in the privileged (positive) branch of ``if'' *)
           if low=high then begin
@@ -801,8 +673,8 @@ let rec pkey chan  = function
           end
       | Sep i ->
           let lim,left,right = coupe cases i in
-          let _,(cleft,_) = opt_count left
-          and _,(cright,_) = opt_count right in
+          let _,(cleft,_) = opt_count false left
+          and _,(cright,_) = opt_count false right in
           let left = {s with cases=left}
           and right = {s with cases=right} in
 
@@ -831,13 +703,13 @@ let rec pkey chan  = function
     end
 
 
-  (* Minimal density of dense switches. *)
-  let theta = 0.33333
+  (* Minimal density of switches *)
+  let theta = ref 0.33333
 
-  (* Minimal number of tests to make a dense switch. *)
-  let switch_min = 3
+  (* Minimal number of tests to make a switch *)
+  let switch_min = ref 3
 
-  (* Particular case 0, 1, 2. *)
+  (* Particular case 0, 1, 2 *)
   let particular_case cases i j =
     j-i = 2 &&
     (let l1,_h1,act1 = cases.(i)
@@ -846,37 +718,37 @@ let rec pkey chan  = function
      l1+1=l2 && l2+1=l3 && l3=h3 &&
      act1 <> act3)
 
-  (* Approximation of the test sequence height,
-     used to determine cluster density. *)
   let approx_count cases i j =
     let l = j-i+1 in
-    if l < small_size_limit then
-      (* on small input intervals, use test sequence height *)
-      let _,(_,{n=ntests}) = opt_count (Array.sub cases i l) in
+    if l < !cut then
+      let _,(_,{n=ntests}) = opt_count false (Array.sub cases i l) in
       ntests
     else
-      (* otherwise use the standard notion of density
-         (number of non-default cases) *)
       l-1
 
-  (* Sends back a boolean that says whether it is worth making a jump table. *)
+  (* Sends back a boolean that says whether is switch is worth or not *)
+
   let dense {cases} i j =
     if i=j then true
     else
       let l,_,_ = cases.(i)
       and _,h,_ = cases.(j) in
-      let ntests = approx_count cases i j in
+      let ntests =  approx_count cases i j in
 (*
   (ntests+1) >= theta * (h-l+1)
 *)
       particular_case cases i j ||
-      ((* The switch_min test guarantees that we don't use jump tables
-          for very small switches. *)
-       ntests >= switch_min &&
+      (ntests >= !switch_min &&
        float_of_int ntests +. 1.0 >=
-       theta *. (float_of_int h -. float_of_int l +. 1.0))
+       !theta *. (float_of_int h -. float_of_int l +. 1.0))
 
-  (* Compute an optimal clustering by dynamic programming. *)
+  (* Compute clusters by dynamic programming
+     Adaptation of the correction to Bernstein
+     ``Correction to `Producing Good Code for the Case Statement' ''
+     S.K. Kannan and T.A. Proebsting
+     Software Practice and Experience Vol. 24(2) 233 (Feb 1994)
+  *)
+
   let comp_clusters s =
     let len = Array.length s.cases in
     let min_clusters = Array.make len max_int
@@ -896,19 +768,8 @@ let rec pkey chan  = function
     done ;
     min_clusters.(len-1),k
 
-<<<<<<< HEAD
   (* Assume j > i *)
   let make_switch loc kind {cases=cases ; actions=actions} i j =
-||||||| merged common ancestors
-  (* Assume j > i *)
-  let make_switch loc {cases=cases ; actions=actions} i j =
-=======
-  (* The code to generate a dense switch is provided
-     by the functor parameter as Arg.make_switch
-     (which will typically use a jump table) *)
-  let make_switch loc {cases=cases ; actions=actions} i j =
-    (* Assume j > i *)
->>>>>>> ocaml/5.1
     let ll,_,_ = cases.(i)
     and _,hh,_ = cases.(j) in
     let tbl = Array.make (hh-ll+1) 0
@@ -943,16 +804,8 @@ let rec pkey chan  = function
              (Arg.make_offset ctx.arg (-ll-ctx.off))
              (fun arg -> Arg.make_switch loc kind arg tbl acts))
 
-<<<<<<< HEAD
 
   let make_clusters loc kind ({cases=cases ; actions=actions} as s) n_clusters k =
-||||||| merged common ancestors
-
-  let make_clusters loc ({cases=cases ; actions=actions} as s) n_clusters k =
-=======
-  (* Generate code from a clustering choice. *)
-  let make_clusters loc ({cases=cases ; actions=actions} as s) n_clusters k =
->>>>>>> ocaml/5.1
     let len = Array.length cases in
     let r = Array.make n_clusters (0,0,0)
     and t = Hashtbl.create 17
@@ -993,6 +846,7 @@ let rec pkey chan  = function
     let acts = Array.make !index (fun _ -> assert false) in
     Hashtbl.iter (fun _ (i,act) -> acts.(i) <- act) t ;
     {cases = r ; actions = acts}
+  ;;
 
 
   let do_zyva loc kind (low,high) arg cases actions =
@@ -1025,27 +879,13 @@ let rec pkey chan  = function
         actions in
     !handlers,actions
 
-<<<<<<< HEAD
   let zyva loc kind lh arg cases actions =
-||||||| merged common ancestors
-  let zyva loc lh arg cases actions =
-=======
-  (* Standard entry point. *)
-  let zyva loc lh arg cases actions =
->>>>>>> ocaml/5.1
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
     let hs,actions = abstract_shared kind actions in
     hs (do_zyva loc kind lh arg cases actions)
 
-<<<<<<< HEAD
   and test_sequence kind arg cases actions =
-||||||| merged common ancestors
-  and test_sequence arg cases actions =
-=======
-  (* Generate code using test sequences only, not Arg.make_switch *)
-  and test_sequence arg cases actions =
->>>>>>> ocaml/5.1
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
     let hs,actions = abstract_shared kind actions in
@@ -1060,14 +900,7 @@ let rec pkey chan  = function
   pcases stderr cases ;
   prerr_endline "" ;
 *)
-<<<<<<< HEAD
     hs (c_test kind {arg=arg ; off=0} s)
   ;;
-||||||| merged common ancestors
-    hs (c_test {arg=arg ; off=0} s)
-  ;;
-=======
-    hs (c_test {arg=arg ; off=0} s)
->>>>>>> ocaml/5.1
 
 end

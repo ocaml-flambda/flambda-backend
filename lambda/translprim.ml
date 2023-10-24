@@ -97,7 +97,6 @@ type prim =
 let units_with_used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
   match path with
-<<<<<<< HEAD
     Some (Path.Pdot (path, _)) ->
       let address = Env.find_module_address path env in
       begin match Env.address_head address with
@@ -106,19 +105,6 @@ let add_used_primitive loc env path =
           then Hashtbl.add units_with_used_primitives cu loc
       | AHlocal _ -> ()
       end
-||||||| merged common ancestors
-    Some (Path.Pdot _ as path) ->
-      let path = Env.normalize_path_prefix (Some loc) env path in
-      let unit = Path.head path in
-      if Ident.global unit && not (Hashtbl.mem used_primitives path)
-      then Hashtbl.add used_primitives path loc
-=======
-    Some (Path.Pdot _ as path) ->
-      let path = Env.normalize_value_path (Some loc) env path in
-      let unit = Path.head path in
-      if Ident.global unit && not (Hashtbl.mem used_primitives path)
-      then Hashtbl.add used_primitives path loc
->>>>>>> ocaml/5.1
   | _ -> ()
 
 let clear_used_primitives () = Hashtbl.clear units_with_used_primitives
@@ -137,7 +123,6 @@ let gen_array_set_kind mode =
 let prim_sys_argv =
   Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
-<<<<<<< HEAD
 let to_locality ~poly = function
   | Prim_global, _ -> alloc_heap
   | Prim_local, _ -> alloc_local
@@ -145,521 +130,6 @@ let to_locality ~poly = function
     match poly with
     | None -> assert false
     | Some locality -> transl_locality_mode locality
-||||||| merged common ancestors
-let primitives_table =
-  create_hashtable 57 [
-    "%identity", Identity;
-    "%bytes_to_string", Primitive (Pbytes_to_string, 1);
-    "%bytes_of_string", Primitive (Pbytes_of_string, 1);
-    "%ignore", Primitive (Pignore, 1);
-    "%revapply", Revapply;
-    "%apply", Apply;
-    "%loc_LOC", Loc Loc_LOC;
-    "%loc_FILE", Loc Loc_FILE;
-    "%loc_LINE", Loc Loc_LINE;
-    "%loc_POS", Loc Loc_POS;
-    "%loc_MODULE", Loc Loc_MODULE;
-    "%loc_FUNCTION", Loc Loc_FUNCTION;
-    "%field0", Primitive ((Pfield 0), 1);
-    "%field1", Primitive ((Pfield 1), 1);
-    "%setfield0", Primitive ((Psetfield(0, Pointer, Assignment)), 2);
-    "%makeblock", Primitive ((Pmakeblock(0, Immutable, None)), 1);
-    "%makemutable", Primitive ((Pmakeblock(0, Mutable, None)), 1);
-    "%raise", Raise Raise_regular;
-    "%reraise", Raise Raise_reraise;
-    "%raise_notrace", Raise Raise_notrace;
-    "%raise_with_backtrace", Raise_with_backtrace;
-    "%sequand", Primitive (Psequand, 2);
-    "%sequor", Primitive (Psequor, 2);
-    "%boolnot", Primitive (Pnot, 1);
-    "%big_endian", Primitive ((Pctconst Big_endian), 1);
-    "%backend_type", Primitive ((Pctconst Backend_type), 1);
-    "%word_size", Primitive ((Pctconst Word_size), 1);
-    "%int_size", Primitive ((Pctconst Int_size), 1);
-    "%max_wosize", Primitive ((Pctconst Max_wosize), 1);
-    "%ostype_unix", Primitive ((Pctconst Ostype_unix), 1);
-    "%ostype_win32", Primitive ((Pctconst Ostype_win32), 1);
-    "%ostype_cygwin", Primitive ((Pctconst Ostype_cygwin), 1);
-    "%frame_pointers", Frame_pointers;
-    "%negint", Primitive (Pnegint, 1);
-    "%succint", Primitive ((Poffsetint 1), 1);
-    "%predint", Primitive ((Poffsetint(-1)), 1);
-    "%addint", Primitive (Paddint, 2);
-    "%subint", Primitive (Psubint, 2);
-    "%mulint", Primitive (Pmulint, 2);
-    "%divint", Primitive ((Pdivint Safe), 2);
-    "%modint", Primitive ((Pmodint Safe), 2);
-    "%andint", Primitive (Pandint, 2);
-    "%orint", Primitive (Porint, 2);
-    "%xorint", Primitive (Pxorint, 2);
-    "%lslint", Primitive (Plslint, 2);
-    "%lsrint", Primitive (Plsrint, 2);
-    "%asrint", Primitive (Pasrint, 2);
-    "%eq", Primitive ((Pintcomp Ceq), 2);
-    "%noteq", Primitive ((Pintcomp Cne), 2);
-    "%ltint", Primitive ((Pintcomp Clt), 2);
-    "%leint", Primitive ((Pintcomp Cle), 2);
-    "%gtint", Primitive ((Pintcomp Cgt), 2);
-    "%geint", Primitive ((Pintcomp Cge), 2);
-    "%incr", Primitive ((Poffsetref(1)), 1);
-    "%decr", Primitive ((Poffsetref(-1)), 1);
-    "%intoffloat", Primitive (Pintoffloat, 1);
-    "%floatofint", Primitive (Pfloatofint, 1);
-    "%negfloat", Primitive (Pnegfloat, 1);
-    "%absfloat", Primitive (Pabsfloat, 1);
-    "%addfloat", Primitive (Paddfloat, 2);
-    "%subfloat", Primitive (Psubfloat, 2);
-    "%mulfloat", Primitive (Pmulfloat, 2);
-    "%divfloat", Primitive (Pdivfloat, 2);
-    "%eqfloat", Primitive ((Pfloatcomp CFeq), 2);
-    "%noteqfloat", Primitive ((Pfloatcomp CFneq), 2);
-    "%ltfloat", Primitive ((Pfloatcomp CFlt), 2);
-    "%lefloat", Primitive ((Pfloatcomp CFle), 2);
-    "%gtfloat", Primitive ((Pfloatcomp CFgt), 2);
-    "%gefloat", Primitive ((Pfloatcomp CFge), 2);
-    "%string_length", Primitive (Pstringlength, 1);
-    "%string_safe_get", Primitive (Pstringrefs, 2);
-    "%string_safe_set", Primitive (Pbytessets, 3);
-    "%string_unsafe_get", Primitive (Pstringrefu, 2);
-    "%string_unsafe_set", Primitive (Pbytessetu, 3);
-    "%bytes_length", Primitive (Pbyteslength, 1);
-    "%bytes_safe_get", Primitive (Pbytesrefs, 2);
-    "%bytes_safe_set", Primitive (Pbytessets, 3);
-    "%bytes_unsafe_get", Primitive (Pbytesrefu, 2);
-    "%bytes_unsafe_set", Primitive (Pbytessetu, 3);
-    "%array_length", Primitive ((Parraylength gen_array_kind), 1);
-    "%array_safe_get", Primitive ((Parrayrefs gen_array_kind), 2);
-    "%array_safe_set", Primitive ((Parraysets gen_array_kind), 3);
-    "%array_unsafe_get", Primitive ((Parrayrefu gen_array_kind), 2);
-    "%array_unsafe_set", Primitive ((Parraysetu gen_array_kind), 3);
-    "%obj_size", Primitive ((Parraylength gen_array_kind), 1);
-    "%obj_field", Primitive ((Parrayrefu gen_array_kind), 2);
-    "%obj_set_field", Primitive ((Parraysetu gen_array_kind), 3);
-    "%floatarray_length", Primitive ((Parraylength Pfloatarray), 1);
-    "%floatarray_safe_get", Primitive ((Parrayrefs Pfloatarray), 2);
-    "%floatarray_safe_set", Primitive ((Parraysets Pfloatarray), 3);
-    "%floatarray_unsafe_get", Primitive ((Parrayrefu Pfloatarray), 2);
-    "%floatarray_unsafe_set", Primitive ((Parraysetu Pfloatarray), 3);
-    "%obj_is_int", Primitive (Pisint, 1);
-    "%lazy_force", Lazy_force;
-    "%nativeint_of_int", Primitive ((Pbintofint Pnativeint), 1);
-    "%nativeint_to_int", Primitive ((Pintofbint Pnativeint), 1);
-    "%nativeint_neg", Primitive ((Pnegbint Pnativeint), 1);
-    "%nativeint_add", Primitive ((Paddbint Pnativeint), 2);
-    "%nativeint_sub", Primitive ((Psubbint Pnativeint), 2);
-    "%nativeint_mul", Primitive ((Pmulbint Pnativeint), 2);
-    "%nativeint_div",
-    Primitive ((Pdivbint { size = Pnativeint; is_safe = Safe }), 2);
-    "%nativeint_mod",
-    Primitive ((Pmodbint { size = Pnativeint; is_safe = Safe }), 2);
-    "%nativeint_and", Primitive ((Pandbint Pnativeint), 2);
-    "%nativeint_or", Primitive ( (Porbint Pnativeint), 2);
-    "%nativeint_xor", Primitive ((Pxorbint Pnativeint), 2);
-    "%nativeint_lsl", Primitive ((Plslbint Pnativeint), 2);
-    "%nativeint_lsr", Primitive ((Plsrbint Pnativeint), 2);
-    "%nativeint_asr", Primitive ((Pasrbint Pnativeint), 2);
-    "%int32_of_int", Primitive ((Pbintofint Pint32), 1);
-    "%int32_to_int", Primitive ((Pintofbint Pint32), 1);
-    "%int32_neg", Primitive ((Pnegbint Pint32), 1);
-    "%int32_add", Primitive ((Paddbint Pint32), 2);
-    "%int32_sub", Primitive ((Psubbint Pint32), 2);
-    "%int32_mul", Primitive ((Pmulbint Pint32), 2);
-    "%int32_div", Primitive ((Pdivbint { size = Pint32; is_safe = Safe }), 2);
-    "%int32_mod", Primitive ((Pmodbint { size = Pint32; is_safe = Safe }), 2);
-    "%int32_and", Primitive ((Pandbint Pint32), 2);
-    "%int32_or", Primitive ( (Porbint Pint32), 2);
-    "%int32_xor", Primitive ((Pxorbint Pint32), 2);
-    "%int32_lsl", Primitive ((Plslbint Pint32), 2);
-    "%int32_lsr", Primitive ((Plsrbint Pint32), 2);
-    "%int32_asr", Primitive ((Pasrbint Pint32), 2);
-    "%int64_of_int", Primitive ((Pbintofint Pint64), 1);
-    "%int64_to_int", Primitive ((Pintofbint Pint64), 1);
-    "%int64_neg", Primitive ((Pnegbint Pint64), 1);
-    "%int64_add", Primitive ((Paddbint Pint64), 2);
-    "%int64_sub", Primitive ((Psubbint Pint64), 2);
-    "%int64_mul", Primitive ((Pmulbint Pint64), 2);
-    "%int64_div", Primitive ((Pdivbint { size = Pint64; is_safe = Safe }), 2);
-    "%int64_mod", Primitive ((Pmodbint { size = Pint64; is_safe = Safe }), 2);
-    "%int64_and", Primitive ((Pandbint Pint64), 2);
-    "%int64_or", Primitive ( (Porbint Pint64), 2);
-    "%int64_xor", Primitive ((Pxorbint Pint64), 2);
-    "%int64_lsl", Primitive ((Plslbint Pint64), 2);
-    "%int64_lsr", Primitive ((Plsrbint Pint64), 2);
-    "%int64_asr", Primitive ((Pasrbint Pint64), 2);
-    "%nativeint_of_int32", Primitive ((Pcvtbint(Pint32, Pnativeint)), 1);
-    "%nativeint_to_int32", Primitive ((Pcvtbint(Pnativeint, Pint32)), 1);
-    "%int64_of_int32", Primitive ((Pcvtbint(Pint32, Pint64)), 1);
-    "%int64_to_int32", Primitive ((Pcvtbint(Pint64, Pint32)), 1);
-    "%int64_of_nativeint", Primitive ((Pcvtbint(Pnativeint, Pint64)), 1);
-    "%int64_to_nativeint", Primitive ((Pcvtbint(Pint64, Pnativeint)), 1);
-    "%caml_ba_ref_1",
-    Primitive
-      ((Pbigarrayref(false, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       2);
-    "%caml_ba_ref_2",
-    Primitive
-      ((Pbigarrayref(false, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_ref_3",
-    Primitive
-      ((Pbigarrayref(false, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_set_1",
-    Primitive
-      ((Pbigarrayset(false, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_set_2",
-    Primitive
-      ((Pbigarrayset(false, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_set_3",
-    Primitive
-      ((Pbigarrayset(false, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       5);
-    "%caml_ba_unsafe_ref_1",
-    Primitive
-      ((Pbigarrayref(true, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       2);
-    "%caml_ba_unsafe_ref_2",
-    Primitive
-      ((Pbigarrayref(true, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_unsafe_ref_3",
-    Primitive
-      ((Pbigarrayref(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_unsafe_set_1",
-    Primitive
-      ((Pbigarrayset(true, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_unsafe_set_2",
-    Primitive
-      ((Pbigarrayset(true, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_unsafe_set_3",
-    Primitive
-      ((Pbigarrayset(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       5);
-    "%caml_ba_dim_1", Primitive ((Pbigarraydim(1)), 1);
-    "%caml_ba_dim_2", Primitive ((Pbigarraydim(2)), 1);
-    "%caml_ba_dim_3", Primitive ((Pbigarraydim(3)), 1);
-    "%caml_string_get16", Primitive ((Pstring_load_16(false)), 2);
-    "%caml_string_get16u", Primitive ((Pstring_load_16(true)), 2);
-    "%caml_string_get32", Primitive ((Pstring_load_32(false)), 2);
-    "%caml_string_get32u", Primitive ((Pstring_load_32(true)), 2);
-    "%caml_string_get64", Primitive ((Pstring_load_64(false)), 2);
-    "%caml_string_get64u", Primitive ((Pstring_load_64(true)), 2);
-    "%caml_string_set16", Primitive ((Pbytes_set_16(false)), 3);
-    "%caml_string_set16u", Primitive ((Pbytes_set_16(true)), 3);
-    "%caml_string_set32", Primitive ((Pbytes_set_32(false)), 3);
-    "%caml_string_set32u", Primitive ((Pbytes_set_32(true)), 3);
-    "%caml_string_set64", Primitive ((Pbytes_set_64(false)), 3);
-    "%caml_string_set64u", Primitive ((Pbytes_set_64(true)), 3);
-    "%caml_bytes_get16", Primitive ((Pbytes_load_16(false)), 2);
-    "%caml_bytes_get16u", Primitive ((Pbytes_load_16(true)), 2);
-    "%caml_bytes_get32", Primitive ((Pbytes_load_32(false)), 2);
-    "%caml_bytes_get32u", Primitive ((Pbytes_load_32(true)), 2);
-    "%caml_bytes_get64", Primitive ((Pbytes_load_64(false)), 2);
-    "%caml_bytes_get64u", Primitive ((Pbytes_load_64(true)), 2);
-    "%caml_bytes_set16", Primitive ((Pbytes_set_16(false)), 3);
-    "%caml_bytes_set16u", Primitive ((Pbytes_set_16(true)), 3);
-    "%caml_bytes_set32", Primitive ((Pbytes_set_32(false)), 3);
-    "%caml_bytes_set32u", Primitive ((Pbytes_set_32(true)), 3);
-    "%caml_bytes_set64", Primitive ((Pbytes_set_64(false)), 3);
-    "%caml_bytes_set64u", Primitive ((Pbytes_set_64(true)), 3);
-    "%caml_bigstring_get16", Primitive ((Pbigstring_load_16(false)), 2);
-    "%caml_bigstring_get16u", Primitive ((Pbigstring_load_16(true)), 2);
-    "%caml_bigstring_get32", Primitive ((Pbigstring_load_32(false)), 2);
-    "%caml_bigstring_get32u", Primitive ((Pbigstring_load_32(true)), 2);
-    "%caml_bigstring_get64", Primitive ((Pbigstring_load_64(false)), 2);
-    "%caml_bigstring_get64u", Primitive ((Pbigstring_load_64(true)), 2);
-    "%caml_bigstring_set16", Primitive ((Pbigstring_set_16(false)), 3);
-    "%caml_bigstring_set16u", Primitive ((Pbigstring_set_16(true)), 3);
-    "%caml_bigstring_set32", Primitive ((Pbigstring_set_32(false)), 3);
-    "%caml_bigstring_set32u", Primitive ((Pbigstring_set_32(true)), 3);
-    "%caml_bigstring_set64", Primitive ((Pbigstring_set_64(false)), 3);
-    "%caml_bigstring_set64u", Primitive ((Pbigstring_set_64(true)), 3);
-    "%bswap16", Primitive (Pbswap16, 1);
-    "%bswap_int32", Primitive ((Pbbswap(Pint32)), 1);
-    "%bswap_int64", Primitive ((Pbbswap(Pint64)), 1);
-    "%bswap_native", Primitive ((Pbbswap(Pnativeint)), 1);
-    "%int_as_pointer", Primitive (Pint_as_pointer, 1);
-    "%opaque", Primitive (Popaque, 1);
-    "%sys_argv", External prim_sys_argv;
-    "%send", Send;
-    "%sendself", Send_self;
-    "%sendcache", Send_cache;
-    "%equal", Comparison(Equal, Compare_generic);
-    "%notequal", Comparison(Not_equal, Compare_generic);
-    "%lessequal", Comparison(Less_equal, Compare_generic);
-    "%lessthan", Comparison(Less_than, Compare_generic);
-    "%greaterequal", Comparison(Greater_equal, Compare_generic);
-    "%greaterthan", Comparison(Greater_than, Compare_generic);
-    "%compare", Comparison(Compare, Compare_generic);
-  ]
-=======
-let primitives_table =
-  create_hashtable 57 [
-    "%identity", Identity;
-    "%bytes_to_string", Primitive (Pbytes_to_string, 1);
-    "%bytes_of_string", Primitive (Pbytes_of_string, 1);
-    "%ignore", Primitive (Pignore, 1);
-    "%revapply", Revapply;
-    "%apply", Apply;
-    "%loc_LOC", Loc Loc_LOC;
-    "%loc_FILE", Loc Loc_FILE;
-    "%loc_LINE", Loc Loc_LINE;
-    "%loc_POS", Loc Loc_POS;
-    "%loc_MODULE", Loc Loc_MODULE;
-    "%loc_FUNCTION", Loc Loc_FUNCTION;
-    "%field0", Primitive (Pfield(0, Pointer, Mutable), 1);
-    "%field1", Primitive (Pfield(1, Pointer, Mutable), 1);
-    "%setfield0", Primitive ((Psetfield(0, Pointer, Assignment)), 2);
-    "%makeblock", Primitive ((Pmakeblock(0, Immutable, None)), 1);
-    "%makemutable", Primitive ((Pmakeblock(0, Mutable, None)), 1);
-    "%raise", Raise Raise_regular;
-    "%reraise", Raise Raise_reraise;
-    "%raise_notrace", Raise Raise_notrace;
-    "%raise_with_backtrace", Raise_with_backtrace;
-    "%sequand", Primitive (Psequand, 2);
-    "%sequor", Primitive (Psequor, 2);
-    "%boolnot", Primitive (Pnot, 1);
-    "%big_endian", Primitive ((Pctconst Big_endian), 1);
-    "%backend_type", Primitive ((Pctconst Backend_type), 1);
-    "%word_size", Primitive ((Pctconst Word_size), 1);
-    "%int_size", Primitive ((Pctconst Int_size), 1);
-    "%max_wosize", Primitive ((Pctconst Max_wosize), 1);
-    "%ostype_unix", Primitive ((Pctconst Ostype_unix), 1);
-    "%ostype_win32", Primitive ((Pctconst Ostype_win32), 1);
-    "%ostype_cygwin", Primitive ((Pctconst Ostype_cygwin), 1);
-    "%frame_pointers", Frame_pointers;
-    "%negint", Primitive (Pnegint, 1);
-    "%succint", Primitive ((Poffsetint 1), 1);
-    "%predint", Primitive ((Poffsetint(-1)), 1);
-    "%addint", Primitive (Paddint, 2);
-    "%subint", Primitive (Psubint, 2);
-    "%mulint", Primitive (Pmulint, 2);
-    "%divint", Primitive ((Pdivint Safe), 2);
-    "%modint", Primitive ((Pmodint Safe), 2);
-    "%andint", Primitive (Pandint, 2);
-    "%orint", Primitive (Porint, 2);
-    "%xorint", Primitive (Pxorint, 2);
-    "%lslint", Primitive (Plslint, 2);
-    "%lsrint", Primitive (Plsrint, 2);
-    "%asrint", Primitive (Pasrint, 2);
-    "%eq", Primitive ((Pintcomp Ceq), 2);
-    "%noteq", Primitive ((Pintcomp Cne), 2);
-    "%ltint", Primitive ((Pintcomp Clt), 2);
-    "%leint", Primitive ((Pintcomp Cle), 2);
-    "%gtint", Primitive ((Pintcomp Cgt), 2);
-    "%geint", Primitive ((Pintcomp Cge), 2);
-    "%incr", Primitive ((Poffsetref(1)), 1);
-    "%decr", Primitive ((Poffsetref(-1)), 1);
-    "%intoffloat", Primitive (Pintoffloat, 1);
-    "%floatofint", Primitive (Pfloatofint, 1);
-    "%negfloat", Primitive (Pnegfloat, 1);
-    "%absfloat", Primitive (Pabsfloat, 1);
-    "%addfloat", Primitive (Paddfloat, 2);
-    "%subfloat", Primitive (Psubfloat, 2);
-    "%mulfloat", Primitive (Pmulfloat, 2);
-    "%divfloat", Primitive (Pdivfloat, 2);
-    "%eqfloat", Primitive ((Pfloatcomp CFeq), 2);
-    "%noteqfloat", Primitive ((Pfloatcomp CFneq), 2);
-    "%ltfloat", Primitive ((Pfloatcomp CFlt), 2);
-    "%lefloat", Primitive ((Pfloatcomp CFle), 2);
-    "%gtfloat", Primitive ((Pfloatcomp CFgt), 2);
-    "%gefloat", Primitive ((Pfloatcomp CFge), 2);
-    "%string_length", Primitive (Pstringlength, 1);
-    "%string_safe_get", Primitive (Pstringrefs, 2);
-    "%string_safe_set", Primitive (Pbytessets, 3);
-    "%string_unsafe_get", Primitive (Pstringrefu, 2);
-    "%string_unsafe_set", Primitive (Pbytessetu, 3);
-    "%bytes_length", Primitive (Pbyteslength, 1);
-    "%bytes_safe_get", Primitive (Pbytesrefs, 2);
-    "%bytes_safe_set", Primitive (Pbytessets, 3);
-    "%bytes_unsafe_get", Primitive (Pbytesrefu, 2);
-    "%bytes_unsafe_set", Primitive (Pbytessetu, 3);
-    "%array_length", Primitive ((Parraylength gen_array_kind), 1);
-    "%array_safe_get", Primitive ((Parrayrefs gen_array_kind), 2);
-    "%array_safe_set", Primitive ((Parraysets gen_array_kind), 3);
-    "%array_unsafe_get", Primitive ((Parrayrefu gen_array_kind), 2);
-    "%array_unsafe_set", Primitive ((Parraysetu gen_array_kind), 3);
-    "%obj_size", Primitive ((Parraylength gen_array_kind), 1);
-    "%obj_field", Primitive ((Parrayrefu gen_array_kind), 2);
-    "%obj_set_field", Primitive ((Parraysetu gen_array_kind), 3);
-    "%floatarray_length", Primitive ((Parraylength Pfloatarray), 1);
-    "%floatarray_safe_get", Primitive ((Parrayrefs Pfloatarray), 2);
-    "%floatarray_safe_set", Primitive ((Parraysets Pfloatarray), 3);
-    "%floatarray_unsafe_get", Primitive ((Parrayrefu Pfloatarray), 2);
-    "%floatarray_unsafe_set", Primitive ((Parraysetu Pfloatarray), 3);
-    "%obj_is_int", Primitive (Pisint, 1);
-    "%lazy_force", Lazy_force;
-    "%nativeint_of_int", Primitive ((Pbintofint Pnativeint), 1);
-    "%nativeint_to_int", Primitive ((Pintofbint Pnativeint), 1);
-    "%nativeint_neg", Primitive ((Pnegbint Pnativeint), 1);
-    "%nativeint_add", Primitive ((Paddbint Pnativeint), 2);
-    "%nativeint_sub", Primitive ((Psubbint Pnativeint), 2);
-    "%nativeint_mul", Primitive ((Pmulbint Pnativeint), 2);
-    "%nativeint_div",
-    Primitive ((Pdivbint { size = Pnativeint; is_safe = Safe }), 2);
-    "%nativeint_mod",
-    Primitive ((Pmodbint { size = Pnativeint; is_safe = Safe }), 2);
-    "%nativeint_and", Primitive ((Pandbint Pnativeint), 2);
-    "%nativeint_or", Primitive ( (Porbint Pnativeint), 2);
-    "%nativeint_xor", Primitive ((Pxorbint Pnativeint), 2);
-    "%nativeint_lsl", Primitive ((Plslbint Pnativeint), 2);
-    "%nativeint_lsr", Primitive ((Plsrbint Pnativeint), 2);
-    "%nativeint_asr", Primitive ((Pasrbint Pnativeint), 2);
-    "%int32_of_int", Primitive ((Pbintofint Pint32), 1);
-    "%int32_to_int", Primitive ((Pintofbint Pint32), 1);
-    "%int32_neg", Primitive ((Pnegbint Pint32), 1);
-    "%int32_add", Primitive ((Paddbint Pint32), 2);
-    "%int32_sub", Primitive ((Psubbint Pint32), 2);
-    "%int32_mul", Primitive ((Pmulbint Pint32), 2);
-    "%int32_div", Primitive ((Pdivbint { size = Pint32; is_safe = Safe }), 2);
-    "%int32_mod", Primitive ((Pmodbint { size = Pint32; is_safe = Safe }), 2);
-    "%int32_and", Primitive ((Pandbint Pint32), 2);
-    "%int32_or", Primitive ( (Porbint Pint32), 2);
-    "%int32_xor", Primitive ((Pxorbint Pint32), 2);
-    "%int32_lsl", Primitive ((Plslbint Pint32), 2);
-    "%int32_lsr", Primitive ((Plsrbint Pint32), 2);
-    "%int32_asr", Primitive ((Pasrbint Pint32), 2);
-    "%int64_of_int", Primitive ((Pbintofint Pint64), 1);
-    "%int64_to_int", Primitive ((Pintofbint Pint64), 1);
-    "%int64_neg", Primitive ((Pnegbint Pint64), 1);
-    "%int64_add", Primitive ((Paddbint Pint64), 2);
-    "%int64_sub", Primitive ((Psubbint Pint64), 2);
-    "%int64_mul", Primitive ((Pmulbint Pint64), 2);
-    "%int64_div", Primitive ((Pdivbint { size = Pint64; is_safe = Safe }), 2);
-    "%int64_mod", Primitive ((Pmodbint { size = Pint64; is_safe = Safe }), 2);
-    "%int64_and", Primitive ((Pandbint Pint64), 2);
-    "%int64_or", Primitive ( (Porbint Pint64), 2);
-    "%int64_xor", Primitive ((Pxorbint Pint64), 2);
-    "%int64_lsl", Primitive ((Plslbint Pint64), 2);
-    "%int64_lsr", Primitive ((Plsrbint Pint64), 2);
-    "%int64_asr", Primitive ((Pasrbint Pint64), 2);
-    "%nativeint_of_int32", Primitive ((Pcvtbint(Pint32, Pnativeint)), 1);
-    "%nativeint_to_int32", Primitive ((Pcvtbint(Pnativeint, Pint32)), 1);
-    "%int64_of_int32", Primitive ((Pcvtbint(Pint32, Pint64)), 1);
-    "%int64_to_int32", Primitive ((Pcvtbint(Pint64, Pint32)), 1);
-    "%int64_of_nativeint", Primitive ((Pcvtbint(Pnativeint, Pint64)), 1);
-    "%int64_to_nativeint", Primitive ((Pcvtbint(Pint64, Pnativeint)), 1);
-    "%caml_ba_ref_1",
-    Primitive
-      ((Pbigarrayref(false, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       2);
-    "%caml_ba_ref_2",
-    Primitive
-      ((Pbigarrayref(false, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_ref_3",
-    Primitive
-      ((Pbigarrayref(false, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_set_1",
-    Primitive
-      ((Pbigarrayset(false, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_set_2",
-    Primitive
-      ((Pbigarrayset(false, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_set_3",
-    Primitive
-      ((Pbigarrayset(false, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       5);
-    "%caml_ba_unsafe_ref_1",
-    Primitive
-      ((Pbigarrayref(true, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       2);
-    "%caml_ba_unsafe_ref_2",
-    Primitive
-      ((Pbigarrayref(true, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_unsafe_ref_3",
-    Primitive
-      ((Pbigarrayref(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_unsafe_set_1",
-    Primitive
-      ((Pbigarrayset(true, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       3);
-    "%caml_ba_unsafe_set_2",
-    Primitive
-      ((Pbigarrayset(true, 2, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       4);
-    "%caml_ba_unsafe_set_3",
-    Primitive
-      ((Pbigarrayset(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
-       5);
-    "%caml_ba_dim_1", Primitive ((Pbigarraydim(1)), 1);
-    "%caml_ba_dim_2", Primitive ((Pbigarraydim(2)), 1);
-    "%caml_ba_dim_3", Primitive ((Pbigarraydim(3)), 1);
-    "%caml_string_get16", Primitive ((Pstring_load_16(false)), 2);
-    "%caml_string_get16u", Primitive ((Pstring_load_16(true)), 2);
-    "%caml_string_get32", Primitive ((Pstring_load_32(false)), 2);
-    "%caml_string_get32u", Primitive ((Pstring_load_32(true)), 2);
-    "%caml_string_get64", Primitive ((Pstring_load_64(false)), 2);
-    "%caml_string_get64u", Primitive ((Pstring_load_64(true)), 2);
-    "%caml_string_set16", Primitive ((Pbytes_set_16(false)), 3);
-    "%caml_string_set16u", Primitive ((Pbytes_set_16(true)), 3);
-    "%caml_string_set32", Primitive ((Pbytes_set_32(false)), 3);
-    "%caml_string_set32u", Primitive ((Pbytes_set_32(true)), 3);
-    "%caml_string_set64", Primitive ((Pbytes_set_64(false)), 3);
-    "%caml_string_set64u", Primitive ((Pbytes_set_64(true)), 3);
-    "%caml_bytes_get16", Primitive ((Pbytes_load_16(false)), 2);
-    "%caml_bytes_get16u", Primitive ((Pbytes_load_16(true)), 2);
-    "%caml_bytes_get32", Primitive ((Pbytes_load_32(false)), 2);
-    "%caml_bytes_get32u", Primitive ((Pbytes_load_32(true)), 2);
-    "%caml_bytes_get64", Primitive ((Pbytes_load_64(false)), 2);
-    "%caml_bytes_get64u", Primitive ((Pbytes_load_64(true)), 2);
-    "%caml_bytes_set16", Primitive ((Pbytes_set_16(false)), 3);
-    "%caml_bytes_set16u", Primitive ((Pbytes_set_16(true)), 3);
-    "%caml_bytes_set32", Primitive ((Pbytes_set_32(false)), 3);
-    "%caml_bytes_set32u", Primitive ((Pbytes_set_32(true)), 3);
-    "%caml_bytes_set64", Primitive ((Pbytes_set_64(false)), 3);
-    "%caml_bytes_set64u", Primitive ((Pbytes_set_64(true)), 3);
-    "%caml_bigstring_get16", Primitive ((Pbigstring_load_16(false)), 2);
-    "%caml_bigstring_get16u", Primitive ((Pbigstring_load_16(true)), 2);
-    "%caml_bigstring_get32", Primitive ((Pbigstring_load_32(false)), 2);
-    "%caml_bigstring_get32u", Primitive ((Pbigstring_load_32(true)), 2);
-    "%caml_bigstring_get64", Primitive ((Pbigstring_load_64(false)), 2);
-    "%caml_bigstring_get64u", Primitive ((Pbigstring_load_64(true)), 2);
-    "%caml_bigstring_set16", Primitive ((Pbigstring_set_16(false)), 3);
-    "%caml_bigstring_set16u", Primitive ((Pbigstring_set_16(true)), 3);
-    "%caml_bigstring_set32", Primitive ((Pbigstring_set_32(false)), 3);
-    "%caml_bigstring_set32u", Primitive ((Pbigstring_set_32(true)), 3);
-    "%caml_bigstring_set64", Primitive ((Pbigstring_set_64(false)), 3);
-    "%caml_bigstring_set64u", Primitive ((Pbigstring_set_64(true)), 3);
-    "%bswap16", Primitive (Pbswap16, 1);
-    "%bswap_int32", Primitive ((Pbbswap(Pint32)), 1);
-    "%bswap_int64", Primitive ((Pbbswap(Pint64)), 1);
-    "%bswap_native", Primitive ((Pbbswap(Pnativeint)), 1);
-    "%int_as_pointer", Primitive (Pint_as_pointer, 1);
-    "%opaque", Primitive (Popaque, 1);
-    "%sys_argv", External prim_sys_argv;
-    "%send", Send;
-    "%sendself", Send_self;
-    "%sendcache", Send_cache;
-    "%equal", Comparison(Equal, Compare_generic);
-    "%notequal", Comparison(Not_equal, Compare_generic);
-    "%lessequal", Comparison(Less_equal, Compare_generic);
-    "%lessthan", Comparison(Less_than, Compare_generic);
-    "%greaterequal", Comparison(Greater_equal, Compare_generic);
-    "%greaterthan", Comparison(Greater_than, Compare_generic);
-    "%compare", Comparison(Compare, Compare_generic);
-    "%atomic_load",
-    Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1);
-    "%atomic_exchange", Primitive (Patomic_exchange, 2);
-    "%atomic_cas", Primitive (Patomic_cas, 3);
-    "%atomic_fetch_add", Primitive (Patomic_fetch_add, 2);
-    "%runstack", Primitive (Prunstack, 3);
-    "%reperform", Primitive (Preperform, 3);
-    "%perform", Primitive (Pperform, 1);
-    "%resume", Primitive (Presume, 3);
-    "%dls_get", Primitive (Pdls_get, 1);
-  ]
->>>>>>> ocaml/5.1
 
 let to_modify_mode ~poly = function
   | Prim_global, _ -> modify_heap
@@ -1062,12 +532,6 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       | Pointer -> None
       | Immediate -> Some (Primitive (Psetfield(n, Immediate, init), arity))
     end
-  | Primitive (Pfield (n, Pointer, mut), arity), _ ->
-      (* try strength reduction based on the *result type* *)
-      let is_int = match is_function_type env ty with
-        | None -> Pointer
-        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
-      Some (Primitive (Pfield (n, is_int, mut), arity))
   | Primitive (Parraylength t, arity), [p] -> begin
       let array_type = glb_array_type t (array_type_kind env p) in
       if t = array_type then None
@@ -1119,13 +583,6 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
-    end
-  | Primitive (Patomic_load { immediate_or_pointer = Pointer },
-               arity), _ ->begin
-      let is_int = match is_function_type env ty with
-        | None -> Pointer
-        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
-      Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
     if (has_constant_constructor
@@ -1463,7 +920,6 @@ let transl_primitive loc p env ty ~poly_mode path =
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
   | _ ->
-<<<<<<< HEAD
      let loc =
        Debuginfo.Scoped_location.map_scopes (fun ~scopes ->
          Debuginfo.Scoped_location.enter_partial_or_eta_wrapper ~scopes)
@@ -1491,21 +947,6 @@ let transl_primitive loc p env ty ~poly_mode path =
        ~body
        ~mode:alloc_heap
        ~region
-||||||| merged common ancestors
-      Lfunction{ kind = Curried;
-                 params;
-                 return = Pgenval;
-                 attr = default_stub_attribute;
-                 loc;
-                 body; }
-=======
-      lfunction ~kind:Curried
-                ~params
-                ~return:Pgenval
-                ~attr:default_stub_attribute
-                ~loc
-                ~body
->>>>>>> ocaml/5.1
 
 let lambda_primitive_needs_event_after = function
   (* We add an event after any primitive resulting in a C call that
@@ -1525,14 +966,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-<<<<<<< HEAD
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
-||||||| merged common ancestors
-  | Pbbswap _ -> true
-=======
-  | Prunstack | Pperform | Preperform | Presume
-  | Pbbswap _ -> true
->>>>>>> ocaml/5.1
 
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1548,23 +982,11 @@ let lambda_primitive_needs_event_after = function
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pcompare_ints | Pcompare_floats
   | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-<<<<<<< HEAD
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
-||||||| merged common ancestors
-  | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _)
-  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint | Pisout
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque -> false
-=======
-  | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _)
-  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint | Pisout
-  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque | Pdls_get
-      -> false
->>>>>>> ocaml/5.1
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

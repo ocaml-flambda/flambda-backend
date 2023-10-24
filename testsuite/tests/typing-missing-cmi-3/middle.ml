@@ -1,5 +1,4 @@
 type 'a t = 'a Original.t = T
-type 'a ti = 'a Original.t
 
 let f: (module Original.T with type t = int) -> unit = fun _ -> ()
 let x = (module struct type t end: Original.T )
@@ -13,15 +12,4 @@ type r = Original.r = { x:unit }
 let r = Original.r
 
 type s = Original.s = S
-<<<<<<< HEAD
 let s : s = Original.s
-||||||| merged common ancestors
-=======
-let s = Original.s
-
-(* Check expansion in gadt *)
-type ('a,'b) gadt =
-| G: ('a, 'a ti) gadt
-
-type 'a is_int = 'a Original.is_int = Is_int : int is_int
->>>>>>> ocaml/5.1

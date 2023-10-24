@@ -19,12 +19,6 @@ Line 5, characters 49-50:
 5 |   | B -> if Random.bool () then `Onoes else `A_t B;;
                                                      ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Error: Unbound constructor B
-=======
-
->>>>>>> ocaml/5.1
 val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
 |}]
 
@@ -40,11 +34,5 @@ Line 5, characters 49-50:
 5 |   | B -> if Random.bool () then `Onoes else `A_t B;;
                                                      ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Error: Unbound constructor B
-=======
-
->>>>>>> ocaml/5.1
 val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
 |}]

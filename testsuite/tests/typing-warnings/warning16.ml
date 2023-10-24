@@ -7,7 +7,6 @@ Line 1, characters 9-10:
 1 | let foo ?x = ()
              ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
-
 val foo : ?x:'a -> unit = <fun>
 |}]
 
@@ -17,7 +16,6 @@ Line 1, characters 9-10:
 1 | let foo ?x ~y = ()
              ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
-
 val foo : ?x:'a -> y:'b -> unit = <fun>
 |}]
 
@@ -37,7 +35,6 @@ Line 1, characters 11-12:
 1 | class bar ?x = object end
                ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
-
 class bar : ?x:'a -> object  end
 |}]
 
@@ -47,7 +44,6 @@ Line 1, characters 11-12:
 1 | class bar ?x ~y = object end
                ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
-
 class bar : ?x:'a -> y:'b -> object  end
 |}]
 

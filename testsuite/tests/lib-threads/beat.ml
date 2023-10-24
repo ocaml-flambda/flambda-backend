@@ -2,19 +2,9 @@
 
 * hassysthreads
 include systhreads
-<<<<<<< HEAD
 ** not-macos
 *** bytecode
 *** native
-||||||| merged common ancestors
-** bytecode
-** native
-=======
-* skip
-reason = "off-by-one error on MacOS+Clang (#408)"
-** bytecode
-** native
->>>>>>> ocaml/5.1
 
 *)
 

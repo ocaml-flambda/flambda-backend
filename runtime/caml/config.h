@@ -16,15 +16,6 @@
 #ifndef CAML_CONFIG_H
 #define CAML_CONFIG_H
 
-/* CAML_NAME_SPACE was introduced in OCaml 3.08 to declare compatibility with
-   the newly caml_-prefixed names of C runtime functions and to disable the
-   definition of compatibility macros for the un-prefixed names. The
-   compatibility layer was removed in OCaml 5.0, so CAML_NAME_SPACE is the
-   default. */
-#ifndef CAML_NAME_SPACE
-#define CAML_NAME_SPACE
-#endif
-
 #include "m.h"
 
 /* If supported, tell gcc that we can use 32-bit code addresses for
@@ -35,8 +26,12 @@
 #endif /* __PIC__ */
 #endif /* HAS_ARCH_CODE32 */
 
-/* No longer used in the codebase, but kept because it was exported */
+/* Microsoft introduced the LL integer literal suffix in Visual C++ .NET 2003 */
+#if defined(_MSC_VER) && _MSC_VER < 1400
+#define INT64_LITERAL(s) s ## i64
+#else
 #define INT64_LITERAL(s) s ## LL
+#endif
 
 #if defined(_MSC_VER) && !defined(__cplusplus)
 #define Caml_inline static __inline
@@ -45,6 +40,10 @@
 #endif
 
 #include "s.h"
+
+#ifndef CAML_NAME_SPACE
+#include "compatibility.h"
+#endif
 
 #ifndef CAML_CONFIG_H_NO_TYPEDEFS
 
@@ -154,8 +153,6 @@ typedef uint64_t uintnat;
 #error "No integer type available to represent pointers"
 #endif
 
-#define UINTNAT_MAX ((uintnat)-1)
-
 #endif /* CAML_CONFIG_H_NO_TYPEDEFS */
 
 /* Endianness of floats */
@@ -193,27 +190,13 @@ typedef uint64_t uintnat;
 #define Page_size (1 << Page_log)
 
 /* Initial size of stack (bytes). */
-#ifdef DEBUG
-#define Stack_init_bsize (64 * sizeof(value))
-#else
-#define Stack_init_bsize (4096 * sizeof(value))
-#endif
+#define Stack_size (4096 * sizeof(value))
 
 /* Minimum free size of stack (bytes); below that, it is reallocated. */
-#define Stack_threshold_words 32
-#define Stack_threshold (Stack_threshold_words * sizeof(value))
-
-/* Number of words used in the control structure at the start of a stack
-   (see fiber.h) */
-#ifdef ARCH_SIXTYFOUR
-#define Stack_ctx_words (6 + 1)
-#else
-#define Stack_ctx_words (6 + 2)
-#endif
+#define Stack_threshold (256 * sizeof(value))
 
 /* Default maximum size of the stack (words). */
-/* (1 Gib for 64-bit platforms, 512 Mib for 32-bit platforms) */
-#define Max_stack_def (128 * 1024 * 1024)
+#define Max_stack_def (1024 * 1024)
 
 
 /* Maximum size of a block allocated in the young generation (words). */
@@ -223,21 +206,44 @@ typedef uint64_t uintnat;
 
 
 /* Minimum size of the minor zone (words).
-   This must be at least [Max_young_wosize + 1]. */
-#define Minor_heap_min (Max_young_wosize + 1)
+   This must be at least [2 * Max_young_whsize]. */
+#define Minor_heap_min 4096
+
+/* Maximum size of the minor zone (words).
+   Must be greater than or equal to [Minor_heap_min].
+*/
+#define Minor_heap_max (1 << 28)
 
 /* Default size of the minor zone. (words)  */
-#define Minor_heap_def 262144
+#define Minor_heap_def 1048576
+
 
 /* Minimum size increment when growing the heap (words).
    Must be a multiple of [Page_size / sizeof (value)]. */
 #define Heap_chunk_min (15 * Page_size)
 
+/* Default size increment when growing the heap.
+   If this is <= 1000, it's a percentage of the current heap size.
+   If it is > 1000, it's a number of words. */
+#define Heap_chunk_def 15
+
+/* Default initial size of the major heap (words);
+   Must be a multiple of [Page_size / sizeof (value)]. */
+#define Init_heap_def (31 * Page_size)
+/* (about 512 kB for a 32-bit platform, 1 MB for a 64-bit platform.) */
+
 
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    total size of live objects. */
-#define Percent_free_def 120
+#define Percent_free_def 100
+
+/* Default setting for the compacter: 500%
+   (i.e. trigger the compacter when 5/6 of the heap is free or garbage)
+   This can be set quite high because the overhead is over-estimated
+   when fragmentation occurs.
+ */
+#define Max_percent_free_def 500
 
 /* Default setting for the major GC slice smoothing window: 1
    (i.e. no smoothing)
@@ -260,13 +266,7 @@ typedef uint64_t uintnat;
    Documented in gc.mli */
 #define Custom_minor_max_bsz_def 8192
 
-/* Minimum amount of work to do in a major GC slice. */
-#define Major_slice_work_min 512
-
 /* Default allocation policy. */
 #define Allocation_policy_def caml_policy_best_fit
-
-/* Default size of runtime_events ringbuffers, in words, in powers of two */
-#define Default_runtime_events_log_wsize 16
 
 #endif /* CAML_CONFIG_H */

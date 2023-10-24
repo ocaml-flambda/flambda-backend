@@ -8,5 +8,3 @@ val bar:
   int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> unit
 val baz:
   int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> unit
-val bob:
-  int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> unit

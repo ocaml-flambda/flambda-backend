@@ -68,7 +68,7 @@ val unsigned_div : int32 -> int32 -> int32
 (** Same as {!div}, except that arguments and result are interpreted as {e
     unsigned} 32-bit integers.
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 external rem : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_mod"
 (** Integer remainder.  If [y] is not zero, the result
@@ -80,7 +80,7 @@ val unsigned_rem : int32 -> int32 -> int32
 (** Same as {!rem}, except that arguments and result are interpreted as {e
     unsigned} 32-bit integers.
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 val succ : int32 -> int32
 (** Successor.  [Int32.succ x] is [Int32.add x Int32.one]. *)
@@ -89,8 +89,7 @@ val pred : int32 -> int32
 (** Predecessor.  [Int32.pred x] is [Int32.sub x Int32.one]. *)
 
 val abs : int32 -> int32
-(** [abs x] is the absolute value of [x]. On [min_int] this
-   is [min_int] itself and thus remains negative. *)
+(** Return the absolute value of its argument. *)
 
 val max_int : int32
 (** The greatest representable 32-bit integer, 2{^31} - 1. *)
@@ -144,7 +143,7 @@ val unsigned_to_int : int32 -> int option
     Returns [None] if the unsigned value of the argument cannot fit into an
     [int].
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 external of_float : float -> int32
   = "caml_int32_of_float" "caml_int32_of_float_unboxed"
@@ -214,43 +213,28 @@ val unsigned_compare: t -> t -> int
 (** Same as {!compare}, except that arguments are interpreted as {e unsigned}
     32-bit integers.
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 val equal: t -> t -> bool
 (** The equal function for int32s.
-    @since 4.03 *)
+    @since 4.03.0 *)
 
 val min: t -> t -> t
 (** Return the smaller of the two arguments.
-    @since 4.13
+    @since 4.13.0
 *)
 
 val max: t -> t -> t
 (** Return the greater of the two arguments.
-    @since 4.13
+    @since 4.13.0
  *)
 
-val seeded_hash : int -> t -> int
-(** A seeded hash function for 32-bit ints, with the same output value as
-    {!Hashtbl.seeded_hash}. This function allows this module to be passed as
-    argument to the functor {!Hashtbl.MakeSeeded}.
 
-    @since 5.1 *)
+(**/**)
 
-val hash : t -> int
-(** An unseeded hash function for 32-bit ints, with the same output value as
-    {!Hashtbl.hash}. This function allows this module to be passed as argument
-    to the functor {!Hashtbl.Make}.
+(** {1 Deprecated functions} *)
 
-<<<<<<< HEAD
 external format : string -> int32 -> string = "caml_int32_format"
 [@@ocaml.deprecated "Use Printf.sprintf with a [%l...] format instead."]
 (** Do not use this deprecated function.  Instead,
    used {!Printf.sprintf} with a [%l...] format. *)
-||||||| merged common ancestors
-external format : string -> int32 -> string = "caml_int32_format"
-(** Do not use this deprecated function.  Instead,
-   used {!Printf.sprintf} with a [%l...] format. *)
-=======
-    @since 5.1 *)
->>>>>>> ocaml/5.1

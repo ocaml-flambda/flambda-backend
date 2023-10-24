@@ -20,7 +20,7 @@
     compilation. All components of this module can therefore be
     referred by their short name, without prefixing them by [Stdlib].
 
-    In particular, it provides the basic operations over the built-in
+    It particular, it provides the basic operations over the built-in
     types (numbers, booleans, byte sequences, strings, exceptions,
     references, lists, arrays, input-output channels, ...) and the
     {{!modules}standard library modules}.
@@ -35,7 +35,7 @@ external raise : exn -> 'a = "%reraise"
 
 external raise_notrace : exn -> 'a = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
-    @since 4.02
+    @since 4.02.0
 *)
 
 val invalid_arg : string -> 'a
@@ -222,7 +222,6 @@ external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-<<<<<<< HEAD
 external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
   [@@ocaml.deprecated "Use (&&) instead."]
 (** @deprecated {!Stdlib.( && )} should be used instead.
@@ -230,64 +229,43 @@ external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
 *)
 
 external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
-||||||| merged common ancestors
-external ( & ) : bool -> bool -> bool = "%sequand"
-  [@@ocaml.deprecated "Use (&&) instead."]
-(** @deprecated {!Stdlib.( && )} should be used instead.
-    Right-associative operator, see {!Ocaml_operators} for more information.
-*)
-
-external ( || ) : bool -> bool -> bool = "%sequor"
-=======
-external ( || ) : bool -> bool -> bool = "%sequor"
->>>>>>> ocaml/5.1
 (** The boolean 'or'. Evaluation is sequential, left-to-right:
    in [e1 || e2], [e1] is evaluated first, and if it returns [true],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-<<<<<<< HEAD
 external ( or ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
   [@@ocaml.deprecated "Use (||) instead."]
 (** @deprecated {!Stdlib.( || )} should be used instead.
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-||||||| merged common ancestors
-external ( or ) : bool -> bool -> bool = "%sequor"
-  [@@ocaml.deprecated "Use (||) instead."]
-(** @deprecated {!Stdlib.( || )} should be used instead.
-    Right-associative operator, see {!Ocaml_operators} for more information.
-*)
-
-=======
->>>>>>> ocaml/5.1
 (** {1 Debugging} *)
 
 external __LOC__ : string = "%loc_LOC"
 (** [__LOC__] returns the location at which this expression appears in
     the file currently being parsed by the compiler, with the standard
     error format of OCaml: "File %S, line %d, characters %d-%d".
-    @since 4.02
+    @since 4.02.0
 *)
 
 external __FILE__ : string = "%loc_FILE"
 (** [__FILE__] returns the name of the file currently being
     parsed by the compiler.
-    @since 4.02
+    @since 4.02.0
 *)
 
 external __LINE__ : int = "%loc_LINE"
 (** [__LINE__] returns the line number at which this expression
     appears in the file currently being parsed by the compiler.
-    @since 4.02
+    @since 4.02.0
 *)
 
 external __MODULE__ : string = "%loc_MODULE"
 (** [__MODULE__] returns the module name of the file being
     parsed by the compiler.
-    @since 4.02
+    @since 4.02.0
 *)
 
 external __POS__ : string * int * int * int = "%loc_POS"
@@ -296,28 +274,28 @@ external __POS__ : string * int * int * int = "%loc_POS"
     currently being parsed by the compiler. [file] is the current
     filename, [lnum] the line number, [cnum] the character position in
     the line and [enum] the last character position in the line.
-    @since 4.02
+    @since 4.02.0
  *)
 
 external __FUNCTION__ : string = "%loc_FUNCTION"
 (** [__FUNCTION__] returns the name of the current function or method, including
     any enclosing modules or classes.
 
-    @since 4.12 *)
+    @since 4.12.0 *)
 
 external __LOC_OF__ : 'a -> string * 'a = "%loc_LOC"
 (** [__LOC_OF__ expr] returns a pair [(loc, expr)] where [loc] is the
     location of [expr] in the file currently being parsed by the
     compiler, with the standard error format of OCaml: "File %S, line
     %d, characters %d-%d".
-    @since 4.02
+    @since 4.02.0
 *)
 
 external __LINE_OF__ : 'a -> int * 'a = "%loc_LINE"
 (** [__LINE_OF__ expr] returns a pair [(line, expr)], where [line] is the
     line number at which the expression [expr] appears in the file
     currently being parsed by the compiler.
-    @since 4.02
+    @since 4.02.0
  *)
 
 external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
@@ -327,7 +305,7 @@ external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
     parsed by the compiler. [file] is the current filename, [lnum] the
     line number, [cnum] the character position in the line and [enum]
     the last character position in the line.
-    @since 4.02
+    @since 4.02.0
  *)
 
 (** {1 Composition operators} *)
@@ -361,7 +339,7 @@ external ( ~- ) : (int[@local_opt]) -> int = "%negint"
 external ( ~+ ) : (int[@local_opt]) -> int = "%identity"
 (** Unary addition. You can also write [+ e] instead of [~+ e].
     Unary operator, see {!Ocaml_operators} for more information.
-    @since 3.12
+    @since 3.12.0
 *)
 
 external succ : (int[@local_opt]) -> int = "%succint"
@@ -409,8 +387,8 @@ external ( mod ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%modint"
 *)
 
 val abs : int -> int
-(** [abs x] is the absolute value of [x]. On [min_int] this
-   is [min_int] itself and thus remains negative. *)
+(** Return the absolute value of the argument.  Note that this may be
+  negative if the argument is [min_int]. *)
 
 val max_int : int
 (** The greatest representable integer. *)
@@ -482,7 +460,7 @@ external ( ~-. ) : (float[@local_opt]) -> (float[@local_opt]) = "%negfloat"
 external ( ~+. ) : (float[@local_opt]) -> (float[@local_opt]) = "%identity"
 (** Unary addition. You can also write [+. e] instead of [~+. e].
     Unary operator, see {!Ocaml_operators} for more information.
-    @since 3.12
+    @since 3.12.0
 *)
 
 external ( +. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%addfloat"
@@ -529,14 +507,14 @@ external expm1 : float -> float = "caml_expm1_float" "caml_expm1"
   [@@unboxed] [@@noalloc]
 (** [expm1 x] computes [exp x -. 1.0], giving numerically-accurate results
     even if [x] is close to [0.0].
-    @since 3.12
+    @since 3.12.0
 *)
 
 external log1p : float -> float = "caml_log1p_float" "caml_log1p"
   [@@unboxed] [@@noalloc]
 (** [log1p x] computes [log(1.0 +. x)] (natural logarithm),
     giving numerically-accurate results even if [x] is close to [0.0].
-    @since 3.12
+    @since 3.12.0
 *)
 
 external cos : float -> float = "caml_cos_float" "cos" [@@unboxed] [@@noalloc]
@@ -576,7 +554,7 @@ external hypot : float -> float -> float = "caml_hypot_float" "caml_hypot"
   [x] and [y], or, equivalently, the distance of the point [(x,y)]
   to origin.  If one of [x] or [y] is infinite, returns [infinity]
   even if the other is [nan].
-  @since 4.00  *)
+  @since 4.00.0  *)
 
 external cosh : float -> float = "caml_cosh_float" "cosh"
   [@@unboxed] [@@noalloc]
@@ -596,7 +574,7 @@ external acosh : float -> float = "caml_acosh_float" "caml_acosh"
     [[1.0, inf]].
     Result is in radians and is between [0.0] and [inf].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 external asinh : float -> float = "caml_asinh_float" "caml_asinh"
@@ -605,7 +583,7 @@ external asinh : float -> float = "caml_asinh_float" "caml_asinh"
     real line.
     Result is in radians.
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 external atanh : float -> float = "caml_atanh_float" "caml_atanh"
@@ -614,7 +592,7 @@ external atanh : float -> float = "caml_atanh_float" "caml_atanh"
     [[-1.0, 1.0]].
     Result is in radians and ranges over the entire real line.
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 external ceil : float -> float = "caml_ceil_float" "ceil"
@@ -640,7 +618,7 @@ external copysign : float -> float -> float
   and whose sign is that of [y].  If [x] is [nan], returns [nan].
   If [y] is [nan], returns either [x] or [-. x], but it is not
   specified which.
-  @since 4.00  *)
+  @since 4.00.0  *)
 
 external mod_float : float -> float -> float = "caml_fmod_float" "fmod"
   [@@unboxed] [@@noalloc]
@@ -692,18 +670,7 @@ val nan : float
     IEEE 754 standard.  As for floating-point comparisons,
     [=], [<], [<=], [>] and [>=] return [false] and [<>] returns [true]
     if one or both of their arguments is [nan].
-<<<<<<< HEAD
     Returns [quiet_nan] since 5.0.0. *)
-||||||| merged common ancestors
-   undefined operation such as [0.0 /. 0.0].  Stands for
-   'not a number'.  Any floating-point operation with [nan] as
-   argument returns [nan] as result.  As for floating-point comparisons,
-   [=], [<], [<=], [>] and [>=] return [false] and [<>] returns [true]
-   if one or both of their arguments is [nan]. *)
-=======
-
-    [nan] is a quiet NaN since 5.1;  it was a signaling NaN before. *)
->>>>>>> ocaml/5.1
 
 val max_float : float
 (** The largest positive finite value of type [float]. *)
@@ -863,9 +830,8 @@ external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
 *)
 
 val ( @ ) : 'a list -> 'a list -> 'a list
-(** [l0 @ l1] appends [l1] to [l0]. Same function as {!List.append}.
+(** List concatenation.  Not tail-recursive (length of the first argument).
   Right-associative operator, see {!Ocaml_operators} for more information.
-  @since 5.1 this function is tail-recursive.
 *)
 
 (** {1 Input/output}
@@ -898,7 +864,7 @@ val print_string : string -> unit
 
 val print_bytes : bytes -> unit
 (** Print a byte sequence on standard output.
-   @since 4.02 *)
+   @since 4.02.0 *)
 
 val print_int : int -> unit
 (** Print an integer, in decimal, on standard output. *)
@@ -929,7 +895,7 @@ val prerr_string : string -> unit
 
 val prerr_bytes : bytes -> unit
 (** Print a byte sequence on standard error.
-   @since 4.02 *)
+   @since 4.02.0 *)
 
 val prerr_int : int -> unit
 (** Print an integer, in decimal, on standard error. *)
@@ -980,7 +946,7 @@ val read_float_opt: unit -> float option
 
    Return [None] if the line read is not a valid representation of a
    floating-point number.
-   @since 4.05
+   @since 4.05.0
 *)
 
 val read_float : unit -> float
@@ -1040,7 +1006,7 @@ val output_string : out_channel -> string -> unit
 
 val output_bytes : out_channel -> bytes -> unit
 (** Write the byte sequence on the given output channel.
-   @since 4.02 *)
+   @since 4.02.0 *)
 
 val output : out_channel -> bytes -> int -> int -> unit
 (** [output oc buf pos len] writes [len] characters from byte sequence [buf],
@@ -1051,7 +1017,7 @@ val output : out_channel -> bytes -> int -> int -> unit
 val output_substring : out_channel -> string -> int -> int -> unit
 (** Same as [output] but take a string as argument instead of
    a byte sequence.
-   @since 4.02 *)
+   @since 4.02.0 *)
 
 val output_byte : out_channel -> int -> unit
 (** Write one 8-bit integer (as the single character with that code)
@@ -1178,7 +1144,7 @@ val really_input_string : in_channel -> int -> string
    and returns them in a new string.
    @raise End_of_file if the end of file is reached before [len]
    characters have been read.
-   @since 4.02 *)
+   @since 4.02.0 *)
 
 val input_byte : in_channel -> int
 (** Same as {!Stdlib.input_char}, but return the 8-bit integer representing
@@ -1289,7 +1255,7 @@ external decr : (int ref[@local_opt]) -> unit = "%decr"
 
 (** {1 Result type} *)
 
-(** @since 4.03 *)
+(** @since 4.03.0 *)
 type ('a,'b) result = Ok of 'a | Error of 'b
 
 (** {1 Operations on format strings} *)
@@ -1397,15 +1363,13 @@ val ( ^^ ) :
 (** {1 Program termination} *)
 
 val exit : int -> 'a
-(** Terminate the process, returning the given status code to the operating
-    system: usually 0 to indicate no errors, and a small positive integer to
-    indicate failure. All open output channels are flushed with [flush_all].
-    The callbacks registered with {!Domain.at_exit} are called followed by
-    those registered with {!Stdlib.at_exit}.
-
-    An implicit [exit 0] is performed each time a program terminates normally.
-    An implicit [exit 2] is performed if the program terminates early because
-    of an uncaught exception. *)
+(** Terminate the process, returning the given status code
+   to the operating system: usually 0 to indicate no errors,
+   and a small positive integer to indicate failure.
+   All open output channels are flushed with [flush_all].
+   An implicit [exit 0] is performed each time a program
+   terminates normally.  An implicit [exit 2] is performed if the program
+   terminates early because of an uncaught exception. *)
 
 val at_exit : (unit -> unit) -> unit
 (** Register the given function to be called at program termination
@@ -1428,78 +1392,71 @@ val unsafe_really_input : in_channel -> bytes -> int -> int -> unit
 
 val do_at_exit : unit -> unit
 
-val do_domain_local_at_exit : (unit -> unit) ref
-
 (**/**)
 
 (** {1:modules Standard library modules } *)
 
 (*MODULE_ALIASES*)
-module Arg            = Arg
-module Array          = Array
-module ArrayLabels    = ArrayLabels
-module Atomic         = Atomic
-module Bigarray       = Bigarray
-module Bool           = Bool
-module Buffer         = Buffer
-module Bytes          = Bytes
-module BytesLabels    = BytesLabels
-module Callback       = Callback
-module Char           = Char
-module Complex        = Complex
-module Condition      = Condition
-module Digest         = Digest
-module Domain         = Domain
-[@@alert "-unstable"]
-[@@alert unstable
-    "The Domain interface may change in incompatible ways in the future."
-]
-module Effect         = Effect
-[@@alert "-unstable"]
-[@@alert unstable
-    "The Effect interface may change in incompatible ways in the future."
-]
-module Either         = Either
-module Ephemeron      = Ephemeron
-module Filename       = Filename
-module Float          = Float
-module Format         = Format
-module Fun            = Fun
-module Gc             = Gc
-module Hashtbl        = Hashtbl
-module In_channel     = In_channel
-module Int            = Int
-module Int32          = Int32
-module Int64          = Int64
-module Lazy           = Lazy
-module Lexing         = Lexing
-module List           = List
-module ListLabels     = ListLabels
-module Map            = Map
-module Marshal        = Marshal
-module MoreLabels     = MoreLabels
-module Mutex          = Mutex
-module Nativeint      = Nativeint
-module Obj            = Obj
-module Oo             = Oo
-module Option         = Option
-module Out_channel    = Out_channel
-module Parsing        = Parsing
-module Printexc       = Printexc
-module Printf         = Printf
-module Queue          = Queue
-module Random         = Random
-module Result         = Result
-module Scanf          = Scanf
-module Semaphore      = Semaphore
-module Seq            = Seq
-module Set            = Set
-module Stack          = Stack
-module StdLabels      = StdLabels
-module String         = String
-module StringLabels   = StringLabels
-module Sys            = Sys
-module Type           = Type
-module Uchar          = Uchar
-module Unit           = Unit
-module Weak           = Weak
+module Arg          = Arg
+module Array        = Array
+module ArrayLabels  = ArrayLabels
+module Atomic       = Atomic
+module Bigarray     = Bigarray
+module Bool         = Bool
+module Buffer       = Buffer
+module Bytes        = Bytes
+module BytesLabels  = BytesLabels
+module Callback     = Callback
+module Char         = Char
+module Complex      = Complex
+module Digest       = Digest
+module Either       = Either
+module Ephemeron    = Ephemeron
+module Filename     = Filename
+module Float        = Float
+module Format       = Format
+module Fun          = Fun
+module Gc           = Gc
+module Genlex       = Genlex
+[@@deprecated "Use the camlp-streams library instead."]
+module Hashtbl      = Hashtbl
+module In_channel   = In_channel
+module Int          = Int
+module Int32        = Int32
+module Int64        = Int64
+module Lazy         = Lazy
+module Lexing       = Lexing
+module List         = List
+module ListLabels   = ListLabels
+module Map          = Map
+module Marshal      = Marshal
+module MoreLabels   = MoreLabels
+module Nativeint    = Nativeint
+module Obj          = Obj
+module Oo           = Oo
+module Option       = Option
+module Out_channel  = Out_channel
+module Parsing      = Parsing
+module Pervasives   = Pervasives
+[@@deprecated "Use Stdlib instead.\n\
+\n\
+If you need to stay compatible with OCaml < 4.07, you can use the \n\
+stdlib-shims library: https://github.com/ocaml/stdlib-shims"]
+module Printexc     = Printexc
+module Printf       = Printf
+module Queue        = Queue
+module Random       = Random
+module Result       = Result
+module Scanf        = Scanf
+module Seq          = Seq
+module Set          = Set
+module Stack        = Stack
+module StdLabels    = StdLabels
+module Stream       = Stream
+[@@deprecated "Use the camlp-streams library instead."]
+module String       = String
+module StringLabels = StringLabels
+module Sys          = Sys
+module Uchar        = Uchar
+module Unit         = Unit
+module Weak         = Weak

@@ -15,7 +15,7 @@
 (rule
  (targets runtimedef.ml)
  (mode    fallback)
- (deps    (:fail (file ../runtime4/caml/fail.h))
-          (:prim (file ../runtime4/primitives)))
+ (deps    (:fail (file ../runtime/caml/fail.h))
+          (:prim (file ../runtime/primitives)))
  (action  (with-stdout-to %{targets}
             (run ./generate_runtimedef.sh %{fail} %{prim}))))

@@ -84,13 +84,7 @@ let assign_symbols_and_collect_constant_definitions
       | Project_closure ({ closure_id } as project_closure) ->
         assign_existing_symbol (Symbol_utils.Flambda.for_closure closure_id);
         record_definition (AA.Project_closure project_closure)
-<<<<<<< HEAD
       | Prim (Pfield (index, Pvalue _), [block], _) ->
-||||||| merged common ancestors
-      | Prim (Pfield index, [block], _) ->
-=======
-      | Prim (Pfield (index, _, _), [block], _) ->
->>>>>>> ocaml/5.1
         record_definition (AA.Field (block, index))
       | Prim (Pfield (_, _), [_], _) ->
         Misc.fatal_errorf "[Pfield] with kind not value is not expected to be\

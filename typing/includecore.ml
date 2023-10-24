@@ -171,24 +171,7 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-<<<<<<< HEAD
 type locality_mismatch = { order : position }
-||||||| merged common ancestors
-=======
-type type_kind =
-  | Kind_abstract
-  | Kind_record
-  | Kind_variant
-  | Kind_open
-
-let of_kind = function
-  | Type_abstract -> Kind_abstract
-  | Type_record (_, _) -> Kind_record
-  | Type_variant (_, _) -> Kind_variant
-  | Type_open -> Kind_open
-
-type kind_mismatch = type_kind * type_kind
->>>>>>> ocaml/5.1
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -238,7 +221,7 @@ type variant_change =
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
-  | Kind of kind_mismatch
+  | Kind
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
   | Private_variant of type_expr * type_expr * private_variant_mismatch
@@ -471,19 +454,6 @@ let report_private_object_mismatch env ppf err =
   | Missing s -> pr "The implementation is missing the method %s" s
   | Types err -> report_type_inequality env ppf err
 
-let report_kind_mismatch first second ppf (kind1, kind2) =
-  let pr fmt = Format.fprintf ppf fmt in
-  let kind_to_string = function
-  | Kind_abstract -> "abstract"
-  | Kind_record -> "a record"
-  | Kind_variant -> "a variant"
-  | Kind_open -> "an extensible variant" in
-  pr "%s is %s, but %s is %s."
-    (String.capitalize_ascii first)
-    (kind_to_string kind1)
-    second
-    (kind_to_string kind2)
-
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
   pr "@ ";
@@ -492,8 +462,8 @@ let report_type_mismatch first second decl env ppf err =
       pr "They have different arities."
   | Privacy err ->
       report_privacy_mismatch ppf err
-  | Kind err ->
-      report_kind_mismatch first second ppf err
+  | Kind ->
+      pr "Their kinds differ."
   | Constraint err ->
       (* This error can come from implicit parameter disagreement or from
          explicit `constraint`s.  Both affect the parameters, hence this choice
@@ -1082,7 +1052,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           labels1 labels2
           rep1 rep2
     | (Type_open, Type_open) -> None
-    | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
+    | (_, _) -> Some Kind
   in
   if err <> None then err else
   let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
@@ -1100,8 +1070,8 @@ let type_declarations ?(equality = false) ~loc env ~mark name
         (if abstr then (imp co1 co2 && imp cn1 cn2)
          else if opn || constrained ty then (co1 = co2 && cn1 = cn2)
          else true) &&
-        let (p1,n1,j1) = get_lower v1 and (p2,n2,j2) = get_lower v2 in
-        imp abstr (imp p2 p1 && imp n2 n1 && imp j2 j1))
+        let (p1,n1,i1,j1) = get_lower v1 and (p2,n2,i2,j2) = get_lower v2 in
+        imp abstr (imp p2 p1 && imp n2 n1 && imp i2 i1 && imp j2 j1))
       decl2.type_params (List.combine decl1.type_variance decl2.type_variance)
   then None else Some Variance
 

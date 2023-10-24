@@ -109,11 +109,6 @@ module type Info_retriever =
 
   end
 
-val analyze_alerts :
-  Odoc_types.info option -> Parsetree.attributes -> Odoc_types.info option
-(** Parse alerts from attributes and update the info. Always returns [Some _] if
-    the attributes contain alerts. *)
-
 module Analyser :
   Info_retriever ->
     sig

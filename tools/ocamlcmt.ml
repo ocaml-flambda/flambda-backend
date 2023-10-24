@@ -201,7 +201,8 @@ let main () =
     end
   ) arg_usage
 
-let main () =
+
+let () =
   try
     main ()
   with x ->
@@ -209,5 +210,3 @@ let main () =
     Location.report_exception Format.err_formatter x;
     Format.fprintf Format.err_formatter "@.";
     exit 2
-
-let _ = main ()

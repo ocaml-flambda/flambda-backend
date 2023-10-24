@@ -31,6 +31,7 @@ Configure () {
 ------------------------------------------------------------------------
 This test builds the OCaml compiler distribution with your pull request
 and runs its testsuite.
+
 Failing to build the compiler distribution, or testsuite failures are
 critical errors that must be understood and fixed before your pull
 request can be merged.
@@ -39,7 +40,9 @@ EOF
 
   configure_flags="\
     --prefix=$PREFIX \
-    --enable-debug-runtime \
+    --enable-flambda-invariants \
+    --enable-ocamltest \
+    --disable-dependency-generation \
     $CONFIG_ARG"
 
   case $XARCH in
@@ -47,7 +50,11 @@ EOF
     ./configure $configure_flags
     ;;
   i386)
-    ./configure --build=x86_64-pc-linux-gnu --host=i386-pc-linux-gnu \
+    ./configure --build=x86_64-pc-linux-gnu --host=i386-linux \
+      CC='gcc -m32 -march=x86-64' \
+      AS='as --32' \
+      ASPP='gcc -m32 -march=x86-64 -c' \
+      PARTIALLD='ld -r -melf_i386' \
       $configure_flags
     ;;
   *)
@@ -58,38 +65,17 @@ EOF
 }
 
 Build () {
-  if [ "$(uname)" = 'Darwin' ]; then
-    script -q build.log $MAKE_WARN
-  else
-    script --return --command "$MAKE_WARN" build.log
-  fi
-  failed=0
-  if grep -Fq ' warning: undefined variable ' build.log; then
-    echo Undefined Makefile variables detected
-    failed=1
-  fi
-  rm build.log
+  script --return --command "$MAKE_WARN world.opt" build.log
   echo Ensuring that all names are prefixed in the runtime
-  if ! ./tools/check-symbol-names runtime/*.a otherlibs/*/lib*.a ; then
-    failed=1
-  fi
-  if ((failed)); then
-    exit 1
-  fi
+  ./tools/check-symbol-names runtime/*.a
 }
 
 Test () {
-  echo Running the testsuite
-  $MAKE -C testsuite parallel
-  cd ..
-}
-
-# By default, TestPrefix will attempt to run the tests
-# in the given directory in parallel.
-TestPrefix () {
-  TO_RUN=parallel-"$1"
-  echo Running single testsuite directory with $TO_RUN
-  $MAKE -C testsuite $TO_RUN
+  cd testsuite
+  echo Running the testsuite with the normal runtime
+  $MAKE all
+  echo Running the testsuite with the debug runtime
+  $MAKE USE_RUNTIME='d' OCAMLTESTDIR="$(pwd)/_ocamltestd" TESTLOG=_logd all
   cd ..
 }
 
@@ -103,6 +89,15 @@ Install () {
 }
 
 Checks () {
+  set +x
+  STATUS=0
+  if grep -Fq ' warning: undefined variable ' build.log; then
+    echo -e '\e[31mERROR\e[0m Undefined Makefile variables detected!'
+    grep -F ' warning: undefined variable ' build.log | sort | uniq
+    STATUS=1
+  fi
+  rm build.log
+  set -x
   if fgrep 'SUPPORTS_SHARED_LIBRARIES=true' Makefile.config &>/dev/null ; then
     echo Check the code examples in the manual
     $MAKE manual-pregen
@@ -124,6 +119,7 @@ Checks () {
   test -z "$(git status --porcelain)"
   # Check that there are no ignored files
   test -z "$(git ls-files --others -i --exclude-standard)"
+  exit $STATUS
 }
 
 CheckManual () {
@@ -155,7 +151,7 @@ ReportBuildStatus () {
   else
     STATUS='success'
   fi
-  echo "build-status=$STATUS" >>"$GITHUB_OUTPUT"
+  echo "::set-output name=build-status::$STATUS"
   exit $CODE
 }
 
@@ -178,7 +174,6 @@ case $1 in
 configure) Configure;;
 build) Build;;
 test) Test;;
-test_prefix) TestPrefix $2;;
 api-docs) API_Docs;;
 install) Install;;
 manual) BuildManual;;

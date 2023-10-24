@@ -60,11 +60,13 @@ type t
 
 val empty: t
 
-(* This environment is lazy so that it may depend on the enabled extensions,
-   typically adjusted via command line flags.  If extensions are changed after
-   theis environment is forced, they may be inaccurate.  This could happen, for
-   example, if extensions are adjusted via the compiler-libs. *)
-val initial: t Lazy.t
+(* These environments are lazy so that they may depend on the enabled
+   extensions, typically adjusted via command line flags.  If extensions are
+   changed after these environments are forced, they may be inaccurate.  This
+   could happen, for example, if extensions are adjusted via the
+   compiler-libs. *)
+val initial_safe_string: t Lazy.t
+val initial_unsafe_string: t Lazy.t
 
 val diff: t -> t -> Ident.t list
 
@@ -134,8 +136,9 @@ val normalize_module_path: Location.t option -> t -> Path.t -> Path.t
 val normalize_type_path: Location.t option -> t -> Path.t -> Path.t
 (* Normalize the prefix part of the type path *)
 
-val normalize_value_path: Location.t option -> t -> Path.t -> Path.t
-(* Normalize the prefix part of the value path *)
+val normalize_path_prefix: Location.t option -> t -> Path.t -> Path.t
+(* Normalize the prefix part of other kinds of paths
+   (value/modtype/etc) *)
 
 val normalize_modtype_path: t -> Path.t -> Path.t
 (* Normalize a module type path *)
@@ -317,21 +320,6 @@ val find_constructor_by_name:
   Longident.t -> t -> constructor_description
 val find_label_by_name:
   Longident.t -> t -> label_description
-
-(** The [find_*_index] functions computes a "namespaced" De Bruijn index
-    of an identifier in a given environment. In other words, it returns how many
-    times an identifier has been shadowed by a more recent identifiers with the
-    same name in a given environment.
-    Those functions return [None] when the identifier is not bound in the
-    environment. This behavior is there to facilitate the detection of
-    inconsistent printing environment, but should disappear in the long term.
-*)
-val find_value_index:   Ident.t -> t -> int option
-val find_type_index:    Ident.t -> t -> int option
-val find_module_index:  Ident.t -> t -> int option
-val find_modtype_index: Ident.t -> t -> int option
-val find_class_index:   Ident.t -> t -> int option
-val find_cltype_index:  Ident.t -> t -> int option
 
 (* Check if a name is bound *)
 

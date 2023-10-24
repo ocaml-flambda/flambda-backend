@@ -28,16 +28,16 @@ static unsigned *EFF;
 
 void print_EFF (void);
 void print_first_derives (void);
-void print_closure (int n);
+void print_closure (void);
 
-static void set_EFF(void)
+void set_EFF(void)
 {
-    unsigned *row;
-    int symbol;
-    short *sp;
-    int rowsize;
-    int i;
-    int rule;
+    register unsigned *row;
+    register int symbol;
+    register short *sp;
+    register int rowsize;
+    register int i;
+    register int rule;
 
     rowsize = WORDSIZE(nvars);
     EFF = NEW2(nvars * rowsize, unsigned);
@@ -68,12 +68,12 @@ static void set_EFF(void)
 
 void set_first_derives(void)
 {
-  unsigned *rrow;
-  unsigned *vrow;
-  int j;
-  unsigned mask;
-  unsigned cword;
-  short *rp;
+  register unsigned *rrow;
+  register unsigned *vrow;
+  register int j;
+  register unsigned mask;
+  register unsigned cword;
+  register short *rp;
 
   int rule;
   int i;
@@ -125,13 +125,13 @@ void set_first_derives(void)
 
 void closure(short int *nucleus, int n)
 {
-    int ruleno;
-    unsigned word;
-    unsigned mask;
-    short *csp;
-    unsigned *dsp;
-    unsigned *rsp;
-    int rulesetsize;
+    register int ruleno;
+    register unsigned word;
+    register unsigned mask;
+    register short *csp;
+    register unsigned *dsp;
+    register unsigned *rsp;
+    register int rulesetsize;
 
     short *csend;
     unsigned *rsend;
@@ -164,7 +164,7 @@ void closure(short int *nucleus, int n)
     {
         word = *rsp;
         if (word == 0)
-            ruleno += BITS_PER_INT;
+            ruleno += BITS_PER_WORD;
         else
         {
             mask = 1;
@@ -208,7 +208,7 @@ void finalize_closure(void)
 
 void print_closure(int n)
 {
-  short *isp;
+  register short *isp;
 
   printf("\n\nn = %d\n\n", n);
   for (isp = itemset; isp < itemsetend; isp++)
@@ -218,10 +218,10 @@ void print_closure(int n)
 
 void print_EFF(void)
 {
-    int i, j;
-    unsigned *rowp;
-    unsigned word;
-    unsigned mask;
+    register int i, j;
+    register unsigned *rowp;
+    register unsigned word;
+    register unsigned mask;
 
     printf("\n\nEpsilon Free Firsts\n");
 
@@ -250,11 +250,11 @@ void print_EFF(void)
 
 void print_first_derives(void)
 {
-  int i;
-  int j;
-  unsigned *rp;
-  unsigned cword;
-  unsigned mask;
+  register int i;
+  register int j;
+  register unsigned *rp;
+  register unsigned cword;
+  register unsigned mask;
 
   printf("\n\n\nFirst Derives\n");
 

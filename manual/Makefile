@@ -15,13 +15,8 @@ tools:
 manual: tools
 	$(MAKE) -C src all
 
-pdf: tools
-	$(MAKE) -C src pdf
-	@echo "The generated manual is at ./src/texstuff/manual.pdf"
-
 html: tools
 	$(MAKE) -C src html
-	@echo "The generated manual is at ./src/htmlman/index.html"
 
 web: tools
 	$(MAKE) -C src web
@@ -46,11 +41,9 @@ pregen: tools
 .PHONY: clean
 clean:
 	$(MAKE) -C src clean
-	$(MAKE) -C tools clean
-	$(MAKE) -C tests clean
+	$(MAKE) -C tools  clean
+	$(MAKE) -C tests  clean
 
 .PHONY: distclean
 distclean: clean
 	$(MAKE) -C src distclean
-	$(MAKE) -C tools distclean
-	$(MAKE) -C tests distclean

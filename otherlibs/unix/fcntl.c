@@ -25,34 +25,34 @@
 #define O_NONBLOCK O_NDELAY
 #endif
 
-CAMLprim value caml_unix_set_nonblock(value fd)
+CAMLprim value unix_set_nonblock(value fd)
 {
   int retcode;
   retcode = fcntl(Int_val(fd), F_GETFL, 0);
   if (retcode == -1 ||
       fcntl(Int_val(fd), F_SETFL, retcode | O_NONBLOCK) == -1)
-    caml_uerror("set_nonblock", Nothing);
+    uerror("set_nonblock", Nothing);
   return Val_unit;
 }
 
-CAMLprim value caml_unix_clear_nonblock(value fd)
+CAMLprim value unix_clear_nonblock(value fd)
 {
   int retcode;
   retcode = fcntl(Int_val(fd), F_GETFL, 0);
   if (retcode == -1 ||
       fcntl(Int_val(fd), F_SETFL, retcode & ~O_NONBLOCK) == -1)
-    caml_uerror("clear_nonblock", Nothing);
+    uerror("clear_nonblock", Nothing);
   return Val_unit;
 }
 
-CAMLprim value caml_unix_set_close_on_exec(value fd)
+CAMLprim value unix_set_close_on_exec(value fd)
 {
-  caml_unix_set_cloexec(Int_val(fd), "set_close_on_exec", Nothing);
+  unix_set_cloexec(Int_val(fd), "set_close_on_exec", Nothing);
   return Val_unit;
 }
 
-CAMLprim value caml_unix_clear_close_on_exec(value fd)
+CAMLprim value unix_clear_close_on_exec(value fd)
 {
-  caml_unix_clear_cloexec(Int_val(fd), "set_close_on_exec", Nothing);
+  unix_clear_cloexec(Int_val(fd), "set_close_on_exec", Nothing);
   return Val_unit;
 }

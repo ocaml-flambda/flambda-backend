@@ -552,14 +552,14 @@ Error: Signature mismatch:
        is not included in
          sig val f : (module s) -> unit end
        Values do not match:
-         val f : (module s) -> unit
+         val f : (module s/1) -> unit
        is not included in
          val f : (module s/2) -> unit
-       The type (module s) -> unit is not compatible with the type
+       The type (module s/1) -> unit is not compatible with the type
          (module s/2) -> unit
-       Type (module s) is not compatible with type (module s/2)
+       Type (module s/1) is not compatible with type (module s/2)
        Line 6, characters 4-17:
-         Definition of module type s
+         Definition of module type s/1
        Line 2, characters 2-15:
          Definition of module type s/2
 |}];;
@@ -725,8 +725,9 @@ Error: Signature mismatch:
        Values do not match:
          val r : '_weak4 list ref
        is not included in
-         val r : T.t list ref
-       The type '_weak4 list ref is not compatible with the type T.t list ref
+         val r : T.s list ref
+       The type '_weak4 list ref is not compatible with the type T.s list ref
+       Type '_weak4 is not compatible with type T.s = T.t
        This instance of T.t is ambiguous:
        it would escape the scope of its equation
 |}];;
@@ -1602,7 +1603,7 @@ Error: Signature mismatch:
          type t = private { x : int; y : bool; }
        is not included in
          type t = A | B
-       The first is a record, but the second is a variant.
+       Their kinds differ.
 |}];;
 
 module M : sig
@@ -1624,7 +1625,7 @@ Error: Signature mismatch:
          type t = private A | B
        is not included in
          type t = { x : int; y : bool; }
-       The first is a variant, but the second is a record.
+       Their kinds differ.
 |}];;
 
 module M : sig

@@ -30,7 +30,8 @@ let print_version_string () =
 
 let print_version_num () =
   print_endline Sys.ocaml_version;
-  exit 0
+  exit 0;
+;;
 
 let specs =
   ["-ml", Arg.Set ml_automata,
@@ -122,4 +123,4 @@ let main () =
     end;
     exit 3
 
-let _ = main (); exit 0
+let _ = (* Printexc.catch *) main (); exit 0

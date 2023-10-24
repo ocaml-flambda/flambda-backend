@@ -21,13 +21,11 @@ type t
 
 val name : t -> string
 
-val description : t -> string
-
 val action_name : Variables.t
 
 val update : t -> code -> t
 
-val make : name:string -> description:string -> code -> t
+val make : string -> code -> t
 
 val compare : t -> t -> int
 

@@ -1,6 +1,5 @@
 (* TEST
    include testing
-   flags = "-no-strict-formats"
 *)
 
 (* these are not valid under -strict-formats, but we test them here

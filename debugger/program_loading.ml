@@ -42,6 +42,7 @@ let get_unix_environment () =
     Printf.sprintf "%s=%s " vname (Filename.quote vvalue)
   in
   String.concat "" (List.map f !Debugger_config.environment)
+;;
 
 (* Notes:
    1. This quoting is not the same as [Filename.quote] because the "set"
@@ -64,6 +65,7 @@ let quote_for_windows_shell s =
     Buffer.add_char b s.[i];
   done;
   Buffer.contents b
+;;
 
 (* Returns a command line prefix to set environment for the debuggee *)
 let get_win32_environment () =

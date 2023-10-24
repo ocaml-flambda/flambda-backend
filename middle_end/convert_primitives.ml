@@ -24,7 +24,6 @@ let convert_unsafety is_unsafe : Clambda_primitives.is_safe =
 
 let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   match prim with
-<<<<<<< HEAD
   | Pmakeblock (tag, mutability, shape, mode) ->
       Pmakeblock (tag, mutability, shape, mode)
   | Pmakefloatblock (mutability, mode) ->
@@ -33,18 +32,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakeufloatblock (mutability, mode)
   | Pfield (field, _sem) -> Pfield (field, Pvalue Pgenval)
   | Pfield_computed _sem -> Pfield_computed
-||||||| merged common ancestors
-  | Pmakeblock (tag, mutability, shape) ->
-      Pmakeblock (tag, mutability, shape)
-  | Pfield field -> Pfield field
-  | Pfield_computed -> Pfield_computed
-=======
-  | Pmakeblock (tag, mutability, shape) ->
-      Pmakeblock (tag, mutability, shape)
-  | Pfield (field, imm_or_pointer, mutability) ->
-      Pfield (field, imm_or_pointer, mutability)
-  | Pfield_computed -> Pfield_computed
->>>>>>> ocaml/5.1
   | Psetfield (field, imm_or_pointer, init_or_assign) ->
       Psetfield (field, imm_or_pointer, init_or_assign)
   | Psetfield_computed (imm_or_pointer, init_or_assign) ->
@@ -56,16 +43,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Psetufloatfield (field, init_or_assign) ->
       Psetufloatfield (field, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
-<<<<<<< HEAD
   | Pmake_unboxed_product _
   | Punboxed_product_field _ -> Misc.fatal_error "TODO"
-||||||| merged common ancestors
-=======
-  | Prunstack -> Prunstack
-  | Pperform -> Pperform
-  | Presume -> Presume
-  | Preperform -> Preperform
->>>>>>> ocaml/5.1
   | Pccall prim -> Pccall prim
   | Praise kind -> Praise kind
   | Psequand -> Psequand
@@ -168,7 +147,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
-<<<<<<< HEAD
   | Pint_as_pointer m -> Pint_as_pointer m
   | Popaque _ -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
@@ -189,20 +167,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbox_int (bi, m) -> Pbox_int (bi, m)
   | Pget_header m -> Pget_header m
   | Pobj_magic _
-||||||| merged common ancestors
-  | Pint_as_pointer -> Pint_as_pointer
-  | Popaque -> Popaque
-
-=======
-  | Pint_as_pointer -> Pint_as_pointer
-  | Patomic_load { immediate_or_pointer } ->
-      Patomic_load { immediate_or_pointer }
-  | Patomic_exchange -> Patomic_exchange
-  | Patomic_cas -> Patomic_cas
-  | Patomic_fetch_add -> Patomic_fetch_add
-  | Popaque -> Popaque
-  | Pdls_get -> Pdls_get
->>>>>>> ocaml/5.1
   | Pbytes_to_string
   | Pbytes_of_string
   | Pctconst _

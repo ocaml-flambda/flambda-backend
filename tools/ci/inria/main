@@ -107,7 +107,7 @@ esac
 
 # be considerate towards other potential users of the test machine
 case "${OCAML_ARCH}" in
-  linux) renice 10 $$ ;;
+  bsd|linux) renice 10 $$ ;;
 esac
 
 # be verbose and stop on error
@@ -145,13 +145,6 @@ check_make_alldepend=false
 jobs=''
 bootstrap=false
 init_submodule=false
-<<<<<<< HEAD
-||||||| merged common ancestors
-=======
-
-memory_model_tests="tests/memory-model/forbidden.ml \
-tests/memory-model/publish.ml"
->>>>>>> ocaml/5.1
 
 case "${OCAML_ARCH}" in
   bsd|solaris)
@@ -166,12 +159,10 @@ case "${OCAML_ARCH}" in
   cygwin)
     cleanup=true
     check_make_alldepend=true
-    export OCAMLTEST_SKIP_TESTS="$memory_model_tests"
   ;;
   cygwin64)
     cleanup=true
     check_make_alldepend=true
-    export OCAMLTEST_SKIP_TESTS="$memory_model_tests"
   ;;
   mingw)
     build='--build=i686-pc-cygwin'
@@ -179,7 +170,6 @@ case "${OCAML_ARCH}" in
     instdir='C:/ocamlmgw'
     cleanup=true
     check_make_alldepend=true
-    init_submodule=true
   ;;
   mingw64)
     build='--build=x86_64-pc-cygwin'
@@ -187,7 +177,6 @@ case "${OCAML_ARCH}" in
     instdir='C:/ocamlmgw64'
     cleanup=true
     check_make_alldepend=true
-    init_submodule=true
   ;;
   msvc)
     build='--build=i686-pc-cygwin'
@@ -254,24 +243,20 @@ export LC_ALL=C
 
 git clean -q -f -d -x
 
-if test "$flambda" = "true"; then
-  confoptions="$confoptions --enable-flambda --enable-flambda-invariants"
+if $flambda; then
+  confoptions="$confoptions --enable-flambda --enable-flambda-invariants \
+--disable-naked-pointers"
 fi
 
 eval ./configure "$CCOMP" $build $host --prefix='$instdir' $confoptions
 
-grep -q '^NATIVE_COMPILER=false' Makefile.config && make_native=false
-
-if test "$flambda" = "true" && test "$make_native" = "false"; then
-  echo "No need to test flambda in a bytecode-only system; skipping the test."
-  exit 0
-fi
-
 if $bootstrap; then
   $make $jobs --warn-undefined-variables core
-  $make $jobs --warn-undefined-variables bootstrap
+  $make $jobs --warn-undefined-variables coreboot
   if $make_native; then
     $make $jobs --warn-undefined-variables opt.opt
+  else
+    $make $jobs --warn-undefined-variables all
   fi
 else
   $make $jobs --warn-undefined-variables
@@ -287,9 +272,8 @@ rm -rf "$instdir"
 
 cd testsuite
 if test -n "$jobs" && test -x /usr/bin/parallel
-then PARALLEL="$jobs $PARALLEL" $make --warn-undefined-variables \
-                                      SHOW_TIMINGS=1 parallel
-else $make --warn-undefined-variables SHOW_TIMINGS=1 all
+then PARALLEL="$jobs $PARALLEL" $make --warn-undefined-variables parallel
+else $make --warn-undefined-variables all
 fi
 
 if $bootstrap; then

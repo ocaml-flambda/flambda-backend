@@ -4452,4 +4452,4 @@ let main () =
     end;
 ;;
 
-if not !Sys.interactive then main ();;
+if not !Sys.interactive then Printexc.catch main ();;

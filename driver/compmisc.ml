@@ -13,21 +13,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let auto_include find_in_dir fn =
-  if !Clflags.no_std_include then
-    raise Not_found
-  else
-    let alert = Location.auto_include_alert in
-    Load_path.auto_include_otherlibs alert find_in_dir fn
-
 (* Initialize the search path.
-   [dir] (default: the current directory)
-   is always searched first  unless -nocwd is specified,
+   [dir] is always searched first (default: the current directory),
    then the directories specified with the -I option (in command-line order),
    then the standard library directory (unless the -nostdlib option is given).
  *)
 
-let init_path ?(auto_include=auto_include) ?(dir="") () =
+let init_path ?(dir="") () =
   let dirs =
     if !Clflags.use_threads then "+threads" :: !Clflags.include_dirs
     else
@@ -38,24 +30,9 @@ let init_path ?(auto_include=auto_include) ?(dir="") () =
     !Compenv.first_include_dirs
   in
   let exp_dirs =
-<<<<<<< HEAD
     List.map (Misc.expand_directory Config.standard_library) dirs in
   Load_path.init (dir :: List.rev_append exp_dirs (Clflags.std_include_dir ()));
   Env.reset_cache ~preserve_persistent_env:false
-||||||| merged common ancestors
-    List.map (Misc.expand_directory Config.standard_library) dirs in
-  Load_path.init (dir :: List.rev_append exp_dirs (Clflags.std_include_dir ()));
-  Env.reset_cache ()
-=======
-    List.map (Misc.expand_directory Config.standard_library) dirs
-  in
-  let dirs =
-    (if !Clflags.no_cwd then [] else [dir])
-    @ List.rev_append exp_dirs (Clflags.std_include_dir ())
-  in
-  Load_path.init ~auto_include dirs;
-  Env.reset_cache ()
->>>>>>> ocaml/5.1
 
 (* Return the initial environment in which compilation proceeds. *)
 
@@ -73,6 +50,7 @@ let initial_env () =
   in
   Typemod.initial_env
     ~loc:(Location.in_file "command line")
+    ~safe_string:(Config.safe_string || not !Clflags.unsafe_string)
     ~initially_opened_module
     ~open_implicit_modules:(List.rev !Clflags.open_modules)
 
@@ -105,13 +83,7 @@ let rec make_directory dir =
       Sys.mkdir dir 0o777
     end
 
-<<<<<<< HEAD
 let with_ppf_dump ?stdout ~file_prefix f =
-||||||| merged common ancestors
-let with_ppf_dump ~file_prefix f =
-=======
-let with_ppf_dump ~file_prefix f =
->>>>>>> ocaml/5.1
   let with_ch ch =
     let ppf = Format.formatter_of_out_channel ch in
     ppf,
@@ -121,26 +93,12 @@ let with_ppf_dump ~file_prefix f =
   in
   let ppf_dump, finally =
     match !Clflags.dump_dir, !Clflags.dump_into_file with
-<<<<<<< HEAD
     | None, false ->
         let formatter =
           if Option.is_some stdout then Format.std_formatter
           else Format.err_formatter
         in
         formatter, ignore
-||||||| merged common ancestors
-    if not !Clflags.dump_into_file
-    then Format.err_formatter, ignore
-    else
-       let ch = open_out (file_prefix ^ ".dump") in
-       let ppf = Format.formatter_of_out_channel ch in
-       ppf,
-       (fun () ->
-         Format.pp_print_flush ppf ();
-         close_out ch)
-=======
-    | None, false -> Format.err_formatter, ignore
->>>>>>> ocaml/5.1
     | None, true -> with_ch (open_out (file_prefix ^ ".dump"))
     | Some d, _ ->
         let () = make_directory Filename.(dirname @@ concat d @@ file_prefix) in

@@ -83,8 +83,7 @@ module Info_retriever =
                    None -> None | Some s -> Some (MyTexter.text_of_string s)) ;
                  i_custom = (List.map
                                (fun (tag, s) -> (tag, MyTexter.text_of_string s))
-                               !Odoc_comments_global.customs) ;
-                 i_alerts = [] ;
+                               !Odoc_comments_global.customs)
                }
             )
       with e ->
@@ -218,7 +217,21 @@ module Info_retriever =
 module Basic_info_retriever = Info_retriever (Odoc_text.Texter)
 
 let info_of_string s =
-  let dummy = Odoc_types.dummy_info in
+  let dummy =
+    {
+      i_desc = None ;
+      i_authors = [] ;
+      i_version = None ;
+      i_sees = [] ;
+      i_since = None ;
+      i_before = [] ;
+      i_deprecated = None ;
+      i_params = [] ;
+      i_raised_exceptions = [] ;
+      i_return_value = None ;
+      i_custom = [] ;
+    }
+  in
   let s2 = Printf.sprintf "(** %s *)" s in
   let (_, i_opt) = Basic_info_retriever.first_special "-" s2 in
   match i_opt with

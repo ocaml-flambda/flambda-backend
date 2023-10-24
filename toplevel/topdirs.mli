@@ -43,5 +43,9 @@ val section_options : string
 
 val section_undocumented : string
 
+
+type 'a printer_type_new = Format.formatter -> 'a -> unit
+type 'a printer_type_old = 'a -> unit
+
 (* Here for backwards compatibility, use [Toploop.load_file]. *)
 val[@deprecated] load_file : formatter -> string -> bool

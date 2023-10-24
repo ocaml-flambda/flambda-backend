@@ -64,6 +64,8 @@ let p = Format.fprintf
 let ps f s = Format.fprintf f "%s" s
 
 
+let bp = Printf.bprintf
+let bs = Buffer.add_string
 
 let rec merge_codepre = function
     [] -> []
@@ -507,13 +509,13 @@ class latex =
 
     (** Print LaTeX code for the parameters of a type. *)
     method latex_of_type_params fmt m_name t =
-      let print_one (p, v) =
-        ps fmt (Odoc_info.string_of_variance t v);
+      let print_one (p, co, cn) =
+        ps fmt (Odoc_info.string_of_variance t (co,cn));
         ps fmt (self#normal_type m_name p)
       in
       match t.ty_parameters with
         [] -> ()
-      | [t] -> print_one t
+      | [(p,co,cn)] -> print_one (p, co, cn)
       | _ ->
           ps fmt "(";
           print_concat fmt ", " print_one t.ty_parameters;
@@ -806,9 +808,6 @@ class latex =
           self#latex_of_text fmt [Code "("];
           self#latex_of_module_kind fmt father k2;
           self#latex_of_text fmt [Code ")"]
-      | Module_apply_unit k1 ->
-          self#latex_of_module_kind fmt father k1;
-          self#latex_of_text fmt [Code "()"]
       | Module_with (k, s) ->
           (* TODO: modify when Module_with will be more detailed *)
           self#latex_of_module_type_kind fmt father k;

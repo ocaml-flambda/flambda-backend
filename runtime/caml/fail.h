@@ -20,6 +20,9 @@
 #include <setjmp.h>
 #endif /* CAML_INTERNALS */
 
+#ifndef CAML_NAME_SPACE
+#include "compatibility.h"
+#endif
 #include "misc.h"
 #include "mlvalues.h"
 
@@ -61,19 +64,17 @@ struct longjmp_buffer {
 #define siglongjmp(buf,val) longjmp(buf,val)
 #endif
 
-struct caml_exception_context {
-  struct longjmp_buffer* jmp;
-  struct caml__roots_block* local_roots;
-  volatile value* exn_bucket;
-};
-
 /* Global variables moved to Caml_state in 4.10 */
 #define caml_external_raise (Caml_state_field(external_raise))
 #define caml_exn_bucket (Caml_state_field(exn_bucket))
 
 int caml_is_special_exception(value exn);
 
-CAMLextern value caml_raise_if_exception(value res);
+CAMLextern void caml_raise_async_if_exception(value res, const char* where);
+
+CAMLnoreturn_start
+CAMLextern void caml_raise_async(value res)
+CAMLnoreturn_end;
 
 #endif /* CAML_INTERNALS */
 

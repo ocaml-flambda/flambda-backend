@@ -1,4 +1,8 @@
-(* TEST_BELOW *)
+(* TEST
+   flags = "-g"
+   * native
+*)
+
 
 let l1 : unit lazy_t = lazy (raise Not_found)
 
@@ -21,15 +25,3 @@ let () =
   Printexc.record_backtrace true;
   run test1;
   run test2
-
-
-(* TEST
-
-flags = "-g"
-* no-flambda
-** native
-* flambda
-reference = "${test_source_directory}/lazy.flambda.reference"
-** native
-
-*)

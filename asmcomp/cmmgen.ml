@@ -18,6 +18,7 @@
 [@@@ocaml.warning "-40"]
 
 open Misc
+open Arch
 open Asttypes
 open Primitive
 open Types
@@ -139,6 +140,7 @@ type rhs_kind =
   | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
   | RHS_floatblock of Lambda.alloc_mode * int
   | RHS_nonrec
+;;
 
 let rec expr_size env = function
   | Uvar id ->
@@ -273,12 +275,7 @@ let box_int dbg bi mode arg =
 
 let typ_of_boxed_number = function
   | Boxed_float _ -> Cmm.typ_float
-<<<<<<< HEAD
   | Boxed_integer (Pint64, _,_) when size_int = 4 -> [|Int;Int|]
-||||||| merged common ancestors
-  | Boxed_integer (Pint64, _) when size_int = 4 -> [|Int;Int|]
-=======
->>>>>>> ocaml/5.1
   | Boxed_integer _ -> Cmm.typ_int
 
 let equal_unboxed_integer ui1 ui2 =
@@ -473,20 +470,7 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
-<<<<<<< HEAD
       make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 functions)
-||||||| merged common ancestors
-      make_alloc dbg Obj.closure_tag (transl_fundecls 0 fundecls)
-=======
-      (* #11482, #12481: the 'clos_vars' may be arbitrary expressions
-         and may invoke the GC, which would be able to observe the
-         partially-filled block. This is safe because 'make_alloc'
-         evaluates and fills fields from left to right, and does not
-         call a GC between the allocation and filling fields. So the
-         closure metadata, which comes before the closure variables,
-         will always have been written before a GC can happen. *)
-      make_alloc dbg Obj.closure_tag (transl_fundecls 0 fundecls)
->>>>>>> ocaml/5.1
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
       let ptr = transl env arg in
@@ -625,7 +609,7 @@ let rec transl env e =
             dbg)
       | (Pbigarraydim(n), [b]) ->
           let dim_ofs = 4 + n in
-          tag_int (Cop(mk_load_mut Word_int,
+          tag_int (Cop(Cload (Word_int, Mutable),
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
       | (Pprobe_is_enabled {name}, []) ->
@@ -644,10 +628,6 @@ let rec transl env e =
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
       | ((Pfield_computed|Psequand
-         | Prunstack | Pperform | Presume | Preperform
-         | Pdls_get
-         | Patomic_load _ | Patomic_exchange
-         | Patomic_cas | Patomic_fetch_add
          | Psequor | Pnot | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
          | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
@@ -792,17 +772,11 @@ let rec transl env e =
       end
   | Uunreachable ->
       let dbg = Debuginfo.none in
-<<<<<<< HEAD
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
   | Uexclave e ->
       Cexclave (transl env e)
-||||||| merged common ancestors
-      Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
-=======
-      Cop(mk_load_mut Word_int, [Cconst_int (0, dbg)], dbg)
->>>>>>> ocaml/5.1
 
 and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in
@@ -907,7 +881,6 @@ and transl_ccall env prim args dbg =
   in
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
-<<<<<<< HEAD
     | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
@@ -917,19 +890,6 @@ and transl_ccall env prim args dbg =
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
     | _, Unboxed_vector _ ->
       Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
-||||||| merged common ancestors
-    | Same_as_ocaml_repr -> (typ_val, fun x -> x)
-    | Unboxed_float -> (typ_float, box_float dbg)
-    | Unboxed_integer Pint64 when size_int = 4 ->
-        ([|Int; Int|], box_int dbg Pint64)
-    | Unboxed_integer bi -> (typ_int, box_int dbg bi)
-    | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
-=======
-    | Same_as_ocaml_repr -> (typ_val, fun x -> x)
-    | Unboxed_float -> (typ_float, box_float dbg)
-    | Unboxed_integer bi -> (typ_int, box_int dbg bi)
-    | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
->>>>>>> ocaml/5.1
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result
@@ -942,19 +902,9 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-<<<<<<< HEAD
   | Pfield (n, layout) ->
       get_field env layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
-||||||| merged common ancestors
-  | Pfield n ->
-      get_field env (transl env arg) n dbg
-  | Pfloatfield n ->
-=======
-  | Pfield(n, _, _) ->
-      get_field env (transl env arg) n dbg
-  | Pfloatfield n ->
->>>>>>> ocaml/5.1
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
@@ -1019,26 +969,9 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
-<<<<<<< HEAD
   | Pget_header m ->
       box_int dbg Pnativeint m (get_header (transl env arg) dbg)
-||||||| merged common ancestors
-=======
-  | Pperform ->
-      let cont = make_alloc dbg Obj.cont_tag [int_const dbg 0] in
-      Cop(Capply typ_val,
-       [Cconst_symbol ("caml_perform", dbg); transl env arg; cont],
-       dbg)
-  | Pdls_get ->
-      Cop(Cdls_get, [transl env arg], dbg)
-  | Patomic_load {immediate_or_pointer = Immediate} ->
-      Cop(mk_load_atomic Word_int, [transl env arg], dbg)
-  | Patomic_load {immediate_or_pointer = Pointer} ->
-      Cop(mk_load_atomic Word_val, [transl env arg], dbg)
->>>>>>> ocaml/5.1
   | (Pfield_computed | Psequand | Psequor
-    | Prunstack | Presume | Preperform
-    | Patomic_exchange | Patomic_cas | Patomic_fetch_add
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
@@ -1227,31 +1160,11 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
-<<<<<<< HEAD
   | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
-||||||| merged common ancestors
-  | Pnot | Pnegint | Pintoffloat | Pfloatofint | Pnegfloat
-  | Pabsfloat | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
-  | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
-  | Pmakeblock (_, _, _) | Pfield _ | Psetfield_computed (_, _) | Pfloatfield _
-=======
-  | Patomic_exchange ->
-     Cop (Cextcall ("caml_atomic_exchange", typ_val, [], false),
-          [transl env arg1; transl env arg2], dbg)
-  | Patomic_fetch_add ->
-     Cop (Cextcall ("caml_atomic_fetch_add", typ_int, [], false),
-          [transl env arg1; transl env arg2], dbg)
-  | Prunstack | Pperform | Presume | Preperform | Pdls_get
-  | Patomic_cas | Patomic_load _
-  | Pnot | Pnegint | Pintoffloat | Pfloatofint | Pnegfloat
-  | Pabsfloat | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
-  | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
-  | Pmakeblock (_, _, _) | Pfield _ | Psetfield_computed (_, _) | Pfloatfield _
->>>>>>> ocaml/5.1
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
   | Pmakearray (_, _, _) | Pduparray (_, _) | Parraylength _ | Parraysetu _
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _, _)
@@ -1301,31 +1214,6 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       bigstring_set size unsafe (transl env arg1) (transl env arg2)
         (transl_unbox_sized size dbg env arg3) dbg
 
-  | Patomic_cas ->
-     Cop (Cextcall ("caml_atomic_cas", typ_int, [], false),
-          [transl env arg1; transl env arg2; transl env arg3], dbg)
-
-  (* Effects *)
-  | Presume ->
-      Cop (Capply typ_val,
-           [Cconst_symbol ("caml_resume", dbg);
-           transl env arg1; transl env arg2; transl env arg3],
-           dbg)
-
-  | Prunstack ->
-      Cop (Capply typ_val,
-           [Cconst_symbol ("caml_runstack", dbg);
-           transl env arg1; transl env arg2; transl env arg3],
-           dbg)
-
-  | Preperform ->
-      Cop (Capply typ_val,
-           [Cconst_symbol ("caml_reperform", dbg);
-           transl env arg1; transl env arg2; transl env arg3],
-           dbg)
-
-  | Pperform | Pdls_get
-  | Patomic_exchange | Patomic_fetch_add | Patomic_load _
   | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _

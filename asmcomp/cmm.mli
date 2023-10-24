@@ -147,26 +147,10 @@ and operation =
   | Cextcall of string * machtype * exttype list * bool
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
-<<<<<<< HEAD
           An empty list means "all arguments are machine words [XInt]". *)
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * initialization_or_assignment
-||||||| merged common ancestors
-          An empty list means "all arguments are machine words [XInt]". *)
-  | Cload of memory_chunk * Asttypes.mutable_flag
-  | Calloc
-  | Cstore of memory_chunk * Lambda.initialization_or_assignment
-=======
-          An empty list means "all arguments are machine words [XInt]".
-          The boolean indicates whether the function may allocate. *)
-  | Cload of
-      { memory_chunk: memory_chunk
-      ; mutability: Asttypes.mutable_flag
-      ; is_atomic: bool }
-  | Calloc
-  | Cstore of memory_chunk * Lambda.initialization_or_assignment
->>>>>>> ocaml/5.1
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi of integer_comparison
@@ -185,7 +169,6 @@ and operation =
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
-<<<<<<< HEAD
   | Cbeginregion | Cendregion
 
 (* This is information used exclusively during construction of cmm terms by
@@ -194,10 +177,6 @@ type kind_for_unboxing =
   | Any (* This may contain anything, including non-scannable things *)
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_float
-||||||| merged common ancestors
-=======
-  | Cdls_get
->>>>>>> ocaml/5.1
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)

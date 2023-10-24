@@ -50,21 +50,9 @@ let read_member_info pack_path file = (
       PM_intf
     else begin
       let (info, crc) = Compilenv.read_unit_info file in
-<<<<<<< HEAD
       if not (CU.Name.equal (CU.name info.ui_unit) name)
       then raise(Error(Illegal_renaming(name, file, (CU.name info.ui_unit))));
       if not (CU.is_parent pack_path ~child:info.ui_unit)
-||||||| merged common ancestors
-      if info.ui_name <> name
-      then raise(Error(Illegal_renaming(name, file, info.ui_name)));
-      if info.ui_symbol <>
-         (Compilenv.current_unit_infos()).ui_symbol ^ "__" ^ info.ui_name
-=======
-      if info.ui_name <> name
-      then raise(Error(Illegal_renaming(name, file, info.ui_name)));
-      if info.ui_symbol <>
-         (Compilenv.current_unit_infos()).ui_symbol ^ "." ^ info.ui_name
->>>>>>> ocaml/5.1
       then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
@@ -226,7 +214,6 @@ let build_package_cmx members cmxfile =
       ui_force_link =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
-      ui_for_pack = None;
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 

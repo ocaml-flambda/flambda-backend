@@ -19,6 +19,7 @@ type pers_flags =
   | Rectypes
   | Alerts of alerts
   | Opaque
+  | Unsafe_string
 
 type error =
   | Not_an_interface of filepath
@@ -150,7 +151,6 @@ let read_cmi_lazy filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-<<<<<<< HEAD
   let output_int64 oc n =
     let buf = Bytes.create 8 in
     Bytes.set_int64_ne buf 0 n;
@@ -168,11 +168,6 @@ let output_cmi filename oc cmi =
   output_int64 oc len;
   Out_channel.seek oc val_pos;
   output_value oc ((cmi.cmi_name, sign) : header);
-||||||| merged common ancestors
-  output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
-=======
-  Marshal.(to_channel oc ((cmi.cmi_name, cmi.cmi_sign) : header) [Compression]);
->>>>>>> ocaml/5.1
   flush oc;
   let crc = Digest.file filename in
   let crcs =

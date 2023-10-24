@@ -19,17 +19,7 @@ open Misc
 open Config
 open Cmo_format
 
-<<<<<<< HEAD
 module CU = Compilation_unit
-||||||| merged common ancestors
-=======
-module Dep = struct
-  type t = string * string
-  let compare = compare
-end
-
-module DepSet = Set.Make (Dep)
->>>>>>> ocaml/5.1
 
 type error =
   | File_not_found of filepath
@@ -42,14 +32,7 @@ type error =
   | Cannot_open_dll of filepath
   | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
-<<<<<<< HEAD
   | Wrong_link_order of (string * string) list
-||||||| merged common ancestors
-  | Wrong_link_order of (modname * modname) list
-=======
-  | Wrong_link_order of DepSet.t
-  | Multiple_definition of modname * filepath * filepath
->>>>>>> ocaml/5.1
 
 exception Error of error
 
@@ -108,11 +91,7 @@ let add_ccobjs origin l =
 
 let missing_globals = ref Ident.Map.empty
 let provided_globals = ref Ident.Set.empty
-let badly_ordered_dependencies : DepSet.t ref = ref DepSet.empty
-
-let record_badly_ordered_dependency (id, compunit) =
-  let dep = ((Ident.name id), compunit.cu_name) in
-  badly_ordered_dependencies := DepSet.add dep !badly_ordered_dependencies
+let badly_ordered_dependencies : (string * string) list ref = ref []
 
 let is_required (rel, _pos) =
   match rel with
@@ -122,20 +101,11 @@ let is_required (rel, _pos) =
 
 let add_required compunit =
   let add id =
-<<<<<<< HEAD
     if Ident.Set.mem id !provided_globals then begin
       let cu_name = CU.full_path_as_string compunit.cu_name in
       badly_ordered_dependencies :=
         ((Ident.name id), cu_name) :: !badly_ordered_dependencies;
     end;
-||||||| merged common ancestors
-    if Ident.Set.mem id !provided_globals then
-      badly_ordered_dependencies :=
-        ((Ident.name id), compunit.cu_name) :: !badly_ordered_dependencies;
-=======
-    if Ident.Set.mem id !provided_globals then
-      record_badly_ordered_dependency (id, compunit);
->>>>>>> ocaml/5.1
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
   in
   let add_unit unit =
@@ -212,39 +182,17 @@ let implementations_defined = ref ([] : (CU.Name.t * string) list)
 
 let check_consistency file_name cu =
   begin try
-<<<<<<< HEAD
     Array.iter
       (fun import ->
         let name = Import_info.name import in
         let crco = Import_info.crc_with_unit import in
-||||||| merged common ancestors
-    List.iter
-      (fun (name, crco) ->
-=======
-    let source = List.assoc cu.cu_name !implementations_defined in
-    raise (Error (Multiple_definition(cu.cu_name, file_name, source)));
-  with Not_found -> ()
-  end;
-  begin try
-    List.iter
-      (fun (name, crco) ->
->>>>>>> ocaml/5.1
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
-<<<<<<< HEAD
         | Some (full_name, crc) ->
             if CU.Name.equal name (CU.name cu.cu_name)
             then Consistbl.set crc_interfaces name full_name crc file_name
             else Consistbl.check crc_interfaces name full_name crc file_name)
-||||||| merged common ancestors
-        | Some crc ->
-            if name = cu.cu_name
-            then Consistbl.set crc_interfaces name crc file_name
-            else Consistbl.check crc_interfaces name crc file_name)
-=======
-        | Some crc -> Consistbl.check crc_interfaces name crc file_name)
->>>>>>> ocaml/5.1
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;
@@ -253,7 +201,6 @@ let check_consistency file_name cu =
     } ->
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
-<<<<<<< HEAD
   begin try
     let source = List.assoc (CU.name cu.cu_name) !implementations_defined in
     Location.prerr_warning (Location.in_file file_name)
@@ -262,17 +209,6 @@ let check_consistency file_name cu =
                                     Location.show_filename source))
   with Not_found -> ()
   end;
-||||||| merged common ancestors
-  begin try
-    let source = List.assoc cu.cu_name !implementations_defined in
-    Location.prerr_warning (Location.in_file file_name)
-      (Warnings.Module_linked_twice(cu.cu_name,
-                                    Location.show_filename file_name,
-                                    Location.show_filename source))
-  with Not_found -> ()
-  end;
-=======
->>>>>>> ocaml/5.1
   implementations_defined :=
     (CU.name cu.cu_name, file_name) :: !implementations_defined
 
@@ -367,6 +303,11 @@ let output_debug_info oc =
     !debug_info;
   debug_info := []
 
+(* Output a list of strings with 0-termination *)
+
+let output_stringlist oc l =
+  List.iter (fun s -> output_string oc s; output_byte oc 0) l
+
 (* Transform a file name into an absolute file name *)
 
 let make_absolute file =
@@ -384,9 +325,7 @@ let link_bytecode ?final_name tolink exec_name standalone =
     | Link_object(file_name, _) when file_name = exec_name ->
       raise (Error (Wrong_object_name exec_name));
     | _ -> ()) tolink;
-  (* Remove the output file if it exists to avoid permission problems (PR#8354),
-     but don't risk removing a special file (PR#11302). *)
-  Misc.remove_file exec_name;
+  Misc.remove_file exec_name; (* avoid permission problems, cf PR#8354 *)
   let outperm = if !Clflags.with_runtime then 0o777 else 0o666 in
   let outchan =
     open_out_gen [Open_wronly; Open_trunc; Open_creat; Open_binary]
@@ -409,22 +348,22 @@ let link_bytecode ?final_name tolink exec_name standalone =
          | Not_found -> raise (Error (File_not_found header))
          | Sys_error msg -> raise (Error (Camlheader (header, msg)))
        end;
-       let toc_writer = Bytesections.init_record outchan in
+       Bytesections.init_record outchan;
        (* The path to the bytecode interpreter (in use_runtime mode) *)
        if String.length !Clflags.use_runtime > 0 && !Clflags.with_runtime then
        begin
          let runtime = make_absolute !Clflags.use_runtime in
          let runtime =
            (* shebang mustn't exceed 128 including the #! and \0 *)
-           if String.length runtime > 125 || String.contains runtime ' ' then
+           if String.length runtime > 125 then
              "/bin/sh\n\
-              exec " ^ Filename.quote runtime ^ " \"$0\" \"$@\""
+              exec \"" ^ runtime ^ "\" \"$0\" \"$@\""
            else
              runtime
          in
          output_string outchan runtime;
          output_char outchan '\n';
-         Bytesections.record toc_writer Bytesections.Name.RNTM
+         Bytesections.record outchan "RNTM"
        end;
        (* The bytecode *)
        let start_code = pos_out outchan in
@@ -446,45 +385,37 @@ let link_bytecode ?final_name tolink exec_name standalone =
        (* The final STOP instruction *)
        output_byte outchan Opcodes.opSTOP;
        output_byte outchan 0; output_byte outchan 0; output_byte outchan 0;
-       Bytesections.record toc_writer CODE;
+       Bytesections.record outchan "CODE";
        (* DLL stuff *)
        if standalone then begin
          (* The extra search path for DLLs *)
-         output_string outchan (concat_null_terminated !Clflags.dllpaths);
-         Bytesections.record toc_writer DLPT;
+         output_stringlist outchan !Clflags.dllpaths;
+         Bytesections.record outchan "DLPT";
          (* The names of the DLLs *)
-         output_string outchan (concat_null_terminated sharedobjs);
-         Bytesections.record toc_writer DLLS
+         output_stringlist outchan sharedobjs;
+         Bytesections.record outchan "DLLS"
        end;
        (* The names of all primitives *)
        Symtable.output_primitive_names outchan;
-       Bytesections.record toc_writer PRIM;
+       Bytesections.record outchan "PRIM";
        (* The table of global data *)
        Emitcode.marshal_to_channel_with_possibly_32bit_compat
          ~filename:final_name ~kind:"bytecode executable"
          outchan (Symtable.initial_global_table());
-       Bytesections.record toc_writer DATA;
+       Bytesections.record outchan "DATA";
        (* The map of global identifiers *)
        Symtable.output_global_map outchan;
-       Bytesections.record toc_writer SYMB;
+       Bytesections.record outchan "SYMB";
        (* CRCs for modules *)
-<<<<<<< HEAD
        output_value outchan ((extract_crc_interfaces() |> Array.of_list));
        Bytesections.record outchan "CRCS";
-||||||| merged common ancestors
-       output_value outchan (extract_crc_interfaces());
-       Bytesections.record outchan "CRCS";
-=======
-       output_value outchan (extract_crc_interfaces());
-       Bytesections.record toc_writer CRCS;
->>>>>>> ocaml/5.1
        (* Debug info *)
        if !Clflags.debug then begin
          output_debug_info outchan;
-         Bytesections.record toc_writer DBUG
+         Bytesections.record outchan "DBUG"
        end;
        (* The table of contents and the trailer *)
-       Bytesections.write_toc_and_trailer toc_writer;
+       Bytesections.write_toc_and_trailer outchan;
     )
 
 (* Output a string as a C array of unsigned ints *)
@@ -532,25 +463,18 @@ let output_cds_file outfile =
     ~always:(fun () -> close_out outchan)
     ~exceptionally:(fun () -> remove_file outfile)
     (fun () ->
-       let toc_writer = Bytesections.init_record outchan in
+       Bytesections.init_record outchan;
        (* The map of global identifiers *)
        Symtable.output_global_map outchan;
-       Bytesections.record toc_writer SYMB;
+       Bytesections.record outchan "SYMB";
        (* Debug info *)
        output_debug_info outchan;
-       Bytesections.record toc_writer DBUG;
+       Bytesections.record outchan "DBUG";
        (* The table of contents and the trailer *)
-       Bytesections.write_toc_and_trailer toc_writer;
+       Bytesections.write_toc_and_trailer outchan;
     )
 
 (* Output a bytecode executable as a C file *)
-
-(* Primitives declared in the included headers but re-declared in the
-   primitives table need to be guarded and not declared twice. *)
-let guarded_primitives = [
-    "caml_get_public_method", "caml__get_public_method";
-    "caml_set_oo_id", "caml__set_oo_id";
-  ]
 
 let link_bytecode_as_c tolink outfile with_main =
   let outchan = open_out outfile in
@@ -565,17 +489,12 @@ let link_bytecode_as_c tolink outfile with_main =
 \n\
 \n#ifdef __cplusplus\
 \nextern \"C\" {\
-\n#endif";
-       List.iter (fun (f, f') -> Printf.fprintf outchan "\n#define %s %s" f f')
-         guarded_primitives;
-       output_string outchan "\
+\n#endif\
 \n#include <caml/mlvalues.h>\
 \n#include <caml/startup.h>\
 \n#include <caml/sys.h>\
 \n#include <caml/misc.h>\n";
-       List.iter (fun (f, _) -> Printf.fprintf outchan "\n#undef %s" f)
-         guarded_primitives;
-       output_string outchan "\nstatic int caml_code[] = {\n";
+       output_string outchan "static int caml_code[] = {\n";
        Symtable.init();
        clear_crc_interfaces ();
        let currpos = ref 0 in
@@ -592,26 +511,10 @@ let link_bytecode_as_c tolink outfile with_main =
          (Marshal.to_string (Symtable.initial_global_table()) []);
        output_string outchan "\n};\n\n";
        (* The sections *)
-<<<<<<< HEAD
        let sections =
          [ "SYMB", Symtable.data_global_map();
            "PRIM", Obj.repr(Symtable.data_primitive_names());
            "CRCS", Obj.repr(extract_crc_interfaces() |> Array.of_list) ] in
-||||||| merged common ancestors
-       let sections =
-         [ "SYMB", Symtable.data_global_map();
-           "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces()) ] in
-=======
-       let sections : (string * Obj.t) list =
-         [ Bytesections.Name.to_string SYMB,
-           Symtable.data_global_map();
-           Bytesections.Name.to_string PRIM,
-           Obj.repr(Symtable.data_primitive_names());
-           Bytesections.Name.to_string CRCS,
-           Obj.repr(extract_crc_interfaces()) ]
-       in
->>>>>>> ocaml/5.1
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
          (Marshal.to_string sections []);
@@ -733,15 +636,18 @@ let link objfiles output_name =
     | _                  -> "stdlib.cma" :: objfiles @ ["std_exit.cmo"]
   in
   let tolink = List.fold_right scan_file objfiles [] in
+  let missing_modules =
+    Ident.Map.filter (fun id _ -> not (Ident.is_predef id)) !missing_globals
+  in
   begin
-    match Ident.Map.bindings !missing_globals with
+    match Ident.Map.bindings missing_modules with
     | [] -> ()
     | (id, cu_name) :: _ ->
-        if DepSet.is_empty !badly_ordered_dependencies
-        then
+        match !badly_ordered_dependencies with
+        | [] ->
             raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
-        else
-            raise (Error (Wrong_link_order !badly_ordered_dependencies))
+        | l ->
+            raise (Error (Wrong_link_order l))
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
@@ -879,20 +785,12 @@ let report_error ppf = function
         Compilation_unit.print m
   | Camlheader (msg, header) ->
       fprintf ppf "System error while copying file %s: %s" header msg
-  | Wrong_link_order depset ->
-      let l = DepSet.elements depset in
+  | Wrong_link_order l ->
       let depends_on ppf (dep, depending) =
         fprintf ppf "%s depends on %s" depending dep
       in
       fprintf ppf "@[<hov 2>Wrong link order: %a@]"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") depends_on) l
-  | Multiple_definition(modname, file1, file2) ->
-      fprintf ppf
-        "@[<hov>Files %a@ and %a@ both define a module named %s@]"
-        Location.print_filename file1
-        Location.print_filename file2
-        modname
-
 
 let () =
   Location.register_error_of_exn

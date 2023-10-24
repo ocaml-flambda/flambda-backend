@@ -12,20 +12,36 @@
 ;*                                                                        *
 ;**************************************************************************
 
+;; We're just reusing the stuff from boot/ here.
+;; One could add a dune file in boot/menhir/ with the appropriate rules if we
+;; want to regenerate the parser while building with dune, but it doesn't seem
+;; essential right now.
+
 (rule
  (targets camlinternalMenhirLib.ml)
- (action
-  (with-stdout-to %{targets}
-   ;; Partial applications of the form Obj.magic f x in menhirLib cause
-   ;; an issue with locals, so rewrite these to Obj.magic (f x)
-   (bash "cat $(menhir --suggest-menhirLib)/menhirLib.ml |
-          sed 's/\\b\\(in\\|then\\|with\\|else\\)\\b/@@@\\1/g; s/Obj.magic \\([a-z0-9_]\\+\\( [a-z0-9_]\\+\\)\\+\\)/Obj.magic (\\1)/g;  s/@@@//g'"))))
+ (mode    fallback)
+ (action  (copy# ../boot/menhir/menhirLib.ml %{targets})))
 
 (rule
  (targets camlinternalMenhirLib.mli)
+ (mode    fallback)
+ (action  (copy# ../boot/menhir/menhirLib.mli %{targets})))
+
+(rule
+ (targets parser.ml)
+ (mode    fallback)
+ (deps    (:dep ../boot/menhir/parser.ml))
  (action
-  (with-stdout-to %{targets}
-   (bash "cat $(menhir --suggest-menhirLib)/menhirLib.mli"))))
+   (with-stdout-to %{targets}
+     (bash "cat %{dep} | sed 's/MenhirLib/CamlinternalMenhirLib/g'"))))
+
+(rule
+ (targets parser.mli)
+ (mode    fallback)
+ (deps    (:dep ../boot/menhir/parser.mli))
+ (action
+   (with-stdout-to %{targets}
+     (bash "cat %{dep} | sed 's/MenhirLib/CamlinternalMenhirLib/g'"))))
 
 (ocamllex
  (modules lexer)

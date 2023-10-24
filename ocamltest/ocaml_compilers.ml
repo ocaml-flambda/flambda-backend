@@ -40,30 +40,10 @@ class compiler
   method target = target
 
   method program_variable =
-<<<<<<< HEAD
     Builtin_variables.program
-||||||| merged common ancestors
-    if Ocaml_backends.is_native host
-    then Builtin_variables.program2
-    else Builtin_variables.program
-=======
-    if Ocaml_backends.is_native host && not Sys.win32
-    then Builtin_variables.program2
-    else Builtin_variables.program
->>>>>>> ocaml/5.1
 
   method program_output_variable =
-<<<<<<< HEAD
     Some Builtin_variables.output
-||||||| merged common ancestors
-    if Ocaml_backends.is_native host
-    then None
-    else Some Builtin_variables.output
-=======
-    if Ocaml_backends.is_native host && not Sys.win32
-    then None
-    else Some Builtin_variables.output
->>>>>>> ocaml/5.1
 
   method ! reference_file env prefix =
     let default = tool#reference_file env prefix in

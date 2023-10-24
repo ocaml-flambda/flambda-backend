@@ -117,22 +117,10 @@ let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall(lbl, _ty_res, _ty_args, _alloc) ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
-<<<<<<< HEAD
   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
   | Calloc Alloc_heap -> "alloc" ^ location d
   | Calloc Alloc_local -> "alloc_local" ^ location d
-||||||| merged common ancestors
-  | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
-  | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
-  | Calloc -> "alloc" ^ location d
-=======
-  | Cload {memory_chunk; mutability} -> (
-    match mutability with
-    | Asttypes.Immutable -> Printf.sprintf "load %s" (chunk memory_chunk)
-    | Asttypes.Mutable   -> Printf.sprintf "load_mut %s" (chunk memory_chunk))
-  | Calloc -> "alloc" ^ location d
->>>>>>> ocaml/5.1
   | Cstore (c, init) ->
     let init =
       match init with
@@ -171,13 +159,8 @@ let operation d = function
     Printf.sprintf "probe[%s %s]" name handler_code_sym
   | Cprobe_is_enabled {name} -> Printf.sprintf "probe_is_enabled[%s]" name
   | Copaque -> "opaque"
-<<<<<<< HEAD
   | Cbeginregion -> "beginregion"
   | Cendregion -> "endregion"
-||||||| merged common ancestors
-=======
-  | Cdls_get -> "dls_get"
->>>>>>> ocaml/5.1
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

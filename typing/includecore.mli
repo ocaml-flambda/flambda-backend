@@ -48,14 +48,6 @@ type privacy_mismatch =
 
 type locality_mismatch = { order : position }
 
-type type_kind =
-  | Kind_abstract
-  | Kind_record
-  | Kind_variant
-  | Kind_open
-
-type kind_mismatch = type_kind * type_kind
-
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
@@ -102,7 +94,7 @@ type private_object_mismatch =
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
-  | Kind of kind_mismatch
+  | Kind
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
   | Private_variant of type_expr * type_expr * private_variant_mismatch

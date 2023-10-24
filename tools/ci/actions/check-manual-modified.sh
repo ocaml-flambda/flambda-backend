@@ -31,5 +31,4 @@ else
   fi
 fi
 
-echo "Manual altered: $result"
-echo "manual_changed=$result" >>"$GITHUB_OUTPUT"
+echo "::set-output name=changed::$result"

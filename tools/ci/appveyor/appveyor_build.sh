@@ -53,76 +53,55 @@ function set_configuration {
     case "$1" in
         cygwin*)
             dep='--disable-dependency-generation'
-            man=''
         ;;
         mingw32)
             build='--build=i686-pc-cygwin'
             host='--host=i686-w64-mingw32'
             dep='--disable-dependency-generation'
-            man=''
         ;;
         mingw64)
             build='--build=i686-pc-cygwin'
             host='--host=x86_64-w64-mingw32'
             dep='--disable-dependency-generation'
-            man='--disable-stdlib-manpages'
         ;;
         msvc32)
             build='--build=i686-pc-cygwin'
             host='--host=i686-pc-windows'
             dep='--disable-dependency-generation'
-            man=''
         ;;
         msvc64)
             build='--build=x86_64-pc-cygwin'
             host='--host=x86_64-pc-windows'
             # Explicitly test dependency generation on msvc64
             dep='--enable-dependency-generation'
-            man=''
         ;;
     esac
 
     mkdir -p "$CACHE_DIRECTORY"
     ./configure --cache-file="$CACHE_DIRECTORY/config.cache-$1" \
-                $dep $build $man $host --prefix="$2" --enable-ocamltest || ( \
+                $dep $build $host --prefix="$2" --enable-ocamltest || ( \
       rm -f "$CACHE_DIRECTORY/config.cache-$1" ; \
       ./configure --cache-file="$CACHE_DIRECTORY/config.cache-$1" \
-                  $dep $build $man $host --prefix="$2" --enable-ocamltest )
+                  $dep $build $host --prefix="$2" --enable-ocamltest )
 
 #    FILE=$(pwd | cygpath -f - -m)/Makefile.config
 #    run "Content of $FILE" cat Makefile.config
 }
 
-PARALLEL_URL='https://git.savannah.gnu.org/cgit/parallel.git/plain/src/parallel'
 APPVEYOR_BUILD_FOLDER=$(echo "$APPVEYOR_BUILD_FOLDER" | cygpath -f -)
 FLEXDLLROOT="$PROGRAMFILES/flexdll"
 OCAMLROOT=$(echo "$OCAMLROOT" | cygpath -f - -m)
 
 if [[ $BOOTSTRAP_FLEXDLL = 'false' ]] ; then
   case "$PORT" in
-    cygwin*)
-      install_flexdll='false';;
-    *)
-      export PATH="$FLEXDLLROOT:$PATH"
-      install_flexdll='true';;
+    cygwin*) ;;
+    *) export PATH="$FLEXDLLROOT:$PATH";;
   esac
-else
-  install_flexdll='false'
 fi
 
 case "$1" in
   install)
-    mkdir -p "$CACHE_DIRECTORY"
-    if [ ! -e "$CACHE_DIRECTORY/parallel-source" ] || \
-       [ "$PARALLEL_URL" != "$(cat "$CACHE_DIRECTORY/parallel-source")" ] ; then
-      # Download latest version directly from the repo
-      curl -Ls $PARALLEL_URL -o "$CACHE_DIRECTORY/parallel"
-      echo "$PARALLEL_URL" > "$CACHE_DIRECTORY/parallel-source"
-    fi
-    cp "$CACHE_DIRECTORY/parallel" /usr/bin
-    chmod +x /usr/bin/parallel
-    parallel --version
-    if [[ $install_flexdll = 'true' ]] ; then
+    if [[ $BOOTSTRAP_FLEXDLL = 'false' ]] ; then
       mkdir -p "$FLEXDLLROOT"
       cd "$APPVEYOR_BUILD_FOLDER/../flexdll"
       # The objects are always built from the sources
@@ -140,23 +119,17 @@ case "$1" in
   test)
     FULL_BUILD_PREFIX="$APPVEYOR_BUILD_FOLDER/../$BUILD_PREFIX"
     run 'ocamlc.opt -version' "$FULL_BUILD_PREFIX-$PORT/ocamlc.opt" -version
-    if [[ $PORT =~ mingw* ]] ; then
+    if [[ $PORT = 'mingw32' ]] ; then
       run "Check runtime symbols" \
           "$FULL_BUILD_PREFIX-$PORT/tools/check-symbol-names" \
-          $FULL_BUILD_PREFIX-$PORT/runtime/*.a \
-          $FULL_BUILD_PREFIX-$PORT/otherlibs/*/lib*.a
+          $FULL_BUILD_PREFIX-$PORT/runtime/*.a
     fi
-    # The testsuite is too slow to run on AppVeyor in full. Run the dynlink
-    # tests now (to include natdynlink)
-    run "test dynlink $PORT" \
-        $MAKE -C "$FULL_BUILD_PREFIX-$PORT/testsuite" parallel-lib-dynlink
-    # Now reconfigure ocamltest to run in bytecode-only mode
-    sed -i '/native_/s/true/false/' \
-           "$FULL_BUILD_PREFIX-$PORT/ocamltest/ocamltest_config.ml"
-    $MAKE -C "$FULL_BUILD_PREFIX-$PORT/ocamltest" -j all allopt
-    # And run the entire testsuite, skipping all the native-code tests
-    run "test $PORT" \
-        make -C "$FULL_BUILD_PREFIX-$PORT/testsuite" SHOW_TIMINGS=1 all
+    if [[ $PORT = 'mingw64' ]] ; then
+      export PATH="$PATH:/usr/x86_64-w64-mingw32/sys-root/mingw/bin"
+    elif [[ $PORT = 'mingw32' ]] ; then
+      export PATH="$PATH:/usr/i686-w64-mingw32/sys-root/mingw/bin"
+    fi
+    run "test $PORT" $MAKE -C "$FULL_BUILD_PREFIX-$PORT" tests
     run "install $PORT" $MAKE -C "$FULL_BUILD_PREFIX-$PORT" install
     if [[ $PORT = 'msvc64' ]] ; then
       run "$MAKE check_all_arches" \
@@ -186,7 +159,7 @@ case "$1" in
       run "$MAKE distclean" $MAKE distclean
     fi
 
-    if [[ $install_flexdll = 'true' ]] ; then
+    if [[ $BOOTSTRAP_FLEXDLL = 'false' ]] ; then
       tar -xzf "$APPVEYOR_BUILD_FOLDER/flexdll.tar.gz"
       cd "flexdll-$FLEXDLL_VERSION"
       $MAKE MSVC_DETECT=0 CHAINS=${PORT%32} support

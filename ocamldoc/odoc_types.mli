@@ -79,8 +79,6 @@ type param = (string * text)
 (** Raised exception name and description. *)
 type raised_exception = (string * text)
 
-type alert = { alert_name : string; alert_payload : string option }
-
 (** Information in a special comment. *)
 type info = {
     i_desc : text option; (** The description text. *)
@@ -94,7 +92,6 @@ type info = {
     i_raised_exceptions : raised_exception list; (** The list of raised exceptions. *)
     i_return_value : text option ; (** The description text of the return value. *)
     i_custom : (string * text) list ; (** A text associated to a custom @-tag. *)
-    i_alerts : alert list ; (** Alerts associated to the same item. Not from special comments. *)
   }
 
 (** An empty info structure. *)

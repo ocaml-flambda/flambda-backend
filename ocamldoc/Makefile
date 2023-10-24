@@ -18,12 +18,18 @@ ROOTDIR = ..
 include $(ROOTDIR)/Makefile.common
 include $(ROOTDIR)/Makefile.best_binaries
 
+OCAMLYACCFLAGS = --strict -v
+
+STDLIBFLAGS = -nostdlib -I $(ROOTDIR)/stdlib
 OCAMLC = $(BEST_OCAMLC) $(STDLIBFLAGS)
 OCAMLOPT = $(BEST_OCAMLOPT) $(STDLIBFLAGS)
+OCAMLDEP = $(BEST_OCAMLDEP)
+DEPFLAGS = -slash
 
 # For installation
 ##############
 
+CP=cp
 programs := ocamldoc ocamldoc.opt
 include Makefile.best_ocamldoc
 
@@ -32,10 +38,7 @@ OCAMLDOC_LIBCMI=odoc_info.cmi
 OCAMLDOC_LIBCMXA=odoc_info.cmxa
 OCAMLDOC_LIBA=odoc_info.$(A)
 
-OCAMLDOC_LIBMLIS=$(addsuffix .mli,\
-  odoc_dep odoc_dot odoc_extension odoc_html odoc_info odoc_latex \
-  odoc_latex_style odoc_man odoc_messages odoc_ocamlhtml odoc_parameter \
-  odoc_texi odoc_text_lexer odoc_to_text odoc_type odoc_value)
+OCAMLDOC_LIBMLIS=odoc_info.mli
 OCAMLDOC_LIBCMIS=$(OCAMLDOC_LIBMLIS:.mli=.cmi)
 OCAMLDOC_LIBCMTS=$(OCAMLDOC_LIBMLIS:.mli=.cmt) $(OCAMLDOC_LIBMLIS:.mli=.cmti)
 
@@ -52,30 +55,29 @@ endif
 # Compilation
 #############
 
+INCLUDES_DEP=\
+  -I $(ROOTDIR)/utils \
+  -I $(ROOTDIR)/parsing \
+  -I $(ROOTDIR)/typing \
+  -I $(ROOTDIR)/driver \
+  -I $(ROOTDIR)/bytecomp \
+  -I $(ROOTDIR)/toplevel
 
-INCLUDE_DIRS = $(addprefix $(ROOTDIR)/,\
-  utils parsing typing driver bytecomp toplevel) generators
-INCLUDES_DEP = $(addprefix -I ,$(INCLUDE_DIRS))
-INCLUDES_NODEP = $(addprefix -I $(ROOTDIR)/,\
-  compilerlibs otherlibs/str otherlibs/dynlink \
-  otherlibs/dynlink/native otherlibs/unix)
+INCLUDES_NODEP=\
+  -I $(ROOTDIR)/stdlib \
+  -I $(ROOTDIR)/compilerlibs \
+  -I $(ROOTDIR)/otherlibs/str \
+  -I $(ROOTDIR)/otherlibs/dynlink \
+  -I $(ROOTDIR)/otherlibs/dynlink/native \
+  -I $(ROOTDIR)/otherlibs/$(UNIXLIB)
 
-OC_OCAMLDEPDIRS = $(INCLUDE_DIRS)
+DEPINCLUDES=$(INCLUDES_DEP)
 INCLUDES=$(INCLUDES_DEP) $(INCLUDES_NODEP)
 
-<<<<<<< HEAD
 COMPFLAGS=$(INCLUDES) -absname -w +a-4-9-40-41-42-44-45-48-70 -warn-error +A \
   -safe-string -strict-sequence -strict-formats -bin-annot -principal
-||||||| merged common ancestors
-COMPFLAGS=$(INCLUDES) -absname -w +a-4-9-41-42-44-45-48-70 -warn-error +A \
-  -safe-string -strict-sequence -strict-formats -bin-annot -principal
-=======
-COMPFLAGS = \
-  -g $(INCLUDES) -absname -w +a-4-9-41-42-44-45-48 -warn-error +A \
-  -strict-sequence -strict-formats -bin-annot -principal
->>>>>>> ocaml/5.1
 
-LINKFLAGS = $(INCLUDES)
+LINKFLAGS=$(INCLUDES) -nostdlib
 
 CMOFILES=\
   odoc_config.cmo \
@@ -104,6 +106,8 @@ CMOFILES=\
   odoc_merge.cmo \
   odoc_sig.cmo \
   odoc_ast.cmo \
+  odoc_control.cmo \
+  odoc_inherit.cmo \
   odoc_search.cmo \
   odoc_scan.cmo \
   odoc_cross.cmo \
@@ -170,18 +174,18 @@ OCAMLDOC_NCLIBRARIES = $(OCAMLDOC_LIBRARIES:%=%.cmxa)
 $(eval $(call PROGRAM_SYNONYM,ocamldoc))
 
 $(OCAMLDOC): $(EXECMOFILES)
-	$(V_LINKC)$(OCAMLC) -o $@ -linkall $(LINKFLAGS) $(OCAMLDOC_BCLIBRARIES) $^
+	$(OCAMLC) -o $@ -linkall $(LINKFLAGS) $(OCAMLDOC_BCLIBRARIES) $^
 
 $(eval $(call PROGRAM_SYNONYM,ocamldoc.opt))
 
 $(OCAMLDOC_OPT): $(EXECMXFILES)
-	$(V_LINKOPT)$(OCAMLOPT_CMD) -o $@ -linkall $(LINKFLAGS) $(OCAMLDOC_NCLIBRARIES) $^
+	$(OCAMLOPT_CMD) -o $@ -linkall $(LINKFLAGS) $(OCAMLDOC_NCLIBRARIES) $^
 
 $(OCAMLDOC_LIBCMA): $(LIBCMOFILES)
-	$(V_LINKC)$(OCAMLC) -a -o $@ $(LINKFLAGS) $^
+	$(OCAMLC) -a -o $@ $(LINKFLAGS) $^
 
 $(OCAMLDOC_LIBCMXA): $(LIBCMXFILES)
-	$(V_LINKOPT)$(OCAMLOPT) -a -o $@ $(LINKFLAGS) $^
+	$(OCAMLOPT) -a -o $@ $(LINKFLAGS) $^
 
 .PHONY: dot
 dot: ocamldoc.dot
@@ -203,16 +207,16 @@ DEPEND_PREREQS = $(LEXERS:.mll=.ml) \
 #################
 
 %.cmo: %.ml
-	$(V_OCAMLC)$(OCAMLC) $(COMPFLAGS) -c $<
+	$(OCAMLC) $(COMPFLAGS) -c $<
 
 %.cmi: %.mli
-	$(V_OCAMLC)$(OCAMLC) $(COMPFLAGS) -c $<
+	$(OCAMLC)  $(COMPFLAGS) -c $<
 
 %.cmx: %.ml
-	$(V_OCAMLOPT)$(OCAMLOPT) $(COMPFLAGS) -c $<
+	$(OCAMLOPT) $(COMPFLAGS) -c $<
 
 %.cmxs: %.ml
-	$(V_OCAMLOPT)$(OCAMLOPT_CMD) -shared -o $@ $(COMPFLAGS) $<
+	$(OCAMLOPT_CMD) -shared -o $@ $(COMPFLAGS) $<
 
 # Installation targets
 ######################
@@ -226,7 +230,7 @@ install:
 	$(MKDIR) "$(INSTALL_LIBDIR)/ocamldoc"
 	$(INSTALL_PROG) $(OCAMLDOC) "$(INSTALL_BINDIR)"
 	$(INSTALL_DATA) \
-	  ocamldoc.hva *.cmi $(OCAMLDOC_LIBCMA) META \
+	  ocamldoc.hva *.cmi $(OCAMLDOC_LIBCMA) \
 	  "$(INSTALL_LIBDIR)/ocamldoc"
 	$(INSTALL_DATA) \
 	  $(OCAMLDOC_LIBCMIS) \
@@ -280,7 +284,7 @@ test_stdlib:
 	$(MKDIR) $@
 	$(OCAMLDOC_RUN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
 	$(ROOTDIR)/stdlib/*.mli \
-	$(ROOTDIR)/otherlibs/unix/unix.mli \
+	$(ROOTDIR)/otherlibs/$(UNIXLIB)/unix.mli \
 	$(ROOTDIR)/otherlibs/str/str.mli
 
 .PHONY: test_stdlib_code
@@ -288,7 +292,7 @@ test_stdlib_code:
 	$(MKDIR) $@
 	$(OCAMLDOC_RUN) -html -colorize-code -sort -d $@ $(INCLUDES) -dump $@/stdlib.odoc -keep-code \
 	`ls $(ROOTDIR)/stdlib/*.ml | grep -v Labels` \
-	$(ROOTDIR)/otherlibs/unix/unix.ml \
+	$(ROOTDIR)/otherlibs/$(UNIXLIB)/unix.ml \
 	$(ROOTDIR)/otherlibs/str/str.ml
 
 .PHONY: test_latex
@@ -304,7 +308,7 @@ test_latex_simple:
 	-latextitle 6,subsection -latextitle 7,subsubection \
 	$(ROOTDIR)/stdlib/hashtbl.mli \
 	$(ROOTDIR)/stdlib/arg.mli \
-	$(ROOTDIR)/otherlibs/unix/unix.mli \
+	$(ROOTDIR)/otherlibs/$(UNIXLIB)/unix.mli \
 	$(ROOTDIR)/stdlib/map.mli
 
 .PHONY: test_man
@@ -326,7 +330,7 @@ autotest_stdlib:
 	$(OCAMLDOC_RUN_PLUGINS) -g autotest/odoc_test.cmo\
 	$(INCLUDES) -keep-code \
 	$(ROOTDIR)/stdlib/*.mli \
-	$(ROOTDIR)/otherlibs/unix/unix.mli \
+	$(ROOTDIR)/otherlibs/$(UNIXLIB)/unix.mli \
 	$(ROOTDIR)/otherlibs/str/str.mli
 
 # backup, clean and depend :
@@ -341,15 +345,11 @@ clean:
 	rm -f odoc_lexer.ml odoc_text_lexer.ml odoc_see_lexer.ml odoc_ocamlhtml.ml
 	rm -f odoc_parser.ml odoc_parser.mli odoc_text_parser.ml odoc_text_parser.mli
 	rm -f generators/*.cm[taiox] generators/*.a generators/*.lib generators/*.o generators/*.obj \
-        generators/*.cmx[as] generators/*.cmti
-
-.PHONY: distclean
-distclean: clean
-	rm -f META
+        generators/*.cmx[as]
 
 .PHONY: depend
 depend: $(DEPEND_PREREQS)
-	$(OCAMLDEP_CMD) *.mll *.mly *.ml *.mli > .depend
-	$(OCAMLDEP_CMD) -shared generators/*.ml generators/*.mli >> .depend
+	$(OCAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) *.mll *.mly *.ml *.mli > .depend
+	$(OCAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) -shared generators/*.ml >> .depend
 
 include .depend

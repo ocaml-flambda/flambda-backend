@@ -50,10 +50,6 @@ let is_poll_attribute =
 let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
-let is_poll_attribute = function
-  | {txt=("poll")} -> true
-  | _ -> false
-
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
   let attr =
@@ -249,7 +245,6 @@ let parse_local_attribute attr =
         ]
         payload
 
-<<<<<<< HEAD
 let parse_property_attribute attr property =
   match attr with
   | None -> Default_check
@@ -293,18 +288,6 @@ let parse_loop_attribute attr =
         [
           "never", Never_loop;
           "always", Always_loop;
-||||||| merged common ancestors
-=======
-let parse_poll_attribute attr =
-  match attr with
-  | None -> Default_poll
-  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
-      parse_id_payload txt loc
-        ~default:Default_poll
-        ~empty:Default_poll
-        [
-          "error", Error_poll;
->>>>>>> ocaml/5.1
         ]
         payload
 
@@ -320,7 +303,6 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
-<<<<<<< HEAD
 let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
@@ -345,12 +327,6 @@ let get_poll_attribute l =
 let get_loop_attribute l =
   let attr = find_attribute is_loop_attribute l in
   parse_loop_attribute attr
-||||||| merged common ancestors
-=======
-let get_poll_attribute l =
-  let attr, _ = find_attribute is_poll_attribute l in
-  parse_poll_attribute attr
->>>>>>> ocaml/5.1
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
@@ -362,59 +338,7 @@ let check_local_inline loc attr =
 
 let check_poll_inline loc attr =
   match attr.poll, attr.inline with
-<<<<<<< HEAD
   | Error_poll, (Always_inline | Available_inline | Unroll _) ->
-||||||| merged common ancestors
-let add_inline_attribute expr loc attributes =
-  match expr, get_inline_attribute attributes with
-  | expr, Default_inline -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), inline ->
-      begin match attr.inline with
-      | Default_inline -> ()
-      | Always_inline | Hint_inline | Never_inline | Unroll _ ->
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "inline")
-      end;
-      let attr = { attr with inline } in
-      check_local_inline loc attr;
-      Lfunction { funct with attr = attr }
-  | expr, (Always_inline | Hint_inline | Never_inline | Unroll _) ->
-=======
-  | Error_poll, (Always_inline | Hint_inline | Unroll _) ->
-      Location.prerr_warning loc
-        (Warnings.Inlining_impossible
-          "[@poll error] is incompatible with inlining")
-  | _ ->
-      ()
-
-let check_poll_local loc attr =
-  match attr.poll, attr.local with
-  | Error_poll, Always_local ->
-      Location.prerr_warning loc
-        (Warnings.Inlining_impossible
-          "[@poll error] is incompatible with local function optimization")
-  | _ ->
-      ()
-
-let lfunction_with_attr ~attr { kind; params; return; body; attr=_; loc } =
-  lfunction ~kind ~params ~return ~body ~attr ~loc
-
-let add_inline_attribute expr loc attributes =
-  match expr, get_inline_attribute attributes with
-  | expr, Default_inline -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), inline ->
-      begin match attr.inline with
-      | Default_inline -> ()
-      | Always_inline | Hint_inline | Never_inline | Unroll _ ->
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "inline")
-      end;
-      let attr = { attr with inline } in
-      check_local_inline loc attr;
-      check_poll_inline loc attr;
-      lfunction_with_attr ~attr funct
-  | expr, (Always_inline | Hint_inline | Never_inline | Unroll _) ->
->>>>>>> ocaml/5.1
       Location.prerr_warning loc
         (Warnings.Inlining_impossible
           "[@poll error] is incompatible with inlining")
@@ -468,21 +392,8 @@ let add_specialise_attribute expr loc attributes =
       end;
       let attr = { attr with specialise } in
       lfunction_with_attr ~attr funct
-<<<<<<< HEAD
     end
   | _ -> expr
-||||||| merged common ancestors
-      Lfunction { funct with attr }
-  | expr, (Always_specialise | Never_specialise) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "specialise");
-      expr
-=======
-  | expr, (Always_specialise | Never_specialise) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "specialise");
-      expr
->>>>>>> ocaml/5.1
 
 let add_local_attribute expr loc attributes =
   match expr with
@@ -500,7 +411,6 @@ let add_local_attribute expr loc attributes =
       check_local_inline loc attr;
       check_poll_local loc attr;
       lfunction_with_attr ~attr funct
-<<<<<<< HEAD
     end
   | _ -> expr
 
@@ -573,18 +483,6 @@ let add_loop_attribute expr loc attributes =
       lfunction_with_attr ~attr funct
     end
   | _ -> expr
-||||||| merged common ancestors
-      Lfunction { funct with attr }
-  | expr, (Always_local | Never_local) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "local");
-      expr
-=======
-  | expr, (Always_local | Never_local) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "local");
-      expr
->>>>>>> ocaml/5.1
 
 let add_tmc_attribute expr loc attributes =
   match expr with
@@ -598,28 +496,10 @@ let add_tmc_attribute expr loc attributes =
               (Warnings.Duplicated_attribute "tail_mod_cons");
         let attr = { funct.attr with tmc_candidate = true } in
         lfunction_with_attr ~attr funct
-<<<<<<< HEAD
      end
   | _ -> expr
-||||||| merged common ancestors
-        Lfunction { funct with attr }
-    | expr ->
-        Location.prerr_warning loc
-          (Warnings.Misplaced_attribute "tail_mod_cons");
-        expr
-  else
-    expr
-=======
-    | expr ->
-        Location.prerr_warning loc
-          (Warnings.Misplaced_attribute "tail_mod_cons");
-        expr
-  else
-    expr
->>>>>>> ocaml/5.1
 
 let add_poll_attribute expr loc attributes =
-<<<<<<< HEAD
   match expr with
   | Lfunction({ attr = { stub = false } as attr } as funct) ->
     begin match get_poll_attribute attributes with
@@ -638,50 +518,6 @@ let add_poll_attribute expr loc attributes =
       lfunction_with_attr ~attr funct
     end
   | expr -> expr
-||||||| merged common ancestors
-(* Get the [@inlined] attribute payload (or default if not present).
-   It also returns the expression without this attribute. This is
-   used to ensure that this attribute is not misplaced: If it
-   appears on any expression, it is an error, otherwise it would
-   have been removed by this function *)
-let get_and_remove_inlined_attribute e =
-  let attr, exp_attributes =
-    find_attribute is_inlined_attribute e.exp_attributes
-  in
-  let inlined = parse_inline_attribute attr in
-  inlined, { e with exp_attributes }
-=======
-  match expr, get_poll_attribute attributes with
-  | expr, Default_poll -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), poll ->
-      begin match attr.poll with
-      | Default_poll -> ()
-      | Error_poll ->
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "error_poll")
-      end;
-      let attr = { attr with poll } in
-      check_poll_inline loc attr;
-      check_poll_local loc attr;
-      let attr = { attr with inline = Never_inline; local = Never_local } in
-      lfunction_with_attr ~attr funct
-  | expr, Error_poll ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "error_poll");
-      expr
-
-(* Get the [@inlined] attribute payload (or default if not present).
-   It also returns the expression without this attribute. This is
-   used to ensure that this attribute is not misplaced: If it
-   appears on any expression, it is an error, otherwise it would
-   have been removed by this function *)
-let get_and_remove_inlined_attribute e =
-  let attr, exp_attributes =
-    find_attribute is_inlined_attribute e.exp_attributes
-  in
-  let inlined = parse_inline_attribute attr in
-  inlined, { e with exp_attributes }
->>>>>>> ocaml/5.1
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
@@ -711,7 +547,6 @@ let get_specialised_attribute e =
   parse_specialise_attribute attr
 
 let get_tailcall_attribute e =
-<<<<<<< HEAD
   let attr = find_attribute is_tailcall_attribute e.exp_attributes in
   match attr with
   | None -> Default_tailcall
@@ -723,124 +558,6 @@ let get_tailcall_attribute e =
         let msg = "Only an optional boolean literal is supported." in
         Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
         Default_tailcall
-||||||| merged common ancestors
-  let is_tailcall_attribute = function
-    | {Parsetree.attr_name = {txt=("tailcall"|"ocaml.tailcall")}; _} -> true
-    | _ -> false
-  in
-  let tailcalls, other_attributes =
-    List.partition is_tailcall_attribute e.exp_attributes
-  in
-  let tailcall_attribute = match tailcalls with
-    | [] -> Default_tailcall
-    | {Parsetree.attr_name = {txt; loc}; attr_payload = payload} :: r ->
-        begin match r with
-        | [] -> ()
-        | {Parsetree.attr_name = {txt;loc}; _} :: _ ->
-            Location.prerr_warning loc (Warnings.Duplicated_attribute txt)
-        end;
-        match get_optional_payload get_bool_from_exp payload with
-        | Ok (None | Some true) -> Tailcall_expectation true
-        | Ok (Some false) -> Tailcall_expectation false
-        | Error () ->
-            let msg = "Only an optional boolean literal is supported." in
-            Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-            Default_tailcall
-      in
-      tailcall_attribute, { e with exp_attributes = other_attributes }
-
-let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline"
-  | "specialise" | "ocaml.specialise" -> begin
-      match e.exp_desc with
-      | Texp_function _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined"
-  | "specialised" | "ocaml.specialised"
-  | "tailcall" | "ocaml.tailcall" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
-
-let check_attribute_on_module e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline" ->  begin
-      match e.mod_desc with
-      | Tmod_functor _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
-=======
-  let is_tailcall_attribute = function
-    | {Parsetree.attr_name = {txt=("tailcall"|"ocaml.tailcall")}; _} -> true
-    | _ -> false
-  in
-  let tailcalls, other_attributes =
-    List.partition is_tailcall_attribute e.exp_attributes
-  in
-  let tailcall_attribute = match tailcalls with
-    | [] -> Default_tailcall
-    | {Parsetree.attr_name = {txt; loc}; attr_payload = payload} :: r ->
-        begin match r with
-        | [] -> ()
-        | {Parsetree.attr_name = {txt;loc}; _} :: _ ->
-            Location.prerr_warning loc (Warnings.Duplicated_attribute txt)
-        end;
-        match get_optional_payload get_bool_from_exp payload with
-        | Ok (None | Some true) -> Tailcall_expectation true
-        | Ok (Some false) -> Tailcall_expectation false
-        | Error () ->
-            let msg = "Only an optional boolean literal is supported." in
-            Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-            Default_tailcall
-      in
-      tailcall_attribute, { e with exp_attributes = other_attributes }
-
-let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline"
-  | "specialise" | "ocaml.specialise"
-  | "poll" -> begin
-      match e.exp_desc with
-      | Texp_function _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined"
-  | "specialised" | "ocaml.specialised"
-  | "tailcall" | "ocaml.tailcall" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
-
-let check_attribute_on_module e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline" ->  begin
-      match e.mod_desc with
-      | Tmod_functor _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
->>>>>>> ocaml/5.1
 
 let add_function_attributes lam loc attr =
   let lam =
