@@ -1085,7 +1085,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Simple.const (Reg_width_const.tagged_immediate (Targetint_31_63.of_int n))
     in
     [Binary (Int_arith (I.Tagged_immediate, Add), arg, Simple const)]
-  | Pfield (index, sem), [[arg]] ->
+  | Pfield (index, _int_or_ptr, sem), [[arg]] ->
+    (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Pfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
@@ -1234,8 +1235,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       [ Simple
           (Simple.const_int
              (Targetint_31_63.of_int
-                ((1 lsl ((8 * size_int) - (10 + Config.profinfo_width))) - 1)))
-      ]
+                ((1 lsl ((8 * size_int) - (10 + Config.reserved_header_bits)))
+                - 1))) ]
     | Ostype_unix -> [Simple (Simple.const_bool (Sys.os_type = "Unix"))]
     | Ostype_win32 -> [Simple (Simple.const_bool (Sys.os_type = "Win32"))]
     | Ostype_cygwin -> [Simple (Simple.const_bool (Sys.os_type = "Cygwin"))]
@@ -1490,6 +1491,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
+      Printlambda.primitive prim
+  | ( ( Prunstack | Pperform | Presume | Preperform | Patomic_exchange
+      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ),
+      _ ) ->
+    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc

@@ -102,12 +102,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_char c) ->
     acc, Tagged_immediate (Targetint_31_63.of_char c), "char"
   | Const_base (Const_string (s, _, _)) ->
-    let const, name =
-      if Flambda_features.safe_string ()
-      then SC.immutable_string s, "immstring"
-      else SC.mutable_string ~initial_value:s, "string"
-    in
-    register_const acc const name
+    register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
@@ -771,7 +766,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
       | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _ ->
+      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _
+      | Prunstack | Pperform | Presume | Preperform | Patomic_exchange
+      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
         (* Inconsistent with outer match *)
         assert false
     in

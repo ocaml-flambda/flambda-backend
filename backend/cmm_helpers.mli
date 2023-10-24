@@ -90,8 +90,6 @@ val min_repr_int : int
 (** Make an integer constant from the given integer (tags the integer) *)
 val int_const : Debuginfo.t -> int -> expression
 
-val natint_const_untagged : Debuginfo.t -> nativeint -> expression
-
 val cint_const : int -> data_item
 
 val targetint_const : int -> Targetint.t

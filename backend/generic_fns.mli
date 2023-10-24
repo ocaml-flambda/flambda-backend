@@ -10,8 +10,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Cmm_helpers
-
 (** Generate generic functions *)
 module Tbl : sig
   type t
