@@ -154,29 +154,6 @@ default:
 	@echo "  parallel                   launch all tests using GNU parallel"
 	@echo "  parallel-foo               launch all tests beginning with foo using \
 	GNU parallel"
-<<<<<<< HEAD
-	@echo "  one TEST=f      launch just this single test"
-	@echo "  one DIR=p       launch the tests located in path p"
-	@echo "  one LIST=f      launch the tests listed in f (one per line)"
-	@echo "  promote TEST=f  promote the output for this single test"
-	@echo "  promote DIR=p   promote the output for the tests located in path p"
-	@echo "  promote LIST=f  promote the output for the tests listed in f (one \
-	per line)"
-	@echo "  promote-failed  promote all the tests that failed in the previous run"
-	@echo "  lib             build library modules"
-	@echo "  tools           build test tools"
-	@echo "  clean           delete generated files"
-	@echo "  report          print the report for the last execution"
-||||||| merged common ancestors
-	@echo "  one TEST=f      launch just this single test"
-	@echo "  one DIR=p       launch the tests located in path p"
-	@echo "  one LIST=f      launch the tests listed in f (one per line)"
-	@echo "  promote DIR=p   promote the reference files for the tests in p"
-	@echo "  lib             build library modules"
-	@echo "  tools           build test tools"
-	@echo "  clean           delete generated files"
-	@echo "  report          print the report for the last execution"
-=======
 	@echo "  one (TEST|DIR|LIST)=x      launch the specified tests ..."
 	@echo "  promote (TEST|DIR|LIST)=x  promote the output for the specified \
 	tests ..."
@@ -184,11 +161,11 @@ default:
 	@echo "    ... DIR=d                  ... the tests located in the directory d"
 	@echo "    ... LIST=f                 ... the tests listed in the file f (one \
 	per line)"
+	@echo "  promote-failed  promote all the tests that failed in the previous run"
 	@echo "  lib                        build library modules"
 	@echo "  tools                      build test tools"
 	@echo "  clean                      delete generated files"
 	@echo "  report                     print the report for the last execution"
->>>>>>> ocaml/5.1
 	@echo
 	@echo "all*, parallel* and list can automatically re-run failed test"
 	@echo "directories if MAX_TESTSUITE_DIR_RETRIES permits"

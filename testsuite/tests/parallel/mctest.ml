@@ -1,6 +1,4 @@
 (* TEST
-   * skip
-
 * hasunix
 include unix
 ** bytecode

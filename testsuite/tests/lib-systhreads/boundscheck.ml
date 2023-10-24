@@ -2,15 +2,8 @@
 
 include systhreads
 * hassysthreads
-<<<<<<< HEAD
-** not-windows
-*** bytecode
-*** native
-||||||| merged common ancestors
-=======
 ** bytecode
 ** native
->>>>>>> ocaml/5.1
 
 *)
 

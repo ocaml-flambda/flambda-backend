@@ -99,9 +99,6 @@ let k = match Middle.s with Middle.S -> ()
 [%%expect {|
 val k : unit = ()
 |}]
-<<<<<<< HEAD
-||||||| merged common ancestors
-=======
 
 (* #11560: gadts and missing cmis *)
 
@@ -119,4 +116,3 @@ let g : bool Middle.is_int -> 'a = function _ -> .
 val f : 'a Middle.is_int -> 'a -> int = <fun>
 val g : bool Middle.is_int -> 'a = <fun>
 |}]
->>>>>>> ocaml/5.1

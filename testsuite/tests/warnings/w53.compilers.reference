@@ -46,27 +46,12 @@ File "w53.ml", line 25, characters 16-24:
 25 | let q x = h x [@tailcall] (* rejected *)
                      ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "tailcall" attribute cannot appear in this context
-<<<<<<< HEAD
 File "w53.ml", line 33, characters 25-31:
-||||||| merged common ancestors
-File "w53.ml", line 33, characters 0-32:
-=======
-
-File "w53.ml", line 33, characters 0-32:
->>>>>>> ocaml/5.1
 33 | module C = struct end [@@inline] (* rejected *)
                               ^^^^^^
 Warning 53 [misplaced-attribute]: the "inline" attribute cannot appear in this context
-<<<<<<< HEAD
 File "w53.ml", line 34, characters 26-38:
-||||||| merged common ancestors
-File "w53.ml", line 34, characters 0-39:
-=======
-
-File "w53.ml", line 34, characters 0-39:
->>>>>>> ocaml/5.1
 34 | module C' = struct end [@@ocaml.inline] (* rejected *)
-<<<<<<< HEAD
                                ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "ocaml.inline" attribute cannot appear in this context
 File "w53.ml", line 35, characters 25-32:
@@ -77,14 +62,6 @@ File "w53.ml", line 36, characters 26-39:
 36 | module D' = struct end [@@ocaml.inlined] (* rejected *)
                                ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "ocaml.inlined" attribute cannot appear in this context
-||||||| merged common ancestors
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "inline" attribute cannot appear in this context
-=======
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "inline" attribute cannot appear in this context
-
->>>>>>> ocaml/5.1
 File "w53.ml", line 40, characters 16-22:
 40 | module G = (A [@inline])(struct end) (* rejected *)
                      ^^^^^^

@@ -543,13 +543,7 @@ module F : functor (X : a) -> sig type t end
 Line 6, characters 13-19:
 6 |     type t = F(X).t
                  ^^^^^^
-<<<<<<< HEAD
 Error: Modules do not match: (a/1 with P.X) is not included in a/2
-||||||| merged common ancestors
-Error: Modules do not match: a/1 is not included in a/2
-=======
-Error: Modules do not match: a is not included in a/2
->>>>>>> ocaml/5.1
      Line 3, characters 2-15:
        Definition of module type a
      Line 1, characters 0-13:
@@ -1710,7 +1704,6 @@ module Shape_arg :
   end
 |}]
 
-<<<<<<< HEAD
 module F (X : sig module type S module M : S end) = struct
   module N = X.M
 end
@@ -1735,8 +1728,6 @@ module G :
 module A : sig module type S = sig type t end module M : sig type t end end
 module B : sig module O : sig module N : sig type t = A.M.t end end end
 |}]
-||||||| merged common ancestors
-=======
 
 (* Applicative or generative *)
 
@@ -2038,4 +2029,3 @@ Error: Signature mismatch:
           The type 'a * 'a is not equal to the type 'a list
        2. Module types $S2 and $T2 match
 |}]
->>>>>>> ocaml/5.1

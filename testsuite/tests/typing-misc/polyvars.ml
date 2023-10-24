@@ -220,9 +220,6 @@ type a = int
 type t = [ `A of a ]
 val inspect : [< `A of a & int ] -> unit = <fun>
 |}]
-<<<<<<< HEAD
-||||||| merged common ancestors
-=======
 
 (** Error messages with weakly polymorphic row variables *)
 let x = Fun.id (function `X -> () | _ -> ())
@@ -235,4 +232,3 @@ let x = let rec x = `X (`Y (fun y -> x = y)) in Fun.id x
 val x : [> `X of [> `Y of '_weak2 -> bool ] as '_weak3 ] as '_weak2 =
   `X (`Y <fun>)
 |}]
->>>>>>> ocaml/5.1
