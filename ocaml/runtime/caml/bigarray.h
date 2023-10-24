@@ -16,6 +16,9 @@
 #ifndef CAML_BIGARRAY_H
 #define CAML_BIGARRAY_H
 
+#ifndef CAML_NAME_SPACE
+#include "compatibility.h"
+#endif
 #include "config.h"
 #include "mlvalues.h"
 
@@ -73,7 +76,7 @@ enum caml_ba_managed {
 };
 
 struct caml_ba_proxy {
-  atomic_uintnat refcount;      /* Reference count */
+  intnat refcount;              /* Reference count */
   void * data;                  /* Pointer to base of actual data */
   uintnat size;                 /* Size of data in bytes (if mapped file) */
 };

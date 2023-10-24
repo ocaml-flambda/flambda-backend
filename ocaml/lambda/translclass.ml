@@ -44,7 +44,6 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
     Lfunction {kind = Curried _ as kind; params = params';
                body = body'; attr; loc}
     when List.length params + List.length params' <= Lambda.max_arity() ->
-<<<<<<< HEAD
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
                 ~body:body'
@@ -52,37 +51,13 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params bod
                 ~loc
                 ~mode:alloc_heap
                 ~region
-||||||| merged common ancestors
-      Lfunction {kind = Curried; params = params @ params';
-                 return = Pgenval;
-                 body = body'; attr;
-                 loc}
-=======
-      lfunction ~kind:Curried ~params:(params @ params')
-                ~return:Pgenval
-                ~body:body'
-                ~attr
-                ~loc
->>>>>>> ocaml/5.1
   |  _ ->
-<<<<<<< HEAD
       lfunction ~kind ~params ~return:return_layout
                 ~body
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
                 ~mode:alloc_heap
                 ~region
-||||||| merged common ancestors
-      Lfunction {kind = Curried; params; return = Pgenval;
-                 body;
-                 attr = default_function_attribute;
-                 loc = Loc_unknown}
-=======
-      lfunction ~kind:Curried ~params ~return:Pgenval
-                ~body
-                ~attr:default_function_attribute
-                ~loc:Loc_unknown
->>>>>>> ocaml/5.1
 
 let lapply ap =
   match ap.ap_func with
@@ -91,7 +66,6 @@ let lapply ap =
   | _ ->
       Lapply ap
 
-<<<<<<< HEAD
 let lparam name layout : Lambda.lparam =
   { name; layout;
     attributes = Lambda.default_param_attribute; mode = alloc_heap }
@@ -112,40 +86,12 @@ let mkappl (func, args, layout) =
          ap_probe=None;
        }],
      Loc_unknown);;
-||||||| merged common ancestors
-let mkappl (func, args) =
-  Lapply {
-    ap_loc=Loc_unknown;
-    ap_func=func;
-    ap_args=args;
-    ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inline;
-    ap_specialised=Default_specialise;
-  };;
-=======
-let mkappl (func, args) =
-  Lapply {
-    ap_loc=Loc_unknown;
-    ap_func=func;
-    ap_args=args;
-    ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inline;
-    ap_specialised=Default_specialise;
-  }
->>>>>>> ocaml/5.1
 
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
 
-<<<<<<< HEAD
 let lfield v i =
   Lprim(Pfield (i, Reads_vary), [Lvar v], Loc_unknown)
-||||||| merged common ancestors
-let lfield v i = Lprim(Pfield i, [Lvar v], Loc_unknown)
-=======
-let lfield v i = Lprim(Pfield (i, Pointer, Mutable),
-                       [Lvar v], Loc_unknown)
->>>>>>> ocaml/5.1
 
 let transl_label l = share (Const_immstring l)
 
@@ -217,13 +163,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let env =
         match envs with None -> []
         | Some envs ->
-<<<<<<< HEAD
             [Lprim(Pfield (List.length inh_init + 1, Reads_vary),
-||||||| merged common ancestors
-            [Lprim(Pfield (List.length inh_init + 1),
-=======
-            [Lprim(Pfield (List.length inh_init + 1, Pointer, Mutable),
->>>>>>> ocaml/5.1
                    [Lvar envs],
                    Loc_unknown)]
       in
@@ -269,7 +209,6 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-<<<<<<< HEAD
          let arg_sort = Jkind.Sort.for_class_arg in
          let arg_layout =
            Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
@@ -288,22 +227,6 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~body
                    ~mode:alloc_heap
                    ~region:true
-||||||| merged common ancestors
-         Lfunction {kind = Curried; params = (param, Pgenval)::params;
-                    return = Pgenval;
-                    attr = default_function_attribute;
-                    loc = of_location ~scopes pat.pat_loc;
-                    body = Matching.for_function ~scopes pat.pat_loc
-                             None (Lvar param) [pat, rem] partial}
-=======
-         Lambda.lfunction
-                   ~kind:Curried ~params:((param, Pgenval)::params)
-                   ~return:Pgenval
-                   ~attr:default_function_attribute
-                   ~loc:(of_location ~scopes pat.pat_loc)
-                   ~body:(Matching.for_function ~scopes pat.pat_loc
-                             None (Lvar param) [pat, rem] partial)
->>>>>>> ocaml/5.1
        in
        begin match obj_init with
          Lfunction {kind = Curried {nlocal=0}; params; body = rem} ->
@@ -406,24 +329,10 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
       begin match inh_init with
       | (_, path_lam, obj_init)::inh_init ->
           (inh_init,
-<<<<<<< HEAD
            Llet (Strict, layout_t, obj_init,
                  mkappl(Lprim(class_field 1, [path_lam], Loc_unknown), (Lvar cla ::
                         if top then [Lprim(class_field 3, [path_lam], Loc_unknown)]
                         else []), layout_t),
-||||||| merged common ancestors
-           Llet (Strict, Pgenval, obj_init,
-                 mkappl(Lprim(Pfield 1, [path_lam], Loc_unknown), Lvar cla ::
-                        if top then [Lprim(Pfield 3, [path_lam], Loc_unknown)]
-                        else []),
-=======
-           Llet (Strict, Pgenval, obj_init,
-                 mkappl(Lprim(Pfield (1, Pointer, Mutable),
-                              [path_lam], Loc_unknown), Lvar cla ::
-                        if top then [Lprim(Pfield (3, Pointer, Mutable),
-                                     [path_lam], Loc_unknown)]
-                        else []),
->>>>>>> ocaml/5.1
                  bind_super cla super cl_init))
       | _ ->
           assert false
@@ -588,7 +497,6 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-<<<<<<< HEAD
         let arg_sort = Jkind.Sort.for_class_arg in
         let arg_layout =
           Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
@@ -607,22 +515,6 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~body
                   ~mode:alloc_heap
                   ~region:true
-||||||| merged common ancestors
-        Lfunction {kind = Curried; params = (param, Pgenval)::params;
-                   return = Pgenval;
-                   attr = default_function_attribute;
-                   loc = of_location ~scopes pat.pat_loc;
-                   body = Matching.for_function ~scopes pat.pat_loc
-                            None (Lvar param) [pat, rem] partial}
-=======
-        Lambda.lfunction
-                  ~kind:Curried ~params:((param, Pgenval)::params)
-                  ~return:Pgenval
-                  ~attr:default_function_attribute
-                  ~loc:(of_location ~scopes pat.pat_loc)
-                  ~body:(Matching.for_function ~scopes pat.pat_loc
-                            None (Lvar param) [pat, rem] partial)
->>>>>>> ocaml/5.1
       in
       (path, path_lam,
        match obj_init with
@@ -731,13 +623,7 @@ let rec builtin_meths self env env2 body =
     | p when const_path p -> "const", [p]
     | Lprim(Parrayrefu _, [Lvar s; Lvar n], _) when List.mem s self ->
         "var", [Lvar n]
-<<<<<<< HEAD
     | Lprim(Pfield (n, _), [Lvar e], _) when Ident.same e env ->
-||||||| merged common ancestors
-    | Lprim(Pfield n, [Lvar e], _) when Ident.same e env ->
-=======
-    | Lprim(Pfield(n, _, _), [Lvar e], _) when Ident.same e env ->
->>>>>>> ocaml/5.1
         "env", [Lvar env2; Lconst(const_int n)]
     | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
         "meth", [met]
@@ -983,7 +869,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
 
   let concrete = (vflag = Concrete)
   and lclass lam =
-<<<<<<< HEAD
     let cl_init = llets layout_function (Lambda.lfunction
                            ~kind:(Curried {nlocal=0})
                            ~attr:default_function_attribute
@@ -993,22 +878,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~region:true
                            ~params:[lparam cla layout_table] ~body:cl_init) in
     Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
-||||||| merged common ancestors
-    let cl_init = llets (Lfunction{kind = Curried;
-                                   attr = default_function_attribute;
-                                   loc = Loc_unknown;
-                                   return = Pgenval;
-                                   params = [cla, Pgenval]; body = cl_init}) in
-    Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
-=======
-    let cl_init = llets (Lambda.lfunction
-                           ~kind:Curried
-                           ~attr:default_function_attribute
-                           ~loc:Loc_unknown
-                           ~return:Pgenval
-                           ~params:[cla, Pgenval] ~body:cl_init) in
-    Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
->>>>>>> ocaml/5.1
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
       mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
@@ -1024,7 +893,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
              Lvar class_init; Lvar env_init; lambda_unit],
             Loc_unknown))))
   and lbody_virt lenvs =
-<<<<<<< HEAD
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [lambda_unit; Lambda.lfunction
                           ~kind:(Curried {nlocal=0})
@@ -1034,22 +902,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~mode:alloc_heap
                           ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
-||||||| merged common ancestors
-    Lprim(Pmakeblock(0, Immutable, None),
-          [lambda_unit; Lfunction{kind = Curried;
-                                  attr = default_function_attribute;
-                                  loc = Loc_unknown;
-                                  return = Pgenval;
-                                  params = [cla, Pgenval]; body = cl_init};
-=======
-    Lprim(Pmakeblock(0, Immutable, None),
-          [lambda_unit; Lambda.lfunction
-                          ~kind:Curried
-                          ~attr:default_function_attribute
-                          ~loc:Loc_unknown
-                          ~return:Pgenval
-                          ~params:[cla, Pgenval] ~body:cl_init;
->>>>>>> ocaml/5.1
            lambda_unit; lenvs],
          Loc_unknown)
   in
@@ -1076,14 +928,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           Loc_unknown)
   and linh_envs =
     List.map
-<<<<<<< HEAD
       (fun (_, path_lam, _) -> Lprim(class_field 3, [path_lam], Loc_unknown))
-||||||| merged common ancestors
-      (fun (_, path_lam, _) -> Lprim(Pfield 3, [path_lam], Loc_unknown))
-=======
-      (fun (_, path_lam, _) ->
-        Lprim(Pfield (3, Pointer, Mutable), [path_lam], Loc_unknown))
->>>>>>> ocaml/5.1
       (List.rev inh_init)
   in
   let make_envs lam =
@@ -1104,17 +949,10 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let inh_keys =
     List.map
       (fun (_, path_lam, _) ->
-<<<<<<< HEAD
         Lprim(class_field 1, [path_lam], Loc_unknown))
-||||||| merged common ancestors
-      (fun (_, path_lam, _) -> Lprim(Pfield 1, [path_lam], Loc_unknown))
-=======
-        Lprim(Pfield (1, Pointer, Mutable), [path_lam], Loc_unknown))
->>>>>>> ocaml/5.1
       inh_paths
   in
   let lclass lam =
-<<<<<<< HEAD
     Llet(Strict, layout_function, class_init,
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0}) ~params:[lparam cla layout_table]
@@ -1123,21 +961,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
                    ~region:true
-||||||| merged common ancestors
-    Llet(Strict, Pgenval, class_init,
-         Lfunction{kind = Curried; params = [cla, Pgenval];
-                   return = Pgenval;
-                   attr = default_function_attribute;
-                   loc = Loc_unknown;
-                   body = def_ids cla cl_init}, lam)
-=======
-    Llet(Strict, Pgenval, class_init,
-         Lambda.lfunction
-                   ~kind:Curried ~params:[cla, Pgenval]
-                   ~return:Pgenval
-                   ~attr:default_function_attribute
-                   ~loc:Loc_unknown
->>>>>>> ocaml/5.1
                    ~body:(def_ids cla cl_init), lam)
   and lcache lam =
     if inh_keys = [] then Llet(Alias, layout_tables, cached, Lvar tables, lam) else
@@ -1158,7 +981,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   and lclass_virt () =
     lset cached 0
       (Lambda.lfunction
-<<<<<<< HEAD
          ~kind:(Curried {nlocal=0})
          ~attr:default_function_attribute
          ~loc:Loc_unknown
@@ -1166,24 +988,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]
-||||||| merged common ancestors
-      (Lfunction
-         {
-           kind = Curried;
-           attr = default_function_attribute;
-           loc = Loc_unknown;
-           return = Pgenval;
-           params = [cla, Pgenval];
-           body = def_ids cla cl_init;
-         }
-      )
-=======
-         ~kind:Curried
-         ~attr:default_function_attribute
-         ~loc:Loc_unknown
-         ~return:Pgenval
-         ~params:[cla, Pgenval]
->>>>>>> ocaml/5.1
          ~body:(def_ids cla cl_init))
   in
   let lupdate_cache =

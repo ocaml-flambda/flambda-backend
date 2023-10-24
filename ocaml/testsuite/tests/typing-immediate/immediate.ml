@@ -72,7 +72,6 @@ module Empty_valid : S = struct type t = | end;;
 module Empty_valid : S
 |}];;
 
-<<<<<<< HEAD
 (* Valid when unboxed *)
 module Unboxed_valid = struct
   type t = { x : int } [@@unboxed] [@@immediate]
@@ -89,9 +88,6 @@ module Unboxed_valid :
   end
 |}];;
 
-||||||| merged common ancestors
-=======
->>>>>>> ocaml/5.1
 (* Practical usage over modules *)
 module Foo : sig type t val x : t ref end = struct
   type t = int

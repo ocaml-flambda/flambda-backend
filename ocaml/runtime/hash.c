@@ -204,7 +204,14 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
     if (Is_long(v)) {
       h = caml_hash_mix_intnat(h, v);
       num--;
-    } else {
+    }
+    else if (!Is_in_value_area(v)) {
+      /* v is a pointer outside the heap, probably a code pointer.
+         Shall we count it?  Let's say yes by compatibility with old code. */
+      h = caml_hash_mix_intnat(h, v);
+      num--;
+    }
+    else {
       switch (Tag_val(v)) {
       case String_tag:
         h = caml_hash_mix_string(h, v);
@@ -235,7 +242,7 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
            Forward_tag links being followed */
         for (i = MAX_FORWARD_DEREFERENCE; i > 0; i--) {
           v = Forward_val(v);
-          if (Is_long(v) || Tag_val(v) != Forward_tag)
+          if (Is_long(v) || !Is_in_value_area(v) || Tag_val(v) != Forward_tag)
             goto again;
         }
         /* Give up on this object and move to the next */
@@ -253,13 +260,14 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
           num--;
         }
         break;
+#ifdef NO_NAKED_POINTERS
       case Closure_tag: {
         mlsize_t startenv;
         len = Wosize_val(v);
         startenv = Start_env_closinfo(Closinfo_val(v));
         CAMLassert (startenv <= len);
         /* Mix in the tag and size, but do not count this towards [num] */
-        h = caml_hash_mix_uint32(h, Cleanhd_hd(Hd_val(v)));
+        h = caml_hash_mix_uint32(h, Whitehd_hd(Hd_val(v)));
         /* Mix the code pointers, closure info fields, and infix headers */
         for (i = 0; i < startenv; i++) {
           h = caml_hash_mix_intnat(h, Field(v, i));
@@ -273,14 +281,10 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
         }
         break;
       }
-      case Cont_tag:
-        /* All continuations hash to the same value,
-           since we have no idea how to distinguish them. */
-        break;
-
+#endif
       default:
         /* Mix in the tag and size, but do not count this towards [num] */
-        h = caml_hash_mix_uint32(h, Cleanhd_hd(Hd_val(v)));
+        h = caml_hash_mix_uint32(h, Whitehd_hd(Hd_val(v)));
         /* Copy fields into queue, not exceeding the total size [sz] */
         for (i = 0, len = Wosize_val(v); i < len; i++) {
           if (wr >= sz) break;
@@ -294,15 +298,6 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
   FINAL_MIX(h);
   /* Fold result to the range [0, 2^30-1] so that it is a nonnegative
      OCaml integer both on 32 and 64-bit platforms. */
-  return Val_int(h & 0x3FFFFFFFU);
-}
-
-CAMLprim value caml_string_hash(value seed, value string)
-{
-  uint32_t h;
-  h = Int_val(seed);
-  h = caml_hash_mix_string (h, string);
-  FINAL_MIX(h);
   return Val_int(h & 0x3FFFFFFFU);
 }
 

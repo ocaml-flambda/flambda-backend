@@ -28,91 +28,65 @@ __declspec(noreturn) void __cdecl abort(void);
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include "caml/config.h"
 #include "caml/misc.h"
 #include "caml/memory.h"
 #include "caml/osdeps.h"
-#include "caml/domain.h"
-#include "caml/startup.h"
-#include "caml/startup_aux.h"
+#include "caml/version.h"
 
-_Atomic caml_timing_hook caml_major_slice_begin_hook = (caml_timing_hook)NULL;
-_Atomic caml_timing_hook caml_major_slice_end_hook = (caml_timing_hook)NULL;
-_Atomic caml_timing_hook caml_minor_gc_begin_hook = (caml_timing_hook)NULL;
-_Atomic caml_timing_hook caml_minor_gc_end_hook = (caml_timing_hook)NULL;
-_Atomic caml_timing_hook caml_finalise_begin_hook = (caml_timing_hook)NULL;
-_Atomic caml_timing_hook caml_finalise_end_hook = (caml_timing_hook)NULL;
+caml_timing_hook caml_major_slice_begin_hook = NULL;
+caml_timing_hook caml_major_slice_end_hook = NULL;
+caml_timing_hook caml_minor_gc_begin_hook = NULL;
+caml_timing_hook caml_minor_gc_end_hook = NULL;
+caml_timing_hook caml_finalise_begin_hook = NULL;
+caml_timing_hook caml_finalise_end_hook = NULL;
 
 #ifdef DEBUG
 
 void caml_failed_assert (char * expr, char_os * file_os, int line)
 {
   char* file = caml_stat_strdup_of_os(file_os);
-  fprintf(stderr, "[%02d] file %s; line %d ### Assertion failed: %s\n",
-          (Caml_state_opt != NULL) ? Caml_state_opt->id : -1, file, line, expr);
-  fflush(stderr);
+  fprintf (stderr, "file %s; line %d ### Assertion failed: %s\n",
+           file, line, expr);
+  fflush (stderr);
   caml_stat_free(file);
   abort();
 }
-#endif
 
-#if defined(DEBUG)
-static __thread int noalloc_level = 0;
-int caml_noalloc_begin(void)
+void caml_set_fields (value v, uintnat start, uintnat filler)
 {
-  return noalloc_level++;
-}
-void caml_noalloc_end(int* noalloc)
-{
-  int curr = --noalloc_level;
-  CAMLassert(*noalloc == curr);
-}
-void caml_alloc_point_here(void)
-{
-  CAMLassert(noalloc_level == 0);
-}
-#endif /* DEBUG */
-
-#define GC_LOG_LENGTH 512
-
-atomic_uintnat caml_verb_gc = 0;
-
-void caml_gc_log (char *msg, ...)
-{
-  if ((atomic_load_relaxed(&caml_verb_gc) & 0x800) != 0) {
-    char fmtbuf[GC_LOG_LENGTH];
-    va_list args;
-    va_start (args, msg);
-    snprintf(fmtbuf, GC_LOG_LENGTH, "[%02d] %s\n",
-             (Caml_state_opt != NULL) ? Caml_state_opt->id : -1, msg);
-    vfprintf(stderr, fmtbuf, args);
-    va_end (args);
-    fflush(stderr);
+  mlsize_t i;
+  for (i = start; i < Wosize_val (v); i++){
+    Field (v, i) = (value) filler;
   }
 }
 
+#endif /* DEBUG */
+
+uintnat caml_verb_gc = 0;
+
 void caml_gc_message (int level, char *msg, ...)
 {
-  if ((atomic_load_relaxed(&caml_verb_gc) & level) != 0){
+  if ((caml_verb_gc & level) != 0){
     va_list ap;
     va_start(ap, msg);
+    if (caml_verb_gc & 0x1000) {
+      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
+    }
     vfprintf (stderr, msg, ap);
     va_end(ap);
     fflush (stderr);
   }
 }
 
-_Atomic fatal_error_hook caml_fatal_error_hook = (fatal_error_hook)NULL;
+void (*caml_fatal_error_hook) (char *msg, va_list args) = NULL;
 
 CAMLexport void caml_fatal_error (char *msg, ...)
 {
   va_list ap;
-  fatal_error_hook hook;
   va_start(ap, msg);
-  hook = atomic_load(&caml_fatal_error_hook);
-  if (hook != NULL) {
-    (*hook)(msg, ap);
+  if(caml_fatal_error_hook != NULL) {
+    caml_fatal_error_hook(msg, ap);
   } else {
     fprintf (stderr, "Fatal error: ");
     vfprintf (stderr, msg, ap);
@@ -122,18 +96,9 @@ CAMLexport void caml_fatal_error (char *msg, ...)
   abort();
 }
 
-CAMLexport void caml_fatal_error_arg (const char *fmt, const char *arg)
+void caml_fatal_out_of_memory(void)
 {
-  fprintf (stderr, fmt, arg);
-  exit(2);
-}
-
-CAMLexport void caml_fatal_error_arg2 (const char *fmt1, const char *arg1,
-                                       const char *fmt2, const char *arg2)
-{
-  fprintf (stderr, fmt1, arg1);
-  fprintf (stderr, fmt2, arg2);
-  exit(2);
+  caml_fatal_error("Out of memory");
 }
 
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)
@@ -246,7 +211,18 @@ int caml_runtime_warnings_active(void)
   return 1;
 }
 
-void caml_bad_caml_state(void)
+/* Flambda 2 invalid term markers */
+
+CAMLnoreturn_start
+void caml_flambda2_invalid (value message)
+CAMLnoreturn_end;
+
+void caml_flambda2_invalid (value message)
 {
-  caml_fatal_error("no domain lock held");
+  fprintf (stderr, "[ocaml] [flambda2] Invalid code:\n%s\n\n",
+    String_val(message));
+  fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
+  fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
+  abort ();
 }
+

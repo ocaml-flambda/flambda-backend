@@ -63,6 +63,8 @@ end) = struct
     with Not_found ->
       raise (Not_available name)
 
+  let set tbl name data crc source = Module_name.Tbl.add tbl name (data, crc, source)
+
   let source tbl name = thd3 (Module_name.Tbl.find tbl name)
 
   let find t name =

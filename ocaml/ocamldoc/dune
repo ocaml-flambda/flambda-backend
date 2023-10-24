@@ -31,6 +31,7 @@
     odoc_comments
     odoc_comments_global
     odoc_config
+    odoc_control
     odoc_cross
     odoc_dag2html
     odoc_dep
@@ -42,6 +43,7 @@
     odoc_global
     odoc_html
     odoc_info
+    odoc_inherit
     odoc_latex
     odoc_latex_style
     odoc_lexer
@@ -76,7 +78,7 @@
   (name odoc_byte)
   (modes byte)
   ; See note in the toplevel dune file about this.
-  (flags (:standard -cclib "-L ../runtime4" -cclib -lcamlrun))
+  (flags (:standard -cclib "-L ../runtime" -cclib -lcamlrun))
   (modules odoc_byte)
   (libraries odoc_lib))
 

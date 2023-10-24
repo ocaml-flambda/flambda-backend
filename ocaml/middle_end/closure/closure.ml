@@ -54,7 +54,6 @@ let rec add_to_closure_env env_param pos cenv = function
     [] -> cenv
   | (id, kind) :: rem ->
       V.Map.add id
-<<<<<<< HEAD
         (Uprim(P.Pfield (pos, kind), [Uvar env_param], Debuginfo.none))
           (add_to_closure_env env_param (pos+1) cenv rem)
 
@@ -77,14 +76,6 @@ let split_closure_fv kinds fv =
       then ((id, kind) :: not_scanned, scanned)
       else (not_scanned, (id, kind)::scanned))
     fv ([], [])
-||||||| merged common ancestors
-        (Uprim(P.Pfield pos, [Uvar env_param], Debuginfo.none))
-          (build_closure_env env_param (pos+1) rem)
-=======
-        (Uprim(P.Pfield(pos, Pointer, Immutable),
-              [Uvar env_param], Debuginfo.none))
-          (build_closure_env env_param (pos+1) rem)
->>>>>>> ocaml/5.1
 
 (* Auxiliary for accessing globals.  We change the name of the global
    to the name of the corresponding asm symbol.  This is done here
@@ -549,23 +540,10 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
         (Uprim(p, args, dbg), Value_tuple (mode, Array.of_list approxs))
       end
   (* Field access *)
-<<<<<<< HEAD
   | Pfield (n, _), _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
-||||||| merged common ancestors
-  | Pfield n, _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
-=======
-  | Pfield (n, _, _), _,
-            [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
->>>>>>> ocaml/5.1
     when n < List.length l ->
       make_const (List.nth l n)
-<<<<<<< HEAD
   | Pfield (n, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
-||||||| merged common ancestors
-  | Pfield n, [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
-=======
-  | Pfield(n, _, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
->>>>>>> ocaml/5.1
     when n < List.length ul ->
       (* This case is particularly useful for removing allocations
          for optional parameters *)
@@ -975,13 +953,7 @@ let check_constant_result ulam approx =
           let glb =
             Uprim(P.Pread_symbol id, [], Debuginfo.none)
           in
-<<<<<<< HEAD
           Uprim(P.Pfield (i, Lambda.layout_any_value), [glb], Debuginfo.none), approx
-||||||| merged common ancestors
-          Uprim(P.Pfield i, [glb], Debuginfo.none), approx
-=======
-          Uprim(P.Pfield(i, Pointer, Immutable), [glb], Debuginfo.none), approx
->>>>>>> ocaml/5.1
       end
   | _ -> (ulam, approx)
 
@@ -1031,9 +1003,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
      close_approx_var env id
   | Lmutvar id -> (Uvar id, Value_unknown)
   | Lconst cst ->
-      let str cst =
+      let str ?(shared = true) cst =
         let name =
-          Compilenv.new_structured_constant cst ~shared:true
+          Compilenv.new_structured_constant cst ~shared
         in
         Uconst_ref (name, Some cst)
       in
@@ -1051,7 +1023,13 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_immstring s ->
             str (Uconst_string s)
         | Const_base (Const_string (s, _, _)) ->
-            str (Uconst_string s)
+              (* Strings (even literal ones) must be assumed to be mutable...
+                 except when OCaml has been configured with
+                 -safe-string.  Passing -safe-string at compilation
+                 time is not enough, since the unit could be linked
+                 with another one compiled without -safe-string, and
+                 that one could modify our string literal.  *)
+            str ~shared:Config.safe_string (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
         | Const_base(Const_int32 x) -> str (Uconst_int32 x)
         | Const_base(Const_int64 x) -> str (Uconst_int64 x)
@@ -1144,7 +1122,6 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         in
         let funct_var = V.create_local "funct" in
         let fenv = V.Map.add funct_var fapprox fenv in
-<<<<<<< HEAD
         let kinds = V.Map.add funct_var Lambda.layout_function kinds in
         let ret_mode =
           if fundesc.fun_region then alloc_heap else alloc_local
@@ -1170,38 +1147,6 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
              ~loc
              ~mode:new_clos_mode
              ~region:fundesc.fun_region
-||||||| merged common ancestors
-        let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
-          (Lfunction{
-               kind = Curried;
-               return = Pgenval;
-               params = List.map (fun v -> v, Pgenval) final_args;
-               body = Lapply{
-                 ap_loc=loc;
-                 ap_func=(Lvar funct_var);
-                 ap_args=internal_args;
-                 ap_tailcall=Default_tailcall;
-                 ap_inlined=Default_inline;
-                 ap_specialised=Default_specialise;
-               };
-               loc;
-               attr = default_function_attribute})
-=======
-        let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
-          (lfunction
-             ~kind:Curried
-             ~return:Pgenval
-             ~params:(List.map (fun v -> v, Pgenval) final_args)
-             ~body:(Lapply{
-                ap_loc=loc;
-                ap_func=(Lvar funct_var);
-                ap_args=internal_args;
-                ap_tailcall=Default_tailcall;
-                ap_inlined=Default_inline;
-                ap_specialised=Default_specialise;
-              })
-             ~loc
->>>>>>> ocaml/5.1
              ~attr:default_function_attribute)
         in
         let new_fun =
@@ -1377,31 +1322,15 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       close env arg
   | Lprim(Pgetglobal cu, [], loc) ->
       let dbg = Debuginfo.from_location loc in
-<<<<<<< HEAD
       check_constant_result (getglobal dbg cu)
                             (Compilenv.global_approx cu)
   | Lprim(Pgetpredef id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       getpredef dbg id, Value_unknown
   | Lprim(Pfield (n, _), [lam], loc) ->
-||||||| merged common ancestors
-      check_constant_result (getglobal dbg id)
-                            (Compilenv.global_approx id)
-  | Lprim(Pfield n, [lam], loc) ->
-=======
-      check_constant_result (getglobal dbg id)
-                            (Compilenv.global_approx id)
-  | Lprim(Pfield (n, ptr, mut), [lam], loc) ->
->>>>>>> ocaml/5.1
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
-<<<<<<< HEAD
       check_constant_result (Uprim(P.Pfield (n, Lambda.layout_any_value), [ulam], dbg))
-||||||| merged common ancestors
-      check_constant_result (Uprim(P.Pfield n, [ulam], dbg))
-=======
-      check_constant_result (Uprim(P.Pfield (n, ptr, mut), [ulam], dbg))
->>>>>>> ocaml/5.1
                             (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
           [Lprim(Pgetglobal cu, [], _); lam], loc) ->
@@ -1586,22 +1515,12 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
   let uncurried_defs =
     List.map
       (function
-<<<<<<< HEAD
           (id, Lfunction {kind; params; return; body; loc; mode; region; attr}) ->
             let label =
               Symbol.for_local_ident id
               |> Symbol.linkage_name
               |> Linkage_name.to_string
             in
-||||||| merged common ancestors
-          (id, Lfunction{kind; params; return; body; loc}) ->
-            let label = Compilenv.make_symbol (Some (V.unique_name id)) in
-            let arity = List.length params in
-=======
-          (id, Lfunction{kind; params; return; body; loc; attr}) ->
-            let label = Compilenv.make_symbol (Some (V.unique_name id)) in
-            let arity = List.length params in
->>>>>>> ocaml/5.1
             let fundesc =
               {fun_label = label;
                fun_arity = {
@@ -1612,12 +1531,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_closed = initially_closed;
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
-<<<<<<< HEAD
                fun_region = region;
-||||||| merged common ancestors
-               fun_float_const_prop = !Clflags.float_const_prop } in
-=======
->>>>>>> ocaml/5.1
                fun_poll = attr.poll } in
             let dbg = Debuginfo.from_location loc in
             (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
@@ -1699,11 +1613,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
         body   = ubody;
         dbg;
         env = Some env_param;
-<<<<<<< HEAD
         mode;
-||||||| merged common ancestors
-=======
->>>>>>> ocaml/5.1
         poll = fundesc.fun_poll
       }
     in

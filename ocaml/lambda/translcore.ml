@@ -135,7 +135,6 @@ let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
-<<<<<<< HEAD
 let transl_apply_position position =
   match position with
   | Default -> Rc_normal
@@ -210,15 +209,6 @@ let maybe_region_layout layout lam =
 let maybe_region_exp sort exp lam =
   maybe_region (fun () -> layout_exp sort exp) lam
 
-||||||| merged common ancestors
-(* Push the default values under the functional abstractions *)
-(* Also push bindings of module patterns, since this sound *)
-
-type binding =
-  | Bind_value of value_binding list
-  | Bind_module of Ident.t * string option loc * module_presence * module_expr
-=======
->>>>>>> ocaml/5.1
 (* Push the default values under the functional abstractions *)
 
 let wrap_bindings bindings exp =
@@ -231,12 +221,7 @@ let rec trivial_pat pat =
   match pat.pat_desc with
     Tpat_var _
   | Tpat_any -> true
-<<<<<<< HEAD
   | Tpat_alias (p, _, _, _, _) ->
-||||||| merged common ancestors
-=======
-  | Tpat_alias (p, _, _) ->
->>>>>>> ocaml/5.1
       trivial_pat p
   | Tpat_construct (_, cd, [], _) ->
       not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
@@ -267,25 +252,8 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
                (Nonrecursive, binds,
                 ({exp_desc = Texp_function _} as e2))}}] ->
       push_defaults loc (binds :: bindings) true
-<<<<<<< HEAD
                    arg_mode arg_sort [{c_lhs=pat;c_guard=None;c_rhs=e2}]
                    partial warnings
-||||||| merged common ancestors
-      push_defaults loc (Bind_value binds :: bindings) true
-                   [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial
-  | [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#modulepat"};_}];
-             exp_desc = Texp_letmodule
-               (Some id, name, pres, mexpr,
-                ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (Bind_module (id, name, pres, mexpr) :: bindings) true
-                   [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial
-=======
-                   [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial
->>>>>>> ocaml/5.1
   | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = wrap_bindings bindings exp}]
@@ -344,17 +312,12 @@ let event_function ~scopes exp lam =
 
 (* Assertions *)
 
-let assert_failed loc ~scopes exp =
+let assert_failed ~scopes exp =
   let slot =
     transl_extension_path Loc_unknown
-<<<<<<< HEAD
       (Lazy.force Env.initial_safe_string) Predef.path_assert_failure
-||||||| merged common ancestors
-      Env.initial_safe_string Predef.path_assert_failure
-=======
-      Env.initial Predef.path_assert_failure
->>>>>>> ocaml/5.1
   in
+  let loc = exp.exp_loc in
   let (fname, line, char) =
     Location.get_pos_info loc.Location.loc_start
   in
@@ -366,6 +329,7 @@ let assert_failed loc ~scopes exp =
               [Const_base(Const_string (fname, exp.exp_loc, None));
                Const_base(Const_int line);
                Const_base(Const_int char)]))], loc))], loc)
+;;
 
 (* Translation of expressions *)
 
@@ -579,35 +543,19 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
       begin match lbl.lbl_repres with
-<<<<<<< HEAD
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, sem), [targ],
-||||||| merged common ancestors
-          Record_regular | Record_inlined _ ->
-          Lprim (Pfield lbl.lbl_pos, [targ],
-=======
-          Record_regular | Record_inlined _ ->
-          Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, lbl.lbl_mut), [targ],
->>>>>>> ocaml/5.1
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
           let mode = transl_alloc_mode (Option.get alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
-<<<<<<< HEAD
         | Record_ufloat ->
           Lprim (Pufloatfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_inlined (_, Variant_extensible) ->
           Lprim (Pfield (lbl.lbl_pos + 1, sem), [targ],
-||||||| merged common ancestors
-        | Record_extension _ ->
-          Lprim (Pfield (lbl.lbl_pos + 1), [targ],
-=======
-        | Record_extension _ ->
-          Lprim (Pfield (lbl.lbl_pos + 1, maybe_pointer e, lbl.lbl_mut), [targ],
->>>>>>> ocaml/5.1
                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
@@ -785,15 +733,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       Lapply{
         ap_loc=loc;
         ap_func=
-<<<<<<< HEAD
           Lprim(Pfield (0, Reads_vary),
               [transl_class_path loc e.exp_env cl], loc);
-||||||| merged common ancestors
-          Lprim(Pfield 0, [transl_class_path loc e.exp_env cl], loc);
-=======
-          Lprim(Pfield (0, Pointer, Mutable),
-                [transl_class_path loc e.exp_env cl], loc);
->>>>>>> ocaml/5.1
         ap_args=[lambda_unit];
         ap_result_layout=layout_exp sort e;
         ap_region_close=pos;
@@ -839,14 +780,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_letmodule(None, loc, Mp_present, modl, body) ->
       let lam = !transl_module ~scopes Tcoerce_none None modl in
       Lsequence(Lprim(Pignore, [lam], of_location ~scopes loc.loc),
-<<<<<<< HEAD
                 transl_exp ~scopes sort body)
-||||||| merged common ancestors
-                transl_exp ~scopes body)
-  | Texp_letmodule(Some id, loc, Mp_present, modl, body) ->
-=======
-                transl_exp ~scopes body)
->>>>>>> ocaml/5.1
   | Texp_letmodule(Some id, _loc, Mp_present, modl, body) ->
       let defining_expr =
         let mod_scopes = enter_module_definition ~scopes id in
@@ -862,22 +796,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            transl_exp ~scopes sort body)
   | Texp_pack modl ->
       !transl_module ~scopes Tcoerce_none None modl
-<<<<<<< HEAD
   | Texp_assert {exp_desc=Texp_construct(_, {cstr_name="false"}, _, _)} ->
       assert_failed ~scopes e
   | Texp_assert (cond) ->
-||||||| merged common ancestors
-  | Texp_assert {exp_desc=Texp_construct(_, {cstr_name="false"}, _)} ->
-      assert_failed ~scopes e
-  | Texp_assert (cond) ->
-=======
-  | Texp_assert ({exp_desc=Texp_construct(_, {cstr_name="false"}, _)}, loc) ->
-      assert_failed loc ~scopes e
-  | Texp_assert (cond, loc) ->
->>>>>>> ocaml/5.1
       if !Clflags.noassert
       then lambda_unit
-<<<<<<< HEAD
       else begin
         Lifthenelse
           (transl_exp ~scopes Jkind.Sort.for_predef_value cond,
@@ -885,13 +808,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            assert_failed ~scopes e,
            Lambda.layout_unit)
       end
-||||||| merged common ancestors
-      else Lifthenelse (transl_exp ~scopes cond, lambda_unit,
-                        assert_failed ~scopes e)
-=======
-      else Lifthenelse (transl_exp ~scopes cond, lambda_unit,
-                        assert_failed loc ~scopes e)
->>>>>>> ocaml/5.1
   | Texp_lazy e ->
       (* when e needs no computation (constants, identifiers, ...), we
          optimize the translation just as Lazy.lazy_from_val would
@@ -925,7 +841,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | `Identifier `Other ->
          transl_exp ~scopes Jkind.Sort.for_lazy_body e
       | `Other ->
-<<<<<<< HEAD
          (* other cases compile to a lazy block holding a function.  The
             typechecker enforces that e has jkind value.  *)
          let scopes = enter_lazy ~scopes in
@@ -944,25 +859,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                      (transl_exp ~scopes Jkind.Sort.for_lazy_body e))
          in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
-||||||| merged common ancestors
-         (* other cases compile to a lazy block holding a function *)
-         let fn = Lfunction {kind = Curried;
-                             params= [Ident.create_local "param", Pgenval];
-                             return = Pgenval;
-                             attr = default_function_attribute;
-                             loc = of_location ~scopes e.exp_loc;
-                             body = transl_exp ~scopes e} in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None), [fn],
-=======
-         (* other cases compile to a lazy block holding a function *)
-         let fn = lfunction ~kind:Curried
-                            ~params:[Ident.create_local "param", Pgenval]
-                            ~return:Pgenval
-                            ~attr:default_function_attribute
-                            ~loc:(of_location ~scopes e.exp_loc)
-                            ~body:(transl_exp ~scopes e) in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None), [fn],
->>>>>>> ocaml/5.1
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -997,16 +893,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                module.  When that changes, some adjustments may be needed
                here. *)
             List.fold_left (fun (body, pos) id ->
-<<<<<<< HEAD
               Llet(Alias, Lambda.layout_module_field, id,
                    Lprim(mod_field pos, [Lvar oid],
-||||||| merged common ancestors
-              Llet(Alias, Pgenval, id,
-                   Lprim(Pfield pos, [Lvar oid],
-=======
-              Llet(Alias, Pgenval, id,
-                   Lprim(Pfield (pos, Pointer, Mutable), [Lvar oid],
->>>>>>> ocaml/5.1
                          of_location ~scopes od.open_loc), body),
               pos + 1
             ) (transl_exp ~scopes sort e, 0)
@@ -1161,16 +1049,8 @@ and transl_guard ~scopes guard rhs_sort rhs =
         (Lifthenelse(transl_exp ~scopes Jkind.Sort.for_predef_value cond,
                      expr, staticfail, layout))
 
-<<<<<<< HEAD
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs
-||||||| merged common ancestors
-and transl_case ~scopes {c_lhs; c_guard; c_rhs} =
-  c_lhs, transl_guard ~scopes c_guard c_rhs
-=======
-and transl_case ~scopes {c_lhs; c_guard; c_rhs} =
-  (c_lhs, transl_guard ~scopes c_guard c_rhs)
->>>>>>> ocaml/5.1
 
 and transl_cases ~scopes rhs_sort cases =
   let cases =
@@ -1274,7 +1154,6 @@ and transl_apply ~scopes
         in
         let id_arg = Ident.create_local "param" in
         let body =
-<<<<<<< HEAD
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
           let mode = transl_alloc_mode mode_closure in
           let arg_mode = transl_alloc_mode mode_arg in
@@ -1300,40 +1179,6 @@ and transl_apply ~scopes
           lfunction ~kind:(Curried {nlocal}) ~params
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
-||||||| merged common ancestors
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
-            Lfunction{kind = Curried; params = ids; return;
-                      body = lam; attr; loc} ->
-              Lfunction{kind = Curried;
-                        params = (id_arg, Pgenval)::ids;
-                        return;
-                        body = lam; attr;
-                        loc}
-          | Levent(Lfunction{kind = Curried; params = ids; return;
-                             body = lam; attr; loc}, _) ->
-              Lfunction{kind = Curried; params = (id_arg, Pgenval)::ids;
-                        return;
-                        body = lam; attr;
-                        loc}
-          | lam ->
-              Lfunction{kind = Curried; params = [id_arg, Pgenval];
-                        return = Pgenval; body = lam;
-                        attr = default_stub_attribute; loc = loc}
-=======
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
-            Lfunction{kind = Curried; params = ids; return;
-                      body = lam; attr; loc}
-               when List.length ids < Lambda.max_arity () ->
-              lfunction ~kind:Curried
-                        ~params:((id_arg, Pgenval)::ids)
-                        ~return
-                        ~body:lam ~attr
-                        ~loc
-          | lam ->
-              lfunction ~kind:Curried ~params:[id_arg, Pgenval]
-                        ~return:Pgenval ~body:lam
-                        ~attr:default_stub_attribute ~loc
->>>>>>> ocaml/5.1
         in
         List.fold_right
           (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
@@ -1543,27 +1388,8 @@ and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort r
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
-<<<<<<< HEAD
   let body = if region then maybe_region_layout return body else body in
   let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
-||||||| merged common ancestors
-  let lam = Lfunction{kind; params; return; body; attr; loc} in
-  Translattribute.add_function_attributes lam e.exp_loc e.exp_attributes
-=======
-  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc in
-  let attrs =
-    (* Collect attributes from the Pexp_newtype node for locally abstract types.
-       Otherwise we'd ignore the attribute in, e.g.:
-           fun [@inline] (type a) x -> ...
-    *)
-    List.fold_left
-      (fun attrs (extra_exp, _, extra_attrs) ->
-         match extra_exp with
-         | Texp_newtype _ -> extra_attrs @ attrs
-         | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
-      e.exp_attributes e.exp_extra
-  in
->>>>>>> ocaml/5.1
   Translattribute.add_function_attributes lam e.exp_loc attrs
 
 (* Like transl_exp, but used when a new scope was just introduced. *)
@@ -1662,7 +1488,6 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               typed tree, then. *)
            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
            match definition with
-<<<<<<< HEAD
            | Kept (typ, _) ->
                let field_kind =
                  record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
@@ -1672,16 +1497,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  | Immutable -> Reads_agree
                  | Mutable -> Reads_vary
                in
-||||||| merged common ancestors
-           | Kept typ ->
-               let field_kind = value_kind env typ in
-=======
-           | Kept (typ, mut) ->
-               let field_kind = value_kind env typ in
->>>>>>> ocaml/5.1
                let access =
                  match repres with
-<<<<<<< HEAD
                    Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
                    Pfield (i, sem)
                  | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
@@ -1693,19 +1510,6 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     Pfloatfield (i, sem, alloc_heap)
                  | Record_ufloat -> Pufloatfield (i, sem)
                in
-||||||| merged common ancestors
-                   Record_regular | Record_inlined _ -> Pfield i
-                 | Record_unboxed _ -> assert false
-                 | Record_extension _ -> Pfield (i + 1)
-                 | Record_float -> Pfloatfield i in
-=======
-                   Record_regular | Record_inlined _ ->
-                     Pfield (i, maybe_pointer_type env typ, mut)
-                 | Record_unboxed _ -> assert false
-                 | Record_extension _ ->
-                     Pfield (i + 1, maybe_pointer_type env typ, mut)
-                 | Record_float -> Pfloatfield i in
->>>>>>> ocaml/5.1
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
                field_kind
@@ -1776,13 +1580,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort lbl.lbl_loc lbl_sort lbl.lbl_repres;
       match definition with
-<<<<<<< HEAD
       | Kept (_type, _uu) -> cont
-||||||| merged common ancestors
-      | Kept _type -> cont
-=======
-      | Kept _ -> cont
->>>>>>> ocaml/5.1
       | Overridden (_lid, expr) ->
           let upd =
             match repres with
@@ -2004,15 +1802,9 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
-<<<<<<< HEAD
     let body = maybe_region_layout return body in
     lfunction ~kind ~params ~return ~body ~attr ~loc
               ~mode:alloc_heap ~region:true
-||||||| merged common ancestors
-    Lfunction{kind; params; return; body; attr; loc}
-=======
-    lfunction ~kind ~params ~return ~body ~attr ~loc
->>>>>>> ocaml/5.1
   in
   Lapply{
     ap_loc = of_location ~scopes loc;

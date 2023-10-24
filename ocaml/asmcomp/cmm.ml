@@ -86,7 +86,7 @@ type exttype =
 let machtype_of_exttype = function
   | XInt -> typ_int
   | XInt32 -> typ_int
-  | XInt64 -> typ_int
+  | XInt64 -> if Arch.size_int = 4 then [|Int;Int|] else typ_int
   | XFloat -> typ_float
 
 let machtype_of_exttype_list xtl =
@@ -154,22 +154,9 @@ type memory_chunk =
 and operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of string * machtype * exttype list * bool
-<<<<<<< HEAD
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * initialization_or_assignment
-||||||| merged common ancestors
-  | Cload of memory_chunk * Asttypes.mutable_flag
-  | Calloc
-  | Cstore of memory_chunk * Lambda.initialization_or_assignment
-=======
-  | Cload of
-      { memory_chunk: memory_chunk
-      ; mutability: Asttypes.mutable_flag
-      ; is_atomic: bool }
-  | Calloc
-  | Cstore of memory_chunk * Lambda.initialization_or_assignment
->>>>>>> ocaml/5.1
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi of integer_comparison
@@ -184,17 +171,12 @@ and operation =
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
   | Copaque
-<<<<<<< HEAD
   | Cbeginregion | Cendregion
 
 type kind_for_unboxing =
   | Any
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_float
-||||||| merged common ancestors
-=======
-  | Cdls_get
->>>>>>> ocaml/5.1
 
 type expression =
     Cconst_int of int * Debuginfo.t

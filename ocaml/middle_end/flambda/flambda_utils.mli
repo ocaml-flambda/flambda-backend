@@ -69,13 +69,8 @@ val make_closure_declaration
   -> region:bool
   -> body:Flambda.t
   -> params:Parameter.t list
-<<<<<<< HEAD
   -> return_layout:Lambda.layout
   -> free_variables:Lambda.layout Variable.Map.t
-||||||| merged common ancestors
-  -> stub:bool
-=======
->>>>>>> ocaml/5.1
   -> Flambda.t
 
 val toplevel_substitution

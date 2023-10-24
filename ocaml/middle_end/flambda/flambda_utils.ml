@@ -345,15 +345,7 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-<<<<<<< HEAD
       ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~return_layout ~free_variables : Flambda.t =
-||||||| merged common ancestors
-      ~is_classic_mode ~id ~body ~params ~stub : Flambda.t =
-  let free_variables = Flambda.free_variables body in
-=======
-      ~is_classic_mode ~id ~body ~params : Flambda.t =
-  let free_variables = Flambda.free_variables body in
->>>>>>> ocaml/5.1
   let param_set = Parameter.Set.vars params in
   let free_variables_set = Variable.Map.keys free_variables in
   if not (Variable.Set.subset param_set free_variables_set) then begin
@@ -371,32 +363,17 @@ let make_closure_declaration
   let subst id = Variable.Map.find id sb in
   let subst_param param = Parameter.map_var subst param in
   let function_declaration =
-<<<<<<< HEAD
     Flambda.create_function_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
       ~return_layout
-||||||| merged common ancestors
-    Flambda.create_function_declaration ~params:(List.map subst_param params)
-      ~body ~stub ~dbg:Debuginfo.none ~inline:Default_inline
-=======
-    Flambda.create_function_declaration ~params:(List.map subst_param params)
->>>>>>> ocaml/5.1
       ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
       ~specialise:Default_specialise ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
       ~poll:Default_poll
   in
   begin
-<<<<<<< HEAD
     assert (Variable.Set.equal (Variable.Set.map subst free_variables_set)
               function_declaration.free_variables);
-||||||| merged common ancestors
-  assert (Variable.Set.equal (Variable.Set.map subst free_variables)
-    function_declaration.free_variables);
-=======
-    assert (Variable.Set.equal (Variable.Set.map subst free_variables)
-    function_declaration.free_variables);
->>>>>>> ocaml/5.1
   end;
   let free_vars =
     Variable.Map.fold (fun id id' fv' ->
@@ -590,13 +567,7 @@ let substitute_read_symbol_field_for_variables
           Expr (
             Flambda.create_let block (make_named t)
               (Flambda.create_let field
-<<<<<<< HEAD
                  (Prim (Pfield (h, Pvalue Pgenval), [block], Debuginfo.none))
-||||||| merged common ancestors
-                 (Prim (Pfield h, [block], Debuginfo.none))
-=======
-                 (Prim (Pfield (h, Pointer, Mutable), [block], Debuginfo.none))
->>>>>>> ocaml/5.1
                  (Var field)))
     in
     Flambda.create_let fresh_var (make_named path) expr
@@ -959,13 +930,7 @@ let projection_to_named (projection : Projection.t) : Flambda.named =
   | Project_closure project_closure -> Project_closure project_closure
   | Move_within_set_of_closures move -> Move_within_set_of_closures move
   | Field (field_index, var) ->
-<<<<<<< HEAD
     Prim (Pfield (field_index, Pvalue Pgenval), [var], Debuginfo.none)
-||||||| merged common ancestors
-    Prim (Pfield field_index, [var], Debuginfo.none)
-=======
-    Prim (Pfield (field_index, Pointer, Mutable), [var], Debuginfo.none)
->>>>>>> ocaml/5.1
 
 type specialised_to_same_as =
   | Not_specialised

@@ -21,12 +21,12 @@
 #include <signal.h>
 #include <caml/signals.h>
 
-CAMLprim value caml_unix_kill(value pid, value signal)
+CAMLprim value unix_kill(value pid, value signal)
 {
   int sig;
   sig = caml_convert_signal_number(Int_val(signal));
   if (kill(Int_val(pid), sig) == -1)
-    caml_uerror("kill", Nothing);
+    uerror("kill", Nothing);
   caml_process_pending_actions();
   return Val_unit;
 }

@@ -2,9 +2,9 @@
 ;*                                                                        *
 ;*                                 OCaml                                  *
 ;*                                                                        *
-;*                     Thomas Refis, Jane Street Europe                   *
+;*            Thomas Refis and Mark Shinwell, Jane Street Europe          *
 ;*                                                                        *
-;*   Copyright 2018 Jane Street Group LLC                                 *
+;*   Copyright 2018--2020 Jane Street Group LLC                           *
 ;*                                                                        *
 ;*   All rights reserved.  This file is distributed under the terms of    *
 ;*   the GNU Lesser General Public License version 2.1, with the          *
@@ -22,12 +22,20 @@
             sed -n -e '/^  /s/ \\([A-Z]\\)/ \\&\\&lbl_\\1/gp' -e '/^}/q'"))))
 
 (rule
+  (targets opnames.h)
+  (deps instruct.h)
+  (action (run make -s -C .. COMPUTE_DEPS=false caml/opnames.h)))
+
+(rule
  (targets version.h)
  (mode    fallback)
  (action
    (with-stdout-to %{targets}
      (run %{dep:../../tools/make-version-header.sh} %{dep:../../VERSION}))))
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
 
 (install
   (files
@@ -88,12 +96,18 @@
     (startup.h as caml/startup.h)
     (startup_aux.h as caml/startup_aux.h)
     (sys.h as caml/sys.h)
+<<<<<<< HEAD
     (simd.h as caml/simd.h)
+=======
+>>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
     (ui.h as caml/ui.h)
     (version.h as caml/version.h)
     (weak.h as caml/weak.h)
   )
   (section lib)
   (package ocaml_runtime_stdlib))
+<<<<<<< HEAD
 =======
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
+=======
+>>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30

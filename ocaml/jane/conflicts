@@ -1,2 +1,0 @@
-#!/bin/sh
-rg -g '!boot' '<<<<<<< [H]EAD' | cut -d/ -f1 | sort | uniq -c

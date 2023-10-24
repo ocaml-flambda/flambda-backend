@@ -54,12 +54,10 @@ val set_float_arg :
 val objfiles : string list ref
 val ccobjs : string list ref
 val dllibs : string list ref
-val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
 val no_std_include : bool ref
-val no_cwd : bool ref
 val print_types : bool ref
 val make_archive : bool ref
 val debug : bool ref
@@ -77,7 +75,6 @@ val all_ccopts : string list ref
 val classic : bool ref
 val nopervasives : bool ref
 val match_context_rows : int ref
-val safer_matching : bool ref
 val open_modules : string list ref
 val preprocessor : string option ref
 val all_ppx : string list ref
@@ -181,6 +178,7 @@ val with_runtime : bool ref
 val force_slash : bool ref
 val keep_docs : bool ref
 val keep_locs : bool ref
+val unsafe_string : bool ref
 val opaque : bool ref
 val default_timings_precision : int
 val timings_precision : int ref
@@ -254,8 +252,7 @@ module Compiler_ir : sig
 end
 
 module Compiler_pass : sig
-  type t = Parsing | Typing | Lambda
-         | Scheduling | Emit | Simplify_cfg | Selection
+  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool

@@ -38,11 +38,10 @@ type kind =
   | Argument
   | Live
 
-type result =
-  {
-    intervals : t list;
-    fixed_intervals : t list;
-  }
+let interval_list = ref ([] : t list)
+let fixed_interval_list = ref ([] : t list)
+let all_intervals() = !interval_list
+let all_fixed_intervals() = !fixed_interval_list
 
 (* Check if two intervals overlap *)
 
@@ -168,22 +167,19 @@ let build_intervals fd =
     end in
   walk_instruction fd.fun_body;
   (* Generate the interval and fixed interval lists *)
-  let interval_list = ref [] in
-  let fixed_intervals = ref [] in
+  interval_list := [];
+  fixed_interval_list := [];
   Array.iter
     (fun i ->
       if i.iend != 0 then begin
         i.ranges <- List.rev i.ranges;
         begin match i.reg.loc with
           Reg _ ->
-            fixed_intervals := i :: !fixed_intervals
+            fixed_interval_list := i :: !fixed_interval_list
         | _ ->
             interval_list := i :: !interval_list
         end
       end)
     intervals;
-  {
-    fixed_intervals = !fixed_intervals;
-    intervals = List.sort (fun i0 i1 -> i0.ibegin - i1.ibegin) !interval_list;
-    (* Sort the intervals according to their start position *)
-  }
+  (* Sort the intervals according to their start position *)
+  interval_list := List.sort (fun i0 i1 -> i0.ibegin - i1.ibegin) !interval_list

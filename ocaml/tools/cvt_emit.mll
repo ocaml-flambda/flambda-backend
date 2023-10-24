@@ -15,7 +15,7 @@
 
 {
 let first_item = ref false
-let lexeme_beginning = ref 0
+let command_beginning = ref 0
 
 let add_semicolon () =
   if !first_item
@@ -35,29 +35,22 @@ let print_unescaped_string s =
   done
 }
 
-rule lex = parse
-    "`" { lexeme_beginning := Lexing.lexeme_start lexbuf;
+rule main = parse
+    "`" { command_beginning := Lexing.lexeme_start lexbuf;
           first_item := true;
           print_char '(';
           command lexbuf;
           print_char ')';
-          lex lexbuf }
+          main lexbuf }
   | "\\`"
-        { print_string "`"; lex lexbuf }
-  | '\t' { prerr_string "Invalid tab at character ";
-           prerr_int (Lexing.lexeme_start lexbuf);
-           prerr_newline();
-           exit 2 }
-  | '"' { lexeme_beginning := Lexing.lexeme_start lexbuf;
-          print_char '"';
-          string lexbuf }
+        { print_string "`"; main lexbuf }
   | eof { () }
-  | _   { print_char(Lexing.lexeme_char lexbuf 0); lex lexbuf }
+  | _   { print_char(Lexing.lexeme_char lexbuf 0); main lexbuf }
 
 and command = parse
     "`" { () }
   | eof { prerr_string "Unterminated `...` at character ";
-          prerr_int !lexeme_beginning;
+          prerr_int !command_beginning;
           prerr_newline();
           exit 2 }
   | "{" [^ '}'] * "}"
@@ -86,21 +79,8 @@ and command = parse
           end;
           command lexbuf }
 
-and string = parse
-  | '"' { print_char '"';
-          lex lexbuf }
-  | '\\' _ | [^ '\\' '"' ]+
-        { print_string (Lexing.lexeme lexbuf);
-          string lexbuf }
-  | eof { prerr_string "Unterminated \"...\" at character ";
-          prerr_int !lexeme_beginning;
-          prerr_newline();
-          exit 2 }
-
 {
-let main () =
-  lex (Lexing.from_channel stdin);
-  exit 0
+let _ = main(Lexing.from_channel stdin)
 
-let _ = main ()
+let _ = exit (0)
 }

@@ -94,21 +94,11 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
-<<<<<<< HEAD
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
-||||||| merged common ancestors
-  | Pmakeblock of int * mutable_flag * block_shape
-  | Pfield of int
-  | Pfield_computed
-=======
-  | Pmakeblock of int * mutable_flag * block_shape
-  | Pfield of int * immediate_or_pointer * mutable_flag
-  | Pfield_computed
->>>>>>> ocaml/5.1
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
@@ -116,19 +106,10 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
-<<<<<<< HEAD
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
-||||||| merged common ancestors
-=======
-  (* Context switches *)
-  | Prunstack
-  | Pperform
-  | Presume
-  | Preperform
->>>>>>> ocaml/5.1
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -221,20 +202,8 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-<<<<<<< HEAD
   | Pint_as_pointer of alloc_mode
-||||||| merged common ancestors
-  | Pint_as_pointer
-=======
-  | Pint_as_pointer
-  (* Atomic operations *)
-  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_cas
-  | Patomic_fetch_add
->>>>>>> ocaml/5.1
   (* Inhibition of optimisation *)
-<<<<<<< HEAD
   | Popaque of layout
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
@@ -255,13 +224,6 @@ type primitive =
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
      if the value is locally allocated *)
-||||||| merged common ancestors
-  | Popaque
-=======
-  | Popaque
-  (* Fetching domain-local state *)
-  | Pdls_get
->>>>>>> ocaml/5.1
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -422,7 +384,6 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-<<<<<<< HEAD
 type property =
   | Zero_alloc
 
@@ -458,15 +419,6 @@ type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
    See [lfunction] for details *)
-||||||| merged common ancestors
-type function_kind = Curried | Tupled
-=======
-type poll_attribute =
-  | Error_poll (* [@poll error] *)
-  | Default_poll (* no [@poll] attribute *)
-
-type function_kind = Curried | Tupled
->>>>>>> ocaml/5.1
 
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
@@ -491,14 +443,9 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-<<<<<<< HEAD
   check : check_attribute;
   poll: poll_attribute;
   loop: loop_attribute;
-||||||| merged common ancestors
-=======
-  poll: poll_attribute;
->>>>>>> ocaml/5.1
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
@@ -676,16 +623,6 @@ val lfunction :
   loc:scoped_location ->
   mode:alloc_mode ->
   region:bool ->
-  lambda
-
-
-val lfunction :
-  kind:function_kind ->
-  params:(Ident.t * value_kind) list ->
-  return:value_kind ->
-  body:lambda ->
-  attr:function_attribute -> (* specified with [@inline] attribute *)
-  loc:scoped_location ->
   lambda
 
 

@@ -27,8 +27,8 @@ bucket *last_symbol;
 int
 hash(char *name)
 {
-    char *s;
-    int c, k;
+    register char *s;
+    register int c, k;
 
     assert(name && *name);
     s = name;
@@ -43,7 +43,7 @@ hash(char *name)
 bucket *
 make_bucket(char *name)
 {
-    bucket *bp;
+    register bucket *bp;
 
     assert(name);
     bp = (bucket *) MALLOC(sizeof(bucket));
@@ -71,7 +71,7 @@ make_bucket(char *name)
 bucket *
 lookup(char *name)
 {
-    bucket *bp, **bpp;
+    register bucket *bp, **bpp;
 
     bpp = symbol_table + hash(name);
     bp = *bpp;
@@ -93,8 +93,8 @@ lookup(char *name)
 
 void create_symbol_table(void)
 {
-    int i;
-    bucket *bp;
+    register int i;
+    register bucket *bp;
 
     symbol_table = (bucket **) MALLOC(TABLE_SIZE*sizeof(bucket *));
     if (symbol_table == 0) no_space();
@@ -120,7 +120,7 @@ void free_symbol_table(void)
 
 void free_symbols(void)
 {
-    bucket *p, *q;
+    register bucket *p, *q;
 
     for (p = first_symbol; p; p = q)
     {

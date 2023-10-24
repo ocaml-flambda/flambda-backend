@@ -1,4 +1,3 @@
-# 2 "asmcomp/riscv/proc.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -38,7 +37,8 @@ let word_addressed = false
     s2-s9        8-15      arguments/results (preserved by C)
     t2-t6        16-20     temporary
     s0           21        general purpose (preserved by C)
-    t0, t1       22-23     temporaries (used by call veneers)
+    t0           22        temporary
+    t1           23        temporary (used by code generator)
     s1           24        trap pointer (preserved by C)
     s10          25        allocation pointer (preserved by C)
     s11          26        domain pointer (preserved by C)
@@ -86,7 +86,7 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 1
 
-let num_available_registers = [| 22; 32 |]
+let num_available_registers = [| 23; 32 |]
 
 let first_available_register = [| 0; 100 |]
 
@@ -237,29 +237,31 @@ let loc_external_results res =
 
 let loc_exn_bucket = phys_reg 0
 
+(* Volatile registers: none *)
+
+let regs_are_volatile _ = false
+
 (* Registers destroyed by operations *)
 
-let destroyed_at_c_noalloc_call =
-  (* s0-s11 and fs0-fs11 are callee-save, but s0 is
-     used to preserve OCaml sp. *)
+let destroyed_at_c_call =
+  (* s0-s11 and fs0-fs11 are callee-save.  However s2 needs to be in this
+     list since it is clobbered by caml_c_call itself. *)
   Array.of_list(List.map phys_reg
-    [0; 1; 2; 3; 4; 5; 6; 7; 16; 17; 18; 19; 20; 21 (* s0 *);
+    [0; 1; 2; 3; 4; 5; 6; 7; 8; 16; 17; 18; 19; 20; 22;
      100; 101; 102; 103; 104; 105; 106; 107; 110; 111; 112; 113; 114; 115; 116;
      117; 128; 129; 130; 131])
 
 let destroyed_at_alloc =
   (* t0-t6 are used for PLT stubs *)
-  if !Clflags.dlcode then Array.map phys_reg [|16; 17; 18; 19; 20|]
-  else [| phys_reg 16 |] (* t2 is used to pass the argument to caml_allocN *)
+  if !Clflags.dlcode then Array.map phys_reg [|16; 17; 18; 19; 20; 22|]
+  else [| |]
 
 let destroyed_at_oper = function
-  | Iop(Icall_ind | Icall_imm _) -> all_phys_regs
-  | Iop(Iextcall{alloc; stack_ofs; _}) ->
-      assert (stack_ofs >= 0);
-      if alloc || stack_ofs > 0 then all_phys_regs
-      else destroyed_at_c_noalloc_call
+  | Iop(Icall_ind | Icall_imm _ | Iextcall{alloc = true; _}) -> all_phys_regs
+  | Iop(Iextcall{alloc = false; _}) -> destroyed_at_c_call
   | Iop(Ialloc _) | Iop(Ipoll _) -> destroyed_at_alloc
   | Iop(Istore(Single, _, _)) -> [| phys_reg 100 |]
+  | Iswitch _ -> [| phys_reg 22 |]  (* t0 *)
   | _ -> [||]
 
 let destroyed_at_raise = all_phys_regs
@@ -287,8 +289,7 @@ let prologue_required fd =
   frame_required fd
 
 (* See
-   https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc
-*)
+   https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md *)
 
 let int_dwarf_reg_numbers =
   [| 10; 11; 12; 13; 14; 15; 16; 17;

@@ -1,9 +1,7 @@
 ROOTDIR = ../..
-include $(ROOTDIR)/Makefile.common
+-include $(ROOTDIR)/Makefile.build_config
 
 TEXQUOTE = $(ROOTDIR)/runtime/ocamlrun ../tools/texquote2
-
-DIRS = infoman texstuff textman
 
 FILES = allfiles.tex biblio.tex foreword.tex version.tex cmds/warnings-help.etex ifocamldoc.tex
 
@@ -51,14 +49,11 @@ ifocamldoc.tex: $(ROOTDIR)/Makefile.build_config
 	cp $(APIDOC)/ocamldoc/build/latex/ifocamldoc.tex $@
 endif
 
-$(DIRS):
-	$(MKDIR) $@
-
-pdf: files latex_files | texstuff
+manual: files latex_files
 	cd texstuff \
 	  && TEXINPUTS=$(TEXINPUTS) pdflatex manual.tex
 
-index: | texstuff
+index:
 	cd texstuff \
 	  && sh ../../tools/fix_index.sh manual.idx \
 	  && makeindex manual.idx \
@@ -75,7 +70,7 @@ html: etex-files html_files
 	    manual.hva -e macros.tex ../manual.tex \
 	  && $(HACHA) -tocter manual.html
 
-info: files latex_files | infoman
+info: files latex_files
 	cd infoman \
 	  && rm -f ocaml.info* \
 	  && $(HEVEA) $(INFO_FLAGS) -o ocaml.info.body \
@@ -88,7 +83,7 @@ info: files latex_files | infoman
 	  && rm -f ocaml.info.tmp ocaml.info.body \
 	  && gzip -9 ocaml.info*
 
-text: files latex_files | textman
+text: files latex_files
 	cd textman \
 	  && $(HEVEA) $(TEXT_FLAGS) \
 	    -I .. -I ../cmds -I ../library -I ../refman \
@@ -96,14 +91,14 @@ text: files latex_files | textman
 	    -I ../../styles -I ../texstuff \
 	    ../manual.inf -e macros.tex ../manual.tex
 
-.PHONY: all
+
 all:
 	$(MAKE) html
 	$(MAKE) text
 	$(MAKE) info
-	$(MAKE) pdf
+	$(MAKE) manual
 	$(MAKE) index
-	$(MAKE) pdf
+	$(MAKE) manual
 
 release: all
 	cp htmlman/manual.html $(RELEASE)refman.html
@@ -160,21 +155,18 @@ cmds/warnings-help.etex: $(ROOTDIR)/utils/warnings.ml $(ROOTDIR)/ocamlc
 .PHONY: clean
 clean:
 	rm -f $(filter-out version.tex,$(FILES)) *.texquote_error
-	$(MAKE) -C cmds clean
-	$(MAKE) -C html_processing clean
-	$(MAKE) -C library clean
-	$(MAKE) -C refman clean
+	$(MAKE) -C cmds      clean
+	$(MAKE) -C library   clean
+	$(MAKE) -C refman    clean
 	$(MAKE) -C tutorials clean
+	$(MAKE) -C html_processing clean
+	-rm -f texstuff/*
 	cd htmlman; rm -rf libref compilerlibref *.htoc *.html *.haux *.hind *.svg \
-                       fonts/KaTeX* katex.min.css katex.min.js highlight.pack.js \
-	                   manual.hmanual manual.hmanual.kwd manual.css odoc.css
-	rm -rf $(DIRS)
+	                   manual.hmanual manual.hmanual.kwd manual.css
+	cd textman; rm -f manual.txt *.haux *.hind *.htoc
+	cd infoman; rm -f ocaml.info ocaml.info-*  *.haux *.hind *.info*.gz
 
 .PHONY: distclean
 distclean: clean
 	rm -f version.tex
-	$(MAKE) -C cmds distclean
 	$(MAKE) -C html_processing distclean
-	$(MAKE) -C library distclean
-	$(MAKE) -C refman distclean
-	$(MAKE) -C tutorials distclean

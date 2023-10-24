@@ -127,12 +127,6 @@ let test8 () =
     ignore (Array.sub [|3;4|] (-1) 1); print_string "Test 8.4: failed\n"
   with Invalid_argument _ -> ())
 
-let test9 () =
-  try
-    (* test exception raised from C (caml_array_bound_error) to OCaml *)
-    ignore ([| |].(0)); print_string "Test 9: failed\n"
-  with Invalid_argument _ -> ()
-
 let _ =
   test1();
   test2();
@@ -142,5 +136,4 @@ let _ =
   test6();
   test7();
   test8();
-  test9();
   exit 0

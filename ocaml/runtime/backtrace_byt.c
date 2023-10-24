@@ -37,7 +37,7 @@
 #include "caml/fix_code.h"
 #include "caml/memory.h"
 #include "caml/startup.h"
-#include "caml/fiber.h"
+#include "caml/stacks.h"
 #include "caml/sys.h"
 #include "caml/backtrace.h"
 #include "caml/fail.h"
@@ -71,6 +71,17 @@ enum {
   POS_LNUM = 1,
   POS_BOL = 2,
   POS_CNUM = 3
+};
+
+/* Runtime representation of the debug information, optimized
+   for quick lookup */
+struct ev_info {
+  code_t ev_pc;
+  char *ev_filename;
+  char *ev_defname;
+  int ev_lnum;
+  int ev_startchr;
+  int ev_endchr;
 };
 
 struct debug_info {
@@ -246,8 +257,7 @@ value caml_remove_debug_info(code_t start)
   CAMLreturn(Val_unit);
 }
 
-int caml_alloc_backtrace_buffer (void)
-{
+int caml_alloc_backtrace_buffer(void){
   CAMLassert(Caml_state->backtrace_pos == 0);
   Caml_state->backtrace_buffer =
     caml_stat_alloc_noexc(BACKTRACE_BUFFER_SIZE * sizeof(code_t));
@@ -255,21 +265,14 @@ int caml_alloc_backtrace_buffer (void)
   return 0;
 }
 
-void caml_free_backtrace_buffer(backtrace_slot *backtrace_buffer) {
-  if (backtrace_buffer != NULL)
-    caml_stat_free(backtrace_buffer);
-}
-
 /* Store the return addresses contained in the given stack fragment
    into the backtrace array */
 
 void caml_stash_backtrace(value exn, value * sp, int reraise)
 {
-  value *trap_sp;
-
   if (exn != Caml_state->backtrace_last_exn || !reraise) {
     Caml_state->backtrace_pos = 0;
-    caml_modify_generational_global_root(&Caml_state->backtrace_last_exn, exn);
+    Caml_state->backtrace_last_exn = exn;
   }
 
   if (Caml_state->backtrace_buffer == NULL &&
@@ -278,8 +281,7 @@ void caml_stash_backtrace(value exn, value * sp, int reraise)
 
   /* Traverse the stack and put all values pointing into bytecode
      into the backtrace buffer. */
-  trap_sp = Stack_high(Caml_state->current_stack) + Caml_state->trap_sp_off;
-  for (/*nothing*/; sp < trap_sp; sp++) {
+  for (/*nothing*/; sp < Caml_state->trapsp; sp++) {
     code_t p;
     if (Is_long(*sp)) continue;
     p = (code_t) *sp;
@@ -290,19 +292,18 @@ void caml_stash_backtrace(value exn, value * sp, int reraise)
 }
 
 /* returns the next frame pointer (or NULL if none is available);
-   updates *sp to point to the following one, and *trap_spoff to the next
+   updates *sp to point to the following one, and *trsp to the next
    trap frame, which we will skip when we reach it  */
 
-code_t caml_next_frame_pointer(value* stack_high, value ** sp,
-                          intnat * trap_spoff)
+code_t caml_next_frame_pointer(value ** sp, value ** trsp)
 {
-  while (*sp < stack_high) {
+  while (*sp < Caml_state->stack_high) {
     value *spv = (*sp)++;
     code_t *p;
     if (Is_long(*spv)) continue;
     p = (code_t*) spv;
-    if((code_t*)&Trap_pc(stack_high + *trap_spoff) == p) {
-      *trap_spoff = Trap_link(stack_high + *trap_spoff);
+    if(&Trap_pc(*trsp) == p) {
+      *trsp = *trsp + Long_val(Trap_link_offset(*trsp));
       continue;
     }
 
@@ -312,109 +313,39 @@ code_t caml_next_frame_pointer(value* stack_high, value ** sp,
   return NULL;
 }
 
-/* Stores upto [max_frames_value] frames of the current call stack to
-   return to the user. This is used not in an exception-raising context, but
-   only when the user requests to save the trace (hopefully less often).
-   Instead of using a bounded buffer as [Caml_state->stash_backtrace], we first
-   traverse the stack to compute the right size, then allocate space for the
-   trace. */
-
-static void get_callstack(value* sp, intnat trap_spoff,
-                          struct stack_info* stack,
-                          intnat max_frames,
-                          code_t** trace, intnat* trace_size)
+#define Default_callstack_size 32
+intnat caml_collect_current_callstack(value** ptrace, intnat* plen,
+                                      intnat max_frames, int alloc_idx)
 {
-  struct stack_info* parent = Stack_parent(stack);
-  value *stack_high = Stack_high(stack);
-  value* saved_sp = sp;
-  intnat saved_trap_spoff = trap_spoff;
+  value * sp = Caml_state->extern_sp;
+  value * trsp = Caml_state->trapsp;
+  intnat trace_pos = 0;
+  CAMLassert(alloc_idx == 0 || alloc_idx == -1);
 
-  CAMLnoalloc;
+  if (max_frames <= 0) return 0;
+  if (*plen == 0) {
+    value* trace =
+      caml_stat_alloc_noexc(Default_callstack_size * sizeof(value));
+    if (trace == NULL) return 0;
+    *ptrace = trace;
+    *plen = Default_callstack_size;
+  }
 
-  /* first compute the size of the trace */
-  {
-    *trace_size = 0;
-    while (*trace_size < max_frames) {
-      code_t p = caml_next_frame_pointer(stack_high, &sp, &trap_spoff);
-      if (p == NULL) {
-        if (parent == NULL) break;
-        sp = parent->sp;
-        trap_spoff = Long_val(sp[0]);
-        stack_high = Stack_high(parent);
-        parent = Stack_parent(parent);
-      } else {
-        ++*trace_size;
-      }
+  while (trace_pos < max_frames) {
+    code_t p = caml_next_frame_pointer(&sp, &trsp);
+    if (p == NULL) break;
+    if (trace_pos == *plen) {
+      intnat new_len = *plen * 2;
+      value * trace = caml_stat_resize_noexc(*ptrace, new_len * sizeof(value));
+      if (trace == NULL) break;
+      *ptrace = trace;
+      *plen = new_len;
     }
+    (*ptrace)[trace_pos++] = Val_backtrace_slot(p);
   }
 
-  *trace = caml_stat_alloc(sizeof(code_t*) * *trace_size);
-
-  sp = saved_sp;
-  parent = Stack_parent(stack);
-  stack_high = Stack_high(stack);
-  trap_spoff = saved_trap_spoff;
-
-  /* then collect the trace */
-  {
-    uintnat trace_pos = 0;
-
-    while (trace_pos < *trace_size) {
-      code_t p = caml_next_frame_pointer(stack_high, &sp, &trap_spoff);
-      if (p == NULL) {
-        sp = parent->sp;
-        trap_spoff = Long_val(sp[0]);
-        stack_high = Stack_high(parent);
-        parent = Stack_parent(parent);
-      } else {
-        (*trace)[trace_pos] = p;
-        ++trace_pos;
-      }
-    }
-  }
+  return trace_pos;
 }
-
-static value alloc_callstack(code_t* trace, intnat trace_len)
-{
-  CAMLparam0();
-  CAMLlocal1(callstack);
-  int i;
-  callstack = caml_alloc(trace_len, 0);
-  for (i = 0; i < trace_len; i++)
-    Store_field(callstack, i, Val_backtrace_slot(trace[i]));
-  caml_stat_free(trace);
-  CAMLreturn(callstack);
-}
-
-CAMLprim value caml_get_current_callstack (value max_frames_value)
-{
-  code_t* trace;
-  intnat trace_len;
-  get_callstack(Caml_state->current_stack->sp, Caml_state->trap_sp_off,
-                Caml_state->current_stack, Long_val(max_frames_value),
-                &trace, &trace_len);
-  return alloc_callstack(trace, trace_len);
-}
-
-CAMLprim value caml_get_continuation_callstack (value cont, value max_frames)
-{
-  code_t* trace;
-  intnat trace_len;
-  struct stack_info *stack;
-  value *sp;
-
-  stack = Ptr_val(caml_continuation_use(cont));
-  {
-    CAMLnoalloc; /* GC must not see the stack outside the cont */
-    sp = stack->sp;
-    get_callstack(sp, Long_val(sp[0]), stack, Long_val(max_frames),
-                  &trace, &trace_len);
-    caml_continuation_replace(cont, stack);
-  }
-
-  return alloc_callstack(trace, trace_len);
-}
-
 
 /* Read the debugging info contained in the current bytecode executable. */
 
@@ -435,13 +366,13 @@ static void read_main_debug_info(struct debug_info *di)
 
      See  https://github.com/ocaml/ocaml/issues/9344 for details.
   */
-  if (caml_params->cds_file == NULL && caml_byte_program_mode == COMPLETE_EXE)
+  if (caml_cds_file == NULL && caml_byte_program_mode == COMPLETE_EXE)
     CAMLreturn0;
 
-  if (caml_params->cds_file != NULL) {
-    exec_name = (char_os*) caml_params->cds_file;
+  if (caml_cds_file != NULL) {
+    exec_name = caml_cds_file;
   } else {
-    exec_name = (char_os*) caml_params->exe_name;
+    exec_name = caml_exe_name;
   }
 
   fd = caml_attempt_open(&exec_name, &trail, 1);
@@ -455,6 +386,7 @@ static void read_main_debug_info(struct debug_info *di)
   if (caml_seek_optional_section(fd, &trail, "DBUG") != -1) {
     chan = caml_open_descriptor_in(fd);
 
+    Lock(chan);
     num_events = caml_getword(chan);
     events = caml_alloc(num_events, 0);
 
@@ -465,11 +397,12 @@ static void read_main_debug_info(struct debug_info *di)
       /* Relocate events in event list */
       for (l = evl; l != Val_int(0); l = Field(l, 1)) {
         value ev = Field(l, 0);
-        Store_field (ev, EV_POS, Val_long(Long_val(Field(ev, EV_POS)) + orig));
+        Field(ev, EV_POS) = Val_long(Long_val(Field(ev, EV_POS)) + orig);
       }
       /* Record event list */
       Store_field(events, i, evl);
     }
+    Unlock(chan);
 
     caml_close_channel(chan);
 
@@ -489,7 +422,7 @@ CAMLexport void caml_init_debug_info(void)
 
 CAMLexport void caml_load_main_debug_info(void)
 {
-  if (caml_params->backtrace_enabled > 1) {
+  if (Caml_state->backtrace_active > 1) {
     read_main_debug_info(caml_debug_info.contents[0]);
   }
 }
@@ -539,16 +472,6 @@ static struct ev_info *event_for_location(code_t pc)
     return &di->events[low];
   if (low+1 < di->num_events && di->events[low+1].ev_pc == pc + 1)
     return &di->events[low+1];
-
-  return NULL;
-}
-
-/* Search for event info at the exact given PC. */
-struct ev_info * caml_exact_event_for_location(code_t pc)
-{
-  struct ev_info *ev = event_for_location(pc);
-  if (ev && ev->ev_pc == pc)
-    return ev;
 
   return NULL;
 }

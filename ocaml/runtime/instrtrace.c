@@ -23,51 +23,27 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "caml/fiber.h"
-#include "caml/domain.h"
 #include "caml/instrtrace.h"
 #include "caml/instruct.h"
 #include "caml/misc.h"
 #include "caml/mlvalues.h"
 #include "caml/opnames.h"
 #include "caml/prims.h"
-#include "caml/startup.h"
-#include "caml/backtrace_prim.h"
+#include "caml/stacks.h"
+#include "caml/startup_aux.h"
 
 extern code_t caml_start_code;
 
-__thread intnat caml_icount = 0;
+intnat caml_icount = 0;
 
-void caml_stop_here (void)
+void caml_stop_here () {}
+
+void caml_disasm_instr(pc)
+     code_t pc;
 {
-}
-
-char * caml_instr_string (code_t pc);
-
-
-void
-caml_event_trace(code_t pc)
-{
-  struct ev_info *evi = caml_exact_event_for_location(pc);
-  if (evi == NULL)
-    return;
-
-  printf("[%02d] Event at PC:%ld, Def:%s, File: %s, Line: %d, Chars:%d-%d\n",
-     Caml_state->id,
-     (long) (pc - caml_start_code),
-     evi->ev_defname, evi->ev_filename,
-     evi->ev_lnum, evi->ev_startchr, evi->ev_endchr);
-  fflush (stdout);
-}
-
-void caml_disasm_instr(code_t pc)
-{
-  char buf[256];
-  char opbuf[128];
   int instr = *pc;
-  snprintf(opbuf, sizeof(opbuf), "%6ld  %s", (long) (pc - caml_start_code),
-           (instr < 0 || instr >= FIRST_UNIMPLEMENTED_OP) ?
-             "???" : names_of_instructions[instr]);
+  printf("%6ld  %s", (long) (pc - caml_start_code),
+         instr < 0 || instr > STOP ? "???" : names_of_instructions[instr]);
   pc++;
   switch(instr) {
     /* Instructions with one integer operand */
@@ -81,37 +57,125 @@ void caml_disasm_instr(code_t pc)
   case BRANCH: case BRANCHIF: case BRANCHIFNOT: case PUSHTRAP:
   case CONSTINT: case PUSHCONSTINT: case OFFSETINT: case OFFSETREF:
   case OFFSETCLOSURE: case PUSHOFFSETCLOSURE:
-  case RESUMETERM: case REPERFORMTERM:
-    snprintf(buf, sizeof(buf), "%s %d\n", opbuf, pc[0]); break;
+    printf(" %d\n", pc[0]); break;
     /* Instructions with two operands */
   case APPTERM: case CLOSURE: case CLOSUREREC: case PUSHGETGLOBALFIELD:
   case GETGLOBALFIELD: case MAKEBLOCK:
   case BEQ: case BNEQ: case BLTINT: case BLEINT: case BGTINT: case BGEINT:
   case BULTINT: case BUGEINT:
-    snprintf(buf, sizeof(buf), "%s %d, %d\n", opbuf, pc[0], pc[1]); break;
+    printf(" %d, %d\n", pc[0], pc[1]); break;
     /* Instructions with a C primitive as operand */
   case C_CALLN:
-    snprintf(buf, sizeof(buf), "%s %d,", opbuf, pc[0]); pc++;
+    printf(" %d,", pc[0]); pc++;
     /* fallthrough */
   case C_CALL1: case C_CALL2: case C_CALL3: case C_CALL4: case C_CALL5:
     if (pc[0] < 0 || pc[0] >= caml_prim_name_table.size)
-      snprintf(buf, sizeof(buf), "%s unknown primitive %d\n", opbuf, pc[0]);
+      printf(" unknown primitive %d\n", pc[0]);
     else
-      snprintf(buf, sizeof(buf), "%s %s\n", opbuf,
-               (char *) caml_prim_name_table.contents[pc[0]]);
-    break;
-  case SWITCH:
-    snprintf(buf, sizeof(buf), "%s ntag=%lu nint=%lu\n",
-                 opbuf,
-                 (unsigned long) pc[0] >> 16,
-                 (unsigned long) pc[0] & 0xffff);
+      printf(" %s\n", (char *) caml_prim_name_table.contents[pc[0]]);
     break;
   default:
-    snprintf(buf, sizeof(buf), "%s\n", opbuf);
+    printf("\n");
   }
-  printf("[%02d] %s", Caml_state->id, buf);
   fflush (stdout);
 }
+
+char * caml_instr_string (code_t pc)
+{
+  static char buf[256];
+  char nambuf[128];
+  int instr = *pc;
+  char *nam;
+
+  nam = (instr < 0 || instr > STOP)
+    ? (snprintf (nambuf, sizeof(nambuf), "???%d", instr), nambuf)
+    : names_of_instructions[instr];
+  pc++;
+  switch (instr) {
+    /* Instructions with one integer operand */
+  case PUSHACC:
+  case ACC:
+  case POP:
+  case ASSIGN:
+  case PUSHENVACC:
+  case ENVACC:
+  case PUSH_RETADDR:
+  case APPLY:
+  case APPTERM1:
+  case APPTERM2:
+  case APPTERM3:
+  case RETURN:
+  case GRAB:
+  case PUSHGETGLOBAL:
+  case GETGLOBAL:
+  case SETGLOBAL:
+  case PUSHATOM:
+  case ATOM:
+  case MAKEBLOCK1:
+  case MAKEBLOCK2:
+  case MAKEBLOCK3:
+  case MAKEFLOATBLOCK:
+  case GETFIELD:
+  case SETFIELD:
+  case GETFLOATFIELD:
+  case SETFLOATFIELD:
+  case BRANCH:
+  case BRANCHIF:
+  case BRANCHIFNOT:
+  case PUSHTRAP:
+  case CONSTINT:
+  case PUSHCONSTINT:
+  case OFFSETINT:
+  case OFFSETREF:
+  case OFFSETCLOSURE:
+  case PUSHOFFSETCLOSURE:
+    snprintf(buf, sizeof(buf), "%s %d", nam, pc[0]);
+    break;
+    /* Instructions with two operands */
+  case APPTERM:
+  case CLOSURE:
+  case CLOSUREREC:
+  case PUSHGETGLOBALFIELD:
+  case GETGLOBALFIELD:
+  case MAKEBLOCK:
+  case BEQ:
+  case BNEQ:
+  case BLTINT:
+  case BLEINT:
+  case BGTINT:
+  case BGEINT:
+  case BULTINT:
+  case BUGEINT:
+    snprintf(buf, sizeof(buf), "%s %d, %d", nam, pc[0], pc[1]);
+    break;
+  case SWITCH:
+    snprintf(buf, sizeof(buf), "SWITCH sz%#lx=%ld::ntag%lu nint%lu",
+            (long) pc[0], (long) pc[0], (unsigned long) pc[0] >> 16,
+            (unsigned long) pc[0] & 0xffff);
+    break;
+    /* Instructions with a C primitive as operand */
+  case C_CALLN:
+    snprintf(buf, sizeof(buf), "%s %d,", nam, pc[0]);
+    pc++;
+    /* fallthrough */
+  case C_CALL1:
+  case C_CALL2:
+  case C_CALL3:
+  case C_CALL4:
+  case C_CALL5:
+    if (pc[0] < 0 || pc[0] >= caml_prim_name_table.size)
+      snprintf(buf, sizeof(buf), "%s unknown primitive %d", nam, pc[0]);
+    else
+      snprintf(buf, sizeof(buf), "%s %s",
+               nam, (char *) caml_prim_name_table.contents[pc[0]]);
+    break;
+  default:
+    snprintf(buf, sizeof(buf), "%s", nam);
+    break;
+  };
+  return buf;
+}
+
 
 void
 caml_trace_value_file (value v, code_t prog, asize_t proglen, FILE * f)
@@ -126,10 +190,10 @@ caml_trace_value_file (value v, code_t prog, asize_t proglen, FILE * f)
     fprintf (f, "=code@%ld", (long) ((code_t) v - prog));
   else if (Is_long (v))
     fprintf (f, "=long%" ARCH_INTNAT_PRINTF_FORMAT "d", Long_val (v));
-  else if (Stack_base(Caml_state->current_stack) <= (value*)v &&
-           (value*)v < Stack_high(Caml_state->current_stack))
+  else if ((void*)v >= (void*)Caml_state->stack_low
+           && (void*)v < (void*)Caml_state->stack_high)
     fprintf (f, "=stack_%ld",
-             (long)((intnat*)Stack_high(Caml_state->current_stack)-(intnat*)v));
+             (long) ((intnat*)Caml_state->stack_high - (intnat*)v));
   else if (Is_block (v)) {
     int s = Wosize_val (v);
     int tg = Tag_val (v);
@@ -193,12 +257,11 @@ caml_trace_accu_sp_file (value accu, value * sp, code_t prog, asize_t proglen,
   fprintf (f, "accu=");
   caml_trace_value_file (accu, prog, proglen, f);
   fprintf (f, "\n sp=%#" ARCH_INTNAT_PRINTF_FORMAT "x @%ld:",
-           (intnat) sp, (long) (Stack_high(Caml_state->current_stack) - sp));
+           (intnat) sp, (long) (Caml_state->stack_high - sp));
   for (p = sp, i = 0;
-       i < 12 + (1 << caml_params->trace_level) &&
-         p < Stack_high(Caml_state->current_stack);
+       i < 12 + (1 << caml_trace_level) && p < Caml_state->stack_high;
        p++, i++) {
-    fprintf (f, "\n[%ld] ", (long) (Stack_high(Caml_state->current_stack) - p));
+    fprintf (f, "\n[%ld] ", (long) (Caml_state->stack_high - p));
     caml_trace_value_file (*p, prog, proglen, f);
   };
   putc ('\n', f);

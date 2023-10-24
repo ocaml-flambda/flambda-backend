@@ -62,12 +62,19 @@ v}
     example the string ["\u{1F42B}"] is the UTF-8 encoding of the
     Unicode character U+1F42B.
 
-    {b Past mutability.} Before OCaml 4.02, strings used to be modifiable in
-    place like {!Bytes.t} mutable sequences of bytes.
-    OCaml 4 had various compiler flags and configuration options to support the
-    transition period from mutable to immutable strings.
-    Those options are no longer available, and strings are now always
-    immutable.
+    {b Past mutability.} OCaml strings used to be modifiable in place,
+    for instance via the {!String.set} and {!String.blit}
+    functions. This use is nowadays only possible when the compiler is
+    put in "unsafe-string" mode by giving the [-unsafe-string]
+    command-line option. This compatibility mode makes the types
+    [string] and [bytes] (see {!Bytes.t}) interchangeable so that
+    functions expecting byte sequences can also accept strings as
+    arguments and modify them.
+
+    The distinction between [bytes] and [string] was introduced in
+    OCaml 4.02, and the "unsafe-string" compatibility mode was the
+    default until OCaml 4.05. Starting with 4.06, the compatibility
+    mode is opt-in; we intend to remove the option in the future.
 
     The labeled version of this module can be used as described in the
     {!StdLabels} module.
@@ -89,12 +96,26 @@ val init : int -> (int -> char) -> string
     [i] holding the character [f i] (called in increasing index order).
 
     @raise Invalid_argument if [n < 0] or [n > ]{!Sys.max_string_length}.
-    @since 4.02 *)
+    @since 4.02.0 *)
 
 val empty : string
 (** The empty string.
 
-    @since 4.13
+    @since 4.13.0
+*)
+
+val of_bytes : bytes -> string
+(** Return a new string that contains the same bytes as the given byte
+    sequence.
+
+    @since 4.13.0
+*)
+
+val to_bytes : string -> bytes
+(** Return a new byte sequence that contains the same bytes as the given
+    string.
+
+    @since 4.13.0
 *)
 
 external length : string -> int = "%string_length"
@@ -105,24 +126,6 @@ external get : string -> int -> char = "%string_safe_get"
     as writing [s.[i]].
 
     @raise Invalid_argument if [i] not an index of [s]. *)
-
-val of_bytes : bytes -> string
-(** Return a new string that contains the same bytes as the given byte
-    sequence.
-
-    @since 4.13
-*)
-
-val to_bytes : string -> bytes
-(** Return a new byte sequence that contains the same bytes as the given
-    string.
-
-    @since 4.13
-*)
-
-val blit :
-  string -> int -> bytes -> int -> int -> unit
-(** Same as {!Bytes.blit_string} which should be preferred. *)
 
 (** {1:concat Concatenating}
 
@@ -142,7 +145,7 @@ val cat : string -> string -> string
     @raise Invalid_argument if the result is longer than
     {!Sys.max_string_length} bytes.
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 (** {1:predicates Predicates and comparisons} *)
@@ -150,7 +153,7 @@ val cat : string -> string -> string
 val equal : t -> t -> bool
 (** [equal s0 s1] is [true] if and only if [s0] and [s1] are character-wise
     equal.
-    @since 4.03 (4.05 in StringLabels) *)
+    @since 4.03.0 (4.05.0 in StringLabels) *)
 
 val compare : t -> t -> int
 (** [compare s0 s1] sorts [s0] and [s1] in lexicographical order. [compare]
@@ -161,13 +164,13 @@ val starts_with :
 (** [starts_with ][~prefix s] is [true] if and only if [s] starts with
     [prefix].
 
-    @since 4.13 *)
+    @since 4.13.0 *)
 
 val ends_with :
   suffix (* comment thwarts tools/sync_stdlib_docs *) :string -> string -> bool
 (** [ends_with ][~suffix s] is [true] if and only if [s] ends with [suffix].
 
-    @since 4.13 *)
+    @since 4.13.0 *)
 
 val contains_from : string -> int -> char -> bool
 (** [contains_from s start c] is [true] if and only if [c] appears in [s]
@@ -207,7 +210,7 @@ val split_on_char : char -> string -> string list
       (split_on_char sep s) = s]).}
     {- No string in the result contains the [sep] character.}}
 
-    @since 4.04 (4.05 in StringLabels) *)
+    @since 4.04.0 (4.05.0 in StringLabels) *)
 
 (** {1:transforming Transforming} *)
 
@@ -215,38 +218,38 @@ val map : (char -> char) -> string -> string
 (** [map f s] is the string resulting from applying [f] to all the
     characters of [s] in increasing order.
 
-    @since 4.00 *)
+    @since 4.00.0 *)
 
 val mapi : (int -> char -> char) -> string -> string
 (** [mapi f s] is like {!map} but the index of the character is also
     passed to [f].
 
-    @since 4.02 *)
+    @since 4.02.0 *)
 
-val fold_left : ('acc -> char -> 'acc) -> 'acc -> string -> 'acc
+val fold_left : ('a -> char -> 'a) -> 'a -> string -> 'a
 (** [fold_left f x s] computes [f (... (f (f x s.[0]) s.[1]) ...) s.[n-1]],
     where [n] is the length of the string [s].
-    @since 4.13 *)
+    @since 4.13.0 *)
 
-val fold_right : (char -> 'acc -> 'acc) -> string -> 'acc -> 'acc
+val fold_right : (char -> 'a -> 'a) -> string -> 'a -> 'a
 (** [fold_right f s x] computes [f s.[0] (f s.[1] ( ... (f s.[n-1] x) ...))],
     where [n] is the length of the string [s].
-    @since 4.13 *)
+    @since 4.13.0 *)
 
 val for_all : (char -> bool) -> string -> bool
 (** [for_all p s] checks if all characters in [s] satisfy the predicate [p].
-    @since 4.13 *)
+    @since 4.13.0 *)
 
 val exists : (char -> bool) -> string -> bool
 (** [exists p s] checks if at least one character of [s] satisfies the predicate
     [p].
-    @since 4.13 *)
+    @since 4.13.0 *)
 
 val trim : string -> string
 (** [trim s] is [s] without leading and trailing whitespace. Whitespace
     characters are: [' '], ['\x0C'] (form feed), ['\n'], ['\r'], and ['\t'].
 
-    @since 4.00 *)
+    @since 4.00.0 *)
 
 val escaped : string -> string
 (** [escaped s] is [s] with special characters represented by escape
@@ -266,25 +269,25 @@ val uppercase_ascii : string -> string
 (** [uppercase_ascii s] is [s] with all lowercase letters
     translated to uppercase, using the US-ASCII character set.
 
-    @since 4.03 (4.05 in StringLabels) *)
+    @since 4.03.0 (4.05.0 in StringLabels) *)
 
 val lowercase_ascii : string -> string
 (** [lowercase_ascii s] is [s] with all uppercase letters translated
     to lowercase, using the US-ASCII character set.
 
-    @since 4.03 (4.05 in StringLabels) *)
+    @since 4.03.0 (4.05.0 in StringLabels) *)
 
 val capitalize_ascii : string -> string
 (** [capitalize_ascii s] is [s] with the first character set to
     uppercase, using the US-ASCII character set.
 
-    @since 4.03 (4.05 in StringLabels) *)
+    @since 4.03.0 (4.05.0 in StringLabels) *)
 
 val uncapitalize_ascii : string -> string
 (** [uncapitalize_ascii s] is [s] with the first character set to lowercase,
     using the US-ASCII character set.
 
-    @since 4.03 (4.05 in StringLabels) *)
+    @since 4.03.0 (4.05.0 in StringLabels) *)
 
 (** {1:traversing Traversing} *)
 
@@ -296,7 +299,7 @@ val iteri : (int -> char -> unit) -> string -> unit
 (** [iteri] is like {!iter}, but the function is also given the
     corresponding character index.
 
-    @since 4.00 *)
+    @since 4.00.0 *)
 
 (** {1:searching Searching} *)
 
@@ -398,6 +401,88 @@ val is_valid_utf_16le : t -> bool
 (** [is_valid_utf_16le b] is [true] if and only if [b] contains valid
     UTF-16LE data. *)
 
+(** {1:deprecated Deprecated functions} *)
+
+external create : int -> bytes = "caml_create_string"
+  [@@ocaml.deprecated "Use Bytes.create/BytesLabels.create instead."]
+(** [create n] returns a fresh byte sequence of length [n].
+    The sequence is uninitialized and contains arbitrary bytes.
+    @raise Invalid_argument if [n < 0] or [n > ]{!Sys.max_string_length}.
+
+    @deprecated This is a deprecated alias of
+    {!Bytes.create}/{!BytesLabels.create}. *)
+
+external set : bytes -> int -> char -> unit = "%string_safe_set"
+  [@@ocaml.deprecated "Use Bytes.set/BytesLabels.set instead."]
+(** [set s n c] modifies byte sequence [s] in place,
+    replacing the byte at index [n] with [c].
+    You can also write [s.[n] <- c] instead of [set s n c].
+    @raise Invalid_argument if [n] is not a valid index in [s].
+
+    @deprecated This is a deprecated alias of
+    {!Bytes.set}/{!BytesLabels.set}. *)
+
+val blit :
+  string -> int -> bytes -> int -> int -> unit
+(** [blit src src_pos dst dst_pos len] copies [len] bytes
+    from the string [src], starting at index [src_pos],
+    to byte sequence [dst], starting at character number [dst_pos].
+
+    @raise Invalid_argument if [src_pos] and [len] do not
+    designate a valid range of [src], or if [dst_pos] and [len]
+    do not designate a valid range of [dst]. *)
+
+val copy : string -> string
+  [@@ocaml.deprecated "Strings now immutable: no need to copy"]
+(** Return a copy of the given string.
+
+    @deprecated Because strings are immutable, it doesn't make much
+    sense to make identical copies of them. *)
+
+val fill : bytes -> int -> int -> char -> unit
+  [@@ocaml.deprecated "Use Bytes.fill/BytesLabels.fill instead."]
+(** [fill s pos len c] modifies byte sequence [s] in place,
+    replacing [len] bytes by [c], starting at [pos].
+    @raise Invalid_argument if [pos] and [len] do not
+    designate a valid substring of [s].
+
+    @deprecated This is a deprecated alias of
+    {!Bytes.fill}/{!BytesLabels.fill}. *)
+
+val uppercase : string -> string
+  [@@ocaml.deprecated
+    "Use String.uppercase_ascii/StringLabels.uppercase_ascii instead."]
+(** Return a copy of the argument, with all lowercase letters
+    translated to uppercase, including accented letters of the ISO
+    Latin-1 (8859-1) character set.
+
+    @deprecated Functions operating on Latin-1 character set are deprecated. *)
+
+val lowercase : string -> string
+  [@@ocaml.deprecated
+    "Use String.lowercase_ascii/StringLabels.lowercase_ascii instead."]
+(** Return a copy of the argument, with all uppercase letters
+    translated to lowercase, including accented letters of the ISO
+    Latin-1 (8859-1) character set.
+
+    @deprecated Functions operating on Latin-1 character set are deprecated. *)
+
+val capitalize : string -> string
+  [@@ocaml.deprecated
+    "Use String.capitalize_ascii/StringLabels.capitalize_ascii instead."]
+(** Return a copy of the argument, with the first character set to uppercase,
+    using the ISO Latin-1 (8859-1) character set..
+
+    @deprecated Functions operating on Latin-1 character set are deprecated. *)
+
+val uncapitalize : string -> string
+  [@@ocaml.deprecated
+    "Use String.uncapitalize_ascii/StringLabels.uncapitalize_ascii instead."]
+(** Return a copy of the argument, with the first character set to lowercase,
+    using the ISO Latin-1 (8859-1) character set.
+
+    @deprecated Functions operating on Latin-1 character set are deprecated. *)
+
 (** {1 Binary decoding of integers} *)
 
 (** The functions in this section binary decode integers from strings.
@@ -424,112 +509,98 @@ val get_uint8 : string -> int -> int
 (** [get_uint8 b i] is [b]'s unsigned 8-bit integer starting at character
     index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int8 : string -> int -> int
 (** [get_int8 b i] is [b]'s signed 8-bit integer starting at character
     index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_uint16_ne : string -> int -> int
 (** [get_uint16_ne b i] is [b]'s native-endian unsigned 16-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_uint16_be : string -> int -> int
 (** [get_uint16_be b i] is [b]'s big-endian unsigned 16-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_uint16_le : string -> int -> int
 (** [get_uint16_le b i] is [b]'s little-endian unsigned 16-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int16_ne : string -> int -> int
 (** [get_int16_ne b i] is [b]'s native-endian signed 16-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int16_be : string -> int -> int
 (** [get_int16_be b i] is [b]'s big-endian signed 16-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int16_le : string -> int -> int
 (** [get_int16_le b i] is [b]'s little-endian signed 16-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int32_ne : string -> int -> int32
 (** [get_int32_ne b i] is [b]'s native-endian 32-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
-
-val hash : t -> int
-(** An unseeded hash function for strings, with the same output value as
-    {!Hashtbl.hash}. This function allows this module to be passed as argument
-    to the functor {!Hashtbl.Make}.
-
-    @since 5.0 *)
-
-val seeded_hash : int -> t -> int
-(** A seeded hash function for strings, with the same output value as
-    {!Hashtbl.seeded_hash}. This function allows this module to be passed as
-    argument to the functor {!Hashtbl.MakeSeeded}.
-
-    @since 5.0 *)
 
 val get_int32_be : string -> int -> int32
 (** [get_int32_be b i] is [b]'s big-endian 32-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int32_le : string -> int -> int32
 (** [get_int32_le b i] is [b]'s little-endian 32-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int64_ne : string -> int -> int64
 (** [get_int64_ne b i] is [b]'s native-endian 64-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int64_be : string -> int -> int64
 (** [get_int64_be b i] is [b]'s big-endian 64-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 val get_int64_le : string -> int -> int64
 (** [get_int64_le b i] is [b]'s little-endian 64-bit integer
     starting at character index [i].
 
-    @since 4.13
+    @since 4.13.0
 *)
 
 (**/**)
@@ -537,6 +608,11 @@ val get_int64_le : string -> int -> int64
 (* The following is for system use only. Do not call directly. *)
 
 external unsafe_get : string -> int -> char = "%string_unsafe_get"
+external unsafe_set : bytes -> int -> char -> unit = "%string_unsafe_set"
+  [@@ocaml.deprecated]
 external unsafe_blit :
   string -> int -> bytes -> int -> int ->
     unit = "caml_blit_string" [@@noalloc]
+external unsafe_fill :
+  bytes -> int -> int -> char -> unit = "caml_fill_string" [@@noalloc]
+  [@@ocaml.deprecated]

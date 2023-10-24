@@ -18,8 +18,7 @@
 type t = {
   test_name : string;
   test_run_by_default : bool;
-  test_actions : Actions.t list;
-  test_description : string
+  test_actions : Actions.t list
 }
 
 let compare t1 t2 = String.compare t1.test_name t2.test_name
@@ -46,8 +45,7 @@ let test_of_action action =
 {
   test_name = Actions.name action;
   test_run_by_default = false;
-  test_actions = [action];
-  test_description = Actions.description action;
+  test_actions = [action]
 }
 
 let run_actions log testenv actions =
