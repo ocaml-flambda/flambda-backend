@@ -150,6 +150,25 @@ dune_targets=$(
   done
 )
 
+# tools
+dune_targets=$(
+  echo "$dune_targets"
+  cmxes_and_dirs="\
+    objinfo .objinfo.eobjs
+    make_opcodes .make_opcodes.eobjs
+    cvt_emit .make_opcodes.eobjs
+    ocamldep .ocamldep.eobjs
+    cmpbyt .cmpbyt.eobjs
+    ocamlmklib .ocamlmklib.eobjs
+    ocamlmktop .ocamlmktop.eobjs
+    debug_printers .debug_printers.objs
+    opnames .opnames.objs"
+  # omit dumpobj because it uses new opcodes, e.g. perform
+  echo "$cmxes_and_dirs" | while read cmx dir; do
+    echo _build/default/tools/$dir/native/$cmx.cmx
+  done
+)
+
 # ocamltest
 ocamltest=_build/default/ocamltest/.ocamltest_core_and_plugin.objs/byte
 dune_targets="$dune_targets \
