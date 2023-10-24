@@ -2,12 +2,15 @@ Error: Failure("Plugin error")
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Raised at Stdlib.failwith in file "stdlib.ml", line 34, characters 17-33
 =======
 =======
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+>>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
 Raised at Stdlib.failwith in file "stdlib.ml", line 32, characters 17-33
 >>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 Called from Test10_plugin.g in file "test10_plugin.ml" (inlined), line 2, characters 15-38
@@ -21,4 +24,27 @@ Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_co
 Called from Stdlib__List.iter in file "list.ml", line 114, characters 12-15
 Called from Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 335, characters 8-250
 Re-raised at Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 345, characters 8-17
+||||||| merged common ancestors
+Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+Called from Test10_plugin.g in file "test10_plugin.ml", line 2, characters 15-38
+Called from Test10_plugin in file "test10_plugin.ml", line 10, characters 2-6
+Called from Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 85, characters 12-29
+Called from Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 85, characters 12-29
+Re-raised at Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 87, characters 10-149
+Called from Stdlib__List.iter in file "list.ml", line 110, characters 12-15
+Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_common.ml", line 337, characters 13-44
+Called from Stdlib__List.iter in file "list.ml", line 110, characters 12-15
+Called from Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 335, characters 8-240
+Re-raised at Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 345, characters 8-17
+Called from Dynlink_common.Make.loadfile in file "otherlibs/dynlink/dynlink_common.ml" (inlined), line 347, characters 26-45
+=======
+Raised by primitive operation at Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 87, characters 12-29
+Re-raised at Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 89, characters 10-149
+Called from Stdlib__List.iter in file "list.ml", line 112, characters 12-15
+Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_common.ml", line 363, characters 13-56
+Called from Stdlib__List.iter in file "list.ml", line 112, characters 12-15
+Called from Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 359, characters 8-392
+Re-raised at Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 372, characters 8-17
+Called from Dynlink_common.Make.loadfile in file "otherlibs/dynlink/dynlink_common.ml" (inlined), line 374, characters 26-45
+>>>>>>> ocaml/5.1
 Called from Test10_main in file "test10_main.ml", line 49, characters 30-87

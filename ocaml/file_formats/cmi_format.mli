@@ -19,7 +19,6 @@ type pers_flags =
   | Rectypes
   | Alerts of alerts
   | Opaque
-  | Unsafe_string
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.t;

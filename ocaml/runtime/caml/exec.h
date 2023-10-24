@@ -63,6 +63,7 @@ struct exec_trailer {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 #define EXEC_MAGIC "Caml1999X512"
 =======
 #define EXEC_MAGIC "Caml1999X511"
@@ -73,6 +74,9 @@ struct exec_trailer {
 =======
 #define EXEC_MAGIC "Caml1999X511"
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+#define EXEC_MAGIC "Caml1999X033"
+>>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
 
 #endif /* CAML_INTERNALS */
 

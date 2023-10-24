@@ -2,6 +2,7 @@ Fatal error: exception Stdlib.Exit
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Raised at Stdlib.open_in_gen in file "stdlib.ml", line 410, characters 28-54
 Called from Stdlib.open_in in file "stdlib.ml", line 415, characters 2-45
 =======
@@ -11,6 +12,10 @@ Called from Stdlib.open_in in file "stdlib.ml", line 413, characters 2-45
 =======
 Raised at Stdlib.open_in_gen in file "stdlib.ml", line 408, characters 28-54
 Called from Stdlib.open_in in file "stdlib.ml", line 413, characters 2-45
+=======
+Raised at Stdlib.open_in_gen in file "stdlib.ml", line 408, characters 28-54
+Called from Stdlib.open_in in file "stdlib.ml", line 413, characters 2-45
+>>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
 ||||||| merged common ancestors
 <<<<<<<<< Temporary merge branch 1
 Raised by primitive operation at Stdlib.open_in_gen in file "stdlib.ml", line 399, characters 28-54
@@ -24,10 +29,13 @@ Called from Stdlib.open_in in file "stdlib.ml" (inlined), line 410, characters 2
 Raised by primitive operation at Stdlib.open_in_gen in file "stdlib.ml", line 405, characters 28-54
 Called from Stdlib.open_in in file "stdlib.ml" (inlined), line 410, characters 2-45
 >>>>>>> ocaml/5.1
+<<<<<<< HEAD
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 =======
 Raised at Stdlib.open_in_gen in file "stdlib.ml", line 408, characters 28-54
 Called from Stdlib.open_in in file "stdlib.ml", line 413, characters 2-45
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+>>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
 Called from Pr2195 in file "pr2195.ml", line 24, characters 6-19
 Re-raised at Pr2195 in file "pr2195.ml", line 29, characters 4-41

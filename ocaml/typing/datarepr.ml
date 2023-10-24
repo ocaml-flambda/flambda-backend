@@ -129,7 +129,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, rep) in
       constructor_args ~current_unit decl.type_private cd_args cd_res
-        (Path.Pdot (ty_path, cstr_name)) record_repr
+        Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
       { cstr_name;
@@ -164,7 +164,8 @@ let extension_descr ~current_unit path_ext ext =
   let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
-      path_ext (Record_inlined (cstr_tag, Variant_extensible))
+      Path.(Pextra_ty (path_ext, Pext_ty))
+      (Record_inlined (cstr_tag, Variant_extensible))
   in
     { cstr_name = Path.last path_ext;
       cstr_res = ty_res;

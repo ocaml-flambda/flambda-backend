@@ -162,10 +162,10 @@ let lookup_primitive loc poly pos p =
     | "%loc_POS" -> Loc Loc_POS
     | "%loc_MODULE" -> Loc Loc_MODULE
     | "%loc_FUNCTION" -> Loc Loc_FUNCTION
-    | "%field0" -> Primitive (Pfield (0, Reads_vary), 1)
-    | "%field1" -> Primitive (Pfield (1, Reads_vary), 1)
-    | "%field0_immut" -> Primitive ((Pfield (0, Reads_agree)), 1)
-    | "%field1_immut" -> Primitive ((Pfield (1, Reads_agree)), 1)
+    | "%field0" -> Primitive (Pfield (0, Pointer, Reads_vary), 1)
+    | "%field1" -> Primitive (Pfield (1, Pointer, Reads_vary), 1)
+    | "%field0_immut" -> Primitive ((Pfield (0, Pointer, Reads_agree)), 1)
+    | "%field1_immut" -> Primitive ((Pfield (1, Pointer, Reads_agree)), 1)
     | "%setfield0" ->
        let mode = get_first_arg_mode () in
        Primitive ((Psetfield(0, Pointer, Assignment mode)), 2)
@@ -450,6 +450,16 @@ let lookup_primitive loc poly pos p =
     | "%unbox_float" -> Primitive(Punbox_float, 1)
     | "%box_float" -> Primitive(Pbox_float mode, 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
+    | "%atomic_load" ->
+        Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
+    | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
+    | "%atomic_cas" -> Primitive (Patomic_cas, 3)
+    | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
+    | "%runstack" -> Primitive (Prunstack, 3)
+    | "%reperform" -> Primitive (Preperform, 3)
+    | "%perform" -> Primitive (Pperform, 1)
+    | "%resume" -> Primitive (Presume, 3)
+    | "%dls_get" -> Primitive (Pdls_get, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -564,6 +574,12 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       | Pointer -> None
       | Immediate -> Some (Primitive (Psetfield(n, Immediate, init), arity))
     end
+  | Primitive (Pfield (n, Pointer, mut), arity), _ ->
+      (* try strength reduction based on the *result type* *)
+      let is_int = match is_function_type env ty with
+        | None -> Pointer
+        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
+      Some (Primitive (Pfield (n, is_int, mut), arity))
   | Primitive (Parraylength t, arity), [p] -> begin
       let array_type = glb_array_type t (array_type_kind env p) in
       if t = array_type then None
@@ -615,6 +631,13 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
+    end
+  | Primitive (Patomic_load { immediate_or_pointer = Pointer },
+               arity), _ ->begin
+      let is_int = match is_function_type env ty with
+        | None -> Pointer
+        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
+      Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
     if (has_constant_constructor
@@ -1007,12 +1030,16 @@ let lambda_primitive_needs_event_after = function
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 =======
 <<<<<<< HEAD
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+  | Prunstack | Pperform | Preperform | Presume
+>>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string
@@ -1032,7 +1059,9 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
+  | Pdls_get
   | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

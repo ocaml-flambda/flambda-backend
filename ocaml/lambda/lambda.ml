@@ -136,7 +136,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * field_read_semantics
+  | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -148,7 +148,11 @@ type primitive =
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
-  (* Force lazy values *)
+  (* Context switches *)
+  | Prunstack
+  | Pperform
+  | Presume
+  | Preperform
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -238,6 +242,11 @@ type primitive =
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of alloc_mode
+  (* Atomic operations *)
+  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -253,6 +262,8 @@ type primitive =
   | Parray_to_iarray
   | Parray_of_iarray
   | Pget_header of alloc_mode
+  (* Fetching domain-local state *)
+  | Pdls_get
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1042,7 +1053,8 @@ let rec transl_address loc = function
       then Lprim (Pgetpredef id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
-      Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
+      Lprim(Pfield(pos, Pointer, Reads_agree),
+                   [transl_address loc addr], loc)
 
 let transl_path find loc env path =
   match find path env with
@@ -1410,7 +1422,7 @@ let reset () =
   raise_count := 0
 
 let mod_field ?(read_semantics=Reads_agree) pos =
-  Pfield (pos, read_semantics)
+  Pfield (pos, Pointer, read_semantics)
 
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
@@ -1509,6 +1521,13 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pobj_magic _ -> None
   | Punbox_float | Punbox_int _ -> None
   | Pbox_float m | Pbox_int (_, m) -> Some m
+  | Prunstack | Presume | Pperform | Preperform ->
+    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Patomic_load _
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+  | Pdls_get -> None
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1618,6 +1637,15 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxedint Pnativeint
+  | Prunstack | Presume | Pperform | Preperform ->
+    (* CR mshinwell/ncourant: to be thought about later *)
+    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+  | Pdls_get -> layout_any_value
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

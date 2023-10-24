@@ -125,7 +125,7 @@ let rec analyse_expr ~which_variables expr =
         when Variable.Map.mem move.closure which_variables ->
       projections :=
         Projection.Set.add (Move_within_set_of_closures move) !projections
-    | Prim (Pfield (field_index, Pvalue _), [var], _dbg)
+    | Prim (Pfield (field_index, Pvalue _, _, _), [var], _dbg)
         when Variable.Map.mem var which_variables ->
       projections :=
         Projection.Set.add (Field (field_index, var)) !projections
