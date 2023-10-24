@@ -42,13 +42,7 @@ endef
 
 # define the right conditional for the manual
 build/latex/ifocamldoc.tex: | build/latex
-<<<<<<< HEAD
-	printf '\\newif\\ifocamldoc\\ocamldocfalse\n' > $@
-||||||| merged common ancestors
-	printf '\\newif\ifocamldoc\ocamldocfalse\n' > $@
-=======
 	$(V_GEN)printf '\\newif\\ifocamldoc\\ocamldocfalse\n' > $@
->>>>>>> ocaml/5.1
 
 
 # \input{} all modules in the stdlib for the latex api manual
@@ -71,25 +65,11 @@ build/latex/compilerlibs_input.tex: | build/latex
 # rules for the mld files
 $(libref_TEXT:%=build/libref/page-%.odoc):
 build/libref/page-%.odoc: build/%.mld | build/libref
-<<<<<<< HEAD
-	$(odoc) compile -I build/libref --package libref $< -o $@
-||||||| merged common ancestors
-build/libref/page-%.odoc:$(DOCGEN)/%.mld | build/libref
-	$(odoc) compile -I build/libref --package libref $< -o $@
-=======
 	$(V_ODOC)$(odoc) compile -I build/libref --package libref $< -o $@
->>>>>>> ocaml/5.1
 
 $(compilerlibref_TEXT:%=build/compilerlibref/page-%.odoc):\
 build/compilerlibref/page-%.odoc: build/%.mld | build/compilerlibref
-<<<<<<< HEAD
-	$(odoc) compile -I build/libref --package compilerlibref $< -o $@
-||||||| merged common ancestors
-build/compilerlibref/page-%.odoc:$(DOCGEN)/build/%.mld | build/compilerlibref
-	$(odoc) compile -I build/libref --package compilerlibref $< -o $@
-=======
 	$(V_ODOC)$(odoc) compile -I build/libref --package compilerlibref $< -o $@
->>>>>>> ocaml/5.1
 
 # rules for the stdlib and otherlibs .doc files
 $(libref:%=build/libref/%.odoc):\
@@ -121,23 +101,11 @@ ALL_PAGED_DOC = $(TARGET_UNITS) $(ALL_PAGE_TEXT)
 # the individual file dependencies
 %.odocl:%.odoc \
   | $(ALL_PAGED_DOC:%=build/%.odoc)
-<<<<<<< HEAD
-	$(odoc) link -I build/libref -I build/compilerlibref $(ODOC_LINK_ARGS) $<
-||||||| merged common ancestors
-	$(odoc) link -I build/libref -I build/compilerlibref $<
-=======
 	$(V_ODOC)$(odoc) link -I build/libref -I build/compilerlibref $(ODOC_LINK_ARGS) $<
->>>>>>> ocaml/5.1
 
 %.odocl:%.odoc \
   | $(ALL_PAGED_DOC:%=build/%.odoc)
-<<<<<<< HEAD
-	$(odoc) link -I build/libref -I build/compilerlibref $(ODOC_LINK_ARGS) $<
-||||||| merged common ancestors
-	$(odoc) link -I build/libref -I build/compilerlibref $<
-=======
 	$(V_ODOC)$(odoc) link -I build/libref -I build/compilerlibref $(ODOC_LINK_ARGS) $<
->>>>>>> ocaml/5.1
 
 build/libref/stdlib.odocl: ODOC_LINK_ARGS+=--open=""
 

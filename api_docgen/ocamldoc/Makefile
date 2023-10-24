@@ -38,26 +38,13 @@ ALL_MAN= $(ALL_DOC:%=build/man/%.3o)
 ALL_LATEX= $(ALL_DOC:%=build/latex/%.tex)
 
 build/latex/ifocamldoc.tex: | build/latex
-<<<<<<< HEAD
-	printf '\\newif\\ifocamldoc\\ocamldoctrue\n' > $@
-||||||| merged common ancestors
-	printf '\\newif\ifocamldoc\ocamldoctrue\n' > $@
-=======
 	$(V_GEN)printf '\\newif\\ifocamldoc\\ocamldoctrue\n' > $@
->>>>>>> ocaml/5.1
 
 $(libref:%=build/libref/%.odoc): build/libref/%.odoc: %.mli | build/libref
 	$(V_OCAMLDOC)$(OCAMLDOC_RUN) -nostdlib -hide Stdlib -lib Stdlib \
 	-pp \
 "$(AWK) -v ocamldoc=true -f ../../stdlib/expand_module_aliases.awk" \
-<<<<<<< HEAD
-	$(DOC_STDLIB_INCLUDES) $< -dump  $@
-||||||| merged common ancestors
-"$(AWK) -v ocamldoc=true -f $(ROOTDIR)/stdlib/expand_module_aliases.awk" \
-	$(DOC_STDLIB_INCLUDES) $< -dump  $@
-=======
 	$(DOC_STDLIB_INCLUDES) -hide-warnings $< -dump  $@
->>>>>>> ocaml/5.1
 
 $(compilerlibref:%=build/compilerlibref/%.odoc):\
 build/compilerlibref/%.odoc: %.mli | build/compilerlibref
@@ -66,25 +53,11 @@ build/compilerlibref/%.odoc: %.mli | build/compilerlibref
 
 $(compilerlibref_TEXT:%=build/compilerlibref/%.odoc):\
 build/compilerlibref/%.odoc: build/%.mld | build/compilerlibref
-<<<<<<< HEAD
-	$(OCAMLDOC_RUN) $(DOC_ALL_INCLUDES) -text $< -dump  $@
-||||||| merged common ancestors
-build/compilerlibref/%.odoc: $(DOCGEN)/build/%.mld | build/compilerlibref
-	$(OCAMLDOC_RUN) $(DOC_ALL_INCLUDES) -text $< -dump  $@
-=======
 	$(V_OCAMLDOC)$(OCAMLDOC_RUN)  -hide-warnings $(DOC_ALL_INCLUDES) -text $< -dump  $@
->>>>>>> ocaml/5.1
 
 $(libref_TEXT:%=build/libref/%.odoc):\
 build/libref/%.odoc: build/%.mld | build/libref
-<<<<<<< HEAD
-	$(OCAMLDOC_RUN) $(DOC_STDLIB_INCLUDES) -text $< -dump  $@
-||||||| merged common ancestors
-build/libref/%.odoc: $(DOCGEN)/%.mld | build/libref
-	$(OCAMLDOC_RUN) $(DOC_STDLIB_INCLUDES) -text $< -dump  $@
-=======
 	$(V_OCAMLDOC)$(OCAMLDOC_RUN) -hide-warnings $(DOC_STDLIB_INCLUDES) -text $< -dump  $@
->>>>>>> ocaml/5.1
 
 ALL_COMPILED_DOC=$(ALL_DOC:%=build/%.odoc)
 build/man/Stdlib.3o: $(ALL_COMPILED_DOC) | build/man
