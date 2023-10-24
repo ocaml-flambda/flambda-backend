@@ -2048,6 +2048,14 @@ Error: This local value escapes its region
   Hint: This argument cannot be local, because this is a tail call
 |}]
 
+(* if RHS returns local, the call allocate in caller region *)
+let foo () = exclave_ let local_ _x = "hello" in true
+let testboo3 () =  true && (foo ())
+[%%expect{|
+val foo : unit -> local_ bool = <fun>
+val testboo3 : unit -> local_ bool = <fun>
+|}]
+
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
 [%%expect{|
