@@ -814,9 +814,9 @@ let check_attribute ppf check =
       (check_property p)
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {property=p; strict; loc = _} ->
-    fprintf ppf "assert_%s%s@ "
-      (check_property p)
+  | Check {property=p; strict; loc = _; opt} ->
+    fprintf ppf "assert_%s%s%s@ "
+      (check_property p) (if opt then "_opt" else "")
       (if strict then "_strict" else "")
 ||||||| merged common ancestors
   | Pint_as_pointer -> "Pint_as_pointer"

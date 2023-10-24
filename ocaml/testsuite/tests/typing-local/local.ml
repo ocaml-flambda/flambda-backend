@@ -2776,3 +2776,28 @@ Error: This expression has type int -> local_ (int -> int)
        but an expression was expected of type int -> int -> int
 >>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 |}];;
+
+(* test that [function] checks all its branches either for local_ or the
+   absence thereof *)
+let foo = function
+  | false -> local_ 5
+  | true -> 6
+
+[%%expect{|
+Line 3, characters 12-13:
+3 |   | true -> 6
+                ^
+Error: This function return is not annotated with "local_"
+       whilst other returns were.
+|}]
+
+(* test that [assert false] can mix with other returns being [local_] *)
+let foo b =
+  if b
+  then assert false
+  else local_ Some 6
+
+[%%expect{|
+val foo : bool -> local_ int option = <fun>
+|}]
+
