@@ -95,7 +95,7 @@ type exttype =
 let machtype_of_exttype = function
   | XInt -> typ_int
   | XInt32 -> typ_int
-  | XInt64 -> if Arch.size_int = 4 then [|Int;Int|] else typ_int
+  | XInt64 -> typ_int
   | XFloat -> typ_float
   | XVec128 -> typ_vec128
 
@@ -214,7 +214,11 @@ type operation =
         effects: effects;
         coeffects: coeffects;
       }
-  | Cload of memory_chunk * Asttypes.mutable_flag
+  | Cload of
+      { memory_chunk: memory_chunk;
+        mutability: Asttypes.mutable_flag;
+        is_atomic: bool;
+      }
   | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
@@ -244,6 +248,7 @@ type operation =
   | Copaque
   | Cbeginregion | Cendregion
   | Ctuple_field of int * machtype array
+  | Cdls_get
 
 type kind_for_unboxing =
   | Any
