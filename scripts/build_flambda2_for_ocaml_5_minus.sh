@@ -2,7 +2,16 @@
 
 set -eux -o pipefail
 
-middle_end_targets="
+cmm_targets="\
+  _build/default/.ocamloptcomp.objs/native/cmm.cmx \
+  _build/default/.ocamloptcomp.objs/native/cmm_builtins.cmx \
+  _build/default/.ocamloptcomp.objs/native/cmm_helpers.cmx \
+  _build/default/.ocamloptcomp.objs/native/cmm_invariants.cmx \
+  _build/default/.ocamloptcomp.objs/native/cmmgen.cmx \
+  _build/default/.ocamloptcomp.objs/native/cmmgen_state.cmx \
+  _build/default/.ocamloptcomp.objs/native/printcmm.cmx"
+
+middle_end_targets="\
   _build/default/.ocamloptcomp.objs/native/backend_var.cmx \
   _build/default/.ocamloptcomp.objs/native/clambda.cmx \
   _build/default/.ocamloptcomp.objs/native/clambda_layout.cmx \
@@ -17,7 +26,7 @@ middle_end_targets="
   _build/default/.ocamloptcomp.objs/native/symbol_utils.cmx \
   _build/default/.ocamloptcomp.objs/native/variable.cmx"
 
-closure_targets="
+closure_targets="\
   _build/default/.ocamloptcomp.objs/native/closure.cmx \
   _build/default/.ocamloptcomp.objs/native/closure_middle_end.cmx"
 
@@ -95,7 +104,8 @@ flambda2_targets="\
   _build/default/middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cmxa \
   _build/default/middle_end/flambda2/types/flambda2_types.cmxa"
 
-targets="$middle_end_targets $closure_targets $flambda1_targets $flambda2_targets"
+targets="$cmm_targets \
+  $middle_end_targets $closure_targets $flambda1_targets $flambda2_targets"
 
 eval $(opam env)
 dune build --root=. --workspace=duneconf/boot.ws -w $targets
