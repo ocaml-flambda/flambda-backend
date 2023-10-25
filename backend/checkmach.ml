@@ -251,7 +251,7 @@ module Value : sig
 
   val safe : t
 
-  val relaxed : t
+  val relaxed : Witnesses.t -> t
 
   val print : witnesses:bool -> Format.formatter -> t -> unit
 
@@ -316,8 +316,8 @@ end = struct
 
   let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
 
-  let relaxed =
-    { nor = V.Safe; exn = V.Top Witnesses.empty; div = V.Top Witnesses.empty }
+  let relaxed w =
+    { nor = V.Safe; exn = V.Top w; div = V.Top w }
 
   let print ~witnesses ppf { nor; exn; div } =
     let pp = V.print ~witnesses in
@@ -367,7 +367,7 @@ end = struct
   let get_loc t = t.loc
 
   let expected_value t =
-    let res = if t.strict then Value.safe else Value.relaxed in
+    let res = if t.strict then Value.safe else Value.relaxed Witnesses.empty in
     if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
@@ -974,7 +974,7 @@ end = struct
 
   let transform_top t ~next ~exn w desc dbg =
     let effect =
-      if Debuginfo.assume_zero_alloc dbg then Value.safe else Value.top w
+      if Debuginfo.assume_zero_alloc dbg then Value.relaxed w else Value.top w
     in
     transform t ~next ~exn ~effect desc dbg
 
@@ -983,7 +983,7 @@ end = struct
     report t exn ~msg:"transform_call exn" ~desc dbg;
     let effect =
       if Debuginfo.assume_zero_alloc dbg
-      then Value.safe
+      then Value.relaxed w
       else
         let callee_value, new_dep = find_callee t callee dbg in
         update_deps t callee_value new_dep w desc dbg;
@@ -1077,16 +1077,16 @@ end = struct
       transform_top t ~next ~exn w ("external call to " ^ func) dbg
     | Ispecific s ->
       let effect =
+        let w = create_witnesses t Arch_specific dbg in
         if Debuginfo.assume_zero_alloc dbg
         then
           (* Conservatively assume that operation can return normally. *)
           let nor = V.Safe in
-          let exn = if Arch.operation_can_raise s then V.Safe else V.Bot in
+          let exn = if Arch.operation_can_raise s then V.Top w else V.Bot in
           (* Assume that the operation does not diverge. *)
           let div = V.Bot in
           { Value.nor; exn; div }
         else
-          let w = create_witnesses t Arch_specific dbg in
           S.transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
