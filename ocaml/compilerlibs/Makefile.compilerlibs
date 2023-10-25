@@ -53,6 +53,7 @@ UTILS = \
   utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo \
   utils/import_info.cmo \
   utils/lazy_backtrack.cmo \
+  utils/zero_alloc_utils.cmo \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo
 UTILS_CMI = \
@@ -124,6 +125,7 @@ TYPING = \
   typing/typedecl_properties.cmo \
   typing/typedecl_variance.cmo \
   typing/typedecl_separability.cmo \
+  lambda/assume_info.cmo \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \
   typing/typeopt.cmo \

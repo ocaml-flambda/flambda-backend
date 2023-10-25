@@ -12,3 +12,33 @@ Error: called function may allocate on a path to exceptional return (direct call
 
 File "test_assume_fail.ml", line 12, characters 33-39:
 Error: called function may allocate on a path to exceptional return (indirect call) (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53)
+
+File "test_assume_fail.ml", line 16, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test48 (camlTest_assume_fail.test48_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 17, characters 2-55:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_assume_fail.ml:17,2--55;test_assume_fail.ml:14,54--77;printf.ml:47,18--43;printf.ml:45,2--31)
+
+File "test_assume_fail.ml", line 29, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test51 (camlTest_assume_fail.test51_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 29, characters 35-43:
+Error: allocation of 24 bytes on a path to diverge (test_assume_fail.ml:29,35--43;test_assume_fail.ml:27,74--80)
+
+File "test_assume_fail.ml", line 33, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test53 (camlTest_assume_fail.test53_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 33, characters 35-43:
+Error: called function may allocate on a path to exceptional return (direct tailcall camlTest_assume_fail.test52_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 62, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.test64 (camlTest_assume_fail.test64_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 63, characters 10-17:
+Error: allocation of 24 bytes on a path to exceptional return
+
+File "test_assume_fail.ml", line 63, characters 13-17:
+Error: allocation of 24 bytes on a path to exceptional return
+
+File "test_assume_fail.ml", line 64, characters 2-55:
+Error: called function may allocate on a path to exceptional return (direct tailcall camlTest_assume_fail.test62_HIDE_STAMP)
