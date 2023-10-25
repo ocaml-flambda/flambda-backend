@@ -2207,7 +2207,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
         (match am with
         | Mutable   -> StrictOpt
         | Immutable -> Alias),
-        Jkind.Sort.for_array_get_result,
+        Typeopt.array_element_sort kind,
         layout_field)
       :: make_args (pos + 1)
   in
