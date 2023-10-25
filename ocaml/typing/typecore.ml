@@ -445,6 +445,9 @@ let mode_region mode =
 let mode_max =
   mode_default Value.max_mode
 
+let mode_with_position mode position =
+  { (mode_default mode) with position }
+
 let mode_max_with_position position =
   { mode_max with position }
 
@@ -512,10 +515,9 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app alloc_mode =
   | Texp_ident (_, _, {val_kind =
       Val_prim {Primitive.prim_name = ("%sequor"|"%sequand")}},
                 Id_prim _, _), 1, Tail ->
-     (* The second argument to (&&) and (||) is a boolean and crosses modes, so
-        we expect [mode_max]. It is also at the same function tail position if
-        the call is *)
-     mode_max_with_position (RTail (Option.get position_and_mode.region_mode, FTail))
+     (* RHS of (&&) and (||) is at the tail of function region if the
+        application is. The argument mode is not constrained otherwise. *)
+     mode_with_position vmode (RTail (Option.get position_and_mode.region_mode, FTail))
   | Texp_ident (_, _, _, Id_prim _, _), _, _ ->
      (* Other primitives cannot be tail-called *)
      mode_default vmode

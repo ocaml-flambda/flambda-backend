@@ -2048,12 +2048,28 @@ Error: This local value escapes its region
   Hint: This argument cannot be local, because this is a tail call
 |}]
 
-(* if RHS returns local, the call allocate in caller region *)
+(* boolean operator when at tail of function makes the function local-returning
+   if its RHS is local-returning *)
 let foo () = exclave_ let local_ _x = "hello" in true
 let testboo3 () =  true && (foo ())
 [%%expect{|
 val foo : unit -> local_ bool = <fun>
 val testboo3 : unit -> local_ bool = <fun>
+|}]
+
+(* Test from Nathanaëlle Courant.
+  User can define strange AND, and its arguments should not cross modes. *)
+external strange_and : 'a option -> 'a option -> bool = "%sequand"
+
+let testboo4 () =
+  let local_ x = Some "hello" in
+  strange_and x x
+[%%expect{|
+external strange_and : 'a option -> 'a option -> bool = "%sequand"
+Line 5, characters 14-15:
+5 |   strange_and x x
+                  ^
+Error: This value escapes its region
 |}]
 
 (* mode-crossing using unary + *)
