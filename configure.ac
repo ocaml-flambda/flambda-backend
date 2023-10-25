@@ -654,9 +654,12 @@ AS_CASE([$host],
     [exeext=".exe"],
   [exeext=''])
 
+dnl CR ocaml 5 runtime:
 dnl otherlibraries="dynlink runtime_events"
 otherlibraries="dynlink"
 lib_dynlink=true
+dnl CR ocaml 5 runtime:
+dnl lib_runtime_events = true
 AS_IF([test x"$enable_unix_lib" != "xno"],
   [enable_unix_lib=yes
   AC_CONFIG_FILES([otherlibs/unix/META])
