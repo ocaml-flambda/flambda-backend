@@ -1,6 +1,4 @@
 (* TEST
-   * skip
-
  *)
 
 open Effect
