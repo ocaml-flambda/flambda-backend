@@ -239,7 +239,7 @@ let pat
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 id id (sub.pat sub)) l, closed)
-    | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
+    | Tpat_array (am, arg_jkind, l) -> Tpat_array (am, arg_jkind,List.map (sub.pat sub) l)
     | Tpat_alias (p, id, s, uid, m) -> Tpat_alias (sub.pat sub p, id, s, uid, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
     | Tpat_value p ->

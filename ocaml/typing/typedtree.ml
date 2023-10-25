@@ -79,7 +79,7 @@ and 'k pattern_desc =
         closed_flag ->
       value pattern_desc
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutable_flag * Jkind.t * value general_pattern list -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -782,7 +782,7 @@ let shallow_iter_pattern_desc
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
-  | Tpat_array (_, patl) -> List.iter f.f patl
+  | Tpat_array (_, _, patl) -> List.iter f.f patl
   | Tpat_lazy p -> f.f p
   | Tpat_any
   | Tpat_var _
@@ -804,8 +804,8 @@ let shallow_map_pattern_desc
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
       Tpat_construct (lid, c, List.map f.f pats, ty)
-  | Tpat_array (am, pats) ->
-      Tpat_array (am, List.map f.f pats)
+  | Tpat_array (am, arg_jkind, pats) ->
+      Tpat_array (am, arg_jkind, List.map f.f pats)
   | Tpat_lazy p1 -> Tpat_lazy (f.f p1)
   | Tpat_variant (x1, Some p1, x2) ->
       Tpat_variant (x1, Some (f.f p1), x2)
@@ -909,16 +909,8 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
           List.iter (fun (_, lbl, pat) ->
             (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list
-      | Tpat_array (_, patl) ->
-        let snap = Btype.snapshot () in
-        let sort = match get_desc (Ctype.expand_head pat.pat_env pat.pat_type) with
-          | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
-            Jkind.sort_of_jkind (Ctype.type_jkind pat.pat_env elt_ty)
-          | _ ->
-            Misc.fatal_errorf "unexpected type: %t"
-              (fun ppf -> Printtyp.raw_type_expr ppf pat.pat_type)
-        in
-        Btype.backtrack snap;
+      | Tpat_array (_, arg_jkind, patl) ->
+        let sort = Jkind.sort_of_jkind arg_jkind in
         List.iter (loop f sort) patl
       (* Cases where the inner things must be value: *)
       | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat

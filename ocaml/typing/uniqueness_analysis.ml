@@ -1058,7 +1058,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_pats
-  | Tpat_array (_, pats) ->
+  | Tpat_array (_, _, pats) ->
     let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
     let ext, uf_pats =
       List.map

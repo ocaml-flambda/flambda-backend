@@ -384,7 +384,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array (am, list) -> begin
+    | Tpat_array (am, _arg_jkind, list) -> begin
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
