@@ -1363,7 +1363,9 @@ and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort r
          | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
       e.exp_attributes e.exp_extra
   in
-  let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
+  let assume_zero_alloc =
+    Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+  in
   let scopes =
     if in_new_scope then begin
       if assume_zero_alloc then set_assume_zero_alloc ~scopes
@@ -1407,7 +1409,9 @@ and transl_bound_exp ~scopes ~in_structure pat sort expr loc attrs =
   let lam =
     match pat_bound_idents pat with
     | (id :: _) when should_introduce_scope ->
-      let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
+      let assume_zero_alloc =
+        Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+      in
       let scopes = enter_value_definition ~scopes ~assume_zero_alloc id in
       transl_scoped_exp ~scopes sort expr
     | _ -> transl_exp ~scopes sort expr
