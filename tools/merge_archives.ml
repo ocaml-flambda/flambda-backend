@@ -23,7 +23,7 @@ let merge_cma ~target ~archives =
   Clflags.all_ccopts := [];
   Clflags.dllibs := [];
   List.iter
-    (fun archive -> Load_path.add_dir (Filename.dirname archive))
+    (fun archive -> Load_path.add_dir ~hidden:false (Filename.dirname archive))
     archives;
   let error reporter err =
     Format.eprintf "Error whilst merging .cma files:@ %a\n%!" reporter err;

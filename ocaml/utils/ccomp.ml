@@ -114,7 +114,8 @@ let compile_file ?output ?(opt="") ?stable_name name =
          (String.concat " " (List.rev !Clflags.all_ccopts))
          (quote_prefixed "-I"
             (List.map (Misc.expand_directory Config.standard_library)
-               (List.rev !Clflags.include_dirs)))
+               (List.rev (  !Clflags.hidden_include_dirs
+                          @ !Clflags.include_dirs))))
          (Clflags.std_include_flag "-I")
          (Filename.quote name)
          (* cl tediously includes the name of the C file as the first thing it
@@ -180,7 +181,7 @@ let call_linker ?(native_toplevel = false) mode output_name files extra =
         Printf.sprintf "%s%s %s %s %s"
           Config.native_pack_linker
           (Filename.quote output_name)
-          (quote_prefixed l_prefix (Load_path.get_paths ()))
+          (quote_prefixed l_prefix (Load_path.get_path_list ()))
           (quote_files (remove_Wl files))
           extra
       else
@@ -195,7 +196,7 @@ let call_linker ?(native_toplevel = false) mode output_name files extra =
           (Filename.quote output_name)
           ""  (*(Clflags.std_include_flag "-I")*)
           (if native_toplevel then ""
-           else quote_prefixed "-L" (Load_path.get_paths ()))
+           else quote_prefixed "-L" (Load_path.get_path_list ()))
           (String.concat " " (List.rev !Clflags.all_ccopts))
           (quote_files files)
           extra

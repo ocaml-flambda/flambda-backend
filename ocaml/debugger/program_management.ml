@@ -128,7 +128,9 @@ let initialize_loading () =
   end;
   Symbols.clear_symbols ();
   Symbols.read_symbols 0 !program_name;
-  Load_path.init (Load_path.get_paths () @ !Symbols.program_source_dirs);
+  let Load_path.{visible; hidden} = Load_path.get_paths () in
+  let visible = visible @ !Symbols.program_source_dirs in
+  Load_path.init ~visible ~hidden;
   Envaux.reset_cache ~preserve_persistent_env:false;
   if !debug_loading then
     prerr_endline "Opening a socket...";

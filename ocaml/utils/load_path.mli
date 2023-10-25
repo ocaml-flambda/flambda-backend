@@ -14,15 +14,15 @@
 
 (** Management of include directories.
 
-    This module offers a high level interface to locating files in the
-    load path, which is constructed from [-I] command line flags and a few
+    This module offers a high level interface to locating files in the load
+    path, which is constructed from [-I] and [-H] command line flags and a few
     other parameters.
 
     It makes the assumption that the contents of include directories
     doesn't change during the execution of the compiler.
 *)
 
-val add_dir : string -> unit
+val add_dir : hidden:bool -> string -> unit
 (** Add a directory to the end of the load path (i.e. at lowest priority.) *)
 
 val remove_dir : string -> unit
@@ -31,11 +31,21 @@ val remove_dir : string -> unit
 val reset : unit -> unit
 (** Remove all directories *)
 
-val init : string list -> unit
-(** [init l] is the same as [reset (); List.iter add_dir (List.rev l)] *)
+val init : visible:string list -> hidden:string list -> unit
+(** [init ~visible ~hidden] is the same as
+    [reset ();
+     List.iter add_dir (List.rev hidden);
+     List.iter add_dir (List.rev visible)] *)
 
-val get_paths : unit -> string list
+val get_path_list : unit -> string list
 (** Return the list of directories passed to [add_dir] so far. *)
+
+type paths =
+  { visible : string list;
+    hidden : string list }
+
+val get_paths : unit -> paths
+(** Return the directories passed to [add_dir] so far. *)
 
 val find : string -> string
 (** Locate a file in the load path. Raise [Not_found] if the file
@@ -51,14 +61,24 @@ module Dir : sig
   type t
   (** Represent one directory in the load path. *)
 
-  val create : string -> t
+  val create : hidden:bool -> string -> t
 
   val path : t -> string
 
   val files : t -> string list
   (** All the files in that directory. This doesn't include files in
       sub-directories of this directory. *)
+
+  val hidden : t -> bool
+  (** If the modules in this directory should not be bound in the initial
+      scope *)
 end
+
+type visibility = Visible | Hidden
+
+val find_uncap_with_visibility : string -> string * visibility
+(** Same as [find_uncap], but also reports whether the cmi was found in a -I
+    directory (Visible) or a -H directory (Hidden) *)
 
 val[@deprecated] add : Dir.t -> unit
 (** Old name for {!append_dir} *)
@@ -71,5 +91,6 @@ val prepend_dir : Dir.t -> unit
 (** [prepend_dir d] adds [d] to the start of the load path (i.e. at highest
     priority. *)
 
-val get : unit -> Dir.t list
-(** Same as [get_paths ()], except that it returns a [Dir.t list]. *)
+val get_visible : unit -> Dir.t list
+(** Same as [get_paths ()], except that it returns a [Dir.t list], and doesn't
+    include the -H paths. *)

@@ -41,13 +41,18 @@ let error err = raise (Error err)
 module Persistent_signature = struct
   type t =
     { filename : string;
-      cmi : Cmi_format.cmi_infos_lazy }
+      cmi : Cmi_format.cmi_infos_lazy;
+      visibility : Load_path.visibility }
 
-  let load = ref (fun ~unit_name ->
-      let unit_name = CU.Name.to_string unit_name in
-      match Load_path.find_uncap (unit_name ^ ".cmi") with
-      | filename -> Some { filename; cmi = read_cmi_lazy filename }
-      | exception Not_found -> None)
+  let load = ref (fun ~allow_hidden ~unit_name ->
+    let unit_name = CU.Name.to_string unit_name in
+    match Load_path.find_uncap_with_visibility (unit_name ^ ".cmi") with
+    | filename, visibility when allow_hidden ->
+      Some { filename; cmi = read_cmi_lazy filename; visibility}
+    | filename, Visible ->
+      Some { filename; cmi = read_cmi_lazy filename; visibility = Visible}
+    | _, Hidden
+    | exception Not_found -> None)
 end
 
 type can_load_cmis =
@@ -59,6 +64,7 @@ type pers_struct = {
   ps_crcs: Import_info.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
+  ps_visibility: Load_path.visibility;
 }
 
 (* If a .cmi file is missing (or invalid), we
@@ -182,7 +188,7 @@ let save_pers_struct penv crc comp_unit flags filename =
   add_import penv modname
 
 let process_pers_struct penv check modname pers_sig =
-  let { Persistent_signature.filename; cmi } = pers_sig in
+  let { Persistent_signature.filename; cmi; visibility } = pers_sig in
   let name = cmi.cmi_name in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
@@ -190,6 +196,7 @@ let process_pers_struct penv check modname pers_sig =
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
+             ps_visibility = visibility;
            } in
   let found_name = CU.name name in
   if not (CU.Name.equal modname found_name) then
@@ -230,27 +237,29 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   add_import penv modname;
   let cmi = read_cmi_lazy filename in
-  let pers_sig = { Persistent_signature.filename; cmi } in
+  let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
   let pm = val_of_pers_sig pers_sig in
   let ps = process_pers_struct penv check modname pers_sig in
   if add_binding then bind_pers_struct penv modname ps pm;
   (ps, pm)
 
-let find_pers_struct penv val_of_pers_sig check name =
+let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   if CU.Name.equal name CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find persistent_structures name with
-  | Found (ps, pm) -> (ps, pm)
+  | Found (ps, pm) when allow_hidden || ps.ps_visibility = Load_path.Visible ->
+    (ps, pm)
+  | Found _ -> raise Not_found
   | Missing -> raise Not_found
   | exception Not_found ->
     match can_load_cmis penv with
     | Cannot_load_cmis _ -> raise Not_found
     | Can_load_cmis ->
         let psig =
-          match !Persistent_signature.load ~unit_name:name with
+          match !Persistent_signature.load ~allow_hidden ~unit_name:name with
           | Some psig -> psig
           | None ->
-            Hashtbl.add persistent_structures name Missing;
+            if allow_hidden then Hashtbl.add persistent_structures name Missing;
             raise Not_found
         in
         add_import penv name;
@@ -265,10 +274,10 @@ let describe_prefix ppf prefix =
     Format.fprintf ppf "package %a" CU.Prefix.print prefix
 
 (* Emits a warning if there is no valid cmi for name *)
-let check_pers_struct penv f ~loc name =
+let check_pers_struct ~allow_hidden penv f ~loc name =
   let name_as_string = CU.Name.to_string name in
   try
-    ignore (find_pers_struct penv f false name)
+    ignore (find_pers_struct ~allow_hidden penv f false name)
   with
   | Not_found ->
       let warn = Warnings.No_cmi_file(name_as_string, None) in
@@ -308,10 +317,10 @@ let check_pers_struct penv f ~loc name =
 let read penv f modname filename ~add_binding =
   snd (read_pers_struct penv f true modname filename ~add_binding)
 
-let find penv f name =
-  snd (find_pers_struct penv f true name)
+let find ~allow_hidden penv f name =
+  snd (find_pers_struct ~allow_hidden penv f true name)
 
-let check penv f ~loc name =
+let check ~allow_hidden penv f ~loc name =
   let {persistent_structures; _} = penv in
   if not (Hashtbl.mem persistent_structures name) then begin
     (* PR#6843: record the weak dependency ([add_import]) regardless of
@@ -320,7 +329,7 @@ let check penv f ~loc name =
     add_import penv name;
     if (Warnings.is_active (Warnings.No_cmi_file("", None))) then
       !add_delayed_check_forward
-        (fun () -> check_pers_struct penv f ~loc name)
+        (fun () -> check_pers_struct ~allow_hidden penv f ~loc name)
   end
 
 (* CR mshinwell: delete this having moved to 4.14 build compilers *)
@@ -344,7 +353,7 @@ let crc_of_unit penv f name =
   match Consistbl.find penv.crc_units name with
   | Some (_, crc) -> crc
   | None ->
-    let (ps, _pm) = find_pers_struct penv f true name in
+    let (ps, _pm) = find_pers_struct ~allow_hidden:true penv f true name in
     match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
     | None -> assert false
     | Some import_info ->
@@ -388,7 +397,7 @@ let make_cmi penv modname sign alerts =
   }
 
 let save_cmi penv psig =
-  let { Persistent_signature.filename; cmi } = psig in
+  let { Persistent_signature.filename; cmi; _ } = psig in
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
