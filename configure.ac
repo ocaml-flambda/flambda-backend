@@ -656,6 +656,7 @@ AS_CASE([$host],
 
 dnl otherlibraries="dynlink runtime_events"
 otherlibraries="dynlink"
+lib_dynlink=true
 AS_IF([test x"$enable_unix_lib" != "xno"],
   [enable_unix_lib=yes
   AC_CONFIG_FILES([otherlibs/unix/META])
