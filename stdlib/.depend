@@ -128,14 +128,8 @@ stdlib__Callback.cmx : callback.ml \
     stdlib.cmx \
     stdlib__Obj.cmx \
     stdlib__Callback.cmi
-<<<<<<< HEAD
 stdlib__Callback.cmi : callback.mli \
     stdlib.cmi
-camlinternalAtomic.cmo : \
-    camlinternalAtomic.cmi
-camlinternalAtomic.cmx : \
-    camlinternalAtomic.cmi
-camlinternalAtomic.cmi :
 camlinternalComprehension.cmo : \
     stdlib.cmi \
     camlinternalComprehension.cmi
@@ -143,16 +137,6 @@ camlinternalComprehension.cmx : \
     stdlib.cmx \
     camlinternalComprehension.cmi
 camlinternalComprehension.cmi :
-||||||| merged common ancestors
-stdlib__Callback.cmi : callback.mli
-camlinternalAtomic.cmo : \
-    camlinternalAtomic.cmi
-camlinternalAtomic.cmx : \
-    camlinternalAtomic.cmi
-camlinternalAtomic.cmi :
-=======
-stdlib__Callback.cmi : callback.mli
->>>>>>> ocaml/5.1
 camlinternalFormat.cmo : \
     stdlib__Sys.cmi \
     stdlib__String.cmi \
@@ -243,28 +227,15 @@ stdlib__Char.cmx : char.ml \
 stdlib__Char.cmi : char.mli \
     stdlib.cmi
 stdlib__Complex.cmo : complex.ml \
-<<<<<<< HEAD
     stdlib.cmi \
-||||||| merged common ancestors
-=======
     stdlib__Float.cmi \
->>>>>>> ocaml/5.1
     stdlib__Complex.cmi
 stdlib__Complex.cmx : complex.ml \
-<<<<<<< HEAD
     stdlib.cmx \
-||||||| merged common ancestors
-=======
     stdlib__Float.cmx \
->>>>>>> ocaml/5.1
     stdlib__Complex.cmi
-<<<<<<< HEAD
 stdlib__Complex.cmi : complex.mli \
     stdlib.cmi
-||||||| merged common ancestors
-stdlib__Complex.cmi : complex.mli
-=======
-stdlib__Complex.cmi : complex.mli
 stdlib__Condition.cmo : condition.ml \
     stdlib__Mutex.cmi \
     stdlib__Condition.cmi
@@ -273,7 +244,6 @@ stdlib__Condition.cmx : condition.ml \
     stdlib__Condition.cmi
 stdlib__Condition.cmi : condition.mli \
     stdlib__Mutex.cmi
->>>>>>> ocaml/5.1
 stdlib__Digest.cmo : digest.ml \
     stdlib__String.cmi \
     stdlib.cmi \
@@ -286,13 +256,8 @@ stdlib__Digest.cmx : digest.ml \
     stdlib__Char.cmx \
     stdlib__Bytes.cmx \
     stdlib__Digest.cmi
-<<<<<<< HEAD
 stdlib__Digest.cmi : digest.mli \
     stdlib.cmi
-||||||| merged common ancestors
-stdlib__Digest.cmi : digest.mli
-=======
-stdlib__Digest.cmi : digest.mli
 stdlib__Domain.cmo : domain.ml \
     stdlib__Sys.cmi \
     stdlib.cmi \
@@ -328,7 +293,6 @@ stdlib__Effect.cmx : effect.ml \
     stdlib__Effect.cmi
 stdlib__Effect.cmi : effect.mli \
     stdlib__Printexc.cmi
->>>>>>> ocaml/5.1
 stdlib__Either.cmo : either.ml \
     stdlib__Either.cmi
 stdlib__Either.cmx : either.ml \
@@ -480,49 +444,6 @@ stdlib__Gc.cmx : gc.ml \
 stdlib__Gc.cmi : gc.mli \
     stdlib.cmi \
     stdlib__Printexc.cmi
-<<<<<<< HEAD
-stdlib__Genlex.cmo : genlex.ml \
-    stdlib__String.cmi \
-    stdlib__Stream.cmi \
-    stdlib.cmi \
-    stdlib__List.cmi \
-    stdlib__Hashtbl.cmi \
-    stdlib__Char.cmi \
-    stdlib__Bytes.cmi \
-    stdlib__Genlex.cmi
-stdlib__Genlex.cmx : genlex.ml \
-    stdlib__String.cmx \
-    stdlib__Stream.cmx \
-    stdlib.cmx \
-    stdlib__List.cmx \
-    stdlib__Hashtbl.cmx \
-    stdlib__Char.cmx \
-    stdlib__Bytes.cmx \
-    stdlib__Genlex.cmi
-stdlib__Genlex.cmi : genlex.mli \
-    stdlib__Stream.cmi \
-    stdlib.cmi
-||||||| merged common ancestors
-stdlib__Genlex.cmo : genlex.ml \
-    stdlib__String.cmi \
-    stdlib__Stream.cmi \
-    stdlib__List.cmi \
-    stdlib__Hashtbl.cmi \
-    stdlib__Char.cmi \
-    stdlib__Bytes.cmi \
-    stdlib__Genlex.cmi
-stdlib__Genlex.cmx : genlex.ml \
-    stdlib__String.cmx \
-    stdlib__Stream.cmx \
-    stdlib__List.cmx \
-    stdlib__Hashtbl.cmx \
-    stdlib__Char.cmx \
-    stdlib__Bytes.cmx \
-    stdlib__Genlex.cmi
-stdlib__Genlex.cmi : genlex.mli \
-    stdlib__Stream.cmi
-=======
->>>>>>> ocaml/5.1
 stdlib__Hashtbl.cmo : hashtbl.ml \
     stdlib__Sys.cmi \
     stdlib__String.cmi \
@@ -648,24 +569,12 @@ stdlib__Lexing.cmx : lexing.ml \
 stdlib__Lexing.cmi : lexing.mli \
     stdlib.cmi
 stdlib__List.cmo : list.ml \
-<<<<<<< HEAD
-    stdlib__Sys.cmi \
     stdlib.cmi \
-||||||| merged common ancestors
-    stdlib__Sys.cmi \
-=======
->>>>>>> ocaml/5.1
     stdlib__Seq.cmi \
     stdlib__Either.cmi \
     stdlib__List.cmi
 stdlib__List.cmx : list.ml \
-<<<<<<< HEAD
-    stdlib__Sys.cmx \
     stdlib.cmx \
-||||||| merged common ancestors
-    stdlib__Sys.cmx \
-=======
->>>>>>> ocaml/5.1
     stdlib__Seq.cmx \
     stdlib__Either.cmx \
     stdlib__List.cmi
@@ -699,21 +608,13 @@ stdlib__Map.cmi : map.mli \
     stdlib.cmi \
     stdlib__Seq.cmi
 stdlib__Marshal.cmo : marshal.ml \
-<<<<<<< HEAD
     stdlib.cmi \
-||||||| merged common ancestors
-=======
     stdlib__String.cmi \
->>>>>>> ocaml/5.1
     stdlib__Bytes.cmi \
     stdlib__Marshal.cmi
 stdlib__Marshal.cmx : marshal.ml \
-<<<<<<< HEAD
     stdlib.cmx \
-||||||| merged common ancestors
-=======
     stdlib__String.cmx \
->>>>>>> ocaml/5.1
     stdlib__Bytes.cmx \
     stdlib__Marshal.cmi
 stdlib__Marshal.cmi : marshal.mli \
@@ -814,20 +715,6 @@ stdlib__Parsing.cmi : parsing.mli \
     stdlib.cmi \
     stdlib__Obj.cmi \
     stdlib__Lexing.cmi
-<<<<<<< HEAD
-stdlib__Pervasives.cmo : pervasives.ml \
-    stdlib.cmi \
-    camlinternalFormatBasics.cmi
-stdlib__Pervasives.cmx : pervasives.ml \
-    stdlib.cmx \
-    camlinternalFormatBasics.cmx
-||||||| merged common ancestors
-stdlib__Pervasives.cmo : pervasives.ml \
-    camlinternalFormatBasics.cmi
-stdlib__Pervasives.cmx : pervasives.ml \
-    camlinternalFormatBasics.cmx
-=======
->>>>>>> ocaml/5.1
 stdlib__Printexc.cmo : printexc.ml \
     stdlib.cmi \
     stdlib__Printf.cmi \
@@ -845,13 +732,8 @@ stdlib__Printexc.cmx : printexc.ml \
     stdlib__Array.cmx \
     stdlib__Printexc.cmi
 stdlib__Printexc.cmi : printexc.mli \
-<<<<<<< HEAD
-    stdlib.cmi
-||||||| merged common ancestors
-stdlib__Printexc.cmi : printexc.mli
-=======
+    stdlib.cmi \
     stdlib__Obj.cmi
->>>>>>> ocaml/5.1
 stdlib__Printf.cmo : printf.ml \
     stdlib.cmi \
     camlinternalFormatBasics.cmi \
@@ -1011,48 +893,10 @@ stdlib__StdLabels.cmi : stdLabels.mli \
     stdlib__BytesLabels.cmi \
     stdlib__ArrayLabels.cmi
 std_exit.cmo : \
-<<<<<<< HEAD
-    stdlib.cmi
-std_exit.cmx : \
-    stdlib.cmx
-stdlib__Stream.cmo : stream.ml \
-    stdlib__String.cmi \
-    stdlib.cmi \
-    stdlib__List.cmi \
-    stdlib__Lazy.cmi \
-    stdlib__Bytes.cmi \
-    stdlib__Stream.cmi
-stdlib__Stream.cmx : stream.ml \
-    stdlib__String.cmx \
-    stdlib.cmx \
-    stdlib__List.cmx \
-    stdlib__Lazy.cmx \
-    stdlib__Bytes.cmx \
-    stdlib__Stream.cmi
-stdlib__Stream.cmi : stream.mli \
-    stdlib.cmi
-||||||| merged common ancestors
-std_exit.cmo :
-std_exit.cmx :
-stdlib__Stream.cmo : stream.ml \
-    stdlib__String.cmi \
-    stdlib__List.cmi \
-    stdlib__Lazy.cmi \
-    stdlib__Bytes.cmi \
-    stdlib__Stream.cmi
-stdlib__Stream.cmx : stream.ml \
-    stdlib__String.cmx \
-    stdlib__List.cmx \
-    stdlib__Lazy.cmx \
-    stdlib__Bytes.cmx \
-    stdlib__Stream.cmi
-stdlib__Stream.cmi : stream.mli
-=======
     std_exit.cmi
 std_exit.cmx : \
     std_exit.cmi
 std_exit.cmi :
->>>>>>> ocaml/5.1
 stdlib__String.cmo : string.ml \
     stdlib.cmi \
     stdlib__Bytes.cmi \
@@ -1083,13 +927,8 @@ stdlib__Sys.cmo : sys.ml \
 stdlib__Sys.cmx : sys.ml \
     stdlib.cmx \
     stdlib__Sys.cmi
-<<<<<<< HEAD
 stdlib__Sys.cmi : sys.mli \
     stdlib.cmi
-||||||| merged common ancestors
-stdlib__Sys.cmi : sys.mli
-=======
-stdlib__Sys.cmi : sys.mli
 stdlib__Type.cmo : type.ml \
     stdlib__Obj.cmi \
     stdlib__Type.cmi
@@ -1097,7 +936,6 @@ stdlib__Type.cmx : type.ml \
     stdlib__Obj.cmx \
     stdlib__Type.cmi
 stdlib__Type.cmi : type.mli
->>>>>>> ocaml/5.1
 stdlib__Uchar.cmo : uchar.ml \
     stdlib.cmi \
     stdlib__Char.cmi \
