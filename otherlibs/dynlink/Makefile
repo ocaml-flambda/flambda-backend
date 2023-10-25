@@ -113,13 +113,7 @@ COMPILERLIBS_SOURCES=\
   typing/shape.ml \
   typing/jkind.ml \
   typing/primitive.ml \
-<<<<<<< HEAD
-||||||| merged common ancestors
-  typing/type_immediacy.ml \
-=======
-  typing/type_immediacy.ml \
   typing/shape.ml \
->>>>>>> ocaml/5.1
   typing/types.ml \
   typing/btype.ml \
   typing/subst.ml \
@@ -219,35 +213,13 @@ $(LOCAL_SRC)/%.cmx: $(LOCAL_SRC)/%.ml
 # ocamlopt invocation, which causes it to use the ocamlc-generated .cmi.
 dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
 	rm -f dynlink_compilerlibs.mli
-	$(OCAMLC) $(COMPFLAGS) -pack -o dynlink_compilerlibs.cmo $(COMPILERLIBS_CMO)
+	$(V_OCAMLC)$(OCAMLC) $(COMPFLAGS) -pack -o dynlink_compilerlibs.cmo $(COMPILERLIBS_CMO)
 
-<<<<<<< HEAD
 dynlink_compilerlibs.cmo: dynlink_compilerlibs.cmi
 
 dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX) dynlink_compilerlibs.cmi
 	touch dynlink_compilerlibs.mli
-	$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
-||||||| merged common ancestors
-byte/dynlink_compilerlibs.cmo: $(COMPILERLIBS_CMO)
-	$(OCAMLC) $(COMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMO)
-
-byte/dynlink_compilerlibs.cmi: byte/dynlink_compilerlibs.cmo
-
-native/dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
-	$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
-=======
-# A multi-target pattern rule can tell GNU make that the recipe simultaneously
-# produces both the cmo and cmi file for Dynlink_compilerlibs. GNU make 4.3+
-# would be required to do the same thing with a static rule (with its grouped
-# targets feature).
-byt%/dynlink_compilerlibs.cmo byt%/dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
-	@$(if $(filter-out e,$*),\
-        $(error Should only build byte/dynlink_compilerlibs.cmo!))
-	$(V_OCAMLC)$(OCAMLC) $(COMPFLAGS) -pack -o byte/dynlink_compilerlibs.cmo $^
-
-native/dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
 	$(V_OCAMLOPT)$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
->>>>>>> ocaml/5.1
 
 # The main dynlink rules start here.
 
@@ -256,36 +228,10 @@ all: dynlink.cma
 allopt: dynlink.cmxa
 
 dynlink.cma: $(OBJS)
-<<<<<<< HEAD
-	$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
-||||||| merged common ancestors
-	$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I byte -o $@ $^
-=======
-	$(V_LINKC)$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I byte -o $@ $^
->>>>>>> ocaml/5.1
+	$(V_LINKC)$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
 
 dynlink.cmxa: $(NATOBJS)
-<<<<<<< HEAD
-	$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
-||||||| merged common ancestors
-	$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I native \
-	            -o $@ $^
-# As for all other .cmxa files, ensure that the .cmx files are in the same
-# directory. If this were omitted, ocamldoc in particular will fail to build
-# with a -opaque warning. Note that installopt refers to $(NATOBJS) so doesn't
-# require this file to exist, hence its inclusion in the recipe for dynlink.cmxa
-# rather than as a dependency elsewhere.
-	cp native/dynlink.cmx dynlink.cmx
-=======
-	$(V_LINKOPT)$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I native \
-	            -o $@ $^
-# As for all other .cmxa files, ensure that the .cmx files are in the same
-# directory. If this were omitted, ocamldoc in particular will fail to build
-# with a -opaque warning. Note that installopt refers to $(NATOBJS) so doesn't
-# require this file to exist, hence its inclusion in the recipe for dynlink.cmxa
-# rather than as a dependency elsewhere.
-	cp native/dynlink.cmx dynlink.cmx
->>>>>>> ocaml/5.1
+	$(V_LINKOPT)$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
 
 # Since there is no .mli for [Dynlink_platform_intf], we need to be
 # careful that compilation of the .cmx file does not write the .cmi file again,
@@ -293,20 +239,6 @@ dynlink.cmxa: $(NATOBJS)
 # to be to copy the .ml file, which is a valid .mli, to the .mli.
 dynlink_platform_intf.mli: dynlink_platform_intf.ml
 	cp $< $@
-
-<<<<<<< HEAD
-$(eval $(call PROGRAM_SYNONYM,extract_crc))
-
-$(extract_crc): dynlink.cma dynlink_compilerlibs.cmo extract_crc.cmo
-	$(OCAMLC) -o $@ $^
-||||||| merged common ancestors
-$(eval $(call PROGRAM_SYNONYM,extract_crc))
-
-$(extract_crc): dynlink.cma byte/dynlink_compilerlibs.cmo extract_crc.cmo
-	$(OCAMLC) -o $@ $^
-=======
-INSTALL_LIBDIR_DYNLINK = $(INSTALL_LIBDIR)/dynlink
->>>>>>> ocaml/5.1
 
 INSTALL_LIBDIR_DYNLINK = $(INSTALL_LIBDIR)/dynlink
 
@@ -318,14 +250,7 @@ install:
         $(addprefix "$(INSTALL_LIBDIR)/", $(notdir $(NATOBJS)))
 	$(MKDIR) "$(INSTALL_LIBDIR_DYNLINK)"
 	$(INSTALL_DATA) \
-<<<<<<< HEAD
-	  dynlink.cmi dynlink.cma \
-||||||| merged common ancestors
-	  dynlink.cmi dynlink.cma \
-	  "$(INSTALL_LIBDIR)"
-=======
 	  dynlink.cmi dynlink.cma META \
->>>>>>> ocaml/5.1
 	  "$(INSTALL_LIBDIR_DYNLINK)"
 ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
@@ -341,18 +266,8 @@ ifeq "$(strip $(NATDYNLINK))" "true"
 endif
 
 partialclean:
-<<<<<<< HEAD
-	rm -f $(extract_crc) *.cm[ioaxt] *.cmti *.cmxa \
-	      *.cm[iotx] *.cmti *.o *.obj \
-||||||| merged common ancestors
-	rm -f $(extract_crc) *.cm[ioaxt] *.cmti *.cmxa \
-	      byte/*.cm[iot] byte/*.cmti \
-	      native/*.cm[ixt] native/*.cmti native/*.o native/*.obj \
-=======
 	rm -f *.cm[ioaxt] *.cmti *.cmxa \
-	      byte/*.cm[iot] byte/*.cmti \
-	      native/*.cm[ixt] native/*.cmti native/*.o native/*.obj \
->>>>>>> ocaml/5.1
+	      *.cm[iotx] *.cmti *.o *.obj \
 	      $(LOCAL_SRC)/*.cm[ioaxt] $(LOCAL_SRC)/*.cmti \
         $(LOCAL_SRC)/*.o $(LOCAL_SRC)/*.obj
 
@@ -376,21 +291,9 @@ DEPEND_DUMMY_FILES=\
 depend: beforedepend
 	$(V_GEN)touch $(DEPEND_DUMMY_FILES) && \
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-<<<<<<< HEAD
-	   -bytecode *.mli *.ml byte/dynlink.ml > .depend
-||||||| merged common ancestors
-	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend
-=======
-	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend && \
->>>>>>> ocaml/5.1
+	   -bytecode *.mli *.ml byte/dynlink.ml > .depend && \
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-<<<<<<< HEAD
-	   -native *.ml native/dynlink.ml >> .depend
-||||||| merged common ancestors
-	  -I native -native *.ml native/dynlink.ml >> .depend
-=======
-	  -I native -native *.ml native/dynlink.ml >> .depend && \
->>>>>>> ocaml/5.1
+	   -native *.ml native/dynlink.ml >> .depend && \
 	rm -f $(DEPEND_DUMMY_FILES)
 
 include .depend

@@ -30,14 +30,7 @@ CAMLC=$(BEST_OCAMLC) $(LIBS)
 CAMLOPT=$(BEST_OCAMLOPT) $(LIBS)
 
 MKLIB=$(OCAMLRUN) $(ROOTDIR)/tools/ocamlmklib$(EXE)
-<<<<<<< HEAD
-COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot -safe-string
-||||||| merged common ancestors
-COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot -safe-string
->>>>>>>>> Temporary merge branch 2
-=======
 COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot
->>>>>>> ocaml/5.1
 ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
@@ -52,26 +45,12 @@ LIBNAME=threads
 BYTECODE_C_OBJS=st_stubs.b.$(O)
 NATIVECODE_C_OBJS=st_stubs.n.$(O)
 
-<<<<<<< HEAD
-THREADS_SOURCES = thread.ml mutex.ml condition.ml event.ml semaphore.ml
-||||||| merged common ancestors
-THREADS_SOURCES = thread.ml mutex.ml condition.ml event.ml threadUnix.ml \
-  semaphore.ml
-=======
 THREADS_SOURCES = thread.ml event.ml
->>>>>>> ocaml/5.1
 
 THREADS_BCOBJS = $(THREADS_SOURCES:.ml=.cmo)
 THREADS_NCOBJS = $(THREADS_SOURCES:.ml=.cmx)
 
-<<<<<<< HEAD
-MLIFILES=thread.mli mutex.mli condition.mli event.mli semaphore.mli
-||||||| merged common ancestors
-MLIFILES=thread.mli mutex.mli condition.mli event.mli threadUnix.mli \
-  semaphore.mli
-=======
 MLIFILES=thread.mli event.mli
->>>>>>> ocaml/5.1
 
 CMIFILES=$(MLIFILES:.mli=.cmi)
 
@@ -139,14 +118,7 @@ install:
 	  $(INSTALL_PROG) dllthreads$(EXT_DLL) "$(INSTALL_STUBLIBDIR)"; \
 	fi
 	$(INSTALL_DATA) libthreads.$(A) "$(INSTALL_LIBDIR)"
-<<<<<<< HEAD
-	mkdir -p "$(INSTALL_THREADSLIBDIR)"
-||||||| merged common ancestors
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) libthreads.$(A)
-	mkdir -p "$(INSTALL_THREADSLIBDIR)"
-=======
 	$(MKDIR) "$(INSTALL_THREADSLIBDIR)"
->>>>>>> ocaml/5.1
 	$(INSTALL_DATA) \
 	  $(CMIFILES) threads.cma META \
 	  "$(INSTALL_THREADSLIBDIR)"

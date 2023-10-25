@@ -22,19 +22,11 @@ dynlink_platform_intf.cmi : \
 dynlink_types.cmo : \
     dynlink_types.cmi
 dynlink_types.cmi :
-<<<<<<< HEAD
-extract_crc.cmo : \
-    dynlink_compilerlibs.cmi
 dynlink.cmx : \
     dynlink_types.cmx \
     dynlink_compilerlibs.cmx \
     dynlink_common.cmx \
     dynlink.cmi
-||||||| merged common ancestors
-extract_crc.cmo : \
-    byte/dynlink_compilerlibs.cmi
-=======
->>>>>>> ocaml/5.1
 dynlink_common.cmx : \
     dynlink_types.cmx \
     dynlink_platform_intf.cmx \
@@ -47,21 +39,3 @@ dynlink_platform_intf.cmx : \
     dynlink_platform_intf.cmi
 dynlink_types.cmx : \
     dynlink_types.cmi
-<<<<<<< HEAD
-extract_crc.cmx : \
-    dynlink_compilerlibs.cmx
-||||||| merged common ancestors
-extract_crc.cmx : \
-    native/dynlink_compilerlibs.cmx
-native/dynlink.cmx : \
-    dynlink_types.cmx \
-    native/dynlink_compilerlibs.cmx \
-    dynlink_common.cmx \
-    native/dynlink.cmi
-=======
-native/dynlink.cmx : \
-    dynlink_types.cmx \
-    native/dynlink_compilerlibs.cmx \
-    dynlink_common.cmx \
-    native/dynlink.cmi
->>>>>>> ocaml/5.1

@@ -171,6 +171,24 @@ dune_targets=$(
   done
 )
 
+dune_targets=$(
+  echo "$dune_targets"
+  mls="dynlink dynlink_common dynlink_platform_intf dynlink_types"
+  for ml in $mls; do
+    echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/native/$ml.cmx;
+    echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/byte/$ml.cmi
+  done
+)
+
+dune_targets="$dune_targets \
+_build/default/otherlibs/str/.str.objs/native/str.cmx \
+_build/default/otherlibs/str/.str.objs/byte/str.cmi \
+_build/default/otherlibs/systhreads/byte/.threads.objs/native/thread.cmx \
+_build/default/otherlibs/systhreads/byte/.threads.objs/byte/thread.cmi \
+_build/default/otherlibs/systhreads/native/.threadsnat.objs/native/thread.cmx \
+_build/default/otherlibs/systhreads/native/.threadsnat.objs/byte/thread.cmi
+"
+
 # ocamltest
 ocamltest=_build/default/ocamltest/.ocamltest_core_and_plugin.objs/byte
 dune_targets="$dune_targets \
