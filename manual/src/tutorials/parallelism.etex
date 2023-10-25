@@ -27,7 +27,7 @@ Domains are the units of parallelism in OCaml. The module \stdmoduleref{Domain}
 provides the primitives to create and manage domains. New domains can be
 spawned using the "spawn" function.
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 Domain.spawn (fun _ -> print_endline "I ran in parallel")
 \end{caml_example}
 
@@ -90,7 +90,7 @@ Spawned domains can be joined using the "join" function to get their results.
 The "join" function waits for target domain to terminate. The following program
 computes the nth Fibonacci number twice in parallel.
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 (* fib_twice.ml *)
 let n = int_of_string Sys.argv.(1)
 
@@ -132,7 +132,7 @@ Let us attempt to parallelise the Fibonacci function. The two recursive calls
 may be executed in parallel. However, naively parallelising the recursive calls
 by spawning domains for each one will not work as it spawns too many domains.
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 (* fib_par1.ml *)
 let n = try int_of_string Sys.argv.(1) with _ -> 1
 
@@ -468,7 +468,7 @@ rest of this chapter, we shall call the threads created by the threads library
 as \emph{systhreads}. The following program implements a concurrent stack using
 mutex and condition variables.
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 module Blocking_stack : sig
   type 'a t
   val make : unit -> 'a t
@@ -615,7 +615,7 @@ often compiled to atomic read-modify-write primitives that the hardware
 provides. As an example, the following program increments a non-atomic counter
 and an atomic counter in parallel.
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 (* incr.ml *)
 let twice_in_parallel f =
   let d1 = Domain.spawn f in
@@ -672,7 +672,7 @@ The atomic variables can be used for low-level synchronisation between the
 domains. The following example uses an atomic variable to exchange a message
 between two domains.
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 let r = Atomic.make None
 
 let sender () = Atomic.set r (Some "Hello")
@@ -699,7 +699,7 @@ race since "r" is an atomic reference.
 The Atomic module is used to implement non-blocking, lock-free data structures.
 The following program implements a lock-free stack.
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 module Lockfree_stack : sig
   type 'a t
   val make : unit -> 'a t
