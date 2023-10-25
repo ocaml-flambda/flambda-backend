@@ -84,16 +84,16 @@ Caml_inline int sync_mutex_unlock(sync_mutex m)
 
 /* Condition variables */
 
-typedef pthread_cond_t * sync_condvar;
+typedef custom_condvar * sync_condvar;
 
 #define Condition_val(v) (* (sync_condvar *) Data_custom_val(v))
 
 Caml_inline int sync_condvar_create(sync_condvar * res)
 {
   int rc;
-  sync_condvar c = caml_stat_alloc_noexc(sizeof(pthread_cond_t));
+  sync_condvar c = caml_stat_alloc_noexc(sizeof(custom_condvar));
   if (c == NULL) return ENOMEM;
-  rc = pthread_cond_init(c, NULL);
+  rc = custom_condvar_init(c);
   if (rc != 0) { caml_stat_free(c); return rc; }
   *res = c;
   return 0;
@@ -102,24 +102,24 @@ Caml_inline int sync_condvar_create(sync_condvar * res)
 Caml_inline int sync_condvar_destroy(sync_condvar c)
 {
   int rc;
-  rc = pthread_cond_destroy(c);
+  rc = custom_cond_destroy(c);
   caml_stat_free(c);
   return rc;
 }
 
 Caml_inline int sync_condvar_signal(sync_condvar c)
 {
- return pthread_cond_signal(c);
+ return custom_cond_signal(c);
 }
 
 Caml_inline int sync_condvar_broadcast(sync_condvar c)
 {
-    return pthread_cond_broadcast(c);
+    return custom_cond_broadcast(c);
 }
 
 Caml_inline int sync_condvar_wait(sync_condvar c, sync_mutex m)
 {
-  return pthread_cond_wait(c, m);
+  return custom_cond_wait(c, m);
 }
 
 /* Reporting errors */
