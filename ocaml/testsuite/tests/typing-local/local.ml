@@ -2058,17 +2058,19 @@ val testboo3 : unit -> local_ bool = <fun>
 |}]
 
 (* Test from Nathanaëlle Courant.
-  User can define strange AND, and its arguments should not cross modes. *)
-external strange_and : 'a option -> 'a option -> bool = "%sequand"
+  User can define strange AND. Supposedly [strange_and] will look at its first
+  arguments, and returns [None] or tailcall on second argument accordingly.
+  The second argument should not cross modes in generall. *)
+external strange_and : bool -> 'a option -> 'a option = "%sequand"
 
 let testboo4 () =
   let local_ x = Some "hello" in
-  strange_and x x
+  strange_and true x
 [%%expect{|
-external strange_and : 'a option -> 'a option -> bool = "%sequand"
-Line 5, characters 14-15:
-5 |   strange_and x x
-                  ^
+external strange_and : bool -> 'a option -> 'a option = "%sequand"
+Line 5, characters 19-20:
+5 |   strange_and true x
+                       ^
 Error: This value escapes its region
 |}]
 
