@@ -85,30 +85,11 @@ let load ppf phrase_name program =
     try Sys.remove dll with Sys_error _ -> ()
   in
   match
-<<<<<<< HEAD
-    Fun.protect
-      ~finally:(fun () ->
-          (try Sys.remove dll with Sys_error _ -> ()))
-            (* note: under windows, cannot remove a loaded dll
-               (should remember the handles, close them in at_exit, and then
-               remove files) *)
-      (fun () ->
-         (* CR-someday lmaurer: The manual prefixing here feels wrong. Probably
-            [phrase_name] should be a [Compilation_unit.t] (from which we can extract
-            a linkage name like civilized folk). That will be easier to do once we have
-            better types in, say, the [Translmod] API. *)
-         dll_run dll ("caml" ^ phrase_name))
-||||||| merged common ancestors
-    Fun.protect
-      ~finally:(fun () ->
-          (try Sys.remove dll with Sys_error _ -> ()))
-            (* note: under windows, cannot remove a loaded dll
-               (should remember the handles, close them in at_exit, and then
-               remove files) *)
-      (fun () -> dll_run dll phrase_name)
-=======
-    dll_run dll phrase_name
->>>>>>> ocaml/5.1
+    (* CR-someday lmaurer: The manual prefixing here feels wrong. Probably
+      [phrase_name] should be a [Compilation_unit.t] (from which we can extract
+      a linkage name like civilized folk). That will be easier to do once we have
+      better types in, say, the [Translmod] API. *)
+    dll_run dll ("caml" ^ phrase_name)
   with
   | res ->
      remove_dll ();

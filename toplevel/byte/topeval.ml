@@ -124,13 +124,7 @@ let execute_phrase print_outcome ppf phr =
       let oldsig = !toplevel_sig in
       Typecore.reset_delayed_checks ();
       let (str, sg, sn, shape, newenv) =
-<<<<<<< HEAD
         Typemod.type_toplevel_phrase oldenv oldsig sstr
-||||||| merged common ancestors
-      let (str, sg, sn, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
-=======
-        Typemod.type_toplevel_phrase oldenv sstr
->>>>>>> ocaml/5.1
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv sn sg in
@@ -153,13 +147,7 @@ let execute_phrase print_outcome ppf phr =
                   | [] -> Ophr_signature []
                   | _ ->
                       match find_eval_phrase str with
-<<<<<<< HEAD
                       | Some (exp, _, _, _) ->
-||||||| merged common ancestors
-                  | _ -> Ophr_signature (pr_item oldenv sg'))
-=======
-                      | Some (exp, _, _) ->
->>>>>>> ocaml/5.1
                         let outv = outval_of_value newenv v exp.exp_type in
                         let ty = Printtyp.tree_of_type_scheme exp.exp_type in
                         Ophr_eval (outv, ty)

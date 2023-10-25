@@ -58,13 +58,7 @@ let close_phrase lam =
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
     let glob =
-<<<<<<< HEAD
-      Lprim (Pfield (pos, Reads_agree),
-||||||| merged common ancestors
-      Lprim (Pfield pos,
-=======
-      Lprim (Pfield (pos, Pointer, Mutable),
->>>>>>> ocaml/5.1
+      Lprim (Pfield (pos, Pointer, Reads_agree),
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
@@ -128,7 +122,6 @@ let pr_item =
 
 let phrase_seqid = ref 0
 
-<<<<<<< HEAD
 let name_expression ~loc ~attrs sort exp =
   let name = "_$" in
   let id = Ident.create_local name in
@@ -152,31 +145,6 @@ let name_expression ~loc ~attrs sort exp =
      { vb_pat = pat;
        vb_expr = exp;
        vb_sort = sort;
-||||||| merged common ancestors
-=======
-let name_expression ~loc ~attrs exp =
-  let name = "_$" in
-  let id = Ident.create_local name in
-  let vd =
-    { val_type = exp.exp_type;
-      val_kind = Val_reg;
-      val_loc = loc;
-      val_attributes = attrs;
-      val_uid = Uid.internal_not_actually_unique; }
-   in
-   let sg = [Sig_value(id, vd, Exported)] in
-   let pat =
-     { pat_desc = Tpat_var(id, mknoloc name);
-       pat_loc = loc;
-       pat_extra = [];
-       pat_type = exp.exp_type;
-       pat_env = exp.exp_env;
-       pat_attributes = []; }
-   in
-   let vb =
-     { vb_pat = pat;
-       vb_expr = exp;
->>>>>>> ocaml/5.1
        vb_attributes = attrs;
        vb_loc = loc; }
    in
@@ -200,7 +168,6 @@ let execute_phrase print_outcome ppf phr =
       let oldsig = !toplevel_sig in
       incr phrase_seqid;
       let phrase_name = "TOP" ^ string_of_int !phrase_seqid in
-<<<<<<< HEAD
       let phrase_comp_unit =
         Compilation_unit.create Compilation_unit.Prefix.empty
           (Compilation_unit.Name.of_string phrase_name)
@@ -209,29 +176,6 @@ let execute_phrase print_outcome ppf phr =
       Typecore.reset_delayed_checks ();
       let (str, sg, names, shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
-||||||| merged common ancestors
-      Compilenv.reset ?packname:None phrase_name;
-      Typecore.reset_delayed_checks ();
-      let sstr, rewritten =
-        match sstr with
-        | [ { pstr_desc = Pstr_eval (e, attrs) ; pstr_loc = loc } ]
-        | [ { pstr_desc = Pstr_value (Asttypes.Nonrecursive,
-                                      [{ pvb_expr = e
-                                       ; pvb_pat = { ppat_desc = Ppat_any ; _ }
-                                       ; pvb_attributes = attrs
-                                       ; _ }])
-            ; pstr_loc = loc }
-          ] ->
-            let pat = Ast_helper.Pat.var (Location.mknoloc "_$") in
-            let vb = Ast_helper.Vb.mk ~loc ~attrs pat e in
-            [ Ast_helper.Str.value ~loc Asttypes.Nonrecursive [vb] ], true
-        | _ -> sstr, false
-=======
-      Compilenv.reset ?packname:None phrase_name;
-      Typecore.reset_delayed_checks ();
-      let (str, sg, names, shape, newenv) =
-        Typemod.type_toplevel_phrase oldenv sstr
->>>>>>> ocaml/5.1
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
@@ -254,23 +198,12 @@ let execute_phrase print_outcome ppf phr =
          tool-toplevel/topeval.ml in the testsuite) *)
       let str, sg', rewritten =
          match find_eval_phrase str with
-<<<<<<< HEAD
          | Some (e, sort, attrs, loc) ->
              let str, sg' = name_expression ~loc ~attrs sort e in
              str, sg', true
          | None -> str, sg', false
       in
       let compilation_unit, res, required_globals, size =
-||||||| merged common ancestors
-      let module_ident, res, required_globals, size =
-=======
-         | Some (e, attrs, loc) ->
-             let str, sg' = name_expression ~loc ~attrs e in
-             str, sg', true
-         | None -> str, sg', false
-      in
-      let module_ident, res, required_globals, size =
->>>>>>> ocaml/5.1
         if Config.flambda then
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =

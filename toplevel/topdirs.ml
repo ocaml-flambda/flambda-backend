@@ -212,20 +212,15 @@ let extract_last_arrow ty =
   in extract None ty
 
 let extract_target_type ty =
-  Option.map fst (extract_last_arrow ty)
+  match extract_last_arrow ty with
+  | None -> None
+  | Some ty ->
+    let ty = fst ty in
+    match Ctype.filter_mono ty with
+    | exception Ctype.Filter_mono_failed ->
+        None
+    | ty -> Some ty
 
-<<<<<<< HEAD
-let extract_target_type ty =
-  let ty = fst (extract_last_arrow ty) in
-  match Ctype.filter_mono ty with
-  | exception Ctype.Filter_mono_failed ->
-      raise Bad_printing_function
-  | ty -> ty
-
-||||||| merged common ancestors
-let extract_target_type ty = fst (extract_last_arrow ty)
-=======
->>>>>>> ocaml/5.1
 let extract_target_parameters ty =
   match extract_target_type ty with
   | None -> None
@@ -245,7 +240,7 @@ let match_simple_printer_type desc ~is_old_style =
   in
   match
     Ctype.with_local_level ~post:Ctype.generalize begin fun () ->
-      let ty_arg = Ctype.newvar() in
+      let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
       Ctype.unify !toplevel_env
         (make_printer_type ty_arg)
         (Ctype.instance desc.val_type);
@@ -258,40 +253,14 @@ let match_simple_printer_type desc ~is_old_style =
       then Some (Printer.Old ty_arg)
       else Some (Printer.Simple ty_arg)
 
-<<<<<<< HEAD
-let match_simple_printer_type desc printer_type =
-  Ctype.begin_def();
-  let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
-  begin try
-    Ctype.unify !toplevel_env
-      (Ctype.newconstr printer_type [ty_arg])
-      (Ctype.instance desc.val_type);
-  with Ctype.Unify _ ->
-    raise Bad_printing_function
-  end;
-  Ctype.end_def();
-  Ctype.generalize ty_arg;
-  (ty_arg, None)
-||||||| merged common ancestors
-let match_simple_printer_type desc printer_type =
-  Ctype.begin_def();
-  let ty_arg = Ctype.newvar() in
-  begin try
-    Ctype.unify !toplevel_env
-      (Ctype.newconstr printer_type [ty_arg])
-      (Ctype.instance desc.val_type);
-  with Ctype.Unify _ ->
-    raise Bad_printing_function
-  end;
-  Ctype.end_def();
-  Ctype.generalize ty_arg;
-  (ty_arg, None)
-=======
+
 let match_generic_printer_type desc ty_path params =
   let make_printer_type = Topprinters.printer_type_new in
   match
     Ctype.with_local_level ~post:(List.iter Ctype.generalize) begin fun () ->
-      let args = List.map (fun _ -> Ctype.newvar ()) params in
+      let args = List.map (fun _ -> Ctype.newvar
+                                      (Jkind.value ~why:Debug_printer_argument))
+                          params in
       let ty_target = Ctype.newty (Tconstr (ty_path, args, ref Mnil)) in
       let printer_args_ty =
         List.map (fun ty_var -> make_printer_type ty_var) args in
@@ -309,64 +278,7 @@ let match_generic_printer_type desc ty_path params =
       if Ctype.all_distinct_vars !toplevel_env args
       then Some ()
       else None
->>>>>>> ocaml/5.1
 
-<<<<<<< HEAD
-let match_generic_printer_type desc path args printer_type =
-  Ctype.begin_def();
-  let args = List.map
-               (fun _ -> Ctype.newvar
-                           (Jkind.value ~why:Debug_printer_argument))
-               args in
-  let ty_target = Ctype.newty (Tconstr (path, args, ref Mnil)) in
-  let ty_args =
-    List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
-  let ty_expected =
-    List.fold_right
-      (fun ty_arg ty ->
-         let arrow_desc =
-           Asttypes.Nolabel,Mode.Alloc.legacy,Mode.Alloc.legacy
-         in
-         Ctype.newty
-           (Tarrow (arrow_desc, Ctype.newmono ty_arg, ty, commu_var ())))
-      ty_args (Ctype.newconstr printer_type [ty_target]) in
-  begin try
-    Ctype.unify !toplevel_env
-      ty_expected
-      (Ctype.instance desc.val_type);
-  with Ctype.Unify _ ->
-    raise Bad_printing_function
-  end;
-  Ctype.end_def();
-  Ctype.generalize ty_expected;
-  if not (Ctype.all_distinct_vars !toplevel_env args) then
-    raise Bad_printing_function;
-  (ty_expected, Some (path, ty_args))
-||||||| merged common ancestors
-let match_generic_printer_type desc path args printer_type =
-  Ctype.begin_def();
-  let args = List.map (fun _ -> Ctype.newvar ()) args in
-  let ty_target = Ctype.newty (Tconstr (path, args, ref Mnil)) in
-  let ty_args =
-    List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
-  let ty_expected =
-    List.fold_right
-      (fun ty_arg ty -> Ctype.newty (Tarrow (Asttypes.Nolabel, ty_arg, ty,
-                                             commu_var ())))
-      ty_args (Ctype.newconstr printer_type [ty_target]) in
-  begin try
-    Ctype.unify !toplevel_env
-      ty_expected
-      (Ctype.instance desc.val_type);
-  with Ctype.Unify _ ->
-    raise Bad_printing_function
-  end;
-  Ctype.end_def();
-  Ctype.generalize ty_expected;
-  if not (Ctype.all_distinct_vars !toplevel_env args) then
-    raise Bad_printing_function;
-  (ty_expected, Some (path, ty_args))
-=======
 let match_printer_type desc =
   match match_simple_printer_type desc ~is_old_style:false with
   | Some _ as res -> res
@@ -381,7 +293,6 @@ let match_printer_type desc =
     | None -> None
     | Some () ->
       Some (Printer.Generic { ty_path; arity = List.length args; })
->>>>>>> ocaml/5.1
 
 let find_printer lid =
   match Env.find_value_by_name lid !toplevel_env with
@@ -677,17 +588,7 @@ let () =
                (if secretly_the_same_path env path new_path
                 then acc
                 else def Trec_not :: acc)
-<<<<<<< HEAD
          | Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_strengthen _ ->
-||||||| merged common ancestors
-         | Mty_alias path ->
-             let md = Env.find_module path env in
-             accum_aliases md (acc Trec_not)
-         | Mty_ident _ | Mty_signature _ | Mty_functor _ ->
-             List.rev (acc (is_rec_module id md))
-=======
-         | Mty_ident _ | Mty_signature _ | Mty_functor _ ->
->>>>>>> ocaml/5.1
              List.rev (def (is_rec_module id md) :: acc)
        in
        accum_aliases path md []
@@ -711,14 +612,7 @@ let () =
                (if secretly_the_same_path env path new_path
                 then acc
                 else def :: acc)
-<<<<<<< HEAD
          | None | Some (Mty_alias _ | Mty_signature _ | Mty_functor _ | Mty_strengthen _) ->
-||||||| merged common ancestors
-       let _path, desc = Env.lookup_modtype ~loc lid env in
-       [ Sig_modtype (id, desc, Exported) ]
-=======
-         | None | Some (Mty_alias _ | Mty_signature _ | Mty_functor _) ->
->>>>>>> ocaml/5.1
              List.rev (def :: acc)
        in
        accum_defs path mtd []
@@ -728,20 +622,6 @@ let () =
 let () =
   reg_show_prim "show_class"
     (fun env loc id lid ->
-<<<<<<< HEAD
-       let path, desc_class = Env.lookup_class ~loc lid env in
-       let _path, desc_cltype = Env.lookup_cltype ~loc lid env in
-       let _path, typedcl = Env.lookup_type ~loc lid env in
-       let hash_typedcl = Env.find_hash_type path env in
-       [
-         Sig_class (id, desc_class, Trec_not, Exported);
-         Sig_class_type (id, desc_cltype, Trec_not, Exported);
-         Sig_type (id, typedcl, Trec_not, Exported);
-         Sig_type (id, hash_typedcl, Trec_not, Exported);
-||||||| merged common ancestors
-       let _path, desc = Env.lookup_class ~loc lid env in
-       [ Sig_class (id, desc, Trec_not, Exported) ]
-=======
        let _path, desc_class = Env.lookup_class ~loc lid env in
        let _path, desc_cltype = Env.lookup_cltype ~loc lid env in
        let _path, typedcl = Env.lookup_type ~loc lid env in
@@ -749,7 +629,6 @@ let () =
          Sig_class (id, desc_class, Trec_not, Exported);
          Sig_class_type (id, desc_cltype, Trec_not, Exported);
          Sig_type (id, typedcl, Trec_not, Exported);
->>>>>>> ocaml/5.1
        ]
     )
     "Print the signature of the corresponding class."
@@ -757,24 +636,11 @@ let () =
 let () =
   reg_show_prim "show_class_type"
     (fun env loc id lid ->
-<<<<<<< HEAD
-       let path, desc = Env.lookup_cltype ~loc lid env in
-       let _path, typedcl = Env.lookup_type ~loc lid env in
-       let hash_typedcl = Env.find_hash_type path env in
-       [
-         Sig_class_type (id, desc, Trec_not, Exported);
-         Sig_type (id, typedcl, Trec_not, Exported);
-         Sig_type (id, hash_typedcl, Trec_not, Exported);
-||||||| merged common ancestors
-       let _path, desc = Env.lookup_cltype ~loc lid env in
-       [ Sig_class_type (id, desc, Trec_not, Exported) ]
-=======
        let _path, desc = Env.lookup_cltype ~loc lid env in
        let _path, typedcl = Env.lookup_type ~loc lid env in
        [
          Sig_class_type (id, desc, Trec_not, Exported);
          Sig_type (id, typedcl, Trec_not, Exported);
->>>>>>> ocaml/5.1
        ]
     )
     "Print the signature of the corresponding class type."
