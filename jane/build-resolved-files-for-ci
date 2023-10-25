@@ -59,7 +59,20 @@ dune_targets=$(
     echo _build/default/.ocamloptcomp.objs/byte/$cmi.cmi
   done
 )
-
+mlis=$(
+  { echo debugger/*.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    basename=$(basename ${mli%.mli})
+    cmi=ocamldebug__${basename^}
+    echo _build/default/debugger/.ocamldebug.objs/byte/$cmi.cmi
+  done
+)
 echo "Dune targets:"
 echo "$dune_targets"
 dune b --workspace=duneconf/boot.ws $dune_targets
@@ -164,6 +177,21 @@ dune_targets=$(
   for ml in $mls; do
     cmx=$(basename ${ml%.ml})
     echo _build/default/.ocamloptcomp.objs/native/$cmx.cmx
+  done
+)
+mls=$(
+  { echo debugger/*.ml
+  } |
+    tr ' ' '\n' |
+    grep -v ocamldebug_entry
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    basename=$(basename ${ml%.ml})
+    cmx=ocamldebug__${basename^}
+    echo _build/default/debugger/.ocamldebug.objs/native/$cmx.cmx
   done
 )
 

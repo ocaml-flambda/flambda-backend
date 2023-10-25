@@ -159,7 +159,7 @@
 (include duneconf/jst-extra.inc)
 
 (rule
- (deps (source_tree yacc))
+ (deps Makefile.build_config Makefile.config_if_required Makefile.common (source_tree yacc))
  (targets ocamlyacc)
  (action
  (no-infer

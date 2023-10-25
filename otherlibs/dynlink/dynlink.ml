@@ -115,7 +115,7 @@ module Bytecode = struct
 
   let run_shared_startup _ ~filename:_ ~priv:_ = ()
 
-  let run ~handle:(ic, file_name, file_digest) ~filename:_ ~unit_header ~priv =
+  let run (ic, file_name, file_digest) ~filename:_ ~unit_header ~priv =
     let open Misc in
     let old_state = Symtable.current_state () in
     let compunit : Cmo_format.compilation_unit_descr = unit_header in
@@ -308,7 +308,7 @@ module Native = struct
   let run_shared_startup handle ~filename ~priv =
     ndl_run handle "caml_shared_startup" ~filename ~priv
 
-  let run ~handle ~filename ~unit_header ~priv =
+  let run handle ~filename ~unit_header ~priv =
     List.iter (fun cu -> ndl_run handle cu ~filename ~priv)
       (Unit_header.defined_symbols unit_header)
 
