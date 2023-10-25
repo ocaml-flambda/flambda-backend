@@ -38,6 +38,18 @@ type float_comparison = Cmm.float_comparison
 
 type mutable_flag = Immutable | Mutable
 
+let of_ast_mutable_flag
+  : Asttypes.mutable_flag -> mutable_flag
+  = function
+    | Immutable -> Immutable
+    | Mutable -> Mutable
+
+let to_ast_mutable_flag
+  : mutable_flag -> Asttypes.mutable_flag
+  = function
+    | Immutable -> Immutable
+    | Mutable -> Mutable
+
 type test =
     Itruetest
   | Ifalsetest
@@ -61,9 +73,13 @@ type operation =
   | Itailcall_imm of { func : Cmm.symbol; }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
-                  alloc : bool; returns : bool; }
+                  alloc : bool; returns : bool;
+                  stack_ofs : int; }
   | Istackoffset of int
-  | Iload of Cmm.memory_chunk * Arch.addressing_mode * mutable_flag
+  | Iload of { memory_chunk : Cmm.memory_chunk;
+               addressing_mode : Arch.addressing_mode;
+               mutability : Asttypes.mutable_flag;
+               is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
                 mode : Lambda.alloc_mode }
@@ -87,6 +103,7 @@ type operation =
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
+  | Idls_get
 
 type instruction =
   { desc: instruction_desc;
@@ -183,12 +200,13 @@ let rec instr_iter f i =
             | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
-            | Ibeginregion | Iendregion | Ipoll _) ->
+            | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
         instr_iter f i.next
 
 let operation_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
+  | Idls_get
   | Iintop(Icheckbound | Icheckalign _)
   | Iintop_imm((Icheckbound | Icheckalign _), _) | Iopaque
   (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
@@ -206,7 +224,7 @@ let operation_is_pure = function
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Iload (_, _, _) -> true
+  | Iload _ -> true
   | Iname_for_debugger _ -> false
 
 
@@ -226,10 +244,10 @@ let operation_can_raise op =
   | Icsel _ | Iscalarcast _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
+  | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
-  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _
+  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _ | Idls_get
     -> false
 
 let free_conts_for_handlers fundecl =

@@ -66,6 +66,8 @@ type location_description =
   | Simple of Simple_location_description.t
   | Composite of Composite_location_description.t
 
+let _to_silence_warning x = Composite x
+
 let reg_location_description reg ~offset ~need_rvalue :
     location_description option =
   match

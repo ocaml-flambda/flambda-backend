@@ -3,7 +3,7 @@ module Domain = struct
     | Reachable
     | Unreachable
 
-  let top = Reachable
+  let _top = Reachable
 
   let bot = Unreachable
 
