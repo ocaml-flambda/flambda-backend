@@ -13,6 +13,12 @@
 /*                                                                        */
 /**************************************************************************/
 
+/* CR ocaml 5 runtime: When we update the OCaml 5 runtime, we'll need to
+   update this library as well. The base of
+   https://github.com/ocaml-flambda/ocaml-jst/pull/222 may be a good starting
+   point.
+ */
+
 /* POSIX thread implementation of the "st" interface */
 
 #include <errno.h>
