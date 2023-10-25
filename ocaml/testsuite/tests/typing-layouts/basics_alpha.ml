@@ -788,8 +788,8 @@ end
 Line 3, characters 11-12:
 3 |     let VV v = v in
                ^
-Error: Variables bound in a class must have layout value.
-       v has layout void, which is not a sublayout of value.
+Error: The types of variables bound by a 'let' in a class function
+       must have layout value. Instead, v's type has layout void.
 |}];;
 
 (* Hits the Cfk_concrete case of Pcf_val *)

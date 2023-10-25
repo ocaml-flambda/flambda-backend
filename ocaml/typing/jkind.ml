@@ -490,8 +490,6 @@ let of_new_sort_var ~why =
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
-let of_sort_for_error ~why s = fresh_jkind (Sort s) ~why:(Concrete_creation why)
-
 let of_const ~why : const -> t = function
   | Any -> fresh_jkind Any ~why
   | Immediate -> fresh_jkind Immediate ~why
