@@ -63,17 +63,9 @@ INCLUDES_NODEP = $(addprefix -I $(ROOTDIR)/,\
 OC_OCAMLDEPDIRS = $(INCLUDE_DIRS)
 INCLUDES=$(INCLUDES_DEP) $(INCLUDES_NODEP)
 
-<<<<<<< HEAD
-COMPFLAGS=$(INCLUDES) -absname -w +a-4-9-40-41-42-44-45-48-70 -warn-error +A \
-  -safe-string -strict-sequence -strict-formats -bin-annot -principal
-||||||| merged common ancestors
-COMPFLAGS=$(INCLUDES) -absname -w +a-4-9-41-42-44-45-48-70 -warn-error +A \
-  -safe-string -strict-sequence -strict-formats -bin-annot -principal
-=======
 COMPFLAGS = \
-  -g $(INCLUDES) -absname -w +a-4-9-41-42-44-45-48 -warn-error +A \
+  -g $(INCLUDES) -absname -w +a-4-9-40-41-42-44-45-48 -warn-error +A \
   -strict-sequence -strict-formats -bin-annot -principal
->>>>>>> ocaml/5.1
 
 LINKFLAGS = $(INCLUDES)
 

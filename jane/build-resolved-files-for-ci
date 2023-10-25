@@ -182,6 +182,29 @@ dune_targets=$(
     echo _build/default/.ocamloptcomp.objs/native/$cmx.cmx
   done
 )
+
+#ocamldoc
+ocamldoc=_build/default/ocamldoc/.odoc_lib.objs/
+mls=$(
+  GLOBIGNORE="ocamldoc/odoc.ml"
+  echo ocamldoc/*.ml |
+    tr ' ' '\n'
+  unset GLOBIGNORE
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/ocamldoc/.odoc_lib.objs/native/$cmx.cmx
+    echo _build/default/ocamldoc/.odoc_lib.objs/byte/$cmx.cmi
+  done
+  echo _build/default/ocamldoc/.odoc_native.eobjs/byte/odoc_native.cmi
+  echo _build/default/ocamldoc/.odoc_byte.eobjs/byte/odoc_byte.cmi
+  echo _build/default/ocamldoc/.odoc_native.eobjs/native/odoc_native.cmx
+  echo _build/default/ocamldoc/.odoc_byte.eobjs/native/odoc_byte.cmx
+)
+
 mls=$(
   { echo debugger/*.ml
   } |
