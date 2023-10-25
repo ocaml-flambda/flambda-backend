@@ -69,10 +69,6 @@ STDLIB_MODULE_BASENAMES = \
   stack \
   queue \
   buffer \
-  mutex \
-  condition \
-  semaphore \
-  domain \
   camlinternalFormat \
   printf \
   arg \
@@ -102,8 +98,7 @@ STDLIB_MODULE_BASENAMES = \
   stdLabels \
   in_channel \
   out_channel \
-  camlinternalComprehensions \
-  effect
+  camlinternalComprehensions
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))
