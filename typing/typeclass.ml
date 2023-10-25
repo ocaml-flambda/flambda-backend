@@ -260,21 +260,9 @@ let unify_delayed_method_type loc env label ty expected_ty=
       raise(Error(loc, env, Field_type_mismatch ("method", label, trace)))
 
 let type_constraint val_env sty sty' loc =
-<<<<<<< HEAD
   let cty  = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-  let cty  = transl_simple_type val_env false sty in
-=======
-  let cty  = transl_simple_type val_env ~closed:false sty in
->>>>>>> ocaml/5.1
   let ty = cty.ctyp_type in
-<<<<<<< HEAD
   let cty' = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty' in
-||||||| merged common ancestors
-  let cty' = transl_simple_type val_env false sty' in
-=======
-  let cty' = transl_simple_type val_env ~closed:false sty' in
->>>>>>> ocaml/5.1
   let ty' = cty'.ctyp_type in
   begin
     try Ctype.unify val_env ty ty' with Ctype.Unify err ->
@@ -319,13 +307,7 @@ let rec class_type_field env sign self_scope ctf =
   | Pctf_val ({txt=lab}, mut, virt, sty) ->
       mkctf_with_attrs
         (fun () ->
-<<<<<<< HEAD
           let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-          let cty = transl_simple_type env false sty in
-=======
-          let cty = transl_simple_type env ~closed:false sty in
->>>>>>> ocaml/5.1
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
@@ -360,13 +342,7 @@ let rec class_type_field env sign self_scope ctf =
                  ) :: !delayed_meth_specs;
                Tctf_method (lab, priv, virt, returned_cty)
            | _ ->
-<<<<<<< HEAD
                let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-               let cty = transl_simple_type env false sty in
-=======
-               let cty = transl_simple_type env ~closed:false sty in
->>>>>>> ocaml/5.1
                let ty = cty.ctyp_type in
                add_method loc env lab priv virt ty sign;
                Tctf_method (lab, priv, virt, cty))
@@ -390,13 +366,7 @@ and class_signature virt env pcsig self_scope loc =
   (* Introduce a dummy method preventing self type from being closed. *)
   Ctype.add_dummy_method env ~scope:self_scope sign;
 
-<<<<<<< HEAD
   let self_cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-  let self_cty = transl_simple_type env false sty in
-=======
-  let self_cty = transl_simple_type env ~closed:false sty in
->>>>>>> ocaml/5.1
   let self_type = self_cty.ctyp_type in
   begin try
     Ctype.unify env self_type sign.csig_self
@@ -446,13 +416,7 @@ and class_type_aux env virt self_scope scty =
                                                    List.length styl)));
       let ctys = List.map2
         (fun sty ty ->
-<<<<<<< HEAD
           let cty' = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-          let cty' = transl_simple_type env false sty in
-=======
-          let cty' = transl_simple_type env ~closed:false sty in
->>>>>>> ocaml/5.1
           let ty' = cty'.ctyp_type in
           begin
            try Ctype.unify env ty' ty with Ctype.Unify err ->
@@ -472,13 +436,7 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-<<<<<<< HEAD
       let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-      let cty = transl_simple_type env false sty in
-=======
-      let cty = transl_simple_type env ~closed:false sty in
->>>>>>> ocaml/5.1
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -709,39 +667,21 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
   | Pcf_val (label, mut, Cfk_virtual styp) ->
       with_attrs
         (fun () ->
-<<<<<<< HEAD
-           if !Clflags.principal then Ctype.begin_def ();
-           let cty = Typetexp.transl_simple_type val_env ~closed:false Alloc.Const.legacy styp in
-           let ty = cty.ctyp_type in
-           if !Clflags.principal then begin
-             Ctype.end_def ();
-             Ctype.generalize_structure ty
-           end;
+           let cty =
+             Ctype.with_local_level_if_principal
+               (fun () -> Typetexp.transl_simple_type val_env
+                            ~closed:false Alloc.Const.legacy styp)
+               ~post:(fun cty -> Ctype.generalize_structure cty.ctyp_type)
+           in
            begin
              match
                Ctype.constrain_type_jkind
-                 val_env ty (Jkind.value ~why:Class_field)
+                 val_env cty.ctyp_type (Jkind.value ~why:Class_field)
              with
              | Ok _ -> ()
              | Error err -> raise (Error(label.loc, val_env,
                                          Non_value_binding(label.txt, err)))
            end;
-||||||| merged common ancestors
-           if !Clflags.principal then Ctype.begin_def ();
-           let cty = Typetexp.transl_simple_type val_env false styp in
-           let ty = cty.ctyp_type in
-           if !Clflags.principal then begin
-             Ctype.end_def ();
-             Ctype.generalize_structure ty
-           end;
-=======
-           let cty =
-             Ctype.with_local_level_if_principal
-               (fun () -> Typetexp.transl_simple_type val_env
-                            ~closed:false styp)
-               ~post:(fun cty -> Ctype.generalize_structure cty.ctyp_type)
-           in
->>>>>>> ocaml/5.1
            add_instance_variable ~strict:true loc val_env
              label.txt mut Virtual cty.ctyp_type sign;
            let already_declared, val_env, par_env, id, vars =
@@ -776,13 +716,11 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                raise(Error(loc, val_env,
                            No_overriding ("instance variable", label.txt)))
            end;
-<<<<<<< HEAD
-           if !Clflags.principal then Ctype.begin_def ();
-           let definition = Typecore.type_exp val_env sdefinition in
-           if !Clflags.principal then begin
-             Ctype.end_def ();
-             Ctype.generalize_structure definition.exp_type
-           end;
+           let definition =
+             Ctype.with_local_level_if_principal
+               ~post:Typecore.generalize_structure_exp
+               (fun () -> Typecore.type_exp val_env sdefinition)
+           in
            begin
              match
                Ctype.constrain_type_jkind
@@ -793,20 +731,6 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              | Error err -> raise (Error(label.loc, val_env,
                                          Non_value_binding(label.txt, err)))
            end;
-||||||| merged common ancestors
-           if !Clflags.principal then Ctype.begin_def ();
-           let definition = type_exp val_env sdefinition in
-           if !Clflags.principal then begin
-             Ctype.end_def ();
-             Ctype.generalize_structure definition.exp_type
-           end;
-=======
-           let definition =
-             Ctype.with_local_level_if_principal
-               ~post:Typecore.generalize_structure_exp
-               (fun () -> type_exp val_env sdefinition)
-           in
->>>>>>> ocaml/5.1
            add_instance_variable ~strict:true loc val_env
              label.txt mut Concrete definition.exp_type sign;
            let already_declared, val_env, par_env, id, vars =
@@ -835,13 +759,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
       with_attrs
         (fun () ->
            let sty = Ast_helper.Typ.force_poly sty in
-<<<<<<< HEAD
            let cty = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
-||||||| merged common ancestors
-           let cty = transl_simple_type val_env false sty in
-=======
-           let cty = transl_simple_type val_env ~closed:false sty in
->>>>>>> ocaml/5.1
            let ty = cty.ctyp_type in
            add_method loc val_env label.txt priv Virtual ty sign;
            let field =
@@ -881,13 +799,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
-<<<<<<< HEAD
                    Typetexp.transl_simple_type val_env ~closed:false Alloc.Const.legacy sty
-||||||| merged common ancestors
-                   Typetexp.transl_simple_type val_env false sty
-=======
-                   Typetexp.transl_simple_type val_env ~closed:false sty
->>>>>>> ocaml/5.1
                  in
                  cty'.ctyp_type
            in
@@ -1039,19 +951,9 @@ and class_field_second_pass cl_num sign met_env field =
              Typecore.mk_expected (Btype.newgenty
                 (Tarrow(arrow_desc, self_param_type, ty, commu_ok)))
            in
-<<<<<<< HEAD
-           Ctype.raise_nongen_level ();
-           let texp = Typecore.type_expect met_env sdefinition meth_type in
-           Ctype.end_def ();
-||||||| merged common ancestors
-           Ctype.raise_nongen_level ();
-           let texp = type_expect met_env sdefinition meth_type in
-           Ctype.end_def ();
-=======
            let texp =
              Ctype.with_raised_nongen_level
-               (fun () -> type_expect met_env sdefinition meth_type) in
->>>>>>> ocaml/5.1
+               (fun () -> Typecore.type_expect met_env sdefinition meth_type) in
            let kind = Tcfk_concrete (override, texp) in
            let desc = Tcf_method(label, priv, kind) in
            met_env, mkcf desc loc attributes)
@@ -1068,17 +970,9 @@ and class_field_second_pass cl_num sign met_env field =
              Typecore.mk_expected (Ctype.newty
                (Tarrow (arrow_desc, self_param_type, unit_type, commu_ok)))
            in
-<<<<<<< HEAD
-           let texp = Typecore.type_expect met_env sexpr meth_type in
-           Ctype.end_def ();
-||||||| merged common ancestors
-           let texp = type_expect met_env sexpr meth_type in
-           Ctype.end_def ();
-=======
            let texp =
              Ctype.with_raised_nongen_level
-               (fun () -> type_expect met_env sexpr meth_type) in
->>>>>>> ocaml/5.1
+               (fun () -> Typecore.type_expect met_env sexpr meth_type) in
            let desc = Tcf_initializer texp in
            met_env, mkcf desc loc attributes)
   | Attribute { attribute; loc; attributes; } ->
@@ -1223,13 +1117,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       if Path.same decl.cty_path unbound_class then
         raise(Error(scl.pcl_loc, val_env, Unbound_class_2 lid.txt));
       let tyl = List.map
-<<<<<<< HEAD
           (fun sty -> transl_simple_type val_env ~closed:false Alloc.Const.legacy sty)
-||||||| merged common ancestors
-          (fun sty -> transl_simple_type val_env false sty)
-=======
-          (fun sty -> transl_simple_type val_env ~closed:false sty)
->>>>>>> ocaml/5.1
           styl
       in
       let (params, clty) =
@@ -1318,14 +1206,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
-<<<<<<< HEAD
       if Typecore.has_poly_constraint spat then
         raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
-      if !Clflags.principal then Ctype.begin_def ();
-||||||| merged common ancestors
-      if !Clflags.principal then Ctype.begin_def ();
-=======
->>>>>>> ocaml/5.1
       let (pat, pv, val_env', met_env) =
         Ctype.with_local_level_if_principal
           (fun () ->
@@ -1360,33 +1242,15 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         | _ -> true
       in
       let partial =
-<<<<<<< HEAD
         let dummy = Typecore.type_exp val_env (Ast_helper.Exp.unreachable ()) in
-        Typecore.check_partial val_env pat.pat_type pat.pat_loc
-||||||| merged common ancestors
-        let dummy = type_exp val_env (Ast_helper.Exp.unreachable ()) in
-        Typecore.check_partial val_env pat.pat_type pat.pat_loc
-=======
-        let dummy = type_exp val_env (Ast_helper.Exp.unreachable ()) in
         Typecore.check_partial Modules_rejected val_env pat.pat_type pat.pat_loc
->>>>>>> ocaml/5.1
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
-<<<<<<< HEAD
       let val_env' = Env.add_escape_lock Class val_env' in
       let val_env' = Env.add_share_lock Class val_env' in
-      Ctype.raise_nongen_level ();
-      let cl = class_expr cl_num val_env' met_env virt self_scope scl' in
-      Ctype.end_def ();
-||||||| merged common ancestors
-      Ctype.raise_nongen_level ();
-      let cl = class_expr cl_num val_env' met_env virt self_scope scl' in
-      Ctype.end_def ();
-=======
       let cl =
         Ctype.with_raised_nongen_level
           (fun () -> class_expr cl_num val_env' met_env virt self_scope scl') in
->>>>>>> ocaml/5.1
       if Btype.is_optional l && not_nolabel_function cl.cl_type then
         Location.prerr_warning pat.pat_loc
           Warnings.Unerasable_optional_argument;
@@ -1540,21 +1404,13 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                modes_and_sorts;
              let path = Pident id in
              (* do not mark the value as used *)
-<<<<<<< HEAD
              let vd = Env.find_value path val_env
                |> Subst.Lazy.force_value_description
              in
-             Ctype.begin_def ();
-||||||| merged common ancestors
-             let vd = Env.find_value path val_env in
-             Ctype.begin_def ();
-=======
-             let vd = Env.find_value path val_env in
              let ty =
                Ctype.with_local_level ~post:Ctype.generalize
                  (fun () -> Ctype.instance vd.val_type)
              in
->>>>>>> ocaml/5.1
              let expr =
                {exp_desc =
                 Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd,
@@ -1591,41 +1447,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           cl_attributes = scl.pcl_attributes;
          }
   | Pcl_constraint (scl', scty) ->
-<<<<<<< HEAD
-      Ctype.begin_class_def ();
-      let cl = Typetexp.TyVarEnv.with_local_scope (fun () ->
-        let cl = class_expr cl_num val_env met_env virt self_scope scl' in
-        complete_class_type cl.cl_loc val_env virt Class_type cl.cl_type;
-        cl) in
-      let clty = Typetexp.TyVarEnv.with_local_scope (fun () ->
-        let clty = class_type val_env virt self_scope scty in
-        complete_class_type clty.cltyp_loc val_env virt Class clty.cltyp_type;
-        clty) in
-      Ctype.end_def ();
-
-      Ctype.limited_generalize_class_type
-        (Btype.self_type_row cl.cl_type) cl.cl_type;
-      Ctype.limited_generalize_class_type
-        (Btype.self_type_row clty.cltyp_type) clty.cltyp_type;
-
-||||||| merged common ancestors
-      Ctype.begin_class_def ();
-      let context = Typetexp.narrow () in
-      let cl = class_expr cl_num val_env met_env virt self_scope scl' in
-      complete_class_type cl.cl_loc val_env virt Class_type cl.cl_type;
-      Typetexp.widen context;
-      let context = Typetexp.narrow () in
-      let clty = class_type val_env virt self_scope scty in
-      complete_class_type clty.cltyp_loc val_env virt Class clty.cltyp_type;
-      Typetexp.widen context;
-      Ctype.end_def ();
-
-      Ctype.limited_generalize_class_type
-        (Btype.self_type_row cl.cl_type) cl.cl_type;
-      Ctype.limited_generalize_class_type
-        (Btype.self_type_row clty.cltyp_type) clty.cltyp_type;
-
-=======
       let cl, clty =
         Ctype.with_local_level_for_class begin fun () ->
           let cl =
@@ -1649,7 +1470,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           Ctype.limited_generalize_class_type (Btype.self_type_row clty) clty;
         end
       in
->>>>>>> ocaml/5.1
       begin match
         Includeclass.class_types val_env cl.cl_type clty.cltyp_type
       with
@@ -1731,18 +1551,8 @@ let temp_abbrev loc arity uid =
   for _i = 1 to arity do
     params := Ctype.newvar (Jkind.value ~why:Type_argument) :: !params
   done;
-<<<<<<< HEAD
   let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
-  let env =
-    Env.add_type ~check:true id
-||||||| merged common ancestors
-  let ty = Ctype.newobj (Ctype.newvar ()) in
-  let env =
-    Env.add_type ~check:true id
-=======
-  let ty = Ctype.newobj (Ctype.newvar ()) in
   let ty_td =
->>>>>>> ocaml/5.1
       {type_params = !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
@@ -1823,13 +1633,6 @@ let class_infos define_class kind
      dummy_class)
     (res, env) =
 
-<<<<<<< HEAD
-  TyVarEnv.reset ();
-  Ctype.begin_class_def ();
-||||||| merged common ancestors
-  reset_type_variables ();
-  Ctype.begin_class_def ();
-=======
   let ci_params, params, coercion_locs, expr, typ, sign =
     Ctype.with_local_level_for_class begin fun () ->
       TyVarEnv.reset ();
@@ -1837,42 +1640,20 @@ let class_infos define_class kind
       let ci_params =
         let make_param (sty, v) =
           try
-            (transl_type_param env sty, v)
+            let param = transl_type_param env (Pident ty_id) sty in
+            (* CR layouts: we require class type parameters to be values, but
+               we should lift this restriction. Doing so causes bad error messages
+               today, so we wait for tomorrow. *)
+            Ctype.unify env param.ctyp_type
+              (Ctype.newvar (Jkind.value ~why:Class_argument));
+            (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
         in
         List.map make_param cl.pci_params
       in
       let params = List.map (fun (cty, _) -> cty.ctyp_type) ci_params in
->>>>>>> ocaml/5.1
 
-<<<<<<< HEAD
-  (* Introduce class parameters *)
-  let ci_params =
-    let make_param (sty, v) =
-      try
-        let param = transl_type_param env (Pident ty_id) sty in
-        (* CR layouts: we require class type parameters to be values, but
-           we should lift this restriction. Doing so causes bad error messages
-           today, so we wait for tomorrow. *)
-        Ctype.unify env param.ctyp_type
-          (Ctype.newvar (Jkind.value ~why:Class_argument));
-        (param, v)
-      with Already_bound ->
-        raise(Error(sty.ptyp_loc, env, Repeated_parameter))
-    in
-      List.map make_param cl.pci_params
-||||||| merged common ancestors
-  (* Introduce class parameters *)
-  let ci_params =
-    let make_param (sty, v) =
-      try
-          (transl_type_param env sty, v)
-      with Already_bound ->
-        raise(Error(sty.ptyp_loc, env, Repeated_parameter))
-    in
-      List.map make_param cl.pci_params
-=======
       (* Allow self coercions (only for class declarations) *)
       let coercion_locs = ref [] in
 
@@ -1895,7 +1676,6 @@ let class_infos define_class kind
       List.iter (Ctype.limited_generalize sign.csig_self_row) params;
       Ctype.limited_generalize_class_type sign.csig_self_row typ;
     end
->>>>>>> ocaml/5.1
   in
   (* Check the abbreviation for the object type *)
   let (obj_params', obj_type) = Ctype.instance_class params typ in
@@ -2026,37 +1806,7 @@ let class_infos define_class kind
   let cl_abbr =
     { cl_td with
      type_params = cl_params;
-<<<<<<< HEAD
-     type_arity = arity;
-     type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.value ~why:Object;
-     type_private = Public;
-     type_manifest = Some cl_ty;
-     type_variance = Variance.unknown_signature ~injective:false ~arity;
-     type_separability = Types.Separability.default_signature ~arity;
-     type_is_newtype = false;
-     type_expansion_scope = Btype.lowest_level;
-     type_loc = cl.pci_loc;
-     type_attributes = []; (* or keep attrs from cl? *)
-     type_unboxed_default = false;
-     type_uid = dummy_class.cty_uid;
-||||||| merged common ancestors
-     type_arity = arity;
-     type_kind = Type_abstract;
-     type_private = Public;
-     type_manifest = Some cl_ty;
-     type_variance = Variance.unknown_signature ~injective:false ~arity;
-     type_separability = Types.Separability.default_signature ~arity;
-     type_is_newtype = false;
-     type_expansion_scope = Btype.lowest_level;
-     type_loc = cl.pci_loc;
-     type_attributes = []; (* or keep attrs from cl? *)
-     type_immediate = Unknown;
-     type_unboxed_default = false;
-     type_uid = dummy_class.cty_uid;
-=======
      type_manifest = Some cl_ty
->>>>>>> ocaml/5.1
     }
   in
   let cltydef =
@@ -2463,19 +2213,11 @@ let report_error env ppf = function
       let print_reason ppf { Ctype.free_variable; meth; meth_ty; } =
         let (ty0, kind) = free_variable in
         let ty1 =
-<<<<<<< HEAD
-          if real then ty0 else Btype.newgenty(Tobject(ty0, ref None)) in
-        Printtyp.add_type_to_preparation ty;
-||||||| merged common ancestors
-          if real then ty0 else Btype.newgenty(Tobject(ty0, ref None)) in
-        Printtyp.prepare_for_printing [ty; ty1];
-=======
           match kind with
           | Type_variable -> ty0
           | Row_variable -> Btype.newgenty(Tobject(ty0, ref None))
         in
         Printtyp.add_type_to_preparation meth_ty;
->>>>>>> ocaml/5.1
         Printtyp.add_type_to_preparation ty1;
         fprintf ppf
           "The method %s@ has type@;<1 2>%a@ where@ %a@ is unbound"
