@@ -93,6 +93,7 @@ typing_mls=(
   path
   persistent_env
   predef
+  printtyp
   printtyped
   shape
   subst
