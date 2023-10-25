@@ -121,7 +121,6 @@ mls=$(
     grep -v "utils/config.common.ml" |
     grep -v "utils/config.fixed.ml" |
     grep -v "utils/config.generated.ml" |
-    grep -v "lambda/matching.ml" | # need Obj.forcing_tag in stdlib
     cat;
 )
 echo "$mls"
