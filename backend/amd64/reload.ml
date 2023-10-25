@@ -191,10 +191,10 @@ method! reload_operation op arg res =
                | Iprefetch _ | Ibswap _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Iconst_vec128 _|Icall_ind|Icall_imm _
   | Icompf _
-  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)
+  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _
-  | Ibeginregion | Iendregion | Ipoll _
+  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
     -> (* Other operations: all args and results in registers,
           except moves, probes, and vector casts. *)
       super#reload_operation op arg res

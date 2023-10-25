@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR-someday xclerc for vlaviron: we should double check that this version
+   of the module is indeed equivalent to upstream's version, at least if we
+   keep using this code (which is somewhat unlikely since we are switching
+   to the CFG pipeline). *)
+
 (* Insertion of moves to suggest possible spilling / reloading points
    before register allocation. *)
 
