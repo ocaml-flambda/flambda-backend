@@ -69,7 +69,7 @@ dune_targets=$(
   echo $dune_targets
   for mli in $mlis; do
     basename=$(basename ${mli%.mli})
-    cmi=ocamldebug__${basename^}
+    cmi=ocamldebug__$(echo $basename | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
     echo _build/default/debugger/.ocamldebug.objs/byte/$cmi.cmi
   done
 )
@@ -216,7 +216,7 @@ dune_targets=$(
   echo $dune_targets
   for ml in $mls; do
     basename=$(basename ${ml%.ml})
-    cmx=ocamldebug__${basename^}
+    cmx=ocamldebug__$(echo $basename | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
     echo _build/default/debugger/.ocamldebug.objs/native/$cmx.cmx
   done
 )
