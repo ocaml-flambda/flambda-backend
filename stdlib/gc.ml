@@ -175,9 +175,7 @@ module Memprof =
 
     external stop : unit -> unit = "caml_memprof_stop"
 
-(* BACKPORT BEGIN
+(* BACKPORT
     external discard : t -> unit = "caml_memprof_discard"
 *)
-    let discard _ = failwith "4.x memprof doesn't support discard"
-(* BACKPORT END *)
   end
