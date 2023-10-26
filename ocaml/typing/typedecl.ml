@@ -1167,6 +1167,20 @@ let update_decl_layout env dpath decl =
     end;
   new_decl
 
+let update_decls_layout_reason decls =
+  List.map
+    (fun (id, decl) ->
+       let reason = Layout.(Generalized (Some id, decl.type_loc)) in
+       let update_generalized ty = Ctype.update_generalized_ty_layout_reason ty reason in
+       List.iter update_generalized decl.type_params;
+       Btype.iter_type_expr_kind update_generalized decl.type_kind;
+       Option.iter update_generalized decl.type_manifest;
+       let new_decl = {decl with type_layout =
+                                   Layout.(update_reason decl.type_layout reason)} in
+       (id, new_decl)
+    )
+    decls
+
 let update_decls_layout env decls =
   List.map
     (fun (id, decl) -> (id, update_decl_layout env (Pident id) decl))
@@ -1522,6 +1536,7 @@ let transl_type_decl env rec_flag sdecl_list =
       |> Typedecl_variance.update_decls env sdecl_list
       |> Typedecl_separability.update_decls env
       |> update_decls_layout new_env
+      |> update_decls_layout_reason
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))
@@ -2055,6 +2070,8 @@ let transl_value_decl env loc valdecl =
     Env.enter_value valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
+  let reason = Layout.Generalized (Some id, loc) in
+  Ctype.update_generalized_ty_layout_reason ty reason;
   let desc =
     {
      val_id = id;

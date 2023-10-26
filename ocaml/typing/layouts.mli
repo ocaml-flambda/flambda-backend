@@ -235,6 +235,7 @@ module Layout : sig
     | Imported
     | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
     (* [position] is 1-indexed *)
+    | Generalized of Ident.t option * Location.t
 
   type interact_reason =
     | Gadt_equation of Path.t

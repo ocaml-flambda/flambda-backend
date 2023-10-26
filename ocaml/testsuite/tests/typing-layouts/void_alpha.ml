@@ -77,7 +77,7 @@ Lines 13-21, characters 8-3:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of void_rec must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -140,7 +140,7 @@ Lines 3-11, characters 9-3:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of void_rec must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -229,7 +229,7 @@ Lines 17-35, characters 10-27:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -443,7 +443,7 @@ Line 5, characters 4-6:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -490,7 +490,7 @@ Lines 3-11, characters 26-24:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -520,7 +520,7 @@ Lines 1-3, characters 26-32:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of void_rec must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -632,7 +632,7 @@ Lines 1-13, characters 31-24:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -674,7 +674,7 @@ Lines 1-13, characters 31-24:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -715,7 +715,7 @@ Lines 1-12, characters 31-24:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -756,7 +756,7 @@ Lines 1-12, characters 31-24:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -838,7 +838,7 @@ Lines 8-18, characters 21-29:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -888,7 +888,7 @@ Lines 5-11, characters 10-7:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -957,7 +957,7 @@ Lines 3-11, characters 22-11:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]
@@ -1002,7 +1002,7 @@ Lines 3-12, characters 22-23:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
-         of the annotation on the declaration of the type t_void.
+         of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}]

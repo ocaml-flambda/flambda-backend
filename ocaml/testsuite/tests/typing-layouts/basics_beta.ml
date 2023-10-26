@@ -77,7 +77,7 @@ Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type imm_id.
+         of the definition of imm_id at line 1, characters 0-33.
 |}];;
 
 let id_for_imms (x : 'a imm_id) = x
@@ -100,7 +100,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type imm_id.
+         of the definition of id_for_imms at line 1, characters 16-35.
 |}]
 
 (************************************)
@@ -229,7 +229,7 @@ Error: This definition has type 'b -> unit which is less general than
        The layout of 'a is value, because
          it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t6_imm.
+         of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
 let o6 = object
@@ -245,7 +245,7 @@ Error: This method has type 'b -> unit which is less general than
        The layout of 'a is value, because
          it's an unannotated universal variable.
        But the layout of 'a must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t6_imm.
+         of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -266,7 +266,7 @@ Error: This type int * int should be an instance of type ('a : immediate)
        The layout of int * int is value, because
          it's a tuple type.
        But the layout of int * int must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t7.
+         of the definition of t7 at line 1, characters 0-37.
 |}]
 
 (**********************************************************)
@@ -324,7 +324,7 @@ Error: Signature mismatch:
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of x at line 8, characters 10-26.
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -364,7 +364,7 @@ Error: Signature mismatch:
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of x at line 8, characters 10-26.
 |}]
 
 (**************************************************************)
@@ -577,7 +577,7 @@ Line 3, characters 15-40:
 Error: The layout of type 'a is value, because
          of the annotation on the universal variable a.
        But the layout of type 'a must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t2_imm.
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 (****************************************************)

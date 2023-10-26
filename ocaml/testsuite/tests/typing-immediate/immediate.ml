@@ -147,7 +147,7 @@ Line 2, characters 2-31:
 Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at line 2, characters 2-31.
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (variant) *)
@@ -161,7 +161,7 @@ Line 2, characters 2-41:
 Error: The layout of type t is value, because
          it's a boxed variant.
        But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t/2.
+         of the annotation on the declaration of the type t.
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (record) *)
@@ -175,7 +175,7 @@ Line 2, characters 2-38:
 Error: The layout of type t is value, because
          it's a boxed record.
        But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t/3.
+         of the annotation on the declaration of the type t/2.
 |}];;
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
@@ -188,9 +188,9 @@ Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
-         an abstract type has the value layout by default.
+         of the definition of t at line 2, characters 2-8.
        But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type s.
+         of the definition of s at line 3, characters 2-26.
 |}];;
 
 (* Can't ascribe to an immediate type signature with a non-immediate type *)
@@ -214,7 +214,7 @@ Error: Signature mismatch:
        The layout of the first is value, because
          it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at line 1, characters 15-35.
 |}];;
 
 (* Same as above but with explicit signature *)
@@ -233,7 +233,7 @@ Error: Signature mismatch:
        The layout of the first is value, because
          it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+         of the definition of t at line 1, characters 20-40.
 |}];;
 
 (* Can't use a non-immediate type even if mutually recursive *)
@@ -248,7 +248,7 @@ Line 2, characters 2-26:
 Error: The layout of type s is value, because
          it is the primitive value type string.
        But the layout of type s must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t/2.
+         of the definition of t at line 2, characters 2-26.
 |}];;
 
 

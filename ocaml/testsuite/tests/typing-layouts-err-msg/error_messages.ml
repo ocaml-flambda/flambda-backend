@@ -22,7 +22,7 @@ Error: This expression has type int -> int
        The layout of int -> int is value, because
          it's a function type.
        But the layout of int -> int must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 
@@ -40,7 +40,7 @@ Error: This expression has type [ `A | `B ]
        The layout of [ `A | `B ] is immediate, because
          it's an enumeration variant (all constructors are constant).
        But the layout of [ `A | `B ] must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 
@@ -58,7 +58,7 @@ Error: This expression has type [ `A of int | `B ]
        The layout of [ `A of int | `B ] is value, because
          it's a polymorphic variant.
        But the layout of [ `A of int | `B ] must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 
@@ -76,28 +76,26 @@ Line 3, characters 21-22:
 Error: This expression has type v but an expression was expected of type
          'a t = ('a : void)
        The layout of v is immediate, because
-         it's an enumeration variant (all constructors are constant).
+         of the definition of v at line 2, characters 0-10.
        But the layout of v must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Extensible_variant *)
 type ('a: void) t = 'a
 type attr = ..
-let f (x: attr): 'a t = x
+and w = attr t
 
 [%%expect{|
 type ('a : void) t = 'a
-type attr = ..
-Line 3, characters 24-25:
-3 | let f (x: attr): 'a t = x
-                            ^
-Error: This expression has type attr but an expression was expected of type
-         'a t = ('a : void)
+Line 2, characters 0-14:
+2 | type attr = ..
+    ^^^^^^^^^^^^^^
+Error:
        The layout of attr is value, because
          it's an extensible variant.
        But the layout of attr must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* First_class_module *)
@@ -118,7 +116,7 @@ Error: This expression has type (module X_int)
        The layout of (module X_int) is value, because
          it's a first-class module type.
        But the layout of (module X_int) must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of t at line 1, characters 0-22.
 |}]
 
 (* Match *)
@@ -133,7 +131,7 @@ Line 2, characters 15-37:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_1)
        The layout of t_any is any, because
-         of the annotation on the declaration of the type t_any.
+         of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_1, because
          it's matched against a pattern.
 |}]
@@ -149,5 +147,5 @@ Error: Bad layout annotation:
          The layout of 'a -> int is value, because
            it's a function type.
          But the layout of 'a -> int must be a sublayout of void, because
-           of the annotation on the wildcard _ at Line 1, characters 27-31.
+           of the annotation on the wildcard _ at line 1, characters 27-31.
 |}]

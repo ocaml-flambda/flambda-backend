@@ -2114,6 +2114,25 @@ let unification_layout_check env ty layout =
   | Delay_checks r -> r := (ty,layout) :: !r
   | Skip_checks -> ()
 
+let update_generalized_ty_layout_reason ty reason =
+  let rec inner ty =
+    let level = get_level ty in
+    if level = generic_level && try_mark_node ty then begin
+      begin match get_desc ty with
+      | Tvar ({ layout; _ } as r) ->
+        let new_layout = Layout.(update_reason layout reason) in
+        set_type_desc ty (Tvar {r with layout = new_layout})
+      | Tunivar ({ layout; _ } as r) ->
+        let new_layout = Layout.(update_reason layout reason) in
+        set_type_desc ty (Tunivar {r with layout = new_layout})
+      | _ -> ()
+      end;
+      iter_type_expr inner ty
+    end
+  in
+  inner ty;
+  unmark_type ty
+
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
 

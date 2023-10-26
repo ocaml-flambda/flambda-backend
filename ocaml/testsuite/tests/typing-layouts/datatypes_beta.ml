@@ -83,7 +83,7 @@ Error: This expression has type float but an expression was expected of type
        The layout of float is value, because
          it is the primitive value type float.
        But the layout of float must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type s6.
+         of the definition of s6 at line 2, characters 0-35.
 |}];;
 
 (*****************************************************)

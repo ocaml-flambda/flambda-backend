@@ -6,4 +6,4 @@ Error: This expression has type a but an expression was expected of type
        The layout of a is value, because
          it's an unannotated existential type variable.
        But the layout of a must be a sublayout of void, because
-         of the annotation on 'a in the declaration of the type t.
+         of the definition of f at file "gadt_existential.ml", line 10, characters 6-17.

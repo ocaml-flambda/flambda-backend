@@ -105,7 +105,7 @@ Error: This type string should be an instance of type ('a : immediate)
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t2_imm.
+         of the definition of t2_imm at line 1, characters 0-28.
 |}]
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -227,7 +227,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on the universal variable a.
+         of the definition of r at line 1, characters 0-47.
 |}]
 
 let r = { field = fun x -> x }
@@ -261,7 +261,7 @@ Line 2, characters 18-55:
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
        The layout of 'a is value, because
-         it's an unannotated universal variable.
+         of the definition of r_value at line 1, characters 0-39.
        But the layout of 'a must be a sublayout of immediate, because
          of the annotation on the abstract type declaration for a.
 |}]
@@ -280,7 +280,7 @@ Line 3, characters 15-39:
 Error: The layout of type 'a is value, because
          of the annotation on the universal variable a.
        But the layout of type 'a must be a sublayout of immediate, because
-         of the annotation on 'a in the declaration of the type t_imm.
+         of the definition of t_imm at line 1, characters 0-27.
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard
    to improve, because it comes from re-checking typedtree, where we don't
