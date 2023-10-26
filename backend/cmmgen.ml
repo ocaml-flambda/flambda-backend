@@ -1272,12 +1272,6 @@ and transl_prim_2 env p arg1 arg2 dbg =
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
   | Patomic_exchange ->
-      (* Cextcall { func;
-                     builtin = false;
-                     returns = true;
-                     effects = Arbitrary_effects;
-                     coeffects = Has_coeffects;
-                     ty = typ_val; alloc = true; ty_args = []}, *)
      Cop (Cextcall {
          func = "caml_atomic_exchange";
          builtin = false;
