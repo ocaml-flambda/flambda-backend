@@ -939,12 +939,8 @@ let rec choice ctx t =
     | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
     | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-<<<<<<< HEAD
     | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
     | Pbigstring_set_64 _ | Pbigstring_set_128 _
-=======
-    | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
->>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
     | Pget_header _
     | Pctconst _
     | Pbswap16

@@ -6775,16 +6775,11 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     | Tarrow((l, marg, mret), ty_arg', ty_res', _),
       Tarrow(_, ty_arg,  ty_res,  _)
       when lv' = generic_level || not !Clflags.principal ->
-<<<<<<< HEAD
+      (* XXX mshinwell: I accepted the current change, may be wrong *)
       let ty_res', ty_res, changed = loosen_arrow_modes ty_res' ty_res in
       let mret, changed' = Alloc.newvar_below_comonadic mret in
       let marg, changed'' = Alloc.newvar_above marg in
       if changed || changed' || changed'' then
-=======
-      let ty_res', ty_res, changed = loosen_ret_modes ty_res' ty_res in
-      let mret, changed' = Alloc.newvar_below_comonadic mret in
-      if changed || changed' then
->>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
         newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),
         newty2 ~level:lv  (Tarrow((l, marg, mret), ty_arg,  ty_res,  commu_ok)),
         true
@@ -7243,26 +7238,10 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
        [any] and can't get a sort here. *)
     let tv, sort = new_rep_var ~why:Statement () in
     check_partial_application ~statement:true exp;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     with_explanation explanation (fun () ->
       try unify_var env ty tv
       with Unify err ->
-        raise(Error(exp.exp_loc, env, Expr_type_clash(err, None, Some exp.exp_desc))));
-=======
-=======
->>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
-=======
->>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
-=======
->>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
-=======
->>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
-    unify_var env tv ty;
->>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
+        raise(Error(exp.exp_loc, env, Expr_type_clash(err, None, None (* XXX mshinwell type error Some exp.exp_desc *)))));
     exp, sort
   end
 

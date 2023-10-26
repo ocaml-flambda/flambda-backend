@@ -1497,15 +1497,10 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-<<<<<<< HEAD
   | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
-=======
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) | Pget_header m -> Some m
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
->>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
   | Pbigstring_load_16 _ -> None
   | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
   | Pbigstring_load_128 { mode = m; _ } -> Some m

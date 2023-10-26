@@ -1017,36 +1017,12 @@ let lambda_primitive_needs_event_after = function
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
   | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
-<<<<<<< HEAD
   | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _
   | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
   | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
-=======
-  | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _ | Pbytes_load_32 _
-  | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
-=======
-<<<<<<< HEAD
->>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
-=======
->>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
-=======
   | Prunstack | Pperform | Preperform | Presume
->>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
-=======
->>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
-=======
-  | Prunstack | Pperform | Preperform | Presume
->>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string
