@@ -62,7 +62,7 @@ external force : 'a t -> 'a = "%lazy_force"
    BACKPORT BEGIN
 let force_val l = CamlinternalLazy.force_gen ~only_val:true l
 *)
-let force_val = CamlinteralLazy.force_val
+let force_val = CamlinternalLazy.force_val
 (* BACKPORT END *)
 
 let from_fun (f : unit -> 'arg) =
