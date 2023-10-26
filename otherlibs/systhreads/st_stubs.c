@@ -96,12 +96,12 @@ struct caml_thread_struct {
   struct caml_thread_struct * prev;
 #ifdef NATIVE_CODE
   char * top_of_stack;      /* Top of stack for this thread (approx.) */
-  char * bottom_of_stack;   /* Saved value of Caml_state->bottom_of_stack */
-  uintnat last_retaddr;     /* Saved value of Caml_state->last_return_address */
-  value * gc_regs;          /* Saved value of Caml_state->gc_regs */
-  char * exception_pointer; /* Saved value of Caml_state->exception_pointer */
+  char * bottom_of_stack;   /* Saved value of Caml_state->_bottom_of_stack */
+  uintnat last_retaddr;     /* Saved value of Caml_state->_last_return_address */
+  value * gc_regs;          /* Saved value of Caml_state->_gc_regs */
+  char * exception_pointer; /* Saved value of Caml_state->_exception_pointer */
   char * async_exception_pointer;
-                       /* Saved value of Caml_state->async_exception_pointer */
+                       /* Saved value of Caml_state->_async_exception_pointer */
   struct caml__roots_block * local_roots; /* Saved value of local_roots */
   struct caml_local_arenas * local_arenas;
   struct longjmp_buffer * exit_buf; /* For thread exit */
@@ -109,17 +109,17 @@ struct caml_thread_struct {
   value * stack_low; /* The execution stack for this thread */
   value * stack_high;
   value * stack_threshold;
-  value * sp;        /* Saved value of Caml_state->extern_sp for this thread */
-  value * trapsp;    /* Saved value of Caml_state->trapsp for this thread */
-  /* Saved value of Caml_state->local_roots */
+  value * sp;        /* Saved value of Caml_state->_extern_sp for this thread */
+  value * trapsp;    /* Saved value of Caml_state->_trapsp for this thread */
+  /* Saved value of Caml_state->_local_roots */
   struct caml__roots_block * local_roots;
-  struct longjmp_buffer * external_raise; /* Saved Caml_state->external_raise */
+  struct longjmp_buffer * external_raise; /* Saved Caml_state->_external_raise */
   struct longjmp_buffer * external_raise_async;
-                                    /* Saved Caml_state->external_raise_async */
+                                    /* Saved Caml_state->_external_raise_async */
 #endif
-  int backtrace_pos; /* Saved Caml_state->backtrace_pos */
-  backtrace_slot * backtrace_buffer; /* Saved Caml_state->backtrace_buffer */
-  value backtrace_last_exn;  /* Saved Caml_state->backtrace_last_exn (root) */
+  int backtrace_pos; /* Saved Caml_state->_backtrace_pos */
+  backtrace_slot * backtrace_buffer; /* Saved Caml_state->_backtrace_buffer */
+  value backtrace_last_exn;  /* Saved Caml_state->_backtrace_last_exn (root) */
   struct caml_memprof_th_ctx *memprof_ctx;
 };
 
@@ -249,55 +249,55 @@ static void memprof_ctx_iter(th_ctx_action f, void* data)
 
 static void thread_save_runtime_state(void)
 {
-  if (Caml_state->in_minor_collection)
+  if (Caml_state->_in_minor_collection)
     caml_fatal_error("Thread switch from inside minor GC");
 #ifdef NATIVE_CODE
-  curr_thread->top_of_stack = Caml_state->top_of_stack;
-  curr_thread->bottom_of_stack = Caml_state->bottom_of_stack;
-  curr_thread->last_retaddr = Caml_state->last_return_address;
-  curr_thread->gc_regs = Caml_state->gc_regs;
-  curr_thread->exception_pointer = Caml_state->exception_pointer;
-  curr_thread->async_exception_pointer = Caml_state->async_exception_pointer;
+  curr_thread->top_of_stack = Caml_state->_top_of_stack;
+  curr_thread->bottom_of_stack = Caml_state->_bottom_of_stack;
+  curr_thread->last_retaddr = Caml_state->_last_return_address;
+  curr_thread->gc_regs = Caml_state->_gc_regs;
+  curr_thread->exception_pointer = Caml_state->_exception_pointer;
+  curr_thread->async_exception_pointer = Caml_state->_async_exception_pointer;
   curr_thread->local_arenas = caml_get_local_arenas();
 #else
-  curr_thread->stack_low = Caml_state->stack_low;
-  curr_thread->stack_high = Caml_state->stack_high;
-  curr_thread->stack_threshold = Caml_state->stack_threshold;
-  curr_thread->sp = Caml_state->extern_sp;
-  curr_thread->trapsp = Caml_state->trapsp;
-  curr_thread->external_raise = Caml_state->external_raise;
-  curr_thread->external_raise_async = Caml_state->external_raise_async;
+  curr_thread->stack_low = Caml_state->_stack_low;
+  curr_thread->stack_high = Caml_state->_stack_high;
+  curr_thread->stack_threshold = Caml_state->_stack_threshold;
+  curr_thread->sp = Caml_state->_extern_sp;
+  curr_thread->trapsp = Caml_state->_trapsp;
+  curr_thread->external_raise = Caml_state->_external_raise;
+  curr_thread->external_raise_async = Caml_state->_external_raise_async;
 #endif
-  curr_thread->local_roots = Caml_state->local_roots;
-  curr_thread->backtrace_pos = Caml_state->backtrace_pos;
-  curr_thread->backtrace_buffer = Caml_state->backtrace_buffer;
-  curr_thread->backtrace_last_exn = Caml_state->backtrace_last_exn;
+  curr_thread->local_roots = Caml_state->_local_roots;
+  curr_thread->backtrace_pos = Caml_state->_backtrace_pos;
+  curr_thread->backtrace_buffer = Caml_state->_backtrace_buffer;
+  curr_thread->backtrace_last_exn = Caml_state->_backtrace_last_exn;
   caml_memprof_leave_thread();
 }
 
 static void thread_restore_runtime_state(void)
 {
 #ifdef NATIVE_CODE
-  Caml_state->top_of_stack = curr_thread->top_of_stack;
-  Caml_state->bottom_of_stack= curr_thread->bottom_of_stack;
-  Caml_state->last_return_address = curr_thread->last_retaddr;
-  Caml_state->gc_regs = curr_thread->gc_regs;
-  Caml_state->exception_pointer = curr_thread->exception_pointer;
-  Caml_state->async_exception_pointer = curr_thread->async_exception_pointer;
+  Caml_state->_top_of_stack = curr_thread->top_of_stack;
+  Caml_state->_bottom_of_stack= curr_thread->bottom_of_stack;
+  Caml_state->_last_return_address = curr_thread->last_retaddr;
+  Caml_state->_gc_regs = curr_thread->gc_regs;
+  Caml_state->_exception_pointer = curr_thread->exception_pointer;
+  Caml_state->_async_exception_pointer = curr_thread->async_exception_pointer;
   caml_set_local_arenas(curr_thread->local_arenas);
 #else
-  Caml_state->stack_low = curr_thread->stack_low;
-  Caml_state->stack_high = curr_thread->stack_high;
-  Caml_state->stack_threshold = curr_thread->stack_threshold;
-  Caml_state->extern_sp = curr_thread->sp;
-  Caml_state->trapsp = curr_thread->trapsp;
-  Caml_state->external_raise = curr_thread->external_raise;
-  Caml_state->external_raise_async = curr_thread->external_raise_async;
+  Caml_state->_stack_low = curr_thread->stack_low;
+  Caml_state->_stack_high = curr_thread->stack_high;
+  Caml_state->_stack_threshold = curr_thread->stack_threshold;
+  Caml_state->_extern_sp = curr_thread->sp;
+  Caml_state->_trapsp = curr_thread->trapsp;
+  Caml_state->_external_raise = curr_thread->external_raise;
+  Caml_state->_external_raise_async = curr_thread->external_raise_async;
 #endif
-  Caml_state->local_roots = curr_thread->local_roots;
-  Caml_state->backtrace_pos = curr_thread->backtrace_pos;
-  Caml_state->backtrace_buffer = curr_thread->backtrace_buffer;
-  Caml_state->backtrace_last_exn = curr_thread->backtrace_last_exn;
+  Caml_state->_local_roots = curr_thread->local_roots;
+  Caml_state->_backtrace_pos = curr_thread->backtrace_pos;
+  Caml_state->_backtrace_buffer = curr_thread->backtrace_buffer;
+  Caml_state->_backtrace_last_exn = curr_thread->backtrace_last_exn;
   caml_memprof_enter_thread(curr_thread->memprof_ctx);
 }
 
@@ -831,7 +831,7 @@ CAMLprim value caml_thread_uncaught_exception(value exn)  /* ML */
   fprintf(stderr, "Thread %d killed on uncaught exception %s\n",
           Int_val(Ident(curr_thread->descr)), msg);
   caml_stat_free(msg);
-  if (Caml_state->backtrace_active) caml_print_exception_backtrace();
+  if (Caml_state->_backtrace_active) caml_print_exception_backtrace();
   fflush(stderr);
   return Val_unit;
 }
