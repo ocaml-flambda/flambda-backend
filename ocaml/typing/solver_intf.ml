@@ -186,7 +186,13 @@ module type S = sig
     question mark. *)
     val print :
       ?verbose:bool ->
-      ?axis:string ->
+      'a C.obj ->
+      Format.formatter ->
+      ('a, 'l * 'r) mode ->
+      unit
+
+    val print_raw :
+      ?verbose:bool ->
       'a C.obj ->
       Format.formatter ->
       ('a, 'l * 'r) mode ->
@@ -284,11 +290,9 @@ module type S = sig
     val check_const : ('a * 'p) obj -> ('a * 'p, 'l * 'r) mode -> 'a option
 
     val print :
-      ?verbose:bool ->
-      ?axis:string ->
-      'a obj ->
-      Format.formatter ->
-      ('a, 'l * 'r) mode ->
-      unit
+      ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
+
+    val print_raw :
+      ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
   end
 end
