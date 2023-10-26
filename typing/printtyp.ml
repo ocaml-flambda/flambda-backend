@@ -1537,11 +1537,10 @@ let tree_of_constructor_args_and_ret_type args ret_type =
   match ret_type with
   | None -> (tree_of_constructor_arguments args, None)
   | Some res ->
-      Names.with_local_names (fun () ->
-        let out_ret = tree_of_typexp Type res in
-        let out_args = tree_of_constructor_arguments args in
-        let qtvs = extract_qtvs (res :: tys_of_constr_args args) in
-        (out_args, Some (qtvs, out_ret)))
+      let out_ret = tree_of_typexp Type res in
+      let out_args = tree_of_constructor_arguments args in
+      let qtvs = extract_qtvs (res :: tys_of_constr_args args) in
+      (out_args, Some (qtvs, out_ret))
 
 let tree_of_single_constructor cd =
   let name = Ident.name cd.cd_id in
