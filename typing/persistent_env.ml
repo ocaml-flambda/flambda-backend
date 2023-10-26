@@ -28,6 +28,7 @@ type error =
   | Illegal_renaming of CU.Name.t * CU.Name.t * filepath
   | Inconsistent_import of CU.Name.t * filepath * filepath
   | Need_recursive_types of CU.t
+  | Depend_on_unsafe_string_unit of CU.t
   | Inconsistent_package_declaration of CU.t * filepath
   | Inconsistent_package_declaration_between_imports of
       filepath * CU.t * CU.t
@@ -174,9 +175,10 @@ let save_pers_struct penv crc comp_unit flags filename =
     (function
         | Rectypes -> ()
         | Alerts _ -> ()
+        | Unsafe_string -> ()
         | Opaque -> register_import_as_opaque penv modname)
     flags;
-  Consistbl.check crc_units modname comp_unit crc filename;
+  Consistbl.set crc_units modname comp_unit crc filename;
   add_import penv modname
 
 let process_pers_struct penv check modname pers_sig =
@@ -197,6 +199,9 @@ let process_pers_struct penv check modname pers_sig =
         | Rectypes ->
             if not !Clflags.recursive_types then
               error (Need_recursive_types(ps.ps_name))
+        | Unsafe_string ->
+            if Config.safe_string then
+              error (Depend_on_unsafe_string_unit(ps.ps_name));
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
@@ -287,6 +292,9 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf
               "%a uses recursive types"
               CU.print name
+        | Depend_on_unsafe_string_unit name ->
+            Format.asprintf "%a uses -unsafe-string"
+              CU.print name
         | Inconsistent_package_declaration _ -> assert false
         | Inconsistent_package_declaration_between_imports _ -> assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
@@ -367,6 +375,7 @@ let make_cmi penv modname sign alerts =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
+      (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       [Alerts alerts];
     ]
   in
@@ -416,6 +425,12 @@ let report_error ppf =
         "@[<hov>Invalid import of %a, which uses recursive types.@ %s@]"
         CU.print import
         "The compilation flag -rectypes is required"
+  | Depend_on_unsafe_string_unit(import) ->
+      fprintf ppf
+        "@[<hov>Invalid import of %a, compiled with -unsafe-string.@ %s@]"
+        CU.print import
+        "This compiler has been configured in strict \
+                           safe-string mode (-force-safe-string)"
   | Inconsistent_package_declaration(intf_package, intf_filename) ->
       fprintf ppf
         "@[<hov>The interface %a@ is compiled for package %s.@ %s@]"

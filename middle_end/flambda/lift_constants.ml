@@ -84,9 +84,9 @@ let assign_symbols_and_collect_constant_definitions
       | Project_closure ({ closure_id } as project_closure) ->
         assign_existing_symbol (Symbol_utils.Flambda.for_closure closure_id);
         record_definition (AA.Project_closure project_closure)
-      | Prim (Pfield (index, Pvalue _, _, _), [block], _) ->
+      | Prim (Pfield (index, Pvalue _), [block], _) ->
         record_definition (AA.Field (block, index))
-      | Prim (Pfield (_, _, _, _), [_], _) ->
+      | Prim (Pfield (_, _), [_], _) ->
         Misc.fatal_errorf "[Pfield] with kind not value is not expected to be\
                            constant: @.%a@."
           Flambda.print_named named

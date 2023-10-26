@@ -55,7 +55,6 @@ Lines 1-4, characters 0-24:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {pv=false::_}
-
 - : string = "OK"
 |}];;
 
@@ -73,7 +72,6 @@ Lines 1-4, characters 0-20:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {pv=0::_}
-
 - : string = "OK"
 |}];;
 
@@ -307,7 +305,6 @@ Line 8, characters 4-16:
 8 |     self#tl#fold ~f ~init:(f self#hd init)
         ^^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
-
 class ['a] ostream1 :
   hd:'a ->
   tl:'b ->
@@ -620,9 +617,7 @@ val app : int * bool = (1, true)
 Line 9, characters 0-25:
 9 | type 'a foo = 'a foo list
     ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The type abbreviation foo is cyclic:
-         'a foo = 'a foo list,
-         'a foo list contains 'a foo
+Error: The type abbreviation foo is cyclic
 |}];;
 
 class ['a] bar (x : 'a) = object end
@@ -914,9 +909,8 @@ type t = u and u = t;;
 Line 1, characters 0-10:
 1 | type t = u and u = t;;
     ^^^^^^^^^^
-Error: The type abbreviation t is cyclic:
-         t = u,
-         u = t
+Error: The definition of t contains a cycle:
+       u
 |}];;
 
 (* PR#8188 *)
@@ -997,7 +991,6 @@ Error: This recursive type is not regular.
        but it is used as
          'a list u
        after the following expansion(s):
-         < m : 'a v > contains 'a v,
          'a v = 'a list u
        All uses need to match the definition for the recursive type to be regular.
 |}];;
@@ -1024,7 +1017,6 @@ type 'a t = < a : 'a >
 type u = 'a t as 'a
 |}];;
 
-
 (* pass typetexp, but fails during Typedecl.check_recursion *)
 type ('a1, 'b1) ty1 = 'a1 -> unit
   constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
@@ -1035,7 +1027,7 @@ Lines 1-2, characters 0-51:
 1 | type ('a1, 'b1) ty1 = 'a1 -> unit
 2 |   constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
 Error: The definition of ty1 contains a cycle:
-         ([> `V1 of 'a ] as 'b, 'a) ty2 as 'a contains 'a
+       [> `V1 of ('a, 'b) ty2 as 'b ] as 'a
 |}];;
 
 (* PR#8359: expanding may change original in Ctype.unify2 *)
@@ -1114,7 +1106,6 @@ Line 4, characters 11-60:
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 15 [implicit-public-methods]: the following private methods were made public implicitly:
  n.
-
 val f : unit -> < m : int; n : int > = <fun>
 Line 5, characters 27-39:
 5 | let f () = object (self:c) method n = 1 method m = 2 end;;
@@ -1288,21 +1279,18 @@ Line 2, characters 9-16:
 2 | fun x -> (f x)#m;; (* Warning 18 *)
              ^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
-
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
 val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
 Line 4, characters 9-20:
 4 | fun x -> (f (x,x))#m;; (* Warning 18 *)
              ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
-
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array = <fun>
 Line 6, characters 9-20:
 6 | fun x -> (f x).(0)#m;; (* Warning 18 *)
              ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
-
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
 |}];;
 
@@ -1332,13 +1320,11 @@ Line 4, characters 42-62:
 4 | let f x = let l = [Some x; (None : u)] in (just(List.hd l))#id;;
                                               ^^^^^^^^^^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
-
 val f : c -> 'a -> 'a = <fun>
 Line 7, characters 36-47:
 7 |   let x = List.hd [Some x; none] in (just x)#id;;
                                         ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
-
 val g : c -> 'a -> 'a = <fun>
 val h : < id : 'a; .. > -> 'a = <fun>
 |}];;
@@ -1527,11 +1513,11 @@ end;;
 [%%expect {|
 val n : < m : 'x 'a. ([< `Foo of 'x ] as 'a) -> 'x > = <obj>
 |}];;
-(* ok, due to implicit `'o. [< `Foo of _ ] as 'o`  *)
+(* ok *)
 let n =
   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
 [%%expect {|
-val n : < m : 'a 'x. ([< `Foo of 'x ] as 'a) -> 'x > = <obj>
+val n : < m : 'x. [< `Foo of 'x ] -> 'x > = <obj>
 |}];;
 (* fail *)
 let (n : < m : 'a. [< `Foo of int] -> 'a >) =
@@ -1540,10 +1526,10 @@ let (n : < m : 'a. [< `Foo of int] -> 'a >) =
 Line 2, characters 2-72:
 2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type < m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >
+Error: This expression has type < m : 'x. [< `Foo of 'x ] -> 'x >
        but an expression was expected of type
          < m : 'a. [< `Foo of int ] -> 'a >
-       Types for tag `Foo are incompatible
+       The universal variable 'x would escape its scope
 |}];;
 (* fail *)
 let (n : 'b -> < m : 'a . ([< `Foo of int] as 'b) -> 'a >) = fun x ->
@@ -1552,10 +1538,10 @@ let (n : 'b -> < m : 'a . ([< `Foo of int] as 'b) -> 'a >) = fun x ->
 Line 2, characters 2-72:
 2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type < m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >
+Error: This expression has type < m : 'x. [< `Foo of 'x ] -> 'x >
        but an expression was expected of type
          < m : 'a. [< `Foo of int ] -> 'a >
-       Types for tag `Foo are incompatible
+       The universal variable 'x would escape its scope
 |}];;
 (* ok *)
 let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =
@@ -1578,13 +1564,22 @@ Error: This expression has type
          < m : 'b 'd. [< `Bar | `Foo of int & 'b ] as 'd >
        Types for tag `Foo are incompatible
 |}]
-(* ok (with implicit universal quantification) *)
+(* fail? *)
 let f (n : < m : 'a. [< `Foo of 'a & int | `Bar] >) =
   (n : < m : 'b. [< `Foo of 'b & int | `Bar] >)
 [%%expect{|
-val f :
-  < m : 'c 'a. [< `Bar | `Foo of 'a & int ] as 'c > ->
-  < m : 'd 'b. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
+Line 1:
+Error: Values do not match:
+         val f :
+           < m : 'a. [< `Bar | `Foo of 'a & int ] as 'c > -> < m : 'b. 'c >
+       is not included in
+         val f :
+           < m : 'a. [< `Bar | `Foo of 'b & int ] as 'c > -> < m : 'b. 'c >
+       The type
+         < m : 'a. [< `Bar | `Foo of 'b & int ] as 'c > -> < m : 'b. 'c >
+       is not compatible with the type
+         < m : 'a. [< `Bar | `Foo of 'b & int ] as 'd > -> < m : 'b. 'd >
+       Types for tag `Foo are incompatible
 |}]
 
 (* PR#6171 *)
@@ -1811,8 +1806,7 @@ Line 1, characters 0-63:
 Error: The type of this class,
        class ['a] r :
          object constraint 'a = '_weak2 list ref method get : 'a end,
-       contains the non-generalizable type variable(s): '_weak2.
-       (see manual section 6.1.2)
+       contains type variables that cannot be generalized
 |}]
 
 (* #8701 *)
@@ -1938,104 +1932,4 @@ Line 2, characters 16-24:
                     ^^^^^^^^
 Error: This field value has type 'b option ref which is less general than
          'a. 'a option ref
-|}]
-
-
-(** #12210: turn row variable into univars under Ptyp_poly: *)
-
-let simple: 'a. 'a -> [> `X of 'a ] -> 'a = fun default ->
-  function
-  | `X x -> x
-  | _ -> default
-[%%expect {|
-val simple : 'a -> [> `X of 'a ] -> 'a = <fun>
-|}]
-
-type 'a w = Int: int w
-let locally_abstract: type a. a w -> [> `X of a ] -> a = fun Int ->
-  function
-  | `X x -> x
-  | _ -> 0
-[%%expect {|
-type 'a w = Int : int w
-val locally_abstract : 'a w -> [> `X of 'a ] -> 'a = <fun>
-|}]
-
-let nested: 'a.
-  <m: 'b.
-        <n:'irr.
-             ('irr -> unit) * ([> `X of 'a | `Y of 'b ] -> 'a)
-        >
-  > -> 'a  =
-  fun o -> (snd o#m#n) (`Y 0)
-[%%expect {|
-val nested :
-  < m : 'c 'b.
-          < n : 'irr.
-                  ('irr -> unit) * (([> `X of 'a | `Y of 'b ] as 'c) -> 'a) > > ->
-  'a = <fun>
-|}]
-
-let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
-  match y with
-  | `Y -> x
-  | `X x -> x
-[%%expect {|
-Line 3, characters 4-6:
-3 |   | `Y -> x
-        ^^
-Error: This pattern matches values of type [? `Y ]
-       but a pattern was expected which matches values of type [> `X of 'a ]
-       The second variant type is bound to the universal type variable 'b,
-       it may not allow the tag(s) `Y
-|}]
-
-let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
-  match y with
-  | `Y -> x
-  | `X x -> x
-[%%expect {|
-val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
-|}]
-
-
-
-(** Object comparison *)
-
-let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
-[%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
-|}]
-
-
-let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y (); o#x
-[%%expect {|
-Line 1, characters 65-85:
-1 | let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y (); o#x
-                                                                     ^^^^^^^^^^^^^^^^^^^^
-Error: This definition has type 'b. < x : 'b; y : unit -> 'c; .. > -> 'b
-       which is less general than 'a 'd. (< x : 'a; .. > as 'd) -> 'a
-|}]
-
-
-(** Nested object row variables *)
-class type ['a] c = object
-  method m: 'b. <n:'irr. ('irr -> unit) * (<x: 'a; y: 'b; .. > -> 'a) >
-end
-[%%expect {|
-Lines 1-3, characters 0-3:
-1 | class type ['a] c = object
-2 |   method m: 'b. <n:'irr. ('irr -> unit) * (<x: 'a; y: 'b; .. > -> 'a) >
-3 | end
-Error: Some type variables are unbound in this type:
-         class type ['a] c =
-           object
-             method m :
-               < n : 'irr. ('irr -> unit) * (< x : 'a; y : 'b; .. > -> 'a) >
-           end
-       The method m has type
-         'b.
-           < n : 'irr.
-                   ('irr -> unit) * ((< x : 'a; y : 'b; .. > as 'c) -> 'a) >
-       where 'c is unbound
 |}]

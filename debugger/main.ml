@@ -152,17 +152,20 @@ let add_include d =
     Misc.expand_directory Config.standard_library d :: !default_load_path
 let set_socket s =
   socket_name := s
+let set_topdirs_path s =
+  topdirs_path := s
 let set_checkpoints n =
   checkpoint_max_count := n
 let set_directory dir =
   Sys.chdir dir
 let print_version () =
   printf "The OCaml debugger, version %s@." Sys.ocaml_version;
-  exit 0
-
+  exit 0;
+;;
 let print_version_num () =
   printf "%s@." Sys.ocaml_version;
-  exit 0
+  exit 0;
+;;
 
 let speclist = [
    "-c", Arg.Int set_checkpoints,
@@ -189,6 +192,8 @@ let speclist = [
       " Do not print times";
    "-no-breakpoint-message", Arg.Clear Parameters.breakpoint,
       " Do not print message at breakpoint setup and removal";
+   "-topdirs-path", Arg.String set_topdirs_path,
+      " Set path to the directory containing topdirs.cmi";
    ]
 
 let function_placeholder () =
@@ -224,7 +229,8 @@ let main () =
     end;
     if !Parameters.version
     then printf "\tOCaml Debugger version %s@.@." Config.version;
-    Load_path.init ~auto_include:Compmisc.auto_include !default_load_path;
+    Loadprinter.init();
+    Load_path.init !default_load_path;
     Clflags.recursive_types := true;    (* Allow recursive types. *)
     toplevel_loop ();                   (* Toplevel. *)
     kill_program ();

@@ -65,8 +65,7 @@ type t =
   | Wildcard_arg_to_constant_constr         (* 28 *)
   | Eol_in_string                           (* 29 *)
   | Duplicate_definitions of string * string * string * string (*30 *)
-  (* [Module_linked_twice of string * string * string] (* 31 *)
-     was turned into a hard error *)
+  | Module_linked_twice of string * string * string (* 31 *)
   | Unused_value_declaration of string      (* 32 *)
   | Unused_open of string                   (* 33 *)
   | Unused_type_declaration of string       (* 34 *)
@@ -108,9 +107,9 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
-  | Generative_application_expects_unit     (* 73 *)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
+;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -150,6 +149,7 @@ let number = function
   | Wildcard_arg_to_constant_constr -> 28
   | Eol_in_string -> 29
   | Duplicate_definitions _ -> 30
+  | Module_linked_twice _ -> 31
   | Unused_value_declaration _ -> 32
   | Unused_open _ -> 33
   | Unused_type_declaration _ -> 34
@@ -191,13 +191,9 @@ let number = function
   | Missing_mli -> 70
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
-  | Generative_application_expects_unit -> 73
   | Probe_name_too_long _ -> 190
   | Unchecked_property_attribute _ -> 199
 ;;
-(* DO NOT REMOVE the ;; above: it is used by
-   the testsuite/ests/warnings/mnemonics.mll test to determine where
-   the  definition of the number function above ends *)
 
 let last_warning_number = 199
 ;;
@@ -208,347 +204,261 @@ type description =
     (* The first element of the list is the current name, any following ones are
        deprecated. The current name should always be derived mechanically from
        the constructor name. *)
-    description : string;
-    since : Sys.ocaml_release_info option;
-    (* The compiler version introducing this warning; only tagged for warnings
-       created after 3.12, which introduced the numbered syntax. *)
-  }
-
-let since major minor = Some { Sys.major; minor; patchlevel=0; extra=None }
+    description : string; }
 
 let descriptions = [
   { number = 1;
     names = ["comment-start"];
-    description = "Suspicious-looking start-of-comment mark.";
-    since = None };
+    description = "Suspicious-looking start-of-comment mark." };
   { number = 2;
     names =  ["comment-not-end"];
-    description = "Suspicious-looking end-of-comment mark.";
-    since = None };
+    description = "Suspicious-looking end-of-comment mark." };
   { number = 3;
     names = [];
-    description = "Deprecated synonym for the 'deprecated' alert.";
-    since = None };
+    description = "Deprecated synonym for the 'deprecated' alert." };
   { number = 4;
     names = ["fragile-match"];
     description =
       "Fragile pattern matching: matching that will remain complete even\n\
       \    if additional constructors are added to one of the variant types\n\
-      \    matched.";
-    since = None };
+      \    matched." };
   { number = 5;
     names = ["ignored-partial-application"];
     description =
       "Partially applied function: expression whose result has function\n\
-      \    type and is ignored.";
-    since = None };
+      \    type and is ignored." };
   { number = 6;
     names = ["labels-omitted"];
-    description = "Label omitted in function application.";
-    since = None };
+    description = "Label omitted in function application." };
   { number = 7;
     names = ["method-override"];
-    description = "Method overridden.";
-    since = None };
+    description = "Method overridden." };
   { number = 8;
     names = ["partial-match"];
-    description = "Partial match: missing cases in pattern-matching.";
-    since = None };
+    description = "Partial match: missing cases in pattern-matching." };
   { number = 9;
     names = ["missing-record-field-pattern"];
-    description = "Missing fields in a record pattern.";
-    since = None };
+    description = "Missing fields in a record pattern." };
   { number = 10;
     names = ["non-unit-statement"];
     description =
       "Expression on the left-hand side of a sequence that doesn't have type\n\
-      \    \"unit\" (and that is not a function, see warning number 5).";
-    since = None };
+      \    \"unit\" (and that is not a function, see warning number 5)." };
   { number = 11;
     names = ["redundant-case"];
     description =
-      "Redundant case in a pattern matching (unused match case).";
-    since = None };
+      "Redundant case in a pattern matching (unused match case)." };
   { number = 12;
     names = ["redundant-subpat"];
-    description = "Redundant sub-pattern in a pattern-matching." ;
-    since = None};
+    description = "Redundant sub-pattern in a pattern-matching." };
   { number = 13;
     names = ["instance-variable-override"];
-    description = "Instance variable overridden.";
-    since = None };
+    description = "Instance variable overridden." };
   { number = 14;
     names = ["illegal-backslash"];
-    description = "Illegal backslash escape in a string constant.";
-    since = None };
+    description = "Illegal backslash escape in a string constant." };
   { number = 15;
     names = ["implicit-public-methods"];
-    description = "Private method made public implicitly.";
-    since = None };
+    description = "Private method made public implicitly." };
   { number = 16;
     names = ["unerasable-optional-argument"];
-    description = "Unerasable optional argument.";
-    since = None };
+    description = "Unerasable optional argument." };
   { number = 17;
     names = ["undeclared-virtual-method"];
-    description = "Undeclared virtual method.";
-    since = None };
+    description = "Undeclared virtual method." };
   { number = 18;
     names = ["not-principal"];
-    description = "Non-principal type.";
-    since = None };
+    description = "Non-principal type." };
   { number = 19;
     names = ["non-principal-labels"];
-    description = "Type without principality.";
-    since = None };
+    description = "Type without principality." };
   { number = 20;
     names = ["ignored-extra-argument"];
-    description = "Unused function argument.";
-    since = None };
+    description = "Unused function argument." };
   { number = 21;
     names = ["nonreturning-statement"];
-    description = "Non-returning statement.";
-    since = None };
+    description = "Non-returning statement." };
   { number = 22;
     names = ["preprocessor"];
-    description = "Preprocessor warning.";
-    since = None };
+    description = "Preprocessor warning." };
   { number = 23;
     names = ["useless-record-with"];
-    description = "Useless record \"with\" clause.";
-    since = None };
+    description = "Useless record \"with\" clause." };
   { number = 24;
     names = ["bad-module-name"];
     description =
-    "Bad module name: the source file name is not a valid OCaml module name.";
-    since = None };
+    "Bad module name: the source file name is not a valid OCaml module name."};
   { number = 25;
     names = [];
-    description = "Ignored: now part of warning 8.";
-    since = None };
+    description = "Ignored: now part of warning 8." };
   { number = 26;
     names = ["unused-var"];
     description =
     "Suspicious unused variable: unused variable that is bound\n\
     \    with \"let\" or \"as\", and doesn't start with an underscore (\"_\")\n\
-    \    character.";
-    since = None };
+    \    character." };
   { number = 27;
     names = ["unused-var-strict"];
     description =
     "Innocuous unused variable: unused variable that is not bound with\n\
     \    \"let\" nor \"as\", and doesn't start with an underscore (\"_\")\n\
-    \    character.";
-    since = None };
+    \    character." };
   { number = 28;
     names = ["wildcard-arg-to-constant-constr"];
     description =
-      "Wildcard pattern given as argument to a constant constructor.";
-    since = None };
+      "Wildcard pattern given as argument to a constant constructor." };
   { number = 29;
     names = ["eol-in-string"];
     description =
-      "Unescaped end-of-line in a string constant (non-portable code).";
-    since = None };
+      "Unescaped end-of-line in a string constant (non-portable code)." };
   { number = 30;
     names = ["duplicate-definitions"];
     description =
       "Two labels or constructors of the same name are defined in two\n\
-      \    mutually recursive types.";
-    since = None };
+      \    mutually recursive types." };
   { number = 31;
     names = ["module-linked-twice"];
-    description =
-      "A module is linked twice in the same executable.\n\
-      \    Ignored: now a hard error (since 5.1).";
-    since = None };
+    description = "A module is linked twice in the same executable." };
   { number = 32;
     names = ["unused-value-declaration"];
-    description = "Unused value declaration.";
-    since = since 4 0 };
+    description = "Unused value declaration." };
   { number = 33;
     names = ["unused-open"];
-    description = "Unused open statement.";
-    since = since 4 0 };
+    description = "Unused open statement." };
   { number = 34;
     names = ["unused-type-declaration"];
-    description = "Unused type declaration.";
-    since = since 4 0 };
+    description = "Unused type declaration." };
   { number = 35;
     names = ["unused-for-index"];
-    description = "Unused for-loop index.";
-    since = since 4 0 };
+    description = "Unused for-loop index." };
   { number = 36;
     names = ["unused-ancestor"];
-    description = "Unused ancestor variable.";
-    since = since 4 0 };
+    description = "Unused ancestor variable." };
   { number = 37;
     names = ["unused-constructor"];
-    description = "Unused constructor.";
-    since = since 4 0 };
+    description = "Unused constructor." };
   { number = 38;
     names = ["unused-extension"];
-    description = "Unused extension constructor.";
-    since = since 4 0 };
+    description = "Unused extension constructor." };
   { number = 39;
     names = ["unused-rec-flag"];
-    description = "Unused rec flag.";
-    since = since 4 0 };
+    description = "Unused rec flag." };
   { number = 40;
     names = ["name-out-of-scope"];
-    description = "Constructor or label name used out of scope.";
-    since = since 4 1 };
+    description = "Constructor or label name used out of scope." };
   { number = 41;
     names = ["ambiguous-name"];
-    description = "Ambiguous constructor or label name.";
-    since = since 4 1 };
+    description = "Ambiguous constructor or label name." };
   { number = 42;
     names = ["disambiguated-name"];
     description =
-      "Disambiguated constructor or label name (compatibility warning).";
-    since = since 4 1 };
+      "Disambiguated constructor or label name (compatibility warning)." };
   { number = 43;
     names = ["nonoptional-label"];
-    description = "Nonoptional label applied as optional.";
-    since = since 4 1 };
+    description = "Nonoptional label applied as optional." };
   { number = 44;
     names = ["open-shadow-identifier"];
-    description = "Open statement shadows an already defined identifier.";
-    since = since 4 1 };
+    description = "Open statement shadows an already defined identifier." };
   { number = 45;
     names = ["open-shadow-label-constructor"];
     description =
-      "Open statement shadows an already defined label or constructor.";
-    since = since 4 1 };
+      "Open statement shadows an already defined label or constructor." };
   { number = 46;
     names = ["bad-env-variable"];
-    description = "Error in environment variable.";
-    since = since 4 1 };
+    description = "Error in environment variable." };
   { number = 47;
     names = ["attribute-payload"];
-    description = "Illegal attribute payload.";
-    since = since 4 2 };
+    description = "Illegal attribute payload." };
   { number = 48;
     names = ["eliminated-optional-arguments"];
-    description = "Implicit elimination of optional arguments.";
-    since = since 4 2 };
+    description = "Implicit elimination of optional arguments." };
   { number = 49;
     names = ["no-cmi-file"];
-    description = "Absent cmi file when looking up module alias.";
-    since = since 4 2 };
+    description = "Absent cmi file when looking up module alias." };
   { number = 50;
     names = ["unexpected-docstring"];
-    description = "Unexpected documentation comment.";
-    since = since 4 3 };
+    description = "Unexpected documentation comment." };
   { number = 51;
     names = ["wrong-tailcall-expectation"];
     description =
-      "Function call annotated with an incorrect @tailcall attribute.";
-    since = since 4 3 };
+      "Function call annotated with an incorrect @tailcall attribute" };
   { number = 52;
     names = ["fragile-literal-pattern"];
-    description = "Fragile constant pattern.";
-    since = since 4 3 };
+    description = "Fragile constant pattern." };
   { number = 53;
     names = ["misplaced-attribute"];
-    description = "Attribute cannot appear in this context.";
-    since = since 4 3 };
+    description = "Attribute cannot appear in this context." };
   { number = 54;
     names = ["duplicated-attribute"];
-    description = "Attribute used more than once on an expression.";
-    since = since 4 3 };
+    description = "Attribute used more than once on an expression." };
   { number = 55;
     names = ["inlining-impossible"];
-    description = "Inlining impossible.";
-    since = since 4 3 };
+    description = "Inlining impossible." };
   { number = 56;
     names = ["unreachable-case"];
     description =
-      "Unreachable case in a pattern-matching (based on type information).";
-    since = since 4 3 };
+      "Unreachable case in a pattern-matching (based on type information)." };
   { number = 57;
     names = ["ambiguous-var-in-pattern-guard"];
-    description = "Ambiguous or-pattern variables under guard.";
-    since = since 4 3 };
+    description = "Ambiguous or-pattern variables under guard." };
   { number = 58;
     names = ["no-cmx-file"];
-    description = "Missing cmx file.";
-    since = since 4 3 };
+    description = "Missing cmx file." };
   { number = 59;
     names = ["flambda-assignment-to-non-mutable-value"];
-    description = "Assignment to non-mutable value.";
-    since = since 4 3 };
+    description = "Assignment to non-mutable value." };
   { number = 60;
     names = ["unused-module"];
-    description = "Unused module declaration.";
-    since = since 4 4 };
+    description = "Unused module declaration." };
   { number = 61;
     names = ["unboxable-type-in-prim-decl"];
-    description = "Unboxable type in primitive declaration.";
-    since = since 4 4 };
+    description = "Unboxable type in primitive declaration." };
   { number = 62;
     names = ["constraint-on-gadt"];
-    description = "Type constraint on GADT type declaration.";
-    since = since 4 6 };
+    description = "Type constraint on GADT type declaration." };
   { number = 63;
     names = ["erroneous-printed-signature"];
-    description = "Erroneous printed signature.";
-    since = since 4 8 };
+    description = "Erroneous printed signature." };
   { number = 64;
     names = ["unsafe-array-syntax-without-parsing"];
     description =
-      "-unsafe used with a preprocessor returning a syntax tree.";
-    since = since 4 8 };
+      "-unsafe used with a preprocessor returning a syntax tree." };
   { number = 65;
     names = ["redefining-unit"];
-    description = "Type declaration defining a new '()' constructor.";
-    since = since 4 8 };
+    description = "Type declaration defining a new '()' constructor." };
   { number = 66;
     names = ["unused-open-bang"];
-    description = "Unused open! statement.";
-    since = since 4 8 };
+    description = "Unused open! statement." };
   { number = 67;
     names = ["unused-functor-parameter"];
-    description = "Unused functor parameter.";
-    since = since 4 10 };
+    description = "Unused functor parameter." };
   { number = 68;
     names = ["match-on-mutable-state-prevent-uncurry"];
     description =
       "Pattern-matching depending on mutable state prevents the remaining \n\
-      \    arguments from being uncurried.";
-    since = since 4 12 };
+      \    arguments from being uncurried." };
   { number = 69;
     names = ["unused-field"];
-    description = "Unused record field.";
-    since = since 4 13 };
+    description = "Unused record field." };
   { number = 70;
     names = ["missing-mli"];
-    description = "Missing interface file.";
-    since = since 4 13 };
+    description = "Missing interface file." };
   { number = 71;
     names = ["unused-tmc-attribute"];
-    description = "Unused @tail_mod_cons attribute.";
-    since = since 4 14 };
+    description = "Unused @tail_mod_cons attribute" };
   { number = 72;
     names = ["tmc-breaks-tailcall"];
     description = "A tail call is turned into a non-tail call \
-                   by the @tail_mod_cons transformation.";
-    since = since 4 14 };
-  { number = 73;
-    names = ["generative-application-expects-unit"];
-    description = "A generative functor is applied to an empty structure \
-                   (struct end) rather than to ().";
-    since = since 5 1 };
+                   by the @tail_mod_cons transformation." };
   { number = 190;
     names = ["probe-name-too-long"];
-    description = "Probe name must be at most 100 characters long.";
-    since = since 4 14 };
+    description = "Probe name must be at most 100 characters long." };
   { number = 199;
     names = ["unchecked-property-attribute"];
     description = "A property of a function that was \
-                   optimized away cannot be checked.";
-    since = since 4 14 };
+                   optimized away cannot be checked." };
 ]
+;;
 
 let name_to_number =
   let h = Hashtbl.create last_warning_number in
@@ -556,6 +466,7 @@ let name_to_number =
       List.iter (fun name -> Hashtbl.add h name number) names
     ) descriptions;
   fun s -> Hashtbl.find_opt h s
+;;
 
 (* Must be the max number returned by the [number] function. *)
 
@@ -589,6 +500,7 @@ let letter = function
   | 'y' -> [26]
   | 'z' -> [27]
   | _ -> assert false
+;;
 
 type state =
   {
@@ -603,7 +515,7 @@ let current =
     {
       active = Array.make (last_warning_number + 1) true;
       error = Array.make (last_warning_number + 1) false;
-      alerts = (Misc.Stdlib.String.Set.empty, false);
+      alerts = (Misc.Stdlib.String.Set.empty, false); (* all enabled *)
       alert_errors = (Misc.Stdlib.String.Set.empty, true); (* all soft *)
     }
 
@@ -709,10 +621,6 @@ type token =
   | Letter of char * modifier option
   | Num of int * int * modifier
 
-let ghost_loc_in_file name =
-  let pos = { Lexing.dummy_pos with pos_fname = name } in
-  { loc_start = pos; loc_end = pos; loc_ghost = true }
-
 let letter_alert tokens =
   let print_warning_char ppf c =
     let lowercase = Char.lowercase_ascii c = c in
@@ -751,7 +659,8 @@ let letter_alert tokens =
   match consecutive_letters with
   | [] -> None
   | example :: _  ->
-      let nowhere = ghost_loc_in_file "_none_" in
+      let pos = { Lexing.dummy_pos with pos_fname = "_none_" } in
+      let nowhere = { loc_start=pos; loc_end=pos; loc_ghost=true } in
       let spelling_hint ppf =
         let max_seq_len =
           List.fold_left (fun l x -> Misc.Stdlib.Int.max l (List.length x))
@@ -868,6 +777,7 @@ let parse_opt error active errflag s =
         | '@', Some n -> action Set_all n; None
         | _ -> parse_and_eval s
       end
+;;
 
 let parse_options errflag s =
   let error = Array.copy (!current).error in
@@ -877,14 +787,17 @@ let parse_options errflag s =
   alerts
 
 (* If you change these, don't forget to change them in man/ocamlc.m *)
-let defaults_w = "+a-4-7-9-27-29-30-32..42-44-45-48-50-60-66..70"
-let defaults_warn_error = "-a"
-let default_disabled_alerts = [ "unstable"; "unsynchronized_access" ]
+let defaults_w = "+a-4-7-9-27-29-30-32..42-44-45-48-50-60-66..70";;
+let defaults_warn_error = "-a+31";;
 
-let () = ignore @@ parse_options false defaults_w
-let () = ignore @@ parse_options true defaults_warn_error
-let () =
-  List.iter (set_alert ~error:false ~enable:false) default_disabled_alerts
+let () = ignore @@ parse_options false defaults_w;;
+let () = ignore @@ parse_options true defaults_warn_error;;
+
+let ref_manual_explanation () =
+  (* manual references are checked a posteriori by the manual
+     cross-reference consistency check in manual/tests*)
+  let[@manual.ref "s:comp-warnings"] chapter, section = 11, 5 in
+  Printf.sprintf "(See manual section %d.%d)" chapter section
 
 let message = function
   | Comment_start ->
@@ -930,11 +843,7 @@ let message = function
         ("the following instance variables are overridden by the class"
          :: cname  :: ":\n " :: slist)
   | Instance_variable_override [] -> assert false
-  | Illegal_backslash ->
-    "illegal backslash escape in string.\n\
-    Hint: Single backslashes \\ are reserved for escape sequences\n\
-    (\\n, \\r, ...). Did you check the list of OCaml escape sequences?\n\
-    To get a backslash character, escape it with a second backslash: \\\\."
+  | Illegal_backslash -> "illegal backslash escape in string."
   | Implicit_public_methods l ->
       "the following private methods were made public implicitly:\n "
       ^ String.concat " " l ^ "."
@@ -962,6 +871,10 @@ let message = function
   | Duplicate_definitions (kind, cname, tc1, tc2) ->
       Printf.sprintf "the %s %s is defined in both types %s and %s."
         kind cname tc1 tc2
+  | Module_linked_twice(modname, file1, file2) ->
+      Printf.sprintf
+        "files %s and %s both define a module named %s"
+        file1 file2 modname
   | Unused_value_declaration v -> "unused value " ^ v ^ "."
   | Unused_open s -> "unused open " ^ s ^ "."
   | Unused_open_bang s -> "unused open! " ^ s ^ "."
@@ -1048,12 +961,10 @@ let message = function
       Printf.sprintf "expected %s"
         (if b then "tailcall" else "non-tailcall")
   | Fragile_literal_pattern ->
-      let[@manual.ref "ss:warn52"] ref_manual = [ 13; 5; 3 ] in
-      Format.asprintf
+      Printf.sprintf
         "Code should not depend on the actual values of\n\
          this constructor's arguments. They are only for information\n\
-         and may change in future versions. %a"
-        Misc.print_see_manual ref_manual
+         and may change in future versions. %t" ref_manual_explanation
   | Unreachable_case ->
       "this match case is unreachable.\n\
        Consider replacing it with a refutation case '<pat> -> .'"
@@ -1066,7 +977,6 @@ let message = function
   | Inlining_impossible reason ->
       Printf.sprintf "Cannot inline: %s" reason
   | Ambiguous_var_in_pattern_guard vars ->
-      let[@manual.ref "ss:warn57"] ref_manual = [ 13; 5; 4 ] in
       let vars = List.sort String.compare vars in
       let vars_explanation =
         let in_different_places =
@@ -1079,12 +989,12 @@ let message = function
             let vars = String.concat ", " vars in
             "variables " ^ vars ^ " appear " ^ in_different_places
       in
-      Format.asprintf
+      Printf.sprintf
         "Ambiguous or-pattern variables under guard;\n\
          %s.\n\
          Only the first match will be used to evaluate the guard expression.\n\
-         %a"
-        vars_explanation Misc.print_see_manual ref_manual
+         %t"
+        vars_explanation ref_manual_explanation
   | No_cmx_file name ->
       Printf.sprintf
         "no cmx file was found in path for module %s, \
@@ -1140,15 +1050,12 @@ let message = function
        but is never applied in TMC position."
   | Tmc_breaks_tailcall ->
       "This call\n\
-       is in tail-modulo-cons position in a TMC function,\n\
+       is in tail-modulo-cons positionin a TMC function,\n\
        but the function called is not itself specialized for TMC,\n\
        so the call will not be transformed into a tail call.\n\
        Please either mark the called function with the [@tail_mod_cons]\n\
        attribute, or mark this call with the [@tailcall false] attribute\n\
        to make its non-tailness explicit."
-  | Generative_application_expects_unit ->
-      "A generative functor\n\
-       should be applied to '()'; using '(struct end)' is deprecated."
   | Probe_name_too_long name ->
       Printf.sprintf
         "This probe name is too long: `%s'. \
@@ -1161,7 +1068,7 @@ let message = function
       property
 ;;
 
-let nerrors = ref 0
+let nerrors = ref 0;;
 
 type reporting_information =
   { id : string
@@ -1220,7 +1127,7 @@ let report_alert (alert : alert) =
           sub_locs;
         }
 
-exception Errors
+exception Errors;;
 
 let reset_fatal () =
   nerrors := 0
@@ -1229,24 +1136,18 @@ let check_fatal () =
   if !nerrors > 0 then begin
     nerrors := 0;
     raise Errors;
-  end
-
-let pp_since out release_info =
-  Printf.fprintf out " (since %d.%0*d)"
-    release_info.Sys.major
-    (if release_info.Sys.major >= 5 then 0 else 2)
-    release_info.Sys.minor
+  end;
+;;
 
 let help_warnings () =
   List.iter
-    (fun {number; description; names; since} ->
+    (fun {number; description; names} ->
        let name =
          match names with
          | s :: _ -> " [" ^ s ^ "]"
          | [] -> ""
        in
-       Printf.printf "%3i%s %s%a\n"
-         number name description (fun out -> Option.iter (pp_since out)) since)
+       Printf.printf "%3i%s %s\n" number name description)
     descriptions;
   print_endline "  A all warnings";
   for i = Char.code 'b' to Char.code 'z' do
@@ -1261,3 +1162,4 @@ let help_warnings () =
           (String.concat ", " (List.map Int.to_string l))
   done;
   exit 0
+;;

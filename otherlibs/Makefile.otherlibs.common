@@ -19,18 +19,19 @@ ROOTDIR=../..
 include $(ROOTDIR)/Makefile.common
 include $(ROOTDIR)/Makefile.best_binaries
 
-CAMLC := $(BEST_OCAMLC) $(STDLIBFLAGS)
-CAMLOPT := $(BEST_OCAMLOPT) $(STDLIBFLAGS)
+CAMLC := $(BEST_OCAMLC) -nostdlib -I $(ROOTDIR)/stdlib
+CAMLOPT := $(BEST_OCAMLOPT) -nostdlib -I $(ROOTDIR)/stdlib
 
 ifneq "$(CCOMPTYPE)" "msvc"
 OC_CFLAGS += -g
 endif
 
-OC_CFLAGS += $(SHAREDLIB_CFLAGS)
+OC_CFLAGS += $(SHAREDLIB_CFLAGS) $(EXTRACFLAGS)
+OC_CPPFLAGS += -I$(ROOTDIR)/runtime $(EXTRACPPFLAGS)
 
 # Compilation options
 COMPFLAGS=-absname -w +a-4-9-41-42-44-45-48 -warn-error +A -bin-annot -g \
-          -strict-sequence -strict-formats $(EXTRACAMLFLAGS)
+          -safe-string -strict-sequence -strict-formats $(EXTRACAMLFLAGS)
 ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
@@ -42,7 +43,9 @@ MKLIB=$(OCAMLRUN) $(ROOTDIR)/tools/ocamlmklib
 
 # Variables that can be defined by individual libraries,
 # but have sensible default values:
-C_SOURCES ?=
+COBJS ?=
+EXTRACFLAGS ?=
+EXTRACPPFLAGS ?=
 EXTRACAMLFLAGS ?=
 LINKOPTS ?=
 LDOPTS ?=
@@ -51,70 +54,49 @@ CMIFILES ?= $(CAMLOBJS:.cmo=.cmi)
 CAMLOBJS_NAT ?= $(CAMLOBJS:.cmo=.cmx)
 CLIBNAME ?= $(LIBNAME)
 
-ifeq "$(C_SOURCES)" ""
+ifeq "$(COBJS)" ""
 STUBSLIB=
 else
-COBJS_BYTECODE = $(C_SOURCES:.c=.b.$(O))
-COBJS_NATIVE = $(C_SOURCES:.c=.n.$(O))
-COBJS = $(COBJS_BYTECODE) $(COBJS_NATIVE)
-
-CLIBNAME_BYTECODE=$(CLIBNAME)byt
-CLIBNAME_NATIVE=$(CLIBNAME)nat
-STUBSLIB_BYTECODE=lib$(CLIBNAME_BYTECODE).$(A)
-STUBSLIB_NATIVE=lib$(CLIBNAME_NATIVE).$(A)
+STUBSLIB=lib$(CLIBNAME).$(A)
 endif
 
 .PHONY: all allopt opt.opt # allopt and opt.opt are synonyms
-all: $(STUBSLIB_BYTECODE) $(LIBNAME).cma $(CMIFILES)
+all: $(STUBSLIB) $(LIBNAME).cma $(CMIFILES)
 
-allopt: $(STUBSLIB_NATIVE) $(LIBNAME).cmxa $(LIBNAME).$(CMXS) $(CMIFILES)
+allopt: $(STUBSLIB) $(LIBNAME).cmxa $(LIBNAME).$(CMXS) $(CMIFILES)
 opt.opt: allopt
 
 $(LIBNAME).cma: $(CAMLOBJS)
 ifeq "$(COBJS)" ""
-	$(V_LINKC)$(CAMLC) -o $@ -a -linkall $(CAMLOBJS) $(LINKOPTS)
+	$(CAMLC) -o $@ -a -linkall $(CAMLOBJS) $(LINKOPTS)
 else
-	$(V_OCAMLMKLIB)$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME_BYTECODE) -ocamlc '$(CAMLC)' \
-                -linkall $(CAMLOBJS) $(LINKOPTS)
+	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlc '$(CAMLC)' -linkall \
+	         $(CAMLOBJS) $(LINKOPTS)
 endif
 
 $(LIBNAME).cmxa: $(CAMLOBJS_NAT)
 ifeq "$(COBJS)" ""
-	$(V_OCAMLOPT)$(CAMLOPT) -o $@ -a -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
+	$(CAMLOPT) -o $@ -a -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
 else
-	$(V_OCAMLMKLIB)$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME_NATIVE) -ocamlopt '$(CAMLOPT)' \
-                -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
+	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlopt '$(CAMLOPT)' -linkall \
+	         $(CAMLOBJS_NAT) $(LINKOPTS)
 endif
 
-$(LIBNAME).cmxs: $(LIBNAME).cmxa $(STUBSLIB_NATIVE)
-	$(V_OCAMLOPT)$(CAMLOPT_CMD) -shared -o $(LIBNAME).cmxs -I . $(LIBNAME).cmxa
+$(LIBNAME).cmxs: $(LIBNAME).cmxa $(STUBSLIB)
+	$(CAMLOPT_CMD) -shared -o $(LIBNAME).cmxs -I . $(LIBNAME).cmxa
 
-lib$(CLIBNAME_BYTECODE).$(A): $(COBJS)
-	$(V_OCAMLMKLIB)$(MKLIB_CMD) -oc $(CLIBNAME_BYTECODE) $(COBJS_BYTECODE) $(LDOPTS)
-
-lib$(CLIBNAME_NATIVE).$(A): $(COBJS)
-	$(V_OCAMLMKLIB)$(MKLIB_CMD) -oc $(CLIBNAME_NATIVE) $(COBJS_NATIVE) $(LDOPTS)
-
-INSTALL_LIBDIR_LIBNAME = $(INSTALL_LIBDIR)/$(LIBNAME)
+lib$(CLIBNAME).$(A): $(COBJS)
+	$(MKLIB_CMD) -oc $(CLIBNAME) $(COBJS) $(LDOPTS)
 
 INSTALL_LIBDIR_LIBNAME = $(INSTALL_LIBDIR)/$(LIBNAME)
 
 install::
-	if test -f dll$(CLIBNAME_BYTECODE)$(EXT_DLL); then \
+	if test -f dll$(CLIBNAME)$(EXT_DLL); then \
 	  $(INSTALL_PROG) \
-	    dll$(CLIBNAME_BYTECODE)$(EXT_DLL) "$(INSTALL_STUBLIBDIR)"; \
+	    dll$(CLIBNAME)$(EXT_DLL) "$(INSTALL_STUBLIBDIR)"; \
 	fi
-<<<<<<< HEAD
 ifneq "$(STUBSLIB)" ""
 	$(INSTALL_DATA) $(STUBSLIB) "$(INSTALL_LIBDIR)/"
-||||||| merged common ancestors
-ifneq "$(STUBSLIB)" ""
-	$(INSTALL_DATA) $(STUBSLIB) "$(INSTALL_LIBDIR)/"
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) lib$(CLIBNAME).$(A)
-=======
-ifneq "$(STUBSLIB_BYTECODE)" ""
-	$(INSTALL_DATA) $(STUBSLIB_BYTECODE) "$(INSTALL_LIBDIR)/"
->>>>>>> ocaml/5.1
 endif
 # If installing over a previous OCaml version, ensure the library is removed
 # from the previous installation.
@@ -124,14 +106,7 @@ endif
           $(CAMLOBJS_NAT) $(LIBNAME).cmxa $(LIBNAME).cmxs $(LIBNAME).$(A))
 	$(MKDIR) "$(INSTALL_LIBDIR_LIBNAME)"
 	$(INSTALL_DATA) \
-<<<<<<< HEAD
 	  $(LIBNAME).cma $(CMIFILES) \
-||||||| merged common ancestors
-	  $(LIBNAME).cma $(CMIFILES) \
-	  "$(INSTALL_LIBDIR)/"
-=======
-	  $(LIBNAME).cma $(CMIFILES) META \
->>>>>>> ocaml/5.1
 	  "$(INSTALL_LIBDIR_LIBNAME)/"
 ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
@@ -140,7 +115,7 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	  "$(INSTALL_LIBDIR_LIBNAME)/"
 endif
 	if test -n "$(HEADERS)"; then \
-	  $(INSTALL_DATA) $(HEADERS) "$(INSTALL_INCDIR)/"; \
+	  $(INSTALL_DATA) $(HEADERS) "$(INSTALL_LIBDIR)/caml/"; \
 	fi
 
 installopt:
@@ -150,13 +125,6 @@ installopt:
 	if test -f $(LIBNAME).cmxs; then \
 	  $(INSTALL_PROG) $(LIBNAME).cmxs "$(INSTALL_LIBDIR_LIBNAME)"; \
 	fi
-	if test -f dll$(CLIBNAME_NATIVE)$(EXT_DLL); then \
-	  $(INSTALL_PROG) \
-	    dll$(CLIBNAME_NATIVE)$(EXT_DLL) "$(INSTALL_STUBLIBDIR)"; \
-	fi
-ifneq "$(STUBSLIB_NATIVE)" ""
-	$(INSTALL_DATA) $(STUBSLIB_NATIVE) "$(INSTALL_LIBDIR)/"
-endif
 
 partialclean:
 	rm -f *.cm*
@@ -165,42 +133,20 @@ clean:: partialclean
 	rm -f *.dll *.so *.a *.lib *.o *.obj
 	rm -rf $(DEPDIR)
 
-.PHONY: distclean
-distclean:: clean
-	rm -f META
-
 %.cmi: %.mli
-	$(V_OCAMLC)$(CAMLC) -c $(COMPFLAGS) $<
+	$(CAMLC) -c $(COMPFLAGS) $<
 
 %.cmo: %.ml
-	$(V_OCAMLC)$(CAMLC) -c $(COMPFLAGS) $<
+	$(CAMLC) -c $(COMPFLAGS) $<
 
 %.cmx: %.ml
-	$(V_OCAMLOPT)$(CAMLOPT) -c $(COMPFLAGS) $(OPTCOMPFLAGS) $<
-
-%.b.$(O): %.c $(REQUIRED_HEADERS)
-	$(V_CC)$(CC) -c $(OC_CFLAGS) $(CFLAGS) $(OC_CPPFLAGS) $(CPPFLAGS) \
-	  $(OUTPUTOBJ)$@ $<
-
-%.n.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
-
-%.n.$(O): %.c $(REQUIRED_HEADERS)
-	$(V_CC)$(CC) -c $(OC_CFLAGS) $(CFLAGS) \
-	  $(OC_CPPFLAGS) $(CPPFLAGS) $(OUTPUTOBJ)$@ $<
+	$(CAMLOPT) -c $(COMPFLAGS) $(OPTCOMPFLAGS) $<
 
 ifeq "$(COMPUTE_DEPS)" "true"
-<<<<<<< HEAD
 ifneq "$(COBJS)" ""
 -include $(addprefix $(DEPDIR)/, $(COBJS:.$(O)=.$(D)))
-||||||| merged common ancestors
-ifneq "$(COBJS)" ""
-include $(addprefix $(DEPDIR)/, $(COBJS:.$(O)=.$(D)))
-=======
-ifneq "$(COBJS_BYTECODE)" ""
-include $(addprefix $(DEPDIR)/, $(COBJS_BYTECODE:.b.$(O)=.$(D)))
->>>>>>> ocaml/5.1
 endif
 endif
 
 $(DEPDIR)/%.$(D): %.c | $(DEPDIR)
-	$(V_CCDEPS)$(DEP_CC) $(OC_CPPFLAGS) $(CPPFLAGS) $< -MT '$*.$(O)' -MF $@
+	$(DEP_CC) $(OC_CPPFLAGS) $(CPPFLAGS) $< -MT '$*.$(O)' -MF $@

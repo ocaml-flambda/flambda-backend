@@ -24,7 +24,5 @@ REQUIRES_CONFIGURATION := $(strip \
   $(filter-out $(CLEAN_TARGET_NAMES) configure, $(MAKECMDGOALS)))
 
 ifneq "$(REQUIRES_CONFIGURATION)" ""
-ifneq "$(origin BUILD_CONFIG_INCLUDED)" "override"
 include $(ROOTDIR)/Makefile.build_config
-endif
 endif

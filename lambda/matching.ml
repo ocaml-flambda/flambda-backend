@@ -1806,7 +1806,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
       if pos > last_pos then
         argl
       else
-        (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), binding_kind,
+        (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), binding_kind,
          Jkind.Sort.for_constructor_arg, layout_field)
         :: make_args (pos + 1)
     in
@@ -1834,7 +1834,7 @@ let divide_constructor ~scopes ctx pm =
 let get_expr_args_variant_constant = drop_expr_arg
 
 let nonconstant_variant_field index =
-  Lambda.Pfield(index, Pointer, Reads_agree)
+  Lambda.Pfield(index, Reads_agree)
 
 let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
       rem =
@@ -1912,7 +1912,7 @@ let get_mod_field modname field =
     (let mod_ident = Ident.create_persistent modname in
      let env =
        Env.add_persistent_structure mod_ident
-         (Lazy.force Env.initial)
+         (Lazy.force Env.initial_safe_string)
      in
      match Env.open_pers_signature modname env with
      | Error `Not_found ->
@@ -1926,47 +1926,26 @@ let get_mod_field modname field =
 
 let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
 
-let code_force_lazy = get_mod_field "CamlinternalLazy" "force_gen"
+let code_force_lazy = get_mod_field "CamlinternalLazy" "force"
 
 (* inline_lazy_force inlines the beginning of the code of Lazy.force. When
    the value argument is tagged as:
    - forward, take field 0
-   - lazy || forcing, call the primitive that forces
+   - lazy, call the primitive that forces (without testing again the tag)
    - anything else, return it
 
    Using Lswitch below relies on the fact that the GC does not shortcut
    Forward(val_out_of_heap).
 *)
 
-let call_force_lazy_block ?(inlined = Default_inlined) varg loc ~pos =
-  (* The argument is wrapped with [Popaque] to prevent the rest of the compiler
-     from making any assumptions on its contents (see comments on
-     [CamlinternalLazy.force_gen], and discussions on PRs #9998 and #10909).
-     Alternatively, [ap_inlined] could be set to [Never_inline] to achieve a
-     similar result. *)
-  let force_fun = Lazy.force code_force_lazy_block in
-  Lapply
-    { ap_tailcall = Default_tailcall;
-      ap_loc = loc;
-      ap_func = force_fun;
-      ap_args = [ Lprim (Popaque Lambda.layout_lazy, [ varg ], loc) ];
-      ap_result_layout = Lambda.layout_lazy_contents;
-      ap_region_close = pos;
-      ap_mode = alloc_heap;
-      ap_inlined = inlined;
-      ap_specialised = Default_specialise;
-      ap_probe = None;
-    }
-
-let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
+let lazy_forward_field = Lambda.Pfield (0, Reads_vary)
 
 let inline_lazy_force_cond arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
-  let test_tag t =
-    Lprim(Pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
-  in
+  let tag_var = Lvar tag in
+  let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
       Lambda.layout_lazy,
@@ -1978,25 +1957,37 @@ let inline_lazy_force_cond arg pos loc =
           tag,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
-            ( (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
-              test_tag Obj.forward_tag,
+            (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
+            ( Lprim
+                ( Pintcomp Ceq,
+                  [ tag_var; Lconst (Const_base (Const_int Obj.forward_tag)) ],
+                  loc ),
               Lprim (lazy_forward_field, [ varg ], loc),
               Lifthenelse
-                (
-                  (* ... if tag == Obj.lazy_tag || tag == Obj.forcing_tag then
-                         Lazy.force varg
-                       else ... *)
-                  Lprim (Psequor,
-                       [test_tag Obj.lazy_tag; test_tag Obj.forcing_tag], loc),
-                  (* nroberts: We probably don't need [Never_inlined] anymore
-                     now that [ap_args] is opaque. *)
-                  call_force_lazy_block ~inlined:Never_inlined varg loc ~pos,
+                (* if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
+                ( Lprim
+                    ( Pintcomp Ceq,
+                      [ tag_var; Lconst (Const_base (Const_int Obj.lazy_tag)) ],
+                      loc ),
+                  Lapply
+                    { ap_tailcall = Default_tailcall;
+                      ap_loc = loc;
+                      ap_func = force_fun;
+                      ap_args = [ varg ];
+                      ap_result_layout = Lambda.layout_lazy_contents;
+                      ap_region_close = pos;
+                      ap_mode = alloc_heap;
+                      ap_inlined = Never_inlined;
+                      ap_specialised = Default_specialise;
+                      ap_probe=None
+                    },
                   (* ... arg *)
                   varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
 
 let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
+  let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
       Lambda.layout_lazy,
@@ -2006,16 +1997,27 @@ let inline_lazy_force_switch arg pos loc =
         ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
           varg,
           Lswitch
-            ( Lprim (Pccall prim_obj_tag, [ varg ], loc),
-              { sw_numblocks = 0;
-                sw_blocks = [];
-                sw_numconsts = 256;
+            ( varg,
+              { sw_numconsts = 0;
+                sw_consts = [];
+                sw_numblocks = 256;
                 (* PR#6033 - tag ranges from 0 to 255 *)
-                sw_consts =
-                  [ (Obj.forward_tag, Lprim (Pfield(0, Pointer, Reads_vary),
-                                             [ varg ], loc));
-                    (Obj.lazy_tag, call_force_lazy_block varg loc ~pos);
-                    (Obj.forcing_tag, call_force_lazy_block varg loc ~pos)
+                sw_blocks =
+                  [ ( Obj.forward_tag,
+                      Lprim (lazy_forward_field, [ varg ], loc) );
+                    ( Obj.lazy_tag,
+                      Lapply
+                        { ap_tailcall = Default_tailcall;
+                          ap_loc = loc;
+                          ap_func = force_fun;
+                          ap_args = [ varg ];
+                          ap_result_layout = Lambda.layout_lazy_contents;
+                          ap_region_close = pos;
+                          ap_mode = alloc_heap;
+                          ap_inlined = Default_inlined;
+                          ap_specialised = Default_specialise;
+                          ap_probe=None;
+                        } )
                   ];
                 sw_failaction = Some varg
               },
@@ -2031,18 +2033,10 @@ let inline_lazy_force arg pos loc =
       { ap_tailcall = Default_tailcall;
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
-        ap_args = [ Lconst (Const_base (Const_int 0)); arg ];
+        ap_args = [ arg ];
         ap_result_layout = Lambda.layout_lazy_contents;
         ap_region_close = pos;
         ap_mode = alloc_heap;
-        (* nroberts: To make sure this wasn't inlined:
-             - Upstream changed [code_force_lazy] to a non-inlineable
-               function when compiling with AFL support.
-             - We just changed this to Never_inlined.
-
-           If these two approaches are solving the same problem, we should
-           just converge to one.
-        *)
         ap_inlined = Never_inlined;
         ap_specialised = Default_specialise;
         ap_probe=None;
@@ -2083,7 +2077,7 @@ let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
     if pos >= arity then
       rem
     else
-      (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
+      (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), Alias,
        Jkind.Sort.for_tuple_element, layout_field)
         :: make_args (pos + 1)
   in
@@ -2131,7 +2125,6 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
     else
       let lbl = all_labels.(pos) in
       check_record_field_jkind lbl;
-      let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
@@ -2143,7 +2136,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         match lbl.lbl_repres with
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
-            Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
+            Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc),
             lbl_sort, lbl_layout
         | Record_unboxed
         | Record_inlined (_, Variant_unboxed) -> arg, sort, layout
@@ -2157,7 +2150,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
            (* Here we are projecting an unboxed float from a float record. *)
            lbl_sort, lbl_layout
         | Record_inlined (_, Variant_extensible) ->
-            Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
+            Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc),
             lbl_sort, lbl_layout
       in
       let str =
@@ -2492,29 +2485,11 @@ module SArg = struct
   let make_if kind cond ifso ifnot = Lifthenelse (cond, ifso, ifnot, kind)
 
   let make_switch loc kind arg cases acts =
-    (* The [acts] array can contain arbitrary terms.
-       If several entries in the [cases] array point to the same action,
-       we must share it to avoid duplicating terms.
-       See PR#11893 on Github for an example where the other de-duplication
-       mechanisms do not apply. *)
-    let act_uses = Array.make (Array.length acts) 0 in
-    for i = 0 to Array.length cases - 1 do
-      act_uses.(cases.(i)) <- act_uses.(cases.(i)) + 1
-    done;
-    let wrapper = ref (fun lam -> lam) in
-    for j = 0 to Array.length acts - 1 do
-      if act_uses.(j) > 1 then begin
-        let nfail, wrap = make_catch_delayed kind acts.(j) in
-        acts.(j) <- make_exit nfail;
-        let prev_wrapper = !wrapper in
-        wrapper := (fun lam -> wrap (prev_wrapper lam))
-      end;
-    done;
     let l = ref [] in
     for i = Array.length cases - 1 downto 0 do
       l := (i, acts.(cases.(i))) :: !l
     done;
-    !wrapper (Lswitch
+    Lswitch
       ( arg,
         { sw_numconsts = Array.length cases;
           sw_consts = !l;
@@ -2522,7 +2497,7 @@ module SArg = struct
           sw_blocks = [];
           sw_failaction = None
         },
-        loc, kind ))
+        loc, kind )
 
   let make_catch = make_catch_delayed
 
@@ -2953,7 +2928,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                   nonconsts default
               in
               Llet (Alias, Lambda.layout_block, tag,
-                    Lprim (Pfield (0, Pointer, Reads_agree), [ arg ], loc),
+                    Lprim (Pfield (0, Reads_agree), [ arg ], loc),
                     tests)
         in
         List.fold_right
@@ -2980,54 +2955,26 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
       in
       let descr_lambda_list = fails @ descr_lambda_list in
       let consts, nonconsts = split_cases descr_lambda_list in
-      (* Our duty below is to generate code, for matching on a list of
-         constructor+action cases, that is good for both bytecode and
-         native-code compilation. (Optimizations that only work well
-         for one backend should be done in the backend.)
-
-         The [Lswitch] construct is generally an excellent choice, as
-         it generates a single instruction in bytecode, and can be
-         turned into efficient, simpler control-flow constructs in
-         native-code. (The lambda/switch.ml module is precisely
-         responsible for efficiently compiling switches to simpler
-         tests.)
-
-         Some additional optimizations make sense here when they let
-         us generate better code, including in bytecode: the generated
-         code should still fit in one bytecode instruction or less.
-
-         [Lswitch] has the downside of always needing a byte per
-         constructor in the generated bytecode, even when many actions
-         are shared. For types with a lot of constructors, calling the
-         switcher directly can result in more compact code. This is
-         a reason to deviate from the one-instruction policy.
-      *)
       let lambda1 =
         match (fail_opt, same_actions descr_lambda_list) with
-        | None, Some act ->
-            (* Identical actions, no failure: 0 control-flow instructions. *)
-            act
+        | None, Some act -> act (* Identical actions, no failure *)
         | _ -> (
             match
               (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts)
             with
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
-                (* This case is very frequent, it corresponds to
-                   options and lists. *)
-                (* Keeping the Pisint test would make the bytecode
-                   slightly worse, but it lets the native compiler generate
-                   better code -- see #10681. *)
                 if !Clflags.native_code then
                   Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
                               act1, act2, value_kind)
                 else
-                  Lifthenelse(arg, act2, act1, value_kind)
+                  (* PR#10681: we use [arg] directly as the test here;
+                     it generates better bytecode for this common case
+                     (typically options and lists), but would prevent
+                     some optimizations with the native compiler. *)
+                  Lifthenelse (arg, act2, act1, value_kind)
             | n, 0, _, [] ->
-                (* The matched type defines constant constructors only.
-                   (typically the constant cases are dense, so
-                   call_switcher will generate a Lswitch, still one
-                   instruction.) *)
+                (* The type defines constant constructors only *)
                 call_switcher value_kind loc fail_opt arg 0 (n - 1) consts
             | n, _, _, _ -> (
                 let act0 =
@@ -3043,26 +2990,13 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                 in
                 match act0 with
                 | Some act ->
-                    (* This case deviates from our policy, by typically
-                       generating three bytecode instructions.
-
-                       It can save a lot of bytecode space when matching
-                       on a type with many non-constant constructors,
-                       all sent to the same action. This pattern occurs
-                       several times in the compiler codebase
-                       (for example), due to code fragments such as the
-                       following:
-
-                           match token with SEMISEMI -> true | _ -> false
-
-                       (The type of tokens has more than 120 constructors.)
-                       *)
                     Lifthenelse
                       ( Lprim (Pisint { variant_only = true }, [ arg ], loc),
                         call_switcher value_kind loc fail_opt arg 0 (n - 1) consts,
                         act, value_kind )
                 | None ->
-                    (* In the general case, emit a switch. *)
+                    (* Emit a switch, as bytecode implements this sophisticated
+                      instruction *)
                     let sw =
                       { sw_numconsts = cstr.cstr_consts;
                         sw_consts = consts;
@@ -3136,16 +3070,15 @@ let combine_variant value_kind loc row arg partial ctx def
         match (consts, nonconsts) with
         | [ (_, act1) ], [ (_, act2) ] when fail = None ->
             test_int_or_block arg act1 act2
-        | _, [] -> (
-            let lam =
+        | _, [] ->
+            begin match fail with
+            | None ->
               make_test_sequence_variant_constant value_kind fail arg consts
-            in
-            (* PR#11587: Switcher.test_sequence expects integer inputs, so
-               if the type allows pointers we must filter them away. *)
-            match fail with
-            | None -> lam
-            | Some fail -> test_int_or_block arg lam fail
-          )
+            | Some act ->
+              test_int_or_block arg
+                (make_test_sequence_variant_constant value_kind fail arg consts)
+                act
+            end
         | [], _ -> (
             let lam =
               call_switcher_variant_constr value_kind loc fail arg nonconsts
@@ -3660,7 +3593,7 @@ let failure_handler ~scopes loc ~failer () =
     let sloc = Scoped_location.of_location ~scopes loc in
     let slot =
       transl_extension_path sloc
-        (Lazy.force Env.initial) Predef.path_match_failure
+        (Lazy.force Env.initial_safe_string) Predef.path_match_failure
     in
     let fname, line, char =
       Location.get_pos_info loc.Location.loc_start in
@@ -3690,13 +3623,13 @@ let check_total ~scopes value_kind loc ~failer total lambda i =
 
 let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compile_fun =
   match partial with
-  | Total when not !Clflags.safer_matching ->
+  | Total ->
       let default = Default_environment.empty in
       let pm = { args; cases; default } in
       let (lam, total) = compile_fun Total pm in
       assert (Jumps.is_empty total);
       lam
-  | Partial | Total (* when !Clflags.safer_matching *) ->
+  | Partial ->
       let raise_num = next_raise_count () in
       let default =
         Default_environment.cons [ Patterns.omega_list args ] raise_num

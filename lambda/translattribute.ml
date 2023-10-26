@@ -341,7 +341,7 @@ let check_poll_inline loc attr =
   | Error_poll, (Always_inline | Available_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Inlining_impossible
-           "[@poll error] is incompatible with inlining")
+          "[@poll error] is incompatible with inlining")
   | _ ->
       ()
 

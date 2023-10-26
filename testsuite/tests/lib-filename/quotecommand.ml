@@ -20,6 +20,7 @@ program = "${test_build_directory}/quotecommand.opt"
 program = "${test_build_directory}/myecho.exe"
 all_modules = "myecho.ml"
 *** ocamlopt.byte
+include unix
 program = "${test_build_directory}/quotecommand.opt"
 all_modules= "quotecommand.ml"
 **** check-ocamlopt.byte-output

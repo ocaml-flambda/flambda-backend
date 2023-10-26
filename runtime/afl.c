@@ -13,34 +13,25 @@
 /**************************************************************************/
 
 /* Runtime support for afl-fuzz */
-
-#define CAML_INTERNALS
-
 #include "caml/config.h"
-#include "caml/memory.h"
-#include "caml/mlvalues.h"
 
 /* Values used by the instrumentation logic (see cmmgen.ml) */
-
-#define INITIAL_AFL_AREA_SIZE (1 << 16)
-unsigned char * caml_afl_area_ptr = NULL;
+static unsigned char afl_area_initial[1 << 16];
+unsigned char* caml_afl_area_ptr = afl_area_initial;
 uintnat caml_afl_prev_loc;
 
 #if !defined(HAS_SYS_SHM_H) || !defined(HAS_SHMAT)
 
-CAMLexport value caml_setup_afl(value unit)
-{
-  /* AFL is not supported, but we still need to allocate space for the bitmap
-       (the instrumented OCaml code will write into it). */
-  if (caml_afl_area_ptr == NULL) {
-    caml_afl_area_ptr = caml_stat_alloc(INITIAL_AFL_AREA_SIZE);
-    memset(caml_afl_area_ptr, 0, INITIAL_AFL_AREA_SIZE);
-  }
-  return Val_unit;
-}
+#include "caml/mlvalues.h"
 
 CAMLprim value caml_reset_afl_instrumentation(value full)
 {
+  return Val_unit;
+}
+
+CAMLexport value caml_setup_afl(value unit)
+{
+  /* AFL is not supported */
   return Val_unit;
 }
 
@@ -54,8 +45,9 @@ CAMLprim value caml_reset_afl_instrumentation(value full)
 #include <stdio.h>
 #include <string.h>
 
-#include "caml/domain.h"
+#define CAML_INTERNALS
 #include "caml/misc.h"
+#include "caml/mlvalues.h"
 #include "caml/osdeps.h"
 
 static int afl_initialised = 0;
@@ -74,7 +66,7 @@ static void afl_write(uint32_t msg)
     caml_fatal_error("writing to afl-fuzz");
 }
 
-static uint32_t afl_read(void)
+static uint32_t afl_read()
 {
   uint32_t msg;
   if (read(FORKSRV_FD_READ, &msg, 4) != 4)
@@ -94,11 +86,7 @@ CAMLexport value caml_setup_afl(value unit)
 
   shm_id_str = caml_secure_getenv("__AFL_SHM_ID");
   if (shm_id_str == NULL) {
-    /* Not running under afl-fuzz.  Allocate space for the bitmap
-       (the instrumented OCaml code will write into it),
-       and continue as normal. */
-    caml_afl_area_ptr = caml_stat_alloc(INITIAL_AFL_AREA_SIZE);
-    memset(caml_afl_area_ptr, 0, INITIAL_AFL_AREA_SIZE);
+    /* Not running under afl-fuzz, continue as normal */
     return Val_unit;
   }
 
@@ -125,15 +113,10 @@ CAMLexport value caml_setup_afl(value unit)
   }
   afl_read();
 
-  /* ensure that another module has not already spawned a domain */
-  if (caml_domain_is_multicore())
-    caml_fatal_error("afl-fuzz: cannot fork with multiple domains running");
-
   while (1) {
     int child_pid = fork();
     if (child_pid < 0) caml_fatal_error("afl-fuzz: could not fork");
     else if (child_pid == 0) {
-      caml_atfork_hook();
       /* Run the program */
       close(FORKSRV_FD_READ);
       close(FORKSRV_FD_WRITE);
@@ -175,8 +158,8 @@ CAMLexport value caml_setup_afl(value unit)
 
 CAMLprim value caml_reset_afl_instrumentation(value full)
 {
-  if (full == Val_true && caml_afl_area_ptr != NULL) {
-    memset(caml_afl_area_ptr, 0, INITIAL_AFL_AREA_SIZE);
+  if (full != Val_int(0)) {
+    memset(caml_afl_area_ptr, 0, sizeof(afl_area_initial));
   }
   caml_afl_prev_loc = 0;
   return Val_unit;

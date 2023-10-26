@@ -142,3 +142,4 @@ let make_absolute name =
   if Filename.is_relative name
   then Filename.concat (getcwd ()) name
   else name
+;;

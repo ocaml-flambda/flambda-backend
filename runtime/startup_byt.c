@@ -32,16 +32,15 @@
 #include "caml/alloc.h"
 #include "caml/backtrace.h"
 #include "caml/callback.h"
-#include "caml/codefrag.h"
 #include "caml/custom.h"
 #include "caml/debugger.h"
-#include "caml/domain_state.h"
+#include "caml/domain.h"
 #include "caml/dynlink.h"
-#include "caml/runtime_events.h"
+#include "caml/eventlog.h"
 #include "caml/exec.h"
 #include "caml/fail.h"
-#include "caml/fiber.h"
 #include "caml/fix_code.h"
+#include "caml/freelist.h"
 #include "caml/gc_ctrl.h"
 #include "caml/instrtrace.h"
 #include "caml/interp.h"
@@ -56,6 +55,7 @@
 #include "caml/printexc.h"
 #include "caml/reverse.h"
 #include "caml/signals.h"
+#include "caml/stacks.h"
 #include "caml/sys.h"
 #include "caml/startup.h"
 #include "caml/startup_aux.h"
@@ -72,6 +72,8 @@
 #endif
 
 static char magicstr[EXEC_MAGIC_LENGTH+1];
+static int print_magic = 0;
+static int print_config = 0;
 
 /* Print the specified error message followed by an end-of-line and exit */
 static void error(char *msg, ...)
@@ -103,7 +105,7 @@ static int read_trailer(int fd, struct exec_trailer *trail)
   memcpy(magicstr, trail->magic, EXEC_MAGIC_LENGTH);
   magicstr[EXEC_MAGIC_LENGTH] = 0;
 
-  if (caml_params->print_magic) {
+  if (print_magic) {
     printf("%s\n", magicstr);
     exit(0);
   }
@@ -235,9 +237,9 @@ static char_os * read_section_to_os(int fd, struct exec_trailer *trail,
   if (read(fd, data, len) != len)
     caml_fatal_error("error reading section %s", name);
   data[len] = 0;
-  wlen = caml_win32_multi_byte_to_wide_char(data, len, NULL, 0);
+  wlen = win_multi_byte_to_wide_char(data, len, NULL, 0);
   wdata = caml_stat_alloc((wlen + 1)*sizeof(wchar_t));
-  caml_win32_multi_byte_to_wide_char(data, len, wdata, wlen);
+  win_multi_byte_to_wide_char(data, len, wdata, wlen);
   wdata[wlen] = 0;
   caml_stat_free(data);
   return wdata;
@@ -281,8 +283,6 @@ static void do_print_help(void)
     "Options are:\n"
     "  -b  Set runtime parameter b (detailed exception backtraces)\n"
     "  -config  Print configuration values and exit\n"
-    "  -events  Trace debug events in bytecode interpreter (ignored \n"
-    "      if not ocamlrund)\n"
     "  -I <dir>  Add <dir> to the list of DLL search directories\n"
     "  -m  Print the magic number of <executable> and exit\n"
     "  -M  Print the magic number expected by this runtime and exit\n"
@@ -301,9 +301,6 @@ static void do_print_help(void)
 static int parse_command_line(char_os **argv)
 {
   int i, j, len, parsed;
-  /* cast to make caml_params mutable; this assumes we are only called
-     by one thread at startup */
-  struct caml_params* params = (struct caml_params*)caml_params;
 
   for(i = 1; argv[i] != NULL && argv[i][0] == '-'; i++) {
     len = strlen_os(argv[i]);
@@ -315,10 +312,10 @@ static int parse_command_line(char_os **argv)
         return i + 1;
         break;
       case 't':
-        params->trace_level += 1; /* ignored unless DEBUG mode */
+        ++ caml_trace_level; /* ignored unless DEBUG mode */
         break;
       case 'v':
-        atomic_store_relaxed(&caml_verb_gc, 0x001+0x004+0x008+0x010+0x020);
+        caml_verb_gc = 0x001+0x004+0x008+0x010+0x020;
         break;
       case 'p':
         for (j = 0; caml_names_of_builtin_cprim[j] != NULL; j++)
@@ -326,7 +323,7 @@ static int parse_command_line(char_os **argv)
         exit(0);
         break;
       case 'b':
-        params->backtrace_enabled = 1;
+        caml_record_backtraces(1);
         break;
       case 'I':
         if (argv[i + 1] != NULL) {
@@ -337,7 +334,7 @@ static int parse_command_line(char_os **argv)
         }
         break;
       case 'm':
-        params->print_magic = 1;
+        print_magic = 1;
         break;
       case 'M':
         printf("%s\n", EXEC_MAGIC);
@@ -354,14 +351,12 @@ static int parse_command_line(char_os **argv)
       } else if (!strcmp_os(argv[i], T("-vnum"))) {
         printf("%s\n", OCAML_VERSION_STRING);
         exit(0);
-      } else if (!strcmp_os(argv[i], T("-events"))) {
-        params->event_trace = 1; /* Ignored unless DEBUG mode */
       } else if (!strcmp_os(argv[i], T("-help")) ||
                  !strcmp_os(argv[i], T("--help"))) {
         do_print_help();
         exit(0);
       } else if (!strcmp_os(argv[i], T("-config"))) {
-        params->print_config = 1;
+        print_config = 1;
       } else {
         parsed = 0;
       }
@@ -415,14 +410,19 @@ static void do_print_config(void)
 #else
          "false");
 #endif
-  printf("no_naked_pointers: true\n");
-  printf("compression_supported: %s\n",
-#ifdef HAS_ZSTD
+  printf("no_naked_pointers: %s\n",
+#ifdef NO_NAKED_POINTERS
          "true");
 #else
          "false");
 #endif
-  printf("reserved header bits: %d\n", HEADER_RESERVED_BITS);
+  printf("profinfo: %s\n"
+         "profinfo_width: %d\n",
+#ifdef WITH_PROFINFO
+         "true", PROFINFO_WIDTH);
+#else
+         "false", 0);
+#endif
   printf("exec_magic_number: %s\n", EXEC_MAGIC);
 
   /* Parse ld.conf and print the effective search path */
@@ -445,10 +445,10 @@ static void do_print_config(void)
 extern void caml_signal_thread(void * lpParam);
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && __STDC_SECURE_LIB__ >= 200411L
 
 /* PR 4887: avoid crash box of windows runtime on some system calls */
-extern void caml_install_invalid_parameter_handler(void);
+extern void caml_install_invalid_parameter_handler();
 
 #endif
 
@@ -464,23 +464,26 @@ CAMLexport void caml_main(char_os **argv)
   char_os * shared_lib_path, * shared_libs;
   char_os * exe_name, * proc_self_exe;
 
-  /* Determine options */
-  caml_parse_ocamlrunparam();
+  /* Initialize the domain */
+  caml_init_domain();
 
+  /* Determine options */
+#ifdef DEBUG
+  caml_verb_gc = 0x3F;
+#endif
+  caml_parse_ocamlrunparam();
+  CAML_EVENTLOG_INIT();
 #ifdef DEBUG
   caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
-  if (!caml_startup_aux(/* pooling */ caml_params->cleanup_on_exit))
+  if (!caml_startup_aux(/* pooling */ caml_cleanup_on_exit))
     return;
 
-  caml_init_codefrag();
-
   caml_init_locale();
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && __STDC_SECURE_LIB__ >= 200411L
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
-  caml_init_os_params();
   caml_ext_table_init(&caml_shared_libs_path, 8);
 
   /* Determine position of bytecode file */
@@ -503,7 +506,7 @@ CAMLexport void caml_main(char_os **argv)
 
   if (fd < 0) {
     pos = parse_command_line(argv);
-    if (caml_params->print_config) {
+    if (print_config) {
       do_print_config();
       exit(0);
     }
@@ -535,14 +538,14 @@ CAMLexport void caml_main(char_os **argv)
   /* Read the table of contents (section descriptors) */
   caml_read_section_descriptors(fd, &trail);
   /* Initialize the abstract machine */
-  caml_init_gc ();
-
-  /* bring up runtime_events after we've initialised the gc */
-  CAML_RUNTIME_EVENTS_INIT();
-
-  Caml_state->external_raise = NULL;
-  /* Setup signal handling */
-  caml_init_signals();
+  caml_init_gc (caml_init_minor_heap_wsz, caml_init_heap_wsz,
+                caml_init_heap_chunk_sz, caml_init_percent_free,
+                caml_init_max_percent_free, caml_init_major_window,
+                caml_init_custom_major_ratio, caml_init_custom_minor_ratio,
+                caml_init_custom_minor_max_bsz, caml_init_policy);
+  caml_init_stack (caml_init_max_stack_wsz);
+  caml_init_atom_table();
+  caml_init_backtrace();
   /* Initialize the interpreter */
   caml_interprete(NULL, 0);
   /* Initialize the debugger, if needed */
@@ -563,16 +566,21 @@ CAMLexport void caml_main(char_os **argv)
   /* Load the globals */
   caml_seek_section(fd, &trail, "DATA");
   chan = caml_open_descriptor_in(fd);
-  value global_data = caml_input_val(chan);
-  caml_modify_generational_global_root(&caml_global_data, global_data);
+  Lock(chan);
+  caml_global_data = caml_input_val(chan);
+  Unlock(chan);
   caml_close_channel(chan); /* this also closes fd */
   caml_stat_free(trail.section);
+  /* Ensure that the globals are in the major heap. */
+  {
+    CAMLparam1(caml_global_data);
+    caml_minor_collection();
+    CAMLdrop;
+  }
   /* Initialize system libraries */
   caml_sys_init(exe_name, argv + pos);
   /* Load debugging info, if b>=2 */
   caml_load_main_debug_info();
-  /* ensure all globals are in major heap */
-  caml_minor_collection();
 #ifdef _WIN32
   /* Start a thread to handle signals */
   if (caml_secure_getenv(T("CAMLSIGPIPE")))
@@ -582,15 +590,14 @@ CAMLexport void caml_main(char_os **argv)
   caml_debugger(PROGRAM_START, Val_unit);
   res = caml_interprete(caml_start_code, caml_code_size);
   if (Is_exception_result(res)) {
-    value exn = Extract_exception(res);
+    Caml_state->exn_bucket = Extract_exception(res);
     if (caml_debugger_in_use) {
-      Caml_state->current_stack->sp = &exn; /* The debugger needs the
-                                               exception value.*/
+      Caml_state->extern_sp = &Caml_state->exn_bucket; /* The debugger needs the
+                                            exception value.*/
       caml_debugger(UNCAUGHT_EXC, Val_unit);
     }
-    caml_fatal_uncaught_exception(exn);
+    caml_fatal_uncaught_exception(Caml_state->exn_bucket);
   }
-  caml_terminate_signals();
 }
 
 /* Main entry point when code is linked in as initialized data */
@@ -602,41 +609,45 @@ CAMLexport value caml_startup_code_exn(
            int pooling,
            char_os **argv)
 {
+  char_os * cds_file;
   char_os * exe_name;
-  value res;
 
+  /* Initialize the domain */
+  caml_init_domain();
   /* Determine options */
+#ifdef DEBUG
+  caml_verb_gc = 0x3F;
+#endif
   caml_parse_ocamlrunparam();
-
+  CAML_EVENTLOG_INIT();
 #ifdef DEBUG
   caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
-  if (caml_params->cleanup_on_exit)
+  if (caml_cleanup_on_exit)
     pooling = 1;
   if (!caml_startup_aux(pooling))
     return Val_unit;
 
-  caml_init_codefrag();
-
   caml_init_locale();
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && __STDC_SECURE_LIB__ >= 200411L
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
-  caml_init_os_params();
-
-  /* Initialize the abstract machine */
-  caml_init_gc ();
-
-  /* runtime_events has to be brought up after the gc */
-  CAML_RUNTIME_EVENTS_INIT();
-
+  cds_file = caml_secure_getenv(T("CAML_DEBUG_FILE"));
+  if (cds_file != NULL) {
+    caml_cds_file = caml_stat_strdup_os(cds_file);
+  }
   exe_name = caml_executable_name();
   if (exe_name == NULL) exe_name = caml_search_exe_in_path(argv[0]);
-
-  Caml_state->external_raise = NULL;
-  /* Setup signal handling */
-  caml_init_signals();
+  /* Initialize the abstract machine */
+  caml_init_gc (caml_init_minor_heap_wsz, caml_init_heap_wsz,
+                caml_init_heap_chunk_sz, caml_init_percent_free,
+                caml_init_max_percent_free, caml_init_major_window,
+                caml_init_custom_major_ratio, caml_init_custom_minor_ratio,
+                caml_init_custom_minor_max_bsz, caml_init_policy);
+  caml_init_stack (caml_init_max_stack_wsz);
+  caml_init_atom_table();
+  caml_init_backtrace();
   /* Initialize the interpreter */
   caml_interprete(NULL, 0);
   /* Initialize the debugger, if needed */
@@ -652,21 +663,23 @@ CAMLexport value caml_startup_code_exn(
   /* Use the builtin table of primitives */
   caml_build_primitive_table_builtin();
   /* Load the globals */
-  caml_modify_generational_global_root
-    (&caml_global_data, caml_input_value_from_block(data, data_size));
+  caml_global_data = caml_input_value_from_block(data, data_size);
+  /* Ensure that the globals are in the major heap. */
+  {
+    CAMLparam1(caml_global_data);
+    caml_minor_collection();
+    CAMLdrop;
+  }
+  /* Record the sections (for caml_get_section_table in meta.c) */
+  caml_section_table = section_table;
+  caml_section_table_size = section_table_size;
   /* Initialize system libraries */
   caml_sys_init(exe_name, argv);
   /* Load debugging info, if b>=2 */
   caml_load_main_debug_info();
-  /* ensure all globals are in major heap */
-  caml_minor_collection();
-  /* Record the sections (for caml_get_section_table in meta.c) */
-  caml_init_section_table(section_table, section_table_size);
   /* Execute the program */
   caml_debugger(PROGRAM_START, Val_unit);
-  res = caml_interprete(caml_start_code, caml_code_size);
-  caml_terminate_signals();
-  return res;
+  return caml_interprete(caml_start_code, caml_code_size);
 }
 
 CAMLexport void caml_startup_code(
@@ -682,12 +695,12 @@ CAMLexport void caml_startup_code(
                               section_table, section_table_size,
                               pooling, argv);
   if (Is_exception_result(res)) {
-    value exn = Extract_exception(res);
+    Caml_state->exn_bucket = Extract_exception(res);
     if (caml_debugger_in_use) {
-      Caml_state->current_stack->sp = &exn; /* The debugger needs the
-                                               exception value.*/
+      Caml_state->extern_sp = &Caml_state->exn_bucket; /* The debugger needs the
+                                            exception value.*/
       caml_debugger(UNCAUGHT_EXC, Val_unit);
     }
-    caml_fatal_uncaught_exception(exn);
+    caml_fatal_uncaught_exception(Caml_state->exn_bucket);
   }
 }

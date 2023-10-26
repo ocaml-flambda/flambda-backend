@@ -1,6 +1,26 @@
 (* TEST
+
 flags = "-w -a"
-ocamlrunparam += "l=100000"
+
+* setup-ocamlc.byte-build-env
+** ocamlc.byte
+*** run
+**** check-program-output
+
+* libwin32unix
+** setup-ocamlopt.byte-build-env
+*** ocamlopt.byte
+**** run
+***** check-program-output
+
+* libunix
+** script
+script = "sh ${test_source_directory}/has-stackoverflow-detection.sh"
+*** setup-ocamlopt.byte-build-env
+**** ocamlopt.byte
+***** run
+****** check-program-output
+
 *)
 
 let rec f x =

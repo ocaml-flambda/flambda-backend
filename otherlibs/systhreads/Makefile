@@ -24,20 +24,18 @@ endif
 
 OC_CFLAGS += $(SHAREDLIB_CFLAGS) $(PTHREAD_CFLAGS)
 
-LIBS = $(STDLIBFLAGS) -I $(ROOTDIR)/otherlibs/unix
+OC_CPPFLAGS += -I$(ROOTDIR)/runtime
+
+NATIVE_CPPFLAGS = \
+  -DNATIVE_CODE -DTARGET_$(ARCH) -DMODEL_$(MODEL) -DSYS_$(SYSTEM)
+
+LIBS = -nostdlib -I $(ROOTDIR)/stdlib -I $(ROOTDIR)/otherlibs/$(UNIXLIB)
 
 CAMLC=$(BEST_OCAMLC) $(LIBS)
 CAMLOPT=$(BEST_OCAMLOPT) $(LIBS)
 
 MKLIB=$(OCAMLRUN) $(ROOTDIR)/tools/ocamlmklib$(EXE)
-<<<<<<< HEAD
 COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot -safe-string
-||||||| merged common ancestors
-COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot -safe-string
->>>>>>>>> Temporary merge branch 2
-=======
-COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot
->>>>>>> ocaml/5.1
 ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
@@ -52,26 +50,12 @@ LIBNAME=threads
 BYTECODE_C_OBJS=st_stubs.b.$(O)
 NATIVECODE_C_OBJS=st_stubs.n.$(O)
 
-<<<<<<< HEAD
 THREADS_SOURCES = thread.ml mutex.ml condition.ml event.ml semaphore.ml
-||||||| merged common ancestors
-THREADS_SOURCES = thread.ml mutex.ml condition.ml event.ml threadUnix.ml \
-  semaphore.ml
-=======
-THREADS_SOURCES = thread.ml event.ml
->>>>>>> ocaml/5.1
 
 THREADS_BCOBJS = $(THREADS_SOURCES:.ml=.cmo)
 THREADS_NCOBJS = $(THREADS_SOURCES:.ml=.cmx)
 
-<<<<<<< HEAD
 MLIFILES=thread.mli mutex.mli condition.mli event.mli semaphore.mli
-||||||| merged common ancestors
-MLIFILES=thread.mli mutex.mli condition.mli event.mli threadUnix.mli \
-  semaphore.mli
-=======
-MLIFILES=thread.mli event.mli
->>>>>>> ocaml/5.1
 
 CMIFILES=$(MLIFILES:.mli=.cmi)
 
@@ -80,27 +64,27 @@ all: lib$(LIBNAME).$(A) $(LIBNAME).cma $(CMIFILES)
 allopt: lib$(LIBNAME)nat.$(A) $(LIBNAME).cmxa $(CMIFILES)
 
 lib$(LIBNAME).$(A): $(BYTECODE_C_OBJS)
-	$(V_OCAMLMKLIB)$(MKLIB_CMD) -o $(LIBNAME) $(BYTECODE_C_OBJS)
-
-lib$(LIBNAME)nat.$(A): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
+	$(MKLIB_CMD) -o $(LIBNAME) $(BYTECODE_C_OBJS) $(PTHREAD_LIBS)
 
 lib$(LIBNAME)nat.$(A): $(NATIVECODE_C_OBJS)
-	$(V_OCAMLMKLIB)$(MKLIB_CMD) -o $(LIBNAME)nat $^
+	$(MKLIB_CMD) -o $(LIBNAME)nat $^
 
 $(LIBNAME).cma: $(THREADS_BCOBJS)
 ifeq "$(UNIX_OR_WIN32)" "unix"
-	$(V_OCAMLMKLIB)$(MKLIB) -o $(LIBNAME) -ocamlc '$(CAMLC)' -cclib -lunixbyt -linkall $^
+	$(MKLIB) -o $(LIBNAME) -ocamlc '$(CAMLC)' -cclib -lunix -linkall \
+	  $(PTHREAD_CAML_LIBS) $^
 # TODO: Figure out why -cclib -lunix is used here.
 # It may be because of the threadsUnix module which is deprecated.
 # It may hence be good to figure out whether this module shouldn't be
 # removed, and then -cclib -lunix arguments.
 else # Windows
-	$(V_OCAMLMKLIB)$(MKLIB) -o $(LIBNAME) -ocamlc "$(CAMLC)" -linkall $^
+	$(MKLIB) -o $(LIBNAME) -ocamlc "$(CAMLC)" -linkall \
+	  $(PTHREAD_CAML_LIBS) $^
 endif
 
 # See remark above: force static linking of libthreadsnat.a
 $(LIBNAME).cmxa: $(THREADS_NCOBJS)
-	$(V_LINKOPT)$(CAMLOPT) -linkall -a -cclib -lthreadsnat -o $@ $^
+	$(CAMLOPT) -linkall -a -cclib -lthreadsnat $(PTHREAD_CAML_LIBS) -o $@ $^
 
 # Note: I removed "-cclib -lunix" from the line above.
 # Indeed, if we link threads.cmxa, then we must also link unix.cmxa,
@@ -111,26 +95,22 @@ $(LIBNAME).cmxa: $(THREADS_NCOBJS)
 # st_stubs.n.$(O) from the same source file st_stubs.c (it is compiled
 # twice, each time with different options).
 
-ifeq "$(COMPUTE_DEPS)" "true"
+st_stubs.n.$(O): OC_CPPFLAGS += $(NATIVE_CPPFLAGS)
+
+ifneq "$(COMPUTE_DEPS)" "false"
 st_stubs.%.$(O): st_stubs.c
 else
 st_stubs.%.$(O): st_stubs.c $(RUNTIME_HEADERS) $(wildcard *.h)
 endif
-	$(V_CC)$(CC) -c $(OC_CFLAGS) $(CFLAGS) $(OC_CPPFLAGS) $(CPPFLAGS) \
+	$(CC) -c $(OC_CFLAGS) $(CFLAGS) $(OC_CPPFLAGS) $(CPPFLAGS) \
 	  $(OUTPUTOBJ)$@ $<
 
-.PHONY: partialclean
 partialclean:
 	rm -f *.cm*
 
-.PHONY: clean
 clean: partialclean
 	rm -f dllthreads*.so dllthreads*.dll *.a *.lib *.o *.obj
 	rm -rf $(DEPDIR)
-
-.PHONY: distclean
-distclean: clean
-	rm -f META
 
 INSTALL_THREADSLIBDIR=$(INSTALL_LIBDIR)/$(LIBNAME)
 
@@ -139,16 +119,9 @@ install:
 	  $(INSTALL_PROG) dllthreads$(EXT_DLL) "$(INSTALL_STUBLIBDIR)"; \
 	fi
 	$(INSTALL_DATA) libthreads.$(A) "$(INSTALL_LIBDIR)"
-<<<<<<< HEAD
 	mkdir -p "$(INSTALL_THREADSLIBDIR)"
-||||||| merged common ancestors
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) libthreads.$(A)
-	mkdir -p "$(INSTALL_THREADSLIBDIR)"
-=======
-	$(MKDIR) "$(INSTALL_THREADSLIBDIR)"
->>>>>>> ocaml/5.1
 	$(INSTALL_DATA) \
-	  $(CMIFILES) threads.cma META \
+	  $(CMIFILES) threads.cma \
 	  "$(INSTALL_THREADSLIBDIR)"
 ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
@@ -156,7 +129,7 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	  "$(INSTALL_THREADSLIBDIR)"
 	$(INSTALL_DATA) $(MLIFILES) "$(INSTALL_THREADSLIBDIR)"
 endif
-	$(INSTALL_DATA) threads.h "$(INSTALL_INCDIR)"
+	$(INSTALL_DATA) threads.h "$(INSTALL_LIBDIR)/caml"
 
 installopt:
 	$(INSTALL_DATA) libthreadsnat.$(A) "$(INSTALL_LIBDIR)"
@@ -165,16 +138,16 @@ installopt:
 	  "$(INSTALL_THREADSLIBDIR)"
 
 %.cmi: %.mli
-	$(V_OCAMLC)$(CAMLC) -c $(COMPFLAGS) $<
+	$(CAMLC) -c $(COMPFLAGS) $<
 
 %.cmo: %.ml
-	$(V_OCAMLC)$(CAMLC) -c $(COMPFLAGS) $<
+	$(CAMLC) -c $(COMPFLAGS) $<
 
 %.cmx: %.ml
-	$(V_OCAMLOPT)$(CAMLOPT) -c $(COMPFLAGS) $(OPTCOMPFLAGS) $<
+	$(CAMLOPT) -c $(COMPFLAGS) $(OPTCOMPFLAGS) $<
 
 DEP_FILES := st_stubs.b.$(D)
-ifeq "$(NATIVE_COMPILER)" "true"
+ifneq "$(NATIVE_COMPILER)" "false"
 DEP_FILES += st_stubs.n.$(D)
 endif
 
@@ -182,17 +155,18 @@ ifeq "$(COMPUTE_DEPS)" "true"
 include $(addprefix $(DEPDIR)/, $(DEP_FILES))
 endif
 
-%.n.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
+%.n.$(O): OC_CPPFLAGS += $(NATIVE_CPPFLAGS)
+%.n.$(D): OC_CPPFLAGS += $(NATIVE_CPPFLAGS)
 
 define GEN_RULE
 $(DEPDIR)/%.$(1).$(D): %.c | $(DEPDIR)
-	$$(V_CCDEPS)$$(DEP_CC) $$(OC_CPPFLAGS) $$(CPPFLAGS) $$< -MT '$$*.$(1).$(O)' -MF $$@
+	$$(DEP_CC) $$(OC_CPPFLAGS) $$(CPPFLAGS) $$< -MT '$$*.$(1).$(O)' -MF $$@
 endef
 
 $(foreach object_type, b n, $(eval $(call GEN_RULE,$(object_type))))
 
 .PHONY: depend
 depend:
-	$(V_GEN)$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash *.mli *.ml > .depend
+	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash *.mli *.ml > .depend
 
 include .depend

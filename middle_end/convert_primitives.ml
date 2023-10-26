@@ -30,13 +30,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakearray (Pfloatarray, mutability, mode)
   | Pmakeufloatblock (mutability, mode) ->
       Pmakeufloatblock (mutability, mode)
-  | Pfield (field, imm_or_pointer, sem) ->
-      let sem : Lambda.mutable_flag =
-        match sem with
-        | Reads_agree -> Immutable
-        | Reads_vary -> Mutable
-      in
-      Pfield (field, Pvalue Pgenval, imm_or_pointer, sem)
+  | Pfield (field, _sem) -> Pfield (field, Pvalue Pgenval)
   | Pfield_computed _sem -> Pfield_computed
   | Psetfield (field, imm_or_pointer, init_or_assign) ->
       Psetfield (field, imm_or_pointer, init_or_assign)
@@ -51,10 +45,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
   | Pmake_unboxed_product _
   | Punboxed_product_field _ -> Misc.fatal_error "TODO"
-  | Prunstack -> Prunstack
-  | Pperform -> Pperform
-  | Presume -> Presume
-  | Preperform -> Preperform
   | Pccall prim -> Pccall prim
   | Praise kind -> Praise kind
   | Psequand -> Psequand
@@ -158,11 +148,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
   | Pint_as_pointer m -> Pint_as_pointer m
-  | Patomic_load { immediate_or_pointer } ->
-      Patomic_load { immediate_or_pointer }
-  | Patomic_exchange -> Patomic_exchange
-  | Patomic_cas -> Patomic_cas
-  | Patomic_fetch_add -> Patomic_fetch_add
   | Popaque _ -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
   | Pobj_dup ->
@@ -181,7 +166,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Punbox_int bi -> Punbox_int bi
   | Pbox_int (bi, m) -> Pbox_int (bi, m)
   | Pget_header m -> Pget_header m
-  | Pdls_get -> Pdls_get
   | Pobj_magic _
   | Pbytes_to_string
   | Pbytes_of_string

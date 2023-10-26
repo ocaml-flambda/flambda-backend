@@ -40,7 +40,6 @@ val print: ('a -> 'b) -> 'a -> 'b
    escape a function application. *)
 
 val catch: ('a -> 'b) -> 'a -> 'b
-[@@ocaml.deprecated "This function is no longer needed."]
 (** [Printexc.catch fn x] is similar to {!Printexc.print}, but
    aborts the program with exit code 2 after printing the
    uncaught exception.  This function is deprecated: the runtime
@@ -62,14 +61,14 @@ val print_backtrace: out_channel -> unit
     during the matching of the exception handler), the backtrace may
     correspond to a later exception than the handled one.
 
-    @since 3.11
+    @since 3.11.0
 *)
 
 val get_backtrace: unit -> string
 (** [Printexc.get_backtrace ()] returns a string containing the
     same exception backtrace that [Printexc.print_backtrace] would
     print. Same restriction usage than {!print_backtrace}.
-    @since 3.11
+    @since 3.11.0
 *)
 
 val record_backtrace: bool -> unit
@@ -77,13 +76,13 @@ val record_backtrace: bool -> unit
     on (if [b = true]) or off (if [b = false]).  Initially, backtraces
     are not recorded, unless the [b] flag is given to the program
     through the [OCAMLRUNPARAM] variable.
-    @since 3.11
+    @since 3.11.0
 *)
 
 val backtrace_status: unit -> bool
 (** [Printexc.backtrace_status()] returns [true] if exception
     backtraces are currently recorded, [false] if not.
-    @since 3.11
+    @since 3.11.0
 *)
 
 val register_printer: (exn -> string option) -> unit
@@ -126,7 +125,7 @@ type raw_backtrace
     should use the array returned by the [backtrace_slots] function of
     the next section.
 
-    @since 4.01
+    @since 4.01.0
 *)
 
 type raw_backtrace_entry = private int
@@ -148,31 +147,31 @@ type raw_backtrace_entry = private int
     [raw_backtrace_entry]s are equal as integers, then they represent the same
     [backtrace_slot]s.
 
-    @since 4.12 *)
+    @since 4.12.0 *)
 
 val raw_backtrace_entries : raw_backtrace -> raw_backtrace_entry array
-(** @since 4.12 *)
+(** @since 4.12.0 *)
 
 val get_raw_backtrace: unit -> raw_backtrace
 (** [Printexc.get_raw_backtrace ()] returns the same exception
     backtrace that [Printexc.print_backtrace] would print, but in
     a raw format. Same restriction usage than {!print_backtrace}.
 
-    @since 4.01
+    @since 4.01.0
 *)
 
 val print_raw_backtrace: out_channel -> raw_backtrace -> unit
 (** Print a raw backtrace in the same format
     [Printexc.print_backtrace] uses.
 
-    @since 4.01
+    @since 4.01.0
 *)
 
 val raw_backtrace_to_string: raw_backtrace -> string
 (** Return a string from a raw backtrace, in the same format
     [Printexc.get_backtrace] uses.
 
-    @since 4.01
+    @since 4.01.0
 *)
 
 external raise_with_backtrace: exn -> raw_backtrace -> 'a
@@ -180,7 +179,7 @@ external raise_with_backtrace: exn -> raw_backtrace -> 'a
 (** Reraise the exception using the given raw_backtrace for the
     origin of the exception
 
-    @since 4.05
+    @since 4.05.0
 *)
 
 (** {1 Current call stack} *)
@@ -191,7 +190,7 @@ external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"
     with at most [n] entries.  (Note: this function is not related to
     exceptions at all, despite being part of the [Printexc] module.)
 
-    @since 4.01
+    @since 4.01.0
 *)
 
 (** {1 Uncaught exceptions} *)
@@ -218,7 +217,7 @@ val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
     If [fn] raises an exception, both the exceptions passed to [fn] and raised
     by [fn] will be printed with their respective backtrace.
 
-    @since 4.02
+    @since 4.02.0
 *)
 
 
@@ -249,7 +248,7 @@ val backtrace_slots : raw_backtrace -> backtrace_slot array option
     - the program is a bytecode program that has not been linked with
     debug information enabled ([ocamlc -g])
 
-    @since 4.02
+    @since 4.02.0
 *)
 
 val backtrace_slots_of_raw_entry :
@@ -278,7 +277,7 @@ type location = {
     @since 4.02
 *)
 
-(** @since 4.02 *)
+(** @since 4.02.0 *)
 module Slot : sig
   type t = backtrace_slot
 
@@ -295,7 +294,7 @@ module Slot : sig
       that got inlined by the compiler, and [false] when it comes from
       any other context.
 
-      @since 4.04
+      @since 4.04.0
   *)
 
   val location : t -> location option
@@ -349,7 +348,7 @@ type raw_backtrace_slot
     are equal, then they represent the same source location (the converse is not
     necessarily true in presence of inlining, for example).
 
-    @since 4.02
+    @since 4.02.0
 *)
 
 val raw_backtrace_length : raw_backtrace -> int
@@ -394,7 +393,7 @@ val get_raw_backtrace_next_slot :
         done
     ]}
 
-    @since 4.04
+    @since 4.04.0
 *)
 
 (** {1 Exception slots} *)
@@ -404,21 +403,12 @@ val exn_slot_id: exn -> int
     the constructor used to create the exception value [exn]
     (in the current runtime).
 
-    @since 4.02
+    @since 4.02.0
 *)
 
 val exn_slot_name: exn -> string
 (** [Printexc.exn_slot_name exn] returns the internal name of the constructor
     used to create the exception value [exn].
 
-    @since 4.02
+    @since 4.02.0
 *)
-
-(**/**)
-
-(**  {1 Obj printer}
-  Unsafe printer used in this module and exposed to the other standard library
-   module
-*)
-
-val string_of_extension_constructor: Obj.t -> string

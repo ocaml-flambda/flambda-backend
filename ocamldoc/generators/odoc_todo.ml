@@ -37,6 +37,7 @@ module Html =
        failwith
          "A non-html generator is already set. Cannot install the Todo-list html generator"
   ) : Odoc_html.Html_generator)
+;;
 
 module Generator =
 struct
@@ -231,3 +232,4 @@ end
 
 let _ = Odoc_args.set_generator
  (Odoc_gen.Html (module Generator : Odoc_html.Html_generator))
+ ;;

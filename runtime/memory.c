@@ -15,144 +15,557 @@
 
 #define CAML_INTERNALS
 
-#include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include "caml/address_class.h"
 #include "caml/config.h"
-#include "caml/misc.h"
 #include "caml/fail.h"
+#include "caml/freelist.h"
+#include "caml/gc.h"
+#include "caml/gc_ctrl.h"
+#include "caml/major_gc.h"
 #include "caml/memory.h"
 #include "caml/major_gc.h"
+#include "caml/minor_gc.h"
+#include "caml/misc.h"
+#include "caml/mlvalues.h"
 #include "caml/signals.h"
-#include "caml/shared_heap.h"
-#include "caml/domain.h"
-#include "caml/roots.h"
+#include "caml/memprof.h"
+#include "caml/eventlog.h"
 #include "caml/alloc.h"
-#include "caml/fiber.h"
-#include "caml/platform.h"
-#include "caml/runtime_events.h"
 
-/* Note [MM]: Enforcing the memory model.
-
-   Multicore OCaml implements the memory consistency model defined in
-
-     Bounding Data Races in Space and Time (PLDI '18)
-     Stephen Dolan, KC Sivaramakrishnan, Anil Madhavapeddy.
-
-   Unlike the C++ (also used in C11) memory model, this model gives
-   well-defined behaviour to data races, ensuring that they do not
-   affect unrelated computations. In C++, plain (non-atomic) accesses
-   have undefined semantics if they race, so it is necessary to use at
-   least relaxed atomics to implement all accesses.
-
-   However, simply using C++ relaxed atomics for non-atomic accesses
-   and C++ SC atomics for atomic ones is not enough, since the OCaml
-   memory model is stronger. The prototypical example where C++
-   exhibits a behaviour not allowed by OCaml is below. Assume that the
-   reference b and the atomic reference a are initially 0:
-
-       Thread 1            Thread 2
-       Atomic.set a 1;     let x = !b in
-       b := 1              let y = Atomic.get a in
-                           ...
-       Outcome: x = 1, y = 0
-
-   This outcome is not permitted by the OCaml memory model, as can be
-   seen from the operational model: if !b sees the write b := 1, then
-   the Atomic.set must have executed before the Atomic.get, and since
-   it is atomic the most recent set must be returned by the get,
-   yielding y = 1. In the equivalent axiomatic model, this would be a
-   violation of Causality.
-
-   If this example is naively translated to C++ (using atomic_{load,
-   store} for atomics, and atomic_{load, store}_explicit(...,
-   memory_order_relaxed) for nonatomics), then this outcome becomes
-   possible. The C++ model specifies that there is a total order on SC
-   accesses, but this total order is surprisingly weak. In this
-   example, we can have:
-
-       x = !b ...
-          [happens-before]
-       y = Atomic.get a
-          [SC-before]
-       Atomic.set a 1
-          [happens-before]
-       b := 1
-
-   Sadly, the composition of happens-before and SC-before does not add
-   up to anything useful, and the C++ model permits the read 'x = !b'
-   to read from the write 'b := 1' in this example, allowing the
-   outcome above.
-
-   To remedy this, we need to strengthen the relaxed accesses used for
-   non-atomic loads and stores. The most straightforward way to do
-   this is to use acquire loads and release stores instead of relaxed
-   for non-atomic accesses, which ensures that all reads-from edges
-   appear in the C++ synchronises-with relation, outlawing the outcome
-   above.
-
-   Using release stores for all writes also ensures publication safety
-   for newly-allocated objects, and isn't necessary for initialising
-   writes. The cost is free on x86, but requires a fence in
-   caml_modify on weakly-ordered architectures (ARM, Power).
-
-   However, instead of using acquire loads for all reads, an
-   optimisation is possible. (Optimising reads is more important than
-   optimising writes because reads are vastly more common). The OCaml
-   memory model does not require ordering between non-atomic reads,
-   which acquire loads provide. The acquire semantics are only
-   necessary between a non-atomic read and an atomic access or a
-   write, so we delay the acquire fence until one of those operations
-   occurs.
-
-   So, our non-atomic reads are implemented as standard relaxed loads,
-   but non-atomic writes and atomic operations (in this file, below)
-   contain an odd-looking line:
-
-      atomic_thread_fence(memory_order_acquire)
-
-   which serves to upgrade previous relaxed loads to acquire loads.
-   This encodes the OCaml memory model in the primitives provided by
-   the C++ model.
-
-   On x86, all loads and all stores have acquire/release semantics by
-   default anyway, so all of these fences compile away to nothing
-   (They're still useful, though: they serve to inhibit an overeager C
-   compiler's optimisations). On ARMv8, actual hardware fences are
-   generated.
+int caml_huge_fallback_count = 0;
+/* Number of times that mmapping big pages fails and we fell back to small
+   pages. This counter is available to the program through
+   [Gc.huge_fallback_count].
 */
 
-Caml_inline void write_barrier(
-  value obj, intnat field, value old_val, value new_val)
+uintnat caml_use_huge_pages = 0;
+/* True iff the program allocates heap chunks by mmapping huge pages.
+   This is set when parsing [OCAMLRUNPARAM] and must stay constant
+   after that.
+*/
+
+extern uintnat caml_percent_free;                   /* major_gc.c */
+
+/* Page table management */
+
+#define Page(p) ((uintnat) (p) >> Page_log)
+#define Page_mask ((~(uintnat)0) << Page_log)
+
+#ifdef ARCH_SIXTYFOUR
+
+/* 64-bit implementation:
+   The page table is represented sparsely as a hash table
+   with linear probing */
+
+struct page_table {
+  mlsize_t size;                /* size == 1 << (wordsize - shift) */
+  int shift;
+  mlsize_t mask;                /* mask == size - 1 */
+  mlsize_t occupancy;
+  uintnat * entries;            /* [size]  */
+};
+
+static struct page_table caml_page_table;
+
+/* Page table entries are the logical 'or' of
+   - the key: address of a page (low Page_log bits = 0)
+   - the data: a 8-bit integer */
+
+#define Page_entry_matches(entry,addr) \
+  ((((entry) ^ (addr)) & Page_mask) == 0)
+
+/* Multiplicative Fibonacci hashing
+   (Knuth, TAOCP vol 3, section 6.4, page 518).
+   HASH_FACTOR is (sqrt(5) - 1) / 2 * 2^wordsize. */
+#ifdef ARCH_SIXTYFOUR
+#define HASH_FACTOR 11400714819323198486UL
+#else
+#define HASH_FACTOR 2654435769UL
+#endif
+#define Hash(v) (((v) * HASH_FACTOR) >> caml_page_table.shift)
+
+int caml_page_table_lookup(void * addr)
 {
-  /* HACK: can't assert when get old C-api style pointers
-    CAMLassert (Is_block(obj)); */
+#ifdef NO_NAKED_POINTERS
+  /* This avoids consulting the page table at all when the compiler
+     is configured using --disable-naked-pointers.
 
-  if (!Is_young(obj)) {
+     This case can also be hit if C stubs compiled without
+     NO_NAKED_POINTERS are linked into an executable using
+     "-runtime-variant nnp".  The return value here should cause the
+     macros in address_class.h to give the same results as when they
+     are compiled with NO_NAKED_POINTERS defined. */
 
-    if (Is_block(old_val)) {
-       /* if old is in the minor heap,
-          then this is in a remembered set already */
-       if (Is_young(old_val)) return;
-       /* old is a block and in the major heap */
-       caml_darken(Caml_state, old_val, 0);
-     }
-     /* this update is creating a new link from major to minor, remember it */
-     if (Is_block_and_young(new_val)) {
-       Ref_table_add(&Caml_state->minor_tables->major_ref, Op_val(obj) + field);
-     }
-   }
+  caml_local_arenas* local_arenas = Caml_state->local_arenas;
+
+  if (Is_young((value) addr))
+    return In_young;
+
+  if (local_arenas != NULL) {
+    int arena;
+    for (arena = 0; arena < local_arenas->count; arena++) {
+      char* start = local_arenas->arenas[arena].base;
+      char* end = start + local_arenas->arenas[arena].length;
+      if ((char*) addr >= start && (char*) addr < end)
+        return In_local;
+    }
+  }
+
+  return In_heap;
+#else
+  uintnat h, e;
+
+  h = Hash(Page(addr));
+  /* The first hit is almost always successful, so optimize for this case */
+  e = caml_page_table.entries[h];
+  if (Page_entry_matches(e, (uintnat)addr)) return e & 0xFF;
+  while(1) {
+    if (e == 0) return 0;
+    h = (h + 1) & caml_page_table.mask;
+    e = caml_page_table.entries[h];
+    if (Page_entry_matches(e, (uintnat)addr)) return e & 0xFF;
+  }
+#endif
 }
 
-CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
+int caml_page_table_initialize(mlsize_t bytesize)
 {
-  write_barrier((value)fp, 0, *fp, val);
+  uintnat pagesize = Page(bytesize);
 
-  /* See Note [MM] above */
-  atomic_thread_fence(memory_order_acquire);
-  atomic_store_release(&Op_atomic_val((value)fp)[0], val);
+  caml_page_table.size = 1;
+  caml_page_table.shift = 8 * sizeof(uintnat);
+  /* Aim for initial load factor between 1/4 and 1/2 */
+  while (caml_page_table.size < 2 * pagesize) {
+    caml_page_table.size <<= 1;
+    caml_page_table.shift -= 1;
+  }
+  caml_page_table.mask = caml_page_table.size - 1;
+  caml_page_table.occupancy = 0;
+  caml_page_table.entries =
+    caml_stat_calloc_noexc(caml_page_table.size, sizeof(uintnat));
+  if (caml_page_table.entries == NULL)
+    return -1;
+  else
+    return 0;
+}
+
+static int caml_page_table_resize(void)
+{
+  struct page_table old = caml_page_table;
+  uintnat * new_entries;
+  uintnat i, h;
+
+  caml_gc_message (0x08, "Growing page table to %"
+                   ARCH_INTNAT_PRINTF_FORMAT "u entries\n",
+                   caml_page_table.size);
+
+  new_entries = caml_stat_calloc_noexc(2 * old.size, sizeof(uintnat));
+  if (new_entries == NULL) {
+    caml_gc_message (0x08, "No room for growing page table\n");
+    return -1;
+  }
+
+  caml_page_table.size = 2 * old.size;
+  caml_page_table.shift = old.shift - 1;
+  caml_page_table.mask = caml_page_table.size - 1;
+  caml_page_table.occupancy = old.occupancy;
+  caml_page_table.entries = new_entries;
+
+  for (i = 0; i < old.size; i++) {
+    uintnat e = old.entries[i];
+    if (e == 0) continue;
+    h = Hash(Page(e));
+    while (caml_page_table.entries[h] != 0)
+      h = (h + 1) & caml_page_table.mask;
+    caml_page_table.entries[h] = e;
+  }
+
+  caml_stat_free(old.entries);
+  return 0;
+}
+
+static int caml_page_table_modify(uintnat page, int toclear, int toset)
+{
+  uintnat h;
+
+  CAMLassert ((page & ~Page_mask) == 0);
+
+  /* Resize to keep load factor below 1/2 */
+  if (caml_page_table.occupancy * 2 >= caml_page_table.size) {
+    if (caml_page_table_resize() != 0) return -1;
+  }
+  h = Hash(Page(page));
+  while (1) {
+    if (caml_page_table.entries[h] == 0) {
+      caml_page_table.entries[h] = page | toset;
+      caml_page_table.occupancy++;
+      break;
+    }
+    if (Page_entry_matches(caml_page_table.entries[h], page)) {
+      caml_page_table.entries[h] =
+        (caml_page_table.entries[h] & ~toclear) | toset;
+      break;
+    }
+    h = (h + 1) & caml_page_table.mask;
+  }
+  return 0;
+}
+
+#else
+
+/* 32-bit implementation:
+   The page table is represented as a 2-level array of unsigned char */
+
+CAMLexport unsigned char * caml_page_table[Pagetable1_size];
+static unsigned char caml_page_table_empty[Pagetable2_size] = { 0, };
+
+int caml_page_table_initialize(mlsize_t bytesize)
+{
+  int i;
+  for (i = 0; i < Pagetable1_size; i++)
+    caml_page_table[i] = caml_page_table_empty;
+  return 0;
+}
+
+static int caml_page_table_modify(uintnat page, int toclear, int toset)
+{
+  uintnat i = Pagetable_index1(page);
+  uintnat j = Pagetable_index2(page);
+
+  if (caml_page_table[i] == caml_page_table_empty) {
+    unsigned char * new_tbl = caml_stat_calloc_noexc(Pagetable2_size, 1);
+    if (new_tbl == 0) return -1;
+    caml_page_table[i] = new_tbl;
+  }
+  caml_page_table[i][j] = (caml_page_table[i][j] & ~toclear) | toset;
+  return 0;
+}
+
+#endif
+
+int caml_page_table_add(int kind, void * start, void * end)
+{
+  uintnat pstart = (uintnat) start & Page_mask;
+  uintnat pend = ((uintnat) end - 1) & Page_mask;
+  uintnat p;
+
+  for (p = pstart; p <= pend; p += Page_size)
+    if (caml_page_table_modify(p, 0, kind) != 0) return -1;
+  return 0;
+}
+
+int caml_page_table_remove(int kind, void * start, void * end)
+{
+  uintnat pstart = (uintnat) start & Page_mask;
+  uintnat pend = ((uintnat) end - 1) & Page_mask;
+  uintnat p;
+
+  for (p = pstart; p <= pend; p += Page_size)
+    if (caml_page_table_modify(p, kind, 0) != 0) return -1;
+  return 0;
+}
+
+/* Allocate a block of the requested size, to be passed to
+   [caml_add_to_heap] later.
+   [request] will be rounded up to some implementation-dependent size.
+   The caller must use [Chunk_size] on the result to recover the actual
+   size.
+   Return NULL if the request cannot be satisfied. The returned pointer
+   is a hp, but the header (and the contents) must be initialized by the
+   caller.
+*/
+char *caml_alloc_for_heap (asize_t request)
+{
+  char *mem;
+  if (caml_use_huge_pages){
+#ifndef HAS_HUGE_PAGES
+    return NULL;
+#else
+    uintnat size = Round_mmap_size (sizeof (heap_chunk_head) + request);
+    void *block;
+    block = mmap (NULL, size, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    if (block == MAP_FAILED) return NULL;
+    mem = (char *) block + sizeof (heap_chunk_head);
+    Chunk_size (mem) = size - sizeof (heap_chunk_head);
+    Chunk_block (mem) = block;
+#endif
+  }else{
+    void *block;
+
+    request = ((request + Page_size - 1) >> Page_log) << Page_log;
+    mem = caml_stat_alloc_aligned_noexc (request + sizeof (heap_chunk_head),
+                                         sizeof (heap_chunk_head), &block);
+    if (mem == NULL) return NULL;
+    mem += sizeof (heap_chunk_head);
+    Chunk_size (mem) = request;
+    Chunk_block (mem) = block;
+  }
+  Chunk_head (mem)->redarken_first.start = (value*)(mem + Chunk_size(mem));
+  Chunk_head (mem)->redarken_first.end = (value*)(mem + Chunk_size(mem));
+  Chunk_head (mem)->redarken_end = (value*)mem;
+  return mem;
+}
+
+/* Use this function to free a block allocated with [caml_alloc_for_heap]
+   if you don't add it with [caml_add_to_heap].
+*/
+void caml_free_for_heap (char *mem)
+{
+  if (caml_use_huge_pages){
+#ifdef HAS_HUGE_PAGES
+    munmap (Chunk_block (mem), Chunk_size (mem) + sizeof (heap_chunk_head));
+#else
+    CAMLassert (0);
+#endif
+  }else{
+    caml_stat_free (Chunk_block (mem));
+  }
+}
+
+/* Take a chunk of memory as argument, which must be the result of a
+   call to [caml_alloc_for_heap], and insert it into the heap chaining.
+   The contents of the chunk must be a sequence of valid blocks and
+   fragments: no space between blocks and no trailing garbage.  If
+   some blocks are blue, they must be added to the free list by the
+   caller.  All other blocks must have the color [caml_allocation_color(m)].
+   The caller must update [caml_allocated_words] if applicable.
+   Return value: 0 if no error; -1 in case of error.
+
+   See also: caml_compact_heap, which duplicates most of this function.
+*/
+int caml_add_to_heap (char *m)
+{
+#ifdef DEBUG
+  /* Should check the contents of the block. */
+#endif /* DEBUG */
+
+  caml_gc_message (0x04, "Growing heap to %"
+                   ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+     (Bsize_wsize (Caml_state->stat_heap_wsz) + Chunk_size (m)) / 1024);
+
+  /* Register block in page table */
+  if (caml_page_table_add(In_heap, m, m + Chunk_size(m)) != 0)
+    return -1;
+
+  /* Chain this heap chunk. */
+  {
+    char **last = &caml_heap_start;
+    char *cur = *last;
+
+    while (cur != NULL && cur < m){
+      last = &(Chunk_next (cur));
+      cur = *last;
+    }
+    Chunk_next (m) = cur;
+    *last = m;
+
+    ++ Caml_state->stat_heap_chunks;
+  }
+
+  Caml_state->stat_heap_wsz += Wsize_bsize (Chunk_size (m));
+  if (Caml_state->stat_heap_wsz > Caml_state->stat_top_heap_wsz){
+    Caml_state->stat_top_heap_wsz = Caml_state->stat_heap_wsz;
+  }
+  return 0;
+}
+
+/* Allocate more memory from malloc for the heap.
+   Return a blue block of at least the requested size.
+   The blue block is chained to a sequence of blue blocks (through their
+   field 0); the last block of the chain is pointed by field 1 of the
+   first.  There may be a fragment after the last block.
+   The caller must insert the blocks into the free list.
+   [request] is a number of words and must be less than or equal
+   to [Max_wosize].
+   Return NULL when out of memory.
+*/
+static value *expand_heap (mlsize_t request)
+{
+  /* these point to headers, but we do arithmetic on them, hence [value *]. */
+  value *mem, *hp, *prev;
+  asize_t over_request, malloc_request, remain;
+
+  CAMLassert (request <= Max_wosize);
+  over_request = request + request / 100 * caml_percent_free;
+  malloc_request = caml_clip_heap_chunk_wsz (over_request);
+  mem = (value *) caml_alloc_for_heap (Bsize_wsize (malloc_request));
+  if (mem == NULL){
+    caml_gc_message (0x04, "No room for growing heap\n");
+    return NULL;
+  }
+  remain = Wsize_bsize (Chunk_size (mem));
+  prev = hp = mem;
+  /* FIXME find a way to do this with a call to caml_make_free_blocks */
+  while (Wosize_whsize (remain) > Max_wosize){
+    Hd_hp (hp) = Make_header (Max_wosize, 0, Caml_blue);
+#ifdef DEBUG
+    caml_set_fields (Val_hp (hp), 0, Debug_free_major);
+#endif
+    hp += Whsize_wosize (Max_wosize);
+    remain -= Whsize_wosize (Max_wosize);
+    Field (Val_hp (mem), 1) = Field (Val_hp (prev), 0) = Val_hp (hp);
+    prev = hp;
+  }
+  if (remain > 1){
+    Hd_hp (hp) = Make_header (Wosize_whsize (remain), 0, Caml_blue);
+#ifdef DEBUG
+    caml_set_fields (Val_hp (hp), 0, Debug_free_major);
+#endif
+    Field (Val_hp (mem), 1) = Field (Val_hp (prev), 0) = Val_hp (hp);
+    Field (Val_hp (hp), 0) = (value) NULL;
+  }else{
+    Field (Val_hp (prev), 0) = (value) NULL;
+    if (remain == 1) {
+      Hd_hp (hp) = Make_header (0, 0, Caml_white);
+    }
+  }
+  CAMLassert (Wosize_hp (mem) >= request);
+  if (caml_add_to_heap ((char *) mem) != 0){
+    caml_free_for_heap ((char *) mem);
+    return NULL;
+  }
+  return Op_hp (mem);
+}
+
+/* Remove the heap chunk [chunk] from the heap and give the memory back
+   to [free].
+*/
+void caml_shrink_heap (char *chunk)
+{
+  char **cp;
+
+  /* Never deallocate the first chunk, because caml_heap_start is both the
+     first block and the base address for page numbers, and we don't
+     want to shift the page table, it's too messy (see above).
+     It will never happen anyway, because of the way compaction works.
+     (see compact.c)
+     XXX FIXME this has become false with the fix to PR#5389 (see compact.c)
+  */
+  if (chunk == caml_heap_start) return;
+
+  Caml_state->stat_heap_wsz -= Wsize_bsize (Chunk_size (chunk));
+  caml_gc_message (0x04, "Shrinking heap to %"
+                   ARCH_INTNAT_PRINTF_FORMAT "dk words\n",
+                   Caml_state->stat_heap_wsz / 1024);
+
+#ifdef DEBUG
+  {
+    mlsize_t i;
+    for (i = 0; i < Wsize_bsize (Chunk_size (chunk)); i++){
+      ((value *) chunk) [i] = Debug_free_shrink;
+    }
+  }
+#endif
+
+  -- Caml_state->stat_heap_chunks;
+
+  /* Remove [chunk] from the list of chunks. */
+  cp = &caml_heap_start;
+  while (*cp != chunk) cp = &(Chunk_next (*cp));
+  *cp = Chunk_next (chunk);
+
+  /* Remove the pages of [chunk] from the page table. */
+  caml_page_table_remove(In_heap, chunk, chunk + Chunk_size (chunk));
+
+  /* Free the [malloc] block that contains [chunk]. */
+  caml_free_for_heap (chunk);
+}
+
+CAMLexport color_t caml_allocation_color (void *hp)
+{
+  if (caml_gc_phase == Phase_mark || caml_gc_phase == Phase_clean ||
+      (caml_gc_phase == Phase_sweep && (char *)hp >= (char *)caml_gc_sweep_hp)){
+    return Caml_black;
+  }else{
+    CAMLassert (caml_gc_phase == Phase_idle
+            || (caml_gc_phase == Phase_sweep
+                && (char *)hp < (char *)caml_gc_sweep_hp));
+    return Caml_white;
+  }
+}
+
+Caml_inline value caml_alloc_shr_aux (mlsize_t wosize, tag_t tag, int track,
+                                      uintnat profinfo)
+{
+  header_t *hp;
+  value *new_block;
+
+  if (wosize > Max_wosize) return 0;
+  CAML_EV_ALLOC(wosize);
+  hp = caml_fl_allocate (wosize);
+  if (hp == NULL){
+    new_block = expand_heap (wosize);
+    if (new_block == NULL) return 0;
+    caml_fl_add_blocks ((value) new_block);
+    hp = caml_fl_allocate (wosize);
+  }
+
+  CAMLassert (Is_in_heap (Val_hp (hp)));
+
+  /* Inline expansion of caml_allocation_color. */
+  if (caml_gc_phase == Phase_mark || caml_gc_phase == Phase_clean ||
+      (caml_gc_phase == Phase_sweep && (char *)hp >= (char *)caml_gc_sweep_hp)){
+    Hd_hp (hp) = Make_header_with_profinfo (wosize, tag, Caml_black, profinfo);
+  }else{
+    CAMLassert (caml_gc_phase == Phase_idle
+            || (caml_gc_phase == Phase_sweep
+                && (char *)hp < (char *)caml_gc_sweep_hp));
+    Hd_hp (hp) = Make_header_with_profinfo (wosize, tag, Caml_white, profinfo);
+  }
+  CAMLassert (Hd_hp (hp)
+    == Make_header_with_profinfo (wosize, tag, caml_allocation_color (hp),
+                                  profinfo));
+  caml_allocated_words += Whsize_wosize (wosize);
+  if (caml_allocated_words > Caml_state->minor_heap_wsz){
+    CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ALLOC_SHR, 1);
+    caml_request_major_slice ();
+  }
+#ifdef DEBUG
+  {
+    uintnat i;
+    for (i = 0; i < wosize; i++){
+      Field (Val_hp (hp), i) = Debug_uninit_major;
+    }
+  }
+#endif
+  if(track)
+    caml_memprof_track_alloc_shr(Val_hp (hp));
+  return Val_hp (hp);
+}
+
+Caml_inline value check_oom(value v)
+{
+  if (v == 0) {
+    caml_fatal_out_of_memory ();
+  }
+  return v;
+}
+
+CAMLexport value caml_alloc_shr_with_profinfo (mlsize_t wosize, tag_t tag,
+                                               intnat profinfo)
+{
+  return check_oom(caml_alloc_shr_aux(wosize, tag, 1, profinfo));
+}
+
+CAMLexport value caml_alloc_shr_for_minor_gc (mlsize_t wosize,
+                                              tag_t tag, header_t old_hd)
+{
+  return check_oom(caml_alloc_shr_aux(wosize, tag, 0, Profinfo_hd(old_hd)));
+}
+
+CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_shr_with_profinfo(wosize, tag, NO_PROFINFO);
+}
+
+CAMLexport value caml_alloc_shr_no_track_noexc (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_shr_aux(wosize, tag, 0, NO_PROFINFO);
 }
 
 /* Dependent memory is all memory blocks allocated out of the heap
@@ -166,16 +579,16 @@ CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
 */
 CAMLexport void caml_alloc_dependent_memory (mlsize_t nbytes)
 {
-  Caml_state->dependent_size += nbytes / sizeof (value);
-  Caml_state->dependent_allocated += nbytes / sizeof (value);
+  caml_dependent_size += nbytes / sizeof (value);
+  caml_dependent_allocated += nbytes / sizeof (value);
 }
 
 CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
 {
-  if (Caml_state->dependent_size < nbytes / sizeof (value)){
-    Caml_state->dependent_size = 0;
+  if (caml_dependent_size < nbytes / sizeof (value)){
+    caml_dependent_size = 0;
   }else{
-    Caml_state->dependent_size -= nbytes / sizeof (value);
+    caml_dependent_size -= nbytes / sizeof (value);
   }
 }
 
@@ -191,186 +604,223 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
 {
   if (max == 0) max = 1;
   if (res > max) res = max;
-  Caml_state->extra_heap_resources += (double) res / (double) max;
-  if (Caml_state->extra_heap_resources > 0.2){
+  caml_extra_heap_resources += (double) res / (double) max;
+  if (caml_extra_heap_resources > 1.0){
     CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ADJUST_GC_SPEED, 1);
-    caml_request_major_slice (1);
+    caml_extra_heap_resources = 1.0;
+    caml_request_major_slice ();
   }
 }
 
-/* You must use [caml_intialize] to store the initial value in a field of a
-   block, unless you are sure the value is not a young block, in which case a
-   plain assignment would do.
-
-   [caml_initialize] never calls the GC, so you may call it while a block is
+/* You must use [caml_initialize] to store the initial value in a field of
+   a shared block, unless you are sure the value is not a young block.
+   A block value [v] is a shared block if and only if [Is_in_heap (v)]
+   is true.
+*/
+/* [caml_initialize] never calls the GC, so you may call it while a block is
    unfinished (i.e. just after a call to [caml_alloc_shr].) */
-CAMLexport CAMLweakdef void caml_initialize (volatile value *fp, value val)
+/* PR#6084 workaround: define it as a weak symbol */
+CAMLexport CAMLweakdef void caml_initialize (value *fp, value val)
 {
-#ifdef DEBUG
-  /* Previous value should not be a pointer.
-     In the debug runtime, it can be either a TMC placeholder,
-     or an uninitialized value canary (Debug_uninit_{major,minor}). */
-  CAMLassert(Is_long(*fp));
-#endif
+  CAMLassert(Is_in_heap_or_young(fp));
   *fp = val;
-  if (!Is_young((value)fp) && Is_block_and_young (val))
-    Ref_table_add(&Caml_state->minor_tables->major_ref, fp);
-}
-
-CAMLexport int caml_atomic_cas_field (
-  value obj, intnat field, value oldval, value newval)
-{
-  if (caml_domain_alone()) {
-    /* non-atomic CAS since only this thread can access the object */
-    volatile value* p = &Field(obj, field);
-    if (*p == oldval) {
-      *p = newval;
-      write_barrier(obj, field, oldval, newval);
-      return 1;
-    } else {
-      return 0;
-    }
-  } else {
-    /* need a real CAS */
-    atomic_value* p = &Op_atomic_val(obj)[field];
-    int cas_ret = atomic_compare_exchange_strong(p, &oldval, newval);
-    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
-    if (cas_ret) {
-      write_barrier(obj, field, oldval, newval);
-      return 1;
-    } else {
-      return 0;
-    }
+  if (!Is_young((value)fp) && Is_block (val) && Is_young (val)) {
+    add_to_ref_table (Caml_state->ref_table, fp);
   }
 }
 
+/* You must use [caml_modify] to change a field of an existing shared block,
+   unless you are sure the value being overwritten is not a shared block and
+   the value being written is not a young block. */
+/* [caml_modify] never calls the GC. */
+/* [caml_modify] can also be used to do assignment on data structures that are
+   in the minor heap instead of in the major heap.  In this case, it
+   is a bit slower than simple assignment.
+   In particular, you can use [caml_modify] when you don't know whether the
+   block being changed is in the minor heap or the major heap. */
+/* PR#6084 workaround: define it as a weak symbol */
 
-CAMLprim value caml_atomic_load (value ref)
+CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
 {
-  if (caml_domain_alone()) {
-    return Field(ref, 0);
+  /* The write barrier implemented by [caml_modify] checks for the
+     following two conditions and takes appropriate action:
+     1- a pointer from the major heap to the minor heap is created
+        --> add [fp] to the remembered set
+     2- a pointer from the major heap to the major heap is overwritten,
+        while the GC is in the marking phase
+        --> call [caml_darken] on the overwritten pointer so that the
+            major GC treats it as an additional root.
+
+     The logic implemented below is duplicated in caml_array_fill to
+     avoid repeated calls to caml_modify and repeated tests on the
+     values.  Don't forget to update caml_array_fill if the logic
+     below changes!
+  */
+  value old;
+
+  if (Is_young((value)fp)) {
+    /* The modified object resides in the minor heap.
+       Conditions 1 and 2 cannot occur. */
+    *fp = val;
   } else {
-    value v;
-    /* See Note [MM] above */
-    atomic_thread_fence(memory_order_acquire);
-    v = atomic_load(Op_atomic_val(ref));
-    return v;
-  }
-}
-
-/* stores are implemented as exchanges */
-CAMLprim value caml_atomic_exchange (value ref, value v)
-{
-  value ret;
-  if (caml_domain_alone()) {
-    ret = Field(ref, 0);
-    Field(ref, 0) = v;
-  } else {
-    /* See Note [MM] above */
-    atomic_thread_fence(memory_order_acquire);
-    ret = atomic_exchange(Op_atomic_val(ref), v);
-    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
-  }
-  write_barrier(ref, 0, ret, v);
-  return ret;
-}
-
-CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
-{
-  if (caml_domain_alone()) {
-    value* p = Op_val(ref);
-    if (*p == oldv) {
-      *p = newv;
-      write_barrier(ref, 0, oldv, newv);
-      return Val_int(1);
-    } else {
-      return Val_int(0);
+    /* The modified object resides in the major heap. */
+    CAMLassert(Is_in_heap(fp));
+    old = *fp;
+    *fp = val;
+    if (Is_block(old)) {
+      /* If [old] is a pointer within the minor heap, we already
+         have a major->minor pointer and [fp] is already in the
+         remembered set.  Conditions 1 and 2 cannot occur. */
+      if (Is_young(old)) return;
+      /* Here, [old] can be a pointer within the major heap.
+         Check for condition 2. */
+      if (caml_gc_phase == Phase_mark) {
+        header_t hd = Hd_val(old);
+        if (Tag_hd (hd) == Infix_tag) {
+          /* Infix_tag is always Caml_white */
+          CAMLassert(Is_white_hd(hd));
+        }
+        /* Inline the white-header check, to save a pagetable lookup */
+        if (Is_white_hd(hd)) {
+          caml_darken(old, NULL);
+        }
+      }
     }
-  } else {
-    atomic_value* p = &Op_atomic_val(ref)[0];
-    int cas_ret = atomic_compare_exchange_strong(p, &oldv, newv);
-    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
-    if (cas_ret) {
-      write_barrier(ref, 0, oldv, newv);
-      return Val_int(1);
-    } else {
-      return Val_int(0);
+    /* Check for condition 1. */
+    if (Is_block(val) && Is_young(val)) {
+      add_to_ref_table (Caml_state->ref_table, fp);
     }
   }
 }
 
-CAMLprim value caml_atomic_fetch_add (value ref, value incr)
+/* This version of [caml_modify] may additionally be used to mutate
+   locally-allocated objects. (This version is used by mutations
+   generated from OCaml code when the value being modified may be
+   locally allocated) */
+CAMLexport void caml_modify_local (value obj, intnat i, value val)
 {
-  value ret;
-  if (caml_domain_alone()) {
-    value* p = Op_val(ref);
-    CAMLassert(Is_long(*p));
-    ret = *p;
-    *p = Val_long(Long_val(ret) + Long_val(incr));
-    /* no write barrier needed, integer write */
+  if (Color_hd(Hd_val(obj)) == Local_unmarked) {
+    Field(obj, i) = val;
   } else {
-    atomic_value *p = &Op_atomic_val(ref)[0];
-    ret = atomic_fetch_add(p, 2*Long_val(incr));
-    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
-  }
-  return ret;
-}
-
-CAMLexport void caml_set_fields (value obj, value v)
-{
-  int i;
-  CAMLassert (Is_block(obj));
-
-  for (i = 0; i < Wosize_val(obj); i++) {
-    caml_modify(&Field(obj, i), v);
+    caml_modify(&Field(obj, i), val);
   }
 }
 
-Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
-                            int noexc)
+CAMLexport intnat caml_local_region_begin()
 {
-  Caml_check_caml_state();
-  caml_domain_state *dom_st = Caml_state;
-  value *v = caml_shared_try_alloc(dom_st->shared_heap,
-                                   wosize, tag, reserved, 0);
-  if (v == NULL) {
-    if (!noexc)
-      caml_raise_out_of_memory();
-    else
-      return (value)NULL;
-  }
+  return Caml_state->local_sp;
+}
 
-  dom_st->allocated_words += Whsize_wosize(wosize);
-  if (dom_st->allocated_words > dom_st->minor_heap_wsz / 5) {
-    CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ALLOC_SHR, 1);
-    caml_request_major_slice(1);
-  }
+CAMLexport void caml_local_region_end(intnat reg)
+{
+  Caml_state->local_sp = reg;
+}
 
+CAMLexport caml_local_arenas* caml_get_local_arenas()
+{
+  caml_local_arenas* s = Caml_state->local_arenas;
+  if (s != NULL)
+    s->saved_sp = Caml_state->local_sp;
+  return s;
+}
+
+CAMLexport void caml_set_local_arenas(caml_local_arenas* s)
+{
+  Caml_state->local_arenas = s;
+  if (s != NULL) {
+    struct caml_local_arena a = s->arenas[s->count - 1];
+    Caml_state->local_sp = s->saved_sp;
+    Caml_state->local_top = (void*)(a.base + a.length);
+    Caml_state->local_limit = - a.length;
+  } else {
+    Caml_state->local_sp = 0;
+    Caml_state->local_top = NULL;
+    Caml_state->local_limit = 0;
+  }
+}
+
+void caml_local_realloc()
+{
+  caml_local_arenas* s = caml_get_local_arenas();
+  intnat i;
+  char* arena;
+  caml_stat_block block;
+  if (s == NULL) {
+    s = caml_stat_alloc(sizeof(*s));
+    s->count = 0;
+    s->next_length = 0;
+    s->saved_sp = Caml_state->local_sp;
+  }
+  if (s->count == Max_local_arenas)
+    caml_fatal_error("Local allocation stack overflow - exceeded Max_local_arenas");
+
+  do {
+    if (s->next_length == 0) {
+      s->next_length = Init_local_arena_bsize;
+    } else {
+      /* overflow check */
+      CAML_STATIC_ASSERT(((intnat)Init_local_arena_bsize << (2*Max_local_arenas)) > 0);
+      s->next_length *= 4;
+    }
+    /* may need to loop, if a very large allocation was requested */
+  } while (s->saved_sp + s->next_length < 0);
+
+  arena = caml_stat_alloc_aligned_noexc(s->next_length, 0, &block);
+  if (arena == NULL)
+    caml_fatal_error("Local allocation stack overflow - out of memory");
+  caml_page_table_add(In_local, arena, arena + s->next_length);
 #ifdef DEBUG
-  if (tag < No_scan_tag) {
-    mlsize_t i;
-    for (i = 0; i < wosize; i++)
-      Op_hp(v)[i] = Debug_uninit_major;
+  for (i = 0; i < s->next_length; i += sizeof(value)) {
+    *((header_t*)(arena + i)) = Debug_uninit_local;
   }
 #endif
-  return Val_hp(v);
+  for (i = s->saved_sp; i < 0; i += sizeof(value)) {
+    *((header_t*)(arena + s->next_length + i)) = Local_uninit_hd;
+  }
+  caml_gc_message(0x08,
+                  "Growing local stack to %"ARCH_INTNAT_PRINTF_FORMAT"d kB\n",
+                  s->next_length / 1024);
+  s->count++;
+  s->arenas[s->count-1].length = s->next_length;
+  s->arenas[s->count-1].base = arena;
+  s->arenas[s->count-1].alloc_block = block;
+  caml_set_local_arenas(s);
+  CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 
-CAMLexport value caml_alloc_shr(mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
 {
-  return alloc_shr(wosize, tag, 0, 0);
+#if defined(NATIVE_CODE) && defined(STACK_ALLOCATION)
+  intnat sp = Caml_state->local_sp;
+  header_t* hp;
+  sp -= Bhsize_wosize(wosize);
+  Caml_state->local_sp = sp;
+  if (sp < Caml_state->local_limit)
+    caml_local_realloc();
+  hp = (header_t*)((char*)Caml_state->local_top + sp);
+  *hp = Make_header(wosize, tag, Local_unmarked);
+  return Val_hp(hp);
+#else
+  if (wosize <= Max_young_wosize) {
+    return caml_alloc_small(wosize, tag);
+  } else {
+    /* The return value is initialised directly using Field.
+       This is invalid if it may create major -> minor pointers.
+       So, perform a minor GC to prevent this. (See caml_make_vect) */
+    caml_minor_collection();
+    return caml_alloc_shr(wosize, tag);
+  }
+#endif
 }
 
-CAMLexport value caml_alloc_shr_reserved(mlsize_t wosize,
-                                         tag_t tag,
-                                         reserved_t reserved)
+CAMLprim value caml_local_stack_offset(value blk)
 {
-  return alloc_shr(wosize, tag, reserved, 0);
-}
-
-
-CAMLexport value caml_alloc_shr_noexc(mlsize_t wosize, tag_t tag) {
-  return alloc_shr(wosize, tag, 0, 1);
+#ifdef NATIVE_CODE
+  intnat sp = Caml_state->local_sp;
+  return Val_long(-sp);
+#else
+  return Val_long(0);
+#endif
 }
 
 /* Global memory pool.
@@ -423,7 +873,7 @@ struct pool_block {
 #endif
 
 static struct pool_block *pool = NULL;
-static caml_plat_mutex pool_mutex = CAML_PLAT_MUTEX_INITIALIZER;
+
 
 /* Returns a pointer to the block header, given a pointer to "data" */
 static struct pool_block* get_pool_block(caml_stat_block b)
@@ -441,32 +891,12 @@ static struct pool_block* get_pool_block(caml_stat_block b)
   }
 }
 
-/* Linking a pool block into the ring */
-static void link_pool_block(struct pool_block *pb)
-{
-  caml_plat_lock(&pool_mutex);
-  pb->next = pool->next;
-  pb->prev = pool;
-  pool->next->prev = pb;
-  pool->next = pb;
-  caml_plat_unlock(&pool_mutex);
-}
-
-/* Unlinking a pool block from the ring */
-static void unlink_pool_block(struct pool_block *pb)
-{
-    caml_plat_lock(&pool_mutex);
-    pb->prev->next = pb->next;
-    pb->next->prev = pb->prev;
-    caml_plat_unlock(&pool_mutex);
-}
-
 CAMLexport void caml_stat_create_pool(void)
 {
   if (pool == NULL) {
     pool = malloc(SIZEOF_POOL_BLOCK);
     if (pool == NULL)
-      caml_fatal_error("Fatal error: out of memory.\n");
+      caml_fatal_error("out of memory");
 #ifdef DEBUG
     pool->magic = Debug_pool_magic;
 #endif
@@ -477,7 +907,6 @@ CAMLexport void caml_stat_create_pool(void)
 
 CAMLexport void caml_stat_destroy_pool(void)
 {
-  caml_plat_lock(&pool_mutex);
   if (pool != NULL) {
     pool->prev->next = NULL;
     while (pool != NULL) {
@@ -486,25 +915,6 @@ CAMLexport void caml_stat_destroy_pool(void)
       pool = next;
     }
     pool = NULL;
-  }
-  caml_plat_unlock(&pool_mutex);
-}
-
-/* [sz] is a number of bytes */
-CAMLexport caml_stat_block caml_stat_alloc_noexc(asize_t sz)
-{
-  /* Backward compatibility mode */
-  if (pool == NULL)
-    return malloc(sz);
-  else {
-    struct pool_block *pb = malloc(sz + SIZEOF_POOL_BLOCK);
-    if (pb == NULL) return NULL;
-#ifdef DEBUG
-    memset(&(pb->data), Debug_uninit_stat, sz);
-    pb->magic = Debug_pool_magic;
-#endif
-    link_pool_block(pb);
-    return &(pb->data);
   }
 }
 
@@ -542,8 +952,32 @@ CAMLexport void* caml_stat_alloc_aligned(asize_t sz, int modulo,
   void *result = caml_stat_alloc_aligned_noexc(sz, modulo, b);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
+}
+
+/* [sz] is a number of bytes */
+CAMLexport caml_stat_block caml_stat_alloc_noexc(asize_t sz)
+{
+  /* Backward compatibility mode */
+  if (pool == NULL)
+    return malloc(sz);
+  else {
+    struct pool_block *pb = malloc(sz + SIZEOF_POOL_BLOCK);
+    if (pb == NULL) return NULL;
+#ifdef DEBUG
+    memset(&(pb->data), Debug_uninit_stat, sz);
+    pb->magic = Debug_pool_magic;
+#endif
+
+    /* Linking the block into the ring */
+    pb->next = pool->next;
+    pb->prev = pool;
+    pool->next->prev = pb;
+    pool->next = pb;
+
+    return &(pb->data);
+  }
 }
 
 /* [sz] is a number of bytes */
@@ -552,7 +986,7 @@ CAMLexport caml_stat_block caml_stat_alloc(asize_t sz)
   void *result = caml_stat_alloc_noexc(sz);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -564,7 +998,11 @@ CAMLexport void caml_stat_free(caml_stat_block b)
   else {
     struct pool_block *pb = get_pool_block(b);
     if (pb == NULL) return;
-    unlink_pool_block(pb);
+
+    /* Unlinking the block from the ring */
+    pb->prev->next = pb->next;
+    pb->next->prev = pb->prev;
+
     free(pb);
   }
 }
@@ -579,20 +1017,14 @@ CAMLexport caml_stat_block caml_stat_resize_noexc(caml_stat_block b, asize_t sz)
     return realloc(b, sz);
   else {
     struct pool_block *pb = get_pool_block(b);
-    struct pool_block *pb_new;
-    /* Unlinking the block because it can be freed by realloc
-       while other domains access the pool concurrently. */
-    unlink_pool_block(pb);
-    /* Reallocating */
-    pb_new = realloc(pb, sz + SIZEOF_POOL_BLOCK);
-    if (pb_new == NULL) {
-      /* The old block is still there, relinking it */
-      link_pool_block(pb);
-      return NULL;
-    } else {
-      link_pool_block(pb_new);
-      return &(pb_new->data);
-    }
+    struct pool_block *pb_new = realloc(pb, sz + SIZEOF_POOL_BLOCK);
+    if (pb_new == NULL) return NULL;
+
+    /* Relinking the new block into the ring in place of the old one */
+    pb_new->prev->next = pb_new;
+    pb_new->next->prev = pb_new;
+
+    return &(pb_new->data);
   }
 }
 
@@ -601,7 +1033,7 @@ CAMLexport caml_stat_block caml_stat_resize(caml_stat_block b, asize_t sz)
 {
   void *result = caml_stat_resize_noexc(b, sz);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -633,7 +1065,7 @@ CAMLexport caml_stat_string caml_stat_strdup(const char *s)
 {
   caml_stat_string result = caml_stat_strdup_noexc(s);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -644,7 +1076,7 @@ CAMLexport wchar_t * caml_stat_wcsdup(const wchar_t *s)
   int slen = wcslen(s);
   wchar_t* result = caml_stat_alloc((slen + 1)*sizeof(wchar_t));
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   memcpy(result, s, (slen + 1)*sizeof(wchar_t));
   return result;
 }

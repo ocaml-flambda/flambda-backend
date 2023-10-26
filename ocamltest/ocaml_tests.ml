@@ -20,79 +20,51 @@ open Builtin_actions
 open Ocaml_actions
 
 let bytecode =
-  let byte_build =
-  [
-    setup_ocamlc_byte_build_env;
-    ocamlc_byte;
-    check_ocamlc_byte_output
-  ] in
-  let opt_build =
-  [
-    setup_ocamlc_opt_build_env;
-    ocamlc_opt;
-    check_ocamlc_opt_output
-  ] in
-{
-  test_name = "bytecode";
-  test_run_by_default = true;
-  test_description = "Build bytecode program, run it and check its output";
-  test_actions =
-  (if true && Ocamltest_config.native_compiler then
-    opt_build
-  else
-    byte_build) @
-  [
-    run;
-    check_program_output;
-  ] @
-  (if false && Ocamltest_config.native_compiler then
-    opt_build @ [compare_bytecode_programs]
-  else
-    []
-  )
-}
+  let test_actions =
+    if not Ocamltest_config.native_compiler then
+      [
+        setup_ocamlc_byte_build_env;
+        ocamlc_byte;
+        check_ocamlc_byte_output;
+        run;
+        check_program_output;
+      ]
+    else
+      [
+        setup_ocamlc_opt_build_env;
+        ocamlc_opt;
+        check_ocamlc_opt_output;
+        run;
+        check_program_output
+      ]
+  in
+  {
+    test_name = "bytecode";
+    test_run_by_default = true;
+    test_actions;
+  }
 
 let native =
-  let byte_build =
-  [
-    setup_ocamlopt_byte_build_env;
-    ocamlopt_byte;
-    check_ocamlopt_byte_output;
-  ] in
-  let opt_build =
-  [
-    setup_ocamlopt_opt_build_env;
-    ocamlopt_opt;
-    check_ocamlopt_opt_output;
-  ] in
-  let opt_actions =
-  (if true then
-    opt_build
-  else
-    byte_build
-  ) @
-  [
-    run;
-    check_program_output;
-  ] @
-  (if false then
-    opt_build
-  else
-    []
-  ) in
+  let test_actions =
+    if not Ocamltest_config.native_compiler then [skip]
+    else
+      [
+        setup_ocamlopt_opt_build_env;
+        ocamlopt_opt;
+        check_ocamlopt_opt_output;
+        run;
+        check_program_output
+      ]
+  in
   {
     test_name = "native";
     test_run_by_default = true;
-    test_description = "Build native program, run it and check its output";
-    test_actions =
-      (if Ocamltest_config.native_compiler then opt_actions else [skip])
+    test_actions;
   }
 
 let toplevel = {
   test_name = "toplevel";
   test_run_by_default = false;
-  test_description =
-    "Run the program in the OCaml toplevel and check its output";
   test_actions =
   [
     setup_ocaml_build_env;
@@ -104,9 +76,6 @@ let toplevel = {
 let nattoplevel = {
   test_name = "toplevel.opt";
   test_run_by_default = false;
-  test_description =
-    "Run the program in the native OCaml toplevel (ocamlnat) and check its \
-     output";
   test_actions =
   [
     shared_libraries;
@@ -120,9 +89,6 @@ let expect =
 {
   test_name = "expect";
   test_run_by_default = false;
-  test_description =
-    "Run expect tests in the program in the OCaml toplevel and check their \
-     output";
   test_actions =
   [
     setup_simple_build_env;
@@ -135,7 +101,6 @@ let ocamldoc =
 {
   test_name = "ocamldoc";
   test_run_by_default = false;
-  test_description = "Run ocamldoc on the test and compare with the reference";
   test_actions =
   if  Ocamltest_config.ocamldoc then
   [
@@ -171,9 +136,6 @@ let asmgen =
 {
   test_name = "asmgen";
   test_run_by_default = false;
-  test_description =
-    "Generate the assembly for the test program; and also use the C compiler \
-     to make the executable";
   test_actions = asmgen_actions
 }
 

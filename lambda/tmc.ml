@@ -897,12 +897,6 @@ let rec choice ctx t =
     | Pisint _ | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-
-    (* we don't handle effect or DLS primitives *)
-    | Prunstack | Pperform | Presume | Preperform | Pdls_get
-
-    (* we don't handle atomic primitives *)
-    | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
     | Punbox_float | Pbox_float _
     | Punbox_int _ | Pbox_int _
 

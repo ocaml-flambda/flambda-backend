@@ -20,7 +20,6 @@ Line 7, characters 9-10:
 7 |   val x: t [@@ocaml.deprecated]
              ^
 Alert deprecated: t
-
 module X : sig type t type s type u val x : t end
 |}]
 
@@ -31,7 +30,6 @@ Line 1, characters 9-12:
 1 | type t = X.t
              ^^^
 Alert deprecated: X.t
-
 type t = X.t
 |}]
 
@@ -42,7 +40,6 @@ Line 1, characters 8-11:
 1 | let x = X.x
             ^^^
 Alert deprecated: X.x
-
 val x : X.t = <abstr>
 |}]
 
@@ -57,7 +54,6 @@ Line 3, characters 0-3:
 3 | foo;;
     ^^^
 Alert deprecated: foo
-
 - : unit = ()
 |}]
 
@@ -78,7 +74,6 @@ Line 2, characters 33-36:
 2 |   | bar, cho [@deprecated], _ -> cho + 1
                                      ^^^
 Alert deprecated: cho
-
 val f : 'a * int * 'b -> int = <fun>
 |}]
 
@@ -92,7 +87,6 @@ Line 3, characters 12-15:
 3 |     val h = foo
                 ^^^
 Alert deprecated: foo
-
 class c : 'a * int -> object val h : int end
 |}]
 
@@ -105,12 +99,10 @@ Line 1, characters 9-12:
 1 | type t = X.t * X.s
              ^^^
 Alert deprecated: X.t
-
 Line 1, characters 15-18:
 1 | type t = X.t * X.s
                    ^^^
 Alert deprecated: X.s
-
 type t = X.t * X.s
 |}]
 
@@ -128,7 +120,6 @@ Line 2, characters 9-12:
 2 | and t2 = X.s
              ^^^
 Alert deprecated: X.s
-
 type t1 = X.t
 and t2 = X.s
 |}]
@@ -140,7 +131,6 @@ Line 1, characters 14-15:
 1 | type t = A of t [@@ocaml.deprecated]
                   ^
 Alert deprecated: t
-
 type t = A of t
 |}]
 
@@ -167,7 +157,6 @@ Line 1, characters 39-42:
 1 | type t = (X.t [@ocaml.warning "-3"]) * X.s
                                            ^^^
 Alert deprecated: X.s
-
 type t = X.t * X.s
 |}]
 
@@ -188,7 +177,6 @@ Line 1, characters 22-25:
 1 | let _ = function (_ : X.t) -> ()
                           ^^^
 Alert deprecated: X.t
-
 - : X.t -> unit = <fun>
 |}]
 
@@ -208,7 +196,6 @@ Line 1, characters 26-29:
 1 | module M = struct let x = X.x end
                               ^^^
 Alert deprecated: X.x
-
 module M : sig val x : X.t end
 |}]
 
@@ -231,12 +218,10 @@ Line 1, characters 26-29:
 1 | module rec M : sig val x: X.t end = struct let x = X.x end
                               ^^^
 Alert deprecated: X.t
-
 Line 1, characters 51-54:
 1 | module rec M : sig val x: X.t end = struct let x = X.x end
                                                        ^^^
 Alert deprecated: X.x
-
 module rec M : sig val x : X.t end
 |}]
 
@@ -263,7 +248,6 @@ Line 3, characters 17-20:
 3 |   struct let x = X.x end
                      ^^^
 Alert deprecated: X.x
-
 module rec M : sig val x : X.t end
 |}]
 
@@ -276,7 +260,6 @@ Line 1, characters 29-32:
 1 | module type S = sig type t = X.t end
                                  ^^^
 Alert deprecated: X.t
-
 module type S = sig type t = X.t end
 |}]
 
@@ -302,7 +285,6 @@ Line 1, characters 28-31:
 1 | class c = object method x = X.x end
                                 ^^^
 Alert deprecated: X.x
-
 class c : object method x : X.t end
 |}]
 
@@ -334,7 +316,6 @@ Line 1, characters 33-36:
 1 | class type c = object method x : X.t end
                                      ^^^
 Alert deprecated: X.t
-
 class type c = object method x : X.t end
 |}]
 
@@ -367,7 +348,6 @@ Line 1, characters 22-25:
 1 | external foo: unit -> X.t = "foo"
                           ^^^
 Alert deprecated: X.t
-
 external foo : unit -> X.t = "foo"
 |}]
 
@@ -387,7 +367,6 @@ Line 1, characters 0-3:
 1 | X.x
     ^^^
 Alert deprecated: X.x
-
 - : X.t = <abstr>
 |}]
 
@@ -450,7 +429,6 @@ Line 2, characters 9-12:
 2 |   | A of X.t
              ^^^
 Alert deprecated: X.t
-
 type ext += A of X.t | B of X.s | C of X.u
 |}]
 
@@ -470,7 +448,6 @@ Line 1, characters 17-20:
 1 | exception Foo of X.t
                      ^^^
 Alert deprecated: X.t
-
 exception Foo of X.t
 |}]
 
@@ -493,7 +470,6 @@ Line 2, characters 9-12:
 2 |   | A of X.t
              ^^^
 Alert deprecated: X.t
-
 type t = A of X.t | B of X.s | C of X.u
 |}]
 
@@ -509,7 +485,6 @@ Line 3, characters 7-10:
 3 |     a: X.t;
            ^^^
 Alert deprecated: X.t
-
 type t = { a : X.t; b : X.s; c : X.u; }
 |}]
 
@@ -526,7 +501,6 @@ Line 3, characters 7-10:
 3 |     a: X.t;
            ^^^
 Alert deprecated: X.t
-
 type t = < a : X.t; b : X.s; c : X.u >
 |}]
 
@@ -543,7 +517,6 @@ Line 3, characters 10-13:
 3 |   | `A of X.t
               ^^^
 Alert deprecated: X.t
-
 type t = [ `A of X.t | `B of X.s | `C of X.u ]
 |}]
 
@@ -569,12 +542,10 @@ Line 2, characters 24-39:
 2 |     [@@ocaml.ppwarning  "Pp warning 2!"]
                             ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 2!
-
 Line 1, characters 29-44:
 1 | let x = () [@ocaml.ppwarning "Pp warning 1!"]
                                  ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 1!
-
 val x : unit = ()
 |}]
 
@@ -586,7 +557,6 @@ Line 2, characters 22-35:
 2 |     [@ocaml.ppwarning "Pp warning!"]
                           ^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning!
-
 type t = unit
 |}]
 
@@ -605,7 +575,6 @@ Line 8, characters 22-36:
 8 |   [@@@ocaml.ppwarning "Pp warning2!"]
                           ^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning2!
-
 module X : sig end
 |}]
 
@@ -618,7 +587,6 @@ Line 3, characters 23-38:
 3 |     [@ocaml.ppwarning  "Pp warning 2!"]
                            ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 2!
-
 val x : unit = ()
 |}]
 
@@ -632,12 +600,10 @@ Line 4, characters 21-36:
 4 |   [@@ocaml.ppwarning "Pp warning 3!"]
                          ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 3!
-
 Line 3, characters 21-36:
 3 |   [@ocaml.ppwarning  "Pp warning 2!"]
                          ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 2!
-
 type t = unit
 |}]
 
@@ -648,7 +614,6 @@ Line 1, characters 25-29:
 1 | let ([][@ocaml.ppwarning "XX"]) = []
                              ^^^^
 Warning 22 [preprocessor]: XX
-
 Line 1, characters 4-31:
 1 | let ([][@ocaml.ppwarning "XX"]) = []
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -31,7 +31,6 @@
 #include </usr/include/io.h>
 #endif
 #include "caml/alloc.h"
-#include "caml/camlatomic.h"
 #include "caml/custom.h"
 #include "caml/fail.h"
 #include "caml/io.h"
@@ -39,7 +38,6 @@
 #include "caml/misc.h"
 #include "caml/mlvalues.h"
 #include "caml/osdeps.h"
-#include "caml/platform.h"
 #include "caml/signals.h"
 #include "caml/sys.h"
 
@@ -54,57 +52,16 @@
 #define lseek _lseeki64
 #endif
 
+
 /* Hooks for locking channels */
 
-static __thread struct channel* last_channel_locked = NULL;
+CAMLexport void (*caml_channel_mutex_free) (struct channel *) = NULL;
+CAMLexport void (*caml_channel_mutex_lock) (struct channel *) = NULL;
+CAMLexport void (*caml_channel_mutex_unlock) (struct channel *) = NULL;
+CAMLexport void (*caml_channel_mutex_unlock_exn) (void) = NULL;
 
-static void channel_mutex_free_default(struct channel *chan)
-{
-  caml_plat_mutex_free(&chan->mutex);
-}
-
-static void channel_mutex_lock_default(struct channel *chan)
-{
-  if( caml_plat_try_lock(&chan->mutex) ) {
-    last_channel_locked = chan;
-    return;
-  }
-
-  /* If unsuccessful, block on mutex */
-  caml_enter_blocking_section();
-  caml_plat_lock(&chan->mutex);
-  last_channel_locked = chan;
-  caml_leave_blocking_section();
-}
-
-static void channel_mutex_unlock_default(struct channel *chan)
-{
-  caml_plat_unlock(&chan->mutex);
-  last_channel_locked = NULL;
-}
-
-static void channel_mutex_unlock_exn_default(void)
-{
-  struct channel * chan = last_channel_locked;
-  if (chan != NULL && caml_channel_mutex_unlock != NULL)
-    caml_channel_mutex_unlock(chan);
-}
-
-CAMLexport void (*caml_channel_mutex_free) (struct channel *)
-  = channel_mutex_free_default;
-CAMLexport void (*caml_channel_mutex_lock) (struct channel *)
-  = channel_mutex_lock_default;
-CAMLexport void (*caml_channel_mutex_unlock) (struct channel *)
-  = channel_mutex_unlock_default;
-CAMLexport void (*caml_channel_mutex_unlock_exn) (void)
-  = channel_mutex_unlock_exn_default;
-
-/* List of channels opened from the OCaml side and managed by the GC */
+/* List of opened channels */
 CAMLexport struct channel * caml_all_opened_channels = NULL;
-
-/* The mutex protecting the list above */
-CAMLexport caml_plat_mutex
-  caml_all_opened_channels_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
 /* Basic functions over type struct channel *.
    These functions can be called directly from C.
@@ -116,13 +73,10 @@ static void check_pending(struct channel *channel)
 {
   if (caml_check_pending_actions()) {
     /* Temporarily unlock the channel, to ensure locks are not held
-       while any signal handlers (or finalisers, etc) are running.
-       Don't do this for channels allocated and used from C,
-       as their locks may or may not be taken depending on the
-       usage pattern in the C code. */
-    if (channel->flags & CHANNEL_FLAG_MANAGED_BY_GC) Unlock(channel);
+       while any signal handlers (or finalisers, etc) are running */
+    Unlock(channel);
     caml_process_pending_actions();
-    if (channel->flags & CHANNEL_FLAG_MANAGED_BY_GC) Lock(channel);
+    Lock(channel);
   }
 }
 
@@ -137,13 +91,36 @@ Caml_inline int descriptor_is_in_binary_mode(int fd)
 #endif
 }
 
-static void link_channel (struct channel* channel)
+CAMLexport struct channel * caml_open_descriptor_in(int fd)
 {
+  struct channel * channel;
+
+  channel = (struct channel *) caml_stat_alloc(sizeof(struct channel));
+  channel->fd = fd;
+  caml_enter_blocking_section_no_pending();
+  channel->offset = lseek(fd, 0, SEEK_CUR);
+  caml_leave_blocking_section();
+  channel->curr = channel->max = channel->buff;
+  channel->end = channel->buff + IO_BUFFER_SIZE;
+  channel->mutex = NULL;
+  channel->refcount = 0;
+  channel->flags = descriptor_is_in_binary_mode(fd) ? 0 : CHANNEL_TEXT_MODE;
   channel->next = caml_all_opened_channels;
-  CAMLassert(channel->prev == NULL);
+  channel->prev = NULL;
+  channel->name = NULL;
   if (caml_all_opened_channels != NULL)
     caml_all_opened_channels->prev = channel;
   caml_all_opened_channels = channel;
+  return channel;
+}
+
+CAMLexport struct channel * caml_open_descriptor_out(int fd)
+{
+  struct channel * channel;
+
+  channel = caml_open_descriptor_in(fd);
+  channel->max = NULL;
+  return channel;
 }
 
 static void unlink_channel(struct channel *channel)
@@ -157,44 +134,13 @@ static void unlink_channel(struct channel *channel)
     channel->prev->next = channel->next;
     if (channel->next != NULL) channel->next->prev = channel->prev;
   }
-  channel->next = NULL;
-  channel->prev = NULL;
-}
-
-CAMLexport struct channel * caml_open_descriptor_in(int fd)
-{
-  struct channel * channel;
-
-  channel = (struct channel *) caml_stat_alloc(sizeof(struct channel));
-  channel->fd = fd;
-  caml_enter_blocking_section_no_pending();
-  channel->offset = lseek(fd, 0, SEEK_CUR);
-  caml_leave_blocking_section();
-  channel->curr = channel->max = channel->buff;
-  channel->end = channel->buff + IO_BUFFER_SIZE;
-  caml_plat_mutex_init(&channel->mutex);
-  channel->refcount = 0;
-  channel->prev = NULL;
-  channel->next = NULL;
-  channel->name = NULL;
-  channel->flags = descriptor_is_in_binary_mode(fd) ? 0 : CHANNEL_TEXT_MODE;
-  return channel;
-}
-
-CAMLexport struct channel * caml_open_descriptor_out(int fd)
-{
-  struct channel * channel;
-
-  channel = caml_open_descriptor_in(fd);
-  channel->max = NULL;
-  return channel;
 }
 
 CAMLexport void caml_close_channel(struct channel *channel)
 {
-  CAMLassert((channel->flags & CHANNEL_FLAG_MANAGED_BY_GC) == 0);
   close(channel->fd);
   if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(channel);
+  unlink_channel(channel);
   caml_stat_free(channel->name);
   caml_stat_free(channel);
 }
@@ -499,44 +445,38 @@ intnat caml_input_scan_line(struct channel *channel)
 void caml_finalize_channel(value vchan)
 {
   struct channel * chan = Channel(vchan);
-  int notflushed = 0;
   if ((chan->flags & CHANNEL_FLAG_MANAGED_BY_GC) == 0) return;
-  /* Check for channels that have not been closed explicitly. */
+  if (--chan->refcount > 0) return;
+  if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(chan);
+
   if (chan->fd != -1 && chan->name && caml_runtime_warnings_active())
     fprintf(stderr,
             "[ocaml] channel opened on file '%s' dies without being closed\n",
-            chan->name);
-  if (chan->max == NULL && chan->curr != chan->buff) {
-    /* This is an unclosed out channel (chan->max == NULL) with a
-       non-empty buffer: keep it around so the OCaml [at_exit] function
-       gets a chance to flush it.  We would want to simply flush the
-       channel now, but (i) flushing can raise exceptions, and (ii) it
-       is potentially a blocking operation.  Both are forbidden in a
-       finalization function.
-       Refs: https://github.com/ocaml/ocaml/issues/6902
-             https://github.com/ocaml/ocaml/pull/210
+            chan->name
+            );
+
+  if (chan->max == NULL && chan->curr != chan->buff){
+    /*
+      This is an unclosed out channel (chan->max == NULL) with a
+      non-empty buffer: keep it around so the OCaml [at_exit] function
+      gets a chance to flush it.  We would want to simply flush the
+      channel now, but (i) flushing can raise exceptions, and (ii) it
+      is potentially a blocking operation.  Both are forbidden in a
+      finalization function.
+
+      Refs:
+      http://caml.inria.fr/mantis/view.php?id=6902
+      https://github.com/ocaml/ocaml/pull/210
     */
     if (chan->name && caml_runtime_warnings_active())
       fprintf(stderr,
-              "[ocaml] (moreover, it has unflushed data)\n");
-    notflushed = 1;
+              "[ocaml] (moreover, it has unflushed data)\n"
+              );
+  } else {
+    unlink_channel(chan);
+    caml_stat_free(chan->name);
+    caml_stat_free(chan);
   }
-  /* Don't run concurrently with caml_ml_out_channels_list that may resurrect
-     a dead channel . */
-  caml_plat_lock (&caml_all_opened_channels_mutex);
-  chan->refcount --;
-  if (chan->refcount > 0 || notflushed) {
-    /* We need to keep the channel around, either because it is being
-       added to the list returned by caml_ml_out_channels_list,
-       or because it contains unflushed data. */
-    caml_plat_unlock (&caml_all_opened_channels_mutex);
-    return;
-  }
-  unlink_channel(chan);
-  caml_plat_unlock (&caml_all_opened_channels_mutex);
-  if (caml_channel_mutex_free != NULL) (*caml_channel_mutex_free)(chan);
-  caml_stat_free(chan->name);
-  caml_stat_free(chan);
 }
 
 static int compare_channel(value vchan1, value vchan2)
@@ -565,100 +505,59 @@ static struct custom_operations channel_operations = {
 CAMLexport value caml_alloc_channel(struct channel *chan)
 {
   value res;
+  chan->refcount++;
   res = caml_alloc_custom_mem(&channel_operations, sizeof(struct channel *),
                               sizeof(struct channel));
   Channel(res) = chan;
   return res;
 }
 
-CAMLprim value caml_ml_open_descriptor_in_with_flags(int fd, int flags)
+CAMLprim value caml_ml_open_descriptor_in(value fd)
 {
-  struct channel * chan = caml_open_descriptor_in(fd);
-  chan->flags |= flags | CHANNEL_FLAG_MANAGED_BY_GC;
-  chan->refcount = 1;
-  caml_plat_lock (&caml_all_opened_channels_mutex);
-  link_channel (chan);
-  caml_plat_unlock (&caml_all_opened_channels_mutex);
+  struct channel * chan = caml_open_descriptor_in(Int_val(fd));
+  chan->flags |= CHANNEL_FLAG_MANAGED_BY_GC;
   return caml_alloc_channel(chan);
 }
 
-CAMLprim value caml_ml_open_descriptor_in(value fd) {
-  return caml_ml_open_descriptor_in_with_flags(Int_val(fd), 0);
-}
-
-CAMLprim value caml_ml_open_descriptor_out_with_flags(int fd, int flags)
+CAMLprim value caml_ml_open_descriptor_out(value fd)
 {
-  struct channel * chan = caml_open_descriptor_out(fd);
-  chan->flags |= flags | CHANNEL_FLAG_MANAGED_BY_GC;
-  chan->refcount = 1;
-  caml_plat_lock (&caml_all_opened_channels_mutex);
-  link_channel (chan);
-  caml_plat_unlock (&caml_all_opened_channels_mutex);
+  struct channel * chan = caml_open_descriptor_out(Int_val(fd));
+  chan->flags |= CHANNEL_FLAG_MANAGED_BY_GC;
   return caml_alloc_channel(chan);
-}
-
-CAMLprim value caml_ml_open_descriptor_out(value fd) {
-  return caml_ml_open_descriptor_out_with_flags(Int_val(fd), 0);
 }
 
 CAMLprim value caml_ml_set_channel_name(value vchannel, value vname)
 {
-  CAMLparam2(vchannel, vname);
   struct channel * channel = Channel(vchannel);
-  Lock(channel);
   caml_stat_free(channel->name);
   if (caml_string_length(vname) > 0)
     channel->name = caml_stat_strdup(String_val(vname));
   else
     channel->name = NULL;
-  Unlock(channel);
-  CAMLreturn (Val_unit);
+  return Val_unit;
 }
-
-struct channel_list {
-  struct channel* channel;
-  struct channel_list* next;
-};
 
 CAMLprim value caml_ml_out_channels_list (value unit)
 {
   CAMLparam0 ();
   CAMLlocal3 (res, tail, chan);
   struct channel * channel;
-  struct channel_list *channel_list = NULL, *cl_tmp;
-  mlsize_t i, num_channels = 0;
-
-  caml_plat_lock (&caml_all_opened_channels_mutex);
-  for (channel = caml_all_opened_channels;
-       channel != NULL;
-       channel = channel->next) {
-    CAMLassert(channel->flags & CHANNEL_FLAG_MANAGED_BY_GC);
-    /* Testing channel->fd >= 0 looks unnecessary, as
-       caml_ml_close_channel changes max when setting fd to -1. */
-    if (channel->max == NULL) {
-      /* refcount is incremented here to keep the channel alive */
-      channel->refcount ++;
-      num_channels++;
-      cl_tmp = caml_stat_alloc_noexc (sizeof(struct channel_list));
-      if (cl_tmp == NULL)
-        caml_fatal_error ("caml_ml_out_channels_list: out of memory");
-      cl_tmp->channel = channel;
-      cl_tmp->next = channel_list;
-      channel_list = cl_tmp;
-    }
-  }
-  caml_plat_unlock (&caml_all_opened_channels_mutex);
 
   res = Val_emptylist;
-  cl_tmp = NULL;
-  for (i = 0; i < num_channels; i++) {
-    chan = caml_alloc_channel (channel_list->channel);
-    tail = res;
-    res = caml_alloc_2(Tag_cons, chan, tail);
-    cl_tmp = channel_list;
-    channel_list = channel_list->next;
-    caml_stat_free (cl_tmp);
-  }
+  for (channel = caml_all_opened_channels;
+       channel != NULL;
+       channel = channel->next)
+    /* Include only output channels opened from OCaml and not closed yet.
+       Testing channel->fd >= 0 looks unnecessary, as
+       caml_ml_close_channel changes max when setting fd to -1. */
+    if (channel->max == NULL
+        && channel->flags & CHANNEL_FLAG_MANAGED_BY_GC) {
+      chan = caml_alloc_channel (channel);
+      tail = res;
+      res = caml_alloc_small (2, Tag_cons);
+      Field (res, 0) = chan;
+      Field (res, 1) = tail;
+    }
   CAMLreturn (res);
 }
 
@@ -671,34 +570,28 @@ CAMLprim value caml_channel_descriptor(value vchannel)
 
 CAMLprim value caml_ml_close_channel(value vchannel)
 {
-  CAMLparam1(vchannel);
   int result;
   int fd;
 
   /* For output channels, must have flushed before */
   struct channel * channel = Channel(vchannel);
 
-  Lock(channel);
   /* Ensure that every read or write on the channel will cause an
      immediate caml_flush_partial or caml_refill, thus raising a Sys_error
      exception */
   channel->curr = channel->max = channel->end;
-  /* Prevent any seek backward that would mark the last bytes of the
-   * channel buffer as valid */
-  channel->offset = 0;
 
   /* If already closed, we are done */
-  if (channel->fd != -1) {
-    fd = channel->fd;
-    channel->fd = -1;
-    caml_enter_blocking_section_no_pending();
-    result = close(fd);
-    caml_leave_blocking_section();
+  if (channel->fd == -1) return Val_unit;
 
-    if (result == -1) caml_sys_error (NO_ARG);
-  }
-  Unlock(channel);
-  CAMLreturn (Val_unit);
+  fd = channel->fd;
+  channel->fd = -1;
+  caml_enter_blocking_section_no_pending();
+  result = close(fd);
+  caml_leave_blocking_section();
+
+  if (result == -1) caml_sys_error (NO_ARG);
+  return Val_unit;
 }
 
 /* EOVERFLOW is the Unix98 error indicating that a file position or file
@@ -736,10 +629,8 @@ CAMLprim value caml_ml_channel_size_64(value vchannel)
 
 CAMLprim value caml_ml_set_binary_mode(value vchannel, value mode)
 {
-  CAMLparam2(vchannel, mode);
 #if defined(_WIN32) || defined(__CYGWIN__)
   struct channel * channel = Channel(vchannel);
-  Lock(channel);
 #if defined(_WIN32)
   /* The implementation of [caml_read_fd] and [caml_write_fd] in win32.c
      doesn't support socket I/O with CRLF conversion. */
@@ -755,9 +646,8 @@ CAMLprim value caml_ml_set_binary_mode(value vchannel, value mode)
     channel->flags &= ~CHANNEL_TEXT_MODE;
   else
     channel->flags |= CHANNEL_TEXT_MODE;
-  Unlock(channel);
 #endif
-  CAMLreturn (Val_unit);
+  return Val_unit;
 }
 
 /*
@@ -772,27 +662,23 @@ CAMLprim value caml_ml_flush(value vchannel)
   CAMLparam1 (vchannel);
   struct channel * channel = Channel(vchannel);
 
+  if (channel->fd == -1) CAMLreturn(Val_unit);
   Lock(channel);
-  if (channel->fd != -1)
-    caml_flush(channel);
+  caml_flush(channel);
   Unlock(channel);
   CAMLreturn (Val_unit);
 }
 
 CAMLprim value caml_ml_set_buffered(value vchannel, value mode)
 {
-  CAMLparam2(vchannel, mode);
   struct channel * channel = Channel(vchannel);
-  Lock(channel);
   if (Bool_val(mode)) {
     channel->flags &= ~CHANNEL_FLAG_UNBUFFERED;
   } else {
     channel->flags |= CHANNEL_FLAG_UNBUFFERED;
-    if (channel->fd != -1)
-      caml_flush(channel);
+    caml_ml_flush(vchannel);
   }
-  Unlock(channel);
-  CAMLreturn(Val_unit);
+  return Val_unit;
 }
 
 CAMLprim value caml_ml_is_buffered(value vchannel)
@@ -876,25 +762,14 @@ CAMLprim value caml_ml_seek_out_64(value vchannel, value pos)
 
 CAMLprim value caml_ml_pos_out(value vchannel)
 {
-  CAMLparam1 (vchannel);
-  file_offset pos;
-  struct channel *channel = Channel(vchannel);
-  Lock(channel);
-  pos = caml_pos_out(channel);
-  Unlock(channel);
+  file_offset pos = caml_pos_out(Channel(vchannel));
   if (pos > Max_long) { errno = EOVERFLOW; caml_sys_error(NO_ARG); }
-  CAMLreturn (Val_long(pos));
+  return Val_long(pos);
 }
 
 CAMLprim value caml_ml_pos_out_64(value vchannel)
 {
-  CAMLparam1 (vchannel);
-  file_offset pos;
-  struct channel *channel = Channel(vchannel);
-  Lock(channel);
-  pos = caml_pos_out(channel);
-  Unlock(channel);
-  CAMLreturn (Val_file_offset(pos));
+  return Val_file_offset(caml_pos_out(Channel(vchannel)));
 }
 
 CAMLprim value caml_ml_input_char(value vchannel)
@@ -986,25 +861,14 @@ CAMLprim value caml_ml_seek_in_64(value vchannel, value pos)
 
 CAMLprim value caml_ml_pos_in(value vchannel)
 {
-  CAMLparam1 (vchannel);
-  file_offset pos;
-  struct channel *channel = Channel(vchannel);
-  Lock(channel);
-  pos = caml_pos_in(channel);
-  Unlock(channel);
+  file_offset pos = caml_pos_in(Channel(vchannel));
   if (pos > Max_long) { errno = EOVERFLOW; caml_sys_error(NO_ARG); }
-  CAMLreturn (Val_long(pos));
+  return Val_long(pos);
 }
 
 CAMLprim value caml_ml_pos_in_64(value vchannel)
 {
-  CAMLparam1 (vchannel);
-  file_offset pos;
-  struct channel *channel = Channel(vchannel);
-  Lock(channel);
-  pos = caml_pos_in(channel);
-  Unlock(channel);
-  CAMLreturn (Val_file_offset(pos));
+  return Val_file_offset(caml_pos_in(Channel(vchannel)));
 }
 
 CAMLprim value caml_ml_input_scan_line(value vchannel)

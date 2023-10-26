@@ -173,8 +173,6 @@ let rec module_path s path =
        Pdot(module_path s p, n)
     | Papply(p1, p2) ->
        Papply(module_path s p1, module_path s p2)
-    | Pextra_ty _ ->
-       fatal_error "Subst.module_path"
 
 let modtype_path s path =
       match Path.Map.find path s.modtypes with
@@ -185,18 +183,11 @@ let modtype_path s path =
          match path with
          | Pdot(p, n) ->
             Pdot(module_path s p, n)
-         | Papply _ | Pextra_ty _ ->
+         | Papply _ ->
             fatal_error "Subst.modtype_path"
          | Pident _ -> path
 
-(* For values, extension constructors, classes and class types *)
-let value_path s path =
-  match path with
-  | Pident _ -> path
-  | Pdot(p, n) -> Pdot(module_path s p, n)
-  | Papply _ | Pextra_ty _ -> fatal_error "Subst.value_path"
-
-let rec type_path s path =
+let type_path s path =
   match Path.Map.find path s.types with
   | Path p -> p
   | Type_function _ -> assert false
@@ -207,10 +198,13 @@ let rec type_path s path =
         Pdot(module_path s p, n)
      | Papply _ ->
         fatal_error "Subst.type_path"
-     | Pextra_ty (p, extra) ->
-         match extra with
-         | Pcstr_ty _ -> Pextra_ty (type_path s p, extra)
-         | Pext_ty -> Pextra_ty (value_path s p, extra)
+
+let type_path s p =
+  match Path.constructor_typath p with
+  | Regular p -> type_path s p
+  | Cstr (ty_path, cstr) -> Pdot(type_path s ty_path, cstr)
+  | LocalExt _ -> type_path s p
+  | Ext (p, cstr) -> Pdot(module_path s p, cstr)
 
 let to_subst_by_type_function s p =
   match Path.Map.find p s.types with
@@ -543,7 +537,6 @@ let cltype_declaration' copy_scope s decl =
     clty_variance = decl.clty_variance;
     clty_type = class_type copy_scope s decl.clty_type;
     clty_path = type_path s decl.clty_path;
-    clty_hash_type = type_declaration' copy_scope s decl.clty_hash_type ;
     clty_loc = loc s decl.clty_loc;
     clty_attributes = attrs s decl.clty_attributes;
     clty_uid = decl.clty_uid;
@@ -751,7 +744,7 @@ and subst_lazy_modtype scoping s = function
           | Pident _ -> Mty_ident p
           | Pdot(p, n) ->
              Mty_ident(Pdot(module_path s p, n))
-          | Papply _ | Pextra_ty _ ->
+          | Papply _ ->
              fatal_error "Subst.modtype"
           end
       end

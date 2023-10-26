@@ -68,7 +68,7 @@ val package_units:
 
 (* Should be in Envaux, but it breaks the build of the debugger *)
 val initial_env:
-  loc:Location.t ->
+  loc:Location.t -> safe_string:bool ->
   initially_opened_module:string option ->
   open_implicit_modules:string list -> Env.t
 
@@ -125,9 +125,8 @@ type error =
   | With_changes_module_alias of Longident.t * Ident.t * Path.t
   | With_cannot_remove_constrained_type
   | Repeated_name of Sig_component_kind.t * string
-  | Non_generalizable of { vars : type_expr list; expression : type_expr }
-  | Non_generalizable_module of
-      { vars : type_expr list; item : value_description; mty : module_type }
+  | Non_generalizable of type_expr
+  | Non_generalizable_module of module_type
   | Implementation_is_required of string
   | Interface_not_compiled of string
   | Not_allowed_in_functor_body

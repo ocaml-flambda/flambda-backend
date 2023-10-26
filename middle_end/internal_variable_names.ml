@@ -180,16 +180,6 @@ let pprobe_is_enabled = "Pprobe_is_enabled"
 let parray_of_iarray = "Parray_of_iarray"
 let parray_to_iarray = "Parray_to_iarray"
 let pget_header = "Pget_header"
-let patomic_cas = "Patomic_cas"
-let patomic_exchange = "Patomic_exchange"
-let patomic_fetch_add = "Patomic_fetch_add"
-let patomic_load = "Patomic_load"
-let prunstack = "Prunstack"
-let pperform = "Pperform"
-let presume = "Presume"
-let preperform = "Preperform"
-let pdls_get = "Pdls_get"
-
 let pabsfloat_arg = "Pabsfloat_arg"
 let paddbint_arg = "Paddbint_arg"
 let paddfloat_arg = "Paddfloat_arg"
@@ -303,16 +293,6 @@ let pprobe_is_enabled_arg = "Pprobe_is_enabled_arg"
 let parray_of_iarray_arg = "Parray_of_iarray_arg"
 let parray_to_iarray_arg = "Parray_to_iarray_arg"
 let pget_header_arg = "Pget_header_arg"
-let patomic_cas_arg = "Patomic_cas_arg"
-let patomic_exchange_arg = "Patomic_exchange_arg"
-let patomic_fetch_add_arg = "Patomic_fetch_add_arg"
-let patomic_load_arg = "Patomic_load_arg"
-let prunstack_arg = "Prunstack_arg"
-let pperform_arg = "Pperform_arg"
-let presume_arg = "Presume_arg"
-let preperform_arg = "Preperform_arg"
-let pdls_get_arg = "Pdls_get_arg"
-
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -477,15 +457,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Pget_header _ -> pget_header
   | Pmake_unboxed_product _ -> pmake_unboxed_product
   | Punboxed_product_field _ -> punboxed_product_field
-  | Patomic_cas -> patomic_cas
-  | Patomic_exchange -> patomic_exchange
-  | Patomic_fetch_add -> patomic_fetch_add
-  | Patomic_load _ -> patomic_load
-  | Prunstack -> prunstack
-  | Pperform -> pperform
-  | Presume -> presume
-  | Preperform -> preperform
-  | Pdls_get -> pdls_get
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -606,12 +577,3 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pget_header _ -> pget_header_arg
   | Pmake_unboxed_product _ -> pmake_unboxed_product_arg
   | Punboxed_product_field _ -> punboxed_product_field_arg
-  | Patomic_cas -> patomic_cas_arg
-  | Patomic_exchange -> patomic_exchange_arg
-  | Patomic_fetch_add -> patomic_fetch_add_arg
-  | Patomic_load _ -> patomic_load_arg
-  | Prunstack -> prunstack_arg
-  | Pperform -> pperform_arg
-  | Presume -> presume_arg
-  | Preperform -> preperform_arg
-  | Pdls_get -> pdls_get_arg

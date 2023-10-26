@@ -18,7 +18,6 @@ Lines 7-8, characters 47-21:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (A, A)
-
 module F :
   functor (S : sig type 'a t end) ->
     sig
@@ -46,7 +45,6 @@ Lines 10-11, characters 15-21:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (A, A)
-
 module F :
   functor (S : sig type 'a t end) ->
     sig

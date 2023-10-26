@@ -19,38 +19,18 @@ Line 3, characters 17-40:
 3 |   | xs :: xss -> append xs (flatten xss)
                      ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 72 [tmc-breaks-tailcall]: This call
-<<<<<<< HEAD
 is in tail-modulo-cons positionin a TMC function,
-||||||| merged common ancestors
-Warning 72 [tmc-breaks-tailcall]: This call is in tail-modulo-cons position in a TMC function,
-=======
-is in tail-modulo-cons position in a TMC function,
->>>>>>> ocaml/5.1
 but the function called is not itself specialized for TMC,
 so the call will not be transformed into a tail call.
 Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Please either mark the called function with
-the [@tail_mod_cons] attribute, or mark this call with
-the [@tailcall false] attribute to make its non-tailness explicit.
-=======
-
->>>>>>> ocaml/5.1
 Lines 1-3, characters 34-40:
 1 | ..................................function
 2 |   | [] -> []
 3 |   | xs :: xss -> append xs (flatten xss)
 Warning 71 [unused-tmc-attribute]: This function is marked @tail_mod_cons
 but is never applied in TMC position.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Warning 71 [unused-tmc-attribute]: This function is marked @tail_mod_cons but is never applied in TMC position.
-=======
-
->>>>>>> ocaml/5.1
 val flatten : 'a list list -> 'a list = <fun>
 |}]
 
@@ -83,26 +63,12 @@ Line 10, characters 9-30:
 10 |       in append_flatten xs xss
               ^^^^^^^^^^^^^^^^^^^^^
 Warning 72 [tmc-breaks-tailcall]: This call
-<<<<<<< HEAD
 is in tail-modulo-cons positionin a TMC function,
-||||||| merged common ancestors
-Warning 72 [tmc-breaks-tailcall]: This call is in tail-modulo-cons position in a TMC function,
-=======
-is in tail-modulo-cons position in a TMC function,
->>>>>>> ocaml/5.1
 but the function called is not itself specialized for TMC,
 so the call will not be transformed into a tail call.
 Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Please either mark the called function with
-the [@tail_mod_cons] attribute, or mark this call with
-the [@tailcall false] attribute to make its non-tailness explicit.
-=======
-
->>>>>>> ocaml/5.1
 Lines 1-10, characters 34-30:
  1 | ..................................function
  2 |   | [] -> []
@@ -116,12 +82,6 @@ Lines 1-10, characters 34-30:
 10 |       in append_flatten xs xss
 Warning 71 [unused-tmc-attribute]: This function is marked @tail_mod_cons
 but is never applied in TMC position.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Warning 71 [unused-tmc-attribute]: This function is marked @tail_mod_cons but is never applied in TMC position.
-=======
-
->>>>>>> ocaml/5.1
 val flatten : 'a list list -> 'a list = <fun>
 |}]
 
@@ -147,26 +107,12 @@ Line 13, characters 12-23:
 13 |             flatten xss
                  ^^^^^^^^^^^
 Warning 72 [tmc-breaks-tailcall]: This call
-<<<<<<< HEAD
 is in tail-modulo-cons positionin a TMC function,
-||||||| merged common ancestors
-Warning 72 [tmc-breaks-tailcall]: This call is in tail-modulo-cons position in a TMC function,
-=======
-is in tail-modulo-cons position in a TMC function,
->>>>>>> ocaml/5.1
 but the function called is not itself specialized for TMC,
 so the call will not be transformed into a tail call.
 Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Please either mark the called function with
-the [@tail_mod_cons] attribute, or mark this call with
-the [@tailcall false] attribute to make its non-tailness explicit.
-=======
-
->>>>>>> ocaml/5.1
 val flatten : 'a list list -> 'a list = <fun>
 |}]
 
@@ -215,26 +161,12 @@ Lines 20-23, characters 10-27:
 22 |                the call becomes non-tailcall in the TMC version. *)
 23 |             (filter_1 f xs)
 Warning 72 [tmc-breaks-tailcall]: This call
-<<<<<<< HEAD
 is in tail-modulo-cons positionin a TMC function,
-||||||| merged common ancestors
-Warning 72 [tmc-breaks-tailcall]: This call is in tail-modulo-cons position in a TMC function,
-=======
-is in tail-modulo-cons position in a TMC function,
->>>>>>> ocaml/5.1
 but the function called is not itself specialized for TMC,
 so the call will not be transformed into a tail call.
 Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Please either mark the called function with
-the [@tail_mod_cons] attribute, or mark this call with
-the [@tailcall false] attribute to make its non-tailness explicit.
-=======
-
->>>>>>> ocaml/5.1
 module Tail_calls_to_non_specialized_functions :
   sig
     val list_id : 'a list -> 'a list
@@ -312,41 +244,24 @@ Line 16, characters 13-56:
 16 |         then (graft[@tailcall]) (* this should warn *) n
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 72 [tmc-breaks-tailcall]: This call
-<<<<<<< HEAD
 is in tail-modulo-cons positionin a TMC function,
-||||||| merged common ancestors
-Warning 72 [tmc-breaks-tailcall]: This call is in tail-modulo-cons position in a TMC function,
-=======
-is in tail-modulo-cons position in a TMC function,
->>>>>>> ocaml/5.1
 but the function called is not itself specialized for TMC,
 so the call will not be transformed into a tail call.
 Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
-<<<<<<< HEAD
-||||||| merged common ancestors
-Please either mark the called function with
-the [@tail_mod_cons] attribute, or mark this call with
-the [@tailcall false] attribute to make its non-tailness explicit.
-=======
-
->>>>>>> ocaml/5.1
 Line 17, characters 17-67:
 17 |         else Tau ((graft[@tailcall]) (* this should also warn *) n)
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
-
 Line 16, characters 13-56:
 16 |         then (graft[@tailcall]) (* this should warn *) n
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
-
 Line 17, characters 17-67:
 17 |         else Tau ((graft[@tailcall]) (* this should also warn *) n)
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
-
 module All_annotations_flipped :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t

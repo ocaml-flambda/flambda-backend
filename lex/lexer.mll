@@ -51,6 +51,7 @@ let raise_lexical_error lexbuf msg =
                         p.Lexing.pos_fname,
                         p.Lexing.pos_lnum,
                         p.Lexing.pos_cnum - p.Lexing.pos_bol + 1))
+;;
 
 let handle_lexical_error fn lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in
@@ -102,6 +103,7 @@ let incr_loc lexbuf delta =
     Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
     Lexing.pos_bol = pos.Lexing.pos_cnum - delta;
   }
+;;
 
 let update_loc lexbuf opt_file line =
   let pos = lexbuf.Lexing.lex_curr_p in
@@ -114,6 +116,7 @@ let update_loc lexbuf opt_file line =
     Lexing.pos_lnum = line;
     Lexing.pos_bol = pos.Lexing.pos_cnum;
   }
+;;
 
 }
 

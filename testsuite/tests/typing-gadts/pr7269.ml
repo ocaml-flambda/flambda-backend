@@ -17,7 +17,6 @@ Line 4, characters 6-47:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 T (`Conj _)
-
 val f : s t -> unit = <fun>
 Exception: Match_failure ("", 4, 6).
 |}];;
@@ -46,7 +45,6 @@ Line 11, characters 12-59:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 T (`Conj _)
-
 Exception: Match_failure ("", 11, 12).
 |}];;
 
@@ -79,6 +77,5 @@ Line 13, characters 21-57:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `Conj _
-
 Exception: Match_failure ("", 13, 21).
 |}];;

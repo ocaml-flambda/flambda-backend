@@ -89,7 +89,7 @@ let allocating_func_if minors_before =
   if minors_before > 0 then ignore (Sys.opaque_identity (ref 42))
   else ignore (Sys.opaque_identity (ref 42));
   let minors_now2 = minor_gcs () in
-  assert (minors_before < minors_now2);
+  assert (minors_before + 1 = minors_now2);
   (* Polled at alloc *)
   [@@inline never]
 
@@ -108,7 +108,7 @@ let allocating_func_nested_ifs minors_before =
     else
       ignore (Sys.opaque_identity (ref 42));
   let minors_now2 = minor_gcs () in
-  assert (minors_before < minors_now2);
+  assert (minors_before + 1 = minors_now2);
   (* Polled at alloc *)
   [@@inline never]
 
@@ -120,7 +120,7 @@ let allocating_func_match minors_before =
   | 0 -> ignore (Sys.opaque_identity (ref 42))
   | _ -> ignore (Sys.opaque_identity (ref 42));
   let minors_now2 = minor_gcs () in
-  assert (minors_before < minors_now2);
+  assert (minors_before + 1 = minors_now2);
   (* Polled at alloc *)
   [@@inline never]
 
@@ -153,7 +153,7 @@ let polls_not_added_to_allocating_loops () =
       assert(minors_now = !current_minors);
       ignore(Sys.opaque_identity(ref 42));
       let minors_now2 = minor_gcs () in
-        assert(minors_now < minors_now2);
+        assert(minors_now+1 = minors_now2);
         current_minors := minors_now2;
         ignore(Sys.opaque_identity(ref 41));
         request_minor_gc ()
@@ -176,7 +176,7 @@ let polls_added_to_self_recursive_functions () =
     ignore(self_rec_func 2);
     let minors_after = minor_gcs () in
       (* should be at least one minor gc from polls in self_rec_func *)
-      assert(minors_before < minors_after)
+      assert(minors_before+1 = minors_after)
 
 (* this pair of mutually recursive functions is to test that a poll is
    correctly placed in the first one compiled *)
@@ -214,7 +214,7 @@ let polls_added_to_indirect_tail_calls () =
   ignore(do_indirect_tail_call f 3);
   let minors_after = minor_gcs () in
     (* should be at one minor gc from the poll in do_indirect_tail_call *)
-    assert(minors_before < minors_after)
+    assert(minors_before+1 = minors_after)
 
 (* this is to test that indirect non-tail calls do not have a poll placed
    in them. These correspond to Icall_ind at Mach *)
@@ -251,7 +251,7 @@ let polls_not_added_to_immediate_calls () =
 
 let[@inline never][@local never] app minors_before f x y =
   let minors_after_prologue = minor_gcs () in
-    assert(minors_before < minors_after_prologue);
+    assert(minors_before+1 = minors_after_prologue);
     request_minor_gc ();
     f x y
 
@@ -260,7 +260,7 @@ let polls_not_added_in_caml_apply () =
     request_minor_gc();
     ignore(Sys.opaque_identity(app minors_before (fun x y -> x * y) 5 4));
     let minors_after = minor_gcs() in
-      assert(minors_before < minors_after)
+      assert(minors_before+1 = minors_after)
 
 let () =
   ignore(Sys.opaque_identity(ref 41));
