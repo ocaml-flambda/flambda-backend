@@ -2,9 +2,9 @@
 ;*                                                                        *
 ;*                                 OCaml                                  *
 ;*                                                                        *
-;*            Thomas Refis and Mark Shinwell, Jane Street Europe          *
+;*                     Thomas Refis, Jane Street Europe                   *
 ;*                                                                        *
-;*   Copyright 2018--2020 Jane Street Group LLC                           *
+;*   Copyright 2018 Jane Street Group LLC                                 *
 ;*                                                                        *
 ;*   All rights reserved.  This file is distributed under the terms of    *
 ;*   the GNU Lesser General Public License version 2.1, with the          *
@@ -22,16 +22,12 @@
             sed -n -e '/^  /s/ \\([A-Z]\\)/ \\&\\&lbl_\\1/gp' -e '/^}/q'"))))
 
 (rule
-  (targets opnames.h)
-  (deps instruct.h)
-  (action (run make -s -C .. COMPUTE_DEPS=false caml/opnames.h)))
-
-(rule
  (targets version.h)
  (mode    fallback)
  (action
    (with-stdout-to %{targets}
      (run %{dep:../../tools/make-version-header.sh} %{dep:../../VERSION}))))
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -123,3 +119,5 @@
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
 =======
 >>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb

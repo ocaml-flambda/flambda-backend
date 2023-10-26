@@ -4,8 +4,8 @@
       (makeblock 0 x)))
   (let
     (A =
-       (apply (field 0 (global CamlinternalMod!)) [0: "anonymous.ml" 25 6]
-         [0: [0]])
+       (apply (field_imm 0 (global CamlinternalMod!))
+         [0: "anonymous.ml" 25 6] [0: [0]])
      B =
        (apply (field 0 (global CamlinternalMod!)) [0: "anonymous.ml" 35 6]
          [0: [0]]))

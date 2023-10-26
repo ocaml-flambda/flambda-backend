@@ -292,8 +292,14 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode mode)
-  | Pfield (n, sem) ->
-      fprintf ppf "field%a %i" field_read_semantics sem n
+  | Pfield (n, ptr, sem) ->
+      let instr =
+        match ptr, sem with
+        | Immediate, _ -> "field_int"
+        | Pointer, Reads_vary -> "field_mut"
+        | Pointer, Reads_agree -> "field_imm"
+      in
+      fprintf ppf "%s%a %i" instr field_read_semantics sem n
   | Pfield_computed sem ->
       fprintf ppf "field_computed%a" field_read_semantics sem
   | Psetfield(n, ptr, init) ->
@@ -349,6 +355,10 @@ let primitive ppf = function
       in
       fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+  | Prunstack -> fprintf ppf "runstack"
+  | Pperform -> fprintf ppf "perform"
+  | Presume -> fprintf ppf "resume"
+  | Preperform -> fprintf ppf "reperform"
   | Pmake_unboxed_product layouts ->
       fprintf ppf "make_unboxed_product [%a]"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
@@ -434,14 +444,14 @@ let primitive ppf = function
   | Paddbint (bi,m) -> print_boxed_integer "add" ppf bi m
   | Psubbint (bi,m) -> print_boxed_integer "sub" ppf bi m
   | Pmulbint (bi,m) -> print_boxed_integer "mul" ppf bi m
-  | Pdivbint { size = bi; is_safe = Safe; mode } ->
-      print_boxed_integer "div" ppf bi mode
-  | Pdivbint { size = bi; is_safe = Unsafe; mode } ->
-      print_boxed_integer "div_unsafe" ppf bi mode
-  | Pmodbint { size = bi; is_safe = Safe; mode } ->
-      print_boxed_integer "mod" ppf bi mode
-  | Pmodbint { size = bi; is_safe = Unsafe; mode } ->
-      print_boxed_integer "mod_unsafe" ppf bi mode
+  | Pdivbint { size; is_safe = Safe; mode } ->
+      print_boxed_integer "div" ppf size mode
+  | Pdivbint { size; is_safe = Unsafe; mode } ->
+      print_boxed_integer "div_unsafe" ppf size mode
+  | Pmodbint { size; is_safe = Safe; mode } ->
+      print_boxed_integer "mod" ppf size mode
+  | Pmodbint { size; is_safe = Unsafe; mode } ->
+      print_boxed_integer "mod_unsafe" ppf size mode
   | Pandbint (bi,m) -> print_boxed_integer "and" ppf bi m
   | Porbint (bi,m) -> print_boxed_integer "or" ppf bi m
   | Pxorbint (bi,m) -> print_boxed_integer "xor" ppf bi m
@@ -535,7 +545,15 @@ let primitive ppf = function
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_load_imm"
+        | Pointer -> fprintf ppf "atomic_load_ptr")
+  | Patomic_exchange -> fprintf ppf "atomic_exchange"
+  | Patomic_cas -> fprintf ppf "atomic_cas"
+  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Popaque _ -> fprintf ppf "opaque"
+  | Pdls_get -> fprintf ppf "dls_get"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
   | Pobj_magic _ -> fprintf ppf "obj_magic"
@@ -662,7 +680,19 @@ let name_of_primitive = function
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer _ -> "Pint_as_pointer"
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_load_imm"
+        | Pointer -> "atomic_load_ptr")
+  | Patomic_exchange -> "Patomic_exchange"
+  | Patomic_cas -> "Patomic_cas"
+  | Patomic_fetch_add -> "Patomic_fetch_add"
   | Popaque _ -> "Popaque"
+  | Prunstack -> "Prunstack"
+  | Presume -> "Presume"
+  | Pperform -> "Pperform"
+  | Preperform -> "Preperform"
+  | Pdls_get -> "Pdls_get"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic _ -> "Pobj_magic"

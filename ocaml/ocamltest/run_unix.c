@@ -15,6 +15,8 @@
 
 /* Run programs with rediretions and timeouts under Unix */
 
+#define CAML_INTERNALS
+
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -29,6 +31,7 @@
 
 #include "run.h"
 #include "run_common.h"
+#include <caml/domain.h>
 
 #define COREFILENAME "core"
 
@@ -346,6 +349,9 @@ int run_command(const command_settings *settings)
       myperror("fork");
       return -1;
     case 0: /* child process */
+#if 0
+      caml_atfork_hook();
+#endif
       exit( run_command_child(settings) );
     default:
       return run_command_parent(settings, child_pid);

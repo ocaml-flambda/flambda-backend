@@ -17,6 +17,8 @@
 
 #define _GNU_SOURCE
 
+#define CAML_INTERNALS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -51,6 +53,9 @@ static void free_cstringvect(array v)
     caml_stat_free(*p);
   caml_stat_free(v);
 }
+
+#define caml_channel_lock Lock
+#define caml_channel_unlock Unlock
 
 static void logToChannel(void *voidchannel, const char *fmt, va_list ap)
 {

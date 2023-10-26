@@ -48,6 +48,12 @@ let implementations_defined = ref ([] : (CU.t * string) list)
 let cmx_required = ref ([] : CU.t list)
 
 let check_consistency file_name unit crc =
+  let ui_name = CU.name unit.ui_unit in
+  begin try
+    let source = List.assoc unit.ui_unit !implementations_defined in
+    raise (Error(Multiple_definition(ui_name, file_name, source)))
+  with Not_found -> ()
+  end;
   begin try
     Array.iter
       (fun import ->
@@ -57,10 +63,7 @@ let check_consistency file_name unit crc =
         match crco with
           None -> ()
         | Some (full_name, crc) ->
-            if CU.Name.equal name (CU.name unit.ui_unit)
-            then Cmi_consistbl.set crc_interfaces name full_name crc file_name
-            else
-              Cmi_consistbl.check crc_interfaces name full_name crc file_name)
+            Cmi_consistbl.check crc_interfaces name full_name crc file_name)
       unit.ui_imports_cmi
   with Cmi_consistbl.Inconsistency {
       unit_name = name;
@@ -89,14 +92,8 @@ let check_consistency file_name unit crc =
     } ->
     raise(Error(Inconsistent_implementation(name, user, auth)))
   end;
-  let ui_name = CU.name unit.ui_unit in
-  begin try
-    let source = List.assoc unit.ui_unit !implementations_defined in
-    raise (Error(Multiple_definition(ui_name, file_name, source)))
-  with Not_found -> ()
-  end;
   implementations := unit.ui_unit :: !implementations;
-  Cmx_consistbl.set crc_implementations unit.ui_unit () crc file_name;
+  Cmx_consistbl.check crc_implementations unit.ui_unit () crc file_name;
   implementations_defined :=
     (unit.ui_unit, file_name) :: !implementations_defined;
   if CU.is_packed unit.ui_unit then
@@ -274,7 +271,11 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   compile_phrase (Cmm_helpers.entry_point name_list);
   let units = List.map (fun (info,_,_) -> info) units_list in
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
+(* BACKPORT BEGIN
+    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+*)
+    (
+(* BACKPORT END *)
       (Cmm_helpers.generic_functions false units));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
@@ -311,7 +312,11 @@ let make_shared_startup_file ~ppf_dump units =
   Compilenv.reset shared_startup_comp_unit;
   Emit.begin_assembly ();
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
+(* BACKPORT BEGIN
+    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+*)
+    (
+(* BACKPORT END *)
       (Cmm_helpers.generic_functions true (List.map fst units)));
   compile_phrase (Cmm_helpers.plugin_header units);
   compile_phrase

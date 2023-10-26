@@ -19,33 +19,9 @@
 
 #include "mlvalues.h"
 
-#define Caml_white (0 << 8)
-#define Caml_gray  (1 << 8)
-#define Caml_blue  (2 << 8)
-#define Caml_black (3 << 8)
-
-#define Color_hd(hd) ((color_t) ((hd) & Caml_black))
-#define Color_hp(hp) (Color_hd (Hd_hp (hp)))
-#define Color_val(val) (Color_hd (Hd_val (val)))
-
-#define Is_white_hd(hd) (Color_hd (hd) == Caml_white)
-#define Is_gray_hd(hd) (Color_hd (hd) == Caml_gray)
-#define Is_blue_hd(hd) (Color_hd (hd) == Caml_blue)
-#define Is_black_hd(hd) (Color_hd (hd) == Caml_black)
-
-#define Whitehd_hd(hd) (((hd)  & ~Caml_black)/*| Caml_white*/)
-#define Grayhd_hd(hd)  (((hd)  & ~Caml_black)  | Caml_gray)
-#define Blackhd_hd(hd) (((hd)/*& ~Caml_black*/)| Caml_black)
-#define Bluehd_hd(hd)  (((hd)  & ~Caml_black)  | Caml_blue)
-
 /* This depends on the layout of the header.  See [mlvalues.h]. */
-#define Make_header(wosize, tag, color)                                       \
-      (/*CAMLassert ((wosize) <= Max_wosize),*/                               \
-       ((header_t) (((header_t) (wosize) << 10)                               \
-                    + (color)                                                 \
-                    + (tag_t) (tag)))                                         \
-      )
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -187,5 +163,17 @@ typedef struct caml_local_arenas {
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
 =======
 >>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+#define Make_header_with_reserved(wosize, tag, color, reserved)      \
+      (/*CAMLassert ((wosize) <= Max_wosize),*/                      \
+       ((header_t) (Hd_reserved(reserved))                           \
+                    + ((header_t) (wosize) << HEADER_WOSIZE_SHIFT)   \
+                    + (color) /* colors are pre-shifted */           \
+                    + (tag_t) (tag)))
+
+
+#define Make_header(wosize, tag, color) \
+        Make_header_with_reserved(wosize, tag, color, 0)
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
 
 #endif /* CAML_GC_H */
