@@ -19,13 +19,41 @@
 
 #include "mlvalues.h"
 
-/* This depends on the layout of the header.  See [mlvalues.h]. */
+#define Caml_white (0 << 8)
+#define Caml_gray  (1 << 8)
+#define Caml_blue  (2 << 8)
+#define Caml_black (3 << 8)
 
+#define Color_hd(hd) ((color_t) ((hd) & Caml_black))
+#define Color_hp(hp) (Color_hd (Hd_hp (hp)))
+#define Color_val(val) (Color_hd (Hd_val (val)))
+
+#define Is_white_hd(hd) (Color_hd (hd) == Caml_white)
+#define Is_gray_hd(hd) (Color_hd (hd) == Caml_gray)
+#define Is_blue_hd(hd) (Color_hd (hd) == Caml_blue)
+#define Is_black_hd(hd) (Color_hd (hd) == Caml_black)
+
+#define Whitehd_hd(hd) (((hd)  & ~Caml_black)/*| Caml_white*/)
+#define Grayhd_hd(hd)  (((hd)  & ~Caml_black)  | Caml_gray)
+#define Blackhd_hd(hd) (((hd)/*& ~Caml_black*/)| Caml_black)
+#define Bluehd_hd(hd)  (((hd)  & ~Caml_black)  | Caml_blue)
+
+/* This depends on the layout of the header.  See [mlvalues.h]. */
+#define Make_header(wosize, tag, color)                                       \
+      (/*CAMLassert ((wosize) <= Max_wosize),*/                               \
+       ((header_t) (((header_t) (wosize) << 10)                               \
+                    + (color)                                                 \
+                    + (tag_t) (tag)))                                         \
+      )
+
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
 #ifdef WITH_PROFINFO
 #define Make_header_with_profinfo(wosize, tag, color, profinfo)               \
       (Make_header(wosize, tag, color)                                        \
@@ -44,6 +72,7 @@
 #define Colornum_hd(hd) ((color_t) (((hd) >> 8) & 3))
 #define Coloredhd_hd(hd,colnum) (((hd) & ~Caml_black) | ((colnum) << 8))
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 /* Colors for locally allocated values.
    (Only used during root-scanning, never visible to the rest of the GC) */
@@ -106,6 +135,11 @@ typedef struct caml_local_arenas {
 #ifdef CAML_INTERNALS
 
 
+=======
+#ifdef CAML_INTERNALS
+
+
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
 #define Init_local_arena_bsize 4096
 
 /* We allow the local stack to quadruple 19 times, which is virtually infinite.
@@ -143,6 +177,7 @@ typedef struct caml_local_arenas {
 #define Local_uninit_hd Make_header(0, 0x42, Local_unmarked)
 
 #endif /* CAML_INTERNALS */
+<<<<<<< HEAD
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
 =======
 
@@ -150,5 +185,7 @@ typedef struct caml_local_arenas {
 #define Make_header(wosize, tag, color) \
         Make_header_with_reserved(wosize, tag, color, 0)
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
 
 #endif /* CAML_GC_H */

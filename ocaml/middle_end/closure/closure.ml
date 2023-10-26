@@ -54,8 +54,7 @@ let rec add_to_closure_env env_param pos cenv = function
     [] -> cenv
   | (id, kind) :: rem ->
       V.Map.add id
-        (Uprim(P.Pfield(pos, kind, Pointer, Immutable),
-              [Uvar env_param], Debuginfo.none))
+        (Uprim(P.Pfield (pos, kind), [Uvar env_param], Debuginfo.none))
           (add_to_closure_env env_param (pos+1) cenv rem)
 
 let is_gc_ignorable kind =
@@ -541,11 +540,10 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
         (Uprim(p, args, dbg), Value_tuple (mode, Array.of_list approxs))
       end
   (* Field access *)
-  | Pfield (n, _, _, _), _,
-            [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
+  | Pfield (n, _), _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
     when n < List.length l ->
       make_const (List.nth l n)
-  | Pfield (n, _, _, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
+  | Pfield (n, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
     when n < List.length ul ->
       (* This case is particularly useful for removing allocations
          for optional parameters *)
@@ -955,8 +953,7 @@ let check_constant_result ulam approx =
           let glb =
             Uprim(P.Pread_symbol id, [], Debuginfo.none)
           in
-          Uprim(P.Pfield (i, Lambda.layout_any_value, Pointer, Immutable),
-            [glb], Debuginfo.none), approx
+          Uprim(P.Pfield (i, Lambda.layout_any_value), [glb], Debuginfo.none), approx
       end
   | _ -> (ulam, approx)
 
@@ -1006,9 +1003,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
      close_approx_var env id
   | Lmutvar id -> (Uvar id, Value_unknown)
   | Lconst cst ->
-      let str cst =
+      let str ?(shared = true) cst =
         let name =
-          Compilenv.new_structured_constant cst ~shared:true
+          Compilenv.new_structured_constant cst ~shared
         in
         Uconst_ref (name, Some cst)
       in
@@ -1026,7 +1023,13 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_immstring s ->
             str (Uconst_string s)
         | Const_base (Const_string (s, _, _)) ->
-            str (Uconst_string s)
+              (* Strings (even literal ones) must be assumed to be mutable...
+                 except when OCaml has been configured with
+                 -safe-string.  Passing -safe-string at compilation
+                 time is not enough, since the unit could be linked
+                 with another one compiled without -safe-string, and
+                 that one could modify our string literal.  *)
+            str ~shared:Config.safe_string (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
         | Const_base(Const_int32 x) -> str (Uconst_int32 x)
         | Const_base(Const_int64 x) -> str (Uconst_int64 x)
@@ -1324,17 +1327,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lprim(Pgetpredef id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       getpredef dbg id, Value_unknown
-  | Lprim(Pfield (n, ptr, mut), [lam], loc) ->
+  | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
-      let mut : Lambda.mutable_flag =
-        match mut with
-        | Reads_agree -> Immutable
-        | Reads_vary -> Mutable
-      in
-      check_constant_result
-        (Uprim(P.Pfield (n, Lambda.layout_any_value, ptr, mut), [ulam], dbg))
-        (field_approx n approx)
+      check_constant_result (Uprim(P.Pfield (n, Lambda.layout_any_value), [ulam], dbg))
+                            (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
           [Lprim(Pgetglobal cu, [], _); lam], loc) ->
       let (ulam, approx) = close env lam in

@@ -30,5 +30,3 @@ val find_test_dirs : string list
 val list_tests : string list
 
 val keep_test_dir_on_success : bool
-
-val show_timings : bool

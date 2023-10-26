@@ -52,6 +52,8 @@ module Dep =
                            information here to remove the node itself from its direct children *)
       }
 
+    type graph = node list
+
     let make_node s children =
       let set = List.fold_right
           String.Set.add

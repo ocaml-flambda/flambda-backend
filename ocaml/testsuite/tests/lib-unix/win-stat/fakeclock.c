@@ -145,6 +145,7 @@ void ReplaceFunction(char* fn, char* module, void* pNew)
   return;
 }
 
+#define CAML_NAME_SPACE
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 

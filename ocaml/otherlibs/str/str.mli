@@ -18,10 +18,6 @@
 
 (** {1 Regular expressions} *)
 
-(**
-  The {!Str} library provides regular expressions on sequences of bytes.
-  It is, in general, unsuitable to match Unicode characters.
-*)
 
 type regexp
 (** The type of compiled regular expressions. *)

@@ -38,17 +38,14 @@ val to_memory:
              relocation information
              debug events *)
 val to_packed_file:
-  out_channel -> instruction list ->
-    int * (reloc_info * int) list * debug_event list * Misc.Stdlib.String.Set.t
+  out_channel -> instruction list -> (reloc_info * int) list
         (* Arguments:
              channel on output file
              list of instructions to emit
            Result:
-             size of the emitted code
-             relocation information
-             debug events
-             debug directory
-             *)
+             relocation information (reversed) *)
+
+val reset: unit -> unit
 
 val marshal_to_channel_with_possibly_32bit_compat :
   filename:string -> kind:string -> out_channel -> 'a -> unit

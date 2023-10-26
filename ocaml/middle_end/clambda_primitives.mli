@@ -39,7 +39,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * layout * immediate_or_pointer * mutable_flag
+  | Pfield of int * layout
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -48,11 +48,6 @@ type primitive =
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
-  (* Context switches *)
-  | Prunstack
-  | Pperform
-  | Presume
-  | Preperform
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -131,11 +126,6 @@ type primitive =
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of alloc_mode
-  (* Atomic operations *)
-  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_cas
-  | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque
   (* Probes *)
@@ -145,9 +135,6 @@ type primitive =
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
   | Pget_header of alloc_mode
-  (* Fetch domain-local state *)
-  | Pdls_get
-
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

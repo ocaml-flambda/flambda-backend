@@ -31,8 +31,9 @@ type error =
   | Keyword_as_label of string
   | Invalid_literal of string
   | Invalid_directive of string * string option
+;;
 
-exception Error of error * Location.t
+exception Error of error * Location.t;;
 
 (* The table of keywords *)
 
@@ -121,9 +122,9 @@ let store_string s = Buffer.add_string string_buffer s
 let store_lexeme lexbuf = store_string (Lexing.lexeme lexbuf)
 
 (* To store the position of the beginning of a string and comment *)
-let string_start_loc = ref Location.none
-let comment_start_loc = ref []
-let in_comment () = !comment_start_loc <> []
+let string_start_loc = ref Location.none;;
+let comment_start_loc = ref [];;
+let in_comment () = !comment_start_loc <> [];;
 let is_in_string = ref false
 let in_string () = !is_in_string
 let print_warnings = ref true
@@ -383,6 +384,7 @@ let update_loc lexbuf file line absolute chars =
     pos_lnum = if absolute then line else pos.pos_lnum + line;
     pos_bol = pos.pos_cnum - chars;
   }
+;;
 
 let preprocessor = ref None
 
@@ -452,7 +454,7 @@ let prepare_error loc = function
       let msg = "Illegal empty character literal ''" in
       let sub =
         [Location.msg
-           "@{<hint>Hint@}: Did you mean ' ' or a type variable 'a?"] in
+           "Hint: Did you mean ' ' or a type variable 'a?"] in
       Location.error ~loc ~sub msg
   | Keyword_as_label kwd ->
       Location.errorf ~loc

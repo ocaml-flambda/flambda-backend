@@ -1,6 +1,5 @@
 (* TEST
    include testing
-   flags = "-no-strict-formats"
 *)
 
 (*
@@ -52,10 +51,10 @@ try
   test (sprintf "%*u" (-4) 42 = "42  ");
 
   say "\nu negative\n%!";
-  begin match Sys.int_size with
-  | 31 ->
+  begin match Sys.word_size with
+  | 32 ->
      test (sprintf "%u" (-1) = "2147483647");
-  | 63 ->
+  | 64 ->
      test (sprintf "%u" (-1) = "9223372036854775807");
   | _ -> test false
   end;
@@ -76,10 +75,10 @@ try
   test (sprintf "%-0+ #*x" 5 42 = "0x2a ");
 
   say "\nx negative\n%!";
-  begin match Sys.int_size with
-  | 31 ->
+  begin match Sys.word_size with
+  | 32 ->
      test (sprintf "%x" (-42) = "7fffffd6");
-  | 63 ->
+  | 64 ->
      test (sprintf "%x" (-42) = "7fffffffffffffd6");
   | _ -> test false
   end;
@@ -96,10 +95,10 @@ try
   test (sprintf "%-0+ #*X" 5 42 = "0X2A ");
 
   say "\nx negative\n%!";
-  begin match Sys.int_size with
-  | 31 ->
+  begin match Sys.word_size with
+  | 32 ->
      test (sprintf "%X" (-42) = "7FFFFFD6");
-  | 63 ->
+  | 64 ->
      test (sprintf "%X" (-42) = "7FFFFFFFFFFFFFD6");
   | _ -> test false
   end;
@@ -116,10 +115,10 @@ try
   test (sprintf "%-0+ #*o" 5 42 = "052  ");
 
   say "\no negative\n%!";
-  begin match Sys.int_size with
-  | 31 ->
+  begin match Sys.word_size with
+  | 32 ->
      test (sprintf "%o" (-42) = "17777777726");
-  | 63 ->
+  | 64 ->
      test (sprintf "%o" (-42) = "777777777777777777726");
   | _ -> test false
   end;

@@ -112,8 +112,7 @@ int* caml_init_opcode_nargs(void)
       l[BRANCH] = l[BRANCHIF] = l[BRANCHIFNOT] = l[PUSHTRAP] =
       l[C_CALL1] = l[C_CALL2] = l[C_CALL3] = l[C_CALL4] = l[C_CALL5] =
       l[CONSTINT] = l[PUSHCONSTINT] = l[OFFSETINT] =
-      l[OFFSETREF] = l[OFFSETCLOSURE] = l[PUSHOFFSETCLOSURE] =
-      l[RESUMETERM] = l[REPERFORMTERM] = 1;
+      l[OFFSETREF] = l[OFFSETCLOSURE] = l[PUSHOFFSETCLOSURE] = 1;
 
     /* Instructions with two operands */
     l[APPTERM] = l[CLOSURE] = l[PUSHGETGLOBALFIELD] =
@@ -159,7 +158,7 @@ void caml_thread_code (code_t code, asize_t len)
 
 #else
 
-int* caml_init_opcode_nargs(void)
+int* caml_init_opcode_nargs()
 {
   return NULL;
 }

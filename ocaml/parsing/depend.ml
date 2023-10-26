@@ -413,18 +413,7 @@ and add_case bv {pc_lhs; pc_guard; pc_rhs} =
 and add_bindings recf bv pel =
   let bv' = List.fold_left (fun bv x -> add_pattern bv x.pvb_pat) bv pel in
   let bv = if recf = Recursive then bv' else bv in
-  let add_constraint = function
-    | Pvc_constraint {locally_abstract_univars=_; typ} ->
-        add_type bv typ
-    | Pvc_coercion { ground; coercion } ->
-        Option.iter (add_type bv) ground;
-        add_type bv coercion
-  in
-  let add_one_binding { pvb_pat= _ ; pvb_loc= _ ; pvb_constraint; pvb_expr } =
-    add_expr bv pvb_expr;
-    Option.iter add_constraint pvb_constraint
-  in
-  List.iter add_one_binding pel;
+  List.iter (fun x -> add_expr bv x.pvb_expr) pel;
   bv'
 
 and add_binding_op bv bv' pbop =
@@ -610,11 +599,8 @@ and add_module_expr bv modl =
           | Some name -> String.Map.add name bound bv
       in
       add_module_expr bv modl
-  | Pmod_apply (mod1, mod2) ->
-      add_module_expr bv mod1;
-      add_module_expr bv mod2
-  | Pmod_apply_unit mod1 ->
-      add_module_expr bv mod1
+  | Pmod_apply(mod1, mod2) ->
+      add_module_expr bv mod1; add_module_expr bv mod2
   | Pmod_constraint(modl, mty) ->
       add_module_expr bv modl; add_modtype bv mty
   | Pmod_unpack(e) ->

@@ -12,7 +12,6 @@ Line 3, characters 13-37:
 3 |   | n -> n * (fact [@tailcall]) (n-1)
                  ^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
-
 val fact : int -> int = <fun>
 |}]
 
@@ -25,7 +24,6 @@ Line 3, characters 13-42:
 3 |   | n -> n * (fact [@tailcall true]) (n-1)
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
-
 val fact : int -> int = <fun>
 |}]
 
@@ -62,7 +60,6 @@ Line 3, characters 9-56:
 3 |   | n -> (fact_tail [@tailcall false]) (n * acc) (n - 1)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected non-tailcall
-
 val fact_tail : int -> int -> int = <fun>
 |}]
 
@@ -75,6 +72,5 @@ Line 1, characters 24-32:
                             ^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'tailcall'.
 Only an optional boolean literal is supported.
-
 val test : 'a -> 'b = <fun>
 |}]

@@ -147,12 +147,8 @@ and operation =
   | Cextcall of string * machtype * exttype list * bool
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
-          An empty list means "all arguments are machine words [XInt]".
-          The boolean indicates whether the function may allocate. *)
-  | Cload of
-      { memory_chunk: memory_chunk
-      ; mutability: Asttypes.mutable_flag
-      ; is_atomic: bool }
+          An empty list means "all arguments are machine words [XInt]". *)
+  | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
@@ -174,7 +170,6 @@ and operation =
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
-  | Cdls_get
 
 (* This is information used exclusively during construction of cmm terms by
    cmmgen, and thus irrelevant for selectgen. *)

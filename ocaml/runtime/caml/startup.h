@@ -20,7 +20,6 @@
 
 #include "mlvalues.h"
 #include "exec.h"
-#include "startup_aux.h"
 
 CAMLextern void caml_startup_code(
            code_t code, asize_t code_size,

@@ -19,6 +19,7 @@
    and on bytecode executables. *)
 
 open Printf
+open Misc
 open Cmo_format
 
 (* Command line options to prevent printing approximation,
@@ -30,6 +31,19 @@ let no_crc = ref false
 let shape = ref false
 
 module Magic_number = Misc.Magic_number
+
+let input_stringlist ic len =
+  let get_string_list sect len =
+    let rec fold s e acc =
+      if e != len then
+        if sect.[e] = '\000' then
+          fold (e+1) (e+1) (String.sub sect s (e-s) :: acc)
+        else fold s (e+1) acc
+      else acc
+    in fold 0 0 []
+  in
+  let sect = really_input_string ic len in
+  get_string_list sect len
 
 let dummy_crc = String.make 32 '-'
 let null_crc = String.make 32 '0'
@@ -123,7 +137,6 @@ let print_cmt_infos cmt =
     | None -> printf "(none)\n"
     | Some shape -> Format.printf "\n%a" Shape.print shape)
   end
-<<<<<<< HEAD
 
 let print_cms_infos cms =
   let open Cms_format in
@@ -134,10 +147,6 @@ let print_cms_infos cms =
 let linkage_name comp_unit =
   Symbol.for_compilation_unit comp_unit
   |> Symbol.linkage_name_for_ocamlobjinfo
-||||||| merged common ancestors
-     | Some crc -> string_of_crc crc)
-=======
->>>>>>> ocaml/5.1
 
 let print_general_infos name crc defines cmi cmx =
   printf "Name: %s\n" name;
@@ -208,7 +217,6 @@ let print_cmx_infos (ui, crc) =
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
   end;
-<<<<<<< HEAD
   let pr_afuns _ fns =
     let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
     List.iter (fun (arity,result,m) ->
@@ -231,25 +239,6 @@ let print_cmx_infos (ui, crc) =
   printf "Apply functions:%a\n" pr_afuns ui.ui_apply_fun;
   printf "Send functions:%a\n" pr_afuns ui.ui_send_fun;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")
-||||||| merged common ancestors
-  let pr_funs _ fns =
-    List.iter (fun arity -> printf " %d" arity) fns in
-  printf "Currying functions:%a\n" pr_funs ui.ui_curry_fun;
-  printf "Apply functions:%a\n" pr_funs ui.ui_apply_fun;
-  printf "Send functions:%a\n" pr_funs ui.ui_send_fun;
-  printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")
-=======
-  let pr_funs _ fns =
-    List.iter (fun arity -> printf " %d" arity) fns in
-  printf "Currying functions:%a\n" pr_funs ui.ui_curry_fun;
-  printf "Apply functions:%a\n" pr_funs ui.ui_apply_fun;
-  printf "Send functions:%a\n" pr_funs ui.ui_send_fun;
-  printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");
-  printf "For pack: %s\n"
-    (match ui.ui_for_pack with
-     | None -> "no"
-     | Some pack -> "YES: " ^ pack)
->>>>>>> ocaml/5.1
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";
@@ -279,13 +268,14 @@ let p_list title print = function
       List.iter print l
 
 let dump_byte ic =
-  let toc = Bytesections.read_toc ic in
-  let all = Bytesections.all toc in
+  Bytesections.read_toc ic;
+  let toc = Bytesections.toc () in
+  let toc = List.sort Stdlib.compare toc in
   List.iter
-    (fun {Bytesections.name = section; len; _} ->
+    (fun (section, _) ->
        try
+         let len = Bytesections.seek_section ic section in
          if len > 0 then match section with
-<<<<<<< HEAD
            | "CRCS" ->
                p_list
                  "Imported units"
@@ -308,56 +298,10 @@ let dump_byte ic =
                  (input_stringlist ic len)
            | "SYMB" ->
                print_global_table (input_value ic)
-||||||| merged common ancestors
-           | "CRCS" ->
-               p_section
-                 "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
-           | "DLLS" ->
-               p_list
-                 "Used DLLs"
-                 print_line
-                 (input_stringlist ic len)
-           | "DLPT" ->
-               p_list
-                 "Additional DLL paths"
-                 print_line
-                 (input_stringlist ic len)
-           | "PRIM" ->
-               p_list
-                 "Primitives used"
-                 print_line
-                 (input_stringlist ic len)
-           | "SYMB" ->
-               print_global_table (input_value ic)
-=======
-           | CRCS ->
-               let imported_units : (string * Digest.t option) list =
-                 Bytesections.read_section_struct toc ic section in
-               p_section "Imported units" imported_units
-           | DLLS ->
-               let dlls =
-                 Bytesections.read_section_string toc ic section
-                 |> Misc.split_null_terminated in
-               p_list "Used DLLs" print_line dlls
-           | DLPT ->
-               let dll_paths =
-                 Bytesections.read_section_string toc ic section
-                 |> Misc.split_null_terminated in
-               p_list "Additional DLL paths" print_line dll_paths
-           | PRIM ->
-               let prims =
-                 Bytesections.read_section_string toc ic section
-                 |> Misc.split_null_terminated in
-               p_list "Primitives used" print_line prims
-           | SYMB ->
-               let symb = Bytesections.read_section_struct toc ic section in
-               print_global_table symb
->>>>>>> ocaml/5.1
            | _ -> ()
        with _ -> ()
     )
-    all
+    toc
 
 let find_dyn_offset filename =
   match Binutils.read filename with
@@ -516,7 +460,7 @@ let arg_list = [
 let arg_usage =
    Printf.sprintf "%s [OPTIONS] FILES : give information on files" Sys.argv.(0)
 
-let main () =
+let main() =
   Arg.parse_expand arg_list dump_obj arg_usage;
   exit 0
 

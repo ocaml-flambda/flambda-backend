@@ -24,7 +24,8 @@ let stdlib =
   Filename.make_path [srcdir; "stdlib"]
 
 let libunix =
-  Filename.make_path [srcdir; "otherlibs"; "unix"]
+  let subdir = if Sys.win32 then "win32unix" else "unix" in
+  Filename.make_path [srcdir; "otherlibs"; subdir]
 
 let toplevel =
   Filename.make_path [srcdir; "toplevel"]

@@ -19,10 +19,12 @@ ROOTDIR = ../..
 COMPILERLIBSDIR = $(ROOTDIR)/compilerlibs
 
 RUNTIME_VARIANT ?=
+ASPPFLAGS ?=
 
 include $(ROOTDIR)/Makefile.common
 include $(ROOTDIR)/Makefile.best_binaries
 
+STDLIBFLAGS = -nostdlib -I $(ROOTDIR)/stdlib
 OCAMLC ?= $(BEST_OCAMLC) $(STDLIBFLAGS)
 OCAMLOPT ?= $(BEST_OCAMLOPT) $(STDLIBFLAGS)
 
@@ -43,13 +45,10 @@ codegen_LIBS = $(addprefix $(COMPILERLIBSDIR)/,\
 codegen_OBJECTS = $(addsuffix .cmo,\
   parsecmmaux parsecmm lexcmm codegen_main)
 
-ALL_LIBS = $(expect_LIBS)
-
 tools := $(expect_PROG)
 
 ifeq "$(NATIVE_COMPILER)" "true"
 tools += $(codegen_PROG)
-ALL_LIBS += $(codegen_LIBS)
 ifneq "$(CCOMPTYPE)-$(ARCH)" "msvc-amd64"
 # The asmgen tests are not ported to MSVC64 yet
 # so do not compile any arch-specific module
@@ -77,23 +76,24 @@ lexcmm.cmo: lexcmm.cmi
 
 parsecmm.cmo: parsecmm.cmi
 
-%.cmi: %.mli $(ALL_LIBS:=.cma)
+asmgen_i386.obj: asmgen_i386nt.asm
+	@set -o pipefail ; \
+	$(ASM) $@ $^ | tail -n +2
+
+%.cmi: %.mli
 	$(OCAMLC) $(COMPFLAGS) -c $<
 
-%.cmo: %.ml $(ALL_LIBS:=.cma)
+%.cmo: %.ml
 	$(OCAMLC) $(COMPFLAGS) -c $<
 
-%.cmx: %.ml $(ALL_LIBS:=.cmxa)
+%.cmx: %.ml
 	$(OCAMLOPT) $(COMPFLAGS) -c $<
 
 %.$(O): %.S
-	$(ASPP) $(OC_ASPPFLAGS) -o $@ $<
+	$(ASPP) $(ASPPFLAGS) -DSYS_$(SYSTEM) -DMODEL_$(MODEL) -o $@ $<
 
 .PHONY: clean
 clean:
 	rm -f *.cm* *.o *.obj
 	rm -f expect_test expect_test.exe codegen codegen.exe
-	rm -f parsecmm.ml parsecmm.mli parsecmm.output lexcmm.ml
-
-.PHONY: distclean
-distclean: clean
+	rm -f parsecmm.ml parsecmm.mli lexcmm.ml

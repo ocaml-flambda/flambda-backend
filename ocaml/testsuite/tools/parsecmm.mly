@@ -257,27 +257,19 @@ expr:
                 { unbind_ident $5; Ctrywith($3, $5, $6, debuginfo (), Any) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
-        Cop(Cload {memory_chunk=Word_val;
-                   mutability=Mutable;
-                   is_atomic=false}, [access_array $3 $4 Arch.size_addr],
+        Cop(Cload (Word_val, Mutable), [access_array $3 $4 Arch.size_addr],
           debuginfo ()) }
   | LPAREN ADDRAREF expr expr RPAREN
       { let open Asttypes in
-        Cop(Cload {memory_chunk=Word_val;
-                   mutability=Mutable;
-                   is_atomic=false}, [access_array $3 $4 Arch.size_addr],
+        Cop(Cload (Word_val, Mutable), [access_array $3 $4 Arch.size_addr],
           Debuginfo.none) }
   | LPAREN INTAREF expr expr RPAREN
       { let open Asttypes in
-        Cop(Cload {memory_chunk=Word_int;
-                   mutability=Mutable;
-                   is_atomic=false}, [access_array $3 $4 Arch.size_int],
+        Cop(Cload (Word_int, Mutable), [access_array $3 $4 Arch.size_int],
           Debuginfo.none) }
   | LPAREN FLOATAREF expr expr RPAREN
       { let open Asttypes in
-        Cop(Cload {memory_chunk=Double;
-                   mutability=Mutable;
-                   is_atomic=false}, [access_array $3 $4 Arch.size_float],
+        Cop(Cload (Double, Mutable), [access_array $3 $4 Arch.size_float],
           Debuginfo.none) }
   | LPAREN ADDRASET expr expr expr RPAREN
       { Cop(Cstore (Word_val, Assignment),
@@ -331,9 +323,7 @@ chunk:
   | VAL                         { Word_val }
 ;
 unaryop:
-    LOAD chunk                  { Cload {memory_chunk=$2;
-                                         mutability=Asttypes.Mutable;
-                                         is_atomic=false} }
+    LOAD chunk                  { Cload ($2, Asttypes.Mutable) }
   | FLOATOFINT                  { Cfloatofint }
   | INTOFFLOAT                  { Cintoffloat }
   | RAISE                       { Craise $1 }

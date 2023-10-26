@@ -32,9 +32,6 @@ module Error = struct
     | Anonymous
     | Named of Path.t
     | Unit
-    | Empty_struct
-     (** For backward compatibility's sake, an empty struct can be implicitly
-         converted to an unit module  *)
 
   type ('a,'b) diff = {got:'a; expected:'a; symptom:'b}
   type 'a core_diff =('a,unit) diff
@@ -543,6 +540,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
             Error (Error.Mt_core (Error.Unbound_module_path p1))
         end
     end
+
   | (Mty_signature sig1, Mty_signature sig2) ->
       begin match
         signatures ~in_eq ~loc env ~mark subst sig1 sig2 orig_shape
@@ -673,29 +671,25 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
         | Ok (cc, _) -> Ok cc
         | Error err -> Error (Error.Mismatch err)
       in
-      let env, subst = equate_one_functor_param subst env arg2' name1 name2 in
+      let env, subst =
+        match name1, name2 with
+        | Some id1, Some id2 ->
+            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
+            Subst.add_module id2 (Path.Pident id1) subst
+        | None, Some id2 ->
+            let id1 = Ident.rename id2 in
+            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
+            Subst.add_module id2 (Path.Pident id1) subst
+        | Some id1, None ->
+            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env, subst
+        | None, None ->
+            env, subst
+      in
       cc_arg, env, subst
   | _, _ ->
       let param1 = force_functor_parameter param1 in
       let param2 = force_functor_parameter param2 in
       Error (Error.Incompatible_params (param1, param2)), env, subst
-
-and equate_one_functor_param subst env arg2' name1 name2  =
-  match name1, name2 with
-  | Some id1, Some id2 ->
-  (* two matching abstract parameters: we add one identifier to the
-     environment and record the equality between the two identifiers
-     in the substitution *)
-      Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
-      Subst.add_module id2 (Path.Pident id1) subst
-  | None, Some id2 ->
-      let id1 = Ident.rename id2 in
-      Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
-      Subst.add_module id2 (Path.Pident id1) subst
-  | Some id1, None ->
-      Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env, subst
-  | None, None ->
-      env, subst
 
 and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
     subst mty1 path1 mty2 shape =
@@ -755,7 +749,7 @@ and signatures ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
           Ok (simplify_structure_coercion cc id_pos_list, shape)
         else
           Ok (Tcoerce_structure (cc, id_pos_list), shape)
-    | missings, incompatibles, _runtime_coercions, _leftovers ->
+    | missings, incompatibles, _, _leftovers ->
         Error {
           Error.env=new_env;
           missings = List.map force_signature_item missings;
@@ -977,13 +971,13 @@ let include_functor_signatures ~loc env ~mark subst sig1 sig2 mod_shape =
   | [], [], [] ->
      Ok d.runtime_coercions
   | missings, incompatibles, _leftovers ->
-     let missings = List.map Subst.Lazy.force_signature_item missings in
+    let missings = List.map Subst.Lazy.force_signature_item missings in
      Error Error.{ env; missings; incompatibles }
 
 let can_alias env path =
   let rec no_apply = function
     | Path.Pident _ -> true
-    | Path.Pdot(p, _) | Path.Pextra_ty (p, _) -> no_apply p
+    | Path.Pdot(p, _) -> no_apply p
     | Path.Papply _ -> false
   in
   no_apply path && not (Env.is_functor_arg path env)
@@ -1125,37 +1119,36 @@ module Functor_inclusion_diff = struct
     | None -> state, [||]
     | Some (res, expansion) -> { state with res }, expansion
 
-  (* Whenever we have a named parameter that doesn't match it anonymous
-     counterpart, we add it to the typing environment because it may
-     contain useful abbreviations, but without adding any equations  *)
-  let bind id arg state =
-    let arg' = Subst.modtype Keep state.subst arg in
-    let env = Env.add_module id Mp_present arg' state.env in
-    { state with env }
-
-  let rec update (d:Diff.change) st =
-    match d with
+  let update (d:Diff.change) st = match d with
     | Insert (Unit | Named (None,_))
     | Delete (Unit | Named (None,_))
     | Keep (Unit,_,_)
-    | Keep (_,Unit,_) ->
-        (* No named abstract parameters: we keep the same environment *)
+    | Keep (_,Unit,_)
+    | Change (_,(Unit | Named (None,_)), _) ->
         st, [||]
-    | Insert (Named (Some id, arg)) | Delete (Named (Some id, arg)) ->
-        (* one named parameter to bind *)
-        st |> bind id arg |> expand_params
-    | Change (delete, insert, _) ->
-        (* Change should be delete + insert: we add both abstract parameters
-           to the environment without equating them. *)
-        let st, _expansion = update (Diffing.Delete delete) st in
-        update (Diffing.Insert insert) st
-    | Keep (Named (name1, _), Named (name2, arg2), _) ->
-        let arg2 = Subst.Lazy.of_modtype arg2 in
-        let arg = Subst.Lazy.modtype Keep st.subst arg2 in
-        let env, subst =
-          equate_one_functor_param st.subst st.env arg name1 name2
-        in
-        expand_params { st with env; subst }
+    | Insert (Named (Some id, arg))
+    | Delete (Named (Some id, arg))
+    | Change (Unit, Named (Some id, arg), _) ->
+        let arg' = Subst.modtype Keep st.subst arg in
+        let env = Env.add_module id Mp_present arg' st.env in
+        expand_params { st with env }
+    | Keep (Named (name1, _), Named (name2, arg2), _)
+    | Change (Named (name1, _), Named (name2, arg2), _) -> begin
+        let arg' = Subst.modtype Keep st.subst arg2 in
+        match name1, name2 with
+        | Some id1, Some id2 ->
+            let env = Env.add_module id1 Mp_present arg' st.env in
+            let subst = Subst.add_module id2 (Path.Pident id1) st.subst in
+            expand_params { st with env; subst }
+        | None, Some id2 ->
+            let env = Env.add_module id2 Mp_present arg' st.env in
+            { st with env }, [||]
+        | Some id1, None ->
+            let env = Env.add_module id1 Mp_present arg' st.env in
+            expand_params { st with env }
+        | None, None ->
+            st, [||]
+      end
 
   let diff env (l1,res1) (l2,_) =
     let module Compute = Diff.Left_variadic(struct
@@ -1202,50 +1195,56 @@ module Functor_app_diff = struct
         begin
           let desc1 : Error.functor_arg_descr = fst param1 in
           match desc1, I.param_name param2 with
-          | (Unit | Empty_struct | Anonymous) , None
+          | (Unit | Anonymous) , None
             -> 0
           | Named (Path.Pident n1), Some n2
             when String.equal (Ident.name n1) (Ident.name n2)
             -> 0
           | Named _, Some _ -> 1
-          | Named _,  None | (Unit | Empty_struct | Anonymous), Some _ -> 1
+          | Named _,  None | (Unit | Anonymous), Some _ -> 1
         end
 
   let update (d: Diff.change) (st:Defs.state) =
     let open Error in
     match d with
-    | Insert (Unit|Named(None,_))
-    | Delete _ (* delete is a concrete argument, not an abstract parameter*)
-    | Keep ((Unit,_),_,_) (* Keep(Unit,_) implies Keep(Unit,Unit) *)
-    | Keep (_,(Unit|Named(None,_)),_)
-    | Change (_,(Unit|Named (None,_)), _ ) ->
-        (* no abstract parameters to add, nor any equations *)
+    | Insert _
+    | Delete _
+    | Keep ((Unit,_),_,_)
+    | Keep (_,Unit,_)
+    | Change (_,(Unit | Named (None,_)), _ )
+    | Change ((Unit,_), Named (Some _, _), _) ->
         st, [||]
-    | Insert(Named(Some param, param_ty))
-    | Change(_, Named(Some param, param_ty), _ ) ->
-        (* Change is Delete + Insert: we add the Inserted parameter to the
-           environnement to track equalities with external components that the
-           parameter might add. *)
-        let mty = Subst.modtype Keep st.subst param_ty in
-        let env = Env.add_module ~arg:true param Mp_present mty st.env in
-        I.expand_params { st with env }
-    | Keep ((Named arg,  _mty) , Named (Some param, _param), _) ->
-        let res =
-          Option.map (fun res ->
-              let scope = Ctype.create_scope () in
-              let subst = Subst.add_module param arg Subst.identity in
-              Subst.modtype (Rescope scope) subst res
-            )
-            st.res
-        in
-        let subst = Subst.add_module param arg st.subst in
-        I.expand_params { st with subst; res }
-    | Keep (((Anonymous|Empty_struct), mty),
-            Named (Some param, _param), _) ->
-        let mty' = Subst.modtype Keep st.subst mty in
-        let env = Env.add_module ~arg:true param Mp_present mty' st.env in
-        let res = Option.map (Mtype.nondep_supertype env [param]) st.res in
-        I.expand_params { st with env; res}
+    | Keep ((Named arg,  _mty) , Named (param_name, _param), _)
+    | Change ((Named arg, _mty), Named (param_name, _param), _) ->
+        begin match param_name with
+        | Some param ->
+            let res =
+              Option.map (fun res ->
+                  let scope = Ctype.create_scope () in
+                  let subst = Subst.add_module param arg Subst.identity in
+                  Subst.modtype (Rescope scope) subst res
+                )
+                st.res
+            in
+            let subst = Subst.add_module param arg st.subst in
+            I.expand_params { st with subst; res }
+        | None ->
+            st, [||]
+        end
+    | Keep ((Anonymous, mty) , Named (param_name, _param), _)
+    | Change ((Anonymous, mty), Named (param_name, _param), _) -> begin
+        begin match param_name with
+        | Some param ->
+            let mty' = Subst.modtype Keep st.subst mty in
+            let env =
+              Env.add_module ~arg:true param Mp_present mty' st.env in
+            let res =
+              Option.map (Mtype.nondep_supertype env [param]) st.res in
+            I.expand_params { st with env; res}
+        | None ->
+            st, [||]
+        end
+      end
 
   let diff env ~f ~args =
     let params, res = retrieve_functor_params env f in
@@ -1254,10 +1253,10 @@ module Functor_app_diff = struct
         let test (state:Defs.state) (arg,arg_mty) param =
           let loc = Location.none in
           let res = match (arg:Error.functor_arg_descr), param with
-            | (Unit|Empty_struct), Unit -> Ok Tcoerce_none
+            | Unit, Unit -> Ok Tcoerce_none
             | Unit, Named _ | (Anonymous | Named _), Unit ->
                 Result.Error (Error.Incompatible_params(arg,param))
-            | ( Anonymous | Named _ | Empty_struct ), Named (_, param) ->
+            | ( Anonymous | Named _ ) , Named (_, param) ->
                 match
                   modtypes ~in_eq:false ~loc state.env ~mark:Mark_neither
                     state.subst arg_mty param Shape.dummy_mod

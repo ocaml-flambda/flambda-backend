@@ -28,7 +28,6 @@ Line 16, characters 0-33:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Eq
-
 Exception: Match_failure ("", 16, 0).
 |}];;
 
@@ -52,6 +51,5 @@ Line 11, characters 0-33:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Eq
-
 Exception: Match_failure ("", 11, 0).
 |}];;

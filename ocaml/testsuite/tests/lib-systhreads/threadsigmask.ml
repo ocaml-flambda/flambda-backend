@@ -24,8 +24,7 @@ let rec loop () =
   let res = List.length (List.rev_map sin long_list) in
   ignore (Sys.opaque_identity res)
 
-let thread (s, init_mask) =
-  assert (init_mask = (Thread.sigmask Unix.SIG_UNBLOCK []));
+let thread s =
   ignore (Thread.sigmask Unix.SIG_UNBLOCK [s]);
   while not !stopped do loop () done
 
@@ -36,8 +35,6 @@ let handler tid_exp cnt signal =
 
 let _ =
   ignore (Thread.sigmask Unix.SIG_BLOCK [Sys.sigusr1; Sys.sigusr2]);
-  (* expected initial mask of spawned thread *)
-  let init_mask = (Thread.sigmask Unix.SIG_BLOCK []) in
 
   (* Install the signal handlers *)
   let (tid1, tid2) = (ref 0, ref 0) in
@@ -46,7 +43,7 @@ let _ =
   Sys.set_signal Sys.sigusr2 (Sys.Signal_handle (handler tid2 cnt2));
 
   (* Spawn the other thread and unblock sigusr2 in the main thread *)
-  let t1 = Thread.create thread (Sys.sigusr1, init_mask) in
+  let t1 = Thread.create thread Sys.sigusr1 in
   let t2 = Thread.self () in
   ignore (Thread.sigmask Unix.SIG_UNBLOCK [Sys.sigusr2]);
   tid1 := Thread.id t1;
@@ -57,26 +54,14 @@ let _ =
   let pid = Unix.getpid () in
   let cntsent = ref 0 in
   (* We loop until each thread has received at least 5 signals and we
-<<<<<<< HEAD
     have sent more than 10 signals in total. We do not check that all
-||||||| merged common ancestors
-    have sent more than 100 signals in total. We do not check that all
-=======
-    have sent more than 50 signals in total. We do not check that all
->>>>>>> ocaml/5.1
     signals get handled, because they could be missed because of the
     lack of fairness of the scheduler. *)
-<<<<<<< HEAD
   while !cntsent < 10 || !cnt1 < 5 || !cnt2 < 5 do
-||||||| merged common ancestors
-  while !cntsent < 100 || !cnt1 < 5 || !cnt2 < 5 do
-=======
-  while !cntsent < 50 || !cnt1 < 5 || !cnt2 < 5 do
->>>>>>> ocaml/5.1
     Unix.kill pid Sys.sigusr1;
     Unix.kill pid Sys.sigusr2;
     incr cntsent;
-    Thread.delay 0.05;
+    Thread.delay 0.07;
 
     (* Still, if too many signals have been sent, we interrupt the
        test to avoid a timeout. *)

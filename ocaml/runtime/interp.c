@@ -20,7 +20,6 @@
 #include "caml/alloc.h"
 #include "caml/backtrace.h"
 #include "caml/callback.h"
-#include "caml/codefrag.h"
 #include "caml/debugger.h"
 #include "caml/fail.h"
 #include "caml/fix_code.h"
@@ -33,10 +32,7 @@
 #include "caml/mlvalues.h"
 #include "caml/prims.h"
 #include "caml/signals.h"
-#include "caml/fiber.h"
-#include "caml/domain.h"
-#include "caml/globroots.h"
-#include "caml/startup.h"
+#include "caml/stacks.h"
 #include "caml/startup_aux.h"
 
 /* Registers for the abstract machine:
@@ -44,7 +40,7 @@
         sp         the stack pointer (grows downward)
         accu       the accumulator
         env        heap-allocated environment
-        Caml_state->trap_sp_off offset to the current trap frame
+        Caml_state->trapsp pointer to the current trap frame
         extra_args number of extra arguments provided by the caller
 
 sp is a local copy of the global variable Caml_state->extern_sp. */
@@ -71,27 +67,22 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
 
 /* GC interface */
 
+#undef Alloc_small_origin
+// Do call asynchronous callbacks from allocation functions
+#define Alloc_small_origin CAML_FROM_CAML
 #define Setup_for_gc \
   { sp -= 3; sp[0] = accu; sp[1] = env; sp[2] = (value)pc; \
-    domain_state->current_stack->sp = sp; }
+    Caml_state->extern_sp = sp; }
 #define Restore_after_gc \
-  { sp = domain_state->current_stack->sp; accu = sp[0]; env = sp[1]; sp += 3; }
-/* Do call asynchronous callbacks from allocation functions */
-#define Enter_gc(dom_st, wosize) do {                            \
-    Setup_for_gc;                                                \
-    Alloc_small_enter_GC_flags(CAML_DO_TRACK | CAML_FROM_CAML,   \
-                               dom_st, wosize);                  \
-    Restore_after_gc;                                            \
-  } while (0)
+  { sp = Caml_state->extern_sp; accu = sp[0]; env = sp[1]; sp += 3; }
 
 /* We store [pc+1] in the stack so that, in case of an exception, the
    first backtrace slot points to the event following the C call
    instruction. */
 #define Setup_for_c_call \
-  { sp -= 2; sp[0] = env; sp[1] = (value)(pc + 1); \
-    domain_state->current_stack->sp = sp; }
+  { sp -= 2; sp[0] = env; sp[1] = (value)(pc + 1); Caml_state->extern_sp = sp; }
 #define Restore_after_c_call \
-  { sp = domain_state->current_stack->sp; env = *sp; sp += 2; }
+  { sp = Caml_state->extern_sp; env = *sp; sp += 2; }
 
 /* For VM threads purposes, an event frame must look like accu + a
    C_CALL frame + a RETURN 1 frame.
@@ -102,12 +93,12 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
     sp[0] = accu; /* accu */ \
     sp[1] = Val_unit; /* C_CALL frame: dummy environment */ \
     sp[2] = Val_unit; /* RETURN frame: dummy local 0 */ \
-    sp[3] = (value) pc; /* RETURN frame: saved return address */  \
+    sp[3] = (value) pc; /* RETURN frame: saved return address */ \
     sp[4] = env; /* RETURN frame: saved environment */ \
     sp[5] = Val_long(extra_args); /* RETURN frame: saved extra args */ \
-    domain_state->current_stack->sp = sp; }
+    Caml_state->extern_sp = sp; }
 #define Restore_after_event \
-  { sp = domain_state->current_stack->sp; accu = sp[0]; \
+  { sp = Caml_state->extern_sp; accu = sp[0]; \
     pc = (code_t) sp[3]; env = sp[4]; extra_args = Long_val(sp[5]); \
     sp += 6; }
 
@@ -117,9 +108,9 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
    { sp -= 4; \
      sp[0] = accu; sp[1] = (value)(pc - 1); \
      sp[2] = env; sp[3] = Val_long(extra_args); \
-     domain_state->current_stack->sp = sp; }
+     Caml_state->extern_sp = sp; }
 #define Restore_after_debugger \
-   { CAMLassert(sp == domain_state->current_stack->sp); \
+   { CAMLassert(sp == Caml_state->extern_sp); \
      CAMLassert(sp[0] == accu); \
      CAMLassert(sp[2] == env); \
      sp += 4; }
@@ -133,31 +124,9 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
   goto dispatch_instr
 #endif
 
-Caml_inline void check_trap_barrier_for_exception
-  (caml_domain_state* domain_state)
-{
-  if (domain_state->current_stack->id == domain_state->trap_barrier_block
-      && domain_state->trap_sp_off >= domain_state->trap_barrier_off)
-    caml_debugger(TRAP_BARRIER, Val_unit);
-}
-
-Caml_inline void check_trap_barrier_for_effect
-  (caml_domain_state* domain_state)
-{
-  if (domain_state->current_stack->id == domain_state->trap_barrier_block){
-    caml_debugger(TRAP_BARRIER, Val_unit);
-  }else{
-    struct stack_info *parent_stack
-      = domain_state->current_stack->handler->parent;
-    if (parent_stack != NULL
-        && parent_stack->id == domain_state->trap_barrier_block
-        && parent_stack->sp + 2 - Stack_high (parent_stack)
-              /* Note: +2 is the same constant as in debugger.c:552 */
-           == domain_state->trap_barrier_off){
-      caml_debugger(TRAP_BARRIER, Val_unit);
-    }
-  }
-}
+#define Check_trap_barrier \
+  if (Caml_state->trapsp >= Caml_state->trap_barrier) \
+    caml_debugger(TRAP_BARRIER, Val_unit)
 
 /* Register optimization.
    Some compilers underestimate the use of the local variables representing
@@ -237,10 +206,8 @@ Caml_inline void check_trap_barrier_for_effect
 #endif
 
 #ifdef DEBUG
-static __thread intnat caml_bcodcount;
+static intnat caml_bcodcount;
 #endif
-
-static value raise_unhandled_effect;
 
 /* The interpreter itself */
 
@@ -264,15 +231,15 @@ value caml_interprete(code_t prog, asize_t prog_size)
 #endif
   value env;
   intnat extra_args;
-  struct caml_exception_context * initial_external_raise;
-  int initial_stack_words;
-  intnat initial_trap_sp_off;
-  volatile value raise_exn_bucket = Val_unit;
-  struct longjmp_buffer raise_buf;
-  value resume_fn, resume_arg;
-  caml_domain_state* domain_state = Caml_state;
-  struct caml_exception_context exception_ctx =
-    { &raise_buf, domain_state->local_roots, &raise_exn_bucket};
+  struct longjmp_buffer * initial_external_raise;
+  struct longjmp_buffer * initial_external_raise_async;
+  intnat initial_sp_offset;
+  intnat initial_trapsp_offset;
+  /* volatile ensures that initial_local_roots will keep correct values across
+     longjmp.  The other "initial_..." variables don't need "volatile"
+     because they aren't changed between the setjmp and any longjmp. */
+  struct caml__roots_block * volatile initial_local_roots;
+  struct longjmp_buffer raise_buf, raise_async_buf;
 #ifndef THREADED_CODE
   opcode_t curr_instr;
 #endif
@@ -284,58 +251,65 @@ value caml_interprete(code_t prog, asize_t prog_size)
 #endif
 
   if (prog == NULL) {           /* Interpreter is initializing */
-    static opcode_t raise_unhandled_effect_code[] = { ACC, 0, RAISE };
-    value raise_unhandled_effect_closure;
-
-    caml_register_code_fragment(
-      (char *) raise_unhandled_effect_code,
-      (char *) raise_unhandled_effect_code +
-      sizeof(raise_unhandled_effect_code),
-      DIGEST_IGNORE, NULL);
 #ifdef THREADED_CODE
     caml_init_thread_code(jumptable, Jumptbl_base);
-    caml_thread_code(raise_unhandled_effect_code,
-                     sizeof(raise_unhandled_effect_code));
 #endif
-    raise_unhandled_effect_closure = caml_alloc_small (2, Closure_tag);
-    Code_val(raise_unhandled_effect_closure) =
-      (code_t)raise_unhandled_effect_code;
-    Closinfo_val(raise_unhandled_effect_closure) = Make_closinfo(0, 2);
-    raise_unhandled_effect = raise_unhandled_effect_closure;
-    caml_register_generational_global_root(&raise_unhandled_effect);
-    caml_global_data = Val_unit;
-    caml_register_generational_global_root(&caml_global_data);
-    caml_init_callbacks();
     return Val_unit;
   }
 
 #if defined(THREADED_CODE) && defined(ARCH_SIXTYFOUR) && !defined(ARCH_CODE32)
   jumptbl_base = Jumptbl_base;
 #endif
-  initial_trap_sp_off = domain_state->trap_sp_off;
-  initial_stack_words =
-    Stack_high(domain_state->current_stack) - domain_state->current_stack->sp;
-  initial_external_raise = domain_state->external_raise;
+  initial_local_roots = Caml_state->local_roots;
+  initial_sp_offset =
+    (char *) Caml_state->stack_high - (char *) Caml_state->extern_sp;
+  initial_external_raise = Caml_state->external_raise;
+  initial_external_raise_async = Caml_state->external_raise_async;
+  initial_trapsp_offset =
+    (char *) Caml_state->stack_high - (char *) Caml_state->trapsp;
+
+  caml_callback_depth++;
 
   if (sigsetjmp(raise_buf.buf, 0)) {
-    /* no non-volatile local variables read here */
-    sp = domain_state->current_stack->sp;
-    accu = raise_exn_bucket;
+    Caml_state->local_roots = initial_local_roots;
+    sp = Caml_state->extern_sp;
+    accu = Caml_state->exn_bucket;
 
-    check_trap_barrier_for_exception (domain_state);
-    if (domain_state->backtrace_active) {
-         /* pc has already been pushed on the stack when calling the C
+    Check_trap_barrier;
+    if (Caml_state->backtrace_active) {
+      /* pc has already been pushed on the stack when calling the C
          function that raised the exception. No need to push it again
          here. */
       caml_stash_backtrace(accu, sp, 0);
     }
     goto raise_notrace;
   }
-  domain_state->external_raise = &exception_ctx;
+  Caml_state->external_raise = &raise_buf;
 
-  domain_state->trap_sp_off = 1;
+  if (sigsetjmp(raise_async_buf.buf, 0)) {
+    Caml_state->local_roots = initial_local_roots;
+    sp = Caml_state->extern_sp;
+    accu = Caml_state->exn_bucket;
 
-  sp = domain_state->current_stack->sp;
+    Check_trap_barrier;
+    if (Caml_state->backtrace_active) {
+      caml_stash_backtrace(accu, sp, 0);
+    }
+
+    /* Skip any exception handlers installed by this invocation of
+       [caml_interprete].  This will cause the [raise_notrace] code below to
+       return asynchronous exceptions to the caller, typically in
+       [caml_callbackN_exn0].  When that function reraises such an exception
+       then [Caml_state->trapsp] will correctly be pointing at the most
+       recent prior trap. */
+    Caml_state->trapsp = (value *) ((char *) Caml_state->stack_high
+                                      - initial_trapsp_offset);
+
+    goto raise_notrace;
+  }
+  Caml_state->external_raise_async = &raise_async_buf;
+
+  sp = Caml_state->extern_sp;
   pc = prog;
   extra_args = 0;
   env = Atom(0);
@@ -345,8 +319,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
 #ifdef DEBUG
  next_instr:
   if (caml_icount-- == 0) caml_stop_here ();
-  CAMLassert(Stack_base(domain_state->current_stack) <= sp);
-  CAMLassert(sp <= Stack_high(domain_state->current_stack));
+  CAMLassert(sp >= Caml_state->stack_low);
+  CAMLassert(sp <= Caml_state->stack_high);
 #endif
   goto *(void *)(jumptbl_base + *pc++); /* Jump to the first instruction */
 #else
@@ -354,20 +328,18 @@ value caml_interprete(code_t prog, asize_t prog_size)
 #ifdef DEBUG
     caml_bcodcount++;
     if (caml_icount-- == 0) caml_stop_here ();
-    if (caml_params->trace_level>1)
-      printf("\n##%" ARCH_INTNAT_PRINTF_FORMAT "d\n", caml_bcodcount);
-    if (caml_params->trace_level>0) caml_disasm_instr(pc);
-    if (caml_params->event_trace>0) caml_event_trace(pc);
-    if (caml_params->trace_level>1) {
+    if (caml_trace_level>1) printf("\n##%" ARCH_INTNAT_PRINTF_FORMAT "d\n",
+                                   caml_bcodcount);
+    if (caml_trace_level>0) caml_disasm_instr(pc);
+    if (caml_trace_level>1) {
       printf("env=");
       caml_trace_value_file(env,prog,prog_size,stdout);
       putchar('\n');
       caml_trace_accu_sp_file(accu,sp,prog,prog_size,stdout);
       fflush(stdout);
     };
-    CAMLassert(Stack_base(domain_state->current_stack) <= sp);
-    CAMLassert(sp <= Stack_high(domain_state->current_stack));
-
+    CAMLassert(sp >= Caml_state->stack_low);
+    CAMLassert(sp <= Caml_state->stack_high);
 #endif
     curr_instr = *pc++;
 
@@ -566,41 +538,14 @@ value caml_interprete(code_t prog, asize_t prog_size)
         extra_args--;
         pc = Code_val(accu);
         env = accu;
-        Next;
       } else {
-        goto do_return;
-      }
-    }
-
-    do_return:
-      if (sp == Stack_high(domain_state->current_stack)) {
-        /* return to parent stack */
-        struct stack_info* old_stack = domain_state->current_stack;
-        struct stack_info* parent_stack = Stack_parent(old_stack);
-        value hval = Stack_handle_value(old_stack);
-        CAMLassert(parent_stack != NULL);
-
-        domain_state->current_stack = parent_stack;
-        sp = domain_state->current_stack->sp;
-        caml_free_stack(old_stack);
-
-        domain_state->trap_sp_off = Long_val(sp[0]);
-        extra_args = Long_val(sp[1]);
-        sp++;
-        sp[0] = accu;
-
-        accu = hval;
-        pc = Code_val(accu);
-        env = accu;
-        goto check_stacks;
-      } else {
-        /* return to callee, no stack switching */
         pc = (code_t)(sp[0]);
         env = sp[1];
         extra_args = Long_val(sp[2]);
         sp += 3;
       }
       Next;
+    }
 
     Instruct(RESTART): {
       int num_args = Wosize_val(env) - 3;
@@ -616,18 +561,21 @@ value caml_interprete(code_t prog, asize_t prog_size)
       int required = *pc++;
       if (extra_args >= required) {
         extra_args -= required;
-        Next;
       } else {
         mlsize_t num_args, i;
         num_args = 1 + extra_args; /* arg1 + extra args */
-        Alloc_small(accu, num_args + 3, Closure_tag, Enter_gc);
+        Alloc_small(accu, num_args + 3, Closure_tag);
         Field(accu, 2) = env;
         for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
         Code_val(accu) = pc - 3; /* Point to the preceding RESTART instr. */
-        Closinfo_val(accu) = Make_closinfo(0, 2);
+        Closinfo_val(accu) = Make_closinfo(0, 2, 1);
         sp += num_args;
-        goto do_return;
+        pc = (code_t)(sp[0]);
+        env = sp[1];
+        extra_args = Long_val(sp[2]);
+        sp += 3;
       }
+      Next;
     }
 
     Instruct(CLOSURE): {
@@ -636,7 +584,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       if (nvars > 0) *--sp = accu;
       if (nvars <= Max_young_wosize - 2) {
         /* nvars + 2 <= Max_young_wosize, can allocate in minor heap */
-        Alloc_small(accu, 2 + nvars, Closure_tag, Enter_gc);
+        Alloc_small(accu, 2 + nvars, Closure_tag);
         for (i = 0; i < nvars; i++) Field(accu, i + 2) = sp[i];
       } else {
         /* PR#6385: must allocate in major heap */
@@ -648,7 +596,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       /* The code pointer is not in the heap, so no need to go through
          caml_initialize. */
       Code_val(accu) = pc + *pc;
-      Closinfo_val(accu) = Make_closinfo(0, 2);
+      Closinfo_val(accu) = Make_closinfo(0, 2, 1);
       pc++;
       sp += nvars;
       Next;
@@ -660,10 +608,10 @@ value caml_interprete(code_t prog, asize_t prog_size)
       mlsize_t envofs = nfuncs * 3 - 1;
       mlsize_t blksize = envofs + nvars;
       int i;
-      volatile value * p;
+      value * p;
       if (nvars > 0) *--sp = accu;
       if (blksize <= Max_young_wosize) {
-        Alloc_small(accu, blksize, Closure_tag, Enter_gc);
+        Alloc_small(accu, blksize, Closure_tag);
         p = &Field(accu, envofs);
         for (i = 0; i < nvars; i++, p++) *p = sp[i];
       } else {
@@ -680,13 +628,14 @@ value caml_interprete(code_t prog, asize_t prog_size)
       *--sp = accu;
       p = &Field(accu, 0);
       *p++ = (value) (pc + pc[0]);
-      *p++ = Make_closinfo(0, envofs);
+      *p++ = Make_closinfo(0, envofs, nfuncs < 2);
       for (i = 1; i < nfuncs; i++) {
-        *p++ = Make_header(i * 3, Infix_tag, 0); /* color irrelevant */
+        *p++ = Make_header(i * 3, Infix_tag, Caml_white); /* color irrelevant */
         *--sp = (value) p;
         *p++ = (value) (pc + pc[i]);
         envofs -= 3;
-        *p++ = Make_closinfo(0, envofs);
+        CAMLassert(i <= nfuncs - 1);
+        *p++ = Make_closinfo(0, envofs, i == nfuncs - 1);
       }
       pc += nfuncs;
       Next;
@@ -732,12 +681,11 @@ value caml_interprete(code_t prog, asize_t prog_size)
       Next;
     }
 
-    Instruct(SETGLOBAL):  {
+    Instruct(SETGLOBAL):
       caml_modify(&Field(caml_global_data, *pc), accu);
       accu = Val_unit;
       pc++;
       Next;
-    }
 
 /* Allocation of blocks */
 
@@ -759,7 +707,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       mlsize_t i;
       value block;
       if (wosize <= Max_young_wosize) {
-        Alloc_small(block, wosize, tag, Enter_gc);
+        Alloc_small(block, wosize, tag);
         Field(block, 0) = accu;
         for (i = 1; i < wosize; i++) Field(block, i) = *sp++;
       } else {
@@ -773,7 +721,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     Instruct(MAKEBLOCK1): {
       tag_t tag = *pc++;
       value block;
-      Alloc_small(block, 1, tag, Enter_gc);
+      Alloc_small(block, 1, tag);
       Field(block, 0) = accu;
       accu = block;
       Next;
@@ -781,7 +729,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     Instruct(MAKEBLOCK2): {
       tag_t tag = *pc++;
       value block;
-      Alloc_small(block, 2, tag, Enter_gc);
+      Alloc_small(block, 2, tag);
       Field(block, 0) = accu;
       Field(block, 1) = sp[0];
       sp += 1;
@@ -791,7 +739,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     Instruct(MAKEBLOCK3): {
       tag_t tag = *pc++;
       value block;
-      Alloc_small(block, 3, tag, Enter_gc);
+      Alloc_small(block, 3, tag);
       Field(block, 0) = accu;
       Field(block, 1) = sp[0];
       Field(block, 2) = sp[1];
@@ -804,7 +752,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       mlsize_t i;
       value block;
       if (size <= Max_young_wosize / Double_wosize) {
-        Alloc_small(block, size * Double_wosize, Double_array_tag, Enter_gc);
+        Alloc_small(block, size * Double_wosize, Double_array_tag);
       } else {
         block = caml_alloc_shr(size * Double_wosize, Double_array_tag);
       }
@@ -831,7 +779,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       accu = Field(accu, *pc); pc++; Next;
     Instruct(GETFLOATFIELD): {
       double d = Double_flat_field(accu, *pc++);
-      Alloc_small(accu, Double_wosize, Double_tag, Enter_gc);
+      Alloc_small(accu, Double_wosize, Double_tag);
       Store_double_val(accu, d);
       Next;
     }
@@ -930,102 +878,78 @@ value caml_interprete(code_t prog, asize_t prog_size)
     Instruct(PUSHTRAP):
       sp -= 4;
       Trap_pc(sp) = pc + *pc;
-      Trap_link(sp) = Val_long(domain_state->trap_sp_off);
+      Trap_link_offset(sp) = Val_long(Caml_state->trapsp - sp);
       sp[2] = env;
       sp[3] = Val_long(extra_args);
-      domain_state->trap_sp_off = sp - Stack_high(domain_state->current_stack);
+      Caml_state->trapsp = sp;
       pc++;
       Next;
 
     Instruct(POPTRAP):
-      if (Caml_check_gc_interrupt(domain_state)) {
+      if (caml_something_to_do) {
         /* We must check here so that if a signal is pending and its
            handler triggers an exception, the exception is trapped
            by the current try...with, not the enclosing one. */
         pc--; /* restart the POPTRAP after processing the signal */
-        goto process_signal;
+        goto process_actions;
       }
-      domain_state->trap_sp_off = Long_val(Trap_link(sp));
+      Caml_state->trapsp = sp + Long_val(Trap_link_offset(sp));
       sp += 4;
       Next;
 
     Instruct(RAISE_NOTRACE):
-      check_trap_barrier_for_exception (domain_state);
+      Check_trap_barrier;
       goto raise_notrace;
 
     Instruct(RERAISE):
-      check_trap_barrier_for_exception (domain_state);
-      if (domain_state->backtrace_active) {
+      Check_trap_barrier;
+      if (Caml_state->backtrace_active) {
         *--sp = (value)(pc - 1);
         caml_stash_backtrace(accu, sp, 1);
       }
       goto raise_notrace;
 
     Instruct(RAISE):
-    raise_exception:
-      check_trap_barrier_for_exception (domain_state);
-      if (domain_state->backtrace_active) {
+      Check_trap_barrier;
+      if (Caml_state->backtrace_active) {
         *--sp = (value)(pc - 1);
         caml_stash_backtrace(accu, sp, 0);
       }
     raise_notrace:
-      if (domain_state->trap_sp_off > 0) {
-        if (Stack_parent(domain_state->current_stack) == NULL) {
-          domain_state->external_raise = initial_external_raise;
-          domain_state->trap_sp_off = initial_trap_sp_off;
-          domain_state->current_stack->sp =
-            Stack_high(domain_state->current_stack) - initial_stack_words ;
-          return Make_exception_result(accu);
-        } else {
-          struct stack_info* old_stack = domain_state->current_stack;
-          struct stack_info* parent_stack = Stack_parent(old_stack);
-          value hexn = Stack_handle_exception(old_stack);
-          old_stack->sp = sp;
-          domain_state->current_stack = parent_stack;
-          sp = domain_state->current_stack->sp;
-          caml_free_stack(old_stack);
-
-          domain_state->trap_sp_off = Long_val(sp[0]);
-          extra_args = Long_val(sp[1]);
-          sp++;
-          sp[0] = accu;
-
-          accu = hexn;
-          pc = Code_val(accu);
-          env = accu;
-          goto check_stacks;
-        }
-      } else {
-        sp =
-           Stack_high(domain_state->current_stack) + domain_state->trap_sp_off;
-        pc = Trap_pc(sp);
-        domain_state->trap_sp_off = Long_val(Trap_link(sp));
-        env = sp[2];
-        extra_args = Long_val(sp[3]);
-        sp += 4;
+      if ((char *) Caml_state->trapsp
+          >= (char *) Caml_state->stack_high - initial_sp_offset) {
+        Caml_state->external_raise = initial_external_raise;
+        Caml_state->external_raise_async = initial_external_raise_async;
+        Caml_state->extern_sp = (value *) ((char *) Caml_state->stack_high
+                                    - initial_sp_offset);
+        caml_callback_depth--;
+        return Make_exception_result(accu);
       }
+      sp = Caml_state->trapsp;
+      pc = Trap_pc(sp);
+      Caml_state->trapsp = sp + Long_val(Trap_link_offset(sp));
+      env = sp[2];
+      extra_args = Long_val(sp[3]);
+      sp += 4;
       Next;
 
 /* Stack checks */
 
     check_stacks:
-      if (sp < Stack_threshold_ptr(domain_state->current_stack)) {
-        domain_state->current_stack->sp = sp;
-        if (!caml_try_realloc_stack(Stack_threshold / sizeof(value))) {
-          Setup_for_c_call; caml_raise_stack_overflow();
-        }
-        sp = domain_state->current_stack->sp;
+      if (sp < Caml_state->stack_threshold) {
+        Caml_state->extern_sp = sp;
+        caml_realloc_stack(Stack_threshold / sizeof(value));
+        sp = Caml_state->extern_sp;
       }
       /* Fall through CHECK_SIGNALS */
 
 /* Signal handling */
 
     Instruct(CHECK_SIGNALS):    /* accu not preserved */
-      if (Caml_check_gc_interrupt(domain_state))
-        goto process_signal;
+      if (caml_something_to_do) goto process_actions;
       Next;
 
-    process_signal:
+    process_actions:
       Setup_for_event;
       caml_process_pending_actions();
       Restore_after_event;
@@ -1035,34 +959,34 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(C_CALL1):
       Setup_for_c_call;
-      accu = Primitive1(*pc)(accu);
+      accu = Primitive(*pc)(accu);
       Restore_after_c_call;
       pc++;
       Next;
     Instruct(C_CALL2):
       Setup_for_c_call;
-      accu = Primitive2(*pc)(accu, sp[2]);
+      accu = Primitive(*pc)(accu, sp[2]);
       Restore_after_c_call;
       sp += 1;
       pc++;
       Next;
     Instruct(C_CALL3):
       Setup_for_c_call;
-      accu = Primitive3(*pc)(accu, sp[2], sp[3]);
+      accu = Primitive(*pc)(accu, sp[2], sp[3]);
       Restore_after_c_call;
       sp += 2;
       pc++;
       Next;
     Instruct(C_CALL4):
       Setup_for_c_call;
-      accu = Primitive4(*pc)(accu, sp[2], sp[3], sp[4]);
+      accu = Primitive(*pc)(accu, sp[2], sp[3], sp[4]);
       Restore_after_c_call;
       sp += 3;
       pc++;
       Next;
     Instruct(C_CALL5):
       Setup_for_c_call;
-      accu = Primitive5(*pc)(accu, sp[2], sp[3], sp[4], sp[5]);
+      accu = Primitive(*pc)(accu, sp[2], sp[3], sp[4], sp[5]);
       Restore_after_c_call;
       sp += 4;
       pc++;
@@ -1071,7 +995,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       int nargs = *pc++;
       *--sp = accu;
       Setup_for_c_call;
-      accu = PrimitiveN(*pc)(sp + 2, nargs);
+      accu = Primitive(*pc)(sp + 2, nargs);
       Restore_after_c_call;
       sp += nargs;
       pc++;
@@ -1209,9 +1133,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
 #endif
       *--sp = accu;
       accu = Val_int(*pc++);
-      /* We use relaxed atomic accesses to avoid racing with other domains
-         updating the cache */
-      ofs = atomic_load_relaxed((_Atomic opcode_t *)pc) & Field(meths,1);
+      ofs = *pc & Field(meths,1);
       if (*(value*)(((char*)&Field(meths,3)) + ofs) == accu) {
 #ifdef CAML_TEST_CACHE
         hits++;
@@ -1226,7 +1148,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
           if (accu < Field(meths,mi)) hi = mi-2;
           else li = mi;
         }
-        atomic_store_relaxed((_Atomic opcode_t *)pc, (li-3)*sizeof(value));
+        *pc = (li-3)*sizeof(value);
         accu = Field (meths, li-1);
       }
       pc++;
@@ -1255,9 +1177,10 @@ value caml_interprete(code_t prog, asize_t prog_size)
 /* Debugging and machine control */
 
     Instruct(STOP):
-      domain_state->external_raise = initial_external_raise;
-      domain_state->trap_sp_off = initial_trap_sp_off;
-      domain_state->current_stack->sp = sp;
+      Caml_state->external_raise = initial_external_raise;
+      Caml_state->external_raise_async = initial_external_raise_async;
+      Caml_state->extern_sp = sp;
+      caml_callback_depth--;
       return accu;
 
     Instruct(EVENT):
@@ -1274,136 +1197,9 @@ value caml_interprete(code_t prog, asize_t prog_size)
       Restore_after_debugger;
       Restart_curr_instr;
 
-/* Context switching */
-
-    Instruct(RESUME):
-      resume_fn = sp[0];
-      resume_arg = sp[1];
-      sp -= 3;
-      sp[0] = Val_long(domain_state->trap_sp_off);
-      sp[1] = Val_long(0);
-      sp[2] = (value)pc;
-      sp[3] = env;
-      sp[4] = Val_long(extra_args);
-      goto do_resume;
-
-do_resume: {
-      struct stack_info* stk = Ptr_val(accu);
-      if (stk == NULL) {
-        Setup_for_c_call;
-        caml_raise_continuation_already_resumed();
-      }
-      while (Stack_parent(stk) != NULL) stk = Stack_parent(stk);
-      Stack_parent(stk) = Caml_state->current_stack;
-
-      domain_state->current_stack->sp = sp;
-      domain_state->current_stack = Ptr_val(accu);
-      sp = domain_state->current_stack->sp;
-
-      domain_state->trap_sp_off = Long_val(sp[0]);
-      sp[0] = resume_arg;
-      accu = resume_fn;
-      pc = Code_val(accu);
-      env = accu;
-      extra_args = 0;
-      goto check_stacks;
-    }
-
-    Instruct(RESUMETERM):
-      resume_fn = sp[0];
-      resume_arg = sp[1];
-      sp = sp + *pc - 2;
-      sp[0] = Val_long(domain_state->trap_sp_off);
-      sp[1] = Val_long(extra_args);
-      goto do_resume;
-
-
-    Instruct(PERFORM): {
-      value cont;
-      struct stack_info* old_stack = domain_state->current_stack;
-      struct stack_info* parent_stack = Stack_parent(old_stack);
-
-      check_trap_barrier_for_effect (domain_state);
-      if (parent_stack == NULL) {
-        Setup_for_c_call;
-        accu = caml_make_unhandled_effect_exn(accu);
-        Restore_after_c_call;
-        goto raise_exception;
-      }
-
-      Alloc_small(cont, 1, Cont_tag, Enter_gc);
-
-      sp -= 4;
-      sp[0] = Val_long(domain_state->trap_sp_off);
-      sp[1] = (value)pc;
-      sp[2] = env;
-      sp[3] = Val_long(extra_args);
-
-      old_stack->sp = sp;
-      domain_state->current_stack = parent_stack;
-      sp = parent_stack->sp;
-      Stack_parent(old_stack) = NULL;
-      Field(cont, 0) = Val_ptr(old_stack);
-
-      domain_state->trap_sp_off = Long_val(sp[0]);
-      extra_args = Long_val(sp[1]);
-      sp--;
-      sp[0] = accu;
-      sp[1] = cont;
-      sp[2] = Val_ptr(old_stack);
-      accu = Stack_handle_effect(old_stack);
-      pc = Code_val(accu);
-      env = accu;
-      extra_args += 2;
-      goto check_stacks;
-    }
-
-    Instruct(REPERFORMTERM): {
-      value eff = accu;
-      value cont = sp[0];
-      struct stack_info* cont_tail = Ptr_val(sp[1]);
-      struct stack_info* self = domain_state->current_stack;
-      struct stack_info* parent = Stack_parent(domain_state->current_stack);
-
-      check_trap_barrier_for_effect (domain_state);
-      sp = sp + *pc - 2;
-      sp[0] = Val_long(domain_state->trap_sp_off);
-      sp[1] = Val_long(extra_args);
-
-      if (parent == NULL) {
-        Setup_for_c_call;
-        resume_arg = caml_make_unhandled_effect_exn(eff);
-        accu = caml_continuation_use(cont);
-        Restore_after_c_call;
-        resume_fn = raise_unhandled_effect;
-
-        goto do_resume;
-      }
-
-      self->sp = sp;
-      domain_state->current_stack = parent;
-      sp = parent->sp;
-
-      CAMLassert(Stack_parent(cont_tail) == NULL);
-      Stack_parent(self) = NULL;
-      Stack_parent(cont_tail) = self;
-
-      domain_state->trap_sp_off = Long_val(sp[0]);
-      extra_args = Long_val(sp[1]);
-      sp--;
-      sp[0] = eff;
-      sp[1] = cont;
-      sp[2] = Val_ptr(self);
-      accu = Stack_handle_effect(self);
-      pc = Code_val(accu);
-      env = accu;
-      extra_args += 2;
-      goto check_stacks;
-    }
-
 #ifndef THREADED_CODE
     default:
-#ifdef _MSC_VER
+#if _MSC_VER >= 1200
       __assume(0);
 #else
       caml_fatal_error("bad opcode (%"

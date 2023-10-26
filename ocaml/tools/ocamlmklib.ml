@@ -15,6 +15,9 @@
 
 open Printf
 
+let syslib x =
+  if Config.ccomp_type = "msvc" then x ^ ".lib" else "-l" ^ x
+
 let mklib out files opts =
   if Config.ccomp_type = "msvc"
   then let machine =
@@ -33,14 +36,14 @@ let compiler_path name =
 let bytecode_objs = ref []  (* .cmo,.cma,.ml,.mli files to pass to ocamlc *)
 and native_objs = ref []    (* .cmx,.ml,.mli files to pass to ocamlopt *)
 and c_objs = ref []         (* .o, .a, .obj, .lib, .dll, .dylib, .so files to
-                               pass to mkdll and ar *)
+                               pass to mksharedlib and ar *)
 and caml_libs = ref []      (* -cclib to pass to ocamlc, ocamlopt *)
 and caml_opts = ref []      (* -ccopt to pass to ocamlc, ocamlopt *)
 and dynlink = ref Config.supports_shared_libraries
 and failsafe = ref false    (* whether to fall back on static build only *)
-and c_libs = ref []         (* libs to pass to mkdll and ocamlc -cclib *)
-and c_Lopts = ref []      (* options to pass to mkdll and ocamlc -cclib *)
-and c_opts = ref []       (* options to pass to mkdll and ocamlc -ccopt *)
+and c_libs = ref []         (* libs to pass to mksharedlib and ocamlc -cclib *)
+and c_Lopts = ref []      (* options to pass to mksharedlib and ocamlc -cclib *)
+and c_opts = ref []       (* options to pass to mksharedlib and ocamlc -ccopt *)
 and ld_opts = ref []        (* options to pass only to the linker *)
 and ocamlc = ref (compiler_path "ocamlc")
 and ocamlc_opts = ref []    (* options to pass only to ocamlc *)
@@ -58,16 +61,19 @@ let starts_with s pref =
 let ends_with = Filename.check_suffix
 let chop_prefix s pref =
   String.sub s (String.length pref) (String.length s - String.length pref)
+let chop_suffix = Filename.chop_suffix
 
 exception Bad_argument of string
 
 let print_version () =
   printf "ocamlmklib, version %s\n" Sys.ocaml_version;
-  exit 0
+  exit 0;
+;;
 
 let print_version_num () =
   printf "%s\n" Sys.ocaml_version;
-  exit 0
+  exit 0;
+;;
 
 let parse_arguments argv =
   let args = Stack.create () in
@@ -253,6 +259,7 @@ let prepostfix pre name post =
   let base = Filename.basename name in
   let dir = Filename.dirname name in
   Filename.concat dir (pre ^ base ^ post)
+;;
 
 let transl_path s =
   match Sys.os_type with
@@ -338,7 +345,7 @@ let build_libs () =
                   (String.concat " " (prefix_list "-cclib " !c_libs))
                   (String.concat " " !caml_libs))
 
-let main () =
+let _ =
   try
     parse_arguments Sys.argv;
     build_libs()
@@ -351,5 +358,3 @@ let main () =
       prerr_string "System error: "; prerr_endline s; exit 4
   | x ->
       raise x
-
-let _ = main ()

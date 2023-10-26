@@ -18,7 +18,7 @@
 (library
  (name ocamldebug)
  (flags (:standard -principal -w -9))
- (modules (:standard \ ocamldebug_entry))
+ (modules (:standard \ ocamldebug_entry pattern_matching))
  (modules_without_implementation parser_aux)
  (libraries ocamlcommon ocamltoplevel unix dynlink_internal))
 

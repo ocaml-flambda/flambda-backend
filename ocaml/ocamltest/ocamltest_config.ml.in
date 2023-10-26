@@ -1,5 +1,3 @@
-(* @configure_input@ *)
-#2 "ocamltest/ocamltest_config.ml.in"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -17,85 +15,84 @@
 
 (* The configuration module for ocamltest *)
 
-let arch = {@QS@|@arch@|@QS@}
+let arch = "%%ARCH%%"
 
-let afl_instrument = @afl@
+let afl_instrument = %%AFL_INSTRUMENT%%
 
-let asm = {@QS@|@AS@|@QS@}
+let asm = "%%ASM%%"
 
-let cc = {@QS@|@CC@|@QS@}
+let cc = "%%CC%%"
 
-let cflags = {@QS@|@oc_cflags@|@QS@}
+let cflags = "%%OC_CFLAGS%%"
 
-let ccomptype = {@QS@|@ccomptype@|@QS@}
+let ccomptype = "%%CCOMPTYPE%%"
 
-let diff = {@QS@|@DIFF@|@QS@}
-let diff_flags = {@QS@|@DIFF_FLAGS@|@QS@}
+let shared_libraries = %%SUPPORTS_SHARED_LIBRARIES%%
 
-let shared_libraries = @supports_shared_libraries@
+let libunix = %%unix%%
 
-let libunix = @ocamltest_libunix@
+let systhreads = %%systhreads%%
 
-let systhreads = @lib_systhreads@
+let str = %%str%%
 
-let str = @lib_str@
+let objext = "%%O%%"
 
-let objext = {@QS@|@OBJEXT@|@QS@}
+let libext = "%%A%%"
 
-let libext = {@QS@|@libext@|@QS@}
+let asmext = "%%S%%"
 
-let asmext = {@QS@|@S@|@QS@}
+let system = "%%SYSTEM%%"
 
-let system = {@QS@|@system@|@QS@}
+let c_preprocessor = "%%CPP%%"
 
-let c_preprocessor = {@QS@|@ocamltest_CPP@|@QS@}
+let ocamlsrcdir = "%%ocamlsrcdir%%"
 
-let ocamlsrcdir = {@QS@|@ocamlsrcdir@|@QS@}
+let flambda = %%FLAMBDA%%
 
-let flambda = @flambda@
-
-let flambda2 = @flambda2@
+let flambda2 = %%FLAMBDA2%%
 
 let ocamlc_default_flags = ""
 let ocamlopt_default_flags = ""
 
-let flat_float_array = @flat_float_array@
+let safe_string = %%FORCE_SAFE_STRING%%
 
-let ocamldoc = @build_ocamldoc@
+let flat_float_array = %%FLAT_FLOAT_ARRAY%%
 
-let ocamldebug = @build_ocamldebug@
+let ocamldoc = %%WITH_OCAMLDOC%%
 
-let native_compiler = @native_compiler@
+let ocamldebug = %%WITH_OCAMLDEBUG%%
 
-let native_dynlink = @natdynlink@
+let native_compiler = %%NATIVE_COMPILER%%
 
-let shared_library_cflags = {@QS@|@sharedlib_cflags@|@QS@}
+let native_dynlink = %%NATDYNLINK%%
 
-let sharedobjext = {@QS@|@SO@|@QS@}
+let shared_library_cflags = "%%SHAREDLIB_CFLAGS%%"
 
-let csc = {@QS@|@CSC@|@QS@}
+let sharedobjext = "%%SO%%"
 
-let csc_flags = {@QS@|@CSCFLAGS@|@QS@}
+let csc = "%%CSC%%"
 
-let exe = {@QS@|@exeext@|@QS@}
+let csc_flags = "%%CSCFLAGS%%"
 
-let mkdll = {@QS@|@mkdll_exp@|@QS@}
-let mkexe = {@QS@|@mkexe_exp@|@QS@}
+let exe = "%%EXE%%"
 
-let bytecc_libs = {@QS@|@cclibs@|@QS@}
+let mkdll = "%%MKDLL%%"
+let mkexe = "%%mkexe%%"
 
-let nativecc_libs = {@QS@|@cclibs@|@QS@}
+let bytecc_libs = "%%BYTECCLIBS%%"
 
-let windows_unicode = @windows_unicode@ != 0
+let nativecc_libs = "%%NATIVECCLIBS%%"
 
-let function_sections = @function_sections@
+let windows_unicode = %%WINDOWS_UNICODE%% != 0
 
-let instrumented_runtime = @instrumented_runtime@
+let function_sections = %%FUNCTION_SECTIONS%%
 
-let frame_pointers = @frame_pointers@
+let instrumented_runtime = %%INSTRUMENTED_RUNTIME%%
 
-let probes = @probes@
+let naked_pointers = %%NAKED_POINTERS%%
 
-let stack_allocation = @stack_allocation@
+let probes = %%PROBES%%
 
-let poll_insertion = @poll_insertion@
+let stack_allocation = %%STACK_ALLOCATION%%
+
+let poll_insertion = %%POLL_INSERTION%%

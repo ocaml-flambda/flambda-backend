@@ -86,7 +86,7 @@ type exttype =
 let machtype_of_exttype = function
   | XInt -> typ_int
   | XInt32 -> typ_int
-  | XInt64 -> typ_int
+  | XInt64 -> if Arch.size_int = 4 then [|Int;Int|] else typ_int
   | XFloat -> typ_float
 
 let machtype_of_exttype_list xtl =
@@ -154,10 +154,7 @@ type memory_chunk =
 and operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of string * machtype * exttype list * bool
-  | Cload of
-      { memory_chunk: memory_chunk
-      ; mutability: Asttypes.mutable_flag
-      ; is_atomic: bool }
+  | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
@@ -175,7 +172,6 @@ and operation =
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion
-  | Cdls_get
 
 type kind_for_unboxing =
   | Any

@@ -28,9 +28,14 @@ open! Stdlib
 
 external length : string -> int = "%string_length"
 external get : string -> int -> char = "%string_safe_get"
+external set : bytes -> int -> char -> unit = "%string_safe_set"
+external create : int -> bytes = "caml_create_string"
 external unsafe_get : string -> int -> char = "%string_unsafe_get"
+external unsafe_set : bytes -> int -> char -> unit = "%string_unsafe_set"
 external unsafe_blit : string -> int ->  bytes -> int -> int -> unit
                      = "caml_blit_string" [@@noalloc]
+external unsafe_fill : bytes -> int -> int -> char -> unit
+                     = "caml_fill_string" [@@noalloc]
 
 module B = Bytes
 
@@ -42,10 +47,14 @@ let make n c =
 let init n f =
   B.init n f |> bts
 let empty = ""
+let copy s =
+  B.copy (bos s) |> bts
 let of_bytes = B.to_string
 let to_bytes = B.of_string
 let sub s ofs len =
   B.sub (bos s) ofs len |> bts
+let fill =
+  B.fill
 let blit =
   B.blit_string
 
@@ -110,10 +119,14 @@ let trim s =
   else s
 
 let escaped s =
-  let b = bos s in
-  (* We satisfy [unsafe_escape]'s precondition by passing an
-     immutable byte sequence [b]. *)
-  bts (B.unsafe_escape b)
+  let rec escape_if_needed s n i =
+    if i >= n then s else
+      match unsafe_get s i with
+      | '\"' | '\\' | '\000'..'\031' | '\127'.. '\255' ->
+          bts (B.escaped (bos s))
+      | _ -> escape_if_needed s n (i+1)
+  in
+  escape_if_needed s (length s) 0
 
 (* duplicated in bytes.ml *)
 let rec index_rec s lim i c =
@@ -223,9 +236,6 @@ let ends_with ~suffix s =
     else aux (i + 1)
   in diff >= 0 && aux 0
 
-external seeded_hash : int -> string -> int = "caml_string_hash" [@@noalloc]
-let hash x = seeded_hash 0 x
-
 (* duplicated in bytes.ml *)
 let split_on_char sep s =
   let r = ref [] in
@@ -237,6 +247,17 @@ let split_on_char sep s =
     end
   done;
   sub s 0 !j :: !r
+
+(* Deprecated functions implemented via other deprecated functions *)
+[@@@ocaml.warning "-3"]
+let uppercase s =
+  B.uppercase (bos s) |> bts
+let lowercase s =
+  B.lowercase (bos s) |> bts
+let capitalize s =
+  B.capitalize (bos s) |> bts
+let uncapitalize s =
+  B.uncapitalize (bos s) |> bts
 
 type t = string
 

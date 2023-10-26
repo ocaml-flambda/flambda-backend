@@ -43,9 +43,7 @@ let compile i ~backend ~middle_end ~transl_style
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
-       |>(fun lambda ->
-          if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
-          Asmgen.compile_implementation
+       |> Asmgen.compile_implementation
             ~backend
             ~prefixname:i.output_prefix
             ~middle_end

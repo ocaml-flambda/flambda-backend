@@ -109,10 +109,7 @@ let input_cmt ic = (input_value ic : cmt_infos)
 
 let output_cmt oc cmt =
   output_string oc Config.cmt_magic_number;
-  (* BACKPORT BEGIN *)
-  (* mshinwell: upstream uses [Compression] here *)
-  Marshal.(to_channel oc (cmt : cmt_infos) [])
-  (* BACKPORT END *)
+  output_value oc (cmt : cmt_infos)
 
 let read filename =
 (*  Printf.fprintf stderr "Cmt_format.read %s\n%!" filename; *)

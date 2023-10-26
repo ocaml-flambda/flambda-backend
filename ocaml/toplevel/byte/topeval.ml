@@ -88,18 +88,14 @@ let load_lambda ppf lam =
   let bytecode, closure = Meta.reify_bytecode code [| events |] None in
   match
     may_trace := true;
-    closure ()
+    Fun.protect
+      ~finally:(fun () -> may_trace := false;
+                          if can_free then Meta.release_bytecode bytecode)
+      closure
   with
-  | retval ->
-    may_trace := false;
-    if can_free then Meta.release_bytecode bytecode;
-
-    Result retval
+  | retval -> Result retval
   | exception x ->
-    may_trace := false;
     record_backtrace ();
-    if can_free then Meta.release_bytecode bytecode;
-
     toplevel_value_bindings := initial_bindings; (* PR#6211 *)
     Symtable.restore_state initial_symtable;
     Exception x
@@ -124,13 +120,7 @@ let execute_phrase print_outcome ppf phr =
       let oldsig = !toplevel_sig in
       Typecore.reset_delayed_checks ();
       let (str, sg, sn, shape, newenv) =
-<<<<<<< HEAD
         Typemod.type_toplevel_phrase oldenv oldsig sstr
-||||||| merged common ancestors
-      let (str, sg, sn, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
-=======
-        Typemod.type_toplevel_phrase oldenv sstr
->>>>>>> ocaml/5.1
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv sn sg in
@@ -153,13 +143,7 @@ let execute_phrase print_outcome ppf phr =
                   | [] -> Ophr_signature []
                   | _ ->
                       match find_eval_phrase str with
-<<<<<<< HEAD
                       | Some (exp, _, _, _) ->
-||||||| merged common ancestors
-                  | _ -> Ophr_signature (pr_item oldenv sg'))
-=======
-                      | Some (exp, _, _) ->
->>>>>>> ocaml/5.1
                         let outv = outval_of_value newenv v exp.exp_type in
                         let ty = Printtyp.tree_of_type_scheme exp.exp_type in
                         Ophr_eval (outv, ty)
@@ -174,18 +158,12 @@ let execute_phrase print_outcome ppf phr =
               in
               Ophr_exception (exn, outv)
         in
-        begin match out_phr with
-        | Ophr_signature [] -> ()
-        | _ ->
-            Location.separate_new_message ppf;
-            !print_out_phrase ppf out_phr;
-        end;
+        !print_out_phrase ppf out_phr;
         if Printexc.backtrace_status ()
         then begin
           match !backtrace with
             | None -> ()
             | Some b ->
-                Location.separate_new_message ppf;
                 pp_print_string ppf b;
                 pp_print_flush ppf ();
                 backtrace := None;

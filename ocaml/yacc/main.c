@@ -52,7 +52,7 @@ int outline;
 char_os *action_file_name;
 char_os *entry_file_name;
 char_os *code_file_name;
-char *code_file_name_disp, *interface_file_name_disp;
+char *code_file_name_disp;
 char_os *interface_file_name;
 char_os *input_file_name = T("");
 char *input_file_name_disp;
@@ -101,18 +101,6 @@ char *nullable;
 
 void done(int k)
 {
-    if ((action_file && ferror(action_file)) ||
-        (entry_file && ferror(entry_file)) ||
-        (text_file && ferror(text_file)) ||
-        (input_file && ferror(input_file)) ||
-        (output_file && (fflush(output_file) || ferror(output_file))) ||
-        (verbose_file && (fflush(verbose_file) || ferror(verbose_file))) ||
-        (interface_file && (fflush(interface_file) || ferror(interface_file)))) {
-        fprintf(stderr, "%s: I/O error\n", myname);
-        if (k == 0)
-            k = 1;
-    }
-
 #ifdef HAS_MKSTEMP
     if (action_fd != -1)
        unlink(action_file_name);
@@ -135,13 +123,13 @@ void done(int k)
 }
 
 
-static void onintr(int dummy)
+void onintr(int dummy)
 {
     done(1);
 }
 
 
-static void set_signals(void)
+void set_signals(void)
 {
 #ifdef SIGINT
     if (signal(SIGINT, SIG_IGN) != SIG_IGN)
@@ -167,8 +155,8 @@ void usage(void)
 
 void getargs(int argc, char_os **argv)
 {
-    int i;
-    char_os *s;
+    register int i;
+    register char_os *s;
 
     if (argc > 0) myname = caml_stat_strdup_of_os(argv[0]);
     if (!myname) no_space();
@@ -269,7 +257,7 @@ no_more_options:;
 char *
 allocate(unsigned int n)
 {
-    char *p;
+    register char *p;
 
     p = NULL;
     if (n)
@@ -367,8 +355,7 @@ void create_file_names(void)
         no_space();
     strcpy_os(interface_file_name, file_prefix);
     strcpy_os(interface_file_name + len, INTERFACE_SUFFIX);
-    interface_file_name_disp = caml_stat_strdup_of_os(interface_file_name);
-    if (!interface_file_name_disp) no_space();
+
 }
 
 

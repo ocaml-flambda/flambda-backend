@@ -108,15 +108,14 @@ let env_empty = {
 let oper_result_type = function
   | Capply(ty, _) -> ty
   | Cextcall(_s, ty_res, _ty_args, _alloc) -> ty_res
-  | Cload {memory_chunk} ->
-      begin match memory_chunk with
+  | Cload (c, _) ->
+      begin match c with
       | Word_val -> typ_val
       | Single | Double -> typ_float
       | _ -> typ_int
       end
   | Calloc _ -> typ_val
   | Cstore (_c, _) -> typ_void
-  | Cdls_get -> typ_val
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
     Cand | Cor | Cxor | Clsl | Clsr | Casr |
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
@@ -386,8 +385,7 @@ method is_simple_expr = function
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
-      | Ccmpf _ | Cdls_get ->
-          List.for_all self#is_simple_expr args
+      | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
   | Ctrywith _ | Cregion _ | Cexclave _ -> false
@@ -427,9 +425,8 @@ method effects_of exp =
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
-      | Cload {mutability = Asttypes.Immutable} -> EC.none
-      | Cload {mutability = Asttypes.Mutable} | Cdls_get ->
-          EC.coeffect_only Coeffect.Read_mutable
+      | Cload (_, Asttypes.Immutable) -> EC.none
+      | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
@@ -472,8 +469,7 @@ method mark_call =
 
 method mark_tailcall = ()
 
-method mark_c_tailcall =
-  if !Clflags.debug then contains_calls := true
+method mark_c_tailcall = ()
 
 method mark_instr = function
   | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) ->
@@ -490,8 +486,8 @@ method mark_instr = function
       | Lambda.Raise_regular
       | Lambda.Raise_reraise ->
           (* PR#6239 *)
-        (* caml_stash_backtrace; we #mark_call rather than
-           #mark_c_tailcall to get a good stack backtrace *)
+          (* caml_stash_backtrace; we #mark_call rather than
+             #mark_c_tailcall to get a good stack backtrace *)
           self#mark_call
     end
   | Itrywith _ ->
@@ -507,10 +503,10 @@ method select_operation op args _dbg =
   | (Capply _, _) ->
     (Icall_ind, args)
   | (Cextcall(func, ty_res, ty_args, alloc), _) ->
-    Iextcall { func; alloc; ty_res; ty_args; stack_ofs = -1}, args
-  | (Cload {memory_chunk; mutability; is_atomic}, [arg]) ->
-      let (addressing_mode, eloc) = self#select_addressing memory_chunk arg in
-      (Iload {memory_chunk; addressing_mode; mutability; is_atomic}, [eloc])
+    Iextcall { func; ty_res; ty_args; alloc; }, args
+  | (Cload (chunk, mut), [arg]) ->
+      let (addr, eloc) = self#select_addressing chunk arg in
+      (Iload(chunk, addr, mut), [eloc])
   | (Cstore (chunk, init), [arg1; arg2]) ->
       let (addr, eloc) = self#select_addressing chunk arg1 in
       let is_assign =
@@ -526,7 +522,6 @@ method select_operation op args _dbg =
         (* Inversion addr/datum in Istore *)
       end
   | (Calloc mode, _) -> (Ialloc {bytes = 0; dbginfo = []; mode}), args
-  | (Cdls_get, _) -> Idls_get, args
   | (Caddi, _) -> self#select_arith_comm Iadd args
   | (Csubi, _) -> self#select_arith Isub args
   | (Cmuli, _) -> self#select_arith_comm Imul args
@@ -543,7 +538,6 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Icompf comp, args)
   | (Cnegf, _) -> (Inegf, args)
   | (Cabsf, _) -> (Iabsf, args)
   | (Caddf, _) -> (Iaddf, args)
@@ -822,13 +816,12 @@ method emit_expr_aux (env:environment) exp :
               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
               Some (rd, unclosed_regions)
-          | Iextcall r ->
+          | Iextcall { ty_args; _} ->
               let (loc_arg, stack_ofs) =
-                self#emit_extcall_args env r.ty_args new_args in
+                self#emit_extcall_args env ty_args new_args in
               let rd = self#regs_for ty in
               let loc_res =
-                self#insert_op_debug env
-                  (Iextcall {r with stack_ofs = stack_ofs}) dbg
+                self#insert_op_debug env new_op dbg
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               self#insert_move_results env loc_res rd stack_ofs;
               assert (Region_stack.equal unclosed_regions env.regions);

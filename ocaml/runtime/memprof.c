@@ -15,21 +15,6 @@
 
 #define CAML_INTERNALS
 
-#include "caml/fail.h"
-
-CAMLprim value caml_memprof_start(value lv, value szv, value tracker_param)
-{
-  caml_failwith("Gc.memprof.start: not implemented in multicore");
-}
-
-CAMLprim value caml_memprof_stop(value unit)
-{
-  caml_failwith("Gc.memprof.stop: not implemented in multicore");
-}
-
-/* FIXME: integrate memprof with multicore */
-#if 0
-
 #include <string.h>
 #include "caml/memprof.h"
 #include "caml/fail.h"
@@ -44,7 +29,7 @@ CAMLprim value caml_memprof_stop(value unit)
 #include "caml/misc.h"
 #include "caml/compact.h"
 #include "caml/printexc.h"
-#include "caml/runtime_events.h"
+#include "caml/eventlog.h"
 
 #define RAND_BLOCK_SIZE 64
 
@@ -568,7 +553,7 @@ static void check_action_pending(void)
 {
   if (local->suspended) return;
   if (callback_idx < entries_global.len || local->entries.len > 0)
-    caml_set_action_pending(Caml_state);
+    caml_set_action_pending();
 }
 
 void caml_memprof_set_suspended(int s)
@@ -805,7 +790,7 @@ static void shift_sample(uintnat n)
     caml_memprof_young_trigger -= n;
   else
     caml_memprof_young_trigger = Caml_state->young_alloc_start;
-  caml_reset_young_limit(Caml_state);
+  caml_update_young_limit();
 }
 
 /* Renew the next sample in the minor heap. This needs to be called
@@ -828,7 +813,7 @@ void caml_memprof_renew_minor_sample(void)
       caml_memprof_young_trigger = Caml_state->young_ptr - (geom - 1);
   }
 
-  caml_reset_young_limit(Caml_state);
+  caml_update_young_limit();
 }
 
 /* Called when exceeding the threshold for the next sample in the
@@ -978,8 +963,7 @@ void caml_memprof_track_young(uintnat wosize, int from_caml,
      [local->entries] to make sure the floag is not set back to 1. */
   caml_memprof_set_suspended(0);
 
-  if (Is_exception_result(res))
-    caml_raise(Extract_exception(res));
+  caml_raise_async_if_exception(res, "memprof callback");
 
   /* /!\ Since the heap is in an invalid state before initialization,
      very little heap operations are allowed until then. */
@@ -1149,5 +1133,3 @@ CAMLexport void caml_memprof_enter_thread(struct caml_memprof_th_ctx* ctx)
   local = ctx;
   caml_memprof_set_suspended(ctx->suspended);
 }
-
-#endif

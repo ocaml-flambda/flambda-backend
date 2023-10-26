@@ -18,13 +18,13 @@ module C' :
     external code : char -> int = "%identity"
     val chr : int -> char
     val escaped : char -> string
+    val lowercase : char -> char
+    val uppercase : char -> char
     val lowercase_ascii : char -> char
     val uppercase_ascii : char -> char
     type t = char
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val seeded_hash : int -> t -> int
-    val hash : t -> int
     external unsafe_chr : int -> char = "%identity"
   end
 - : char = 'B'
@@ -33,13 +33,13 @@ module C3 :
     external code : char -> int = "%identity"
     val chr : int -> char
     val escaped : char -> string
+    val lowercase : char -> char
+    val uppercase : char -> char
     val lowercase_ascii : char -> char
     val uppercase_ascii : char -> char
     type t = char
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val seeded_hash : int -> t -> int
-    val hash : t -> int
     external unsafe_chr : int -> char = "%identity"
   end
 - : char = 'B'
@@ -62,13 +62,13 @@ module F :
       external code : char -> int = "%identity"
       val chr : int -> char
       val escaped : char -> string
+      val lowercase : char -> char
+      val uppercase : char -> char
       val lowercase_ascii : char -> char
       val uppercase_ascii : char -> char
       type t = char
       val compare : t -> t -> int
       val equal : t -> t -> bool
-      val seeded_hash : int -> t -> int
-      val hash : t -> int
       external unsafe_chr : int -> char = "%identity"
     end
 module C4 :
@@ -76,13 +76,13 @@ module C4 :
     external code : char -> int = "%identity"
     val chr : int -> char
     val escaped : char -> string
+    val lowercase : char -> char
+    val uppercase : char -> char
     val lowercase_ascii : char -> char
     val uppercase_ascii : char -> char
     type t = char
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val seeded_hash : int -> t -> int
-    val hash : t -> int
     external unsafe_chr : int -> char = "%identity"
   end
 - : char = 'B'
@@ -280,6 +280,8 @@ module StringSet :
     type elt = String.t
     type t = Set.Make(String).t
     val empty : t
+    val is_empty : t -> bool
+    val mem : elt -> t -> bool
     val add : elt -> t -> t
     val singleton : elt -> t
     val remove : elt -> t -> t
@@ -287,6 +289,17 @@ module StringSet :
     val inter : t -> t -> t
     val disjoint : t -> t -> bool
     val diff : t -> t -> t
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
+    val subset : t -> t -> bool
+    val iter : (elt -> unit) -> t -> unit
+    val map : (elt -> elt) -> t -> t
+    val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
+    val for_all : (elt -> bool) -> t -> bool
+    val exists : (elt -> bool) -> t -> bool
+    val filter : (elt -> bool) -> t -> t
+    val filter_map : (elt -> elt option) -> t -> t
+    val partition : (elt -> bool) -> t -> t * t
     val cardinal : t -> int
     val elements : t -> elt list
     val min_elt : t -> elt
@@ -295,27 +308,13 @@ module StringSet :
     val max_elt_opt : t -> elt option
     val choose : t -> elt
     val choose_opt : t -> elt option
+    val split : elt -> t -> t * bool * t
     val find : elt -> t -> elt
     val find_opt : elt -> t -> elt option
     val find_first : (elt -> bool) -> t -> elt
     val find_first_opt : (elt -> bool) -> t -> elt option
     val find_last : (elt -> bool) -> t -> elt
     val find_last_opt : (elt -> bool) -> t -> elt option
-    val iter : (elt -> unit) -> t -> unit
-    val fold : (elt -> 'acc -> 'acc) -> t -> 'acc -> 'acc
-    val map : (elt -> elt) -> t -> t
-    val filter : (elt -> bool) -> t -> t
-    val filter_map : (elt -> elt option) -> t -> t
-    val partition : (elt -> bool) -> t -> t * t
-    val split : elt -> t -> t * bool * t
-    val is_empty : t -> bool
-    val mem : elt -> t -> bool
-    val equal : t -> t -> bool
-    val compare : t -> t -> int
-    val subset : t -> t -> bool
-    val for_all : (elt -> bool) -> t -> bool
-    val exists : (elt -> bool) -> t -> bool
-    val to_list : t -> elt list
     val of_list : elt list -> t
     val to_seq_from : elt -> t -> elt Seq.t
     val to_seq : t -> elt Seq.t
@@ -328,6 +327,8 @@ module SSet :
     type elt = S.t
     type t = Set.Make(S).t
     val empty : t
+    val is_empty : t -> bool
+    val mem : elt -> t -> bool
     val add : elt -> t -> t
     val singleton : elt -> t
     val remove : elt -> t -> t
@@ -335,6 +336,17 @@ module SSet :
     val inter : t -> t -> t
     val disjoint : t -> t -> bool
     val diff : t -> t -> t
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
+    val subset : t -> t -> bool
+    val iter : (elt -> unit) -> t -> unit
+    val map : (elt -> elt) -> t -> t
+    val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
+    val for_all : (elt -> bool) -> t -> bool
+    val exists : (elt -> bool) -> t -> bool
+    val filter : (elt -> bool) -> t -> t
+    val filter_map : (elt -> elt option) -> t -> t
+    val partition : (elt -> bool) -> t -> t * t
     val cardinal : t -> int
     val elements : t -> elt list
     val min_elt : t -> elt
@@ -343,27 +355,13 @@ module SSet :
     val max_elt_opt : t -> elt option
     val choose : t -> elt
     val choose_opt : t -> elt option
+    val split : elt -> t -> t * bool * t
     val find : elt -> t -> elt
     val find_opt : elt -> t -> elt option
     val find_first : (elt -> bool) -> t -> elt
     val find_first_opt : (elt -> bool) -> t -> elt option
     val find_last : (elt -> bool) -> t -> elt
     val find_last_opt : (elt -> bool) -> t -> elt option
-    val iter : (elt -> unit) -> t -> unit
-    val fold : (elt -> 'acc -> 'acc) -> t -> 'acc -> 'acc
-    val map : (elt -> elt) -> t -> t
-    val filter : (elt -> bool) -> t -> t
-    val filter_map : (elt -> elt option) -> t -> t
-    val partition : (elt -> bool) -> t -> t * t
-    val split : elt -> t -> t * bool * t
-    val is_empty : t -> bool
-    val mem : elt -> t -> bool
-    val equal : t -> t -> bool
-    val compare : t -> t -> int
-    val subset : t -> t -> bool
-    val for_all : (elt -> bool) -> t -> bool
-    val exists : (elt -> bool) -> t -> bool
-    val to_list : t -> elt list
     val of_list : elt list -> t
     val to_seq_from : elt -> t -> elt Seq.t
     val to_seq : t -> elt Seq.t
@@ -408,6 +406,8 @@ module A :
         type elt = B.t
         type t = Set.Make(B).t
         val empty : t
+        val is_empty : t -> bool
+        val mem : elt -> t -> bool
         val add : elt -> t -> t
         val singleton : elt -> t
         val remove : elt -> t -> t
@@ -415,6 +415,17 @@ module A :
         val inter : t -> t -> t
         val disjoint : t -> t -> bool
         val diff : t -> t -> t
+        val compare : t -> t -> int
+        val equal : t -> t -> bool
+        val subset : t -> t -> bool
+        val iter : (elt -> unit) -> t -> unit
+        val map : (elt -> elt) -> t -> t
+        val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
+        val for_all : (elt -> bool) -> t -> bool
+        val exists : (elt -> bool) -> t -> bool
+        val filter : (elt -> bool) -> t -> t
+        val filter_map : (elt -> elt option) -> t -> t
+        val partition : (elt -> bool) -> t -> t * t
         val cardinal : t -> int
         val elements : t -> elt list
         val min_elt : t -> elt
@@ -423,27 +434,13 @@ module A :
         val max_elt_opt : t -> elt option
         val choose : t -> elt
         val choose_opt : t -> elt option
+        val split : elt -> t -> t * bool * t
         val find : elt -> t -> elt
         val find_opt : elt -> t -> elt option
         val find_first : (elt -> bool) -> t -> elt
         val find_first_opt : (elt -> bool) -> t -> elt option
         val find_last : (elt -> bool) -> t -> elt
         val find_last_opt : (elt -> bool) -> t -> elt option
-        val iter : (elt -> unit) -> t -> unit
-        val fold : (elt -> 'acc -> 'acc) -> t -> 'acc -> 'acc
-        val map : (elt -> elt) -> t -> t
-        val filter : (elt -> bool) -> t -> t
-        val filter_map : (elt -> elt option) -> t -> t
-        val partition : (elt -> bool) -> t -> t * t
-        val split : elt -> t -> t * bool * t
-        val is_empty : t -> bool
-        val mem : elt -> t -> bool
-        val equal : t -> t -> bool
-        val compare : t -> t -> int
-        val subset : t -> t -> bool
-        val for_all : (elt -> bool) -> t -> bool
-        val exists : (elt -> bool) -> t -> bool
-        val to_list : t -> elt list
         val of_list : elt list -> t
         val to_seq_from : elt -> t -> elt Seq.t
         val to_seq : t -> elt Seq.t
@@ -540,6 +537,8 @@ module SInt :
     type elt = Int.t
     type t = Set.Make(Int).t
     val empty : t
+    val is_empty : t -> bool
+    val mem : elt -> t -> bool
     val add : elt -> t -> t
     val singleton : elt -> t
     val remove : elt -> t -> t
@@ -547,6 +546,17 @@ module SInt :
     val inter : t -> t -> t
     val disjoint : t -> t -> bool
     val diff : t -> t -> t
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
+    val subset : t -> t -> bool
+    val iter : (elt -> unit) -> t -> unit
+    val map : (elt -> elt) -> t -> t
+    val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
+    val for_all : (elt -> bool) -> t -> bool
+    val exists : (elt -> bool) -> t -> bool
+    val filter : (elt -> bool) -> t -> t
+    val filter_map : (elt -> elt option) -> t -> t
+    val partition : (elt -> bool) -> t -> t * t
     val cardinal : t -> int
     val elements : t -> elt list
     val min_elt : t -> elt
@@ -555,27 +565,13 @@ module SInt :
     val max_elt_opt : t -> elt option
     val choose : t -> elt
     val choose_opt : t -> elt option
+    val split : elt -> t -> t * bool * t
     val find : elt -> t -> elt
     val find_opt : elt -> t -> elt option
     val find_first : (elt -> bool) -> t -> elt
     val find_first_opt : (elt -> bool) -> t -> elt option
     val find_last : (elt -> bool) -> t -> elt
     val find_last_opt : (elt -> bool) -> t -> elt option
-    val iter : (elt -> unit) -> t -> unit
-    val fold : (elt -> 'acc -> 'acc) -> t -> 'acc -> 'acc
-    val map : (elt -> elt) -> t -> t
-    val filter : (elt -> bool) -> t -> t
-    val filter_map : (elt -> elt option) -> t -> t
-    val partition : (elt -> bool) -> t -> t * t
-    val split : elt -> t -> t * bool * t
-    val is_empty : t -> bool
-    val mem : elt -> t -> bool
-    val equal : t -> t -> bool
-    val compare : t -> t -> int
-    val subset : t -> t -> bool
-    val for_all : (elt -> bool) -> t -> bool
-    val exists : (elt -> bool) -> t -> bool
-    val to_list : t -> elt list
     val of_list : elt list -> t
     val to_seq_from : elt -> t -> elt Seq.t
     val to_seq : t -> elt Seq.t

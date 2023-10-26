@@ -172,20 +172,7 @@ let trim s =
   else
     empty
 
-let unsafe_escape s =
-  (* We perform two passes on the input sequence, one to compute the
-     result size and one to write the result.
-
-     #11508, #11509: This logic would be incorrect in presence of
-     concurrent modification to the input, making the use of
-     [unsafe_set] below memory-unsafe.
-
-     Precondition: This function may be safely called on:
-     - an immutable byte sequence
-     - a uniquely-owned byte sequence (the function takes ownership)
-
-     In either case we return a uniquely-owned byte sequence.
-  *)
+let escaped s =
   let n = ref 0 in
   for i = 0 to length s - 1 do
     n := !n +
@@ -194,8 +181,7 @@ let unsafe_escape s =
        | ' ' .. '~' -> 1
        | _ -> 4)
   done;
-  if !n = length s then s
-  else begin
+  if !n = length s then copy s else begin
     let s' = create !n in
     n := 0;
     for i = 0 to length s - 1 do
@@ -225,12 +211,6 @@ let unsafe_escape s =
     done;
     s'
   end
-
-let escaped b =
-  let b = copy b in
-  (* We copy our input to obtain a uniquely-owned byte sequence [b]
-     to satisfy [unsafe_escape]'s precondition *)
-  unsafe_escape b
 
 let map f s =
   let l = length s in
@@ -410,6 +390,14 @@ let split_on_char sep s =
   done;
   sub s 0 !j :: !r
 
+(* Deprecated functions implemented via other deprecated functions *)
+[@@@ocaml.warning "-3"]
+let uppercase s = map Char.uppercase s
+let lowercase s = map Char.lowercase s
+
+let capitalize s = apply1 Char.uppercase s
+let uncapitalize s = apply1 Char.lowercase s
+
 (** {1 Iterators} *)
 
 let to_seq s =
@@ -562,7 +550,7 @@ let dec_invalid = Uchar.utf_decode_invalid
 let[@inline] dec_ret n u = Uchar.utf_decode n (Uchar.unsafe_of_int u)
 
 (* In case of decoding error, if we error on the first byte, we
-   consume the byte, otherwise we consume the [n] bytes preceding
+   consume the byte, otherwise we consume the [n] bytes preceeding
    the erroring byte.
 
    This means that if a client uses decodes without caring about

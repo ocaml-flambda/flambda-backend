@@ -115,7 +115,6 @@ and M2 : sig type t val x : t end
 class c = object end
 [%%expect{|
 {
-<<<<<<< HEAD
  "#c"[type] -> <.32>;
  "c"[type] -> <.32>;
  "c"[class] -> <.32>;
@@ -130,21 +129,6 @@ class type c = object end
  "#c"[type] -> <.35>;
  "c"[type] -> <.35>;
  "c"[class type] -> <.35>;
-||||||| merged common ancestors
-=======
- "c"[type] -> <.32>;
- "c"[class] -> <.32>;
- "c"[class type] -> <.32>;
- }
-class c : object  end
-|}]
-
-class type c = object end
-[%%expect{|
-{
- "c"[type] -> <.34>;
- "c"[class type] -> <.34>;
->>>>>>> ocaml/5.1
  }
 class type c = object  end
 |}]

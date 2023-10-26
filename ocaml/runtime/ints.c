@@ -214,7 +214,7 @@ static uintnat int32_deserialize(void * dst)
 
 static const struct custom_fixed_length int32_length = { 4, 4 };
 
-CAMLexport const struct custom_operations caml_int32_ops = {
+CAMLexport struct custom_operations caml_int32_ops = {
   "_i",
   custom_finalize_default,
   int32_cmp,
@@ -413,7 +413,7 @@ static uintnat int64_deserialize(void * dst)
 
 static const struct custom_fixed_length int64_length = { 8, 8 };
 
-CAMLexport const struct custom_operations caml_int64_ops = {
+CAMLexport struct custom_operations caml_int64_ops = {
   "_j",
   custom_finalize_default,
   int64_cmp,
@@ -524,14 +524,14 @@ CAMLprim value caml_int64_bswap(value v)
 {
   int64_t x = Int64_val(v);
   return caml_copy_int64
-    (((x & 0x00000000000000FFULL) << 56) |
-     ((x & 0x000000000000FF00ULL) << 40) |
-     ((x & 0x0000000000FF0000ULL) << 24) |
-     ((x & 0x00000000FF000000ULL) << 8) |
-     ((x & 0x000000FF00000000ULL) >> 8) |
-     ((x & 0x0000FF0000000000ULL) >> 24) |
-     ((x & 0x00FF000000000000ULL) >> 40) |
-     ((x & 0xFF00000000000000ULL) >> 56));
+    (((x & INT64_LITERAL(0x00000000000000FFU)) << 56) |
+     ((x & INT64_LITERAL(0x000000000000FF00U)) << 40) |
+     ((x & INT64_LITERAL(0x0000000000FF0000U)) << 24) |
+     ((x & INT64_LITERAL(0x00000000FF000000U)) << 8) |
+     ((x & INT64_LITERAL(0x000000FF00000000U)) >> 8) |
+     ((x & INT64_LITERAL(0x0000FF0000000000U)) >> 24) |
+     ((x & INT64_LITERAL(0x00FF000000000000U)) >> 40) |
+     ((x & INT64_LITERAL(0xFF00000000000000U)) >> 56));
 }
 
 CAMLprim value caml_int64_of_int(value v)
@@ -710,7 +710,7 @@ static uintnat nativeint_deserialize(void * dst)
 }
 
 static const struct custom_fixed_length nativeint_length = { 4, 8 };
-CAMLexport const struct custom_operations caml_nativeint_ops = {
+CAMLexport struct custom_operations caml_nativeint_ops = {
   "_n",
   custom_finalize_default,
   nativeint_cmp,

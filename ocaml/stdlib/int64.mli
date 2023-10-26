@@ -68,7 +68,7 @@ val unsigned_div : int64 -> int64 -> int64
 (** Same as {!div}, except that arguments and result are interpreted as {e
     unsigned} 64-bit integers.
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 external rem : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_mod"
 (** Integer remainder.  If [y] is not zero, the result
@@ -80,7 +80,7 @@ val unsigned_rem : int64 -> int64 -> int64
 (** Same as {!rem}, except that arguments and result are interpreted as {e
     unsigned} 64-bit integers.
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 val succ : int64 -> int64
 (** Successor.  [Int64.succ x] is [Int64.add x Int64.one]. *)
@@ -89,8 +89,7 @@ val pred : int64 -> int64
 (** Predecessor.  [Int64.pred x] is [Int64.sub x Int64.one]. *)
 
 val abs : int64 -> int64
-(** [abs x] is the absolute value of [x]. On [min_int] this
-   is [min_int] itself and thus remains negative. *)
+(** Return the absolute value of its argument. *)
 
 val max_int : int64
 (** The greatest representable 64-bit integer, 2{^63} - 1. *)
@@ -143,7 +142,7 @@ val unsigned_to_int : int64 -> int option
     Returns [None] if the unsigned value of the argument cannot fit into an
     [int].
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 external of_float : float -> int64
   = "caml_int64_of_float" "caml_int64_of_float_unboxed"
@@ -233,32 +232,27 @@ val unsigned_compare: t -> t -> int
 (** Same as {!compare}, except that arguments are interpreted as {e unsigned}
     64-bit integers.
 
-    @since 4.08 *)
+    @since 4.08.0 *)
 
 val equal: t -> t -> bool
 (** The equal function for int64s.
-    @since 4.03 *)
+    @since 4.03.0 *)
 
 val min: t -> t -> t
 (** Return the smaller of the two arguments.
-    @since 4.13
+    @since 4.13.0
 *)
 
 val max: t -> t -> t
 (** Return the greater of the two arguments.
-    @since 4.13
+    @since 4.13.0
  *)
 
-val seeded_hash : int -> t -> int
-(** A seeded hash function for 64-bit ints, with the same output value as
-    {!Hashtbl.seeded_hash}. This function allows this module to be passed as
-    argument to the functor {!Hashtbl.MakeSeeded}.
+(**/**)
 
-    @since 5.1 *)
+(** {1 Deprecated functions} *)
 
-val hash : t -> int
-(** An unseeded hash function for 64-bit ints, with the same output value as
-    {!Hashtbl.hash}. This function allows this module to be passed as argument
-    to the functor {!Hashtbl.Make}.
-
-    @since 5.1 *)
+external format : string -> int64 -> string = "caml_int64_format"
+[@@ocaml.deprecated "Use Printf.sprintf with a [%L...] format instead."]
+(** Do not use this deprecated function.  Instead,
+   used {!Printf.sprintf} with a [%L...] format. *)

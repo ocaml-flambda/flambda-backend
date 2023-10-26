@@ -1,0 +1,10 @@
+transf.ml
+texquote2
+transf
+htmlgen
+htmlquote
+latexscan.ml
+dvi2txt
+*.dSYM
+*.cm[io]
+*.o
