@@ -427,6 +427,11 @@ let to_file outchan unit_name objfile ~required_globals code =
       Marshal.(to_channel outchan (String.Set.elements !debug_dirs)
                           [Compression]);
       *)
+(* BACKPORT BEGIN *)
+      Marshal.(to_channel outchan !events []);
+      Marshal.(to_channel outchan (String.Set.elements !debug_dirs)
+                          []);
+(* BACKPORT END *)
       (p, pos_out outchan - p)
     end else
       (0, 0) in
