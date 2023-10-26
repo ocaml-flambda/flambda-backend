@@ -7,4 +7,4 @@ ${program}
 
 # now check the assembly file produced during compilation
 asm=${test_build_directory}/func_sections.s
-grep -E "\.section \.text\.caml\.(camlFunc_sections__|_ZN13Func_sections)\." "$asm" | wc -l | tr -d ' ' | sed '/^$/d'
+grep -E "\.section \.text\.caml\.(camlFunc_sections__|_ZN13Func_sections)" "$asm" | wc -l | tr -d ' ' | sed '/^$/d'
