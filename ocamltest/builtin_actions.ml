@@ -149,7 +149,8 @@ let macos = make
     "not on a MacOS system")
 
 let not_macos = make
-  "not-macos"
+  ~name:"not-macos"
+  ~description:"Pass if not running on a MacOS system"
   (Actions_helpers.pass_or_skip (not (Ocamltest_config.system = macos_system))
     "not on a MacOS system"
     "on a MacOS system")
@@ -218,10 +219,18 @@ let frame_pointers = make
      "frame-pointers not available")
 
 let probes = make
-  "probes"
+  ~name:"probes"
+  ~description:"Pass if probes are available"
   (Actions_helpers.pass_or_skip (Ocamltest_config.probes)
      "Target supports probes"
      "Target does not support probes")
+
+let naked_pointers = make
+  ~name:"naked_pointers"
+  ~description:"Pass if the runtime system supports naked pointers"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.naked_pointers)
+     "Runtime system supports naked pointers"
+     "Runtime system does not support naked pointers")
 
 let has_symlink = make
   ~name:"has_symlink"
@@ -359,5 +368,6 @@ let _ =
     frame_pointers;
     file_exists;
     copy;
-    probes
+    probes;
+    naked_pointers
   ]
