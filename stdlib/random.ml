@@ -113,6 +113,8 @@ module State = struct
           (String.get_int64_le d2 0)
           (String.get_int64_le d2 8)
 
+  let full_init = reinit
+
   let make seed =
     let s = create() in reinit s seed; s
 
