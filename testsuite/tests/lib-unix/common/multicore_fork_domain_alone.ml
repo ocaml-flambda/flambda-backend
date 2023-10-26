@@ -1,5 +1,7 @@
 (* TEST
 include unix
+* skip
+reason = "OCaml 5 only"
 * hasunix
 ** not-windows
 *** bytecode

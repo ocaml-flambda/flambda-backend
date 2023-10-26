@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
 *)
 
 (* filling minor heaps in parallel to trigger

@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
 * hasstr
 include str
 ** bytecode

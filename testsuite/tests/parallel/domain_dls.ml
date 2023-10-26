@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
 *)
 
 let check_dls () =

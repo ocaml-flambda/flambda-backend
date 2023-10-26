@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
 *)
 
 (* when run with the bytecode debug runtime, this test

@@ -1,4 +1,7 @@
-(* TEST *)
+(* TEST
+* skip
+reason = "OCaml 5 only"
+*)
 
 let () = Out_channel.set_buffered stdout false
 

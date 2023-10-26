@@ -1,4 +1,7 @@
-(* TEST *)
+(* TEST
+* skip
+reason = "OCaml 5 only"
+*)
 
 let () =
   let fmt_key = Format.synchronized_formatter_of_out_channel stdout in

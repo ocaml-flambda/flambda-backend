@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
 *)
 
 type u = U of unit

@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
    modules = "intextaux_par.c"
 *)
 

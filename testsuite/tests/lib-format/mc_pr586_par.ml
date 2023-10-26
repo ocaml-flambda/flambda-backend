@@ -1,4 +1,7 @@
-(* TEST *)
+(* TEST
+* skip
+reason = "OCaml 5 only"
+*)
 
 let () =
   let domains = Array.init 7 (fun i ->

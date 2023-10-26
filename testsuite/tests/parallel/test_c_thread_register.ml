@@ -1,4 +1,6 @@
 (* TEST
+* skip
+reason = "OCaml 5 only"
    modules = "test_c_thread_register_cstubs.c"
    * hassysthreads
    include systhreads

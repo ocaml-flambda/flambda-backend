@@ -1,4 +1,7 @@
-(* TEST *)
+(* TEST
+* skip
+reason = "OCaml 5 only"
+*)
 
 (* ocaml-multicore issues 528 and 468 *)
 
