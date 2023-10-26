@@ -12,6 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR mshinwell: fix properly using -enable-dev PR's changes *)
+[@@@ocaml.warning "-27-32"]
+
 open! Asm_targets
 open! Dwarf_low
 open! Dwarf_high

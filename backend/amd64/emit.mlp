@@ -94,7 +94,7 @@ let emit_debug_info_linear i =
 
 let fp = Config.with_frame_pointers
 
-let stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
+let _stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
 
 (* Tradeoff between code size and code speed *)
 
@@ -454,7 +454,7 @@ type safety_check_sites = {
 let bound_checks = { sc_sites = []; sc_call = 0 }
 let align_checks = { sc_sites = []; sc_call = 0 }
 
-let safety_check_failure_label kind fdo dbg =
+let safety_check_failure_label kind _fdo dbg =
   if !Clflags.debug then begin
     let lbl_error = new_label() in
     let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
