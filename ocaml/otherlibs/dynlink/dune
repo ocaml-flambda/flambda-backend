@@ -82,6 +82,9 @@
     shape
     jkind
     primitive
+    solver_intf
+    solver
+    mode_intf
     mode
     types
     btype
@@ -173,6 +176,9 @@
 (copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/solver_intf.ml)
+(copy_files ../../typing/solver.ml)
+(copy_files ../../typing/mode_intf.ml)
 (copy_files ../../typing/mode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
@@ -236,6 +242,7 @@
 (copy_files ../../typing/jkind.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/solver.mli)
 (copy_files ../../typing/mode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
@@ -342,6 +349,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver_intf.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode_intf.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
@@ -421,6 +431,9 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver_intf.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode_intf.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx

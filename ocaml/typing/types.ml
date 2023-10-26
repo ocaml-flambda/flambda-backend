@@ -45,7 +45,7 @@ and type_desc =
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
 and arrow_desc =
-  arg_label * Mode.Alloc.t * Mode.Alloc.t
+  arg_label * Mode.Alloc.lr * Mode.Alloc.lr
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -669,7 +669,7 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.change_log := (fun changes -> log_change (Cmodes changes));
+  Mode.append_changes := (fun changes -> log_change (Cmodes !changes));
   Jkind.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
@@ -919,7 +919,7 @@ let undo_change = function
   | Ckind  (FKvar r) -> r.field_kind <- FKprivate
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
-  | Cmodes ms -> Mode.undo_changes ms
+  | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind.Sort.undo_change change
 
 type snapshot = changes ref * int

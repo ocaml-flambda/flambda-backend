@@ -111,6 +111,9 @@ COMPILERLIBS_SOURCES=\
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
   parsing/pprintast.ml \
+  typing/solver_intf.ml \
+  typing/solver.ml \
+  typing/mode_intf.ml \
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \

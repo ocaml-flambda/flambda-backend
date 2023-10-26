@@ -629,8 +629,8 @@ and raw_type_desc ppf = function
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
-        (Alloc.print' ~verbose:true) arg
-        (Alloc.print' ~verbose:true) ret
+        (Alloc.print ~verbose:true ()) arg
+        (Alloc.print ~verbose:true ()) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
@@ -1241,7 +1241,7 @@ let out_jkind_option_of_jkind jkind =
     else None
 
 let tree_of_mode mode =
-  let {locality; uniqueness; linearity} = Alloc.check_const mode in
+  let (locality, linearity, uniqueness) = Alloc.check_const mode in
   let oam_locality =
     match locality with
     | Some Global -> Olm_global

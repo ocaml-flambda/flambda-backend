@@ -1114,12 +1114,25 @@ typing/jkind.cmi : \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi
 typing/mode.cmo : \
-    utils/misc.cmi \
+    typing/solver_intf.cmi \
+    typing/solver.cmi \
+    typing/mode_intf.cmi \
     typing/mode.cmi
 typing/mode.cmx : \
-    utils/misc.cmx \
+    typing/solver_intf.cmx \
+    typing/solver.cmx \
+    typing/mode_intf.cmx \
     typing/mode.cmi
-typing/mode.cmi :
+typing/mode.cmi : \
+    typing/mode_intf.cmi
+typing/mode_intf.cmo : \
+    typing/solver_intf.cmi \
+    typing/mode_intf.cmi
+typing/mode_intf.cmx : \
+    typing/solver_intf.cmx \
+    typing/mode_intf.cmi
+typing/mode_intf.cmi : \
+    typing/solver_intf.cmi
 typing/mtype.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
@@ -1367,6 +1380,7 @@ typing/printtyp.cmo : \
     parsing/parsetree.cmi \
     typing/outcometree.cmi \
     typing/oprint.cmi \
+    typing/mode_intf.cmi \
     typing/mode.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
@@ -1392,6 +1406,7 @@ typing/printtyp.cmx : \
     parsing/parsetree.cmi \
     typing/outcometree.cmi \
     typing/oprint.cmx \
+    typing/mode_intf.cmx \
     typing/mode.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
@@ -1429,6 +1444,7 @@ typing/printtyped.cmo : \
     parsing/location.cmi \
     typing/jkind.cmi \
     parsing/jane_syntax.cmi \
+    parsing/jane_syntax.cmi \
     typing/ident.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
@@ -1444,6 +1460,7 @@ typing/printtyped.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/jkind.cmx \
+    parsing/jane_syntax.cmx \
     parsing/jane_syntax.cmx \
     typing/ident.cmx \
     utils/clflags.cmx \
@@ -1507,6 +1524,19 @@ typing/signature_group.cmx : \
     typing/signature_group.cmi
 typing/signature_group.cmi : \
     typing/types.cmi
+typing/solver.cmo : \
+    typing/solver_intf.cmi \
+    typing/solver.cmi
+typing/solver.cmx : \
+    typing/solver_intf.cmx \
+    typing/solver.cmi
+typing/solver.cmi : \
+    typing/solver_intf.cmi
+typing/solver_intf.cmo : \
+    typing/solver_intf.cmi
+typing/solver_intf.cmx : \
+    typing/solver_intf.cmi
+typing/solver_intf.cmi :
 typing/stypes.cmo : \
     typing/typedtree.cmi \
     typing/printtyp.cmi \
@@ -1705,6 +1735,7 @@ typing/typecore.cmo : \
     parsing/parsetree.cmi \
     typing/parmatch.cmi \
     typing/mtype.cmi \
+    typing/mode_intf.cmi \
     typing/mode.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
@@ -1745,6 +1776,7 @@ typing/typecore.cmx : \
     parsing/parsetree.cmi \
     typing/parmatch.cmx \
     typing/mtype.cmx \
+    typing/mode_intf.cmx \
     typing/mode.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
@@ -2132,6 +2164,7 @@ typing/typeopt.cmi : \
     typing/jkind.cmi \
     typing/env.cmi
 typing/types.cmo : \
+    typing/solver.cmi \
     typing/shape.cmi \
     typing/primitive.cmi \
     typing/path.cmi \
@@ -2147,6 +2180,7 @@ typing/types.cmo : \
     parsing/asttypes.cmi \
     typing/types.cmi
 typing/types.cmx : \
+    typing/solver.cmx \
     typing/shape.cmx \
     typing/primitive.cmx \
     typing/path.cmx \
@@ -2181,6 +2215,7 @@ typing/typetexp.cmo : \
     typing/path.cmi \
     parsing/parsetree.cmi \
     typing/oprint.cmi \
+    typing/mode_intf.cmi \
     typing/mode.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
@@ -2206,6 +2241,7 @@ typing/typetexp.cmx : \
     typing/path.cmx \
     parsing/parsetree.cmi \
     typing/oprint.cmx \
+    typing/mode_intf.cmx \
     typing/mode.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
