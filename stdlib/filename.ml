@@ -338,13 +338,8 @@ external close_desc: int -> unit = "caml_sys_close"
 let prng_key =
   Domain.DLS.new_key Random.State.make_self_init
 *)
-let prng_key = lazy(Random.State.make_self_init ())
+let prng_key = ref (lazy(Random.State.make_self_init ()))
 (* BACKPORT END *)
-
-let temp_file_name temp_dir prefix suffix =
-  let random_state = Domain.DLS.get prng_key in
-  let rnd = (Random.State.bits random_state) land 0xFFFFFF in
-  concat temp_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix)
 
 (* BACKPORT BEGIN *)
 module Domain = struct
@@ -357,6 +352,11 @@ module Domain = struct
   end
 end
 (* BACKPORT END *)
+
+let temp_file_name temp_dir prefix suffix =
+  let random_state = Lazy.force (Domain.DLS.get prng_key) in
+  let rnd = (Random.State.bits random_state) land 0xFFFFFF in
+  concat temp_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix)
 
 let current_temp_dir_name =
   Domain.DLS.new_key ~split_from_parent:Fun.id (fun () -> temp_dir_name)
