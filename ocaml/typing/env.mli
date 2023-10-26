@@ -16,6 +16,7 @@
 (* Environment handling *)
 
 open Types
+open Mode
 open Misc
 
 val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
@@ -34,7 +35,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Mode.Value.t
+  | Env_value of summary * Ident.t * value_description * Mode.Value.l
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -252,7 +253,7 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
     hints are immediately available. *)
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Mode.Value.t * shared_context option
+  Path.t * value_description * Mode.Value.l * shared_context option
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
@@ -347,10 +348,10 @@ val make_copy_of_types: t -> (t -> t)
 (* Insertion by identifier *)
 
 val add_value_lazy:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Types.value_description -> t -> t
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
@@ -451,8 +452,8 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context -> Mode.Locality.t
-  -> Mode.Linearity.t -> t -> t
+val add_closure_lock : ?closure_context:closure_context -> ('l * allowed) Mode.Locality.t
+  -> ('l_ * allowed) Mode.Linearity.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
 val add_unboxed_lock : t -> t

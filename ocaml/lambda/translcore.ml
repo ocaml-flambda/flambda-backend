@@ -258,7 +258,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = wrap_bindings bindings exp}]
   | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
-      let mode = Mode.Value.of_alloc arg_mode in
+      let mode = Mode.alloc_as_value arg_mode in
       let param = Typecore.name_cases "param" cases in
       let desc =
         {val_type = pat.pat_type; val_kind = Val_reg;
@@ -278,12 +278,15 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
               Texp_ident
                 (Path.Pident param, mknoloc (Longident.Lident name),
                  desc, Id_value,
-                 (Mode.Value.uniqueness mode, Mode.Value.linearity mode))},
+                 ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared
+                 , Mode.Linearity.disallow_right Mode.Linearity.many))},
              arg_sort,
              cases, partial) }
       in
       [{c_lhs = {pat with
-          pat_desc = Tpat_var (param, mknoloc name, desc.val_uid, mode)};
+          pat_desc =
+          Tpat_var (param, mknoloc name, desc.val_uid,
+            Mode.Value.disallow_right mode)};
         c_guard = None; c_rhs= wrap_bindings bindings exp}]
   | _ ->
       cases
@@ -362,7 +365,7 @@ let can_apply_primitive p pmode pos args =
     else if pos <> Typedtree.Tail then true
     else begin
       let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
-      is_heap_mode (transl_locality_mode return_mode)
+      is_heap_mode (transl_locality_mode_l return_mode)
     end
   end
 
@@ -431,7 +434,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
-        let mode = transl_locality_mode ap_mode in
+        let mode = transl_locality_mode_l ap_mode in
         let result_layout = layout_exp sort e in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode
@@ -443,7 +446,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let specialised = Translattribute.get_specialised_attribute funct in
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
-      let mode = transl_locality_mode ap_mode in
+      let mode = transl_locality_mode_l ap_mode in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised ~result_layout
            ~position ~mode (transl_exp ~scopes Jkind.Sort.for_function funct)
@@ -467,7 +470,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
         Lprim(Pmakeblock(0, Immutable, Some shape,
-                         transl_alloc_mode alloc_mode),
+                         transl_alloc_mode_r alloc_mode),
               ll,
               (of_location ~scopes e.exp_loc))
       end
@@ -491,7 +494,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             Lconst(Const_block(runtime_tag, List.map extract_constant ll))
           with Not_constant ->
             Lprim(Pmakeblock(runtime_tag, Immutable, Some shape,
-                             transl_alloc_mode (Option.get alloc_mode)),
+                             transl_alloc_mode_r (Option.get alloc_mode)),
                   ll,
                   of_location ~scopes e.exp_loc)
           end
@@ -505,7 +508,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             lam
           else
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
-                             transl_alloc_mode (Option.get alloc_mode)),
+                             transl_alloc_mode_r (Option.get alloc_mode)),
                   lam :: ll, of_location ~scopes e.exp_loc)
       | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
@@ -523,13 +526,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                    extract_constant lam]))
           with Not_constant ->
             Lprim(Pmakeblock(0, Immutable, None,
-                             transl_alloc_mode alloc_mode),
+                             transl_alloc_mode_r alloc_mode),
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
       end
   | Texp_record {fields; representation; extended_expression; alloc_mode} ->
       transl_record ~scopes e.exp_loc e.exp_env
-        (Option.map transl_alloc_mode alloc_mode)
+        (Option.map transl_alloc_mode_r alloc_mode)
         fields representation extended_expression
   | Texp_field(arg, id, lbl, _, alloc_mode) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
@@ -546,7 +549,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
-          let mode = transl_alloc_mode (Option.get alloc_mode) in
+          let mode = transl_alloc_mode_r (Option.get alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_ufloat ->
@@ -582,7 +585,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                      transl_exp ~scopes lbl_sort newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, expr_list, alloc_mode) ->
-      let mode = transl_alloc_mode alloc_mode in
+      let mode = transl_alloc_mode_r alloc_mode in
       let kind = array_kind e in
       let ll =
         transl_list ~scopes
@@ -1153,9 +1156,9 @@ and transl_apply ~scopes
         let id_arg = Ident.create_local "param" in
         let body =
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
-          let mode = transl_alloc_mode mode_closure in
-          let arg_mode = transl_alloc_mode mode_arg in
-          let ret_mode = transl_alloc_mode mode_ret in
+          let mode = transl_alloc_mode_r mode_closure in
+          let arg_mode = transl_alloc_mode_l mode_arg in
+          let ret_mode = transl_alloc_mode_l mode_ret in
           let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
           let nlocal =
             match join_mode mode (join_mode arg_mode ret_mode) with
@@ -1215,7 +1218,7 @@ and transl_curried_function
       (* Lfunctions must have local returns after the first local arg/ret *)
       if Parmatch.inactive ~partial pat
       then
-        let partial_mode = transl_alloc_mode partial_mode in
+        let partial_mode = transl_alloc_mode_l partial_mode in
         let ((fnkind, params, return_layout, region), body) =
           let return_layout =
             function_return_layout exp_env exp_loc ret_sort exp_type
@@ -1238,7 +1241,7 @@ and transl_curried_function
              assert (nlocal = List.length params);
              Curried {nlocal = nlocal + 1}
         in
-        let arg_mode = transl_alloc_mode arg_mode in
+        let arg_mode = transl_alloc_mode_l arg_mode in
         let params = {
           name = param ;
           layout = arg_layout ;
@@ -1276,7 +1279,7 @@ and transl_tupled_function
   let partial_mode =
     match curry with
     | More_args {partial_mode} | Final_arg {partial_mode} ->
-      transl_alloc_mode partial_mode
+      transl_alloc_mode_l partial_mode
   in
   match partial_mode, cases with
   | Alloc_heap, {c_lhs={pat_desc = Tpat_tuple pl }} :: _
@@ -1337,7 +1340,7 @@ and transl_function0
         | Alloc_local -> 1
         | Alloc_heap -> 0
     in
-    let arg_mode = transl_alloc_mode arg_mode in
+    let arg_mode = transl_alloc_mode_l arg_mode in
     ((Curried {nlocal},
       [{ name = param;
          layout = arg_layout;
@@ -1347,7 +1350,7 @@ and transl_function0
 
 and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort return_sort
       cases partial warnings region curry =
-  let mode = transl_alloc_mode alloc_mode in
+  let mode = transl_alloc_mode_r alloc_mode in
   let attrs =
     (* Collect attributes from the Pexp_newtype node for locally abstract types.
        Otherwise we'd ignore the attribute in, e.g.;
@@ -1699,7 +1702,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
-      let mode = transl_alloc_mode alloc_mode in
+      let mode = transl_alloc_mode_r alloc_mode in
       let argl = List.map (fun a -> (a, Jkind.Sort.for_tuple_element)) argl in
       Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
         (transl_list_with_layout ~scopes argl) mode val_cases partial
@@ -1714,7 +1717,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
             argl
           |> List.split
         in
-        let mode = transl_alloc_mode alloc_mode in
+        let mode = transl_alloc_mode_r alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids
           (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
              lvars mode val_cases partial)
@@ -1790,12 +1793,14 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
           | Some (lhs, _) -> Typeopt.function_arg_layout env loc param_sort lhs
     in
     let return_layout = layout_exp case_sort case.c_rhs in
-    let curry = More_args { partial_mode = Mode.Alloc.legacy } in
+    let curry =
+      More_args { partial_mode = Mode.Alloc.disallow_right Mode.Alloc.legacy }
+    in
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
-             ~arg_mode:Mode.Alloc.legacy ~return_sort:case_sort
+             ~arg_mode:(Mode.Alloc.disallow_right Mode.Alloc.legacy) ~return_sort:case_sort
              ~return_layout case.c_rhs.exp_loc repr ~region:true ~curry partial
              warnings param [case])
     in

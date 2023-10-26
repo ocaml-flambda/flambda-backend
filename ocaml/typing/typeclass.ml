@@ -1349,9 +1349,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                     if Btype.is_optional l && List.mem_assoc Nolabel sargs then
                       eliminate_optional_arg ()
                     else begin
-                      let mode_closure = Mode.Alloc.legacy in
-                      let mode_arg = Mode.Alloc.legacy in
-                      let mode_ret = Mode.Alloc.legacy in
+                      let mode_closure = Mode.Alloc.disallow_left Mode.Alloc.legacy in
+                      let mode_arg = Mode.Alloc.disallow_right Mode.Alloc.legacy in
+                      let mode_ret = Mode.Alloc.disallow_right Mode.Alloc.legacy in
                       let sort_arg = Jkind.Sort.value in
                       Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
                     end

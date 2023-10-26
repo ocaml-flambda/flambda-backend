@@ -123,7 +123,8 @@ let value_descriptions ~loc env name
         (try Ctype.moregeneral env true ty1 vd2.val_type
          with Ctype.Moregen err -> raise (Dont_match (Type err)));
         let pc =
-          {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+          {pc_desc = p1; pc_type = vd2.Types.val_type;
+           pc_poly_mode = Option.map Mode.Locality.disallow_right mode1;
            pc_env = env; pc_loc = vd1.Types.val_loc; } in
         Tcoerce_primitive pc
      end
