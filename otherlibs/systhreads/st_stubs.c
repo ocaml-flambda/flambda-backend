@@ -19,6 +19,10 @@
 
 #define CAML_INTERNALS
 
+#define CAML_NAME_SPACE
+#include "caml/compatibility.h"
+#undef CAML_NAME_SPACE
+
 #include "caml/alloc.h"
 #include "caml/backtrace.h"
 #include "caml/callback.h"
