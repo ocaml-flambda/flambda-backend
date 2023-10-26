@@ -208,7 +208,7 @@ let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
 
 (* *)
 
-let non_escaping_makeblocks ~escaping ~source_info =
+let non_escaping_makeblocks ~escaping ~source_info ~required_names =
   Continuation.Map.fold
     (fun _cont (elt : T.Continuation_info.t) map ->
       List.fold_left
@@ -217,6 +217,7 @@ let non_escaping_makeblocks ~escaping ~source_info =
           | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map
           | Make_block { kind; alloc_mode = _; fields; _ } ->
             if Variable.Set.mem var escaping
+               || not (Name.Set.mem (Name.var var) required_names)
             then map
             else
               let non_escaping_block =
@@ -550,7 +551,9 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     escaping ~dom ~dom_graph ~source_info ~required_names ~return_continuation
       ~exn_continuation
   in
-  let non_escaping_blocks = non_escaping_makeblocks ~escaping ~source_info in
+  let non_escaping_blocks =
+    non_escaping_makeblocks ~escaping ~source_info ~required_names
+  in
   if (not (Variable.Map.is_empty non_escaping_blocks))
      && Flambda_features.dump_flow ()
   then
