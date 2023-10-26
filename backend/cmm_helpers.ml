@@ -820,9 +820,15 @@ let set_field ptr n newval init dbg =
   Cop (Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
 
 let get_header ptr dbg =
-  (* header loads are mutable because laziness changes tags. *)
+  (* Headers can be mutated when forcing a lazy value. However, for all purposes
+     that the mutability tag currently serves in the compiler, header loads can
+     be marked as [Immutable], since the runtime should ensure that there is no
+     data race on headers. This saves performance with ThreadSanitizer
+     instrumentation by avoiding to instrument header loads. *)
   Cop
-    ( mk_load_mut Word_int,
+    ( (* BACKPORT BEGIN mk_load_immut Word_int, *)
+      mk_load_mut Word_int,
+      (* BACKPORT END *)
       [Cop (Cadda, [ptr; Cconst_int (-size_int, dbg)], dbg)],
       dbg )
 
@@ -842,9 +848,11 @@ let get_tag ptr dbg =
     Cop (Cand, [get_header ptr dbg; Cconst_int (255, dbg)], dbg)
   else
     (* If byte loads are efficient *)
-    (* header loads are mutable because laziness changes tags. *)
+    (* Same comment as [get_header] above *)
     Cop
-      ( mk_load_mut Byte_unsigned,
+      ( (* BACKPORT BEGIN mk_load_immut Byte_unsigned, *)
+        mk_load_mut Byte_unsigned,
+        (* BACKPORT END *)
         [Cop (Cadda, [ptr; Cconst_int (tag_offset, dbg)], dbg)],
         dbg )
 
@@ -1226,7 +1234,10 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
       ( VP.create id,
         Cop
           ( Cextcall
-              { func = "caml_alloc_shr_check_gc";
+              { func =
+                  (* BACKPORT BEGIN "caml_alloc_shr_check_gc" *)
+                  "caml_alloc"
+                  (* BACKPORT END *);
                 ty = typ_val;
                 alloc = true;
                 builtin = false;
@@ -3113,8 +3124,10 @@ let assignment_kind (ptr : Lambda.immediate_or_pointer)
   | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
-  | Heap_initialization, Pointer | Root_initialization, Pointer ->
-    Caml_initialize
+    (* BACKPORT BEGIN | Heap_initialization, Pointer | Root_initialization,
+       Pointer -> Caml_initialize *)
+  | Heap_initialization, Pointer -> Caml_initialize
+  | Root_initialization, Pointer -> Simple Initialization (* BACKPORT END *)
   | Assignment _, Immediate -> Simple Assignment
   | Heap_initialization, Immediate | Root_initialization, Immediate ->
     Simple Initialization
