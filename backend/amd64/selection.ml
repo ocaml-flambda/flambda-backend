@@ -90,7 +90,7 @@ exception Use_default
 let rax = phys_reg Int 0
 let rcx = phys_reg Int 5
 let rdx = phys_reg Int 4
-let xmm0v () = phys_reg Vec128 100
+let _xmm0v () = phys_reg Vec128 100
 
 let pseudoregs_for_operation op arg res =
   match op with
@@ -170,9 +170,9 @@ let pseudoregs_for_operation op arg res =
   | Ivectorcast _ | Iscalarcast _
   | Iconst_int _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
-  | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
+  | Iextcall _|Istackoffset _|Iload _ | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Ipoll _
+  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
@@ -293,7 +293,7 @@ method! select_operation op args dbg =
   (* Special cases overriding C implementations. *)
   | Cextcall { func = "sqrt"; alloc = false; } ->
      begin match args with
-       [Cop(Cload ((Double as chunk), _), [loc], _dbg)] ->
+       [Cop(Cload { memory_chunk = Double as chunk; _}, [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
          (Ispecific(Ifloatsqrtf addr), [arg])
      | [arg] ->
@@ -304,18 +304,24 @@ method! select_operation op args dbg =
   | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
                ty = [|Int|]; ty_args = [XFloat] } ->
       (match args with
-      | [Cop(Cload (Double, mut), [loc], _dbg)] ->
+        | [Cop(Cload { memory_chunk = Double; mutability = mut; is_atomic }, [loc], _dbg)] ->
         let c = Word_int in
         let (addr, arg) = self#select_addressing c loc in
-        Iload(c, addr, Selectgen.select_mutable_flag mut), [arg]
+        Iload { memory_chunk = c;
+                addressing_mode = addr;
+                mutability = mut;
+                is_atomic; }, [arg]
       | _ -> Imove, args)
   | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
                ty = [|Float|]; ty_args = [XInt64] } ->
       (match args with
-      | [Cop(Cload (Word_int, mut), [loc], _dbg)] ->
+      | [Cop(Cload { memory_chunk = Word_int; mutability = mut; is_atomic }, [loc], _dbg)] ->
         let c = Double in
         let (addr, arg) = self#select_addressing c loc in
-        Iload(c, addr, Selectgen.select_mutable_flag mut), [arg]
+        Iload { memory_chunk = c;
+                addressing_mode = addr;
+                mutability = mut;
+                is_atomic; }, [arg]
       | _ -> Imove, args)
   (* x86 intrinsics ([@@builtin]) *)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
@@ -388,11 +394,11 @@ method! select_operation op args dbg =
 
 method select_floatarith commutative regular_op mem_op args =
   match args with
-    [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
+    [arg1; Cop(Cload { memory_chunk = Double as chunk; _ }, [loc2], _)] ->
       let (addr, arg2) = self#select_addressing chunk loc2 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),
                  [arg1; arg2])
-  | [Cop(Cload ((Double as chunk), _), [loc1], _); arg2]
+  | [Cop(Cload { memory_chunk = Double as chunk; _}, [loc1], _); arg2]
         when commutative ->
       let (addr, arg1) = self#select_addressing chunk loc1 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),

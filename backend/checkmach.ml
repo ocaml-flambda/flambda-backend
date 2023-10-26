@@ -1070,6 +1070,7 @@ end = struct
           S.transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+    | Idls_get -> Misc.fatal_error "Idls_get not supported"
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 

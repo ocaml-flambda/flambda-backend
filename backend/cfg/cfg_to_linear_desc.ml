@@ -17,7 +17,13 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Const_symbol n -> Iconst_symbol n
       | Const_vec128 bits -> Iconst_vec128 bits
       | Stackoffset n -> Istackoffset n
-      | Load (c, m, i) -> Iload (c, m, i)
+      | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
+        Iload
+          { memory_chunk;
+            addressing_mode;
+            mutability = Mach.to_ast_mutable_flag mutability;
+            is_atomic
+          }
       | Store (c, m, b) -> Istore (c, m, b)
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
@@ -45,5 +51,6 @@ let from_basic (basic : basic) : Linear.instruction_desc =
           { ident; which_parameter; provenance; is_assignment; regs } ->
         Iname_for_debugger
           { ident; which_parameter; provenance; is_assignment; regs }
+      | Dls_get -> Idls_get
     in
     Lop op

@@ -209,11 +209,22 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Stackoffset expected, Stackoffset result when Int.equal expected result ->
     ()
-  | ( Load (expected_mem, expected_arch_mode, expected_mut),
-      Load (result_mem, result_arch_mode, result_mut) )
+  | ( Load
+        { memory_chunk = expected_mem;
+          addressing_mode = expected_arch_mode;
+          mutability = expected_mut;
+          is_atomic = expected_atomic
+        },
+      Load
+        { memory_chunk = result_mem;
+          addressing_mode = result_arch_mode;
+          mutability = result_mut;
+          is_atomic = result_atomic
+        } )
     when Cmm.equal_memory_chunk expected_mem result_mem
          && expected_mut = result_mut
-         && Arch.equal_addressing_mode expected_arch_mode result_arch_mode ->
+         && Arch.equal_addressing_mode expected_arch_mode result_arch_mode
+         && Bool.equal expected_atomic result_atomic ->
     ()
   | ( Store (expected_mem, expected_arch_mode, expected_bool),
       Store (result_mem, result_arch_mode, result_bool) )
@@ -273,6 +284,7 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
          && List.equal Reg.same (Array.to_list left_regs)
               (Array.to_list right_regs) ->
     ()
+  | Dls_get, Dls_get -> ()
   | _ -> different location "operation"
  [@@ocaml.warning "-4"]
 
