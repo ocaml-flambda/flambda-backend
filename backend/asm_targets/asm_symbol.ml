@@ -26,7 +26,7 @@
 
 let should_be_escaped = function
   | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' -> false
-  | c -> true
+  | _c -> true
 
 module Thing = struct
   type t = string

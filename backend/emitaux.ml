@@ -419,6 +419,7 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
   end
 
 let emit_debug_info ?discriminator dbg =
+  ignore discriminator;
   emit_debug_info_gen dbg (fun ~file_num ~file_name ->
       emit_string "\t.file\t";
       emit_int file_num; emit_char '\t';
