@@ -543,7 +543,7 @@ module F : functor (X : a) -> sig type t end
 Line 6, characters 13-19:
 6 |     type t = F(X).t
                  ^^^^^^
-Error: Modules do not match: (a/1 with P.X) is not included in a/2
+Error: Modules do not match: (a with P.X) is not included in a/2
      Line 3, characters 2-15:
        Definition of module type a
      Line 1, characters 0-13:

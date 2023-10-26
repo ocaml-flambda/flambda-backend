@@ -299,7 +299,7 @@ let primitive ppf = function
         | Pointer, Reads_vary -> "field_mut"
         | Pointer, Reads_agree -> "field_imm"
       in
-      fprintf ppf "%s%a %i" instr field_read_semantics sem n
+      fprintf ppf "%s %i" instr n
   | Pfield_computed sem ->
       fprintf ppf "field_computed%a" field_read_semantics sem
   | Psetfield(n, ptr, init) ->

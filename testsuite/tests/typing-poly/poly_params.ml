@@ -189,6 +189,7 @@ Line 3, characters 7-21:
 3 |   else f (fun x -> x)
            ^^^^^^^^^^^^^^
 Warning 18 [not-principal]: applying a higher-rank function here is not principal.
+
 val non_principal1 : bool -> (('a. 'a -> 'a) -> 'b) -> 'b = <fun>
 |}];;
 
@@ -237,6 +238,7 @@ Line 3, characters 9-36:
 3 |     Some (fun y -> y 6, y "goodbye") ]
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 18 [not-principal]: this higher-rank function is not principal.
+
 val non_principal3 : poly option list = [Some <fun>; Some <fun>]
 |}];;
 

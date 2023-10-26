@@ -824,6 +824,7 @@ Line 1, characters 17-18:
 1 | fun ((x : 'a) | (x : 'a t)) -> ();;
                      ^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
+
 - : ('a t as 'a) -> unit = <fun>
 |}];;
 

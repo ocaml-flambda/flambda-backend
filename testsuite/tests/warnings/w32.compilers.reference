@@ -98,6 +98,7 @@ File "w32.ml", line 65, characters 18-29:
 65 | module G (X : sig val x : int end) = X
                        ^^^^^^^^^^^
 Warning 32 [unused-value-declaration]: unused value x.
+
 File "w32.ml", line 76, characters 29-40:
 76 |   module type S = sig type t val x : int end
                                   ^^^^^^^^^^^
