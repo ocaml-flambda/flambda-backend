@@ -31,8 +31,10 @@ val remove_dir : string -> unit
 val reset : unit -> unit
 (** Remove all directories *)
 
-val init : visible:string list -> hidden:string list -> unit
-(** [init ~visible ~hidden] is the same as
+val init :
+  visible:string list -> hidden:string list -> hidden_subdirs:string list
+  -> unit
+(** [init ~visible ~hidden ~hidden_subdirs:[]] is the same as
     [reset ();
      List.iter add_dir (List.rev hidden);
      List.iter add_dir (List.rev visible)] *)
@@ -42,7 +44,8 @@ val get_path_list : unit -> string list
 
 type paths =
   { visible : string list;
-    hidden : string list }
+    hidden : string list;
+    hidden_subdirs : string list }
 
 val get_paths : unit -> paths
 (** Return the directories passed to [add_dir] so far. *)

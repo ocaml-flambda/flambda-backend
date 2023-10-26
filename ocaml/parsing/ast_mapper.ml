@@ -1109,7 +1109,9 @@ module PpxContext = struct
     }
 
   let make ~tool_name () =
-    let Load_path.{ visible; hidden } = Load_path.get_paths () in
+    let Load_path.{ visible; hidden; hidden_subdirs } =
+      Load_path.get_paths ()
+    in
     let fields =
       [
         lid "tool_name",    make_string tool_name;
@@ -1117,8 +1119,9 @@ module PpxContext = struct
         lid "hidden_include_dirs",
           make_list make_string (!Clflags.hidden_include_dirs);
         lid "load_path",
-          make_pair (make_list make_string) (make_list make_string)
-            (visible, hidden);
+          make_pair (make_list make_string)
+            (make_pair (make_list make_string) (make_list make_string))
+            (visible, (hidden, hidden_subdirs));
         lid "open_modules", make_list make_string !Clflags.open_modules;
         lid "for_package",  make_option make_string !Clflags.for_package;
         lid "debug",        make_bool !Clflags.debug;
@@ -1190,10 +1193,12 @@ module PpxContext = struct
       | "hidden_include_dirs" ->
           Clflags.hidden_include_dirs := get_list get_string payload
       | "load_path" ->
-          let visible, hidden =
-            get_pair (get_list get_string) (get_list get_string) payload
+          let visible, (hidden, hidden_subdirs) =
+            get_pair (get_list get_string)
+              (get_pair (get_list get_string) (get_list get_string))
+              payload
           in
-          Load_path.init ~visible ~hidden
+          Load_path.init ~visible ~hidden ~hidden_subdirs
       | "open_modules" ->
           Clflags.open_modules := get_list get_string payload
       | "for_package" ->

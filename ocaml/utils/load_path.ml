@@ -25,6 +25,8 @@ let visible_files_uncap : registry ref = s_table STbl.create 42
 let hidden_files : registry ref = s_table STbl.create 42
 let hidden_files_uncap : registry ref = s_table STbl.create 42
 
+let hsubdirs : string list ref = ref []
+
 module Dir = struct
   type t = {
     path : string;
@@ -59,7 +61,8 @@ let reset () =
   STbl.clear !visible_files;
   STbl.clear !visible_files_uncap;
   hidden_dirs := [];
-  visible_dirs := []
+  visible_dirs := [];
+  hsubdirs := []
 
 let get_visible () = List.rev !visible_dirs
 
@@ -68,11 +71,13 @@ let get_path_list () =
 
 type paths =
   { visible : string list;
-    hidden : string list }
+    hidden : string list;
+    hidden_subdirs : string list }
 
 let get_paths () =
   { visible = List.rev_map Dir.path !visible_dirs;
-    hidden = List.rev_map Dir.path !hidden_dirs }
+    hidden = List.rev_map Dir.path !hidden_dirs;
+    hidden_subdirs = List.rev !hsubdirs}
 
 let get_visible_path_list () = List.rev_map Dir.path !visible_dirs
 let get_hidden_path_list () = List.rev_map Dir.path !hidden_dirs
@@ -93,10 +98,11 @@ let prepend_add dir =
       end
     ) dir.Dir.files
 
-let init ~visible ~hidden =
+let init ~visible ~hidden ~hidden_subdirs =
   reset ();
   visible_dirs := List.rev_map (Dir.create ~hidden:false) visible;
   hidden_dirs := List.rev_map (Dir.create ~hidden:true) hidden;
+  hsubdirs := hidden_subdirs;
   List.iter prepend_add !hidden_dirs;
   List.iter prepend_add !visible_dirs
 
@@ -154,9 +160,39 @@ let is_basename fn = Filename.basename fn = fn
 
 type visibility = Visible | Hidden
 
+let find_file_in_hdir fn hidden_files hsubdirs =
+  let dir =
+    (* XXX, probably I want to keep things up to the first "." or "__".  Or, just
+       have the caller pass me the module name (seems like a pain). *)
+    (* XXX, is search_one adding the same files to the path repeatedly? *)
+    let dot =
+      try String.index_from fn 0 '.' with
+      | _ -> raise Not_found
+    in
+    String.sub fn 0 dot
+  in
+  let search_one hsubdir =
+    let dir = Filename.concat hsubdir dir in
+    match Sys.is_directory dir with
+    | true ->
+      let dir = Dir.create ~hidden:true dir in
+      add dir;
+      STbl.find !hidden_files fn
+    | false | exception Sys_error _ -> raise Not_found
+  in
+  let rec search = function
+    | [] -> raise Not_found
+    | hsubdir :: hsubdirs ->
+      try search_one hsubdir with
+      | Not_found -> search hsubdirs
+  in
+  search hsubdirs
+
 let find_file_in_cache fn visible_files hidden_files =
   try (STbl.find !visible_files fn, Visible) with
-  | Not_found -> (STbl.find !hidden_files fn, Hidden)
+  | Not_found ->
+    try (STbl.find !hidden_files fn, Hidden) with
+    | Not_found -> find_file_in_hdir fn hidden_files !hsubdirs, Hidden
 
 let find fn =
   assert (not Config.merlin || Local_store.is_bound ());
