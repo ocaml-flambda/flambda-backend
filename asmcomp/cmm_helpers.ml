@@ -2554,8 +2554,13 @@ let assignment_kind
   | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
+(* BACKPORT BEGIN
   | Heap_initialization, Pointer
   | Root_initialization, Pointer -> Caml_initialize
+*)
+  | Heap_initialization, Pointer -> Caml_initialize
+  | Root_initialization, Pointer -> Simple Initialization
+(* BACKPORT END *)
   | (Assignment _), Immediate -> Simple Assignment
   | Heap_initialization, Immediate
   | Root_initialization, Immediate -> Simple Initialization
