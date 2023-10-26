@@ -81,34 +81,23 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let print_raw :
       type a l r.
-      ?verbose:bool ->
-      ?axis:string ->
-      a C.obj ->
-      Format.formatter ->
-      (a, l * r) mode ->
-      unit =
-   fun ?(verbose = true) ?axis (obj : a C.obj) ppf m ->
-    let print_axis () =
-      match axis with None -> () | Some s -> Format.fprintf ppf "%s:" s
-    in
+      ?verbose:bool -> a C.obj -> Format.formatter -> (a, l * r) mode -> unit =
+   fun ?(verbose = true) (obj : a C.obj) ppf m ->
+    let traversed = if verbose then Some VarSet.empty else None in
     match m with
     | Amode a -> C.print obj ppf a
-    | Amodevar mv ->
-      print_axis ();
-      if verbose then print_morphvar obj ppf mv else Format.fprintf ppf "?"
+    | Amodevar mv -> print_morphvar ?traversed obj ppf mv
     | Amodejoin (a, mvs) ->
-      print_axis ();
       Format.fprintf ppf "join(%a,%a)" (C.print obj) a
         (Format.pp_print_list
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ",")
-           (print_morphvar obj))
+           (print_morphvar ?traversed obj))
         mvs
     | Amodemeet (a, mvs) ->
-      print_axis ();
       Format.fprintf ppf "meet(%a,%a)" (C.print obj) a
         (Format.pp_print_list
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ",")
-           (print_morphvar obj))
+           (print_morphvar ?traversed obj))
         mvs
 
   let disallow_right : type a l r. (a, l * r) mode -> (a, l * disallowed) mode =
@@ -501,14 +490,9 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let print :
       type a l r.
-      ?verbose:bool ->
-      ?axis:string ->
-      a C.obj ->
-      Format.formatter ->
-      (a, l * r) mode ->
-      unit =
-   fun ?(verbose = true) ?axis obj ppf m ->
-    print_raw obj ~verbose ?axis ppf
+      ?verbose:bool -> a C.obj -> Format.formatter -> (a, l * r) mode -> unit =
+   fun ?(verbose = true) obj ppf m ->
+    print_raw obj ~verbose ppf
       (match check_const obj m with None -> m | Some a -> Amode a)
 
   let newvar_above (type a) (obj : a C.obj) = function
@@ -710,11 +694,15 @@ module Solver_polarized (C : Lattices_mono) = struct
     | Positive obj -> fun (Positive m) -> S.check_const obj m
     | Negative obj -> fun (Negative m) -> S.check_const obj m
 
-  let print :
-      type a. ?verbose:bool -> ?axis:string -> a obj -> _ -> (a, _) mode -> unit
-      =
-   fun ?(verbose = false) ?axis obj ppf m ->
+  let print : type a. ?verbose:bool -> a obj -> _ -> (a, _) mode -> unit =
+   fun ?(verbose = false) obj ppf m ->
     match obj, m with
-    | Positive obj, Positive m -> S.print ~verbose ?axis obj ppf m
-    | Negative obj, Negative m -> S.print ~verbose ?axis obj ppf m
+    | Positive obj, Positive m -> S.print ~verbose obj ppf m
+    | Negative obj, Negative m -> S.print ~verbose obj ppf m
+
+  let print_raw : type a. ?verbose:bool -> a obj -> _ -> (a, _) mode -> unit =
+   fun ?(verbose = false) obj ppf m ->
+    match obj, m with
+    | Positive obj, Positive m -> S.print_raw ~verbose obj ppf m
+    | Negative obj, Negative m -> S.print_raw ~verbose obj ppf m
 end

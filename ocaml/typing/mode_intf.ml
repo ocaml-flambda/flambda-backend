@@ -73,8 +73,8 @@ module type Common = sig
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
   val print :
+    ?raw:bool ->
     ?verbose:bool ->
-    ?axis:string ->
     unit ->
     Format.formatter ->
     ('l * 'r) t ->
@@ -227,7 +227,13 @@ module type S = sig
          and type 'd t := 'd t
 
     (* some overriding *)
-    val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
+    val print :
+      ?raw:bool ->
+      ?verbose:bool ->
+      unit ->
+      Format.formatter ->
+      ('l * 'r) t ->
+      unit
 
     val check_const :
       ('l * 'r) t ->
@@ -313,7 +319,13 @@ module type S = sig
          and type 'd t := 'd t
 
     (* some overriding *)
-    val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
+    val print :
+      ?raw:bool ->
+      ?verbose:bool ->
+      unit ->
+      Format.formatter ->
+      ('l * 'r) t ->
+      unit
 
     val check_const :
       ('l * 'r) t ->

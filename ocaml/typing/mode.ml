@@ -740,7 +740,10 @@ module Common (Obj : Obj) = struct
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
-  let print ?verbose ?axis () ppf m = S.print obj_s ?verbose ?axis ppf m
+  let print ?(raw = false) ?verbose () ppf m =
+    if raw
+    then S.print_raw ?verbose obj_s ppf m
+    else S.print ?verbose obj_s ppf m
 
   let constrain_upper m = S.constrain_upper obj_s m
 
@@ -1145,11 +1148,11 @@ module Value = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?(verbose = true) () ppf { monadic; comonadic } =
+  let print ?raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ~verbose ?axis:None ())
+      (Comonadic.print ?raw ?verbose ())
       comonadic
-      (Monadic.print ~verbose ?axis:None ())
+      (Monadic.print ?raw ?verbose ())
       monadic
 
   let constrain_lower { comonadic; monadic } =
@@ -1374,11 +1377,11 @@ module Alloc = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?(verbose = true) () ppf { monadic; comonadic } =
+  let print ?raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ~verbose ?axis:None ())
+      (Comonadic.print ?raw ?verbose ())
       comonadic
-      (Monadic.print ~verbose ?axis:None ())
+      (Monadic.print ?raw ?verbose ())
       monadic
 
   let constrain_lower { comonadic; monadic } =
