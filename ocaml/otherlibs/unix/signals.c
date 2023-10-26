@@ -44,9 +44,14 @@ static value encode_sigset(sigset_t * set)
 
   for (i = 1; i < NSIG; i++)
     if (sigismember(set, i) > 0) {
+/* BACKPORT BEGIN
       value newcons = caml_alloc_2(Tag_cons,
         Val_int(caml_rev_convert_signal_number(i)),
-        res);
+        res); */
+      value newcons = caml_alloc(2, Tag_cons);
+      Field(newcons, 0) = Val_int(caml_rev_convert_signal_number(i));
+      Field(newcons, 1) = res;
+/* BACKPORT END */
       res = newcons;
     }
   CAMLreturn(res);
@@ -71,6 +76,12 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
   return encode_sigset(&oldset);
 }
 
+/* CR mshinwell: need to look at this file carefully - should it be
+   reverted to 4.x? */
+/* Temp hacks */
+#define NSIG_WORDS 1
+#define BITS_PER_WORD 64
+
 CAMLprim value caml_unix_sigpending(value unit)
 {
   sigset_t pending;
@@ -78,7 +89,7 @@ CAMLprim value caml_unix_sigpending(value unit)
   uintnat curr;
   if (sigpending(&pending) == -1) caml_uerror("sigpending", Nothing);
   for (i = 0; i < NSIG_WORDS; i++) {
-    curr = atomic_load(&caml_pending_signals[i]);
+    curr = /* CR mshinwell: XXX */ /*atomic_load*/ (uintnat)(&caml_pending_signals[i]);
     if (curr == 0) continue;
     for (j = 0; j < BITS_PER_WORD; j++) {
       if (curr & ((uintnat)1 << j))

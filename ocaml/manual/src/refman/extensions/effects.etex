@@ -24,7 +24,7 @@ To understand the basics, let us define an effect (that is, an operation) that
 takes an integer argument and returns an integer result. We name this effect
 "Xchg".
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 open Effect
 open Effect.Deep
 
@@ -42,7 +42,7 @@ returns their sum.
 We can handle the "Xchg" effect by implementing a handler that always returns
 the successor of the offered value:
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 try_with comp1 ()
 { effc = fun (type a) (eff: a t) ->
     match eff with
@@ -99,7 +99,7 @@ computations \textit{tasks}.
 A task either is in a suspended state or is completed. We represent the task
 status as follows:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 type 'a status =
   Complete of 'a
 | Suspended of {msg: int; cont: (int, 'a status) continuation}
@@ -113,7 +113,7 @@ resume and returns a "'a status" value when resumed.
 Next, we define a "step" function that executes one step of computation until
 it completes or suspends:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let step (f : unit -> 'a) () : 'a status =
   match_with f ()
   { retc = (fun v -> Complete v);
@@ -156,7 +156,7 @@ the status does not perform the "Xchg" effect.
 
 We can now write a simple scheduler that runs a pair of tasks to completion:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let rec run_both a b =
   match a (), b () with
   | Complete va, Complete vb -> (va, vb)
@@ -175,13 +175,13 @@ the handler to raise an exception
 
 We can now define a second computation that also exchanges two messages:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let comp2 () = perform (Xchg 21) * perform (Xchg 21)
 \end{caml_example*}
 
 Finally, we can run the two computations together:
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 run_both (step comp1) (step comp2)
 \end{caml_example}
 
@@ -202,7 +202,7 @@ user-level threading systems provide a "fork" primitive to spawn off a new
 concurrent task and a "yield" primitive to yield control to some other task.
 Correspondingly, we shall declare two effects as follows:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 type _ Effect.t += Fork : (unit -> unit) -> unit t
                  | Yield : unit t
 \end{caml_example*}
@@ -215,7 +215,7 @@ also offering to exchange a value.
 
 We shall also define helper functions that simply perform these effects:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let fork f = perform (Fork f)
 let yield () = perform Yield
 let xchg v = perform (Xchg v)
@@ -223,7 +223,7 @@ let xchg v = perform (Xchg v)
 
 A top-level "run" function defines the scheduler:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 (* A concurrent round-robin scheduler *)
 let run (main : unit -> unit) : unit =
   let exchanger = ref None in (* waiting exchanger *)
@@ -296,7 +296,7 @@ explain and fix this in the next section~\ref{s:effects-discontinue}.
 Now we can write a concurrent program that utilises the newly defined
 operations:
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 open Printf
 
 let _ = run (fun _ ->
@@ -341,7 +341,7 @@ exchange a value (stored in the reference cell "exchanger"), which remains
 blocked forever! If the blocked task holds onto resources, these resources are
 leaked. For example, consider the following task:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let leaky_task () =
   fork (fun _ ->
     let oc = open_out "secret.txt" in
@@ -442,7 +442,7 @@ lst_iter (fun i -> Printf.printf "%d\n" i)
 The expression "invert lst_iter" returns a sequence that allows the consumer to
 traverse the list on demand. For example,
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 let s = invert ~iter:lst_iter
 let next = Seq.to_dispenser s;;
 next();;
@@ -453,7 +453,7 @@ next();;
 
 We can use the same "invert" function on any "iter" function. For example,
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 let s = invert ~iter:(Fun.flip String.iter "OCaml")
 let next = Seq.to_dispenser s;;
 next();;
@@ -468,7 +468,7 @@ next();;
 
 The implementation of the "invert" function is given below:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let invert (type a) ~(iter : (a -> unit) -> unit) : a Seq.t =
   let module M = struct
     type _ Effect.t += Yield : a -> unit t
@@ -517,7 +517,7 @@ examples.
 
 Like exception handlers, effect handlers can be nested.
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 type _ Effect.t += E : int t
                  | F : string t
 
@@ -544,7 +544,7 @@ In this example, the computation "foo" performs "F", the inner handler handles
 only "E" and the outer handler handles "F". The call to "baz" returns "Hello,
 world!".
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 baz ()
 \end{caml_example}
 
@@ -606,7 +606,7 @@ corresponding "perform". For example, in the previous example, "bar" does not
 handle the effect "F". Hence, we will get an "Effect.Unhandled F" exception
 when we run "bar".
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 try bar () with Effect.Unhandled F -> "Saw Effect.Unhandled exception"
 \end{caml_example}
 
@@ -618,7 +618,7 @@ must be resumed either with a "continue" or "discontinue" exactly once}}.
 Attempting to use a continuation more than once raises a
 "Continuation_already_resumed" exception. For example:
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 try_with perform (Xchg 0)
 { effc = fun (type a) (eff : a t) ->
     match eff with
@@ -685,7 +685,7 @@ implement a shallow handler that enforces a particular sequence of effects (a
 protocol) on a computation. For this example, let us consider that the
 computation may perform the following effects:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 type _ Effect.t += Send : int -> unit Effect.t
                  | Recv : int Effect.t
 \end{caml_example*}
@@ -698,7 +698,7 @@ not "[Recv]", "[Send;Send]", "[Send;Recv;Recv]", etc. The key observation here
 is that the set of effects handled evolves over time. We can enforce this
 protocol quite naturally using shallow handlers as shown below:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 open Effect.Shallow
 
 let run (comp: unit -> unit) : unit =
@@ -753,7 +753,7 @@ be handled by an outer handler.
 We can see that the "run" function will permit a computation that follows the
 protocol:
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 run (fun () ->
   printf "Send 42\n";
   perform (Send 42);
@@ -765,7 +765,7 @@ run (fun () ->
 
 and aborts those that do not:
 
-\begin{caml_example}{verbatim}
+\begin{caml_example}{verbatim}[error]
 run (fun () ->
   Printf.printf "Send 0\n";
   perform (Send 0);

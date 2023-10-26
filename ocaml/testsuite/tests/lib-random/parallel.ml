@@ -1,8 +1,10 @@
 (* TEST
    include unix
-   * libunix
-   ** bytecode
-   ** native
+   * skip
+   reason = "OCaml 5 only"
+   ** libunix
+   *** bytecode
+   *** native
  *)
 
 let () = Random.init 42

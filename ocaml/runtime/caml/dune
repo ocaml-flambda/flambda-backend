@@ -30,8 +30,12 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
 
 (install
   (files
@@ -93,9 +97,12 @@
     (startup_aux.h as caml/startup_aux.h)
     (sys.h as caml/sys.h)
 <<<<<<< HEAD
+<<<<<<< HEAD
     (simd.h as caml/simd.h)
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
     (ui.h as caml/ui.h)
     (version.h as caml/version.h)
     (weak.h as caml/weak.h)
@@ -103,9 +110,14 @@
   (section lib)
   (package ocaml_runtime_stdlib))
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb

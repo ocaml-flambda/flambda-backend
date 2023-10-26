@@ -16,6 +16,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR ocaml 5 runtime: domains not supported on 4.x
+
 module Raw = struct
   (* Low-level primitives provided by the runtime *)
   type t = private int
@@ -258,3 +260,5 @@ let join { term_mutex; term_condition; term_state; _ } =
   | Error ex -> raise ex
 
 let recommended_domain_count = Raw.get_recommended_domain_count
+
+*)

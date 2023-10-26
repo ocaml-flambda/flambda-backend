@@ -49,8 +49,9 @@ let compile i ~backend ~middle_end ~transl_style
             ~backend
             ~prefixname:i.output_prefix
             ~middle_end
-            ~ppf_dump:i.ppf_dump;
-       Compilenv.save_unit_info (cmx i))
+            ~ppf_dump:i.ppf_dump
+            lambda;
+       Compilenv.save_unit_info (cmx i)))
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

@@ -26,10 +26,8 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-<<<<<<< HEAD
 type jkind_sort_loc = Cstr_tuple | Record | External
-||||||| merged common ancestors
-=======
+
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
    subterm relation (a type expression is syntactically contained
@@ -38,7 +36,6 @@ type reaching_type_path = reaching_type_step list
 and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
->>>>>>> ocaml/5.1
 
 type error =
     Repeated_parameter
@@ -138,17 +135,9 @@ let add_type ~check id decl env =
 (* Add a dummy type declaration to the environment, with the given arity.
    The [type_kind] is [Type_abstract], but there is a generic [type_manifest]
    for abbreviations, to allow polymorphic expansion, except if
-<<<<<<< HEAD
    [abstract_abbrevs] is given along with a reason for not allowing expansion.
    This function is only used in [transl_type_decl]. *)
 let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
-||||||| merged common ancestors
-let enter_type rec_flag env sdecl (id, uid) =
-=======
-   [abstract_abbrevs] is [true].
-   This function is only used in [transl_type_decl]. *)
-let enter_type ~abstract_abbrevs rec_flag env sdecl (id, uid) =
->>>>>>> ocaml/5.1
   let needed =
     match rec_flag with
     | Asttypes.Nonrecursive ->
@@ -163,7 +152,6 @@ let enter_type ~abstract_abbrevs rec_flag env sdecl (id, uid) =
     | Asttypes.Recursive -> true
   in
   if not needed then env else
-<<<<<<< HEAD
   let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
 
@@ -239,12 +227,6 @@ let enter_type ~abstract_abbrevs rec_flag env sdecl (id, uid) =
         let jkind = get_type_param_jkind path param in
         Btype.newgenvar ?name jkind)
       sdecl.ptype_params
-||||||| merged common ancestors
-=======
-  let type_manifest = match sdecl.ptype_manifest, abstract_abbrevs with
-    | None, _ | Some _, true -> None
-    | Some _, false -> Some(Ctype.newvar ())
->>>>>>> ocaml/5.1
   in
   let decl =
     { type_params;
@@ -389,18 +371,12 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-<<<<<<< HEAD
          let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
            | Immutable -> transl_global_flags loc attrs
          in
-||||||| merged common ancestors
-         let cty = transl_simple_type env ?univars closed arg in
-=======
-         let cty = transl_simple_type env ?univars ~closed arg in
->>>>>>> ocaml/5.1
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut; ld_global = gbl;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
@@ -438,19 +414,9 @@ let transl_types_gf env univars closed tyl =
 
 let transl_constructor_arguments env univars closed = function
   | Pcstr_tuple l ->
-<<<<<<< HEAD
       let flds, flds' = transl_types_gf env univars closed l in
       Types.Cstr_tuple flds',
       Cstr_tuple flds
-||||||| merged common ancestors
-      let l = List.map (transl_simple_type env ?univars closed) l in
-      Types.Cstr_tuple (List.map (fun t -> t.ctyp_type) l),
-      Cstr_tuple l
-=======
-      let l = List.map (transl_simple_type env ?univars ~closed) l in
-      Types.Cstr_tuple (List.map (fun t -> t.ctyp_type) l),
-      Cstr_tuple l
->>>>>>> ocaml/5.1
   | Pcstr_record l ->
       let lbls, lbls' = transl_labels env univars closed l in
       Types.Cstr_record lbls',
@@ -474,132 +440,36 @@ let make_constructor
       let args, targs =
         transl_constructor_arguments env None true sargs
       in
-<<<<<<< HEAD
         tvars, targs, None, args, None
-  | Some sret_type -> TyVarEnv.with_local_scope begin fun () ->
-      (* if it's a generalized constructor we must work in a narrowed
-         context so as to not introduce any new constraints *)
-      TyVarEnv.reset ();
-      let univars, closed =
-        match svars with
-        | Left [] | Right [] -> None, false
-        | Left vars_only ->
-           Ctype.begin_def();
-           Some (TyVarEnv.make_poly_univars vars_only), true
-        | Right vars_jkinds ->
-           Ctype.begin_def();
-           Some (TyVarEnv.make_poly_univars_jkinds
-                   ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
-                   vars_jkinds), true
-      in
-      let args, targs =
-        transl_constructor_arguments env univars closed sargs
-      in
-      let tret_type =
-        transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy sret_type
-      in
-      let ret_type = tret_type.ctyp_type in
-      (* TODO add back type_path as a parameter ? *)
-      begin match get_desc ret_type with
-        | Tconstr (p', _, _) when Path.same type_path p' -> ()
-        | _ ->
-          let trace =
-            (* Expansion is not helpful here -- the restriction on GADT return
-               types is purely syntactic.  (In the worst case, expansion
-               produces gibberish.) *)
-            [Ctype.unexpanded_diff
-               ~got:ret_type
-               ~expected:(Ctype.newconstr type_path type_params)]
-||||||| merged common ancestors
-        targs, None, args, None
-  | Some sret_type ->
-      (* if it's a generalized constructor we must first narrow and
-         then widen so as to not introduce any new constraints *)
-      let z = narrow () in
-      reset_type_variables ();
-      let univars, closed =
-        match svars with
-        | [] -> None, false
-        | vs ->
-           Ctype.begin_def();
-           Some (make_poly_univars (List.map (fun v -> v.txt) vs)), true
-      in
-      let args, targs =
-        transl_constructor_arguments env univars closed sargs
-      in
-      let tret_type = transl_simple_type env ?univars closed sret_type in
-      let ret_type = tret_type.ctyp_type in
-      (* TODO add back type_path as a parameter ? *)
-      begin match get_desc ret_type with
-        | Tconstr (p', _, _) when Path.same type_path p' -> ()
-        | _ ->
-          let trace =
-            (* Expansion is not helpful here -- the restriction on GADT return
-               types is purely syntactic.  (In the worst case, expansion
-               produces gibberish.) *)
-            [Ctype.unexpanded_diff
-               ~got:ret_type
-               ~expected:(Ctype.newconstr type_path type_params)]
-=======
-        targs, None, args, None
   | Some sret_type ->
       (* if it's a generalized constructor we must first narrow and
          then widen so as to not introduce any new constraints *)
       (* narrow and widen are now invoked through wrap_type_variable_scope *)
       TyVarEnv.with_local_scope begin fun () ->
-      let closed = svars <> [] in
+      let closed =
+        match svars with
+        | Left [] | Right [] -> false
+        | _ -> true
+      in
       let targs, tret_type, args, ret_type, _univars =
         Ctype.with_local_level_if closed begin fun () ->
           TyVarEnv.reset ();
           let univar_list =
-            TyVarEnv.make_poly_univars (List.map (fun v -> v.txt) svars) in
+            match svars with
+            | Left vars_only -> TyVarEnv.make_poly_univars vars_only
+            | Right vars_jkinds ->
+              TyVarEnv.make_poly_univars_jkinds
+                ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
+                vars_jkinds
+          in
           let univars = if closed then Some univar_list else None in
           let args, targs =
             transl_constructor_arguments env univars closed sargs
->>>>>>> ocaml/5.1
           in
-<<<<<<< HEAD
-          raise (Error(sret_type.ptyp_loc,
-                       Constraint_failed(env,
-                                         Errortrace.unification_error ~trace)))
-      end;
-      begin match univars with
-      | None -> ()
-      | Some univars ->
-         Ctype.end_def();
-         Btype.iter_type_expr_cstr_args Ctype.generalize args;
-         Ctype.generalize ret_type;
-         let _vars = TyVarEnv.instance_poly_univars env loc univars in
-         let set_level t =
-           Ctype.unify_var env
-             (Ctype.newvar (Jkind.any ~why:Dummy_jkind)) t
-         in
-         Btype.iter_type_expr_cstr_args set_level args;
-         set_level ret_type;
-      end;
-      tvars, targs, Some tret_type, args, Some ret_type
-  end
-||||||| merged common ancestors
-          raise (Error(sret_type.ptyp_loc,
-                       Constraint_failed(env,
-                                         Errortrace.unification_error ~trace)))
-      end;
-      begin match univars with
-      | None -> ()
-      | Some univars ->
-         Ctype.end_def();
-         Btype.iter_type_expr_cstr_args Ctype.generalize args;
-         Ctype.generalize ret_type;
-         let _vars = instance_poly_univars env loc univars in
-         let set_level t = Ctype.unify_var env (Ctype.newvar()) t in
-         Btype.iter_type_expr_cstr_args set_level args;
-         set_level ret_type;
-      end;
-      widen z;
-      targs, Some tret_type, args, Some ret_type
-=======
           let tret_type =
-            transl_simple_type env ?univars ~closed sret_type in
+            transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy
+              sret_type
+          in
           let ret_type = tret_type.ctyp_type in
           (* TODO add back type_path as a parameter ? *)
           begin match get_desc ret_type with
@@ -628,41 +498,10 @@ let make_constructor
           set_level ret_type;
         end
       in
-      targs, Some tret_type, args, Some ret_type
+      tvars, targs, Some tret_type, args, Some ret_type
       end
->>>>>>> ocaml/5.1
 
-<<<<<<< HEAD
 let verify_unboxed_attr unboxed_attr sdecl =
-||||||| merged common ancestors
-let transl_declaration env sdecl (id, uid) =
-  (* Bind type parameters *)
-  reset_type_variables();
-  Ctype.begin_def ();
-  let tparams = make_params env sdecl.ptype_params in
-  let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
-  let cstrs = List.map
-    (fun (sty, sty', loc) ->
-      transl_simple_type env false sty,
-      transl_simple_type env false sty', loc)
-    sdecl.ptype_cstrs
-  in
-  let unboxed_attr = get_unboxed_from_attributes sdecl in
-=======
-let transl_declaration env sdecl (id, uid) =
-  (* Bind type parameters *)
-  Ctype.with_local_level begin fun () ->
-  TyVarEnv.reset();
-  let tparams = make_params env sdecl.ptype_params in
-  let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
-  let cstrs = List.map
-    (fun (sty, sty', loc) ->
-      transl_simple_type env ~closed:false sty,
-      transl_simple_type env ~closed:false sty', loc)
-    sdecl.ptype_cstrs
-  in
-  let unboxed_attr = get_unboxed_from_attributes sdecl in
->>>>>>> ocaml/5.1
   begin match unboxed_attr with
   | (None | Some false) -> ()
   | Some true ->
@@ -779,8 +618,8 @@ let transl_declaration env sdecl (id, uid) =
 
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
-  TyVarEnv.reset ();
-  Ctype.begin_def ();
+  Ctype.with_local_level begin fun () ->
+  TyVarEnv.reset();
   let path = Path.Pident id in
   let tparams = make_params env path sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
@@ -913,7 +752,6 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_open ->
         Ttype_open, Type_open, Jkind.value ~why:Extensible_variant
       in
-<<<<<<< HEAD
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
@@ -936,21 +774,6 @@ let transl_declaration env sdecl (id, uid) =
       | Some annot, _ -> annot
       | None, Some typ -> Ctype.estimate_type_jkind env typ
       | None, None -> jkind_default
-||||||| merged common ancestors
-    let (tman, man) = match sdecl.ptype_manifest with
-        None -> None, None
-      | Some sty ->
-        let no_row = not (is_fixed_type sdecl) in
-        let cty = transl_simple_type env no_row sty in
-        Some cty, Some cty.ctyp_type
-=======
-    let (tman, man) = match sdecl.ptype_manifest with
-        None -> None, None
-      | Some sty ->
-        let no_row = not (is_fixed_type sdecl) in
-        let cty = transl_simple_type env ~closed:no_row sty in
-        Some cty, Some cty.ctyp_type
->>>>>>> ocaml/5.1
     in
     let arity = List.length params in
     let decl =
@@ -1599,23 +1422,15 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
 
 let check_well_founded_manifest ~abs_env env loc path decl =
   if decl.type_manifest = None then () else
-<<<<<<< HEAD
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
     List.map (fun _ -> Ctype.newvar (Jkind.any ~why:Dummy_jkind))
       decl.type_params
   in
-  check_well_founded env loc path (Path.same path) (Ctype.newconstr path args)
-||||||| merged common ancestors
-  let args = List.map (fun _ -> Ctype.newvar()) decl.type_params in
-  check_well_founded env loc path (Path.same path) (Ctype.newconstr path args)
-=======
-  let args = List.map (fun _ -> Ctype.newvar()) decl.type_params in
   let visited = ref TypeMap.empty in
   check_well_founded ~abs_env env loc path (Path.same path) visited
     (Ctype.newconstr path args)
->>>>>>> ocaml/5.1
 
 (* Given a new type declaration [type t = ...] (potentially mutually-recursive),
    we check that accepting the declaration does not introduce ill-founded types.
@@ -1661,18 +1476,11 @@ let check_well_founded_decl ~abs_env env loc path decl to_check =
    [type 'a t = ...] is non-regular if the expansion of [...]
    contains instances [ty t] where [ty] is not equal to ['a].
 
-<<<<<<< HEAD
-let check_recursion ~abs_env env loc path decl to_check =
-||||||| merged common ancestors
-let check_recursion ~orig_env env loc path decl to_check =
-=======
    Note: in the case of a constrained type definition
    [type 'a t = ... constraint 'a = ...], we require
    that all instances in [...] be equal to the constrainted type.
 *)
-
-let check_regularity ~orig_env env loc path decl to_check =
->>>>>>> ocaml/5.1
+let check_regularity ~abs_env env loc path decl to_check =
   (* to_check is true for potentially mutually recursive paths.
      (path, decl) is the type declaration to be checked. *)
 
@@ -1686,19 +1494,7 @@ let check_regularity ~orig_env env loc path decl to_check =
       match get_desc ty with
       | Tconstr(path', args', _) ->
           if Path.same path path' then begin
-<<<<<<< HEAD
             if not (Ctype.is_equal abs_env false args args') then
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-            if not (Ctype.equal orig_env false args args') then
-||||||||| 24dbb0976a
-            if not (Ctype.equal env false args args') then
-=========
-            if not (Ctype.is_equal orig_env false args args') then
->>>>>>>>> Temporary merge branch 2
-=======
-            if not (Ctype.is_equal orig_env false args args') then
->>>>>>> ocaml/5.1
               raise (Error(loc,
                      Non_regular {
                        definition=path;
@@ -1720,32 +1516,9 @@ let check_regularity ~orig_env env loc path decl to_check =
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
-<<<<<<< HEAD
                 try List.iter2 (Ctype.unify abs_env) params args'
-||||||| merged common ancestors
-                try List.iter2 (Ctype.unify orig_env) params args'
-<<<<<<<<< Temporary merge branch 1
-                with Ctype.Unify _ ->
-                  raise (Error(loc, Constraint_failed
-                                 (ty, Ctype.newconstr path' params0)));
-||||||||| 24dbb0976a
-                try List.iter2 (Ctype.unify env) params args'
-                with Ctype.Unify _ ->
-                  raise (Error(loc, Constraint_failed
-                                 (ty, Ctype.newconstr path' params0)));
-=========
-=======
-                try List.iter2 (Ctype.unify orig_env) params args'
->>>>>>> ocaml/5.1
                 with Ctype.Unify err ->
-<<<<<<< HEAD
                   raise (Error(loc, Constraint_failed (abs_env, err)));
-||||||| merged common ancestors
-                  raise (Error(loc, Constraint_failed (orig_env, err)));
->>>>>>>>> Temporary merge branch 2
-=======
-                  raise (Error(loc, Constraint_failed (orig_env, err)));
->>>>>>> ocaml/5.1
               end;
               check_regular path' args
                 (path' :: prev_exp) (Expands_to (ty,body) :: trace)
@@ -1774,22 +1547,10 @@ let check_regularity ~orig_env env loc path decl to_check =
       check_regular path args [] [] body)
     decl.type_manifest
 
-<<<<<<< HEAD
-let check_abbrev_recursion ~abs_env env id_loc_list to_check tdecl =
-||||||| merged common ancestors
-let check_abbrev_recursion ~orig_env env id_loc_list to_check tdecl =
-=======
-let check_abbrev_regularity ~orig_env env id_loc_list to_check tdecl =
->>>>>>> ocaml/5.1
+let check_abbrev_regularity ~abs_env env id_loc_list to_check tdecl =
   let decl = tdecl.typ_type in
   let id = tdecl.typ_id in
-<<<<<<< HEAD
-  check_recursion ~abs_env env (List.assoc id id_loc_list) (Path.Pident id)
-||||||| merged common ancestors
-  check_recursion ~orig_env env (List.assoc id id_loc_list) (Path.Pident id)
-=======
-  check_regularity ~orig_env env (List.assoc id id_loc_list) (Path.Pident id)
->>>>>>> ocaml/5.1
+  check_regularity ~abs_env env (List.assoc id id_loc_list) (Path.Pident id)
     decl to_check
 
 let check_duplicates sdecl_list =
@@ -1888,12 +1649,11 @@ let transl_type_decl env rec_flag sdecl_list =
       Uid.mk ~current_unit:(Env.get_unit_name ())
     ) sdecl_list
   in
-  let tdecls, decls, new_env =
+  let tdecls, decls, new_env, delayed_jkind_checks =
     Ctype.with_local_level_iter ~post:generalize_decl begin fun () ->
       (* Enter types. *)
       let temp_env =
-        List.fold_left2 (enter_type ~abstract_abbrevs:false rec_flag)
-          env sdecl_list ids_list in
+        List.fold_left2 (enter_type rec_flag) env sdecl_list ids_list in
       (* Translate each declaration. *)
       let current_slot = ref None in
       let warn_unused =
@@ -1924,6 +1684,10 @@ let transl_type_decl env rec_flag sdecl_list =
           name_sdecl.ptype_attributes
           (fun () -> transl_declaration temp_env name_sdecl id)
       in
+      (* Translate declarations, using a temporary environment where
+         abbreviations expand to a generic type variable. After that, we check
+         the coherence of the translated declarations in the resulting new
+         enviroment. *)
       let tdecls =
         List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
       let decls =
@@ -1934,91 +1698,31 @@ let transl_type_decl env rec_flag sdecl_list =
       (* Build the final env. *)
       let new_env = add_types_to_env decls env in
       (* Update stubs *)
-      begin match rec_flag with
-      | Asttypes.Nonrecursive -> ()
-      | Asttypes.Recursive ->
-          List.iter2
+      let delayed_jkind_checks =
+        match rec_flag with
+        | Asttypes.Nonrecursive -> []
+        | Asttypes.Recursive ->
+          List.map2
             (fun (id, _) sdecl ->
-              update_type temp_env new_env id sdecl.ptype_loc)
+               update_type temp_env new_env id sdecl.ptype_loc,
+               sdecl.ptype_loc)
             ids_list sdecl_list
-      end;
-      ((tdecls, decls, new_env), List.map snd decls)
+      in
+      ((tdecls, decls, new_env, delayed_jkind_checks), List.map snd decls)
     end
   in
-<<<<<<< HEAD
-  let transl_declaration name_sdecl (id, slot) =
-    current_slot := slot;
-    Builtin_attributes.warning_scope
-      name_sdecl.ptype_attributes
-      (fun () -> transl_declaration temp_env name_sdecl id)
-  in
-  (* Translate declarations, using a temporary environment where abbreviations
-     expand to a generic type variable. After that, we check the coherence of
-     the translated declarations in the resulting new enviroment. *)
-  let tdecls =
-    List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
-  let decls =
-    List.map (fun tdecl -> (tdecl.typ_id, tdecl.typ_type)) tdecls in
-  current_slot := None;
-  (* Check for duplicates *)
-  check_duplicates sdecl_list;
-  (* Build the final env. *)
-  let new_env = add_types_to_env decls env in
-  (* Update stubs *)
-  let delayed_jkind_checks =
-    match rec_flag with
-    | Asttypes.Nonrecursive -> []
-    | Asttypes.Recursive ->
-      List.map2
-        (fun (id, _) sdecl ->
-           (update_type temp_env new_env id sdecl.ptype_loc,
-            sdecl.ptype_loc))
-        ids_list sdecl_list
-  in
-  (* Generalize type declarations. *)
-  Ctype.end_def();
-  List.iter (fun (_, decl) -> generalize_decl decl) decls;
-||||||| merged common ancestors
-  let transl_declaration name_sdecl (id, slot) =
-    current_slot := slot;
-    Builtin_attributes.warning_scope
-      name_sdecl.ptype_attributes
-      (fun () -> transl_declaration temp_env name_sdecl id)
-  in
-  let tdecls =
-    List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
-  let decls =
-    List.map (fun tdecl -> (tdecl.typ_id, tdecl.typ_type)) tdecls in
-  current_slot := None;
-  (* Check for duplicates *)
-  check_duplicates sdecl_list;
-  (* Build the final env. *)
-  let new_env = add_types_to_env decls env in
-  (* Update stubs *)
-  begin match rec_flag with
-    | Asttypes.Nonrecursive -> ()
-    | Asttypes.Recursive ->
-      List.iter2
-        (fun (id, _) sdecl -> update_type temp_env new_env id sdecl.ptype_loc)
-        ids_list sdecl_list
-  end;
-  (* Generalize type declarations. *)
-  Ctype.end_def();
-  List.iter (fun (_, decl) -> generalize_decl decl) decls;
-=======
->>>>>>> ocaml/5.1
   (* Check for ill-formed abbrevs *)
   let id_loc_list =
     List.map2 (fun (id, _) sdecl -> (id, sdecl.ptype_loc))
       ids_list sdecl_list
   in
-  (* Error messages cannot use the new environment, as this might result in
-     non-termination. Instead we use a completely abstract version of the
-     temporary environment, giving a reason for why abbreviations cannot be
-     expanded (#12645, #12649) *)
+  (* [check_abbrev_regularity] cannot use the new environment, as this might
+     result in non-termination. Instead we use a completely abstract version
+     of the temporary environment, giving a reason for why abbreviations
+     cannot be expanded (#12334, #12368) *)
   let abs_env =
     List.fold_left2
-      (enter_type ~abstract_abbrevs:true rec_flag)
+      (enter_type ~abstract_abbrevs:Abstract_rec_check_regularity rec_flag)
       env sdecl_list ids_list in
   List.iter (fun (id, decl) ->
     check_well_founded_manifest ~abs_env new_env (List.assoc id id_loc_list)
@@ -2031,17 +1735,8 @@ let transl_type_decl env rec_flag sdecl_list =
       (Path.Pident id)
       decl to_check)
     decls;
-  (* [check_abbrev_regularity] cannot use the new environment, as this might
-     result in non-termination. Instead we use a completely abstract version
-     of the temporary environment, giving a reason for why abbreviations
-     cannot be expanded (#12334, #12368) *)
-  let abs_env =
-    List.fold_left2
-      (enter_type ~abstract_abbrevs:Abstract_rec_check_regularity rec_flag)
-      env sdecl_list ids_list in
   List.iter
-<<<<<<< HEAD
-    (check_abbrev_recursion ~abs_env new_env id_loc_list to_check) tdecls;
+    (check_abbrev_regularity ~abs_env new_env id_loc_list to_check) tdecls;
   (* Now that we've ruled out ill-formed types, we can perform the delayed
      jkind checks *)
   List.iter (fun (checks,loc) ->
@@ -2061,13 +1756,6 @@ let transl_type_decl env rec_flag sdecl_list =
      to check whether parts of the type are void (and currently use
      Jkind.equate to do this which would set any remaining sort variables
      to void). *)
-||||||| merged common ancestors
-    (check_abbrev_recursion ~orig_env:env new_env id_loc_list to_check) tdecls;
-  (* Check that all type variables are closed *)
-=======
-    (check_abbrev_regularity ~orig_env:env new_env id_loc_list to_check) tdecls;
-  (* Check that all type variables are closed *)
->>>>>>> ocaml/5.1
   List.iter2
     (fun sdecl tdecl ->
       let decl = tdecl.typ_type in
@@ -2264,20 +1952,6 @@ let is_rebind ext =
   | Text_decl _ -> false
 
 let transl_type_extension extend env loc styext =
-<<<<<<< HEAD
-  (* Note: it would be incorrect to call [create_scope] *after*
-     [TyVarEnv.reset] or after [begin_def] (see #10010). *)
-  let scope = Ctype.create_scope () in
-  TyVarEnv.reset ();
-  Ctype.begin_def();
-||||||| merged common ancestors
-  (* Note: it would be incorrect to call [create_scope] *after*
-     [reset_type_variables] or after [begin_def] (see #10010). *)
-  let scope = Ctype.create_scope () in
-  reset_type_variables();
-  Ctype.begin_def();
-=======
->>>>>>> ocaml/5.1
   let type_path, type_decl =
     let lid = styext.ptyext_path in
     Env.lookup_type ~loc:lid.loc lid.txt env
@@ -2322,36 +1996,13 @@ let transl_type_extension extend env loc styext =
   | None -> ()
   | Some err -> raise (Error(loc, Extension_mismatch (type_path, env, err)))
   end;
-<<<<<<< HEAD
-  let ttype_params =
-    make_params env type_path styext.ptyext_params
-  in
-  let type_params = List.map (fun (cty, _) -> cty.ctyp_type) ttype_params in
-  List.iter2 (Ctype.unify_var env)
-    (Ctype.instance_list type_decl.type_params)
-    type_params;
-  let constructors =
-    List.map (transl_extension_constructor ~scope env type_path
-               type_decl.type_params type_params styext.ptyext_private)
-      styext.ptyext_constructors
-||||||| merged common ancestors
-  let ttype_params = make_params env styext.ptyext_params in
-  let type_params = List.map (fun (cty, _) -> cty.ctyp_type) ttype_params in
-  List.iter2 (Ctype.unify_var env)
-    (Ctype.instance_list type_decl.type_params)
-    type_params;
-  let constructors =
-    List.map (transl_extension_constructor ~scope env type_path
-               type_decl.type_params type_params styext.ptyext_private)
-      styext.ptyext_constructors
-=======
   let ttype_params, _type_params, constructors =
     (* Note: it would be incorrect to call [create_scope] *after*
        [TyVarEnv.reset] or after [with_local_level] (see #10010). *)
     let scope = Ctype.create_scope () in
     Ctype.with_local_level begin fun () ->
       TyVarEnv.reset();
-      let ttype_params = make_params env styext.ptyext_params in
+      let ttype_params = make_params env type_path styext.ptyext_params in
       let type_params = List.map (fun (cty, _) -> cty.ctyp_type) ttype_params in
       List.iter2 (Ctype.unify_var env)
         (Ctype.instance_list type_decl.type_params)
@@ -2372,7 +2023,6 @@ let transl_type_extension extend env loc styext =
           Option.iter Ctype.generalize ext.ext_type.ext_ret_type)
         constructors;
     end
->>>>>>> ocaml/5.1
   in
   (* Check that all type variables are closed *)
   List.iter
@@ -2418,16 +2068,6 @@ let transl_type_extension extend env loc styext =
     (fun () -> transl_type_extension extend env loc styext)
 
 let transl_exception env sext =
-<<<<<<< HEAD
-  let scope = Ctype.create_scope () in
-  TyVarEnv.reset ();
-  Ctype.begin_def();
-||||||| merged common ancestors
-  let scope = Ctype.create_scope () in
-  reset_type_variables();
-  Ctype.begin_def();
-=======
->>>>>>> ocaml/5.1
   let ext =
     let scope = Ctype.create_scope () in
     Ctype.with_local_level
@@ -2571,7 +2211,6 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     let sort_arg =
       type_sort_external ~why:External_argument env ct1.ptyp_loc t1
     in
-<<<<<<< HEAD
     let repr_arg = make_native_repr env ct1 sort_arg t1 ~global_repr in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
@@ -2595,21 +2234,6 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
        type_sort_external ~why:External_result env core_type.ptyp_loc ty
      in
      ([], (rmode, make_native_repr env core_type sort_res ty ~global_repr))
-||||||| merged common ancestors
-    (repr_arg :: repr_args, repr_res)
-  | Ptyp_poly (_, t), _, _ ->
-     parse_native_repr_attributes env t ty ~global_repr
-  | Ptyp_arrow _, _, _ | _, Tarrow _, _ -> assert false
-  | _ -> ([], make_native_repr env core_type ty ~global_repr)
-
-=======
-    (repr_arg :: repr_args, repr_res)
-  | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
-     parse_native_repr_attributes env t ty ~global_repr
-  | Ptyp_arrow _, _, _ | _, Tarrow _, _ -> assert false
-  | _ -> ([], make_native_repr env core_type ty ~global_repr)
-
->>>>>>> ocaml/5.1
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -2717,16 +2341,8 @@ let transl_value_decl env loc valdecl =
 let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     sdecl =
   Env.mark_type_used sig_decl.type_uid;
-<<<<<<< HEAD
-  TyVarEnv.reset ();
-  Ctype.begin_def();
-||||||| merged common ancestors
-  reset_type_variables();
-  Ctype.begin_def();
-=======
   Ctype.with_local_level begin fun () ->
   TyVarEnv.reset();
->>>>>>> ocaml/5.1
   (* In the first part of this function, we typecheck the syntactic
      declaration [sdecl] in the outer environment [outer_env]. *)
   let env = outer_env in
@@ -2736,16 +2352,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let arity = List.length params in
   let constraints =
     List.map (fun (ty, ty', loc) ->
-<<<<<<< HEAD
-      let cty = transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty in
-      let cty' = transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty' in
-||||||| merged common ancestors
-      let cty = transl_simple_type env false ty in
-      let cty' = transl_simple_type env false ty' in
-=======
-      let cty = transl_simple_type env ~closed:false ty in
-      let cty' = transl_simple_type env ~closed:false ty' in
->>>>>>> ocaml/5.1
+      let cty =
+        transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty
+      in
+      let cty' =
+        transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty'
+      in
       (* Note: We delay the unification of those constraints
          after the unification of parameters, so that clashing
          constraints report an error on the constraint location
@@ -2757,14 +2369,10 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let (tman, man) =  match sdecl.ptype_manifest with
       None -> None, None
     | Some sty ->
-<<<<<<< HEAD
-        let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
-||||||| merged common ancestors
-        let cty = transl_simple_type env no_row sty in
-=======
-        let cty = transl_simple_type env ~closed:no_row sty in
->>>>>>> ocaml/5.1
-        Some cty, Some cty.ctyp_type
+      let cty =
+        transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty
+      in
+      Some cty, Some cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two
      declarations and compute a "merged" declaration; we now need to
@@ -2881,27 +2489,11 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 
 (* Approximate a type declaration: just make all types abstract *)
 
-<<<<<<< HEAD
 let abstract_type_decl ~injective jkind params =
   let arity = List.length params in
-  Ctype.begin_def();
-  let params = List.map Ctype.newvar params in
-  let decl =
-    { type_params = params;
-||||||| merged common ancestors
-let abstract_type_decl ~injective arity =
-  let rec make_params n =
-    if n <= 0 then [] else Ctype.newvar() :: make_params (n-1) in
-  Ctype.begin_def();
-  let decl =
-    { type_params = make_params arity;
-=======
-let abstract_type_decl ~injective arity =
-  let rec make_params n =
-    if n <= 0 then [] else Ctype.newvar() :: make_params (n-1) in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
-    { type_params = make_params arity;
->>>>>>> ocaml/5.1
+    let params = List.map Ctype.newvar params in
+    { type_params = params;
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;
       type_jkind = jkind;
@@ -2947,19 +2539,9 @@ let check_recmod_typedecl env loc recmod_ids path decl =
   (* recmod_ids is the list of recursively-defined module idents.
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
-<<<<<<< HEAD
-  check_well_founded_decl env loc path decl to_check;
-  check_recursion ~abs_env:env env loc path decl to_check;
-  (* additional coherence check, as one might build an incoherent signature,
-||||||| merged common ancestors
-  check_well_founded_decl env loc path decl to_check;
-  check_recursion ~orig_env:env env loc path decl to_check;
-  (* additionally check coherece, as one might build an incoherent signature,
-=======
   check_well_founded_decl ~abs_env:env env loc path decl to_check;
-  check_regularity ~orig_env:env env loc path decl to_check;
+  check_regularity ~abs_env:env env loc path decl to_check;
   (* additionally check coherece, as one might build an incoherent signature,
->>>>>>> ocaml/5.1
      and use it to build an incoherent module, cf. #7851 *)
   ignore (check_coherence env loc path decl)
 
@@ -3004,19 +2586,6 @@ let explain_unbound_single ppf tv ty =
         | _ -> Btype.newgenty (Ttuple[]))
         "case" (fun (lab,_) -> "`" ^ lab ^ " of ")
   | _ -> trivial ty
-
-<<<<<<< HEAD
-||||||| merged common ancestors
-
-let tys_of_constr_args = function
-  | Types.Cstr_tuple tl -> tl
-  | Types.Cstr_record lbls -> List.map (fun l -> l.Types.ld_type) lbls
-
-=======
-
-let tys_of_constr_args = function
-  | Types.Cstr_tuple tl -> tl
-  | Types.Cstr_record lbls -> List.map (fun l -> l.Types.ld_type) lbls
 
 module Reaching_path = struct
   type t = reaching_type_path
@@ -3063,7 +2632,6 @@ module Reaching_path = struct
     pp path
 end
 
->>>>>>> ocaml/5.1
 let report_error ppf = function
   | Repeated_parameter ->
       fprintf ppf "A type parameter occurs several times"

@@ -4,7 +4,7 @@
 let () = Random.init 12345
 
 let size, num_gcs =
-  1000, 20
+  1000, 10
 
 type block = int array
 
@@ -70,21 +70,6 @@ let check_and_change i j =
 
 let dummy = ref [||]
 
-<<<<<<< HEAD:testsuite/tests/misc/weaklifetime.ml
-while gccount () < 10 do
-  dummy := Array.make (Random.int 300) 0;
-  let i = Random.int size in
-  let j = Random.int (Array.length data.(i).objs) in
-  check_and_change i j;
-done
-||||||| merged common ancestors:testsuite/tests/misc/weaklifetime.ml
-while gccount () < 20 do
-  dummy := Array.make (Random.int 300) 0;
-  let i = Random.int size in
-  let j = Random.int (Array.length data.(i).objs) in
-  check_and_change i j;
-done
-=======
 let () =
   while gccount () < num_gcs do
     dummy := Array.make (Random.int 300) 0;
@@ -92,4 +77,3 @@ let () =
     let j = Random.int (Array.length data.(i).objs) in
     check_and_change i j;
   done
->>>>>>> ocaml/5.1:testsuite/tests/weak-ephe-final/weaklifetime.ml

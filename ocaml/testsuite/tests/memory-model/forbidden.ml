@@ -1,8 +1,10 @@
 (* TEST
   modules="opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml"
-  * not-bsd
-  ** bytecode
-  ** native
+  * skip
+  reason = "OCaml 5 only"
+  ** not-bsd
+  *** bytecode
+  *** native
 *)
 
 (* Memory model test:

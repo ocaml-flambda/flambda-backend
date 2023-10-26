@@ -221,76 +221,7 @@ META
 /otherlibs/dynlink/dynlink_compilerlibs/*.ml
 /otherlibs/dynlink/dynlink_compilerlibs/*.mli
 /otherlibs/dynlink/dynlink_compilerlibs/.depend
-<<<<<<< HEAD
-/otherlibs/dynlink/dynlink_compilerlibs.mli
-/otherlibs/threads/marshal.mli
-/otherlibs/threads/stdlib.mli
-/otherlibs/threads/unix.mli
-/otherlibs/win32unix/unixLabels.ml*
-/otherlibs/win32unix/unix.mli
-/otherlibs/win32unix/access.c
-/otherlibs/win32unix/addrofstr.c
-/otherlibs/win32unix/chdir.c
-/otherlibs/win32unix/chmod.c
-/otherlibs/win32unix/cst2constr.c
-/otherlibs/win32unix/cstringv.c
-/otherlibs/win32unix/execv.c
-/otherlibs/win32unix/execve.c
-/otherlibs/win32unix/execvp.c
-/otherlibs/win32unix/exit.c
-/otherlibs/win32unix/getaddrinfo.c
-/otherlibs/win32unix/getcwd.c
-/otherlibs/win32unix/gethost.c
-/otherlibs/win32unix/gethostname.c
-/otherlibs/win32unix/getnameinfo.c
-/otherlibs/win32unix/getproto.c
-/otherlibs/win32unix/getserv.c
-/otherlibs/win32unix/gmtime.c
-/otherlibs/win32unix/mmap_ba.c
-/otherlibs/win32unix/putenv.c
-/otherlibs/win32unix/rmdir.c
-/otherlibs/win32unix/socketaddr.c
-/otherlibs/win32unix/strofaddr.c
-/otherlibs/win32unix/time.c
-/otherlibs/win32unix/unlink.c
-/otherlibs/win32unix/fsync.c
-/otherlibs/win32unix/mkdir.c
-||||||| merged common ancestors
-/otherlibs/threads/marshal.mli
-/otherlibs/threads/stdlib.mli
-/otherlibs/threads/unix.mli
-/otherlibs/win32unix/unixLabels.ml*
-/otherlibs/win32unix/unix.mli
-/otherlibs/win32unix/access.c
-/otherlibs/win32unix/addrofstr.c
-/otherlibs/win32unix/chdir.c
-/otherlibs/win32unix/chmod.c
-/otherlibs/win32unix/cst2constr.c
-/otherlibs/win32unix/cstringv.c
-/otherlibs/win32unix/execv.c
-/otherlibs/win32unix/execve.c
-/otherlibs/win32unix/execvp.c
-/otherlibs/win32unix/exit.c
-/otherlibs/win32unix/getaddrinfo.c
-/otherlibs/win32unix/getcwd.c
-/otherlibs/win32unix/gethost.c
-/otherlibs/win32unix/gethostname.c
-/otherlibs/win32unix/getnameinfo.c
-/otherlibs/win32unix/getproto.c
-/otherlibs/win32unix/getserv.c
-/otherlibs/win32unix/gmtime.c
-/otherlibs/win32unix/mmap_ba.c
-/otherlibs/win32unix/putenv.c
-/otherlibs/win32unix/rmdir.c
-/otherlibs/win32unix/socketaddr.c
-/otherlibs/win32unix/strofaddr.c
-/otherlibs/win32unix/time.c
-/otherlibs/win32unix/unlink.c
-/otherlibs/win32unix/fsync.c
-/otherlibs/win32unix/mkdir.c
-=======
 /otherlibs/unix/unix.ml
->>>>>>> ocaml/5.1
 
 /parsing/parser.ml
 /parsing/parser.mli
@@ -403,12 +334,8 @@ META
 /tools/make_opcodes.ml
 /tools/ocamltex
 /tools/eventlog_metadata
-<<<<<<< HEAD
 /tools/debug_printers
-||||||| merged common ancestors
-=======
 /tools/lintapidiff.opt
->>>>>>> ocaml/5.1
 
 /toplevel/byte/topeval.mli
 /toplevel/byte/trace.mli

@@ -1,4 +1,7 @@
 (* TEST
+   * skip
+   reason = "OCaml 5 only"
+
    include runtime_events
    flags = "-runtime-variant=i"
 

@@ -197,12 +197,16 @@ CAMLexport value caml_raise_if_exception(value res)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 
 static const value * caml_array_bound_error_exn = NULL;
 static const value * caml_array_align_error_exn = NULL;
 =======
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
 static value array_bound_exn(void)
 {
   static atomic_uintnat exn_cache = ATOMIC_UINTNAT_INIT(0);
@@ -219,6 +223,7 @@ static value array_bound_exn(void)
   return *exn;
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 =======
 
@@ -226,6 +231,12 @@ static const value * caml_array_bound_error_exn = NULL;
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+
+static const value * caml_array_bound_error_exn = NULL;
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
 
 void caml_array_bound_error(void)
 {

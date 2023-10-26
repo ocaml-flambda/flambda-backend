@@ -156,6 +156,8 @@ let preserve_tailcall_for_prim = function
   | Pprobe_is_enabled _ | Pobj_dup
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ ->
 =======
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ ->
@@ -178,6 +180,14 @@ let preserve_tailcall_for_prim = function
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pdls_get ->
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ ->
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
+  | Pdls_get ->
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -596,6 +606,8 @@ let comp_primitive stack_info p sz args =
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _ ->
     fatal_error "128-bit load/store is not supported in bytecode mode."
@@ -604,11 +616,14 @@ let comp_primitive stack_info p sz args =
 =======
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
   | Patomic_load _ -> Kccall("caml_atomic_load", 1)
   | Patomic_exchange -> Kccall("caml_atomic_exchange", 2)
   | Patomic_cas -> Kccall("caml_atomic_cas", 3)
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> ocaml/5.1
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
@@ -616,6 +631,10 @@ let comp_primitive stack_info p sz args =
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)

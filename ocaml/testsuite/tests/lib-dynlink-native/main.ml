@@ -93,7 +93,6 @@ all_modules = "mypack.cmx"
 program = "packed1.so"
 flags = "-shared"
 all_modules = "packed1.cmx"
-<<<<<<< HEAD
 **************************** ocamlopt.opt
 flags = "-for-pack Mypack"
 module = "packed1_client.ml"
@@ -103,238 +102,92 @@ program = "packed1_client.so"
 flags = "-shared"
 all_modules = "packed1_client.cmx"
 ****************************** ocamlopt.opt
-||||||| merged common ancestors
-**************************** ocamlopt.byte
-flags = ""
-module = "packed1_client.ml"
-***************************** ocamlopt.byte
-module = ""
-program = "packed1_client.so"
-flags = "-shared"
-all_modules = "packed1_client.cmx"
-****************************** ocamlopt.byte
-flags = ""
-=======
-**************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 flags = ""
 module = "pack_client.ml"
-<<<<<<< HEAD
 ******************************* ocamlopt.opt
-||||||| merged common ancestors
-******************************* ocamlopt.byte
-=======
-***************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "pack_client.so"
 flags = "-shared"
 all_modules = "pack_client.cmx"
-<<<<<<< HEAD
 ******************************** ocamlopt.opt
-||||||| merged common ancestors
-******************************** ocamlopt.byte
-=======
-****************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 flags = ""
 module = "plugin_ref.ml"
-<<<<<<< HEAD
 ********************************* ocamlopt.opt
-||||||| merged common ancestors
-********************************* ocamlopt.byte
-=======
-******************************* ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "plugin_ref.so"
 flags = "-shared"
 all_modules = "plugin_ref.cmx"
-<<<<<<< HEAD
 ********************************** ocamlopt.opt
-||||||| merged common ancestors
-********************************** ocamlopt.byte
-=======
-******************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 flags = ""
 module = "plugin_high_arity.ml"
-<<<<<<< HEAD
 *********************************** ocamlopt.opt
-||||||| merged common ancestors
-*********************************** ocamlopt.byte
-=======
-********************************* ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "plugin_high_arity.so"
 flags = "-shared"
 all_modules = "plugin_high_arity.cmx"
-<<<<<<< HEAD
 ************************************ ocamlopt.opt
-||||||| merged common ancestors
-************************************ ocamlopt.byte
-=======
-********************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 flags = "-ccopt ${shared_library_cflags}"
 module = "factorial.c"
-<<<<<<< HEAD
 ************************************* ocamlopt.opt
-||||||| merged common ancestors
-************************************* ocamlopt.byte
-=======
-*********************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 flags = ""
 module = "plugin_ext.ml"
-<<<<<<< HEAD
 ************************************** ocamlopt.opt
-||||||| merged common ancestors
-************************************** ocamlopt.byte
-=======
-************************************ ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "plugin_ext.so"
 flags = "-shared"
 all_modules = "factorial.${objext} plugin_ext.cmx"
-<<<<<<< HEAD
 *************************************** ocamlopt.opt
-||||||| merged common ancestors
-*************************************** ocamlopt.byte
-=======
-************************************* ocamlopt.byte
->>>>>>> ocaml/5.1
 module = "plugin_simple.ml"
 flags = ""
-<<<<<<< HEAD
 **************************************** ocamlopt.opt
-||||||| merged common ancestors
-**************************************** ocamlopt.byte
-=======
-************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "plugin_simple.so"
 flags = "-shared"
 all_modules = "plugin_simple.cmx"
-<<<<<<< HEAD
 **************************************** ocamlopt.opt
-||||||| merged common ancestors
-**************************************** ocamlopt.byte
-=======
-************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 module = "bug.ml"
 flags = ""
-<<<<<<< HEAD
 ***************************************** ocamlopt.opt
-||||||| merged common ancestors
-***************************************** ocamlopt.byte
-=======
-*************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "bug.so"
 flags = "-shared"
 all_modules = "bug.cmx"
-<<<<<<< HEAD
 ***************************************** ocamlopt.opt
-||||||| merged common ancestors
-***************************************** ocamlopt.byte
-=======
-*************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 module = "plugin_thread.ml"
 flags = ""
-<<<<<<< HEAD
 ****************************************** ocamlopt.opt
-||||||| merged common ancestors
-****************************************** ocamlopt.byte
-=======
-**************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 program = "plugin_thread.so"
 flags = "-shared"
 all_modules = "plugin_thread.cmx"
-<<<<<<< HEAD
 ******************************************* ocamlopt.opt
-||||||| merged common ancestors
-******************************************* ocamlopt.byte
-=======
-***************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 program = "plugin4_unix.so"
 all_modules = "unix.cmxa plugin4.cmx"
-<<<<<<< HEAD
 ******************************************** ocamlopt.opt
-||||||| merged common ancestors
-******************************************** ocamlopt.byte
-=======
-****************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 flags = ""
 compile_only = "true"
 all_modules = "a.ml b.ml c.ml main.ml"
-<<<<<<< HEAD
 ********************************************* ocamlopt.opt
-||||||| merged common ancestors
-********************************************* ocamlopt.byte
-=======
-******************************************* ocamlopt.byte
->>>>>>> ocaml/5.1
 module = ""
 compile_only = "false"
 flags = "-shared"
 program = "a.so"
 all_modules = "a.cmx"
-<<<<<<< HEAD
 ********************************************** ocamlopt.opt
-||||||| merged common ancestors
-********************************************** ocamlopt.byte
-=======
-******************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 program = "b.so"
 all_modules = "b.cmx"
-<<<<<<< HEAD
 *********************************************** ocamlopt.opt
-||||||| merged common ancestors
-*********************************************** ocamlopt.byte
-=======
-********************************************* ocamlopt.byte
->>>>>>> ocaml/5.1
 program = "c.so"
 all_modules = "c.cmx"
-<<<<<<< HEAD
 ************************************************ ocamlopt.opt
-||||||| merged common ancestors
-************************************************ ocamlopt.byte
-=======
-********************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 program = "mylib.cmxa"
 flags = "-a"
 all_modules = "plugin.cmx plugin2.cmx"
-<<<<<<< HEAD
 ************************************************* ocamlopt.opt
-||||||| merged common ancestors
-************************************************* ocamlopt.byte
-=======
-*********************************************** ocamlopt.byte
->>>>>>> ocaml/5.1
 program = "mylib.so"
 flags = "-shared -linkall"
 all_modules = "mylib.cmxa"
-<<<<<<< HEAD
 ************************************************** ocamlopt.opt
-||||||| merged common ancestors
-************************************************** ocamlopt.byte
-=======
-************************************************ ocamlopt.byte
->>>>>>> ocaml/5.1
 program = "${test_build_directory}/main.exe"
 libraries = "unix threads dynlink"
 flags = "-linkall"

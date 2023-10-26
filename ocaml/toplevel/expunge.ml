@@ -60,50 +60,20 @@ let main () =
   (* Copy each section, modifying the symbol section in passing *)
   let toc_writer = Bytesections.init_record oc in
   List.iter
-<<<<<<< HEAD
-    (fun (name, len) ->
-      begin match name with
-        "SYMB" ->
-          let global_map = (input_value ic : Symtable.global_map) in
-          output_value oc (expunge_map global_map)
-      | "CRCS" ->
-          let crcs = (input_value ic : Import_info.t array) in
-          output_value oc (expunge_crcs crcs)
-      | _ ->
-          copy_file_chunk ic oc len
-      end;
-      Bytesections.record oc name)
-    toc;
-||||||| merged common ancestors
-    (fun (name, len) ->
-      begin match name with
-        "SYMB" ->
-          let global_map = (input_value ic : Symtable.global_map) in
-          output_value oc (expunge_map global_map)
-      | "CRCS" ->
-          let crcs = (input_value ic : (string * Digest.t option) list) in
-          output_value oc (expunge_crcs crcs)
-      | _ ->
-          copy_file_chunk ic oc len
-      end;
-      Bytesections.record oc name)
-    toc;
-=======
     (fun {Bytesections.name; pos; len} ->
-       seek_in ic pos;
-       begin match name with
-         SYMB ->
-           let global_map : Symtable.global_map = input_value ic in
-           output_value oc (expunge_map global_map)
-       | CRCS ->
-           let crcs : (string * Digest.t option) list = input_value ic in
-           output_value oc (expunge_crcs crcs)
-       | _ ->
-           copy_file_chunk ic oc len
-       end;
-       Bytesections.record toc_writer name)
+      seek_in ic pos;
+      begin match name with
+        SYMB ->
+          let global_map : Symtable.global_map = input_value ic in
+          output_value oc (expunge_map global_map)
+      | CRCS ->
+          let crcs : Import_info.t array = input_value ic in
+          output_value oc (expunge_crcs crcs)
+      | _ ->
+          copy_file_chunk ic oc len
+      end;
+      Bytesections.record toc_writer name)
     (Bytesections.all toc);
->>>>>>> ocaml/5.1
   (* Rewrite the toc and trailer *)
   Bytesections.write_toc_and_trailer toc_writer;
   (* Done *)

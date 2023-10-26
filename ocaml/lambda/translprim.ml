@@ -1031,6 +1031,8 @@ let lambda_primitive_needs_event_after = function
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 =======
 <<<<<<< HEAD
@@ -1040,6 +1042,11 @@ let lambda_primitive_needs_event_after = function
 =======
   | Prunstack | Pperform | Preperform | Presume
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+  | Prunstack | Pperform | Preperform | Presume
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string

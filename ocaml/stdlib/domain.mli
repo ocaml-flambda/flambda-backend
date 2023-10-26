@@ -16,6 +16,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR ocaml 5 runtime: domains not supported on 4.x
+
 [@@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
 ]
@@ -144,3 +146,5 @@ module DLS : sig
         to [k], which cannot be restored later. *)
 
 end
+
+*)

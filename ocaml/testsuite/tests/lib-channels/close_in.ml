@@ -1,4 +1,7 @@
-(* TEST *)
+(* TEST
+* skip
+reason = "OCaml 5 only"
+ *)
 
 (* Test that inputting bytes from a closed in_channel triggers an exception *)
 

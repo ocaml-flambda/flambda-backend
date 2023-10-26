@@ -234,6 +234,7 @@ AC_CONFIG_FILES([manual/src/version.tex])
 AC_CONFIG_FILES([manual/src/html_processing/src/common.ml])
 AC_CONFIG_FILES([ocamltest/ocamltest_config.ml])
 AC_CONFIG_FILES([utils/config.generated.ml])
+AC_CONFIG_FILES([tools/eventlog_metadata])
 AC_CONFIG_HEADERS([runtime/caml/m.h])
 AC_CONFIG_HEADERS([runtime/caml/s.h])
 AC_CONFIG_HEADERS([runtime/caml/version.h])
@@ -653,9 +654,12 @@ AS_CASE([$host],
     [exeext=".exe"],
   [exeext=''])
 
-otherlibraries="dynlink runtime_events"
+dnl CR ocaml 5 runtime:
+dnl otherlibraries="dynlink runtime_events"
+otherlibraries="dynlink"
 lib_dynlink=true
-lib_runtime_events=true
+dnl CR ocaml 5 runtime:
+dnl lib_runtime_events = true
 AS_IF([test x"$enable_unix_lib" != "xno"],
   [enable_unix_lib=yes
   AC_CONFIG_FILES([otherlibs/unix/META])

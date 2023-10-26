@@ -20,7 +20,9 @@
 #include <caml/callback.h>
 #include <caml/memory.h>
 #include <caml/fail.h>
+/* BACKPORT
 #include <caml/platform.h>
+*/
 #include "unixsupport.h"
 #include "cst2constr.h"
 #include <errno.h>
@@ -296,13 +298,21 @@ void caml_unix_error(int errcode, const char *cmdname, value cmdarg)
   value res;
   const value * exn;
 
+/* BACKPORT BEGIN
   exn = atomic_load_acquire(&caml_unix_error_exn);
+*/
+  exn = caml_unix_error_exn;
+/* BACKPORT END */
   if (exn == NULL) {
     exn = caml_named_value("Unix.Unix_error");
     if (exn == NULL)
       caml_invalid_argument("Exception Unix.Unix_error not initialized,"
                             " please link unix.cma");
+/* BACKPORT BEGIN
     atomic_store(&caml_unix_error_exn, exn);
+*/
+    caml_unix_error_exn = exn;
+/* BACKPORT END */
   }
   arg = cmdarg == Nothing ? caml_copy_string("") : cmdarg;
   name = caml_copy_string(cmdname);

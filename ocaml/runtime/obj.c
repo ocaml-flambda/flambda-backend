@@ -69,8 +69,12 @@ CAMLprim value caml_obj_set_raw_field(value arg, value pos, value bits)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
 CAMLprim value caml_obj_make_forward (value blk, value fwd)
 {
   caml_modify(&Field(blk, 0), fwd);
@@ -78,6 +82,7 @@ CAMLprim value caml_obj_make_forward (value blk, value fwd)
   return Val_unit;
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 CAMLprim value caml_obj_is_stack(value blk)
 {
@@ -87,6 +92,11 @@ CAMLprim value caml_obj_is_local(value blk)
 {
   return Val_int(Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked);
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
+=======
+CAMLprim value caml_obj_is_local(value blk)
+{
+  return Val_int(Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked);
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
 }
 
 CAMLprim value caml_get_header(value blk)
@@ -96,6 +106,7 @@ CAMLprim value caml_get_header(value blk)
   return caml_copy_nativeint(r);
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 CAMLprim value caml_get_header(value blk)
 {
@@ -110,6 +121,10 @@ CAMLprim value caml_get_header(value blk)
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {

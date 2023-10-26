@@ -1114,7 +1114,7 @@ let value_of_ident ienv unique_use occ path =
   | Path.Pdot _ ->
     force_shared_boundary ~reason:Paths_from_mod_class unique_use occ;
     None
-  | Path.Papply _ -> assert false
+  | Path.Papply _ | Path.Pextra_ty _ -> assert false
 
 (* TODO: replace the dirty hack.
    The following functions are dirty hacks and used for modules and classes.
@@ -1239,7 +1239,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
       Array.map
         (fun field ->
           match field with
-          | l, Kept (_, unique_use) ->
+          | l, Kept (_, _, unique_use) ->
             let value =
               Value.implicit_record_field l.lbl_global l.lbl_name value
                 unique_use
@@ -1306,7 +1306,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_body = check_uniqueness_exp ienv body in
     UF.seq uf_mod uf_body
   | Texp_letexception (_, e) -> check_uniqueness_exp ienv e
-  | Texp_assert e -> check_uniqueness_exp ienv e
+  | Texp_assert (e, _) -> check_uniqueness_exp ienv e
   | Texp_lazy e ->
     let uf = check_uniqueness_exp ienv e in
     lift_implicit_borrowing uf

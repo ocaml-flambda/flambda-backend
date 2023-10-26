@@ -1,6 +1,6 @@
 (* TEST
-   * skip
-
+* skip
+reason = "OCaml 5 only"
  *)
 
 open Effect

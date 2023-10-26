@@ -27,6 +27,8 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
         EXTRN  caml_array_bound_error: NEAR
         EXTRN  caml_array_align_error: NEAR
         EXTRN  caml_stash_backtrace: NEAR
@@ -38,6 +40,12 @@
 =======
         EXTRN  caml_array_bound_error_asm: NEAR
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+        EXTRN  caml_array_bound_error: NEAR
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+        EXTRN  caml_array_bound_error_asm: NEAR
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
        EXTRN  caml_stash_backtrace: NEAR
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 

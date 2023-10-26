@@ -145,13 +145,9 @@ check_make_alldepend=false
 jobs=''
 bootstrap=false
 init_submodule=false
-<<<<<<< HEAD
-||||||| merged common ancestors
-=======
 
 memory_model_tests="tests/memory-model/forbidden.ml \
 tests/memory-model/publish.ml"
->>>>>>> ocaml/5.1
 
 case "${OCAML_ARCH}" in
   bsd|solaris)

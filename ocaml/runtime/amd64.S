@@ -1035,6 +1035,8 @@ ENDFUNCTION(G(caml_ml_array_bound_error))
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 FUNCTION(G(caml_ml_array_align_error))
 CFI_STARTPROC
         LEA_VAR(caml_array_align_error, %rax)
@@ -1044,6 +1046,8 @@ ENDFUNCTION(G(caml_ml_array_align_error))
 =======
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
 FUNCTION(G(caml_assert_stack_invariants))
 CFI_STARTPROC
 /*      CHECK_STACK_ALIGNMENT */
@@ -1058,6 +1062,7 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_assert_stack_invariants))
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa
 
 =======
@@ -1065,6 +1070,11 @@ ENDFUNCTION(G(caml_assert_stack_invariants))
 =======
 
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc
+=======
+
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb
         TEXT_SECTION(caml_system__code_end)
         .globl  G(caml_system__code_end)
 G(caml_system__code_end):

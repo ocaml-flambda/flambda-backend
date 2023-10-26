@@ -100,19 +100,6 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
-Error: Illegal shadowing of included type t/147 by t/164
-       Line 2, characters 2-11:
-         Type t/147 came from this include
-       Line 3, characters 2-24:
-         The value ignore has no valid type if t/147 is shadowed
-||||||| merged common ancestors
-Error: Illegal shadowing of included type t/146 by t/163
-       Line 2, characters 2-11:
-         Type t/146 came from this include
-       Line 3, characters 2-24:
-         The value ignore has no valid type if t/146 is shadowed
-=======
 Error: Illegal shadowing of included type t/2 by t.
 Line 2, characters 2-11:
 2 |   include S
@@ -122,7 +109,6 @@ Line 3, characters 2-24:
 3 |   val ignore : t -> unit
       ^^^^^^^^^^^^^^^^^^^^^^
   The value ignore has no valid type if t/2 is shadowed.
->>>>>>> ocaml/5.1
 |}]
 
 module type Module = sig
@@ -158,19 +144,6 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
-Error: Illegal shadowing of included module M/237 by M/254
-       Line 2, characters 2-11:
-         Module M/237 came from this include
-       Line 3, characters 2-26:
-         The value ignore has no valid type if M/237 is shadowed
-||||||| merged common ancestors
-Error: Illegal shadowing of included module M/236 by M/253
-       Line 2, characters 2-11:
-         Module M/236 came from this include
-       Line 3, characters 2-26:
-         The value ignore has no valid type if M/236 is shadowed
-=======
 Error: Illegal shadowing of included module M/2 by M.
 Line 2, characters 2-11:
 2 |   include S
@@ -180,7 +153,6 @@ Line 3, characters 2-26:
 3 |   val ignore : M.t -> unit
       ^^^^^^^^^^^^^^^^^^^^^^^^
   The value ignore has no valid type if M/2 is shadowed.
->>>>>>> ocaml/5.1
 |}]
 
 
@@ -217,19 +189,6 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
-Error: Illegal shadowing of included module type T/323 by T/340
-       Line 2, characters 2-11:
-         Module type T/323 came from this include
-       Line 3, characters 2-39:
-         The module F has no valid type if T/323 is shadowed
-||||||| merged common ancestors
-Error: Illegal shadowing of included module type T/322 by T/339
-       Line 2, characters 2-11:
-         Module type T/322 came from this include
-       Line 3, characters 2-39:
-         The module F has no valid type if T/322 is shadowed
-=======
 Error: Illegal shadowing of included module type T/2 by T.
 Line 2, characters 2-11:
 2 |   include S
@@ -239,7 +198,6 @@ Line 3, characters 2-39:
 3 |   module F : functor (_ : T) -> sig end
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   The module F has no valid type if T/2 is shadowed.
->>>>>>> ocaml/5.1
 |}]
 
 module type Extension = sig
@@ -252,19 +210,6 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
-Error: Illegal shadowing of included type ext/358 by ext/375
-       Line 2, characters 2-11:
-         Type ext/358 came from this include
-       Line 3, characters 14-16:
-         The extension constructor C2 has no valid type if ext/358 is shadowed
-||||||| merged common ancestors
-Error: Illegal shadowing of included type ext/357 by ext/374
-       Line 2, characters 2-11:
-         Type ext/357 came from this include
-       Line 3, characters 14-16:
-         The extension constructor C2 has no valid type if ext/357 is shadowed
-=======
 Error: Illegal shadowing of included type ext/2 by ext.
 Line 2, characters 2-11:
 2 |   include S
@@ -274,7 +219,6 @@ Line 3, characters 14-16:
 3 |   type ext += C2
                   ^^
   The extension constructor C2 has no valid type if ext/2 is shadowed.
->>>>>>> ocaml/5.1
 |}]
 
 module type Class = sig

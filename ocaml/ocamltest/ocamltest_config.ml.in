@@ -99,3 +99,5 @@ let probes = @probes@
 let stack_allocation = @stack_allocation@
 
 let poll_insertion = @poll_insertion@
+
+let naked_pointers = @naked_pointers@

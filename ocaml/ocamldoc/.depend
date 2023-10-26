@@ -6,13 +6,8 @@ odoc.cmo : \
     odoc_config.cmi \
     odoc_args.cmi \
     odoc_analyse.cmi \
-<<<<<<< HEAD
-    ../utils/language_extension.cmi
-||||||| merged common ancestors
-    odoc_analyse.cmi
-=======
+    ../utils/language_extension.cmi \
     odoc.cmi
->>>>>>> ocaml/5.1
 odoc.cmx : \
     odoc_messages.cmx \
     odoc_info.cmx \
@@ -21,14 +16,9 @@ odoc.cmx : \
     odoc_config.cmx \
     odoc_args.cmx \
     odoc_analyse.cmx \
-<<<<<<< HEAD
-    ../utils/language_extension.cmx
-||||||| merged common ancestors
-    odoc_analyse.cmx
-=======
+    ../utils/language_extension.cmx \
     odoc.cmi
 odoc.cmi :
->>>>>>> ocaml/5.1
 odoc_analyse.cmo : \
     ../utils/warnings.cmi \
     ../typing/types.cmi \

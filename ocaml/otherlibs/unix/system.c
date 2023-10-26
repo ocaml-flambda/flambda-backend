@@ -21,8 +21,13 @@
 #include <caml/signals.h>
 #include <caml/osdeps.h>
 #include "unixsupport.h"
+/* BACKPORT
 #include <process.h>
+*/
 #include <stdio.h>
+
+/* CR mshinwell: hack */
+#define _wsystem system
 
 CAMLprim value caml_unix_system(value cmd)
 {
@@ -31,9 +36,16 @@ CAMLprim value caml_unix_system(value cmd)
   wchar_t *buf;
 
   caml_unix_check_path(cmd, "system");
+/* BACKPORT BEGIN
   buf = caml_stat_strdup_to_utf16 (String_val (cmd));
+*/
+  buf = caml_stat_strdup (String_val (cmd));
+/* BACKPORT END */
   caml_enter_blocking_section();
+/* BACKPORT
+// CR mshinwell: what is this?
   _flushall();
+*/
   ret = _wsystem(buf);
   caml_leave_blocking_section();
   caml_stat_free(buf);

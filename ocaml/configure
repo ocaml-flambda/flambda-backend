@@ -3391,6 +3391,8 @@ ac_config_files="$ac_config_files ocamltest/ocamltest_config.ml"
 
 ac_config_files="$ac_config_files utils/config.generated.ml"
 
+ac_config_files="$ac_config_files tools/eventlog_metadata"
+
 ac_config_headers="$ac_config_headers runtime/caml/m.h"
 
 ac_config_headers="$ac_config_headers runtime/caml/s.h"
@@ -13616,9 +13618,7 @@ case $host in #(
     exeext='' ;;
 esac
 
-otherlibraries="dynlink runtime_events"
-lib_dynlink=true
-lib_runtime_events=true
+otherlibraries="dynlink"
 if test x"$enable_unix_lib" != "xno"
 then :
   enable_unix_lib=yes
@@ -21222,6 +21222,7 @@ do
     "manual/src/html_processing/src/common.ml") CONFIG_FILES="$CONFIG_FILES manual/src/html_processing/src/common.ml" ;;
     "ocamltest/ocamltest_config.ml") CONFIG_FILES="$CONFIG_FILES ocamltest/ocamltest_config.ml" ;;
     "utils/config.generated.ml") CONFIG_FILES="$CONFIG_FILES utils/config.generated.ml" ;;
+    "tools/eventlog_metadata") CONFIG_FILES="$CONFIG_FILES tools/eventlog_metadata" ;;
     "runtime/caml/m.h") CONFIG_HEADERS="$CONFIG_HEADERS runtime/caml/m.h" ;;
     "runtime/caml/s.h") CONFIG_HEADERS="$CONFIG_HEADERS runtime/caml/s.h" ;;
     "runtime/caml/version.h") CONFIG_HEADERS="$CONFIG_HEADERS runtime/caml/version.h" ;;

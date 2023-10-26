@@ -34,6 +34,8 @@ let standard_library =
 <<<<<<< HEAD:ocaml/utils/config.mlp
 <<<<<<< HEAD:ocaml/utils/config.common.ml
 <<<<<<< HEAD:ocaml/utils/config.mlp
+<<<<<<< HEAD:ocaml/utils/config.common.ml
+<<<<<<< HEAD:ocaml/utils/config.mlp
 <<<<<<< HEAD
 let exec_magic_number = "Caml1999X512"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
@@ -68,6 +70,12 @@ let exec_magic_number = "Caml1999X511"
 =======
 let exec_magic_number = "Caml1999X520"
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a:ocaml/utils/config.common.ml
+=======
+let exec_magic_number = "Caml1999X511"
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc:ocaml/utils/config.mlp
+=======
+let exec_magic_number = "Caml1999X520"
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb:ocaml/utils/config.common.ml
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
 and cmi_magic_number = "Caml1999I520"
 and cmo_magic_number = "Caml1999O520"
@@ -84,8 +92,12 @@ and cmxa_magic_number =
 <<<<<<< HEAD:ocaml/utils/config.mlp
 <<<<<<< HEAD:ocaml/utils/config.common.ml
 <<<<<<< HEAD:ocaml/utils/config.mlp
+<<<<<<< HEAD:ocaml/utils/config.common.ml
+<<<<<<< HEAD:ocaml/utils/config.mlp
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30:ocaml/utils/config.mlp
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc:ocaml/utils/config.mlp
     "Caml2021Z514"
 and ast_impl_magic_number = "Caml1999M031"
 and ast_intf_magic_number = "Caml1999N031"
@@ -95,10 +107,13 @@ and cms_magic_number = "Caml1999S510"
 and linear_magic_number = "Caml1999L512"
 and cfg_magic_number = "Caml2021G512"
 <<<<<<< HEAD:ocaml/utils/config.common.ml
+<<<<<<< HEAD:ocaml/utils/config.common.ml
 >>>>>>> 16edf2fd3875f1fd183a82f318d80aa7856d66d8
 =======
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a:ocaml/utils/config.common.ml
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb:ocaml/utils/config.common.ml
     "Caml2021Z520"
 and ast_impl_magic_number = "Caml1999M033"
 and ast_intf_magic_number = "Caml1999N033"
@@ -113,11 +128,16 @@ let default_safe_string = true
 let naked_pointers = false
 let flambda_backend = true
 <<<<<<< HEAD:ocaml/utils/config.mlp
+<<<<<<< HEAD:ocaml/utils/config.mlp
 >>>>>>> db638e1ef1d923c67cd7142850e6693243f6cbfa:ocaml/utils/config.common.ml
 =======
 >>>>>>> 0d4056a108c984b74ebed35634ddd3dad4394d30:ocaml/utils/config.mlp
 =======
 >>>>>>> c3b2b912cfac7d208d5daafaf044062285c3037a:ocaml/utils/config.common.ml
+=======
+>>>>>>> 31dc1f33938b757dd9a502596e73c170d4c676bc:ocaml/utils/config.mlp
+=======
+>>>>>>> 7e235784151b8ed7eff585d541925760d5b3dfeb:ocaml/utils/config.common.ml
 
 let interface_suffix = ref ".mli"
 

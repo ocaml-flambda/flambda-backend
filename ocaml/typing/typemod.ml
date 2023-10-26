@@ -193,23 +193,7 @@ let type_open_ ?used_slot ?toplevel ovf env loc lid =
 
 let initial_env ~loc ~initially_opened_module
     ~open_implicit_modules =
-<<<<<<< HEAD
-  let env =
-    if safe_string then
-      Lazy.force Env.initial_safe_string
-    else
-      Lazy.force Env.initial_unsafe_string
-  in
-||||||| merged common ancestors
-  let env =
-    if safe_string then
-      Env.initial_safe_string
-    else
-      Env.initial_unsafe_string
-  in
-=======
-  let env = Env.initial in
->>>>>>> ocaml/5.1
+  let env = Lazy.force Env.initial in
   let open_module env m =
     let open Asttypes in
     let lexbuf = Lexing.from_string m in
@@ -1527,7 +1511,6 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 
 and transl_signature env (sg : Parsetree.signature) =
   let names = Signature_names.create () in
-<<<<<<< HEAD
 
   let transl_include ~functor_ ~loc env sig_acc sincl =
     let smty = sincl.pincl_mod in
@@ -1584,7 +1567,8 @@ and transl_signature env (sg : Parsetree.signature) =
           Typedecl.transl_value_decl env item.psig_loc sdesc
         in
         Signature_names.check_value names tdesc.val_loc tdesc.val_id;
-        Env.register_uid tdesc.val_val.val_uid ~loc:tdesc.val_loc ~attributes:tdesc.val_attributes;
+        Env.register_uid tdesc.val_val.val_uid ~loc:tdesc.val_loc
+          ~attributes:tdesc.val_attributes;
         mksig (Tsig_value tdesc) env loc,
         [Sig_value(tdesc.val_id, tdesc.val_val, Exported)],
         newenv
@@ -1595,7 +1579,8 @@ and transl_signature env (sg : Parsetree.signature) =
         List.iter (fun td ->
           Signature_names.check_type names td.typ_loc td.typ_id;
           if not (Btype.is_row_name (Ident.name td.typ_id)) then
-            Env.register_uid td.typ_type.type_uid ~loc:td.typ_loc ~attributes:td.typ_attributes
+            Env.register_uid td.typ_type.type_uid ~loc:td.typ_loc
+              ~attributes:td.typ_attributes
         ) decls;
         let sig_items =
           map_rec_type_with_row_types ~rec_flag
@@ -1621,116 +1606,7 @@ and transl_signature env (sg : Parsetree.signature) =
                   ~params
                   ~body:(Option.get td.typ_type.type_manifest)
                   Subst.identity
-||||||| merged common ancestors
-  let rec transl_sig env sg =
-    match sg with
-      [] -> [], [], env
-    | item :: srem ->
-        let loc = item.psig_loc in
-        match item.psig_desc with
-        | Psig_value sdesc ->
-            let (tdesc, newenv) =
-              Typedecl.transl_value_decl env item.psig_loc sdesc
-            in
-            Signature_names.check_value names tdesc.val_loc tdesc.val_id;
-            let (trem,rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_value tdesc) env loc :: trem,
-            Sig_value(tdesc.val_id, tdesc.val_val, Exported) :: rem,
-              final_env
-        | Psig_type (rec_flag, sdecls) ->
-            let (decls, newenv) =
-              Typedecl.transl_type_decl env rec_flag sdecls
-            in
-            List.iter (fun td ->
-              Signature_names.check_type names td.typ_loc td.typ_id
-            ) decls;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            let sg =
-              map_rec_type_with_row_types ~rec_flag
-                (fun rs td -> Sig_type(td.typ_id, td.typ_type, rs, Exported))
-                decls rem
-            in
-            mksig (Tsig_type (rec_flag, decls)) env loc :: trem,
-            sg,
-            final_env
-        | Psig_typesubst sdecls ->
-            let (decls, newenv) =
-              Typedecl.transl_type_decl env Nonrecursive sdecls
-            in
-            List.iter (fun td ->
-              if td.typ_kind <> Ttype_abstract || td.typ_manifest = None ||
-                 td.typ_private = Private
-              then
-                raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
-              let params = td.typ_type.type_params in
-              if params_are_constrained params
-              then raise(Error(loc, env, With_cannot_remove_constrained_type));
-              let info =
-                  let subst =
-                    Subst.add_type_function (Pident td.typ_id)
-                      ~params
-                      ~body:(Option.get td.typ_type.type_manifest)
-                      Subst.identity
-                  in
-                  Some (`Substituted_away subst)
-=======
-  let rec transl_sig env sg =
-    match sg with
-      [] -> [], [], env
-    | item :: srem ->
-        let loc = item.psig_loc in
-        match item.psig_desc with
-        | Psig_value sdesc ->
-            let (tdesc, newenv) =
-              Typedecl.transl_value_decl env item.psig_loc sdesc
-            in
-            Signature_names.check_value names tdesc.val_loc tdesc.val_id;
-            Env.register_uid tdesc.val_val.val_uid tdesc.val_loc;
-            let (trem,rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_value tdesc) env loc :: trem,
-            Sig_value(tdesc.val_id, tdesc.val_val, Exported) :: rem,
-              final_env
-        | Psig_type (rec_flag, sdecls) ->
-            let (decls, newenv) =
-              Typedecl.transl_type_decl env rec_flag sdecls
-            in
-            List.iter (fun td ->
-              Signature_names.check_type names td.typ_loc td.typ_id;
-              if not (Btype.is_row_name (Ident.name td.typ_id)) then
-                Env.register_uid td.typ_type.type_uid td.typ_loc
-            ) decls;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            let sg =
-              map_rec_type_with_row_types ~rec_flag
-                (fun rs td -> Sig_type(td.typ_id, td.typ_type, rs, Exported))
-                decls rem
-            in
-            mksig (Tsig_type (rec_flag, decls)) env loc :: trem,
-            sg,
-            final_env
-        | Psig_typesubst sdecls ->
-            let (decls, newenv) =
-              Typedecl.transl_type_decl env Nonrecursive sdecls
-            in
-            List.iter (fun td ->
-              if td.typ_kind <> Ttype_abstract || td.typ_manifest = None ||
-                 td.typ_private = Private
-              then
-                raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
-              let params = td.typ_type.type_params in
-              if params_are_constrained params
-              then raise(Error(loc, env, With_cannot_remove_constrained_type));
-              let info =
-                  let subst =
-                    Subst.add_type_function (Pident td.typ_id)
-                      ~params
-                      ~body:(Option.get td.typ_type.type_manifest)
-                      Subst.identity
-                  in
-                  Some (`Substituted_away subst)
->>>>>>> ocaml/5.1
               in
-<<<<<<< HEAD
               Some (`Substituted_away subst)
           in
           Signature_names.check_type ?info names td.typ_loc td.typ_id;
@@ -1744,7 +1620,8 @@ and transl_signature env (sg : Parsetree.signature) =
         let constructors = tyext.tyext_constructors in
         List.iter (fun ext ->
           Signature_names.check_typext names ext.ext_loc ext.ext_id;
-          Env.register_uid ext.ext_type.ext_uid ~loc:ext.ext_loc ~attributes:ext.ext_attributes
+          Env.register_uid ext.ext_type.ext_uid ~loc:ext.ext_loc
+            ~attributes:ext.ext_attributes
         ) constructors;
         let tsg = map_ext (fun es ext ->
             Sig_typext(ext.ext_id, ext.ext_type, es, Exported)
@@ -1791,24 +1668,11 @@ and transl_signature env (sg : Parsetree.signature) =
           | Some name ->
             let id, newenv =
               Env.enter_module_declaration ~scope name pres md env
-||||||| merged common ancestors
-              Signature_names.check_type ?info names td.typ_loc td.typ_id
-            ) decls;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            let sg = rem
-=======
-              Signature_names.check_type ?info names td.typ_loc td.typ_id;
-              Env.register_uid td.typ_type.type_uid td.typ_loc
-            ) decls;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            let sg = rem
->>>>>>> ocaml/5.1
             in
-<<<<<<< HEAD
             Signature_names.check_module names pmd.pmd_name.loc id;
-            Env.register_uid md.md_uid ~loc:md.md_loc ~attributes:md.md_attributes;
             Some id, newenv
         in
+        Env.register_uid md.md_uid ~loc:md.md_loc ~attributes:md.md_attributes;
         let sig_item =
           mksig (Tsig_module {md_id=id; md_name=pmd.pmd_name;
                               md_presence=pres; md_type=tmty;
@@ -1836,104 +1700,8 @@ and transl_signature env (sg : Parsetree.signature) =
             { md_type = Mty_alias path;
               md_attributes = pms.pms_attributes;
               md_loc = pms.pms_loc;
-||||||| merged common ancestors
-            mksig (Tsig_typesubst decls) env loc :: trem,
-            sg,
-            final_env
-        | Psig_typext styext ->
-            let (tyext, newenv) =
-              Typedecl.transl_type_extension false env item.psig_loc styext
-            in
-            let constructors = tyext.tyext_constructors in
-            List.iter (fun ext ->
-              Signature_names.check_typext names ext.ext_loc ext.ext_id
-            ) constructors;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-              mksig (Tsig_typext tyext) env loc :: trem,
-              map_ext (fun es ext ->
-                Sig_typext(ext.ext_id, ext.ext_type, es, Exported)
-              ) constructors rem,
-              final_env
-        | Psig_exception sext ->
-            let (ext, newenv) = Typedecl.transl_type_exception env sext in
-            let constructor = ext.tyexn_constructor in
-            Signature_names.check_typext names constructor.ext_loc
-              constructor.ext_id;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_exception ext) env loc :: trem,
-            Sig_typext(constructor.ext_id,
-                       constructor.ext_type,
-                       Text_exception,
-                       Exported) :: rem,
-            final_env
-        | Psig_module pmd ->
-            let scope = Ctype.create_scope () in
-            let tmty =
-              Builtin_attributes.warning_scope pmd.pmd_attributes
-                (fun () -> transl_modtype env pmd.pmd_type)
-            in
-            let pres =
-              match tmty.mty_type with
-              | Mty_alias _ -> Mp_absent
-              | _ -> Mp_present
-            in
-            let md = {
-              md_type=tmty.mty_type;
-              md_attributes=pmd.pmd_attributes;
-              md_loc=pmd.pmd_loc;
-=======
-            mksig (Tsig_typesubst decls) env loc :: trem,
-            sg,
-            final_env
-        | Psig_typext styext ->
-            let (tyext, newenv) =
-              Typedecl.transl_type_extension false env item.psig_loc styext
-            in
-            let constructors = tyext.tyext_constructors in
-            List.iter (fun ext ->
-              Signature_names.check_typext names ext.ext_loc ext.ext_id;
-              Env.register_uid ext.ext_type.ext_uid ext.ext_loc
-            ) constructors;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-              mksig (Tsig_typext tyext) env loc :: trem,
-              map_ext (fun es ext ->
-                Sig_typext(ext.ext_id, ext.ext_type, es, Exported)
-              ) constructors rem,
-              final_env
-        | Psig_exception sext ->
-            let (ext, newenv) = Typedecl.transl_type_exception env sext in
-            let constructor = ext.tyexn_constructor in
-            Signature_names.check_typext names constructor.ext_loc
-              constructor.ext_id;
-            Env.register_uid
-              constructor.ext_type.ext_uid
-              constructor.ext_loc;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_exception ext) env loc :: trem,
-            Sig_typext(constructor.ext_id,
-                       constructor.ext_type,
-                       Text_exception,
-                       Exported) :: rem,
-            final_env
-        | Psig_module pmd ->
-            let scope = Ctype.create_scope () in
-            let tmty =
-              Builtin_attributes.warning_scope pmd.pmd_attributes
-                (fun () -> transl_modtype env pmd.pmd_type)
-            in
-            let pres =
-              match tmty.mty_type with
-              | Mty_alias _ -> Mp_absent
-              | _ -> Mp_present
-            in
-            let md = {
-              md_type=tmty.mty_type;
-              md_attributes=pmd.pmd_attributes;
-              md_loc=pmd.pmd_loc;
->>>>>>> ocaml/5.1
               md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             }
-<<<<<<< HEAD
         in
         let pres =
           match md.md_type with
@@ -1986,7 +1754,8 @@ and transl_signature env (sg : Parsetree.signature) =
     | Psig_modtype pmtd ->
         let newenv, mtd, decl = transl_modtype_decl env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
-        Env.register_uid decl.mtd_uid ~loc:mtd.mtd_loc ~attributes:mtd.mtd_attributes;
+        Env.register_uid decl.mtd_uid ~loc:mtd.mtd_loc
+          ~attributes:mtd.mtd_attributes;
         mksig (Tsig_modtype mtd) env loc,
         [Sig_modtype (mtd.mtd_id, decl, Exported)],
         newenv
@@ -2022,16 +1791,15 @@ and transl_signature env (sg : Parsetree.signature) =
           Signature_names.check_type names loc cls.cls_obj_id;
           Signature_names.check_class names loc cls.cls_id;
           Signature_names.check_class_type names loc cls.cls_ty_id;
-          Signature_names.check_type names loc cls.cls_typesharp_id;
-          Env.register_uid cls.cls_decl.cty_uid ~loc:cls.cls_decl.cty_loc ~attributes:cls.cls_decl.cty_attributes;
+          Env.register_uid cls.cls_decl.cty_uid ~loc:cls.cls_decl.cty_loc
+            ~attributes:cls.cls_decl.cty_attributes;
         ) classes;
         let tsg =
           map_rec (fun rs cls ->
             let open Typeclass in
             [Sig_class(cls.cls_id, cls.cls_decl, rs, Exported);
              Sig_class_type(cls.cls_ty_id, cls.cls_ty_decl, rs, Exported);
-             Sig_type(cls.cls_obj_id, cls.cls_obj_abbr, rs, Exported);
-             Sig_type(cls.cls_typesharp_id, cls.cls_abbr, rs, Exported)]
+             Sig_type(cls.cls_obj_id, cls.cls_obj_abbr, rs, Exported)]
           ) classes [] |> List.flatten
         in
         let typedtree =
@@ -2047,7 +1815,6 @@ and transl_signature env (sg : Parsetree.signature) =
           let loc = decl.clsty_id_loc.Location.loc in
           Signature_names.check_class_type names loc decl.clsty_ty_id;
           Signature_names.check_type names loc decl.clsty_obj_id;
-          Signature_names.check_type names loc decl.clsty_typesharp_id;
           Env.register_uid
             decl.clsty_ty_decl.clty_uid
             ~loc:decl.clsty_ty_decl.clty_loc
@@ -2059,8 +1826,6 @@ and transl_signature env (sg : Parsetree.signature) =
             [Sig_class_type(decl.clsty_ty_id, decl.clsty_ty_decl, rs,
                             Exported);
              Sig_type(decl.clsty_obj_id, decl.clsty_obj_abbr, rs, Exported);
-             Sig_type(decl.clsty_typesharp_id, decl.clsty_abbr, rs,
-                      Exported)
             ]
           ) classes []
           |> List.flatten
@@ -2087,417 +1852,6 @@ and transl_signature env (sg : Parsetree.signature) =
         (new_item :: sig_items)
         (List.rev_append new_types sig_type)
         srem
-||||||| merged common ancestors
-            in
-            let id, newenv =
-              match pmd.pmd_name.txt with
-              | None -> None, env
-              | Some name ->
-                let id, newenv =
-                  Env.enter_module_declaration ~scope name pres md env
-                in
-                Signature_names.check_module names pmd.pmd_name.loc id;
-                Some id, newenv
-            in
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_module {md_id=id; md_name=pmd.pmd_name;
-                                md_presence=pres; md_type=tmty;
-                                md_loc=pmd.pmd_loc;
-                                md_attributes=pmd.pmd_attributes})
-              env loc :: trem,
-            (match id with
-             | None -> rem
-             | Some id -> Sig_module(id, pres, md, Trec_not, Exported) :: rem),
-            final_env
-        | Psig_modsubst pms ->
-            let scope = Ctype.create_scope () in
-            let path, md =
-              Env.lookup_module ~loc:pms.pms_manifest.loc
-                pms.pms_manifest.txt env
-            in
-            let aliasable = not (Env.is_functor_arg path env) in
-            let md =
-              if not aliasable then
-                md
-              else
-                { md_type = Mty_alias path;
-                  md_attributes = pms.pms_attributes;
-                  md_loc = pms.pms_loc;
-                  md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-                }
-            in
-            let pres =
-              match md.md_type with
-              | Mty_alias _ -> Mp_absent
-              | _ -> Mp_present
-            in
-            let id, newenv =
-              Env.enter_module_declaration ~scope pms.pms_name.txt pres md env
-            in
-            let info =
-              `Substituted_away (Subst.add_module id path Subst.identity)
-            in
-            Signature_names.check_module ~info names pms.pms_name.loc id;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_modsubst {ms_id=id; ms_name=pms.pms_name;
-                                  ms_manifest=path; ms_txt=pms.pms_manifest;
-                                  ms_loc=pms.pms_loc;
-                                  ms_attributes=pms.pms_attributes})
-              env loc :: trem,
-            rem,
-            final_env
-        | Psig_recmodule sdecls ->
-            let (tdecls, newenv) =
-              transl_recmodule_modtypes env sdecls in
-            let decls =
-              List.filter_map (fun (md, uid) ->
-                match md.md_id with
-                | None -> None
-                | Some id -> Some (id, md, uid)
-              ) tdecls
-            in
-            List.iter (fun (id, md, _) ->
-              Signature_names.check_module names md.md_loc id
-            ) decls;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_recmodule (List.map fst tdecls)) env loc :: trem,
-            map_rec (fun rs (id, md, uid) ->
-                let d = {Types.md_type = md.md_type.mty_type;
-                         md_attributes = md.md_attributes;
-                         md_loc = md.md_loc;
-                         md_uid = uid;
-                        } in
-                Sig_module(id, Mp_present, d, rs, Exported))
-              decls rem,
-            final_env
-        | Psig_modtype pmtd ->
-            let newenv, mtd, sg = transl_modtype_decl env pmtd in
-            Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_modtype mtd) env loc :: trem,
-            sg :: rem,
-            final_env
-        | Psig_modtypesubst pmtd ->
-            let newenv, mtd, _sg = transl_modtype_decl env pmtd in
-            let info =
-              let mty = match mtd.mtd_type with
-                | Some tmty -> tmty.mty_type
-                | None ->
-                    (* parsetree invariant, see Ast_invariants *)
-                    assert false
-              in
-              let subst = Subst.add_modtype mtd.mtd_id mty Subst.identity in
-              match mty with
-              | Mty_ident _ -> `Substituted_away subst
-              | _ -> `Unpackable_modtype_substituted_away (mtd.mtd_id,subst)
-            in
-            Signature_names.check_modtype ~info names pmtd.pmtd_loc mtd.mtd_id;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_modtypesubst mtd) env loc :: trem,
-            rem,
-            final_env
-        | Psig_open sod ->
-            let (od, newenv) = type_open_descr env sod in
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_open od) env loc :: trem,
-            rem, final_env
-        | Psig_include sincl ->
-            let smty = sincl.pincl_mod in
-            let tmty =
-              Builtin_attributes.warning_scope sincl.pincl_attributes
-                (fun () -> transl_modtype env smty)
-            in
-            let mty = tmty.mty_type in
-            let scope = Ctype.create_scope () in
-            let sg, newenv = Env.enter_signature ~scope
-                       (extract_sig env smty.pmty_loc mty) env in
-            Signature_group.iter
-              (Signature_names.check_sig_item names item.psig_loc)
-              sg;
-            let incl =
-              { incl_mod = tmty;
-                incl_type = sg;
-                incl_attributes = sincl.pincl_attributes;
-                incl_loc = sincl.pincl_loc;
-              }
-            in
-            let (trem, rem, final_env) = transl_sig newenv srem  in
-            mksig (Tsig_include incl) env loc :: trem,
-            sg @ rem,
-            final_env
-        | Psig_class cl ->
-            let (classes, newenv) = Typeclass.class_descriptions env cl in
-            List.iter (fun cls ->
-              let open Typeclass in
-              let loc = cls.cls_id_loc.Location.loc in
-              Signature_names.check_type names loc cls.cls_obj_id;
-              Signature_names.check_class names loc cls.cls_id;
-              Signature_names.check_class_type names loc cls.cls_ty_id;
-              Signature_names.check_type names loc cls.cls_typesharp_id;
-            ) classes;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            let sg =
-              map_rec (fun rs cls ->
-                let open Typeclass in
-                [Sig_class(cls.cls_id, cls.cls_decl, rs, Exported);
-                 Sig_class_type(cls.cls_ty_id, cls.cls_ty_decl, rs, Exported);
-                 Sig_type(cls.cls_obj_id, cls.cls_obj_abbr, rs, Exported);
-                 Sig_type(cls.cls_typesharp_id, cls.cls_abbr, rs, Exported)]
-              ) classes [rem]
-              |> List.flatten
-            in
-            let typedtree =
-              mksig (Tsig_class
-                       (List.map (fun decr ->
-                          decr.Typeclass.cls_info) classes)) env loc
-              :: trem
-            in
-            typedtree, sg, final_env
-        | Psig_class_type cl ->
-            let (classes, newenv) = Typeclass.class_type_declarations env cl in
-            List.iter (fun decl ->
-              let open Typeclass in
-              let loc = decl.clsty_id_loc.Location.loc in
-              Signature_names.check_class_type names loc decl.clsty_ty_id;
-              Signature_names.check_type names loc decl.clsty_obj_id;
-              Signature_names.check_type names loc decl.clsty_typesharp_id;
-            ) classes;
-            let (trem,rem, final_env) = transl_sig newenv srem in
-            let sg =
-              map_rec (fun rs decl ->
-                let open Typeclass in
-                [Sig_class_type(decl.clsty_ty_id, decl.clsty_ty_decl, rs,
-                                Exported);
-                 Sig_type(decl.clsty_obj_id, decl.clsty_obj_abbr, rs, Exported);
-                 Sig_type(decl.clsty_typesharp_id, decl.clsty_abbr, rs,
-                          Exported)
-                ]
-              ) classes [rem]
-              |> List.flatten
-            in
-            let typedtree =
-              mksig
-                (Tsig_class_type
-                   (List.map (fun decl -> decl.Typeclass.clsty_info) classes))
-                env loc
-              :: trem
-            in
-            typedtree, sg, final_env
-        | Psig_attribute x ->
-            Builtin_attributes.warning_attribute x;
-            let (trem,rem, final_env) = transl_sig env srem in
-            mksig (Tsig_attribute x) env loc :: trem, rem, final_env
-        | Psig_extension (ext, _attrs) ->
-            raise (Error_forward (Builtin_attributes.error_of_extension ext))
-=======
-            in
-            let id, newenv =
-              match pmd.pmd_name.txt with
-              | None -> None, env
-              | Some name ->
-                let id, newenv =
-                  Env.enter_module_declaration ~scope name pres md env
-                in
-                Signature_names.check_module names pmd.pmd_name.loc id;
-                Some id, newenv
-            in
-            Env.register_uid md.md_uid md.md_loc;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_module {md_id=id; md_name=pmd.pmd_name;
-                                md_presence=pres; md_type=tmty;
-                                md_loc=pmd.pmd_loc;
-                                md_attributes=pmd.pmd_attributes})
-              env loc :: trem,
-            (match id with
-             | None -> rem
-             | Some id -> Sig_module(id, pres, md, Trec_not, Exported) :: rem),
-            final_env
-        | Psig_modsubst pms ->
-            let scope = Ctype.create_scope () in
-            let path, md =
-              Env.lookup_module ~loc:pms.pms_manifest.loc
-                pms.pms_manifest.txt env
-            in
-            let aliasable = not (Env.is_functor_arg path env) in
-            let md =
-              if not aliasable then
-                md
-              else
-                { md_type = Mty_alias path;
-                  md_attributes = pms.pms_attributes;
-                  md_loc = pms.pms_loc;
-                  md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-                }
-            in
-            let pres =
-              match md.md_type with
-              | Mty_alias _ -> Mp_absent
-              | _ -> Mp_present
-            in
-            let id, newenv =
-              Env.enter_module_declaration ~scope pms.pms_name.txt pres md env
-            in
-            let info =
-              `Substituted_away (Subst.add_module id path Subst.identity)
-            in
-            Signature_names.check_module ~info names pms.pms_name.loc id;
-            Env.register_uid md.md_uid md.md_loc;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_modsubst {ms_id=id; ms_name=pms.pms_name;
-                                  ms_manifest=path; ms_txt=pms.pms_manifest;
-                                  ms_loc=pms.pms_loc;
-                                  ms_attributes=pms.pms_attributes})
-              env loc :: trem,
-            rem,
-            final_env
-        | Psig_recmodule sdecls ->
-            let (tdecls, newenv) =
-              transl_recmodule_modtypes env sdecls in
-            let decls =
-              List.filter_map (fun (md, uid, _) ->
-                match md.md_id with
-                | None -> None
-                | Some id -> Some (id, md, uid)
-              ) tdecls
-            in
-            List.iter (fun (id, md, uid) ->
-              Signature_names.check_module names md.md_loc id;
-              Env.register_uid uid md.md_loc
-            ) decls;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_recmodule (List.map (fun (md, _, _) -> md) tdecls))
-              env loc :: trem,
-            map_rec (fun rs (id, md, uid) ->
-                let d = {Types.md_type = md.md_type.mty_type;
-                         md_attributes = md.md_attributes;
-                         md_loc = md.md_loc;
-                         md_uid = uid;
-                        } in
-                Sig_module(id, Mp_present, d, rs, Exported))
-              decls rem,
-            final_env
-        | Psig_modtype pmtd ->
-            let newenv, mtd, decl = transl_modtype_decl env pmtd in
-            Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
-            Env.register_uid decl.mtd_uid mtd.mtd_loc;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_modtype mtd) env loc :: trem,
-            Sig_modtype (mtd.mtd_id, decl, Exported) :: rem,
-            final_env
-        | Psig_modtypesubst pmtd ->
-            let newenv, mtd, decl = transl_modtype_decl env pmtd in
-            let info =
-              let mty = match mtd.mtd_type with
-                | Some tmty -> tmty.mty_type
-                | None ->
-                    (* parsetree invariant, see Ast_invariants *)
-                    assert false
-              in
-              let subst = Subst.add_modtype mtd.mtd_id mty Subst.identity in
-              match mty with
-              | Mty_ident _ -> `Substituted_away subst
-              | _ -> `Unpackable_modtype_substituted_away (mtd.mtd_id,subst)
-            in
-            Signature_names.check_modtype ~info names pmtd.pmtd_loc mtd.mtd_id;
-            Env.register_uid decl.mtd_uid mtd.mtd_loc;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_modtypesubst mtd) env loc :: trem,
-            rem,
-            final_env
-        | Psig_open sod ->
-            let (od, newenv) = type_open_descr env sod in
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            mksig (Tsig_open od) env loc :: trem,
-            rem, final_env
-        | Psig_include sincl ->
-            let smty = sincl.pincl_mod in
-            let tmty =
-              Builtin_attributes.warning_scope sincl.pincl_attributes
-                (fun () -> transl_modtype env smty)
-            in
-            let mty = tmty.mty_type in
-            let scope = Ctype.create_scope () in
-            let sg, newenv = Env.enter_signature ~scope
-                       (extract_sig env smty.pmty_loc mty) env in
-            Signature_group.iter
-              (Signature_names.check_sig_item names item.psig_loc)
-              sg;
-            let incl =
-              { incl_mod = tmty;
-                incl_type = sg;
-                incl_attributes = sincl.pincl_attributes;
-                incl_loc = sincl.pincl_loc;
-              }
-            in
-            let (trem, rem, final_env) = transl_sig newenv srem  in
-            mksig (Tsig_include incl) env loc :: trem,
-            sg @ rem,
-            final_env
-        | Psig_class cl ->
-            let (classes, newenv) = Typeclass.class_descriptions env cl in
-            List.iter (fun cls ->
-              let open Typeclass in
-              let loc = cls.cls_id_loc.Location.loc in
-              Signature_names.check_type names loc cls.cls_obj_id;
-              Signature_names.check_class names loc cls.cls_id;
-              Signature_names.check_class_type names loc cls.cls_ty_id;
-              Env.register_uid cls.cls_decl.cty_uid cls.cls_decl.cty_loc;
-            ) classes;
-            let (trem, rem, final_env) = transl_sig newenv srem in
-            let sg =
-              map_rec (fun rs cls ->
-                let open Typeclass in
-                [Sig_class(cls.cls_id, cls.cls_decl, rs, Exported);
-                 Sig_class_type(cls.cls_ty_id, cls.cls_ty_decl, rs, Exported);
-                 Sig_type(cls.cls_obj_id, cls.cls_obj_abbr, rs, Exported)
-                ]
-              ) classes [rem]
-              |> List.flatten
-            in
-            let typedtree =
-              mksig (Tsig_class
-                       (List.map (fun decr ->
-                          decr.Typeclass.cls_info) classes)) env loc
-              :: trem
-            in
-            typedtree, sg, final_env
-        | Psig_class_type cl ->
-            let (classes, newenv) = Typeclass.class_type_declarations env cl in
-            List.iter (fun decl ->
-              let open Typeclass in
-              let loc = decl.clsty_id_loc.Location.loc in
-              Signature_names.check_class_type names loc decl.clsty_ty_id;
-              Signature_names.check_type names loc decl.clsty_obj_id;
-              Env.register_uid
-                decl.clsty_ty_decl.clty_uid
-                decl.clsty_ty_decl.clty_loc;
-            ) classes;
-            let (trem,rem, final_env) = transl_sig newenv srem in
-            let sg =
-              map_rec (fun rs decl ->
-                let open Typeclass in
-                [Sig_class_type(decl.clsty_ty_id, decl.clsty_ty_decl, rs,
-                                Exported);
-                 Sig_type(decl.clsty_obj_id, decl.clsty_obj_abbr, rs, Exported);
-                ]
-              ) classes [rem]
-              |> List.flatten
-            in
-            let typedtree =
-              mksig
-                (Tsig_class_type
-                   (List.map (fun decl -> decl.Typeclass.clsty_info) classes))
-                env loc
-              :: trem
-            in
-            typedtree, sg, final_env
-        | Psig_attribute x ->
-            Builtin_attributes.warning_attribute x;
-            let (trem,rem, final_env) = transl_sig env srem in
-            mksig (Tsig_attribute x) env loc :: trem, rem, final_env
-        | Psig_extension (ext, _attrs) ->
-            raise (Error_forward (Builtin_attributes.error_of_extension ext))
->>>>>>> ocaml/5.1
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
   Builtin_attributes.warning_scope []
@@ -2649,28 +2003,12 @@ let path_of_module mexp =
 (* Check that all core type schemes in a structure
    do not contain non-generalized type variable *)
 
-<<<<<<< HEAD
 let rec nongen_modtype env f = function
-    Mty_ident _ -> false
-  | Mty_alias _ -> false
-||||||| merged common ancestors
-let rec nongen_modtype env = function
-    Mty_ident _ -> false
-  | Mty_alias _ -> false
-=======
-let rec nongen_modtype env = function
     Mty_ident _ -> None
   | Mty_alias _ -> None
->>>>>>> ocaml/5.1
   | Mty_signature sg ->
       let env = Env.add_signature sg env in
-<<<<<<< HEAD
-      List.exists (nongen_signature_item env f) sg
-||||||| merged common ancestors
-      List.exists (nongen_signature_item env) sg
-=======
-      List.find_map (nongen_signature_item env) sg
->>>>>>> ocaml/5.1
+      List.find_map (nongen_signature_item env f) sg
   | Mty_functor(arg_opt, body) ->
       let env =
         match arg_opt with
@@ -2682,26 +2020,15 @@ let rec nongen_modtype env = function
       nongen_modtype env f body
   | Mty_strengthen (mty,_ ,_) -> nongen_modtype env f mty
 
-<<<<<<< HEAD
 and nongen_signature_item env f = function
-    Sig_value(_id, desc, _) -> f env desc.val_type
-  | Sig_module(_id, _, md, _, _) -> nongen_modtype env f md.md_type
-  | _ -> false
-||||||| merged common ancestors
-and nongen_signature_item env = function
-    Sig_value(_id, desc, _) -> Ctype.nongen_schema env desc.val_type
-  | Sig_module(_id, _, md, _, _) -> nongen_modtype env md.md_type
-  | _ -> false
-=======
-and nongen_signature_item env = function
   | Sig_value(_id, desc, _) ->
-      Ctype.nongen_vars_in_schema env desc.val_type
+      f env desc.val_type
       |> Option.map (fun vars -> (vars, desc))
-  | Sig_module(_id, _, md, _, _) -> nongen_modtype env md.md_type
+  | Sig_module(_id, _, md, _, _) -> nongen_modtype env f md.md_type
   | _ -> None
 
 let check_nongen_modtype env loc mty =
-  nongen_modtype env mty
+  nongen_modtype env Ctype.nongen_vars_in_schema mty
   |> Option.iter (fun (vars, item) ->
       let vars = Btype.TypeSet.elements vars in
       let error =
@@ -2709,7 +2036,6 @@ let check_nongen_modtype env loc mty =
       in
       raise(Error(loc, env, error))
     )
->>>>>>> ocaml/5.1
 
 let check_nongen_signature_item env sig_item =
   match sig_item with
@@ -2723,23 +2049,15 @@ let check_nongen_signature_item env sig_item =
           raise (Error (vd.val_loc, env, error))
         )
   | Sig_module (_id, _, md, _, _) ->
-<<<<<<< HEAD
-      if nongen_modtype env Ctype.nongen_schema md.md_type then
-        raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
-||||||| merged common ancestors
-      if nongen_modtype env md.md_type then
-        raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
-=======
       check_nongen_modtype env md.md_loc md.md_type
->>>>>>> ocaml/5.1
   | _ -> ()
 
 let check_nongen_signature env sg =
   List.iter (check_nongen_signature_item env) sg
 
 let remove_mode_and_jkind_variables env sg =
-  let rm _env ty = Ctype.remove_mode_and_jkind_variables ty; false in
-  List.exists (nongen_signature_item env rm) sg |> ignore
+  let rm _env ty = Ctype.remove_mode_and_jkind_variables ty; None in
+  List.find_map (nongen_signature_item env rm) sg |> ignore
 
 (* Helpers for typing recursive modules *)
 
@@ -2849,14 +2167,7 @@ let check_recmodule_inclusion env bindings =
       let check_inclusion
             (id, name, mty_decl, modl, mty_actual, attrs, loc, shape, uid) =
         let mty_decl' = Subst.modtype (Rescope scope) s mty_decl.mty_type
-<<<<<<< HEAD
         and mty_actual' = subst_and_strengthen scope s id mty_actual in
-||||||| merged common ancestors
-        and mty_actual' = subst_and_strengthen env scope s id mty_actual in
-        let coercion =
-=======
-        and mty_actual' = subst_and_strengthen env scope s id mty_actual in
->>>>>>> ocaml/5.1
         let coercion, shape =
           try
             Includemod.modtypes_with_shape ~shape
@@ -2999,18 +2310,7 @@ type application_summary = {
   loc: Location.t;
   attributes: attributes;
   f_loc: Location.t; (* loc for F *)
-<<<<<<< HEAD
-  arg_is_syntactic_unit: bool;
-  arg: Typedtree.module_expr;
-  arg_path: Path.t option;
-  shape: Shape.t
-||||||| merged common ancestors
-  arg_is_syntactic_unit: bool;
-  arg: Typedtree.module_expr;
-  arg_path:Path.t option
-=======
   arg: argument_summary option (* None for () *)
->>>>>>> ocaml/5.1
 }
 
 let simplify_app_summary app_view = match app_view.arg with
@@ -3044,43 +2344,10 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       in
       let md =
         if alias && aliasable then
-<<<<<<< HEAD
           (Env.add_required_global path env; md)
         else begin
           let mty = Mtype.find_type_of_module
               ~strengthen:sttn ~aliasable env path
-||||||| merged common ancestors
-      if alias && aliasable then
-        (Env.add_required_global (Path.head path); md)
-      else begin
-        let mty =
-          if sttn then
-            Env.find_strengthened_module ~aliasable path env
-          else
-            (Env.find_module path env).md_type
-        in
-        match mty with
-        | Mty_alias p1 when not alias ->
-            let p1 = Env.normalize_module_path (Some smod.pmod_loc) env p1 in
-            let mty = Includemod.expand_module_alias
-                        ~strengthen:sttn env p1 in
-            { md with
-              mod_desc =
-                Tmod_constraint (md, mty, Tmodtype_implicit,
-                                 Tcoerce_alias (env, path, Tcoerce_none));
-              mod_type = mty }
-        | mty ->
-            { md with mod_type = mty }
-      end
-=======
-          (Env.add_required_global (Path.head path); md)
-        else begin
-          let mty =
-            if sttn then
-              Env.find_strengthened_module ~aliasable path env
-            else
-              (Env.find_module path env).md_type
->>>>>>> ocaml/5.1
           in
           match mty with
           | Mty_alias p1 when not alias ->
@@ -3141,13 +2408,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv,
           var, true
       in
-<<<<<<< HEAD
       let newenv = Env.add_escape_lock Module newenv in
       let newenv = Env.add_share_lock Module newenv in
-||||||| merged common ancestors
-      let body = type_module true funct_body None newenv sbody in
-=======
->>>>>>> ocaml/5.1
       let body, body_shape = type_module true funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
@@ -3155,14 +2417,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
         mod_attributes = smod.pmod_attributes;
         mod_loc = smod.pmod_loc },
       Shape.abs funct_shape_param body_shape
-<<<<<<< HEAD
-  | Pmod_apply _ ->
-||||||| merged common ancestors
-        mod_loc = smod.pmod_loc }
-  | Pmod_apply _ ->
-=======
   | Pmod_apply _ | Pmod_apply_unit _ ->
->>>>>>> ocaml/5.1
       type_application smod.pmod_loc sttn funct_body env smod
   | Pmod_constraint(sarg, smty) ->
       let arg, arg_shape = type_module ~alias true funct_body anchor env sarg in
@@ -3214,24 +2469,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
     match smod.pmod_desc with
-<<<<<<< HEAD
     | Pmod_apply(f, sarg) ->
-        let arg, shape = type_module true funct_body None env sarg in
-        let summary =
-          { loc=smod.pmod_loc;
-            attributes=smod.pmod_attributes;
-            f_loc = f.pmod_loc;
-            arg_is_syntactic_unit = sarg.pmod_desc = Pmod_structure [];
-||||||| merged common ancestors
-    | Pmod_apply(f, sarg) ->
-        let arg = type_module true funct_body None env sarg in
-        let summary =
-          { loc=smod.pmod_loc;
-            attributes=smod.pmod_attributes;
-            f_loc = f.pmod_loc;
-            arg_is_syntactic_unit = sarg.pmod_desc = Pmod_structure [];
-=======
-    | Pmod_apply (f, sarg) ->
         let arg, shape = type_module true funct_body None env sarg in
         let summary = {
           loc = smod.pmod_loc;
@@ -3239,17 +2477,9 @@ and type_application loc strengthen funct_body env smod =
           f_loc = f.pmod_loc;
           arg = Some {
             is_syntactic_unit = sarg.pmod_desc = Pmod_structure [];
->>>>>>> ocaml/5.1
             arg;
-<<<<<<< HEAD
-            arg_path = path_of_module arg;
-            shape
-||||||| merged common ancestors
-            arg_path = path_of_module arg
-=======
             path = path_of_module arg;
             shape;
->>>>>>> ocaml/5.1
           }
         } in
         extract_application funct_body env (summary::sargs) f
@@ -3265,18 +2495,9 @@ and type_application loc strengthen funct_body env smod =
   in
   let sfunct, args = extract_application funct_body env [] smod in
   let funct, funct_shape =
-<<<<<<< HEAD
-    let strengthen =
-      strengthen && List.for_all (fun {arg_path;_} -> arg_path <> None) args
-||||||| merged common ancestors
-  let funct =
-    let strengthen =
-      strengthen && List.for_all (fun {arg_path;_} -> arg_path <> None) args
-=======
     let has_path { arg } = match arg with
       | None | Some { path = None } -> false
       | Some { path = Some _ } -> true
->>>>>>> ocaml/5.1
     in
     let strengthen = strengthen && List.for_all has_path args in
     type_module strengthen funct_body None env sfunct
@@ -3285,17 +2506,8 @@ and type_application loc strengthen funct_body env smod =
     (funct, funct_shape) args
 
 and type_one_application ~ctx:(apply_loc,md_f,args)
-<<<<<<< HEAD
-    funct_body env (funct, funct_shape)  app_view =
-  match Mtype.scrape_alias env funct.mod_type with
-||||||| merged common ancestors
-and type_one_application ~ctx:(apply_loc,md_f,args) funct_body env funct
-    app_view =
-  match Env.scrape_alias env funct.mod_type with
-=======
     funct_body env (funct, funct_shape) app_view =
-  match Env.scrape_alias env funct.mod_type with
->>>>>>> ocaml/5.1
+  match Mtype.scrape_alias env funct.mod_type with
   | Mty_functor (Unit, mty_res) ->
       begin match app_view.arg with
         | None -> ()
@@ -3318,13 +2530,7 @@ and type_one_application ~ctx:(apply_loc,md_f,args) funct_body env funct
         mod_env = env;
         mod_attributes = app_view.attributes;
         mod_loc = funct.mod_loc },
-<<<<<<< HEAD
-      Shape.app funct_shape ~arg:app_view.shape
-||||||| merged common ancestors
-        mod_loc = funct.mod_loc }
-=======
       Shape.app funct_shape ~arg:Shape.dummy_mod
->>>>>>> ocaml/5.1
   | Mty_functor (Named (param, mty_param), mty_res) as mty_functor ->
       let apply_error () =
         let args = List.map simplify_app_summary args in
@@ -3363,17 +2569,9 @@ and type_one_application ~ctx:(apply_loc,md_f,args) funct_body env funct
                     "the signature of this functor application" mty_res;
                   try env, Mtype.nondep_supertype env [param] mty_res
                   with Ctype.Nondep_cannot_erase _ ->
-<<<<<<< HEAD
                     let error = Cannot_eliminate_dependency
                                   (Functor_applied, mty_functor) in
-                    raise (Error(app_view.loc, env, error))
-||||||| merged common ancestors
-                    let error = Cannot_eliminate_dependency mty_functor in
-                    raise (Error(app_view.loc, env, error))
-=======
-                    let error = Cannot_eliminate_dependency mty_functor in
                     raise (Error(app_loc, env, error))
->>>>>>> ocaml/5.1
             in
             begin match
               Includemod.modtypes
@@ -3395,19 +2593,10 @@ and type_one_application ~ctx:(apply_loc,md_f,args) funct_body env funct
       { mod_desc = Tmod_apply(funct, arg, coercion);
         mod_type = mty_appl;
         mod_env = env;
-<<<<<<< HEAD
-        mod_attributes = app_view.attributes;
-        mod_loc = app_view.loc },
-      Shape.app ~arg:app_view.shape funct_shape
-||||||| merged common ancestors
-        mod_attributes = app_view.attributes;
-        mod_loc = app_view.loc }
-=======
         mod_attributes = app_attributes;
         mod_loc = app_loc },
       Shape.app ~arg:arg_shape funct_shape
     end
->>>>>>> ocaml/5.1
   | Mty_alias path ->
       raise(Error(app_view.f_loc, env, Cannot_scrape_alias path))
   | _ ->
@@ -3483,7 +2672,6 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 and type_structure ?(toplevel = None) funct_body anchor env sstr =
   let names = Signature_names.create () in
 
-<<<<<<< HEAD
   let type_str_include ~functor_ ~loc env shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
@@ -3535,11 +2723,6 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     match Jane_syntax.Structure_item.of_ast item with
     | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
     | None ->
-||||||| merged common ancestors
-  let type_str_item env {pstr_loc = loc; pstr_desc = desc} =
-=======
-  let type_str_item env shape_map {pstr_loc = loc; pstr_desc = desc} =
->>>>>>> ocaml/5.1
     match desc with
     | Pstr_eval (sexpr, attrs) ->
         (* We restrict [Tstr_eval] expressions to representable jkinds to
@@ -3550,13 +2733,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             (fun () -> Typecore.type_representable_expression
                          ~why:Structure_item_expression env sexpr)
         in
-<<<<<<< HEAD
         Tstr_eval (expr, sort, attrs), [], shape_map, env
-||||||| merged common ancestors
-        Tstr_eval (expr, attrs), [], env
-=======
-        Tstr_eval (expr, attrs), [], shape_map, env
->>>>>>> ocaml/5.1
     | Pstr_value(rec_flag, sdefs) ->
         let force_toplevel =
           (* Values bound by '_' still escape in the toplevel, because
@@ -3572,7 +2749,6 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
           List.fold_left
-<<<<<<< HEAD
             (fun (acc, shape_map) (id, modes) ->
               List.iter
                 (fun (loc, mode, sort) ->
@@ -3589,24 +2765,13 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
               let vd = Subst.Lazy.force_value_description vd in
-              Env.register_uid vd.val_uid ~loc:vd.val_loc ~attributes:vd.val_attributes;
+              Env.register_uid vd.val_uid ~loc:vd.val_loc
+                ~attributes:vd.val_attributes;
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid
             )
             ([], shape_map)
             (let_bound_idents_with_modes_and_sorts defs)
-||||||| merged common ancestors
-=======
-            (fun (acc, shape_map) (id, { Asttypes.loc; _ }, _typ)->
-              Signature_names.check_value names loc id;
-              let vd =  Env.find_value (Pident id) newenv in
-              Env.register_uid vd.val_uid vd.val_loc;
-              Sig_value(id, vd, Exported) :: acc,
-              Shape.Map.add_value shape_map id vd.val_uid
-            )
-            ([], shape_map)
-            (let_bound_idents_full defs)
->>>>>>> ocaml/5.1
         in
         Tstr_value(rec_flag, defs),
         List.rev items,
@@ -3615,12 +2780,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     | Pstr_primitive sdesc ->
         let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in
         Signature_names.check_value names desc.val_loc desc.val_id;
-<<<<<<< HEAD
-        Env.register_uid desc.val_val.val_uid ~loc:desc.val_val.val_loc ~attributes:desc.val_val.val_attributes;
-||||||| merged common ancestors
-=======
-        Env.register_uid desc.val_val.val_uid desc.val_val.val_loc;
->>>>>>> ocaml/5.1
+        Env.register_uid desc.val_val.val_uid ~loc:desc.val_val.val_loc
+          ~attributes:desc.val_val.val_attributes;
         Tstr_primitive desc,
         [Sig_value(desc.val_id, desc.val_val, Exported)],
         Shape.Map.add_value shape_map desc.val_id desc.val_val.val_uid,
@@ -3632,25 +2793,14 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           decls;
         let items = map_rec_type_with_row_types ~rec_flag
           (fun rs info -> Sig_type(info.typ_id, info.typ_type, rs, Exported))
-<<<<<<< HEAD
           decls
         in
         let shape_map = List.fold_left
           (fun shape_map -> function
             | Sig_type (id, vd, _, _) ->
               if not (Btype.is_row_name (Ident.name id)) then begin
-                Env.register_uid vd.type_uid ~loc:vd.type_loc ~attributes:vd.type_attributes;
-||||||| merged common ancestors
-          decls [],
-=======
-          decls []
-        in
-        let shape_map = List.fold_left
-          (fun shape_map -> function
-            | Sig_type (id, vd, _, _) ->
-              if not (Btype.is_row_name (Ident.name id)) then begin
-                Env.register_uid vd.type_uid vd.type_loc;
->>>>>>> ocaml/5.1
+                Env.register_uid vd.type_uid ~loc:vd.type_loc
+                  ~attributes:vd.type_attributes;
                 Shape.Map.add_type shape_map id vd.type_uid
               end else shape_map
             | _ -> assert false
@@ -3669,28 +2819,15 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         let constructors = tyext.tyext_constructors in
         let shape_map = List.fold_left (fun shape_map ext ->
             Signature_names.check_typext names ext.ext_loc ext.ext_id;
-<<<<<<< HEAD
-            Env.register_uid ext.ext_type.ext_uid ~loc:ext.ext_loc ~attributes:ext.ext_attributes;
-||||||| merged common ancestors
-        List.iter
-          Signature_names.(fun ext -> check_typext names ext.ext_loc ext.ext_id)
-          constructors;
-=======
-            Env.register_uid ext.ext_type.ext_uid ext.ext_loc;
->>>>>>> ocaml/5.1
+            Env.register_uid ext.ext_type.ext_uid ~loc:ext.ext_loc
+              ~attributes:ext.ext_attributes;
             Shape.Map.add_extcons shape_map ext.ext_id ext.ext_type.ext_uid
           ) shape_map constructors
         in
         (Tstr_typext tyext,
          map_ext
            (fun es ext -> Sig_typext(ext.ext_id, ext.ext_type, es, Exported))
-<<<<<<< HEAD
            constructors,
-||||||| merged common ancestors
-           constructors [],
-=======
-           constructors [],
->>>>>>> ocaml/5.1
         shape_map,
          newenv)
     | Pstr_exception sext ->
@@ -3700,13 +2837,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           constructor.ext_id;
         Env.register_uid
           constructor.ext_type.ext_uid
-<<<<<<< HEAD
           ~loc:constructor.ext_loc
           ~attributes:constructor.ext_attributes;
-||||||| merged common ancestors
-=======
-          constructor.ext_loc;
->>>>>>> ocaml/5.1
         Tstr_exception ext,
         [Sig_typext(constructor.ext_id,
                     constructor.ext_type,
@@ -3742,12 +2874,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           }
         in
         let md_shape = Shape.set_uid_if_none md_shape md_uid in
-<<<<<<< HEAD
         Env.register_uid md_uid ~loc:pmb_loc ~attributes:attrs;
-||||||| merged common ancestors
-=======
-        Env.register_uid md_uid pmb_loc;
->>>>>>> ocaml/5.1
         (*prerr_endline (Ident.unique_toplevel_name id);*)
         Mtype.lower_nongen outer_scope md.md_type;
         let id, newenv, sg =
@@ -3845,14 +2972,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         let shape_map =
           List.fold_left (fun map (id, mb, uid, shape) ->
-<<<<<<< HEAD
             Env.register_uid uid ~loc:mb.mb_loc ~attributes:mb.mb_attributes;
-||||||| merged common ancestors
-        Tstr_recmodule (List.map fst bindings2),
-        map_rec (fun rs (id, mb, uid) ->
-=======
-            Env.register_uid uid mb.mb_loc;
->>>>>>> ocaml/5.1
             Shape.Map.add_module map id shape
           ) shape_map mbs
         in
@@ -3871,13 +2991,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         (* check that it is non-abstract *)
         let newenv, mtd, decl = transl_modtype_decl env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
-<<<<<<< HEAD
-        Env.register_uid decl.mtd_uid ~loc:decl.mtd_loc ~attributes:decl.mtd_attributes;
-||||||| merged common ancestors
-        Tstr_modtype mtd, [sg], newenv
-=======
-        Env.register_uid decl.mtd_uid decl.mtd_loc;
->>>>>>> ocaml/5.1
+        Env.register_uid decl.mtd_uid ~loc:decl.mtd_loc
+          ~attributes:decl.mtd_attributes;
         let id = mtd.mtd_id in
         let map = Shape.Map.add_module_type shape_map id decl.mtd_uid in
         Tstr_modtype mtd, [Sig_modtype (id, decl, Exported)], map, newenv
@@ -3895,30 +3010,12 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             Signature_names.check_class names loc cls.cls_id;
             Signature_names.check_class_type names loc cls.cls_ty_id;
             Signature_names.check_type names loc cls.cls_obj_id;
-<<<<<<< HEAD
-            Signature_names.check_type names loc cls.cls_typesharp_id;
-            Env.register_uid cls.cls_decl.cty_uid ~loc ~attributes:cls.cls_decl.cty_attributes;
+            Env.register_uid cls.cls_decl.cty_uid ~loc
+              ~attributes:cls.cls_decl.cty_attributes;
             let map f id acc = f acc id cls.cls_decl.cty_uid in
             map Shape.Map.add_class cls.cls_id acc
             |> map Shape.Map.add_class_type cls.cls_ty_id
             |> map Shape.Map.add_type cls.cls_obj_id
-            |> map Shape.Map.add_type cls.cls_typesharp_id
-||||||| merged common ancestors
-        List.iter (fun cls ->
-          let open Typeclass in
-          let loc = cls.cls_id_loc.Location.loc in
-          Signature_names.check_class names loc cls.cls_id;
-          Signature_names.check_class_type names loc cls.cls_ty_id;
-          Signature_names.check_type names loc cls.cls_obj_id;
-          Signature_names.check_type names loc cls.cls_typesharp_id;
-        ) classes;
-=======
-            Env.register_uid cls.cls_decl.cty_uid loc;
-            let map f id acc = f acc id cls.cls_decl.cty_uid in
-            map Shape.Map.add_class cls.cls_id acc
-            |> map Shape.Map.add_class_type cls.cls_ty_id
-            |> map Shape.Map.add_type cls.cls_obj_id
->>>>>>> ocaml/5.1
           ) shape_map classes
         in
         Tstr_class
@@ -3943,29 +3040,12 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             let loc = decl.clsty_id_loc.Location.loc in
             Signature_names.check_class_type names loc decl.clsty_ty_id;
             Signature_names.check_type names loc decl.clsty_obj_id;
-<<<<<<< HEAD
-            Signature_names.check_type names loc decl.clsty_typesharp_id;
             Env.register_uid decl.clsty_ty_decl.clty_uid
               ~loc
               ~attributes:decl.clsty_ty_decl.clty_attributes;
             let map f id acc = f acc id decl.clsty_ty_decl.clty_uid in
             map Shape.Map.add_class_type decl.clsty_ty_id acc
             |> map Shape.Map.add_type decl.clsty_obj_id
-            |> map Shape.Map.add_type decl.clsty_typesharp_id
-||||||| merged common ancestors
-        List.iter (fun decl ->
-          let open Typeclass in
-          let loc = decl.clsty_id_loc.Location.loc in
-          Signature_names.check_class_type names loc decl.clsty_ty_id;
-          Signature_names.check_type names loc decl.clsty_obj_id;
-          Signature_names.check_type names loc decl.clsty_typesharp_id;
-        ) classes;
-=======
-            Env.register_uid decl.clsty_ty_decl.clty_uid loc;
-            let map f id acc = f acc id decl.clsty_ty_decl.clty_uid in
-            map Shape.Map.add_class_type decl.clsty_ty_id acc
-            |> map Shape.Map.add_type decl.clsty_obj_id
->>>>>>> ocaml/5.1
           ) shape_map classes
         in
         Tstr_class_type
@@ -3985,119 +3065,37 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         shape_map,
         new_env
     | Pstr_include sincl ->
-<<<<<<< HEAD
         type_str_include ~functor_:false ~loc env shape_map sincl sig_acc
-||||||| merged common ancestors
-        let smodl = sincl.pincl_mod in
-        let modl =
-          Builtin_attributes.warning_scope sincl.pincl_attributes
-            (fun () -> type_module true funct_body None env smodl)
-        in
-        let scope = Ctype.create_scope () in
-        (* Rename all identifiers bound by this signature to avoid clashes *)
-        let sg, new_env = Env.enter_signature ~scope
-            (extract_sig_open env smodl.pmod_loc modl.mod_type) env in
-        Signature_group.iter (Signature_names.check_sig_item names loc) sg;
-        let incl =
-          { incl_mod = modl;
-            incl_type = sg;
-            incl_attributes = sincl.pincl_attributes;
-            incl_loc = sincl.pincl_loc;
-          }
-        in
-        Tstr_include incl, sg, new_env
-=======
-        let smodl = sincl.pincl_mod in
-        let modl, modl_shape =
-          Builtin_attributes.warning_scope sincl.pincl_attributes
-            (fun () -> type_module true funct_body None env smodl)
-        in
-        let scope = Ctype.create_scope () in
-        (* Rename all identifiers bound by this signature to avoid clashes *)
-        let sg, shape, new_env =
-          Env.enter_signature_and_shape ~scope ~parent_shape:shape_map
-            modl_shape (extract_sig_open env smodl.pmod_loc modl.mod_type) env
-        in
-        Signature_group.iter (Signature_names.check_sig_item names loc) sg;
-        let incl =
-          { incl_mod = modl;
-            incl_type = sg;
-            incl_attributes = sincl.pincl_attributes;
-            incl_loc = sincl.pincl_loc;
-          }
-        in
-        Tstr_include incl, sg, shape, new_env
->>>>>>> ocaml/5.1
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
-<<<<<<< HEAD
     | Pstr_attribute attr ->
         Builtin_attributes.parse_standard_implementation_attributes attr;
         Builtin_attributes.mark_alert_used attr;
         Tstr_attribute attr, [], shape_map, env
-||||||| merged common ancestors
-    | Pstr_attribute x ->
-        Builtin_attributes.warning_attribute x;
-        Tstr_attribute x, [], env
-=======
-    | Pstr_attribute x ->
-        Builtin_attributes.warning_attribute x;
-        Tstr_attribute x, [], shape_map, env
->>>>>>> ocaml/5.1
   in
-<<<<<<< HEAD
   let toplevel_sig = Option.value toplevel ~default:[] in
-  let rec type_struct env shape_map sstr str_acc sig_acc sig_acc_include_functor =
-||||||| merged common ancestors
-  let rec type_struct env sstr =
-=======
-  let rec type_struct env shape_map sstr =
->>>>>>> ocaml/5.1
+  let rec type_struct env shape_map sstr str_acc sig_acc
+            sig_acc_include_functor =
     match sstr with
-<<<<<<< HEAD
     | [] ->
       (List.rev str_acc, List.rev sig_acc, shape_map, env)
-||||||| merged common ancestors
-    | [] -> ([], [], env)
-=======
-    | [] -> ([], [], shape_map, env)
->>>>>>> ocaml/5.1
     | pstr :: srem ->
         let previous_saved_types = Cmt_format.get_saved_types () in
-<<<<<<< HEAD
-        let desc, sg, shape_map, new_env = type_str_item env shape_map pstr sig_acc_include_functor in
-||||||| merged common ancestors
-        let desc, sg, new_env = type_str_item env pstr in
-=======
-        let desc, sg, shape_map, new_env = type_str_item env shape_map pstr in
->>>>>>> ocaml/5.1
+        let desc, sg, shape_map, new_env =
+          type_str_item env shape_map pstr sig_acc_include_functor
+        in
         let str = { str_desc = desc; str_loc = pstr.pstr_loc; str_env = env } in
         Cmt_format.set_saved_types (Cmt_format.Partial_structure_item str
                                     :: previous_saved_types);
-<<<<<<< HEAD
-        type_struct new_env shape_map srem (str :: str_acc) (List.rev_append sg sig_acc)
+        type_struct new_env shape_map srem (str :: str_acc)
+          (List.rev_append sg sig_acc)
           (List.rev_append sg sig_acc_include_functor)
-||||||| merged common ancestors
-        let (str_rem, sig_rem, final_env) = type_struct new_env srem in
-        (str :: str_rem, sg @ sig_rem, final_env)
-=======
-        let (str_rem, sig_rem, shape_map, final_env) =
-          type_struct new_env shape_map srem
-        in
-        (str :: str_rem, sg @ sig_rem, shape_map, final_env)
->>>>>>> ocaml/5.1
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
   let run () =
-<<<<<<< HEAD
-    let (items, sg, shape_map, final_env) = type_struct env Shape.Map.empty sstr [] [] toplevel_sig in
-||||||| merged common ancestors
-    let (items, sg, final_env) = type_struct env sstr in
-=======
     let (items, sg, shape_map, final_env) =
-      type_struct env Shape.Map.empty sstr
+      type_struct env Shape.Map.empty sstr [] [] toplevel_sig
     in
->>>>>>> ocaml/5.1
     let str = { str_items = items; str_type = sg; str_final_env = final_env } in
     Cmt_format.set_saved_types
       (Cmt_format.Partial_structure str :: previous_saved_types);
@@ -4121,7 +3119,6 @@ let remove_mode_and_jkind_variables_for_toplevel str =
 
 let type_toplevel_phrase env sig_acc s =
   Env.reset_required_globals ();
-<<<<<<< HEAD
   Env.reset_probes ();
   Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, shape, env) =
@@ -4130,13 +3127,6 @@ let type_toplevel_phrase env sig_acc s =
   remove_mode_and_jkind_variables_for_toplevel str;
   Typecore.optimise_allocations ();
   (str, sg, to_remove_from_sg, shape, env)
-||||||| merged common ancestors
-  let (str, sg, to_remove_from_sg, env) =
-    type_structure ~toplevel:true false None env s in
-  (str, sg, to_remove_from_sg, env)
-=======
-  type_structure ~toplevel:true false None env s
->>>>>>> ocaml/5.1
 
 let type_module_alias = type_module ~alias:true true false None
 let type_module = type_module true false None
@@ -4177,15 +3167,7 @@ let type_module_type_of env smod =
   in
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
   (* PR#5036: must not contain non-generalized type variables *)
-<<<<<<< HEAD
-  if nongen_modtype env Ctype.nongen_schema mty then
-    raise(Error(smod.pmod_loc, env, Non_generalizable_module mty));
-||||||| merged common ancestors
-  if nongen_modtype env mty then
-    raise(Error(smod.pmod_loc, env, Non_generalizable_module mty));
-=======
   check_nongen_modtype env smod.pmod_loc mty;
->>>>>>> ocaml/5.1
   tmty, mty
 
 (* For Typecore *)
@@ -4228,24 +3210,8 @@ let lookup_type_in_sig sg =
 
 let type_package env m p fl =
   (* Same as Pexp_letmodule *)
-<<<<<<< HEAD
   (* remember original level *)
   let outer_scope = Ctype.get_current_level () in
-  Ctype.begin_def ();
-  let modl, scope = Typetexp.TyVarEnv.with_local_scope begin fun () ->
-    let modl, _mod_shape = type_module env m in
-    let scope = Ctype.create_scope () in
-    modl, scope
-  end in
-  Mtype.lower_nongen outer_scope modl.mod_type;
-||||||| merged common ancestors
-  (* remember original level *)
-  Ctype.begin_def ();
-  let context = Typetexp.narrow () in
-  let modl = type_module env m in
-  let scope = Ctype.create_scope () in
-  Typetexp.widen context;
-=======
   let modl, scope =
     Typetexp.TyVarEnv.with_local_scope begin fun () ->
       (* type the module and create a scope in a raised level *)
@@ -4256,7 +3222,7 @@ let type_package env m p fl =
       end
     end
   in
->>>>>>> ocaml/5.1
+  Mtype.lower_nongen outer_scope modl.mod_type;
   let fl', env =
     match fl with
     | [] -> [], env
@@ -4348,31 +3314,17 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
       let (str, sg, names, shape, finalenv) =
-<<<<<<< HEAD
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
       let shape =
         Shape.set_uid_if_none shape
           (Uid.of_compilation_unit_id modulename)
-||||||| merged common ancestors
-      let (str, sg, names, finalenv) =
-        type_structure initial_env ast in
-=======
-        type_structure initial_env ast in
-      let shape =
-        Shape.set_uid_if_none shape
-          (Uid.of_compilation_unit_id (Ident.create_persistent modulename))
->>>>>>> ocaml/5.1
       in
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
         Typecore.force_delayed_checks ();
-<<<<<<< HEAD
         Typecore.optimise_allocations ();
-||||||| merged common ancestors
-=======
->>>>>>> ocaml/5.1
         let shape = Shape.local_reduce shape in
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
@@ -4387,59 +3339,31 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       end else begin
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
-<<<<<<< HEAD
-        if Sys.file_exists sourceintf then begin
-          let basename = modulename |> Compilation_unit.name_as_string in
-||||||| merged common ancestors
-        if Sys.file_exists sourceintf then begin
-=======
         if !Clflags.cmi_file <> None || Sys.file_exists sourceintf then begin
->>>>>>> ocaml/5.1
           let intf_file =
-<<<<<<< HEAD
-            try
-              Load_path.find_uncap (basename ^ ".cmi")
-            with Not_found ->
-              raise(Error(Location.in_file sourcefile, Env.empty,
-                          Interface_not_compiled sourceintf)) in
-          let dclsig =
-            Env.read_signature modulename intf_file ~add_binding:false in
-          let coercion, shape =
-            Profile.record_call "check_sig" (fun () ->
-              Includemod.compunit initial_env ~mark:Mark_positive
-                sourcefile sg intf_file dclsig shape)
-||||||| merged common ancestors
-            try
-              Load_path.find_uncap (modulename ^ ".cmi")
-            with Not_found ->
-              raise(Error(Location.in_file sourcefile, Env.empty,
-                          Interface_not_compiled sourceintf)) in
-          let dclsig = Env.read_signature modulename intf_file in
-          let coercion =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg intf_file dclsig
-=======
             match !Clflags.cmi_file with
             | None ->
+              let basename = modulename |> Compilation_unit.name_as_string in
               (try
-                Load_path.find_uncap (modulename ^ ".cmi")
+                Load_path.find_uncap (basename ^ ".cmi")
               with Not_found ->
                 raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
-          let dclsig = Env.read_signature modulename intf_file in
+          let dclsig =
+            Env.read_signature modulename intf_file ~add_binding:false
+          in
           let coercion, shape =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg intf_file dclsig shape
->>>>>>> ocaml/5.1
+            Profile.record_call "check_sig" (fun () ->
+              Includemod.compunit initial_env ~mark:Mark_positive
+                sourcefile sg intf_file dclsig shape)
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
-<<<<<<< HEAD
           Profile.record_call "save_cmt" (fun () ->
             let shape = Shape.local_reduce shape in
             let annots = Cmt_format.Implementation str in
@@ -4448,18 +3372,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             Cms_format.save_cms (outputprefix ^ ".cms") modulename
               (Some sourcefile) (Some shape);
             gen_annot outputprefix sourcefile annots);
-||||||| merged common ancestors
-          let annots = Cmt_format.Implementation str in
-          Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
-            annots (Some sourcefile) initial_env None;
-          gen_annot outputprefix sourcefile annots;
-=======
-          let shape = Shape.local_reduce shape in
-          let annots = Cmt_format.Implementation str in
-          Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
-            annots (Some sourcefile) initial_env None (Some shape);
-          gen_annot outputprefix sourcefile annots;
->>>>>>> ocaml/5.1
           { structure = str;
             coercion;
             shape;
@@ -4469,18 +3381,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
-<<<<<<< HEAD
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
                 sourcefile sg "(inferred signature)" simple_sg shape)
-||||||| merged common ancestors
-          let coercion =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg "(inferred signature)" simple_sg
-=======
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg "(inferred signature)" simple_sg shape
->>>>>>> ocaml/5.1
           in
           check_nongen_signature finalenv simple_sg;
           normalize_signature simple_sg;
@@ -4498,7 +3401,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                 Env.save_signature ~alerts
                   simple_sg modulename (outputprefix ^ ".cmi"))
             in
-<<<<<<< HEAD
             Profile.record_call "save_cmt" (fun () ->
               let annots = Cmt_format.Implementation str in
               Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
@@ -4506,17 +3408,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               Cms_format.save_cms  (outputprefix ^ ".cms") modulename
                 (Some sourcefile) (Some shape);
               gen_annot outputprefix sourcefile annots)
-||||||| merged common ancestors
-            let annots = Cmt_format.Implementation str in
-            Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-              annots (Some sourcefile) initial_env (Some cmi);
-            gen_annot outputprefix sourcefile annots
-=======
-            let annots = Cmt_format.Implementation str in
-            Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-              annots (Some sourcefile) initial_env (Some cmi) (Some shape);
-            gen_annot outputprefix sourcefile annots
->>>>>>> ocaml/5.1
           end;
           { structure = str;
             coercion;
@@ -4527,7 +3418,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       end
     )
     ~exceptionally:(fun () ->
-<<<<<<< HEAD
         Profile.record_call "save_cmt" (fun () ->
           let annots =
             Cmt_format.Partial_implementation
@@ -4538,36 +3428,13 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           Cms_format.save_cms  (outputprefix ^ ".cms") modulename
             (Some sourcefile) None;
           gen_annot outputprefix sourcefile annots)
-||||||| merged common ancestors
-        let annots =
-          Cmt_format.Partial_implementation
-            (Array.of_list (Cmt_format.get_saved_types ()))
-        in
-        Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-          annots (Some sourcefile) initial_env None;
-        gen_annot outputprefix sourcefile annots
-=======
-        let annots =
-          Cmt_format.Partial_implementation
-            (Array.of_list (Cmt_format.get_saved_types ()))
-        in
-        Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-          annots (Some sourcefile) initial_env None None;
-        gen_annot outputprefix sourcefile annots
->>>>>>> ocaml/5.1
       )
 
 let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
-<<<<<<< HEAD
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None;
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
-||||||| merged common ancestors
-    (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
-=======
-    (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
->>>>>>> ocaml/5.1
 
 let type_interface env ast =
   transl_signature env ast
@@ -4622,14 +3489,7 @@ let package_units initial_env objfiles cmifile modulename =
          let sg =
            Env.read_signature modname (pref ^ ".cmi") ~add_binding:false in
          if Filename.check_suffix f ".cmi" &&
-<<<<<<< HEAD
-            not(Mtype.no_code_needed_sig (Lazy.force Env.initial_safe_string)
-                  sg)
-||||||| merged common ancestors
-            not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
-=======
-            not(Mtype.no_code_needed_sig Env.initial sg)
->>>>>>> ocaml/5.1
+            not(Mtype.no_code_needed_sig (Lazy.force Env.initial) sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
@@ -4640,17 +3500,10 @@ let package_units initial_env objfiles cmifile modulename =
   let sg = package_signatures units in
   (* Compute the shape of the package *)
   let prefix = Filename.remove_extension cmifile in
-<<<<<<< HEAD
   let pack_uid = Uid.of_compilation_unit_id modulename in
   let shape =
     List.fold_left (fun map (name, _sg) ->
       let name = Compilation_unit.Name.to_string name in
-||||||| merged common ancestors
-=======
-  let pack_uid = Uid.of_compilation_unit_id (Ident.create_persistent prefix) in
-  let shape =
-    List.fold_left (fun map (name, _sg) ->
->>>>>>> ocaml/5.1
       let id = Ident.create_persistent name in
       Shape.Map.add_module map id (Shape.for_persistent_unit name)
     ) Shape.Map.empty units
@@ -4663,28 +3516,15 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-<<<<<<< HEAD
     let dclsig = Env.read_signature modulename cmifile ~add_binding:false in
-||||||| merged common ancestors
-    let dclsig = Env.read_signature modulename cmifile in
-=======
-    let dclsig = Env.read_signature modulename cmifile in
->>>>>>> ocaml/5.1
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
     in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
-<<<<<<< HEAD
     Cms_format.save_cms  (prefix ^ ".cms") modulename
       None (Some shape);
-||||||| merged common ancestors
-      (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
-    Includemod.compunit initial_env ~mark:Mark_both
-      "(obtained by packing)" sg mlifile dclsig
-=======
->>>>>>> ocaml/5.1
     cc
   end else begin
     (* Determine imports *)
@@ -4703,18 +3543,10 @@ let package_units initial_env objfiles cmifile modulename =
       in
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
-<<<<<<< HEAD
         (Cmt_format.Packed (sign, objfiles)) None initial_env
         (Some cmi) (Some shape);
       Cms_format.save_cms (prefix ^ ".cms")  modulename
         None (Some shape);
-||||||| merged common ancestors
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
-        (Some cmi)
-=======
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
-        (Some cmi) (Some shape);
->>>>>>> ocaml/5.1
     end;
     Tcoerce_none
   end

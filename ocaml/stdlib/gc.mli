@@ -463,6 +463,13 @@ external eventlog_resume : unit -> unit = "caml_eventlog_resume"
    notice. *)
 module Memprof :
   sig
+(* BACKPORT BEGIN
+    type t
+*)
+    type t = unit
+(* BACKPORT END *)
+    (** the type of a profile *)
+
     type allocation_source = Normal | Marshal | Custom
     type allocation = private
       { n_samples : int;

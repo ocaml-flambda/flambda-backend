@@ -607,6 +607,16 @@ external re_search_forward: regexp -> string -> int -> int array
 external re_search_backward: regexp -> string -> int -> int array
      = "re_search_backward"
 
+module Domain = struct
+  module DLS = struct
+
+    (* CR ocaml 5 runtime: Remove this proxy and use the real Domain.DLS *)
+    let[@inline always] new_key f = ref (f ())
+    let[@inline always] set k s = k := s
+    let[@inline always] get k = !k
+  end
+end
+
 let last_search_result_key = Domain.DLS.new_key (fun () -> [||])
 
 let string_match re s pos =

@@ -91,69 +91,14 @@ let eval_value_path env path =
 
 (* Install, remove a printer (as in toplevel/topdirs) *)
 
-<<<<<<< HEAD
-(* since 4.00, "topdirs.cmi" is not in the same directory as the standard
-  library, so we load it beforehand as it cannot be found in the search path. *)
-let init () =
-  let topdirs =
-    Filename.concat !Parameters.topdirs_path "topdirs.cmi" in
-  let topdirs_unit = "Topdirs" |> Compilation_unit.of_string in
-  ignore (Env.read_signature topdirs_unit topdirs ~add_binding:true)
-
-let match_printer_type desc typename =
-  let printer_type =
-    match
-      Env.find_type_by_name
-        (Ldot(Lident "Topdirs", typename)) (Lazy.force Env.initial_safe_string)
-    with
-    | path, _ -> path
-    | exception Not_found ->
-        raise (Error(Unbound_identifier(Ldot(Lident "Topdirs", typename))))
-  in
-  Ctype.begin_def();
-  let ty_arg = Ctype.newvar Jkind.(value ~why:Debug_printer_argument) in
-  Ctype.unify (Lazy.force Env.initial_safe_string)
-    (Ctype.newconstr printer_type [ty_arg])
-    (Ctype.instance desc.val_type);
-  Ctype.end_def();
-  Ctype.generalize ty_arg;
-  ty_arg
-||||||| merged common ancestors
-(* since 4.00, "topdirs.cmi" is not in the same directory as the standard
-  library, so we load it beforehand as it cannot be found in the search path. *)
-let init () =
-  let topdirs =
-    Filename.concat !Parameters.topdirs_path "topdirs.cmi" in
-  ignore (Env.read_signature "Topdirs" topdirs)
-
-let match_printer_type desc typename =
-  let printer_type =
-    match
-      Env.find_type_by_name
-        (Ldot(Lident "Topdirs", typename)) Env.empty
-    with
-    | path, _ -> path
-    | exception Not_found ->
-        raise (Error(Unbound_identifier(Ldot(Lident "Topdirs", typename))))
-  in
-  Ctype.begin_def();
-  let ty_arg = Ctype.newvar() in
-  Ctype.unify Env.empty
-    (Ctype.newconstr printer_type [ty_arg])
-    (Ctype.instance desc.val_type);
-  Ctype.end_def();
-  Ctype.generalize ty_arg;
-  ty_arg
-=======
 let match_printer_type desc make_printer_type =
   Ctype.with_local_level ~post:Ctype.generalize begin fun () ->
-    let ty_arg = Ctype.newvar() in
+    let ty_arg = Ctype.newvar Jkind.(value ~why:Debug_printer_argument) in
     Ctype.unify Env.empty
       (make_printer_type ty_arg)
       (Ctype.instance desc.val_type);
     ty_arg
   end
->>>>>>> ocaml/5.1
 
 let find_printer_type lid =
   match Env.find_value_by_name lid Env.empty with

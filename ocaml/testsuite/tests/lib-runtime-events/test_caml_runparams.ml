@@ -1,6 +1,8 @@
 (* TEST
 include runtime_events
 ocamlrunparam += ",e=4"
+* skip
+reason = "OCaml 5 only"
 *)
 
 (* We set the ring buffer size smaller and witness that we do indeed

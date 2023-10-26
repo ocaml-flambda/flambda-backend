@@ -1,16 +1,11 @@
 (* TEST
 
 include systhreads
-* hassysthreads
-<<<<<<< HEAD
-** not-windows
+* skip
+reason = "OCaml 5 only"
+** hassysthreads
 *** bytecode
 *** native
-||||||| merged common ancestors
-=======
-** bytecode
-** native
->>>>>>> ocaml/5.1
 
 *)
 

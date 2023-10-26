@@ -7414,18 +7414,11 @@ let test = function
 
 let test = function
   | (`A | `B) as x | `C -> ()
-<<<<<<< HEAD
 
 (* Punning of labelled function argument with type constraint *)
 let g y =
   let f ~y = y + 1 in
   f ~(y:int)
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-||||||||| 24dbb0976a
-=========
-=======
->>>>>>> ocaml/5.1
 
 (* Let-punning *)
 module M = struct
@@ -7455,10 +7448,6 @@ let g y =
   f ~(y:int)
 
 let goober a = match a with C (type a b) y -> y
-<<<<<<< HEAD
-||||||| merged common ancestors
->>>>>>>>> Temporary merge branch 2
-=======
 
 
 (** With constraints *)
@@ -7471,4 +7460,3 @@ module type s = sig type ('a,'b) t end with type ('a,'b) t := 'b -> 'a list
 
 let x: [`A] :> [> `A | `B ] = `A
 let x :> [> `A | `B ] = `A
->>>>>>> ocaml/5.1

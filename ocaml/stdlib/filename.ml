@@ -333,11 +333,28 @@ let remove_extension name =
 external open_desc: string -> open_flag list -> int -> int = "caml_sys_open"
 external close_desc: int -> unit = "caml_sys_close"
 
+(* CR ocaml 5 runtime:
+   BACKPORT BEGIN
 let prng_key =
   Domain.DLS.new_key Random.State.make_self_init
+*)
+let prng_key = ref (lazy(Random.State.make_self_init ()))
+(* BACKPORT END *)
+
+(* BACKPORT BEGIN *)
+module Domain = struct
+  module DLS = struct
+    let new_key ~split_from_parent:_ f =
+      ref (f ())
+
+    let get = (!)
+    let set = (:=)
+  end
+end
+(* BACKPORT END *)
 
 let temp_file_name temp_dir prefix suffix =
-  let random_state = Domain.DLS.get prng_key in
+  let random_state = Lazy.force (Domain.DLS.get prng_key) in
   let rnd = (Random.State.bits random_state) land 0xFFFFFF in
   concat temp_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix)
 

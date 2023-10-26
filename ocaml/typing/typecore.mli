@@ -111,8 +111,9 @@ type existential_restriction =
   | In_self_pattern (** or in self pattern *)
 
 type module_patterns_restriction =
-  | Modules_allowed of { scope : int }
+  | Modules_allowed of { scope: int }
   | Modules_rejected
+  | Modules_ignored
 
 val type_binding:
         Env.t -> rec_flag ->
@@ -137,7 +138,7 @@ val type_self_pattern:
         Env.t -> Parsetree.pattern ->
         Typedtree.pattern * pattern_variable list
 val check_partial:
-        ?lev:int -> module_patterns_restriction -> Env.t -> type_expr ->
+        ?lev:int -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
         Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression

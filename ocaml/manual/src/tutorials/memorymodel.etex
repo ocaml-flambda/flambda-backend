@@ -25,7 +25,7 @@ can be explained through some interleaving of the operations from different
 domains in the program. For example, consider the following program with two
 domains "d1" and "d2" executing in parallel:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let d1 a b =
   let r1 = !a * 2 in
   let r2 = !b in
@@ -52,7 +52,7 @@ of the operations from different domains.
 
 Let us now assume that "a" and "b" are aliases of each other.
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let d1 a b =
   let r1 = !a * 2 in
   let r2 = !b in
@@ -83,7 +83,7 @@ Surprisingly, this assertion may fail in OCaml due to compiler optimisations.
 The OCaml compiler observes the common sub-expression "!a * 2" in "d1" and
 optimises the program to:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let d1 a b =
   let r1 = !a * 2 in
   let r2 = !b in
@@ -138,7 +138,7 @@ location respect sequential consistency, the guarantees on programs that
 operate on different memory locations are much weaker. Consider the following
 program:
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let a = ref 0
 and b = ref 0
 
@@ -660,7 +660,7 @@ B: 5,  [a -> t2; b -> t4; c -> t6]
 
 Let us revisit an example from earlier (section \ref{s:why_relaxed_memory}).
 
-\begin{caml_example*}{verbatim}
+\begin{caml_example*}{verbatim}[error]
 let a = ref 0
 and b = ref 0
 

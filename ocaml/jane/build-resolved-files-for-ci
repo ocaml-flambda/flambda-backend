@@ -59,7 +59,20 @@ dune_targets=$(
     echo _build/default/.ocamloptcomp.objs/byte/$cmi.cmi
   done
 )
-
+mlis=$(
+  { echo debugger/*.mli
+  } |
+    tr ' ' '\n'
+)
+echo "$mlis"
+dune_targets=$(
+  echo $dune_targets
+  for mli in $mlis; do
+    basename=$(basename ${mli%.mli})
+    cmi=ocamldebug__$(echo $basename | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
+    echo _build/default/debugger/.ocamldebug.objs/byte/$cmi.cmi
+  done
+)
 echo "Dune targets:"
 echo "$dune_targets"
 dune b --workspace=duneconf/boot.ws $dune_targets
@@ -71,22 +84,31 @@ echo "==========="
 typing_mls=(
   ctype
   datarepr
+  env
   includecore
   includemod
+  jkind
   mtype
   oprint
   parmatch
   path
   persistent_env
   predef
+  printtyp
   printtyped
   shape
   subst
   tast_iterator
   tast_mapper
+  typeclass
+  typedecl
+  typecore
   typedecl_variance
   typedtree
-  types)
+  types
+  typetexp
+  typemod
+  uniqueness_analysis)
 
 # ocamlcommon mls
 mls=$(
@@ -103,7 +125,6 @@ mls=$(
     grep -v "utils/config.common.ml" |
     grep -v "utils/config.fixed.ml" |
     grep -v "utils/config.generated.ml" |
-    grep -v "lambda/matching.ml" | # need Obj.forcing_tag in stdlib
     cat;
 )
 echo "$mls"
@@ -131,6 +152,21 @@ dune_targets=$(
   done
 )
 
+# toplevel
+dune_targets=$(
+  echo "$dune_targets"
+  for cmt in genprintval topcommon topdirs topeval toploop topmain topprinters trace; do
+    echo _build/default/toplevel/byte/.ocamltoplevel.objs/byte/$cmt.cmt{,i}
+    echo _build/default/toplevel/native/.ocamltoplevel_native.objs/byte/$cmt.cmt{,i}
+  done
+  echo _build/default/toplevel/native/.ocamltoplevel_native.objs/byte/tophooks.cmt{,i}
+  for cmt in topstart; do
+    echo _build/default/toplevel/native/.topstart.eobjs/byte/$cmt.cmt{,i}
+    echo _build/default/toplevel/.topstart.eobjs/byte/$cmt.cmt{,i}
+  done
+  echo _build/default/toplevel/.expunge.eobjs/byte/expunge.cmt{,i}
+)
+
 # ocamloptcomp mls
 mls=$(
   { echo middle_end/{,closure,flambda}/*.ml
@@ -149,6 +185,81 @@ dune_targets=$(
     echo _build/default/.ocamloptcomp.objs/native/$cmx.cmx
   done
 )
+
+#ocamldoc
+ocamldoc=_build/default/ocamldoc/.odoc_lib.objs/
+mls=$(
+  GLOBIGNORE="ocamldoc/odoc.ml"
+  echo ocamldoc/*.ml |
+    tr ' ' '\n'
+  unset GLOBIGNORE
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/ocamldoc/.odoc_lib.objs/native/$cmx.cmx
+    echo _build/default/ocamldoc/.odoc_lib.objs/byte/$cmx.cmi
+  done
+  echo _build/default/ocamldoc/.odoc_native.eobjs/byte/odoc_native.cmi
+  echo _build/default/ocamldoc/.odoc_byte.eobjs/byte/odoc_byte.cmi
+  echo _build/default/ocamldoc/.odoc_native.eobjs/native/odoc_native.cmx
+  echo _build/default/ocamldoc/.odoc_byte.eobjs/native/odoc_byte.cmx
+)
+
+mls=$(
+  { echo debugger/*.ml
+  } |
+    tr ' ' '\n' |
+    grep -v ocamldebug_entry
+)
+echo "$mls"
+dune_targets=$(
+  echo $dune_targets
+  for ml in $mls; do
+    basename=$(basename ${ml%.ml})
+    cmx=ocamldebug__$(echo $basename | awk '{for (i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
+    echo _build/default/debugger/.ocamldebug.objs/native/$cmx.cmx
+  done
+)
+
+# tools
+dune_targets=$(
+  echo "$dune_targets"
+  cmxes_and_dirs="\
+    objinfo .objinfo.eobjs
+    make_opcodes .make_opcodes.eobjs
+    cvt_emit .make_opcodes.eobjs
+    ocamldep .ocamldep.eobjs
+    cmpbyt .cmpbyt.eobjs
+    ocamlmklib .ocamlmklib.eobjs
+    ocamlmktop .ocamlmktop.eobjs
+    debug_printers .debug_printers.objs
+    opnames .opnames.objs"
+  # omit dumpobj because it uses new opcodes, e.g. perform
+  echo "$cmxes_and_dirs" | while read cmx dir; do
+    echo _build/default/tools/$dir/native/$cmx.cmx
+  done
+)
+
+dune_targets=$(
+  echo "$dune_targets"
+  mls="dynlink dynlink_common dynlink_platform_intf dynlink_types"
+  for ml in $mls; do
+    echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/native/$ml.cmx;
+    echo _build/default/otherlibs/dynlink/.dynlink_internal.objs/byte/$ml.cmi
+  done
+)
+
+dune_targets="$dune_targets \
+_build/default/otherlibs/str/.str.objs/native/str.cmx \
+_build/default/otherlibs/str/.str.objs/byte/str.cmi \
+_build/default/otherlibs/systhreads/byte/.threads.objs/native/thread.cmx \
+_build/default/otherlibs/systhreads/byte/.threads.objs/byte/thread.cmi \
+_build/default/otherlibs/systhreads/native/.threadsnat.objs/native/thread.cmx \
+_build/default/otherlibs/systhreads/native/.threadsnat.objs/byte/thread.cmi
+"
 
 # ocamltest
 ocamltest=_build/default/ocamltest/.ocamltest_core_and_plugin.objs/byte

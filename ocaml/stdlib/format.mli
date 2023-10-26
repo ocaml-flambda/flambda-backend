@@ -969,6 +969,8 @@ val formatter_of_out_channel : out_channel -> formatter
     to the corresponding output channel [oc].
 *)
 
+(* CR ocaml 5 runtime:
+   BACKPORT
 val synchronized_formatter_of_out_channel :
   out_channel -> formatter Domain.DLS.key
 [@@alert unstable][@@alert "-unstable"]
@@ -979,6 +981,7 @@ val synchronized_formatter_of_out_channel :
     When the formatter is used with multiple domains, the output from the
     domains will be interleaved with each other at points where the formatter
     is flushed, such as with {!print_flush}.
+*)
 *)
 
 
@@ -1052,6 +1055,8 @@ val make_formatter :
   returns a formatter to the {!Stdlib.out_channel} [oc].
 *)
 
+(* CR ocaml 5 runtime:
+  BACKPORT
 val make_synchronized_formatter :
   (string -> int -> int -> unit) -> (unit -> unit) -> formatter Domain.DLS.key
 [@@alert unstable][@@alert "-unstable"]
@@ -1063,6 +1068,7 @@ val make_synchronized_formatter :
     domains will be interleaved with each other at points where the formatter
     is flushed, such as with {!print_flush}.
     @since 5.0
+*)
 *)
 
 val formatter_of_out_functions :

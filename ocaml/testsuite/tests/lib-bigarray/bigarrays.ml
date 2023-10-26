@@ -244,6 +244,23 @@ let tests () =
     done;
     test 16 true !return
   end;
+(*
+  test 17 true
+    (test_setget float16
+                 [0.0, 0.0;
+                  -0.5, -0.5;
+                  1.0, 1.0;
+                  infinity, infinity;
+                  neg_infinity, neg_infinity;
+                  Float.min_float, 0.0;
+                  Float.max_float, infinity;
+                  65504.0, 65504.0;
+                  -65504.0, -65504.0;
+                  65519.0, 65504.0;
+                  -65519.0, -65504.0;
+                  65520.0, infinity;
+                  -65520.0, neg_infinity]);
+*)
 
   testing_function "set/get (specialized)";
   let a = Array1.create int c_layout 3 in
@@ -1150,7 +1167,6 @@ let tests () =
   test_structured_io 13 (make_array2 complex32 c_layout 0 100 100 makecomplex);
   test_structured_io 14 (make_array3 complex64 fortran_layout 1 10 20 30
                                      makecomplex);
-
   ()
   [@@inline never]
 
