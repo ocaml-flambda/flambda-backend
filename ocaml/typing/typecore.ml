@@ -331,11 +331,11 @@ type expected_mode =
   }
 
 type position_and_mode = {
-  (* apply_position of the current application  *)
   apply_position : apply_position;
-  (* [Some m] if [position] is [Tail], where m is the mode of the surrounding
-     function's return mode *)
+  (** Runtime tail call behaviour of the application *)
   region_mode : Regionality.t option;
+  (** INVARIANT: [Some m] iff [apply_position] is [Tail], where [m] is the mode
+     of the surrounding region *)
 }
 
 let position_and_mode_default = {
@@ -343,8 +343,8 @@ let position_and_mode_default = {
   region_mode = None;
 }
 
-(** The function produces two values, apply_position and region_mode.
-    Invariant: if apply_position = Tail, then region_mode = Some ... *)
+(** Decides the runtime tail call behaviour based on lexical structures and user
+    annotation. *)
 let position_and_mode env (expected_mode : expected_mode) sexp
   : position_and_mode =
   let fail err =
@@ -374,8 +374,9 @@ let position_and_mode env (expected_mode : expected_mode) sexp
 let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
   match region_mode with
   | Some region_mode -> begin
-    (* This application is at the tail of a function with a region;
-        if ap_mode is local, funct_ret_mode needs to be local as well. *)
+    (* This application will be performed after the current region is closed; if
+       ap_mode is local, the application allocates in the outer
+       region, and thus [region_mode] needs to be marked local as well*)
       match
         Regionality.submode (Regionality.of_locality ap_mode) region_mode
       with
@@ -444,6 +445,9 @@ let mode_region mode =
 let mode_max =
   mode_default Value.max_mode
 
+let mode_with_position mode position =
+  { (mode_default mode) with position }
+
 let mode_max_with_position position =
   { mode_max with position }
 
@@ -504,17 +508,16 @@ let mode_exact mode =
   { (mode_default mode) with
     exact = true }
 
-let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
+let mode_argument ~funct ~index ~position_and_mode ~partial_app alloc_mode =
   let vmode = Value.of_alloc alloc_mode in
   if partial_app then mode_default vmode
-  else match funct.exp_desc, index, (position : apply_position) with
+  else match funct.exp_desc, index, position_and_mode.apply_position with
   | Texp_ident (_, _, {val_kind =
       Val_prim {Primitive.prim_name = ("%sequor"|"%sequand")}},
                 Id_prim _, _), 1, Tail ->
-     (* The second argument to (&&) and (||) is in
-        tail position if the call is *)
-      (* vmode is wrong; fine because of mode crossing on boolean *)
-     mode_return vmode
+     (* RHS of (&&) and (||) is at the tail of function region if the
+        application is. The argument mode is not constrained otherwise. *)
+     mode_with_position vmode (RTail (Option.get position_and_mode.region_mode, FTail))
   | Texp_ident (_, _, _, Id_prim _, _), _, _ ->
      (* Other primitives cannot be tail-called *)
      mode_default vmode
@@ -6822,12 +6825,12 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       unify_exp env texp ty_expected;
       texp
 
-and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) =
+and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
       let mode, _ = Alloc.newvar_below mode_arg in
       let expected_mode =
-        mode_argument ~funct ~index ~position ~partial_app mode in
+        mode_argument ~funct ~index ~position_and_mode ~partial_app mode in
       let arg =
         type_expect env expected_mode sarg (mk_expected ty_arg_mono)
       in
@@ -6840,7 +6843,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
                      mode_arg; wrapped_in_some; sort_arg }) ->
       let mode, _ = Alloc.newvar_below mode_arg in
       let expected_mode =
-        mode_argument ~funct ~index ~position ~partial_app mode in
+        mode_argument ~funct ~index ~position_and_mode ~partial_app mode in
       let ty_arg', vars = tpoly_get_poly ty_arg in
       let arg =
         if vars = [] then begin
@@ -6899,7 +6902,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       (lbl, Arg (arg, Value.legacy, sort_arg))
   | Omitted _ as arg -> (lbl, arg)
 
-and type_application env app_loc expected_mode pm
+and type_application env app_loc expected_mode position_and_mode
       funct funct_mode sargs ret_tvar =
   let is_ignore funct =
     is_prim ~name:"%ignore" funct &&
@@ -6924,12 +6927,12 @@ and type_application env app_loc expected_mode pm
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
       let arg_mode =
-        mode_argument ~funct ~index:0 ~position:(pm.apply_position)
+        mode_argument ~funct ~index:0 ~position_and_mode
           ~partial_app:false arg_mode
       in
       let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
-      ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, pm)
+      ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, position_and_mode)
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =
@@ -6955,11 +6958,13 @@ and type_application env app_loc expected_mode pm
           (Value.regional_to_local_alloc funct_mode) sargs ret_tvar
       in
       let partial_app = is_partial_apply untyped_args in
-      let pm = if partial_app then position_and_mode_default else pm in
+      let position_and_mode =
+        if partial_app then position_and_mode_default else position_and_mode
+      in
       let args =
         List.mapi (fun index arg ->
             type_apply_arg env ~app_loc ~funct ~index
-              ~position:(pm.apply_position) ~partial_app arg)
+              ~position_and_mode ~partial_app arg)
           untyped_args
       in
       let ty_ret, mode_ret, args =
@@ -6977,8 +6982,8 @@ and type_application env app_loc expected_mode pm
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
 
-      check_tail_call_local_returning app_loc env ap_mode pm;
-      args, ty_ret, ap_mode, pm
+      check_tail_call_local_returning app_loc env ap_mode position_and_mode;
+      args, ty_ret, ap_mode, position_and_mode
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
