@@ -34,7 +34,7 @@ let _ = Hashtbl.add directive_table "quit" (Directive_none dir_quit)
 
 let dir_directory s =
   let d = expand_directory Config.standard_library s in
-  let dir = Load_path.Dir.create d in
+  let dir = Load_path.Dir.create ~hidden:false d in
   Load_path.append_dir dir;
   toplevel_env :=
     Stdlib.String.Set.fold
