@@ -222,22 +222,13 @@ Ptop_def
       Pstr_value Nonrec
       [
         <def>
-          pattern (//toplevel//[4,29+4]..[4,29+11]) ghost
-            Ppat_constraint
-            pattern (//toplevel//[4,29+4]..[4,29+5])
-              Ppat_var "x" (//toplevel//[4,29+4]..[4,29+5])
-            core_type (//toplevel//[4,29+8]..[4,29+11]) ghost
-              Ptyp_poly
-              core_type (//toplevel//[4,29+8]..[4,29+11])
-                Ptyp_constr "int" (//toplevel//[4,29+8]..[4,29+11])
-                []
-          expression (//toplevel//[4,29+4]..[4,29+15])
-            Pexp_constraint
-            expression (//toplevel//[4,29+14]..[4,29+15])
-              Pexp_constant PConst_int (3,None)
-            core_type (//toplevel//[4,29+8]..[4,29+11])
-              Ptyp_constr "int" (//toplevel//[4,29+8]..[4,29+11])
-              []
+          pattern (//toplevel//[4,29+4]..[4,29+5])
+            Ppat_var "x" (//toplevel//[4,29+4]..[4,29+5])
+          core_type (//toplevel//[4,29+8]..[4,29+11])
+            Ptyp_constr "int" (//toplevel//[4,29+8]..[4,29+11])
+            []
+          expression (//toplevel//[4,29+14]..[4,29+15])
+            Pexp_constant PConst_int (3,None)
       ]
   ]
 
@@ -659,6 +650,7 @@ Line 2, characters 12-13:
 2 | let x = M.( 3; 4 );;
                 ^
 Warning 10 [non-unit-statement]: this expression should have type unit.
+
 val x : int = 4
 Ptop_def
   [

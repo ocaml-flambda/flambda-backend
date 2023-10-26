@@ -13,15 +13,35 @@
 ;**************************************************************************
 
 (rule
- (targets config.ml domainstate.ml domainstate.mli)
+ (targets config.ml)
  (mode    fallback)
- (deps    (:mk Makefile)
-          ../Makefile.config
-          ../Makefile.common
-          ../Makefile.config_if_required
-          ../Makefile.build_config
-          domainstate.ml.c
-          domainstate.mli.c
-          ../runtime/caml/domain_state.tbl
-          config.mlp)
- (action  (system "make -sf %{mk} %{targets}")))
+ (deps    config.generated.ml config.common.ml)
+ (action
+   (with-stdout-to %{targets}
+     (system "cat %{deps}"))))
+
+(rule
+ (targets domainstate.ml)
+ (mode    fallback)
+ (deps    (:conf ../Makefile.config)
+          (:c domainstate.ml.c)
+          (:tbl ../runtime4/caml/domain_state.tbl)
+          (glob_files ../runtime4/caml/{config,m,s}.h))
+ (action
+   (with-stdout-to %{targets}
+     (bash
+       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../runtime4/caml %{c}"
+       ))))
+
+(rule
+ (targets domainstate.mli)
+ (mode    fallback)
+ (deps    (:conf ../Makefile.config)
+          (:c domainstate.mli.c)
+          (:tbl ../runtime4/caml/domain_state.tbl)
+          (glob_files ../runtime4/caml/{config,m,s}.h))
+ (action
+   (with-stdout-to %{targets}
+     (bash
+       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../runtime4/caml %{c}"
+       ))))

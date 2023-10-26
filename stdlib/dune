@@ -19,7 +19,7 @@
    (internal_modules Camlinternal*)
    (modules_before_stdlib
      camlinternalFormatBasics
-     camlinternalAtomic))
+     ))
  (flags (
      -strict-sequence -absname -w +a-4-9-41-42-44-45-48-66-67-70
      -g -warn-error A -bin-annot -nostdlib
@@ -28,14 +28,14 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocess
    (per_module
-     ((action
-          (run awk -f %{dep:expand_module_aliases.awk} %{input-file}))
+    ((action
+      (run awk -f %{dep:expand_module_aliases.awk} %{input-file}))
       stdlib)
 )))
 
 (rule
   (targets camlheader camlheaderd camlheaderi camlheader_ur)
-  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime/sak)
+  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime4/sak)
   (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (copy_files ../Makefile.config)
@@ -66,7 +66,7 @@
 	atomic.ml
 	atomic.mli
     bigarray.ml
-    ; bigarray.mli is installed from otherlibs/bigarray/
+    bigarray.mli
     bool.ml
     bool.mli
     buffer.ml
@@ -89,8 +89,6 @@
     camlinternalMod.mli
     camlinternalOO.ml
     camlinternalOO.mli
-    camlinternalAtomic.ml
-    camlinternalAtomic.mli
     char.ml
     char.mli
     complex.ml
@@ -113,8 +111,6 @@
     fun.mli
     gc.ml
     gc.mli
-    genlex.ml
-    genlex.mli
     hashtbl.ml
     hashtbl.mli
     iarray.ml
@@ -153,7 +149,6 @@
     out_channel.mli
     parsing.ml
     parsing.mli
-    pervasives.ml
     printexc.ml
     printexc.mli
     printf.ml
@@ -177,8 +172,6 @@
     std_exit.ml
     stdlib.ml
     stdlib.mli
-    stream.ml
-    stream.mli
     string.ml
     string.mli
     stringLabels.ml
@@ -255,9 +248,6 @@
     .stdlib.objs/byte/stdlib__Gc.cmi
     .stdlib.objs/byte/stdlib__Gc.cmt
     .stdlib.objs/byte/stdlib__Gc.cmti
-    .stdlib.objs/byte/stdlib__Genlex.cmi
-    .stdlib.objs/byte/stdlib__Genlex.cmt
-    .stdlib.objs/byte/stdlib__Genlex.cmti
     .stdlib.objs/byte/stdlib__Hashtbl.cmi
     .stdlib.objs/byte/stdlib__Hashtbl.cmt
     .stdlib.objs/byte/stdlib__Hashtbl.cmti
@@ -318,8 +308,6 @@
     .stdlib.objs/byte/stdlib__Parsing.cmi
     .stdlib.objs/byte/stdlib__Parsing.cmt
     .stdlib.objs/byte/stdlib__Parsing.cmti
-    .stdlib.objs/byte/stdlib__Pervasives.cmi
-    .stdlib.objs/byte/stdlib__Pervasives.cmt
     .stdlib.objs/byte/stdlib__Printexc.cmi
     .stdlib.objs/byte/stdlib__Printexc.cmt
     .stdlib.objs/byte/stdlib__Printexc.cmti
@@ -350,9 +338,6 @@
     .stdlib.objs/byte/stdlib__StdLabels.cmi
     .stdlib.objs/byte/stdlib__StdLabels.cmt
     .stdlib.objs/byte/stdlib__StdLabels.cmti
-    .stdlib.objs/byte/stdlib__Stream.cmi
-    .stdlib.objs/byte/stdlib__Stream.cmt
-    .stdlib.objs/byte/stdlib__Stream.cmti
     .stdlib.objs/byte/stdlib__String.cmi
     .stdlib.objs/byte/stdlib__String.cmt
     .stdlib.objs/byte/stdlib__String.cmti
@@ -376,7 +361,6 @@
 
     .stdlib.objs/byte/camlinternalComprehension.cmi
     .stdlib.objs/byte/camlinternalMod.cmi
-    .stdlib.objs/byte/camlinternalAtomic.cmi
     .stdlib.objs/byte/camlinternalFormatBasics.cmi
     .stdlib.objs/byte/camlinternalLazy.cmi
     .stdlib.objs/byte/camlinternalOO.cmi
@@ -384,7 +368,6 @@
 
     .stdlib.objs/byte/camlinternalComprehension.cmt
     .stdlib.objs/byte/camlinternalMod.cmt
-    .stdlib.objs/byte/camlinternalAtomic.cmt
     .stdlib.objs/byte/camlinternalFormatBasics.cmt
     .stdlib.objs/byte/camlinternalLazy.cmt
     .stdlib.objs/byte/camlinternalOO.cmt
@@ -392,7 +375,6 @@
 
     .stdlib.objs/byte/camlinternalComprehension.cmti
     .stdlib.objs/byte/camlinternalMod.cmti
-    .stdlib.objs/byte/camlinternalAtomic.cmti
     .stdlib.objs/byte/camlinternalFormatBasics.cmti
     .stdlib.objs/byte/camlinternalLazy.cmti
     .stdlib.objs/byte/camlinternalOO.cmti
@@ -400,7 +382,6 @@
 
     .stdlib.objs/native/camlinternalComprehension.cmx
     .stdlib.objs/native/camlinternalMod.cmx
-    .stdlib.objs/native/camlinternalAtomic.cmx
     .stdlib.objs/native/camlinternalFormatBasics.cmx
     .stdlib.objs/native/camlinternalLazy.cmx
     .stdlib.objs/native/camlinternalOO.cmx
@@ -420,7 +401,6 @@
     .stdlib.objs/native/stdlib__Weak.cmx
     .stdlib.objs/native/stdlib__Float.cmx
     .stdlib.objs/native/stdlib__Float_u.cmx
-    .stdlib.objs/native/stdlib__Pervasives.cmx
     .stdlib.objs/native/stdlib__Fun.cmx
     .stdlib.objs/native/stdlib__Bigarray.cmx
     .stdlib.objs/native/stdlib__Array.cmx
@@ -431,7 +411,6 @@
     .stdlib.objs/native/stdlib__Result.cmx
     .stdlib.objs/native/stdlib__Map.cmx
     .stdlib.objs/native/stdlib__Char.cmx
-    .stdlib.objs/native/stdlib__Stream.cmx
     .stdlib.objs/native/stdlib__Printexc.cmx
     .stdlib.objs/native/stdlib__Lazy.cmx
     .stdlib.objs/native/stdlib__Parsing.cmx
@@ -456,7 +435,6 @@
     .stdlib.objs/native/stdlib__Stack.cmx
     .stdlib.objs/native/stdlib__Bytes.cmx
     .stdlib.objs/native/stdlib__MoreLabels.cmx
-    .stdlib.objs/native/stdlib__Genlex.cmx
     .stdlib.objs/native/stdlib__Oo.cmx
     .stdlib.objs/native/stdlib__Format.cmx
     .stdlib.objs/native/stdlib__Unit.cmx

@@ -202,9 +202,9 @@ We thus do not check compiler output. This was not done either before the
 test was ported to ocamltest.
 *)
 
-*************************************************** run
+************************************************* run
 arguments = "plugin.so plugin2.so plugin_thread.so"
-**************************************************** check-program-output
+************************************************** check-program-output
 *)
 
 let () =
