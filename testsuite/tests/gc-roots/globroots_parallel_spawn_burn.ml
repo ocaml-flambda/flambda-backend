@@ -1,6 +1,9 @@
 (* TEST
    flags += " -w a "
    modules = "globrootsprim.c globroots.ml"
+
+   * skip
+     reason = "OCaml 5 only"
 *)
 
 open Globroots
