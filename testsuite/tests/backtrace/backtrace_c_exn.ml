@@ -2,6 +2,10 @@
    modules = "backtrace_c_exn_.c"
    flags = "-g"
    ocamlrunparam += ",b=1"
+   * bytecode
+     reference = "${test_source_directory}/backtrace_c_exn.byte.reference"
+   * native
+     reference = "${test_source_directory}/backtrace_c_exn.opt.reference"
 *)
 
 (* https://github.com/ocaml-multicore/ocaml-multicore/issues/498 *)
