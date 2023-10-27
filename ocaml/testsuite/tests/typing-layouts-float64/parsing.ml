@@ -255,10 +255,11 @@ Error: The type constructor float# expects 0 argument(s),
 (* Hint for #float *)
 type t = #float;;
 [%%expect {|
-Line 1, characters 10-15:
+Line 1, characters 9-15:
 1 | type t = #float;;
-              ^^^^^
-Error: Did you mean float#?
+             ^^^^^^
+Error: float is neither a polymorphic variant nor a class type.
+       Did you mean the unboxed type float#?
 |}]
 
 (* Hint should not show up in this case *)

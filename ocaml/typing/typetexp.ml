@@ -725,7 +725,7 @@ and transl_type_aux env policy mode styp =
             | Longident.Lapply(_, _) -> fatal_error "Typetexp.transl_type"
           in
           ignore (Env.find_type_by_name lid3 env : Path.t * Types.type_declaration);
-          raise (Error (lid.loc, env, Did_you_mean_unboxed lid3))
+          raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
         with Not_found ->
           ignore (Env.lookup_cltype ~loc:lid.loc lid.txt env); assert false
       in
@@ -1400,7 +1400,8 @@ let report_error env ppf = function
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Did_you_mean_unboxed lid ->
-    fprintf ppf "Did you mean %a?" longident lid
+    fprintf ppf "@[%a is neither a polymorphic variant nor a class type.@ \
+                 Did you mean the unboxed type %a#?@]" longident lid longident lid
 
 let () =
   Location.register_error_of_exn
