@@ -358,10 +358,12 @@ let op_shapes = [
   opUGEINT, Nothing;
   opBULTINT, Uint_Disp;
   opBUGEINT, Uint_Disp;
+  (* BACKPORT
   opPERFORM, Nothing;
   opRESUME, Nothing;
   opRESUMETERM, Uint;
   opREPERFORMTERM, Uint;
+  *)
   opSTOP, Nothing;
   opEVENT, Nothing;
   opBREAK, Nothing;

@@ -113,3 +113,11 @@
   )
   (section bin)
   (package ocaml))
+
+(install
+  (files
+    (tools/dumpobj.bc as dumpobj.byte)
+    (tools/dumpobj.exe as dumpobj.opt)
+  )
+  (section bin)
+  (package ocaml))
