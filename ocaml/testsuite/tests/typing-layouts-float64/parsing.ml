@@ -259,7 +259,6 @@ Line 1, characters 10-15:
 1 | type t = #float;;
               ^^^^^
 Error: Unbound class type float
-Hint: Did you mean float#?
 |}]
 
 (* Hint should not show up in this case *)
@@ -271,5 +270,5 @@ Line 2, characters 15-20:
 2 | class type c = float
                    ^^^^^
 Error: Unbound class type float
-Hint: Did you mean float#?
+Hint: Did you mean floot?
 |}]
