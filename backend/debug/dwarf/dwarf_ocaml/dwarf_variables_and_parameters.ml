@@ -27,7 +27,7 @@ type proto_dies_for_var =
     type_die : Proto_die.reference
   }
 
-let arch_size_addr = Targetint.of_int_exn Arch.size_addr
+let _arch_size_addr = Targetint.of_int_exn Arch.size_addr
 
 let proto_dies_for_variable var ~proto_dies_for_vars =
   match Backend_var.Tbl.find proto_dies_for_vars var with
@@ -58,13 +58,12 @@ let type_die_reference_for_var var ~proto_dies_for_vars =
   | None -> None
   | Some dies -> Some dies.type_die
 
-let construct_type_of_value_description state ~parent ident_for_type
-    is_parameter ~proto_dies_for_vars ~reference =
+let _construct_type_of_value_description _state ~parent ident_for_type
+    is_parameter ~proto_dies_for_vars:_ ~reference =
   normal_type_for_var ~reference ~parent ident_for_type is_parameter
 
-type location_description =
-  | Simple of Simple_location_description.t
-  | Composite of Composite_location_description.t
+type location_description = Simple of Simple_location_description.t
+(* Not currently needed | Composite of Composite_location_description.t *)
 
 let reg_location_description reg ~offset ~need_rvalue :
     location_description option =
@@ -74,8 +73,8 @@ let reg_location_description reg ~offset ~need_rvalue :
   | None -> None
   | Some simple_loc_desc -> Some (Simple simple_loc_desc)
 
-let single_location_description state ~parent ~subrange ~proto_dies_for_vars
-    ~need_rvalue =
+let single_location_description _state ~parent:_ ~subrange
+    ~proto_dies_for_vars:_ ~need_rvalue =
   let location_description =
     let subrange_info = ARV.Subrange.info subrange in
     let reg = ARV.Subrange_info.reg subrange_info in
@@ -86,9 +85,8 @@ let single_location_description state ~parent ~subrange ~proto_dies_for_vars
   | None -> None
   | Some (Simple simple) ->
     Some (Single_location_description.of_simple_location_description simple)
-  | Some (Composite composite) ->
-    Some
-      (Single_location_description.of_composite_location_description composite)
+(* | Some (Composite composite) -> Some
+   (Single_location_description.of_composite_location_description composite) *)
 
 type location_list_entry =
   | Dwarf_4 of Dwarf_4_location_list_entry.t
@@ -135,7 +133,7 @@ let location_list_entry state ~subrange single_location_description :
          ~start_of_code_symbol:(DS.start_of_code_symbol state))
 
 let dwarf_for_variable state ~function_proto_die ~proto_dies_for_vars
-    (var : Backend_var.t) ~ident_for_type ~range =
+    (var : Backend_var.t) ~ident_for_type:_ ~range =
   let range_info = ARV.Range.info range in
   let provenance = ARV.Range_info.provenance range_info in
   let (parent_proto_die : Proto_die.t), hidden =
@@ -193,7 +191,7 @@ let dwarf_for_variable state ~function_proto_die ~proto_dies_for_vars
   let type_and_name_attributes =
     match type_die_reference_for_var var ~proto_dies_for_vars with
     | None -> []
-    | Some reference ->
+    | Some _reference ->
       let name_for_var =
         (* For the moment assume function parameter names are unique, they
            almost always will be, and avoiding the stamps looks much better in
@@ -239,7 +237,7 @@ let dwarf_for_variable state ~function_proto_die ~proto_dies_for_vars
       ~attribute_values:(type_and_name_attributes @ location_attribute_value)
       ()
 
-let iterate_over_variable_like_things state ~available_ranges_vars ~f =
+let iterate_over_variable_like_things _state ~available_ranges_vars ~f =
   ARV.iter available_ranges_vars ~f:(fun var range ->
       let ident_for_type = Some (Compilation_unit.get_current_exn (), var) in
       f var ~ident_for_type ~range)

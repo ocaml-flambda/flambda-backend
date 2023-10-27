@@ -3,7 +3,7 @@
 (library
  (name flambda_backend_utils)
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard))
  (libraries ocamlcommon))
 
 (install

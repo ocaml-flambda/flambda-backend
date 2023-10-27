@@ -1,3 +1,6 @@
+(* For the moment suppress warnings about record fields not being read *)
+[@@@ocaml.warning "-69"]
+
 type 'result service = ..
 
 type _ service +=

@@ -14,15 +14,26 @@ else
   ocaml_subdirs_to_ignore=
 endif
 
+ifeq ($(middle_end),flambda2)
+  flambda2_o3=-O3
+else
+  flambda2_o3=
+endif
+
+ifeq ($(dev_mode),yes)
+  main_context_ocamlopt_flags=-Oclassic -opaque
+else
+  main_context_ocamlopt_flags=$(flambda2_o3)
+endif
+
 define dune_boot_context
 (lang dune 2.8)
 ; We need to call the boot context "default" so that dune selects it for merlin
 (context (default
   (name default)
-  ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile boot)
+  (profile dev)
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -g -warn-error +A -opaque))
     (env-vars ("OCAMLPARAM" ""))))))
 endef
 
@@ -36,6 +47,7 @@ define dune_runtime_stdlib_context
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
   (env (_
     (flags (:standard -warn-error +A))
+    (ocamlopt_flags (:standard $(flambda2_o3)))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
@@ -49,6 +61,7 @@ define dune_main_context
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
   (env (_
     (flags (:standard -warn-error +A))
+    (ocamlopt_flags $(main_context_ocamlopt_flags))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 

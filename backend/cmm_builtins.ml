@@ -255,7 +255,7 @@ let pack_int8s i0 i1 i2 i3 i4 i5 i6 i7 =
          (logor (shift_left i3 24) (shift_left i2 16))
          (logor (shift_left i1 8) i0)))
 
-let transl_vec128_builtin name args dbg typ_res =
+let transl_vec128_builtin name args dbg _typ_res =
   match name with
   (* Vector casts (no-ops) *)
   | "caml_vec128_cast" ->

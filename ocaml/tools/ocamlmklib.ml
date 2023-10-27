@@ -15,7 +15,7 @@
 
 open Printf
 
-let syslib x =
+let _syslib x =
   if Config.ccomp_type = "msvc" then x ^ ".lib" else "-l" ^ x
 
 let mklib out files opts =
@@ -61,7 +61,7 @@ let starts_with s pref =
 let ends_with = Filename.check_suffix
 let chop_prefix s pref =
   String.sub s (String.length pref) (String.length s - String.length pref)
-let chop_suffix = Filename.chop_suffix
+let _chop_suffix = Filename.chop_suffix
 
 exception Bad_argument of string
 

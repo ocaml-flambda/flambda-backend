@@ -23,10 +23,6 @@ module String = Misc.Stdlib.String
 module Section_name = X86_proc.Section_name
 module StringMap = X86_binary_emitter.StringMap
 
-let isprefix s1 s2 =
-  String.length s1 <= String.length s2
-  && String.equal (String.sub s2 0 (String.length s1)) s1
-
 let is_label name =
   String.length name >= 2 && Char.equal name.[0] '.' && Char.equal name.[1] 'L'
 
@@ -161,7 +157,7 @@ let assemble_one_section ~name instructions =
   let align =
     List.fold_left
       (fun acc i ->
-        match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
+        match i with X86_ast.Align (_data, n) when n > acc -> n | _ -> acc)
       0 instructions
   in
   align,
@@ -217,7 +213,7 @@ let make_compiler_sections section_table compiler_sections symbol_table
 let make_symbols section_tables compiler_sections symbol_table section_symbols
     string_table =
   Section_name.Map.iter
-    (fun section (align, raw_section) ->
+    (fun section (_align, raw_section) ->
       let symbols = X86_binary_emitter.labels raw_section in
       String.Tbl.iter
         (fun name symbol ->
@@ -232,7 +228,7 @@ let make_symbols section_tables compiler_sections symbol_table section_symbols
     compiler_sections
 
 let create_relocation_tables compiler_sections symbol_table string_table =
-  (List.filter_map (fun (section, (align, raw_section)) ->
+  (List.filter_map (fun (section, (_align, raw_section)) ->
        match X86_binary_emitter.relocations raw_section with
        | [] -> None
        | l ->

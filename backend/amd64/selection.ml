@@ -90,7 +90,7 @@ exception Use_default
 let rax = phys_reg Int 0
 let rcx = phys_reg Int 5
 let rdx = phys_reg Int 4
-let xmm0v () = phys_reg Vec128 100
+let _xmm0v () = phys_reg Vec128 100
 
 let pseudoregs_for_operation op arg res =
   match op with

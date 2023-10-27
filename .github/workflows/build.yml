@@ -64,8 +64,8 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
-          - name: flambda2_cfg
-            config: --enable-middle-end=flambda2
+          - name: flambda2_cfg_dev_mode
+            config: --enable-middle-end=flambda2 --enable-dev
             os: ubuntu-latest
             build_ocamlparam: _,ocamlcfg=1
 

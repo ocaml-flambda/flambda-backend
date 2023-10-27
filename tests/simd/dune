@@ -14,7 +14,7 @@
  (modules basic ops arrays)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd)))
+  (:standard -extension simd -O3)))
 
 (rule
  (enabled_if
@@ -51,7 +51,7 @@
  (modules consts)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd)))
+  (:standard -extension simd -O3)))
 
 (rule
  (enabled_if
@@ -83,7 +83,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd)))
+  (:standard -extension simd -O3)))
 
 (rule
  (targets
@@ -106,7 +106,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd -internal-assembler)))
+  (:standard -extension simd -internal-assembler -O3)))
 
 (rule
  (enabled_if

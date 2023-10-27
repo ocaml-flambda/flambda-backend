@@ -95,7 +95,7 @@ let num_locals t = t.local_num_symbols + 1
 let make_undef_symbol t name string_table =
   add_symbol t (Symbol_entry.create_undef_symbol name string_table)
 
-let make_section_symbol t st_shndx sections =
+let make_section_symbol t st_shndx _sections =
   let symbol_entry = Symbol_entry.create_section_symbol st_shndx in
   add_symbol t symbol_entry;
   symbol_entry

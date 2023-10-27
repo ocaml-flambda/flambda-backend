@@ -14,7 +14,6 @@
 
 (* Insert instrumentation for afl-fuzz *)
 
-open Lambda
 open Cmm
 
 module V = Backend_var

@@ -34,7 +34,7 @@
    -open
    Flambda2_simplify_shared))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard))
  (libraries
   ocamlcommon
   flambda2_algorithms

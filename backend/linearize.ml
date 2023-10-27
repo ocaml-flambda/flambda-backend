@@ -73,7 +73,7 @@ let rec adjust_stack_offset delta_bytes next =
     if delta_bytes = 0 then next
     else cons_instr (Ladjust_stack_offset { delta_bytes }) next
 
-let rec adjust_trap_depth delta_traps next =
+let adjust_trap_depth delta_traps next =
   adjust_stack_offset (Linear.traps_to_bytes delta_traps) next
 
 let delta_traps stack_before stack_after =

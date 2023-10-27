@@ -111,7 +111,7 @@ let env_find_mut id env =
   end;
   regs, provenance
 
-let env_find_with_provenance id env =
+let _env_find_with_provenance id env =
   V.Map.find id env.vars
 
 let env_find_static_exception id env =
@@ -988,7 +988,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
          let rs = self#emit_tuple env simple_args in
          ret (self#insert_op_debug env Iopaque dbg rs rs)
       end
-  | Cop(Ctuple_field(field, fields_layout), [arg], dbg) ->
+  | Cop(Ctuple_field(field, fields_layout), [arg], _dbg) ->
       begin match self#emit_expr env arg ~bound_name:None with
         None -> None
       | Some loc_exp ->

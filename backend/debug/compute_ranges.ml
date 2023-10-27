@@ -232,9 +232,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
     | Close_subrange_one_byte_after ->
       Format.fprintf ppf "Close_subrange_one_byte_after"
 
-  let actions_at_instruction0 ~(insn : L.instruction)
-      ~(prev_insn : L.instruction option) ~known_available_after_prev_insn
-      ~available_before ~available_across =
+  let actions_at_instruction0 ~known_available_after_prev_insn ~available_before
+      ~available_across =
     let case_1b =
       KS.diff available_across
         (KS.union known_available_after_prev_insn available_before)
@@ -293,7 +292,7 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
     |> handle case_2c Close_subrange_one_byte_after
 
   let actions_at_instruction ~(insn : L.instruction)
-      ~(prev_insn : L.instruction option) ~known_available_after_prev_insn =
+      ~known_available_after_prev_insn =
     let available_before = S.available_before insn in
     let available_across = S.available_across insn in
     if !Flambda_backend_flags.dranges
@@ -312,8 +311,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
          just skip to the next instruction. *)
       []
     | Some available_before, Some available_across ->
-      actions_at_instruction0 ~insn ~prev_insn ~known_available_after_prev_insn
-        ~available_before ~available_across
+      actions_at_instruction0 ~known_available_after_prev_insn ~available_before
+        ~available_across
 
   let rec process_instruction t (fundecl : L.fundecl) ~fun_contains_calls
       ~fun_num_stack_slots ~(first_insn : L.instruction) ~(insn : L.instruction)
@@ -404,7 +403,7 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
         let known_available_after_prev_insn =
           KM.bindings currently_open_subranges |> List.map fst |> KS.of_list
         in
-        actions_at_instruction ~insn ~prev_insn ~known_available_after_prev_insn
+        actions_at_instruction ~insn ~known_available_after_prev_insn
     in
     (* Apply actions *)
     let no_actions = List.compare_length_with actions 0 = 0 in

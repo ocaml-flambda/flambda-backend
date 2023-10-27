@@ -87,7 +87,7 @@ let get_section_opt t name =
 
 let get_sections t = Array.of_list (List.rev t.sections)
 
-let get_section_bodies t = t.section_bodies
+let _get_section_bodies t = t.section_bodies
 
 let write_bodies t buf =
   List.iter

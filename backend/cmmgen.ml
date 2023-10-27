@@ -621,7 +621,7 @@ let rec transl env e =
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
-      | (Pmake_unboxed_product layouts, args) ->
+      | (Pmake_unboxed_product _layouts, args) ->
           Ctuple (List.map (transl env) args)
       | (Pread_symbol sym, []) ->
           Cconst_symbol (global_symbol sym, dbg)
