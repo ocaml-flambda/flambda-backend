@@ -261,3 +261,15 @@ Line 1, characters 10-15:
 Error: Unbound class type float
 Hint: Did you mean float#?
 |}]
+
+(* Hint should not show up in this case *)
+class type floot = object end
+class type c = float
+[%%expect {|
+class type floot = object  end
+Line 2, characters 15-20:
+2 | class type c = float
+                   ^^^^^
+Error: Unbound class type float
+Hint: Did you mean float#?
+|}]
