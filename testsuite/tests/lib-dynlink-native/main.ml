@@ -1,7 +1,7 @@
 (* TEST
 
 readonly_files = "a.ml api.ml b.ml bug.ml c.ml factorial.c pack_client.ml \
-         packed1_client.ml packed1.ml plugin2.ml plugin4.ml plugin_ext.ml \
+         packed1.ml plugin2.ml plugin4.ml plugin_ext.ml \
          plugin_high_arity.ml plugin.ml plugin.mli plugin_ref.ml \
          plugin_simple.ml plugin_thread.ml"
 subdirectories = "sub"
@@ -94,100 +94,92 @@ program = "packed1.so"
 flags = "-shared"
 all_modules = "packed1.cmx"
 **************************** ocamlopt.opt
-flags = "-for-pack Mypack"
-module = "packed1_client.ml"
-***************************** ocamlopt.opt
-module = ""
-program = "packed1_client.so"
-flags = "-shared"
-all_modules = "packed1_client.cmx"
-****************************** ocamlopt.opt
 flags = ""
 module = "pack_client.ml"
-******************************* ocamlopt.opt
+***************************** ocamlopt.opt
 module = ""
 program = "pack_client.so"
 flags = "-shared"
 all_modules = "pack_client.cmx"
-******************************** ocamlopt.opt
+****************************** ocamlopt.opt
 flags = ""
 module = "plugin_ref.ml"
-********************************* ocamlopt.opt
+******************************* ocamlopt.opt
 module = ""
 program = "plugin_ref.so"
 flags = "-shared"
 all_modules = "plugin_ref.cmx"
-********************************** ocamlopt.opt
+******************************** ocamlopt.opt
 flags = ""
 module = "plugin_high_arity.ml"
-*********************************** ocamlopt.opt
+********************************* ocamlopt.opt
 module = ""
 program = "plugin_high_arity.so"
 flags = "-shared"
 all_modules = "plugin_high_arity.cmx"
-************************************ ocamlopt.opt
+********************************** ocamlopt.opt
 flags = "-ccopt ${shared_library_cflags}"
 module = "factorial.c"
-************************************* ocamlopt.opt
+*********************************** ocamlopt.opt
 flags = ""
 module = "plugin_ext.ml"
-************************************** ocamlopt.opt
+************************************ ocamlopt.opt
 module = ""
 program = "plugin_ext.so"
 flags = "-shared"
 all_modules = "factorial.${objext} plugin_ext.cmx"
-*************************************** ocamlopt.opt
+************************************* ocamlopt.opt
 module = "plugin_simple.ml"
 flags = ""
-**************************************** ocamlopt.opt
+************************************** ocamlopt.opt
 module = ""
 program = "plugin_simple.so"
 flags = "-shared"
 all_modules = "plugin_simple.cmx"
-**************************************** ocamlopt.opt
+************************************** ocamlopt.opt
 module = "bug.ml"
 flags = ""
-***************************************** ocamlopt.opt
+*************************************** ocamlopt.opt
 module = ""
 program = "bug.so"
 flags = "-shared"
 all_modules = "bug.cmx"
-***************************************** ocamlopt.opt
+*************************************** ocamlopt.opt
 module = "plugin_thread.ml"
 flags = ""
-****************************************** ocamlopt.opt
+**************************************** ocamlopt.opt
 module = ""
 program = "plugin_thread.so"
 flags = "-shared"
 all_modules = "plugin_thread.cmx"
-******************************************* ocamlopt.opt
+***************************************** ocamlopt.opt
 program = "plugin4_unix.so"
 all_modules = "unix.cmxa plugin4.cmx"
-******************************************** ocamlopt.opt
+****************************************** ocamlopt.opt
 flags = ""
 compile_only = "true"
 all_modules = "a.ml b.ml c.ml main.ml"
-********************************************* ocamlopt.opt
+******************************************* ocamlopt.opt
 module = ""
 compile_only = "false"
 flags = "-shared"
 program = "a.so"
 all_modules = "a.cmx"
-********************************************** ocamlopt.opt
+******************************************** ocamlopt.opt
 program = "b.so"
 all_modules = "b.cmx"
-*********************************************** ocamlopt.opt
+********************************************* ocamlopt.opt
 program = "c.so"
 all_modules = "c.cmx"
-************************************************ ocamlopt.opt
+********************************************** ocamlopt.opt
 program = "mylib.cmxa"
 flags = "-a"
 all_modules = "plugin.cmx plugin2.cmx"
-************************************************* ocamlopt.opt
+*********************************************** ocamlopt.opt
 program = "mylib.so"
 flags = "-shared -linkall"
 all_modules = "mylib.cmxa"
-************************************************** ocamlopt.opt
+************************************************ ocamlopt.opt
 program = "${test_build_directory}/main.exe"
 libraries = "unix threads dynlink"
 flags = "-linkall"

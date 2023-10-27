@@ -1,4 +1,10 @@
 (* TEST
+ * skip
+   reason = "OCaml 5 only"
+*)
+
+(* BACKPORT
+(* TEST
 
 include dynlink
 libraries = ""
@@ -222,3 +228,5 @@ let stored = Atomic.get Store.store
 let stored_set = String_set.of_list stored
 let () =
   List.iter (Printf.printf "%s\n") (String_set.elements stored_set)
+
+*)

@@ -271,11 +271,7 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   compile_phrase (Cmm_helpers.entry_point name_list);
   let units = List.map (fun (info,_,_) -> info) units_list in
   List.iter compile_phrase
-(* BACKPORT BEGIN
     (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
-*)
-    (
-(* BACKPORT END *)
       (Cmm_helpers.generic_functions false units));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
@@ -312,11 +308,7 @@ let make_shared_startup_file ~ppf_dump units =
   Compilenv.reset shared_startup_comp_unit;
   Emit.begin_assembly ();
   List.iter compile_phrase
-(* BACKPORT BEGIN
     (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
-*)
-    (
-(* BACKPORT END *)
       (Cmm_helpers.generic_functions true (List.map fst units)));
   compile_phrase (Cmm_helpers.plugin_header units);
   compile_phrase
