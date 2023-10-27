@@ -103,6 +103,7 @@ typing_mls=(
   typedecl
   typedecl_variance
   typedtree
+  typemod
   types
   typetexp)
 
