@@ -87,6 +87,7 @@ typing_mls=(
   env
   includecore
   includemod
+  jkind
   mtype
   oprint
   parmatch
@@ -105,7 +106,8 @@ typing_mls=(
   typedtree
   typemod
   types
-  typetexp)
+  typetexp
+  uniqueness_analysis)
 
 # ocamlcommon mls
 mls=$(
