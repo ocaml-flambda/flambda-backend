@@ -636,7 +636,10 @@ let mk_newtypes ~loc newtypes exp =
   in
   List.fold_right mk_one newtypes exp
 
-let wrap_type_annotation ~loc newtypes core_type body =
+(* The [typloc] argument is used to adjust a location for something we're
+   parsing a bit differently than upstream.  See comment about [Pvc_constraint]
+   in [let_binding_body_no_punning]. *)
+let wrap_type_annotation ~loc ?(typloc=loc) newtypes core_type body =
   let mk_newtypes = mk_newtypes ~loc in
   let exp = mkexp ~loc (Pexp_constraint(body,core_type)) in
   let exp = mk_newtypes newtypes exp in
@@ -646,7 +649,7 @@ let wrap_type_annotation ~loc newtypes core_type body =
   in
   (exp,
      Jane_syntax.Layouts.type_of
-       ~loc:(Location.ghostify (make_loc loc)) ltyp)
+       ~loc:(Location.ghostify (make_loc typloc)) ltyp)
 
 let wrap_exp_attrs ~loc body (ext, attrs) =
   let ghexp = ghexp ~loc in
@@ -3161,8 +3164,14 @@ let_binding_body_no_punning:
          But this would require encoding [newtypes] (which, internally, may
          associate a layout with a newtype) in Jane Syntax, which will require
          a small amount of work.
+
+         The [typloc] argument to [wrap_type_annotation] is used to make the
+         location on the [core_type] node for the annotation match the upstream
+         version, even though we are creating a slightly different [core_type].
       *)
-      { let exp, poly = wrap_type_annotation ~loc:$sloc $4 $6 $8 in
+      { let exp, poly =
+          wrap_type_annotation ~loc:$sloc ~typloc:$loc($6) $4 $6 $8
+        in
         let loc = ($startpos($1), $endpos($6)) in
         (ghpat ~loc (Ppat_constraint($1, poly)), exp, None)
        }

@@ -243,7 +243,7 @@ Ptop_def
             Ppat_constraint
             pattern (//toplevel//[2,1+4]..[2,1+5])
               Ppat_var "x" (//toplevel//[2,1+4]..[2,1+5])
-            core_type (//toplevel//[2,1+4]..[2,1+35]) ghost
+            core_type (//toplevel//[2,1+16]..[2,1+22]) ghost
               Ptyp_poly 'a
               core_type (//toplevel//[2,1+16]..[2,1+22])
                 Ptyp_arrow
