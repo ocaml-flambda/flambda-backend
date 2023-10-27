@@ -1070,12 +1070,13 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
               Some (rd, unclosed_regions)
-          | Iextcall { ty_args; returns; _} ->
+          | Iextcall ({ ty_args; returns; _} as r) ->
               let (loc_arg, stack_ofs) =
                 self#emit_extcall_args env ty_args new_args in
               let rd = self#regs_for ty in
               let loc_res =
-                self#insert_op_debug env new_op dbg
+                self#insert_op_debug env
+                  (Iextcall {r with stack_ofs = stack_ofs}) dbg
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               add_naming_op_for_bound_name loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
