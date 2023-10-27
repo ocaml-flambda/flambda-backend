@@ -258,7 +258,7 @@ type t = #float;;
 Line 1, characters 10-15:
 1 | type t = #float;;
               ^^^^^
-Error: Unbound class type float
+Error: Did you mean float#?
 |}]
 
 (* Hint should not show up in this case *)
