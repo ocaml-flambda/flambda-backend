@@ -1,11 +1,11 @@
 (* TEST
-* skip
-reason = "OCaml 5 only"
    modules = "test_c_thread_register_cstubs.c"
-   * hassysthreads
+   * skip
+   reason = "OCaml 5 only"
+   ** hassysthreads
    include systhreads
-   ** bytecode
-   ** native
+   *** bytecode
+   *** native
 *)
 
 (* spins a external thread from C and register it to the OCaml runtime *)

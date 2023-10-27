@@ -1,10 +1,10 @@
 (* TEST
 * skip
 reason = "OCaml 5 only"
-* hasstr
+** hasstr
 include str
-** bytecode
-** native
+*** bytecode
+*** native
 *)
 
 let total = Atomic.make 0

@@ -1,10 +1,10 @@
 (* TEST
 * skip
 reason = "OCaml 5 only"
-* hassysthreads
+** hassysthreads
 include systhreads
-** bytecode
-** native
+*** bytecode
+*** native
 *)
 
 let _ =

@@ -1,10 +1,10 @@
 (* TEST
 * skip
 reason = "OCaml 5 only"
-* hasunix
+** hasunix
 include unix
-** native
-** bytecode
+*** native
+*** bytecode
 *)
 
 type 'a tree = Empty | Node of 'a tree * 'a tree
