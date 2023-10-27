@@ -1,4 +1,6 @@
 (* TEST
+ * skip
+   reason = "OCaml 5 only"
 *)
 
 (* Check the numbers drawn from a known state against the numbers
