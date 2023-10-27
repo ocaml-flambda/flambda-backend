@@ -25,7 +25,9 @@ type gc_call =
 (* Record calls to local stack reallocation *)
 type local_realloc_call =
   { lr_lbl: label;
-    lr_return_lbl: label; }
+    lr_return_lbl: label;
+    lr_dbg: Debuginfo.t
+  }
 
 (* Record calls to caml_ml_array_bound_error.
    In -g mode, we maintain one call to caml_ml_array_bound_error
