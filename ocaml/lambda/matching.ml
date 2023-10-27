@@ -2199,13 +2199,10 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
     else
       (* TODO: The resulting float should be allocated to at the mode of the
          array pattern, once that's available *)
-      let prim = Parrayrefu Lambda.(array_ref_kind alloc_heap kind) in
-      let result_layout =
-        (* only care about layout on native *)
-        if !Clflags.native_code then primitive_result_layout prim else layout_field
-      in
+      let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
+      let result_layout = array_ref_kind_result_layout ref_kind in
       ( Lprim
-          (prim,
+          (Parrayrefu ref_kind,
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (match am with
