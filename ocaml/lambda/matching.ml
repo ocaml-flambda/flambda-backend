@@ -2197,18 +2197,22 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
     if pos >= len then
       rem
     else
-      (* CR ncourant: could do better than layout_field using kind *)
+      (* TODO: The resulting float should be allocated to at the mode of the
+         array pattern, once that's available *)
+      let prim = Parrayrefu Lambda.(array_ref_kind alloc_heap kind) in
+      let result_layout =
+        (* only care about layout on native *)
+        if !Clflags.native_code then primitive_result_layout prim else layout_field
+      in
       ( Lprim
-          (* TODO: The resulting float should be allocated to at the mode of the
-             array pattern, once that's available *)
-          (Parrayrefu Lambda.(array_ref_kind alloc_heap kind),
+          (prim,
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (match am with
         | Mutable   -> StrictOpt
         | Immutable -> Alias),
         Jkind.Sort.for_array_get_result,
-        layout_field)
+        result_layout)
       :: make_args (pos + 1)
   in
   make_args 0
