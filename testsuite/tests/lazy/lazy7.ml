@@ -1,5 +1,7 @@
 (* TEST
    ocamlopt_flags += " -O3 "
+   * skip
+     reason = "OCaml 5 only"
 *)
 
 let num_domains = 4

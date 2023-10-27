@@ -1,5 +1,7 @@
 (* TEST
    ocamlopt_flags += " -O3 "
+   * skip
+     reason = "OCaml 5 only"
 *)
 let rec safe_force l =
   try Lazy.force l with

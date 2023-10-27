@@ -1,11 +1,11 @@
 (* TEST
-   * skip
    reason = "OCaml 5 only"
    include runtime_events
    include unix
-   * libunix
-   ** bytecode
-   ** native *)
+   * skip
+   ** libunix
+   *** bytecode
+   *** native *)
 
 let got_major = ref false
 let got_minor = ref false

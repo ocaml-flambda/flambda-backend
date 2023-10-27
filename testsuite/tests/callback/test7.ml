@@ -1,11 +1,12 @@
 (* TEST
-   * skip
 
    include unix
    modules = "test7_.c"
-   * libunix
-   ** bytecode
-   ** native
+   * skip
+     reason = "OCaml 5 only"
+   ** libunix
+   *** bytecode
+   *** native
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to
