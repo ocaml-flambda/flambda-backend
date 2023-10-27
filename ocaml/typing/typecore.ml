@@ -1486,11 +1486,13 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     | Mutable -> Predef.type_array
   in
   (* CR layouts v4: in the future we'll have arrays of other jkinds *)
-  let ty_elt = newgenvar (Jkind.value ~why:Array_element) in
+  let jkind = Jkind.value ~why:Array_element in
+  let arg_sort = Jkind.sort_of_jkind jkind in
+  let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
     loc env (type_some_array ty_elt) expected_ty;
-  ty_elt
+  ty_elt, arg_sort
 
 let solve_Ppat_lazy  ~refine loc env expected_ty =
   let nv = newgenvar (Jkind.value ~why:Lazy_expression) in
@@ -2279,7 +2281,7 @@ and type_pat_aux
        keep them in sync, at the cost of a worse diff with upstream; it
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
-    let ty_elt = solve_Ppat_array ~refine loc env mutability expected_ty in
+    let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let alloc_mode =
       match mutability with
       | Mutable -> simple_pat_mode Value.legacy
@@ -2287,7 +2289,7 @@ and type_pat_aux
     in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
-      pat_desc = Tpat_array (mutability, pl);
+      pat_desc = Tpat_array (mutability, arg_sort, pl);
       pat_loc = loc; pat_extra=[];
       pat_type = instance expected_ty;
       pat_attributes;

@@ -134,7 +134,7 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
