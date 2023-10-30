@@ -414,7 +414,6 @@ let select_operation op args =
 
 let register_behavior_clmul = function Clmul_64 _ -> R_RM_to_fst
 
-
 let register_behavior_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
   | Interleave_low_32 | Interleave_high_32 | Shuffle_32 _ ->

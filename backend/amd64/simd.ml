@@ -540,8 +540,7 @@ let equal_operation l r =
   | SSSE3 l, SSSE3 r -> equal_operation_ssse3 l r
   | SSE41 l, SSE41 r -> equal_operation_sse41 l r
   | SSE42 l, SSE42 r -> equal_operation_sse42 l r
-  | ( (CLMUL _ | SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _),
-      _ ) ->
+  | (CLMUL _ | SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _), _ ->
     false
 
 let print_float_condition ppf = function
@@ -875,7 +874,6 @@ let print_operation printreg op ppf arg =
   | SSE42 op -> print_operation_sse42 printreg op ppf arg
 
 let class_of_operation_clmul = function Clmul_64 _ -> Pure
-
 
 let class_of_operation_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
