@@ -1485,7 +1485,9 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     | Immutable -> Predef.type_iarray
     | Mutable -> Predef.type_array
   in
-  (* CR layouts v4: in the future we'll have arrays of other jkinds *)
+  (* CR layouts v4: The code below is written this way to make it easier to update
+     when we generalize array to contain non-value jkinds. When that happens,
+     change the next two lines to use [Jkind.of_new_sort_var]. *)
   let jkind = Jkind.value ~why:Array_element in
   let arg_sort = Jkind.sort_of_jkind jkind in
   let ty_elt = newgenvar jkind in
