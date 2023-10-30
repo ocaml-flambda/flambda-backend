@@ -77,6 +77,7 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Did_you_mean_unboxed of Longident.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -715,6 +716,16 @@ and transl_type_aux env policy mode styp =
           let path, decl = Env.find_type_by_name lid2 env in
           ignore(Env.lookup_cltype ~loc:lid.loc lid.txt env);
           (path, decl, false)
+        with Not_found -> try
+          (* Raise a different error if it matches the name of an unboxed type *)
+          let lid3 =
+            match lid.txt with
+              Longident.Lident s     -> Longident.Lident (s ^ "#")
+            | Longident.Ldot(r, s)   -> Longident.Ldot (r, s ^ "#")
+            | Longident.Lapply(_, _) -> fatal_error "Typetexp.transl_type"
+          in
+          ignore (Env.find_type_by_name lid3 env : Path.t * Types.type_declaration);
+          raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
         with Not_found ->
           ignore (Env.lookup_cltype ~loc:lid.loc lid.txt env); assert false
       in
@@ -1388,6 +1399,9 @@ let report_error env ppf = function
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Did_you_mean_unboxed lid ->
+    fprintf ppf "@[%a is neither a polymorphic variant nor a class type.@ \
+                 Did you mean the unboxed type %a#?@]" longident lid longident lid
 
 let () =
   Location.register_error_of_exn
