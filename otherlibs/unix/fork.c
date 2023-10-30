@@ -42,10 +42,12 @@ void caml_atfork_child(void) {
 CAMLprim value caml_unix_fork(value unit)
 {
   int ret;
+ /* BACKPORT
   if (caml_domain_is_multicore()) {
     caml_failwith
       ("Unix.fork may not be called while other domains were created");
   }
+*/
 
 /* BACKPORT BEGIN */
   CAML_EV_FLUSH();

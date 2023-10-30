@@ -25,5 +25,10 @@ CAMLprim value caml_unix_error_message(value err)
 {
   char buf[1024];
   int errnum = caml_unix_code_of_unix_error(err);
-  return caml_copy_string(caml_strerror(errnum, buf, sizeof(buf)));
+  strerror_r(errnum, buf, sizeof(buf));
+  return caml_copy_string(
+    /* BACKPORT
+    caml_strerror (errnum, buf, sizeof(buf)));
+    */
+    buf);
 }
