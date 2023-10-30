@@ -1530,6 +1530,11 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     | Void -> assert false
     end
 
+let array_ref_kind_result_layout = function
+  | Pintarray_ref -> layout_int
+  | Pfloatarray_ref _ -> layout_boxed_float
+  | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with
@@ -1570,10 +1575,7 @@ let primitive_result_layout (p : primitive) =
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
   | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
-      (match array_ref_kind with
-       | Pintarray_ref -> layout_int
-       | Pfloatarray_ref _ -> layout_boxed_float
-       | Pgenarray_ref _ | Paddrarray_ref -> layout_field)
+    array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
