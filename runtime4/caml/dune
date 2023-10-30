@@ -90,6 +90,7 @@
     (roots.h as caml/roots.h)
     (s.h as caml/s.h)
     (signals.h as caml/signals.h)
+    (simd.h as caml/simd.h)
     (skiplist.h as caml/skiplist.h)
     (signals_machdep.h as caml/signals_machdep.h)
     (stack.h as caml/stack.h)

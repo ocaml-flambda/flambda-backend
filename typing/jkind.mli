@@ -362,11 +362,6 @@ val of_new_sort_var : why:concrete_jkind_reason -> t * sort
 (** Create a fresh sort variable, packed into a jkind. *)
 val of_new_sort : why:concrete_jkind_reason -> t
 
-(** There should not be a need to convert a sort to a jkind, but this is
-    occasionally useful for formatting error messages. Do not use in actual
-    type-checking. *)
-val of_sort_for_error : why:concrete_jkind_reason -> sort -> t
-
 val of_const : why:creation_reason -> const -> t
 
 (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism

@@ -178,24 +178,29 @@ type primitive =
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
   (* size of the nth dimension of a Bigarray *)
   | Pbigarraydim of int
-  (* load/set 16,32,64 bits from a string: (unsafe)*)
+  (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
+  | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
+  | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_64 of bool
-  (* load/set 16,32,64 bits from a
+  | Pbytes_set_128 of { unsafe : bool }
+  (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of bool
   | Pbigstring_load_32 of bool * alloc_mode
   | Pbigstring_load_64 of bool * alloc_mode
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
   | Pbigstring_set_16 of bool
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -408,6 +413,7 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
@@ -770,6 +776,8 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
+val array_ref_kind_result_layout: array_ref_kind -> layout
+
 val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
@@ -777,3 +785,4 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
+val is_check_enabled : opt:bool -> property -> bool

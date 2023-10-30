@@ -289,6 +289,15 @@ val print_arguments : string -> unit
 (* [reset_arguments ()] clear all declared arguments *)
 val reset_arguments : unit -> unit
 
-val zero_alloc_check : bool ref
+(* [Annotations] specifies which zero_alloc attributes to check. *)
+module Annotations : sig
+  type t = Check_default | Check_all | Check_opt_only | No_check
+  val all : t list
+  val to_string : t -> string
+  val of_string : string -> t option
+  val equal : t -> t -> bool
+  val doc : string
+end
+val zero_alloc_check : Annotations.t ref
 val zero_alloc_check_assert_all : bool ref
 

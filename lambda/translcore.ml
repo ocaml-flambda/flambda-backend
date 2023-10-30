@@ -1108,7 +1108,7 @@ and transl_apply ~scopes
       (Rc_normal | Rc_nontail) ->
         Lapply
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
-                   ap_region_close = pos; ap_mode = mode}
+                   ap_region_close = pos; ap_mode = mode; ap_result_layout = result_layout }
     | lexp, _ ->
         Lapply {
           ap_loc=loc;
