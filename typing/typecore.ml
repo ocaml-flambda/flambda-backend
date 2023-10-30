@@ -4157,7 +4157,11 @@ let check_univars env kind exp ty_expected vars =
                   error exp_ty ty_expected
                     [Errortrace.Bad_jkind (uvar,err)]
               end
-            | _ -> error exp_ty ty_expected [])
+            | _ ->
+              (* It would be semantically correct for this case to error. But
+                 these errors are caught below anyway, and erroring earlier
+                 results in small differences in error messages vs upstream. *)
+              ())
             univars vars;
           unify_exp_types exp.exp_loc env exp_ty ty';
           ((exp_ty, vars), exp_ty::vars)
