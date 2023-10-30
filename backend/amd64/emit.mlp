@@ -1823,7 +1823,7 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  (* CR xclerc for xclerc: the following cannot be implemented on the 4.x runtime. *)
+  (* BACKPORT BEGIN *)
   (* if !Clflags.runtime_variant = "d" then
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   let { max_frame_size; contains_nontail_calls} =
@@ -1841,11 +1841,12 @@ let fundecl fundecl =
       Some (overflow, ret)
     end else None
   in*)
+  (* BACKPORT END *)
   emit_all true fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_safety_errors ();
-  (* CR xclerc for xclerc: see CR above. *)
+  (* BACKPORT BEGIN *)
   (*begin match handle_overflow with
     | None -> ()
     | Some (overflow,ret) -> begin
@@ -1862,6 +1863,7 @@ let fundecl fundecl =
         I.jmp (label ret)
       end
   end;*)
+  (* BACKPORT END *)
   if !frame_required then begin
     let n = frame_size() - 8 - (if fp then 8 else 0) in
     if n <> 0
@@ -2197,8 +2199,6 @@ let emit_probe_notes0 () =
     | S_beos | S_linux  -> false
     | S_cygwin | S_mingw | S_mingw64 | S_win64 | S_win32 | S_unknown
     | S_freebsd| S_netbsd | S_openbsd ->
-      (* CR xclerc for xclerc: double check whether {Free,Net,Open}BSD
-         are actually supported. *)
       Misc.fatal_error "emit_probe_notes: unexpected system"
   in
   (match is_macosx_system with
@@ -2277,10 +2277,10 @@ let emit_trap_notes () =
     | S_macosx -> false  (* can be supported with a symbol *)
     | S_gnu | S_solaris | S_linux_elf | S_bsd_elf
     | S_beos | S_linux -> true
-    | S_cygwin | S_mingw | S_mingw64 | S_win64 | S_win32 | S_unknown
+    | S_cygwin | S_mingw | S_mingw64 | S_win64 | S_win32 | S_unknown ->
+      false
     | S_freebsd| S_netbsd | S_openbsd ->
-      (* CR xclerc for xclerc: double check whether {Free,Net,Open}BSD
-         are actually supported. *)
+      (* Probably works, as these are ELF-based, but untested. *)
       false
   in
   let emit_labels list =

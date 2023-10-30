@@ -1213,7 +1213,8 @@ let fundecl fundecl =
   `	.globl	{emit_symbol fundecl.fun_name}\n`;
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   (* Dynamic stack checking *)
-  let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
+  (* BACKPORT BEGIN *)
+  (*let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
   let { max_frame_size; contains_nontail_calls} =
     preproc_stack_check
       ~fun_body:fundecl.fun_body ~frame_size:(frame_size env) ~trap_size:16
@@ -1232,11 +1233,12 @@ let fundecl fundecl =
       (* fall through function entry point *)
       Some overflow, 5
     end else
-      None, 0 in
+      None, 0 in*)
   `{emit_symbol fundecl.fun_name}:\n`;
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
-  begin match handle_overflow with
+  (* BACKPORT BEGIN *)
+  (*begin match handle_overflow with
     | None -> ()
     | Some overflow ->
       let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
@@ -1246,7 +1248,8 @@ let fundecl fundecl =
       emit_addimm reg_tmp1 reg_tmp1 f;
       `	cmp	sp, {emit_reg reg_tmp1}\n`;
       `	bcc	{emit_label overflow}\n`
-  end;
+  end;*)
+  (* BACKPORT END *)
   let num_call_gc, num_check_bound =
     num_call_gc_and_check_bound_points fundecl.fun_body
   in
