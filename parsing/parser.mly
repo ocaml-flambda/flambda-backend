@@ -205,18 +205,6 @@ let mktyp_once typ loc =
   {typ with
    ptyp_attributes = once_attr (make_loc loc) :: typ.ptyp_attributes}
 
-let wrap_exp_stack exp loc =
-  {exp with
-   pexp_attributes = local_attr (make_loc loc) :: exp.pexp_attributes}
-
-let wrap_exp_unique exp loc =
-  {exp with
-   pexp_attributes = unique_attr (make_loc loc) :: exp.pexp_attributes}
-
-let wrap_exp_once exp loc =
-  {exp with
-   pexp_attributes = once_attr (make_loc loc) :: exp.pexp_attributes}
-
 type mode_annotation = N_ary.mode_annotation =
   | Local
   | Unique
@@ -262,13 +250,17 @@ let mktyp_with_mode = function
 let mktyp_with_modes flags typ =
   List.fold_left (fun typ (flag, loc) -> mktyp_with_mode flag typ loc) typ flags
 
-let wrap_exp_with_mode = function
-  | Local -> wrap_exp_stack
-  | Unique -> wrap_exp_unique
-  | Once -> wrap_exp_once
-
-let wrap_exp_with_modes flags exp =
-  List.fold_left (fun exp (flag, loc) -> wrap_exp_with_mode flag exp loc) exp flags
+let let_binding_mode_attrs mode_annots =
+  List.map
+    (fun (annot, loc) ->
+       let mk_attr =
+         match annot with
+         | Local -> local_attr
+         | Unique -> unique_attr
+         | Once -> once_attr
+       in
+       mk_attr (make_loc loc))
+    mode_annots
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -3128,7 +3120,7 @@ labeled_simple_expr:
 ;
 let_binding_body_no_punning:
     let_ident strict_binding
-      { ($1, $2, None) }
+      { ($1, $2, None, []) }
   | mode_flags let_ident type_constraint EQUAL seq_expr
       { let v = $2 in (* PR#7344 *)
         let t =
@@ -3137,9 +3129,8 @@ let_binding_body_no_punning:
              Pvc_constraint { locally_abstract_univars = []; typ=t }
           | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
         in
-        let pat = mkpat_with_modes $1 v in
-        let exp = ghexp_with_modes $sloc $1 (wrap_exp_with_modes $1 $5) in
-        (pat, exp, Some t)
+        let exp = ghexp_with_modes $sloc $1 $5 in
+        (v, exp, Some t, let_binding_mode_attrs $1)
       }
   | mode_flags let_ident COLON poly(core_type) EQUAL seq_expr
       { let bound_vars, inner_type = $4 in
@@ -3148,9 +3139,9 @@ let_binding_body_no_punning:
         let typ =
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let pat = mkpat_with_modes $1 $2 in
         let exp = ghexp_with_modes $sloc $1 $6 in
-        (pat, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }))
+        ($2, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
+         let_binding_mode_attrs $1)
       }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       (* The code upstream looks like:
@@ -3173,21 +3164,22 @@ let_binding_body_no_punning:
           wrap_type_annotation ~loc:$sloc ~typloc:$loc($6) $4 $6 $8
         in
         let loc = ($startpos($1), $endpos($6)) in
-        (ghpat ~loc (Ppat_constraint($1, poly)), exp, None)
+        (ghpat ~loc (Ppat_constraint($1, poly)), exp, None, [])
        }
   | pattern_no_exn EQUAL seq_expr
-      { ($1, $3, None) }
+      { ($1, $3, None, []) }
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
-      { ($1, $5, Some(Pvc_constraint { locally_abstract_univars=[]; typ=$3 })) }
+      { ($1, $5, Some(Pvc_constraint { locally_abstract_univars=[]; typ=$3 }), []) }
   | mode_flag+ let_ident strict_binding_modes
-      { ($2, ghexp_with_modes $sloc $1 ($3 $1), None) }
+      { ($2, ghexp_with_modes $sloc $1 ($3 $1), None,
+         let_binding_mode_attrs $1) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
-      { let p,e,c = $1 in (p,e,c,false) }
+      { let p,e,c,attrs = $1 in (p,e,c,false), attrs }
 /* BEGIN AVOID */
   | val_ident %prec below_HASH
-      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, None, true) }
+      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, None, true), [] }
   (* The production that allows puns is marked so that [make list-parse-errors]
      does not attempt to exploit it. That would be problematic because it
      would then generate bindings such as [let x], which are rejected by the
@@ -3205,20 +3197,22 @@ let_bindings(EXT):
   ext = EXT
   attrs1 = attributes
   rec_flag = rec_flag
-  body = let_binding_body
-  attrs2 = post_item_attributes
+  body_with_attrs2 = let_binding_body
+  attrs3 = post_item_attributes
     {
-      let attrs = attrs1 @ attrs2 in
+      let body, attrs2 = body_with_attrs2 in
+      let attrs = attrs1 @ attrs2 @ attrs3 in
       mklbs ext rec_flag (mklb ~loc:$sloc true body attrs)
     }
 ;
 and_let_binding:
   AND
   attrs1 = attributes
-  body = let_binding_body
-  attrs2 = post_item_attributes
+  body_with_attrs2 = let_binding_body
+  attrs3 = post_item_attributes
     {
-      let attrs = attrs1 @ attrs2 in
+      let body, attrs2 = body_with_attrs2 in
+      let attrs = attrs1 @ attrs2 @ attrs3 in
       mklb ~loc:$sloc false body attrs
     }
 ;
