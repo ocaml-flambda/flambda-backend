@@ -7081,7 +7081,7 @@ and type_application env app_loc expected_mode position_and_mode
            true)
         end
       in
-      let ty_ret, mode_ret, args, pm =
+      let ty_ret, mode_ret, args, position_and_mode =
         with_local_level_if_principal begin fun () ->
           let ty_ret, mode_ret, untyped_args =
             collect_apply_args env funct ignore_labels ty (instance ty)
@@ -7101,7 +7101,7 @@ and type_application env app_loc expected_mode position_and_mode
             type_omitted_parameters expected_mode env ty_ret mode_ret args
           in
           check_local_application_complete ~env ~app_loc untyped_args;
-          ty_ret, mode_ret, args, pm
+          ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
       let ap_mode = Alloc.locality mode_ret in
@@ -7249,7 +7249,8 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
     with_explanation explanation (fun () ->
       try unify_var env ty tv
       with Unify err ->
-        raise(Error(exp.exp_loc, env, Expr_type_clash(err, None, Some exp.exp_desc))));
+        raise(Error(exp.exp_loc, env,
+          Expr_type_clash(err, None, Some sexp.pexp_desc))));
     exp, sort
   end
 
