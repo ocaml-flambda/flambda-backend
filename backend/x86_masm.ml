@@ -368,6 +368,7 @@ let print_instr b = function
   | PALIGNR (n, arg1, arg2) -> i3 b "palignr" n arg1 arg2
   | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
+  | PCLMULQDQ (n, arg1, arg2) -> i3 b "pclmulqdq" n arg1 arg2
 
 let print_line b = function
   | Ins instr -> print_instr b instr
