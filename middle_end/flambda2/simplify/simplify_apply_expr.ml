@@ -200,32 +200,37 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
     ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
-    let decision =
-      Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
-        ~function_type ~return_arity:result_arity
-    in
-    let unrolling_depth =
-      Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
-        (Call_site_inlining_decision.get_rec_info dacc ~function_type)
-    in
-    if Are_rebuilding_terms.are_rebuilding
-         (DE.are_rebuilding_terms (DA.denv dacc))
-    then
-      Inlining_report.record_decision_at_call_site_for_known_function
-        ~pass:Inlining_report.Pass.Before_simplify ~unrolling_depth
-        ~callee:(Code_metadata.absolute_history callee's_code_metadata)
-        ~tracker:(DE.inlining_history_tracker (DA.denv dacc))
-        ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
-        ~apply decision;
-    match Call_site_inlining_decision_type.can_inline decision with
-    | Do_not_inline { erase_attribute_if_ignored } ->
-      Do_not_inline { erase_attribute = erase_attribute_if_ignored }
-    | Inline { unroll_to; was_inline_always } ->
-      let dacc, inlined =
-        Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
-          function_type
+    match function_type with
+    | None ->
+      (* No rec info available, prevent inlining to avoid problems *)
+      Do_not_inline { erase_attribute = false }
+    | Some function_type -> (
+      let decision =
+        Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
+          ~function_type ~return_arity:result_arity
       in
-      Inline (dacc, inlined)
+      let unrolling_depth =
+        Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
+          (Call_site_inlining_decision.get_rec_info dacc ~function_type)
+      in
+      if Are_rebuilding_terms.are_rebuilding
+           (DE.are_rebuilding_terms (DA.denv dacc))
+      then
+        Inlining_report.record_decision_at_call_site_for_known_function
+          ~pass:Inlining_report.Pass.Before_simplify ~unrolling_depth
+          ~callee:(Code_metadata.absolute_history callee's_code_metadata)
+          ~tracker:(DE.inlining_history_tracker (DA.denv dacc))
+          ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
+          ~apply decision;
+      match Call_site_inlining_decision_type.can_inline decision with
+      | Do_not_inline { erase_attribute_if_ignored } ->
+        Do_not_inline { erase_attribute = erase_attribute_if_ignored }
+      | Inline { unroll_to; was_inline_always } ->
+        let dacc, inlined =
+          Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
+            function_type
+        in
+        Inline (dacc, inlined))
   in
   match inlined with
   | Inline (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
@@ -348,7 +353,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
    when there are zero args. *)
 
 let simplify_direct_partial_application ~simplify_expr dacc apply
-    ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot_name
+    ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
     ~param_arity ~param_modes ~args_arity ~result_arity ~recursive ~down_to_up
     ~coming_from_indirect
     ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t) ~current_region
@@ -593,7 +598,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         remaining_params ~body ~my_closure ~my_region ~my_depth
         ~free_names_of_body:Unknown
     in
-    let name = callee's_function_slot_name ^ "_partial" in
+    let name = Function_slot.to_string callee's_function_slot ^ "_partial" in
     let absolute_history, relative_history =
       DE.inlining_history_tracker (DA.denv dacc)
       |> Inlining_history.Tracker.fundecl
@@ -714,7 +719,7 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~down_to_up
 
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-    ~callee's_function_slot_name ~result_arity ~result_types ~recursive
+    ~callee's_function_slot ~result_arity ~result_types ~recursive
     ~must_be_detupled ~closure_alloc_mode_from_type ~apply_alloc_mode
     ~current_region function_decl ~down_to_up =
   (match Apply.probe apply, Apply.inlined apply with
@@ -790,9 +795,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
             \     (expected %a, found  %a):@ %a" Flambda_arity.print
             result_arity Flambda_arity.print result_arity_of_application
             Apply.print apply;
-        simplify_direct_full_application ~simplify_expr dacc apply function_decl
-          ~params_arity ~result_arity ~result_types ~down_to_up
-          ~coming_from_indirect ~callee's_code_metadata)
+        simplify_direct_full_application ~simplify_expr dacc apply
+          (Some function_decl) ~params_arity ~result_arity ~result_types
+          ~down_to_up ~coming_from_indirect ~callee's_code_metadata)
       else if provided_num_args > num_params
       then (
         (* See comment above. *)
@@ -817,7 +822,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
              function:@ %a"
             Apply.print apply;
         simplify_direct_partial_application ~simplify_expr dacc apply
-          ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot_name
+          ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity
           ~param_modes:(Code_metadata.param_modes callee's_code_metadata)
           ~args_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
@@ -940,29 +945,11 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       let callee's_code_metadata =
         Code_or_metadata.code_metadata callee's_code_or_metadata
       in
-      let must_be_detupled =
-        call_must_be_detupled (Code_metadata.is_tupled callee's_code_metadata)
-      in
-      let current_region = Apply.region apply in
-      let closure_alloc_mode_from_type =
-        (* The callee is only absent in the case of a statically-allocated
-           closure. *)
-        Alloc_mode.For_types.heap
-      in
-      let callee's_function_slot_name = Code_id.name callee's_code_id in
-      let func_decl_type =
-        (* XXX the Rec_info problem appears here too *)
-        T.Function_type.create callee's_code_id ~rec_info:T.any_rec_info
-      in
-      simplify_direct_function_call ~simplify_expr dacc apply
-        ~callee's_code_id_from_type:callee's_code_id
-        ~callee's_code_id_from_call_kind:(Some callee's_code_id)
-        ~callee's_function_slot_name
+      simplify_direct_full_application ~simplify_expr dacc apply None
+        ~params_arity:(Code_metadata.params_arity callee's_code_metadata)
         ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
         ~result_types:(Code_metadata.result_types callee's_code_metadata)
-        ~recursive:(Code_metadata.recursive callee's_code_metadata)
-        ~must_be_detupled ~closure_alloc_mode_from_type ~current_region
-        ~apply_alloc_mode func_decl_type ~down_to_up
+        ~down_to_up ~coming_from_indirect:false ~callee's_code_metadata
     | Indirect_known_arity | Indirect_unknown_arity ->
       Misc.fatal_errorf
         "No callee provided for non-direct OCaml function call:@ %a" Apply.print
@@ -989,13 +976,10 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       let must_be_detupled =
         call_must_be_detupled (Code_metadata.is_tupled callee's_code_metadata)
       in
-      let callee's_function_slot_name =
-        Function_slot.name callee's_function_slot
-      in
       let current_region = Apply.region apply in
       simplify_direct_function_call ~simplify_expr dacc apply
         ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-        ~callee's_function_slot_name
+        ~callee's_function_slot
         ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
         ~result_types:(Code_metadata.result_types callee's_code_metadata)
         ~recursive:(Code_metadata.recursive callee's_code_metadata)
