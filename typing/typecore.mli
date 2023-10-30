@@ -111,8 +111,9 @@ type existential_restriction =
   | In_self_pattern (** or in self pattern *)
 
 type module_patterns_restriction =
-  | Modules_allowed of { scope : int }
+  | Modules_allowed of { scope: int }
   | Modules_rejected
+  | Modules_ignored
 
 val type_binding:
         Env.t -> rec_flag ->

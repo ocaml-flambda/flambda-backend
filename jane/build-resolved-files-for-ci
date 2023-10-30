@@ -100,6 +100,7 @@ typing_mls=(
   subst
   tast_iterator
   tast_mapper
+  typecore
   typeclass
   typedecl
   typedecl_variance
