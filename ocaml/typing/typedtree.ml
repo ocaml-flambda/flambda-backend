@@ -909,13 +909,12 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
           List.iter (fun (_, lbl, pat) ->
             (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list
-      | Tpat_array (_, arg_sort, patl) ->
-        List.iter (loop f arg_sort) patl
       (* Cases where the inner things must be value: *)
       | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
       | Tpat_tuple patl -> List.iter (loop f Jkind.Sort.value) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
+      | Tpat_array (_, arg_sort, patl) -> List.iter (loop f arg_sort) patl
       | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()
