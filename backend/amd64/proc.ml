@@ -184,11 +184,9 @@ let phys_reg ty n =
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
-let _rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
-let _xmm0v () = phys_reg Vec128 100
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
 let destroy_xmm15 () =
