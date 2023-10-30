@@ -1032,6 +1032,8 @@ let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
 let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
 let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
 
+let emit_pclmulqdq = suffix emit_osize_rf_rfm_3A 0x44
+
 let emit_osize_rf op rmod b dst =
   match dst with
   | Regf reg ->
@@ -1955,6 +1957,7 @@ let assemble_instr b loc = function
   | PALIGNR (n, src, dst) -> emit_palignr b (imm n) dst src
   | MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
   | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
+  | PCLMULQDQ (n, src, dst) -> emit_pclmulqdq b (imm n) dst src
 
 let assemble_line b loc ins =
   try

@@ -61,6 +61,8 @@ let float_rounding_equal l r =
   | (RoundUp | RoundDown | RoundNearest | RoundTruncate | RoundCurrent), _ ->
     false
 
+type clmul_operation = Clmul_64 of int
+
 type sse_operation =
   | Cmp_f32 of float_condition
   | Add_f32
@@ -255,12 +257,16 @@ type sse42_operation =
   | Crc32_64
 
 type operation =
+  | CLMUL of clmul_operation
   | SSE of sse_operation
   | SSE2 of sse2_operation
   | SSE3 of sse3_operation
   | SSSE3 of ssse3_operation
   | SSE41 of sse41_operation
   | SSE42 of sse42_operation
+
+let equal_operation_clmul l r =
+  match l, r with Clmul_64 l, Clmul_64 r -> Int.equal l r
 
 let equal_operation_sse l r =
   match l, r with
@@ -527,13 +533,16 @@ let equal_operation_sse42 l r =
 
 let equal_operation l r =
   match l, r with
+  | CLMUL l, CLMUL r -> equal_operation_clmul l r
   | SSE l, SSE r -> equal_operation_sse l r
   | SSE2 l, SSE2 r -> equal_operation_sse2 l r
   | SSE3 l, SSE3 r -> equal_operation_sse3 l r
   | SSSE3 l, SSSE3 r -> equal_operation_ssse3 l r
   | SSE41 l, SSE41 r -> equal_operation_sse41 l r
   | SSE42 l, SSE42 r -> equal_operation_sse42 l r
-  | (SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _), _ -> false
+  | ( (CLMUL _ | SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _),
+      _ ) ->
+    false
 
 let print_float_condition ppf = function
   | EQf -> pp_print_string ppf "eq"
@@ -551,6 +560,11 @@ let print_float_rounding ppf = function
   | RoundNearest -> pp_print_string ppf "nearest"
   | RoundTruncate -> pp_print_string ppf "truncate"
   | RoundCurrent -> pp_print_string ppf "current"
+
+let print_operation_clmul printreg op ppf arg =
+  match op with
+  | Clmul_64 i ->
+    fprintf ppf "clmul_64[%d] %a %a" i printreg arg.(0) printreg arg.(1)
 
 let print_operation_sse printreg op ppf arg =
   match op with
@@ -852,12 +866,16 @@ let print_operation_sse42 printreg op ppf arg =
 
 let print_operation printreg op ppf arg =
   match op with
+  | CLMUL op -> print_operation_clmul printreg op ppf arg
   | SSE op -> print_operation_sse printreg op ppf arg
   | SSE2 op -> print_operation_sse2 printreg op ppf arg
   | SSE3 op -> print_operation_sse3 printreg op ppf arg
   | SSSE3 op -> print_operation_ssse3 printreg op ppf arg
   | SSE41 op -> print_operation_sse41 printreg op ppf arg
   | SSE42 op -> print_operation_sse42 printreg op ppf arg
+
+let class_of_operation_clmul = function Clmul_64 _ -> Pure
+
 
 let class_of_operation_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
@@ -917,6 +935,7 @@ let class_of_operation_sse42 = function
 
 let class_of_operation op =
   match op with
+  | CLMUL op -> class_of_operation_clmul op
   | SSE op -> class_of_operation_sse op
   | SSE2 op -> class_of_operation_sse2 op
   | SSE3 op -> class_of_operation_sse3 op

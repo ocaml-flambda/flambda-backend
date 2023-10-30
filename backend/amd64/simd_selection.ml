@@ -65,6 +65,16 @@ let float_rounding_of_int = function
   | 0xC -> RoundCurrent
   | i -> Misc.fatal_errorf "Invalid float rounding immediate: %d" i
 
+let select_operation_clmul op args =
+  if not !Arch.clmul_support
+  then None
+  else
+    match op with
+    | "caml_clmul_int64x2" ->
+      let i, args = extract_constant args ~max:31 op in
+      Some (Clmul_64 i, args)
+    | _ -> None
+
 let select_operation_sse op args =
   match op with
   | "caml_sse_float32x4_cmp" ->
@@ -390,6 +400,7 @@ let select_simd_instr op args =
     match opt with Some x -> Some x | None -> Option.map ctr (try_ op args)
   in
   None
+  |> or_else select_operation_clmul (fun (op, args) -> CLMUL op, args)
   |> or_else select_operation_sse (fun (op, args) -> SSE op, args)
   |> or_else select_operation_sse2 (fun (op, args) -> SSE2 op, args)
   |> or_else select_operation_sse3 (fun (op, args) -> SSE3 op, args)
@@ -400,6 +411,9 @@ let select_simd_instr op args =
 let select_operation op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Mach.(Ispecific (Isimd op), args))
+
+let register_behavior_clmul = function Clmul_64 _ -> R_RM_to_fst
+
 
 let register_behavior_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
@@ -473,6 +487,7 @@ let register_behavior_sse42 = function
     R_RM_to_rcx
 
 let register_behavior = function
+  | CLMUL op -> register_behavior_clmul op
   | SSE op -> register_behavior_sse op
   | SSE2 op -> register_behavior_sse2 op
   | SSE3 op -> register_behavior_sse3 op

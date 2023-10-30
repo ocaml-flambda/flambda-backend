@@ -363,4 +363,6 @@ module I = struct
   let pcmpistri i x y = emit (PCMPISTRI (i, x, y))
   let pcmpistrm i x y = emit (PCMPISTRM (i, x, y))
   let crc32 x y = emit (CRC32 (x, y))
+
+  let pclmulqdq i x y = emit (PCLMULQDQ (i, x, y))
 end
