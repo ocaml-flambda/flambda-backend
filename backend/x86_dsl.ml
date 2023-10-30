@@ -365,4 +365,7 @@ module I = struct
   let crc32 x y = emit (CRC32 (x, y))
 
   let pclmulqdq i x y = emit (PCLMULQDQ (i, x, y))
+
+  let pext x y z = emit (PEXT (x, y, z))
+  let pdep x y z = emit (PDEP (x, y, z))
 end

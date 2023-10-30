@@ -1151,6 +1151,40 @@ let emit_movmskpd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x50 ] rm (rd_of_reg64 reg)
   | _ -> assert false
 
+let emit_vex3 buf ~rexr ~rexx ~rexb ~vexm ~vexw ~vexv ~vexl ~vexp =
+  buf_int8 buf 0xC4;
+  buf_int8 buf (((lnot rexr) lsl 7) lor
+                ((lnot rexx) lsl 6) lor
+                ((lnot rexb) lsl 5) lor
+                vexm);
+  buf_int8 buf ((vexw lsl 7) lor
+                ((lnot vexv) lsl 3) lor
+                (vexl lsl 2) lor
+                vexp)
+
+let vex_prefix_adaptor f =
+  fun b ~rex:_ ~rexr ~rexb ~rexx ->
+    let rexr = if rexr <> 0 then 1 else 0 in
+    let rexb = if rexb <> 0 then 1 else 0 in
+    let rexx = if rexx <> 0 then 1 else 0 in
+    f b ~rexr ~rexx ~rexb
+
+let emit_pext b dst src0 src1 =
+  match (dst, src0, src1) with
+  | Reg64 dreg, Reg64 s0reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as s1rm) ->
+    emit_prefix_modrm b [ 0xf5 ] s1rm (rd_of_reg64 dreg)
+      ~prefix:(vex_prefix_adaptor
+        (emit_vex3 ~vexm:2 ~vexw:1 ~vexv:(rd_of_reg64 s0reg) ~vexl:0 ~vexp:2));
+  | _ -> assert false
+
+let emit_pdep b dst src0 src1 =
+  match (dst, src0, src1) with
+  | Reg64 dreg, Reg64 s0reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as s1rm) ->
+    emit_prefix_modrm b [ 0xf5 ] s1rm (rd_of_reg64 dreg)
+      ~prefix:(vex_prefix_adaptor
+        (emit_vex3 ~vexm:2 ~vexw:1 ~vexv:(rd_of_reg64 s0reg) ~vexl:0 ~vexp:3));
+  | _ -> assert false
+
 type simple_encoding = {
   rm8_r8 : int list;
   rm64_r64 : int list;
@@ -1970,6 +2004,8 @@ let assemble_instr b loc = function
   | MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
   | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
   | PCLMULQDQ (n, src, dst) -> emit_pclmulqdq b (imm n) dst src
+  | PEXT (src1, src0, dst) -> emit_pext b dst src0 src1
+  | PDEP (src1, src0, dst) -> emit_pdep b dst src0 src1
 
 let assemble_line b loc ins =
   try

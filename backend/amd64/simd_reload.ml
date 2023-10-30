@@ -38,6 +38,13 @@ let reload_operation makereg op arg res =
     let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
     let res0 = if stackp res.(0) then makereg res.(0) else res.(0) in
     [| arg0 |], [| res0 |]
+  | R_RM_to_R ->
+    (* First argument and result must be in registers. *)
+    let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in
+    let res0 = if stackp res.(0) then makereg res.(0) else res.(0) in
+    let arg = Array.copy arg in
+    Array.set arg 0 arg0;
+    arg, [| res0 |]
   | R_R_to_fst ->
     (* Both arguments must be registers; the result must be the first arg. *)
     let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in

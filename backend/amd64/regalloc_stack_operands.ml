@@ -184,7 +184,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     | R_to_fst | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
     | R_RM_to_fst ->
       may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
-    | R_RM_to_rcx | R_RM_to_xmm0 ->
+    | R_RM_to_rcx | R_RM_to_xmm0 | R_RM_to_R ->
       may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:false
     | R_RM_rax_rdx_to_rcx | R_RM_rax_rdx_to_xmm0 ->
       may_use_stack_operand_for_second_argument map instr ~num_args:4 ~res_is_fst:false

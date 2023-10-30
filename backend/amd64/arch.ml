@@ -37,6 +37,9 @@ let sse42_support = ref true
 (* Carry-less multiplication (Westmere+) *)
 let clmul_support = ref true
 
+(* Bit manipulation 2 (Haswell+) *)
+let bmi2_support = ref true
+
 (* Enable SIMD register allocation features. *)
 let simd_regalloc = ref false
 
@@ -84,6 +87,10 @@ let command_line_options =
       " Enable CLMUL intrinsics (default)";
     "-fno-clmul", Arg.Clear clmul_support,
       " Disable CLMUL intrinsics";
+    "-fbmi2", Arg.Set bmi2_support,
+      " Enable BMI2 intrinsics (default)";
+    "-fno-bmi2", Arg.Clear bmi2_support,
+      " Disable BMI2 intrinsics";
     "-fsimd-regalloc", Arg.Set simd_regalloc,
       " Enable SIMD register allocation (implied by -extension SIMD)";
     "-fno-simd-regalloc", Arg.Clear simd_regalloc,
