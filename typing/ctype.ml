@@ -5927,12 +5927,12 @@ let add_nongen_vars_in_schema =
     end
   in
   fun env acc ty ->
+    remove_mode_and_jkind_variables ty;
     let _, result = loop env (TypeSet.empty, acc) ty in
     result
 
 (* Return all non-generic variables of [ty]. *)
 let nongen_vars_in_schema env ty =
-  remove_mode_and_jkind_variables ty;
   let result = add_nongen_vars_in_schema env TypeSet.empty ty in
   if TypeSet.is_empty result
   then None
