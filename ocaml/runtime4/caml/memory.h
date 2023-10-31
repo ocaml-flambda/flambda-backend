@@ -251,7 +251,7 @@ extern void caml_alloc_small_dispatch (intnat wosize, int flags,
   CAML_DEPRECATED("Modify", "caml_modify") \
   caml_modify((fp), (val))
 
-struct caml_local_arenas* caml_get_local_arenas();
+struct caml_local_arenas* caml_get_local_arenas(void);
 void caml_set_local_arenas(struct caml_local_arenas* s);
 
 #endif /* CAML_INTERNALS */
