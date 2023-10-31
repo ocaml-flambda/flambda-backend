@@ -39,5 +39,6 @@ Here is an example of a case that is not matched:
 
 val eval : ('a, 'b, 'c) binop -> 'a constant -> 'b constant -> 'c constant =
   <fun>
+
 Exception: Match_failure ("", 12, 2).
 |}];;

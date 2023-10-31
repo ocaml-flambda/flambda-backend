@@ -31,10 +31,15 @@ type _ nat += Nss : 'd nat -> 'd s s nat
 ;;
 
 [%%expect{|
+
 type z
+
 type 'a s
+
 type _ nat = ..
+
 type _ nat += Nz : z -> z nat
+
 Line 5, characters 0-40:
 5 | type _ nat += Nss : 'd nat -> 'd s s nat
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -48,8 +53,11 @@ type _ t = ..
 type 'b t += A: 'b -> 'b any t
 
 [%%expect{|
+
 type 'any any = int
+
 type _ t = ..
+
 Line 3, characters 0-30:
 3 | type 'b t += A: 'b -> 'b any t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

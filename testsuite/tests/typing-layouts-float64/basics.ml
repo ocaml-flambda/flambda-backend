@@ -29,6 +29,7 @@ Error: Layout float64 is used here, but the appropriate layouts extension is not
    layouts extension). *)
 let f x = Stdlib__Float_u.sin x
 [%%expect{|
+
 Line 1, characters 6-31:
 1 | let f x = Stdlib__Float_u.sin x
           ^^^^^^^^^^^^^^^^^^^^^^^^^

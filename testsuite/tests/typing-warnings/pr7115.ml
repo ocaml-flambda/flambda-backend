@@ -27,6 +27,7 @@ module X2 : sig end = struct
     | A -> let x = () in x
 end;;
 [%%expect {|
+
 Line 2, characters 6-7:
 2 |   let x = 42 (* unused value *)
           ^
@@ -43,6 +44,7 @@ module X3 : sig end = struct
     | A -> let x = () in x
 end;;
 [%%expect {|
+
 Line 2, characters 24-25:
 2 |   module O = struct let x = 42 (* unused *) end
                             ^

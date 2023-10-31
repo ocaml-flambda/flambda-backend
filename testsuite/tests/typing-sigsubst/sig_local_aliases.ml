@@ -57,6 +57,7 @@ module type Reject2 = sig
   module M := F(N)
 end;;
 [%%expect{|
+
 Line 2, characters 14-18:
 2 |   module M := F(N)
                   ^^^^
@@ -67,6 +68,7 @@ module type Reject3 = sig
   type t := u
 end;;
 [%%expect{|
+
 Line 2, characters 12-13:
 2 |   type t := u
                 ^
@@ -77,6 +79,7 @@ module type RejectRec = sig
   type t := [ `Foo of t | `Nil ]
 end;;
 [%%expect{|
+
 Line 2, characters 22-23:
 2 |   type t := [ `Foo of t | `Nil ]
                           ^
@@ -88,6 +91,7 @@ module type AcceptAnd = sig
   and u := int * int
 end;;
 [%%expect{|
+
 module type AcceptAnd = sig end
 |}]
 
@@ -96,6 +100,7 @@ module type RejectAnd = sig
   and u := t * int
 end;;
 [%%expect{|
+
 Line 3, characters 11-12:
 3 |   and u := t * int
                ^
@@ -112,8 +117,11 @@ module type S = sig
   val x : string bar t
 end
 [%%expect{|
+
 type ('a, 'b) foo = Foo
+
 type 'a s = 'b list constraint 'a = (int, 'b) foo
+
 Line 6, characters 2-26:
 6 |   type 'a t := 'a s * bool
       ^^^^^^^^^^^^^^^^^^^^^^^^

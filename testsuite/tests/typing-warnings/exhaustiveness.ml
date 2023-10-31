@@ -24,14 +24,18 @@ type (_,_,_,_) u = U : (int, int, int, int) u
 type v = E | F | G
 ;;
 [%%expect {|
+
 type _ t = A : int t | B : bool t | C : char t | D : float t
+
 type (_, _, _, _) u = U : (int, int, int, int) u
+
 type v = E | F | G
 |}]
 
 (* Unused cases *)
 let f (x : int t) = match x with A -> 1 | _ -> 2;; (* warn *)
 [%%expect {|
+
 Line 1, characters 20-48:
 1 | let f (x : int t) = match x with A -> 1 | _ -> 2;; (* warn *)
                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -49,6 +53,7 @@ val f : int t -> int = <fun>
 
 let f (x : unit t option) = match x with None -> 1 | _ -> 2 ;; (* warn? *)
 [%%expect {|
+
 Line 1, characters 53-54:
 1 | let f (x : unit t option) = match x with None -> 1 | _ -> 2 ;; (* warn? *)
                                                          ^
@@ -60,6 +65,7 @@ val f : unit t option -> int = <fun>
 
 let f (x : unit t option) = match x with None -> 1 | Some _ -> 2 ;; (* warn *)
 [%%expect {|
+
 Line 1, characters 53-59:
 1 | let f (x : unit t option) = match x with None -> 1 | Some _ -> 2 ;; (* warn *)
                                                          ^^^^^^
@@ -71,11 +77,13 @@ val f : unit t option -> int = <fun>
 
 let f (x : int t option) = match x with None -> 1 | _ -> 2;;
 [%%expect {|
+
 val f : int t option -> int = <fun>
 |}]
 
 let f (x : int t option) = match x with None -> 1;; (* warn *)
 [%%expect {|
+
 Line 1, characters 27-49:
 1 | let f (x : int t option) = match x with None -> 1;; (* warn *)
                                ^^^^^^^^^^^^^^^^^^^^^^
@@ -91,12 +99,15 @@ val f : int t option -> int = <fun>
 type 'a box = Box of 'a
 type 'a pair = {left: 'a; right: 'a};;
 [%%expect {|
+
 type 'a box = Box of 'a
+
 type 'a pair = { left : 'a; right : 'a; }
 |}]
 
 let f : (int t box pair * bool) option -> unit = function None -> ();;
 [%%expect {|
+
 Line 1, characters 49-68:
 1 | let f : (int t box pair * bool) option -> unit = function None -> ();;
                                                      ^^^^^^^^^^^^^^^^^^^
@@ -109,11 +120,13 @@ val f : (int t box pair * bool) option -> unit = <fun>
 
 let f : (string t box pair * bool) option -> unit = function None -> ();;
 [%%expect {|
+
 val f : (string t box pair * bool) option -> unit = <fun>
 |}]
 
 let f = function {left=Box 0; _ } -> ();;
 [%%expect {|
+
 Line 1, characters 8-39:
 1 | let f = function {left=Box 0; _ } -> ();;
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -126,6 +139,7 @@ val f : int box pair -> unit = <fun>
 
 let f = function {left=Box 0;right=Box 1} -> ();;
 [%%expect {|
+
 Line 1, characters 8-47:
 1 | let f = function {left=Box 0;right=Box 1} -> ();;
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -143,6 +157,7 @@ type _ t =
   | Bool : bool t
 ;;
 [%%expect {|
+
 type _ t = Int : int t | Bool : bool t
 |}]
 
@@ -151,6 +166,7 @@ let f : type a. a t -> a = function
   | Bool -> true
 ;;
 [%%expect {|
+
 val f : 'a t -> 'a = <fun>
 |}]
 
@@ -158,6 +174,7 @@ let g : int t -> int = function
   | Int -> 1
 ;;
 [%%expect {|
+
 val g : int t -> int = <fun>
 |}]
 
@@ -167,6 +184,7 @@ let h : type a. a t -> a t -> bool =
   | Bool, Bool -> true
 ;;
 [%%expect {|
+
 val h : 'a t -> 'a t -> bool = <fun>
 |}]
 
@@ -177,13 +195,16 @@ module A : sig type a type b val eq : (a, b) cmp end
   = struct type a type b = a let eq = Eq end
 ;;
 [%%expect {|
+
 type (_, _) cmp = Eq : ('a, 'a) cmp | Any : ('a, 'b) cmp
+
 module A : sig type a type b val eq : (a, b) cmp end
 |}]
 
 let f : (A.a, A.b) cmp -> unit = function Any -> ()
 ;;
 [%%expect {|
+
 Line 1, characters 33-51:
 1 | let f : (A.a, A.b) cmp -> unit = function Any -> ()
                                      ^^^^^^^^^^^^^^^^^^
@@ -198,6 +219,7 @@ let deep : char t option -> char =
   function None -> 'c'
 ;;
 [%%expect {|
+
 val deep : char t option -> char = <fun>
 |}]
 
@@ -205,7 +227,9 @@ type zero = Zero
 type _ succ = Succ
 ;;
 [%%expect {|
+
 type zero = Zero
+
 type _ succ = Succ
 |}]
 
@@ -215,6 +239,7 @@ type (_,_,_) plus =
        ('a succ, 'b, 'c succ) plus
 ;;
 [%%expect {|
+
 type (_, _, _) plus =
     Plus0 : (zero, 'a, 'a) plus
   | PlusS : ('a, 'b, 'c) plus -> ('a succ, 'b, 'c succ) plus
@@ -224,6 +249,7 @@ let trivial : (zero succ, zero, zero) plus option -> bool =
   function None -> false
 ;;
 [%%expect {|
+
 val trivial : (zero succ, zero, zero) plus option -> bool = <fun>
 |}]
 
@@ -231,6 +257,7 @@ let easy : (zero, zero succ, zero) plus option -> bool =
   function None -> false
 ;;
 [%%expect {|
+
 val easy : (zero, zero succ, zero) plus option -> bool = <fun>
 |}]
 
@@ -238,6 +265,7 @@ let harder : (zero succ, zero succ, zero succ) plus option -> bool =
   function None -> false
 ;;
 [%%expect {|
+
 Line 2, characters 2-24:
 2 |   function None -> false
       ^^^^^^^^^^^^^^^^^^^^^^
@@ -252,6 +280,7 @@ let harder : (zero succ, zero succ, zero succ) plus option  -> bool =
   function None -> false | Some (PlusS _) -> .
 ;;
 [%%expect {|
+
 val harder : (zero succ, zero succ, zero succ) plus option -> bool = <fun>
 |}]
 
@@ -261,6 +290,7 @@ let inv_zero : type a b c d. (a,b,c) plus -> (c,d,zero) plus -> bool =
     | Plus0, Plus0 -> true
 ;;
 [%%expect {|
+
 val inv_zero : ('a, 'b, 'c) plus -> ('c, 'd, zero) plus -> bool = <fun>
 |}]
 
@@ -269,11 +299,13 @@ val inv_zero : ('a, 'b, 'c) plus -> ('c, 'd, zero) plus -> bool = <fun>
 
 type _ t = Int : int t;;
 [%%expect {|
+
 type _ t = Int : int t
 |}]
 
 let f (x : bool t) = match x with _ -> . ;; (* ok *)
 [%%expect {|
+
 val f : bool t -> 'a = <fun>
 |}]
 
@@ -282,6 +314,7 @@ val f : bool t -> 'a = <fun>
 
 let f () = match None with _ -> .;; (* error *)
 [%%expect {|
+
 Line 1, characters 27-28:
 1 | let f () = match None with _ -> .;; (* error *)
                                ^
@@ -291,6 +324,7 @@ Error: This match case could not be refuted.
 
 let g () = match None with _ -> () | exception _ -> .;; (* error *)
 [%%expect {|
+
 Line 1, characters 47-48:
 1 | let g () = match None with _ -> () | exception _ -> .;; (* error *)
                                                    ^
@@ -300,6 +334,7 @@ Error: This match case could not be refuted.
 
 let h () = match None with _ -> .  | exception _ -> .;; (* error *)
 [%%expect {|
+
 Line 1, characters 27-28:
 1 | let h () = match None with _ -> .  | exception _ -> .;; (* error *)
                                ^
@@ -309,6 +344,7 @@ Error: This match case could not be refuted.
 
 let f x = match x with _ -> () | None -> .;; (* do not warn *)
 [%%expect {|
+
 val f : 'a option -> unit = <fun>
 |}]
 
@@ -316,6 +352,7 @@ val f : 'a option -> unit = <fun>
 
 let f x y = match 1 with 1 when x = y -> 1;;
 [%%expect {|
+
 Line 1, characters 12-42:
 1 | let f x y = match 1 with 1 when x = y -> 1;;
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -328,6 +365,7 @@ val f : 'a -> 'a -> int = <fun>
 (* #7504, Example with no constraints on a record *)
 let f = function {contents=_}, 0 -> 0;;
 [%%expect {|
+
 Line 1, characters 8-37:
 1 | let f = function {contents=_}, 0 -> 0;;
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -345,6 +383,7 @@ let f = function
   | Some x when x <= 0 -> ()
 ;;
 [%%expect {|
+
 Lines 1-4, characters 8-28:
 1 | ........function
 2 |   | None -> ()
@@ -383,6 +422,7 @@ let non_exhaustive : t * t * t * t -> unit = function
 | (A|B), (A|B), (A|B), A (*missing B here*) -> ()
 end;;
 [%%expect {|
+
 Lines 20-22, characters 45-49:
 20 | .............................................function
 21 | | A, A, A, A -> ()

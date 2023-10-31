@@ -24,6 +24,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 4, characters 2-27:
 4 |   type nonrec unused = used
       ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -38,6 +39,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 3, characters 2-27:
 3 |   type unused = A of unused
       ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -60,6 +62,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Used_constructor : sig type t val t : t end
 |}]
 
@@ -70,6 +73,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 4, characters 11-12:
 4 |   type t = T
                ^
@@ -88,6 +92,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 5, characters 11-12:
 5 |   type t = T
                ^
@@ -105,6 +110,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 4, characters 11-12:
 4 |   type t = T
                ^
@@ -124,6 +130,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Used_private_constructor : sig type t val nothing : t -> unit end
 |}]
 
@@ -134,6 +141,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 4, characters 19-20:
 4 |   type t = private T
                        ^
@@ -149,6 +157,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Exported_private_constructor : sig type t = private T end
 |}]
 
@@ -160,6 +169,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Used_exception : sig val e : exn end
 |}]
 
@@ -173,6 +183,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Used_extension_constructor : sig type t val t : t end
 |}]
 
@@ -182,6 +193,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 3, characters 2-26:
 3 |   exception Nobody_uses_me
       ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -198,6 +210,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 5, characters 12-26:
 5 |   type t += Nobody_uses_me
                 ^^^^^^^^^^^^^^
@@ -214,6 +227,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 5, characters 59-75:
 5 |   type t += Dont_warn_on_me [@warning "-unused-extension"] | Nobody_uses_me
                                                                ^^^^^^^^^^^^^^^^
@@ -232,6 +246,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 4, characters 2-32:
 4 |   exception Nobody_constructs_me
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -253,6 +268,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 6, characters 12-27:
 6 |   type t += Noone_builds_me
                 ^^^^^^^^^^^^^^^
@@ -270,6 +286,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 4, characters 2-23:
 4 |   exception Private_exn
       ^^^^^^^^^^^^^^^^^^^^^
@@ -289,6 +306,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 6, characters 12-23:
 6 |   type t += Private_ext
                 ^^^^^^^^^^^
@@ -310,6 +328,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Used_private_extension : sig type t val nothing : t -> unit end
 |}]
 
@@ -321,6 +340,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 Line 5, characters 20-31:
 5 |   type t += private Private_ext
                         ^^^^^^^^^^^
@@ -338,6 +358,7 @@ end = struct
 end
 ;;
 [%%expect {|
+
 module Exported_private_extension :
   sig type t = .. type t += private Private_ext end
 |}]
@@ -350,6 +371,7 @@ end = struct
     sig type t = private [> `Foo | `Bar] include S with type t := t end
 end;;
 [%%expect {|
+
 module Pr7438 : sig end
 |}]
 
@@ -358,6 +380,7 @@ end = struct
   type t = A [@@warning "-34"]
 end;;
 [%%expect {|
+
 Line 3, characters 11-12:
 3 |   type t = A [@@warning "-34"]
                ^
@@ -371,6 +394,7 @@ end = struct
   type t = A [@@warning "-37"]
 end;;
 [%%expect {|
+
 Line 3, characters 2-30:
 3 |   type t = A [@@warning "-37"]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -384,6 +408,7 @@ end = struct
   type t = A [@warning "-37"] | B
 end;;
 [%%expect {|
+
 Line 3, characters 2-33:
 3 |   type t = A [@warning "-37"] | B
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -403,6 +428,7 @@ module Unused_record : sig end = struct
   let _ = foo
 end;;
 [%%expect {|
+
 Line 2, characters 13-21:
 2 |   type t = { a : int; b : int }
                  ^^^^^^^^
@@ -422,6 +448,7 @@ module Unused_field : sig end = struct
   let _ = foo
 end;;
 [%%expect {|
+
 Line 2, characters 13-20:
 2 |   type t = { a : int }
                  ^^^^^^^
@@ -439,6 +466,7 @@ module Unused_field : sig end = struct
   let _ = foo, bar, baz
 end;;
 [%%expect {|
+
 Line 2, characters 22-30:
 2 |   type t = { a : int; b : int; c : int }
                           ^^^^^^^^
@@ -455,6 +483,7 @@ module Unused_mutable_field : sig end = struct
   let _ = foo, bar
 end;;
 [%%expect {|
+
 Line 2, characters 22-37:
 2 |   type t = { a : int; mutable b : int }
                           ^^^^^^^^^^^^^^^
@@ -469,6 +498,7 @@ end = struct
   type t = { a : int }
 end;;
 [%%expect {|
+
 module Unused_field_exported_private : sig type t = private { a : int; } end
 |}]
 
@@ -480,6 +510,7 @@ end = struct
   let _ = foo
 end;;
 [%%expect {|
+
 module Unused_field_exported_private : sig type t = private { a : int; } end
 |}]
 
@@ -491,6 +522,7 @@ end = struct
   let _ = foo
 end;;
 [%%expect {|
+
 Line 4, characters 22-37:
 4 |   type t = { a : int; mutable b : int }
                           ^^^^^^^^^^^^^^^
@@ -505,6 +537,7 @@ end = struct
   type t = { a: int; b:int } [@@warning "-unused-field"]
 end;;
 [%%expect {|
+
 Line 3, characters 2-56:
 3 |   type t = { a: int; b:int } [@@warning "-unused-field"]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -518,6 +551,7 @@ end = struct
   type t = { a: int [@warning "-unused-field"]; b:int }
 end;;
 [%%expect {|
+
 Line 3, characters 2-55:
 3 |   type t = { a: int [@warning "-unused-field"]; b:int }
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -28,6 +28,7 @@ Error: Signature mismatch:
 
 module M1 : sig type t += A end = struct type t += private A end;;
 [%%expect{|
+
 Line 1, characters 34-64:
 1 | module M1 : sig type t += A end = struct type t += private A end;;
                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -45,6 +46,7 @@ Error: Signature mismatch:
 
 module M2 : sig type t += A end = struct type t += private A | B end;;
 [%%expect{|
+
 Line 1, characters 34-68:
 1 | module M2 : sig type t += A end = struct type t += private A | B end;;
                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -44,8 +44,11 @@ end;;
 
 match M.comp with | Diff -> false;;
 [%%expect{|
+
 module U : sig type t = { x : int; } end
+
 module M : sig type t = { x : int; } val comp : (U.t, t) comp end
+
 Line 11, characters 0-33:
 11 | match M.comp with | Diff -> false;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

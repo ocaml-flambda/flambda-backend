@@ -48,6 +48,7 @@ module VarianceEnv = struct
   end
 end
 [%%expect{|
+
 module VarianceEnv :
   sig
     module type Sig =
@@ -83,6 +84,7 @@ module UnboxedEnv = struct
   end
 end
 [%%expect{|
+
 module UnboxedEnv :
   sig
     module type Sig =
@@ -109,6 +111,7 @@ module ParamsUnificationEnv = struct
   module type Sig2 = Sig with type +'a t = 'a t
 end
 [%%expect{|
+
 module ParamsUnificationEnv :
   sig
     module type Sig =
@@ -137,6 +140,7 @@ module CorrectEnvConstructionTest = struct
   end
 end
 [%%expect{|
+
 module CorrectEnvConstructionTest :
   sig
     module type Sig =
@@ -174,18 +178,22 @@ module type S = sig
   module Header : Header with module Packet_type = Packet_type
 end
 [%%expect{|
+
 module type Packet_type = sig type t end
+
 module type Unpacked_header =
   sig
     module Packet_type : Packet_type
     type t
     val f : t -> Packet_type.t -> unit
   end
+
 module type Header =
   sig
     module Packet_type : Packet_type
     module Unpacked : sig type t val f : t -> Packet_type.t -> unit end
   end
+
 module type S =
   sig
     module Packet_type : Packet_type
@@ -203,6 +211,7 @@ module type Iobuf_packet = sig
     with module Header.Unpacked = Header.Unpacked
 end
 [%%expect{|
+
 module type Iobuf_packet =
   sig
     module Make :
@@ -231,7 +240,9 @@ module type Pack = sig
   module M : S
 end
 [%%expect{|
+
 module type S = sig type t type u = t end
+
 module type Pack = sig module M : S end
 |}]
 module type Weird = sig
@@ -241,6 +252,7 @@ module type Weird = sig
     with type M.u = M.u
 end
 [%%expect{|
+
 module type Weird =
   sig
     module M : S
@@ -259,6 +271,7 @@ module type S = sig
 
 module type T = S with type 'a t = 'b constraint 'a = < m : 'b >;;
 [%%expect{|
+
 module type S =
   sig type 'a t = 'a constraint 'a = < m : r > and r = < m : r > t end
 Uncaught exception: Stack overflow
@@ -275,8 +288,11 @@ type s = Foo of s
 
 module type T = S with type t = s
 [%%expect{|
+
 module type S = sig type t = Foo of r and r = t end
+
 type s = Foo of s
+
 module type T = sig type t = s = Foo of r and r = t end
 |}]
 
@@ -290,8 +306,11 @@ type s = Foo of s
 
 module type T = S with type t = s
 [%%expect{|
+
 module type S = sig type r = t and t = Foo of r end
+
 type s = Foo of s
+
 module type T = sig type r = t and t = s = Foo of r end
 |}]
 
@@ -307,8 +326,11 @@ type s = Foo of s
 
 module type T = S with type M.t = s
 [%%expect{|
+
 module type S = sig module rec M : sig type t = Foo of M.r type r = t end end
+
 type s = Foo of s
+
 Line 10, characters 23-35:
 10 | module type T = S with type M.t = s
                             ^^^^^^^^^^^^
@@ -332,9 +354,12 @@ type s = [`Foo of s]
 
 module type T = S with type M.t = s
 [%%expect{|
+
 module type S =
   sig module rec M : sig type t = private [ `Foo of M.r ] type r = t end end
+
 type s = [ `Foo of s ]
+
 Line 10, characters 16-35:
 10 | module type T = S with type M.t = s
                      ^^^^^^^^^^^^^^^^^^^
@@ -361,6 +386,7 @@ module X = struct type t = [`Foo of t] end
 
 module type T = S with module M.N = X
 [%%expect{|
+
 module type S =
   sig
     module rec M :
@@ -369,7 +395,9 @@ module type S =
         type r = M.N.t
       end
   end
+
 module X : sig type t = [ `Foo of t ] end
+
 Line 10, characters 16-37:
 10 | module type T = S with module M.N = X
                      ^^^^^^^^^^^^^^^^^^^^^
@@ -400,12 +428,15 @@ module X = struct type t type s = t end
 
 module type T = S with module M.N = X
 [%%expect{|
+
 module type S =
   sig
     module rec M :
       sig module N : sig type t = M.r type s end type r = N.s end
   end
+
 module X : sig type t type s = t end
+
 Line 10, characters 16-37:
 10 | module type T = S with module M.N = X
                      ^^^^^^^^^^^^^^^^^^^^^

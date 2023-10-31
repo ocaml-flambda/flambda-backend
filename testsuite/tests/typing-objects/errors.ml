@@ -22,7 +22,9 @@ class c (y : 'a * float) : ct = object
   method x = y
 end
 [%%expect{|
+
 class type ct = object method x : int end
+
 Lines 5-7, characters 32-3:
 5 | ................................object
 6 |   method x = y
@@ -37,6 +39,7 @@ Error: The class type object method x : 'a * float end
 
 let foo = 42#m;;
 [%%expect{|
+
 Line 1, characters 10-12:
 1 | let foo = 42#m;;
               ^^
@@ -45,6 +48,7 @@ Error: This expression is not an object; it has type int
 
 let foo = object (self) method foo = self#bar end;;
 [%%expect{|
+
 Line 1, characters 37-41:
 1 | let foo = object (self) method foo = self#bar end;;
                                          ^^^^

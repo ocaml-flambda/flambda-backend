@@ -40,6 +40,7 @@ module N = struct
   struct type t = B type u = A of t end
 end;;
 [%%expect{|
+
 Line 4, characters 2-39:
 4 |   struct type t = B type u = A of t end
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -73,6 +74,7 @@ module K = struct
 end;;
 
 [%%expect{|
+
 Lines 4-7, characters 4-7:
 4 | ....struct
 5 |       module type s
@@ -107,6 +109,7 @@ module L = struct
     end
 end;;
       [%%expect {|
+
 Lines 4-7, characters 4-7:
 4 | ....struct
 5 |       module T = struct type t end
@@ -140,6 +143,7 @@ module O = struct
 end;;
 
 [%%expect{|
+
 Line 5, characters 2-62:
 5 |   struct module type s type t = B let f (module X:s) A = B end
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -173,6 +177,7 @@ module P = struct
 end;;
 
 [%%expect{|
+
 Line 5, characters 5-41:
 5 |    = struct type a = B let f A _  = B end
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -205,6 +210,7 @@ end;;
 
 
 [%%expect{|
+
 Lines 4-7, characters 2-5:
 4 | ..struct
 5 |     class a = object method c = let module X = struct type t end in () end
@@ -237,6 +243,7 @@ module R = struct
 end;;
 
 [%%expect{|
+
 Lines 4-7, characters 2-5:
 4 | ..struct
 5 |     class type a = object end
@@ -264,6 +271,7 @@ module S = struct
 end;;
 
 [%%expect{|
+
 module S : sig class a : object  end class b : a end
 |}]
 
@@ -284,6 +292,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 8-15, characters 6-3:
  8 | ......struct
  9 |   type t
@@ -329,6 +338,7 @@ module rec M: sig type t type a = M.t end  =
 struct type t module M = struct type t end type a = M.t end;;
 
 [%%expect{|
+
 Line 2, characters 0-59:
 2 | struct type t module M = struct type t end type a = M.t end;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -358,10 +368,15 @@ module M: sig val f: t -> t -> t -> t end = struct
   let f A B C = D
 end;;
 [%%expect {|
+
 type t = A
+
 type t = B
+
 type t = C
+
 type t = D
+
 Lines 5-7, characters 44-3:
 5 | ............................................struct
 6 |   let f A B C = D
@@ -395,7 +410,9 @@ module Foo = struct
 end
 let add_extra_info arg = arg.Foo.info.doc
 [%%expect {|
+
 module Foo : sig type info = { doc : unit; } type t = { info : info; } end
+
 Line 5, characters 38-41:
 5 | let add_extra_info arg = arg.Foo.info.doc
                                           ^^^
@@ -416,9 +433,13 @@ end;;
 module Bar = struct end;;
 let add_extra_info arg = arg.Foo.info.doc
 [%%expect{|
+
 module Bar : sig type info = { doc : unit; } end
+
 module Foo : sig type t = { info : Bar.info; } end
+
 module Bar : sig end
+
 Line 8, characters 38-41:
 8 | let add_extra_info arg = arg.Foo.info.doc
                                           ^^^

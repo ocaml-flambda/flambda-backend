@@ -27,6 +27,7 @@ module X : sig type t type s type u val x : t end
 type t = X.t
 ;;
 [%%expect{|
+
 Line 1, characters 9-12:
 1 | type t = X.t
              ^^^
@@ -38,6 +39,7 @@ type t = X.t
 let x = X.x
 ;;
 [%%expect{|
+
 Line 1, characters 8-11:
 1 | let x = X.x
             ^^^
@@ -52,7 +54,9 @@ let (_, foo [@deprecated], _) = 1, (), 3
 ;;
 foo;;
 [%%expect{|
+
 val foo : unit = ()
+
 Line 3, characters 0-3:
 3 | foo;;
     ^^^
@@ -65,8 +69,10 @@ let (_, foo, bar) [@deprecated] = 1, (), 3
 ;;
 foo;;
 [%%expect{|
+
 val foo : unit = ()
 val bar : int = 3
+
 - : unit = ()
 |}]
 
@@ -74,6 +80,7 @@ let f = function
   | bar, cho [@deprecated], _ -> cho + 1
 ;;
 [%%expect{|
+
 Line 2, characters 33-36:
 2 |   | bar, cho [@deprecated], _ -> cho + 1
                                      ^^^
@@ -88,6 +95,7 @@ class c (_, (foo [@deprecated] : int)) =
   end
 ;;
 [%%expect{|
+
 Line 3, characters 12-15:
 3 |     val h = foo
                 ^^^
@@ -101,6 +109,7 @@ class c : 'a * int -> object val h : int end
 type t = X.t * X.s
 ;;
 [%%expect{|
+
 Line 1, characters 9-12:
 1 | type t = X.t * X.s
              ^^^
@@ -117,6 +126,7 @@ type t = X.t * X.s
 type t = X.t * X.s [@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 type t = X.t * X.s
 |}]
 
@@ -124,6 +134,7 @@ type t1 = X.t [@@ocaml.warning "-3"]
 and t2 = X.s
 ;;
 [%%expect{|
+
 Line 2, characters 9-12:
 2 | and t2 = X.s
              ^^^
@@ -136,6 +147,7 @@ and t2 = X.s
 type t = A of t [@@ocaml.deprecated]
 ;;
 [%%expect{|
+
 Line 1, characters 14-15:
 1 | type t = A of t [@@ocaml.deprecated]
                   ^
@@ -149,6 +161,7 @@ type t = A of t
   [@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 type t = A of t
 |}]
 
@@ -157,12 +170,14 @@ type t = A of t
 type t = (X.t * X.s) [@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 type t = X.t * X.s
 |}]
 
 type t = (X.t [@ocaml.warning "-3"]) * X.s
 ;;
 [%%expect{|
+
 Line 1, characters 39-42:
 1 | type t = (X.t [@ocaml.warning "-3"]) * X.s
                                            ^^^
@@ -176,6 +191,7 @@ type t = A of (t [@ocaml.warning "-3"])
   [@@ocaml.deprecated]
 ;;
 [%%expect{|
+
 type t = A of t
 |}]
 
@@ -184,6 +200,7 @@ type t = A of t
 let _ = function (_ : X.t) -> ()
 ;;
 [%%expect{|
+
 Line 1, characters 22-25:
 1 | let _ = function (_ : X.t) -> ()
                           ^^^
@@ -195,6 +212,7 @@ Alert deprecated: X.t
 let _ = function (_ : X.t)[@ocaml.warning "-3"] -> ()
 ;;
 [%%expect{|
+
 - : X.t -> unit = <fun>
 |}]
 
@@ -204,6 +222,7 @@ let _ = function (_ : X.t)[@ocaml.warning "-3"] -> ()
 module M = struct let x = X.x end
 ;;
 [%%expect{|
+
 Line 1, characters 26-29:
 1 | module M = struct let x = X.x end
                               ^^^
@@ -215,18 +234,21 @@ module M : sig val x : X.t end
 module M = (struct let x = X.x end)[@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 module M : sig val x : X.t end
 |}]
 
 module M = struct let x = X.x end [@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 module M : sig val x : X.t end
 |}]
 
 
 module rec M : sig val x: X.t end = struct let x = X.x end
 [%%expect{|
+
 Line 1, characters 26-29:
 1 | module rec M : sig val x: X.t end = struct let x = X.x end
                               ^^^
@@ -245,6 +267,7 @@ module rec M : sig val x: X.t end =
     let x = X.x
   end [@@ocaml.warning "-3"]
 [%%expect{|
+
 module rec M : sig val x : X.t end
 |}]
 
@@ -252,6 +275,7 @@ module rec M :
   (sig val x: X.t end)[@ocaml.warning "-3"] =
   (struct let x = X.x end)[@ocaml.warning "-3"]
 [%%expect{|
+
 module rec M : sig val x : X.t end
 |}]
 
@@ -259,6 +283,7 @@ module rec M :
   (sig val x: X.t end)[@ocaml.warning "-3"] =
   struct let x = X.x end
 [%%expect{|
+
 Line 3, characters 17-20:
 3 |   struct let x = X.x end
                      ^^^
@@ -272,6 +297,7 @@ module rec M : sig val x : X.t end
 module type S = sig type t = X.t end
 ;;
 [%%expect{|
+
 Line 1, characters 29-32:
 1 | module type S = sig type t = X.t end
                                  ^^^
@@ -283,12 +309,14 @@ module type S = sig type t = X.t end
 module type S = (sig type t = X.t end)[@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 module type S = sig type t = X.t end
 |}]
 
 module type S = sig type t = X.t end[@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 module type S = sig type t = X.t end
 |}]
 
@@ -298,6 +326,7 @@ module type S = sig type t = X.t end
 class c = object method x = X.x end
 ;;
 [%%expect{|
+
 Line 1, characters 28-31:
 1 | class c = object method x = X.x end
                                 ^^^
@@ -309,18 +338,21 @@ class c : object method x : X.t end
 class c = object method x = X.x end[@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 class c : object method x : X.t end
 |}]
 
 class c = (object method x = X.x end)[@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 class c : object method x : X.t end
 |}]
 
 class c = object method x = X.x [@@ocaml.warning "-3"] end
 ;;
 [%%expect{|
+
 class c : object method x : X.t end
 |}]
 
@@ -330,6 +362,7 @@ class c : object method x : X.t end
 class type c = object method x : X.t end
 ;;
 [%%expect{|
+
 Line 1, characters 33-36:
 1 | class type c = object method x : X.t end
                                      ^^^
@@ -341,18 +374,21 @@ class type c = object method x : X.t end
 class type c = object method x : X.t end[@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 class type c = object method x : X.t end
 |}]
 
 class type c = object method x : X.t end[@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 class type c = object method x : X.t end
 |}]
 
 class type c = object method x : X.t [@@ocaml.warning "-3"] end
 ;;
 [%%expect{|
+
 class type c = object method x : X.t end
 |}]
 
@@ -363,6 +399,7 @@ class type c = object method x : X.t end
 external foo: unit -> X.t = "foo"
 ;;
 [%%expect{|
+
 Line 1, characters 22-25:
 1 | external foo: unit -> X.t = "foo"
                           ^^^
@@ -374,6 +411,7 @@ external foo : unit -> X.t = "foo"
 external foo: unit -> X.t = "foo"[@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 external foo : unit -> X.t = "foo"
 |}]
 
@@ -383,6 +421,7 @@ external foo : unit -> X.t = "foo"
 X.x
 ;;
 [%%expect{|
+
 Line 1, characters 0-3:
 1 | X.x
     ^^^
@@ -395,6 +434,7 @@ Alert deprecated: X.x
 X.x [@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 - : X.t = <abstr>
 |}]
 
@@ -405,7 +445,9 @@ module D = struct end[@@ocaml.deprecated]
 open D
 ;;
 [%%expect{|
+
 module D : sig end
+
 Line 3, characters 5-6:
 3 | open D
          ^
@@ -420,6 +462,7 @@ open D [@@ocaml.warning "-3"]
 include D
 ;;
 [%%expect{|
+
 Line 1, characters 8-9:
 1 | include D
             ^
@@ -437,6 +480,7 @@ include D [@@ocaml.warning "-3"]
 type ext = ..
 ;;
 [%%expect{|
+
 type ext = ..
 |}]
 
@@ -446,6 +490,7 @@ type ext +=
   | C of X.u [@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 Line 2, characters 9-12:
 2 |   | A of X.t
              ^^^
@@ -459,6 +504,7 @@ type ext +=
   [@@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 type ext += C of X.t
 |}]
 
@@ -466,6 +512,7 @@ type ext += C of X.t
 exception Foo of X.t
 ;;
 [%%expect{|
+
 Line 1, characters 17-20:
 1 | exception Foo of X.t
                      ^^^
@@ -477,6 +524,7 @@ exception Foo of X.t
 exception Foo of X.t [@ocaml.warning "-3"]
 ;;
 [%%expect{|
+
 exception Foo of X.t
 |}]
 
@@ -489,6 +537,7 @@ type t =
   | C of (X.u [@ocaml.warning "-3"])
 ;;
 [%%expect{|
+
 Line 2, characters 9-12:
 2 |   | A of X.t
              ^^^
@@ -505,6 +554,7 @@ type t =
   }
 ;;
 [%%expect{|
+
 Line 3, characters 7-10:
 3 |     a: X.t;
            ^^^
@@ -522,6 +572,7 @@ type t =
   >
 ;;
 [%%expect{|
+
 Line 3, characters 7-10:
 3 |     a: X.t;
            ^^^
@@ -539,6 +590,7 @@ type t =
   ]
 ;;
 [%%expect{|
+
 Line 3, characters 10-13:
 3 |   | `A of X.t
               ^^^
@@ -554,6 +606,7 @@ type t = [ `A of X.t | `B of X.s | `C of X.u ]
 [@@@ocaml.ppwarning "Pp warning!"]
 ;;
 [%%expect{|
+
 Line 1, characters 20-33:
 1 | [@@@ocaml.ppwarning "Pp warning!"]
                         ^^^^^^^^^^^^^
@@ -565,6 +618,7 @@ let x = () [@ocaml.ppwarning "Pp warning 1!"]
     [@@ocaml.ppwarning  "Pp warning 2!"]
 ;;
 [%%expect{|
+
 Line 2, characters 24-39:
 2 |     [@@ocaml.ppwarning  "Pp warning 2!"]
                             ^^^^^^^^^^^^^^^
@@ -582,6 +636,7 @@ type t = unit
     [@ocaml.ppwarning "Pp warning!"]
 ;;
 [%%expect{|
+
 Line 2, characters 22-35:
 2 |     [@ocaml.ppwarning "Pp warning!"]
                           ^^^^^^^^^^^^^
@@ -601,6 +656,7 @@ module X = struct
 end
 ;;
 [%%expect{|
+
 Line 8, characters 22-36:
 8 |   [@@@ocaml.ppwarning "Pp warning2!"]
                           ^^^^^^^^^^^^^^
@@ -614,6 +670,7 @@ let x =
     [@ocaml.ppwarning  "Pp warning 2!"]
 ;;
 [%%expect{|
+
 Line 3, characters 23-38:
 3 |     [@ocaml.ppwarning  "Pp warning 2!"]
                            ^^^^^^^^^^^^^^^
@@ -628,6 +685,7 @@ type t =
   [@@ocaml.ppwarning "Pp warning 3!"]
 ;;
 [%%expect{|
+
 Line 4, characters 21-36:
 4 |   [@@ocaml.ppwarning "Pp warning 3!"]
                          ^^^^^^^^^^^^^^^
@@ -644,6 +702,7 @@ type t = unit
 let ([][@ocaml.ppwarning "XX"]) = []
 ;;
 [%%expect{|
+
 Line 1, characters 25-29:
 1 | let ([][@ocaml.ppwarning "XX"]) = []
                              ^^^^

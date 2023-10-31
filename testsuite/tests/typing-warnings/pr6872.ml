@@ -36,6 +36,7 @@ The first one was selected. Please disambiguate if this is wrong.
 
 raise A
 [%%expect {|
+
 Line 1, characters 6-7:
 1 | raise A
           ^
@@ -48,12 +49,14 @@ Exception: A.
 
 fun (A : a) -> ()
 [%%expect {|
+
 - : a -> unit = <fun>
 |}]
 ;;
 
 function Not_found -> 1 | A -> 2 | _ -> 3
 [%%expect {|
+
 Line 1, characters 26-27:
 1 | function Not_found -> 1 | A -> 2 | _ -> 3
                               ^
@@ -62,6 +65,7 @@ it will not compile with OCaml 4.00 or earlier.
 
 - : exn -> int = <fun>
 |}, Principal{|
+
 Line 1, characters 26-27:
 1 | function Not_found -> 1 | A -> 2 | _ -> 3
                               ^
@@ -79,6 +83,7 @@ it will not compile with OCaml 4.00 or earlier.
 
 try raise A with A -> 2
 [%%expect {|
+
 Line 1, characters 10-11:
 1 | try raise A with A -> 2
               ^

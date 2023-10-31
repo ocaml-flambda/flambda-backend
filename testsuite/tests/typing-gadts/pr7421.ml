@@ -24,6 +24,7 @@ let f (x : ('a, empty Lazy.t) result) =
   | Ok x -> x
   | Error (lazy Refl) -> .;;
 [%%expect{|
+
 Line 4, characters 16-20:
 4 |   | Error (lazy Refl) -> .;;
                     ^^^^

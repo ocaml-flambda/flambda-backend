@@ -39,7 +39,9 @@ let magic : type a b. a -> b =
     let Refl = (Bad.uniq Refl : (a,Bad.t) eq) in
     let Refl = (Bad.uniq Refl : (b,Bad.t) eq) in x
 [%%expect{|
+
 module Id : sig type 'a t = 'b constraint 'a = [ `Rec of 'b ] end
+
 Line 4, characters 13-16:
 4 | module Bad = Fix(Id)
                  ^^^
@@ -53,6 +55,7 @@ module F (X : sig type 'a t end) = struct
     fun Refl Refl -> Refl;;
 end;; (* should fail *)
 [%%expect{|
+
 Line 4, characters 21-25:
 4 |     fun Refl Refl -> Refl;;
                          ^^^^

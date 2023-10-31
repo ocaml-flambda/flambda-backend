@@ -28,6 +28,7 @@ Error: Type float# has layout float64.
 
 type t = C : float# -> t;;
 [%%expect {|
+
 Line 1, characters 9-24:
 1 | type t = C : float# -> t;;
              ^^^^^^^^^^^^^^^
@@ -41,6 +42,7 @@ Error: Type float# has layout float64.
 *)
 type t = float# list;;
 [%%expect {|
+
 Line 1, characters 9-15:
 1 | type t = float# list;;
              ^^^^^^
@@ -50,6 +52,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 let f (_ : float# list) = ();;
 [%%expect {|
+
 Line 1, characters 11-17:
 1 | let f (_ : float# list) = ();;
                ^^^^^^
@@ -59,6 +62,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 type t = C of float# list;;
 [%%expect {|
+
 Line 1, characters 14-20:
 1 | type t = C of float# list;;
                   ^^^^^^
@@ -68,6 +72,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 type t = C : float# list -> t;;
 [%%expect {|
+
 Line 1, characters 13-19:
 1 | type t = C : float# list -> t;;
                  ^^^^^^
@@ -82,11 +87,13 @@ class ['a] c = object(self)
   method x :'a = assert false
 end;;
 [%%expect {|
+
 class ['a] c : object method x : 'a end
 |}];;
 
 type t = float#c;;
 [%%expect {|
+
 Line 1, characters 9-15:
 1 | type t = float#c;;
              ^^^^^^
@@ -96,6 +103,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 let f (_ : float#c) = ();;
 [%%expect {|
+
 Line 1, characters 11-17:
 1 | let f (_ : float#c) = ();;
                ^^^^^^
@@ -105,6 +113,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 type t = C of float#c;;
 [%%expect {|
+
 Line 1, characters 14-20:
 1 | type t = C of float#c;;
                   ^^^^^^
@@ -114,6 +123,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 type t = C : float#c -> t;;
 [%%expect {|
+
 Line 1, characters 13-19:
 1 | type t = C : float#c -> t;;
                  ^^^^^^
@@ -126,6 +136,7 @@ Error: This type float# should be an instance of type ('a : value)
 *)
 type t = float# c;;
 [%%expect {|
+
 Line 1, characters 9-15:
 1 | type t = float# c;;
              ^^^^^^
@@ -135,6 +146,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 let f (_ : float# c) = ();;
 [%%expect {|
+
 Line 1, characters 11-17:
 1 | let f (_ : float# c) = ();;
                ^^^^^^
@@ -144,6 +156,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 type t = C of float# c;;
 [%%expect {|
+
 Line 1, characters 14-20:
 1 | type t = C of float# c;;
                   ^^^^^^
@@ -153,6 +166,7 @@ Error: This type float# should be an instance of type ('a : value)
 
 type t = C : float# c -> t;;
 [%%expect {|
+
 Line 1, characters 13-19:
 1 | type t = C : float# c -> t;;
                  ^^^^^^
@@ -169,6 +183,7 @@ Error: This type float# should be an instance of type ('a : value)
 *)
 type t = float #c;;
 [%%expect {|
+
 Line 1, characters 0-17:
 1 | type t = float #c;;
     ^^^^^^^^^^^^^^^^^
@@ -177,6 +192,7 @@ Error: A type variable is unbound in this type declaration.
 |}];;
 type t = C of float #c;;
 [%%expect {|
+
 Line 1, characters 0-22:
 1 | type t = C of float #c;;
     ^^^^^^^^^^^^^^^^^^^^^^
@@ -188,9 +204,13 @@ let f (_ : float #c) = ();;
 type 'a t = C of (float #c as 'a);;
 type t = C : float #c -> t;;
 [%%expect {|
+
 type 'a t = 'a constraint 'a = float #c
+
 val f : float #c -> unit = <fun>
+
 type 'a t = C of 'a constraint 'a = float #c
+
 type t = C : float #c -> t
 |}];;
 
@@ -204,6 +224,7 @@ type t = C : float #c -> t
 
 type t = float # c;;
 [%%expect {|
+
 Line 1, characters 0-18:
 1 | type t = float # c;;
     ^^^^^^^^^^^^^^^^^^
@@ -212,6 +233,7 @@ Error: A type variable is unbound in this type declaration.
 |}];;
 type t = C of float # c;;
 [%%expect {|
+
 Line 1, characters 0-23:
 1 | type t = C of float # c;;
     ^^^^^^^^^^^^^^^^^^^^^^^
@@ -224,9 +246,13 @@ let f (_ : float # c) = ();;
 type 'a t = C of (float # c as 'a);;
 type t = C : float # c -> t;;
 [%%expect {|
+
 type 'a t = 'a constraint 'a = float #c
+
 val f : float #c -> unit = <fun>
+
 type 'a t = C of 'a constraint 'a = float #c
+
 type t = C : float #c -> t
 |}];;
 
@@ -235,6 +261,7 @@ type t = C : float #c -> t
 
 type t = int float#;;
 [%%expect {|
+
 Line 1, characters 9-19:
 1 | type t = int float#;;
              ^^^^^^^^^^
@@ -244,6 +271,7 @@ Error: The type constructor float# expects 0 argument(s),
 
 type t = (int, int) float#;;
 [%%expect {|
+
 Line 1, characters 9-26:
 1 | type t = (int, int) float#;;
              ^^^^^^^^^^^^^^^^^
@@ -255,6 +283,7 @@ Error: The type constructor float# expects 0 argument(s),
 (* Hint for #float *)
 type t = #float;;
 [%%expect {|
+
 Line 1, characters 10-15:
 1 | type t = #float;;
               ^^^^^

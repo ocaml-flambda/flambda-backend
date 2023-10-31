@@ -38,6 +38,7 @@ val ambiguous_typical_example : expr * expr -> unit = <fun>
 let fails = ambiguous_typical_example (Val 2, Val (-1))
 ;;
 [%%expect {|
+
 Exception: Assert_failure ("", 6, 6).
 |}]
 
@@ -47,6 +48,7 @@ let not_ambiguous__no_orpat = function
   | None -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__no_orpat : int option -> unit = <fun>
 |}]
 
@@ -55,6 +57,7 @@ let not_ambiguous__no_guard = function
   | (`B | `C) -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__no_guard : [< `A | `B | `C ] -> unit = <fun>
 |}]
 
@@ -63,6 +66,7 @@ let not_ambiguous__no_patvar_in_guard b = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__no_patvar_in_guard :
   bool -> [> `B of 'a | `C of 'a ] -> unit = <fun>
 |}]
@@ -72,6 +76,7 @@ let not_ambiguous__disjoint_cases = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__disjoint_cases : [> `B of bool | `C of bool ] -> unit =
   <fun>
 |}]
@@ -85,6 +90,7 @@ let not_ambiguous__prefix_variables = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__prefix_variables :
   [> `B of bool * 'a option * 'a option ] -> unit = <fun>
 |}]
@@ -94,6 +100,7 @@ let ambiguous__y = function
   | _ -> ()
 ;;
 [%%expect {|
+
 Line 2, characters 4-43:
 2 |   | (`B (x, _, Some y) | `B (x, Some y, _)) when y -> ignore x
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -119,6 +126,7 @@ let not_ambiguous__rhs_not_protected = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__rhs_not_protected :
   [> `B of 'a * bool option * bool option ] -> unit = <fun>
 |}]
@@ -128,6 +136,7 @@ let ambiguous__x_y = function
   | _ -> ()
 ;;
 [%%expect {|
+
 Line 2, characters 4-43:
 2 |   | (`B (x, _, Some y) | `B (x, Some y, _)) when x < y -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -144,6 +153,7 @@ let ambiguous__x_y_z = function
   | _ -> ()
 ;;
 [%%expect {|
+
 Line 2, characters 4-43:
 2 |   | (`B (x, z, Some y) | `B (x, Some y, z)) when x < y || Some x = z -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -160,6 +170,7 @@ let not_ambiguous__disjoint_in_depth = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__disjoint_in_depth :
   [> `A of [> `B of bool | `C of bool ] ] -> unit = <fun>
 |}]
@@ -169,6 +180,7 @@ let not_ambiguous__prefix_variables_in_depth = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__prefix_variables_in_depth :
   [> `A of [> `B of bool * [> `C1 | `C2 ] ] ] -> unit = <fun>
 |}]
@@ -178,6 +190,7 @@ let ambiguous__in_depth = function
   | _ -> ()
 ;;
 [%%expect {|
+
 Line 2, characters 4-40:
 2 |   | `A (`B (Some x, _) | `B (_, Some x)) when x -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -198,6 +211,7 @@ let not_ambiguous__several_orpats = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__several_orpats :
   [> `A of
        [> `B of 'a * 'b option * 'c option ] *
@@ -212,6 +226,7 @@ let ambiguous__first_orpat = function
   | _ -> ()
 ;;
 [%%expect {|
+
 Lines 2-3, characters 4-58:
 2 | ....`A ((`B (Some x, _) | `B (_, Some x)),
 3 |         (`C (Some y, Some _, _) | `C (Some y, _, Some _))).................
@@ -233,6 +248,7 @@ let ambiguous__second_orpat = function
   | _ -> ()
 ;;
 [%%expect {|
+
 Lines 2-3, characters 4-42:
 2 | ....`A ((`B (Some x, Some _, _) | `B (Some x, _, Some _)),
 3 |         (`C (Some y, _) | `C (_, Some y))).................
@@ -254,6 +270,7 @@ let not_ambiguous__pairs = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__pairs : bool * 'a option * 'b option -> unit = <fun>
 |}]
 
@@ -264,6 +281,7 @@ let not_ambiguous__vars =
   end
 ;;
 [%%expect {|
+
 val not_ambiguous__vars : bool -> unit = <fun>
 |}]
 
@@ -272,6 +290,7 @@ let not_ambiguous__as p = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__as :
   ('a list * 'b list -> bool) -> 'a list * 'b list -> unit = <fun>
 |}]
@@ -281,6 +300,7 @@ let not_ambiguous__as_var p = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__as_var : ('a list * 'b -> bool) -> 'a list * 'b -> unit =
   <fun>
 |}]
@@ -290,6 +310,7 @@ let not_ambiguous__var_as p = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__var_as :
   ('a list * 'b -> bool) -> ('a list * 'b) * 'c option * 'd option -> unit =
   <fun>
@@ -300,11 +321,13 @@ let not_ambiguous__lazy = function
   | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__lazy : ('a list * 'b list) * bool lazy_t -> unit = <fun>
 |}]
 
 type t = A of int * int option * int option | B;;
 [%%expect {|
+
 type t = A of int * int option * int option | B
 |}]
 
@@ -313,12 +336,14 @@ let not_ambiguous__constructor = function
   | A _ | B -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__constructor : t -> unit = <fun>
 |}]
 
 type amoi = Z of int | Y of int * int  | X of amoi * amoi
 ;;
 [%%expect {|
+
 type amoi = Z of int | Y of int * int | X of amoi * amoi
 |}]
 
@@ -329,6 +354,7 @@ let ambiguous__amoi a = match a with
 | X _|Y _|Z _ -> 1
 ;;
 [%%expect {|
+
 Lines 2-3, characters 2-17:
 2 | ..X (Z x,Y (y,0))
 3 | | X (Z y,Y (x,_))
@@ -343,6 +369,7 @@ val ambiguous__amoi : amoi -> int = <fun>
 module type S = sig val b : bool end
 ;;
 [%%expect {|
+
 module type S = sig val b : bool end
 |}]
 
@@ -352,6 +379,7 @@ let ambiguous__module_variable x b =  match x with
   | _ -> 2
 ;;
 [%%expect {|
+
 Lines 2-3, characters 4-24:
 2 | ....(module M:S),_,(1,_)
 3 |   | _,(module M:S),(_,1)...................
@@ -370,6 +398,7 @@ let not_ambiguous__module_variable x b =  match x with
   | _ -> 2
 ;;
 [%%expect {|
+
 Line 2, characters 12-13:
 2 |   | (module M:S),_,(1,_)
                 ^
@@ -384,6 +413,7 @@ val not_ambiguous__module_variable :
 type t2 = A of int * int | B of int * int
 ;;
 [%%expect {|
+
 type t2 = A of int * int | B of int * int
 |}]
 
@@ -392,6 +422,7 @@ let ambiguous_xy_but_not_ambiguous_z g = function
   | _ -> 2
 ;;
 [%%expect {|
+
 Line 2, characters 4-5:
 2 |   | A (x as z,(0 as y))|A (0 as y as z,x)|B (x,(y as z)) when g x (y+z) -> 1
         ^
@@ -416,6 +447,7 @@ Only the first match will be used to evaluate the guard expression.
 val ambiguous_xy_but_not_ambiguous_z : (int -> int -> bool) -> t2 -> int =
   <fun>
 |}, Principal{|
+
 Line 2, characters 4-5:
 2 |   | A (x as z,(0 as y))|A (0 as y as z,x)|B (x,(y as z)) when g x (y+z) -> 1
         ^
@@ -467,6 +499,7 @@ let not_ambiguous__as_disjoint_on_second_column_split = function
 | _ -> ()
 ;;
 [%%expect {|
+
 val not_ambiguous__as_disjoint_on_second_column_split :
   int option * int -> unit = <fun>
 |}]
@@ -487,6 +520,7 @@ let solved_ambiguity_typical_example = function
       ()
 ;;
 [%%expect {|
+
 val solved_ambiguity_typical_example : expr * expr -> unit = <fun>
 |}]
 
@@ -503,6 +537,7 @@ let guarded_ambiguity = function
       ()
 ;;
 [%%expect {|
+
 Line 3, characters 4-29:
 3 |   | ((Val y, _) | (_, Val y)) when y < 0 -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -517,6 +552,7 @@ val guarded_ambiguity : expr * expr -> unit = <fun>
 (* see GPR#1552 *)
 type a = A1 | A2;;
 [%%expect {|
+
 type a = A1 | A2
 |}]
 
@@ -524,6 +560,7 @@ type 'a alg =
   | Val of 'a
   | Binop of 'a alg * 'a alg;;
 [%%expect {|
+
 type 'a alg = Val of 'a | Binop of 'a alg * 'a alg
 |}]
 
@@ -535,6 +572,7 @@ let cmp (pred : a -> bool) (x : a alg) (y : a alg) =
   | (Val (A1 | A2) | Binop _), _ -> ()
 ;;
 [%%expect {|
+
 Line 4, characters 4-29:
 4 |   | ((Val x, _) | (_, Val x)) when pred x -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -548,6 +586,7 @@ val cmp : (a -> bool) -> a alg -> a alg -> unit = <fun>
 
 type a = A1;;
 [%%expect {|
+
 type a = A1
 |}]
 
@@ -555,6 +594,7 @@ type 'a alg =
   | Val of 'a
   | Binop of 'a alg * 'a alg;;
 [%%expect {|
+
 type 'a alg = Val of 'a | Binop of 'a alg * 'a alg
 |}]
 
@@ -566,5 +606,6 @@ let cmp (pred : a -> bool) (x : a alg) (y : a alg) =
   | (Val A1 | Binop _), _ -> ()
 ;;
 [%%expect {|
+
 val cmp : (a -> bool) -> a alg -> a alg -> unit = <fun>
 |}]

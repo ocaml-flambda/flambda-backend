@@ -24,6 +24,7 @@ Error: Layout any is used here, but the appropriate layouts extension is not ena
 
 type t_void : void;;
 [%%expect{|
+
 Line 1, characters 14-18:
 1 | type t_void : void;;
                   ^^^^
@@ -69,7 +70,9 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 type t6 = { fld6 : float }
 type ('a : immediate) s6 = S6 of 'a
 [%%expect{|
+
 type t6 = { fld6 : float; }
+
 Line 2, characters 11-20:
 2 | type ('a : immediate) s6 = S6 of 'a
                ^^^^^^^^^

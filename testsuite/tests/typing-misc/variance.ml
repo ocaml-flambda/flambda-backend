@@ -58,6 +58,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 
 type +'a error_pn = 'a p n;;
 [%%expect{|
+
 Line 1, characters 0-26:
 1 | type +'a error_pn = 'a p n;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -68,6 +69,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 
 type -'a error_pp = 'a p p;;
 [%%expect{|
+
 Line 1, characters 0-26:
 1 | type -'a error_pp = 'a p p;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -78,6 +80,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 
 type -'a error_nn = 'a n n;;
 [%%expect{|
+
 Line 1, characters 0-26:
 1 | type -'a error_nn = 'a n n;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -88,6 +91,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 
 type !'a inj_in = 'a i n
 [%%expect{|
+
 Line 1, characters 0-24:
 1 | type !'a inj_in = 'a i n
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -98,6 +102,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 
 type !'a inj_in = 'a n i
 [%%expect{|
+
 Line 1, characters 0-24:
 1 | type !'a inj_in = 'a n i
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -116,6 +121,7 @@ end
 
 module Positive_ref = Make_covariant(struct type 'a t = 'a ref end)
 [%%expect {|
+
 Line 6, characters 2-23:
 6 |   type +'a t = 'a i M.t
       ^^^^^^^^^^^^^^^^^^^^^

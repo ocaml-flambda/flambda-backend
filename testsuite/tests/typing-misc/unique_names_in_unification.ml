@@ -31,8 +31,11 @@ module N = struct
 end;;
 
 [%%expect{|
+
 module M : sig type t = B end
+
 val y : M.t = M.B
+
 Line 7, characters 34-35:
 7 |   let f : M.t -> M.t = fun M.C -> y
                                       ^
@@ -49,7 +52,9 @@ let f: t -> t = fun D -> x;;
 
 
 [%%expect{|
+
 type t = D
+
 Line 2, characters 25-26:
 2 | let f: t -> t = fun D -> x;;
                              ^
@@ -64,7 +69,9 @@ type ttt
 type ttt = A of ttt | B of uuu
 and uuu  = C of uuu | D of ttt;;
 [%%expect{|
+
 type ttt
+
 type ttt = A of ttt | B of uuu
 and uuu = C of uuu | D of ttt
 |}]
@@ -72,7 +79,9 @@ and uuu = C of uuu | D of ttt
 type nonrec ttt = X of ttt
 let x: ttt = let rec y = A y in y;;
 [%%expect{|
+
 type nonrec ttt = X of ttt
+
 Line 2, characters 32-33:
 2 | let x: ttt = let rec y = A y in y;;
                                     ^

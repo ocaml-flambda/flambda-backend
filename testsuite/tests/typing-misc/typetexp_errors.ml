@@ -14,6 +14,7 @@ Hint: Did you mean 'a, 'any, 'at or 'en?
 
 type mismatched = [< `A of int | `B of float > `B `C]
 [%%expect {|
+
 Line 1, characters 18-53:
 1 | type mismatched = [< `A of int | `B of float > `B `C]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -26,6 +27,7 @@ Error: The constructor C is missing from the upper bound (between '<'
 
 type ('_a) underscored = A of '_a
 [%%expect {|
+
 Line 1, characters 6-9:
 1 | type ('_a) underscored = A of '_a
           ^^^
@@ -36,6 +38,7 @@ Error: The type variable name '_a is not allowed in programs
    Typetexp.globalize_used_variables. *)
 let f (x: int as 'a) (y: float as 'a) = (x,y)
 [%%expect{|
+
 Line 1, characters 25-36:
 1 | let f (x: int as 'a) (y: float as 'a) = (x,y)
                              ^^^^^^^^^^^
@@ -47,8 +50,11 @@ type 'a t2 = 'a constraint 'a = 'b option
 
 let f (x : 'a t1) = (assert false : 'a t2)
 [%%expect{|
+
 type 'a t1 = 'a constraint 'a = 'b list
+
 type 'a t2 = 'a constraint 'a = 'b option
+
 Line 4, characters 36-38:
 4 | let f (x : 'a t1) = (assert false : 'a t2)
                                         ^^

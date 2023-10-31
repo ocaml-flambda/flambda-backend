@@ -151,6 +151,7 @@ module B = struct
   type t = Foo of int | Bar [@@immediate]
 end;;
 [%%expect{|
+
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -162,6 +163,7 @@ module B = struct
   type t = { foo : int } [@@immediate]
 end;;
 [%%expect{|
+
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -174,6 +176,7 @@ module C = struct
   type s = t [@@immediate]
 end;;
 [%%expect{|
+
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -185,6 +188,7 @@ module D : sig type t [@@immediate] end = struct
   type t = string
 end;;
 [%%expect{|
+
 Lines 1-3, characters 42-3:
 1 | ..........................................struct
 2 |   type t = string
@@ -205,6 +209,7 @@ Error: Signature mismatch:
 module M_invalid : S = struct type t = string end;;
 module FM_invalid = F (struct type t = string end);;
 [%%expect{|
+
 Line 1, characters 23-49:
 1 | module M_invalid : S = struct type t = string end;;
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -223,6 +228,7 @@ module E = struct
   and s = string
 end;;
 [%%expect{|
+
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -234,23 +240,31 @@ Error: Type s has layout value, which is not a sublayout of immediate.
 type 'a id = 'a
 type s = int id [@@immediate]
 [%%expect{|
+
 type 'a id = 'a
+
 type s = int id
 |}];;
 module F (X : sig type t end) = X
 module I = struct type t = int end
 type t = F(I).t [@@immediate]
 [%%expect{|
+
 module F : functor (X : sig type t end) -> sig type t = X.t end
+
 module I : sig type t = int end
+
 type t = F(I).t
 |}];;
 module F (X : sig type t end) = X
 module I : sig type t = private int end = struct type t = int end
 type t = F(I).t [@@immediate]
 [%%expect{|
+
 module F : functor (X : sig type t end) -> sig type t = X.t end
+
 module I : sig type t = private int end
+
 type t = F(I).t
 |}];;
 module type T = sig type t type s = t end
@@ -258,7 +272,9 @@ module F (X : T with type t = int) = struct
   type t = X.s [@@immediate]
 end
 [%%expect{|
+
 module type T = sig type t type s = t end
+
 module F :
   functor (X : sig type t = int type s = t end) -> sig type t = X.s end
 |}];;
@@ -267,13 +283,16 @@ module F (X : T with type t = private int) = struct
   type t = X.s [@@immediate]
 end
 [%%expect{|
+
 module type T = sig type t type s = t end
+
 module F :
   functor (X : sig type t = private int type s = t end) ->
     sig type t = X.s end
 |}];;
 type t = int s [@@immediate] and 'a s = 'a
 [%%expect{|
+
 type t = int s
 and 'a s = 'a
 |}];;

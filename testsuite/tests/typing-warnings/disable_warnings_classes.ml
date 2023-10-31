@@ -33,6 +33,7 @@ class c = object
 
 end;;
 [%%expect {|
+
 Line 8, characters 8-9:
 8 |     let y = 5 in ()
             ^
@@ -52,6 +53,7 @@ class c = object
 
 end;;
 [%%expect {|
+
 Line 8, characters 8-9:
 8 |     let y = 5 in ()
             ^
@@ -67,6 +69,7 @@ class c = (object
 
 end [@warning "-26"])
 [%%expect {|
+
 class c : object val a : unit end
 |}];;
 
@@ -82,6 +85,7 @@ class c = object
 
 end;;
 [%%expect {|
+
 Line 4, characters 8-9:
 4 |     let b = 5 in ()
             ^
@@ -102,7 +106,9 @@ class type c = object
 
 end;;
 [%%expect {|
+
 type dep
+
 Line 9, characters 10-13:
 9 |   val x : dep
               ^^^
@@ -121,6 +127,7 @@ class type c = object
 
 end;;
 [%%expect {|
+
 Line 6, characters 13-16:
 6 |   method x : dep
                  ^^^
@@ -136,6 +143,7 @@ class type c = object [@warning "-3"]
 
 end
 [%%expect {|
+
 class type c = object val a : dep end
 |}];;
 
@@ -149,6 +157,7 @@ class type c = object
 
 end;;
 [%%expect {|
+
 Line 3, characters 10-13:
 3 |   val a : dep
               ^^^

@@ -22,6 +22,7 @@ Error: This recursive type is not regular.
 |}];;
 type 'a t = [`A of 'a t t];; (* fails *)
 [%%expect{|
+
 Line 1, characters 0-26:
 1 | type 'a t = [`A of 'a t t];; (* fails *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,6 +35,7 @@ Error: This recursive type is not regular.
 |}];;
 type 'a t = [`A of 'a t t] constraint 'a = 'a t;; (* fails since 4.04 *)
 [%%expect{|
+
 Line 1, characters 0-47:
 1 | type 'a t = [`A of 'a t t] constraint 'a = 'a t;; (* fails since 4.04 *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -42,6 +44,7 @@ Error: The definition of t contains a cycle:
 |}];;
 type 'a t = [`A of 'a t] constraint 'a = 'a t;; (* fails since 4.04 *)
 [%%expect{|
+
 Line 1, characters 0-45:
 1 | type 'a t = [`A of 'a t] constraint 'a = 'a t;; (* fails since 4.04 *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -50,12 +53,15 @@ Error: The definition of t contains a cycle:
 |}];;
 type 'a t = [`A of 'a] as 'a;;
 [%%expect{|
+
 type 'a t = 'a constraint 'a = [ `A of 'a ]
 |}, Principal{|
+
 type 'a t = [ `A of 'b ] as 'b constraint 'a = [ `A of 'a ]
 |}];;
 type 'a v = [`A of u v] constraint 'a = t and t = u and u = t;; (* fails *)
 [%%expect{|
+
 Line 1, characters 42-51:
 1 | type 'a v = [`A of u v] constraint 'a = t and t = u and u = t;; (* fails *)
                                               ^^^^^^^^^
@@ -67,12 +73,15 @@ Error: The type abbreviation t is cyclic:
 type 'a t = 'a;;
 let f (x : 'a t as 'a) = ();; (* ok *)
 [%%expect{|
+
 type 'a t = 'a
+
 val f : 'a -> unit = <fun>
 |}];;
 
 let f (x : 'a t) (y : 'a) = x = y;;
 [%%expect{|
+
 val f : 'a t -> 'a -> bool = <fun>
 |}];;
 
@@ -85,6 +94,7 @@ module type PR6505 = sig
 end
 ;; (* fails *)
 [%%expect{|
+
 Line 3, characters 2-44:
 3 |   and 'o abs constraint 'o = 'o is_an_object
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -98,6 +108,7 @@ module PR6505a_old = struct
   let y : ('o, 'o) abs = object end
 end;;
 [%%expect{|
+
 Line 3, characters 7-9:
 3 |   and ('k,'l) abs = 'l constraint 'k = 'l is_an_object
            ^^
@@ -112,6 +123,7 @@ module PR6505a = struct
 end;;
 let _ = PR6505a.y#bang;; (* fails *)
 [%%expect{|
+
 module PR6505a :
   sig
     type 'o is_an_object = 'o constraint 'o = < .. >
@@ -119,6 +131,7 @@ module PR6505a :
       constraint 'b = < .. >
     val y : (<  > is_an_object, <  > is_an_object) abs
   end
+
 Line 6, characters 8-17:
 6 | let _ = PR6505a.y#bang;; (* fails *)
             ^^^^^^^^^
@@ -126,6 +139,7 @@ Error: This expression has type
          (<  > PR6505a.is_an_object, <  > PR6505a.is_an_object) PR6505a.abs
        It has no method bang
 |}, Principal{|
+
 module PR6505a :
   sig
     type 'o is_an_object = 'o constraint 'o = < .. >
@@ -133,6 +147,7 @@ module PR6505a :
       constraint 'b = < .. >
     val y : (<  >, <  >) abs
   end
+
 Line 6, characters 8-17:
 6 | let _ = PR6505a.y#bang;; (* fails *)
             ^^^^^^^^^
@@ -147,6 +162,7 @@ module PR6505b = struct
 end;;
 let () = print_endline (match PR6505b.x with `Bar s -> s);; (* fails *)
 [%%expect{|
+
 module PR6505b :
   sig
     type 'o is_an_object = 'o constraint 'o = [>  ]
@@ -154,6 +170,7 @@ module PR6505b :
       constraint 'o = [>  ]
     val x : (([> `Foo of int ] as 'a) is_an_object, 'a is_an_object) abs
   end
+
 Line 6, characters 23-57:
 6 | let () = print_endline (match PR6505b.x with `Bar s -> s);; (* fails *)
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -168,6 +185,7 @@ Exception: Match_failure ("", 6, 23).
 
 type 'a t = 'b  constraint 'a = 'b t;;
 [%%expect{|
+
 Line 1, characters 0-36:
 1 | type 'a t = 'b  constraint 'a = 'b t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -181,6 +199,7 @@ Error: This recursive type is not regular.
 
 type 'a t = 'b constraint 'a = ('b * 'b) t;;
 [%%expect{|
+
 Line 1, characters 0-42:
 1 | type 'a t = 'b constraint 'a = ('b * 'b) t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -195,7 +214,9 @@ Error: This recursive type is not regular.
 type 'a t = 'a * 'b constraint _ * 'a = 'b t;;
 type 'a t = 'a * 'b constraint 'a = 'b t;;
 [%%expect{|
+
 type 'b t = 'b * 'b
+
 Line 2, characters 0-40:
 2 | type 'a t = 'a * 'b constraint 'a = 'b t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -206,6 +227,7 @@ Error: The type abbreviation t is cyclic:
 
 type 'a t = <a : 'a; b : 'b> constraint 'a = 'b t;;
 [%%expect{|
+
 Line 1, characters 0-49:
 1 | type 'a t = <a : 'a; b : 'b> constraint 'a = 'b t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -219,6 +241,7 @@ Error: This recursive type is not regular.
 
 type 'a t = <a : 'a; b : 'b> constraint <a : 'a; ..> = 'b t;;
 [%%expect{|
+
 Line 1, characters 0-59:
 1 | type 'a t = <a : 'a; b : 'b> constraint <a : 'a; ..> = 'b t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -228,6 +251,7 @@ Error: A type variable is unbound in this type declaration.
 
 module rec M : sig type 'a t = 'b constraint 'a = 'b t end = M;;
 [%%expect{|
+
 Line 1, characters 19-54:
 1 | module rec M : sig type 'a t = 'b constraint 'a = 'b t end = M;;
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -240,6 +264,7 @@ Error: This recursive type is not regular.
 |}]
 module rec M : sig type 'a t = 'b constraint 'a = ('b * 'b) t end = M;;
 [%%expect{|
+
 Line 1, characters 19-61:
 1 | module rec M : sig type 'a t = 'b constraint 'a = ('b * 'b) t end = M;;
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -257,6 +282,7 @@ sig
   type !'a t = 'b  constraint 'a = 'b s
 end
 [%%expect{|
+
 module type S = sig type !'a s type 'a t = 'b constraint 'a = 'b s end
 |}]
 
@@ -273,6 +299,7 @@ type 'a t = T
   constraint 'a = int
   constraint 'a = float
 [%%expect{|
+
 Line 3, characters 13-23:
 3 |   constraint 'a = float
                  ^^^^^^^^^^
@@ -285,6 +312,7 @@ type ('a,'b) t = T
   constraint 'b = bool -> char
   constraint 'a = 'b
 [%%expect{|
+
 Line 4, characters 13-20:
 4 |   constraint 'a = 'b
                  ^^^^^^^
@@ -299,6 +327,7 @@ class type ['a, 'b] a = object
   constraint 'b = float * float
 end;;
 [%%expect{|
+
 Line 4, characters 2-31:
 4 |   constraint 'b = float * float
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -311,12 +340,16 @@ Error: The class constraints are not consistent.
 type ('node,'self) extension = < node: 'node; self: 'self > as 'self
 type 'ext node = < > constraint 'ext = ('ext node, 'self) extension;;
 [%%expect{|
+
 type ('node, 'a) extension = 'a constraint 'a = < node : 'node; self : 'a >
+
 type 'a node = <  >
   constraint 'a = ('a node, < node : 'a node; self : 'b > as 'b) extension
 |}, Principal{|
+
 type ('node, 'a) extension = < node : 'node; self : 'b > as 'b
   constraint 'a = < node : 'node; self : 'a >
+
 type 'a node = <  >
   constraint 'a = ('a node, < node : 'a node; self : 'b > as 'b) extension
 |}]
@@ -329,8 +362,10 @@ class type ['node] extension =
 type 'ext node = < >
   constraint 'ext = 'ext node #extension ;;
 [%%expect{|
+
 class type ['node] extension =
   object ('a) method clone : 'a method node : 'node end
+
 type 'a node = <  > constraint 'a = < clone : 'a; node : 'a node; .. >
 |}]
 
@@ -338,6 +373,7 @@ module Raise: sig val default_extension: 'a node extension as 'a end = struct
   let default_extension = failwith "Default_extension failure"
 end;;
 [%%expect{|
+
 Exception: Failure "Default_extension failure".
 |}]
 
@@ -346,7 +382,9 @@ Exception: Failure "Default_extension failure".
 type 'a t = 'b constraint 'a = < x : 'b >
 type u = < x : u > t
 [%%expect{|
+
 type 'a t = 'b constraint 'a = < x : 'b >
+
 Line 2, characters 0-20:
 2 | type u = < x : u > t
     ^^^^^^^^^^^^^^^^^^^^
@@ -366,9 +404,13 @@ type _ tag =
 type ('a, 'self) obj =
   < foo : foo -> 'a ; bar : bar -> 'a; .. > as 'self
 [%%expect {|
+
 type foo = Foo
+
 type bar = Bar
+
 type _ tag = Foo_tag : foo tag | Bar_tag : bar tag
+
 type ('a, 'self) obj = 'self
   constraint 'self = < bar : bar -> 'a; foo : foo -> 'a; .. >
 |}]
@@ -380,6 +422,7 @@ let test_obj_no_expansion :
       | Foo_tag -> obj#foo x
       | Bar_tag -> obj#bar x
 [%%expect {|
+
 val test_obj_no_expansion :
   'a tag -> < bar : bar -> 'b; foo : foo -> 'b; .. > -> 'a -> 'b = <fun>
 |}]
@@ -391,6 +434,7 @@ let test_obj_with_expansion :
       | Foo_tag -> obj#foo x
       | Bar_tag -> obj#bar x
 [%%expect {|
+
 val test_obj_with_expansion :
   'a tag -> ('b, < bar : bar -> 'b; foo : foo -> 'b; .. >) obj -> 'a -> 'b =
   <fun>
@@ -401,6 +445,7 @@ val test_obj_with_expansion :
 type 'a t = 'a foo foo
 and 'a foo = int constraint 'a = int
 [%%expect{|
+
 Line 1, characters 0-22:
 1 | type 'a t = 'a foo foo
     ^^^^^^^^^^^^^^^^^^^^^^

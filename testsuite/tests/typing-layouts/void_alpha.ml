@@ -122,6 +122,7 @@ let b' = id1' b'
 
 let _ = assert (List.for_all2 (=) !r [12;11;10;9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
+
 Lines 3-11, characters 9-3:
  3 | .........{a1; a2; x; v; z; b1; b2} =
  4 |   {a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
@@ -198,6 +199,7 @@ let magic_A = id1 magic_A
 let _ = assert (List.for_all2 (=) !r [10;9;8;7;6;5;4;3;2;1]);;
 
 [%%expect{|
+
 type void_variant =
     A of t_void * void_rec * int * void_rec * int * void_rec * t_void
   | B of t_void
@@ -205,8 +207,11 @@ type void_variant =
   | D of { a1 : t_void; a2 : void_rec; x : int; v : void_rec; z : int;
       b1 : void_rec; b2 : t_void;
     }
+
 val r : '_weak2 list ref = {contents = []}
+
 val cons_r : '_weak2 -> unit = <fun>
+
 Lines 17-35, characters 10-27:
 17 | ..........function
 18 |   | A (a1, a2, x, v, z, b1, b2) ->
@@ -249,7 +254,9 @@ let magic_B : void_variant = Obj.magic MB
 let magic_B = id1 magic_B
 let _ = assert (List.for_all2 (=) !r [2;1]);;
 [%%expect{|
+
 - : unit = ()
+
 Line 2, characters 39-41:
 2 | let magic_B : void_variant = Obj.magic MB
                                            ^^
@@ -270,7 +277,9 @@ let magic_C : void_variant = Obj.magic MC
 let magic_C = id1 magic_C
 let _ = assert (List.for_all2 (=) !r [3;2;1]);;
 [%%expect{|
+
 - : unit = ()
+
 Line 2, characters 39-41:
 2 | let magic_C : void_variant = Obj.magic MC
                                            ^^
@@ -291,7 +300,9 @@ let magic_D : void_variant = Obj.magic (MD {x' = 3; z' = 42})
 let magic_D = id1 magic_D
 let _ = assert (List.for_all2 (=) !r [10;9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
+
 - : unit = ()
+
 Line 2, characters 40-42:
 2 | let magic_D : void_variant = Obj.magic (MD {x' = 3; z' = 42})
                                             ^^
@@ -318,6 +329,7 @@ Error: Unbound constructor MD
 
 let x : t_void = assert false;;
 [%%expect {|
+
 Line 1, characters 4-5:
 1 | let x : t_void = assert false;;
         ^
@@ -329,6 +341,7 @@ module M3_1 = struct
   let x : t_void = assert false;;
 end;;
 [%%expect {|
+
 Line 2, characters 6-7:
 2 |   let x : t_void = assert false;;
           ^
@@ -343,6 +356,7 @@ module M3_2 = struct
     | _ -> assert false
 end;;
 [%%expect {|
+
 Line 3, characters 10-17:
 3 |     match magic_B with
               ^^^^^^^
@@ -365,6 +379,7 @@ module M3_3 = struct
   let {z; v} = b'
 end;;
 [%%expect {|
+
 Line 2, characters 12-14:
 2 |   let {x} = b'
                 ^^
@@ -391,6 +406,7 @@ module M3_4 = struct
 end;;
 let _ = assert (List.for_all2 (=) !r [2;1]);;
 [%%expect{|
+
 Line 5, characters 20-27:
 5 |     match cons_r 1; magic_B with
                         ^^^^^^^
@@ -424,8 +440,11 @@ let _ = f4 vh
 
 let _ = assert (List.for_all2 (=) !r [6;5;4;3;2;1]);;
 [%%expect{|
+
 type void_holder = V of t_void
+
 type vh_formagic = VM
+
 Line 5, characters 4-6:
 5 | let vh : void_holder = Obj.magic VM
         ^^
@@ -463,6 +482,7 @@ let _ = local_void_bindings_1 vh
 
 let _ = assert (List.for_all2 (=) !r [8;7;6;5;4;3;2;1]);;
 [%%expect{|
+
 Lines 3-11, characters 26-24:
  3 | ..........................vh =
  4 |   let V v = cons_r 1; vh in
@@ -496,6 +516,7 @@ let (x, _, vh2, z, _) = local_void_bindings_2 b'
 
 let _ = assert (x = 3 && z = 42)
 [%%expect{|
+
 Lines 1-3, characters 26-32:
 1 | ..........................b =
 2 |   let {z; a1; b1; x; b2} = b in
@@ -553,6 +574,7 @@ let () =
 
 let _ = assert (List.for_all2 (=) !r [9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
+
 Line 16, characters 10-13:
 16 |     match vh2 with
                ^^^
@@ -576,9 +598,13 @@ exception Ex2 of string
 exception Ex3 of bool
 exception Ex4 of t_void;;
 [%%expect{|
+
 exception Ex1 of int
+
 exception Ex2 of string
+
 exception Ex3 of bool
+
 exception Ex4 of t_void
 |}];;
 
@@ -598,6 +624,7 @@ let [@warning "-10"] exnmatch1 (V v) =
 
 let _ = assert ((exnmatch1 vh) = 1);;
 [%%expect{|
+
 Lines 1-13, characters 31-24:
  1 | ...............................(V v) =
  2 |   match
@@ -637,6 +664,7 @@ let [@warning "-10"] exnmatch2 (V v) =
 
 let _ = assert ((exnmatch2 vh) = 3);;
 [%%expect{|
+
 Lines 1-13, characters 31-24:
  1 | ...............................(V v) =
  2 |   match
@@ -675,6 +703,7 @@ let [@warning "-10"] exnmatch3 (V v) =
 
 let _ = assert ((exnmatch3 vh) = 5);;
 [%%expect{|
+
 Lines 1-12, characters 31-24:
  1 | ...............................(V v) =
  2 |   match
@@ -713,6 +742,7 @@ let [@warning "-10"] exnmatch4 (V v) =
 
 let _ = assert ((exnmatch4 vh) = 0);;
 [%%expect{|
+
 Lines 1-12, characters 31-24:
  1 | ...............................(V v) =
  2 |   match
@@ -751,6 +781,7 @@ let _ = exnmatch5 vh
 let l = !r
 let _ = assert (List.for_all2 (=) l [3;2;1]);;
 [%%expect{|
+
 Line 5, characters 11-13:
 5 |     (match vh with
                ^^
@@ -790,8 +821,11 @@ let make_uivr_holder vh =
 let _ = make_uivr_holder vh
 let _ = assert (List.for_all2 (=) !r [7;6;5;4;3;2;1]);;
 [%%expect{|
+
 type unboxed_inlined_void_rec = UIVR of { uivr_v : t_void; } [@@unboxed]
+
 type uivr_holder = { uivrh_x : int; uivrh_v : unboxed_inlined_void_rec; }
+
 Lines 8-18, characters 21-29:
  8 | .....................vh =
  9 |   let uivrh =
@@ -840,8 +874,11 @@ let (x, _) = test8 (fun () -> let V v = vh in cons_r 2; {t8_x = 42; t8_v = v})
 let () = assert (x = 42)
 let () = assert (List.for_all2 (=) !r [4;3;2;1]);;
 [%%expect{|
+
 exception Test8 of int * void_holder
+
 type test8_rec = { t8_x : int; t8_v : t_void; }
+
 Lines 5-11, characters 10-7:
  5 | ..........(f : unit -> test8_rec) : int * void_holder =
  6 |   match cons_r 1; f () with
@@ -871,6 +908,7 @@ let (x, _) = test8 (fun () -> cons_r 2; raise (Test8 (3,vh)))
 let () = assert (x = 3)
 let () = assert (List.for_all2 (=) !r [4;3;2;1]);;
 [%%expect{|
+
 Line 3, characters 13-18:
 3 | let (x, _) = test8 (fun () -> cons_r 2; raise (Test8 (3,vh)))
                  ^^^^^
@@ -906,6 +944,7 @@ let () = assert (x = 42);;
 let () = assert (List.for_all2 (=) !r [2;1]);;
 
 [%%expect{|
+
 Lines 3-11, characters 22-11:
  3 | ......................vh x =
  4 |   let v = match vh with
@@ -947,6 +986,7 @@ let () = assert (x = 42);;
 let () = assert (List.for_all2 (=) !r [3;2;1]);;
 
 [%%expect{|
+
 Lines 3-12, characters 22-23:
  3 | ......................vh x =
  4 |   let v = match vh with

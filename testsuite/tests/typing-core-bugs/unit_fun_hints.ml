@@ -25,6 +25,7 @@ let _ =
 (* We use -strict-sequence for this test: otherwise only a warning is produced
    about print_newline not being of type unit *)
 [%%expect{|
+
 Line 3, characters 3-16:
 3 |    print_newline;    (* missing unit argument *)
        ^^^^^^^^^^^^^
@@ -38,6 +39,7 @@ let x = read_int in   (* missing unit argument *)
 print_int x;;
 
 [%%expect{|
+
 Line 2, characters 10-11:
 2 | print_int x;;
               ^
@@ -51,6 +53,7 @@ let g f =
   f = 3;;
 
 [%%expect{|
+
 Line 3, characters 6-7:
 3 |   f = 3;;
           ^
@@ -64,6 +67,7 @@ let g f =
   3 = f;;
 
 [%%expect{|
+
 Line 3, characters 6-7:
 3 |   3 = f;;
           ^

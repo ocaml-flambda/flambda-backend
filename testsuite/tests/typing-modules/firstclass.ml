@@ -42,7 +42,9 @@ module type S3 = sig type u type t val x : int end;;
 let g3 x =
   (x : (module S3 with type t = 'a and type u = 'b) :> (module S'));; (* fail *)
 [%%expect{|
+
 module type S3 = sig type u type t val x : int end
+
 Line 3, characters 2-67:
 3 |   (x : (module S3 with type t = 'a and type u = 'b) :> (module S'));; (* fail *)
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
