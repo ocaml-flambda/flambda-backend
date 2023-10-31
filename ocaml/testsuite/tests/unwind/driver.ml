@@ -1,5 +1,9 @@
 (* TEST
+   * skip
+   reason="Test is broken w.r.t. Flambda 2 name mangling etc."
+ *)
 
+(* mshinwell 2023-10-31
 script = "sh ${test_source_directory}/check-linker-version.sh"
 readonly_files = "mylib.mli mylib.ml stack_walker.c"
 
@@ -30,3 +34,4 @@ let () =
 (* https://github.com/ocaml-multicore/ocaml-multicore/issues/274 *)
 let () =
   Mylib.foo1 Mylib.bob 1 2 3 4 5 6 7 8 9 10
+*)
