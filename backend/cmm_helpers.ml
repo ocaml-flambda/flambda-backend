@@ -2440,8 +2440,8 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
     in
     (* When splitting [caml_applyM] into [caml_applyN] and [caml_applyK] it is
        possible for [caml_applyN] to allocate on the local stack. If we are not
-       the region might be closed once [caml_applyN] returns, which could
-       produce a segfault or make subsequent loads read bad data.
+       careful the region might be closed once [caml_applyN] returns, which
+       could produce a segfault or make subsequent loads read bad data.
 
        To avoid doing that, when splitting a [caml_apply], we check before
        calling the last [caml_apply] if we allocated on the local stack; and if
