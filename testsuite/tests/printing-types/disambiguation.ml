@@ -24,21 +24,25 @@ Error: Type declarations do not match:
 
 type int;;
 [%%expect {|
+
 type int
 |}];;
 
 let x = 0;;
 [%%expect {|
+
 val x : int/2 = 0
 |}];;
 
 
 type float;;
 [%%expect {|
+
 type float
 |}];;
 
 0.;;
 [%%expect {|
+
 - : float/2 = 0.
 |}];;

@@ -184,6 +184,7 @@ Warning 26 [unused-var]: unused variable x.
    v} *)
 [:a for a in [:0:] for a in [:1:]:];;
 [%%expect{|
+
 Line 1, characters 8-9:
 1 | [:a for a in [:0:] for a in [:1:]:];;
             ^
@@ -202,6 +203,7 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [:(a, b) for b in [:0:] for _ in [:0; 0:] for a in [:b:] and b = 0 downto -1:];;
 [%%expect{|
+
 - : (int * int) iarray = [:(0, 0); (0, -1); (0, 0); (0, -1):]
 |}];;
 
@@ -210,6 +212,7 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [:(a, b) for b in [:1:] for b in [:0:] and a in [:b:]:];;
 [%%expect{|
+
 - : (int * int) iarray = [:(1, 0):]
 |}];;
 
@@ -218,6 +221,7 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [:a for a in [:1:] and _ in [:0; 0:] when a > 0 for a in [:0:]:];;
 [%%expect{|
+
 - : int iarray = [:0; 0:]
 |}];;
 
@@ -226,6 +230,7 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [:a for a in [:0:] and _ in [:0; 0:] for a in [:a; 1:]:];;
 [%%expect{|
+
 - : int iarray = [:0; 1; 0; 1:]
 |}];;
 
@@ -237,6 +242,7 @@ Warning 26 [unused-var]: unused variable a.
    a list comprehension. *)
 [:() for _ = 0 to 0:];
 [%%expect{|
+
 - : unit iarray = [:():]
 |}];;
 
@@ -247,6 +253,7 @@ Warning 26 [unused-var]: unused variable a.
 
 [:x for x in 100:];;
 [%%expect{|
+
 Line 1, characters 13-16:
 1 | [:x for x in 100:];;
                  ^^^
@@ -260,12 +267,14 @@ Error: This expression has type int but an expression was expected of type
 (* It's unclear why these are different based on principality *)
 [:x for x in []:];;
 [%%expect{|
+
 Line 1, characters 13-15:
 1 | [:x for x in []:];;
                  ^^
 Error: This expression has type 'a list
        but an expression was expected of type 'b iarray
 |}, Principal{|
+
 Line 1, characters 13-15:
 1 | [:x for x in []:];;
                  ^^
@@ -279,6 +288,7 @@ Error: This expression has type 'a list
 let empty = [] in
 [:x for x in empty:];;
 [%%expect{|
+
 Line 2, characters 13-18:
 2 | [:x for x in empty:];;
                  ^^^^^
@@ -289,6 +299,7 @@ Error: This expression has type 'a list
 
 List.length [:i for i = 0 to 3:];;
 [%%expect{|
+
 Line 1, characters 12-32:
 1 | List.length [:i for i = 0 to 3:];;
                 ^^^^^^^^^^^^^^^^^^^^
@@ -298,6 +309,7 @@ Error: This expression has type 'a iarray
 
 [:x for x in [||]:];;
 [%%expect{|
+
 Line 1, characters 13-17:
 1 | [:x for x in [||]:];;
                  ^^^^
@@ -309,6 +321,7 @@ Error: This expression has type 'a array
 let empty = [||] in
 [:x for x in empty:];;
 [%%expect{|
+
 Line 2, characters 13-18:
 2 | [:x for x in empty:];;
                  ^^^^^
@@ -319,6 +332,7 @@ Error: This expression has type 'a array
 
 Array.length [:i for i = 0 to 3:];;
 [%%expect{|
+
 Line 1, characters 13-33:
 1 | Array.length [:i for i = 0 to 3:];;
                  ^^^^^^^^^^^^^^^^^^^^
@@ -332,6 +346,7 @@ Error: This expression has type 'a iarray
 
 [x for x in [::]];;
 [%%expect{|
+
 Line 1, characters 12-16:
 1 | [x for x in [::]];;
                 ^^^^
@@ -345,6 +360,7 @@ Error: This expression has type 'a iarray
 let empty = [::] in
 [x for x in empty];;
 [%%expect{|
+
 Line 2, characters 12-17:
 2 | [x for x in empty];;
                 ^^^^^
@@ -355,6 +371,7 @@ Error: This expression has type 'a iarray
 
 Iarray.length [i for i = 0 to 3];;
 [%%expect{|
+
 Line 1, characters 14-32:
 1 | Iarray.length [i for i = 0 to 3];;
                   ^^^^^^^^^^^^^^^^^^
@@ -364,6 +381,7 @@ Error: This expression has type 'a list
 
 [|x for x in [::]|];;
 [%%expect{|
+
 Line 1, characters 13-17:
 1 | [|x for x in [::]|];;
                  ^^^^
@@ -377,6 +395,7 @@ Error: This expression has type 'a iarray
 let empty = [::] in
 [|x for x in empty|];;
 [%%expect{|
+
 Line 2, characters 13-18:
 2 | [|x for x in empty|];;
                  ^^^^^
@@ -387,6 +406,7 @@ Error: This expression has type 'a iarray
 
 Iarray.length [i for i = 0 to 3];;
 [%%expect{|
+
 Line 1, characters 14-32:
 1 | Iarray.length [i for i = 0 to 3];;
                   ^^^^^^^^^^^^^^^^^^
@@ -398,6 +418,7 @@ Error: This expression has type 'a list
 
 [:x for x = 1.5 to 4.2:];;
 [%%expect{|
+
 Line 1, characters 12-15:
 1 | [:x for x = 1.5 to 4.2:];;
                 ^^^
@@ -408,6 +429,7 @@ Error: This expression has type float but an expression was expected of type
 
 [:x for x = 4.2 downto 1.5:];;
 [%%expect{|
+
 Line 1, characters 12-15:
 1 | [:x for x = 4.2 downto 1.5:];;
                 ^^^
@@ -428,12 +450,15 @@ let t = (module struct
   let x = 3
 end : S);;
 [%%expect {|
+
 module type S = sig type t val x : t end
+
 val t : (module S) = <module>
 |}];;
 
 [: M.x for (module M : S) in [: t :] :];;
 [%%expect {|
+
 Line 1, characters 19-20:
 1 | [: M.x for (module M : S) in [: t :] :];;
                        ^
@@ -449,6 +474,7 @@ Error: Modules are not allowed in this pattern.
    :]
 :];;
 [%%expect {|
+
 Line 2, characters 15-16:
 2 |    for (module M : S) in
                    ^
@@ -462,6 +488,7 @@ Error: Modules are not allowed in this pattern.
    :]
 :];;
 [%%expect {|
+
 Line 2, characters 15-16:
 2 |    for (module M : S) in
                    ^
@@ -472,6 +499,7 @@ Error: Modules are not allowed in this pattern.
 
 [:i for i = 1 to 3 and i = 3 downto 1:];;
 [%%expect{|
+
 Line 1, characters 0-39:
 1 | [:i for i = 1 to 3 and i = 3 downto 1:];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -482,6 +510,7 @@ Error: Variable i is bound several times in this matching
 
 [:outer,inner for outer = inner to 3 for inner = 1 to 3:];;
 [%%expect{|
+
 Line 1, characters 26-31:
 1 | [:outer,inner for outer = inner to 3 for inner = 1 to 3:];;
                               ^^^^^
@@ -493,6 +522,7 @@ Hint: Did you mean incr?
 
 Iarray.append [:true:] [:i for i = 0 to 10:];;
 [%%expect{|
+
 Line 1, characters 25-26:
 1 | Iarray.append [:true:] [:i for i = 0 to 10:];;
                              ^
@@ -508,16 +538,19 @@ module M = struct
   type t = A | B
 end;;
 [%%expect{|
+
 module M : sig type t = A | B end
 |}];;
 
 let x : M.t iarray  = [:A for _ = 1 to 3:];;
 [%%expect{|
+
 val x : M.t iarray = [:M.A; M.A; M.A:]
 |}];;
 
 [:A for _ = 1 to 3:];;
 [%%expect{|
+
 Line 1, characters 2-3:
 1 | [:A for _ = 1 to 3:];;
       ^
@@ -526,8 +559,10 @@ Error: Unbound constructor A
 
 Iarray.append [:M.B:] [:A for _ = 1 to 3:];;
 [%%expect{|
+
 - : M.t iarray = [:M.B; M.A; M.A; M.A:]
 |}, Principal{|
+
 Line 1, characters 24-25:
 1 | Iarray.append [:M.B:] [:A for _ = 1 to 3:];;
                             ^

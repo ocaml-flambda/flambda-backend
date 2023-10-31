@@ -55,6 +55,7 @@ module Non_recursive_let_good = struct
         C (map' a, (map' [@tailcall]) b)
 end
 [%%expect {|
+
 module Non_recursive_let_good :
   sig
     type 'a t = N of 'a | C of 'a t * 'a t

@@ -51,6 +51,7 @@ match { x = assert false } with
 | { x = "" } -> ()
 ;;
 [%%expect{|
+
 Lines 1-3, characters 0-18:
 1 | match { x = assert false } with
 2 | | { x = None } -> ()
@@ -67,6 +68,7 @@ match { x = assert false } with
 | { x = `X } -> ()
 ;;
 [%%expect{|
+
 Lines 1-3, characters 0-18:
 1 | match { x = assert false } with
 2 | | { x = None } -> ()
@@ -83,6 +85,7 @@ match { x = assert false } with
 | { x = 3 } -> ()
 ;;
 [%%expect{|
+
 Lines 1-3, characters 0-17:
 1 | match { x = assert false } with
 2 | | { x = [||] } -> ()
@@ -99,6 +102,7 @@ match { x = assert false } with
 | { x = 3 } -> ()
 ;;
 [%%expect{|
+
 Lines 1-3, characters 0-17:
 1 | match { x = assert false } with
 2 | | { x = `X } -> ()
@@ -115,6 +119,7 @@ match { x = assert false } with
 | { x = 3 } -> ()
 ;;
 [%%expect{|
+
 Lines 1-3, characters 0-17:
 1 | match { x = assert false } with
 2 | | { x = `X "lol" } -> ()
@@ -132,6 +137,7 @@ match { x = assert false } with
 | { x = 3 } -> ()
 ;;
 [%%expect{|
+
 Lines 1-4, characters 0-17:
 1 | match { x = assert false } with
 2 | | { x = (2., "") } -> ()
