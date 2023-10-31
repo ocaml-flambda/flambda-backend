@@ -49,6 +49,8 @@
 #include "caml/signals.h"
 #include "caml/sys.h"
 #include "caml/winsupport.h"
+#include "caml/startup_aux.h"
+#include "caml/platform.h"
 
 #include "caml/config.h"
 
@@ -95,7 +97,7 @@ int caml_read_fd(int fd, int flags, void * buf, int n)
 {
   int retcode;
   if ((flags & CHANNEL_FLAG_FROM_SOCKET) == 0) {
-    caml_enter_blocking_section_no_pending();
+    caml_enter_blocking_section();
     retcode = read(fd, buf, n);
     /* Large reads from console can fail with ENOMEM.  Reduce requested size
        and try again. */
@@ -105,7 +107,7 @@ int caml_read_fd(int fd, int flags, void * buf, int n)
     caml_leave_blocking_section();
     if (retcode == -1) caml_sys_io_error(NO_ARG);
   } else {
-    caml_enter_blocking_section_no_pending();
+    caml_enter_blocking_section();
     retcode = recv((SOCKET) _get_osfhandle(fd), buf, n, 0);
     caml_leave_blocking_section();
     if (retcode == -1) caml_win32_sys_error(WSAGetLastError());
@@ -117,12 +119,12 @@ int caml_write_fd(int fd, int flags, void * buf, int n)
 {
   int retcode;
   if ((flags & CHANNEL_FLAG_FROM_SOCKET) == 0) {
-    caml_enter_blocking_section_no_pending();
+    caml_enter_blocking_section();
     retcode = write(fd, buf, n);
     caml_leave_blocking_section();
     if (retcode == -1) caml_sys_io_error(NO_ARG);
   } else {
-    caml_enter_blocking_section_no_pending();
+    caml_enter_blocking_section();
     retcode = send((SOCKET) _get_osfhandle(fd), buf, n, 0);
     caml_leave_blocking_section();
     if (retcode == -1) caml_win32_sys_error(WSAGetLastError());
@@ -224,13 +226,13 @@ wchar_t * caml_search_dll_in_path(struct ext_table * path, const wchar_t * name)
 
 #ifdef WITH_DYNAMIC_LINKING
 
-void * caml_dlopen(wchar_t * libname, int for_execution, int global)
+void * caml_dlopen(wchar_t * libname, int global)
 {
   void *handle;
   int flags = (global ? FLEXDLL_RTLD_GLOBAL : 0);
-  if (!for_execution) flags |= FLEXDLL_RTLD_NOEXEC;
   handle = flexdll_wdlopen(libname, flags);
-  if ((handle != NULL) && ((caml_verb_gc & 0x100) != 0)) {
+  if ((handle != NULL)
+     && ((atomic_load_relaxed(&caml_verb_gc) & 0x100) != 0)) {
     flexdll_dump_exports(handle);
     fflush(stdout);
   }
@@ -259,7 +261,7 @@ char * caml_dlerror(void)
 
 #else
 
-void * caml_dlopen(wchar_t * libname, int for_execution, int global)
+void * caml_dlopen(wchar_t * libname, int global)
 {
   return NULL;
 }
@@ -417,6 +419,7 @@ CAMLexport int caml_read_directory(wchar_t * dirname,
   wchar_t * template;
   intptr_t h;
   struct _wfinddata_t fileinfo;
+  int res;
 
   dirnamelen = wcslen(dirname);
   if (dirnamelen > 0 &&
@@ -424,12 +427,21 @@ CAMLexport int caml_read_directory(wchar_t * dirname,
        || dirname[dirnamelen - 1] == L'\\'
        || dirname[dirnamelen - 1] == L':'))
     template = caml_stat_wcsconcat(2, dirname, L"*.*");
-  else
+  else {
     template = caml_stat_wcsconcat(2, dirname, L"\\*.*");
+    dirnamelen++; /* template[dirnamelen] always points after the backslash */
+  }
   h = _wfindfirst(template, &fileinfo);
   if (h == -1) {
+    /* Instead of checking the existence of [dirname] directly, we call
+       [GetFileAttributes()] on [template] without the trailing [*.*].
+       The added backslash at the end gives us the expected result (-1)
+       on pathological paths like [...]. */
+    template[dirnamelen] = L'\0';
+    res = errno == ENOENT &&
+          GetFileAttributes(template) != INVALID_FILE_ATTRIBUTES ? 0 : -1;
     caml_stat_free(template);
-    return errno == ENOENT ? 0 : -1;
+    return res;
   }
   do {
     if (wcscmp(fileinfo.name, L".") != 0 && wcscmp(fileinfo.name, L"..") != 0) {
@@ -633,7 +645,7 @@ int caml_win32_random_seed (intnat data[16])
 }
 
 
-#if defined(_MSC_VER) && __STDC_SECURE_LIB__ >= 200411L
+#ifdef _MSC_VER
 
 static void invalid_parameter_handler(const wchar_t* expression,
    const wchar_t* function,
@@ -645,7 +657,7 @@ static void invalid_parameter_handler(const wchar_t* expression,
 }
 
 
-void caml_install_invalid_parameter_handler()
+void caml_install_invalid_parameter_handler(void)
 {
   _set_invalid_parameter_handler(invalid_parameter_handler);
 }
@@ -769,6 +781,19 @@ CAMLexport wchar_t *caml_win32_getenv(wchar_t const *lpName)
 
 int caml_win32_rename(const wchar_t * oldpath, const wchar_t * newpath)
 {
+  /* First handle corner-case not handled by MoveFileEx:
+     - dir to existing file - should fail */
+  DWORD new_attribs;
+  DWORD old_attribs = GetFileAttributes(oldpath);
+  if ((old_attribs != INVALID_FILE_ATTRIBUTES) &&
+      (old_attribs & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+    new_attribs = GetFileAttributes(newpath);
+    if ((new_attribs != INVALID_FILE_ATTRIBUTES) &&
+        (new_attribs & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+        errno = ENOTDIR;
+        return -1;
+    }
+  }
   /* MOVEFILE_REPLACE_EXISTING: to be closer to POSIX
      MOVEFILE_COPY_ALLOWED: MoveFile performs a copy if old and new
        paths are on different devices, so we do the same here for
@@ -780,6 +805,23 @@ int caml_win32_rename(const wchar_t * oldpath, const wchar_t * newpath)
                  MOVEFILE_COPY_ALLOWED)) {
     return 0;
   }
+
+  /* Another cornercase not handled by MoveFileEx:
+     - dir to empty dir - positive - should succeed */
+  if ((old_attribs != INVALID_FILE_ATTRIBUTES) &&
+      (old_attribs & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+      (new_attribs != INVALID_FILE_ATTRIBUTES) &&
+      (new_attribs & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+    /* Try to delete: RemoveDirectoryW fails on non-empty dirs as intended.
+       Then try again. */
+    RemoveDirectoryW(newpath);
+    if (MoveFileEx(oldpath, newpath,
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH |
+                   MOVEFILE_COPY_ALLOWED)) {
+      return 0;
+    }
+  }
+
   /* Modest attempt at mapping Win32 error codes to POSIX error codes.
      The __dosmaperr() function from the CRT does a better job but is
      generally not accessible. */
@@ -859,8 +901,8 @@ static uintnat windows_unicode_strict = 1;
    the argument string is encoded in the local codepage. */
 static uintnat windows_unicode_fallback = 1;
 
-CAMLexport int win_multi_byte_to_wide_char(const char *s, int slen,
-                                           wchar_t *out, int outlen)
+CAMLexport int caml_win32_multi_byte_to_wide_char(const char *s, int slen,
+                                                  wchar_t *out, int outlen)
 {
   int retcode;
 
@@ -891,8 +933,8 @@ CAMLexport int win_multi_byte_to_wide_char(const char *s, int slen,
 #define WC_ERR_INVALID_CHARS 0
 #endif
 
-CAMLexport int win_wide_char_to_multi_byte(const wchar_t *s, int slen,
-                                           char *out, int outlen)
+CAMLexport int caml_win32_wide_char_to_multi_byte(const wchar_t *s, int slen,
+                                                  char *out, int outlen)
 {
   int retcode;
 
@@ -923,9 +965,9 @@ CAMLexport value caml_copy_string_of_utf16(const wchar_t *s)
 
   slen = wcslen(s);
   /* Do not include final NULL */
-  retcode = win_wide_char_to_multi_byte(s, slen, NULL, 0);
+  retcode = caml_win32_wide_char_to_multi_byte(s, slen, NULL, 0);
   v = caml_alloc_string(retcode);
-  win_wide_char_to_multi_byte(s, slen, (char *)String_val(v), retcode);
+  caml_win32_wide_char_to_multi_byte(s, slen, (char *)String_val(v), retcode);
 
   return v;
 }
@@ -935,9 +977,9 @@ CAMLexport wchar_t* caml_stat_strdup_to_utf16(const char *s)
   wchar_t * ws;
   int retcode;
 
-  retcode = win_multi_byte_to_wide_char(s, -1, NULL, 0);
+  retcode = caml_win32_multi_byte_to_wide_char(s, -1, NULL, 0);
   ws = caml_stat_alloc_noexc(retcode * sizeof(*ws));
-  win_multi_byte_to_wide_char(s, -1, ws, retcode);
+  caml_win32_multi_byte_to_wide_char(s, -1, ws, retcode);
 
   return ws;
 }
@@ -947,9 +989,9 @@ CAMLexport caml_stat_string caml_stat_strdup_of_utf16(const wchar_t *s)
   caml_stat_string out;
   int retcode;
 
-  retcode = win_wide_char_to_multi_byte(s, -1, NULL, 0);
+  retcode = caml_win32_wide_char_to_multi_byte(s, -1, NULL, 0);
   out = caml_stat_alloc(retcode);
-  win_wide_char_to_multi_byte(s, -1, out, retcode);
+  caml_win32_wide_char_to_multi_byte(s, -1, out, retcode);
 
   return out;
 }
@@ -1065,30 +1107,75 @@ int caml_num_rows_fd(int fd)
   return -1;
 }
 
-void caml_print_timestamp(FILE* channel, int formatted)
-{
-  /* unimplemented */
-}
-
 /* UCRT clock function returns wall-clock time */
 CAMLexport clock_t caml_win32_clock(void)
 {
-  FILETIME c, e, stime, utime;
+  FILETIME _creation, _exit;
+  CAML_ULONGLONG_FILETIME stime, utime;
   ULARGE_INTEGER tmp;
-  ULONGLONG total, clocks_per_sec;
+  ULONGLONG clocks_per_sec;
 
-  if (!(GetProcessTimes(GetCurrentProcess(), &c, &e, &stime, &utime))) {
+  if (!(GetProcessTimes(GetCurrentProcess(), &_creation, &_exit,
+                        &stime.ft, &utime.ft))) {
     return (clock_t)(-1);
   }
 
-  tmp.u.LowPart = stime.dwLowDateTime;
-  tmp.u.HighPart = stime.dwHighDateTime;
-  total = tmp.QuadPart;
-  tmp.u.LowPart = utime.dwLowDateTime;
-  tmp.u.HighPart = utime.dwHighDateTime;
-  total += tmp.QuadPart;
-
   /* total in 100-nanosecond intervals (1e7 / CLOCKS_PER_SEC) */
-  clocks_per_sec = INT64_LITERAL(10000000U) / (ULONGLONG)CLOCKS_PER_SEC;
-  return (clock_t)(total / clocks_per_sec);
+  clocks_per_sec = 10000000ULL / (ULONGLONG)CLOCKS_PER_SEC;
+  return (clock_t)((stime.ul + utime.ul) / clocks_per_sec);
+}
+
+static double clock_period = 0;
+
+void caml_init_os_params(void)
+{
+  SYSTEM_INFO si;
+  LARGE_INTEGER frequency;
+
+  /* Get the system page size and allocation granularity. */
+  GetSystemInfo(&si);
+  CAMLassert(si.dwAllocationGranularity >= si.dwPageSize);
+  caml_plat_pagesize = si.dwPageSize;
+  caml_plat_mmap_alignment = si.dwAllocationGranularity;
+
+  /* Get the number of nanoseconds for each tick in QueryPerformanceCounter */
+  QueryPerformanceFrequency(&frequency);
+  clock_period = (1000000000.0 / frequency.QuadPart);
+}
+
+int64_t caml_time_counter(void)
+{
+  LARGE_INTEGER now;
+
+  QueryPerformanceCounter(&now);
+  return (int64_t)(now.QuadPart * clock_period);
+}
+
+void *caml_plat_mem_map(uintnat size, uintnat alignment, int reserve_only)
+{
+  /* VirtualAlloc returns an address aligned to caml_plat_mmap_alignment, so
+     trimming will not be required. VirtualAlloc returns 0 on error. */
+  if (alignment > caml_plat_mmap_alignment)
+    caml_fatal_error("Cannot align memory to %" ARCH_INTNAT_PRINTF_FORMAT "x"
+                     " on this platform", alignment);
+  return
+    VirtualAlloc(NULL, size,
+                 MEM_RESERVE | (reserve_only ? 0 : MEM_COMMIT),
+                 reserve_only ? PAGE_NOACCESS : PAGE_READWRITE);
+}
+
+void* caml_plat_mem_commit(void* mem, uintnat size)
+{
+  return VirtualAlloc(mem, size, MEM_COMMIT, PAGE_READWRITE);
+}
+
+void caml_plat_mem_decommit(void* mem, uintnat size)
+{
+  VirtualFree(mem, size, MEM_DECOMMIT);
+}
+
+void caml_plat_mem_unmap(void* mem, uintnat size)
+{
+  if (!VirtualFree(mem, 0, MEM_RELEASE))
+    CAMLassert(0);
 }

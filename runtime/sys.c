@@ -45,25 +45,42 @@
 #ifdef HAS_GETTIMEOFDAY
 #include <sys/time.h>
 #endif
+#ifdef __APPLE__
+#include <sys/random.h> /* for getentropy */
+#endif
 #include "caml/alloc.h"
 #include "caml/debugger.h"
+#include "caml/runtime_events.h"
 #include "caml/fail.h"
 #include "caml/gc_ctrl.h"
 #include "caml/major_gc.h"
 #include "caml/io.h"
-#include "caml/misc.h"
 #include "caml/mlvalues.h"
 #include "caml/osdeps.h"
 #include "caml/signals.h"
-#include "caml/stacks.h"
+#include "caml/fiber.h"
 #include "caml/sys.h"
-#include "caml/version.h"
+#include "caml/startup.h"
 #include "caml/callback.h"
 #include "caml/startup_aux.h"
+#include "caml/major_gc.h"
+#include "caml/shared_heap.h"
 
-static char * error_message(void)
+CAMLexport char * caml_strerror(int errnum, char * buf, size_t buflen)
 {
-  return strerror(errno);
+#ifdef _WIN32
+  /* Windows has a thread-safe strerror */
+  return strerror(errnum);
+#else
+  int res = strerror_r(errnum, buf, buflen);
+  /* glibc<2.13 returns -1/sets errno, >2.13 returns +ve errno.
+     We assume that buffer size is large enough not to get ERANGE,
+     so we assume we got EINVAL. */
+  if (res != 0) {
+    snprintf(buf, buflen, "Unknown error %d", errnum);
+  }
+  return buf;
+#endif
 }
 
 #ifndef EAGAIN
@@ -77,18 +94,19 @@ CAMLexport void caml_sys_error(value arg)
 {
   CAMLparam1 (arg);
   char * err;
+  char buf[1024];
   CAMLlocal1 (str);
 
-  err = error_message();
+  err = caml_strerror(errno, buf, sizeof(buf));
   if (arg == NO_ARG) {
     str = caml_copy_string(err);
   } else {
     mlsize_t err_len = strlen(err);
     mlsize_t arg_len = caml_string_length(arg);
     str = caml_alloc_string(arg_len + 2 + err_len);
-    memmove(&Byte(str, 0), String_val(arg), arg_len);
-    memmove(&Byte(str, arg_len), ": ", 2);
-    memmove(&Byte(str, arg_len + 2), err, err_len);
+    memcpy(&Byte(str, 0), String_val(arg), arg_len);
+    memcpy(&Byte(str, arg_len), ": ", 2);
+    memcpy(&Byte(str, arg_len + 2), err, err_len);
   }
   caml_raise_sys_error(str);
   CAMLnoreturn;
@@ -115,58 +133,70 @@ static void caml_sys_check_path(value name)
 
 CAMLexport void caml_do_exit(int retcode)
 {
-  if ((caml_verb_gc & 0x400) != 0) {
-    /* cf caml_gc_counters */
-    double minwords = Caml_state->stat_minor_words
-      + (double) (Caml_state->young_end - Caml_state->young_ptr);
-    double prowords = Caml_state->stat_promoted_words;
-    double majwords =
-      Caml_state->stat_major_words + (double) caml_allocated_words;
-    double allocated_words = minwords + majwords - prowords;
-    intnat mincoll = Caml_state->stat_minor_collections;
-    intnat majcoll = Caml_state->stat_major_collections;
-    intnat heap_words = Caml_state->stat_heap_wsz;
-    intnat heap_chunks = Caml_state->stat_heap_chunks;
-    intnat top_heap_words = Caml_state->stat_top_heap_wsz;
-    intnat cpct = Caml_state->stat_compactions;
-    intnat forcmajcoll = Caml_state->stat_forced_major_collections;
-    caml_gc_message(0x400, "allocated_words: %.0f\n", allocated_words);
-    caml_gc_message(0x400, "minor_words: %.0f\n", minwords);
-    caml_gc_message(0x400, "promoted_words: %.0f\n", prowords);
-    caml_gc_message(0x400, "major_words: %.0f\n", majwords);
-    caml_gc_message(0x400, "minor_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    mincoll);
-    caml_gc_message(0x400, "major_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    majcoll);
-    caml_gc_message(0x400, "heap_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+  caml_domain_state* domain_state = Caml_state;
+  struct gc_stats s;
+
+  if ((atomic_load_relaxed(&caml_verb_gc) & 0x400) != 0) {
+    caml_compute_gc_stats(&s);
+    {
+      /* cf caml_gc_counters */
+      double minwords = s.alloc_stats.minor_words
+        + (double) (domain_state->young_end - domain_state->young_ptr);
+      double majwords = s.alloc_stats.major_words
+        + (double) domain_state->allocated_words;
+      double allocated_words = minwords + majwords
+        - s.alloc_stats.promoted_words;
+      intnat heap_words =
+        s.heap_stats.pool_words + s.heap_stats.large_words;
+      intnat top_heap_words =
+        s.heap_stats.pool_max_words + s.heap_stats.large_max_words;
+
+      if (heap_words == 0) {
+        heap_words = Wsize_bsize(caml_heap_size(Caml_state->shared_heap));
+      }
+
+      if (top_heap_words == 0) {
+        top_heap_words = caml_top_heap_words(Caml_state->shared_heap);
+      }
+
+      caml_gc_message(0x400, "allocated_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+                    (intnat)allocated_words);
+      caml_gc_message(0x400, "minor_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+                    (intnat) minwords);
+      caml_gc_message(0x400, "promoted_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+                      (intnat) s.alloc_stats.promoted_words);
+      caml_gc_message(0x400, "major_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+                      (intnat) majwords);
+      caml_gc_message(0x400,
+          "minor_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+          (intnat) atomic_load(&caml_minor_collections_count));
+      caml_gc_message(0x400,
+          "major_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+          caml_major_cycles_completed);
+      caml_gc_message(0x400,
+          "forced_major_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+          (intnat)s.alloc_stats.forced_major_collections);
+      caml_gc_message(0x400, "heap_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
                     heap_words);
-    caml_gc_message(0x400, "heap_chunks: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    heap_chunks);
-    caml_gc_message(0x400, "top_heap_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    top_heap_words);
-    caml_gc_message(0x400, "compactions: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    cpct);
-    caml_gc_message(0x400,
-                    "forced_major_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    forcmajcoll);
+      caml_gc_message(0x400, "top_heap_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+                      top_heap_words);
+      caml_gc_message(0x400, "mean_space_overhead: %lf\n",
+                      caml_mean_space_overhead());
+    }
   }
+
+/* Tear down runtime_events before we leave */
+CAML_RUNTIME_EVENTS_DESTROY();
 
 #ifndef NATIVE_CODE
   caml_debugger(PROGRAM_EXIT, Val_unit);
 #endif
-  if (caml_cleanup_on_exit)
+  if (caml_params->cleanup_on_exit)
     caml_shutdown();
 #ifdef _WIN32
   caml_restore_win32_terminal();
 #endif
   caml_terminate_signals();
-#ifdef NAKED_POINTERS_CHECKER
-  if (retcode == 0 && caml_naked_pointers_detected) {
-    fprintf (stderr, "\nOut-of-heap pointers were detected by the runtime.\n"
-                     "The process would otherwise have terminated normally.\n");
-    retcode = 70; /* EX_SOFTWARE; see sysexits.h */
-  }
-#endif
   exit(retcode);
 }
 
@@ -189,7 +219,7 @@ CAMLprim value caml_sys_exit(value retcode)
 #endif
 #endif
 
-static int sys_open_flags[] = {
+const static int sys_open_flags[] = {
   O_RDONLY, O_WRONLY, O_APPEND | O_WRONLY, O_CREAT, O_TRUNC, O_EXCL,
   O_BINARY, O_TEXT, O_NONBLOCK
 };
@@ -236,7 +266,7 @@ CAMLprim value caml_sys_close(value fd_v)
   return Val_unit;
 }
 
-CAMLprim value caml_sys_file_exists(value name)
+static int caml_sys_file_mode(value name)
 {
 #ifdef _WIN32
   struct _stati64 st;
@@ -246,39 +276,42 @@ CAMLprim value caml_sys_file_exists(value name)
   char_os * p;
   int ret;
 
-  if (! caml_string_is_c_safe(name)) return Val_false;
+  if (! caml_string_is_c_safe(name)) { errno = ENOENT; return -1; }
   p = caml_stat_strdup_to_os(String_val(name));
   caml_enter_blocking_section();
   ret = stat_os(p, &st);
   caml_leave_blocking_section();
   caml_stat_free(p);
+  if (ret == -1) return -1; else return st.st_mode;
+}
 
-  return Val_bool(ret == 0);
+CAMLprim value caml_sys_file_exists(value name)
+{
+  int mode = caml_sys_file_mode(name);
+  return (Val_bool(mode != -1));
 }
 
 CAMLprim value caml_sys_is_directory(value name)
 {
   CAMLparam1(name);
-#ifdef _WIN32
-  struct _stati64 st;
-#else
-  struct stat st;
-#endif
-  char_os * p;
-  int ret;
-
-  caml_sys_check_path(name);
-  p = caml_stat_strdup_to_os(String_val(name));
-  caml_enter_blocking_section();
-  ret = stat_os(p, &st);
-  caml_leave_blocking_section();
-  caml_stat_free(p);
-
-  if (ret == -1) caml_sys_error(name);
+  int mode = caml_sys_file_mode(name);
+  if (mode == -1) caml_sys_error(name);
 #ifdef S_ISDIR
-  CAMLreturn(Val_bool(S_ISDIR(st.st_mode)));
+  CAMLreturn(Val_bool(S_ISDIR(mode)));
 #else
-  CAMLreturn(Val_bool(st.st_mode & S_IFDIR));
+  CAMLreturn(Val_bool(mode & S_IFDIR));
+#endif
+}
+
+CAMLprim value caml_sys_is_regular_file(value name)
+{
+  CAMLparam1(name);
+  int mode = caml_sys_file_mode(name);
+  if (mode == -1) caml_sys_error(name);
+#ifdef S_ISREG
+  CAMLreturn(Val_bool(S_ISREG(mode)));
+#else
+  CAMLreturn(Val_bool(mode & S_IFREG));
 #endif
 }
 
@@ -416,14 +449,13 @@ CAMLprim value caml_sys_getenv(value var)
   return val;
 }
 
-char_os * caml_exe_name;
 static value main_argv;
 
 CAMLprim value caml_sys_get_argv(value unit)
 {
   CAMLparam0 ();   /* unit is unused */
   CAMLlocal2 (exe_name, res);
-  exe_name = caml_copy_string_of_os(caml_exe_name);
+  exe_name = caml_copy_string_of_os(caml_params->exe_name);
   res = caml_alloc_small(2, 0);
   Field(res, 0) = exe_name;
   Field(res, 1) = main_argv;
@@ -443,7 +475,7 @@ CAMLprim value caml_sys_modify_argv(value new_argv)
 
 CAMLprim value caml_sys_executable_name(value unit)
 {
-  return caml_copy_string_of_os(caml_exe_name);
+  return caml_copy_string_of_os(caml_params->exe_name);
 }
 
 void caml_sys_init(char_os * exe_name, char_os **argv)
@@ -456,7 +488,7 @@ void caml_sys_init(char_os * exe_name, char_os **argv)
   caml_setup_win32_terminal();
 #endif
 #endif
-  caml_exe_name = exe_name;
+  caml_init_exe_name(exe_name);
   main_argv = caml_alloc_array((void *)caml_copy_string_of_os,
                                (char const **) argv);
   caml_register_generational_global_root(&main_argv);
@@ -565,20 +597,27 @@ extern int caml_win32_random_seed (intnat data[16]);
 #else
 int caml_unix_random_seed(intnat data[16])
 {
-  int fd;
   int n = 0;
+  unsigned char buffer[12];
+  int nread = 0;
 
-  /* Try /dev/urandom first */
-  fd = open("/dev/urandom", O_RDONLY, 0);
-  if (fd != -1) {
-    unsigned char buffer[12];
-    int nread = read(fd, buffer, 12);
-    close(fd);
-    while (nread > 0) data[n++] = buffer[--nread];
+  /* Try kernel entropy first */
+#if defined(HAS_GETENTROPY) || defined(__APPLE__)
+  if (getentropy(buffer, 12) != -1) {
+    nread = 12;
+  } else
+#endif
+  { int fd = open("/dev/urandom", O_RDONLY, 0);
+    if (fd != -1) {
+      nread = read(fd, buffer, 12);
+      close(fd);
+    }
   }
-  /* If the read from /dev/urandom fully succeeded, we now have 96 bits
+  while (nread > 0) data[n++] = buffer[--nread];
+  /* If the kernel provided enough entropy, we now have 96 bits
      of good random data and can stop here. */
   if (n >= 12) return n;
+
   /* Otherwise, complement whatever we got (probably nothing)
      with some not-very-random data. */
   {
@@ -718,13 +757,4 @@ CAMLprim value caml_sys_isatty(value chan)
 #endif
 
   return ret;
-}
-
-CAMLprim value caml_sys_const_naked_pointers_checked(value unit)
-{
-#ifdef NAKED_POINTERS_CHECKER
-  return Val_true;
-#else
-  return Val_false;
-#endif
 }

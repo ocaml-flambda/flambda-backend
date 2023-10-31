@@ -255,21 +255,9 @@ Error: The type constructor float# expects 0 argument(s),
 (* Hint for #float *)
 type t = #float;;
 [%%expect {|
-Line 1, characters 9-15:
+Line 1, characters 10-15:
 1 | type t = #float;;
-             ^^^^^^
-Error: float is neither a polymorphic variant nor a class type.
-       Did you mean the unboxed type float#?
-|}]
-
-(* Hint should not show up in this case *)
-class type floot = object end
-class type c = float
-[%%expect {|
-class type floot = object  end
-Line 2, characters 15-20:
-2 | class type c = float
-                   ^^^^^
+              ^^^^^
 Error: Unbound class type float
-Hint: Did you mean floot?
+Hint: Did you mean float#?
 |}]

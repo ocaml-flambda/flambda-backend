@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+CAMLextern char * caml_strerror(int errnum, char * buf, size_t buflen);
+
 #define NO_ARG Val_int(0)
 
 CAMLnoreturn_start
@@ -40,8 +42,6 @@ CAMLextern void caml_sys_init (char_os * exe_name, char_os ** argv);
 CAMLnoreturn_start
 CAMLextern void caml_do_exit (int)
 CAMLnoreturn_end;
-
-extern char_os * caml_exe_name;
 
 #ifdef __cplusplus
 }

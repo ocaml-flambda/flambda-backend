@@ -406,15 +406,6 @@
     )
 )
 
-(executable
- (name extract_crc)
- (modes byte)
- (flags (:standard -principal))
- (libraries
-   dynlink_internal
- )
- (modules extract_crc))
-
 (install
   (files
     (.dynlink_internal.objs/native/dynlink_common.cmx as dynlink/dynlink_common.cmx)
@@ -429,7 +420,6 @@
     (dynlink.cmi as dynlink/dynlink.cmi)
     (.dynlink_internal.objs/byte/dynlink.cmt as dynlink/dynlink.cmt)
     (.dynlink_internal.objs/byte/dynlink.cmti as dynlink/dynlink.cmti)
-    (extract_crc.bc as dynlink/extract_crc)
 
     .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Misc.cmx
   )
