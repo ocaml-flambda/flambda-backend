@@ -1273,8 +1273,8 @@ let no_poll_insertion = Actions.make
   ~name:"no-poll-insertion"
   ~description:"Passes if poll insertion is disabled"
   (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
-    "Stack allocation disabled"
-    "Stack allocation enabled")
+    "Poll insertion disabled"
+    "Poll insertion enabled")
 
 let ocamldoc = Ocaml_tools.ocamldoc
 
