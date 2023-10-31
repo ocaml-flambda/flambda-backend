@@ -172,9 +172,11 @@ jobs:
         cp _build/install/default/bin/menhir $GITHUB_WORKSPACE/ocaml-414/_install/bin/menhir
         # Our dune rule uses `menhirLib.mli`, which we can't simply `cp`
         # because it's a symbolic link to a relative path.
-        export TARGET_FILE=$GITHUB_WORKSPACE/ocaml-414/_install/lib/menhirLib/menhirLib.mli
-        mkdir -p $(dirname $TARGET_FILE)
-        cat _build/install/default/lib/menhirLib/menhirLib.mli > $TARGET_FILE
+        export SOURCE_DIR=_build/install/default/lib/menhirLib
+        export TARGET_DIR=$GITHUB_WORKSPACE/ocaml-414/_install/lib/menhirLib
+        mkdir -p $TARGET_DIR
+        cat $SOURCE_DIR/menhirLib.mli > $TARGET_DIR/menhirLib.mli
+        cat $SOURCE_DIR/menhirLib.ml > $TARGET_DIR/menhirLib.ml
 
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
