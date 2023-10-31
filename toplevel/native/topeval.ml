@@ -58,7 +58,7 @@ let close_phrase lam =
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
     let glob =
-      Lprim (Pfield (pos, Reads_agree),
+      Lprim (Pfield (pos, Pointer, Reads_agree),
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
@@ -259,7 +259,12 @@ let execute_phrase print_outcome ppf phr =
               in
               Ophr_exception (exn, outv)
         in
-        !print_out_phrase ppf out_phr;
+        begin match out_phr with
+        | Ophr_signature [] -> ()
+        | _ ->
+            Location.separate_new_message ppf;
+            !print_out_phrase ppf out_phr;
+        end;
         begin match out_phr with
         | Ophr_eval (_, _) | Ophr_signature _ -> true
         | Ophr_exception _ -> false

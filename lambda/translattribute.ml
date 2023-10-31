@@ -51,7 +51,11 @@ let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
 let find_attribute p attributes =
-  let inline_attribute = Builtin_attributes.filter_attributes p attributes in
+  let inline_attribute =
+    Builtin_attributes.filter_attributes
+      (Builtin_attributes.Attributes_filter.create p)
+      attributes
+  in
   let attr =
     match inline_attribute with
     | [] -> None
@@ -343,7 +347,7 @@ let check_poll_inline loc attr =
   | Error_poll, (Always_inline | Available_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Inlining_impossible
-          "[@poll error] is incompatible with inlining")
+           "[@poll error] is incompatible with inlining")
   | _ ->
       ()
 

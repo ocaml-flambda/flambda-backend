@@ -358,11 +358,16 @@ val apply4_wrapped : int -> int = <fun>
 |}]
 let ill_typed () = g 1 2 3 4 5
 [%%expect{|
-Line 1, characters 19-20:
+Line 1, characters 19-30:
 1 | let ill_typed () = g 1 2 3 4 5
-                       ^
-Error: This function has type local_ 'a -> int -> (local_ 'b -> int -> int)
-       It is applied to too many arguments; maybe you forgot a `;'.
+                       ^^^^^^^^^^^
+Error: The function 'g' has type
+         local_ 'a -> int -> (local_ 'b -> int -> int)
+       It is applied to too many arguments
+Line 1, characters 29-30:
+1 | let ill_typed () = g 1 2 3 4 5
+                                 ^
+  This extra argument is not expected.
 |}]
 
 (*

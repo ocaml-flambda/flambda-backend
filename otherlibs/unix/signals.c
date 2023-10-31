@@ -13,6 +13,11 @@
 /*                                                                        */
 /**************************************************************************/
 
+/* CR ocaml 5 runtime: This file is the 4.x version together with
+   adjustments to the names of exported functions ("unix_" -> "caml_unix").
+   (mshinwell/xclerc)
+*/
+
 #define CAML_INTERNALS
 
 #include <errno.h>
@@ -60,7 +65,7 @@ static value encode_sigset(sigset_t * set)
 
 static int sigprocmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };
 
-CAMLprim value unix_sigprocmask(value vaction, value vset)
+CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
 {
   int how;
   sigset_t set, oldset;
@@ -77,7 +82,7 @@ CAMLprim value unix_sigprocmask(value vaction, value vset)
   return encode_sigset(&oldset);
 }
 
-CAMLprim value unix_sigpending(value unit)
+CAMLprim value caml_unix_sigpending(value unit)
 {
   sigset_t pending;
   int i;
@@ -88,7 +93,7 @@ CAMLprim value unix_sigpending(value unit)
   return encode_sigset(&pending);
 }
 
-CAMLprim value unix_sigsuspend(value vset)
+CAMLprim value caml_unix_sigsuspend(value vset)
 {
   sigset_t set;
   int retcode;
@@ -102,13 +107,13 @@ CAMLprim value unix_sigsuspend(value vset)
 
 #else
 
-CAMLprim value unix_sigprocmask(value vaction, value vset)
+CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
 { caml_invalid_argument("Unix.sigprocmask not available"); }
 
-CAMLprim value unix_sigpending(value unit)
+CAMLprim value caml_unix_sigpending(value unit)
 { caml_invalid_argument("Unix.sigpending not available"); }
 
-CAMLprim value unix_sigsuspend(value vset)
+CAMLprim value caml_unix_sigsuspend(value vset)
 { caml_invalid_argument("Unix.sigsuspend not available"); }
 
 #endif
