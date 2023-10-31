@@ -60,12 +60,12 @@ let win64 = Arch.win64
    Under Unix:
      rdi, rsi, rdx, rcx, r8, r9: C function arguments
      xmm0 - xmm7: C function arguments
-     r12-r15 are preserved by C
+     rbx, rbp, r12-r15 are preserved by C
      xmm registers are not preserved by C
    Under Win64:
      rcx, rdx, r8, r9: C function arguments
      xmm0 - xmm3: C function arguments
-     rsi, rdi r12-r15 are preserved by C
+     rbx, rbp, rsi, rdi r12-r15 are preserved by C
      xmm6-xmm15 are preserved by C
    Note (PR#5707, GPR#1304): PLT stubs (used for dynamic resolution of symbols
      on Unix-like platforms) may clobber any register except those used for:
@@ -372,9 +372,9 @@ let domainstate_ptr_dwarf_register_number = 14
 (* Registers destroyed by operations *)
 
 let destroyed_at_c_call_win64 =
-  (* Win64: rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
+  (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
   let basic_regs = Array.append
-    (Array.map (phys_reg Int) [|0;1;4;5;6;7;10;11;12|]  )
+    (Array.map (phys_reg Int) [|0;4;5;6;7;10;11|]  )
     (Array.sub hard_float_reg 0 6)
   in
   fun () -> if simd_regalloc_disabled ()
@@ -382,9 +382,9 @@ let destroyed_at_c_call_win64 =
             else Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
 
 let destroyed_at_c_call_unix =
-  (* Unix: r12-r15 preserved *)
+  (* Unix: rbx, rbp, r12-r15 preserved *)
   let basic_regs = Array.append
-      (Array.map (phys_reg Int) [|0;1;2;3;4;5;6;7;10;11|])
+      (Array.map (phys_reg Int) [|0;2;3;4;5;6;7;10;11|])
     hard_float_reg
   in
   fun () -> if simd_regalloc_disabled ()

@@ -1281,18 +1281,20 @@ let emit_instr fallthrough i =
         emit_call (Cmm.global_symbol "caml_c_call");
         record_frame i.live (Dbg_other i.dbg);
       end else begin
-        I.mov rsp rbx;
+        (* BACKPORT BEGIN *)
+        (*I.mov rsp rbx;
         cfi_remember_state ();
         cfi_def_cfa_register "rbx";
         (* NB: gdb has asserts on contiguous stacks that mean it
            will not unwind through this unless we were to tag this
            calling frame with cfi_signal_frame in it's definition. *)
-        (* CR xclerc for xclerc: according to the comment above, not
-           having the move will only hinder debugging. *)
-        (* I.mov (domain_field Domainstate.Domain_c_stack) rsp; *)
+        I.mov (domain_field Domainstate.Domain_c_stack) rsp;*)
+        (* BACKPORT END *)
         emit_call (Cmm.global_symbol func);
-        I.mov rbx rsp;
-        cfi_restore_state ();
+        (* BACKPORT BEGIN *)
+        (*I.mov rbx rsp;
+        cfi_restore_state ();*)
+        (* BACKPORT BEGIN *)
       end
   | Lop(Istackoffset n) ->
       emit_stack_offset n
@@ -1751,10 +1753,16 @@ let emit_instr fallthrough i =
   | Lraise k ->
       begin match k with
       | Lambda.Raise_regular ->
+          (* BACKPORT BEGIN *)
+          I.mov (int 0) (domain_field Domainstate.Domain_backtrace_pos);
+          (* BACKPORT END *)
           emit_call (Cmm.global_symbol "caml_raise_exn");
           record_frame Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_reraise ->
+          (* BACKPORT BEGIN *)
+          (* emit_call (Cmm.global_symbol "caml_reraise_exn"); *)
           emit_call (Cmm.global_symbol "caml_raise_exn");
+          (* BACKPORT END *)
           record_frame Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_notrace ->
           I.mov (domain_field Domainstate.Domain_exception_pointer) rsp;
