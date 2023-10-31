@@ -7,7 +7,7 @@ include systhreads
 ** native
 *)
 
-let throw_exn msg = failwith msg [@@inline never]
+let throw_exn msg = (failwith [@inlined never]) msg [@@inline never]
 
 let thread_func delay =
   Thread.yield ();
