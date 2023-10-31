@@ -115,12 +115,12 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
 
-    - name: Cache OCaml 4.14 and dune
+    - name: Cache OCaml 4.14, dune and menhir
       uses: actions/cache@v2
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-361
+        key: ${{ matrix.os }}-cache-ocaml-414-dune-361-menhir-20210419
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
@@ -154,6 +154,27 @@ jobs:
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make release
         cp _boot/dune.exe $GITHUB_WORKSPACE/ocaml-414/_install/bin/dune
+
+    # CR mshinwell: This should use git@gitlab.inria.fr:fpottier/menhir.git
+    - name: Checkout menhir github repo
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'LexiFi/menhir'
+        ref: '20210419'
+        path: 'menhir'
+
+    - name: Build menhir
+      working-directory: menhir
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH dune build
+        cp _build/install/default/bin/menhir $GITHUB_WORKSPACE/ocaml-414/_install/bin/menhir
+        # Our dune rule uses `menhirLib.mli`, which we can't simply `cp`
+        # because it's a symbolic link to a relative path.
+        export TARGET_FILE=$GITHUB_WORKSPACE/ocaml-414/_install/lib/menhirLib/menhirLib.mli
+        mkdir -p $(dirname $TARGET_FILE)
+        cat _build/install/default/lib/menhirLib/menhirLib.mli > $TARGET_FILE
 
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
