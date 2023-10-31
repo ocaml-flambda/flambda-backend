@@ -21,6 +21,7 @@ let rec fact = function
   | n -> n * (fact [@tailcall true]) (n-1)
 ;;
 [%%expect {|
+
 Line 3, characters 13-42:
 3 |   | n -> n * (fact [@tailcall true]) (n-1)
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,6 +35,7 @@ let rec fact = function
   | n -> n * (fact [@tailcall false]) (n-1)
 ;;
 [%%expect {|
+
 val fact : int -> int = <fun>
 |}]
 
@@ -42,6 +44,7 @@ let rec fact_tail acc = function
   | n -> (fact_tail [@tailcall]) (n * acc) (n - 1)
 ;;
 [%%expect{|
+
 val fact_tail : int -> int -> int = <fun>
 |}]
 
@@ -58,6 +61,7 @@ let rec fact_tail acc = function
   | n -> (fact_tail [@tailcall false]) (n * acc) (n - 1)
 ;;
 [%%expect{|
+
 Line 3, characters 9-56:
 3 |   | n -> (fact_tail [@tailcall false]) (n * acc) (n - 1)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -70,6 +74,7 @@ val fact_tail : int -> int -> int = <fun>
 (* explicitly test the "invalid payload" case *)
 let rec test x = (test[@tailcall foobar]) x;;
 [%%expect{|
+
 Line 1, characters 24-32:
 1 | let rec test x = (test[@tailcall foobar]) x;;
                             ^^^^^^^^

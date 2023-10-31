@@ -18,6 +18,7 @@ Hint: Did you make a spelling mistake when using a mnemonic name?
 
 [@@@warning "ab-cdg+efh"]
 [%%expect {|
+
 Line 1, characters 0-25:
 1 | [@@@warning "ab-cdg+efh"]
     ^^^^^^^^^^^^^^^^^^^^^^^^^
