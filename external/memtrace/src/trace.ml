@@ -348,6 +348,10 @@ module IntTbl = Hashtbl.MakeSeeded (struct
   let hash _seed (id : t) =
     let h = id * 189696287 in
     h lxor (h lsr 23)
+  let seeded_hash seed (id : t) =
+    (* CR mshinwell: how should we handle seed properly? *)
+    let h = id * 189696287 * seed in
+    h lxor (h lsr 23)
   let equal (a : t) (b : t) = a = b
 end)
 
