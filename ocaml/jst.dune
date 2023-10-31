@@ -7,7 +7,6 @@
 ; (library
 ;  (name ocamlmiddleend)
 ;  (wrapped false)
-;  (flags (:standard -principal))
 ;  (libraries ocamlcommon)
 ;  (modules_without_implementation
 ;    cmx_format cmxs_format backend_intf inlining_decision_intf
@@ -19,7 +18,6 @@
 (library
  (name ocamloptcomp)
  (wrapped false)
- (flags (:standard -principal))
  (libraries ocamlcommon)
  (modules_without_implementation x86_ast emitenv
    cmx_format cmxs_format backend_intf inlining_decision_intf
@@ -85,8 +83,9 @@
  (name optmain_native)
  (modes byte native)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
-   -warn-error A -bin-annot -safe-string -strict-formats
+   :standard
+   -strict-sequence -absname -w +67
+   -bin-annot -safe-string -strict-formats
  ))
  (libraries ocamloptcomp ocamlcommon)
  (modules optmain_native))

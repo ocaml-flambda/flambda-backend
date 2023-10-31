@@ -9,7 +9,6 @@
   (backend bisect_ppx))
  (flags
   (:standard
-   -principal
    -open
    Flambda2_algorithms
    -open

@@ -1,7 +1,6 @@
 (executables
   (names flexpect fldiff parseflambda roundtrip)
   (modes native)
-  (flags (:standard -principal))
   (libraries
    ocamlcommon ocamloptcomp
    flambda2 flambda2_compare flambda2_parser flambda2_terms flambda2_cmx))
