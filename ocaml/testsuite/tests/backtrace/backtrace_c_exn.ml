@@ -11,7 +11,7 @@
 (* https://github.com/ocaml-multicore/ocaml-multicore/issues/498 *)
 external stubbed_raise : unit -> unit = "caml_498_raise"
 
-let raise_exn () = failwith "exn"
+let raise_exn () = (failwith [@inlined never]) "exn" [@@inline never]
 
 let () = Callback.register "test_raise_exn" raise_exn
 
