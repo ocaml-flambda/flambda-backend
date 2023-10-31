@@ -77,6 +77,7 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Did_you_mean_unboxed of Longident.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -730,8 +731,22 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       ctyp (Ttyp_object (fields, o)) (newobj ty)
   | Ptyp_class(lid, stl) ->
       let (path, decl) =
-        let path, decl = Env.lookup_cltype ~loc:lid.loc lid.txt env in
-        (path, decl.clty_hash_type)
+        match Env.lookup_cltype ~loc:lid.loc lid.txt env with
+        | (path, decl) -> (path, decl.clty_hash_type)
+        (* Raise a different error if it matches the name of an unboxed type *)
+        | exception
+            (Env.Error (Lookup_error (_, _, Unbound_cltype _)) as exn)
+          ->
+            let unboxed_lid : Longident.t =
+              match lid.txt with
+              | Lident s -> Lident (s ^ "#")
+              | Ldot (l, s) -> Ldot (l, s ^ "#")
+              | Lapply _ -> fatal_error "Typetexp.transl_type"
+            in
+            match Env.find_type_by_name unboxed_lid env with
+            | exception Not_found -> raise exn
+            | (_ : _ * _) ->
+                raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
       in
       if List.length stl <> decl.type_arity then
         raise(Error(styp.ptyp_loc, env,
@@ -1426,6 +1441,9 @@ let report_error env ppf = function
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Did_you_mean_unboxed lid ->
+    fprintf ppf "@[%a isn't a class type.@ \
+                 Did you mean the unboxed type %a#?@]" longident lid longident lid
 
 let () =
   Location.register_error_of_exn
