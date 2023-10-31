@@ -234,6 +234,7 @@ prims.c : primitives
 	(echo '#define CAML_INTERNALS'; \
          echo '#include "caml/mlvalues.h"'; \
 	 echo '#include "caml/prims.h"'; \
+   echo '#pragma GCC diagnostic ignored "-Wdeprecated-non-prototype"'; \
 	 sed -e 's/.*/extern value &();/' primitives; \
 	 echo 'c_primitive caml_builtin_cprim[] = {'; \
 	 sed -e 's/.*/  &,/' primitives; \
