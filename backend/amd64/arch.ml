@@ -19,7 +19,7 @@
 let popcnt_support = ref true
 
 (* CRC32 requires SSE 4.2 support *)
-let crc32_support = ref true
+let _crc32_support = ref true
 
 (* PREFETCHW instruction is not available on processors
    based on Haswell or earlier microarchitectures. *)

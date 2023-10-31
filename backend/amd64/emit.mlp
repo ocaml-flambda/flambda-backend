@@ -74,13 +74,13 @@ let cfi_endproc () =
 let cfi_adjust_cfa_offset n =
   if Config.asm_cfi_supported then D.cfi_adjust_cfa_offset n
 
-let cfi_remember_state () =
+let _cfi_remember_state () =
   if Config.asm_cfi_supported then D.cfi_remember_state ()
 
-let cfi_restore_state () =
+let _cfi_restore_state () =
   if Config.asm_cfi_supported then D.cfi_restore_state ()
 
-let cfi_def_cfa_register reg =
+let _cfi_def_cfa_register reg =
   if Config.asm_cfi_supported then D.cfi_def_cfa_register reg
 
 let emit_debug_info ?discriminator dbg =
