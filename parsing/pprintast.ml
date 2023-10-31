@@ -1512,20 +1512,18 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
 (* [in] is not printed *)
 and bindings ctxt f (rf,l) =
   let binding kwd rf f x =
-    let x, is_local =
-      match x.pvb_expr.pexp_desc with
-      | Pexp_apply
-        ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
-         [Nolabel, sbody]) ->
-         let sattrs, _ = check_local_attr sbody.pexp_attributes in
-         let sbody = {sbody with pexp_attributes = sattrs} in
-         let pattrs, _ = check_local_attr x.pvb_pat.ppat_attributes in
-         let pat = {x.pvb_pat with ppat_attributes = pattrs} in
-         {x with pvb_pat = pat; pvb_expr = sbody}, "local_ "
-      | _ -> x, ""
+    let attrs, is_local = check_local_attr x.pvb_attributes in
+    let x =
+      match is_local, x.pvb_expr.pexp_desc with
+      | true, Pexp_apply
+          ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+           [Nolabel, sbody]) ->
+          {x with pvb_expr = sbody}
+      | _ -> x
     in
-    pp f "@[<2>%s %a%s%a@]%a" kwd rec_flag rf is_local
-      (binding ctxt) x (item_attributes ctxt) x.pvb_attributes
+    pp f "@[<2>%s %a%s%a@]%a" kwd rec_flag rf
+      (if is_local then "local_ " else "")
+      (binding ctxt) x (item_attributes ctxt) attrs
   in
   match l with
   | [] -> ()

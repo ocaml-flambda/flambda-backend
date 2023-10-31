@@ -2631,7 +2631,7 @@ and type_pat_aux
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
         pat_env = !env }
-  | Ppat_constraint(sp, sty) ->
+  | Ppat_constraint(sp_constrained, sty) ->
       (* Pretend separate = true *)
       let cty, ty, expected_ty' =
         let mode_annots = mode_annots_from_pat_attrs sp in
@@ -2640,8 +2640,8 @@ and type_pat_aux
         in
         solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
       in
-      let p = type_pat ~alloc_mode tps category sp expected_ty' in
-      let extra = (Tpat_constraint cty, loc, sp.ppat_attributes) in
+      let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
+      let extra = (Tpat_constraint cty, loc, sp_constrained.ppat_attributes) in
       { p with pat_type = ty; pat_extra = extra::p.pat_extra }
   | Ppat_type lid ->
       let (path, p) = build_or_pat !env loc lid in
@@ -4594,8 +4594,13 @@ let may_lower_contravariant_then_generalize env exp =
 
 (* value binding elaboration *)
 
-let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; _ } =
+let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attributes=attrs; _ } =
   let open Ast_helper in
+  let mode_annot_attrs =
+    Builtin_attributes.filter_attributes
+      Builtin_attributes.mode_annotation_attributes_filter
+      attrs
+  in
   match ct with
   | None -> expr
   | Some (Pvc_constraint { locally_abstract_univars=[]; typ }) ->
@@ -4603,7 +4608,7 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; _ } =
       | Ptyp_poly _ -> expr
       | _ ->
           let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-          Exp.constraint_ ~loc expr typ
+          Exp.constraint_ ~loc ~attrs:mode_annot_attrs expr typ
       end
   | Some (Pvc_coercion { ground; coercion}) ->
       let loc = { expr.pexp_loc with Location.loc_ghost = true } in
@@ -4611,11 +4616,16 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; _ } =
   | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
       let loc_start = pat.ppat_loc.Location.loc_start in
       let loc = { expr.pexp_loc with loc_start; loc_ghost=true } in
-      let expr = Exp.constraint_ ~loc expr typ in
+      let expr = Exp.constraint_ ~loc ~attrs:mode_annot_attrs expr typ in
       List.fold_right (Exp.newtype ~loc) vars expr
 
 let vb_pat_constraint ~force_toplevel rec_mode_var
-      ({pvb_pat=pat; pvb_expr = exp; _ } as vb) =
+      ({pvb_pat=pat; pvb_expr = exp; pvb_attributes = attrs; _ } as vb) =
+  let mode_annot_attrs =
+    Builtin_attributes.filter_attributes
+      Builtin_attributes.mode_annotation_attributes_filter
+      attrs
+  in
   let spat =
     let open Ast_helper in
     match vb.pvb_constraint, pat.ppat_desc, exp.pexp_desc with
@@ -4623,18 +4633,21 @@ let vb_pat_constraint ~force_toplevel rec_mode_var
            | Pvc_coercion { coercion=typ; _ }),
       _, _ ->
         Pat.constraint_ ~loc:{pat.ppat_loc with Location.loc_ghost=true} pat typ
+          ~attrs:mode_annot_attrs
     | Some (Pvc_constraint {locally_abstract_univars=vars; typ }), _, _ ->
         let varified = Typ.varify_constructors vars typ in
         let t = Typ.poly ~loc:typ.ptyp_loc vars varified in
         let loc_end = typ.ptyp_loc.Location.loc_end in
         let loc =  { pat.ppat_loc with loc_end; loc_ghost=true } in
         Pat.constraint_ ~loc pat t
+          ~attrs:mode_annot_attrs
     | None, (Ppat_any | Ppat_constraint _), _ -> pat
     | None, _, Pexp_coerce (_, _, sty)
     | None, _, Pexp_constraint (_, sty) when !Clflags.principal ->
         (* propagate type annotation to pattern,
            to allow it to be generalized in -principal mode *)
         Pat.constraint_ ~loc:{pat.ppat_loc with Location.loc_ghost=true} pat sty
+          ~attrs:mode_annot_attrs
     | _ -> pat
   in
   let pat_mode, exp_mode =
