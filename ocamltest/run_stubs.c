@@ -17,7 +17,9 @@
 
 #define _GNU_SOURCE
 
+#ifndef CAML_INTERNALS
 #define CAML_INTERNALS
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
