@@ -43,12 +43,15 @@ let compile i ~backend ~middle_end ~transl_style
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
-       |> Asmgen.compile_implementation
+       |>(fun lambda ->
+          if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
+          Asmgen.compile_implementation
             ~backend
             ~prefixname:i.output_prefix
             ~middle_end
-            ~ppf_dump:i.ppf_dump;
-       Compilenv.save_unit_info (cmx i))
+            ~ppf_dump:i.ppf_dump
+            lambda;
+       Compilenv.save_unit_info (cmx i)))
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

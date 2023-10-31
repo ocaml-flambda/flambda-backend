@@ -15,18 +15,22 @@
 
 ; set warning as error in release profile
 (env
- (dev     (flags (:standard -w +a-4-9-40-41-42-44-45-48-66-67-70)))
  (release (flags (:standard -w +a-4-9-40-41-42-44-45-48-66-67-70)))
 
  (main
   (flags
    (:standard -warn-error +A)))
- (boot
+ (dev
   (flags
-   (:standard -warn-error +A))))
+   (:standard -w +a-4-9-40-41-42-44-45-48-66-67-70 -warn-error +A))))
+
+; Disable the runtime/ directory for now
+; (We're currently using runtime4/ instead)
+(dirs (:standard \ runtime))
 
 (copy_files# utils/*.ml{,i})
 (copy_files# parsing/*.ml{,i})
+(copy_files parsing/parser.mly)
 (copy_files# typing/*.ml{,i})
 (copy_files# bytecomp/*.ml{,i})
 (copy_files# driver/*.ml{,i})
@@ -39,6 +43,14 @@
 ;(copy_files# middle_end/flambda/*.ml{,i})
 ;(copy_files# middle_end/flambda/base_types/*.ml{,i})
 
+(menhir
+  (modules parser)
+  (flags
+    --lalr --explain --dump --require-aliases --strict
+    --unused-token COMMENT --unused-token DOCSTRING --unused-token EOL --unused-token GREATERRBRACKET
+    --fixed-exception --table
+    --strategy simplified))
+
 (library
  (name ocamlcommon)
  (wrapped false)
@@ -49,6 +61,13 @@
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (preprocess
+   (per_module
+     ((action
+        (progn
+          (echo "module MenhirLib = CamlinternalMenhirLib")
+          (run cat %{input-file})))
+       parser)))
  (library_flags -linkall)
  (modules_without_implementation
    annot asttypes jane_asttypes cmo_format outcometree parsetree debug_event)
@@ -140,7 +159,7 @@
 (include duneconf/jst-extra.inc)
 
 (rule
- (deps (source_tree yacc))
+ (deps Makefile.build_config Makefile.config_if_required Makefile.common (source_tree yacc))
  (targets ocamlyacc)
  (action
  (no-infer

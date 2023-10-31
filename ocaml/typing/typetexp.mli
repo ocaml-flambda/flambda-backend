@@ -50,6 +50,7 @@ module TyVarEnv : sig
      Env.t -> Location.t -> poly_univars -> type_expr list
     (** Same as [check_poly_univars], but instantiates the resulting
        type scheme (i.e. variables become Tvar rather than Tunivar) *)
+
 end
 
 val valid_tyvar_name : string -> bool
@@ -118,7 +119,6 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
-  | Did_you_mean_unboxed of Longident.t
 
 exception Error of Location.t * Env.t * error
 
@@ -129,7 +129,3 @@ val transl_modtype_longident:  (* from Typemod *)
     (Location.t -> Env.t -> Longident.t -> Path.t) ref
 val transl_modtype: (* from Typemod *)
     (Env.t -> Parsetree.module_type -> Typedtree.module_type) ref
-val create_package_mty:
-    Location.t -> Env.t -> Parsetree.package_type ->
-    (Longident.t Asttypes.loc * Parsetree.core_type) list *
-      Parsetree.module_type
