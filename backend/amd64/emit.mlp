@@ -1268,33 +1268,54 @@ let emit_instr fallthrough i =
           end
         end
       end
-  | Lop(Iextcall { func; alloc; stack_ofs }) ->
+  | Lop(Iextcall { func; alloc; stack_ofs
+      (* BACKPORT BEGIN *)
+      = _
+      (* BACKPORT END *)
+      }) ->
       add_used_symbol func;
+(* BEGIN BACKPORT
       if stack_ofs > 0 then begin
         I.mov rsp r13;
         I.lea (mem64 QWORD stack_ofs RSP) r12;
-        load_symbol_addr (Cmm.global_symbol func) rax;
-        emit_call (Cmm.global_symbol "caml_c_call_stack_args");
-        record_frame i.live (Dbg_other i.dbg);
-      end else if alloc then begin
+        load_symbol_addr func rax;
+        emit_call "caml_c_call_stack_args";
+        record_frame env i.live (Dbg_other i.dbg);
+      end else *) if alloc then begin
         load_symbol_addr (Cmm.global_symbol func) rax;
         emit_call (Cmm.global_symbol "caml_c_call");
         record_frame i.live (Dbg_other i.dbg);
+(* BEGIN BACKPORT *)
+        if system <> S_win64 then begin
+
+          (* In amd64.S, "caml_c_call" tail-calls the C function (in order to
+             produce nicer backtraces), so we need to restore r15 manually after
+             it returns (note that this increases code size).
+
+             In amd64nt.asm (used for Win64), "caml_c_call" invokes the C
+             function via a regular call, and restores r15 itself, thus avoiding
+             the code size increase. *)
+
+          I.mov (domain_field Domainstate.Domain_young_ptr) r15
+        end
+(* END BACKPORT *)
       end else begin
-        (* BACKPORT BEGIN *)
-        (*I.mov rsp rbx;
+(* BEGIN BACKPORT
+        I.mov rsp rbx;
         cfi_remember_state ();
         cfi_def_cfa_register "rbx";
         (* NB: gdb has asserts on contiguous stacks that mean it
            will not unwind through this unless we were to tag this
            calling frame with cfi_signal_frame in it's definition. *)
-        I.mov (domain_field Domainstate.Domain_c_stack) rsp;*)
-        (* BACKPORT END *)
-        emit_call (Cmm.global_symbol func);
-        (* BACKPORT BEGIN *)
-        (*I.mov rbx rsp;
-        cfi_restore_state ();*)
-        (* BACKPORT BEGIN *)
+        I.mov (domain_field Domainstate.Domain_c_stack) rsp; *)
+(* END BACKPORT *)
+        emit_call (Cmm.global_symbol func)
+(* BEGIN BACKPORT
+        ;
+        I.mov rbx rsp;
+        cfi_restore_state ();
+*)
+(* END BACKPORT *)
       end
   | Lop(Istackoffset n) ->
       emit_stack_offset n
