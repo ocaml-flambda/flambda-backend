@@ -29,11 +29,15 @@ module SlotSet = Set.Make(Int)
 
 (* Live intervals per register class *)
 
-type class_intervals =
+type reg_class_intervals =
   {
     mutable ci_fixed: IntervalSet.t;
     mutable ci_active: IntervalSet.t;
     mutable ci_inactive: IntervalSet.t;
+  }
+
+type stack_class_intervals =
+  {
     mutable ci_spilled:
       (* spilled stack slots (reg.loc = Stack (Local n)) still in use *)
       IntervalSet.t;
@@ -46,6 +50,9 @@ let active = Array.init Proc.num_register_classes (fun _ -> {
   ci_fixed = IntervalSet.empty;
   ci_active = IntervalSet.empty;
   ci_inactive = IntervalSet.empty;
+})
+
+let stack_active = Array.init Proc.num_stack_slot_classes (fun _ -> {
   ci_spilled = IntervalSet.empty;
   ci_free_slots = SlotSet.empty;
 })
@@ -108,7 +115,7 @@ let release_expired_inactive ci pos =
 
 let allocate_stack_slot num_stack_slots i =
   let cl = Proc.stack_slot_class i.reg.typ in
-  let ci = active.(cl) in
+  let ci = stack_active.(cl) in
   let ss =
     match SlotSet.min_elt_opt ci.ci_free_slots with
     | Some ss ->
@@ -215,9 +222,11 @@ let walk_interval num_stack_slots i =
     (fun ci ->
        release_expired_fixed ci pos;
        release_expired_active ci pos;
-       release_expired_inactive ci pos;
-       release_expired_spilled ci pos)
+       release_expired_inactive ci pos)
     active;
+  Array.iter
+    (fun ci -> release_expired_spilled ci pos)
+    stack_active;
   try
     (* Allocate free register (if any) *)
     allocate_free_register num_stack_slots i
@@ -234,6 +243,11 @@ let allocate_registers (intervals : Interval.result) =
       ci_fixed = IntervalSet.empty;
       ci_active = IntervalSet.empty;
       ci_inactive = IntervalSet.empty;
+    };
+  done;
+  for cl = 0 to Proc.num_stack_slot_classes - 1 do
+    (* Start with empty interval lists *)
+    stack_active.(cl) <- {
       ci_spilled = IntervalSet.empty;
       ci_free_slots = SlotSet.empty;
     };
