@@ -116,7 +116,7 @@
 #define DOMAIN_STATE(c_type, name) \
         .equ    domain_field_caml_##name, domain_curr_field ; \
         .set    domain_curr_field, domain_curr_field + 1
-#include "caml/domain_state.tbl"
+#include "../runtime4/caml/domain_state.tbl"
 #undef DOMAIN_STATE
 
 #define Caml_state(var) (8*domain_field_caml_##var)(%r14)
@@ -754,6 +754,13 @@ CFI_STARTPROC
         jmp     LBL(caml_c_call)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_ml_array_bound_error))
+
+FUNCTION(G(caml_ml_array_align_error))
+CFI_STARTPROC
+        LEA_VAR(caml_array_align_error, %rax)
+        jmp     LBL(caml_c_call)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_ml_array_align_error))
 
         TEXT_SECTION(caml_system__code_end)
         .globl  G(caml_system__code_end)

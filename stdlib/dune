@@ -115,6 +115,8 @@
     hashtbl.mli
     iarray.ml
     iarray.mli
+    iarrayLabels.ml
+    iarrayLabels.mli
     in_channel.ml
     in_channel.mli
     int.ml

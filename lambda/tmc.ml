@@ -935,11 +935,12 @@ let rec choice ctx t =
     (* more common cases... *)
     | Pbigarrayref _ | Pbigarrayset _
     | Pbigarraydim _
-    | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-    | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-    | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+    | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
+    | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
+    | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-    | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+    | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+    | Pbigstring_set_64 _ | Pbigstring_set_128 _
     | Pget_header _
     | Pctconst _
     | Pbswap16

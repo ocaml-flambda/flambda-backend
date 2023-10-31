@@ -212,24 +212,29 @@ type primitive =
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
   (* size of the nth dimension of a Bigarray *)
   | Pbigarraydim of int
-  (* load/set 16,32,64 bits from a string: (unsafe)*)
+  (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
+  | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
+  | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_64 of bool
-  (* load/set 16,32,64 bits from a
+  | Pbytes_set_128 of { unsafe : bool }
+  (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of bool
   | Pbigstring_load_32 of bool * alloc_mode
   | Pbigstring_load_64 of bool * alloc_mode
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
   | Pbigstring_set_16 of bool
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -515,6 +520,7 @@ type check_attribute =
   | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
@@ -1491,11 +1497,15 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) | Pget_header m -> Some m
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
+  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
+  | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
+  | Pget_header m -> Some m
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
-  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m) -> Some m
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ -> None
+  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
+  | Pbigstring_load_128 { mode = m; _ } -> Some m
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _
+  | Pbigstring_set_64 _ | Pbigstring_set_128 _ -> None
   | Pctconst _ -> None
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
@@ -1539,6 +1549,11 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     | Void -> assert false
     end
 
+let array_ref_kind_result_layout = function
+  | Pintarray_ref -> layout_int
+  | Pfloatarray_ref _ -> layout_boxed_float
+  | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with
@@ -1547,8 +1562,8 @@ let primitive_result_layout (p : primitive) =
   | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
   | Psetufloatfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
-  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
@@ -1579,10 +1594,7 @@ let primitive_result_layout (p : primitive) =
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
   | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
-      (match array_ref_kind with
-       | Pintarray_ref -> layout_int
-       | Pfloatarray_ref _ -> layout_boxed_float
-       | Pgenarray_ref _ | Paddrarray_ref -> layout_field)
+    array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
@@ -1595,6 +1607,8 @@ let primitive_result_layout (p : primitive) =
       layout_boxedint Pint32
   | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
       layout_boxedint Pint64
+  | Pstring_load_128 _ | Pbytes_load_128 _ | Pbigstring_load_128 _ ->
+      layout_boxed_vector (Pvec128 Int8x16)
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
@@ -1679,3 +1693,12 @@ let array_set_kind mode = function
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+
+let is_check_enabled ~opt property =
+  match property with
+  | Zero_alloc ->
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_all -> true
+    | Check_default -> not opt
+    | Check_opt_only -> opt
