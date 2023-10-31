@@ -43,6 +43,7 @@
 (install
   (files
     Makefile.config
+    ocaml_compiler_internal_params
 
     camlheader
     camlheaderd
@@ -104,6 +105,8 @@
     filename.mli
     float.ml
     float.mli
+    float_u.ml
+    float_u.mli
     format.ml
     format.mli
     fun.ml
@@ -116,6 +119,8 @@
     hashtbl.mli
     iarray.ml
     iarray.mli
+    iarrayLabels.ml
+    iarrayLabels.mli
     in_channel.ml
     in_channel.mli
     int.ml
@@ -240,6 +245,9 @@
     .stdlib.objs/byte/stdlib__Float.cmi
     .stdlib.objs/byte/stdlib__Float.cmt
     .stdlib.objs/byte/stdlib__Float.cmti
+    .stdlib.objs/byte/stdlib__Float_u.cmi
+    .stdlib.objs/byte/stdlib__Float_u.cmt
+    .stdlib.objs/byte/stdlib__Float_u.cmti
     .stdlib.objs/byte/stdlib__Format.cmi
     .stdlib.objs/byte/stdlib__Format.cmt
     .stdlib.objs/byte/stdlib__Format.cmti
@@ -413,6 +421,7 @@
     .stdlib.objs/native/stdlib__StdLabels.cmx
     .stdlib.objs/native/stdlib__Weak.cmx
     .stdlib.objs/native/stdlib__Float.cmx
+    .stdlib.objs/native/stdlib__Float_u.cmx
     .stdlib.objs/native/stdlib__Pervasives.cmx
     .stdlib.objs/native/stdlib__Fun.cmx
     .stdlib.objs/native/stdlib__Bigarray.cmx

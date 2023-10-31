@@ -17,21 +17,35 @@
 
 open Misc
 open Path
-open Layouts
 open Types
 open Btype
 
 open Local_store
 
+type jkind_error =
+  | Unconstrained_jkind_variable
+
+exception Error of Location.t * jkind_error
+
 type type_replacement =
   | Path of Path.t
   | Type_function of { params : type_expr list; body : type_expr }
+
+type additional_action =
+  | Prepare_for_saving of (Location.t -> jkind -> jkind)
+    (* The [Prepare_for_saving] function should be applied to all jkinds when
+       saving; this commons them up, truncates their histories, and runs
+       a check that all unconstrained variables have been defaulted to value. *)
+  | Duplicate_variables
+  | No_action
 
 type t =
   { types: type_replacement Path.Map.t;
     modules: Path.t Path.Map.t;
     modtypes: module_type Path.Map.t;
-    for_saving: bool;
+
+    additional_action: additional_action;
+
     loc: Location.t option;
     mutable last_compose: (t * t) option  (* Memoized composition *)
   }
@@ -39,7 +53,7 @@ let identity =
   { types = Path.Map.empty;
     modules = Path.Map.empty;
     modtypes = Path.Map.empty;
-    for_saving = false;
+    additional_action = No_action;
     loc = None;
     last_compose = None;
   }
@@ -61,15 +75,62 @@ let add_modtype_path p ty s =
   { s with modtypes = Path.Map.add p ty s.modtypes; last_compose = None }
 let add_modtype id ty s = add_modtype_path (Pident id) ty s
 
-let for_saving s = { s with for_saving = true; last_compose = None }
+type additional_action_config =
+  | Duplicate_variables
+  | Prepare_for_saving
+
+let with_additional_action (config : additional_action_config) s =
+  (* CR layouts: it would be better to put all this stuff outside this
+     function, but it's in here because we really want to tailor the reason
+     to describe the module a symbol is imported from. But RAE's initial
+     attempt to do this based on filename caused spurious "inconsistent
+     assumption" errors that couldn't immediately be solved. Revisit
+     with a better approach.
+
+     We'll need to revisit the Note [Preparing_for_saving always the same]
+     once we do this tailoring.
+  *)
+  let additional_action : additional_action =
+    match config with
+    | Duplicate_variables -> Duplicate_variables
+    | Prepare_for_saving ->
+        let reason = Jkind.Imported in
+        let any = Jkind.of_const Any ~why:reason in
+        let void = Jkind.of_const Void ~why:reason in
+        let value = Jkind.of_const Value ~why:reason in
+        let immediate = Jkind.of_const Immediate ~why:reason in
+        let immediate64 = Jkind.of_const Immediate64 ~why:reason in
+        let float64 = Jkind.of_const Float64 ~why:reason in
+        let prepare_jkind loc lay =
+          match Jkind.get lay with
+          | Const Any -> any
+          | Const Void -> void
+          | Const Value -> value
+          | Const Immediate -> immediate
+          | Const Immediate64 -> immediate64
+          | Const Float64 -> float64
+          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
+        in
+        Prepare_for_saving prepare_jkind
+  in
+  { s with additional_action; last_compose = None }
+
+let apply_prepare_jkind s lay loc =
+  match s.additional_action with
+  | Prepare_for_saving prepare_jkind -> prepare_jkind loc lay
+  | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
 
 let loc s x =
   match s.loc with
   | Some l -> l
-  | None ->
-    if s.for_saving && not !Clflags.keep_locs then Location.none else x
+  | None -> begin
+      match s.additional_action with
+      | Prepare_for_saving _ | Duplicate_variables ->
+          if not !Clflags.keep_locs then Location.none else x
+      | No_action -> x
+    end
 
 let remove_loc =
   let open Ast_mapper in
@@ -83,14 +144,25 @@ let is_not_doc = function
   | _ -> true
 
 let attrs s x =
+  (* Now that we track [Duplicate_variables] and [Prepare_for_saving] as
+     separate states, we should reconsider whether the [Duplicate_variables]
+     callsites really need to scrub docs and locations. For now, we're keeping
+     the scrubbing behavior for backward compatibility.
+  *)
   let x =
-    if s.for_saving && not !Clflags.keep_docs then
-      List.filter is_not_doc x
-    else x
+    match s.additional_action with
+    | Prepare_for_saving _ | Duplicate_variables ->
+        if not !Clflags.keep_docs
+        then List.filter is_not_doc x
+        else x
+    | No_action -> x
   in
-    if s.for_saving && not !Clflags.keep_locs
-    then remove_loc.Ast_mapper.attributes remove_loc x
-    else x
+  match s.additional_action with
+  | Prepare_for_saving _ | Duplicate_variables ->
+      if not !Clflags.keep_locs
+      then remove_loc.Ast_mapper.attributes remove_loc x
+      else x
+  | No_action -> x
 
 let rec module_path s path =
   try Path.Map.find path s.modules
@@ -105,7 +177,7 @@ let rec module_path s path =
 let modtype_path s path =
       match Path.Map.find path s.modtypes with
       | Mty_ident p -> p
-      | Mty_alias _ | Mty_signature _ | Mty_functor _ ->
+      | Mty_alias _ | Mty_signature _ | Mty_functor _| Mty_strengthen _ ->
          fatal_error "Subst.modtype_path"
       | exception Not_found ->
          match path with
@@ -143,66 +215,59 @@ let to_subst_by_type_function s p =
 (* Special type ids for saved signatures *)
 
 let new_id = s_ref (-1)
-let reset_for_saving () = new_id := -1
+let reset_additional_action_type_id () = new_id := -1
 
 let newpersty desc =
   decr new_id;
   create_expr
     desc ~level:generic_level ~scope:Btype.lowest_level ~id:!new_id
 
-(* ensure that all occurrences of 'Tvar None' are physically shared when saving
-   artifacts *)
-let tvar_none_any = Tvar { name = None; layout = Layout.any }
-let tvar_none_imm = Tvar { name = None; layout = Layout.immediate }
-let tvar_none_imm64 = Tvar { name = None; layout = Layout.immediate64 }
-let tvar_none_val = Tvar { name = None; layout = Layout.value }
-let tvar_none_void = Tvar { name = None; layout = Layout.void }
+(* CR layouts: remove this. While we're still developing, though, it might
+   be nice to get the location of this kind of error. *)
+(* We use a ref instead of passing [loc] as an argument to [typexp]
+   because the ref requires no modifications to the body of [typexp],
+   reducing the chance of merge conflicts. This location is not critical --
+   it just makes an error message more useful in case of a compiler bug.
+   We may decide to get rid of this check someday, too.
+*)
+let location_for_jkind_check_errors = ref Location.none
 
-let tunivar_none_any = Tunivar { name = None; layout = Layout.any }
-let tunivar_none_imm = Tunivar { name = None; layout = Layout.immediate }
-let tunivar_none_imm64 = Tunivar { name = None; layout = Layout.immediate64 }
-let tunivar_none_val = Tunivar { name = None; layout = Layout.value }
-let tunivar_none_void = Tunivar { name = None; layout = Layout.void}
-
-let norm = function
-  | (Tvar { name = None; layout }) as t -> begin
-      match Layout.get layout with
-      | Const Any -> tvar_none_any
-      | Const Immediate -> tvar_none_imm
-      | Const Immediate64 -> tvar_none_imm64
-      | Const Value -> tvar_none_val
-      | Const Void -> tvar_none_void
-      | Var _ -> t
-    end
-  | (Tunivar { name = None; layout }) as t -> begin
-      match Layout.get layout with
-      | Const Any -> tunivar_none_any
-      | Const Immediate -> tunivar_none_imm
-      | Const Immediate64 -> tunivar_none_imm64
-      | Const Value -> tunivar_none_val
-      | Const Void -> tunivar_none_void
-      | Var _ -> t
-    end
-  | d -> d
+let norm desc ~prepare_jkind =
+  match desc with
+  | Tvar { name; jkind } ->
+      let loc = !location_for_jkind_check_errors in
+      Tvar { name; jkind = prepare_jkind loc jkind }
+  | Tunivar { name; jkind } ->
+      let loc = !location_for_jkind_check_errors in
+      Tunivar { name; jkind = prepare_jkind loc jkind }
+    | desc -> desc
 
 let ctype_apply_env_empty = ref (fun _ -> assert false)
 
 (* Similar to [Ctype.nondep_type_rec]. *)
 let rec typexp copy_scope s ty =
+  let should_duplicate_vars =
+    match s.additional_action with
+    | Duplicate_variables | Prepare_for_saving _ -> true
+    | No_action -> false
+  in
   let desc = get_desc ty in
   match desc with
     Tvar _ | Tunivar _ ->
-      if s.for_saving || get_id ty < 0 then
+      if should_duplicate_vars || get_id ty < 0 then
         let ty' =
-          if s.for_saving then newpersty (norm desc)
-          else newty2 ~level:(get_level ty) desc
+          match s.additional_action with
+          | Duplicate_variables -> newpersty desc
+          | Prepare_for_saving prepare_jkind ->
+              newpersty (norm desc ~prepare_jkind)
+          | No_action -> newty2 ~level:(get_level ty) desc
         in
         For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
         ty'
       else ty
   | Tsubst (ty, _) ->
       ty
-  | Tfield (m, k, _t1, _t2) when not s.for_saving && m = dummy_method
+  | Tfield (m, k, _t1, _t2) when not should_duplicate_vars && m = dummy_method
       && field_kind_repr k <> Fabsent && get_level ty < generic_level ->
       (* do not copy the type of self when it is not generalized *)
       ty
@@ -215,10 +280,10 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let layout = Layout.any in
+    let jkind = Jkind.any ~why:Dummy_jkind in
     let ty' =
-      if s.for_saving then newpersty (Tvar {name = None; layout})
-      else newgenstub ~scope:(get_scope ty) layout
+      if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
+      else newgenstub ~scope:(get_scope ty) jkind
     in
     For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
     let desc =
@@ -239,7 +304,7 @@ let rec typexp copy_scope s ty =
          end
       | Tpackage(p, fl) ->
           Tpackage(modtype_path s p,
-                    List.map (fun (n, ty) -> (n, typexp copy_scope s ty)) fl)
+                   List.map (fun (n, ty) -> (n, typexp copy_scope s ty)) fl)
       | Tobject (t1, name) ->
           let t1' = typexp copy_scope s t1 in
           let name' =
@@ -264,7 +329,7 @@ let rec typexp copy_scope s ty =
               Tlink ty2
           | _ ->
               let dup =
-                s.for_saving || get_level more = generic_level ||
+                should_duplicate_vars || get_level more = generic_level ||
                 static_row row || is_Tconstr more in
               (* Various cases for the row variable *)
               let more' =
@@ -272,7 +337,7 @@ let rec typexp copy_scope s ty =
                   Tsubst (ty, None) -> ty
                 | Tconstr _ | Tnil -> typexp copy_scope s more
                 | Tunivar _ | Tvar _ ->
-                    if s.for_saving then newpersty (norm mored)
+                    if should_duplicate_vars then newpersty mored
                     else if dup && is_Tvar more then newgenty mored
                     else more
                 | _ -> assert false
@@ -301,51 +366,98 @@ let rec typexp copy_scope s ty =
     Transient_expr.set_stub_desc ty' desc;
     ty'
 
+(* [loc] is different than [s.loc]:
+     - [s.loc] is a way for the external client of the module to indicate the
+       location of the copy.
+     - [loc] is internally-populated and is the location of the AST construct
+       that encloses the type (and is used only in errors in the jkind check).
+*)
+let typexp copy_scope s loc ty =
+  location_for_jkind_check_errors := loc;
+  typexp copy_scope s ty
+
 (*
    Always make a copy of the type. If this is not done, type levels
    might not be correct.
 *)
 let type_expr s ty =
-  For_copy.with_scope (fun copy_scope -> typexp copy_scope s ty)
+  let loc = Option.value s.loc ~default:Location.none in
+  For_copy.with_scope (fun copy_scope -> typexp copy_scope s loc ty)
 
 let label_declaration copy_scope s l =
   {
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
     ld_global = l.ld_global;
-    ld_layout = l.ld_layout;
-    ld_type = typexp copy_scope s l.ld_type;
+    ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
+    ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
     ld_uid = l.ld_uid;
   }
 
-let constructor_arguments copy_scope s = function
+let constructor_arguments copy_scope s loc = function
   | Cstr_tuple l ->
-      Cstr_tuple (List.map (fun (ty, gf) -> (typexp copy_scope s ty, gf)) l)
+      Cstr_tuple (List.map (fun (ty, gf) -> (typexp copy_scope s loc ty, gf)) l)
   | Cstr_record l ->
       Cstr_record (List.map (label_declaration copy_scope s) l)
 
 let constructor_declaration copy_scope s c =
   {
     cd_id = c.cd_id;
-    cd_args = constructor_arguments copy_scope s c.cd_args;
-    cd_res = Option.map (typexp copy_scope s) c.cd_res;
+    cd_args = constructor_arguments copy_scope s c.cd_loc c.cd_args;
+    cd_res = Option.map (typexp copy_scope s c.cd_loc) c.cd_res;
     cd_loc = loc s c.cd_loc;
     cd_attributes = attrs s c.cd_attributes;
     cd_uid = c.cd_uid;
   }
 
+(* called only when additional_action is [Prepare_for_saving] *)
+let constructor_tag ~prepare_jkind loc = function
+  | Ordinary _ as tag -> tag
+  | Extension (path, lays) ->
+      Extension (path, Array.map (prepare_jkind loc) lays)
+
+(* called only when additional_action is [Prepare_for_saving] *)
+let variant_representation ~prepare_jkind loc = function
+  | Variant_unboxed -> Variant_unboxed
+  | Variant_boxed layss ->
+    Variant_boxed (Array.map (Array.map (prepare_jkind loc)) layss)
+  | Variant_extensible -> Variant_extensible
+
+(* called only when additional_action is [Prepare_for_saving] *)
+let record_representation ~prepare_jkind loc = function
+  | Record_unboxed -> Record_unboxed
+  | Record_inlined (tag, variant_rep) ->
+    Record_inlined (constructor_tag ~prepare_jkind loc tag,
+                    variant_representation ~prepare_jkind loc variant_rep)
+  | Record_boxed lays ->
+      Record_boxed (Array.map (prepare_jkind loc) lays)
+  | Record_float -> Record_float
+  | Record_ufloat -> Record_ufloat
+
 let type_declaration' copy_scope s decl =
-  { type_params = List.map (typexp copy_scope s) decl.type_params;
+  { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
-        Type_abstract imm -> Type_abstract imm
+        Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep) ->
+          let rep =
+            match s.additional_action with
+            | No_action | Duplicate_variables -> rep
+            | Prepare_for_saving prepare_jkind ->
+                variant_representation ~prepare_jkind decl.type_loc rep
+          in
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
                         rep)
       | Type_record(lbls, rep) ->
+          let rep =
+            match s.additional_action with
+            | No_action | Duplicate_variables -> rep
+            | Prepare_for_saving prepare_jkind ->
+                record_representation ~prepare_jkind decl.type_loc rep
+          in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;
@@ -353,7 +465,14 @@ let type_declaration' copy_scope s decl =
       begin
         match decl.type_manifest with
           None -> None
-        | Some ty -> Some(typexp copy_scope s ty)
+        | Some ty -> Some(typexp copy_scope s decl.type_loc ty)
+      end;
+    type_jkind =
+      begin
+        match s.additional_action with
+        | Prepare_for_saving prepare_jkind ->
+            prepare_jkind decl.type_loc decl.type_jkind
+        | Duplicate_variables | No_action -> decl.type_jkind
       end;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
@@ -369,39 +488,41 @@ let type_declaration' copy_scope s decl =
 let type_declaration s decl =
   For_copy.with_scope (fun copy_scope -> type_declaration' copy_scope s decl)
 
-let class_signature copy_scope s sign =
-  { csig_self = typexp copy_scope s sign.csig_self;
-    csig_self_row = typexp copy_scope s sign.csig_self_row;
+let class_signature copy_scope s loc sign =
+  { csig_self = typexp copy_scope s loc sign.csig_self;
+    csig_self_row = typexp copy_scope s loc sign.csig_self_row;
     csig_vars =
       Vars.map
-        (function (m, v, t) -> (m, v, typexp copy_scope s t))
+        (function (m, v, t) -> (m, v, typexp copy_scope s loc t))
         sign.csig_vars;
     csig_meths =
       Meths.map
-        (function (p, v, t) -> (p, v, typexp copy_scope s t))
+        (function (p, v, t) -> (p, v, typexp copy_scope s loc t))
         sign.csig_meths;
   }
 
-let rec class_type copy_scope s = function
+let rec class_type copy_scope s cty =
+  let loc = Option.value s.loc ~default:Location.none in
+  match cty with
   | Cty_constr (p, tyl, cty) ->
       let p' = type_path s p in
-      let tyl' = List.map (typexp copy_scope s) tyl in
+      let tyl' = List.map (typexp copy_scope s loc) tyl in
       let cty' = class_type copy_scope s cty in
       Cty_constr (p', tyl', cty')
   | Cty_signature sign ->
-      Cty_signature (class_signature copy_scope s sign)
+      Cty_signature (class_signature copy_scope s loc sign)
   | Cty_arrow (l, ty, cty) ->
-      Cty_arrow (l, typexp copy_scope s ty, class_type copy_scope s cty)
+      Cty_arrow (l, typexp copy_scope s loc ty, class_type copy_scope s cty)
 
 let class_declaration' copy_scope s decl =
-  { cty_params = List.map (typexp copy_scope s) decl.cty_params;
+  { cty_params = List.map (typexp copy_scope s decl.cty_loc) decl.cty_params;
     cty_variance = decl.cty_variance;
     cty_type = class_type copy_scope s decl.cty_type;
     cty_path = type_path s decl.cty_path;
     cty_new =
       begin match decl.cty_new with
       | None    -> None
-      | Some ty -> Some (typexp copy_scope s ty)
+      | Some ty -> Some (typexp copy_scope s decl.cty_loc ty)
       end;
     cty_loc = loc s decl.cty_loc;
     cty_attributes = attrs s decl.cty_attributes;
@@ -412,7 +533,7 @@ let class_declaration s decl =
   For_copy.with_scope (fun copy_scope -> class_declaration' copy_scope s decl)
 
 let cltype_declaration' copy_scope s decl =
-  { clty_params = List.map (typexp copy_scope s) decl.clty_params;
+  { clty_params = List.map (typexp copy_scope s decl.clty_loc) decl.clty_params;
     clty_variance = decl.clty_variance;
     clty_type = class_type copy_scope s decl.clty_type;
     clty_path = type_path s decl.clty_path;
@@ -430,14 +551,23 @@ let class_type s cty =
 
 let extension_constructor' copy_scope s ext =
   { ext_type_path = type_path s ext.ext_type_path;
-    ext_type_params = List.map (typexp copy_scope s) ext.ext_type_params;
-    ext_args = constructor_arguments copy_scope s ext.ext_args;
-    ext_arg_layouts = ext.ext_arg_layouts;
+    ext_type_params =
+      List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
+    ext_args = constructor_arguments copy_scope s ext.ext_loc ext.ext_args;
+    ext_arg_jkinds = begin match s.additional_action with
+      | Prepare_for_saving prepare_jkind ->
+          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
+      | Duplicate_variables | No_action -> ext.ext_arg_jkinds
+    end;
     ext_constant = ext.ext_constant;
-    ext_ret_type = Option.map (typexp copy_scope s) ext.ext_ret_type;
+    ext_ret_type =
+      Option.map (typexp copy_scope s ext.ext_loc) ext.ext_ret_type;
     ext_private = ext.ext_private;
     ext_attributes = attrs s ext.ext_attributes;
-    ext_loc = if s.for_saving then Location.none else ext.ext_loc;
+    ext_loc = begin match s.additional_action with
+      | Prepare_for_saving _ | Duplicate_variables -> Location.none
+      | No_action -> ext.ext_loc
+    end;
     ext_uid = ext.ext_uid;
   }
 
@@ -459,9 +589,10 @@ let keep_latest_loc l1 l2 =
 let type_replacement s = function
   | Path p -> Path (type_path s p)
   | Type_function { params; body } ->
+    let loc = Option.value s.loc ~default:Location.none in
     For_copy.with_scope (fun copy_scope ->
-     let params = List.map (typexp copy_scope s) params in
-     let body = typexp copy_scope s body in
+     let params = List.map (typexp copy_scope s loc) params in
+     let body = typexp copy_scope s loc body in
      Type_function { params; body })
 
 type scoping =
@@ -586,7 +717,8 @@ let lazy_signature_item = To_lazy.signature_item to_lazy
 module From_lazy = Types.Map_wrapped(Lazy_types)(Types)
 
 let force_type_expr ty = Wrap.force (fun _ s ty ->
-  For_copy.with_scope (fun copy_scope -> typexp copy_scope s ty)) ty
+  let loc = Option.value s.loc ~default:Location.none in
+  For_copy.with_scope (fun copy_scope -> typexp copy_scope s loc ty)) ty
 
 let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
@@ -629,6 +761,8 @@ and subst_lazy_modtype scoping s = function
                   subst_lazy_modtype scoping (add_module id (Pident id') s) res)
   | Mty_alias p ->
       Mty_alias (module_path s p)
+  | Mty_strengthen (mty, p, a) ->
+      Mty_strengthen (subst_lazy_modtype scoping s mty, module_path s p, a)
 
 and subst_lazy_modtype_decl scoping s mtd =
   { mtd_type = Option.map (subst_lazy_modtype scoping s) mtd.mtd_type;
@@ -685,7 +819,26 @@ and compose s1 s2 =
         { types = merge_path_maps (type_replacement s2) s1.types s2.types;
           modules = merge_path_maps (module_path s2) s1.modules s2.modules;
           modtypes = merge_path_maps (modtype Keep s2) s1.modtypes s2.modtypes;
-          for_saving = s1.for_saving || s2.for_saving;
+          additional_action = begin
+            match s1.additional_action, s2.additional_action with
+            | action, No_action | No_action, action -> action
+            | Duplicate_variables, Duplicate_variables -> Duplicate_variables
+
+            (* Preparing for saving runs a superset of the things involved with
+               copying variables, so we prefer that if composing substitutions.
+            *)
+            | (Prepare_for_saving _ as prepare), Duplicate_variables
+            | Duplicate_variables, (Prepare_for_saving _ as prepare)
+                -> prepare
+
+            (* Note [Preparing_for_saving always the same]
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+               The function we put in [Prepare_for_saving] is always the same,
+               so we can take either.
+            *)
+            | (Prepare_for_saving _ as prepare1), Prepare_for_saving _
+                -> prepare1
+          end;
           loc = keep_latest_loc s1.loc s2.loc;
           last_compose = None
         }
@@ -759,3 +912,22 @@ let module_declaration scoping s decl =
 
 let value_description s descr =
   Lazy.(descr |> of_value_description |> value_description s |> force_value_description)
+
+(* Error report *)
+open Format
+
+let report_error ppf = function
+  | Unconstrained_jkind_variable ->
+      fprintf ppf
+        "Unconstrained layout variable detected when saving artifacts of \
+         compilation to disk.@ Please report this error to \
+         the Jane Street compilers team.@ "
+
+let () =
+  Location.register_error_of_exn
+    (function
+      | Error (loc, err) ->
+          Some (Location.error_of_printer ~loc report_error err)
+      | _ ->
+          None
+    )

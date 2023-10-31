@@ -72,6 +72,7 @@ let binary_annotations_cms = ref false  (* -bin-annot-cms *)
 and use_threads = ref false             (* -thread *)
 and noassert = ref false                (* -noassert *)
 and verbose = ref false                 (* -verbose *)
+and verbose_types = ref false           (* -verbose-types *)
 and noversion = ref false               (* -no-version *)
 and noprompt = ref false                (* -noprompt *)
 and nopromptcont = ref false            (* -nopromptcont *)
@@ -132,6 +133,7 @@ let dump_linear = ref false             (* -dlinear *)
 let dump_interval = ref false           (* -dinterval *)
 let keep_startup_file = ref false       (* -dstartup *)
 let dump_combine = ref false            (* -dcombine *)
+let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
@@ -633,5 +635,37 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-let zero_alloc_check = ref false            (* -zero-alloc-check *)
+module Annotations = struct
+  type t = Check_default | Check_all | Check_opt_only | No_check
+
+  let all = [ Check_default; Check_all; Check_opt_only; No_check ]
+
+  let to_string = function
+    | Check_default -> "default"
+    | Check_all -> "all"
+    | Check_opt_only -> "opt"
+    | No_check -> "none"
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Check_default, Check_default -> true
+    | Check_all, Check_all -> true
+    | No_check, No_check -> true
+    | Check_opt_only, Check_opt_only -> true
+    | (Check_default | Check_all | Check_opt_only | No_check), _ -> false
+
+  let of_string v =
+    let f t =
+      if String.equal (to_string t) v then Some t else None
+    in
+    List.find_map f all
+
+  let doc =
+    "\n\    The argument specifies which annotations to check: \n\
+     \      \"opt\" means attributes with \"opt\" payload and is intended for debugging;\n\
+     \      \"default\" means attributes without \"opt\" payload; \n\
+     \      \"all\" covers both \"opt\" and \"default\" and is intended for optimized builds."
+end
+
+let zero_alloc_check = ref Annotations.No_check         (* -zero-alloc-check *)
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)

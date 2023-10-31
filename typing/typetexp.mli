@@ -15,8 +15,8 @@
 
 (* Typechecking of type expressions for the core language *)
 
-open Layouts
 open Types
+open Mode
 
 module TyVarEnv : sig
   (* this is just the subset of [TyVarEnv] that is needed outside
@@ -29,7 +29,14 @@ module TyVarEnv : sig
   (** Evaluate in a narrowed type-variable scope *)
 
   type poly_univars
-  val make_poly_univars : string list -> poly_univars
+  val make_poly_univars : string Location.loc list -> poly_univars
+    (** A variant of [make_poly_univars_jkinds] that gets variables
+        without jkind annotations *)
+
+  val make_poly_univars_jkinds :
+    context:(string -> Jkind.annotation_context) ->
+    (string Location.loc * Jane_asttypes.jkind_annotation option) list ->
+    poly_univars
     (** remember that a list of strings connotes univars; this must
         always be paired with a [check_poly_univars]. *)
 
@@ -48,12 +55,12 @@ end
 val valid_tyvar_name : string -> bool
 
 val transl_simple_type:
-        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> alloc_mode_const
+        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_delayed
-  :  Env.t -> alloc_mode_const
+  :  Env.t -> Alloc.Const.t
   -> Parsetree.core_type
   -> Typedtree.core_type * type_expr * (unit -> unit)
         (* Translate a type, but leave type variables unbound. Returns
@@ -62,15 +69,25 @@ val transl_simple_type_delayed
 val transl_type_scheme:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
 val transl_type_param:
-  Env.t -> Parsetree.core_type -> layout -> Typedtree.core_type
+  Env.t -> Path.t -> Parsetree.core_type -> Typedtree.core_type
+(* the Path.t above is of the type/class whose param we are processing;
+   the level defaults to the current level *)
 
-val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
+val get_type_param_jkind: Path.t -> Parsetree.core_type -> jkind
+val get_type_param_name: Parsetree.core_type -> string option
+
+val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
 
 exception Already_bound
 
 type value_loc =
-    Fun_arg | Fun_ret | Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Package_constraint | Object_field
 
+type sort_loc =
+    Fun_arg | Fun_ret
+
+type cannot_quantify_reason
+type jkind_info
 type error =
   | Unbound_type_variable of string * string list
   | No_type_wildcards
@@ -87,15 +104,21 @@ type error =
   | Not_a_variant of type_expr
   | Variant_tags of string * string
   | Invalid_variable_name of string
-  | Cannot_quantify of string * type_expr
+  | Cannot_quantify of string * cannot_quantify_reason
+  | Bad_univar_jkind of
+      { name : string; jkind_info : jkind_info; inferred_jkind : jkind }
   | Multiple_constraints_on_type of Longident.t
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Unsupported_extension of Language_extension.t
+  | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Layout.Violation.violation}
+      {vloc : value_loc; typ : type_expr; err : Jkind.Violation.t}
+  | Non_sort of
+      {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
+  | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Did_you_mean_unboxed of Longident.t
 
 exception Error of Location.t * Env.t * error
 

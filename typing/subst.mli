@@ -42,8 +42,30 @@ val add_module_path: Path.t -> Path.t -> t -> t
 val add_modtype: Ident.t -> module_type -> t -> t
 val add_modtype_path: Path.t -> module_type -> t -> t
 
-val for_saving: t -> t
-val reset_for_saving: unit -> unit
+type additional_action_config =
+   | Duplicate_variables
+   (* [Duplicate_variables] makes it so that any substitution will duplicate
+      variable nodes. Substitution already duplicates non-variable nodes;
+      refer to the comment at the top of [subst.mli].
+   *)
+   | Prepare_for_saving
+   (* [Prepare_for_saving] performs all actions associated with
+      [Duplicate_variables] and additionally prepares layouts for saving by
+      commoning them up, truncating their histories, and performing
+      a check that all unconstrained layouts have been defaulted to value.
+   *)
+
+(* Sets the additional action that runs along with any substitution.
+   See the documentation on [additional_action_config].
+*)
+val with_additional_action: additional_action_config -> t -> t
+
+(* Any of the additional actions involve copying type variables. Calling
+   [reset_additional_action_type_id] resets the id counter used when the copying
+   of type variables needs to mint new type variable ids.
+*)
+val reset_additional_action_type_id: unit -> unit
+
 val change_locs: t -> Location.t -> t
 
 val module_path: t -> Path.t -> Path.t

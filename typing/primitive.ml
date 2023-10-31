@@ -20,9 +20,14 @@ open Parsetree
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
+type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
+
+type boxed_vector = Pvec128 of vec128_type
+
 type native_repr =
-  | Same_as_ocaml_repr
+  | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float
+  | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
 
@@ -47,29 +52,37 @@ type description =
 
 type error =
   | Old_style_float_with_native_repr_attribute
+  | Old_style_float_with_non_value
   | Old_style_noalloc_with_noalloc_attribute
   | No_native_primitive_with_repr_attribute
+  | No_native_primitive_with_non_value
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
 
 exception Error of Location.t * error
 
-let is_ocaml_repr = function
-  | _, Same_as_ocaml_repr -> true
+type value_check = Bad_attribute | Bad_layout | Ok_value
+
+let check_ocaml_value = function
+  | _, Same_as_ocaml_repr Value -> Ok_value
+  | _, Same_as_ocaml_repr _ -> Bad_layout
   | _, Unboxed_float
+  | _, Unboxed_vector _
   | _, Unboxed_integer _
-  | _, Untagged_int -> false
+  | _, Untagged_int -> Bad_attribute
 
 let is_unboxed = function
-  | _, Same_as_ocaml_repr
+  | _, Same_as_ocaml_repr _
   | _, Untagged_int -> false
   | _, Unboxed_float
+  | _, Unboxed_vector _
   | _, Unboxed_integer _ -> true
 
 let is_untagged = function
   | _, Untagged_int -> true
-  | _, Same_as_ocaml_repr
+  | _, Same_as_ocaml_repr _
   | _, Unboxed_float
+  | _, Unboxed_vector _
   | _, Unboxed_integer _ -> false
 
 let rec make_native_repr_args arity x =
@@ -78,7 +91,7 @@ let rec make_native_repr_args arity x =
   else
     x :: make_native_repr_args (arity - 1) x
 
-let simple ~name ~arity ~alloc =
+let simple_on_values ~name ~arity ~alloc =
   {prim_name = name;
    prim_arity = arity;
    prim_alloc = alloc;
@@ -87,8 +100,8 @@ let simple ~name ~arity ~alloc =
    prim_coeffects = Has_coeffects;
    prim_native_name = "";
    prim_native_repr_args =
-     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr);
-   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr) }
+     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value);
+   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value) }
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
@@ -148,11 +161,17 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
     if no_coeffects_attribute then No_coeffects
     else Has_coeffects
   in
-  if old_style_float &&
-     not (List.for_all is_ocaml_repr native_repr_args &&
-          is_ocaml_repr native_repr_res) then
-    raise (Error (valdecl.pval_loc,
-                  Old_style_float_with_native_repr_attribute));
+  if old_style_float then
+    List.iter
+      (fun repr -> match check_ocaml_value repr with
+         | Ok_value -> ()
+         | Bad_attribute ->
+           raise (Error (valdecl.pval_loc,
+                         Old_style_float_with_native_repr_attribute))
+         | Bad_layout ->
+           raise (Error (valdecl.pval_loc,
+                         Old_style_float_with_non_value)))
+      (native_repr_res :: native_repr_args);
   if old_style_noalloc && noalloc_attribute then
     raise (Error (valdecl.pval_loc,
                   Old_style_noalloc_with_noalloc_attribute));
@@ -166,11 +185,19 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
   else if old_style_noalloc then
     Location.deprecated valdecl.pval_loc
       "[@@noalloc] should be used instead of \"noalloc\"";
-  if native_name = "" &&
-     not (List.for_all is_ocaml_repr native_repr_args &&
-          is_ocaml_repr native_repr_res) then
-    raise (Error (valdecl.pval_loc,
-                  No_native_primitive_with_repr_attribute));
+  if native_name = "" then
+    List.iter
+      (fun repr -> match check_ocaml_value repr with
+         | Ok_value -> ()
+         | Bad_attribute ->
+           raise (Error (valdecl.pval_loc,
+                         No_native_primitive_with_repr_attribute))
+         | Bad_layout ->
+           (* Built-in primitives don't need a native version. *)
+           if not (String.length name > 0 && name.[0] = '%') then
+             raise (Error (valdecl.pval_loc,
+                           No_native_primitive_with_non_value)))
+      (native_repr_res :: native_repr_args);
   let noalloc = old_style_noalloc || noalloc_attribute in
   if noalloc && only_generative_effects_attribute then
     raise (Error (valdecl.pval_loc,
@@ -199,6 +226,8 @@ let add_attribute_list ty attrs =
 
 let rec add_native_repr_attributes ty attrs =
   match ty, attrs with
+    (* Otyp_poly case might have been added in e.g. tree_of_value_description *)
+  | Otyp_poly (vars, ty), _ -> Otyp_poly (vars, add_native_repr_attributes ty attrs)
   | Otyp_arrow (label, am, a, rm, r), attr_l :: rest ->
     let r = add_native_repr_attributes r rest in
     let a = add_attribute_list a attr_l in
@@ -254,8 +283,9 @@ let print p osig_val_decl =
      | Prim_poly -> [oattr_local_opt])
     @
     (match repr with
-     | Same_as_ocaml_repr -> []
+     | Same_as_ocaml_repr _ -> []
      | Unboxed_float
+     | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
      | Untagged_int -> if all_untagged then [] else [oattr_untagged])
   in
@@ -276,6 +306,14 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
+let vec128_name = function
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+
 let equal_boxed_integer bi1 bi2 =
   match bi1, bi2 with
   | Pnativeint, Pnativeint
@@ -285,20 +323,29 @@ let equal_boxed_integer bi1 bi2 =
   | (Pnativeint | Pint32 | Pint64), _ ->
     false
 
+let equal_boxed_vector_size bi1 bi2 =
+  (* For the purposes of layouts/native representations,
+     all 128-bit vector types are equal. *)
+  match bi1, bi2 with
+  | Pvec128 _, Pvec128 _ -> true
+
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
-  | Same_as_ocaml_repr, Same_as_ocaml_repr -> true
-  | Same_as_ocaml_repr,
-    (Unboxed_float | Unboxed_integer _ | Untagged_int) -> false
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind.Sort.equal_const s1 s2
+  | Same_as_ocaml_repr _,
+    (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
   | Unboxed_float, Unboxed_float -> true
   | Unboxed_float,
-    (Same_as_ocaml_repr | Unboxed_integer _ | Untagged_int) -> false
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
+  | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
+  | Unboxed_vector _,
+    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr | Unboxed_float | Untagged_int) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_vector _) -> false
   | Untagged_int, Untagged_int -> true
   | Untagged_int,
-    (Same_as_ocaml_repr | Unboxed_float | Unboxed_integer _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _ | Unboxed_vector _) -> false
 
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
@@ -320,18 +367,29 @@ let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
 
+let sort_of_native_repr = function
+  | Same_as_ocaml_repr s -> s
+  | (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> Jkind.Sort.Value
+
 let report_error ppf err =
   match err with
   | Old_style_float_with_native_repr_attribute ->
     Format.fprintf ppf "Cannot use \"float\" in conjunction with \
                         [%@unboxed]/[%@untagged]."
+  | Old_style_float_with_non_value ->
+    Format.fprintf ppf "Cannot use \"float\" in conjunction with \
+                        types of non-value layouts."
   | Old_style_noalloc_with_noalloc_attribute ->
     Format.fprintf ppf "Cannot use \"noalloc\" in conjunction with \
                         [%@%@noalloc]."
   | No_native_primitive_with_repr_attribute ->
     Format.fprintf ppf
-      "[@The native code version of the primitive is mandatory@ \
+      "@[The native code version of the primitive is mandatory@ \
        when attributes [%@untagged] or [%@unboxed] are present.@]"
+  | No_native_primitive_with_non_value ->
+    Format.fprintf ppf
+      "@[The native code version of the primitive is mandatory@ \
+       for types with non-value layouts.@]"
   | Inconsistent_attributes_for_effects ->
     Format.fprintf ppf "At most one of [%@no_effects] and \
                         [%@only_generative_effects] can be specified."

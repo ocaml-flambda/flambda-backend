@@ -16,7 +16,6 @@
 
 [@@@ocaml.warning "-49"]
 [@@@ocaml.flambda_o3]
-[@@@ocaml.zero_alloc check]
 
 (* Exceptions *)
 
@@ -26,7 +25,9 @@ external register_named_value : string -> 'a -> unit
 let () =
   (* for runtime/fail_nat.c *)
   register_named_value "Pervasives.array_bound_error"
-    (Invalid_argument "index out of bounds")
+    (Invalid_argument "index out of bounds");
+  register_named_value "Pervasives.array_align_error"
+    (Invalid_argument "address was misaligned")
 
 external raise : exn -> 'a = "%reraise"
 external raise_notrace : exn -> 'a = "%raise_notrace"

@@ -16,7 +16,6 @@
 (* Basic operations on core types *)
 
 open Asttypes
-open Layouts
 open Types
 
 (**** Sets, maps and hashtables of types ****)
@@ -60,9 +59,9 @@ val generic_level: int
 
 val newgenty: type_desc -> type_expr
         (* Create a generic type *)
-val newgenvar: ?name:string -> layout -> type_expr
+val newgenvar: ?name:string -> Jkind.t -> type_expr
         (* Return a fresh generic variable *)
-val newgenstub: scope:int -> layout -> type_expr
+val newgenstub: scope:int -> Jkind.t -> type_expr
         (* Return a fresh generic node, to be instantiated
            by [Transient_expr.set_stub_desc] *)
 
@@ -81,6 +80,7 @@ val is_Tconstr: type_expr -> bool
 val is_Tpoly: type_expr -> bool
 
 val dummy_method: label
+val type_kind_is_abstract: type_declaration -> bool
 
 (**** polymorphic variants ****)
 

@@ -62,7 +62,11 @@ and offset = Offset of lambda
 let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
-  (var, Lambda.layout_block) :: (offset, Lambda.layout_int) :: params
+  { name = var ; layout = Lambda.layout_block ;
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+  { name = offset ; layout = Lambda.layout_int ;
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+  params
 
 let add_dst_args ({var; offset} : offset destination) args =
   Lvar var :: offset_code offset :: args
@@ -745,6 +749,14 @@ let rec choice ctx t =
           | other -> other
         in
         { apply with ap_tailcall } in
+      (* The call will not be in tail position, so the close-on-apply flag must
+         not be set. *)
+      let ap_region_close =
+        match apply.ap_region_close with
+        | Rc_close_at_apply -> Rc_normal
+        | (Rc_normal | Rc_nontail) as reg_close -> reg_close
+      in
+      let apply = { apply with ap_region_close } in
       { (Choice.lambda (Lapply apply)) with
         direct = (fun () -> Lapply apply_no_bailout);
       }
@@ -866,6 +878,7 @@ let rec choice ctx t =
     | Pfield _ | Pfield_computed _
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
+    | Pufloatfield _ | Psetufloatfield _
     | Pccall _
     | Praise _
     | Pnot
@@ -895,6 +908,10 @@ let rec choice ctx t =
 
     (* we don't handle all-float records *)
     | Pmakefloatblock _
+    | Pmakeufloatblock _
+
+    (* nor unboxed products *)
+    | Pmake_unboxed_product _ | Punboxed_product_field _
 
     | Pobj_dup
     | Pobj_magic _
@@ -912,15 +929,17 @@ let rec choice ctx t =
     (* more common cases... *)
     | Pbigarrayref _ | Pbigarrayset _
     | Pbigarraydim _
-    | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-    | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-    | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+    | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
+    | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
+    | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-    | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+    | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+    | Pbigstring_set_64 _ | Pbigstring_set_128 _
+    | Pget_header _
     | Pctconst _
     | Pbswap16
     | Pbbswap _
-    | Pint_as_pointer
+    | Pint_as_pointer _
       ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))

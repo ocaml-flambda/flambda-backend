@@ -168,7 +168,7 @@ let remove_Wl cclibs =
                  (String.sub cclib 4 (String.length cclib - 4))
     else cclib)
 
-let call_linker mode output_name files extra =
+let call_linker ?(native_toplevel = false) mode output_name files extra =
   Profile.record_call "c-linker" (fun () ->
     let cmd =
       if mode = Partial then
@@ -194,7 +194,8 @@ let call_linker mode output_name files extra =
           )
           (Filename.quote output_name)
           ""  (*(Clflags.std_include_flag "-I")*)
-          (quote_prefixed "-L" (Load_path.get_paths ()))
+          (if native_toplevel then ""
+           else quote_prefixed "-L" (Load_path.get_paths ()))
           (String.concat " " (List.rev !Clflags.all_ccopts))
           (quote_files files)
           extra

@@ -50,7 +50,7 @@ end
 let check_noalloc name f =
   let a0 = Gc.allocated_bytes () in
   let a1 = Gc.allocated_bytes () in
-  let _x = f () in
+  let _x = (f[@inlined never]) () in
   let a2 = Gc.allocated_bytes () in
   let alloc = (a2 -. 2. *. a1 +. a0) in
 

@@ -1,4 +1,0 @@
-File "user_error5.ml", line 21, characters 25-40:
-21 | let _unnamed_extension = [%extension] ();;
-                              ^^^^^^^^^^^^^^^
-Error: Cannot have an extension node named [%extension]

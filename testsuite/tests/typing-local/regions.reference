@@ -1,4 +1,6 @@
                   startup: OK
+  int_as_pointer (global): OK
+   int_as_pointer (local): OK
             function call: OK
      cleanup upon exclave: OK
         exn function call: OK
@@ -26,3 +28,5 @@
  static/partial overapply: OK
 dynamic/partial overapply: OK
          method overapply: OK
+      mode-crossed region: OK
+  allocation from exclave: OK

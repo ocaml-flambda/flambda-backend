@@ -1,3 +1,4 @@
+
 #**************************************************************************
 #*                                                                        *
 #*                                 OCaml                                  *
@@ -62,6 +63,7 @@ NATOBJS=dynlink_compilerlibs.cmx dynlink_types.cmx \
 # .mli files from compilerlibs that don't have a corresponding .ml file.
 COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
+  parsing/jane_asttypes.mli \
   parsing/parsetree.mli \
   typing/outcometree.mli \
   file_formats/cmo_format.mli \
@@ -80,6 +82,8 @@ COMPILERLIBS_SOURCES=\
   utils/local_store.ml \
   utils/load_path.ml \
   utils/clflags.ml \
+  utils/debug.ml \
+  utils/language_extension_kernel.ml \
   utils/language_extension.ml \
   utils/profile.ml \
   utils/consistbl.ml \
@@ -95,19 +99,21 @@ COMPILERLIBS_SOURCES=\
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
+  parsing/printast.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
-  parsing/extensions_parsing.ml \
-  parsing/extensions.ml \
+  parsing/jane_syntax_parsing.ml \
+  parsing/jane_syntax.ml \
   parsing/ast_iterator.ml \
   parsing/builtin_attributes.ml \
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
   parsing/pprintast.ml \
+  typing/mode.ml \
   typing/path.ml \
-  typing/primitive.ml \
   typing/shape.ml \
-  typing/layouts.ml \
+  typing/jkind.ml \
+  typing/primitive.ml \
   typing/types.ml \
   typing/btype.ml \
   typing/subst.ml \

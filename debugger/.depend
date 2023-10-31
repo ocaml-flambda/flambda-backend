@@ -284,7 +284,7 @@ loadprinter.cmo : \
     ../utils/misc.cmi \
     ../parsing/longident.cmi \
     ../utils/load_path.cmi \
-    ../typing/layouts.cmi \
+    ../typing/jkind.cmi \
     ../typing/ident.cmi \
     ../typing/env.cmi \
     ../otherlibs/dynlink/dynlink.cmi \
@@ -301,7 +301,7 @@ loadprinter.cmx : \
     ../utils/misc.cmx \
     ../parsing/longident.cmx \
     ../utils/load_path.cmx \
-    ../typing/layouts.cmx \
+    ../typing/jkind.cmx \
     ../typing/ident.cmx \
     ../typing/env.cmx \
     ../otherlibs/dynlink/dynlink.cmx \

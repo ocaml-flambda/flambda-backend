@@ -15,7 +15,6 @@
 
 (* Typing of type definitions and primitive definitions *)
 
-open Layouts
 open Types
 open Format
 
@@ -48,14 +47,13 @@ val transl_with_constraint:
     Typedtree.type_declaration
 
 val abstract_type_decl:
-    injective:bool -> layout -> layout list -> type_declaration
+    injective:bool -> Jkind.t -> Jkind.t list -> type_declaration
 val approx_type_decl:
-    Parsetree.type_declaration list ->
-                                  (Ident.t * type_declaration) list
+    Parsetree.type_declaration list -> (Ident.t * type_declaration) list
 val check_recmod_typedecl:
     Env.t -> Location.t -> Ident.t list -> Path.t -> type_declaration -> unit
 
-(* Returns an updated decl that may include improved layout estimates, but it's
+(* Returns an updated decl that may include improved jkind estimates, but it's
    sound to throw it away. *)
 val check_coherence:
     Env.t -> Location.t -> Path.t -> type_declaration -> type_declaration
@@ -65,8 +63,8 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 
 type native_repr_kind = Unboxed | Untagged
 
-(* Records reason for a layout representability requirement in errors. *)
-type layout_sort_loc = Cstr_tuple | Record
+(* Records reason for a jkind representability requirement in errors. *)
+type jkind_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -102,21 +100,24 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout of Layout.Violation.violation
-  | Layout_sort of
-      { lloc : layout_sort_loc
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_sort of
+      { kloc : jkind_sort_loc
       ; typ : type_expr
-      ; err : Layout.Violation.violation
+      ; err : Jkind.Violation.t
       }
-  | Layout_empty_record
+  | Jkind_empty_record
+  | Non_value_in_sig of Jkind.Violation.t * string
+  | Float64_in_block of type_expr * jkind_sort_loc
+  | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Global_and_nonlocal
-  | Layout_not_enabled of Layout.const
+  | Layout_not_enabled of Jkind.const
 
 exception Error of Location.t * error
 

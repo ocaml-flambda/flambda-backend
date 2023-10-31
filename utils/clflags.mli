@@ -85,6 +85,7 @@ val binary_annotations_cms : bool ref
 val use_threads : bool ref
 val noassert : bool ref
 val verbose : bool ref
+val verbose_types : bool ref
 val noprompt : bool ref
 val nopromptcont : bool ref
 val init_file : string option ref
@@ -138,6 +139,7 @@ val dump_reload : bool ref
 val dump_scheduling : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
+val debug_ocaml : bool ref
 val keep_startup_file : bool ref
 val dump_combine : bool ref
 val native_code : bool ref
@@ -284,6 +286,15 @@ val print_arguments : string -> unit
 (* [reset_arguments ()] clear all declared arguments *)
 val reset_arguments : unit -> unit
 
-val zero_alloc_check : bool ref
+(* [Annotations] specifies which zero_alloc attributes to check. *)
+module Annotations : sig
+  type t = Check_default | Check_all | Check_opt_only | No_check
+  val all : t list
+  val to_string : t -> string
+  val of_string : string -> t option
+  val equal : t -> t -> bool
+  val doc : string
+end
+val zero_alloc_check : Annotations.t ref
 val zero_alloc_check_assert_all : bool ref
 

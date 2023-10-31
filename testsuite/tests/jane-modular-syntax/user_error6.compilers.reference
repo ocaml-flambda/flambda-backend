@@ -1,0 +1,6 @@
+File "user_error6.ml", line 21, characters 24-26:
+21 | let _bad_introduction = () [@jane.erasable.something.nested];;
+                             ^^
+Error: The extension "something" was referenced improperly; it started with
+       a [@jane.erasable.something.nested] attribute,
+       not a [@jane.erasable.something] one

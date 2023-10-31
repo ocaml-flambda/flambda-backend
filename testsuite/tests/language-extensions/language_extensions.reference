@@ -1,0 +1,96 @@
+# "comprehensions" extension in its default state [comprehensions disabled]:
+<extension error>
+
+# no extensions enabled [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension enabled [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension still enabled [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension disabled [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension still disabled [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension enabled via [set] [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension still enabled, via [set] and [enable] [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension disabled via [set] [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension still disabled, via [set] and [disable] [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension enabled locally and disabled globally [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension disabled locally and globally [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension enabled locally via [with_set] and disabled globally [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension disabled locally via [with_set] and also globally [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension disabled locally and enabled globally [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension enabled locally and globally [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# "comprehensions" extension disabled locally via [with_set] and enabled globally [comprehensions disabled]:
+<extension error>
+
+# "comprehensions" extension disabled locally via [with_set] and also globally [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# Enable two layouts [comprehensions enabled]:
+Succeeded
+
+# Disable layouts [comprehensions enabled]:
+Succeeded
+
+# Enable two layouts, in reverse order [comprehensions enabled]:
+Succeeded
+
+# can disallow extensions while extensions are enabled [comprehensions disabled]:
+Succeeded at disallowing all extensions
+
+# can disallow extensions while extensions are already disallowed [comprehensions disabled]:
+Succeeded at disallowing all extensions
+
+# can't call [set ~enabled:true] when extensions are disallowed [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+
+# can call [set ~enabled:false] when extensions are disallowed [comprehensions disabled]:
+Succeeded at redundantly calling [set ~enabled:false]
+
+# can't call [enable] when extensions are disallowed [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+
+# can call [disable] when extensions are disallowed [comprehensions disabled]:
+Succeeded at redundantly calling [disable]
+
+# can't call [with_set ~enabled:true] when extensions are disallowed [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+
+# can call [with_set ~enabled:false] when extensions are disallowed [comprehensions disabled]:
+Succeeded at redundantly calling [with_set ~enabled:false]
+
+# can't call [with_enabled] when extensions are disallowed [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+
+# can call [with_disabled] when extensions are disallowed [comprehensions disabled]:
+Succeeded at redundantly calling [with_disabled]
+
+# [is_enabled] returns [false] when extensions are disallowed [comprehensions disabled]:
+"comprehensions" is correctly disabled
+

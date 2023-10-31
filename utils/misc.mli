@@ -99,7 +99,7 @@ module Stdlib : sig
     (** The lexicographic order supported by the provided order.
         There is no constraint on the relative lengths of the lists. *)
 
-    val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+    val equal : ('a -> 'b -> bool) -> 'a t -> 'b t -> bool
     (** Returns [true] if and only if the given lists have the same length and
         content with respect to the given equality function. *)
 
@@ -148,6 +148,9 @@ module Stdlib : sig
 
   module Option : sig
     type 'a t = 'a option
+
+    (* short circuits if the first argument really is a [Some] *)
+    val first_some : 'a option -> (unit -> 'a option) -> 'a option
 
     val print
        : (Format.formatter -> 'a -> unit)
@@ -704,3 +707,8 @@ module Magic_number : sig
 
   val all_kinds : kind list
 end
+
+(** Propositional equality *)
+type (_, _) eq = Refl : ('a, 'a) eq
+
+

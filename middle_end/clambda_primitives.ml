@@ -32,16 +32,21 @@ type memory_access_size =
 
 type alloc_mode = Lambda.alloc_mode
 
+type modify_mode = Lambda.modify_mode
+
 type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
   | Pfield of int * layout
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
+  | Pufloatfield of int
+  | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
   | Pccall of Primitive.description
@@ -74,10 +79,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint
   (* Test if the (integer) argument is outside an interval *)
@@ -117,7 +122,7 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer
+  | Pint_as_pointer of alloc_mode
   (* Inhibition of optimisation *)
   | Popaque
   (* Probes *)
@@ -126,6 +131,7 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Pget_header of alloc_mode
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -136,6 +142,18 @@ and float_comparison = Lambda.float_comparison =
 and array_kind = Lambda.array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
+and array_ref_kind = Lambda.array_ref_kind =
+  | Pgenarray_ref of alloc_mode
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+and array_set_kind = Lambda.array_set_kind =
+  | Pgenarray_set of modify_mode
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
+
 and value_kind = Lambda.value_kind =
   (* CR mshinwell: Pfloatval should be renamed to Pboxedfloatval *)
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
@@ -144,17 +162,33 @@ and value_kind = Lambda.value_kind =
       non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector
 
 and layout = Lambda.layout =
   | Ptop
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape = Lambda.block_shape
-and boxed_integer = Primitive.boxed_integer =
+
+and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and vec128_type = Lambda.vec128_type =
+  | Unknown128
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
+and boxed_vector = Lambda.boxed_vector =
+  | Pvec128 of vec128_type
 
 and bigarray_kind = Lambda.bigarray_kind =
     Pbigarray_unknown
@@ -181,4 +215,25 @@ let result_layout (p : primitive) =
   match p with
   | Punbox_float -> Lambda.Punboxed_float
   | Punbox_int bi -> Lambda.Punboxed_int bi
-  | _ -> Lambda.layout_any_value
+  | Pccall {prim_native_repr_res = (_, repr_res); _} ->
+    Lambda.layout_of_native_repr repr_res
+  | Pufloatfield _ -> Lambda.Punboxed_float
+  | Pread_symbol _ | Pmakeblock _ | Pmakeufloatblock _ | Pfield _
+  | Pfield_computed | Psetfield _ | Psetfield_computed _ | Pfloatfield _
+  | Psetfloatfield _ | Psetufloatfield _ | Pduprecord _ | Praise _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
+  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+  | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
+  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+  | Parrayrefs _ | Parraysets _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
+  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
+  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
+  | Pasrbint _ | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+  | Pstring_load _ | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _
+  | Pbigstring_set _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque
+  | Pprobe_is_enabled _ | Pbox_float _ | Pbox_int _ | Pget_header _
+    -> Lambda.layout_any_value

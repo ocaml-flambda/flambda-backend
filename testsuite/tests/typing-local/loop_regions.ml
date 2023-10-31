@@ -71,14 +71,14 @@ let nonloc_while_body () =
   [offset1; !offset_loop; offset2]
 
 (* Local while condition should allocate in parent *)
-let loc_while_cond () =
+let[@inline never] loc_while_cond () =
   let offset_loop = ref (-1) in
   let offset1 = local_stack_offset () in
   while [%exclave] (
     let z = local_ (Some (Sys.opaque_identity 42)) in
     let _ = (opaque_local z) in
     offset_loop := local_stack_offset ();
-    false
+    Sys.opaque_identity false
   )
   do
     ()
@@ -87,22 +87,21 @@ let loc_while_cond () =
   [offset1; !offset_loop; offset2]
 
 (* Nonlocal while condition should allocate in its own region *)
-let nonloc_while_cond () =
+let[@inline never] nonloc_while_cond () =
   let offset_loop = ref (-1) in
   let offset1 = local_stack_offset () in
   while
     let z = local_ (Some (Sys.opaque_identity 42)) in
     let _ = (opaque_local z) in
     offset_loop := local_stack_offset ();
-    false
+    Sys.opaque_identity false
   do
     ()
   done;
   let offset2 = local_stack_offset () in
   [offset1; !offset_loop; offset2]
 
-
-let loc_func () =
+let[@inline never] loc_func () =
   let offset_func = ref (-1) in
   let fun_exclave r =
     [%exclave] (
@@ -116,7 +115,7 @@ let loc_func () =
   [offset1; !offset_func; offset2]
 
 
-let nonloc_func () =
+let[@inline never] nonloc_func () =
   let offset_func = ref (-1) in
   let fun_nonexclave r =
     let z = local_ (Some (Sys.opaque_identity 42)) in

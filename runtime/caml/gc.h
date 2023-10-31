@@ -64,15 +64,28 @@
 #define Colornum_hd(hd) ((color_t) (((hd) >> 8) & 3))
 #define Coloredhd_hd(hd,colnum) (((hd) & ~Caml_black) | ((colnum) << 8))
 
+/* Colors for locally allocated values.
+   (Only used during root-scanning, never visible to the rest of the GC) */
+#define Local_marked Caml_black
+#define Local_unmarked Caml_blue /* allocation color of local objects */
+#define Local_scanned Caml_gray
+
+#define Is_stack(blk) (Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked)
+
 #ifdef CAML_INTERNALS
 
 
 #define Init_local_arena_bsize 4096
-#ifdef ARCH_SIXTYFOUR
-#define Max_local_arenas 10 /* max 4G */
-#else
-#define Max_local_arenas 8  /* max 1G */
-#endif
+
+/* We allow the local stack to quadruple 19 times, which is virtually infinite.
+   Hardware limit will probably hit first (either out of address space on 32bit
+   systems, or out of physical memory on 64bit)
+
+   19 is the biggest number without triggering some compiler errors about
+   integer overflow during shifting; I don't know if overflow would actually
+   happen if I make the number bigger, but 19 corresponds to 1024TB and should
+   be sufficient for a very long time. */
+#define Max_local_arenas 19
 
 struct caml_local_arena {
   char* base;
@@ -85,12 +98,6 @@ typedef struct caml_local_arenas {
   intnat next_length;
   struct caml_local_arena arenas[Max_local_arenas];
 } caml_local_arenas;
-
-/* Colors for locally allocated values.
-   (Only used during root-scanning, never visible to the rest of the GC) */
-#define Local_marked Caml_black
-#define Local_unmarked Caml_blue /* allocation color of local objects */
-#define Local_scanned Caml_gray
 
 #define With_color_hd(hd, color) \
   (((hd) & ~Caml_black) | color)

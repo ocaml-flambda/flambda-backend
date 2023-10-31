@@ -9,7 +9,7 @@ Line 3, characters 2-3:
 3 |   r
       ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 external idint : local_ int -> int = "%identity"
@@ -40,7 +40,7 @@ Line 3, characters 2-3:
 3 |   r
       ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 let leak n =
@@ -51,7 +51,7 @@ Line 3, characters 2-3:
 3 |   r
       ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 let leak n =
@@ -62,7 +62,7 @@ Line 3, characters 2-3:
 3 |   f
       ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 let leak n =
@@ -73,7 +73,7 @@ Line 3, characters 2-3:
 3 |   f
       ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 (* If both type and mode are wrong, complain about type *)
@@ -268,7 +268,7 @@ Line 1, characters 15-21:
 1 | let apply2 x = f4 x x
                    ^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 2 more arguments will make the value non-local
 |}]
@@ -278,7 +278,7 @@ Line 1, characters 15-23:
 1 | let apply3 x = f4 x x x
                    ^^^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
@@ -316,7 +316,7 @@ Line 1, characters 15-18:
 1 | let apply1 x = g x
                    ^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
@@ -339,7 +339,7 @@ Line 1, characters 23-32:
 1 | let apply3_wrapped x = (g x x) x
                            ^^^^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
@@ -476,7 +476,7 @@ Line 1, characters 52-65:
 1 | let app4' (f : b:local_ int ref -> a:int -> unit) = f ~b:(ref 42)
                                                         ^^^^^^^^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
@@ -531,7 +531,7 @@ Line 1, characters 50-59:
 1 | let rapp3 (f : a:int -> unit -> local_ int ref) = f ~a:1 ()
                                                       ^^^^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 let bug1 () =
@@ -546,7 +546,7 @@ Line 7, characters 2-5:
 7 |   res
       ^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 let bug2 () =
   let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
@@ -575,7 +575,7 @@ let bug3 () =
 Line 3, characters 63-64:
 3 |     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
                                                                    ^
-Error: The value a is local, so cannot be used inside a closure that might escape
+Error: The value a is local, so cannot be used inside a closure that might escape.
 |}]
 let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
 
@@ -636,6 +636,16 @@ Error: This value escapes its region
         Adding 1 more argument will make the value non-local
 |}]
 
+(* The fixed version. Note that in the printed type, local returning is implicit
+    *)
+let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
+  fun f -> local_ f ~foo:"hello"
+[%%expect{|
+val bug4_fixed : local_ (string -> foo:string -> unit) -> string -> unit =
+  <fun>
+|}]
+
+
 let bug4' () =
   let local_ f arg ~foo = () in
   let local_ perm ~foo = f ~foo in
@@ -645,7 +655,7 @@ Line 3, characters 25-31:
 3 |   let local_ perm ~foo = f ~foo in
                              ^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument may make the value non-local
 |}]
@@ -667,7 +677,7 @@ Line 3, characters 2-5:
 3 |   res
       ^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 (* In principle. it would be sound to allow this one:
@@ -680,7 +690,7 @@ Line 3, characters 2-5:
 3 |   res
       ^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 let optret1 (f : ?x:int -> local_ (y:unit -> unit -> int)) = f ()
@@ -689,7 +699,7 @@ Line 1, characters 61-65:
 1 | let optret1 (f : ?x:int -> local_ (y:unit -> unit -> int)) = f ()
                                                                  ^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
@@ -763,7 +773,46 @@ val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
 Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
                         ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
+|}]
+
+(*
+ * Modification of parameter modes in argument position
+ *)
+
+let use_local (local_ f : _ -> _ -> _) x y =
+  f x y
+let use_global (f : _ -> _ -> _) x y = f x y
+
+let foo x y = x +. y
+let bar (local_ x) (local_ y) = let _ = x +. y in ()
+
+let result = use_local foo 1. 2.
+[%%expect{|
+val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val foo : float -> float -> float = <fun>
+val bar : local_ float -> local_ float -> unit = <fun>
+val result : float = 3.
+|}]
+
+let result = use_local bar 1. 2.
+[%%expect{|
+val result : unit = ()
+|}]
+
+let result = use_global foo 1. 2.
+[%%expect{|
+val result : float = 3.
+|}]
+
+let result = use_global bar 1. 2.
+[%%expect{|
+Line 1, characters 24-27:
+1 | let result = use_global bar 1. 2.
+                            ^^^
+Error: This expression has type local_ float -> local_ float -> unit
+       but an expression was expected of type local_ 'a -> ('b -> 'c)
 |}]
 
 
@@ -867,7 +916,7 @@ let obj () =
 Line 3, characters 33-38:
 3 |   let _obj = object method foo = thing end in
                                      ^^^^^
-Error: The value thing is local, so cannot be used inside a closure that might escape
+Error: The value thing is local, so cannot be used inside a class.
 |}]
 
 
@@ -919,7 +968,7 @@ let leak_ref_2 =
 Line 3, characters 39-40:
 3 |   use_locally (fun x -> let _ = local_ r in r.contents <- Some x; x) 42
                                            ^
-Error: The value r is local, so cannot be used inside a closure that might escape
+Error: The value r is local, so cannot be used inside a closure that might escape.
 |}]
 
 let leak_ref_3 =
@@ -1025,7 +1074,7 @@ let foo (local_ x) =
 Line 2, characters 30-31:
 2 |   let _ = lazy (print_string !x) in
                                   ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a lazy expression.
 |}]
 
 (* Don't escape through a functor *)
@@ -1040,7 +1089,7 @@ let foo (local_ x) =
 Line 3, characters 27-28:
 3 |     let () = print_string !x
                                ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a module.
 |}]
 
 (* Don't escape through a class method *)
@@ -1055,7 +1104,7 @@ let foo (local_ x) =
 Line 4, characters 18-19:
 4 |       method m = !x
                       ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through an object method *)
@@ -1070,7 +1119,7 @@ let foo (local_ x) =
 Line 3, characters 16-17:
 3 |     method m = !x
                     ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class instance variable *)
@@ -1085,7 +1134,7 @@ let foo (local_ x) =
 Line 4, characters 15-16:
 4 |       val m = !x
                    ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class instance variable *)
@@ -1098,7 +1147,7 @@ let foo (local_ x) =
 Line 3, characters 13-14:
 3 |     val m = !x
                  ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class local variable *)
@@ -1150,7 +1199,7 @@ let foo (local_ x : string ref) =
 Line 5, characters 15-16:
 5 |       let y = !x in
                    ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 let foo (local_ x : string ref) =
@@ -1180,7 +1229,7 @@ class d : string -> object method m : string end
 Line 6, characters 17-18:
 6 |       inherit d !x
                      ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape in initializers *)
@@ -1195,7 +1244,7 @@ let foo (local_ x) =
 Line 3, characters 31-32:
 3 |     initializer (print_string !x)
                                    ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape in non-function 'let rec' bindings *)
@@ -1249,7 +1298,7 @@ val local_cb : local_ (unit -> 'a) -> 'a = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a closure that might escape.
 Hint: The closure might escape because it is an argument to a tail call
 |}]
 
@@ -1324,7 +1373,7 @@ Line 3, characters 2-3:
 3 |   r
       ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 let foo x =
@@ -1383,6 +1432,39 @@ let foo () =
 val foo : unit -> int = <fun>
 |}]
 
+(* tail-calling local-returning functions make the current function
+   local-returning as well; mode-crossing is irrelavent here. Whether or not the
+   function actually allocates in parent-region is also irrelavent here, but we
+   allocate just to demonstrate the potential leaking. *)
+let foo () = local_
+  let _ = local_ (52, 24) in
+  42
+[%%expect{|
+val foo : unit -> local_ int = <fun>
+|}]
+
+let bar () =
+  let _x = 52 in
+  foo ()
+[%%expect{|
+val bar : unit -> local_ int = <fun>
+|}]
+
+(* if not at tail, then not affected *)
+let bar' () =
+  let _x = foo () in
+  52
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
+(* nontail attribute works as well *)
+let bar' () =
+  foo () [@nontail]
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
 (* Parameter modes must be matched by the type *)
 
 let foo : 'a -> unit = fun (local_ x) -> ()
@@ -1406,7 +1488,7 @@ let foo : unit -> string = fun () -> local_ "hello"
 Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
                                ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
@@ -1422,17 +1504,15 @@ val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
 |}]
 
 
-(* Fields have the same mode unless they are nonlocal or mutable *)
+(* Fields have the same mode unless they are global or mutable *)
 
 type 'a imm = { imm : 'a }
 type 'a mut = { mutable mut : 'a }
 type 'a gbl = { global_ gbl : 'a }
-type 'a nlcl = { nonlocal_ nlcl : 'a }
 [%%expect{|
 type 'a imm = { imm : 'a; }
 type 'a mut = { mutable mut : 'a; }
 type 'a gbl = { global_ gbl : 'a; }
-type 'a nlcl = { nonlocal_ nlcl : 'a; }
 |}]
 
 let foo (local_ x) = x.imm
@@ -1447,7 +1527,7 @@ Line 3, characters 2-7:
 3 |   x.imm
       ^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 let foo (local_ x) = x.mut
 [%%expect{|
@@ -1469,16 +1549,6 @@ let foo y =
 [%%expect{|
 val foo : 'a -> 'a = <fun>
 |}]
-let foo (local_ x) = x.nlcl
-[%%expect{|
-val foo : local_ 'a nlcl -> local_ 'a = <fun>
-|}]
-let foo (local_ y) =
-  let x = local_ { nlcl = y } in
-  x.nlcl
-[%%expect{|
-val foo : local_ 'a -> local_ 'a = <fun>
-|}]
 
 let foo (local_ { imm }) = imm
 [%%expect{|
@@ -1492,7 +1562,7 @@ Line 3, characters 2-5:
 3 |   imm
       ^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 let foo (local_ { mut }) = mut
 [%%expect{|
@@ -1513,16 +1583,6 @@ let foo y =
   gbl
 [%%expect{|
 val foo : 'a -> 'a = <fun>
-|}]
-let foo (local_ { nlcl }) = nlcl
-[%%expect{|
-val foo : local_ 'a nlcl -> local_ 'a = <fun>
-|}]
-let foo (local_ y) =
-  let { nlcl } = local_ { nlcl = y } in
-  nlcl
-[%%expect{|
-val foo : local_ 'a -> local_ 'a = <fun>
 |}]
 
 let foo (local_ imm) =
@@ -1576,76 +1636,8 @@ Line 3, characters 12-15:
                 ^^^
 Error: This value escapes its region
 |}]
-let foo (local_ nlcl) =
-  let _ = { nlcl } in
-  ()
-[%%expect{|
-val foo : local_ 'a -> unit = <fun>
-|}]
-let foo () =
-  let nlcl = local_ ref 5 in
-  let _ = { nlcl } in
-  ()
-[%%expect{|
-Line 3, characters 12-16:
-3 |   let _ = { nlcl } in
-                ^^^^
-Error: This local value escapes its region
-|}]
 
-(* Global and nonlocal fields are preserved in module inclusion *)
-module M : sig
-  type t = { nonlocal_ foo : string }
-end = struct
-  type t = { foo : string }
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = { foo : string }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = { foo : string; } end
-       is not included in
-         sig type t = { nonlocal_ foo : string; } end
-       Type declarations do not match:
-         type t = { foo : string; }
-       is not included in
-         type t = { nonlocal_ foo : string; }
-       Fields do not match:
-         foo : string;
-       is not the same as:
-         nonlocal_ foo : string;
-       The second is nonlocal and the first is not.
-|}]
-
-module M : sig
-  type t = { foo : string }
-end = struct
-  type t = { nonlocal_ foo : string }
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = { nonlocal_ foo : string }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = { nonlocal_ foo : string; } end
-       is not included in
-         sig type t = { foo : string; } end
-       Type declarations do not match:
-         type t = { nonlocal_ foo : string; }
-       is not included in
-         type t = { foo : string; }
-       Fields do not match:
-         nonlocal_ foo : string;
-       is not the same as:
-         foo : string;
-       The first is nonlocal and the second is not.
-|}]
-
+(* Global fields are preserved in module inclusion *)
 module M : sig
   type t = { global_ foo : string }
 end = struct
@@ -2056,6 +2048,32 @@ Error: This local value escapes its region
   Hint: This argument cannot be local, because this is a tail call
 |}]
 
+(* boolean operator when at tail of function makes the function local-returning
+   if its RHS is local-returning *)
+let foo () = exclave_ let local_ _x = "hello" in true
+let testboo3 () =  true && (foo ())
+[%%expect{|
+val foo : unit -> local_ bool = <fun>
+val testboo3 : unit -> local_ bool = <fun>
+|}]
+
+(* Test from Nathanaëlle Courant.
+  User can define strange AND. Supposedly [strange_and] will look at its first
+  arguments, and returns [None] or tailcall on second argument accordingly.
+  The second argument should not cross modes in generall. *)
+external strange_and : bool -> 'a option -> 'a option = "%sequand"
+
+let testboo4 () =
+  let local_ x = Some "hello" in
+  strange_and true x
+[%%expect{|
+external strange_and : bool -> 'a option -> 'a option = "%sequand"
+Line 5, characters 19-20:
+5 |   strange_and true x
+                       ^
+Error: This value escapes its region
+|}]
+
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
 [%%expect{|
@@ -2170,24 +2188,31 @@ let foo f = ignore (f :> string -> float); ()
 val foo : (string -> float) -> unit = <fun>
 |}]
 
-let local_to_global (local_ _s : string) = 42.0
+let global_to_global_to_global (f : float -> string) = f 42.0
 
-let foo f = ignore (f :> string -> float); [f; local_to_global]
+let foo f =
+  ignore (f :> (local_ float -> string) -> string);
+  [f; global_to_global_to_global]
 [%%expect{|
-val local_to_global : local_ string -> float = <fun>
-val foo : (local_ string -> float) -> (local_ string -> float) list = <fun>
+val global_to_global_to_global : (float -> string) -> string = <fun>
+val foo : ((float -> string) -> string) -> ((float -> string) -> string) list =
+  <fun>
 |}]
 
-let global_to_local (_s : string) = local_ 42.0
+let local_to_global_to_global (f : local_ float -> string) = f 42.0
 
-let foo f = ignore (f :> string -> float); [f; global_to_local]
+let foo f =
+  ignore (f :> (float -> string) -> string);
+  [f; local_to_global_to_global]
 [%%expect{|
-val global_to_local : string -> local_ float = <fun>
-Line 3, characters 47-62:
-3 | let foo f = ignore (f :> string -> float); [f; global_to_local]
-                                                   ^^^^^^^^^^^^^^^
-Error: This expression has type string -> local_ float
-       but an expression was expected of type string -> float
+val local_to_global_to_global : (local_ float -> string) -> string = <fun>
+Line 5, characters 6-31:
+5 |   [f; local_to_global_to_global]
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type (local_ float -> string) -> string
+       but an expression was expected of type (float -> string) -> string
+       Type local_ float -> string is not compatible with type
+         float -> string
 |}]
 
 (* Submoding during module inclusion *)
@@ -2423,7 +2448,7 @@ module F :
 
 
 (*
- * constructor arguments global/nonlocal
+ * constructor arguments global
  *)
 
 (* Global argument are preserved in module inclusion *)
@@ -2480,66 +2505,10 @@ Error: Signature mismatch:
        Locality mismatch at argument position 2 : The first is global and the second is not.
 |}]
 
-(* Nonlocal argument are preserved in module inclusion *)
-module M : sig
-  type t = Bar of int * nonlocal_ string
-end = struct
-  type t = Bar of int * string
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = Bar of int * string
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = Bar of int * string end
-       is not included in
-         sig type t = Bar of int * nonlocal_ string end
-       Type declarations do not match:
-         type t = Bar of int * string
-       is not included in
-         type t = Bar of int * nonlocal_ string
-       Constructors do not match:
-         Bar of int * string
-       is not the same as:
-         Bar of int * nonlocal_ string
-       Locality mismatch at argument position 2 : The second is nonlocal and the first is not.
-|}]
-
-
-module M : sig
-  type t = Bar of int * string
-end = struct
-  type t = Bar of int * nonlocal_ string
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = Bar of int * nonlocal_ string
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = Bar of int * nonlocal_ string end
-       is not included in
-         sig type t = Bar of int * string end
-       Type declarations do not match:
-         type t = Bar of int * nonlocal_ string
-       is not included in
-         type t = Bar of int * string
-       Constructors do not match:
-         Bar of int * nonlocal_ string
-       is not the same as:
-         Bar of int * string
-       Locality mismatch at argument position 2 : The first is nonlocal and the second is not.
-|}]
-
-(* global_ and nonlocal_ bind closer than star *)
+(* global_ binds closer than star *)
 type gfoo = GFoo of global_ string * string
-type rfoo = RFoo of nonlocal_ string * string
 [%%expect{|
 type gfoo = GFoo of global_ string * string
-type rfoo = RFoo of nonlocal_ string * string
 |}]
 
 (* TESTING OF GLOBAL_ *)
@@ -2597,7 +2566,7 @@ Line 4, characters 20-22:
 4 |   | GFoo (_, s') -> s'
                         ^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
 (* and regional gives regional *)
@@ -2612,135 +2581,98 @@ Line 3, characters 24-26:
 Error: This value escapes its region
 |}]
 
-(* TESTING NONLOCAL_ *)
-(* nonlocal argument must be outer than the construction*)
-(* below, local is not outer than local*)
-let f (local_ s : string) =
-  let local_ s' = "foo" in
-  let local_ x = RFoo(s', "bar") in
-  "bar"
+(* Test of array.*)
+
+(* Immutable arrays are like tuples or normal record: local array contains local
+elements, both at construction and at projection; global array contains global
+elements. *)
+
+(* constructing global iarray from local elements is rejected *)
+let f (local_ x : string) = ref [: x; "foo" :]
 [%%expect{|
-Line 3, characters 22-24:
-3 |   let local_ x = RFoo(s', "bar") in
-                          ^^
+Line 1, characters 35-36:
+1 | let f (local_ x : string) = ref [: x; "foo" :]
+                                       ^
+Error: This value escapes its region
+|}]
+
+(* constructing local iarray from local elements is fine *)
+let f (local_ x : string) = local_ [:x; "foo":]
+[%%expect{|
+val f : local_ string -> local_ string iarray = <fun>
+|}]
+
+(* constructing global iarray from global elements is fine *)
+let f (x : string) = ref [:x; "foo":]
+[%%expect{|
+val f : string -> string iarray ref = <fun>
+|}]
+
+(* projecting out of local array gives local elements *)
+let f (local_ a : string iarray) =
+  match a with
+  | [: x; _ :] -> ref x
+  | _ -> ref "foo"
+[%%expect{|
+Line 3, characters 22-23:
+3 |   | [: x; _ :] -> ref x
+                          ^
+Error: This value escapes its region
+|}]
+
+(* a test that was passing type check *)
+let unsafe_globalize (local_ s : string) : string =
+  match local_ [:s:] with
+  | [:s':] -> s'
+  | _ -> assert false
+[%%expect{|
+Line 3, characters 14-16:
+3 |   | [:s':] -> s'
+                  ^^
 Error: This local value escapes its region
+  Hint: Cannot return local value without an "exclave_" annotation
 |}]
 
-(* local is not outer than global either *)
-let f =
-  let local_ s = "foo" in
-  let x = RFoo(s, "bar") in
-  "bar"
+let f (local_ a : string iarray) =
+  match a with
+  | [: x; _ :] -> x
+  | _ -> "foo"
 [%%expect{|
-Line 3, characters 15-16:
-3 |   let x = RFoo(s, "bar") in
-                   ^
-Error: This local value escapes its region
+val f : local_ string iarray -> local_ string = <fun>
 |}]
 
-
-(* but global is outer than local *)
-let f (s : string) =  (* s is global *)
-  let local_ _x = RFoo (s, "bar") in  (* x is local *)
-  "foo"
+(* projecting out of global iarray gives global elements *)
+let f (a : string iarray) =
+  match a with
+  | [: x :] -> ref x
+  | _ -> ref "foo"
 [%%expect{|
-val f : string -> string = <fun>
+val f : string iarray -> string ref = <fun>
 |}]
 
-(* and regional is outer than local *)
-let f (local_ s : string) =  (* s is regional *)
-  let local_ _x = RFoo (s, "bar") in  (* x is local *)
-  "foo"
-[%%expect{|
-val f : local_ string -> string = <fun>
-|}]
+(* Mutable array, like references, is dangerous. They must contain global
+    elements regardless of the array's mode. *)
 
-(* s' extracted from x is not local  *)
-(* even though x is local *)
-let f (local_ s : string) =
-  let local_ x = RFoo (s, "bar") in
-  match x with
-  | RFoo (s', _) -> s'
-
+(* constructing local array from local elements is rejected *)
+let f (local_ x : string) = local_ [| x |]
 [%%expect{|
-val f : local_ string -> local_ string = <fun>
-|}]
-
-(* Moreover, it is not global *)
-let f (local_ s : string) =
-  let local_ x = RFoo(s, "bar") in
-  match x with
-  | RFoo (s', _) -> GFoo (s', "bar")
-[%%expect{|
-Line 4, characters 26-28:
-4 |   | RFoo (s', _) -> GFoo (s', "bar")
-                              ^^
+Line 1, characters 38-39:
+1 | let f (local_ x : string) = local_ [| x |]
+                                          ^
 Error: This value escapes its region
 |}]
 
-(* x is already global *)
-(* regional s' extracted from x is still global *)
-let f (s : string) =
-  let x = RFoo (s, "bar") in
-  match x with
-  | RFoo (s', _) -> GFoo(s', "bar")
+(* constructing local array from global elements is allowed *)
+let f (x : string) = local_ [| x |]
 [%%expect{|
-val f : string -> gfoo = <fun>
+val f : string -> local_ string array = <fun>
 |}]
 
-(* regional s extracted from regional x *)
-(* still regional *)
-(* first it is not local *)
-let f (local_ x : rfoo) =
-  match x with
-  | RFoo (s, _) -> s
-[%%expect{|
-val f : local_ rfoo -> local_ string = <fun>
-|}]
-
-(* second, it is not global *)
-let f (local_ x : rfoo) =
-  match x with
-  | RFoo (s, _) -> ref s
-[%%expect{|
-Line 3, characters 23-24:
-3 |   | RFoo (s, _) -> ref s
-                           ^
-Error: This value escapes its region
-|}]
-
-
-(* test of arrays *)
-(* as elements of arrays are mutable *)
-(* it is only safe for them to be at global mode *)
-(* cf: similarly reference cell can contain only global values *)
-
-(* on construction of array, we ensure elements are global *)
-
-let f (local_ x : string) =
-  [|x; "foo"|]
-[%%expect{|
-Line 2, characters 4-5:
-2 |   [|x; "foo"|]
-        ^
-Error: This value escapes its region
-|}]
-
-let f (x : string) =
-  [|x; "foo"|]
-[%%expect{|
-val f : string -> string array = <fun>
-|}]
-
-
-(* on pattern matching of array,
-   elements are strengthened to global
-  even if array itself is local *)
+(* projecting out of local array gives global elements *)
 let f (local_ a : string array) =
   match a with
-  | [| x; _ |] -> ref x
+  | [| x |] -> ref x
   | _ -> ref "foo"
-
 [%%expect{|
 val f : local_ string array -> string ref = <fun>
 |}]
@@ -2765,7 +2697,126 @@ Line 11, characters 13-59:
 11 |   let f () = fold_until [] ~init:0 ~f:(fun _ _ -> Right ())
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: Cannot return local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
+
+(* Regression test for printing of [local_] *)
+
+module M : sig
+  val f : string -> string -> local_ string
+end = struct
+  let g x y = local_ "foo"
+  let f x = local_ g x
+end;;
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   let g x y = local_ "foo"
+5 |   let f x = local_ g x
+6 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           val g : 'a -> 'b -> local_ string
+           val f : 'a -> local_ ('b -> local_ string)
+         end
+       is not included in
+         sig val f : string -> string -> local_ string end
+       Values do not match:
+         val f : 'a -> local_ ('b -> local_ string)
+       is not included in
+         val f : string -> string -> local_ string
+       The type string -> local_ (string -> local_ string)
+       is not compatible with the type string -> string -> local_ string
+|}]
+
+(* Escaping uncurried functions *)
+
+(* Valid; [local_ int -> int -> int] is [local_ int -> local_ (int -> int)] *)
+let f () = ((fun x y -> x + y) : (local_ int -> int -> int));;
+[%%expect{|
+val f : unit -> local_ int -> int -> int = <fun>
+|}];;
+
+(* Illegal: the return mode on (int -> int) is global. *)
+let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
+[%%expect{|
+Line 1, characters 12-30:
+1 | let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
+                ^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}];;
+
+(* ok if curried *)
+let f () = ((fun x -> (fun y -> x + y) [@extension.curry])
+            : (local_ int -> (int -> int)));;
+[%%expect{|
+val f : unit -> local_ int -> (int -> int) = <fun>
+|}];;
+
+(* Illegal: the expected mode is global *)
+let f () = local_ ((fun x y -> x + y) : (_ -> _));;
+[%%expect{|
+Line 1, characters 19-37:
+1 | let f () = local_ ((fun x y -> x + y) : (_ -> _));;
+                       ^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}];;
+
+(* ok if curried *)
+let f () = local_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
+[%%expect{|
+val f : unit -> local_ (int -> (int -> int)) = <fun>
+|}];;
+
+(* Type annotations on a [local_] binding are interpreted in a local context,
+ * so [int -> int -> int] is secretly [int -> local_ (int -> int)]. Contrast
+ * with the below type error where `local_` is omitted on the binding.
+ *)
+let foo () =
+  let local_ _bar1 : int -> int -> int = local_ (fun x y -> x + y) in
+  let local_ _bar2 z : int -> int -> int = local_ (fun x y -> x + y + z) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}];;
+
+let foo () =
+  let _bar : int -> int -> int = local_ (fun x y -> x + y) in
+  ()
+[%%expect{|
+Line 2, characters 33-58:
+2 |   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type int -> local_ (int -> int)
+       but an expression was expected of type int -> (int -> int)
+|}];;
+
+(* test that [function] checks all its branches either for local_ or the
+   absence thereof *)
+let foo = function
+  | false -> local_ 5
+  | true -> 6
+
+[%%expect{|
+Line 3, characters 12-13:
+3 |   | true -> 6
+                ^
+Error: This function return is not annotated with "local_"
+       whilst other returns were.
+|}]
+
+(* test that [assert false] can mix with other returns being [local_] *)
+let foo b =
+  if b
+  then assert false
+  else local_ Some 6
+
+[%%expect{|
+val foo : bool -> local_ int option = <fun>
+|}]
+

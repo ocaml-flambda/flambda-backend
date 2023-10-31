@@ -147,8 +147,16 @@ let arg_label i ppf = function
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
 
+let tyvar ppf s =
+  if String.length s >= 2 && s.[1] = '\'' then
+    (* without the space, this would be parsed as
+       a character literal *)
+    Format.fprintf ppf "' %s" s
+  else
+    Format.fprintf ppf "'%s" s
+
 let typevars ppf vs =
-  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
+  List.iter (fun x -> fprintf ppf " %a" tyvar x.txt) vs
 
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
@@ -981,3 +989,5 @@ let interface ppf x = list 0 signature_item ppf x;;
 let implementation ppf x = list 0 structure_item ppf x;;
 
 let top_phrase ppf x = toplevel_phrase 0 ppf x;;
+
+let constant = fmt_constant;;

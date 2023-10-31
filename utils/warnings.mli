@@ -110,6 +110,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
+  | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
 ;;
 

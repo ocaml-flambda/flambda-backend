@@ -54,6 +54,28 @@ let array_kind = function
   | Pintarray -> "int"
   | Pfloatarray -> "float"
 
+let array_ref_kind ppf k =
+  let pp_mode ppf = function
+    | Alloc_heap -> ()
+    | Alloc_local -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_ref mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_ref -> fprintf ppf "addr"
+  | Pintarray_ref -> fprintf ppf "int"
+  | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+
+let array_set_kind ppf k =
+  let pp_mode ppf = function
+    | Modify_heap -> ()
+    | Modify_maybe_stack -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_set mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
+  | Pintarray_set -> fprintf ppf "int"
+  | Pfloatarray_set -> fprintf ppf "float"
+
 let alloc_mode = function
   | Alloc_heap -> ""
   | Alloc_local -> "local"
@@ -83,6 +105,7 @@ let rec value_kind ppf = function
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -92,16 +115,24 @@ and value_kind' ppf = function
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let layout ppf layout =
-  match layout with
-  | Pvalue k -> value_kind ppf k
+let rec layout is_top ppf layout_ =
+  match layout_ with
+  | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
+  | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
+  | Punboxed_product layouts ->
+    fprintf ppf "@[<hov 1>[%a]@]"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout false))
+      layouts
+
+let layout ppf layout_ = layout true ppf layout_
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -113,10 +144,14 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
+  | Pvalue (Pboxedvectorval (Pvec128 v)) ->
+    fprintf ppf ": %s%s@ " smode (vec128_name v)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
+  | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
+  | Punboxed_product _ -> fprintf ppf ": %a" layout kind
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
@@ -126,6 +161,7 @@ let field_kind ppf = function
   | Pfloatval -> pp_print_string ppf "float"
   | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
+  | Pboxedvectorval (Pvec128 v) -> pp_print_string ppf (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -179,10 +215,11 @@ let print_bigarray name unsafe kind ppf layout =
      | Pbigarray_fortran_layout -> "Fortran")
 
 let record_rep ppf r = match r with
-  | Record_unboxed _ -> fprintf ppf "unboxed"
+  | Record_unboxed -> fprintf ppf "unboxed"
   | Record_boxed _ -> fprintf ppf "boxed"
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
+  | Record_ufloat -> fprintf ppf "ufloat"
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -246,6 +283,15 @@ let primitive ppf = function
   | Pmakefloatblock (Mutable, mode) ->
      fprintf ppf "make%sfloatblock Mutable"
         (alloc_mode mode)
+  | Pmakeufloatblock (Immutable, mode) ->
+      fprintf ppf "make%sufloatblock Immutable"
+        (alloc_mode mode)
+  | Pmakeufloatblock (Immutable_unique, mode) ->
+     fprintf ppf "make%sufloatblock Immutable_unique"
+        (alloc_mode mode)
+  | Pmakeufloatblock (Mutable, mode) ->
+     fprintf ppf "make%sufloatblock Mutable"
+        (alloc_mode mode)
   | Pfield (n, sem) ->
       fprintf ppf "field%a %i" field_read_semantics sem n
   | Pfield_computed sem ->
@@ -281,6 +327,9 @@ let primitive ppf = function
   | Pfloatfield (n, sem, mode) ->
       fprintf ppf "floatfield%a%s %i"
         field_read_semantics sem (alloc_mode mode) n
+  | Pufloatfield (n, sem) ->
+      fprintf ppf "ufloatfield%a %i"
+        field_read_semantics sem n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -290,7 +339,22 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfloatfield%s %i" init n
+  | Psetufloatfield (n, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+  | Pmake_unboxed_product layouts ->
+      fprintf ppf "make_unboxed_product [%a]"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
+  | Punboxed_product_field (n, layouts) ->
+      fprintf ppf "unboxed_product_field %d [%a]" n
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -345,10 +409,10 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
-  | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
-  | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
-  | Parraysets k -> fprintf ppf "array.set[%s]" (array_kind k)
+  | Parrayrefu rk -> fprintf ppf "array.unsafe_get[%a]" array_ref_kind rk
+  | Parraysetu sk -> fprintf ppf "array.unsafe_set[%a]" array_set_kind sk
+  | Parrayrefs rk -> fprintf ppf "array.get[%a]" array_ref_kind rk
+  | Parraysets sk -> fprintf ppf "array.set[%a]" array_set_kind sk
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -404,6 +468,10 @@ let primitive ppf = function
   | Pstring_load_64(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "string.get64%s" (alloc_kind m)
+  | Pstring_load_128 {unsafe = true; mode} ->
+     fprintf ppf "string.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pstring_load_128 {unsafe = false; mode} ->
+     fprintf ppf "string.unaligned_get128%s" (alloc_kind mode)
   | Pbytes_load_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_get16"
      else fprintf ppf "bytes.get16"
@@ -413,6 +481,10 @@ let primitive ppf = function
   | Pbytes_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bytes.get64%s" (alloc_kind m)
+  | Pbytes_load_128 {unsafe = true; mode} ->
+     fprintf ppf "bytes.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pbytes_load_128 {unsafe = false; mode} ->
+     fprintf ppf "bytes.unaligned_get128%s" (alloc_kind mode)
   | Pbytes_set_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set16"
      else fprintf ppf "bytes.set16"
@@ -422,6 +494,10 @@ let primitive ppf = function
   | Pbytes_set_64(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set64"
      else fprintf ppf "bytes.set64"
+  | Pbytes_set_128 {unsafe = true} ->
+     fprintf ppf "bytes.unsafe_unaligned_set128"
+  | Pbytes_set_128 {unsafe = false} ->
+     fprintf ppf "bytes.unaligned_set128"
   | Pbigstring_load_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
      else fprintf ppf "bigarray.array1.get16"
@@ -431,6 +507,14 @@ let primitive ppf = function
   | Pbigstring_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
+  | Pbigstring_load_128 {unsafe = true; aligned = false; mode} ->
+     fprintf ppf "bigarray.array1.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = false; aligned = false; mode} ->
+     fprintf ppf "bigarray.array1.unaligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = true; aligned = true; mode} ->
+     fprintf ppf "bigarray.array1.unsafe_aligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = false; aligned = true; mode} ->
+     fprintf ppf "bigarray.array1.aligned_get128%s" (alloc_kind mode)
   | Pbigstring_set_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set16"
      else fprintf ppf "bigarray.array1.set16"
@@ -440,9 +524,17 @@ let primitive ppf = function
   | Pbigstring_set_64(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
+  | Pbigstring_set_128 {unsafe = true; aligned = false} ->
+     fprintf ppf "bigarray.array1.unsafe_unaligned_set128"
+  | Pbigstring_set_128 {unsafe = true; aligned = true} ->
+     fprintf ppf "bigarray.array1.unsafe_aligned_set128"
+  | Pbigstring_set_128 {unsafe = false; aligned = false} ->
+     fprintf ppf "bigarray.array1.unaligned_set128"
+  | Pbigstring_set_128 {unsafe = false; aligned = true} ->
+     fprintf ppf "bigarray.array1.aligned_set128"
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
-  | Pint_as_pointer -> fprintf ppf "int_as_pointer"
+  | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
   | Popaque _ -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
@@ -455,6 +547,7 @@ let primitive ppf = function
 
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
+  | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -465,13 +558,18 @@ let name_of_primitive = function
   | Pgetpredef _ -> "Pgetpredef"
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
+  | Pmakeufloatblock _ -> "Pmakeufloatblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
   | Psetfield_computed _ -> "Psetfield_computed"
   | Pfloatfield _ -> "Pfloatfield"
   | Psetfloatfield _ -> "Psetfloatfield"
+  | Pufloatfield _ -> "Pufloatfield"
+  | Psetufloatfield _ -> "Psetufloatfield"
   | Pduprecord _ -> "Pduprecord"
+  | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
+  | Punboxed_product_field _ -> "Punboxed_product_field"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"
   | Psequand -> "Psequand"
@@ -544,21 +642,26 @@ let name_of_primitive = function
   | Pstring_load_16 _ -> "Pstring_load_16"
   | Pstring_load_32 _ -> "Pstring_load_32"
   | Pstring_load_64 _ -> "Pstring_load_64"
+  | Pstring_load_128 _ -> "Pstring_load_128"
   | Pbytes_load_16 _ -> "Pbytes_load_16"
   | Pbytes_load_32 _ -> "Pbytes_load_32"
   | Pbytes_load_64 _ -> "Pbytes_load_64"
+  | Pbytes_load_128 _ -> "Pbytes_load_128"
   | Pbytes_set_16 _ -> "Pbytes_set_16"
   | Pbytes_set_32 _ -> "Pbytes_set_32"
   | Pbytes_set_64 _ -> "Pbytes_set_64"
+  | Pbytes_set_128 _ -> "Pbytes_set_128"
   | Pbigstring_load_16 _ -> "Pbigstring_load_16"
   | Pbigstring_load_32 _ -> "Pbigstring_load_32"
   | Pbigstring_load_64 _ -> "Pbigstring_load_64"
+  | Pbigstring_load_128 _ -> "Pbigstring_load_128"
   | Pbigstring_set_16 _ -> "Pbigstring_set_16"
   | Pbigstring_set_32 _ -> "Pbigstring_set_32"
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
+  | Pbigstring_set_128 _ -> "Pbigstring_set_128"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
-  | Pint_as_pointer -> "Pint_as_pointer"
+  | Pint_as_pointer _ -> "Pint_as_pointer"
   | Popaque _ -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
@@ -569,6 +672,7 @@ let name_of_primitive = function
   | Pbox_int _ -> "Pbox_int"
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
+  | Pget_header _ -> "Pget_header"
 
 let check_attribute ppf check =
   let check_property = function
@@ -578,11 +682,15 @@ let check_attribute ppf check =
   | Default_check -> ()
   | Ignore_assert_all p ->
     fprintf ppf "ignore assert all %s@ " (check_property p)
-  | Check {property=p; assume; strict; loc = _} ->
-    fprintf ppf "%s %s%s@ "
-      (if assume then "assume" else "assert")
+  | Assume {property=p; strict; never_returns_normally; loc = _} ->
+    fprintf ppf "assume_%s%s%s@ "
       (check_property p)
-      (if strict then " strict" else "")
+      (if strict then "_strict" else "")
+      (if never_returns_normally then "_never_returns_normally" else "")
+  | Check {property=p; strict; loc = _; opt} ->
+    fprintf ppf "assert_%s%s%s@ "
+      (check_property p) (if opt then "_opt" else "")
+      (if strict then "_strict" else "")
 
 let function_attribute ppf t =
   if t.is_a_functor then
@@ -638,7 +746,7 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
-let apply_probe ppf = function
+let apply_probe ppf : probe -> unit = function
   | None -> ()
   | Some {name} -> fprintf ppf " (probe %s)" name
 
@@ -673,16 +781,22 @@ let rec lam ppf = function
         match kind with
         | Curried {nlocal} ->
             fprintf ppf "@ {nlocal = %d}" nlocal;
-            List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param layout k) params
+            List.iter (fun (p : Lambda.lparam) ->
+                (* Make sure we change this once there are attributes *)
+                let No_attributes = p.attributes in
+                fprintf ppf "@ %a%s%a"
+                  Ident.print p.name (alloc_kind p.mode) layout p.layout) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
             List.iter
-              (fun (param, k) ->
-                if !first then first := false else fprintf ppf ",@ ";
-                Ident.print ppf param;
-                layout ppf k)
+              (fun (p : Lambda.lparam) ->
+                 (* Make sure we change this once there are attributes *)
+                 let No_attributes = p.attributes in
+                 if !first then first := false else fprintf ppf ",@ ";
+                 Ident.print ppf p.name;
+                 Format.fprintf ppf "%s" (alloc_kind p.mode);
+                 layout ppf p.layout)
               params;
             fprintf ppf ")" in
       let rmode = if region then alloc_heap else alloc_local in
@@ -787,7 +901,7 @@ let rec lam ppf = function
   | Lwhile {wh_cond; wh_body} ->
       fprintf ppf "@[<2>(while@ %a@ %a)@]"
         lam wh_cond lam wh_body
-  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+  | Lfor {for_id; for_loc = _; for_from; for_to; for_dir; for_body} ->
       fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
        Ident.print for_id lam for_from
        (match for_dir with Upto -> "to" | Downto -> "downto")

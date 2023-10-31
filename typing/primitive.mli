@@ -17,11 +17,16 @@
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
+type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
+
+type boxed_vector = Pvec128 of vec128_type
+
 (* Representation of arguments/result for the native code version
    of a primitive *)
 type native_repr =
-  | Same_as_ocaml_repr
+  | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float
+  | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
 
@@ -56,7 +61,7 @@ type description = private
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
-val simple
+val simple_on_values
   :  name:string
   -> arity:int
   -> alloc:bool
@@ -69,14 +74,14 @@ val make
   -> effects:effects
   -> coeffects:coeffects
   -> native_name:string
-  -> native_repr_args: (mode*native_repr) list
-  -> native_repr_res: mode*native_repr
+  -> native_repr_args: (mode * native_repr) list
+  -> native_repr_res: mode * native_repr
   -> description
 
 val parse_declaration
   :  Parsetree.value_description
-  -> native_repr_args:(mode*native_repr) list
-  -> native_repr_res:(mode*native_repr)
+  -> native_repr_args:(mode * native_repr) list
+  -> native_repr_res:(mode * native_repr)
   -> description
 
 val print
@@ -86,8 +91,10 @@ val print
 
 val native_name: description -> string
 val byte_name: description -> string
+val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
+val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool
 val equal_coeffects : coeffects -> coeffects -> bool
@@ -97,10 +104,16 @@ val equal_coeffects : coeffects -> coeffects -> bool
     compiler itself. *)
 val native_name_is_external : description -> bool
 
+(** [sort_of_native_repr] returns the sort expected during typechecking (which
+    may be different than the sort used in the external interface). *)
+val sort_of_native_repr : native_repr -> Jkind.Sort.const
+
 type error =
   | Old_style_float_with_native_repr_attribute
+  | Old_style_float_with_non_value
   | Old_style_noalloc_with_noalloc_attribute
   | No_native_primitive_with_repr_attribute
+  | No_native_primitive_with_non_value
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
 

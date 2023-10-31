@@ -23,7 +23,7 @@ let variables_iterator scope =
   let super = default_iterator in
   let pat sub (type k) (p : k general_pattern) =
     begin match p.pat_desc with
-    | Tpat_var (id, _, _) | Tpat_alias (_, id, _, _) ->
+    | Tpat_var (id, _, _, _) | Tpat_alias (_, id, _, _, _) ->
         Stypes.record (Stypes.An_ident (p.pat_loc,
                                         Ident.name id,
                                         Annot.Idef scope))
@@ -72,7 +72,7 @@ let rec iterator ~scope rebuild_env =
 
   and expr sub exp =
     begin match exp.exp_desc with
-    | Texp_ident (path, _, _, _) ->
+    | Texp_ident (path, _, _, _, _) ->
         let full_name = Path.name ~paren:Oprint.parenthesized_ident path in
         let env =
           if rebuild_env then
