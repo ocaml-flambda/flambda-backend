@@ -68,8 +68,11 @@ type nothing = |
 type 'b t = A | B of 'b | C
 let g (x:nothing t) = match x with A -> ()
 [%%expect{|
+
 type nothing = |
+
 type 'b t = A | B of 'b | C
+
 Line 3, characters 22-42:
 3 | let g (x:nothing t) = match x with A -> ()
                           ^^^^^^^^^^^^^^^^^^^^

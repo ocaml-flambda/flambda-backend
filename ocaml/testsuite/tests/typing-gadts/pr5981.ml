@@ -40,6 +40,7 @@ module F(S : sig type 'a t end) = struct
     | A, B -> "f A B"
 end;;
 [%%expect{|
+
 Lines 10-11, characters 15-21:
 10 | ...............match l, r with
 11 |     | A, B -> "f A B"

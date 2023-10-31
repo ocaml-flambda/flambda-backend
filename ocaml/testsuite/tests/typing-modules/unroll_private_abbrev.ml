@@ -47,6 +47,7 @@ end = struct
   let to_ x = x
 end;;
 [%%expect{|
+
 module F :
   functor (X : sig end) ->
     sig
@@ -58,6 +59,7 @@ module F :
 
 module N = F(struct end);;
 [%%expect{|
+
 module N :
   sig
     type s = private [ `Bar of 'a | `Foo ] as 'a
@@ -72,6 +74,7 @@ let y =
   | `Foo -> assert false
 ;;
 [%%expect{|
+
 Line 2, characters 8-48:
 2 |   match (N.from M.bar :> [ `Bar of N.s | `Foo ]) with
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -42,6 +42,7 @@ end = struct
 end
 ;;
 [%%expect{|
+
 Lines 5-9, characters 6-3:
 5 | ......struct
 6 |   class virtual c = object
@@ -70,7 +71,9 @@ end
 ;;
 
 [%%expect{|
+
 class type ['a] ct = object val x : 'a end
+
 Lines 5-7, characters 6-3:
 5 | ......struct
 6 |   class type c = object end
@@ -94,6 +97,7 @@ end = struct
 end
 ;;
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   class ['a] c = object end
@@ -117,6 +121,7 @@ end = struct
 end
 ;;
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   class c (x : float) = object end
@@ -141,6 +146,7 @@ class virtual foo: foo_t =
 ;;
 
 [%%expect{|
+
 Lines 2-5, characters 4-7:
 2 | ....object
 3 |         method foo = "foo"
@@ -163,7 +169,9 @@ class foo: foo_t2 =
     end
 ;;
 [%%expect{|
+
 class type foo_t2 = object method private foo : string end
+
 Lines 7-9, characters 4-7:
 7 | ....object
 8 |         method foo = "foo"
@@ -179,6 +187,7 @@ class virtual foo: foo_t =
     end
 ;;
 [%%expect{|
+
 Lines 2-4, characters 4-7:
 2 | ....object
 3 |         method virtual foo: string
@@ -199,7 +208,9 @@ class foo: foo_t3 =
     end
 ;;
 [%%expect{|
+
 class type foo_t3 = object val mutable x : int end
+
 Lines 7-9, characters 4-7:
 7 | ....object
 8 |         val x = 1
@@ -220,7 +231,9 @@ class virtual foo: foo_t4 =
     end
 ;;
 [%%expect{|
+
 class type foo_t4 = object val x : int end
+
 Lines 7-9, characters 4-7:
 7 | ....object
 8 |         val virtual x : int
@@ -237,6 +250,7 @@ end = struct
 end
 ;;
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   class type c = object method private m: string end

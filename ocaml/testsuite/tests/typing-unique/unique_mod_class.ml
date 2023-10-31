@@ -32,6 +32,7 @@ let texp_object () =
   val bar = x
   end;
 [%%expect{|
+
 Line 5, characters 12-13:
 5 |   val bar = x
                 ^
@@ -51,6 +52,7 @@ let texp_letmodule () =
   in
   ()
 [%%expect{|
+
 Line 4, characters 12-21:
 4 |     let y = unique_ x
                 ^^^^^^^^^
@@ -68,6 +70,7 @@ let texp_letmodule () =
   in
   ()
 [%%expect{|
+
 Line 5, characters 12-13:
 5 |     let y = x
                 ^
@@ -83,6 +86,7 @@ let texp_open () =
   let open (struct let y = unique_ x end) in
   ()
 [%%expect{|
+
 Line 3, characters 27-36:
 3 |   let open (struct let y = unique_ x end) in
                                ^^^^^^^^^
@@ -96,6 +100,7 @@ let texp_open () =
   let open (struct let y = x end) in
   ()
 [%%expect{|
+
 Line 4, characters 27-28:
 4 |   let open (struct let y = x end) in
                                ^
@@ -113,7 +118,9 @@ let texp_pack () =
   let z = (module struct let y = unique_ x end : bar) in
   ()
 [%%expect{|
+
 module type bar = sig val y : string end
+
 Line 5, characters 33-42:
 5 |   let z = (module struct let y = unique_ x end : bar) in
                                      ^^^^^^^^^
@@ -127,6 +134,7 @@ let texp_pack () =
   let z = (module struct let y = x end : bar) in
   ()
 [%%expect{|
+
 Line 4, characters 33-34:
 4 |   let z = (module struct let y = x end : bar) in
                                      ^
@@ -145,7 +153,9 @@ end
 let value_from_module () =
   unique_id M.foo
 [%%expect{|
+
 module M : sig val foo : string end
+
 Line 7, characters 12-17:
 7 |   unique_id M.foo
                 ^^^^^

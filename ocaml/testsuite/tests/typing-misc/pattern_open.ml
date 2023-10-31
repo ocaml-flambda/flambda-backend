@@ -198,6 +198,7 @@ Error: Unbound constructor Sep
 let test_separation_2 = function
   | S.(Ex(a,b)), Ex(c,d) -> ();;
 [%%expect {|
+
 Line 2, characters 17-19:
 2 |   | S.(Ex(a,b)), Ex(c,d) -> ();;
                      ^^
@@ -206,6 +207,7 @@ Error: Unbound constructor Ex
 let test_separation_3 = function
   | S.(Sep) -> s;;
 [%%expect {|
+
 Line 2, characters 15-16:
 2 |   | S.(Sep) -> s;;
                    ^
@@ -233,6 +235,7 @@ let rec f : type g1 g2. (g1, g2) PR6437.Ctx.t * g1 PR6437.Var.t
   | PR6437.( Ctx.(Cons g), Var.(S n) ) -> PR6437.Var.S (f (g, n))
   | _ -> . ;;
 [%%expect {|
+
 module PR6437 :
   sig
     module Ctx :
@@ -244,6 +247,7 @@ module PR6437 :
     module Var :
       sig type 'a t = O : ('a * unit) t | S : 'a t -> ('a * unit) t end
   end
+
 val f : ('g1, 'g2) PR6437.Ctx.t * 'g1 PR6437.Var.t -> 'g2 PR6437.Var.t =
   <fun>
 |}]

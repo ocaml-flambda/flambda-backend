@@ -88,6 +88,7 @@ let f = function
     end
   | `B -> ();;
 [%%expect{|
+
 val f : t -> unit = <fun>
 |}]
 
@@ -101,6 +102,7 @@ let f = function
     end
   | `B -> ();;
 [%%expect{|
+
 Line 6, characters 6-8:
 6 |     | `C -> ()
           ^^
@@ -111,6 +113,7 @@ Error: This pattern matches values of type [? `C ]
 
 let f = function (`A, _ : _ * int) as x -> x;;
 [%%expect{|
+
 val f : [< `A ] * int -> [> `A ] * int = <fun>
 |}]
 
@@ -125,6 +128,7 @@ let f = function
     end
   | `B -> ();;
 [%%expect{|
+
 Lines 5-7, characters 4-7:
 5 | ....begin match x with
 6 |     | `A -> ()
@@ -146,6 +150,7 @@ let f = function
   | `B -> ();;
 
 [%%expect{|
+
 Lines 5-7, characters 4-7:
 5 | ....begin match x with
 6 |     | `A -> ()

@@ -144,6 +144,7 @@ module Exhaustive =
   end
 ;;
 [%%expect{|
+
 module Exhaustive :
   sig
     type t = int
@@ -159,6 +160,7 @@ module PR6862 = struct
   class d (Just x) = object method x : int = x end
 end;;
 [%%expect{|
+
 Line 2, characters 10-18:
 2 |   class c (Some x) = object method x : int = x end
               ^^^^^^^^
@@ -186,6 +188,7 @@ module Exhaustive2 = struct
   let f (x : bool t option) = match x with None -> ()
 end;;
 [%%expect{|
+
 module Exhaustive2 :
   sig type _ t = Int : int t val f : bool t option -> unit end
 |}];;
@@ -196,6 +199,7 @@ module PR6220 = struct
   let g : int t -> int = function I -> 1 | _ -> 2 (* warn *)
 end;;
 [%%expect{|
+
 Line 4, characters 43-44:
 4 |   let g : int t -> int = function I -> 1 | _ -> 2 (* warn *)
                                                ^
@@ -219,6 +223,7 @@ module PR6403 = struct
     | Right empty -> empty
 end;;
 [%%expect{|
+
 module PR6403 :
   sig
     type (_, _) eq = Refl : ('a, 'a) eq
@@ -244,6 +249,7 @@ module PR6437 = struct
   (*| Nil, _ -> (assert false) *)  (* warns, but shouldn't *)
 end;;
 [%%expect{|
+
 module PR6437 :
   sig
     type ('a, 'b) ctx =
@@ -265,6 +271,7 @@ module PR6801 = struct
     | String s -> print_endline s (* warn : Any *)
 end;;
 [%%expect{|
+
 Lines 8-9, characters 4-33:
 8 | ....match x with
 9 |     | String s -> print_endline s.................
@@ -290,6 +297,7 @@ module Existential_escape =
   end
 ;;
 [%%expect{|
+
 Line 5, characters 21-22:
 5 |     let eval (D x) = x
                          ^
@@ -306,6 +314,7 @@ module Rectype =
   end
 ;;
 [%%expect{|
+
 module Rectype :
   sig type (_, _) t = C : ('a, 'a) t val f : ('s, 's * 's) t -> unit end
 |}];;
@@ -323,6 +332,7 @@ module Or_patterns =
 end
 ;;
 [%%expect{|
+
 module Or_patterns :
   sig
     type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
@@ -343,6 +353,7 @@ module Polymorphic_variants =
   end
 ;;
 [%%expect{|
+
 module Polymorphic_variants :
   sig
     type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
@@ -367,12 +378,14 @@ module Propagation = struct
 end
 ;;
 [%%expect{|
+
 module Propagation :
   sig
     type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
     val check : 's t -> 's
   end
 |}, Principal{|
+
 Line 13, characters 19-20:
 13 |     | BoolLit b -> b
                         ^
@@ -389,6 +402,7 @@ module Normal_constrs = struct
   let f = function A -> 1 | B -> 2
 end;;
 [%%expect{|
+
 Line 5, characters 28-29:
 5 |   let f = function A -> 1 | B -> 2
                                 ^
@@ -403,6 +417,7 @@ module PR6849 = struct
       Foo -> 5
 end;;
 [%%expect{|
+
 Line 5, characters 6-9:
 5 |       Foo -> 5
           ^^^
@@ -418,8 +433,11 @@ let test : type a. a t -> a =
   function Int -> ky (1 : a) 1
 ;;
 [%%expect{|
+
 type _ t = Int : int t
+
 val ky : 'a -> 'a -> 'a = <fun>
+
 val test : 'a t -> 'a = <fun>
 |}];;
 
@@ -427,6 +445,7 @@ let rec test : type a. a t -> a =
   function Int -> (1 : a)
 ;;
 [%%expect{|
+
 val test : 'a t -> 'a = <fun>
 |}];;
 
@@ -434,6 +453,7 @@ let test : type a. a t -> _ =
   function Int -> 1       (* ok *)
 ;;
 [%%expect{|
+
 val test : 'a t -> int = <fun>
 |}];;
 
@@ -441,6 +461,7 @@ let test : type a. a t -> _ =
   function Int -> ky (1 : a) 1  (* fails *)
 ;;
 [%%expect{|
+
 Line 2, characters 18-30:
 2 |   function Int -> ky (1 : a) 1  (* fails *)
                       ^^^^^^^^^^^^
@@ -455,6 +476,7 @@ let test : type a. a t -> a = fun x ->
   in r
 ;;
 [%%expect{|
+
 Line 2, characters 30-42:
 2 |   let r = match x with Int -> ky (1 : a) 1  (* fails *)
                                   ^^^^^^^^^^^^
@@ -469,6 +491,7 @@ let test : type a. a t -> a = fun x ->
   in r
 ;;
 [%%expect{|
+
 Line 2, characters 30-42:
 2 |   let r = match x with Int -> ky 1 (1 : a)  (* fails *)
                                   ^^^^^^^^^^^^
@@ -482,6 +505,7 @@ let test (type a) x =
   in r
 ;;
 [%%expect{|
+
 val test : 'a t -> int = <fun>
 |}];;
 
@@ -490,6 +514,7 @@ let test : type a. a t -> a = fun x ->
   in r
 ;;
 [%%expect{|
+
 val test : 'a t -> 'a = <fun>
 |}];;
 
@@ -498,6 +523,7 @@ let test : type a. a t -> _ = fun x ->
   in r
 ;;
 [%%expect{|
+
 val test : 'a t -> int = <fun>
 |}];;
 
@@ -506,6 +532,7 @@ let test : type a. a t -> a = fun x ->
   in r (* ok *)
 ;;
 [%%expect{|
+
 val test : 'a t -> 'a = <fun>
 |}];;
 
@@ -515,6 +542,7 @@ let test2 : type a. a t -> a option = fun x ->
   !r (* ok *)
 ;;
 [%%expect{|
+
 val test2 : 'a t -> 'a option = <fun>
 |}];;
 
@@ -524,6 +552,7 @@ let test2 : type a. a t -> a option = fun x ->
   !r (* ok *)
 ;;
 [%%expect{|
+
 val test2 : 'a t -> 'a option = <fun>
 |}];;
 
@@ -534,6 +563,7 @@ let test2 : type a. a t -> a option = fun x ->
   !u
 ;; (* ok (u non-ambiguous) *)
 [%%expect{|
+
 val test2 : 'a t -> 'a option = <fun>
 |}];;
 
@@ -544,6 +574,7 @@ let test2 : type a. a t -> a option = fun x ->
   !u
 ;; (* fails because u : (int | a) option ref *)
 [%%expect{|
+
 Line 4, characters 46-48:
 4 |   begin match x with Int -> u := Some 1; r := !u end;
                                                   ^^
@@ -561,6 +592,7 @@ let test2 : type a. a t -> a option = fun x ->
   !u
 ;; (* ok *)
 [%%expect{|
+
 val test2 : 'a t -> 'a option = <fun>
 |}];;
 
@@ -573,6 +605,7 @@ let test2 : type a. a t -> a option = fun x ->
   in a
 ;; (* ok *)
 [%%expect{|
+
 val test2 : 'a t -> 'a option = <fun>
 |}];;
 
@@ -581,7 +614,9 @@ let we_y1x (type a) (x : a) (v : a t) =
   match v with Int -> let y = either 1 x in y
 ;; (* fail *)
 [%%expect{|
+
 val either : 'a -> 'a -> 'a = <fun>
+
 Line 3, characters 44-45:
 3 |   match v with Int -> let y = either 1 x in y
                                                 ^
@@ -597,6 +632,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
+
 val f : 'a t -> 'a -> 'a = <fun>
 |}];;
 
@@ -606,6 +642,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
+
 val f : 'a t -> 'a -> 'a = <fun>
 |}];;
 
@@ -615,6 +652,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
+
 val f : 'a t -> 'a -> 'a = <fun>
 |}];;
 
@@ -624,6 +662,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
+
 val f : 'a t -> 'a -> 'a = <fun>
 |}];;
 
@@ -631,6 +670,7 @@ let f (type a) (x : a t) (y : a) =
   match x with Int -> y (* returns 'a *)
 ;;
 [%%expect{|
+
 val f : 'a t -> 'a -> 'a = <fun>
 |}];;
 
@@ -642,6 +682,7 @@ let f (type a) (x : a t) y =
     in M.z
 ;;
 [%%expect{|
+
 val f : 'a t -> 'a -> 'a = <fun>
 |}];;
 
@@ -651,6 +692,7 @@ let f (type a) (x : a t) y =
     in M.z
 ;; (* ok *)
 [%%expect{|
+
 val f : 'a t -> int -> int = <fun>
 |}];;
 
@@ -665,7 +707,9 @@ let f : type a. a h -> a = function
   | Has_b -> object method b = true end
 ;;
 [%%expect{|
+
 type _ h = Has_m : < m : int > h | Has_b : < b : bool > h
+
 val f : 'a h -> 'a = <fun>
 |}];;
 
@@ -678,7 +722,9 @@ let f : type a. a j -> a = function
   | Has_B -> `B true
 ;;
 [%%expect{|
+
 type _ j = Has_A : [ `A of int ] j | Has_B : [ `B of bool ] j
+
 val f : 'a j -> 'a = <fun>
 |}];;
 
@@ -688,7 +734,9 @@ let f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
   fun Eq o -> o
 ;; (* fail *)
 [%%expect{|
+
 type (_, _) eq = Eq : ('a, 'a) eq
+
 Line 3, characters 18-72:
 3 | let f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -700,6 +748,7 @@ let f : type a b. (a,b) eq -> <m : a; ..> -> <m : b; ..> =
   fun Eq o -> o
 ;; (* fail *)
 [%%expect{|
+
 Line 2, characters 14-15:
 2 |   fun Eq o -> o
                   ^
@@ -713,6 +762,7 @@ Error: This expression has type < m : a; .. >
 let f (type a) (type b) (eq : (a,b) eq) (o : <m : a; ..>) : <m : b; ..> =
   match eq with Eq -> o ;; (* should fail *)
 [%%expect{|
+
 Line 2, characters 22-23:
 2 |   match eq with Eq -> o ;; (* should fail *)
                           ^
@@ -727,6 +777,7 @@ let f : type a b. (a,b) eq -> <m : a> -> <m : b> =
   fun Eq o -> o
 ;; (* ok *)
 [%%expect{|
+
 val f : ('a, 'b) eq -> < m : 'a > -> < m : 'b > = <fun>
 |}];;
 
@@ -739,9 +790,13 @@ let f : type a. (a, int) eq -> <m : a> -> bool =
   fun Eq o -> ignore (o : <m : int; ..>); o#m = 3
 ;; (* should be ok *)
 [%%expect{|
+
 val int_of_bool : (bool, int) eq = Eq
+
 val x : < m : bool > = <obj>
+
 val y : < m : bool > * < m : int > = (<obj>, <obj>)
+
 val f : ('a, int) eq -> < m : 'a > -> bool = <fun>
 |}];;
 
@@ -751,8 +806,10 @@ let f : type a b. (a,b) eq -> < m : a; .. > -> < m : b > =
     let r : < m : b > = match eq with Eq -> o in (* fail with principal *)
     r;;
 [%%expect{|
+
 val f : ('a, 'b) eq -> < m : 'a > -> < m : 'b > = <fun>
 |}, Principal{|
+
 Line 4, characters 44-45:
 4 |     let r : < m : b > = match eq with Eq -> o in (* fail with principal *)
                                                 ^
@@ -769,6 +826,7 @@ let f : type a b. (a,b) eq -> < m : a; .. > -> < m : b > =
     ignore (o : < m : a >);
     r;;
 [%%expect{|
+
 Line 3, characters 44-45:
 3 |     let r : < m : b > = match eq with Eq -> o in (* fail *)
                                                 ^
@@ -782,6 +840,7 @@ Error: This expression has type < m : a; .. >
 let f : type a b. (a,b) eq -> [> `A of a] -> [> `A of b] =
   fun Eq o -> o ;; (* fail *)
 [%%expect{|
+
 Line 2, characters 14-15:
 2 |   fun Eq o -> o ;; (* fail *)
                   ^
@@ -795,6 +854,7 @@ Error: This expression has type [> `A of a ]
 let f (type a b) (eq : (a,b) eq) (v : [> `A of a]) : [> `A of b] =
   match eq with Eq -> v ;; (* should fail *)
 [%%expect{|
+
 Line 2, characters 22-23:
 2 |   match eq with Eq -> v ;; (* should fail *)
                           ^
@@ -808,6 +868,7 @@ Error: This expression has type [> `A of a ]
 let f : type a b. (a,b) eq -> [< `A of a | `B] -> [< `A of b | `B] =
   fun Eq o -> o ;; (* fail *)
 [%%expect{|
+
 Lines 1-2, characters 4-15:
 1 | ....f : type a b. (a,b) eq -> [< `A of a | `B] -> [< `A of b | `B] =
 2 |   fun Eq o -> o..............
@@ -822,6 +883,7 @@ Error: This definition has type
 let f : type a b. (a,b) eq -> [`A of a | `B] -> [`A of b | `B] =
   fun Eq o -> o ;; (* ok *)
 [%%expect{|
+
 val f : ('a, 'b) eq -> [ `A of 'a | `B ] -> [ `A of 'b | `B ] = <fun>
 |}];;
 
@@ -829,6 +891,7 @@ let f : type a. (a, int) eq -> [`A of a] -> bool =
   fun Eq v -> match v with `A 1 -> true | _ -> false
 ;; (* ok *)
 [%%expect{|
+
 val f : ('a, int) eq -> [ `A of 'a ] -> bool = <fun>
 |}];;
 
@@ -838,6 +901,7 @@ let f : type a b. (a,b) eq -> [> `A of a | `B] -> [`A of b | `B] =
     let r : [`A of b | `B] = match eq with Eq -> o in (* fail with principal *)
     r;;
 [%%expect{|
+
 Lines 1-5, characters 4-5:
 1 | ....f : type a b. (a,b) eq -> [> `A of a | `B] -> [`A of b | `B] =
 2 |   fun eq o ->
@@ -851,6 +915,7 @@ Error: This expression has type
        The second variant type is bound to the universal type variable 'c,
        it cannot be closed
 |}, Principal{|
+
 Line 4, characters 49-50:
 4 |     let r : [`A of b | `B] = match eq with Eq -> o in (* fail with principal *)
                                                      ^
@@ -867,6 +932,7 @@ let f : type a b. (a,b) eq -> [> `A of a | `B] -> [`A of b | `B] =
     ignore (o : [< `A of a | `B]);
     r;;
 [%%expect{|
+
 Line 3, characters 49-50:
 3 |     let r : [`A of b | `B] = match eq with Eq -> o in (* fail *)
                                                      ^
@@ -904,13 +970,16 @@ let f : type a. a ty -> a t -> int = fun x y ->
   | _, D _ -> 0
 ;;
 [%%expect{|
+
 type 'a t = A of int | B of bool | C of float | D of 'a
+
 type _ ty =
     TE : 'a ty -> 'a array ty
   | TA : int ty
   | TB : bool ty
   | TC : float ty
   | TD : string -> bool ty
+
 val f : 'a ty -> 'a t -> int = <fun>
 |}];;
 
@@ -924,6 +993,7 @@ let f : type a. a ty -> a t -> int = fun x y ->
   | TA, D z -> z
 ;; (* warn *)
 [%%expect{|
+
 Lines 2-8, characters 2-16:
 2 | ..match x, y with
 3 |   | _, A z -> z
@@ -949,6 +1019,7 @@ let f : type a. a ty -> a t -> int = fun x y ->
   | D z, TA -> z
 ;; (* fail *)
 [%%expect{|
+
 Line 6, characters 6-13:
 6 |   | D [|1.0|], TE TC -> 14
           ^^^^^^^
@@ -968,7 +1039,9 @@ let f : type a. a ty -> a t -> int = fun x y ->
   | {left=TA; right=D z} -> z
 ;; (* fail *)
 [%%expect{|
+
 type ('a, 'b) pair = { right : 'a; left : 'b; }
+
 Line 8, characters 25-32:
 8 |   | {left=TE TC; right=D [|1.0|]} -> 14
                              ^^^^^^^
@@ -988,7 +1061,9 @@ let f : type a. a ty -> a t -> int = fun x y ->
   | {left=TA; right=D z} -> z
 ;; (* ok *)
 [%%expect{|
+
 type ('a, 'b) pair = { left : 'a; right : 'b; }
+
 Lines 4-10, characters 2-29:
  4 | ..match {left=x; right=y} with
  5 |   | {left=_; right=A z} -> z
@@ -1014,7 +1089,9 @@ let f : type a b. (a M.t, b M.t) eq -> (a, b) eq =
   function Eq -> Eq (* fail *)
 ;;
 [%%expect{|
+
 module M : sig type 'a t val eq : ('a t, 'b t) eq end
+
 Line 6, characters 17-19:
 6 |   function Eq -> Eq (* fail *)
                      ^^
@@ -1027,6 +1104,7 @@ let f : type a b. (a M.t * a, b M.t * b) eq -> (a, b) eq =
   function Eq -> Eq (* ok *)
 ;;
 [%%expect{|
+
 val f : ('a M.t * 'a, 'b M.t * 'b) eq -> ('a, 'b) eq = <fun>
 |}];;
 
@@ -1034,6 +1112,7 @@ let f : type a b. (a * a M.t, b * b M.t) eq -> (a, b) eq =
   function Eq -> Eq (* ok *)
 ;;
 [%%expect{|
+
 val f : ('a * 'a M.t, 'b * 'b M.t) eq -> ('a, 'b) eq = <fun>
 |}];;
 
@@ -1050,8 +1129,11 @@ let f : type a. a t -> a = function
 
 f V1;;
 [%%expect{|
+
 type _ t = V1 : [ `A | `B ] t | V2 : [ `C | `D ] t
+
 val f : 'a t -> 'a = <fun>
+
 - : [ `A | `B ] = `A
 |}];;
 
@@ -1069,8 +1151,11 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
   (x:<foo:int>)
 ;;
 [%%expect{|
+
 type _ int_foo = IF_constr : < foo : int; .. > int_foo
+
 type _ int_bar = IB_constr : < bar : int; .. > int_bar
+
 Line 10, characters 3-4:
 10 |   (x:<foo:int>)
         ^
@@ -1085,6 +1170,7 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
   (x:<foo:int;bar:int>)
 ;;
 [%%expect{|
+
 Line 3, characters 3-4:
 3 |   (x:<foo:int;bar:int>)
        ^
@@ -1099,6 +1185,7 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
   (x:<foo:int;bar:int;..>)
 ;;
 [%%expect{|
+
 Line 3, characters 2-26:
 3 |   (x:<foo:int;bar:int;..>)
       ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1106,6 +1193,7 @@ Error: This expression has type < bar : int; foo : int; .. >
        but an expression was expected of type 'a
        The type constructor $1 would escape its scope
 |}, Principal{|
+
 Line 3, characters 2-26:
 3 |   (x:<foo:int;bar:int;..>)
       ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1120,6 +1208,7 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) : t =
   (x:<foo:int;bar:int;..>)
 ;;
 [%%expect{|
+
 val g : 't -> 't int_foo -> 't int_bar -> 't = <fun>
 |}];;
 
@@ -1128,8 +1217,10 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
   x, x#foo, x#bar
 ;;
 [%%expect{|
+
 val g : 't -> 't int_foo -> 't int_bar -> 't * int * int = <fun>
 |}, Principal{|
+
 Line 3, characters 5-10:
 3 |   x, x#foo, x#bar
          ^^^^^
@@ -1149,8 +1240,11 @@ let g : type a. a ty -> a =
   let () = () in
   fun x -> match x with Int y -> y;;
 [%%expect{|
+
 type 'a ty = Int : int -> int ty
+
 val f : 'a ty -> 'a = <fun>
+
 val g : 'a ty -> 'a = <fun>
 |}];;
 
@@ -1160,8 +1254,11 @@ module M = struct type _ t = int end;;
 module M = struct type _ t = T : int t end;;
 module N = M;;
 [%%expect{|
+
 module M : sig type _ t = int end
+
 module M : sig type _ t = T : int t end
+
 module N = M
 |}];;
 
@@ -1176,6 +1273,7 @@ let f : type a b. (a,b) eq -> (a,int) eq -> a -> b -> _ = fun ab aint a b ->
   in ignore x
 ;; (* ok *)
 [%%expect{|
+
 val f : ('a, 'b) eq -> ('a, int) eq -> 'a -> 'b -> unit = <fun>
 |}];;
 
@@ -1187,6 +1285,7 @@ let f : type a b. (a,b) eq -> (b,int) eq -> a -> b -> _ = fun ab bint a b ->
   in ignore x
 ;; (* ok *)
 [%%expect{|
+
 val f : ('a, 'b) eq -> ('b, int) eq -> 'a -> 'b -> unit = <fun>
 |}];;
 
@@ -1198,6 +1297,7 @@ let f : type a b. (a,b) eq -> (a,int) eq -> a -> b -> _ = fun ab aint a b ->
   in ignore x
 ;; (* ok *)
 [%%expect{|
+
 Line 5, characters 24-25:
 5 |     if true then a else b
                             ^
@@ -1215,6 +1315,7 @@ let f : type a b. (a,b) eq -> (b,int) eq -> a -> b -> _ = fun ab bint a b ->
   in ignore x
 ;; (* ok *)
 [%%expect{|
+
 Line 5, characters 24-25:
 5 |     if true then a else b
                             ^
@@ -1230,6 +1331,7 @@ let f (type a b c) (b : bool) (w1 : (a,b) eq) (w2 : (a,int) eq) (x : a) (y : b) 
   if b then x else y
 ;;
 [%%expect{|
+
 Line 4, characters 19-20:
 4 |   if b then x else y
                        ^
@@ -1244,6 +1346,7 @@ let f (type a b c) (b : bool) (w1 : (a,b) eq) (w2 : (a,int) eq) (x : a) (y : b) 
   let Eq = w2 in
   if b then y else x
 [%%expect{|
+
 Line 4, characters 19-20:
 4 |   if b then y else x
                        ^
@@ -1261,8 +1364,11 @@ let f (x:M.t) (y: (M.t, int -> int) eq) =
   let Refl = y in
   if true then x else fun x -> x + 1
 [%%expect{|
+
 module M : sig type t end
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 Line 7, characters 22-36:
 7 |   if true then x else fun x -> x + 1
                           ^^^^^^^^^^^^^^
@@ -1281,8 +1387,11 @@ let f (x:M.t) (y: (M.t, int -> int) eq) =
   let Refl = y in
   if true then fun x -> x + 1 else x
 [%%expect{|
+
 module M : sig type t end
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 Line 7, characters 35-36:
 7 |   if true then fun x -> x + 1 else x
                                        ^
@@ -1301,8 +1410,11 @@ let f w (x:M.t) (y: (M.t, <m:int>) eq) =
   let z = if true then x else w in
   z#m
 [%%expect{|
+
 module M : sig type t end
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 Line 8, characters 2-3:
 8 |   z#m
       ^
@@ -1322,8 +1434,11 @@ let f w (x:M.t) (y: (M.t, <m:int>) eq) =
   let z = if true then w else x in
   z#m
 [%%expect{|
+
 module M : sig type t end
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 Line 8, characters 2-3:
 8 |   z#m
       ^
@@ -1344,12 +1459,15 @@ let f (C (x,y) : M.t) =
     z#b
   in ()
 [%%expect{|
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 module M :
   sig
     type t =
         C : (< m : int; .. > as 'a) * ('a, < b : bool; m : int >) eq -> t
   end
+
 Line 9, characters 4-5:
 9 |     z#b
         ^
@@ -1371,12 +1489,15 @@ let f (C (x,y) : M.t) =
     z#b
   in ()
 [%%expect{|
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 module M :
   sig
     type t =
         C : (< m : int; .. > as 'a) * ('a, < b : bool; m : int >) eq -> t
   end
+
 Line 9, characters 4-5:
 9 |     z#b
         ^

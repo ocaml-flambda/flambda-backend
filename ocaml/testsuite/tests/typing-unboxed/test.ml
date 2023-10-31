@@ -69,6 +69,7 @@ module Old_style_warning = struct
   external e : float -> float = "c" "float"
 end;;
 [%%expect{|
+
 Line 3, characters 2-61:
 3 |   external a : float -> float = "a" "noalloc" "a_nat" "float"
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -110,6 +111,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> (int [@untagged]) = "f" "f_nat"
@@ -133,6 +135,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : (int [@untagged]) -> int = "f" "f_nat"
@@ -156,6 +159,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : (int [@untagged]) -> int = "f" "f_nat"
@@ -179,6 +183,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : float -> (float [@unboxed]) = "f" "f_nat"
@@ -202,6 +207,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : (float [@unboxed]) -> float = "f" "f_nat"
@@ -225,6 +231,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : (float [@unboxed]) -> float = "f" "f_nat"
@@ -248,6 +255,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "f" "f_nat" [@@noalloc]
@@ -273,6 +281,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "f" "f_nat"
@@ -296,6 +305,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "f" "f_nat"
@@ -319,6 +329,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "a" "a_nat"
@@ -342,6 +353,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : float -> float = "f" "f_nat"
@@ -365,6 +377,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : float -> float = "f" "f_nat"
@@ -388,6 +401,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : float -> float = "a" "a_nat"
@@ -411,6 +425,7 @@ end = struct
 end;;
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "f" "f_nat"
@@ -436,6 +451,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f x = x + 1
@@ -463,6 +479,7 @@ end
    succeeded *)
 
 [%%expect{|
+
 Line 1:
 Error: The external function `f' is not available
 |}]
@@ -476,6 +493,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "gg" "f_nat"
@@ -499,6 +517,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "f" "gg_nat"
@@ -522,6 +541,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int = "gg" "gg_nat"
@@ -553,6 +573,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 4-6, characters 6-3:
 4 | ......struct
 5 |   external f : int -> int -> int = "f" "f_nat"
@@ -578,6 +599,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 3-6, characters 6-3:
 3 | ......struct
 4 |   type int_int = int -> int
@@ -607,6 +629,7 @@ end = struct
 end
 
 [%%expect{|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   external f : int -> int -> int = "f" "f_nat"
@@ -628,6 +651,7 @@ Error: Signature mismatch:
 
 external g : (float [@untagged]) -> float = "g" "g_nat";;
 [%%expect{|
+
 Line 1, characters 14-19:
 1 | external g : (float [@untagged]) -> float = "g" "g_nat";;
                   ^^^^^
@@ -635,6 +659,7 @@ Error: Don't know how to untag this type. Only int can be untagged.
 |}]
 external h : (int [@unboxed]) -> float = "h" "h_nat";;
 [%%expect{|
+
 Line 1, characters 14-17:
 1 | external h : (int [@unboxed]) -> float = "h" "h_nat";;
                   ^^^
@@ -645,6 +670,7 @@ Error: Don't know how to unbox this type.
 (* Bad: unboxing the function type *)
 external i : int -> float [@unboxed] = "i" "i_nat";;
 [%%expect{|
+
 Line 1, characters 13-25:
 1 | external i : int -> float [@unboxed] = "i" "i_nat";;
                  ^^^^^^^^^^^^
@@ -655,6 +681,7 @@ Error: Don't know how to unbox this type.
 (* Bad: unboxing a "deep" sub-type. *)
 external j : int -> (float [@unboxed]) * float = "j" "j_nat";;
 [%%expect{|
+
 Line 1, characters 21-26:
 1 | external j : int -> (float [@unboxed]) * float = "j" "j_nat";;
                          ^^^^^
@@ -668,6 +695,7 @@ Error: The attribute '@unboxed' should be attached to
 
 external k : int -> (float [@unboxd]) = "k" "k_nat";;
 [%%expect{|
+
 external k : int -> float = "k" "k_nat"
 |}]
 
@@ -675,6 +703,7 @@ external k : int -> float = "k" "k_nat"
 
 external l : float -> float = "l" "l_nat" "float" [@@unboxed];;
 [%%expect{|
+
 Line 1, characters 0-61:
 1 | external l : float -> float = "l" "l_nat" "float" [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -682,6 +711,7 @@ Error: Cannot use "float" in conjunction with [@unboxed]/[@untagged].
 |}]
 external m : (float [@unboxed]) -> float = "m" "m_nat" "float";;
 [%%expect{|
+
 Line 1, characters 0-62:
 1 | external m : (float [@unboxed]) -> float = "m" "m_nat" "float";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -689,6 +719,7 @@ Error: Cannot use "float" in conjunction with [@unboxed]/[@untagged].
 |}]
 external n : float -> float = "n" "noalloc" [@@noalloc];;
 [%%expect{|
+
 Line 1, characters 0-55:
 1 | external n : float -> float = "n" "noalloc" [@@noalloc];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -698,6 +729,7 @@ Error: Cannot use "noalloc" in conjunction with [@@noalloc].
 (* Warnings: unboxed / untagged without any native implementation *)
 external o : (float[@unboxed]) -> float = "o";;
 [%%expect{|
+
 Line 1, characters 0-45:
 1 | external o : (float[@unboxed]) -> float = "o";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -706,6 +738,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 external p : float -> (float[@unboxed]) = "p";;
 [%%expect{|
+
 Line 1, characters 0-45:
 1 | external p : float -> (float[@unboxed]) = "p";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -714,6 +747,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 external q : (int[@untagged]) -> float = "q";;
 [%%expect{|
+
 Line 1, characters 0-44:
 1 | external q : (int[@untagged]) -> float = "q";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -722,6 +756,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 external r : int -> (int[@untagged]) = "r";;
 [%%expect{|
+
 Line 1, characters 0-42:
 1 | external r : int -> (int[@untagged]) = "r";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -730,6 +765,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 external s : int -> int = "s" [@@untagged];;
 [%%expect{|
+
 Line 1, characters 0-42:
 1 | external s : int -> int = "s" [@@untagged];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -738,6 +774,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 external t : float -> float = "t" [@@unboxed];;
 [%%expect{|
+
 Line 1, characters 0-45:
 1 | external t : float -> float = "t" [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -748,6 +785,7 @@ Error: The native code version of the primitive is mandatory
 (* PR#7424 *)
 type 'a b = B of 'a b b [@@unboxed] [@@value];;
 [%%expect{|
+
 type 'a b : value = B of 'a b b [@@unboxed]
 |}]
 
@@ -756,7 +794,9 @@ type 'a b : value = B of 'a b b [@@unboxed]
 type i = I of int
 external id : i -> i = "%identity";;
 [%%expect{|
+
 type i = I of int
+
 Line 2, characters 0-34:
 2 | external id : i -> i = "%identity";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -776,8 +816,11 @@ type i = I of int
 type j = J of int
 external id : i -> j = "%identity";;
 [%%expect{|
+
 type i = I of int
+
 type j = J of int
+
 Line 3, characters 0-34:
 3 | external id : i -> j = "%identity";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -808,14 +851,18 @@ external id : i -> j = "%identity"
 type ib = I of int [@@boxed]
 external idb : ib -> ib = "%identity";;
 [%%expect{|
+
 type ib = I of int
+
 external idb : ib -> ib = "%identity"
 |}];;
 
 type iub = I of int [@@unboxed]
 external idub : iub -> iub = "%identity";;
 [%%expect{|
+
 type iub = I of int [@@unboxed]
+
 external idub : iub -> iub = "%identity"
 |}];;
 
@@ -827,7 +874,10 @@ end
 type t = T : 'k M.t -> t [@@unboxed]
 
 [%%expect{|
+
 module type T = sig type 'k t end
+
 module M : sig type 'k t = string end
+
 type t = T : 'k M.t -> t [@@unboxed]
 |}];;

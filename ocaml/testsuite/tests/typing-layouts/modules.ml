@@ -22,6 +22,7 @@ Error: Layout any is used here, but the appropriate layouts extension is not ena
 
 type t_void  : void;;
 [%%expect{|
+
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
@@ -39,6 +40,7 @@ module type S1 = sig
   type s
 end;;
 [%%expect {|
+
 Line 2, characters 13-17:
 2 |   type ('a : void) t
                  ^^^^
@@ -53,6 +55,7 @@ module type S1_2 = sig
   type ('a : immediate) t
 end;;
 [%%expect {|
+
 Line 2, characters 13-22:
 2 |   type ('a : immediate) t
                  ^^^^^^^^^
@@ -71,6 +74,7 @@ module type S2 = sig
   type ('a : immediate) t
 end;;
 [%%expect{|
+
 Line 2, characters 13-22:
 2 |   type ('a : immediate) t
                  ^^^^^^^^^
@@ -92,6 +96,7 @@ end = struct
   type t = unit
 end;;
 [%%expect {|
+
 module rec Foo3 : sig val create : Bar3.t -> unit end
 and Bar3 : sig type t end
 |}];;
@@ -111,6 +116,7 @@ end = struct
   type t : void
 end;;
 [%%expect {|
+
 Line 8, characters 11-15:
 8 |   type t : void
                ^^^^
@@ -129,6 +135,7 @@ end = struct
   type t = A
 end;;
 [%%expect {|
+
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -147,6 +154,7 @@ end = struct
   type t = A
 end;;
 [%%expect {|
+
 module rec Foo3 : sig type t = Bar3.t end
 and Bar3 : sig type t : immediate end
 |}];;
@@ -174,7 +182,9 @@ end
 
 module type S3_2' = S3_2 with type t := string;;
 [%%expect{|
+
 module type S3_2 = sig type t : immediate end
+
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
@@ -191,6 +201,7 @@ module type S6_1 = sig
   type t : void
 end
 [%%expect{|
+
 Line 2, characters 11-15:
 2 |   type t : void
                ^^^^
@@ -206,7 +217,9 @@ module type S6_6 = sig
   val m : (module S6_5 with type t = string)
 end
 [%%expect{|
+
 module type S6_5 = sig type t : immediate end
+
 Line 6, characters 10-44:
 6 |   val m : (module S6_5 with type t = string)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -224,6 +237,7 @@ module type S6_6' = sig
   val m : (module S6_5 with type t = s)
 end
 [%%expect{|
+
 Line 3, characters 10-39:
 3 |   val m : (module S6_5 with type t = s)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -245,6 +259,7 @@ module type S6_6'' = sig
   val m : (module S6_5 with type t = int)
 end;;
 [%%expect{|
+
 Line 3, characters 10-41:
 3 |   val m : (module S6_5 with type t = int)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -263,6 +278,7 @@ module F (_ : sig end) = struct
   assert false
 end;;
 [%%expect {|
+
 module F : sig end -> sig end
 |}];;
 

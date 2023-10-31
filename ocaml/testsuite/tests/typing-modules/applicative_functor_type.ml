@@ -32,12 +32,14 @@ Error: Modules do not match:
 module F(X : sig type t = M.t val equal : unit end)
   = struct type t end
 [%%expect{|
+
 module F :
   functor (X : sig type t = M.t val equal : unit end) -> sig type t end
 |} ]
 
 type t = F(M).t
 [%%expect{|
+
 Line 1, characters 9-15:
 1 | type t = F(M).t
              ^^^^^^
@@ -55,11 +57,13 @@ Error: Modules do not match:
 (* MPR#7611 *)
 module Generative() = struct type t end
 [%%expect{|
+
 module Generative : functor () -> sig type t end
 |}]
 
 type t = Generative(M).t
 [%%expect{|
+
 Line 1, characters 9-24:
 1 | type t = Generative(M).t
              ^^^^^^^^^^^^^^^
@@ -73,6 +77,7 @@ module F(X : sig module type S module F : S end) = struct
   type t = X.F(Parsing).t
 end
 [%%expect{|
+
 Line 2, characters 11-25:
 2 |   type t = X.F(Parsing).t
                ^^^^^^^^^^^^^^

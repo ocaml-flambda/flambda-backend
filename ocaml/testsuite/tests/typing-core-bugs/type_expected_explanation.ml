@@ -17,6 +17,7 @@ Error: This expression has type int but an expression was expected of type
 fun b -> if true then (print_int b) else (if b then ());;
 
 [%%expect{|
+
 Line 1, characters 45-46:
 1 | fun b -> if true then (print_int b) else (if b then ());;
                                                  ^
@@ -30,6 +31,7 @@ Error: This expression has type int but an expression was expected of type
 fun b -> if true then (if b then ()) else (print_int b);;
 
 [%%expect{|
+
 Line 1, characters 53-54:
 1 | fun b -> if true then (if b then ()) else (print_int b);;
                                                          ^
@@ -40,6 +42,7 @@ Error: This expression has type bool but an expression was expected of type
 if (let x = 3 in x) then ();;
 
 [%%expect{|
+
 Line 1, characters 17-18:
 1 | if (let x = 3 in x) then ();;
                      ^
@@ -51,6 +54,7 @@ Error: This expression has type int but an expression was expected of type
 if (if true then 3 else 4) then ();;
 
 [%%expect{|
+
 Line 1, characters 17-18:
 1 | if (if true then 3 else 4) then ();;
                      ^
@@ -62,6 +66,7 @@ Error: This expression has type int but an expression was expected of type
 if true then 3;;
 
 [%%expect{|
+
 Line 1, characters 13-14:
 1 | if true then 3;;
                  ^
@@ -73,6 +78,7 @@ Error: This expression has type int but an expression was expected of type
 if (fun x -> x) then ();;
 
 [%%expect{|
+
 Line 1, characters 3-15:
 1 | if (fun x -> x) then ();;
        ^^^^^^^^^^^^
@@ -83,6 +89,7 @@ Error: This expression should not be a function, the expected type is
 while 42 do () done;;
 
 [%%expect{|
+
 Line 1, characters 6-8:
 1 | while 42 do () done;;
           ^^
@@ -96,6 +103,7 @@ Error: This expression has type int but an expression was expected of type
 while true do (if true then 3 else 4) done;;
 
 [%%expect{|
+
 Line 1, characters 14-37:
 1 | while true do (if true then 3 else 4) done;;
                   ^^^^^^^^^^^^^^^^^^^^^^^
@@ -107,6 +115,7 @@ Error: This expression has type int but an expression was expected of type
 for i = 3. to 4 do () done;;
 
 [%%expect{|
+
 Line 1, characters 8-10:
 1 | for i = 3. to 4 do () done;;
             ^^
@@ -118,6 +127,7 @@ Error: This expression has type float but an expression was expected of type
 for i = 3 to 4. do () done;;
 
 [%%expect{|
+
 Line 1, characters 13-15:
 1 | for i = 3 to 4. do () done;;
                  ^^
@@ -131,6 +141,7 @@ Error: This expression has type float but an expression was expected of type
 for i = 0 to 0 do (if true then 3 else 4) done;;
 
 [%%expect{|
+
 Line 1, characters 18-41:
 1 | for i = 0 to 0 do (if true then 3 else 4) done;;
                       ^^^^^^^^^^^^^^^^^^^^^^^
@@ -142,6 +153,7 @@ Error: This expression has type int but an expression was expected of type
 assert 12;;
 
 [%%expect{|
+
 Line 1, characters 7-9:
 1 | assert 12;;
            ^^
@@ -154,6 +166,7 @@ Error: This expression has type int but an expression was expected of type
 (let x = 3 in x+1); ();;
 
 [%%expect{|
+
 Line 1, characters 0-18:
 1 | (let x = 3 in x+1); ();;
     ^^^^^^^^^^^^^^^^^^
@@ -167,6 +180,7 @@ let ordered_list_with x y =
   else if x > y then [y;x]
 
 [%%expect{|
+
 Line 3, characters 22-26:
 3 |   else if x > y then [y;x]
                           ^^^^
@@ -180,6 +194,7 @@ Error: This variant expression is expected to have type unit
   | _ -> ());;
 
 [%%expect{|
+
 Line 2, characters 11-16:
 2 |   | y when y + 1 -> ()
                ^^^^^
@@ -191,6 +206,7 @@ Error: This expression has type int but an expression was expected of type
 (* #10106 *)
 if false then (match () with () -> true);;
 [%%expect{|
+
 Line 1, characters 35-39:
 1 | if false then (match () with () -> true);;
                                        ^^^^

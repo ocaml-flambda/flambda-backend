@@ -44,6 +44,7 @@ Error: The type constraints are not consistent.
 
 type distinct_sarg = unit constraint unique_ int -> int = int -> int
 [%%expect{|
+
 Line 1, characters 37-68:
 1 | type distinct_sarg = unit constraint unique_ int -> int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -52,6 +53,7 @@ Error: The type constraints are not consistent.
 |}]
 type distinct_sret = unit constraint int -> unique_ int = int -> int
 [%%expect{|
+
 Line 1, characters 37-68:
 1 | type distinct_sret = unit constraint int -> unique_ int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -60,6 +62,7 @@ Error: The type constraints are not consistent.
 |}]
 type distinct_sarg_sret = unit constraint unique_ int -> int = unique_ int -> unique_ int
 [%%expect{|
+
 Line 1, characters 42-89:
 1 | type distinct_sarg_sret = unit constraint unique_ int -> int = unique_ int -> unique_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

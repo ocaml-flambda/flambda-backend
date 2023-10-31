@@ -27,14 +27,18 @@ Error: This pattern matches values of type int t
 let w_buffer : Buffer.t t = Obj.magic 0;;
 let f_buffer (x : Buffer.t) : int = let Int = w_buffer in x;; (* ok *)
 [%%expect{|
+
 val w_buffer : Buffer.t t = Int
+
 val f_buffer : Buffer.t -> int = <fun>
 |}];;
 
 let w_spec : Arg.spec t = Obj.magic 0;;
 let f_spec (x : Arg.spec) : int = let Int = w_spec in x;; (* fail *)
 [%%expect{|
+
 val w_spec : Arg.spec t = Int
+
 Line 2, characters 38-41:
 2 | let f_spec (x : Arg.spec) : int = let Int = w_spec in x;; (* fail *)
                                           ^^^
@@ -47,15 +51,19 @@ module M : sig type u val w : u t val x : u end =
   struct type u = int let w = Int let x = 33 end;;
 let m_x : int = let Int = M.w in M.x;;
 [%%expect{|
+
 module M : sig type u val w : u t val x : u end
+
 val m_x : int = 33
 |}];;
 
 module F (X : sig type u = int val x : u end) = struct let x : int = X.x end;;
 let fm_x : int = let Int = M.w in let module FM = F(M) in FM.x;; (* ok *)
 [%%expect{|
+
 module F :
   functor (X : sig type u = int val x : u end) -> sig val x : int end
+
 val fm_x : int = 33
 |}];;
 
@@ -65,10 +73,13 @@ module F' (X : sig module M : sig type u = int val x : u end end) =
 let fm'_x : int =
   let Int = M'.M.w in let module FM' = F'(M') in FM'.x;; (* ok *)
 [%%expect{|
+
 module M' : sig module M : sig type u val w : u t val x : u end end
+
 module F' :
   functor (X : sig module M : sig type u = int val x : u end end) ->
     sig val x : int end
+
 val fm'_x : int = 33
 |}];;
 
@@ -86,7 +97,10 @@ module F (M : S) = struct
     let Refl = M.eql in 0
 end;;
 [%%expect{|
+
 type (_, _) eq = Refl : ('a, 'a) eq
+
 module type S = sig type t val eql : (t, int) eq end
+
 module F : functor (M : S) -> sig val zero : M.t end
 |}];;

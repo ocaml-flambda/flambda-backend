@@ -39,6 +39,7 @@ end = struct
     | Foo of float
 end;;
 [%%expect{|
+
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   type t =
@@ -68,6 +69,7 @@ end = struct
     | Foo of {x : float; y : int}
 end;;
 [%%expect{|
+
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   type t =
@@ -101,6 +103,7 @@ end = struct
     | Foo of float
 end;;
 [%%expect{|
+
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   type t =
@@ -130,6 +133,7 @@ end = struct
     | Foo of 'a
 end;;
 [%%expect{|
+
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   type 'a t =
@@ -157,6 +161,7 @@ end = struct
   type ('a, 'b) t = A of 'b
 end;;
 [%%expect {|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type ('a, 'b) t = A of 'b
@@ -183,6 +188,7 @@ end = struct
   type ('b, 'a) t = A of 'a
 end;;
 [%%expect {|
+
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type ('b, 'a) t = A of 'a
@@ -222,6 +228,7 @@ end = struct
     | D
 end
 [%%expect {|
+
 Lines 9-16, characters 6-3:
  9 | ......struct
 10 |   type t =
@@ -257,6 +264,7 @@ end = struct
     | D
 end
 [%%expect {|
+
 Lines 7-12, characters 6-3:
  7 | ......struct
  8 |   type t =
@@ -299,6 +307,7 @@ end = struct
 end
 
 [%%expect {|
+
 Lines 10-20, characters 6-3:
 10 | ......struct
 11 |   type t =
@@ -343,6 +352,7 @@ end = struct
     | E
 end
 [%%expect {|
+
 Lines 10-17, characters 6-3:
 10 | ......struct
 11 |   type t =
@@ -384,6 +394,7 @@ end = struct
     | C
 end
 [%%expect {|
+
 Lines 9-17, characters 6-3:
  9 | ......struct
 10 |   type t =

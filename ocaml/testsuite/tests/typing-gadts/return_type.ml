@@ -17,7 +17,9 @@ Error: Constraints are not satisfied in this type.
 type 'a t = T : i t
 type 'a s = 'a t = T : i t
 [%%expect{|
+
 type 'a t = T : i t
+
 Line 2, characters 23-26:
 2 | type 'a s = 'a t = T : i t
                            ^^^
@@ -28,6 +30,7 @@ Error: Constraints are not satisfied in this type.
 type 'a t = T : i s
 and  'a s = 'a t
 [%%expect{|
+
 Line 1, characters 16-19:
 1 | type 'a t = T : i s
                     ^^^

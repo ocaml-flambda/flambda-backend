@@ -15,6 +15,7 @@ Error: This pattern matches values of type [? `A | `B ]
 |}];;
 let f x = ignore (match x with #ab -> 1); ignore (x : [`A]);;
 [%%expect{|
+
 Line 1, characters 31-34:
 1 | let f x = ignore (match x with #ab -> 1); ignore (x : [`A]);;
                                    ^^^
@@ -24,6 +25,7 @@ Error: This pattern matches values of type [? `B ]
 |}];;
 let f x = ignore (match x with `A|`B -> 1); ignore (x : [`A]);;
 [%%expect{|
+
 Line 1, characters 34-36:
 1 | let f x = ignore (match x with `A|`B -> 1); ignore (x : [`A]);;
                                       ^^
@@ -34,6 +36,7 @@ Error: This pattern matches values of type [? `B ]
 
 let f (x : [< `A | `B]) = match x with `A | `B | `C -> 0;; (* warn *)
 [%%expect{|
+
 Line 1, characters 49-51:
 1 | let f (x : [< `A | `B]) = match x with `A | `B | `C -> 0;; (* warn *)
                                                      ^^
@@ -43,6 +46,7 @@ val f : [< `A | `B ] -> int = <fun>
 |}];;
 let f (x : [`A | `B]) = match x with `A | `B | `C -> 0;; (* fail *)
 [%%expect{|
+
 Line 1, characters 47-49:
 1 | let f (x : [`A | `B]) = match x with `A | `B | `C -> 0;; (* fail *)
                                                    ^^
@@ -64,13 +68,21 @@ function (`A|`B), _ -> 0 | _,(`A|`B) -> 1;;
 function `B,1 -> 1 | _,1 -> 2;;
 function 1,`B -> 1 | 1,_ -> 2;;
 [%%expect {|
+
 type t = A | B
+
 - : [> `A ] * t -> int = <fun>
+
 - : [> `A ] * t -> int = <fun>
+
 - : [> `A ] option * t -> int = <fun>
+
 - : [> `A ] option * t -> int = <fun>
+
 - : t * [< `A | `B ] -> int = <fun>
+
 - : [< `A | `B ] * t -> int = <fun>
+
 Line 9, characters 0-41:
 9 | function (`A|`B), _ -> 0 | _,(`A|`B) -> 1;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -79,6 +91,7 @@ Here is an example of a case that is not matched:
 (`AnyOtherTag, `AnyOtherTag)
 
 - : [> `A | `B ] * [> `A | `B ] -> int = <fun>
+
 Line 10, characters 0-29:
 10 | function `B,1 -> 1 | _,1 -> 2;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -92,6 +105,7 @@ Line 10, characters 21-24:
 Warning 11 [redundant-case]: this match case is unused.
 
 - : [< `B ] * int -> int = <fun>
+
 Line 11, characters 0-29:
 11 | function 1,`B -> 1 | 1,_ -> 2;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -115,7 +129,9 @@ let f x (g : [< `Foo]) =
   revapply y (fun ((`Bar i), _) -> i);;
 (* f : 'a -> [< `Foo ] -> 'a *)
 [%%expect{|
+
 val revapply : 'a -> ('a -> 'b) -> 'b = <fun>
+
 val f : 'a -> [< `Foo ] -> 'a = <fun>
 |}];;
 
@@ -123,6 +139,7 @@ val f : 'a -> [< `Foo ] -> 'a = <fun>
 let f : ([`A | `B ] as 'a) -> [> 'a] -> unit = fun x (y : [> 'a]) -> ();;
 let f (x : [`A | `B] as 'a) (y : [> 'a]) = ();;
 [%%expect{|
+
 Line 1, characters 61-63:
 1 | let f : ([`A | `B ] as 'a) -> [> 'a] -> unit = fun x (y : [> 'a]) -> ();;
                                                                  ^^
@@ -133,6 +150,7 @@ Hint: Did you mean `a?
 (* PR#5927 *)
 type 'a foo = 'a constraint 'a = [< `Tag of & int];;
 [%%expect{|
+
 type 'a foo = 'a constraint 'a = [< `Tag of & int ]
 |}]
 
@@ -140,7 +158,9 @@ type 'a foo = 'a constraint 'a = [< `Tag of & int ]
 type t = private [> `A of string ];;
 function (`A x : t) -> x;;
 [%%expect{|
+
 type t = private [> `A of string ]
+
 Line 2, characters 0-24:
 2 | function (`A x : t) -> x;;
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -153,6 +173,7 @@ Here is an example of a case that is not matched:
 
 let f = function `AnyOtherTag, _ -> 1 | _, (`AnyOtherTag|`AnyOtherTag') -> 2;;
 [%%expect{|
+
 Line 1, characters 8-76:
 1 | let f = function `AnyOtherTag, _ -> 1 | _, (`AnyOtherTag|`AnyOtherTag') -> 2;;
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -165,6 +186,7 @@ val f : [> `AnyOtherTag ] * [> `AnyOtherTag | `AnyOtherTag' ] -> int = <fun>
 
 let x:(([`A] as 'a)* ([`B] as 'a)) = [`A]
 [%%expect {|
+
 Line 1, characters 22-32:
 1 | let x:(([`A] as 'a)* ([`B] as 'a)) = [`A]
                           ^^^^^^^^^^
@@ -176,7 +198,9 @@ Error: This alias is bound to type [ `B ] but is used as an instance of type
 type t = private [< `A]
 let f: t -> [ `A ] = fun x -> x
 [%%expect {|
+
 type t = private [< `A ]
+
 Line 2, characters 30-31:
 2 | let f: t -> [ `A ] = fun x -> x
                                   ^
@@ -192,6 +216,7 @@ type ('a,'b,'c,'d,'e) a = [ `A of ('d,'a,'e,'c,'b) b ]
 and  ('a,'b,'c,'d,'e) b = [ `B of ('c,'d,'e,'a,'b) c ]
 and  ('a,'b,'c,'d,'e) c = [ `C of ('a,'b,'c,'d,'e) a ]
 [%%expect {|
+
 Line 3, characters 0-54:
 3 | type ('a,'b,'c,'d,'e) a = [ `A of ('d,'a,'e,'c,'b) b ]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -216,19 +241,24 @@ let inspect: [< t ] -> unit = function
   | `A 0 -> ()
   | `A _ -> ()
 [%%expect {|
+
 type a = int
+
 type t = [ `A of a ]
+
 val inspect : [< `A of a & int ] -> unit = <fun>
 |}]
 
 (** Error messages with weakly polymorphic row variables *)
 let x = Fun.id (function `X -> () | _ -> ())
 [%%expect {|
+
 val x : ([> `X ] as '_weak1) -> unit = <fun>
 |}]
 
 let x = let rec x = `X (`Y (fun y -> x = y)) in Fun.id x
 [%%expect {|
+
 val x : [> `X of [> `Y of '_weak2 -> bool ] as '_weak3 ] as '_weak2 =
   `X (`Y <fun>)
 |}]

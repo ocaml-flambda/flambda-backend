@@ -170,9 +170,13 @@ module type ext
 module type fst_ext = fst with module type t = ext
 module type fst_ext = fst with module type t := ext
 [%%expect {|
+
 module type fst = sig module type t val x : (module t) end
+
 module type ext
+
 module type fst_ext = sig module type t = ext val x : (module t) end
+
 module type fst_ext = sig val x : (module ext) end
 |}]
 
@@ -180,6 +184,7 @@ module type fst_ext = sig val x : (module ext) end
 
 module type fst_erased = fst with module type t := sig end
 [%%expect {|
+
 Line 1, characters 25-58:
 1 | module type fst_erased = fst with module type t := sig end
                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -188,6 +193,7 @@ Error: This `with' constraint t := sig end makes a packed module ill-formed.
 
 module type fst_ok = fst with module type t = sig end
 [%%expect {|
+
 module type fst_ok = sig module type t = sig end val x : (module t) end
 |}]
 
@@ -200,7 +206,9 @@ end
 
 module type R = S with module type M.T := sig end
 [%%expect {|
+
 module type S = sig module M : sig module type T end val x : (module M.T) end
+
 Line 8, characters 16-49:
 8 | module type R = S with module type M.T := sig end
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -218,7 +226,9 @@ end
 
 module type R = S with module type M.T := sig end
 [%%expect {|
+
 module type S = sig module M : sig module type T val x : (module T) end end
+
 Line 8, characters 16-49:
 8 | module type R = S with module type M.T := sig end
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -234,6 +244,7 @@ module type s = sig
   module type s = sig include u type a = A end
 end
 [%%expect {|
+
 module type s =
   sig
     module type r = sig type r type a type b type c end
@@ -247,6 +258,7 @@ module type s = sig
   module type wrong = sig type a include u end
 end
 [%%expect {|
+
 Line 3, characters 33-42:
 3 |   module type wrong = sig type a include u end
                                      ^^^^^^^^^
@@ -259,6 +271,7 @@ module type fst = sig
   val x: (module t)
 end
 [%%expect {|
+
 Line 3, characters 2-19:
 3 |   val x: (module t)
       ^^^^^^^^^^^^^^^^^
@@ -274,5 +287,6 @@ module type hidden = sig
   val x: int
 end
 [%%expect {|
+
 module type hidden = sig type u val x : int end
 |}]

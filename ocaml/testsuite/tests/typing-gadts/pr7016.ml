@@ -25,6 +25,7 @@ let get1' = function
   | (Cons (x, _) : (_ * 'a, 'a) t) -> x
   | Nil -> assert false ;; (* ok *)
 [%%expect{|
+
 Line 3, characters 4-7:
 3 |   | Nil -> assert false ;; (* ok *)
         ^^^

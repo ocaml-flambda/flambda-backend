@@ -17,6 +17,7 @@ Error: The local extension is disabled
 
 let cast (x : fn) = (x : lfn)
 [%%expect{|
+
 Line 1, characters 21-22:
 1 | let cast (x : fn) = (x : lfn)
                          ^
@@ -28,6 +29,7 @@ let local_ref (f : lfn -> unit) =
   f (fun s -> let _ = [|s;s;s|] in 1)
 
 [%%expect{|
+
 Line 2, characters 24-25:
 2 |   f (fun s -> let _ = [|s;s;s|] in 1)
                             ^
@@ -38,6 +40,7 @@ type foo = {
   x : string
 }
 [%%expect{|
+
 type foo = { x : string; }
 |}]
 
@@ -45,12 +48,14 @@ type gfoo = {
   x : string [@ocaml.global]
 }
 [%%expect{|
+
 type gfoo = { x : (string [@global]); }
 |}]
 type gfoo' = {
   global_ x :  string
 }
 [%%expect{|
+
 Line 2, characters 2-21:
 2 |   global_ x :  string
       ^^^^^^^^^^^^^^^^^^^
@@ -62,6 +67,7 @@ let cast  ((r : foo)[@ocaml.local]) : gfoo =
   match r with
   | {x} -> {x}
 [%%expect{|
+
 Line 3, characters 12-13:
 3 |   | {x} -> {x}
                 ^
@@ -70,14 +76,17 @@ Error: This value escapes its region
 
 type foo = Foo of string
 [%%expect{|
+
 type foo = Foo of string
 |}]
 type gfoo = GFoo of (string [@ocaml.global])
 [%%expect{|
+
 type gfoo = GFoo of (string [@global])
 |}]
 type gfoo' = Gfoo of global_ string
 [%%expect{|
+
 Line 1, characters 29-35:
 1 | type gfoo' = Gfoo of global_ string
                                  ^^^^^^
@@ -91,6 +100,7 @@ let cast ((r : foo)[@ocaml.local]) : gfoo =
   | Foo x -> GFoo x
 
 [%%expect{|
+
 Line 3, characters 18-19:
 3 |   | Foo x -> GFoo x
                       ^

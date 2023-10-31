@@ -133,6 +133,7 @@ module Make3 (T' : S) = struct
   end
 end;;
 [%%expect{|
+
 module Make3 :
   functor
     (T' : sig
@@ -150,7 +151,9 @@ module M = Make1 (struct module Term0 =
   struct module Id = struct let x = "a" end end module T = Term0 end);;
 M.Id.x;;
 [%%expect{|
+
 module M : sig module Id : sig end module Id2 = Id end
+
 Line 3, characters 0-6:
 3 | M.Id.x;;
     ^^^^^^
@@ -180,13 +183,16 @@ end;;
 
 module M = Make1(IS);;
 [%%expect{|
+
 module MkT : functor (X : sig end) -> sig type t end
+
 module type S =
   sig
     module Term0 : sig module Id : sig end end
     module T = Term0
     type t = MkT(T).t
   end
+
 module Make1 :
   functor
     (T' : sig
@@ -195,12 +201,14 @@ module Make1 :
             type t = MkT(T).t
           end)
     -> sig module Id : sig end module Id2 = Id type t = T'.t end
+
 module IS :
   sig
     module Term0 : sig module Id : sig val x : string end end
     module T = Term0
     type t = MkT(T).t
   end
+
 module M : sig module Id : sig end module Id2 = Id type t = IS.t end
 |}]
 
@@ -229,7 +237,9 @@ module rec M1 : S' with module Term0 := Asc and module T := Desc = M1;;
 (* And now we have a witness of MkT(Asc).t = MkT(Desc).t ... *)
 let (E eq : M1.u) = (E Eq : M1.t);;
 [%%expect{|
+
 type (_, _) eq = Eq : ('a, 'a) eq
+
 module MkT :
   functor (X : Set.OrderedType) ->
     sig
@@ -279,6 +289,7 @@ module MkT :
       val add_seq : elt Seq.t -> t -> t
       val of_seq : elt Seq.t -> t
     end
+
 module type S =
   sig
     module Term0 : sig type t = int val compare : t -> t -> int end
@@ -286,6 +297,7 @@ module type S =
     type t = E of (MkT(T).t, MkT(T).t) eq
     type u = t = E of (MkT(Term0).t, MkT(T).t) eq
   end
+
 module F :
   functor
     (X : sig
@@ -301,7 +313,9 @@ module F :
       type t = X.t = E of (MkT(T).t, MkT(T).t) eq
       type u = t = E of (MkT(Term0).t, MkT(T).t) eq
     end
+
 module rec M : S
+
 module M' :
   sig
     module Term0 : sig type t = int val compare : t -> t -> int end
@@ -309,6 +323,7 @@ module M' :
     type t = M.t = E of (MkT(T).t, MkT(T).t) eq
     type u = t = E of (MkT(Term0).t, MkT(T).t) eq
   end
+
 module type S' =
   sig
     module Term0 : sig type t = int val compare : t -> t -> int end
@@ -316,8 +331,11 @@ module type S' =
     type t = M.t = E of (MkT(T).t, MkT(T).t) eq
     type u = t = E of (MkT(Term0).t, MkT(T).t) eq
   end
+
 module Asc : sig type t = int val compare : int -> int -> int end
+
 module Desc : sig type t = int val compare : int -> int -> int end
+
 Line 15, characters 0-69:
 15 | module rec M1 : S' with module Term0 := Asc and module T := Desc = M1;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

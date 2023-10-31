@@ -56,7 +56,9 @@ let f x =
   | T _ -> (x :> [`A | `C] Element.t)
 ;;
 [%%expect{|
+
 type _ t = T : 'a -> 'a t
+
 val f : [ `A ] Element.t -> [ `A | `C ] Element.t = <fun>
 |}];;
 
@@ -66,6 +68,7 @@ let f () =
   (x :> [ `A | `C ] Element.t)
 ;;
 [%%expect{|
+
 val f : unit -> [ `A | `C ] Element.t = <fun>
 |}];;
 
@@ -75,5 +78,6 @@ let f () =
   (x :> [ `A | `C ] Element.t)
 ;;
 [%%expect{|
+
 val f : unit -> [ `A | `C ] Element.t = <fun>
 |}];;

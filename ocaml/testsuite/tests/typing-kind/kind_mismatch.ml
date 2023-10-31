@@ -18,7 +18,9 @@ Error: This variant or record definition does not match that of type T0.t
 type t2a = ..
 type t2b = t2a = A2 | B2;;
 [%%expect {|
+
 type t2a = ..
+
 Line 2, characters 0-24:
 2 | type t2b = t2a = A2 | B2;;
     ^^^^^^^^^^^^^^^^^^^^^^^^
