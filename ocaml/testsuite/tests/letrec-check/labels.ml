@@ -25,7 +25,9 @@ and y =
   let _ = g in (* ignore g to have a real dependency *)
   ref "foo";;
 [%%expect {|
+
 val f : int -> y:int -> int = <fun>
+
 Line 6, characters 12-38:
 6 | let rec g = f ~y:(print_endline !y; 0)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
