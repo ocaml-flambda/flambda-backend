@@ -74,7 +74,9 @@ runtime-stdlib: boot-compiler
 	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
-	$(dune) build $(ws_main) --only-package=ocaml @install $(ocamldir)/ocamltest/ocamltest.byte
+	$(dune) build $(ws_main) --only-package=ocaml @install \
+	  $(ocamldir)/ocamltest/ocamltest.byte \
+	  $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
 	$(dune) runtest $(ws_main)
@@ -271,7 +273,7 @@ install_for_test: _install
 	mkdir _runtest/tools
 	ln -s ../_install/bin/ocamlmklib.byte _runtest/tools/ocamlmklib
 	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
-	ln -s ../_install/bin/dumpobj.byte _runtest/tools/dumpobj
+	ln -s ../../_build/main/ocaml/tools/dumpobj.bc _runtest/tools/dumpobj
         # ocamldoc
 	rm _runtest/ocamldoc
 	mkdir _runtest/ocamldoc
