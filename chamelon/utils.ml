@@ -27,6 +27,7 @@ let rec replace_id_in_path path to_rep =
   | Papply (p1, p2) ->
       Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
   | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
+  | Pextra_ty (p, extra_ty) -> Pextra_ty (replace_id_in_path p to_rep, extra_ty)
 
 let replace_id_exp_desc id to_replace =
   {
@@ -53,6 +54,7 @@ let rec print_path p =
   | Pident id -> Ident.name id
   | Pdot (p, s) -> print_path p ^ "." ^ s
   | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
+  | Pextra_ty _ -> Format.asprintf "%a" Path.print p
 
 (** [replace_path path n_path] is a mapper replacing each occurence of the path [path] by [n_path]*)
 let replace_path path n_path =
