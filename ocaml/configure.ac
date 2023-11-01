@@ -731,7 +731,7 @@ AS_CASE([$ocaml_cv_cc_vendor],
     cc_warnings=''],
   [outputobj='-o '
   warn_error_flag='-Werror'
-  cc_warnings="-Wall -Wint-conversion -Wstrict-prototypes \
+  cc_warnings="-Wall -Wno-pragmas -Wint-conversion -Wstrict-prototypes \
 -Wold-style-definition"])
 
 AS_CASE([$enable_warn_error,OCAML__DEVELOPMENT_VERSION],
