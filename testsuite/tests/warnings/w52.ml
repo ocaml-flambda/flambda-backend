@@ -15,7 +15,6 @@ and may change in future versions. (see manual section 13.5.3)
 
 let () = try () with Match_failure ("Any",_,_) -> ();;
 [%%expect{|
-
 Line 1, characters 35-46:
 1 | let () = try () with Match_failure ("Any",_,_) -> ();;
                                        ^^^^^^^^^^^
@@ -26,7 +25,6 @@ and may change in future versions. (see manual section 13.5.3)
 
 let () = try () with Match_failure (_,0,_) -> ();;
 [%%expect{|
-
 Line 1, characters 35-42:
 1 | let () = try () with Match_failure (_,0,_) -> ();;
                                        ^^^^^^^
@@ -41,7 +39,6 @@ type t =
   | Warn' of nativeint [@ocaml.warn_on_literal_pattern]
   | Deep of (string * int) list [@ocaml.warn_on_literal_pattern];;
 [%%expect{|
-
 type t =
     Warn of string
   | Without_warning of string
@@ -53,7 +50,6 @@ let f = function
 | Warn "anything" -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-
 Line 2, characters 7-17:
 2 | | Warn "anything" -> ()
            ^^^^^^^^^^
@@ -68,7 +64,6 @@ let g = function
 | Warn' 0n -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-
 Line 2, characters 8-10:
 2 | | Warn' 0n -> ()
             ^^
@@ -83,7 +78,6 @@ let h = function
 | Without_warning "outside" -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-
 val h : t -> unit = <fun>
 |}];;
 
@@ -91,7 +85,6 @@ let i = function
 | Deep (_ :: _ :: _ :: _) -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-
 val i : t -> unit = <fun>
 |}];;
 
@@ -99,7 +92,6 @@ let j = function
 | Deep (_ :: _ :: ("deep",_) :: _) -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-
 Line 2, characters 7-34:
 2 | | Deep (_ :: _ :: ("deep",_) :: _) -> ()
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
