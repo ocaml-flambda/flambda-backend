@@ -134,17 +134,24 @@ regen-flambda2-test-dune-rules: $(dune_config_targets)
 build_upstream: ocaml/config.status
 	rsync -a ocaml/ _build_upstream
 	(cd _build_upstream && \
-	    $(MAKE) world.opt && \
-	    $(MAKE) ocamlnat)
+	    $(MAKE) -f Makefile.jst runtest-upstream)
+
+# Old "make" version for build_upstream:
+#	(cd _build_upstream && \
+#    $(MAKE) world.opt && \
+#    $(MAKE) ocamlnat)
 
 .PHONY: install_upstream
 install_upstream: build_upstream
-	(cd _build_upstream && $(MAKE) install)
+	(cd _build_upstream && $(MAKE) -f Makefile.jst install)
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
 	ln -s ocamltoplevel.cmxa \
 	  $(prefix)/lib/ocaml/compiler-libs/ocamlopttoplevel.cmxa
 	ln -s ocamltoplevel.a \
 	  $(prefix)/lib/ocaml/compiler-libs/ocamlopttoplevel.a
+
+# Old "make" version for install_upstream:
+#	(cd _build_upstream && $(MAKE) install)
 
 .PHONY: build_and_test_upstream
 build_and_test_upstream: build_upstream
