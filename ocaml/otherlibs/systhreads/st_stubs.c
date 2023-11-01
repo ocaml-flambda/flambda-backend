@@ -247,27 +247,29 @@ static void thread_save_runtime_state(void)
 {
   if (Caml_state->in_minor_collection)
     caml_fatal_error("Thread switch from inside minor GC");
+  if (curr_thread) {
 #ifdef NATIVE_CODE
-  curr_thread->top_of_stack = Caml_state->top_of_stack;
-  curr_thread->bottom_of_stack = Caml_state->bottom_of_stack;
-  curr_thread->last_retaddr = Caml_state->last_return_address;
-  curr_thread->gc_regs = Caml_state->gc_regs;
-  curr_thread->exception_pointer = Caml_state->exception_pointer;
-  curr_thread->async_exception_pointer = Caml_state->async_exception_pointer;
-  curr_thread->local_arenas = caml_get_local_arenas();
+    curr_thread->top_of_stack = Caml_state->top_of_stack;
+    curr_thread->bottom_of_stack = Caml_state->bottom_of_stack;
+    curr_thread->last_retaddr = Caml_state->last_return_address;
+    curr_thread->gc_regs = Caml_state->gc_regs;
+    curr_thread->exception_pointer = Caml_state->exception_pointer;
+    curr_thread->async_exception_pointer = Caml_state->async_exception_pointer;
+    curr_thread->local_arenas = caml_get_local_arenas();
 #else
-  curr_thread->stack_low = Caml_state->stack_low;
-  curr_thread->stack_high = Caml_state->stack_high;
-  curr_thread->stack_threshold = Caml_state->stack_threshold;
-  curr_thread->sp = Caml_state->extern_sp;
-  curr_thread->trapsp = Caml_state->trapsp;
-  curr_thread->external_raise = Caml_state->external_raise;
-  curr_thread->external_raise_async = Caml_state->external_raise_async;
+    curr_thread->stack_low = Caml_state->stack_low;
+    curr_thread->stack_high = Caml_state->stack_high;
+    curr_thread->stack_threshold = Caml_state->stack_threshold;
+    curr_thread->sp = Caml_state->extern_sp;
+    curr_thread->trapsp = Caml_state->trapsp;
+    curr_thread->external_raise = Caml_state->external_raise;
+    curr_thread->external_raise_async = Caml_state->external_raise_async;
 #endif
-  curr_thread->local_roots = Caml_state->local_roots;
-  curr_thread->backtrace_pos = Caml_state->backtrace_pos;
-  curr_thread->backtrace_buffer = Caml_state->backtrace_buffer;
-  curr_thread->backtrace_last_exn = Caml_state->backtrace_last_exn;
+    curr_thread->local_roots = Caml_state->local_roots;
+    curr_thread->backtrace_pos = Caml_state->backtrace_pos;
+    curr_thread->backtrace_buffer = Caml_state->backtrace_buffer;
+    curr_thread->backtrace_last_exn = Caml_state->backtrace_last_exn;
+  }
   caml_memprof_leave_thread();
 }
 
@@ -636,6 +638,7 @@ static void caml_thread_stop(void)
   caml_threadstatus_terminate(Terminated(curr_thread->descr));
   /* Remove th from the doubly-linked list of threads and free its info block */
   caml_thread_remove_info(curr_thread);
+  curr_thread = NULL;
   /* If no other OCaml thread remains, ask the tick thread to stop
      so that it does not prevent the whole process from exiting (#9971) */
   if (all_threads == NULL) caml_thread_cleanup(Val_unit);
@@ -790,6 +793,7 @@ CAMLexport int caml_c_thread_unregister(void)
   acquire_runtime_lock();
   /* Forget the thread descriptor */
   st_tls_set(thread_descriptor_key, NULL);
+  if (th == curr_thread) curr_thread = NULL;
   /* Remove thread info block from list of threads, and free it */
   caml_thread_remove_info(th);
   /* If no other OCaml thread remains, ask the tick thread to stop
