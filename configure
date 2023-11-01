@@ -13619,6 +13619,7 @@ case $host in #(
 esac
 
 otherlibraries="dynlink"
+lib_dynlink=true
 if test x"$enable_unix_lib" != "xno"
 then :
   enable_unix_lib=yes
@@ -13732,7 +13733,7 @@ case $ocaml_cv_cc_vendor in #(
   *) :
     outputobj='-o '
   warn_error_flag='-Werror'
-  cc_warnings="-Wall -Wint-conversion -Wstrict-prototypes \
+  cc_warnings="-Wall -Wno-pragmas -Wint-conversion -Wstrict-prototypes \
 -Wold-style-definition" ;;
 esac
 
