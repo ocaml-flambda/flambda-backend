@@ -223,7 +223,7 @@ let int = Array.init 8 (fun _ -> Reg.create Int)
 
 let val_ = Array.init 8 (fun _ -> Reg.create Val)
 
-let addr = Array.init 8 (fun _ -> Reg.create Addr)
+let _addr = Array.init 8 (fun _ -> Reg.create Addr)
 
 let float = Array.init 8 (fun _ -> Reg.create Float)
 
@@ -471,7 +471,7 @@ let () =
 let () =
   check "Regalloc specific instructions are checked when creating description"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg = Cfg_desc.make ~remove_regalloc:false ~remove_locs:true templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
@@ -480,7 +480,7 @@ let () =
 let () =
   check "Terminator result count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(call_label).terminator.res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -493,7 +493,7 @@ let () =
 let () =
   check "Instruction result count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(add_label).!(0).res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -506,7 +506,7 @@ let () =
 let () =
   check "Terminator argument count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(return_label).terminator.arg <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -519,7 +519,7 @@ let () =
 let () =
   check "Function argument isn't preassigned"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       templ.fun_args.(0) <- Reg.dummy;
       let cfg1 = Cfg_desc.make_pre templ in
       let cfg2 = Cfg_desc.make_post templ in
@@ -532,7 +532,7 @@ let () =
 let () =
   check "Function argument count changed"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.fun_args <- Array.sub templ.fun_args 0 1;
       let cfg2 = Cfg_desc.make_post templ in
@@ -545,7 +545,7 @@ let () =
 let () =
   check "Function argument precoloring changed"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.fun_args.(0) <- templ.fun_args.(1);
       let cfg2 = Cfg_desc.make_post templ in
@@ -558,7 +558,7 @@ let () =
 let () =
   check "Location can't be unknown after allocation"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg = Cfg_desc.make_pre templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
@@ -569,7 +569,7 @@ let () =
 let () =
   check "Precoloring can't change"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(move_param_label).!(7).res <- templ.&(move_param_label).!(6).res;
       let cfg2 = Cfg_desc.make_post templ in
@@ -617,7 +617,7 @@ let () =
       let block = templ.&(add_label) in
       let r = (List.hd block.body).res in
       block.body
-        <- { desc = Op Move; id = make_id (); arg = r; res = r } :: block.body;
+        <- { desc = Op Move; id = _make_id (); arg = r; res = r } :: block.body;
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
@@ -644,7 +644,7 @@ let () =
                      { desc = Always return_label;
                        res = [||];
                        arg = [||];
-                       id = make_id ()
+                       id = _make_id ()
                      }
                  }
                  :: templ.blocks
@@ -660,7 +660,7 @@ let () =
 let () =
   check "Regalloc added a fallthrough block that goes to the wrong label"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let tmp_label = new_label 1 in
       let templ =
@@ -673,7 +673,7 @@ let () =
                 { desc = Always call_label;
                   res = [||];
                   arg = [||];
-                  id = make_id ()
+                  id = _make_id ()
                 }
             }
             :: templ.blocks
@@ -691,7 +691,7 @@ let () =
 let () =
   check "Regalloc added a not allowed terminator and a block"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let tmp_label = new_label 1 in
       let templ =
@@ -701,7 +701,7 @@ let () =
               exn = None;
               body = [];
               terminator =
-                { desc = Return; res = [||]; arg = [||]; id = make_id () }
+                { desc = Return; res = [||]; arg = [||]; id = _make_id () }
             }
             :: templ.blocks
         }
@@ -717,7 +717,7 @@ let () =
 let () =
   check "Regalloc reordered instructions between blocks"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let add_body = templ.&(add_label).body in
       templ.&(add_label).body <- [];
@@ -733,7 +733,7 @@ let () =
 let () =
   check "Regalloc reordered instructions within a block"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let block = templ.&(move_tmp_res_label) in
       block.body
@@ -751,7 +751,7 @@ let () =
 let () =
   check "Regalloc added a loop"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let tmp_label = new_label 1 in
       let templ =
@@ -764,7 +764,7 @@ let () =
                 { desc = Always tmp_label;
                   res = [||];
                   arg = [||];
-                  id = make_id ()
+                  id = _make_id ()
                 }
             }
             :: templ.blocks
@@ -815,7 +815,7 @@ let () =
       ">> Fatal error: Instruction no. 8 was deleted by register allocator"
 
 let make_loop ~loop_loc_first n =
-  let make_id =
+  let _make_id =
     let last_id = ref 2 in
     fun () ->
       last_id := !last_id + 1;
@@ -857,7 +857,7 @@ let make_loop ~loop_loc_first n =
   let make_moves src dst =
     Array.map2
       (fun src dst : Basic.t ->
-        { id = make_id (); desc = Op Move; arg = [| src |]; res = [| dst |] })
+        { id = _make_id (); desc = Op Move; arg = [| src |]; res = [| dst |] })
       src dst
     |> Array.to_list
   in
@@ -865,10 +865,10 @@ let make_loop ~loop_loc_first n =
     { fun_args = arg_locs;
       blocks =
         [ { start = entry_label;
-            body = [{ id = make_id (); desc = Prologue; arg = [||]; res = [||] }];
+            body = [{ id = _make_id (); desc = Prologue; arg = [||]; res = [||] }];
             exn = None;
             terminator =
-              { id = make_id ();
+              { id = _make_id ();
                 desc = Always move_param_label;
                 arg = [||];
                 res = [||]
@@ -879,28 +879,28 @@ let make_loop ~loop_loc_first n =
               make_moves arg_locs args
               (* Move [arg3] to all [extra_regs]. *)
               @ List.init n (fun n ->
-                    { Instruction.id = make_id ();
+                    { Instruction.id = _make_id ();
                       desc = Op Move;
                       arg = [| int_arg3 |];
                       res = [| extra_regs.(n) |]
                     })
               (* Spill [arg3] to locations [0;n-1] *)
               @ List.init n (fun n ->
-                    { Instruction.id = make_id ();
+                    { Instruction.id = _make_id ();
                       desc = Op Spill;
                       arg = [| int_arg3 |];
                       res = [| stack_loc n |]
                     })
               (* Spill [arg2] to location n. If we spilled [arg3] the code would
                  be correct. *)
-              @ [ { Instruction.id = make_id ();
+              @ [ { Instruction.id = _make_id ();
                     desc = Op Spill;
                     arg = [| int_arg2 |];
                     res = [| stack_loc n |]
                   } ];
             exn = None;
             terminator =
-              { id = make_id ();
+              { id = _make_id ();
                 desc =
                   Int_test
                     { lt = loop_loc_label;
@@ -918,12 +918,12 @@ let make_loop ~loop_loc_first n =
               (* Rotate all locations by one index. *)
               List.init n (fun n ->
                   (* Move loc i+1 to i. *)
-                  [ { Instruction.id = make_id ();
+                  [ { Instruction.id = _make_id ();
                       desc = Op Reload;
                       arg = [| stack_loc (n + 1) |];
                       res = [| int_arg3 |]
                     };
-                    { Instruction.id = make_id ();
+                    { Instruction.id = _make_id ();
                       desc = Op Spill;
                       arg = [| int_arg3 |];
                       res = [| stack_loc n |]
@@ -931,7 +931,7 @@ let make_loop ~loop_loc_first n =
               |> List.concat;
             exn = None;
             terminator =
-              { id = make_id ();
+              { id = _make_id ();
                 desc =
                   Int_test
                     { lt = loop_loc_label;
@@ -949,14 +949,14 @@ let make_loop ~loop_loc_first n =
               (* Rotate all regs by one index. *)
               List.init (n - 1) (fun n ->
                   (* Move reg i+1 to i. *)
-                  { Instruction.id = make_id ();
+                  { Instruction.id = _make_id ();
                     desc = Op Move;
                     arg = [| extra_regs.(n + 1) |];
                     res = [| extra_regs.(n) |]
                   });
             exn = None;
             terminator =
-              { id = make_id ();
+              { id = _make_id ();
                 desc =
                   Int_test
                     { lt = loop_reg_label;
@@ -976,26 +976,26 @@ let make_loop ~loop_loc_first n =
                  [arg2] in location n will rotate over to location 0. For that
                  reason the fix-point algorithm will also have to run n
                  times. *)
-              [ { Instruction.id = make_id ();
+              [ { Instruction.id = _make_id ();
                   desc = Op (Const_int (Nativeint.of_int 1));
                   arg = [||];
                   res = [| int_arg1 |]
                 };
                 (* Load extra reg 0 from location 0.*)
-                { Instruction.id = make_id ();
+                { Instruction.id = _make_id ();
                   desc = Op Reload;
                   arg = [| stack_loc 0 |];
                   res = [| extra_regs.(0) |]
                 };
                 (* Add the extra reg 0 to accumalated result. *)
-                { Instruction.id = make_id ();
+                { Instruction.id = _make_id ();
                   desc = Op (Intop Iadd);
                   arg = [| int_arg1; extra_regs.(0) |];
                   res = [| int_arg1 |]
                 } ];
             exn = None;
             terminator =
-              { id = make_id ();
+              { id = _make_id ();
                 desc = Always return_label;
                 arg = [||];
                 res = [||]
@@ -1005,14 +1005,14 @@ let make_loop ~loop_loc_first n =
             body =
               make_moves [| int_arg1 |] results
               @ make_moves results result_locs
-              @ [ { id = make_id ();
+              @ [ { id = _make_id ();
                     desc = Reloadretaddr;
                     arg = [||];
                     res = [||]
                   } ];
             exn = None;
             terminator =
-              { id = make_id (); desc = Return; arg = result_locs; res = [||] }
+              { id = _make_id (); desc = Return; arg = result_locs; res = [||] }
           } ];
       fun_contains_calls = true
     }
