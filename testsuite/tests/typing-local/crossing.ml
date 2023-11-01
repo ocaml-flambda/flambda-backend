@@ -60,14 +60,12 @@ Error: This value escapes its region
 let f : local_ _ -> bar =
     fun n -> Bar0 (n, "hello")
 [%%expect{|
-
 val f : local_ int -> bar = <fun>
 |}]
 
 let f : local_ _ -> bar =
   fun n -> Bar0 (42, n)
 [%%expect{|
-
 Line 2, characters 21-22:
 2 |   fun n -> Bar0 (42, n)
                          ^
@@ -78,14 +76,12 @@ Error: This value escapes its region
 let f : local_ _ -> foo =
   fun n -> {x = n; y = "hello"}
 [%%expect{|
-
 val f : local_ int -> foo = <fun>
 |}]
 
 let f : local_ _ -> foo =
   fun n -> {x = 42; y = n}
 [%%expect{|
-
 Line 2, characters 24-25:
 2 |   fun n -> {x = 42; y = n}
                             ^
@@ -96,14 +92,12 @@ Error: This value escapes its region
 let f : local_ _ -> _ =
   fun n -> (n : int)
 [%%expect{|
-
 val f : local_ int -> int = <fun>
 |}]
 
 let f : local_ _ -> _ =
   fun n -> (n : string)
 [%%expect{|
-
 Line 2, characters 12-13:
 2 |   fun n -> (n : string)
                 ^
@@ -114,14 +108,12 @@ Error: This value escapes its region
 let f : local_ _ -> [> `Number of int] =
   fun n -> `Number n
 [%%expect{|
-
 val f : local_ int -> [> `Number of int ] = <fun>
 |}]
 
 let f : local_ _ -> [> `Text of string] =
   fun n -> `Text n
 [%%expect{|
-
 Line 2, characters 17-18:
 2 |   fun n -> `Text n
                      ^
@@ -132,14 +124,12 @@ Error: This value escapes its region
 let f : local_ _ -> int * int =
   fun n -> (n, n)
 [%%expect{|
-
 val f : local_ int -> int * int = <fun>
 |}]
 
 let f : local_ _ -> string * string =
   fun n -> (n, n)
 [%%expect{|
-
 Line 2, characters 12-13:
 2 |   fun n -> (n, n)
                 ^
@@ -150,14 +140,12 @@ Error: This value escapes its region
 let f : local_ _ -> int array =
   fun n -> [|n; n|]
 [%%expect{|
-
 val f : local_ int -> int array = <fun>
 |}]
 
 let f: local_ _ -> string array =
   fun n -> [|n; n|]
 [%%expect{|
-
 Line 2, characters 13-14:
 2 |   fun n -> [|n; n|]
                  ^
@@ -170,7 +158,6 @@ Error: This value escapes its region
 let f: local_ _ -> int lazy_t =
   fun n -> lazy n
 [%%expect{|
-
 Line 2, characters 16-17:
 2 |   fun n -> lazy n
                     ^
@@ -181,14 +168,12 @@ Error: The value n is local, so cannot be used inside a lazy expression.
 let f : local_ foo -> _  =
   fun r -> r.x
 [%%expect{|
-
 val f : local_ foo -> int = <fun>
 |}]
 
 let f : local_ foo -> _ =
   fun r -> r.y
 [%%expect{|
-
 Line 2, characters 11-14:
 2 |   fun r -> r.y
                ^^^
@@ -201,7 +186,6 @@ the body will be used to mode cross *)
 let f : local_ _ -> int =
   fun r -> r.x
 [%%expect{|
-
 val f : local_ (int, 'a) foo0 -> int = <fun>
 |}]
 
@@ -213,9 +197,7 @@ let f : _ -> int =
   fun () ->
      g (local_ 42)
 [%%expect{|
-
 val g : int -> int = <fun>
-
 val f : unit -> int = <fun>
 |}]
 
@@ -227,9 +209,7 @@ let f : _ -> string =
     g (local_ "world")
 
 [%%expect{|
-
 val g : string -> string = <fun>
-
 Line 6, characters 6-22:
 6 |     g (local_ "world")
           ^^^^^^^^^^^^^^^^
@@ -240,28 +220,24 @@ Error: This value escapes its region
 let f : _ -> local_ _ =
   fun () -> local_ 42
 [%%expect{|
-
 val f : unit -> local_ int = <fun>
 |}]
 
 let g : _ -> _ =
   fun () -> let x = f () in x
 [%%expect{|
-
 val g : unit -> int = <fun>
 |}]
 
 let f : _ -> local_ _ =
   fun () -> local_ "hello"
 [%%expect{|
-
 val f : unit -> local_ string = <fun>
 |}]
 
 let g : _ -> _ =
   fun () -> let x = f () in x
 [%%expect{|
-
 Line 2, characters 28-29:
 2 |   fun () -> let x = f () in x
                                 ^
@@ -274,7 +250,6 @@ let f : local_ bar -> _ =
     match b with
     | Bar0 (x, _) -> x
 [%%expect{|
-
 val f : local_ bar -> int = <fun>
 |}]
 
@@ -287,7 +262,6 @@ let f : local_ _ -> int =
     match b with
     | Bar0 (x, _) -> x
 [%%expect{|
-
 val f : local_ (int, 'a) bar0 -> int = <fun>
 |}]
 
@@ -296,7 +270,6 @@ let f : local_ bar -> _ =
     match b with
     | Bar0 (_, y) -> y
 [%%expect{|
-
 Line 4, characters 21-22:
 4 |     | Bar0 (_, y) -> y
                          ^
@@ -309,7 +282,6 @@ let f : local_ foo -> _ =
   match r with
   | {x; _} -> x
 [%%expect{|
-
 val f : local_ foo -> int = <fun>
 |}]
 
@@ -320,7 +292,6 @@ let f : local_ _ -> int =
   match r with
   | {x; _} -> x
 [%%expect{|
-
 val f : local_ (int, 'a) foo0 -> int = <fun>
 |}]
 
@@ -329,7 +300,6 @@ let f : local_ foo -> _ =
     match r with
     | {y; _} -> y
 [%%expect{|
-
 Line 4, characters 16-17:
 4 |     | {y; _} -> y
                     ^
@@ -340,14 +310,12 @@ Error: This value escapes its region
 let f : local_ _ -> _ =
   fun (x : int) -> x
 [%%expect{|
-
 val f : local_ int -> int = <fun>
 |}]
 
 let f : local_ _ -> _ =
   fun (x : string) -> x
 [%%expect{|
-
 Line 2, characters 22-23:
 2 |   fun (x : string) -> x
                           ^
@@ -371,13 +339,9 @@ let f : local_ _ -> M.t =
 let f : local_ _ -> t2 =
   fun x -> x
 [%%expect{|
-
 module M : sig type t : immediate end
-
 type t2 = { x : int; } [@@unboxed]
-
 val f : local_ M.t -> M.t = <fun>
-
 val f : local_ t2 -> t2 = <fun>
 |}]
 
@@ -390,24 +354,19 @@ let f (type a) (x : a t_gadt) (y : a) =
   match x with
     Int -> { fld = y }.fld
 [%%expect{|
-
 type _ t_gadt = Int : int t_gadt
-
 type 'a t_rec = { fld : 'a; }
-
 val f : 'a t_gadt -> 'a -> 'a = <fun>
 |}]
 
 (* Mode crossing in coercing arrow types *)
 let foo : int -> int = fun x -> x
 [%%expect{|
-
 val foo : int -> int = <fun>
 |}]
 
 let foo' : int -> local_ int = fun x -> local_ x
 [%%expect{|
-
 val foo' : int -> local_ int = <fun>
 |}]
 
@@ -415,14 +374,12 @@ val foo' : int -> local_ int = <fun>
 
 let bar (f : local_ int -> int) = f 42
 [%%expect{|
-
 val bar : (local_ int -> int) -> int = <fun>
 |}]
 
 (* Implicit mode crossing is not good enough *)
 let _ = bar foo
 [%%expect{|
-
 Line 1, characters 12-15:
 1 | let _ = bar foo
                 ^^^
@@ -432,20 +389,17 @@ Error: This expression has type int -> int
 
 let _ = bar (foo :> local_ int -> int)
 [%%expect{|
-
 - : int = 42
 |}]
 
 let _ = bar (foo : int -> int :> local_ int -> int)
 [%%expect{|
-
 - : int = 42
 |}]
 
 (* Only the RHS type of :> is looked at for mode crossing *)
 let _ = bar (foo : int -> int :> local_ _ -> _)
 [%%expect{|
-
 Line 1, characters 12-47:
 1 | let _ = bar (foo : int -> int :> local_ _ -> _)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -458,19 +412,16 @@ let foo = function
   | `A -> ()
   | `B (s : string) -> ()
 [%%expect{|
-
 val foo : [< `A | `B of string ] -> unit = <fun>
 |}]
 
 let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`A] -> unit)
 [%%expect{|
-
 val foo_ : local_ [ `A ] -> unit = <fun>
 |}]
 
 let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
 [%%expect{|
-
 Line 1, characters 11-79:
 1 | let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -481,7 +432,6 @@ Error: Type [ `A | `B of string ] -> unit is not a subtype of
 (* You can't erase the info that a function might allocate in parent region *)
 let _ = bar (foo' :> local_ int -> int)
 [%%expect{|
-
 Line 1, characters 12-39:
 1 | let _ = bar (foo' :> local_ int -> int)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -496,6 +446,5 @@ let foo () =
   let _ = ref x, ref y in
   ()
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]

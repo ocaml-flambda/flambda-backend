@@ -24,7 +24,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 4, characters 21-22:
 4 |   | None | exception _ -> .
                          ^
@@ -42,7 +41,6 @@ let f x =
 
 
 [%%expect{|
-
 Line 4, characters 14-23:
 4 |   | exception Not_found | None -> .
                   ^^^^^^^^^
@@ -58,7 +56,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 val f : 'a -> unit = <fun>
 |}]
 ;;

@@ -31,13 +31,11 @@ Foo!
 
 let _ = X.y;;
 [%%expect{|
-
 - : int = 0
 |}]
 
 let _ = X.z;;
 [%%expect{|
-
 Line 1, characters 8-11:
 1 | let _ = X.z;;
             ^^^
@@ -47,7 +45,6 @@ Baz!
 
 let _ = X.t;;
 [%%expect{|
-
 Line 1, characters 8-11:
 1 | let _ = X.t;;
             ^^^
@@ -69,7 +66,6 @@ module Z1 : sig
   val t: int [@@alert foo "FOO"] [@@alert bar "BAR"] [@@alert baz "BAZ"]
 end = X;;
 [%%expect{|
-
 module Z1 : sig val x : int val y : int val z : int val t : int end
 |}]
 
@@ -80,7 +76,6 @@ module Z2 : sig
   val t: int
 end = X;;
 [%%expect{|
-
 Line 6, characters 6-7:
 6 | end = X;;
           ^
@@ -148,7 +143,6 @@ module Z3 : sig
   val t: int
 end = X;;
 [%%expect{|
-
 Line 8, characters 6-7:
 8 | end = X;;
           ^
@@ -219,7 +213,6 @@ module Z4 : sig
   val t: int
 end = X;;
 [%%expect{|
-
 module Z4 : sig val x : int val y : int val z : int val t : int end
 |}]
 
@@ -237,9 +230,7 @@ let _ = X.x
 let _ = X.y
 let _ = X.z
 [%%expect{|
-
 module X : sig val x : int val y : int val z : int end
-
 Line 9, characters 8-11:
 9 | let _ = X.x
             ^^^
@@ -249,7 +240,6 @@ X2
 X3
 
 - : int = 0
-
 Line 10, characters 8-11:
 10 | let _ = X.y
              ^^^
@@ -258,7 +248,6 @@ X1
 X3
 
 - : int = 0
-
 Line 11, characters 8-11:
 11 | let _ = X.z
              ^^^
@@ -277,7 +266,6 @@ end = struct
   let x, y, z = 0, 0, 0
 end
 [%%expect{|
-
 Line 2, characters 13-25:
 2 |   val x: int [@@alert 42]
                  ^^^^^^^^^^^^

@@ -22,7 +22,6 @@ module F (T : sig type _ t end) = struct
  let f (type a) (Neq n : (a, a T.t) eq) = n  (* warn! *)
 end;;
 [%%expect{|
-
 Line 2, characters 16-43:
 2 |  let f (type a) (Neq n : (a, a T.t) eq) = n  (* warn! *)
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^

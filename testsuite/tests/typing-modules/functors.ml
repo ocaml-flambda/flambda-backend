@@ -55,9 +55,7 @@ module type f = functor (X:empty)(Y:empty) -> empty
 module F: f =
   functor(X:empty)(Y:empty)(Z:empty) -> Empty
 [%%expect {|
-
 module type f = functor (X : empty) (Y : empty) -> empty
-
 Line 3, characters 9-45:
 3 |   functor(X:empty)(Y:empty)(Z:empty) -> Empty
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -74,9 +72,7 @@ Error: Signature mismatch:
 module type f = functor (X:a)(Y:b) -> c
 module F:f = functor (X:a)(Y:b)(Z:c) -> Empty
 [%%expect {|
-
 module type f = functor (X : a) (Y : b) -> c
-
 Line 2, characters 21-45:
 2 | module F:f = functor (X:a)(Y:b)(Z:c) -> Empty
                          ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -95,7 +91,6 @@ module M : sig module F: functor (X:sig end) -> sig end end =
     module F(X:sig type t end) = struct end
   end
 [%%expect {|
-
 Lines 2-4, characters 2-5:
 2 | ..struct
 3 |     module F(X:sig type t end) = struct end
@@ -120,9 +115,7 @@ Error: Signature mismatch:
 module F(X:sig type t end) = struct end
 module M = F(struct type x end)
 [%%expect {|
-
 module F : functor (X : sig type t end) -> sig end
-
 Line 2, characters 11-31:
 2 | module M = F(struct type x end)
                ^^^^^^^^^^^^^^^^^^^^
@@ -135,11 +128,9 @@ module F(X:sig type x end)(Y:sig type y end)(Z:sig type z end) = struct
 end
 type u = F(X)(Z).t
 [%%expect {|
-
 module F :
   functor (X : sig type x end) (Y : sig type y end) (Z : sig type z end) ->
     sig type t = X of X.x | Y of Y.y | Z of Z.z end
-
 Line 4, characters 9-18:
 4 | type u = F(X)(Z).t
              ^^^^^^^^^
@@ -157,9 +148,7 @@ Error: The functor application F(X)(Z) is ill-typed.
 module F()(X:sig type t end) = struct end
 module M = F()()
 [%%expect {|
-
 module F : functor () (X : sig type t end) -> sig end
-
 Line 2, characters 11-16:
 2 | module M = F()()
                ^^^^^
@@ -178,7 +167,6 @@ end = struct
  module F(X:sig type y end) = struct end
 end
 [%%expect {|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |  module F(X:sig type y end) = struct end
@@ -213,7 +201,6 @@ end) = struct
   module M = F(Y)(X)
 end
 [%%expect {|
-
 Line 9, characters 13-20:
 9 |   module M = F(Y)(X)
                  ^^^^^^^
@@ -230,9 +217,7 @@ Error: The functor application is ill-typed.
 module Ord = struct type t = unit let compare _ _ = 0 end
 module M = Map.Make(Ord)(Ord)
 [%%expect {|
-
 module Ord : sig type t = unit val compare : 'a -> 'b -> int end
-
 Line 2, characters 11-29:
 2 | module M = Map.Make(Ord)(Ord)
                ^^^^^^^^^^^^^^^^^^
@@ -258,13 +243,10 @@ module F
 module K = struct include X include Y end
 module M = F(K)(struct type x = K.x end)( (* struct type z = K.y end *) )
 [%%expect {|
-
 module F :
   functor (A : sig type x type y end) (B : sig type x = A.x end)
     (C : sig type y = A.y end) -> sig end
-
 module K : sig type x = X.x type y = Y.y end
-
 Line 10, characters 11-73:
 10 | module M = F(K)(struct type x = K.x end)( (* struct type z = K.y end *) )
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -280,7 +262,6 @@ Error: The functor application is ill-typed.
 
 module M = F(K)(struct type y = K.y end)
 [%%expect {|
-
 Line 1, characters 11-40:
 1 | module M = F(K)(struct type y = K.y end)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -302,7 +283,6 @@ module M =
     (struct type x = K.x end)
     (struct type yy = K.y end)
 [%%expect {|
-
 Lines 2-5, characters 2-30:
 2 | ..F
 3 |     (struct include X include Y end)
@@ -337,12 +317,9 @@ module Defs = struct
 end
 module Missing_X = F(M.N)(Defs.Y)
 [%%expect {|
-
 module M : sig module N : sig type x type y end end
-
 module Defs :
   sig module X : sig type x = M.N.x end module Y : sig type y = M.N.y end end
-
 Line 13, characters 19-33:
 13 | module Missing_X = F(M.N)(Defs.Y)
                         ^^^^^^^^^^^^^^
@@ -359,7 +336,6 @@ Error: The functor application is ill-typed.
 
 module Too_many_Xs = F(M.N)(Defs.X)(Defs.X)(Defs.Y)
 [%%expect {|
-
 Line 1, characters 21-51:
 1 | module Too_many_Xs = F(M.N)(Defs.X)(Defs.X)(Defs.Y)
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -380,11 +356,8 @@ module X = struct type x = int end
 module Y = struct type y = float end
 module Missing_X_bis = F(struct type x = int type y = float end)(Y)
 [%%expect {|
-
 module X : sig type x = int end
-
 module Y : sig type y = float end
-
 Line 3, characters 23-67:
 3 | module Missing_X_bis = F(struct type x = int type y = float end)(Y)
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -401,7 +374,6 @@ Error: The functor application is ill-typed.
 
 module Too_many_Xs_bis = F(struct type x = int type y = float end)(X)(X)(Y)
 [%%expect {|
-
 Line 1, characters 25-75:
 1 | module Too_many_Xs_bis = F(struct type x = int type y = float end)(X)(X)(Y)
                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -423,11 +395,9 @@ module type f =
     -> sig end
 module F: f = functor (A:sig include x include y end)(Z:sig type y = A.y end) -> struct end
 [%%expect {|
-
 module type f =
   functor (A : sig type x type y end) (B : sig type x = A.x end)
     (C : sig type y = A.y end) -> sig end
-
 Line 4, characters 22-91:
 4 | module F: f = functor (A:sig include x include y end)(Z:sig type y = A.y end) -> struct end
                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -448,12 +418,10 @@ module type f =
     -> sig end
 module F: f = functor (X:sig include x include y end)(Z:sig type zv = Z of X.y end) -> struct end
 [%%expect {|
-
 module type f =
   functor (B : sig type x type y type u = x type v = y end)
     (Y : sig type yu = Y of B.u end) (Z : sig type zv = Z of B.v end) ->
     sig end
-
 Line 4, characters 22-97:
 4 | module F: f = functor (X:sig include x include y end)(Z:sig type zv = Z of X.y end) -> struct end
                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -477,7 +445,6 @@ end = struct
   module type S = sig type s type t end
 end;;
 [%%expect {|
-
 Lines 5-7, characters 6-3:
 5 | ......struct
 6 |   module type S = sig type s type t end
@@ -507,7 +474,6 @@ end = struct
   module type S = sig type t end
 end;;
   [%%expect {|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   module type S = sig type t end
@@ -543,9 +509,7 @@ module M = struct
   end
 end
 [%%expect {|
-
 module F : functor (X : x) (B : b) (Y : y) -> sig type t end
-
 Line 8, characters 15-57:
 8 |     module U = F(struct type x end)(B)(struct type w end)
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -575,9 +539,7 @@ module M = struct
   end
 end
 [%%expect {|
-
 module F : functor (X : a) -> sig type t end
-
 Line 6, characters 13-19:
 6 |     type t = F(X).t
                  ^^^^^^
@@ -597,7 +559,6 @@ module M: sig module F: functor(X:a)(Y:a) -> sig end end =
   module F(X:aa)(Y:a) = struct end
 end
 [%%expect {|
-
 Lines 2-6, characters 1-3:
 2 | .struct
 3 |   module type aa = a
@@ -631,7 +592,6 @@ Error: Signature mismatch:
 
 module X: functor ( X: sig end) -> sig end = functor(X: Set.OrderedType) -> struct end
 [%%expect {|
-
 Line 1, characters 52-86:
 1 | module X: functor ( X: sig end) -> sig end = functor(X: Set.OrderedType) -> struct end
                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -678,7 +638,6 @@ end = struct
   = struct end
 end
 [%%expect {|
-
 Lines 15-27, characters 6-3:
 15 | ......struct
 16 |   module F
@@ -772,7 +731,6 @@ end = struct
   = struct end
 end
 [%%expect {|
-
 Lines 12-21, characters 6-3:
 12 | ......struct
 13 |   module F
@@ -844,7 +802,6 @@ end = struct
   = struct end
 end
 [%%expect {|
-
 Lines 12-24, characters 6-3:
 12 | ......struct
 13 |   module F
@@ -948,7 +905,6 @@ end = struct
   end
 end
 [%%expect {|
-
 Lines 12-23, characters 6-3:
 12 | ......struct
 13 |   module B = struct
@@ -1061,7 +1017,6 @@ module F(A:Arg)
   type u = G(X)(Y)(X)(Y)(X).t
 end;;
 [%%expect {|
-
 module type Arg =
   sig
     module type A
@@ -1069,7 +1024,6 @@ module type Arg =
     module X : Honorificabilitudinitatibus
     module Y : A
   end
-
 Line 14, characters 11-29:
 14 |   type u = G(X)(Y)(X)(Y)(X).t
                 ^^^^^^^^^^^^^^^^^^
@@ -1112,7 +1066,6 @@ module F: s = functor
   (R: sig type upon type the type heart end)
   -> struct end
 [%%expect {|
-
 module type s =
   functor
     (X : sig
@@ -1145,7 +1098,6 @@ module type s =
          end)
     (S : sig type where type the type place end)
     (R : sig type upon type the type heath end) -> sig end
-
 Lines 11-18, characters 2-15:
 11 | ..(X: sig type when_ type shall type we type tree type meet type again end)
 12 |   (Y:sig type in_ val thunder:in_ val lightning: in_ type pain end)
@@ -1261,11 +1213,9 @@ end
 
 module U = F(PF)(PF)(PF)
 [%%expect {|
-
 module F :
   functor (X : sig type witness module type t module M : t end) ->
     (X.t with X.M)
-
 module PF :
   sig
     type witness
@@ -1274,7 +1224,6 @@ module PF :
         (X.t with X.M)
     module M = F
   end
-
 module U :
   functor (X : sig type witness module type t module M : t end) ->
     (X.t with X.M)
@@ -1282,7 +1231,6 @@ module U :
 
 module W = F(PF)(PF)(PF)(PF)(PF)(F)
 [%%expect {|
-
 Line 1, characters 11-35:
 1 | module W = F(PF)(PF)(PF)(PF)(PF)(F)
                ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1330,20 +1278,15 @@ end
 
 
 [%%expect {|
-
 module type arg = sig type arg end
-
 module A : sig type arg end
-
 module Add_one' :
   sig
     module M : arg -> sig type arg = A.arg end
     module type t = arg -> sig type arg = A.arg end
   end
-
 module Add_one :
   sig type witness module M = Add_one'.M module type t = Add_one'.t end
-
 module Add_three :
   sig
     module M : arg -> arg -> arg -> sig type arg = A.arg end
@@ -1354,7 +1297,6 @@ module Add_three :
 
 module Choose_one = F(Add_one')(Add_three)(A)(A)(A)
 [%%expect {|
-
 Line 1, characters 20-51:
 1 | module Choose_one = F(Add_one')(Add_three)(A)(A)(A)
                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1377,7 +1319,6 @@ Error: The functor application is ill-typed.
 **)
 module Mislead_chosen_one = F(Add_one)(Add_three)(A)(A)(A)
 [%%expect {|
-
 Line 1, characters 28-58:
 1 | module Mislead_chosen_one = F(Add_one)(Add_three)(A)(A)(A)
                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1421,7 +1362,6 @@ end
   module F(X:sig type x end)(Z:sig type z end) = struct end
 end
 [%%expect {|
-
 Lines 14-16, characters 2-3:
 14 | ..struct
 15 |   module F(X:sig type x end)(Z:sig type z end) = struct end
@@ -1471,7 +1411,6 @@ end = struct
        end)  = (X.M : X.t)
 end
 [%%expect {|
-
 Lines 8-14, characters 6-3:
  8 | ......struct
  9 |   module F (Wrong: sig type wrong end)
@@ -1533,7 +1472,6 @@ end = struct
           )(Res: X.T)(Res: X.T)(Res: X.T) = Res
 end
 [%%expect {|
-
 Lines 17-21, characters 6-3:
 17 | ......struct
 18 |   module F(_:sig type wrong end) (X:
@@ -1597,17 +1535,12 @@ module Z = struct type t = Z of int end
 
 module Error=F(X)(struct type t = int end)(Y)(Z)
 [%%expect {|
-
 module F :
   functor (X : sig type t end) (Y : sig type t = Y of X.t end)
     (Z : sig type t = Z of X.t end) -> sig end
-
 module X : sig type t = U end
-
 module Y : sig type t = Y of int end
-
 module Z : sig type t = Z of int end
-
 Line 9, characters 13-48:
 9 | module Error=F(X)(struct type t = int end)(Y)(Z)
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1672,34 +1605,22 @@ module Bar (W : A) (X : Ext) (Y : B) (Z : Ext) = Z.X
 
 type fine = Bar(A)(FiveArgsExt)(B)(AExt).a
 [%%expect{|
-
 module type A = sig type a end
-
 module A : sig type a end
-
 module type B = sig type b end
-
 module B : sig type b end
-
 module type ty = sig type t end
-
 module TY : sig type t end
-
 module type Ext = sig module type T module X : T end
-
 module AExt : sig module type T = A module X = A end
-
 module FiveArgsExt :
   sig module type T = ty -> ty -> ty -> ty -> ty -> sig end module X : T end
-
 module Bar : functor (W : A) (X : Ext) (Y : B) (Z : Ext) -> (Z.T with Z.X)
-
 type fine = Bar(A)(FiveArgsExt)(B)(AExt).a
 |}]
 
 type broken1 = Bar(B)(FiveArgsExt)(B)(AExt).a
 [%%expect{|
-
 Line 1, characters 15-45:
 1 | type broken1 = Bar(B)(FiveArgsExt)(B)(AExt).a
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1720,7 +1641,6 @@ Error: The functor application Bar(B)(FiveArgsExt)(B)(AExt) is ill-typed.
 
 type broken2 = Bar(A)(FiveArgsExt)(TY)(TY)(TY)(TY)(TY).a
 [%%expect{|
-
 Line 1, characters 15-56:
 1 | type broken2 = Bar(A)(FiveArgsExt)(TY)(TY)(TY)(TY)(TY).a
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1770,7 +1690,6 @@ module Shape_arg = struct
   end
 end
 [%%expect{|
-
 module Shape_arg :
   sig
     module M1 :
@@ -1800,17 +1719,13 @@ end
 
 module B = G(A)
 [%%expect{|
-
 module F :
   functor (X : sig module type S module M : S end) ->
     sig module N : (X.S with X.M) end
-
 module G :
   functor (X : sig module type S module M : S end) ->
     sig module O : sig module N : (X.S with X.M) end end
-
 module A : sig module type S = sig type t end module M : sig type t end end
-
 module B : sig module O : sig module N : sig type t = A.M.t end end end
 |}]
 
@@ -1819,9 +1734,7 @@ module B : sig module O : sig module N : sig type t = A.M.t end end end
 module F(X:A) = struct end
 module R = F(struct end[@warning "-73"]);;
 [%%expect {|
-
 module F : functor (X : A) -> sig end
-
 Line 2, characters 11-40:
 2 | module R = F(struct end[@warning "-73"]);;
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1833,9 +1746,7 @@ module F()(X:empty)()(Y:A) = struct end
 module R =
   F(struct end[@warning "-73"])(struct end)(struct end[@warning "-73"])();;
 [%%expect {|
-
 module F : functor () (X : empty) () (Y : A) -> sig end
-
 Line 3, characters 2-73:
 3 |   F(struct end[@warning "-73"])(struct end)(struct end[@warning "-73"])();;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1855,9 +1766,7 @@ module F(X:empty) = struct end
 module R =
   F(struct end)();;
 [%%expect {|
-
 module F : functor (X : empty) -> sig end
-
 Line 3, characters 2-17:
 3 |   F(struct end)();;
       ^^^^^^^^^^^^^^^
@@ -1893,11 +1802,9 @@ include
       let f x = x   (* this is bogus! *)
     end)
 [%%expect {|
-
 module F :
   functor (A : sig type 'a t end)
     (B : sig type 'a t val f : 'a A.t -> 'a t end) -> sig end
-
 Lines 15-21, characters 2-8:
 15 | ..F
 16 |     (struct
@@ -1936,11 +1843,9 @@ struct end
 
 module R = G(struct end)(struct let f (x,_) = x end)
 [%%expect {|
-
 module G :
   functor (A : sig type 'a t = 'a * 'a end)
     (B : sig val f : 'a A.t -> 'a end) -> sig end
-
 Line 8, characters 11-52:
 8 | module R = G(struct end)(struct let f (x,_) = x end)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1969,11 +1874,9 @@ module R = With_expansion(struct
     ()
     ()
 [%%expect {|
-
 module With_expansion :
   functor (A : sig module type t module M : t end)
     (B : sig module type t = A.t end) -> B.t
-
 Lines 5-11, characters 11-6:
  5 | ...........With_expansion(struct
  6 |     module M()() = struct end
@@ -2001,7 +1904,6 @@ module R' = With_expansion(struct
     ()
     ()
 [%%expect {|
-
 Lines 1-6, characters 12-6:
 1 | ............With_expansion(struct
 2 |     module M()() = struct end
@@ -2048,11 +1950,9 @@ module _ =
       let f x = x   (* this is fine *)
     end)
 [%%expect {|
-
 module H :
   functor (X : sig type 'a t type 'a s end)
     (Y : sig val f : 'a X.s -> 'a end) -> sig end
-
 Lines 18-25, characters 2-8:
 18 | ..H
 19 |     (struct
@@ -2096,7 +1996,6 @@ end = struct
   module F(X: sig type 'a t = 'a list end)(Y: sig type 'a t = ('a * 'a) * 'a X.t end) = struct end
 end
 [%%expect {|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   module F(X: sig type 'a t = 'a list end)(Y: sig type 'a t = ('a * 'a) * 'a X.t end) = struct end

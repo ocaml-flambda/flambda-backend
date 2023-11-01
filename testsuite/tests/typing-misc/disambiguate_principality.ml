@@ -48,10 +48,8 @@ let b =
   x := { lbl = 4 }
 ;;
 [%%expect{|
-
 val b : unit = ()
 |}, Principal{|
-
 Line 3, characters 7-18:
 3 |   x := { lbl = 4 }
            ^^^^^^^^^^^
@@ -65,7 +63,6 @@ let c =
   !x.lbl
 ;;
 [%%expect{|
-
 val c : int = 3
 |}]
 
@@ -74,7 +71,6 @@ let d =
   x.contents <- { lbl = 4 }
 ;;
 [%%expect{|
-
 val d : unit = ()
 |}]
 
@@ -83,7 +79,6 @@ let e =
   { x with contents = { lbl = 4 } }
 ;;
 [%%expect{|
-
 Line 3, characters 24-27:
 3 |   { x with contents = { lbl = 4 } }
                             ^^^
@@ -95,7 +90,6 @@ let f =
   x.contents.lbl
 ;;
 [%%expect{|
-
 val f : int = 3
 |}]
 
@@ -106,7 +100,6 @@ let g (x : M.r) =
   | { lbl = _ } -> ()
 ;;
 [%%expect{|
-
 val g : M.r -> unit = <fun>
 |}]
 
@@ -116,7 +109,6 @@ let h x =
   | { lbl = _ } -> ()
 ;;
 [%%expect{|
-
 Line 4, characters 4-15:
 4 |   | { lbl = _ } -> ()
         ^^^^^^^^^^^
@@ -124,7 +116,6 @@ Warning 11 [redundant-case]: this match case is unused.
 
 val h : M.r -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 4-15:
 4 |   | { lbl = _ } -> ()
         ^^^^^^^^^^^
@@ -144,7 +135,6 @@ let i x =
   | (_ : M.r) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 6-9:
 3 |   | { lbl = _ } -> ()
           ^^^
@@ -157,7 +147,6 @@ let j x =
   | { lbl = _ } -> ()
 ;;
 [%%expect{|
-
 Line 4, characters 4-15:
 4 |   | { lbl = _ } -> ()
         ^^^^^^^^^^^
@@ -165,7 +154,6 @@ Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
 val j : M.r -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 4-15:
 4 |   | { lbl = _ } -> ()
         ^^^^^^^^^^^
@@ -185,7 +173,6 @@ let k x =
   | (_ : M.r) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 6-9:
 3 |   | { lbl = _ }
           ^^^
@@ -197,7 +184,6 @@ let l (x : M.r ref) =
   | { contents = { lbl = _ } } -> ()
 ;;
 [%%expect{|
-
 val l : M.r ref -> unit = <fun>
 |}]
 
@@ -206,7 +192,6 @@ let m x =
   | { contents = { lbl = _ } } -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 19-22:
 3 |   | { contents = { lbl = _ } } -> ()
                        ^^^
@@ -219,7 +204,6 @@ let n x =
   | { contents = { lbl = _ } } -> ()
 ;;
 [%%expect{|
-
 Line 4, characters 4-30:
 4 |   | { contents = { lbl = _ } } -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -227,7 +211,6 @@ Warning 11 [redundant-case]: this match case is unused.
 
 val n : M.r ref -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 17-28:
 4 |   | { contents = { lbl = _ } } -> ()
                      ^^^^^^^^^^^
@@ -247,7 +230,6 @@ let o x =
   | (_ : M.r ref) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 19-22:
 3 |   | { contents = { lbl = _ } } -> ()
                        ^^^
@@ -260,7 +242,6 @@ let p x =
   | { contents = { lbl = _ } } -> ()
 ;;
 [%%expect{|
-
 Line 4, characters 4-30:
 4 |   | { contents = { lbl = _ } } -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -268,7 +249,6 @@ Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
 val p : M.r ref -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 17-28:
 4 |   | { contents = { lbl = _ } } -> ()
                      ^^^^^^^^^^^
@@ -288,7 +268,6 @@ let q x =
   | (_ : M.r ref) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 19-22:
 3 |   | { contents = { lbl = _ } }
                        ^^^
@@ -301,7 +280,6 @@ let r arg =
     !x.lbl
 ;;
 [%%expect{|
-
 val r : M.r ref -> int = <fun>
 |}]
 
@@ -311,10 +289,8 @@ let s arg =
     x := { lbl = 4 }
 ;;
 [%%expect{|
-
 val s : M.r ref -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 9-20:
 4 |     x := { lbl = 4 }
              ^^^^^^^^^^^
@@ -328,10 +304,8 @@ let t = function
     x := { lbl = 4 }
 ;;
 [%%expect{|
-
 val t : M.r ref -> unit = <fun>
 |}, Principal{|
-
 Line 3, characters 9-20:
 3 |     x := { lbl = 4 }
              ^^^^^^^^^^^
@@ -345,7 +319,6 @@ let u = function
     !x.lbl
 ;;
 [%%expect{|
-
 val u : M.r ref -> int = <fun>
 |}]
 
@@ -359,7 +332,6 @@ module M = struct
 end
 ;;
 [%%expect{|
-
 module M : sig type t = A | B end
 |}]
 
@@ -367,7 +339,6 @@ let before_a : M.t =
   A
 ;;
 [%%expect{|
-
 val before_a : M.t = M.A
 |}]
 
@@ -376,7 +347,6 @@ let a =
   x
 ;;
 [%%expect{|
-
 val a : M.t = M.A
 |}]
 
@@ -385,10 +355,8 @@ let b =
   x := B
 ;;
 [%%expect{|
-
 val b : unit = ()
 |}, Principal{|
-
 Line 3, characters 7-8:
 3 |   x := B
            ^
@@ -402,7 +370,6 @@ let d =
   x.contents <- B
 ;;
 [%%expect{|
-
 val d : unit = ()
 |}]
 
@@ -411,7 +378,6 @@ let e =
   { x with contents = B }
 ;;
 [%%expect{|
-
 Line 3, characters 22-23:
 3 |   { x with contents = B }
                           ^
@@ -425,7 +391,6 @@ let g (x : M.t) =
   | A | B  -> ()
 ;;
 [%%expect{|
-
 val g : M.t -> unit = <fun>
 |}]
 
@@ -435,10 +400,8 @@ let h x =
   | B -> ()
 ;;
 [%%expect{|
-
 val h : M.t -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 4-5:
 4 |   | B -> ()
         ^
@@ -453,7 +416,6 @@ let i x =
   | (B : M.t) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 4-5:
 3 |   | A -> ()
         ^
@@ -466,10 +428,8 @@ let j x =
   | B -> ()
 ;;
 [%%expect{|
-
 val j : M.t -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 4-5:
 4 |   | B -> ()
         ^
@@ -484,7 +444,6 @@ let k x =
   | (B : M.t) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 4-5:
 3 |   | A
         ^
@@ -496,7 +455,6 @@ let l (x : M.t ref) =
   | { contents = (A | B) } -> ()
 ;;
 [%%expect{|
-
 val l : M.t ref -> unit = <fun>
 |}]
 
@@ -505,7 +463,6 @@ let m x =
   | { contents = (A | B) } -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 18-19:
 3 |   | { contents = (A | B) } -> ()
                       ^
@@ -518,7 +475,6 @@ let n x =
   | { contents = A } -> ()
 ;;
 [%%expect{|
-
 Line 4, characters 4-20:
 4 |   | { contents = A } -> ()
         ^^^^^^^^^^^^^^^^
@@ -526,7 +482,6 @@ Warning 11 [redundant-case]: this match case is unused.
 
 val n : M.t ref -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 17-18:
 4 |   | { contents = A } -> ()
                      ^
@@ -546,7 +501,6 @@ let o x =
   | (_ : M.t ref) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 17-18:
 3 |   | { contents = A } -> ()
                      ^
@@ -559,7 +513,6 @@ let p x =
   | { contents = A } -> ()
 ;;
 [%%expect{|
-
 Line 4, characters 4-20:
 4 |   | { contents = A } -> ()
         ^^^^^^^^^^^^^^^^
@@ -567,7 +520,6 @@ Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
 val p : M.t ref -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 17-18:
 4 |   | { contents = A } -> ()
                      ^
@@ -587,7 +539,6 @@ let q x =
   | (_ : M.t ref) -> ()
 ;;
 [%%expect{|
-
 Line 3, characters 17-18:
 3 |   | { contents = A }
                      ^
@@ -600,10 +551,8 @@ let s arg =
     x := A
 ;;
 [%%expect{|
-
 val s : M.t ref -> unit = <fun>
 |}, Principal{|
-
 Line 4, characters 9-10:
 4 |     x := A
              ^
@@ -617,7 +566,6 @@ let t = function
     x := B
 ;;
 [%%expect{|
-
 Lines 1-3, characters 8-10:
 1 | ........function
 2 |   | ({ contents = M.A } : M.t ref) as x ->
@@ -628,7 +576,6 @@ Here is an example of a case that is not matched:
 
 val t : M.t ref -> unit = <fun>
 |}, Principal{|
-
 Line 3, characters 9-10:
 3 |     x := B
              ^

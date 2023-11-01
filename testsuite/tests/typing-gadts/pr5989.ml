@@ -33,7 +33,6 @@ Here is an example of a case that is not matched:
 Eq
 
 val f : (M.s, [ `A | `B ]) t -> string = <fun>
-
 Exception: Match_failure ("", 16, 39).
 |}];;
 
@@ -52,13 +51,11 @@ let f : (N.s, <a : int; b : bool>) t -> string = function
   | Any -> "Any"
 ;;
 [%%expect{|
-
 module N :
   sig
     type s = private < a : int; .. >
     val eq : (s, < a : int; b : bool >) t
   end
-
 Lines 12-13, characters 49-16:
 12 | .................................................function
 13 |   | Any -> "Any"

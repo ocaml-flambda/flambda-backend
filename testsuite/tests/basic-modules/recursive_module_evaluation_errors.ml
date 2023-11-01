@@ -36,9 +36,7 @@ type t = ..
 module rec A: sig type t += A end = struct type t += A = B.A end
 and B:sig type t += A end = struct type t += A = A.A end
 [%%expect {|
-
 type t = ..
-
 Line 2, characters 36-64:
 2 | module rec A: sig type t += A end = struct type t += A = B.A end
                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -65,7 +63,6 @@ end = struct
 end
 and B: sig val value: unit end = struct let value = A.f () end
 [%%expect {|
-
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   module F(X:sig end) = struct end
@@ -96,7 +93,6 @@ module F(X: sig module type t module M: t end) = struct
   and B: sig val value: unit end = struct let value  = A.f () end
 end
 [%%expect {|
-
 Lines 5-8, characters 8-5:
 5 | ........struct
 6 |     module M = X.M
@@ -119,6 +115,5 @@ Line 9, characters 13-28:
 module rec M: sig val f: unit -> int end = struct let f () = N.x end
 and N:sig val x: int end = struct let x = M.f () end;;
 [%%expect {|
-
 Exception: Undefined_recursive_module ("", 1, 43).
 |}]

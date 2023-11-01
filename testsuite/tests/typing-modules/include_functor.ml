@@ -50,7 +50,6 @@ module M3 = struct
   include functor F1
 end;;
 [%%expect{|
-
 Line 4, characters 18-20:
 4 |   include functor F1
                       ^^
@@ -66,7 +65,6 @@ module M4 = struct
   include functor F1
 end;;
 [%%expect{|
-
 Line 5, characters 18-20:
 5 |   include functor F1
                       ^^
@@ -98,13 +96,9 @@ module M5_impl : M5_sig = struct
 end
 let () = assert (M5_impl.f M5_impl.x);;
 [%%expect{|
-
 module type T = sig type s val f : s -> bool end
-
 module type F5 = functor (X : S) -> sig type s = X.t val f : s -> bool end
-
 module type M5_sig = sig type t val x : t type s = t val f : s -> bool end
-
 module M5_impl : M5_sig
 |}];;
 
@@ -116,7 +110,6 @@ module type M6_sig = sig
   include functor F5
 end;;
 [%%expect{|
-
 Line 5, characters 18-20:
 5 |   include functor F5
                       ^^
@@ -132,7 +125,6 @@ module type M7_sig = sig
   include functor F5
 end;;
 [%%expect{|
-
 Line 4, characters 18-20:
 4 |   include functor F5
                       ^^
@@ -147,7 +139,6 @@ module type M8_sig = sig
   include functor F5
 end;;
 [%%expect{|
-
 Line 4, characters 18-20:
 4 |   include functor F5
                       ^^
@@ -189,21 +180,15 @@ end
 
 let () = assert (M9.eq_z M9.Foo.z);;
 [%%expect{|
-
 module type Eq9 = sig type t val z : t val equal : t -> t -> bool end
-
 module type S9 = sig module Foo : Eq9 end
-
 module F9 : functor (X : S9) -> sig val eq_z : X.Foo.t -> bool end
-
 module Int9 : sig type t val equal : t -> t -> bool val of_int : int -> t end
-
 module M9 : sig module Foo : Eq9 val eq_z : Foo.t -> bool end
 |}];;
 
 let () = assert (M9.eq_z 7);;
 [%%expect{|
-
 Line 1, characters 25-26:
 1 | let () = assert (M9.eq_z 7);;
                              ^
@@ -222,7 +207,6 @@ end
 let () = assert (not (M9'.eq_z (M9'.Foo.of_int 5)))
 let () = assert (M9'.eq_z (M9'.Foo.of_int 6));;
 [%%expect{|
-
 module M9' :
   sig
     module Foo :
@@ -248,9 +232,7 @@ module M10 = struct
   include functor F10
 end;;
 [%%expect{|
-
 module F10 : functor (X : Set.OrderedType) -> sig val s : Set.Make(X).t end
-
 Line 8, characters 18-21:
 8 |   include functor F10
                       ^^^
@@ -268,13 +250,9 @@ include functor F1
 
 let () = assert (Int.(equal y 5));;
 [%%expect{|
-
 type t = int
-
 val x : t = 3
-
 val x : t = 5
-
 val y : int = 5
 |}];;
 
@@ -285,15 +263,10 @@ include functor F1
 
 let () = assert (Int.(equal y 5));;
 [%%expect{|
-
 type t = int
-
 val x : t = 5
-
 val x : t = 3
-
 val y : int = 3
-
 Exception: Assert_failure ("", 6, 9).
 |}]
 
@@ -322,7 +295,6 @@ module M12_1 : sig val y : int list end = struct
   include functor F
 end;;
 [%%expect{|
-
 module M12_1 : sig val y : int list end
 |}];;
 
@@ -350,7 +322,6 @@ module M12_2 : sig val y : int list end = struct
   include functor F
 end;;
 [%%expect{|
-
 Line 5, characters 8-9:
 5 |     let q = 42
             ^
@@ -388,7 +359,6 @@ module M12_3 : sig val y : int list end = struct
 end;;
 
 [%%expect{|
-
 Line 9, characters 32-41:
 9 |       module T_sub : sig type t val x : t end
                                     ^^^^^^^^^
@@ -446,11 +416,8 @@ end = struct
   let foo = x
 end;;
 [%%expect{|
-
 module type S13 = sig val foo : int end
-
 module type F13 = S -> S13
-
 Line 8, characters 2-21:
 8 |   include functor F13
       ^^^^^^^^^^^^^^^^^^^
@@ -469,9 +436,7 @@ module M14 = struct
   include functor F14
 end;;
 [%%expect{|
-
 module F14 : functor (X : S) (Y : S) -> sig val z : X.t * Y.t end
-
 Line 9, characters 18-21:
 9 |   include functor F14
                       ^^^
@@ -490,9 +455,7 @@ module M14_2 = struct
   include functor F14_2
 end;;
 [%%expect{|
-
 module F14_2 : functor (X : S) () () -> sig val z : X.t end
-
 Line 9, characters 18-23:
 9 |   include functor F14_2
                       ^^^^^
@@ -512,18 +475,14 @@ end
 include functor F15
 
 [%%expect{|
-
 module type S15 = sig val x : int end
-
 module type S15' = S15
-
 Line 4, characters 12-13:
 4 | module F15 (X : sig end) : S15' =
                 ^
 Warning 60 [unused-module]: unused module X.
 
 module F15 : functor (X : sig end) -> S15'
-
 val x : int = 42
 |}]
 
@@ -555,22 +514,16 @@ module type G16_2 = sig
   include functor F16_2
 end;;
 [%%expect{|
-
 module type S16 = sig type t val x : t end
-
 module type S16' = sig type s end
-
 Line 10, characters 29-30:
 10 | module type F16_1 = functor (X : S16) -> S16'
                                   ^
 Warning 67 [unused-functor-parameter]: unused functor parameter X.
 
 module type F16_1 = functor (X : S16) -> S16'
-
 module type F16_2 = S16 -> S16'
-
 module type G16_1 = sig type t val x : t type s end
-
 module type G16_2 = sig type t val x : t type s end
 |}];;
 
@@ -587,11 +540,8 @@ module type G17 = sig
   include functor F17_1
 end;;
 [%%expect {|
-
 module type S17 = sig type t val x : t end
-
 module type F17_1 = functor () -> S17
-
 Line 9, characters 18-23:
 9 |   include functor F17_1
                       ^^^^^
@@ -607,9 +557,7 @@ module type G17_2 = sig
   include functor F17_2
 end;;
 [%%expect {|
-
 module type F17_2 = functor () (X : S17) -> sig val z : X.t end
-
 Line 6, characters 18-23:
 6 |   include functor F17_2
                       ^^^^^
@@ -644,13 +592,10 @@ end
 
 let () = assert (M18.equal_t' M18.z M18.z)
 [%%expect{|
-
 module type S18 = sig type t val x : t val equal : t -> t -> bool end
-
 module F18 :
   functor (X : S18) () ->
     sig type t' val z : t' val equal_t' : t' -> t' -> bool end
-
 module M18 :
   sig
     type t = int
@@ -675,9 +620,7 @@ module M18_2 (Y : S18) = struct
   include functor F18_2
 end;;
 [%%expect{|
-
 module F18_2 : functor (X : S18) () -> sig type t' val z : t' end
-
 Line 11, characters 18-23:
 11 |   include functor F18_2
                        ^^^^^
@@ -705,11 +648,8 @@ end
 
 let () = assert (Int.equal 42 !r19);;
 [%%expect{|
-
 val r19 : int ref = {contents = 0}
-
 module F19 : functor (X : sig val x : int end) -> sig end
-
 module M19 : sig val x : int end
 |}];;
 
@@ -735,14 +675,10 @@ end
 
 let () = M20.go 3;;
 [%%expect{|
-
 module I20 : sig type t = int end
-
 module F20 :
   functor (M : sig type t = string end) -> sig val go : M.t -> unit end
-
 module M20 : sig type t = string val go : string -> unit end
-
 Line 20, characters 16-17:
 20 | let () = M20.go 3;;
                      ^
@@ -764,7 +700,6 @@ module M21 = struct
   include functor P.Make
 end;;
 [%%expect{|
-
 module M21 :
   sig
     module F : sig end -> sig module type S = sig end end

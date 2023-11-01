@@ -52,7 +52,6 @@ Error: This expression has type [< `TagA of 'a ] -> 'a
 let _ =  example6 (WrapPoly AandBTags) `TagB (* This causes a seg fault *)
 ;;
 [%%expect{|
-
 Line 1, characters 9-17:
 1 | let _ =  example6 (WrapPoly AandBTags) `TagB (* This causes a seg fault *)
              ^^^^^^^^

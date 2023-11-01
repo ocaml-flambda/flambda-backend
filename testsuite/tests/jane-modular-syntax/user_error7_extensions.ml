@@ -26,7 +26,6 @@ Error: Uninterpreted extension 'jane'.
 
 [%%jane "payload"];;
 [%%expect{|
-
 Line 1, characters 3-7:
 1 | [%%jane "payload"];;
        ^^^^

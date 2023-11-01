@@ -62,11 +62,8 @@ module D : S = struct
   end
 end
 [%%expect{|
-
 module A : sig type a and b and c and d end
-
 module type S = sig module type B = sig module C = A end end
-
 Lines 11-17, characters 15-3:
 11 | ...............struct
 12 |   module type B = sig

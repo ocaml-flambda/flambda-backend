@@ -29,7 +29,6 @@ Error: This pattern matches values of type i t
 let g (type a b) (y : (a,b) j t option) =
   let None = y in () ;;
 [%%expect{|
-
 val g : ('a, 'b) j t option -> unit = <fun>
 |}]
 
@@ -40,9 +39,7 @@ end ;;
 let g (y : M.j t option) =
   let None = y in () ;;
 [%%expect{|
-
 module M : sig type 'a d = D type j = < m : 'c. 'c -> 'c d > end
-
 val g : M.j t option -> unit = <fun>
 |}]
 
@@ -53,9 +50,7 @@ end ;;
 let g (y : M.j t option) =
   let None = y in () ;;
 [%%expect{|
-
 module M : sig type 'a d type j = < m : 'c. 'c -> 'c d > end
-
 Line 6, characters 2-20:
 6 |   let None = y in () ;;
       ^^^^^^^^^^^^^^^^^^
@@ -76,7 +71,6 @@ type _ t = A : M.i t
 let g (y : M.j t option) =
   let None = y in () ;;
 [%%expect{|
-
 module M :
   sig
     type e
@@ -84,9 +78,7 @@ module M :
     type i = < m : 'c. 'c -> 'c d >
     type j = < m : 'c. 'c -> e >
   end
-
 type _ t = A : M.i t
-
 Line 9, characters 2-20:
 9 |   let None = y in () ;;
       ^^^^^^^^^^^^^^^^^^
@@ -107,16 +99,13 @@ type _ t = A : M.i t
 let g (y : 'a M.j t option) =
   let None = y in () ;;
 [%%expect{|
-
 module M :
   sig
     type 'a d
     type i = < m : 'c. 'c -> 'c d >
     type 'a j = < m : 'c. 'c -> 'a >
   end
-
 type _ t = A : M.i t
-
 Line 9, characters 2-20:
 9 |   let None = y in () ;;
       ^^^^^^^^^^^^^^^^^^
@@ -136,16 +125,13 @@ end
 type _ t = A : M.i t;;
 let f (y : M.j t) = match y with _ -> .;;
 [%%expect{|
-
 module M :
   sig
     type a
     type i = C of < m : 'c. 'c -> 'c >
     type j = C of < m : 'c. 'c -> a >
   end
-
 type _ t = A : M.i t
-
 val f : M.j t -> 'a = <fun>
 |}]
 
@@ -157,16 +143,13 @@ end
 type _ t = A : M.i t;;
 let f (y : M.j t) = match y with _ -> .;;
 [%%expect{|
-
 module M :
   sig
     type a
     type i = C of < m : 'c. 'c -> 'c -> 'c >
     type j = C of < m : 'c. 'c -> a >
   end
-
 type _ t = A : M.i t
-
 val f : M.j t -> 'a = <fun>
 |}]
 
@@ -178,16 +161,13 @@ end
 type _ t = A : M.i t;;
 let f (y : M.j t) = match y with _ -> .;;
 [%%expect{|
-
 module M :
   sig
     type 'a a
     type i = C of < m : 'c. 'c -> 'c -> 'c >
     type j = C of < m : 'c. 'c -> 'c a >
   end
-
 type _ t = A : M.i t
-
 Line 7, characters 33-34:
 7 | let f (y : M.j t) = match y with _ -> .;;
                                      ^

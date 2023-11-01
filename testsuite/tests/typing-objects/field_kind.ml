@@ -33,7 +33,6 @@ Warning 15 [implicit-public-methods]: the following private methods were made pu
  x.
 
 val o' : < m : 'a. 'a t -> 'b -> 'a; x : int > as 'b = <obj>
-
 val aargh : unit = ()
 |}]
 
@@ -43,7 +42,6 @@ let o2 =
     method m : 's -> int = fun other -> (other#x : int)
   end;;
 [%%expect{|
-
 Lines 2-5, characters 2-5:
 2 | ..object (self : 's)
 3 |     method private x = 3
@@ -64,7 +62,6 @@ let o3 =
 
 let aargh = assert (o3#m o3 = 3);;
 [%%expect{|
-
 Lines 2-6, characters 2-5:
 2 | ..object (self : 's)
 3 |     method private x = 3
@@ -75,6 +72,5 @@ Warning 15 [implicit-public-methods]: the following private methods were made pu
  x.
 
 val o3 : < m : 'a -> int; x : int > as 'a = <obj>
-
 val aargh : unit = ()
 |}]

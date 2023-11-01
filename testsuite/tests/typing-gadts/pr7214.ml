@@ -35,9 +35,7 @@ let bad (type a) =
  end in N.M.e
 ;;
 [%%expect{|
-
 type (_, _) eq = Refl : ('a, 'a) eq
-
 Line 8, characters 10-14:
 8 |      let (Refl : (int, a) eq) = M.e  (* must fail for soundness *)
               ^^^^

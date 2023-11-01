@@ -69,7 +69,6 @@ let foo x =
   let local_ y = "foo" in
   exclave_ Some y
 [%%expect{|
-
 Line 3, characters 16-17:
 3 |   exclave_ Some y
                     ^
@@ -81,7 +80,6 @@ let foo x =
   let z = exclave_ Some y in
   z
 [%%expect{|
-
 Line 3, characters 10-25:
 3 |   let z = exclave_ Some y in
               ^^^^^^^^^^^^^^^
@@ -96,7 +94,6 @@ let foo () =
   done
 
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -107,7 +104,6 @@ let foo () =
     ()
   done
 [%%expect{|
-
 Line 3, characters 4-17:
 3 |     (exclave_ ());
         ^^^^^^^^^^^^^
@@ -120,7 +116,6 @@ let foo () =
     exclave_ ()
   done
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -130,7 +125,6 @@ let foo () =
     ()
   done
 [%%expect{|
-
 Line 3, characters 4-17:
 3 |     (exclave_ ());
         ^^^^^^^^^^^^^
@@ -144,9 +138,7 @@ let foo (local_ x) =
   exclave_ x
 
 [%%expect{|
-
 type t = { x : int option; }
-
 val foo : local_ int option -> local_ int option = <fun>
 |}]
 
@@ -165,9 +157,7 @@ let foo () =
   done
 
 [%%expect{|
-
 type data = { mutable a : string; }
-
 Line 6, characters 9-10:
 6 |   x.a <- z;
              ^
@@ -186,11 +176,8 @@ let bar _ =
   | Some x -> "Some of " ^ (string_of_int (x + 0)) ;;
 bar ();;
 [%%expect{|
-
 val foo : 'a -> local_ 'a option = <fun>
-
 val bar : 'a -> string = <fun>
-
 - : string = "Some of 5"
 |}]
 
@@ -207,13 +194,9 @@ let f () =
 ;;
 f ();;
 [%%expect{|
-
 type 'a glob = Glob of global_ 'a
-
 val return_local : 'a -> local_ 'a glob = <fun>
-
 val f : unit -> local_ unit = <fun>
-
 - : unit = ()
 |}]
 
@@ -224,7 +207,6 @@ let f () =
     (fun x y -> ()) : (string -> string -> unit)
   )
 [%%expect{|
-
 Line 3, characters 4-19:
 3 |     (fun x y -> ()) : (string -> string -> unit)
         ^^^^^^^^^^^^^^^

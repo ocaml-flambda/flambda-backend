@@ -118,7 +118,6 @@ module type Module = sig
 end
 ;;
 [%%expect{|
-
 module type Module =
   sig
     module N : sig type t end
@@ -142,7 +141,6 @@ module type Module_fail = sig
 end
 ;;
 [%%expect{|
-
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
@@ -165,7 +163,6 @@ module type Module_type = sig
 end
 ;;
 [%%expect{|
-
 module type Module_type =
   sig
     module type U
@@ -189,7 +186,6 @@ module type Module_type_fail = sig
 end
 ;;
 [%%expect{|
-
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
@@ -211,7 +207,6 @@ module type Extension = sig
 end
 ;;
 [%%expect{|
-
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
@@ -233,7 +228,6 @@ module type Class = sig
 end
 ;;
 [%%expect{|
-
 module type Class =
   sig
     class parametrized : int -> object  end
@@ -257,7 +251,6 @@ module type Class_type = sig
 end
 ;;
 [%%expect{|
-
 module type Class_type =
   sig
     class type parametrized = object  end
@@ -300,7 +293,6 @@ module N = struct
 end
 ;;
 [%%expect{|
-
 module N :
   sig
     type t
@@ -322,7 +314,6 @@ module NN = struct
 end
 ;;
 [%%expect{|
-
 module NN :
   sig
     type t = N.t
@@ -347,7 +338,6 @@ module Type = struct
 end
 ;;
 [%%expect{|
-
 module Type :
   sig
     type u = N.t
@@ -371,7 +361,6 @@ module Module = struct
 end
 ;;
 [%%expect{|
-
 module Module :
   sig
     module O = N.M
@@ -395,7 +384,6 @@ module Module_type = struct
 end
 ;;
 [%%expect{|
-
 module Module_type :
   sig
     module type U = N.T
@@ -419,7 +407,6 @@ module Exception = struct
 end
 ;;
 [%%expect{|
-
 module Exception :
   sig
     exception Exn
@@ -443,7 +430,6 @@ module Extension = struct
 end
 ;;
 [%%expect{|
-
 module Extension :
   sig
     type N.ext += C2
@@ -467,7 +453,6 @@ module Class = struct
 end
 ;;
 [%%expect{|
-
 module Class :
   sig
     class parametrized : 'a -> object  end
@@ -491,7 +476,6 @@ module Class_type = struct
 end
 ;;
 [%%expect{|
-
 module Class_type :
   sig
     class type parametrized = object  end
@@ -519,7 +503,6 @@ module M = struct
   type t
 end
 [%%expect {|
-
 Line 8, characters 2-8:
 8 |   type t
       ^^^^^^

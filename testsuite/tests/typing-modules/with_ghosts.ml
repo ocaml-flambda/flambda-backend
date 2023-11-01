@@ -23,7 +23,6 @@ module type s = sig
   class type ct = object method m: int end
 end with type ct := <m : int >
 [%%expect {|
-
 Lines 1-3, characters 16-30:
 1 | ................sig
 2 |   class type ct = object method m: int end
@@ -42,7 +41,6 @@ module type s = sig
 end with type t = private < .. >
     with type u = private < .. >
 [%%expect {|
-
 module type s =
   sig
     type top

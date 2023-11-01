@@ -26,7 +26,6 @@ external apply : 'a -> 'b = "%apply"
 
 [%%expect
 {|
-
 Line 1, characters 0-36:
 1 | external apply : 'a -> 'b = "%apply"
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

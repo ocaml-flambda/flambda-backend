@@ -26,11 +26,8 @@ type c = M.c
 
 let () = (new M.c)#bar
 [%%expect {|
-
 module M : sig class c : object method foo : int end end
-
 type c = M.c
-
 Line 7, characters 9-18:
 7 | let () = (new M.c)#bar
              ^^^^^^^^^
@@ -42,7 +39,6 @@ Error: This expression has type c
 
 type 'a t = 'a t
 [%%expect {|
-
 Line 3, characters 0-16:
 3 | type 'a t = 'a t
     ^^^^^^^^^^^^^^^^
@@ -56,7 +52,6 @@ and 'a v = 'a w list
 and 'a w = 'a option z
 and 'a z = 'a t
 [%%expect {|
-
 Line 1, characters 0-16:
 1 | type 'a t = 'a u
     ^^^^^^^^^^^^^^^^
@@ -74,7 +69,6 @@ Error: The type abbreviation t is cyclic:
 type 'a u = < x : 'a>
 and 'a t = 'a t u;;
 [%%expect{|
-
 Line 2, characters 0-17:
 2 | and 'a t = 'a t u;;
     ^^^^^^^^^^^^^^^^^
@@ -88,7 +82,6 @@ Error: The type abbreviation t is cyclic:
 module rec A : sig type t = B.t -> int end = struct type t = B.t -> int end
        and B : sig type t = A.t end = struct type t = A.t end;;
 [%%expect {|
-
 Line 1, characters 0-75:
 1 | module rec A : sig type t = B.t -> int end = struct type t = B.t -> int end
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

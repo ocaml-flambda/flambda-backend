@@ -89,11 +89,8 @@ module type A = sig type t = X of int end;;
 type u = X of bool;;
 module type B = A with type t = u;; (* fail *)
 [%%expect{|
-
 module type A = sig type t = X of int end
-
 type u = X of bool
-
 Line 3, characters 23-33:
 3 | module type B = A with type t = u;; (* fail *)
                            ^^^^^^^^^^
@@ -110,7 +107,6 @@ Error: This variant or record definition does not match that of type u
 
 module type S = sig exception Foo of int  exception Foo of bool end;;
 [%%expect{|
-
 Line 1, characters 42-63:
 1 | module type S = sig exception Foo of int  exception Foo of bool end;;
                                               ^^^^^^^^^^^^^^^^^^^^^
@@ -123,9 +119,7 @@ Error: Multiple definition of the extension constructor name Foo.
 module F(X : sig end) = struct let x = 3 end;;
 F.x;; (* fail *)
 [%%expect{|
-
 module F : functor (X : sig end) -> sig val x : int end
-
 Line 2, characters 0-3:
 2 | F.x;; (* fail *)
     ^^^
@@ -134,13 +128,11 @@ Error: The module F is a functor, it cannot have any components
 
 type t = ..;;
 [%%expect{|
-
 type t = ..
 |}];;
 
 module M : sig type t += E end = struct type t += E of int end;;
 [%%expect{|
-
 Line 1, characters 33-62:
 1 | module M : sig type t += E end = struct type t += E of int end;;
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -162,7 +154,6 @@ Error: Signature mismatch:
 
 module M : sig type t += E of char end = struct type t += E of int end;;
 [%%expect{|
-
 Line 1, characters 41-70:
 1 | module M : sig type t += E of char end = struct type t += E of int end;;
                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -184,7 +175,6 @@ Error: Signature mismatch:
 
 module M : sig type t += C of int end = struct type t += E of int end;;
 [%%expect{|
-
 Line 1, characters 40-69:
 1 | module M : sig type t += C of int end = struct type t += E of int end;;
                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -202,7 +192,6 @@ end = struct
   type t += E of int
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t += E of int

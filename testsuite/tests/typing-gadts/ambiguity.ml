@@ -30,7 +30,6 @@ let ret_e2 (type a b) (b : bool) (wit : (a, b) eq) (x : a) (y : b) =
   | _ -> y
 ;;
 [%%expect{|
-
 Line 3, characters 29-30:
 3 |   | Refl -> if b then x else y
                                  ^
@@ -46,7 +45,6 @@ let ret_ei1 (type a) (b : bool) (wit : (a, int) eq) (x : a) =
   | _ -> x
 ;;
 [%%expect{|
-
 Line 3, characters 29-30:
 3 |   | Refl -> if b then x else 0
                                  ^
@@ -62,7 +60,6 @@ let ret_ei2 (type a) (b : bool) (wit : (a, int) eq) (x : a) =
   | _ -> x
 ;;
 [%%expect{|
-
 Line 3, characters 29-30:
 3 |   | Refl -> if b then x else 0
                                  ^
@@ -79,7 +76,6 @@ let ret_f (type a b) (wit : (a, b) eq) (x : a) (y : b) =
   | _ -> [x]
 ;;
 [%%expect{|
-
 Line 3, characters 16-17:
 3 |   | Refl -> [x; y]
                     ^
@@ -95,7 +91,6 @@ let ret_g1 (type a b) (wit : (a, b) eq) (x : a) (y : b) =
   | _ -> [y]
 ;;
 [%%expect{|
-
 Line 3, characters 16-17:
 3 |   | Refl -> [x; y]
                     ^
@@ -118,7 +113,6 @@ let f (type a b) (x : (a, b) eq) =
   | _, [(_ : a)] -> []
 ;;
 [%%expect{|
-
 Line 3, characters 4-29:
 3 |   | Refl, [(_ : a) | (_ : b)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -133,7 +127,6 @@ let g1 (type a b) (x : (a, b) eq) =
   | _, [(_ : b)] -> []
 ;;
 [%%expect{|
-
 Line 3, characters 4-29:
 3 |   | Refl, [(_ : a) | (_ : b)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -148,7 +141,6 @@ let g2 (type a b) (x : (a, b) eq) =
   | _, [(_ : a)] -> []
 ;;
 [%%expect{|
-
 Line 3, characters 4-29:
 3 |   | Refl, [(_ : b) | (_ : a)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -163,7 +155,6 @@ let h1 (type a b) (x : (a, b) eq) =
   | Refl, [(_ : a) | (_ : b)] -> []
 ;;
 [%%expect{|
-
 Line 4, characters 4-29:
 4 |   | Refl, [(_ : a) | (_ : b)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -178,7 +169,6 @@ let h2 (type a b) (x : (a, b) eq) =
   | Refl, [(_ : a) | (_ : b)] -> []
 ;;
 [%%expect{|
-
 Line 4, characters 4-29:
 4 |   | Refl, [(_ : a) | (_ : b)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -193,7 +183,6 @@ let h3 (type a b) (x : (a, b) eq) =
   | Refl, [(_ : b) | (_ : a)] -> []
 ;;
 [%%expect{|
-
 Line 4, characters 4-29:
 4 |   | Refl, [(_ : b) | (_ : a)] -> []
         ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -212,7 +201,6 @@ end = struct
   let eq = Refl
 end;;
 [%%expect{|
-
 module T : sig type t type u val eq : (t, u) eq end
 |}]
 
@@ -232,9 +220,7 @@ let foo p (e : (T.t, T.u) eq) (x : T.t) (y : T.u) =
 
 module type S = module type of M ;;
 [%%expect{|
-
 module M : sig val r : '_weak1 list ref end
-
 Line 12, characters 25-26:
 12 |     let module O : N.S = M in
                               ^
@@ -268,9 +254,7 @@ let foo p (e : (T.u, T.t) eq) (x : T.t) (y : T.u) =
 
 module type S = module type of M ;;
 [%%expect{|
-
 module M : sig val r : '_weak2 list ref end
-
 Line 12, characters 25-26:
 12 |     let module O : N.S = M in
                               ^

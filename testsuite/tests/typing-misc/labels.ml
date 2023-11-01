@@ -20,18 +20,14 @@ let foo (f : unit -> unit) = ();;
 let g ?x () = ();;
 foo ((); g);;
 [%%expect{|
-
 val foo : (unit -> unit) -> unit = <fun>
-
 val g : ?x:'a -> unit -> unit = <fun>
-
 - : unit = ()
 |}];;
 
 (* PR#5748 *)
 foo (fun ?opt () -> ()) ;; (* fails *)
 [%%expect{|
-
 Line 1, characters 4-23:
 1 | foo (fun ?opt () -> ()) ;; (* fails *)
         ^^^^^^^^^^^^^^^^^^^
@@ -43,7 +39,6 @@ Error: This function should have type unit -> unit
 
 let (f : x:int -> int) = fun y -> y
 [%%expect{|
-
 Line 1, characters 25-35:
 1 | let (f : x:int -> int) = fun y -> y
                              ^^^^^^^^^^
@@ -53,7 +48,6 @@ Error: This function should have type x:int -> int
 
 let (f : int -> int) = fun ~y -> y
 [%%expect{|
-
 Line 1, characters 23-34:
 1 | let (f : int -> int) = fun ~y -> y
                            ^^^^^^^^^^^
@@ -63,7 +57,6 @@ Error: This function should have type int -> int
 
 let (f : x:int -> int) = fun ~y -> y
 [%%expect{|
-
 Line 1, characters 25-36:
 1 | let (f : x:int -> int) = fun ~y -> y
                              ^^^^^^^^^^^
@@ -75,7 +68,6 @@ Error: This function should have type x:int -> int
 
 let f g = ignore (g ?x:(Some 2) ()); g ~x:3 () ;;
 [%%expect{|
-
 Line 1, characters 37-38:
 1 | let f g = ignore (g ?x:(Some 2) ()); g ~x:3 () ;;
                                          ^
@@ -86,7 +78,6 @@ Error: This function is applied to arguments
 
 let f g = let _ = g ?x:(Some 2) () in g ~x:3 () ;;
 [%%expect{|
-
 Line 1, characters 38-39:
 1 | let f g = let _ = g ?x:(Some 2) () in g ~x:3 () ;;
                                           ^
@@ -98,10 +89,8 @@ Error: This function is applied to arguments
 (* principality warning *)
 let f g = ignore (g : ?x:int -> unit -> int); g ~x:3 () ;;
 [%%expect{|
-
 val f : (?x:int -> unit -> int) -> int = <fun>
 |}, Principal{|
-
 Line 1, characters 51-52:
 1 | let f g = ignore (g : ?x:int -> unit -> int); g ~x:3 () ;;
                                                        ^
@@ -112,10 +101,8 @@ val f : (?x:int -> unit -> int) -> int = <fun>
 
 let f g = ignore (g : ?x:int -> unit -> int); g ();;
 [%%expect{|
-
 val f : (?x:int -> unit -> int) -> int = <fun>
 |}, Principal{|
-
 Line 1, characters 46-47:
 1 | let f g = ignore (g : ?x:int -> unit -> int); g ();;
                                                   ^
@@ -126,10 +113,8 @@ val f : (?x:int -> unit -> int) -> int = <fun>
 
 let f g = ignore (g : x:int -> unit -> int); g ();;
 [%%expect{|
-
 val f : (x:int -> unit -> int) -> x:int -> int = <fun>
 |}, Principal{|
-
 Line 1, characters 45-46:
 1 | let f g = ignore (g : x:int -> unit -> int); g ();;
                                                  ^
@@ -146,9 +131,7 @@ class virtual fail = object (self)
   method trigger = (self :> setup )
 end
 [%%expect {|
-
 class setup : object method with_ : (int -> unit) -> unit end
-
 class virtual fail :
   object
     method trigger : setup
@@ -162,14 +145,9 @@ let f g = 1 + g ~x:0 ~y:0;;
 module E = (val type_of f)
 let g = ( (fun _ -> f) :> 'a -> E.t)
 [%%expect {|
-
 module type T = sig type t end
-
 val type_of : 'x -> (module T with type t = 'x) = <fun>
-
 val f : (x:int -> y:int -> int) -> int = <fun>
-
 module E : sig type t = (x:int -> y:int -> int) -> int end
-
 val g : 'a -> E.t = <fun>
 |}]

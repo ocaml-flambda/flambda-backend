@@ -40,7 +40,6 @@ and (module A : S) =
 in
 ();;
 [%%expect{|
-
 Lines 2-6, characters 2-22:
 2 | ..let (module K : S with type t = A.t) = k in
 3 |   (module struct
@@ -63,7 +62,6 @@ let f (type a) () =
   ()
 ;;
 [%%expect{|
-
 val f : unit -> unit = <fun>
 |}];;
 
@@ -75,7 +73,6 @@ let f (type a) () =
   in
   ();;
 [%%expect{|
-
 val f : unit -> unit = <fun>
 |}];;
 
@@ -98,9 +95,7 @@ let f () =
   unify ()
 ;;
 [%%expect{|
-
 module type S = sig type t val x : t end
-
 Line 15, characters 8-10:
 15 |   unify ()
              ^^

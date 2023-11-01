@@ -17,7 +17,6 @@ Error: This expression has type 'a list
 |}];;
 let f (g : 'a * 'b -> 'a t -> 'a) s = g s s;;
 [%%expect{|
-
 Line 1, characters 42-43:
 1 | let f (g : 'a * 'b -> 'a t -> 'a) s = g s s;;
                                               ^

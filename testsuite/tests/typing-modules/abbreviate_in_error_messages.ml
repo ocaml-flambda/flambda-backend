@@ -79,7 +79,6 @@ module Depth = struct
 end
 
 [%%expect{|
-
 Line 19, characters 52-56:
 19 |   module F(F : F)(X : sig module M : sig end end) = F(X)
                                                          ^^^^

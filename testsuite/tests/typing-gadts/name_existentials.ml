@@ -26,7 +26,6 @@ Error: Existential types introduced in a constructor pattern
 |}]
 let ko1 = function Dyn (type a) (w, x : _) -> ()
 [%%expect{|
-
 Line 1, characters 40-41:
 1 | let ko1 = function Dyn (type a) (w, x : _) -> ()
                                             ^
@@ -35,7 +34,6 @@ Error: This type does not bind all existentials in the constructor:
 |}]
 let ko2 = function Dyn (type a b) (a, x : a ty * b) -> ignore (x : b)
 [%%expect{|
-
 Line 1, characters 42-50:
 1 | let ko2 = function Dyn (type a b) (a, x : a ty * b) -> ignore (x : b)
                                               ^^^^^^^^
@@ -47,15 +45,12 @@ Error: This pattern matches values of type a ty * b
 type u = C : 'a * ('a -> 'b list) -> u
 let f = function C (type a b) (x, f : _ * (a -> b list)) -> ignore (x : a)
 [%%expect{|
-
 type u = C : 'a * ('a -> 'b list) -> u
-
 val f : u -> unit = <fun>
 |}]
 
 let f = function C (type a) (x, f : a * (a -> a list)) -> ignore (x : a)
 [%%expect{|
-
 Line 1, characters 36-53:
 1 | let f = function C (type a) (x, f : a * (a -> a list)) -> ignore (x : a)
                                         ^^^^^^^^^^^^^^^^^
@@ -74,12 +69,10 @@ let rec eval : type t. t expr -> t = function
   | Add -> (+)
   | App (type a) (f, x : _ * a expr) -> eval f (eval x : a)
 [%%expect{|
-
 type _ expr =
     Int : int -> int expr
   | Add : (int -> int -> int) expr
   | App : ('a -> 'b) expr * 'a expr -> 'b expr
-
 val eval : 't expr -> 't = <fun>
 |}]
 
@@ -88,7 +81,6 @@ let rec test : type a. a expr -> a = function
   | Add -> (+)
   | App (type b) (f, x : (b -> a) expr * _) -> test f (test x : b)
 [%%expect{|
-
 Line 2, characters 22-23:
 2 |   | Int (type b) (n : a) -> n
                           ^
@@ -103,7 +95,6 @@ let () =
   | None (type a) (_ : a * int) -> ()
   | Some _ -> ()
 [%%expect{|
-
 Line 4, characters 4-31:
 4 |   | None (type a) (_ : a * int) -> ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -123,8 +114,6 @@ type ('a,'b) pair = Pair of 'a * 'b
 
 let f = function Pair (x, y : int * _) -> x + y
 [%%expect{|
-
 type ('a, 'b) pair = Pair of 'a * 'b
-
 val f : (int, int) pair -> int = <fun>
 |}]

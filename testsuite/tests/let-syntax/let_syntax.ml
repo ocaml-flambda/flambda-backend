@@ -153,7 +153,6 @@ module And_unbound = struct
   let (let+) = Id.(let+)
 end;;
 [%%expect{|
-
 module And_unbound : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
 |}];;
 
@@ -164,7 +163,6 @@ let and_unbound =
     x + y
   );;
 [%%expect{|
-
 Line 4, characters 4-8:
 4 |     and+ y = 2 in
         ^^^^
@@ -177,7 +175,6 @@ module Ill_typed_1 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_1 : sig val ( let+ ) : bool -> (bool -> 'a) -> 'a end
 |}];;
 
@@ -187,7 +184,6 @@ let ill_typed_1 =
     x + y
   );;
 [%%expect{|
-
 Line 3, characters 13-14:
 3 |     let+ x = 1 in
                  ^
@@ -202,7 +198,6 @@ module Ill_typed_2 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_2 :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b
@@ -217,7 +212,6 @@ let ill_typed_2 =
     x + y
   );;
 [%%expect{|
-
 Line 3, characters 13-14:
 3 |     let+ x = 1
                  ^
@@ -232,7 +226,6 @@ module Ill_typed_3 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_3 : sig val ( let+ ) : int end
 |}];;
 
@@ -242,7 +235,6 @@ let ill_typed_3 =
     x + y
   );;
 [%%expect{|
-
 Line 3, characters 4-8:
 3 |     let+ x = 1 in
         ^^^^
@@ -257,7 +249,6 @@ module Ill_typed_4 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_4 :
   sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b val ( and+ ) : bool -> bool end
 |}];;
@@ -269,7 +260,6 @@ let ill_typed_4 =
     x + y
   );;
 [%%expect{|
-
 Line 4, characters 4-8:
 4 |     and+ y = 2 in
         ^^^^
@@ -285,7 +275,6 @@ module Ill_typed_5 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_5 :
   sig
     val ( let+ ) : bool -> 'a -> bool
@@ -301,7 +290,6 @@ let ill_typed_5 =
     x + y + z
   );;
 [%%expect{|
-
 Lines 3-5, characters 9-14:
 3 | .........x = 1
 4 |     and+ y = 2
@@ -317,7 +305,6 @@ module Ill_typed_6 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_6 :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b
@@ -333,7 +320,6 @@ let ill_typed_6 =
     x + y + z
   );;
 [%%expect{|
-
 Lines 3-4, characters 9-14:
 3 | .........x = 1
 4 |     and+ y = 2
@@ -349,7 +335,6 @@ module Ill_typed_7 = struct
 
 end;;
 [%%expect{|
-
 module Ill_typed_7 :
   sig
     val ( let+ ) : (int -> 'a) -> int -> 'a
@@ -364,7 +349,6 @@ let ill_typed_7 =
     x + y
   );;
 [%%expect{|
-
 Line 3, characters 4-8:
 3 |     let+ x = 1
         ^^^^
@@ -434,7 +418,6 @@ module Indexed_monad = struct
 
 end;;
 [%%expect {|
-
 module Indexed_monad :
   sig
     type opened = private Opened
@@ -475,7 +458,6 @@ let indexed_monad1 =
     first ^ second
   );;
 [%%expect{|
-
 val indexed_monad1 :
   (Indexed_monad.closed, Indexed_monad.closed, string) Indexed_monad.t =
   Indexed_monad.Map
@@ -496,7 +478,6 @@ let indexed_monad2 =
       return (first ^ second)
   );;
 [%%expect{|
-
 val indexed_monad2 :
   (Indexed_monad.closed, Indexed_monad.closed, string) Indexed_monad.t =
   Indexed_monad.Bind (Indexed_monad.Open "foo", <fun>)
@@ -511,7 +492,6 @@ let indexed_monad3 =
     first ^ second
   );;
 [%%expect{|
-
 Line 4, characters 14-25:
 4 |     and+ () = open_ "foo"
                   ^^^^^^^^^^^
@@ -532,7 +512,6 @@ let indexed_monad4 =
       return (first ^ second)
   );;
 [%%expect{|
-
 Lines 6-7, characters 4-29:
 6 | ....let* second = read in
 7 |       return (first ^ second)
@@ -554,9 +533,7 @@ module Let_principal = struct
   let ( let+ ) (x : A.t) f = f x
 end;;
 [%%expect{|
-
 module A : sig type t = A end
-
 module Let_principal : sig val ( let+ ) : A.t -> (A.t -> 'a) -> 'a end
 |}];;
 
@@ -566,7 +543,6 @@ let let_principal =
     ()
   );;
 [%%expect{|
-
 val let_principal : unit = ()
 |}];;
 
@@ -576,7 +552,6 @@ module And_principal = struct
   let ( and+ ) (x : A.t) y = x, y
 end;;
 [%%expect{|
-
 module And_principal :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b
@@ -591,7 +566,6 @@ let and_principal =
     ()
   );;
 [%%expect{|
-
 val and_principal : unit = ()
 |}];;
 
@@ -599,7 +573,6 @@ module Let_not_principal = struct
   let ( let+ ) = apply
 end;;
 [%%expect{|
-
 module Let_not_principal : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
 |}];;
 
@@ -609,10 +582,8 @@ let let_not_principal =
     ()
   );;
 [%%expect{|
-
 val let_not_principal : unit = ()
 |}, Principal{|
-
 Line 3, characters 9-10:
 3 |     let+ A = A.A in
              ^
@@ -626,7 +597,6 @@ module And_not_principal = struct
   let ( and+ ) x y = if true then x,y else y,x
 end;;
 [%%expect{|
-
 module And_not_principal :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b
@@ -642,10 +612,8 @@ let and_not_principal =
       ()
   );;
 [%%expect{|
-
 val and_not_principal : A.t -> A.t -> unit = <fun>
 |}, Principal{|
-
 Line 5, characters 11-12:
 5 |       and+ A = y in
                ^
@@ -658,7 +626,6 @@ module Let_not_propagated = struct
   let ( let+ ) = apply
 end;;
 [%%expect{|
-
 module Let_not_propagated : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
 |}];;
 
@@ -668,7 +635,6 @@ let let_not_propagated : A.t =
     A
   );;
 [%%expect{|
-
 Line 4, characters 4-5:
 4 |     A
         ^
@@ -685,7 +651,6 @@ module Side_effects_ordering = struct
   let ( and++ ) a b = msg "Second and operator"; a, b
 end;;
 [%%expect{|
-
 module Side_effects_ordering :
   sig
     val r : string list ref
@@ -705,7 +670,6 @@ let side_effects_ordering =
     output ()
   );;
 [%%expect{|
-
 val side_effects_ordering : string list =
   ["First argument"; "Second argument"; "First and operator";
    "Third argument"; "Second and operator"; "Let operator"]
@@ -719,7 +683,6 @@ module GADT_ordering = struct
   let (and+) = pair
 end;;
 [%%expect{|
-
 module GADT_ordering :
   sig
     type point = { x : int; y : int; }
@@ -737,7 +700,6 @@ let gadt_ordering =
         x + y
   );;
 [%%expect{|
-
 val gadt_ordering : 'a GADT_ordering.is_point -> 'a -> int = <fun>
 |}];;
 
@@ -753,10 +715,8 @@ let bad_location =
         x + y
   );;
 [%%expect{|
-
 val bad_location : 'a GADT_ordering.is_point -> 'a -> int = <fun>
 |}, Principal{|
-
 Line 4, characters 11-19:
 4 |       let+ Is_point = is_point
                ^^^^^^^^

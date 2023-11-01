@@ -30,7 +30,6 @@ val f : dyn -> unit = <fun>
 
 type _ t = IntLit : int t | BoolLit : bool t;;
 [%%expect{|
-
 type _ t = IntLit : int t | BoolLit : bool t
 |}]
 
@@ -43,10 +42,8 @@ let f (type a) t (x : a) =
   | BoolLit, b -> 1
 ;;
 [%%expect{|
-
 val f : 'a t -> 'a -> int = <fun>
 |}, Principal{|
-
 Line 4, characters 4-10:
 4 |   | IntLit, n -> n+1
         ^^^^^^
@@ -69,10 +66,8 @@ let f (type a) t (x : a) =
   | _, _ -> 1
 ;;
 [%%expect{|
-
 val f : 'a t -> 'a -> int = <fun>
 |}, Principal{|
-
 Line 4, characters 4-10:
 4 |   | IntLit, n -> n+1
         ^^^^^^
@@ -91,7 +86,6 @@ let f (type a) t (x : a) =
   ignore  (t : a t)
 ;;
 [%%expect{|
-
 Line 4, characters 4-11:
 4 |   | BoolLit, b -> 1
         ^^^^^^^
@@ -108,7 +102,6 @@ let f (type a) t (x : a) =
   ignore  (t : a t)
 ;;
 [%%expect{|
-
 Line 3, characters 17-18:
 3 |   | IntLit, n -> n+1
                      ^
@@ -129,9 +122,7 @@ end = struct
   type _ t = AB : unit ab t | MAB : unit mab t
 end;;
 [%%expect{|
-
 type _ ab = A | B
-
 module M : sig type _ mab type _ t = AB : unit ab t | MAB : unit mab t end
 |}]
 
@@ -144,10 +135,8 @@ let f1 t1 =
   | AB -> true
   | MAB -> false;;
 [%%expect{|
-
 val f1 : unit ab M.t -> bool = <fun>
 |}, Principal{|
-
 Line 4, characters 4-7:
 4 |   | MAB -> false;;
         ^^^
@@ -163,10 +152,8 @@ let f2 (type x) t1 =
   | AB -> true
   | MAB -> false;;
 [%%expect{|
-
 val f2 : 'x M.t -> bool = <fun>
 |}, Principal{|
-
 Line 4, characters 4-6:
 4 |   | AB -> true
         ^^
@@ -189,10 +176,8 @@ let f3 t1 =
   | AB -> true
   | MAB -> false;;
 [%%expect{|
-
 val f3 : unit ab M.t -> bool = <fun>
 |}, Principal{|
-
 Line 5, characters 4-7:
 5 |   | MAB -> false;;
         ^^^
@@ -205,14 +190,12 @@ val f3 : unit ab M.t -> bool = <fun>
 (* Example showing we need to warn when any part of the type is non generic. *)
 type (_,_) eq = Refl : ('a,'a) eq;;
 [%%expect{|
-
 type (_, _) eq = Refl : ('a, 'a) eq
 |}]
 
 let g1 (type x) (e : (x, int option) eq) (x : x) : int option =
    let Refl = e in x;;
 [%%expect{|
-
 val g1 : ('x, int option) eq -> 'x -> int option = <fun>
 |}]
 
@@ -221,10 +204,8 @@ let g2 (type x) (e : (x, _ option) eq) (x : x) : int option =
    ignore (e : (x, int option) eq);
    let Refl = e in x;;
 [%%expect{|
-
 val g2 : ('x, int option) eq -> 'x -> int option = <fun>
 |}, Principal{|
-
 Line 3, characters 7-11:
 3 |    let Refl = e in x;;
            ^^^^
@@ -246,11 +227,8 @@ type _ gadt = F : Foo.t gadt
 
 type  'a t = { a: 'a; b: 'a gadt } ;;
 [%%expect{|
-
 module Foo : sig type t end
-
 type _ gadt = F : Foo.t gadt
-
 type 'a t = { a : 'a; b : 'a gadt; }
 |}]
 
@@ -260,7 +238,6 @@ let () =
   | _ -> ();;
 [%%expect{|
 |}, Principal{|
-
 Line 3, characters 27-28:
 3 |   | [ { a = 3; _ } ; { b = F; _ }] -> ()
                                ^
@@ -273,7 +250,6 @@ let () =
   | [ { b = F; _ } ; { a = 3; _ }] -> ()
   | _ -> ();;
 [%%expect{|
-
 Line 3, characters 27-28:
 3 |   | [ { b = F; _ } ; { a = 3; _ }] -> ()
                                ^
@@ -286,9 +262,7 @@ type (_, _, _) eq3 = Refl3 : ('a, 'a, 'a) eq3
 type  'a t = { a: 'a; b: (int, Foo.t, 'a) eq3 }
 ;;
 [%%expect{|
-
 type (_, _, _) eq3 = Refl3 : ('a, 'a, 'a) eq3
-
 type 'a t = { a : 'a; b : (int, Foo.t, 'a) eq3; }
 |}]
 
@@ -299,7 +273,6 @@ let () =
 ;;
 [%%expect{|
 |}, Principal{|
-
 Line 3, characters 26-31:
 3 |   | [ { a = 3; _ }; { b = Refl3 ; _ }] -> ()
                               ^^^^^
@@ -314,7 +287,6 @@ let () =
 ;;
 [%%expect{|
 |}, Principal{|
-
 Line 3, characters 12-17:
 3 |   | [ { b = Refl3 ; _ }; { a = 3; _ } ] -> ()
                 ^^^^^
@@ -327,7 +299,6 @@ But the knowledge of these types is not principal.
 type  'a t = { a: 'a; b: ('a, int, Foo.t) eq3 }
 ;;
 [%%expect{|
-
 type 'a t = { a : 'a; b : ('a, int, Foo.t) eq3; }
 |}]
 
@@ -337,7 +308,6 @@ let () =
   | _ -> ()
 [%%expect{|
 |}, Principal{|
-
 Line 3, characters 26-31:
 3 |   | [ { a = 3; _ }; { b = Refl3 ; _ }] -> ()
                               ^^^^^
@@ -351,7 +321,6 @@ let () =
   | _ -> ()
 [%%expect{|
 |}, Principal{|
-
 Line 3, characters 12-17:
 3 |   | [ { b = Refl3 ; _ }; { a = 3; _ } ] -> ()
                 ^^^^^
@@ -368,15 +337,12 @@ module M : sig type t end = struct type t = int end
 module N : sig type t end = struct type t = int end
 ;;
 [%%expect{|
-
 module M : sig type t end
-
 module N : sig type t end
 |}]
 
 type 'a foo = { x : 'a; eq : (M.t, N.t, 'a) eq3 };;
 [%%expect{|
-
 type 'a foo = { x : 'a; eq : (M.t, N.t, 'a) eq3; }
 |}]
 
@@ -385,10 +351,8 @@ let foo x =
   | { x = x; eq = Refl3 } -> x
 ;;
 [%%expect{|
-
 val foo : M.t foo -> M.t = <fun>
 |}, Principal{|
-
 Line 3, characters 18-23:
 3 |   | { x = x; eq = Refl3 } -> x
                       ^^^^^
@@ -403,10 +367,8 @@ let foo x =
   | { x = (x : int); eq = Refl3 } -> x
 ;;
 [%%expect{|
-
 val foo : int foo -> int = <fun>
 |}, Principal{|
-
 Line 3, characters 26-31:
 3 |   | { x = (x : int); eq = Refl3 } -> x
                               ^^^^^
@@ -421,7 +383,6 @@ let foo x =
   | { x = (x : N.t); eq = Refl3 } -> x
 ;;
 [%%expect{|
-
 Line 3, characters 4-33:
 3 |   | { x = (x : N.t); eq = Refl3 } -> x
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -430,7 +391,6 @@ Error: This pattern matches values of type N.t foo
        This instance of M.t is ambiguous:
        it would escape the scope of its equation
 |}, Principal{|
-
 Line 3, characters 26-31:
 3 |   | { x = (x : N.t); eq = Refl3 } -> x
                               ^^^^^
@@ -451,10 +411,8 @@ let foo x =
   | { x = (x : string); eq = Refl3 } -> x
 ;;
 [%%expect{|
-
 val foo : string foo -> string = <fun>
 |}, Principal{|
-
 Line 3, characters 29-34:
 3 |   | { x = (x : string); eq = Refl3 } -> x
                                  ^^^^^
@@ -469,7 +427,6 @@ let bar x =
   | { x = x; _ } -> x
 ;;
 [%%expect{|
-
 val bar : 'a foo -> 'a = <fun>
 |}]
 
@@ -478,7 +435,6 @@ let bar x =
   | { x = (x : int); _ } -> x
 ;;
 [%%expect{|
-
 val bar : int foo -> int = <fun>
 |}]
 
@@ -487,7 +443,6 @@ let bar x =
   | { x = (x : N.t); _ } -> x
 ;;
 [%%expect{|
-
 val bar : N.t foo -> N.t = <fun>
 |}]
 
@@ -496,7 +451,6 @@ let bar x =
   | { x = (x : string); _ } -> x
 ;;
 [%%expect{|
-
 val bar : string foo -> string = <fun>
 |}]
 
@@ -505,17 +459,13 @@ type t
 type u = private t
 type ('a, 'b) eq = Refl : ('a, 'a) eq
 [%%expect{|
-
 type t
-
 type u = private t
-
 type ('a, 'b) eq = Refl : ('a, 'a) eq
 |}]
 
 let foo (type s) x (Refl : (s, u) eq) =
   (x : s :> t)
 [%%expect{|
-
 val foo : 's -> ('s, u) eq -> t = <fun>
 |}]

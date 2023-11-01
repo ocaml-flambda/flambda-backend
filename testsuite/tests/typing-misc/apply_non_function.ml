@@ -29,9 +29,7 @@ type t = { f : int -> unit }
 let f (t : t) =
   t.f 1 2
 [%%expect{|
-
 type t = { f : int -> unit; }
-
 Line 4, characters 2-9:
 4 |   t.f 1 2
       ^^^^^^^
@@ -50,7 +48,6 @@ Line 4, characters 8-9:
 let f (t : < f : int -> unit >) =
   t#f 1 2
 [%%expect{|
-
 Line 2, characters 2-9:
 2 |   t#f 1 2
       ^^^^^^^
@@ -72,7 +69,6 @@ let () =
     method b = a 1 2
   end
 [%%expect{|
-
 Line 4, characters 15-20:
 4 |     method b = a 1 2
                    ^^^^^
@@ -94,7 +90,6 @@ Line 4, characters 19-20:
 let () =
   (+) 1 2 3
 [%%expect{|
-
 Line 2, characters 2-11:
 2 |   (+) 1 2 3
       ^^^^^^^^^
@@ -111,9 +106,7 @@ Line 2, characters 10-11:
 type t = int -> int -> unit
 let f (x:t) = x 0 1 2
 [%%expect{|
-
 type t = int -> int -> unit
-
 Line 2, characters 14-21:
 2 | let f (x:t) = x 0 1 2
                   ^^^^^^^
@@ -132,9 +125,7 @@ Line 2, characters 20-21:
 type t = int -> unit
 let f (x:int -> t) = x 0 1 2
 [%%expect{|
-
 type t = int -> unit
-
 Line 2, characters 21-28:
 2 | let f (x:int -> t) = x 0 1 2
                          ^^^^^^^

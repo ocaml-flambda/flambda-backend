@@ -24,7 +24,6 @@ let bad_annot_2 () =
   nop () [@tail];
   nop ()
 [%%expect{|
-
 Line 2, characters 2-8:
 2 |   nop () [@tail];
       ^^^^^^
@@ -35,7 +34,6 @@ let bad_annot_3 () =
   nop () [@tail hint] [@nontail];
   nop ()
 [%%expect{|
-
 Line 2, characters 2-8:
 2 |   nop () [@tail hint] [@nontail];
       ^^^^^^
@@ -46,7 +44,6 @@ let bad_annot_4 () =
   nop () [@tail ajsdiof];
   nop ()
 [%%expect{|
-
 Line 2, characters 9-24:
 2 |   nop () [@tail ajsdiof];
              ^^^^^^^^^^^^^^^
@@ -60,6 +57,5 @@ let good_annot_2 () =
   nop () [@tail hint];
   nop () [@tail hint]
 [%%expect{|
-
 val good_annot_2 : unit -> unit = <fun>
 |}]

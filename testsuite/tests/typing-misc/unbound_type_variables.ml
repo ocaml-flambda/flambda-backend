@@ -14,7 +14,6 @@ Error: The type variable 'a is unbound in this type declaration.
 type record = { contents: 'a }
 
 [%%expect{|
-
 Line 1, characters 26-28:
 1 | type record = { contents: 'a }
                               ^^
@@ -24,7 +23,6 @@ Error: The type variable 'a is unbound in this type declaration.
 type wrapper = Wrapper of 'a
 
 [%%expect{|
-
 Line 1, characters 26-28:
 1 | type wrapper = Wrapper of 'a
                               ^^
@@ -35,7 +33,6 @@ Error: The type variable 'a is unbound in this type declaration.
 type polyvariant = [> `C]
 
 [%%expect{|
-
 Line 1, characters 0-25:
 1 | type polyvariant = [> `C]
     ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -46,7 +43,6 @@ Error: A type variable is unbound in this type declaration.
 type 'a only_one = 'a * 'b
 
 [%%expect{|
-
 Line 1, characters 24-26:
 1 | type 'a only_one = 'a * 'b
                             ^^
@@ -57,9 +53,7 @@ type extensible = ..
 type extensible += Extension of 'a
 
 [%%expect{|
-
 type extensible = ..
-
 Line 2, characters 32-34:
 2 | type extensible += Extension of 'a
                                     ^^

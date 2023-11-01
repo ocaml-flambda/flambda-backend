@@ -20,7 +20,6 @@ let foo (x : Foo.c) = x#x
 let bar (x : Bar.c) = x#x
 let baz (x : Baz.c) = x#x;;
 [%%expect{|
-
 Line 2, characters 29-34:
 2 | and Bar : sig class type c = Foo.c end = Bar
                                  ^^^^^
@@ -39,7 +38,6 @@ module rec TypedGui : sig
     end
 end = TypedGui
 [%%expect{|
-
 module rec TypedGui :
   sig class type untyped = object  end class type t = object  end end
 |}]

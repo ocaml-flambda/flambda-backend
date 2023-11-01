@@ -25,7 +25,6 @@ Error: This private row type declaration is invalid.
 
 type u = private < x:int; .. > as 'a constraint 'a = < x: int > ;;
 [%%expect {|
-
 Line 1, characters 0-63:
 1 | type u = private < x:int; .. > as 'a constraint 'a = < x: int > ;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -40,7 +39,6 @@ Error: This private row type declaration is invalid.
 
 type u = private [> `A ] as 'a constraint 'a = [< `A ] ;;
 [%%expect {|
-
 Line 1, characters 0-54:
 1 | type u = private [> `A ] as 'a constraint 'a = [< `A ] ;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

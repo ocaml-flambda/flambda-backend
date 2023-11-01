@@ -29,7 +29,6 @@ let fint (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-
 Lines 2-3, characters 2-16:
 2 | ..match tag with
 3 |   | Int -> x > 0
@@ -50,10 +49,8 @@ let f (type t) (x : t) (tag : t ty) =
   | Bool -> x
 ;;
 [%%expect{|
-
 val f : 't -> 't ty -> bool = <fun>
 |}, Principal{|
-
 Line 4, characters 12-13:
 4 |   | Bool -> x
                 ^
@@ -71,14 +68,12 @@ let g (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-
 Line 4, characters 11-16:
 4 |   | Int -> x > 0
                ^^^^^
 Error: This expression has type bool but an expression was expected of type
          t = int
 |}, Principal{|
-
 Line 4, characters 11-16:
 4 |   | Int -> x > 0
                ^^^^^
@@ -97,7 +92,6 @@ let g (type t) (x : t) (tag : t ty) : bool =
   | Int -> x > 0
 ;;
 [%%expect{|
-
 val g : 't -> 't ty -> bool = <fun>
 |}];;
 
@@ -112,15 +106,10 @@ let g (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-
 val id : 'a -> 'a = <fun>
-
 val idb1 : bool -> bool = <fun>
-
 val idb2 : bool -> bool = <fun>
-
 val idb3 : bool -> bool = <fun>
-
 val g : 't -> 't ty -> bool = <fun>
 |}];;
 
@@ -130,6 +119,5 @@ let g (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-
 val g : 't -> 't ty -> bool = <fun>
 |}];;

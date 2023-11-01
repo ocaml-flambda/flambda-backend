@@ -87,7 +87,6 @@ open struct
   let current () = !counter
 end
 [%%expect{|
-
 val inc : unit -> unit = <fun>
 val dec : unit -> unit = <fun>
 val current : unit -> int = <fun>
@@ -101,7 +100,6 @@ let () =
 
 include struct open struct type t = T end let x = T end
 [%%expect{|
-
 Line 1, characters 15-41:
 1 | include struct open struct type t = T end let x = T end
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -122,7 +120,6 @@ module A = struct
   end
 end
 [%%expect{|
-
 Lines 3-6, characters 4-7:
 3 | ....open struct
 4 |       type t = T
@@ -145,7 +142,6 @@ module A = struct
   let g = y
 end
 [%%expect{|
-
 Lines 3-5, characters 4-7:
 3 | ....open struct
 4 |       type t = T
@@ -211,7 +207,6 @@ module type S = sig
   type s = int
 end
 [%%expect{|
-
 module type S = sig type s = int end
 |}]
 
@@ -219,11 +214,8 @@ module type T = sig type s = int end
 module F(X:S) : T = X
 module G(X:T) : S = X
 [%%expect{|
-
 module type T = sig type s = int end
-
 module F : functor (X : S) -> T
-
 module G : functor (X : T) -> S
 |}]
 
@@ -276,7 +268,6 @@ module Counter : sig val inc : unit -> unit val current : unit -> int val z : in
   let current () = !counter
 end
 [%%expect{|
-
 module Counter :
   sig
     val inc : unit -> unit
@@ -316,7 +307,6 @@ module N = struct
     assert(y = 1)
 end
 [%%expect{|
-
 module N : sig end
 |}]
 
@@ -333,7 +323,6 @@ module M = struct
   end
 end
 [%%expect{|
-
 module M : sig end
 |}]
 
@@ -354,7 +343,6 @@ Error: The module identifier M#32 cannot be eliminated from val x : M#32.t
 
 let x = let open struct open struct let y = 1 end let x = y + 1 end in x
 [%%expect{|
-
 val x : int = 2
 |}]
 
@@ -364,14 +352,12 @@ let y =
   in x
 
 [%%expect{|
-
 val y : int = 2
 |}]
 
 let x = let open struct type t = T end in T
 
 [%%expect{|
-
 Line 1, characters 42-43:
 1 | let x = let open struct type t = T end in T
                                               ^
@@ -394,21 +380,16 @@ end
 let print_list_of_int = let open Print_list(Print_int) in print
 
 [%%expect{|
-
 module type Print = sig type t val print : t -> unit end
-
 module Print_int : sig type t = int val print : t -> unit end
-
 module Print_list :
   functor (P : Print) -> sig type t = P.t list val print : t -> unit end
-
 val print_list_of_int : Print_int.t list -> unit = <fun>
 |}]
 
 let f () = let open functor(X: sig end) -> struct end in ();;
 
 [%%expect{|
-
 Line 1, characters 27-53:
 1 | let f () = let open functor(X: sig end) -> struct end in ();;
                                ^^^^^^^^^^^^^^^^^^^^^^^^^^

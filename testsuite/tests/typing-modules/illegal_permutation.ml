@@ -63,7 +63,6 @@ Error: Signature mismatch:
 
 module B: expected = struct module type x = c123 end
 [%%expect {|
-
 Line 1, characters 21-52:
 1 | module B: expected = struct module type x = c123 end
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -102,7 +101,6 @@ end = struct
   end
 end
 [%%expect {|
-
 Lines 9-17, characters 6-3:
  9 | ......struct
 10 |   module type x = sig
@@ -173,7 +171,6 @@ end = struct
   end
 end
 [%%expect {|
-
 Lines 6-11, characters 6-3:
  6 | ......struct
  7 |   module type x= sig
@@ -213,7 +210,6 @@ end = struct
   end
 end
 [%%expect {|
-
 Lines 8-15, characters 6-3:
  8 | ......struct
  9 |   module type a = sig
@@ -270,9 +266,7 @@ end = struct
   end
 end
 [%%expect{|
-
 class type ct = object  end
-
 Lines 7-12, characters 6-3:
  7 | ......struct
  8 |   module type x = sig
@@ -308,7 +302,6 @@ end = struct
   end
 end
 [%%expect{|
-
 Lines 6-11, characters 6-3:
  6 | ......struct
  7 |   module type x = sig
@@ -350,13 +343,9 @@ end
 
 module C: sig module type x = w end = struct module type x = w21 end
 [%%expect {|
-
 module type w = sig module One : s module Two : s end
-
 module type w21 = sig module Two : s module One : s end
-
 module type wOne21 = sig module One : c12 module Two : s end
-
 Line 16, characters 38-68:
 16 | module C: sig module type x = w end = struct module type x = w21 end
                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -378,7 +367,6 @@ Error: Signature mismatch:
 
 module D: sig module type x = w end = struct module type x = wOne21 end
 [%%expect {|
-
 Line 1, characters 38-71:
 1 | module D: sig module type x = w end = struct module type x = wOne21 end
                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -403,7 +391,6 @@ struct
   module type x = functor(X:c12) -> s
 end
 [%%expect {|
-
 Lines 2-4, characters 0-3:
 2 | struct
 3 |   module type x = functor(X:c12) -> s
@@ -429,7 +416,6 @@ struct
   module type x = functor(X:s) -> c12
 end
 [%%expect {|
-
 Lines 2-4, characters 0-3:
 2 | struct
 3 |   module type x = functor(X:s) -> c12
@@ -494,7 +480,6 @@ end=struct
   end
 end
 [%%expect {|
-
 Lines 22-43, characters 4-3:
 22 | ....struct
 23 |   module type x = sig

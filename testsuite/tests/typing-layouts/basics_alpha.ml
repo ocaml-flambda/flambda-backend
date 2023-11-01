@@ -43,7 +43,6 @@ module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-
 Line 2, characters 10-15:
 2 |   val f : t_any -> int
               ^^^^^
@@ -57,7 +56,6 @@ module type S1 = sig
   type 'a s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
-
 Line 4, characters 35-41:
 4 |   type 'a s = 'a -> int constraint 'a = t
                                        ^^^^^^
@@ -72,7 +70,6 @@ module type S1 = sig
   type 'a s = int -> 'a constraint 'a = t
 end;;
 [%%expect{|
-
 Line 4, characters 35-41:
 4 |   type 'a s = int -> 'a constraint 'a = t
                                        ^^^^^^
@@ -83,7 +80,6 @@ Error: The type constraints are not consistent.
 
 let f1 () : t_any = assert false;;
 [%%expect{|
-
 Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
@@ -94,7 +90,6 @@ Error: This expression has type t_any but an expression was expected of type
 
 let f1 (x : t_any) = ();;
 [%%expect{|
-
 Line 1, characters 7-18:
 1 | let f1 (x : t_any) = ();;
            ^^^^^^^^^^^
@@ -128,7 +123,6 @@ module type S = sig
 end;;
 
 [%%expect{|
-
 module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
 |}];;
 
@@ -136,7 +130,6 @@ module type S2 = sig
   val f : void_unboxed_record -> int
 end
 [%%expect {|
-
 module type S2 = sig val f : void_unboxed_record -> int end
 |}];;
 
@@ -144,7 +137,6 @@ module type S2 = sig
   val f : int -> void_unboxed_record
 end
 [%%expect {|
-
 module type S2 = sig val f : int -> void_unboxed_record end
 |}];;
 
@@ -155,7 +147,6 @@ module type S2 = sig
   and r = t
 end;;
 [%%expect{|
-
 module type S2 = sig type t : void type s = r -> int and r = t end
 |}]
 
@@ -163,7 +154,6 @@ module type S2 = sig
   val f : int -> t_void
 end;;
 [%%expect {|
-
 module type S2 = sig val f : int -> t_void end
 |}];;
 
@@ -173,7 +163,6 @@ module type S = sig
   type 'a s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
-
 module type S = sig type t : void type 'a s = 'a -> int constraint 'a = t end
 |}]
 
@@ -181,7 +170,6 @@ module F2 (X : sig val x : t_void end) = struct
   let f () = X.x
 end;;
 [%%expect{|
-
 Line 1, characters 27-33:
 1 | module F2 (X : sig val x : t_void end) = struct
                                ^^^^^^
@@ -194,7 +182,6 @@ module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
 end;;
 [%%expect{|
-
 Line 2, characters 8-44:
 2 |   let g z = X.f { vr_void = z; vr_int = 42 }
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -207,7 +194,6 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 type ('a : immediate) imm_id = 'a
 
 [%%expect{|
-
 type ('a : immediate) imm_id = 'a
 |}];;
 
@@ -216,17 +202,13 @@ let plus_3 (x : my_int) = x + 3
 let plus_3' (x : int imm_id) = x + 3;;
 
 [%%expect{|
-
 type my_int = int imm_id
-
 val plus_3 : my_int -> int = <fun>
-
 val plus_3' : int imm_id -> int = <fun>
 |}];;
 
 let string_id (x : string imm_id) = x;;
 [%%expect{|
-
 Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
@@ -239,17 +221,13 @@ let id_for_imms (x : 'a imm_id) = x
 let three = id_for_imms 3
 let true_ = id_for_imms true;;
 [%%expect{|
-
 val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id = <fun>
-
 val three : int imm_id = 3
-
 val true_ : bool imm_id = true
 |}]
 
 let not_helloworld = id_for_imms "hello world";;
 [%%expect{|
-
 Line 1, characters 33-46:
 1 | let not_helloworld = id_for_imms "hello world";;
                                      ^^^^^^^^^^^^^
@@ -264,7 +242,6 @@ type ('a : immediate) t4
 and s4 = string t4;;
 
 [%%expect{|
-
 Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
@@ -276,7 +253,6 @@ type s4 = string t4
 and ('a : immediate) t4;;
 
 [%%expect{|
-
 Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
@@ -288,7 +264,6 @@ type s4 = int t4
 and ('a : immediate) t4;;
 
 [%%expect{|
-
 type s4 = int t4
 and ('a : immediate) t4
 |}]
@@ -298,7 +273,6 @@ and ('a : immediate) t4
 and s5 = int;;
 
 [%%expect{|
-
 type s4 = s5 t4
 and ('a : immediate) t4
 and s5 = int
@@ -309,7 +283,6 @@ and ('a : immediate) t4
 and s5 = string;;
 
 [%%expect{|
-
 Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
@@ -321,7 +294,6 @@ Error:
 type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
-
 type ('a : any) t4 = 'a
 and s4 = string t4
 |}];;
@@ -329,7 +301,6 @@ and s4 = string t4
 type s4 = string t4
 and ('a : any) t4;;
 [%%expect{|
-
 type s4 = string t4
 and ('a : any) t4
 |}];;
@@ -362,11 +333,8 @@ let id5 : 'a void5 -> 'a void5 = function
  * ;; *)
 
 [%%expect{|
-
 type ('a : void) void5 = Void5 of 'a
-
 type 'a any5 = Any5 of 'a
-
 Lines 4-5, characters 33-22:
 4 | .................................function
 5 |   | Void5 x -> Void5 x
@@ -378,7 +346,6 @@ Error: Non-value detected in [value_kind].
 (* disallowed attempts to use f5 and Void5 on non-voids *)
 let h5 (x : int void5) = f5 x
 [%%expect{|
-
 Line 1, characters 12-15:
 1 | let h5 (x : int void5) = f5 x
                 ^^^
@@ -388,7 +355,6 @@ Error: This type int should be an instance of type ('a : void)
 
 let h5' (x : int any5) = Void5 x
 [%%expect{|
-
 Line 1, characters 31-32:
 1 | let h5' (x : int any5) = Void5 x
                                    ^
@@ -402,7 +368,6 @@ let g (x : 'a void5) =
   match x with
   | Void5 x -> x;;
 [%%expect{|
-
 Lines 1-3, characters 6-16:
 1 | ......(x : 'a void5) =
 2 |   match x with
@@ -417,23 +382,19 @@ Error: Non-value detected in [value_kind].
 type ('a : immediate) t6_imm = T6imm of 'a
 type ('a : value) t6_val = T6val of 'a;;
 [%%expect{|
-
 type ('a : immediate) t6_imm = T6imm of 'a
-
 type 'a t6_val = T6val of 'a
 |}];;
 
 let ignore_val6 : 'a . 'a -> unit =
   fun a -> let _ = T6val a in ();;
 [%%expect{|
-
 val ignore_val6 : 'a -> unit = <fun>
 |}];;
 
 let ignore_imm6 : 'a . 'a -> unit =
   fun a -> let _ = T6imm a in ();;
 [%%expect{|
-
 Line 2, characters 2-32:
 2 |   fun a -> let _ = T6imm a in ();;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -447,7 +408,6 @@ let o6 = object
     fun a -> let _ = T6imm a in ()
 end;;
 [%%expect{|
-
 Line 3, characters 4-34:
 3 |     fun a -> let _ = T6imm a in ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -467,9 +427,7 @@ type ('a : immediate) t7 = Foo7 of 'a
 
 type t7' = (int * int) t7;;
 [%%expect{|
-
 type ('a : immediate) t7 = Foo7 of 'a
-
 Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
@@ -486,7 +444,6 @@ module M8_1 = struct
   type foo1 = [ `Foo1 of int | `Baz1 of t_void | `Bar1 of string ];;
 end
 [%%expect{|
-
 Line 2, characters 40-46:
 2 |   type foo1 = [ `Foo1 of int | `Baz1 of t_void | `Bar1 of string ];;
                                             ^^^^^^
@@ -505,7 +462,6 @@ module M8_2 = struct
     | `Bas i -> I i
 end;;
 [%%expect {|
-
 Line 8, characters 16-21:
 8 |     | `Bar v -> { v }
                     ^^^^^
@@ -518,7 +474,6 @@ module M8_3 = struct
   type bad = t_void t
 end;;
 [%%expect {|
-
 Line 4, characters 13-19:
 4 |   type bad = t_void t
                  ^^^^^^
@@ -530,7 +485,6 @@ module M8_4 = struct
   type 'a t = [ `Foo of 'a | `Baz of int ] constraint 'a = void_unboxed_record
 end;;
 [%%expect {|
-
 Line 2, characters 54-78:
 2 |   type 'a t = [ `Foo of 'a | `Baz of int ] constraint 'a = void_unboxed_record
                                                           ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -544,7 +498,6 @@ module type S8_5 = sig
   val x : [`A of t_void]
 end;;
 [%%expect{|
-
 Line 2, characters 17-23:
 2 |   val x : [`A of t_void]
                      ^^^^^^
@@ -560,7 +513,6 @@ module M9_1 = struct
   type foo1 = int * t_void * [ `Foo1 of int | `Bar1 of string ];;
 end
 [%%expect{|
-
 Line 2, characters 20-26:
 2 |   type foo1 = int * t_void * [ `Foo1 of int | `Bar1 of string ];;
                         ^^^^^^
@@ -572,7 +524,6 @@ module M9_2 = struct
   type result = V of (string * void_unboxed_record) | I of int
 end;;
 [%%expect {|
-
 Line 2, characters 31-50:
 2 |   type result = V of (string * void_unboxed_record) | I of int
                                    ^^^^^^^^^^^^^^^^^^^
@@ -590,7 +541,6 @@ module M9_3 = struct
     | V t -> t, 27
 end;;
 [%%expect {|
-
 Line 7, characters 13-14:
 7 |     | V t -> t, 27
                  ^
@@ -606,7 +556,6 @@ module M9_4 = struct
     | ({vur_void = _},i) -> i
 end;;
 [%%expect {|
-
 Line 4, characters 8-16:
 4 |     | ({vur_void = _},i) -> i
             ^^^^^^^^
@@ -622,7 +571,6 @@ module M9_5 = struct
   type bad = t_void t
 end;;
 [%%expect {|
-
 Line 4, characters 13-19:
 4 |   type bad = t_void t
                  ^^^^^^
@@ -634,7 +582,6 @@ module M9_6 = struct
   type 'a t = int * 'a constraint 'a = void_unboxed_record
 end;;
 [%%expect {|
-
 Line 2, characters 34-58:
 2 |   type 'a t = int * 'a constraint 'a = void_unboxed_record
                                       ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -648,7 +595,6 @@ module type S9_7 = sig
   val x : int * t_void
 end;;
 [%%expect{|
-
 Line 2, characters 16-22:
 2 |   val x : int * t_void
                     ^^^^^^
@@ -664,7 +610,6 @@ struct
   | _ -> 42
 end;;
 [%%expect {|
-
 Line 5, characters 11-23:
 5 |   match 3, X.vr.vr_void with
                ^^^^^^^^^^^^
@@ -688,7 +633,6 @@ end = struct
   let x = f (assert false)
 end;;
 [%%expect {|
-
 Lines 3-9, characters 6-3:
 3 | ......struct
 4 |   type ('a : immediate) t = 'a
@@ -726,7 +670,6 @@ end = struct
   let x = f (assert false)
 end;;
 [%%expect {|
-
 Lines 3-9, characters 6-3:
 3 | ......struct
 4 |   type ('a : immediate) t = 'a
@@ -762,7 +705,6 @@ module M11_1 = struct
     t.v # baz11
 end;;
 [%%expect{|
-
 Line 5, characters 4-7:
 5 |     t.v # baz11
         ^^^
@@ -774,7 +716,6 @@ module M11_2 = struct
   let foo x = VV (x # getvoid)
 end;;
 [%%expect{|
-
 Line 2, characters 17-30:
 2 |   let foo x = VV (x # getvoid)
                      ^^^^^^^^^^^^^
@@ -789,7 +730,6 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-
 Line 4, characters 12-33:
 4 |   let foo o (A x) = o # usevoid x
                 ^^^^^^^^^^^^^^^^^^^^^
@@ -802,7 +742,6 @@ module M11_4 = struct
   val x : < l : t_void >
 end;;
 [%%expect{|
-
 Line 2, characters 12-22:
 2 |   val x : < l : t_void >
                 ^^^^^^^^^^
@@ -815,7 +754,6 @@ module M11_5 = struct
   and ('a : void) s = 'a
 end;;
 [%%expect{|
-
 Line 3, characters 2-24:
 3 |   and ('a : void) s = 'a
       ^^^^^^^^^^^^^^^^^^^^^^
@@ -827,7 +765,6 @@ module M11_6 = struct
   type 'a t = < l : 'a > constraint 'a = t_void
 end;;
 [%%expect{|
-
 Line 2, characters 36-47:
 2 |   type 'a t = < l : 'a > constraint 'a = t_void
                                         ^^^^^^^^^^^
@@ -848,7 +785,6 @@ module M12_1 = struct
     end;;
 end
 [%%expect{|
-
 Line 3, characters 11-12:
 3 |     let VV v = v in
                ^
@@ -864,7 +800,6 @@ module M12_2 = struct
     end
 end;;
 [%%expect{|
-
 Line 4, characters 10-13:
 4 |       val bar = v.vr_void
               ^^^
@@ -880,7 +815,6 @@ module M12_3 = struct
     end
 end;;
 [%%expect{|
-
 Line 4, characters 18-21:
 4 |       val virtual bar : t_void
                       ^^^
@@ -897,7 +831,6 @@ module M12_4 = struct
     end
 end
 [%%expect{|
-
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
@@ -914,7 +847,6 @@ module M12_5 = struct
     end
 end;;
 [%%expect{|
-
 Line 6, characters 29-31:
 6 |       method void_id (A a) : 'a t = a
                                  ^^
@@ -932,7 +864,6 @@ module type S12_6 = sig
     end
 end;;
 [%%expect{|
-
 Line 5, characters 4-6:
 5 |     'a t ->
         ^^
@@ -947,7 +878,6 @@ module type S12_7 = sig
     end
 end;;
 [%%expect{|
-
 Line 4, characters 6-22:
 4 |       val baz : t_void
           ^^^^^^^^^^^^^^^^
@@ -961,7 +891,6 @@ Error: Variables bound in a class must have layout value.
 (* lazy *)
 type t13 = t_void Lazy.t;;
 [%%expect{|
-
 Line 1, characters 11-17:
 1 | type t13 = t_void Lazy.t;;
                ^^^^^^
@@ -971,7 +900,6 @@ Error: This type t_void should be an instance of type ('a : value)
 
 let x13 (VV v) = lazy v;;
 [%%expect{|
-
 Line 1, characters 22-23:
 1 | let x13 (VV v) = lazy v;;
                           ^
@@ -984,7 +912,6 @@ let x13 v =
   match v with
   | lazy v -> VV v
 [%%expect{|
-
 Line 3, characters 17-18:
 3 |   | lazy v -> VV v
                      ^
@@ -997,7 +924,6 @@ Error: This expression has type ('a : value)
 (* CR layouts v5: allow this *)
 type t13 = t_void option;;
 [%%expect{|
-
 Line 1, characters 11-17:
 1 | type t13 = t_void option;;
                ^^^^^^
@@ -1007,7 +933,6 @@ Error: This type t_void should be an instance of type ('a : value)
 
 let x13 (VV v) = Some v;;
 [%%expect{|
-
 Line 1, characters 22-23:
 1 | let x13 (VV v) = Some v;;
                           ^
@@ -1021,7 +946,6 @@ let x13 v =
   | Some v -> VV v
   | None -> assert false
 [%%expect{|
-
 Line 3, characters 17-18:
 3 |   | Some v -> VV v
                      ^
@@ -1034,7 +958,6 @@ Error: This expression has type ('a : value)
 (* CR layouts: should work after relaxing the mixed block restriction. *)
 type t13 = t_void list;;
 [%%expect{|
-
 Line 1, characters 11-17:
 1 | type t13 = t_void list;;
                ^^^^^^
@@ -1044,7 +967,6 @@ Error: This type t_void should be an instance of type ('a : value)
 
 let x13 (VV v) = [v];;
 [%%expect{|
-
 Line 1, characters 18-19:
 1 | let x13 (VV v) = [v];;
                       ^
@@ -1058,7 +980,6 @@ let x13 v =
   | [v] -> VV v
   | _ -> assert false
 [%%expect{|
-
 Line 3, characters 14-15:
 3 |   | [v] -> VV v
                   ^
@@ -1071,7 +992,6 @@ Error: This expression has type ('a : value)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
 [%%expect{|
-
 Line 1, characters 11-17:
 1 | type t13 = t_void array;;
                ^^^^^^
@@ -1081,7 +1001,6 @@ Error: This type t_void should be an instance of type ('a : value)
 
 let x13 (VV v) = [| v |];;
 [%%expect{|
-
 Line 1, characters 20-21:
 1 | let x13 (VV v) = [| v |];;
                         ^
@@ -1095,7 +1014,6 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-
 Line 3, characters 18-19:
 3 |   | [| v |] -> VV v
                       ^
@@ -1109,7 +1027,6 @@ Error: This expression has type ('a : value)
 type t14 = foo14 list
 and foo14 = string;;
 [%%expect{|
-
 type t14 = foo14 list
 and foo14 = string
 |}];;
@@ -1117,7 +1034,6 @@ and foo14 = string
 type t14 = foo14 list
 and foo14 = t_void;;
 [%%expect{|
-
 Line 2, characters 0-18:
 2 | and foo14 = t_void;;
     ^^^^^^^^^^^^^^^^^^
@@ -1132,9 +1048,7 @@ Error:
 type ('a : void) t15
 type ('a, 'b) foo15 = ('a as 'b) t15 -> 'b t15;;
 [%%expect{|
-
 type ('a : void) t15
-
 type ('a : void, 'b) foo15 = 'a t15 -> 'a t15 constraint 'b = 'a
 |}]
 
@@ -1144,9 +1058,7 @@ type 'a t_void_16 : void
 
 type t_16 = T_16 : 'a t_void_16 -> t_16 [@@unboxed];;
 [%%expect{|
-
 type 'a t_void_16 : void
-
 type t_16 = T_16 : 'a t_void_16 -> t_16 [@@unboxed]
 |}];;
 
@@ -1158,9 +1070,7 @@ type 'a t17 = 'a list
 type s17 = { lbl : s17 t17 } [@@unboxed];;
 
 [%%expect{|
-
 type 'a t17 = 'a list
-
 type s17 = { lbl : s17 t17; } [@@unboxed]
 |}];;
 
@@ -1176,11 +1086,8 @@ let id18 (x : 'a t18) = x
 let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
-
 type 'a t18 = 'a
-
 val id18 : 'a t18 -> 'a t18 = <fun>
-
 val f18 : 'a -> 'a = <fun>
 |}];;
 
@@ -1191,7 +1098,6 @@ let f19 () =
   let _y = (x :> t_void) in
   ();;
 [%%expect{|
-
 Line 3, characters 6-8:
 3 |   let _y = (x :> t_void) in
           ^^
@@ -1209,7 +1115,6 @@ let f20 () =
   in
   ();;
 [%%expect{|
-
 Line 3, characters 6-8:
 3 |   let _y =
           ^^
@@ -1229,9 +1134,7 @@ let f21 () =
   in
   ();;
 [%%expect{|
-
 module type M21 = sig end
-
 Line 7, characters 4-5:
 7 |     x
         ^
@@ -1249,11 +1152,8 @@ let f () =
   let rec g { x = x ; y = y } : _ r = g { x; y } in
   g (failwith "foo");;
 [%%expect{|
-
 type t_void : void
-
 type ('a : void) r = { x : int; y : 'a; }
-
 Lines 5-7, characters 6-20:
 5 | ......() =
 6 |   let rec g { x = x ; y = y } : _ r = g { x; y } in
@@ -1283,11 +1183,8 @@ let f (x : (M.t_void, M.t_imm) eq) =
   | Refl -> ()
 
 [%%expect{|
-
 type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
-
 module M : sig type t_void : void type t_imm : immediate end
-
 Line 15, characters 4-8:
 15 |   | Refl -> ()
          ^^^^
@@ -1308,9 +1205,7 @@ type 'a t2_void : void
 let f (x : 'a. 'a t2_void) = x
 
 [%%expect{|
-
 type 'a t2_void : void
-
 Line 3, characters 6-30:
 3 | let f (x : 'a. 'a t2_void) = x
           ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1327,7 +1222,6 @@ let f (x : t_void) =
   ()
 
 [%%expect{|
-
 Line 2, characters 15-16:
 2 |   let g ?(x2 = x) () = () in
                    ^
@@ -1342,7 +1236,6 @@ Error: This expression has type t_void but an expression was expected of type
 let g f (x : t_void) : t_void = f x
 
 [%%expect{|
-
 Line 1, characters 8-35:
 1 | let g f (x : t_void) : t_void = f x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1356,7 +1249,6 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 let rec f : _ -> _ = fun (x : t_void) -> x
 
 [%%expect{|
-
 Line 1, characters 21-42:
 1 | let rec f : _ -> _ = fun (x : t_void) -> x
                          ^^^^^^^^^^^^^^^^^^^^^
@@ -1379,7 +1271,6 @@ and q () =
   ()
 
 [%%expect{|
-
 Line 1, characters 17-36:
 1 | let rec ( let* ) (x : t_void) f = ()
                      ^^^^^^^^^^^^^^^^^^^
@@ -1394,9 +1285,7 @@ let q () =
   ()
 
 [%%expect{|
-
 val ( let* ) : t_float64 -> 'a -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1408,7 +1297,6 @@ and q () =
   ()
 
 [%%expect{|
-
 Lines 4-5, characters 2-4:
 4 | ..let* x = assert false in
 5 |   ()
@@ -1423,9 +1311,7 @@ let q () =
   ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1437,7 +1323,6 @@ and q () =
   assert false
 
 [%%expect{|
-
 Line 5, characters 2-14:
 5 |   assert false
       ^^^^^^^^^^^^
@@ -1452,9 +1337,7 @@ let q () =
   assert false
 
 [%%expect{|
-
 val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1466,7 +1349,6 @@ and q () =
   ()
 
 [%%expect{|
-
 Line 1, characters 19-44:
 1 | let rec ( let* ) x f : t_void = assert false
                        ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1481,9 +1363,7 @@ let q () =
   ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> t_float64 = <fun>
-
 val q : unit -> t_float64 = <fun>
 |}]
 
@@ -1497,7 +1377,6 @@ and q () =
     ()
 
 [%%expect{|
-
 Line 2, characters 16-34:
 2 | and ( and* ) x1 (x2 : t_void) = ()
                     ^^^^^^^^^^^^^^^^^^
@@ -1514,11 +1393,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> unit = <fun>
-
 val ( and* ) : 'a -> t_float64 -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1532,7 +1408,6 @@ and q () =
     ()
 
 [%%expect{|
-
 Line 2, characters 13-34:
 2 | and ( and* ) (x1 : t_void) x2 = ()
                  ^^^^^^^^^^^^^^^^^^^^^
@@ -1549,11 +1424,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> unit = <fun>
-
 val ( and* ) : t_float64 -> 'a -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1567,7 +1439,6 @@ and q () =
     ()
 
 [%%expect{|
-
 Line 1, characters 17-25:
 1 | let rec ( let* ) x f = ()
                      ^^^^^^^^
@@ -1584,11 +1455,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'b ('a : float64). 'a -> 'b -> unit = <fun>
-
 val ( and* ) : 'a -> 'b -> t_float64 = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1604,7 +1472,6 @@ and q () =
     ()
 
 [%%expect{|
-
 Line 4, characters 9-19:
 4 |     let* x : t_void = assert false
              ^^^^^^^^^^
@@ -1622,11 +1489,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> unit = <fun>
-
 val ( and* ) : 'a -> 'b -> 'c = <fun>
-
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
@@ -1650,7 +1514,6 @@ module _ = struct
 end
 
 [%%expect{|
-
 Line 4, characters 16-28:
 4 |   let x () = eq (mk_void ()) (mk_void ())
                     ^^^^^^^^^^^^
@@ -1677,7 +1540,6 @@ module _ = struct
 end
 
 [%%expect{|
-
 Line 8, characters 27-28:
 8 |   let g (x : t_void) = M.f x
                                ^
@@ -1694,7 +1556,6 @@ type ('a : void) poly_var = [`A of int * 'a | `B]
 let f #poly_var = "hello"
 
 [%%expect{|
-
 Line 1, characters 41-43:
 1 | type ('a : void) poly_var = [`A of int * 'a | `B]
                                              ^^
@@ -1713,7 +1574,6 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
 let f _ = `Mk (assert false : t_void)
 
 [%%expect{|
-
 Line 1, characters 14-37:
 1 | let f _ = `Mk (assert false : t_void)
                   ^^^^^^^^^^^^^^^^^^^^^^^
@@ -1727,7 +1587,6 @@ Error: This expression has type t_void but an expression was expected of type
 external foo33 : t_any = "foo33";;
 
 [%%expect{|
-
 Line 1, characters 17-22:
 1 | external foo33 : t_any = "foo33";;
                      ^^^^^
@@ -1748,9 +1607,7 @@ type ('a : immediate) t35 = 'a
 let f35 : 'a t35 = fun () -> ()
 
 [%%expect {|
-
 type ('a : immediate) t35 = 'a
-
 Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
@@ -1763,7 +1620,6 @@ Error:
 
 let () = (assert false : t_any); ()
 [%%expect{|
-
 Line 1, characters 9-31:
 1 | let () = (assert false : t_any); ()
              ^^^^^^^^^^^^^^^^^^^^^^
@@ -1780,7 +1636,6 @@ Error: This expression has type t_any but an expression was expected of type
 
 let () = while false do (assert false : t_any); done
 [%%expect{|
-
 Line 1, characters 24-46:
 1 | let () = while false do (assert false : t_any); done
                             ^^^^^^^^^^^^^^^^^^^^^^
@@ -1797,7 +1652,6 @@ Error: This expression has type t_any but an expression was expected of type
 
 let () = for i = 0 to 0 do (assert false : t_any); done
 [%%expect{|
-
 Line 1, characters 27-49:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                ^^^^^^^^^^^^^^^^^^^^^^

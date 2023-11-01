@@ -65,7 +65,6 @@ match px with
 | {pv=5::_} -> "int"
 ;;
 [%%expect {|
-
 Lines 1-4, characters 0-20:
 1 | match px with
 2 | | {pv=[]} -> "OK"
@@ -85,13 +84,11 @@ match px with
 | {pv=false::_} -> "bool"
 ;;
 [%%expect {|
-
 - : string = "OK"
 |}];;
 
 fun {pv=v} -> true::v, 1::v;;
 [%%expect {|
-
 - : pty -> bool list * int list = <fun>
 |}];;
 
@@ -103,7 +100,6 @@ class ['b] ilist l = object
 end
 ;;
 [%%expect {|
-
 class ['b] ilist :
   'b list ->
   object ('c)
@@ -119,7 +115,6 @@ class virtual ['a] vlist = object (_ : 'self)
 end
 ;;
 [%%expect {|
-
 class virtual ['a] vlist :
   object ('c)
     method virtual add : 'a -> 'c
@@ -135,7 +130,6 @@ class ilist2 l = object
 end
 ;;
 [%%expect {|
-
 class ilist2 :
   int list ->
   object ('a)
@@ -153,7 +147,6 @@ let ilist2 l = object
 end
 ;;
 [%%expect {|
-
 val ilist2 : 'a list -> 'a vlist = <fun>
 |}];;
 
@@ -165,7 +158,6 @@ class ['a] ilist3 l = object
 end
 ;;
 [%%expect {|
-
 class ['a] ilist3 :
   'a list ->
   object ('c)
@@ -184,7 +176,6 @@ class ['a] ilist4 (l : 'a list) = object
 end
 ;;
 [%%expect {|
-
 class ['a] ilist4 :
   'a list ->
   object ('c)
@@ -204,7 +195,6 @@ class ['a] ilist5 (l : 'a list) = object (self)
 end
 ;;
 [%%expect {|
-
 class ['a] ilist5 :
   'a list ->
   object ('c)
@@ -225,7 +215,6 @@ class ['a] ilist6 l = object (self)
 end
 ;;
 [%%expect {|
-
 class ['a] ilist6 :
   'a list ->
   object ('c)
@@ -241,7 +230,6 @@ class virtual ['a] olist = object
 end
 ;;
 [%%expect {|
-
 class virtual ['a] olist :
   object method virtual fold : f:('a -> 'c -> 'c) -> init:'c -> 'c end
 |}];;
@@ -252,7 +240,6 @@ class ['a] onil = object
 end
 ;;
 [%%expect {|
-
 class ['a] onil :
   object method fold : f:('a -> 'c -> 'c) -> init:'c -> 'c end
 |}];;
@@ -265,7 +252,6 @@ class ['a] ocons ~hd ~tl = object (_ : 'b)
 end
 ;;
 [%%expect {|
-
 class ['a] ocons :
   hd:'a ->
   tl:'a olist ->
@@ -285,7 +271,6 @@ class ['a] ostream ~hd ~tl = object (_ : 'b)
 end
 ;;
 [%%expect {|
-
 class ['a] ostream :
   hd:'a ->
   tl:'a ostream ->
@@ -307,7 +292,6 @@ class ['a] ostream1 ~hd ~tl = object (self : 'b)
     self#tl#fold ~f ~init:(f self#hd init)
 end
 [%%expect {|
-
 class ['a] ostream1 :
   hd:'a ->
   tl:'b ->
@@ -319,7 +303,6 @@ class ['a] ostream1 :
     method tl : 'b
   end
 |}, Principal{|
-
 Line 8, characters 4-16:
 8 |     self#tl#fold ~f ~init:(f self#hd init)
         ^^^^^^^^^^^^
@@ -343,7 +326,6 @@ class vari = object
 end
 ;;
 [%%expect {|
-
 class vari : object method m : [< `A | `B | `C ] -> int end
 |}];;
 
@@ -352,7 +334,6 @@ class vari = object
 end
 ;;
 [%%expect {|
-
 class vari : object method m : [< `A | `B | `C ] -> int end
 |}];;
 
@@ -363,7 +344,6 @@ module V =
   end
 ;;
 [%%expect {|
-
 module V : sig type v = [ `A | `B | `C ] val m : [< v ] -> int end
 |}];;
 
@@ -373,7 +353,6 @@ class varj = object
 end
 ;;
 [%%expect {|
-
 class varj : object method m : [< V.v ] -> int end
 |}];;
 
@@ -383,7 +362,6 @@ module type T = sig
 end
 ;;
 [%%expect {|
-
 module type T =
   sig class vari : object method m : [< `A | `B | `C ] -> int end end
 |}];;
@@ -396,7 +374,6 @@ module M0 = struct
 end
 ;;
 [%%expect {|
-
 module M0 :
   sig class vari : object method m : [< `A | `B | `C ] -> int end end
 |}];;
@@ -404,19 +381,16 @@ module M0 :
 module M : T = M0
 ;;
 [%%expect {|
-
 module M : T
 |}];;
 
 let v = new M.vari;;
 [%%expect {|
-
 val v : M.vari = <obj>
 |}];;
 
 v#m `A;;
 [%%expect {|
-
 - : int = 1
 |}];;
 
@@ -429,7 +403,6 @@ class point ~x ~y = object
 end
 ;;
 [%%expect {|
-
 class point :
   x:int ->
   y:int -> object val x : int val y : int method x : int method y : int end
@@ -442,7 +415,6 @@ class color_point ~x ~y ~color = object
 end
 ;;
 [%%expect {|
-
 class color_point :
   x:int ->
   y:int ->
@@ -468,7 +440,6 @@ class circle (p : #point) ~r = object
 end
 ;;
 [%%expect {|
-
 class circle :
   #point ->
   r:int ->
@@ -486,19 +457,12 @@ let f (x : < m : 'a. 'a -> 'a >) = (x : < m : 'b. 'b -> 'b >)
 let f (x : < m : 'a. 'a -> 'a list >) = (x : < m : 'b. 'b -> 'c >)
 ;;
 [%%expect {|
-
 val p0 : point = <obj>
-
 val p1 : point = <obj>
-
 val cp : color_point = <obj>
-
 val c : circle = <obj>
-
 val d : float = 11.
-
 val f : < m : 'a. 'a -> 'a > -> < m : 'b. 'b -> 'b > = <fun>
-
 Line 9, characters 41-42:
 9 | let f (x : < m : 'a. 'a -> 'a list >) = (x : < m : 'b. 'b -> 'c >)
                                              ^
@@ -515,7 +479,6 @@ class id = object
 end
 ;;
 [%%expect {|
-
 class id : object method id : 'a -> 'a end
 |}];;
 
@@ -524,7 +487,6 @@ class type id_spec = object
 end
 ;;
 [%%expect {|
-
 class type id_spec = object method id : 'a -> 'a end
 |}];;
 
@@ -533,7 +495,6 @@ class id_impl = object (_ : #id_spec)
 end
 ;;
 [%%expect {|
-
 class id_impl : object method id : 'a -> 'a end
 |}];;
 
@@ -545,7 +506,6 @@ and b = object (_ : #id_spec)
 end
 ;;
 [%%expect {|
-
 class a : object method m : bool end
 and b : object method id : 'a -> 'a end
 |}];;
@@ -557,7 +517,6 @@ class ['a] id1 = object
 end
 ;;
 [%%expect {|
-
 Line 3, characters 12-17:
 3 |   method id x = x
                 ^^^^^
@@ -570,7 +529,6 @@ class id2 (x : 'a) = object
 end
 ;;
 [%%expect {|
-
 Line 3, characters 12-17:
 3 |   method id x = x
                 ^^^^^
@@ -584,7 +542,6 @@ class id3 x = object
 end
 ;;
 [%%expect {|
-
 Line 4, characters 12-17:
 4 |   method id _ = x
                 ^^^^^
@@ -601,7 +558,6 @@ class id4 () = object
 end
 ;;
 [%%expect {|
-
 Lines 4-7, characters 12-17:
 4 | ............x =
 5 |     match r with
@@ -616,7 +572,6 @@ class c = object
 end
 ;;
 [%%expect {|
-
 class c : object method m : 'a -> 'b -> 'a end
 |}];;
 
@@ -630,11 +585,8 @@ let f3 f = f#id 1, f#id true
 let f4 f = ignore(f : id); f#id 1, f#id true
 ;;
 [%%expect {|
-
 val f1 : id -> int * bool = <fun>
-
 val f2 : id -> int * bool = <fun>
-
 Line 5, characters 24-28:
 5 | let f3 f = f#id 1, f#id true
                             ^^^^
@@ -648,7 +600,6 @@ class c = object
 end
 ;;
 [%%expect {|
-
 class c : object method m : #id -> int * bool end
 |}];;
 
@@ -664,11 +615,8 @@ let app = new c #m (new id2)
 type 'a foo = 'a foo list
 ;;
 [%%expect {|
-
 class id2 : object method id : 'a -> 'a method mono : int -> int end
-
 val app : int * bool = (1, true)
-
 Line 9, characters 0-25:
 9 | type 'a foo = 'a foo list
     ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -682,9 +630,7 @@ class ['a] bar (x : 'a) = object end
 type 'a foo = 'a foo bar
 ;;
 [%%expect {|
-
 class ['a] bar : 'a -> object  end
-
 type 'a foo = 'a foo bar
 |}];;
 
@@ -696,41 +642,30 @@ fun (x : <m:'a. 'a * <p:'b. 'b * 'c * 'd> as 'c> as 'd) -> x#m;;
 (* printer is wrong on the next (no official syntax) *)
 fun (x : <m:'a.<p:'a;..> >) -> x#m;;
 [%%expect {|
-
 - : (< m : 'a. 'a * 'b > as 'b) -> 'c * 'b = <fun>
-
 - : (< m : 'a. 'b * 'a list > as 'b) -> 'b * 'c list = <fun>
-
 val f :
   (< m : 'b. 'a * (< n : 'b; .. > as 'b) > as 'a) ->
   'a * (< n : 'c; .. > as 'c) = <fun>
-
 - : (< p : 'b. < m : 'b; n : 'a; .. > as 'b > as 'a) ->
     (< m : 'c; n : 'a; .. > as 'c)
 = <fun>
-
 - : (< m : 'a. 'a * < p : 'b. 'b * 'd * 'c > as 'd > as 'c) ->
     ('f * < p : 'b. 'b * 'e * 'c > as 'e)
 = <fun>
-
 - : < m : 'a. < p : 'a; .. > as 'b > -> 'b = <fun>
 |}, Principal{|
-
 - : (< m : 'a. 'a * 'b > as 'b) -> 'c * (< m : 'a. 'a * 'd > as 'd) = <fun>
-
 - : (< m : 'a. 'b * 'a list > as 'b) ->
     (< m : 'a. 'c * 'a list > as 'c) * 'd list
 = <fun>
-
 val f :
   (< m : 'b. 'a * (< n : 'b; .. > as 'b) > as 'a) ->
   (< m : 'd. 'c * (< n : 'd; .. > as 'd) > as 'c) * (< n : 'e; .. > as 'e) =
   <fun>
-
 - : (< p : 'b. < m : 'b; n : 'a; .. > as 'b > as 'a) ->
     (< m : 'c; n : < p : 'e. < m : 'e; n : 'd; .. > as 'e > as 'd; .. > as 'c)
 = <fun>
-
 - : (< m : 'a. 'a * < p : 'b. 'b * 'd * 'c > as 'd > as 'c) ->
     ('f *
      < p : 'b.
@@ -738,16 +673,13 @@ val f :
              (< m : 'a. 'a * < p : 'b0. 'b0 * 'h * 'g > as 'h > as 'g) >
      as 'e)
 = <fun>
-
 - : < m : 'a. < p : 'a; .. > as 'b > -> 'b = <fun>
 |}];;
 
 type sum = T of < id: 'a. 'a -> 'a > ;;
 fun (T x) -> x#id;;
 [%%expect {|
-
 type sum = T of < id : 'a. 'a -> 'a >
-
 - : sum -> 'a -> 'a = <fun>
 |}];;
 
@@ -755,11 +687,8 @@ type record = { r: < id: 'a. 'a -> 'a > } ;;
 fun x -> x.r#id;;
 fun {r=x} -> x#id;;
 [%%expect {|
-
 type record = { r : < id : 'a. 'a -> 'a >; }
-
 - : record -> 'a -> 'a = <fun>
-
 - : record -> 'a -> 'a = <fun>
 |}];;
 
@@ -767,7 +696,6 @@ class myself = object (self)
   method self : 'a. 'a -> 'b = fun _ -> self
 end;;
 [%%expect {|
-
 class myself : object ('b) method self : 'a -> 'b end
 |}];;
 
@@ -783,7 +711,6 @@ class number = object (self : 'self)
 end
 ;;
 [%%expect {|
-
 class number :
   object ('b)
     val num : int
@@ -828,13 +755,9 @@ let append (l : 'a #olist) (l' : 'b #olist) =
   l#fold ~init:l' ~f:(fun x acc -> acc#cons x)
 ;;
 [%%expect {|
-
 val id : 'a -> 'a = <fun>
-
 class c : object method id : 'a -> 'a end
-
 class c' : object method id : 'a -> 'a end
-
 class d :
   object
     val mutable count : int
@@ -842,7 +765,6 @@ class d :
     method id : 'a -> 'a
     method old : 'a -> 'a
   end
-
 class ['a] olist :
   'a list ->
   object ('c)
@@ -850,11 +772,8 @@ class ['a] olist :
     method cons : 'a -> 'c
     method fold : f:('a -> 'b -> 'b) -> init:'b -> 'b
   end
-
 val sum : int #olist -> int = <fun>
-
 val count : 'a #olist -> int = <fun>
-
 val append : 'a #olist -> ('a #olist as 'b) -> 'b = <fun>
 |}];;
 
@@ -863,19 +782,15 @@ type 'a t = unit
 class o = object method x : 'a. ([> `A] as 'a) t -> unit = fun _ -> () end
 ;;
 [%%expect {|
-
 type 'a t = unit
-
 class o : object method x : unit -> unit end
 |}];;
 
 class c = object method m = new d () end and d ?(x=0) () = object end;;
 class d ?(x=0) () = object end and c = object method m = new d () end;;
 [%%expect {|
-
 class c : object method m : d end
 and d : ?x:int -> unit -> object  end
-
 class d : ?x:int -> unit -> object  end
 and c : object method m : d end
 |}];;
@@ -886,11 +801,8 @@ class next (n : #numeral) =
   object (_ : #numeral) method fold f x = n#fold f (f x) end
 ;;
 [%%expect {|
-
 class type numeral = object method fold : ('a -> 'a) -> 'a -> 'a end
-
 class zero : object method fold : ('a -> 'a) -> 'a -> 'a end
-
 class next : #numeral -> object method fold : ('a -> 'a) -> 'a -> 'a end
 |}];;
 
@@ -905,11 +817,8 @@ class node = object (self : #node_type)
   method as_variant = `Node (self :> node_type)
 end;;
 [%%expect {|
-
 class type node_type = object method as_variant : [> `Node of node_type ] end
-
 class node : node_type
-
 class node : object method as_variant : [> `Node of node_type ] end
 |}];;
 
@@ -919,9 +828,7 @@ type bad2 = {mutable bad2 : 'a. 'a option ref option};;
 let bad2 = {bad2 = None};;
 bad2.bad2 <- Some (ref None);;
 [%%expect {|
-
 type bad = { bad : 'a. 'a option ref; }
-
 Line 2, characters 17-25:
 2 | let bad = {bad = ref None};;
                      ^^^^^^^^
@@ -934,14 +841,10 @@ Error: This field value has type 'b option ref which is less general than
 let f (x: <m:'a.<p: 'a * 'b> as 'b>) (y : 'b) = ();;
 let f (x: <m:'a. 'a * (<p:int*'b> as 'b)>) (y : 'b) = ();;
 [%%expect {|
-
 val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit = <fun>
-
 val f : < m : 'a. 'a * (< p : int * 'b > as 'b) > -> 'b -> unit = <fun>
 |}, Principal{|
-
 val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit = <fun>
-
 val f :
   < m : 'a. 'a * (< p : int * 'b > as 'b) > ->
   (< p : int * 'c > as 'c) -> unit = <fun>
@@ -963,20 +866,15 @@ class c = object (self)
   method m :  'a. ([> 'a t] as 'a) -> 'a = fun x -> self#m x
 end;;
 [%%expect {|
-
 type 'a t = [ `A of 'a ]
-
 class c : object method m : ([> 'a t ] as 'a) -> unit end
-
 class c : object method m : ([> 'a t ] as 'a) -> unit end
-
 class c : object method m : ([> 'a t ] as 'a) -> 'a end
 |}];;
 
 (* use before instancing *)
 class c = object method m : 'a. 'a option -> ([> `A] as 'a) = fun x -> `A end;;
 [%%expect {|
-
 class c : object method m : ([> `A ] as 'a) option -> 'a end
 |}];;
 
@@ -986,7 +884,6 @@ object method virtual caseNil : 'a end
 and virtual int_list =
 object method virtual visit : 'a.('a visitor -> 'a) end;;
 [%%expect {|
-
 Line 4, characters 30-51:
 4 | object method virtual visit : 'a.('a visitor -> 'a) end;;
                                   ^^^^^^^^^^^^^^^^^^^^^
@@ -997,9 +894,7 @@ Error: The universal type variable 'a cannot be generalized:
 type ('a,'b) list_visitor = < caseNil : 'a; caseCons : 'b -> 'b list -> 'a >
 type 'b alist = < visit : 'a. ('a,'b) list_visitor -> 'a >
 [%%expect {|
-
 type ('a, 'b) list_visitor = < caseCons : 'b -> 'b list -> 'a; caseNil : 'a >
-
 type 'b alist = < visit : 'a. ('a, 'b) list_visitor -> 'a >
 |}];;
 
@@ -1009,16 +904,13 @@ class type ct = object ('s)
 end
 type t = {f : 'a 'b. ('b -> (#ct as 'a) -> 'b) -> 'b};;
 [%%expect {|
-
 class type ct = object ('a) method fold : ('b -> 'a -> 'b) -> 'b -> 'b end
-
 type t = { f : 'a 'b. ('b -> (#ct as 'a) -> 'b) -> 'b; }
 |}];;
 
 (* PR#8124 *)
 type t = u and u = t;;
 [%%expect {|
-
 Line 1, characters 0-10:
 1 | type t = u and u = t;;
     ^^^^^^^^^^
@@ -1031,16 +923,13 @@ Error: The type abbreviation t is cyclic:
 class ['t] a = object constraint 't = [> `A of 't a] end
 type t = [ `A of t a ];;
 [%%expect {|
-
 class ['a] a : object constraint 'a = [> `A of 'a a ] end
-
 type t = [ `A of t a ]
 |}];;
 
 (* Wrong in 3.06 *)
 type ('a,'b) t constraint 'a = 'b and ('a,'b) u = ('a,'b) t;;
 [%%expect {|
-
 Line 1, characters 50-59:
 1 | type ('a,'b) t constraint 'a = 'b and ('a,'b) u = ('a,'b) t;;
                                                       ^^^^^^^^^
@@ -1051,7 +940,6 @@ Error: Constraints are not satisfied in this type.
 (* Full polymorphism if we do not expand *)
 type 'a t = 'a and u = int t;;
 [%%expect {|
-
 type 'a t = 'a
 and u = int t
 |}];;
@@ -1061,9 +949,7 @@ type 'a t constraint 'a = int;;
 type 'a u = 'a and 'a v = 'a u t;;
 type 'a u = 'a and 'a v = 'a u t constraint 'a = int;;
 [%%expect {|
-
 type 'a t constraint 'a = int
-
 Line 2, characters 26-32:
 2 | type 'a u = 'a and 'a v = 'a u t;;
                               ^^^^^^
@@ -1077,11 +963,8 @@ type 'a t = unit constraint 'a = g;;
 type 'a u = 'a and 'a v = 'a u t;;
 type 'a u = 'a and 'a v = 'a u t constraint 'a = int;;
 [%%expect {|
-
 type g = int
-
 type 'a t = unit constraint 'a = g
-
 Line 3, characters 26-32:
 3 | type 'a u = 'a and 'a v = 'a u t;;
                               ^^^^^^
@@ -1094,7 +977,6 @@ type ('a,'b) t constraint 'a = 'b
                constraint 'a = int
   and 'a u = (float,string) t;;
 [%%expect {|
-
 Line 3, characters 13-29:
 3 |   and 'a u = (float,string) t;;
                  ^^^^^^^^^^^^^^^^
@@ -1106,7 +988,6 @@ Error: Constraints are not satisfied in this type.
 (* Example of wrong expansion *)
 type 'a u = < m : 'a v > and 'a v = 'a list u;;
 [%%expect {|
-
 Line 1, characters 0-24:
 1 | type 'a u = < m : 'a v > and 'a v = 'a list u;;
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1125,9 +1006,7 @@ Error: This recursive type is not regular.
 type 'a t = 'a
 type 'a u = A of 'a t;;
 [%%expect {|
-
 type 'a t = 'a
-
 type 'a u = A of 'a t
 |}];;
 
@@ -1136,18 +1015,12 @@ type 'a t = < a : 'a >;;
 fun (x : 'a t as 'a) -> (x : 'b t);;
 type u = 'a t as 'a;;
 [%%expect {|
-
 type 'a t = < a : 'a >
-
 - : ('a t as 'a) -> 'a t = <fun>
-
 type u = 'a t as 'a
 |}, Principal{|
-
 type 'a t = < a : 'a >
-
 - : ('a t as 'a) -> ('b t as 'b) t = <fun>
-
 type u = 'a t as 'a
 |}];;
 
@@ -1158,7 +1031,6 @@ type ('a1, 'b1) ty1 = 'a1 -> unit
 and  ('a2, 'b2) ty2 = 'b2 -> unit
   constraint 'b2 = [> `V2 of ('a2, 'b2) ty1 as 'a2];;
 [%%expect {|
-
 Lines 1-2, characters 0-51:
 1 | type ('a1, 'b1) ty1 = 'a1 -> unit
 2 |   constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
@@ -1177,7 +1049,6 @@ end and ['a, 'b] b = object
   method as_b: ('a, 'b) b
 end;;
 [%%expect {|
-
 class type ['a, 'b] a =
   object
     constraint 'a = < as_a : ('a, 'b) a as 'c; b : 'b; .. >
@@ -1197,14 +1068,12 @@ and ['a, 'b] b =
 class type ['b] ca = object ('s) inherit ['s, 'b] a end;;
 class type ['a] cb = object ('s) inherit ['a, 's] b end;;
 [%%expect {|
-
 class type ['a] ca =
   object ('b)
     constraint 'a = < a : 'b; as_b : ('b, 'a) b; .. >
     method as_a : ('b, 'a) a
     method b : 'a
   end
-
 class type ['a] cb =
   object ('b)
     constraint 'a = < as_a : ('a, 'b) a; b : 'b; .. >
@@ -1216,7 +1085,6 @@ class type ['a] cb =
 type bt = 'b ca cb as 'b
 ;;
 [%%expect {|
-
 type bt = 'a ca cb as 'a
 |}];;
 
@@ -1238,13 +1106,9 @@ let o = object (_ : 's)
     object (self: 's) method x = 3 method private m = self end
 end;;
 [%%expect {|
-
 class c : object method m : int end
-
 val f : unit -> c = <fun>
-
 val f : unit -> c = <fun>
-
 Line 4, characters 11-60:
 4 | let f () = object method private n = 1 method m = {<>}#n end;;
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1252,7 +1116,6 @@ Warning 15 [implicit-public-methods]: the following private methods were made pu
  n.
 
 val f : unit -> < m : int; n : int > = <fun>
-
 Line 5, characters 27-39:
 5 | let f () = object (self:c) method n = 1 method m = 2 end;;
                                ^^^^^^^^^^^^
@@ -1270,7 +1133,6 @@ type 'a bar = <m: 'b. 'a * <m: 'c. 'c * 'a bar> >
 type bar' =   <m: 'a. 'a * 'a bar >
 let f (x : foo') = (x : bar');;
 [%%expect {|
-
 Line 2, characters 3-4:
 2 |   (x : <m : 'a. 'a * (<m:'b. 'a * <m:'c. 'c * 'bar> > as 'bar) >);;
        ^
@@ -1294,7 +1156,6 @@ let f x =
     (x : <m : 'a. 'a -> ('a * <m:'c. 'c -> 'bar> as 'bar)>
        :> <m : 'a. 'a -> ('a * 'foo)> as 'foo);;
 [%%expect {|
-
 Line 2, characters 3-4:
 2 |   (x : <m : 'b. 'b * ('b * <m : 'c. 'c * ('c * 'bar)>)> as 'bar);;
        ^
@@ -1312,7 +1173,6 @@ module M
 : sig type t = <m : 'b. 'b * ('b * <m:'c. 'c * 'bar> as 'bar)> end
 = struct type t = <m : 'a. 'a * ('a * 'foo)> as 'foo end;;
 [%%expect {|
-
 Line 3, characters 2-64:
 3 | = struct let f (x : <m : 'a. 'a * ('a * 'foo)> as 'foo) = () end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1343,11 +1203,8 @@ module M : sig type 'a t val f : <m: 'a. 'a t> -> int end
 module M : sig type 'a t val f : <m: 'a. 'a t> -> int end
 = struct type 'a t = int let f x = x#m end;;
 [%%expect {|
-
 module M : sig type 'a t type u = < m : 'a. 'a t > end
-
 module M : sig type 'a t val f : < m : 'a. 'a t > -> int end
-
 module M : sig type 'a t val f : < m : 'a. 'a t > -> int end
 |}];;
 
@@ -1356,7 +1213,6 @@ let f x y =
   ignore (y :> <m:'b.'b -> 'd * < > > as 'd);
   x = y;;
 [%%expect {|
-
 val f :
   (< m : 'a. 'a -> (< m : 'a. 'a -> 'c * <  > > as 'c) * < .. >; .. > as 'b) ->
   'b -> bool = <fun>
@@ -1378,17 +1234,11 @@ type q = private <x:p; ..>;;
 fun x -> (x : q :> p);;
 fun x -> (x : p :> q);;
 [%%expect {|
-
 type t = [ `A | `B ]
-
 type v = private [> t ]
-
 - : t -> v = <fun>
-
 type u = private [< t ]
-
 - : u -> v = <fun>
-
 Line 6, characters 9-21:
 6 | fun x -> (x : v :> u);;
              ^^^^^^^^^^^^
@@ -1410,7 +1260,6 @@ let f5 x =
 let f6 x =
   (x : <m:'a. [< `A of < > ] as 'a> :> <m:'a. [< `A of <p:int> ] as 'a>);;
 [%%expect {|
-
 Lines 2-3, characters 2-47:
 2 | ..(x : <m:'a. (<p:int;..> as 'a) -> int>
 3 |     :> <m:'b. (<p:int;q:int;..> as 'b) -> int>)..
@@ -1427,40 +1276,28 @@ fun x -> (f (x,x))#m;; (* Warning 18 *)
 let f x = if true then [| (x : < m : 'a. 'a -> 'a >) |] else [|x|];;
 fun x -> (f x).(0)#m;; (* Warning 18 *)
 [%%expect {|
-
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > = <fun>
-
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-
 val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
-
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array = <fun>
-
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
 |}, Principal{|
-
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > = <fun>
-
 Line 2, characters 9-16:
 2 | fun x -> (f x)#m;; (* Warning 18 *)
              ^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-
 val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
-
 Line 4, characters 9-20:
 4 | fun x -> (f (x,x))#m;; (* Warning 18 *)
              ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-
 val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array = <fun>
-
 Line 6, characters 9-20:
 6 | fun x -> (f x).(0)#m;; (* Warning 18 *)
              ^^^^^^^^^^^
@@ -1481,40 +1318,28 @@ let h x =
   let none = let y = None in ignore [y;(None:u)]; y in
   let x = List.hd [Some x; none] in (just x)#id;;
 [%%expect {|
-
 class c : object method id : 'a -> 'a end
-
 type u = c option
-
 val just : 'a option -> 'a = <fun>
-
 val f : c -> 'a -> 'a = <fun>
-
 val g : c -> 'a -> 'a = <fun>
-
 val h : < id : 'a; .. > -> 'a = <fun>
 |}, Principal{|
-
 class c : object method id : 'a -> 'a end
-
 type u = c option
-
 val just : 'a option -> 'a = <fun>
-
 Line 4, characters 42-62:
 4 | let f x = let l = [Some x; (None : u)] in (just(List.hd l))#id;;
                                               ^^^^^^^^^^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 val f : c -> 'a -> 'a = <fun>
-
 Line 7, characters 36-47:
 7 |   let x = List.hd [Some x; none] in (just x)#id;;
                                         ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 val g : c -> 'a -> 'a = <fun>
-
 val h : < id : 'a; .. > -> 'a = <fun>
 |}];;
 
@@ -1523,11 +1348,8 @@ type 'a u = c option;;
 let just = function None -> failwith "just" | Some x -> x;;
 let f x = let l = [Some x; (None : _ u)] in (just(List.hd l))#id;;
 [%%expect {|
-
 type 'a u = c option
-
 val just : 'a option -> 'a = <fun>
-
 val f : c -> 'a -> 'a = <fun>
 |}];;
 
@@ -1552,17 +1374,12 @@ let f : 'a. _ -> _ = fun x -> x;;
 let zero : 'a. [> `Int of int | `B of 'a] as 'a  = `Int 0;; (* ok *)
 let zero : 'a. [< `Int of int] as 'a = `Int 0;; (* fails *)
 [%%expect {|
-
 val f : 'a -> int = <fun>
 val g : 'a -> int = <fun>
-
 type 'a t = Leaf of 'a | Node of ('a * 'a) t
-
 val depth : 'a t -> int = <fun>
-
 val depth : 'a t -> int = <fun>
 val d : ('a * 'a) t -> int = <fun>
-
 Line 9, characters 2-46:
 9 |   function Leaf x -> x | Node x -> 1 + depth x;; (* fails *)
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1576,13 +1393,9 @@ let zero = {f = `Int 0} ;;
 type t = {f: 'a. [< `Int of int] as 'a}
 let zero = {f = `Int 0} ;; (* fails *)
 [%%expect {|
-
 type t = { f : 'a. [> `B of 'a | `Int of int ] as 'a; }
-
 val zero : t = {f = `Int 0}
-
 type t = { f : 'a. [< `Int of int ] as 'a; }
-
 Line 4, characters 16-22:
 4 | let zero = {f = `Int 0} ;; (* fails *)
                     ^^^^^^
@@ -1596,7 +1409,6 @@ Error: This expression has type [> `Int of int ]
 let rec id : 'a. 'a -> 'a = fun x -> x
 and neg i b = (id (-i), id (not b));;
 [%%expect {|
-
 val id : 'a -> 'a = <fun>
 val neg : int -> bool -> int * bool = <fun>
 |}];;
@@ -1605,7 +1417,6 @@ val neg : int -> bool -> int * bool = <fun>
 
 type t = A of int | B of (int*t) list | C of (string*t) list
 [%%expect {|
-
 type t = A of int | B of (int * t) list | C of (string * t) list
 |}];;
 
@@ -1618,7 +1429,6 @@ and transf_alist : 'a. _ -> ('a*t) list -> ('a*t) list = fun f -> function
   | (k,v)::tl -> (k, transf f v) :: transf_alist f tl
 ;;
 [%%expect {|
-
 val transf : (int -> t) -> t -> t = <fun>
 val transf_alist : (int -> t) -> ('a * t) list -> ('a * t) list = <fun>
 |}];;
@@ -1628,9 +1438,7 @@ val transf_alist : (int -> t) -> ('a * t) list -> ('a * t) list = <fun>
 type t = {f: 'a. ('a list -> int) Lazy.t}
 let l : t = { f = lazy (raise Not_found)};;
 [%%expect {|
-
 type t = { f : 'a. ('a list -> int) Lazy.t; }
-
 val l : t = {f = <lazy>}
 |}];;
 
@@ -1639,11 +1447,8 @@ type t = {f: 'a. 'a -> unit};;
 let f ?x y = () in {f};;
 let f ?x y = y in {f};; (* fail *)
 [%%expect {|
-
 type t = { f : 'a. 'a -> unit; }
-
 - : t = {f = <fun>}
-
 Line 3, characters 19-20:
 3 | let f ?x y = y in {f};; (* fail *)
                        ^
@@ -1659,7 +1464,6 @@ module Polux = struct
   let f (x : <m : 'a. 'a t>) = (x : <m : 'a. 'a>)
 end;;
 [%%expect {|
-
 module Polux :
   sig
     type 'par t = 'par
@@ -1677,7 +1481,6 @@ let {foo} = (raise Exit : t);;
 type s = A of int
 let (A x) = (raise Exit : s);;
 [%%expect {|
-
 Exception: Stdlib.Exit.
 |}];;
 
@@ -1685,7 +1488,6 @@ Exception: Stdlib.Exit.
 
 type 'x t = < f : 'y. 'y t >;;
 [%%expect {|
-
 Line 1, characters 0-28:
 1 | type 'x t = < f : 'y. 'y t >;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1707,16 +1509,13 @@ let using_match b =
   f 0,f
 ;;
 [%%expect {|
-
 val using_match : bool -> int * ('a -> 'a) = <fun>
 |}];;
 
 match (fun x -> x), fun x -> x with x, y -> x, y;;
 match fun x -> x with x -> x, x;;
 [%%expect {|
-
 - : ('a -> 'a) * ('b -> 'b) = (<fun>, <fun>)
-
 - : ('a -> 'a) * ('b -> 'b) = (<fun>, <fun>)
 |}];;
 
@@ -1726,21 +1525,18 @@ let n = object
   method m : 'x 'o. ([< `Foo of 'x] as 'o) -> 'x = fun x -> assert false
 end;;
 [%%expect {|
-
 val n : < m : 'x 'a. ([< `Foo of 'x ] as 'a) -> 'x > = <obj>
 |}];;
 (* ok, due to implicit `'o. [< `Foo of _ ] as 'o`  *)
 let n =
   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
 [%%expect {|
-
 val n : < m : 'a 'x. ([< `Foo of 'x ] as 'a) -> 'x > = <obj>
 |}];;
 (* fail *)
 let (n : < m : 'a. [< `Foo of int] -> 'a >) =
   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
 [%%expect {|
-
 Line 2, characters 2-72:
 2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1753,7 +1549,6 @@ Error: This expression has type < m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >
 let (n : 'b -> < m : 'a . ([< `Foo of int] as 'b) -> 'a >) = fun x ->
   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
 [%%expect {|
-
 Line 2, characters 2-72:
 2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1766,7 +1561,6 @@ Error: This expression has type < m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >
 let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =
   (n : < m : 'b 'r. [< `Foo of 'b & int | `Bar] as 'r >)
 [%%expect{|
-
 val f :
   < m : 'a 'c. [< `Bar | `Foo of 'a & int ] as 'c > ->
   < m : 'b 'd. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
@@ -1775,7 +1569,6 @@ val f :
 let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =
   (n : < m : 'b 'r. [< `Foo of int & 'b | `Bar] as 'r >)
 [%%expect{|
-
 Line 2, characters 3-4:
 2 |   (n : < m : 'b 'r. [< `Foo of int & 'b | `Bar] as 'r >)
        ^
@@ -1789,7 +1582,6 @@ Error: This expression has type
 let f (n : < m : 'a. [< `Foo of 'a & int | `Bar] >) =
   (n : < m : 'b. [< `Foo of 'b & int | `Bar] >)
 [%%expect{|
-
 val f :
   < m : 'c 'a. [< `Bar | `Foo of 'a & int ] as 'c > ->
   < m : 'd 'b. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
@@ -1800,7 +1592,6 @@ let f b (x: 'x) =
   let module M = struct type t = A end in
   if b then x else M.A;;
 [%%expect {|
-
 Line 3, characters 19-22:
 3 |   if b then x else M.A;;
                        ^^^
@@ -1826,15 +1617,10 @@ let rec f1 o c x =
   match (o :> _ clss)#mthod c x with
   | `V c -> f2 o c x;;
 [%%expect{|
-
 type 'a t = V1 of 'a
-
 type ('c, 't) pvariant = [ `V of 'c * 't t ]
-
 class ['c] clss : object method mthod : 'c -> 't t -> ('c, 't) pvariant end
-
 val f2 : 'a -> 'b -> 'c t -> 'c t = <fun>
-
 val f1 :
   < mthod : 't. 'a -> 't t -> [< `V of 'a * 't t ]; .. > ->
   'a -> 'b t -> 'b t = <fun>
@@ -1845,11 +1631,8 @@ type (+'a,-'b) foo = private int;;
 let f (x : int) : ('a,'a) foo = Obj.magic x;;
 let x = f 3;;
 [%%expect{|
-
 type (+'a, -'b) foo = private int
-
 val f : int -> ('a, 'a) foo = <fun>
-
 val x : ('_weak1, '_weak1) foo = 3
 |}]
 
@@ -1861,7 +1644,6 @@ let rec f : unit -> < m: 'a. 'a -> 'a> = fun () ->
   ignore (x#m "hello");
   assert false;;
 [%%expect{|
-
 val f : unit -> < m : 'a. 'a -> 'a > = <fun>
 |}]
 
@@ -1873,11 +1655,8 @@ let c (f : u -> u) =
    method apply: 'a. 'a t -> 'a t = fun x -> f x
  end;;
 [%%expect{|
-
 type u
-
 type 'a t = u
-
 val c : (u -> u) -> < apply : 'a. u -> u > = <fun>
 |}]
 
@@ -1888,13 +1667,10 @@ let f (x : < m: 'a. ([< `Foo of int & float] as 'a) -> unit>)
 type t = { x : 'a. ([< `Foo of int & float ] as 'a) -> unit };;
 let f t = { x = t.x };;
 [%%expect{|
-
 val f :
   < m : 'a. ([< `Foo of int & float ] as 'a) -> unit > ->
   < m : 'b. ([< `Foo of int & float ] as 'b) -> unit > = <fun>
-
 type t = { x : 'a. ([< `Foo of int & float ] as 'a) -> unit; }
-
 val f : t -> t = <fun>
 |}]
 
@@ -1902,18 +1678,14 @@ type t = <m:int>
 type g = <n:string; t>
 type h = <x:string; y:int; g>
 [%%expect{|
-
 type t = < m : int >
-
 type g = < m : int; n : string >
-
 type h = < m : int; n : string; x : string; y : int >
 |}]
 
 type t = <g>
 and g = <a:t>
 [%%expect{|
-
 Line 1, characters 10-11:
 1 | type t = <g>
               ^
@@ -1923,9 +1695,7 @@ Error: The type constructor g is not yet completely defined
 type t = int
 type g = <t>
 [%%expect{|
-
 type t = int
-
 Line 2, characters 10-11:
 2 | type g = <t>
               ^
@@ -1935,18 +1705,14 @@ Error: The type int is not an object type
 type t = <a:int>
 type g = <t; t; t;>
 [%%expect{|
-
 type t = < a : int >
-
 type g = < a : int >
 |}]
 
 type c = <a:int; d:string>
 let s:c = object method a=1; method d="123" end
 [%%expect{|
-
 type c = < a : int; d : string >
-
 val s : c = <obj>
 |}]
 
@@ -1959,27 +1725,18 @@ type e = < >
 type r1 = < a : int; e >
 type r2 = < a : int; < < < > > > >
 [%%expect{|
-
 type 'a t = < m : 'a >
-
 type s = < m : int >
-
 module M : sig type t = < m : int > end
-
 type u = < m : int >
-
 type r = < a : int; b : int >
-
 type e = <  >
-
 type r1 = < a : int >
-
 type r2 = < a : int >
 |}]
 
 type gg = <a:int->float; a:int>
 [%%expect{|
-
 Line 1, characters 27-30:
 1 | type gg = <a:int->float; a:int>
                                ^^^
@@ -1989,9 +1746,7 @@ Error: Method 'a' has type int, which should be int -> float
 type t = <a:int; b:string>
 type g = <b:float; t;>
 [%%expect{|
-
 type t = < a : int; b : string >
-
 Line 2, characters 19-20:
 2 | type g = <b:float; t;>
                        ^
@@ -2003,15 +1758,12 @@ module A = struct
 end
 type t = < int A.t1 >
 [%%expect{|
-
 module A : sig class type ['a] t1 = object method f : 'a end end
-
 type t = < f : int >
 |}]
 
 type t = < int #A.t1 >
 [%%expect{|
-
 Line 1, characters 11-20:
 1 | type t = < int #A.t1 >
                ^^^^^^^^^
@@ -2020,13 +1772,11 @@ Error: Illegal open object type
 
 let g = fun (y : ('a * 'b)) x -> (x : < <m: 'a> ; <m: 'b> >)
 [%%expect{|
-
 val g : 'a * 'a -> < m : 'a > -> < m : 'a > = <fun>
 |}]
 
 type 'a t = <m: 'a ; m: int>
 [%%expect{|
-
 type 'a t = < m : 'a > constraint 'a = int
 |}]
 
@@ -2041,9 +1791,7 @@ module M () = struct
 end
 
 [%%expect{|
-
 external reraise : exn -> 'a = "%reraise"
-
 module M :
   functor () ->
     sig
@@ -2057,7 +1805,6 @@ module M :
 (* #8550 *)
 class ['a] r = let r : 'a = ref [] in object method get = r end;;
 [%%expect{|
-
 Line 1, characters 0-63:
 1 | class ['a] r = let r : 'a = ref [] in object method get = r end;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2073,22 +1820,17 @@ type 'a t = 'a constraint 'a = 'b list;;
 type 'a s = 'a list;;
 let id x = x;;
 [%%expect{|
-
 type 'a t = 'a constraint 'a = 'b list
-
 type 'a s = 'a list
-
 val id : 'a -> 'a = <fun>
 |}]
 
 let x : [ `Foo of _ s | `Foo of 'a t ] = id (`Foo []);;
 [%%expect{|
-
 val x : [ `Foo of 'a s ] = `Foo []
 |}]
 let x : [ `Foo of 'a t | `Foo of _ s ] = id (`Foo []);;
 [%%expect{|
-
 val x : [ `Foo of 'a list t ] = `Foo []
 |}]
 
@@ -2097,9 +1839,7 @@ val x : [ `Foo of 'a list t ] = `Foo []
 class c = object (self) method m ?(x=0) () = x method n = self#m () end;;
 class d = object (self) inherit c method n' = self#m () end;;
 [%%expect{|
-
 class c : object method m : ?x:int -> unit -> int method n : int end
-
 class d :
   object method m : ?x:int -> unit -> int method n : int method n' : int end
 |}]
@@ -2107,7 +1847,6 @@ class d :
 (* #1132 *)
 let rec foo : 'a . 'a -> 'd = fun x -> x
 [%%expect{|
-
 Line 1, characters 30-40:
 1 | let rec foo : 'a . 'a -> 'd = fun x -> x
                                   ^^^^^^^^^^
@@ -2122,9 +1861,7 @@ class type ['x] c = object
   method x : 'x list
 end
 [%%expect{|
-
 type 'a s = S
-
 class type ['x] c = object method x : 'x list end
 |}]
 
@@ -2132,7 +1869,6 @@ let x : 'a c = object
   method x : 'b . 'b s list = [S]
 end
 [%%expect{|
-
 Lines 1-3, characters 15-3:
 1 | ...............object
 2 |   method x : 'b . 'b s list = [S]
@@ -2147,14 +1883,11 @@ Error: This expression has type < x : 'b. 'b s list >
 type u = < m : 'a. 'a s list * (< m : 'b. 'a s list * 'c > as 'c) >
 type v = < m : 'a. 'a s list * 'c > as 'c
 [%%expect{|
-
 type u = < m : 'a. 'a s list * (< m : 'a s list * 'b > as 'b) >
-
 type v = < m : 'a. 'a s list * 'b > as 'b
 |}]
 let f (x : u) = (x : v)
 [%%expect{|
-
 Line 1, characters 17-18:
 1 | let f (x : u) = (x : v)
                      ^
@@ -2166,14 +1899,12 @@ Error: This expression has type u but an expression was expected of type v
 
 type 'a s = private int
 [%%expect{|
-
 type 'a s = private int
 |}]
 let x : 'a c = object
   method x : 'b . 'b s list = []
 end
 [%%expect{|
-
 Lines 1-3, characters 15-3:
 1 | ...............object
 2 |   method x : 'b . 'b s list = []
@@ -2191,7 +1922,6 @@ let f x =
   ref := Some x;
   Option.get !ref
 [%%expect{|
-
 Line 2, characters 6-44:
 2 |   let ref : type a . a option ref = ref None in
           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2202,9 +1932,7 @@ Error: This definition has type 'a option ref which is less general than
 type pr = { foo : 'a. 'a option ref }
 let x = { foo = ref None }
 [%%expect{|
-
 type pr = { foo : 'a. 'a option ref; }
-
 Line 2, characters 16-24:
 2 | let x = { foo = ref None }
                     ^^^^^^^^
@@ -2220,7 +1948,6 @@ let simple: 'a. 'a -> [> `X of 'a ] -> 'a = fun default ->
   | `X x -> x
   | _ -> default
 [%%expect {|
-
 val simple : 'a -> [> `X of 'a ] -> 'a = <fun>
 |}]
 
@@ -2230,9 +1957,7 @@ let locally_abstract: type a. a w -> [> `X of a ] -> a = fun Int ->
   | `X x -> x
   | _ -> 0
 [%%expect {|
-
 type 'a w = Int : int w
-
 val locally_abstract : 'a w -> [> `X of 'a ] -> 'a = <fun>
 |}]
 
@@ -2244,7 +1969,6 @@ let nested: 'a.
   > -> 'a  =
   fun o -> (snd o#m#n) (`Y 0)
 [%%expect {|
-
 val nested :
   < m : 'c 'b.
           < n : 'irr.
@@ -2257,7 +1981,6 @@ let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
   | `Y -> x
   | `X x -> x
 [%%expect {|
-
 Line 3, characters 4-6:
 3 |   | `Y -> x
         ^^
@@ -2272,7 +1995,6 @@ let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
   | `Y -> x
   | `X x -> x
 [%%expect {|
-
 val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 |}]
 
@@ -2282,14 +2004,12 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-
 val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
 |}]
 
 
 let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-
 Line 1, characters 65-85:
 1 | let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y (); o#x
                                                                      ^^^^^^^^^^^^^^^^^^^^
@@ -2303,7 +2023,6 @@ class type ['a] c = object
   method m: 'b. <n:'irr. ('irr -> unit) * (<x: 'a; y: 'b; .. > -> 'a) >
 end
 [%%expect {|
-
 Lines 1-3, characters 0-3:
 1 | class type ['a] c = object
 2 |   method m: 'b. <n:'irr. ('irr -> unit) * (<x: 'a; y: 'b; .. > -> 'a) >

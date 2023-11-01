@@ -36,7 +36,6 @@ let test_match_exhaustiveness_nest1 () =
 ;;
 
 [%%expect{|
-
 Lines 2-4, characters 4-30:
 2 | ....match None with
 3 |     | Some false -> ()
@@ -56,7 +55,6 @@ let test_match_exhaustiveness_nest2 () =
 ;;
 
 [%%expect{|
-
 Lines 2-4, characters 4-16:
 2 | ....match None with
 3 |     | Some false | exception _ -> ()
@@ -77,7 +75,6 @@ let test_match_exhaustiveness_full () =
 ;;
 
 [%%expect{|
-
 Lines 2-5, characters 4-30:
 2 | ....match None with
 3 |     | exception e -> ()

@@ -45,7 +45,6 @@ Error: This kind of expression is not allowed as right-hand side of `let rec'
    must be rejected. *)
 let f (z: float) = let rec x = [| y; z |] and y = z in x;;
 [%%expect {|
-
 Line 1, characters 31-41:
 1 | let f (z: float) = let rec x = [| y; z |] and y = z in x;;
                                    ^^^^^^^^^^
