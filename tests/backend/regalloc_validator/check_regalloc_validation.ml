@@ -617,7 +617,7 @@ let () =
       let block = templ.&(add_label) in
       let r = (List.hd block.body).res in
       block.body
-        <- { desc = Op Move; id = _make_id (); arg = r; res = r } :: block.body;
+        <- { desc = Op Move; id = make_id (); arg = r; res = r } :: block.body;
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
@@ -644,7 +644,7 @@ let () =
                      { desc = Always return_label;
                        res = [||];
                        arg = [||];
-                       id = _make_id ()
+                       id = make_id ()
                      }
                  }
                  :: templ.blocks
@@ -660,7 +660,7 @@ let () =
 let () =
   check "Regalloc added a fallthrough block that goes to the wrong label"
     (fun () ->
-      let templ, _make_id = base_templ () in
+      let templ, make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let tmp_label = new_label 1 in
       let templ =
@@ -673,7 +673,7 @@ let () =
                 { desc = Always call_label;
                   res = [||];
                   arg = [||];
-                  id = _make_id ()
+                  id = make_id ()
                 }
             }
             :: templ.blocks
@@ -691,7 +691,7 @@ let () =
 let () =
   check "Regalloc added a not allowed terminator and a block"
     (fun () ->
-      let templ, _make_id = base_templ () in
+      let templ, make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let tmp_label = new_label 1 in
       let templ =
@@ -701,7 +701,7 @@ let () =
               exn = None;
               body = [];
               terminator =
-                { desc = Return; res = [||]; arg = [||]; id = _make_id () }
+                { desc = Return; res = [||]; arg = [||]; id = make_id () }
             }
             :: templ.blocks
         }
@@ -751,7 +751,7 @@ let () =
 let () =
   check "Regalloc added a loop"
     (fun () ->
-      let templ, _make_id = base_templ () in
+      let templ, make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let tmp_label = new_label 1 in
       let templ =
@@ -764,7 +764,7 @@ let () =
                 { desc = Always tmp_label;
                   res = [||];
                   arg = [||];
-                  id = _make_id ()
+                  id = make_id ()
                 }
             }
             :: templ.blocks
@@ -815,7 +815,7 @@ let () =
       ">> Fatal error: Instruction no. 8 was deleted by register allocator"
 
 let make_loop ~loop_loc_first n =
-  let _make_id =
+  let make_id =
     let last_id = ref 2 in
     fun () ->
       last_id := !last_id + 1;
@@ -857,7 +857,7 @@ let make_loop ~loop_loc_first n =
   let make_moves src dst =
     Array.map2
       (fun src dst : Basic.t ->
-        { id = _make_id (); desc = Op Move; arg = [| src |]; res = [| dst |] })
+        { id = make_id (); desc = Op Move; arg = [| src |]; res = [| dst |] })
       src dst
     |> Array.to_list
   in
@@ -865,10 +865,10 @@ let make_loop ~loop_loc_first n =
     { fun_args = arg_locs;
       blocks =
         [ { start = entry_label;
-            body = [{ id = _make_id (); desc = Prologue; arg = [||]; res = [||] }];
+            body = [{ id = make_id (); desc = Prologue; arg = [||]; res = [||] }];
             exn = None;
             terminator =
-              { id = _make_id ();
+              { id = make_id ();
                 desc = Always move_param_label;
                 arg = [||];
                 res = [||]
@@ -879,28 +879,28 @@ let make_loop ~loop_loc_first n =
               make_moves arg_locs args
               (* Move [arg3] to all [extra_regs]. *)
               @ List.init n (fun n ->
-                    { Instruction.id = _make_id ();
+                    { Instruction.id = make_id ();
                       desc = Op Move;
                       arg = [| int_arg3 |];
                       res = [| extra_regs.(n) |]
                     })
               (* Spill [arg3] to locations [0;n-1] *)
               @ List.init n (fun n ->
-                    { Instruction.id = _make_id ();
+                    { Instruction.id = make_id ();
                       desc = Op Spill;
                       arg = [| int_arg3 |];
                       res = [| stack_loc n |]
                     })
               (* Spill [arg2] to location n. If we spilled [arg3] the code would
                  be correct. *)
-              @ [ { Instruction.id = _make_id ();
+              @ [ { Instruction.id = make_id ();
                     desc = Op Spill;
                     arg = [| int_arg2 |];
                     res = [| stack_loc n |]
                   } ];
             exn = None;
             terminator =
-              { id = _make_id ();
+              { id = make_id ();
                 desc =
                   Int_test
                     { lt = loop_loc_label;
@@ -918,12 +918,12 @@ let make_loop ~loop_loc_first n =
               (* Rotate all locations by one index. *)
               List.init n (fun n ->
                   (* Move loc i+1 to i. *)
-                  [ { Instruction.id = _make_id ();
+                  [ { Instruction.id = make_id ();
                       desc = Op Reload;
                       arg = [| stack_loc (n + 1) |];
                       res = [| int_arg3 |]
                     };
-                    { Instruction.id = _make_id ();
+                    { Instruction.id = make_id ();
                       desc = Op Spill;
                       arg = [| int_arg3 |];
                       res = [| stack_loc n |]
@@ -931,7 +931,7 @@ let make_loop ~loop_loc_first n =
               |> List.concat;
             exn = None;
             terminator =
-              { id = _make_id ();
+              { id = make_id ();
                 desc =
                   Int_test
                     { lt = loop_loc_label;
@@ -949,14 +949,14 @@ let make_loop ~loop_loc_first n =
               (* Rotate all regs by one index. *)
               List.init (n - 1) (fun n ->
                   (* Move reg i+1 to i. *)
-                  { Instruction.id = _make_id ();
+                  { Instruction.id = make_id ();
                     desc = Op Move;
                     arg = [| extra_regs.(n + 1) |];
                     res = [| extra_regs.(n) |]
                   });
             exn = None;
             terminator =
-              { id = _make_id ();
+              { id = make_id ();
                 desc =
                   Int_test
                     { lt = loop_reg_label;
@@ -976,26 +976,26 @@ let make_loop ~loop_loc_first n =
                  [arg2] in location n will rotate over to location 0. For that
                  reason the fix-point algorithm will also have to run n
                  times. *)
-              [ { Instruction.id = _make_id ();
+              [ { Instruction.id = make_id ();
                   desc = Op (Const_int (Nativeint.of_int 1));
                   arg = [||];
                   res = [| int_arg1 |]
                 };
                 (* Load extra reg 0 from location 0.*)
-                { Instruction.id = _make_id ();
+                { Instruction.id = make_id ();
                   desc = Op Reload;
                   arg = [| stack_loc 0 |];
                   res = [| extra_regs.(0) |]
                 };
                 (* Add the extra reg 0 to accumalated result. *)
-                { Instruction.id = _make_id ();
+                { Instruction.id = make_id ();
                   desc = Op (Intop Iadd);
                   arg = [| int_arg1; extra_regs.(0) |];
                   res = [| int_arg1 |]
                 } ];
             exn = None;
             terminator =
-              { id = _make_id ();
+              { id = make_id ();
                 desc = Always return_label;
                 arg = [||];
                 res = [||]
@@ -1005,14 +1005,14 @@ let make_loop ~loop_loc_first n =
             body =
               make_moves [| int_arg1 |] results
               @ make_moves results result_locs
-              @ [ { id = _make_id ();
+              @ [ { id = make_id ();
                     desc = Reloadretaddr;
                     arg = [||];
                     res = [||]
                   } ];
             exn = None;
             terminator =
-              { id = _make_id (); desc = Return; arg = result_locs; res = [||] }
+              { id = make_id (); desc = Return; arg = result_locs; res = [||] }
           } ];
       fun_contains_calls = true
     }
