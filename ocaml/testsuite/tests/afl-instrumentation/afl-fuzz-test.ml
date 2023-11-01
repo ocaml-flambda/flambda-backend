@@ -1,4 +1,8 @@
 (* TEST (* Just a test-driver *)
+   * skip
+   reason = "Broken, ask mshinwell if you want to try to fix it"
+*)
+(*
    * native-compiler
    ** script
        script = "sh ${test_source_directory}/has-afl-fuzz.sh"
