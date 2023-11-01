@@ -273,7 +273,7 @@ install_for_test: _install
 	mkdir _runtest/tools
 	ln -s ../_install/bin/ocamlmklib.byte _runtest/tools/ocamlmklib
 	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
-	ln -s ../../_build/main/ocaml/tools/dumpobj.bc _runtest/tools/dumpobj
+	ln -s ../_install/bin/dumpobj.byte _runtest/tools/dumpobj
         # ocamldoc
 	rm _runtest/ocamldoc
 	mkdir _runtest/ocamldoc
