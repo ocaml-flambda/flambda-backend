@@ -4299,7 +4299,7 @@ strict_function_or_labeled_tuple_type:
          {
            let ty, ltys = tuple in
            let label = Labelled label in
-           let domain = mktyp_tuple $sloc ((None, ty) :: ltys) in
+           let domain = mktyp_tuple $loc(tuple) ((None, ty) :: ltys) in
            let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
            Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
     )
@@ -4313,7 +4313,7 @@ strict_function_or_labeled_tuple_type:
       codomain = tuple_type
          { let ty, ltys = tuple in
            let label = Labelled label in
-           let domain = mktyp_tuple $sloc ((None, ty) :: ltys) in
+           let domain = mktyp_tuple $loc(tuple) ((None, ty) :: ltys) in
            let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
            Ptyp_arrow(label,
             mktyp_with_modes arg_unique_local domain ,
