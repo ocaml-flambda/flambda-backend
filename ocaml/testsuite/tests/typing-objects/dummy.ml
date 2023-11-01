@@ -60,7 +60,6 @@ class foo1 = object(self)
     end
 end;;
 [%%expect{|
-
 class foo1 : object method child : child1 method previous : child1 option end
 |}]
 
@@ -75,7 +74,6 @@ class nested = object
   end
 end;;
 [%%expect{|
-
 class nested :
   object
     method obj : < child : unit -> child1; previous : child1 option >
@@ -94,7 +92,6 @@ class just_to_see = object(self)
     o
 end;;
 [%%expect{|
-
 class just_to_see :
   object method child : child1 method previous : child1 option end
 |}]
@@ -113,7 +110,6 @@ class just_to_see2 = object
   end
 end;;
 [%%expect{|
-
 class just_to_see2 :
   object method obj : < child : child1; previous : child1 option > end
 |}]
@@ -129,9 +125,7 @@ class just_to_see3 = object(self)
     end
 end;;
 [%%expect{|
-
 type gadt = Not_really_though : gadt
-
 class just_to_see3 :
   object method child : gadt -> child1 method previous : child1 option end
 |}]
@@ -145,7 +139,6 @@ class leading_up_to = object(self : 'a)
     end
 end;;
 [%%expect{|
-
 Lines 4-7, characters 4-7:
 4 | ....object
 5 |       inherit child1 self
@@ -167,7 +160,6 @@ class assertion_failure = object(self : 'a)
     end
 end;;
 [%%expect{|
-
 Lines 4-10, characters 4-7:
  4 | ....object
  5 |       inherit child1 self
@@ -188,7 +180,6 @@ class parameter_contains_self app = object(self)
     app#redrawWidget self
 end;;
 [%%expect{|
-
 class parameter_contains_self :
   < redrawWidget : 'a -> unit; .. > ->
   object ('a) method invalidate : unit end
@@ -199,7 +190,6 @@ class closes_via_inheritance param =
     inherit parameter_contains_self param
   end;;
 [%%expect{|
-
 Line 3, characters 36-41:
 3 |     inherit parameter_contains_self param
                                         ^^^^^
@@ -216,7 +206,6 @@ class closes_via_application param =
   let _ = new parameter_contains_self param in
   parameter_contains_self param;;
 [%%expect{|
-
 Line 3, characters 26-31:
 3 |   parameter_contains_self param;;
                               ^^^^^
@@ -237,7 +226,6 @@ let escapes_via_inheritance param =
   end in
   ();;
 [%%expect{|
-
 Line 4, characters 38-43:
 4 |       inherit parameter_contains_self param
                                           ^^^^^
@@ -252,7 +240,6 @@ let escapes_via_application param =
   end in
   ();;
 [%%expect{|
-
 Line 3, characters 38-43:
 3 |     class c = parameter_contains_self param
                                           ^^^^^
@@ -266,7 +253,6 @@ let can_close_object_via_inheritance param =
     inherit parameter_contains_self param
   end;;
 [%%expect{|
-
 Line 3, characters 36-41:
 3 |     inherit parameter_contains_self param
                                         ^^^^^
@@ -283,7 +269,6 @@ let can_escape_object_via_inheritance param = object
     inherit parameter_contains_self param
   end;;
 [%%expect{|
-
 val can_escape_object_via_inheritance :
   < redrawWidget : parameter_contains_self -> unit; .. > ->
   parameter_contains_self = <fun>
@@ -293,7 +278,6 @@ let can_close_object_explicitly = object (_ : < i : int >)
   method i = 5
 end;;
 [%%expect{|
-
 val can_close_object_explicitly : < i : int > = <obj>
 |}]
 
@@ -303,7 +287,6 @@ let cannot_close_object_explicitly_with_inheritance = object
   end
 end;;
 [%%expect{|
-
 Line 2, characters 17-34:
 2 |   inherit object (_ : < i : int >)
                      ^^^^^^^^^^^^^^^^^
@@ -314,7 +297,6 @@ Error: This pattern cannot match self: it only matches values of type
 class closes_after_constraint =
   ((fun (x : 'a) -> object (_:'a) end) : 'a -> object('a) end) (object end);;
 [%%expect{|
-
 Line 2, characters 63-75:
 2 |   ((fun (x : 'a) -> object (_:'a) end) : 'a -> object('a) end) (object end);;
                                                                    ^^^^^^^^^^^^
@@ -326,9 +308,7 @@ Error: This expression has type <  > but an expression was expected of type
 class type ['a] ct = object ('a) end
 class type closes_via_application = [ <m : int> ] ct;;
 [%%expect{|
-
 class type ['a] ct = object ('a) constraint 'a = < .. > end
-
 Line 2, characters 38-47:
 2 | class type closes_via_application = [ <m : int> ] ct;;
                                           ^^^^^^^^^

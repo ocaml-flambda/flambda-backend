@@ -38,7 +38,6 @@ module F(T:sig type 'a t end) = struct
     object constraint 'a = 'b T.t val x' : 'b = x method x = x' end
 end;; (* fail *)
 [%%expect{|
-
 Lines 2-3, characters 2-67:
 2 | ..class ['a] c x =
 3 |     object constraint 'a = 'b T.t val x' : 'b = x method x = x' end
@@ -54,7 +53,6 @@ let magic (x : int) : bool  =
   let A x = A x in
   x;; (* fail *)
 [%%expect{|
-
 Line 1, characters 0-49:
 1 | type 'x t = A of 'a constraint 'x = [< `X of 'a ] ;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -65,7 +63,6 @@ Error: In the definition
 
 type 'a t = A : 'a -> [< `X of 'a ] t;; (* fail *)
 [%%expect{|
-
 Line 1, characters 0-37:
 1 | type 'a t = A : 'a -> [< `X of 'a ] t;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -80,13 +77,9 @@ let eq = Obj.magic Eq;;
 let eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq = eq;;
 type _ t = T : 'a -> ('a, 'b) Ephemeron.K1.t t;; (* fail *)
 [%%expect{|
-
 type (_, _) eq = Eq : ('a, 'a) eq
-
 val eq : 'a = <poly>
-
 val eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq = Eq
-
 Line 4, characters 0-46:
 4 | type _ t = T : 'a -> ('a, 'b) Ephemeron.K1.t t;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -106,7 +99,6 @@ module type S = sig
   type _ t = T : 'a -> 'a s t
 end;; (* fail *)
 [%%expect{|
-
 Line 3, characters 2-29:
 3 |   type _ t = T : 'a -> 'a s t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -117,7 +109,6 @@ Error: In the GADT constructor
 (* Otherwise we can write the following *)
 module rec M : (S with type 'a s = unit) = M;;
 [%%expect{|
-
 Line 1, characters 16-17:
 1 | module rec M : (S with type 'a s = unit) = M;;
                     ^
@@ -142,9 +133,7 @@ let N.S o' = (o :> <m : int> M.t N.s);; (* unsound! *)
 type 'a q = Q;;
 type +'a t = 'b constraint 'a = 'b q;;
 [%%expect{|
-
 type 'a q = Q
-
 Line 2, characters 0-36:
 2 | type +'a t = 'b constraint 'a = 'b q;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -159,14 +148,11 @@ Error: In the definition
 type +'a t = T of 'a;;
 type +'a s = 'b constraint 'a = 'b t;; (* ok *)
 [%%expect{|
-
 type 'a t = T of 'a
-
 type +'a s = 'b constraint 'a = 'b t
 |}];;
 type -'a s = 'b constraint 'a = 'b t;; (* fail *)
 [%%expect{|
-
 Line 1, characters 0-36:
 1 | type -'a s = 'b constraint 'a = 'b t;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -180,21 +166,16 @@ type +'a u = 'a t;;
 type 'a t = T of ('a -> 'a);;
 type -'a s = 'b constraint 'a = 'b t;; (* ok *)
 [%%expect{|
-
 type 'a u = 'a t
-
 type 'a t = T of ('a -> 'a)
-
 type -'a s = 'b constraint 'a = 'b t
 |}];;
 type +'a s = 'b constraint 'a = 'b q t;; (* ok *)
 [%%expect{|
-
 type +'a s = 'b constraint 'a = 'b q t
 |}];;
 type +'a s = 'b constraint 'a = 'b t q;; (* fail *)
 [%%expect{|
-
 Line 1, characters 0-38:
 1 | type +'a s = 'b constraint 'a = 'b t q;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -224,9 +205,7 @@ class virtual ['a] item_container =
 type +'a t = unit constraint 'a = 'b list;;
 type _ g = G : 'a -> 'a t g;; (* fail *)
 [%%expect{|
-
 type +'a t = unit constraint 'a = 'b list
-
 Line 2, characters 0-27:
 2 | type _ g = G : 'a -> 'a t g;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^

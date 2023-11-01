@@ -658,7 +658,6 @@ let ty_abc : ([`A of int | `B of string | `C] as 'a, 'e) ty =
   end)
 ;;
 [%%expect{|
-
 type (_, _) ty =
     Int : (int, 'd) ty
   | String : (string, 'f) ty
@@ -680,7 +679,6 @@ and (_, _) ty_sel =
 and (_, _) ty_case =
     TCarg : ('b, 'a) ty_sel * ('a, 'e) ty -> ('e, 'b) ty_case
   | TCnoarg : ('b, noarg) ty_sel -> ('e, 'b) ty_case
-
 val ty_abc : ([ `A of int | `B of string | `C ], 'e) ty = Sum <obj>
 |}];;
 
@@ -701,9 +699,7 @@ let ty_list : type a e. (a, e) ty -> (a vlist, e) ty = fun t ->
   end))
 ;;
 [%%expect{|
-
 type 'a vlist = [ `Cons of 'a * 'a vlist | `Nil ]
-
 val ty_list : ('a, 'e) ty -> ('a vlist, 'e) ty = <fun>
 |}];;
 

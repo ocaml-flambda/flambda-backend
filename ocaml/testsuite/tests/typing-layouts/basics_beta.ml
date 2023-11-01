@@ -32,7 +32,6 @@ module type S1 = sig
   val f : int -> t_any
 end;;
 [%%expect {|
-
 Line 2, characters 17-22:
 2 |   val f : int -> t_any
                      ^^^^^
@@ -44,7 +43,6 @@ module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-
 Line 2, characters 10-15:
 2 |   val f : t_any -> int
               ^^^^^
@@ -58,7 +56,6 @@ module type S1 = sig
   type 'a s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
-
 Line 4, characters 35-41:
 4 |   type 'a s = 'a -> int constraint 'a = t
                                        ^^^^^^
@@ -73,7 +70,6 @@ module type S1 = sig
   type 'a s = int -> 'a constraint 'a = t
 end;;
 [%%expect{|
-
 Line 4, characters 35-41:
 4 |   type 'a s = int -> 'a constraint 'a = t
                                        ^^^^^^
@@ -84,7 +80,6 @@ Error: The type constraints are not consistent.
 
 let f1 () : t_any = assert false;;
 [%%expect{|
-
 Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
@@ -95,7 +90,6 @@ Error: This expression has type t_any but an expression was expected of type
 
 let f1 (x : t_any) = ();;
 [%%expect{|
-
 Line 1, characters 7-18:
 1 | let f1 (x : t_any) = ();;
            ^^^^^^^^^^^
@@ -116,7 +110,6 @@ module type S = sig
 end;;
 
 [%%expect{|
-
 module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
 |}];;
 
@@ -124,7 +117,6 @@ module type S2 = sig
   val g : float# -> int
 end;;
 [%%expect{|
-
 module type S2 = sig val g : float# -> int end
 |}];;
 
@@ -132,7 +124,6 @@ module type S2 = sig
   val g : int -> float#
 end
 [%%expect {|
-
 module type S2 = sig val g : int -> float# end
 |}];;
 
@@ -142,7 +133,6 @@ module type S2 = sig
   and r' = t'
 end;;
 [%%expect{|
-
 module type S2 = sig type t' : float64 type s' = r' -> int and r' = t' end
 |}]
 
@@ -150,7 +140,6 @@ module type S2 = sig
   val f : int -> t_float64
 end;;
 [%%expect {|
-
 module type S2 = sig val f : int -> t_float64 end
 |}];;
 
@@ -159,7 +148,6 @@ module type S = sig
   type 'a s' = 'a -> int constraint 'a = t'
 end;;
 [%%expect{|
-
 module type S =
   sig type t' : float64 type 'a s' = 'a -> int constraint 'a = t' end
 |}]
@@ -168,7 +156,6 @@ module F2 (X : sig val x : t_float64 end) = struct
   let f () = X.x
 end;;
 [%%expect{|
-
 Line 1, characters 27-36:
 1 | module F2 (X : sig val x : t_float64 end) = struct
                                ^^^^^^^^^
@@ -181,7 +168,6 @@ module F2 (X : sig val f : t_float64 -> unit end) = struct
   let g z = X.f z
 end;;
 [%%expect{|
-
 module F2 :
   functor (X : sig val f : t_float64 -> unit end) ->
     sig val g : t_float64 -> unit end
@@ -192,7 +178,6 @@ module F2 :
 type ('a : immediate) imm_id = 'a
 
 [%%expect{|
-
 type ('a : immediate) imm_id = 'a
 |}];;
 
@@ -201,17 +186,13 @@ let plus_3 (x : my_int) = x + 3
 let plus_3' (x : int imm_id) = x + 3;;
 
 [%%expect{|
-
 type my_int = int imm_id
-
 val plus_3 : my_int -> int = <fun>
-
 val plus_3' : int imm_id -> int = <fun>
 |}];;
 
 let string_id (x : string imm_id) = x;;
 [%%expect{|
-
 Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
@@ -224,17 +205,13 @@ let id_for_imms (x : 'a imm_id) = x
 let three = id_for_imms 3
 let true_ = id_for_imms true;;
 [%%expect{|
-
 val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id = <fun>
-
 val three : int imm_id = 3
-
 val true_ : bool imm_id = true
 |}]
 
 let not_helloworld = id_for_imms "hello world";;
 [%%expect{|
-
 Line 1, characters 33-46:
 1 | let not_helloworld = id_for_imms "hello world";;
                                      ^^^^^^^^^^^^^
@@ -249,7 +226,6 @@ type ('a : immediate) t4
 and s4 = string t4;;
 
 [%%expect{|
-
 Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
@@ -261,7 +237,6 @@ type s4 = string t4
 and ('a : immediate) t4;;
 
 [%%expect{|
-
 Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
@@ -273,7 +248,6 @@ type s4 = int t4
 and ('a : immediate) t4;;
 
 [%%expect{|
-
 type s4 = int t4
 and ('a : immediate) t4
 |}]
@@ -283,7 +257,6 @@ and ('a : immediate) t4
 and s5 = int;;
 
 [%%expect{|
-
 type s4 = s5 t4
 and ('a : immediate) t4
 and s5 = int
@@ -294,7 +267,6 @@ and ('a : immediate) t4
 and s5 = string;;
 
 [%%expect{|
-
 Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
@@ -306,7 +278,6 @@ Error:
 type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
-
 type ('a : any) t4 = 'a
 and s4 = string t4
 |}];;
@@ -314,14 +285,12 @@ and s4 = string t4
 type s4 = string t4
 and ('a : any) t4;;
 [%%expect{|
-
 type s4 = string t4
 and ('a : any) t4
 |}];;
 
 type ('a : void) void4 = Void4  of 'a;;
 [%%expect{|
-
 Line 1, characters 11-15:
 1 | type ('a : void) void4 = Void4  of 'a;;
                ^^^^
@@ -331,7 +300,6 @@ Error: Layout void is more experimental than allowed by -extension layouts_beta.
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-
 type 'a any4 = Any4 of 'a
 |}];;
 
@@ -346,23 +314,19 @@ type 'a any4 = Any4 of 'a
 type ('a : immediate) t6_imm = T6imm of 'a
 type ('a : value) t6_val = T6val of 'a;;
 [%%expect{|
-
 type ('a : immediate) t6_imm = T6imm of 'a
-
 type 'a t6_val = T6val of 'a
 |}];;
 
 let ignore_val6 : 'a . 'a -> unit =
   fun a -> let _ = T6val a in ();;
 [%%expect{|
-
 val ignore_val6 : 'a -> unit = <fun>
 |}];;
 
 let ignore_imm6 : 'a . 'a -> unit =
   fun a -> let _ = T6imm a in ();;
 [%%expect{|
-
 Line 2, characters 2-32:
 2 |   fun a -> let _ = T6imm a in ();;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -376,7 +340,6 @@ let o6 = object
     fun a -> let _ = T6imm a in ()
 end;;
 [%%expect{|
-
 Line 3, characters 4-34:
 3 |     fun a -> let _ = T6imm a in ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -395,9 +358,7 @@ type ('a : immediate) t7 = Foo7 of 'a
 
 type t7' = (int * int) t7;;
 [%%expect{|
-
 type ('a : immediate) t7 = Foo7 of 'a
-
 Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
@@ -414,7 +375,6 @@ module M8_1f = struct
   type foo1 = [ `Foo1 of int | `Baz1 of t_float64 | `Bar1 of string ];;
 end
 [%%expect{|
-
 Line 2, characters 40-49:
 2 |   type foo1 = [ `Foo1 of int | `Baz1 of t_float64 | `Bar1 of string ];;
                                             ^^^^^^^^^
@@ -430,7 +390,6 @@ module M8_2f = struct
     | `Bas i -> Stdlib__Float_u.of_float 3.14
 end;;
 [%%expect {|
-
 Line 5, characters 16-17:
 5 |     | `Bar v -> v
                     ^
@@ -445,7 +404,6 @@ module M8_3f = struct
   type bad = t_float64 t
 end;;
 [%%expect {|
-
 Line 4, characters 13-22:
 4 |   type bad = t_float64 t
                  ^^^^^^^^^
@@ -457,7 +415,6 @@ module M8_4f = struct
   type 'a t = [ `Foo of 'a | `Baz of int ] constraint 'a = t_float64
 end;;
 [%%expect {|
-
 Line 2, characters 54-68:
 2 |   type 'a t = [ `Foo of 'a | `Baz of int ] constraint 'a = t_float64
                                                           ^^^^^^^^^^^^^^
@@ -470,7 +427,6 @@ module type S8_5f = sig
   val x : [`A of t_float64]
 end;;
 [%%expect{|
-
 Line 2, characters 17-26:
 2 |   val x : [`A of t_float64]
                      ^^^^^^^^^
@@ -486,7 +442,6 @@ module M9_1f = struct
   type foo1 = int * t_float64 * [ `Foo1 of int | `Bar1 of string ];;
 end
 [%%expect{|
-
 Line 2, characters 20-29:
 2 |   type foo1 = int * t_float64 * [ `Foo1 of int | `Bar1 of string ];;
                         ^^^^^^^^^
@@ -498,7 +453,6 @@ module M9_2f = struct
   type result = V of (string * t_float64) | I of int
 end;;
 [%%expect {|
-
 Line 2, characters 31-40:
 2 |   type result = V of (string * t_float64) | I of int
                                    ^^^^^^^^^
@@ -514,7 +468,6 @@ module M9_4f = struct
     | (a, _) -> f_id a
 end;;
 [%%expect {|
-
 Line 6, characters 21-22:
 6 |     | (a, _) -> f_id a
                          ^
@@ -529,7 +482,6 @@ module M9_5f = struct
   type bad = t_float64 t
 end;;
 [%%expect {|
-
 Line 4, characters 13-22:
 4 |   type bad = t_float64 t
                  ^^^^^^^^^
@@ -541,7 +493,6 @@ module M9_6f = struct
   type 'a t = int * 'a constraint 'a = t_float64
 end;;
 [%%expect {|
-
 Line 2, characters 34-48:
 2 |   type 'a t = int * 'a constraint 'a = t_float64
                                       ^^^^^^^^^^^^^^
@@ -554,7 +505,6 @@ module type S9_7f = sig
   val x : int * t_float64
 end;;
 [%%expect{|
-
 Line 2, characters 16-25:
 2 |   val x : int * t_float64
                     ^^^^^^^^^
@@ -577,7 +527,6 @@ end = struct
   let x = f (assert false)
 end;;
 [%%expect {|
-
 Lines 3-9, characters 6-3:
 3 | ......struct
 4 |   type ('a : immediate) t = 'a
@@ -615,7 +564,6 @@ end = struct
   let x = f (assert false)
 end;;
 [%%expect {|
-
 Lines 3-9, characters 6-3:
 3 | ......struct
 4 |   type ('a : immediate) t = 'a
@@ -653,7 +601,6 @@ module M11_1 = struct
     t.v # baz11
 end;;
 [%%expect{|
-
 Line 2, characters 13-17:
 2 |   type ('a : void) t = { x : int; v : 'a }
                  ^^^^
@@ -668,7 +615,6 @@ module M11_1f = struct
     x # baz11
 end;;
 [%%expect{|
-
 Line 5, characters 4-5:
 5 |     x # baz11
         ^
@@ -682,7 +628,6 @@ module M11_2f = struct
   let foo x = f_id (x # getfloat)
 end;;
 [%%expect{|
-
 Line 4, characters 19-33:
 4 |   let foo x = f_id (x # getfloat)
                        ^^^^^^^^^^^^^^
@@ -697,7 +642,6 @@ module M11_3f = struct
   let foo o (x : 'a t) = o # usefloat x
 end;;
 [%%expect{|
-
 module M11_3f :
   sig
     type ('a : float64) t = 'a
@@ -709,7 +653,6 @@ module M11_4f = struct
   val x : < l : t_float64 >
 end;;
 [%%expect{|
-
 Line 2, characters 12-25:
 2 |   val x : < l : t_float64 >
                 ^^^^^^^^^^^^^
@@ -722,7 +665,6 @@ module M11_5f = struct
   and ('a : float64) s = 'a
 end;;
 [%%expect{|
-
 Line 3, characters 2-27:
 3 |   and ('a : float64) s = 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -734,7 +676,6 @@ module M11_6f = struct
   type 'a t = < l : 'a > constraint 'a = t_float64
 end;;
 [%%expect{|
-
 Line 2, characters 36-50:
 2 |   type 'a t = < l : 'a > constraint 'a = t_float64
                                         ^^^^^^^^^^^^^^
@@ -758,7 +699,6 @@ module M12_1f = struct
     end;;
 end
 [%%expect{|
-
 Line 4, characters 8-9:
 4 |     let d = f u in
             ^
@@ -775,7 +715,6 @@ module M12_2f = struct
     end
 end;;
 [%%expect{|
-
 Line 5, characters 10-13:
 5 |       val bar = f u
               ^^^
@@ -791,7 +730,6 @@ module M12_3f = struct
     end
 end;;
 [%%expect{|
-
 Line 4, characters 18-21:
 4 |       val virtual bar : t_float64
                       ^^^
@@ -808,7 +746,6 @@ module M12_4f = struct
     end
 end
 [%%expect{|
-
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
@@ -825,7 +762,6 @@ module M12_5f = struct
     end
 end;;
 [%%expect{|
-
 Line 6, characters 26-28:
 6 |       method void_id (a : 'a t) : 'a t = a
                               ^^
@@ -843,7 +779,6 @@ module type S12_6f = sig
     end
 end;;
 [%%expect{|
-
 Line 5, characters 4-6:
 5 |     'a t ->
         ^^
@@ -858,7 +793,6 @@ module type S12_7f = sig
     end
 end;;
 [%%expect{|
-
 Line 4, characters 6-25:
 4 |       val baz : t_float64
           ^^^^^^^^^^^^^^^^^^^
@@ -874,7 +808,6 @@ Error: Variables bound in a class must have layout value.
 (* lazy *)
 type t13f = t_float64 Lazy.t;;
 [%%expect{|
-
 Line 1, characters 12-21:
 1 | type t13f = t_float64 Lazy.t;;
                 ^^^^^^^^^
@@ -884,7 +817,6 @@ Error: This type t_float64 should be an instance of type ('a : value)
 
 let x13f (v : t_float64) = lazy v;;
 [%%expect{|
-
 Line 1, characters 32-33:
 1 | let x13f (v : t_float64) = lazy v;;
                                     ^
@@ -898,9 +830,7 @@ let x13f v =
   match v with
   | lazy v -> f_id v
 [%%expect{|
-
 val f_id : t_float64 -> t_float64 = <fun>
-
 Line 4, characters 19-20:
 4 |   | lazy v -> f_id v
                        ^
@@ -913,7 +843,6 @@ Error: This expression has type ('a : value)
 (* CR layouts v5: allow this *)
 type t13f = t_float64 option;;
 [%%expect{|
-
 Line 1, characters 12-21:
 1 | type t13f = t_float64 option;;
                 ^^^^^^^^^
@@ -923,7 +852,6 @@ Error: This type t_float64 should be an instance of type ('a : value)
 
 let x13f (v : t_float64) = Some v;;
 [%%expect{|
-
 Line 1, characters 32-33:
 1 | let x13f (v : t_float64) = Some v;;
                                     ^
@@ -937,7 +865,6 @@ let x13f v =
   | Some v -> f_id v
   | None -> assert false
 [%%expect{|
-
 Line 3, characters 19-20:
 3 |   | Some v -> f_id v
                        ^
@@ -949,7 +876,6 @@ Error: This expression has type ('a : value)
 (* list *)
 type t13f = t_float64 list;;
 [%%expect{|
-
 Line 1, characters 12-21:
 1 | type t13f = t_float64 list;;
                 ^^^^^^^^^
@@ -959,7 +885,6 @@ Error: This type t_float64 should be an instance of type ('a : value)
 
 let x13 (v : t_float64) = [v];;
 [%%expect{|
-
 Line 1, characters 27-28:
 1 | let x13 (v : t_float64) = [v];;
                                ^
@@ -973,7 +898,6 @@ let x13 v =
   | [v] -> f_id v
   | _ -> assert false
 [%%expect{|
-
 Line 3, characters 16-17:
 3 |   | [v] -> f_id v
                     ^
@@ -985,7 +909,6 @@ Error: This expression has type ('a : value)
 (* array *)
 type t13f = t_float64 array;;
 [%%expect{|
-
 Line 1, characters 12-21:
 1 | type t13f = t_float64 array;;
                 ^^^^^^^^^
@@ -995,7 +918,6 @@ Error: This type t_float64 should be an instance of type ('a : value)
 
 let x13f (v : t_float64) = [| v |];;
 [%%expect{|
-
 Line 1, characters 30-31:
 1 | let x13f (v : t_float64) = [| v |];;
                                   ^
@@ -1009,7 +931,6 @@ let x13f v =
   | [| v |] -> f_id v
   | _ -> assert false
 [%%expect{|
-
 Line 3, characters 20-21:
 3 |   | [| v |] -> f_id v
                         ^
@@ -1024,7 +945,6 @@ Error: This expression has type ('a : value)
 type t14 = foo14 list
 and foo14 = string;;
 [%%expect{|
-
 type t14 = foo14 list
 and foo14 = string
 |}];;
@@ -1034,7 +954,6 @@ and foo14 = string
 type t14 = foo14 list
 and foo14 = t_float64;;
 [%%expect{|
-
 Line 2, characters 0-21:
 2 | and foo14 = t_float64;;
     ^^^^^^^^^^^^^^^^^^^^^
@@ -1050,9 +969,7 @@ Error:
 type ('a : float64) t15
 type ('a, 'b) foo15 = ('a as 'b) t15 -> 'b t15;;
 [%%expect{|
-
 type ('a : float64) t15
-
 type ('a : float64, 'b) foo15 = 'a t15 -> 'a t15 constraint 'b = 'a
 |}]
 
@@ -1065,7 +982,6 @@ type ('a : float64, 'b) foo15 = 'a t15 -> 'a t15 constraint 'b = 'a
 
 type 'a t_void_16 : void;;
 [%%expect{|
-
 Line 1, characters 20-24:
 1 | type 'a t_void_16 : void;;
                         ^^^^
@@ -1080,9 +996,7 @@ type 'a t17 = 'a list
 type s17 = { lbl : s17 t17 } [@@unboxed];;
 
 [%%expect{|
-
 type 'a t17 = 'a list
-
 type s17 = { lbl : s17 t17; } [@@unboxed]
 |}];;
 
@@ -1098,11 +1012,8 @@ let id18 (x : 'a t18) = x
 let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
-
 type 'a t18 = 'a
-
 val id18 : 'a t18 -> 'a t18 = <fun>
-
 val f18 : 'a -> 'a = <fun>
 |}];;
 
@@ -1116,7 +1027,6 @@ let f19f () =
   let _y = (x :> t_float64) in
   ();;
 [%%expect{|
-
 val f19f : unit -> unit = <fun>
 |}];;
 
@@ -1133,7 +1043,6 @@ let f20f () =
   in
   ();;
 [%%expect{|
-
 val f20f : unit -> unit = <fun>
 |}];;
 
@@ -1151,9 +1060,7 @@ let f21f () =
   in
   ();;
 [%%expect{|
-
 module type M21 = sig end
-
 val f21f : unit -> unit = <fun>
 |}];;
 
@@ -1168,9 +1075,7 @@ let f () =
   let rec g x : _ t22f = g x in
   g (assert false);;
 [%%expect{|
-
 type ('a : float64) t22f = 'a
-
 val f : ('a : float64). unit -> 'a t22f t22f = <fun>
 |}];;
 
@@ -1197,11 +1102,8 @@ let f (x : (Mf.t_float64, Mf.t_imm) eq) =
   | Refl -> ()
 
 [%%expect{|
-
 type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
-
 module Mf : sig type t_float64 : float64 type t_imm : immediate end
-
 Line 15, characters 4-8:
 15 |   | Refl -> ()
          ^^^^
@@ -1221,9 +1123,7 @@ type 'a t2_float : float64
 let f (x : 'a. 'a t2_float) = x
 
 [%%expect{|
-
 type 'a t2_float : float64
-
 val f : ('a. 'a t2_float) -> 'b t2_float = <fun>
 |}]
 
@@ -1237,7 +1137,6 @@ let f (x : t_float64) =
   ()
 
 [%%expect{|
-
 Line 2, characters 15-16:
 2 |   let g ?(x2 = x) () = () in
                    ^
@@ -1254,7 +1153,6 @@ Error: This expression has type t_float64
 let g f (x : t_float64) : t_float64 = f x
 
 [%%expect{|
-
 val g : (t_float64 -> t_float64) -> t_float64 -> t_float64 = <fun>
 |}]
 
@@ -1266,7 +1164,6 @@ val g : (t_float64 -> t_float64) -> t_float64 -> t_float64 = <fun>
 let rec f : _ -> _ = fun (x : t_float64) -> x
 
 [%%expect{|
-
 val f : t_float64 -> t_float64 = <fun>
 |}]
 
@@ -1283,9 +1180,7 @@ let q () =
   ()
 
 [%%expect{|
-
 val ( let* ) : t_float64 -> 'a -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1297,9 +1192,7 @@ let q () =
   ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1311,9 +1204,7 @@ let q () =
   assert false
 
 [%%expect{|
-
 val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1325,9 +1216,7 @@ let q () =
   ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> t_float64 = <fun>
-
 val q : unit -> t_float64 = <fun>
 |}]
 
@@ -1341,11 +1230,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> unit = <fun>
-
 val ( and* ) : 'a -> t_float64 -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1359,11 +1245,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> unit = <fun>
-
 val ( and* ) : t_float64 -> 'a -> unit = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1377,11 +1260,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'b ('a : float64). 'a -> 'b -> unit = <fun>
-
 val ( and* ) : 'a -> 'b -> t_float64 = <fun>
-
 val q : unit -> unit = <fun>
 |}]
 
@@ -1395,11 +1275,8 @@ let q () =
     ()
 
 [%%expect{|
-
 val ( let* ) : 'a -> 'b -> unit = <fun>
-
 val ( and* ) : 'a -> 'b -> 'c = <fun>
-
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
@@ -1418,11 +1295,8 @@ let mk_float64 () : t_float64 = assert false
 let x () = eq (mk_float64 ()) (mk_float64 ())
 
 [%%expect{|
-
 external eq : 'a -> 'a -> bool = "%equal"
-
 val mk_float64 : unit -> t_float64 = <fun>
-
 Line 3, characters 14-29:
 3 | let x () = eq (mk_float64 ()) (mk_float64 ())
                   ^^^^^^^^^^^^^^^
@@ -1445,9 +1319,7 @@ end
 let g (x : t_float64) = M.f x
 
 [%%expect{|
-
 module M : sig val f : 'a -> 'a end
-
 Line 7, characters 28-29:
 7 | let g (x : t_float64) = M.f x
                                 ^
@@ -1466,7 +1338,6 @@ type ('a : float64) poly_var = [`A of int * 'a | `B]
 let f #poly_var = "hello"
 
 [%%expect{|
-
 Line 1, characters 44-46:
 1 | type ('a : float64) poly_var = [`A of int * 'a | `B]
                                                 ^^
@@ -1482,7 +1353,6 @@ Error: This type ('a : value) should be an instance of type ('a0 : float64)
 let f _ = `Mk (assert false : t_float64)
 
 [%%expect{|
-
 Line 1, characters 14-40:
 1 | let f _ = `Mk (assert false : t_float64)
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1497,7 +1367,6 @@ Error: This expression has type t_float64
 external foo33 : t_any = "foo33";;
 
 [%%expect{|
-
 Line 1, characters 17-22:
 1 | external foo33 : t_any = "foo33";;
                      ^^^^^
@@ -1514,9 +1383,7 @@ type s = { f : ('a : value) . 'a -> 'a u }
 and 'a u = 'a t2_imm
 
 [%%expect {|
-
 type ('a : immediate) t2_imm
-
 Line 3, characters 15-40:
 3 | type s = { f : ('a : value) . 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1530,9 +1397,7 @@ type ('a : immediate) t35 = 'a
 let f35 : 'a t35 = fun () -> ()
 
 [%%expect {|
-
 type ('a : immediate) t35 = 'a
-
 Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
@@ -1545,7 +1410,6 @@ Error:
 
 let () = (assert false : t_any); ()
 [%%expect{|
-
 Line 1, characters 9-31:
 1 | let () = (assert false : t_any); ()
              ^^^^^^^^^^^^^^^^^^^^^^
@@ -1562,7 +1426,6 @@ Error: This expression has type t_any but an expression was expected of type
 
 let () = while false do (assert false : t_any); done
 [%%expect{|
-
 Line 1, characters 24-46:
 1 | let () = while false do (assert false : t_any); done
                             ^^^^^^^^^^^^^^^^^^^^^^
@@ -1579,7 +1442,6 @@ Error: This expression has type t_any but an expression was expected of type
 
 let () = for i = 0 to 0 do (assert false : t_any); done
 [%%expect{|
-
 Line 1, characters 27-49:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                ^^^^^^^^^^^^^^^^^^^^^^

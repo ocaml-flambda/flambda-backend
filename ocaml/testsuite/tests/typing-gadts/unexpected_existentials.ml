@@ -21,7 +21,6 @@ let () =
   let Any x = Any () and () = () in
   ()
 [%%expect {|
-
 Line 2, characters 6-11:
 2 |   let Any x = Any () and () = () in
           ^^^^^
@@ -34,7 +33,6 @@ let () =
   let rec Any x = Any () in
   ()
 [%%expect {|
-
 Line 2, characters 10-15:
 2 |   let rec Any x = Any () in
               ^^^^^
@@ -47,7 +45,6 @@ let () =
   let[@attribute] Any x = Any () in
   ()
 [%%expect {|
-
 Line 2, characters 18-23:
 2 |   let[@attribute] Any x = Any () in
                       ^^^^^
@@ -58,7 +55,6 @@ Error: Existential types are not allowed in presence of attributes,
 
 class c (Any x) = object end
 [%%expect {|
-
 Line 1, characters 8-15:
 1 | class c (Any x) = object end
             ^^^^^^^
@@ -68,7 +64,6 @@ Error: Existential types are not allowed in class arguments,
 
 class c = object(Any x)end
 [%%expect {|
-
 Line 1, characters 16-23:
 1 | class c = object(Any x)end
                     ^^^^^^^
@@ -78,13 +73,11 @@ Error: Existential types are not allowed in self patterns,
 
 type other = Any: _ -> other
 [%%expect {|
-
 type other = Any : 'a -> other
 |}]
 
 let Any x = Any ()
 [%%expect {|
-
 Line 1, characters 4-9:
 1 | let Any x = Any ()
         ^^^^^
@@ -95,7 +88,6 @@ Error: Existential types are not allowed in toplevel bindings,
 
 class c = let Any _x = () in object end
 [%%expect {|
-
 Line 1, characters 14-20:
 1 | class c = let Any _x = () in object end
                   ^^^^^^
@@ -107,7 +99,6 @@ let () =
   let Any x = Any () and () = () in
   ()
 [%%expect {|
-
 Line 2, characters 6-11:
 2 |   let Any x = Any () and () = () in
           ^^^^^
@@ -120,7 +111,6 @@ let () =
   let rec Any x = Any () in
   ()
 [%%expect {|
-
 Line 2, characters 10-15:
 2 |   let rec Any x = Any () in
               ^^^^^
@@ -133,7 +123,6 @@ let () =
   let[@attribute] Any x = Any () in
   ()
 [%%expect {|
-
 Line 2, characters 18-23:
 2 |   let[@attribute] Any x = Any () in
                       ^^^^^
@@ -143,7 +132,6 @@ Error: Existential types are not allowed in presence of attributes,
 
 class c (Any x) = object end
 [%%expect {|
-
 Line 1, characters 8-15:
 1 | class c (Any x) = object end
             ^^^^^^^
@@ -153,7 +141,6 @@ Error: Existential types are not allowed in class arguments,
 
 class c = object(Any x) end
 [%%expect {|
-
 Line 1, characters 16-23:
 1 | class c = object(Any x) end
                     ^^^^^^^
@@ -163,7 +150,6 @@ Error: Existential types are not allowed in self patterns,
 
 class c = let Any _x = () in object end
 [%%expect {|
-
 Line 1, characters 14-20:
 1 | class c = let Any _x = () in object end
                   ^^^^^^

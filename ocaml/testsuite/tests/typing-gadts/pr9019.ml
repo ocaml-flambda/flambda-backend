@@ -45,7 +45,6 @@ val f : 'x M.t -> 'x M.t -> 'x -> int = <fun>
 
 let () = ignore (f M.ab MAB A)
 [%%expect{|
-
 Exception: Match_failure ("", 4, 2).
 |}]
 
@@ -67,9 +66,7 @@ end = struct
   let b = B
 end;;
 [%%expect{|
-
 type _ ab = A | B
-
 module M :
   sig
     type _ mab
@@ -90,14 +87,12 @@ let f (type x) (t1 : x t) (t2 : x t) (x : x) =
   | _, AB, B -> 3
   | _, MAB, _ -> 4;;
 [%%expect{|
-
 val f : 'x M.t -> 'x M.t -> 'x -> int = <fun>
 |}]
 
 (* the answer shouldn't be 3 *)
 let x = f MAB M.ab M.a;;
 [%%expect{|
-
 val x : int = 2
 |}]
 
@@ -121,9 +116,7 @@ end = struct
   let ab = AB
 end;;
 [%%expect{|
-
 type ab = { a : int; }
-
 module M :
   sig
     type mab = { a : int; }
@@ -142,7 +135,6 @@ let f (type x) (t1 : x t) (t2 : x t) (x : x) =
   | _,  AB,  { a = _ } -> 3
   | _, MAB,  { a = _ } -> 4;;
 [%%expect{|
-
 Line 7, characters 4-22:
 7 |   | _,  AB,  { a = _ } -> 3
         ^^^^^^^^^^^^^^^^^^
@@ -153,7 +145,6 @@ val f : 'x M.t -> 'x M.t -> 'x -> int = <fun>
 
 let p = f M.ab MAB { a = 42 };;
 [%%expect{|
-
 val p : int = 4
 |}]
 
@@ -172,11 +163,8 @@ let f (type x) (a : x a) (a_or_b : x a_or_b) (x : x) =
   | Not_A, A_or_B, `B i -> print_int i
   | _, A_or_B, `A s -> print_string s
 [%%expect{|
-
 type _ a_or_b = A_or_B : [< `A of string | `B of int ] a_or_b
-
 type _ a = A : [> `A of string ] a | Not_A : 'a a
-
 Lines 9-11, characters 2-37:
  9 | ..match a, a_or_b, x with
 10 |   | Not_A, A_or_B, `B i -> print_int i
@@ -190,7 +178,6 @@ val f : 'x a -> 'x a_or_b -> 'x -> unit = <fun>
 
 let segfault = f A A_or_B (`B 0)
 [%%expect{|
-
 Exception: Match_failure ("", 9, 2).
 |}]
 
@@ -208,11 +195,8 @@ let f (type x) (type y) (b : (x, y ty) b) (x : x) (y : y) =
   | B, `B String_option, Some s -> print_string s
   | A, `A, _ -> ()
 [%%expect{|
-
 type (_, _) b = A : ([< `A ], 'a) b | B : ([< `B of 'a ], 'a) b
-
 type _ ty = String_option : string option ty
-
 Lines 9-11, characters 2-18:
  9 | ..match b, x, y with
 10 |   | B, `B String_option, Some s -> print_string s
@@ -226,7 +210,6 @@ val f : ('x, 'y ty) b -> 'x -> 'y -> unit = <fun>
 
 let segfault = f B (`B String_option) None
 [%%expect{|
-
 Exception: Match_failure ("", 9, 2).
 |}]
 
@@ -235,9 +218,7 @@ Exception: Match_failure ("", 9, 2).
 type 'a a = private [< `A of 'a];;
 let f (x : _ a) = match x with `A None -> ();;
 [%%expect{|
-
 type 'a a = private [< `A of 'a ]
-
 Line 2, characters 18-44:
 2 | let f (x : _ a) = match x with `A None -> ();;
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -250,7 +231,6 @@ val f : 'a option a -> unit = <fun>
 
 let f (x : [> `A] a) = match x with `A `B -> ();;
 [%%expect{|
-
 Line 1, characters 23-47:
 1 | let f (x : [> `A] a) = match x with `A `B -> ();;
                            ^^^^^^^^^^^^^^^^^^^^^^^^

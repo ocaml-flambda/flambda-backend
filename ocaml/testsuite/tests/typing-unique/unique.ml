@@ -19,14 +19,12 @@ Line 1, characters 21-22:
 (* unique value can be used more than once *)
 let dup (unique_ x) = (x, x)
 [%%expect{|
-
 val dup : unique_ 'a -> 'a * 'a = <fun>
 |}]
 
 (* once value can be used only once*)
 let dup (once_ x) = (x, x)
 [%%expect{|
-
 Line 1, characters 24-25:
 1 | let dup (once_ x) = (x, x)
                             ^
@@ -40,7 +38,6 @@ Line 1, characters 21-22:
 
 let dup (unique_ x) = (unique_ x, x, x)
 [%%expect{|
-
 Line 1, characters 34-35:
 1 | let dup (unique_ x) = (unique_ x, x, x)
                                       ^
@@ -53,7 +50,6 @@ Line 1, characters 31-32:
 
 let dup (unique_ x) = (x, (unique_ x), x)
 [%%expect{|
-
 Line 1, characters 26-37:
 1 | let dup (unique_ x) = (x, (unique_ x), x)
                               ^^^^^^^^^^^
@@ -67,7 +63,6 @@ Line 1, characters 23-24:
 
 let dup (unique_ x) = ((unique_ x), x)
 [%%expect{|
-
 Line 1, characters 36-37:
 1 | let dup (unique_ x) = ((unique_ x), x)
                                         ^
@@ -82,7 +77,6 @@ Line 1, characters 23-34:
   but manually relax it to once *)
 let dup x = once_ (x, x)
 [%%expect{|
-
 val dup : 'a -> once_ 'a * 'a = <fun>
 |}]
 
@@ -92,7 +86,6 @@ let f () =
   let g () = (unique_ k) ^ (unique_ k) in
   g () ^ g ()
 [%%expect{|
-
 Line 3, characters 27-38:
 3 |   let g () = (unique_ k) ^ (unique_ k) in
                                ^^^^^^^^^^^
@@ -110,7 +103,6 @@ let f () =
   let g () = k ^ k in
   g () ^ g ()
 [%%expect{|
-
 val f : unit -> string = <fun>
 |}]
 
@@ -122,7 +114,6 @@ let f () =
     ignore k
   done
 [%%expect{|
-
 val f : unit -> unit = <fun>
 |}]
 
@@ -134,7 +125,6 @@ let f () =
     k
   done
 [%%expect{|
-
 Line 4, characters 4-5:
 4 |     k
         ^
@@ -148,7 +138,6 @@ let f () =
     unique_ k
   done
 [%%expect{|
-
 Line 4, characters 12-13:
 4 |     unique_ k
                 ^
@@ -165,7 +154,6 @@ let f =
   done;
   ()
 [%%expect{|
-
 Line 5, characters 14-15:
 5 |     let _ = g a in ()
                   ^
@@ -182,7 +170,6 @@ let f =
   done;
   ()
 [%%expect{|
-
 val f : unit = ()
 |}]
 
@@ -195,7 +182,6 @@ let f () =
   (* k is unique, and thus g is once *)
   g () ^ g ()
 [%%expect{|
-
 val f : unit -> string = <fun>
 |}]
 
@@ -207,7 +193,6 @@ let f () =
   let g () = k in
   (g (), g () )
 [%%expect{|
-
 Line 4, characters 9-10:
 4 |   (g (), g () )
              ^
@@ -221,14 +206,12 @@ Line 4, characters 3-4:
 
 let x = "foo"
 [%%expect{|
-
 val x : string = "foo"
 |}]
 
 (* Top-level must be many *)
 let once_ foo = "foo"
 [%%expect{|
-
 Line 1, characters 4-21:
 1 | let once_ foo = "foo"
         ^^^^^^^^^^^^^^^^^
@@ -238,14 +221,12 @@ Error: Found a once value where a many value was expected
 (* the following is fine - we relax many to once *)
 let foo y = once_ x
 [%%expect{|
-
 val foo : 'a -> once_ string = <fun>
 |}]
 
 (* top-level must be shared; the following unique is weakened to shared *)
 let unique_ foo = "foo"
 [%%expect{|
-
 val foo : string = "foo"
 |}]
 
@@ -253,7 +234,6 @@ val foo : string = "foo"
 (* the following is bad - trying to tighten shared to unique *)
 let foo y = unique_ x
 [%%expect{|
-
 Line 1, characters 20-21:
 1 | let foo y = unique_ x
                         ^
@@ -266,12 +246,10 @@ this is crucial once we introduce borrowing whose scope is controlled
 by locality *)
 type 'a glob = { global_ glob: 'a } [@@unboxed]
 [%%expect{|
-
 type 'a glob = { global_ glob : 'a; } [@@unboxed]
 |}]
 let dup (glob : 'a) : 'a glob * 'a glob = unique_ ({glob}, {glob})
 [%%expect{|
-
 val dup : 'a -> 'a glob * 'a glob = <fun>
 |}]
 
@@ -282,7 +260,6 @@ module M : sig
   let drop (unique_ x) = unique_ ()
 end
 [%%expect{|
-
 module M : sig val drop : unique_ 'a -> unique_ unit end
 |}]
 
@@ -290,20 +267,17 @@ module M : sig val drop : unique_ 'a -> unique_ unit end
 (* printed modes are imprecise *)
 let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
-
 val unique_id : unique_ 'a -> unique_ 'a = <fun>
 |}]
 
 let shared_id : 'a -> 'a = fun x -> x
 [%%expect{|
-
 val shared_id : 'a -> 'a = <fun>
 |}]
 
 let tail_unique _x =
   let unique_ y = "foo" in unique_id y
 [%%expect{|
-
 val tail_unique : 'a -> string = <fun>
 |}]
 
@@ -311,25 +285,21 @@ let tail_unique : unique_ 'a list -> unique_ 'a list = function
   | [] -> []
   | _ :: xx -> xx
 [%%expect{|
-
 val tail_unique : unique_ 'a list -> unique_ 'a list = <fun>
 |}]
 
 let higher_order (f : unique_ 'a -> unique_ 'b) (unique_ x : 'a) = unique_ f x
 [%%expect{|
-
 val higher_order : (unique_ 'a -> unique_ 'b) -> unique_ 'a -> 'b = <fun>
 |}]
 
 let higher_order2 (f : 'a -> unique_ 'b) (x : 'a) = unique_ f x
 [%%expect{|
-
 val higher_order2 : ('a -> unique_ 'b) -> 'a -> 'b = <fun>
 |}]
 
 let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
 [%%expect{|
-
 Line 1, characters 60-63:
 1 | let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
                                                                 ^^^
@@ -338,7 +308,6 @@ Error: Found a shared value where a unique value was expected
 
 let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
 [%%expect{|
-
 Line 1, characters 54-67:
 1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
                                                           ^^^^^^^^^^^^^
@@ -347,13 +316,11 @@ Error: Found a shared value where a unique value was expected
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
 [%%expect{|
-
 val higher_order5 : unique_ 'a -> 'a = <fun>
 |}]
 
 let higher_order6 (unique_ x) = let f (unique_ x) = unique_ x in higher_order2 f x
 [%%expect{|
-
 Line 1, characters 79-80:
 1 | let higher_order6 (unique_ x) = let f (unique_ x) = unique_ x in higher_order2 f x
                                                                                    ^
@@ -363,13 +330,11 @@ Error: This expression has type unique_ 'a -> 'a
 
 type record_update = { x : string }
 [%%expect{|
-
 type record_update = { x : string; }
 |}]
 
 let update2 = update { x = "bar" }
 [%%expect{|
-
 Line 1, characters 14-20:
 1 | let update2 = update { x = "bar" }
                   ^^^^^^
@@ -378,20 +343,17 @@ Error: Unbound value update
 
 let inf1 (unique_ x : float) = unique_ let y = x in y
 [%%expect{|
-
 val inf1 : unique_ float -> float = <fun>
 |}]
 
 let inf2 (b : bool) (unique_ x : float) = unique_ let y = if b then x else 1.0 in y
 [%%expect{|
-
 val inf2 : bool -> unique_ float -> float = <fun>
 |}]
 
 let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
   let _ = shared_id y in let unique_ z = if b then x else y in z
 [%%expect{|
-
 Line 2, characters 58-59:
 2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
                                                               ^
@@ -401,7 +363,6 @@ Error: Found a shared value where a unique value was expected
 let inf4 (b : bool) (y : float) (unique_ x : float) =
   let _ = shared_id y in let unique_ z = if b then x else y in z
 [%%expect{|
-
 Line 2, characters 58-59:
 2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
                                                               ^
@@ -416,19 +377,16 @@ Line 2, characters 20-21:
 let inf5 (b : bool) (y : float) (unique_ x : float) =
   let z = if b then x else y in unique_ z
 [%%expect{|
-
 val inf5 : bool -> unique_ float -> unique_ float -> float = <fun>
 |}]
 
 let inf6 (unique_ x) = let f x = x in higher_order f x
 [%%expect{|
-
 val inf6 : unique_ 'a -> 'a = <fun>
 |}]
 
 let unique_default_args ?(unique_ x = 1.0) () = x
 [%%expect{|
-
 val unique_default_args : ?x:unique_ float -> unit -> float = <fun>
 |}]
 
@@ -436,33 +394,28 @@ val unique_default_args : ?x:unique_ float -> unit -> float = <fun>
 
 let ul (unique_ local_ x) = x
 [%%expect{|
-
 val ul : local_ unique_ 'a -> local_ 'a = <fun>
 |}]
 
 let ul_ret x = unique_ local_ x
 [%%expect{|
-
 val ul_ret : unique_ 'a -> local_ 'a = <fun>
 |}]
 
 type point = { x : float; y : float }
 [%%expect{|
-
 type point = { x : float; y : float; }
 |}]
 
 let overwrite_point t =
   unique_ ({t with y = 0.5}, {t with x = 0.5})
 [%%expect{|
-
 val overwrite_point : unique_ point -> point * point = <fun>
 |}]
 
 let gc_soundness_nobug (local_ unique_ p) (local_ f) =
   local_ { p with x = f }
 [%%expect{|
-
 val gc_soundness_nobug : local_ unique_ point -> local_ float -> local_ point =
   <fun>
 |}]
@@ -473,7 +426,6 @@ let rec foo =
   | Some () -> foo None
   | None -> ()
 [%%expect{|
-
 val foo : local_ unique_ unit option -> unit = <fun>
 |}]
 
@@ -483,19 +435,16 @@ let rec bar =
   | Some () -> ()
   | None -> bar (local_ Some ()) [@nontail]
 [%%expect{|
-
 val bar : local_ unique_ unit option -> unit = <fun>
 |}]
 
 let foo : local_ unique_ string -> unit = fun (local_ s) -> ()
 [%%expect{|
-
 val foo : local_ unique_ string -> unit = <fun>
 |}]
 
 let bar : local_ unique_ string -> unit = fun (unique_ s) -> ()
 [%%expect{|
-
 val bar : local_ unique_ string -> unit = <fun>
 |}]
 
@@ -505,7 +454,6 @@ let curry =
   let foo ~a ~b ~c ~d = (a, b, c, (unique_ d)) in
   foo ~a:3 ~c:4
 [%%expect{|
-
 val curry : b:'_weak1 -> d:unique_ '_weak2 -> int * '_weak1 * int * '_weak2 =
   <fun>
 |}]
@@ -516,7 +464,6 @@ let curry =
   let foo ~a ~b ~c ~d = (a, b, (unique_ c), (unique_ d)) in
   foo ~a:3 ~c:4
 [%%expect{|
-
 Line 3, characters 2-15:
 3 |   foo ~a:3 ~c:4
       ^^^^^^^^^^^^^
@@ -527,7 +474,6 @@ let curry =
   let foo ~a ~b ~c ~d = ((unique_ a), b, c, d) in
   foo ~a:3 ~c:4
 [%%expect{|
-
 Line 3, characters 2-15:
 3 |   foo ~a:3 ~c:4
       ^^^^^^^^^^^^^
@@ -538,7 +484,6 @@ let curry =
   let foo ~a ~b ~c ~d = (a, (unique_ b), c, unique_ d) in
   foo ~a:3 ~c:4
 [%%expect{|
-
 val curry :
   b:unique_ '_weak3 -> d:unique_ '_weak4 -> int * '_weak3 * int * '_weak4 =
   <fun>
@@ -549,7 +494,6 @@ let curry =
   let bar = foo ~a:3 ~b:2 ~c:4 in
   (bar ~d:3, bar ~d:5)
 [%%expect{|
-
 Line 4, characters 13-16:
 4 |   (bar ~d:3, bar ~d:5)
                  ^^^
@@ -566,7 +510,6 @@ let curry =
   let bar = foo ~a:3 ~c:4 in
   let baz = bar ~b:4 in (baz ~d:3, baz ~d:5)
 [%%expect{|
-
 Line 4, characters 35-38:
 4 |   let baz = bar ~b:4 in (baz ~d:3, baz ~d:5)
                                        ^^^
@@ -583,7 +526,6 @@ let curry =
   let foo y = unique_ x in
   (foo 1, foo 2)
 [%%expect{|
-
 Line 4, characters 10-13:
 4 |   (foo 1, foo 2)
               ^^^
@@ -597,25 +539,21 @@ Line 4, characters 3-6:
 
 type box = { x : int }
 [%%expect{|
-
 type box = { x : int; }
 |}]
 
 let curry (unique_ b1 : box) (unique_ b2 : box) = b1
 [%%expect{|
-
 val curry : unique_ box -> unique_ box -> box = <fun>
 |}]
 
 let curry : unique_ box -> unique_ box -> unique_ box = fun b1 b2 -> b1
 [%%expect{|
-
 val curry : unique_ box -> unique_ box -> unique_ box = <fun>
 |}]
 
 let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 b2 -> b1
 [%%expect{|
-
 Line 1, characters 58-73:
 1 | let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 b2 -> b1
                                                               ^^^^^^^^^^^^^^^
@@ -629,7 +567,6 @@ let f () =
   let unique_ r = 42 in
   id2 r
 [%%expect{|
-
 Line 4, characters 6-7:
 4 |   id2 r
           ^
@@ -643,7 +580,6 @@ let foo () =
     ((fun y z -> z) : int -> unique_ (int -> int)) in
   ()
 [%%expect{|
-
 Line 3, characters 4-50:
 3 |     ((fun y z -> z) : int -> unique_ (int -> int)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -655,9 +591,7 @@ Error: This expression has type int -> unique_ (int -> int)
 let return_local : local_ 'a -> local_ 'a = fun x -> x
 let return_global : local_ 'a -> int = fun x -> 0
 [%%expect{|
-
 val return_local : local_ 'a -> local_ 'a = <fun>
-
 val return_global : local_ 'a -> int = <fun>
 |}]
 
@@ -672,9 +606,7 @@ let rec make_tree = fun n ->
   else let unique_ x = make_tree (n - 1)
        in Node (x, x)
 [%%expect{|
-
 type tree = Leaf | Node of tree * tree
-
 Line 5, characters 19-20:
 5 |        in Node (x, x)
                        ^

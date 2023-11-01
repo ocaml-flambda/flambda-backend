@@ -73,7 +73,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 4-17:
 3 |   | (exception _) as _pat -> ()
         ^^^^^^^^^^^^^
@@ -87,7 +86,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 8-19:
 3 |   | (_, exception _, _) -> ()
             ^^^^^^^^^^^
@@ -102,7 +100,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 9-22:
 3 |   | lazy (exception _) -> ()
              ^^^^^^^^^^^^^
@@ -116,7 +113,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 17-28:
 3 |   | { contents = exception _ } -> ()
                      ^^^^^^^^^^^
@@ -130,7 +126,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 7-18:
 3 |   | [| exception _ |] -> ()
            ^^^^^^^^^^^
@@ -144,7 +139,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 9-22:
 3 |   | Some (exception _) -> ()
              ^^^^^^^^^^^^^
@@ -158,7 +152,6 @@ let f x =
 ;;
 
 [%%expect{|
-
 Line 3, characters 7-20:
 3 |   | `A (exception _) -> ()
            ^^^^^^^^^^^^^
@@ -172,7 +165,6 @@ let f = function
 ;;
 
 [%%expect{|
-
 Line 2, characters 4-15:
 2 |   | exception _ -> ()
         ^^^^^^^^^^^

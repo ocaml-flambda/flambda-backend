@@ -16,13 +16,11 @@ val f : unit -> int = <fun>
 
 let[@warning "-39"] rec g () = 3;;
 [%%expect{|
-
 val g : unit -> int = <fun>
 |}];;
 
 let[@warning "+39"] rec h () = 3;;
 [%%expect{|
-
 Line 1, characters 24-25:
 1 | let[@warning "+39"] rec h () = 3;;
                             ^
@@ -35,19 +33,16 @@ val h : unit -> int = <fun>
 
 let rec f () = 3;;
 [%%expect{|
-
 val f : unit -> int = <fun>
 |}];;
 
 let[@warning "-39"] rec g () = 3;;
 [%%expect{|
-
 val g : unit -> int = <fun>
 |}];;
 
 let[@warning "+39"] rec h () = 3;;
 [%%expect{|
-
 Line 1, characters 24-25:
 1 | let[@warning "+39"] rec h () = 3;;
                             ^

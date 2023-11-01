@@ -32,7 +32,6 @@ Error: Function arguments and returns must be representable.
 let f1 (g : Function_b.fun_t) = g ()
 
 [%%expect{|
-
 Line 1, characters 34-36:
 1 | let f1 (g : Function_b.fun_t) = g ()
                                       ^^
@@ -45,7 +44,6 @@ Error: Function arguments and returns must be representable.
 let f2 : Function_b.fun_t = fun ~arg1:_ ~arg2 () -> arg2
 
 [%%expect{|
-
 Line 1, characters 28-56:
 1 | let f2 : Function_b.fun_t = fun ~arg1:_ ~arg2 () -> arg2
                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,7 +56,6 @@ Error: Function arguments and returns must be representable.
 let f3 : Function_b.return_t = fun () -> assert false
 
 [%%expect{|
-
 Line 1, characters 31-53:
 1 | let f3 : Function_b.return_t = fun () -> assert false
                                    ^^^^^^^^^^^^^^^^^^^^^^
@@ -72,9 +69,7 @@ let f4 (_ : Function_b.take_t) = ()
 let x1 = f4 Function_b.f_opt
 
 [%%expect{|
-
 val f4 : Function_b.take_t -> unit = <fun>
-
 Line 2, characters 12-28:
 2 | let x1 = f4 Function_b.f_opt
                 ^^^^^^^^^^^^^^^^
@@ -88,9 +83,7 @@ let f5 (_ : Function_b.return_t) = ()
 let x2 = f5 Function_b.f_opt_2
 
 [%%expect{|
-
 val f5 : Function_b.return_t -> unit = <fun>
-
 Line 2, characters 12-30:
 2 | let x2 = f5 Function_b.f_opt_2
                 ^^^^^^^^^^^^^^^^^^

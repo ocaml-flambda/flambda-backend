@@ -37,7 +37,6 @@ module rec D : sig
   end
 end = D;;
 [%%expect {|
-
 Line 5, characters 10-14:
 5 |       let None = None
               ^^^^

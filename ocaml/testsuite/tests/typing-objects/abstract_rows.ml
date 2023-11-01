@@ -18,7 +18,6 @@ Error: This expression has type u but an expression was expected of type t
 
 let g (x:u) (y:t) = x = y;;
 [%%expect{|
-
 Line 1, characters 24-25:
 1 | let g (x:u) (y:t) = x = y;;
                             ^

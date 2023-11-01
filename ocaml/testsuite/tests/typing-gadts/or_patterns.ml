@@ -33,7 +33,6 @@ let trivial_annotated (type a) (t : a t) =
 ;;
 
 [%%expect{|
-
 val trivial_annotated : 'a t -> unit = <fun>
 |}]
 
@@ -44,7 +43,6 @@ let trivial_merged t =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-11:
 4 |   | BoolLit -> ()
         ^^^^^^^
@@ -60,7 +58,6 @@ let trivial_merged_annotated (type a) (t : a t) =
 ;;
 
 [%%expect{|
-
 val trivial_merged_annotated : 'a t -> unit = <fun>
 |}]
 
@@ -71,7 +68,6 @@ let trivial_merged_annotated_under_tuple1 (type a) (t : a t) =
 ;;
 
 [%%expect{|
-
 val trivial_merged_annotated_under_tuple1 : 'a t -> unit = <fun>
 |}]
 
@@ -82,7 +78,6 @@ let trivial_merged_annotated_under_tuple2 (type a) (tt : a t * a t) =
 ;;
 
 [%%expect{|
-
 Line 3, characters 22-29:
 3 |   | IntLit, (IntLit | BoolLit) -> ()
                           ^^^^^^^
@@ -98,7 +93,6 @@ let trivial_merged_annotated_under_tuple2 (type a) (tt : a t * a t) =
 ;;
 
 [%%expect{|
-
 val trivial_merged_annotated_under_tuple2 : 'a t * 'a t -> unit = <fun>
 |}]
 
@@ -113,7 +107,6 @@ let trivial_merged_annotated_under_array (type a) (t : a t array) =
 ;;
 
 [%%expect{|
-
 val trivial_merged_annotated_under_array : 'a t array -> unit = <fun>
 |}]
 
@@ -125,7 +118,6 @@ let simple t a =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-11:
 4 |   | BoolLit, true -> ()
         ^^^^^^^
@@ -142,7 +134,6 @@ let simple_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-
 val simple_annotated : 'a t -> 'a -> unit = <fun>
 |}]
 
@@ -154,7 +145,6 @@ let simple_merged t a =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-11:
 4 |   | BoolLit, true -> ()
         ^^^^^^^
@@ -171,7 +161,6 @@ let simple_merged_ambi (type a) (t : a t) a =
 ;;
 
 [%%expect{|
-
 Line 4, characters 13-17:
 4 |   | BoolLit, true -> ()
                  ^^^^
@@ -190,7 +179,6 @@ let simple_merged_not_annotated_enough (type a) (t : a t) a =
 ;;
 
 [%%expect{|
-
 Line 4, characters 13-17:
 4 |   | BoolLit, true -> ()
                  ^^^^
@@ -207,7 +195,6 @@ let simple_merged_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-
 val simple_merged_annotated : 'a t -> 'a -> unit = <fun>
 |}]
 
@@ -219,7 +206,6 @@ let simple_mega_merged_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-
 val simple_mega_merged_annotated : 'a t -> 'a -> unit = <fun>
 |}]
 
@@ -231,7 +217,6 @@ let simple_merged_annotated_return (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-
 Line 3, characters 18-19:
 3 |   | IntLit, (3 as x)
                       ^
@@ -248,7 +233,6 @@ let simple_merged_annotated_return_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-
 val simple_merged_annotated_return_annotated : 'a t -> 'a -> unit = <fun>
 |}]
 
@@ -263,7 +247,6 @@ let simple_merged_annotated_under_tuple (type a) (pair : a t * a) =
 ;;
 
 [%%expect{|
-
 val simple_merged_annotated_under_tuple : 'a t * 'a -> unit = <fun>
 |}]
 
@@ -275,7 +258,6 @@ let simple_merged_annotated_under_arrays (type a) (pair : a t * a) =
 ;;
 
 [%%expect{|
-
 val simple_merged_annotated_under_arrays : 'a t * 'a -> unit = <fun>
 |}]
 
@@ -288,7 +270,6 @@ let simple_merged_annotated_under_poly_variant (type a) (pair : a t * a) =
 ;;
 
 [%%expect{|
-
 val simple_merged_annotated_under_poly_variant : 'a t * 'a -> unit = <fun>
 |}]
 
@@ -300,14 +281,12 @@ let simple_merged_annotated_under_poly_variant_annotated (type a) pair =
 ;;
 
 [%%expect{|
-
 val simple_merged_annotated_under_poly_variant_annotated : 'a t * 'a -> unit =
   <fun>
 |}]
 
 type 'a iref = { content : 'a; };;
 [%%expect{|
-
 type 'a iref = { content : 'a; }
 |}]
 
@@ -318,7 +297,6 @@ let simple_merged_annotated_under_record (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-
 val simple_merged_annotated_under_record : 'a t * 'a -> unit = <fun>
 |}]
 
@@ -329,13 +307,11 @@ let simple_merged_annotated_under_mutable_record (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-
 val simple_merged_annotated_under_mutable_record : 'a t * 'a -> unit = <fun>
 |}]
 
 type 'a piref = { pcontent : 'b. 'a * 'b; };;
 [%%expect{|
-
 type 'a piref = { pcontent : 'b. 'a * 'b; }
 |}]
 
@@ -346,7 +322,6 @@ let simple_merged_annotated_under_poly_record1 (type a) (r : (a t * a) piref) =
   | _ -> ()
 ;;
 [%%expect{|
-
 val simple_merged_annotated_under_poly_record1 : ('a t * 'a) piref -> unit =
   <fun>
 |}]
@@ -358,7 +333,6 @@ let simple_merged_annotated_under_poly_record2 (type a) (r : (a t * a) piref) =
   | _ -> ()
 ;;
 [%%expect{|
-
 val simple_merged_annotated_under_poly_record2 : ('a t * 'a) piref -> unit =
   <fun>
 |}]
@@ -370,7 +344,6 @@ let simple_merged_annotated_under_constructor (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-
 val simple_merged_annotated_under_constructor : 'a t * 'a -> unit = <fun>
 |}]
 
@@ -379,7 +352,6 @@ type _ gadt_opt =
   | GSome : 'a -> 'a gadt_opt
 ;;
 [%%expect{|
-
 type _ gadt_opt = GNone : 'a gadt_opt | GSome : 'a -> 'a gadt_opt
 |}]
 
@@ -390,7 +362,6 @@ let simple_merged_annotated_under_gadt_constructor (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-
 val simple_merged_annotated_under_gadt_constructor : 'a t * 'a -> unit =
   <fun>
 |}]
@@ -404,7 +375,6 @@ let noop t a =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-11:
 4 |   | BoolLit, x -> x
         ^^^^^^^
@@ -420,7 +390,6 @@ let noop_annotated (type a) (t : a t) (a : a) : a =
 ;;
 
 [%%expect{|
-
 val noop_annotated : 'a t -> 'a -> 'a = <fun>
 |}]
 
@@ -431,7 +400,6 @@ let noop_merged t a =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-11:
 4 |   | BoolLit, x -> x
         ^^^^^^^
@@ -447,7 +415,6 @@ let noop_merged_annotated (type a) (t : a t) (a : a) : a =
 ;;
 
 [%%expect{|
-
 val noop_merged_annotated : 'a t -> 'a -> 'a = <fun>
 |}]
 
@@ -458,7 +425,6 @@ type _ t2 =
   | Bool : bool -> bool t2
 
 [%%expect{|
-
 type _ t2 = Int : int -> int t2 | Bool : bool -> bool t2
 |}]
 
@@ -469,7 +435,6 @@ let trivial2 t2 =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-10:
 4 |   | Bool _ -> ()
         ^^^^^^
@@ -485,7 +450,6 @@ let trivial2_annotated (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-
 val trivial2_annotated : 'a t2 -> unit = <fun>
 |}]
 
@@ -496,7 +460,6 @@ let trivial2_merged t2 =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-10:
 4 |   | Bool _ -> ()
         ^^^^^^
@@ -512,7 +475,6 @@ let trivial2_merged_annotated (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-
 val trivial2_merged_annotated : 'a t2 -> unit = <fun>
 |}]
 
@@ -524,7 +486,6 @@ let extract t2 =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-10:
 4 |   | Bool _ -> x
         ^^^^^^
@@ -540,7 +501,6 @@ let extract_annotated (type a) (t2 : a t2) : a =
 ;;
 
 [%%expect{|
-
 val extract_annotated : 'a t2 -> 'a = <fun>
 |}]
 
@@ -551,7 +511,6 @@ let extract_merged t2 =
 ;;
 
 [%%expect{|
-
 Line 4, characters 4-10:
 4 |   | Bool x -> x
         ^^^^^^
@@ -568,7 +527,6 @@ let extract_merged_annotated (type a) (t2 : a t2) : a =
 
 
 [%%expect{|
-
 Lines 3-4, characters 4-10:
 3 | ....Int x
 4 |   | Bool x.....
@@ -583,7 +541,6 @@ let extract_merged_super_annotated (type a) (t2 : a t2) : a =
 ;;
 
 [%%expect{|
-
 val extract_merged_super_annotated : 'a t2 -> 'a = <fun>
 |}]
 
@@ -594,7 +551,6 @@ let extract_merged_too_lightly_annotated (type a) (t2 : a t2) : a =
 ;;
 
 [%%expect{|
-
 Lines 3-4, characters 4-10:
 3 | ....Int (x : a)
 4 |   | Bool x.....
@@ -609,7 +565,6 @@ let extract_merged_super_lightly_annotated (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-
 val extract_merged_super_lightly_annotated : 'a t2 -> 'a = <fun>
 |}]
 
@@ -620,7 +575,6 @@ let lambiguity (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-
 val lambiguity : 'a t2 -> 'a = <fun>
 |}]
 
@@ -631,7 +585,6 @@ let rambiguity (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-
 Lines 3-4, characters 4-23:
 3 | ....Int (_ as x)
 4 |   | Bool ((_ : a) as x).....
@@ -647,7 +600,6 @@ type _ t3 =
   | B : int t3
 
 [%%expect{|
-
 type _ t3 = A : int t3 | B : int t3
 |}]
 
@@ -658,7 +610,6 @@ let not_annotated x =
 ;;
 
 [%%expect{|
-
 val not_annotated : int t3 -> int = <fun>
 |}]
 
@@ -668,7 +619,6 @@ let return_int (type a) (x : a t3) =
 ;;
 
 [%%expect{|
-
 val return_int : 'a t3 -> int = <fun>
 |}]
 
@@ -679,7 +629,6 @@ let return_a (type a) (x : a t3) : a =
 ;;
 
 [%%expect{|
-
 Line 3, characters 13-14:
 3 |   | A | B -> 3 (* fails because the equation [a = int] doesn't escape any of
                  ^
@@ -709,11 +658,8 @@ type gvoyel = voyel cased
 type a = [ `A ] cased
 ;;
 [%%expect{|
-
 type any = [ `A | `B | `C | `D | `E | `F ]
-
 type voyel = [ `A | `E ]
-
 type _ letter =
     A : [< any > `A ] letter
   | B : [< any > `B ] letter
@@ -721,13 +667,10 @@ type _ letter =
   | D : [< any > `D ] letter
   | E : [< any > `E ] letter
   | F : [< any > `F ] letter
-
 type _ cased =
     Up : 'a letter -> ([< any ] as 'a) cased
   | Lo : 'a letter -> ([< any ] as 'a) cased
-
 type gvoyel = voyel cased
-
 type a = [ `A ] cased
 |}]
 
@@ -735,7 +678,6 @@ let gvoyel_of_a : a -> gvoyel = function
   | Up A | Lo A as a -> a
 ;;
 [%%expect{|
-
 val gvoyel_of_a : a -> gvoyel = <fun>
 |}]
 
@@ -748,7 +690,6 @@ let f_ok (type a) (t : a t) (a : bool iref) (b : a iref) =
   | _, _, _ -> ()
 ;;
 [%%expect{|
-
 val f_ok : 'a t -> bool iref -> 'a iref -> unit = <fun>
 |}]
 
@@ -760,7 +701,6 @@ let f_amb (type a) (t : a t) (a : bool ref) (b : a ref) =
   | _, _, _ -> ()
 ;;
 [%%expect{|
-
 Lines 3-4, characters 4-65:
 3 | ....IntLit,  ({ contents = true } as x), _
 4 |   | BoolLit,  _,                        ({ contents = true} as x)............
@@ -777,7 +717,6 @@ type t =
   | B : 'a -> t
 ;;
 [%%expect{|
-
 type t = A : 'a -> t | B : 'a -> t
 |}]
 
@@ -786,7 +725,6 @@ let f = function
   | B x -> ignore x
 ;;
 [%%expect{|
-
 Line 2, characters 6-7:
 2 |   | A x
           ^

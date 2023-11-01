@@ -31,7 +31,6 @@ let test () =
 [%%expect{|
 val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
 |}, Principal{|
-
 Line 5, characters 49-50:
 5 |   | B -> if Random.bool () then `Onoes else `A_t B;;
                                                      ^

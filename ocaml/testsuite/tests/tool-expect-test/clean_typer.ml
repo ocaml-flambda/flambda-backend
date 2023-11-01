@@ -72,7 +72,6 @@ Error: This expression has type Variants.bar M.t
 
 let f3 = fbar foo;;
 [%%expect {|
-
 Line 1, characters 14-17:
 1 | let f3 = fbar foo;;
                   ^^^

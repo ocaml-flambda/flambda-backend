@@ -41,7 +41,6 @@ module type S3 = sig
   module N : T with M
 end
 [%%expect{|
-
 module type S3 =
   sig
     module type T = sig type t end
@@ -56,7 +55,6 @@ module type S4 = sig
   module N : T with M with type t = int
 end
 [%%expect{|
-
 Line 4, characters 13-39:
 4 |   module N : T with M with type t = int
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -74,7 +72,6 @@ module Must_be_subtype = struct
   module type S = sig type t1 type t2 end with M
 end
 [%%expect{|
-
 Line 3, characters 18-48:
 3 |   module type S = sig type t1 type t2 end with M
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -101,7 +98,6 @@ module Unaliasable = struct
   module X = A.F(A.M)
 end
 [%%expect{|
-
 module Unaliasable :
   sig
     module A :
@@ -119,7 +115,6 @@ module Subtype = struct
   module F(G:functor(X:S) -> S)(X:S)(Y:S with X) = G(Y)
 end
 [%%expect{|
-
 module Subtype :
   sig
     module type S
@@ -146,7 +141,6 @@ module Can_use_type = struct
   let x = A.foo A.bar
 end
 [%%expect{|
-
 module Can_use_type :
   sig
     module type S = sig type t end
@@ -174,7 +168,6 @@ module Ignore_strengthening = struct
   module M = A.F(struct type t = int end)
 end
 [%%expect{|
-
 module Ignore_strengthening :
   sig
     module type S = sig type t = int end
@@ -196,7 +189,6 @@ module Expand_destructive_with = struct
   end
 end
 [%%expect{|
-
 module Expand_destructive_with :
   sig
     module type S =
@@ -229,7 +221,6 @@ module Destructive_with1 = struct
   end
 end
 [%%expect{|
-
 module Destructive_with1 :
   sig
     module type S = sig type t end
@@ -251,7 +242,6 @@ module Destructive_with2 = struct
   end
 end
 [%%expect{|
-
 Lines 9-11, characters 43-5:
  9 | ...........................................struct
 10 |     module N = X
@@ -283,7 +273,6 @@ module Destructive_with3 = struct
   end
 end
 [%%expect{|
-
 Lines 9-11, characters 43-5:
  9 | ...........................................struct
 10 |     module N = X
@@ -318,7 +307,6 @@ module Remove_aliases = struct
   module B = F(A)
 end
 [%%expect{|
-
 module Remove_aliases :
   sig
     module type T = sig module type S end
@@ -358,7 +346,6 @@ module Recursive = struct
   and N : sig end = struct end
 end
 [%%expect{|
-
 Line 2, characters 30-31:
 2 |   module rec M : sig end with N = N
                                   ^

@@ -27,21 +27,11 @@ Error: This expression has type
          ('a, 'b, 'c, 'd, 'd, 'a) format6 =
            ('a, 'b, 'c, 'd, 'd, 'a) CamlinternalFormatBasics.format6
        but an expression was expected of type string
-|}, Principal{|
-
-Line 1, characters 28-48:
-1 | fun b -> if b then "x" else format_of_string "y"
-                                ^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type
-         ('a, 'b, 'c, 'd, 'd, 'a) format6 =
-           ('a, 'b, 'c, 'd, 'd, 'a) CamlinternalFormatBasics.format6
-       but an expression was expected of type string
 |}]
 ;;
 
 fun b : (_,_,_) format -> if b then "x" else "y"
 [%%expect {|
-
 - : bool -> ('a, 'b, 'a) format = <fun>
 |}]
 ;;
@@ -56,7 +46,6 @@ module PR7135 = struct
     f (x :> int) (y :> int)
 end;;
 [%%expect {|
-
 module PR7135 :
   sig
     module M : sig type t = private int end
@@ -72,10 +61,8 @@ module Test1 = struct
   let f x = let y = if true then x else (x:t) in (y :> int)
 end;;
 [%%expect {|
-
 module Test1 : sig type t = private int val f : t -> int end
 |}, Principal{|
-
 Line 3, characters 49-59:
 3 |   let f x = let y = if true then x else (x:t) in (y :> int)
                                                      ^^^^^^^^^^

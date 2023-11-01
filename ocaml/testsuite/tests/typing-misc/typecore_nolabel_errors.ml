@@ -30,9 +30,7 @@ This argument cannot be applied with label ~y
 let f ?x ~a ?y ~z () = ()
 let g = f ?y:None ?x:None ~a:()
 [%%expect {|
-
 val f : ?x:'a -> a:'b -> ?y:'c -> z:'d -> unit -> unit = <fun>
-
 Line 2, characters 13-17:
 2 | let g = f ?y:None ?x:None ~a:()
                  ^^^^
@@ -45,7 +43,6 @@ This argument cannot be applied with label ?y
 let f (g: ?x:_ -> _) = g ~y:None ?x:None; g ?x:None ()
 
 [%%expect{|
-
 Line 1, characters 28-32:
 1 | let f (g: ?x:_ -> _) = g ~y:None ?x:None; g ?x:None ()
                                 ^^^^
@@ -60,7 +57,6 @@ let f i ?(a=0) ?(b=0) ?(c=0) ~x j =
   i + a + b + c + x + j
 ;;
 [%%expect{|
-
 val f : int -> ?a:int -> ?b:int -> ?c:int -> x:int -> int -> int = <fun>
 |}]
 ;;
@@ -69,7 +65,6 @@ val f : int -> ?a:int -> ?b:int -> ?c:int -> x:int -> int -> int = <fun>
 
 f 3 ~c:2 ~a:1 ~b:0 ~x:4 5;;
 [%%expect{|
-
 Line 1, characters 7-8:
 1 | f 3 ~c:2 ~a:1 ~b:0 ~x:4 5;;
            ^
@@ -85,7 +80,6 @@ This argument cannot be applied with label ~c
 
 f 3 ~a:1 ~b:2 5 ~c:0 ~x:4;;
 [%%expect{|
-
 Line 1, characters 14-15:
 1 | f 3 ~a:1 ~b:2 5 ~c:0 ~x:4;;
                   ^
@@ -98,7 +92,6 @@ This argument cannot be applied without label
 
 f 3 ~a:1 ~c:2 5 ~b:0 ~x:4;;
 [%%expect{|
-
 Line 1, characters 12-13:
 1 | f 3 ~a:1 ~c:2 5 ~b:0 ~x:4;;
                 ^
@@ -111,7 +104,6 @@ This argument cannot be applied with label ~c
 
 f 3 ~b:1 ~c:2 5 ~a:0 ~x:4;;
 [%%expect{|
-
 Line 1, characters 7-8:
 1 | f 3 ~b:1 ~c:2 5 ~a:0 ~x:4;;
            ^
@@ -127,14 +119,12 @@ This argument cannot be applied with label ~b
 
 let f ?x ?y () = ();;
 [%%expect{|
-
 val f : ?x:'a -> ?y:'b -> unit -> unit = <fun>
 |}]
 ;;
 
 f ~y:3;;
 [%%expect{|
-
 Line 1, characters 5-6:
 1 | f ~y:3;;
          ^

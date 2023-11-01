@@ -136,7 +136,6 @@ module Priv(_ : sig end) = struct
   type t = private [ `Foo of t -> int | `Bar of int ]
 end;;
 [%%expect{|
-
 module Priv :
   sig end -> sig type t = private [ `Bar of int | `Foo of t -> int ] end
 |}]
@@ -145,12 +144,10 @@ module I(X : sig end) : sig
   type t = Priv(X).t
 end = Priv(X);;
 [%%expect{|
-
 module I : functor (X : sig end) -> sig type t = Priv(X).t end
 |}]
 
 module IndirectPriv = I(struct end);;
 [%%expect{|
-
 module IndirectPriv : sig type t end
 |}]

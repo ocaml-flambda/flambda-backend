@@ -43,7 +43,6 @@ let vexpr (type visit_action)
   | Global -> fun _ -> raise Exit
 ;;
 [%%expect{|
-
 Line 4, characters 4-9:
 4 |   | Local -> fun _ -> raise Exit
         ^^^^^
@@ -61,7 +60,6 @@ let vexpr (type result) (type visit_action)
   | Global -> fun _ -> raise Exit
 ;;
 [%%expect{|
-
 val vexpr : (unit, 'result, 'visit_action) context -> unit -> 'visit_action =
   <fun>
 |}];;

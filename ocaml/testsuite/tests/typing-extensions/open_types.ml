@@ -78,7 +78,6 @@ Error: Type definition bar is not extensible
 type baz = bar = ..
 ;;
 [%%expect {|
-
 Line 1, characters 0-19:
 1 | type baz = bar = ..
     ^^^^^^^^^^^^^^^^^^^
@@ -91,14 +90,12 @@ Error: This variant or record definition does not match that of type bar
 type 'a foo = ..
 ;;
 [%%expect {|
-
 type 'a foo = ..
 |}]
 
 type ('a, 'b) bar = 'a foo = ..
 ;;
 [%%expect {|
-
 Line 1, characters 0-31:
 1 | type ('a, 'b) bar = 'a foo = ..
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -109,14 +106,12 @@ Error: This variant or record definition does not match that of type 'a foo
 type ('a, 'b) foo = ..
 ;;
 [%%expect {|
-
 type ('a, 'b) foo = ..
 |}]
 
 type ('a, 'b) bar = ('a, 'a) foo = ..
 ;;
 [%%expect {|
-
 Line 1, characters 0-37:
 1 | type ('a, 'b) bar = ('a, 'a) foo = ..
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -131,28 +126,24 @@ Error: This variant or record definition does not match that of type
 module M = struct type foo = .. end
 ;;
 [%%expect {|
-
 module M : sig type foo = .. end
 |}]
 
 module type S = sig type foo end
 ;;
 [%%expect {|
-
 module type S = sig type foo end
 |}]
 
 module M_S = (M : S)
 ;;
 [%%expect {|
-
 module M_S : S
 |}]
 
 type M_S.foo += Foo
 ;;
 [%%expect {|
-
 Line 1, characters 0-19:
 1 | type M_S.foo += Foo
     ^^^^^^^^^^^^^^^^^^^
@@ -164,21 +155,18 @@ Error: Type definition M_S.foo is not extensible
 module M = struct type foo end
 ;;
 [%%expect {|
-
 module M : sig type foo end
 |}]
 
 module type S = sig type foo = .. end
 ;;
 [%%expect {|
-
 module type S = sig type foo = .. end
 |}]
 
 module M_S = (M : S)
 ;;
 [%%expect {|
-
 Line 1, characters 14-15:
 1 | module M_S = (M : S)
                   ^
@@ -196,28 +184,24 @@ Error: Signature mismatch:
 module M = struct type foo = .. end
 ;;
 [%%expect {|
-
 module M : sig type foo = .. end
 |}]
 
 module type S = sig type foo = private .. end
 ;;
 [%%expect {|
-
 module type S = sig type foo = private .. end
 |}]
 
 module M_S = (M : S)
 ;;
 [%%expect {|
-
 module M_S : S
 |}]
 
 type M_S.foo += Foo
 ;;
 [%%expect {|
-
 Line 1, characters 16-19:
 1 | type M_S.foo += Foo
                     ^^^
@@ -229,21 +213,18 @@ Error: Cannot extend private type definition M_S.foo
 module M = struct type foo = private .. end
 ;;
 [%%expect {|
-
 module M : sig type foo = private .. end
 |}]
 
 module type S = sig type foo = .. end
 ;;
 [%%expect {|
-
 module type S = sig type foo = .. end
 |}]
 
 module M_S = (M : S)
 ;;
 [%%expect {|
-
 Line 1, characters 14-15:
 1 | module M_S = (M : S)
                   ^
@@ -265,21 +246,18 @@ Error: Signature mismatch:
 module M = struct type +'a foo = .. type 'a bar = 'a foo = .. end
 ;;
 [%%expect {|
-
 module M : sig type +'a foo = .. type 'a bar = 'a foo = .. end
 |}]
 
 module type S = sig type 'a foo = .. type 'a bar = 'a foo = .. end
 ;;
 [%%expect {|
-
 module type S = sig type 'a foo = .. type 'a bar = 'a foo = .. end
 |}]
 
 module M_S = (M : S)
 ;;
 [%%expect {|
-
 Line 1, characters 14-15:
 1 | module M_S = (M : S)
                   ^
@@ -300,7 +278,6 @@ Error: Signature mismatch:
 type exn2 = exn = ..
 ;;
 [%%expect {|
-
 type exn2 = exn = ..
 |}]
 
@@ -310,9 +287,7 @@ type exn += private Foobar
 let _ = raise Foobar
 ;;
 [%%expect {|
-
 type exn += private Foobar
-
 Line 2, characters 14-20:
 2 | let _ = raise Foobar
                   ^^^^^^
@@ -327,11 +302,8 @@ type foo += Foo
 let f = function Foo -> ()
 ;;
 [%%expect {|
-
 type foo = ..
-
 type foo += Foo
-
 Line 3, characters 8-26:
 3 | let f = function Foo -> ()
             ^^^^^^^^^^^^^^^^^^
@@ -352,7 +324,6 @@ let f = function
   | [] -> 2
 ;;
 [%%expect {|
-
 Lines 1-4, characters 8-11:
 1 | ........function
 2 |   | [Foo] -> 1
@@ -373,15 +344,12 @@ val f : foo list -> int = <fun>
 type t = ..
 type t += IPair : (int * int) -> t ;;
 [%%expect {|
-
 type t = ..
-
 type t += IPair : (int * int) -> t
 |}]
 
 let f = function IPair (i, j) -> Format.sprintf "(%d, %d)" i j ;;
 [%%expect {|
-
 Line 1, characters 8-62:
 1 | let f = function IPair (i, j) -> Format.sprintf "(%d, %d)" i j ;;
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

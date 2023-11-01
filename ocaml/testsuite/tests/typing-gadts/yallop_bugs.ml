@@ -37,7 +37,6 @@ let magic : 'a 'b. 'a -> 'b =
     (downcast bad_proof ((object method m = x end) :> < >)) # m
 ;;
 [%%expect{|
-
 Line 1, characters 0-36:
 1 | type (_, +_) eq = Refl : ('a, 'a) eq
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -56,9 +55,7 @@ let check : type s . s t * s -> bool = function
   | IntLit , 6 -> false
 ;;
 [%%expect{|
-
 type _ t = IntLit : int t | BoolLit : bool t
-
 Lines 5-7, characters 39-23:
 5 | .......................................function
 6 |   | BoolLit, false -> false
@@ -77,9 +74,7 @@ let check : type s . (s t, s) pair -> bool = function
   | {fst = IntLit ; snd =  6} -> false
 ;;
 [%%expect{|
-
 type ('a, 'b) pair = { fst : 'a; snd : 'b; }
-
 Lines 3-5, characters 45-38:
 3 | .............................................function
 4 |   | {fst = BoolLit; snd = false} -> false

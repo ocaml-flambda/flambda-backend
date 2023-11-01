@@ -30,7 +30,6 @@ class c = object
 end;;
 let _ = print_float (new c)#m;;
 [%%expect{|
-
 Line 4, characters 16-28:
 4 |     let rec x = (f <- y; ()) and y = 2.0 in f
                     ^^^^^^^^^^^^

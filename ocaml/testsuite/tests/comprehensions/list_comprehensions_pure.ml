@@ -178,7 +178,6 @@ Warning 26 [unused-var]: unused variable x.
    v} *)
 [a for a in [0] for a in [1]];;
 [%%expect{|
-
 Line 1, characters 7-8:
 1 | [a for a in [0] for a in [1]];;
            ^
@@ -197,7 +196,6 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [(a, b) for b in [0] for _ in [0; 0] for a in [b] and b = 0 downto -1];;
 [%%expect{|
-
 - : (int * int) list = [(0, 0); (0, -1); (0, 0); (0, -1)]
 |}];;
 
@@ -206,7 +204,6 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [(a, b) for b in [1] for b in [0] and a in [b]];;
 [%%expect{|
-
 - : (int * int) list = [(1, 0)]
 |}];;
 
@@ -215,7 +212,6 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [a for a in [1] and _ in [0; 0] when a > 0 for a in [0]];;
 [%%expect{|
-
 - : int list = [0; 0]
 |}];;
 
@@ -224,7 +220,6 @@ Warning 26 [unused-var]: unused variable a.
    v} *)
 [a for a in [0] and _ in [0; 0] for a in [a; 1]];;
 [%%expect{|
-
 - : int list = [0; 1; 0; 1]
 |}];;
 
@@ -236,7 +231,6 @@ Warning 26 [unused-var]: unused variable a.
    comprehension. *)
 [() for _ = 0 to 0];
 [%%expect{|
-
 - : unit list = [()]
 |}];;
 
@@ -247,7 +241,6 @@ Warning 26 [unused-var]: unused variable a.
 
 [x for x in 100];;
 [%%expect{|
-
 Line 1, characters 12-15:
 1 | [x for x in 100];;
                 ^^^
@@ -260,7 +253,6 @@ Error: This expression has type int but an expression was expected of type
 
 [x for x in [||]];;
 [%%expect{|
-
 Line 1, characters 12-16:
 1 | [x for x in [||]];;
                 ^^^^
@@ -274,7 +266,6 @@ Error: This expression has type 'a array
 let empty = [||] in
 [x for x in empty];;
 [%%expect{|
-
 Line 2, characters 12-17:
 2 | [x for x in empty];;
                 ^^^^^
@@ -285,7 +276,6 @@ Error: This expression has type 'a array
 
 Array.length [i for i = 0 to 3];;
 [%%expect{|
-
 Line 1, characters 13-31:
 1 | Array.length [i for i = 0 to 3];;
                  ^^^^^^^^^^^^^^^^^^
@@ -297,7 +287,6 @@ Error: This expression has type 'a list
 
 [x for x = 1.5 to 4.2];;
 [%%expect{|
-
 Line 1, characters 11-14:
 1 | [x for x = 1.5 to 4.2];;
                ^^^
@@ -308,7 +297,6 @@ Error: This expression has type float but an expression was expected of type
 
 [x for x = 4.2 downto 1.5];;
 [%%expect{|
-
 Line 1, characters 11-14:
 1 | [x for x = 4.2 downto 1.5];;
                ^^^
@@ -329,15 +317,12 @@ let t = (module struct
   let x = 3
 end : S);;
 [%%expect {|
-
 module type S = sig type t val x : t end
-
 val t : (module S) = <module>
 |}];;
 
 [ M.x for (module M : S) in [ t ] ];;
 [%%expect {|
-
 Line 1, characters 18-19:
 1 | [ M.x for (module M : S) in [ t ] ];;
                       ^
@@ -353,7 +338,6 @@ Error: Modules are not allowed in this pattern.
   ]
 ];;
 [%%expect {|
-
 Line 2, characters 14-15:
 2 |   for (module M : S) in
                   ^
@@ -367,7 +351,6 @@ Error: Modules are not allowed in this pattern.
   ]
 ];;
 [%%expect {|
-
 Line 2, characters 14-15:
 2 |   for (module M : S) in
                   ^
@@ -378,7 +361,6 @@ Error: Modules are not allowed in this pattern.
 
 [i for i = 1 to 3 and i = 3 downto 1];;
 [%%expect{|
-
 Line 1, characters 0-37:
 1 | [i for i = 1 to 3 and i = 3 downto 1];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -387,7 +369,6 @@ Error: Variable i is bound several times in this matching
 
 [i for i = 1 to 3 and i in [10; 20; 30]];;
 [%%expect{|
-
 Line 1, characters 22-23:
 1 | [i for i = 1 to 3 and i in [10; 20; 30]];;
                           ^
@@ -396,7 +377,6 @@ Error: Variable i is bound several times in this matching
 
 [i for i in [1; 2; 3] and i = 3 downto 1];;
 [%%expect{|
-
 Line 1, characters 0-41:
 1 | [i for i in [1; 2; 3] and i = 3 downto 1];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -405,7 +385,6 @@ Error: Variable i is bound several times in this matching
 
 [i for i in [1; 2; 3] and i in [10; 20; 30]];;
 [%%expect{|
-
 Line 1, characters 26-27:
 1 | [i for i in [1; 2; 3] and i in [10; 20; 30]];;
                               ^
@@ -414,7 +393,6 @@ Error: Variable i is bound several times in this matching
 
 [i for i, j in [1, 10; 2, 20; 3, 30] and k, i in [10, 1; 20, 2; 30, 3]];
 [%%expect{|
-
 Line 1, characters 44-45:
 1 | [i for i, j in [1, 10; 2, 20; 3, 30] and k, i in [10, 1; 20, 2; 30, 3]];
                                                 ^
@@ -425,7 +403,6 @@ Error: Variable i is bound several times in this matching
 
 [outer,inner for outer = inner to 3 for inner = 1 to 3];;
 [%%expect{|
-
 Line 1, characters 25-30:
 1 | [outer,inner for outer = inner to 3 for inner = 1 to 3];;
                              ^^^^^
@@ -437,7 +414,6 @@ Hint: Did you mean incr?
 
 true :: [i for i = 0 to 10];;
 [%%expect{|
-
 Line 1, characters 9-10:
 1 | true :: [i for i = 0 to 10];;
              ^
@@ -453,19 +429,16 @@ module M = struct
   type t = A | B
 end;;
 [%%expect{|
-
 module M : sig type t = A | B end
 |}];;
 
 let x : M.t list  = [A for _ = 1 to 3];;
 [%%expect{|
-
 val x : M.t list = [M.A; M.A; M.A]
 |}];;
 
 [A for _ = 1 to 3];;
 [%%expect{|
-
 Line 1, characters 1-2:
 1 | [A for _ = 1 to 3];;
      ^
@@ -474,10 +447,8 @@ Error: Unbound constructor A
 
 M.B :: [A for _ = 1 to 3];;
 [%%expect{|
-
 - : M.t list = [M.B; M.A; M.A; M.A]
 |}, Principal{|
-
 Line 1, characters 8-9:
 1 | M.B :: [A for _ = 1 to 3];;
             ^

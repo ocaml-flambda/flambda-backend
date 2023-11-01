@@ -39,7 +39,6 @@ module type Sunderscore = sig
   type (_, _) t
 end with type (_, 'a) t = int * 'a
 [%%expect {|
-
 module type Sunderscore = sig type (_, 'a) t = int * 'a end
 |}]
 
@@ -51,7 +50,6 @@ module type S0 = sig
   and M2 : sig type t = int end
 end with type M.t = int
 [%%expect {|
-
 module type S0 =
   sig module rec M : sig type t = int end and M2 : sig type t = int end end
 |}]
@@ -63,7 +61,6 @@ module type PrintableComparable = sig
   include Comparable with type t := t
 end
 [%%expect {|
-
 module type PrintableComparable =
   sig type t val print : t -> unit val compare : t -> t -> int end
 |}]
@@ -72,43 +69,35 @@ module type PrintableComparable = sig
   include Comparable with type t := t
 end
 [%%expect {|
-
 module type PrintableComparable =
   sig type t val print : t -> unit val compare : t -> t -> int end
 |}]
 module type ComparableInt = Comparable with type t := int
 [%%expect {|
-
 module type ComparableInt = sig val compare : int -> int -> int end
 |}]
 module type S = sig type t val f : t -> t end
 [%%expect {|
-
 module type S = sig type t val f : t -> t end
 |}]
 module type S' = S with type t := int
 [%%expect {|
-
 module type S' = sig val f : int -> int end
 |}]
 
 module type S = sig type 'a t val map : ('a -> 'b) -> 'a t -> 'b t end
 module type S1 = S with type 'a t := 'a list
 [%%expect {|
-
 module type S = sig type 'a t val map : ('a -> 'b) -> 'a t -> 'b t end
-
 module type S1 = sig val map : ('a -> 'b) -> 'a list -> 'b list end
 |}]
 module type S2 = S with type 'a t := (string * 'a) list
 [%%expect {|
-
 module type S2 =
   sig val map : ('a -> 'b) -> (string * 'a) list -> (string * 'b) list end
 |}]
 module type S3 = S with type _ t := int
 [%%expect {|
-
 module type S3 = sig val map : ('a -> 'b) -> int -> int end
 |}]
 
@@ -118,19 +107,15 @@ module type S =
 module M = struct type exp = string type arg = int end
 module type S' = S with module T := M
 [%%expect {|
-
 module type S =
   sig module T : sig type exp type arg end val f : T.exp -> T.arg end
-
 module M : sig type exp = string type arg = int end
-
 module type S' = sig val f : M.exp -> M.arg end
 |}]
 
 
 module type S = sig type 'a t end with type 'a t := unit
 [%%expect {|
-
 module type S = sig end
 |}]
 
@@ -139,7 +124,6 @@ module type S = sig
   type s = private [< t ]
 end with type t := [ `Foo ]
 [%%expect {|
-
 module type S = sig type s = private [< `Foo ] end
 |}]
 
@@ -148,7 +132,6 @@ module type S = sig
   type t += A
 end with type t := exn
 [%%expect {|
-
 module type S = sig type exn += A end
 |}]
 
@@ -160,9 +143,7 @@ module type S = sig
   val x : int mylist t2
 end with type 'a t2 := 'a t
 [%%expect {|
-
 type 'a t constraint 'a = 'b list
-
 module type S = sig type 'a mylist = 'a list val x : int mylist t end
 |}]
 
@@ -174,9 +155,7 @@ module type S = sig
   val x : int mylist t2
 end with type 'a t2 := 'a t * bool
 [%%expect {|
-
 type 'a t constraint 'a = 'b list
-
 Lines 2-6, characters 16-34:
 2 | ................sig
 3 |   type 'a t2 constraint 'a = 'b list
@@ -198,7 +177,6 @@ module type S = sig
   type t = F(M3).t
 end with type M2.t = int
 [%%expect {|
-
 module type S =
   sig
     module M1 : sig type t = int end
@@ -226,9 +204,7 @@ end = struct
     eq
 end;;
 [%%expect {|
-
 type (_, _) eq = Refl : ('a, 'a) eq
-
 Line 11, characters 18-58:
 11 |   module type T = S with type N.t = M.t with module N := N;;
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -248,7 +224,6 @@ module type S = sig
   module A : sig module M : sig type t val z : t -> M.t end end
 end with type M.t := float
 [%%expect {|
-
 module type S =
   sig
     module M : sig val x : float end
@@ -269,7 +244,6 @@ module type S = sig
   type b = M2.t
 end with type M1.a = int and type M2.a = int and type M1.t := int;;
 [%%expect {|
-
 module type S =
   sig
     module type S1 = sig type t type a val x : t end
@@ -287,7 +261,6 @@ module type S = sig
   module A = M
 end with type M.t := float
 [%%expect {|
-
 Lines 1-4, characters 16-26:
 1 | ................sig
 2 |   module M : sig type t end
@@ -305,7 +278,6 @@ module type S = sig
   type t = F(M).t
 end
 [%%expect {|
-
 module type S =
   sig
     module M : sig type t type u end
@@ -317,7 +289,6 @@ module type S =
 (* This particular substitution cannot be made to work *)
 module type S2 = S with type M.t := float
 [%%expect {|
-
 Line 1, characters 17-41:
 1 | module type S2 = S with type M.t := float
                      ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -334,7 +305,6 @@ Error: This `with' constraint on M.t makes the applicative functor
    we're removing, the typer accepts the removal. *)
 module type S2 = S with type M.u := float
 [%%expect {|
-
 module type S2 =
   sig
     module M : sig type t end
@@ -352,9 +322,7 @@ module type S3 = sig
   and M2 : sig type t end
 end with type M2.t := int
 [%%expect {|
-
 module Id : functor (X : sig type t end) -> sig type t = X.t end
-
 Lines 2-5, characters 17-25:
 2 | .................sig
 3 |   module rec M : sig type t = A of Id(M2).t end
@@ -381,9 +349,7 @@ module type S = sig
   type t = M.N.P.t
 end with module M.N := A
 [%%expect {|
-
 module A : sig module P : sig type t val x : int end end
-
 module type S = sig module M : sig end type t = A.P.t end
 |}]
 
@@ -400,7 +366,6 @@ module type S = sig
   module Alias = M
 end with module M.N := A
 [%%expect {|
-
 Lines 1-10, characters 16-24:
  1 | ................sig
  2 |   module M : sig

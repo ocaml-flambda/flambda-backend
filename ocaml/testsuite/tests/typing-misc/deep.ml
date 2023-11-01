@@ -31,7 +31,6 @@ end = struct
   let f x = x + List.length [0.0, Some true]
 end
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f x = x + List.length [0.0, Some true]
@@ -57,7 +56,6 @@ end = struct
   let f : ('c list * 'd option  -> int) = assert false
 end
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f : ('c list * 'd option  -> int) = assert false
@@ -82,7 +80,6 @@ end = struct
   type t = bool * float
 end
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = bool * float

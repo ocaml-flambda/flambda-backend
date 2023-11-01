@@ -22,7 +22,6 @@ Error: Layout any is used here, but the appropriate layouts extension is not ena
 
 type t_void  : void;;
 [%%expect{|
-
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
@@ -47,7 +46,6 @@ module type S = sig
 end;;
 
 [%%expect{|
-
 module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
 |}];;
 
@@ -58,7 +56,6 @@ module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
    annotations on parameters by default. *)
 type ('a : immediate) imm_id = 'a;;
 [%%expect{|
-
 Line 1, characters 11-20:
 1 | type ('a : immediate) imm_id = 'a;;
                ^^^^^^^^^
@@ -123,7 +120,6 @@ end = struct
   let x = f (assert false)
 end;;
 [%%expect{|
-
 Line 4, characters 13-22:
 4 |   type ('a : immediate) t = 'a
                  ^^^^^^^^^
@@ -143,7 +139,6 @@ module M11_1 = struct
     t.v # baz11
 end;;
 [%%expect{|
-
 Line 2, characters 13-17:
 2 |   type ('a : void) t = { x : int; v : 'a }
                  ^^^^
@@ -168,7 +163,6 @@ Error: Layout void is more experimental than allowed by -extension layouts.
 type t14 = foo14 list
 and foo14 = string;;
 [%%expect{|
-
 type t14 = foo14 list
 and foo14 = string
 |}];;
@@ -190,7 +184,6 @@ and foo14 = string
 
 type 'a t_void_16 : void;;
 [%%expect{|
-
 Line 1, characters 20-24:
 1 | type 'a t_void_16 : void;;
                         ^^^^
@@ -205,9 +198,7 @@ type 'a t17 = 'a list
 type s17 = { lbl : s17 t17 } [@@unboxed];;
 
 [%%expect{|
-
 type 'a t17 = 'a list
-
 type s17 = { lbl : s17 t17; } [@@unboxed]
 |}];;
 
@@ -223,11 +214,8 @@ let id18 (x : 'a t18) = x
 let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
-
 type 'a t18 = 'a
-
 val id18 : 'a t18 -> 'a t18 = <fun>
-
 val f18 : 'a -> 'a = <fun>
 |}];;
 
@@ -257,7 +245,6 @@ val f18 : 'a -> 'a = <fun>
 
 type t_void : void;;
 [%%expect{|
-
 Line 1, characters 14-18:
 1 | type t_void : void;;
                   ^^^^

@@ -39,7 +39,6 @@ module Positive_disambiguation = struct
     Node (map f left, (map [@tailcall]) f right)
 end
 [%%expect{|
-
 module Positive_disambiguation :
   sig val map : ('a -> 'b) -> 'a tree -> 'b tree end
 |}]
@@ -51,7 +50,6 @@ module Negative_disambiguation = struct
     Node ((map [@tailcall false]) f left, map f right)
 end
 [%%expect{|
-
 module Negative_disambiguation :
   sig val map : ('a -> 'b) -> 'a tree -> 'b tree end
 |}]
@@ -75,7 +73,6 @@ module Positive_and_negative_disambiguation = struct
         C ((map2 [@tailcall false]) f a, ((map2 [@tailcall]) f b, map2 f c))
 end
 [%%expect {|
-
 module Positive_and_negative_disambiguation :
   sig
     type 'a t = N | C of 'a t * ('a t * 'a t)
@@ -98,7 +95,6 @@ module Long_before_and_after = struct
                     = Node (Leaf 1, Leaf 2, Leaf 3, Leaf 4, Leaf 5))
 end
 [%%expect {|
-
 module Long_before_and_after :
   sig
     type 'a tree =
@@ -122,7 +118,6 @@ module Deep_nesting_nonambiguous = struct
                       = Node (Leaf 1, (Leaf 2, (Leaf 3, (Leaf 4, Leaf 5)))))
 end
 [%%expect {|
-
 module Deep_nesting_nonambiguous :
   sig
     type 'a tree =
@@ -145,7 +140,6 @@ module Deep_nesting_ambiguous = struct
                       = Node (Leaf 1, (Leaf 2, (Leaf 3, (Leaf 4, Leaf 5)))))
 end
 [%%expect {|
-
 Line 7, characters 10-71:
 7 |           Node (map f t1, (map f t2, (map f t3, (map f t4, map f t5))))
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -199,7 +193,6 @@ module Disjunctions_ambiguous = struct
         )
 end
 [%%expect {|
-
 Lines 13-20, characters 8-9:
 13 | ........Node (
 14 |           (if flip
@@ -248,7 +241,6 @@ module Disjunctions_disambiguated = struct
         )
 end
 [%%expect {|
-
 module Disjunctions_disambiguated :
   sig
     type t = Leaf of int | Node of t * t
@@ -272,7 +264,6 @@ module Disjunctions_ambiguous_again = struct
         )
 end
 [%%expect {|
-
 Lines 7-14, characters 8-9:
  7 | ........Node (
  8 |           (if flip

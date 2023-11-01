@@ -20,7 +20,6 @@ let x =
   let module M = struct module type t = sig end end in
   (module struct end: M.t)
 [%%expect {|
-
 Line 3, characters 2-26:
 3 |   (module struct end: M.t)
       ^^^^^^^^^^^^^^^^^^^^^^^^

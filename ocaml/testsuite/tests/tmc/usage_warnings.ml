@@ -46,7 +46,6 @@ let[@tail_mod_cons] rec flatten = function
         | x :: xs -> x :: append_flatten xs xss
       in append_flatten xs xss
 [%%expect {|
-
 val flatten : 'a list list -> 'a list = <fun>
 |}]
 
@@ -62,7 +61,6 @@ let[@tail_mod_cons] rec flatten = function
             x :: append_flatten xs xss
       in append_flatten xs xss
 [%%expect {|
-
 Line 10, characters 9-30:
 10 |       in append_flatten xs xss
               ^^^^^^^^^^^^^^^^^^^^^
@@ -109,7 +107,6 @@ let rec flatten = function
             x :: append_flatten xs xss
       in append_flatten xs xss
 [%%expect {|
-
 Line 13, characters 12-23:
 13 |             flatten xss
                  ^^^^^^^^^^^
@@ -163,7 +160,6 @@ module Tail_calls_to_non_specialized_functions = struct
             (filter_2 f xs)
 end
 [%%expect {|
-
 Lines 20-23, characters 10-27:
 20 | ..........list_id
 21 |             (* no [@tailcall false]: this should warn that
@@ -209,7 +205,6 @@ module All_annotations_correctly_used = struct
         C (map' a, (map' [@tailcall]) b)
 end
 [%%expect {|
-
 module All_annotations_correctly_used :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
@@ -251,7 +246,6 @@ module All_annotations_flipped = struct
              b)
 end
 [%%expect {|
-
 Line 16, characters 13-56:
 16 |         then (graft[@tailcall]) (* this should warn *) n
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

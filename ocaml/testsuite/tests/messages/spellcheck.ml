@@ -27,7 +27,6 @@ Hint: Did you mean protect?
 
 type 'a t = 'a aray
 [%%expect {|
-
 Line 1, characters 15-19:
 1 | type 'a t = 'a aray
                    ^^^^
@@ -37,7 +36,6 @@ Hint: Did you mean array?
 
 module _ = Stdlib.Aray
 [%%expect {|
-
 Line 1, characters 11-22:
 1 | module _ = Stdlib.Aray
                ^^^^^^^^^^^
@@ -47,7 +45,6 @@ Hint: Did you mean Array?
 
 let x = Same 42
 [%%expect {|
-
 Line 1, characters 8-12:
 1 | let x = Same 42
             ^^^^
@@ -57,7 +54,6 @@ Hint: Did you mean Some?
 
 let x : int option = Same 42
 [%%expect {|
-
 Line 1, characters 21-25:
 1 | let x : int option = Same 42
                          ^^^^
@@ -68,7 +64,6 @@ Hint: Did you mean Some?
 
 let x = { content = 42 }
 [%%expect {|
-
 Line 1, characters 10-17:
 1 | let x = { content = 42 }
               ^^^^^^^
@@ -78,7 +73,6 @@ Hint: Did you mean contents?
 
 let x : int ref = { content = 42 }
 [%%expect {|
-
 Line 1, characters 20-27:
 1 | let x : int ref = { content = 42 }
                         ^^^^^^^
@@ -90,9 +84,7 @@ Hint: Did you mean contents?
 class foobar = object end
 let _ = object inherit foobaz end
 [%%expect {|
-
 class foobar : object  end
-
 Line 2, characters 23-29:
 2 | let _ = object inherit foobaz end
                            ^^^^^^
@@ -103,9 +95,7 @@ Hint: Did you mean foobar?
 module type Foobar = sig end
 module Foo : Foobaz = struct end
 [%%expect {|
-
 module type Foobar = sig end
-
 Line 2, characters 13-19:
 2 | module Foo : Foobaz = struct end
                  ^^^^^^
@@ -116,9 +106,7 @@ Hint: Did you mean Foobar?
 class type foobar = object end
 let _ : #foobaz = object end
 [%%expect {|
-
 class type foobar = object  end
-
 Line 2, characters 9-15:
 2 | let _ : #foobaz = object end
              ^^^^^^
@@ -133,7 +121,6 @@ let _ =
     method update n = foobaz <- n
   end
 [%%expect {|
-
 Line 5, characters 22-33:
 5 |     method update n = foobaz <- n
                           ^^^^^^^^^^^
@@ -146,7 +133,6 @@ Hint: Did you mean foobar?
 
 let _ = function (foobar | foobaz) -> ()
 [%%expect {|
-
 Line 1, characters 17-34:
 1 | let _ = function (foobar | foobaz) -> ()
                      ^^^^^^^^^^^^^^^^^
@@ -157,9 +143,7 @@ Hint: Did you mean foobaz?
 type foo = { foobar : int }
 let _ = fun {foobaz} -> ()
 [%%expect {|
-
 type foo = { foobar : int; }
-
 Line 2, characters 13-19:
 2 | let _ = fun {foobaz} -> ()
                  ^^^^^^
@@ -168,7 +152,6 @@ Hint: Did you mean foobar?
 |}];;
 let _ = { foobaz = 42 }
 [%%expect {|
-
 Line 1, characters 10-16:
 1 | let _ = { foobaz = 42 }
               ^^^^^^
@@ -177,7 +160,6 @@ Hint: Did you mean foobar?
 |}];;
 let _ = fun x -> x.foobaz
 [%%expect {|
-
 Line 1, characters 19-25:
 1 | let _ = fun x -> x.foobaz
                        ^^^^^^
@@ -188,9 +170,7 @@ Hint: Did you mean foobar?
 type bar = Foobar of int
 let _ = Foobaz 42
 [%%expect {|
-
 type bar = Foobar of int
-
 Line 2, characters 8-14:
 2 | let _ = Foobaz 42
             ^^^^^^
@@ -201,9 +181,7 @@ Hint: Did you mean Foobar?
 type baz = K of { foobar : int }
 let _ = K { foobaz = 42 }
 [%%expect {|
-
 type baz = K of { foobar : int; }
-
 Line 2, characters 12-18:
 2 | let _ = K { foobaz = 42 }
                 ^^^^^^
@@ -216,7 +194,6 @@ let _ = object (self)
   method other = self#foobaz
 end
 [%%expect {|
-
 Line 3, characters 17-21:
 3 |   method other = self#foobaz
                      ^^^^
@@ -230,7 +207,6 @@ let _ = object
   method myself = {< foobaz = 42 >}
 end
 [%%expect {|
-
 Line 3, characters 18-35:
 3 |   method myself = {< foobaz = 42 >}
                       ^^^^^^^^^^^^^^^^^

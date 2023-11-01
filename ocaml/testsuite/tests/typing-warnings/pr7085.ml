@@ -43,7 +43,6 @@ module Make2 (M : T) = struct
   let g : t -> int = function _ -> .
 end;;
 [%%expect {|
-
 Line 3, characters 30-31:
 3 |   let g : t -> int = function _ -> .
                                   ^

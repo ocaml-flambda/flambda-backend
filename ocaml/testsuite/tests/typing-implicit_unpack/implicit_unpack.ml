@@ -60,9 +60,7 @@ Error: The type of this packed module contains variables:
 let f (type a) (module M : S with type t = a) = M.x;;
 f (module struct type t = int let x = 1 end);;
 [%%expect{|
-
 val f : (module S with type t = 'a) -> 'a = <fun>
-
 - : int = 1
 |}];;
 
@@ -70,19 +68,16 @@ val f : (module S with type t = 'a) -> 'a = <fun>
 
 type 'a s = {s: (module S with type t = 'a)};;
 [%%expect{|
-
 type 'a s = { s : (module S with type t = 'a); }
 |}];;
 
 {s=(module struct type t = int let x = 1 end)};;
 [%%expect{|
-
 - : int s = {s = <module>}
 |}];;
 
 let f {s=(module M)} = M.x;; (* Error *)
 [%%expect{|
-
 Line 1, characters 9-19:
 1 | let f {s=(module M)} = M.x;; (* Error *)
              ^^^^^^^^^^
@@ -92,7 +87,6 @@ Error: The type of this packed module contains variables:
 
 let f (type a) ({s=(module M)} : a s) = M.x;;
 [%%expect{|
-
 val f : 'a s -> 'a = <fun>
 |}];;
 
@@ -100,11 +94,8 @@ type s = {s: (module S with type t = int)};;
 let f {s=(module M)} = M.x;;
 let f {s=(module M)} {s=(module N)} = M.x + N.x;;
 [%%expect{|
-
 type s = { s : (module S with type t = int); }
-
 val f : s -> int = <fun>
-
 val f : s -> s -> int = <fun>
 |}];;
 
@@ -112,19 +103,16 @@ val f : s -> s -> int = <fun>
 
 module type S = sig val x : int end;;
 [%%expect{|
-
 module type S = sig val x : int end
 |}];;
 
 let f (module M : S) y (module N : S) = M.x + y + N.x;;
 [%%expect{|
-
 val f : (module S) -> int -> (module S) -> int = <fun>
 |}];;
 
 let m = (module struct let x = 3 end);; (* Error *)
 [%%expect{|
-
 Line 1, characters 8-37:
 1 | let m = (module struct let x = 3 end);; (* Error *)
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -133,18 +121,15 @@ Error: The signature for this packaged module couldn't be inferred.
 
 let m = (module struct let x = 3 end : S);;
 [%%expect{|
-
 val m : (module S) = <module>
 |}];;
 
 f m 1 m;;
 [%%expect{|
-
 - : int = 7
 |}];;
 f m 1 (module struct let x = 2 end);;
 [%%expect{|
-
 - : int = 6
 |}];;
 
@@ -152,13 +137,11 @@ f m 1 (module struct let x = 2 end);;
 
 let (module M) = m in M.x;;
 [%%expect{|
-
 - : int = 3
 |}];;
 
 let (module M) = m;; (* Error: only allowed in [let .. in] *)
 [%%expect{|
-
 Line 1, characters 4-14:
 1 | let (module M) = m;; (* Error: only allowed in [let .. in] *)
         ^^^^^^^^^^
@@ -167,7 +150,6 @@ Error: Modules are not allowed in this pattern.
 
 class c = let (module M) = m in object end;; (* Error again *)
 [%%expect{|
-
 Line 1, characters 14-24:
 1 | class c = let (module M) = m in object end;; (* Error again *)
                   ^^^^^^^^^^
@@ -176,7 +158,6 @@ Error: Modules are not allowed in this pattern.
 
 module M = (val m);;
 [%%expect{|
-
 module M : S
 |}];;
 
@@ -184,7 +165,6 @@ module M : S
 
 module type S' = sig val f : int -> int end;;
 [%%expect{|
-
 module type S' = sig val f : int -> int end
 |}];;
 
@@ -193,7 +173,6 @@ let rec (module M : S') =
   (module struct let f n = if n <= 0 then 1 else n * M.f (n-1) end : S')
 in M.f 3;;
 [%%expect{|
-
 - : int = 6
 |}];;
 
@@ -205,9 +184,7 @@ let f (l : (module S with type t = int and type u = bool) list) =
   (l :> (module S with type u = bool) list)
 ;;
 [%%expect{|
-
 module type S = sig type t type u val x : t * u end
-
 val f :
   (module S with type t = int and type u = bool) list ->
   (module S with type u = bool) list = <fun>
@@ -268,7 +245,6 @@ let rec to_string: 'a. 'a Typ.typ -> 'a -> string =
         Printf.sprintf "(%s,%s)" (to_string P.t1 x1) (to_string P.t2 x2)
 ;;
 [%%expect{|
-
 module TypEq :
   sig
     type ('a, 'b) t
@@ -276,7 +252,6 @@ module TypEq :
     val refl : ('a, 'a) t
     val sym : ('a, 'b) t -> ('b, 'a) t
   end
-
 module rec Typ :
   sig
     module type PAIR =
@@ -293,13 +268,9 @@ module rec Typ :
       | String of ('a, string) TypEq.t
       | Pair of (module PAIR with type t = 'a)
   end
-
 val int : int Typ.typ = Typ.Int <abstr>
-
 val str : string Typ.typ = Typ.String <abstr>
-
 val pair : 's1 Typ.typ -> 's2 Typ.typ -> ('s1 * 's2) Typ.typ = <fun>
-
 val to_string : 'a Typ.typ -> 'a -> string = <fun>
 |}];;
 
@@ -329,7 +300,6 @@ module SSMap = struct
 end
 ;;
 [%%expect{|
-
 module type MapT =
   sig
     type key
@@ -383,12 +353,9 @@ module type MapT =
     val of_t : data t -> map
     val to_t : map -> data t
   end
-
 type ('k, 'd, 'm) map =
     (module MapT with type data = 'd and type key = 'k and type map = 'm)
-
 val add : ('k, 'd, 'm) map -> 'k -> 'd -> 'm -> 'm = <fun>
-
 module SSMap :
   sig
     type key = String.t
@@ -449,7 +416,6 @@ let ssmap =
    MapT with type key = string and type data = string and type map = SSMap.map)
 ;;
 [%%expect{|
-
 val ssmap :
   (module MapT with type data = string and type key = string and type map =
    SSMap.map) =
@@ -461,7 +427,6 @@ let ssmap =
    MapT with type key = string and type data = string and type map = SSMap.map)
 ;;
 [%%expect{|
-
 val ssmap :
   (module MapT with type data = string and type key = string and type map =
    SSMap.map) =
@@ -474,7 +439,6 @@ let ssmap =
    MapT with type key = string and type data = string and type map = SSMap.map))
 ;;
 [%%expect{|
-
 val ssmap :
   (module MapT with type data = string and type key = string and type map =
    SSMap.map) =
@@ -485,7 +449,6 @@ let ssmap =
   (module SSMap: MapT with type key = _ and type data = _ and type map = _)
 ;;
 [%%expect{|
-
 val ssmap :
   (module MapT with type data = SSMap.data and type key = SSMap.key and type map =
    SSMap.map) =
@@ -494,13 +457,11 @@ val ssmap :
 
 let ssmap : (_,_,_) map = (module SSMap);;
 [%%expect{|
-
 val ssmap : (SSMap.key, SSMap.data, SSMap.map) map = <module>
 |}];;
 
 add ssmap;;
 [%%expect{|
-
 - : SSMap.key -> SSMap.data -> SSMap.map -> SSMap.map = <fun>
 |}];;
 
@@ -512,9 +473,7 @@ let x =
   (module struct type elt = A type t = elt list end : S with type t = _ list)
 ;;
 [%%expect{|
-
 module type S = sig type t end
-
 Line 4, characters 10-51:
 4 |   (module struct type elt = A type t = elt list end : S with type t = _ list)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -524,19 +483,16 @@ Error: The type t in this module cannot be exported.
 
 type 'a s = (module S with type t = 'a);;
 [%%expect{|
-
 type 'a s = (module S with type t = 'a)
 |}];;
 
 let x : 'a s = (module struct type t = int end);;
 [%%expect{|
-
 val x : int s = <module>
 |}];;
 
 let x : 'a s = (module struct type t = A end);;
 [%%expect{|
-
 Line 1, characters 23-44:
 1 | let x : 'a s = (module struct type t = A end);;
                            ^^^^^^^^^^^^^^^^^^^^^
@@ -546,7 +502,6 @@ Error: The type t in this module cannot be exported.
 
 let x : 'a s = (module struct end);;
 [%%expect{|
-
 Line 1, characters 23-33:
 1 | let x : 'a s = (module struct end);;
                            ^^^^^^^^^^

@@ -60,7 +60,6 @@ Error: In the GADT constructor
 |}]
 type 'a u = 'b constraint 'a = 'b N.t
 [%%expect{|
-
 Line 1, characters 0-37:
 1 | type 'a u = 'b constraint 'a = 'b N.t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -72,7 +71,6 @@ Error: In the definition
 (* Of course, the internal type should be injective in this parameter *)
 module M : sig type +!'a t end = struct type 'a t = int end (* KO *)
 [%%expect{|
-
 Line 1, characters 33-59:
 1 | module M : sig type +!'a t end = struct type 'a t = int end (* KO *)
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -92,9 +90,7 @@ Error: Signature mismatch:
 type !'a t = 'a list
 type !'a u = int
 [%%expect{|
-
 type 'a t = 'a list
-
 Line 2, characters 0-16:
 2 | type !'a u = int
     ^^^^^^^^^^^^^^^^
@@ -105,9 +101,7 @@ Error: In this definition, expected parameter variances are not satisfied.
 type !'a t = private 'a list
 type !'a t = private int
 [%%expect{|
-
 type 'a t = private 'a list
-
 Line 2, characters 0-24:
 2 | type !'a t = private int
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -121,18 +115,14 @@ module M : sig type !'a t = private < m : int ; .. > end =
   struct type 'a t = < m : int ; n : 'a > end
 type 'a u = M : 'a -> 'a M.t u
 [%%expect{|
-
 module M : sig type !'a t = private < m : int; .. > end
-
 type 'a u = M : 'a -> 'a M.t u
 |}]
 module M : sig type 'a t = private < m : int ; .. > end =
   struct type 'a t = < m : int ; n : 'a > end
 type 'a u = M : 'a -> 'a M.t u
 [%%expect{|
-
 module M : sig type 'a t = private < m : int; .. > end
-
 Line 3, characters 0-30:
 3 | type 'a u = M : 'a -> 'a M.t u
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -143,7 +133,6 @@ Error: In the GADT constructor
 module M : sig type !'a t = private < m : int ; .. > end =
   struct type 'a t = < m : int > end
 [%%expect{|
-
 Line 2, characters 2-36:
 2 |   struct type 'a t = < m : int > end
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -163,16 +152,13 @@ Error: Signature mismatch:
 type 'a t = 'b constraint 'a = <b:'b>
 type !'b u = <b:'b> t
 [%%expect{|
-
 type 'a t = 'b constraint 'a = < b : 'b >
-
 type 'b u = < b : 'b > t
 |}]
 
 (* Ignore injectivity for nominal types *)
 type !_ t = X
 [%%expect{|
-
 type _ t = X
 |}]
 
@@ -180,9 +166,7 @@ type _ t = X
 type (_,_) eq = Refl : ('a,'a) eq
 type !'a t = private 'b constraint 'a = < b : 'b > (* OK *)
 [%%expect{|
-
 type (_, _) eq = Refl : ('a, 'a) eq
-
 type 'a t = private 'b constraint 'a = < b : 'b >
 |}]
 
@@ -192,7 +176,6 @@ module M : sig type !'a t constraint 'a = < b : 'b; c : 'c > end =
 let inj_t : type a b. (<b:_; c:a> M.t, <b:_; c:b> M.t) eq -> (a, b) eq =
   fun Refl -> Refl
 [%%expect{|
-
 Line 1, characters 0-58:
 1 | type !'a t = private 'b constraint 'a = < b : 'b; c : 'c > (* KO *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -209,7 +192,6 @@ end
 module M = F(struct type 'a t = 'a end)
 let M.G (x : bool) = M.G 3
 [%%expect{|
-
 Line 3, characters 2-29:
 3 |   type _ x = G : 'a -> 'a u x
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -222,16 +204,13 @@ Error: In the GADT constructor
 type 'a t = unit
 type !'a u = int constraint 'a = 'b t
 [%%expect{|
-
 type 'a t = unit
-
 type 'a u = int constraint 'a = 'b t
 |}]
 module F(X : sig type 'a t end) = struct
   type !'a u = 'b constraint 'a = <b : 'b> constraint 'b = _ X.t
 end
 [%%expect{|
-
 module F :
   functor (X : sig type 'a t end) ->
     sig type 'a u = 'b X.t constraint 'a = < b : 'b X.t > end
@@ -241,7 +220,6 @@ module F(X : sig type 'a t end) = struct
   type !'a u = 'b X.t constraint 'a = <b : 'b X.t>
 end
 [%%expect{|
-
 Line 2, characters 2-50:
 2 |   type !'a u = 'b X.t constraint 'a = <b : 'b X.t>
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -253,12 +231,10 @@ module F(X : sig type 'a t end) = struct
   type !'a u = 'b constraint 'a = <b : _ X.t as 'b>
 end
 [%%expect{|
-
 module F :
   functor (X : sig type 'a t end) ->
     sig type 'a u = 'b X.t constraint 'a = < b : 'b X.t > end
 |}, Principal{|
-
 Line 2, characters 2-51:
 2 |   type !'a u = 'b constraint 'a = <b : _ X.t as 'b>
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -317,33 +293,23 @@ let d = Dyn (int_vec_vec, v)
 
 let Some v' = undyn int_vec_vec d
 [%%expect{|
-
 type (_, _) eq = Refl : ('a, 'a) eq
-
 module Vec :
   sig
     type +!'a t
     val make : int -> (int -> 'a) -> 'a t
     val get : 'a t -> int -> 'a
   end
-
 type _ ty =
     Int : int ty
   | Fun : 'a ty * 'b ty -> ('a -> 'b) ty
   | Vec : 'a ty -> 'a Vec.t ty
-
 type dyn = Dyn : 'a ty * 'a -> dyn
-
 val eq_ty : 'a ty -> 'b ty -> ('a, 'b) eq option = <fun>
-
 val undyn : 'a ty -> dyn -> 'a option = <fun>
-
 val v : int Vec.t Vec.t = <abstr>
-
 val int_vec_vec : int Vec.t Vec.t ty = Vec (Vec Int)
-
 val d : dyn = Dyn (Vec (Vec Int), <poly>)
-
 Line 47, characters 4-11:
 47 | let Some v' = undyn int_vec_vec d
          ^^^^^^^
@@ -373,13 +339,9 @@ let eq_int_any : type a.  unit -> (int, a) eq = fun () ->
   let vec_ty : a Vec.t ty = coe Vec.eqt (Vec Int) in
   let Vec Int = vec_ty in Refl
 [%%expect{|
-
 module Vec : sig type +!'a t val eqt : ('a t, 'b t) eq end
-
 type _ ty = Int : int ty | Vec : 'a ty -> 'a Vec.t ty
-
 val coe : ('a, 'b) eq -> 'a ty -> 'b ty = <fun>
-
 Line 17, characters 2-30:
 17 |   let Vec Int = vec_ty in Refl
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -394,29 +356,23 @@ val eq_int_any : unit -> (int, 'a) eq = <fun>
 type 'a t = 'b constraint 'a = <b : 'b>
 class type ['a] ct = object method m : 'b constraint 'a = < b : 'b > end
 [%%expect{|
-
 type 'a t = 'b constraint 'a = < b : 'b >
-
 class type ['a] ct = object constraint 'a = < b : 'b > method m : 'b end
 |}]
 
 type _ u = M : 'a -> 'a t u (* OK *)
 [%%expect{|
-
 type _ u = M : < b : 'a > -> < b : 'a > t u
 |}]
 type _ v = M : 'a -> 'a ct v (* OK *)
 [%%expect{|
-
 type _ v = M : < b : 'a > -> < b : 'a > ct v
 |}]
 
 type 'a t = 'b constraint 'a = <b : 'b; c : 'c>
 type _ u = M : 'a -> 'a t u (* KO *)
 [%%expect{|
-
 type 'a t = 'b constraint 'a = < b : 'b; c : 'c >
-
 Line 2, characters 0-27:
 2 | type _ u = M : 'a -> 'a t u (* KO *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -438,13 +394,10 @@ struct let uninj : type a b. (a X.t, b X.t) eql -> (a, b) eql = fun Refl -> Refl
 
 let coerce : type a b. (a, b) eql -> a -> b = fun Refl x -> x;;
 [%%expect{|
-
 type (_, _) eql = Refl : ('a, 'a) eql
-
 module Uninj :
   functor (X : sig type !'a t end) ->
     sig val uninj : ('a X.t, 'b X.t) eql -> ('a, 'b) eql end
-
 val coerce : ('a, 'b) eql -> 'a -> 'b = <fun>
 |}]
 
@@ -457,7 +410,6 @@ val coerce : ('a, 'b) eql -> 'a -> 'b = <fun>
 module rec R : sig type !'a t = [ `A of 'a S.t] end = R
        and S : sig type !'a t = 'a R.t end = S ;;
 [%%expect{|
-
 Line 1, characters 19-47:
 1 | module rec R : sig type !'a t = [ `A of 'a S.t] end = R
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -473,7 +425,6 @@ let x_eq_y : (int R.t, string R.t) eql = Refl
 let boom = let module U = Uninj(R) in print_endline (coerce (U.uninj x_eq_y) 0)
 ;;
 [%%expect{|
-
 Line 1, characters 18-21:
 1 | let x_eq_y : (int R.t, string R.t) eql = Refl
                       ^^^
@@ -489,6 +440,5 @@ end =
   A
 ;;
 [%%expect{|
-
 module rec A : sig type _ t = Foo : 'a -> 'a A.s t type 'a s = T of 'a end
 |}]

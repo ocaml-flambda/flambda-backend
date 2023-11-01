@@ -43,7 +43,6 @@ Error: The type constraints are not consistent.
 module type S1'' = S1 with type s = t_void;;
 
 [%%expect{|
-
 Line 1, characters 27-42:
 1 | module type S1'' = S1 with type s = t_void;;
                                ^^^^^^^^^^^^^^^
@@ -60,11 +59,8 @@ module M1_2' : S1_2' = struct
   type ('a : immediate) t = 'a list
 end;;
 [%%expect{|
-
 module type S1_2 = sig type ('a : immediate) t end
-
 module type S1_2' = sig type ('a : immediate) t = 'a list end
-
 module M1_2' : S1_2'
 |}]
 
@@ -76,7 +72,6 @@ module M1_2'': S1_2' = struct
   type 'a t = 'a list
 end;;
 [%%expect{|
-
 Lines 1-3, characters 23-3:
 1 | .......................struct
 2 |   type 'a t = 'a list
@@ -110,15 +105,10 @@ module F2 (X : T2) = struct
   let f () : 'a X.t = `A R
 end;;
 [%%expect{|
-
 module type S2 = sig type ('a : immediate) t end
-
 type ('a : immediate) r2 = R
-
 type (!'a : immediate) s2 = private [> `A of 'a r2 ]
-
 module type T2 = sig type ('a : immediate) t = 'a s2 end
-
 module F2 :
   functor (X : T2) -> sig val f : ('a : immediate). unit -> 'a X.t end
 |}]
@@ -130,11 +120,8 @@ module F2' (X : T2') = struct
   let f () : 'a X.t = `B "bad"
 end
 [%%expect{|
-
 type (!'a : immediate) s2' = private [> `B of 'a ]
-
 module type T2' = sig type ('a : immediate) t = 'a s2' end
-
 Line 5, characters 25-30:
 5 |   let f () : 'a X.t = `B "bad"
                              ^^^^^
@@ -157,7 +144,6 @@ end = struct
   type t = unit
 end;;
 [%%expect {|
-
 module rec Foo3 : sig val create : Bar3.t -> unit end
 and Bar3 : sig type t end
 |}];;
@@ -174,7 +160,6 @@ end = struct
   type t : void
 end;;
 [%%expect {|
-
 Line 4, characters 13-19:
 4 |   let create _ = ()
                  ^^^^^^
@@ -194,7 +179,6 @@ end = struct
   type t = A
 end;;
 [%%expect {|
-
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -213,7 +197,6 @@ end = struct
   type t = A
 end;;
 [%%expect {|
-
 module rec Foo3 : sig type t = Bar3.t end
 and Bar3 : sig type t : immediate end
 |}];;
@@ -230,7 +213,6 @@ end = struct
   type 'a t
 end;;
 [%%expect {|
-
 Line 2, characters 26-28:
 2 |   type 'a t = 'a Bar3.t * 'a list
                               ^^
@@ -258,9 +240,7 @@ end = struct
   type s = Foo3.t t
 end;;
 [%%expect {|
-
 type t3 : void
-
 Line 12, characters 11-17:
 12 |   type s = Foo3.t t
                 ^^^^^^
@@ -284,7 +264,6 @@ end = struct
   type s = Foo3.t t
 end;;
 [%%expect {|
-
 module rec Foo3 : sig type t = t3 end
 and Bar3 : sig type ('a : void) t type s = Foo3.t t end
 |}];;
@@ -303,21 +282,15 @@ type ('a : void) t4_void
 
 type t4 = M4.s t4_val;;
 [%%expect {|
-
 module F4 : functor (X : sig type t end) -> sig type s = Foo of X.t end
-
 module M4 : sig type s end
-
 type 'a t4_val
-
 type ('a : void) t4_void
-
 type t4 = M4.s t4_val
 |}]
 
 type t4' = M4.s t4_void;;
 [%%expect {|
-
 Line 1, characters 11-15:
 1 | type t4' = M4.s t4_void;;
                ^^^^
@@ -335,21 +308,16 @@ type ('a : immediate) t4_imm
 
 type t4 = M4'.s t4_imm;;
 [%%expect{|
-
 module F4' :
   functor (X : sig type t : immediate end) ->
     sig type s : immediate = Foo of X.t [@@unboxed] end
-
 module M4' : sig type s : immediate end
-
 type ('a : immediate) t4_imm
-
 type t4 = M4'.s t4_imm
 |}];;
 
 type t4 = M4'.s t4_void;;
 [%%expect{|
-
 Line 1, characters 10-15:
 1 | type t4 = M4'.s t4_void;;
               ^^^^^
@@ -374,16 +342,11 @@ let x3 = M3_1.f 42
 
 let x3' = M3_1.f "test";;
 [%%expect{|
-
 module type S3_1 =
   sig type ('a : immediate) t val f : ('a : immediate). 'a -> 'a t end
-
 module type S3_1' = sig val f : ('a : immediate). 'a -> 'a list end
-
 module M3_1 : S3_1'
-
 val x3 : int list = [42]
-
 Line 14, characters 17-23:
 14 | let x3' = M3_1.f "test";;
                       ^^^^^^
@@ -398,9 +361,7 @@ end
 
 module type S3_2' = S3_2 with type t := string;;
 [%%expect{|
-
 module type S3_2 = sig type t : immediate end
-
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
@@ -417,9 +378,7 @@ module type S6_2 = sig
   val m : (module S6_1 with type t = int)
 end;;
 [%%expect{|
-
 module type S6_1 = sig type t : void end
-
 Line 6, characters 10-41:
 6 |   val m : (module S6_1 with type t = int)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -440,9 +399,7 @@ module type S6_4 = sig
   val m : (module S6_3 with type t = t_void)
 end;;
 [%%expect{|
-
 module type S6_3 = sig type t : value end
-
 Line 6, characters 33-34:
 6 |   val m : (module S6_3 with type t = t_void)
                                      ^
@@ -458,9 +415,7 @@ module type S6_6 = sig
   val m : (module S6_5 with type t = string)
 end
 [%%expect{|
-
 module type S6_5 = sig type t : immediate end
-
 Line 6, characters 10-44:
 6 |   val m : (module S6_5 with type t = string)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -478,7 +433,6 @@ module type S6_6' = sig
   val m : (module S6_5 with type t = s)
 end
 [%%expect{|
-
 Line 3, characters 10-39:
 3 |   val m : (module S6_5 with type t = s)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -497,7 +451,6 @@ module type S6_6'' = sig
   val m : (module S6_5 with type t = int)
 end;;
 [%%expect{|
-
 Line 3, characters 10-41:
 3 |   val m : (module S6_5 with type t = int)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -516,7 +469,6 @@ module F (_ : sig end) = struct
   assert false
 end;;
 [%%expect {|
-
 module F : sig end -> sig end
 |}];;
 
@@ -530,7 +482,6 @@ module M = struct
 end
 
 [%%expect{|
-
 Line 1, characters 28-33:
 1 | module type S = sig val x : t_any end
                                 ^^^^^

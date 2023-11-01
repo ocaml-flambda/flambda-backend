@@ -70,7 +70,6 @@ let sequence =
   let t = update s in
   t
 [%%expect{|
-
 val sequence : box = {x = 23}
 |}]
 
@@ -80,7 +79,6 @@ let sequence =
   let t = update r in
   t
 [%%expect{|
-
 Line 4, characters 17-18:
 4 |   let t = update r in
                      ^
@@ -96,7 +94,6 @@ let children_unique (unique_ xs : float list) =
   | [] -> (0., [])
   | x :: xx -> unique_ (x, xx)
 [%%expect{|
-
 val children_unique : unique_ float list -> float * float list = <fun>
 |}]
 
@@ -105,7 +102,6 @@ let borrow_match (unique_ fs : 'a list) =
   | [] -> []
   | x :: xs as gs -> unique_ gs
 [%%expect{|
-
 val borrow_match : unique_ 'a list -> 'a list = <fun>
 |}]
 
@@ -114,7 +110,6 @@ let borrow_match (unique_ fs : 'a list) =
     | [] -> []
     | x :: xs -> unique_ fs
 [%%expect{|
-
 val borrow_match : unique_ 'a list -> 'a list = <fun>
 |}]
 
@@ -123,7 +118,6 @@ let dup_child (unique_ fs : 'a list) =
   | [] -> ([], [])
   | x :: xs as gs -> (unique_ gs), xs
 [%%expect{|
-
 Line 4, characters 35-37:
 4 |   | x :: xs as gs -> (unique_ gs), xs
                                        ^^
@@ -140,7 +134,6 @@ let dup_child (unique_ fs : 'a list) =
   | [] -> ([], [])
   | x :: xs as gs -> gs, unique_ xs
 [%%expect{|
-
 Line 4, characters 25-35:
 4 |   | x :: xs as gs -> gs, unique_ xs
                              ^^^^^^^^^^
@@ -156,7 +149,6 @@ let dup_child (unique_ fs : 'a list) =
   | [] -> ([], [])
   | x :: xs as gs -> (unique_ xs), gs
 [%%expect{|
-
 Line 4, characters 35-37:
 4 |   | x :: xs as gs -> (unique_ xs), gs
                                        ^^
@@ -172,7 +164,6 @@ let dup_child (unique_ fs : 'a list) =
   | [] -> ([], [])
   | x :: xs as gs -> xs, unique_ gs
 [%%expect{|
-
 Line 4, characters 25-35:
 4 |   | x :: xs as gs -> xs, unique_ gs
                              ^^^^^^^^^^
@@ -191,7 +182,6 @@ let or_patterns1 : unique_ float list -> float list -> float =
   | z :: _, _ | _, z :: _ -> unique_ z
   | _, _ -> 42.0
 [%%expect{|
-
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
                                          ^
@@ -203,7 +193,6 @@ let or_patterns2 : float list -> unique_ float list -> float =
   | z :: _, _ | _, z :: _ -> unique_ z
   | _, _ -> 42.0
 [%%expect{|
-
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
                                          ^
@@ -215,7 +204,6 @@ let or_patterns3 p =
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
 [%%expect{|
-
 Line 4, characters 65-66:
 4 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
                                                                      ^
@@ -231,7 +219,6 @@ let or_patterns4 p =
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id x in unique_id y
 [%%expect{|
-
 val or_patterns4 : bool -> int = <fun>
 |}]
 
@@ -240,7 +227,6 @@ let or_patterns5 p =
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
 [%%expect{|
-
 Line 4, characters 65-66:
 4 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
                                                                      ^
@@ -261,7 +247,6 @@ let mark_top_shared =
       unique_ xx
   | [] -> []
 [%%expect{|
-
 Line 6, characters 6-16:
 6 |       unique_ xx
           ^^^^^^^^^^
@@ -280,7 +265,6 @@ let mark_top_shared =
   | x :: xx -> unique_ xx
   | [] -> []
 [%%expect{|
-
 Line 5, characters 4-11:
 5 |   | x :: xx -> unique_ xx
         ^^^^^^^
@@ -295,7 +279,6 @@ let mark_shared_in_one_branch b x =
   if b then unique_id (x, 3.0)
        else (x, x)
 [%%expect{|
-
 val mark_shared_in_one_branch : bool -> unique_ float -> float * float =
   <fun>
 |}]
@@ -304,7 +287,6 @@ let mark_shared_in_one_branch b x =
   if b then (x, x)
        else unique_id (x, 3.0)
 [%%expect{|
-
 val mark_shared_in_one_branch : bool -> unique_ float -> float * float =
   <fun>
 |}]
@@ -313,7 +295,6 @@ let expr_tuple_match f x y =
   match f x, y with
   | (a, b), c -> unique_ (a, c)
 [%%expect{|
-
 val expr_tuple_match : ('a -> unique_ 'b * 'c) -> 'a -> unique_ 'd -> 'b * 'd =
   <fun>
 |}]
@@ -322,7 +303,6 @@ let expr_tuple_match f x y =
   match f x, y with
   | (a, b) as t, c -> let d = unique_id t in unique_ (c, d)
 [%%expect{|
-
 val expr_tuple_match :
   ('a -> unique_ 'b * 'c) -> 'a -> unique_ 'd -> 'd * ('b * 'c) = <fun>
 |}]
@@ -331,7 +311,6 @@ let expr_tuple_match f x y =
   match f x, y with
   | (a, b) as t, c -> let d = unique_id t in unique_ (a, d)
 [%%expect{|
-
 Line 3, characters 54-55:
 3 |   | (a, b) as t, c -> let d = unique_id t in unique_ (a, d)
                                                           ^
@@ -347,7 +326,6 @@ let tuple_parent_marked a b =
   match (a, b) with
   | (_, b) as _t -> shared_id b
 [%%expect{|
-
 val tuple_parent_marked : 'a -> 'b -> 'b = <fun>
 |}]
 
@@ -360,7 +338,6 @@ let tuple_parent_marked a b =
   | (true, b') -> unique_id b'
   | (false, b') as _t -> shared_id b'
 [%%expect{|
-
 Line 3, characters 28-30:
 3 |   | (true, b') -> unique_id b'
                                 ^^
@@ -376,7 +353,6 @@ let tuple_parent_marked a b =
   | (false, b) as _t -> shared_id b
   | (true, b) -> unique_id b
 [%%expect{|
-
 Line 4, characters 27-28:
 4 |   | (true, b) -> unique_id b
                                ^
@@ -390,13 +366,11 @@ Line 2, characters 12-13:
 let unique_match_on a b =
   let unique_ t = (a, b) in t
 [%%expect{|
-
 val unique_match_on : unique_ 'a -> unique_ 'b -> 'a * 'b = <fun>
 |}]
 
 type ('a, 'b) record = { foo : 'a; bar : 'b }
 [%%expect{|
-
 type ('a, 'b) record = { foo : 'a; bar : 'b; }
 |}]
 
@@ -404,7 +378,6 @@ let match_function : unique_ 'a * 'b -> 'a * ('a * 'b) =
   function
   | (a, b) as t -> unique_ (a, t)
 [%%expect{|
-
 Line 3, characters 31-32:
 3 |   | (a, b) as t -> unique_ (a, t)
                                    ^
@@ -420,7 +393,6 @@ let tuple_parent_marked a b =
   match (a, b) with
   | ((_, a), b) as t -> unique_ (a, t)
 [%%expect{|
-
 Line 3, characters 36-37:
 3 |   | ((_, a), b) as t -> unique_ (a, t)
                                         ^
@@ -437,7 +409,6 @@ let or_patterns6 flag f x y =
   match flag, f x, y with
   | true, a, (_, b) | false, b, (_, a) -> (unique_id a, unique_id b)
 [%%expect{|
-
 Line 3, characters 66-67:
 3 |   | true, a, (_, b) | false, b, (_, a) -> (unique_id a, unique_id b)
                                                                       ^
@@ -451,7 +422,6 @@ Line 3, characters 53-54:
 
 type point = { dim : int; x : float; y : float; z : float }
 [%%expect{|
-
 type point = { dim : int; x : float; y : float; z : float; }
 |}]
 
@@ -460,7 +430,6 @@ let record_mode_vars (p : point) =
   let y = (p.y, p.y) in
   (x, y, unique_ p.z)
 [%%expect{|
-
 val record_mode_vars : unique_ point -> float * (float * float) * float =
   <fun>
 |}]
@@ -470,7 +439,6 @@ let record_mode_vars (p : point) =
   let y = (p.x, p.y) in
   (x, y, unique_ p.z)
 [%%expect{|
-
 Line 3, characters 11-14:
 3 |   let y = (p.x, p.y) in
                ^^^
@@ -486,7 +454,6 @@ let record_mode_vars (p : point) =
   let x = unique_id p.x in
   (x, y, unique_ p.z)
 [%%expect{|
-
 Line 3, characters 20-23:
 3 |   let x = unique_id p.x in
                         ^^^
@@ -505,7 +472,6 @@ let foo () =
    in
   unique_id r
 [%%expect{|
-
 Line 6, characters 12-13:
 6 |   unique_id r
                 ^
@@ -525,7 +491,6 @@ let foo () =
   ;
   unique_id r
 [%%expect{|
-
 val foo : unit -> point = <fun>
 |}]
 
@@ -534,7 +499,6 @@ let foo () =
   let _l = lazy (r.z) in
   unique_id r
 [%%expect{|
-
 Line 4, characters 12-13:
 4 |   unique_id r
                 ^
@@ -560,9 +524,7 @@ let foo () =
   ignore (unique_id x);
   x.a <- "olleh"
 [%%expect{|
-
 type mfoo = { mutable a : string; b : string; }
-
 Line 12, characters 2-3:
 12 |   x.a <- "olleh"
        ^
@@ -578,7 +540,6 @@ let foo () =
   x.a <- "olleh";
   ignore (unique_id x)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -590,7 +551,6 @@ let foo () =
   x.a <- "olleh";
   ignore (shared_id x.a)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -600,7 +560,6 @@ let foo () =
   match lazy (unique_ "hello") with
   | (lazy y) as x -> ignore (shared_id x)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -610,7 +569,6 @@ match lazy (unique_ "hello") with
 | (lazy y) as x -> ignore (unique_id x)
 
 [%%expect{|
-
 Line 3, characters 37-38:
 3 | | (lazy y) as x -> ignore (unique_id x)
                                          ^
@@ -627,9 +585,7 @@ let foo () =
   match {x_lazy = lazy (unique_ "hello"); y = "world"} with
   | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
 [%%expect{|
-
 type 'a r_lazy = { x_lazy : 'a Lazy.t; y : string; }
-
 Line 5, characters 48-56:
 5 |   | {x_lazy = lazy y} as r -> ignore (unique_id r.x_lazy)
                                                     ^^^^^^^^
@@ -644,7 +600,6 @@ let foo () =
   match {x_lazy = lazy (unique_ "hello"); y = "world"} with
   | {x_lazy = lazy y} as r -> ignore (shared_id r.x_lazy)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -652,14 +607,12 @@ let foo () =
   match {x_lazy = lazy (unique_ "hello"); y = "world"} with
   | {x_lazy = lazy y} as r -> ignore (unique_id r.y)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
 (* Testing modalities in records *)
 type r_global = {x : string; global_ y : string}
 [%%expect{|
-
 type r_global = { x : string; global_ y : string; }
 |}]
 
@@ -670,7 +623,6 @@ let foo () =
      shared *)
   ignore (unique_id r)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -680,7 +632,6 @@ let foo () =
   ignore_once r.y;
   ignore_once r;
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -689,7 +640,6 @@ let foo () =
   ignore_once r.x;
   ignore_once r;
 [%%expect{|
-
 Line 4, characters 14-15:
 4 |   ignore_once r;
                   ^
@@ -707,7 +657,6 @@ let foo () =
   (* doesn't work for normal fields *)
   ignore (unique_id r)
 [%%expect{|
-
 Line 5, characters 20-21:
 5 |   ignore (unique_id r)
                         ^
@@ -726,7 +675,6 @@ let foo () =
   (* r.y has been used shared; in the following we will use r as unique *)
   ignore (unique_id r)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -736,7 +684,6 @@ let foo () =
   (* r.x has been used unique; in the following we will use r as unique *)
   ignore (unique_id r)
 [%%expect{|
-
 Line 5, characters 20-21:
 5 |   ignore (unique_id r)
                         ^
@@ -751,7 +698,6 @@ Line 3, characters 19-20:
 (* testing modalities in constructors *)
 type r_global = R_global of string * global_ string
 [%%expect{|
-
 type r_global = R_global of string * global_ string
 |}]
 
@@ -763,7 +709,6 @@ let foo () =
      shared *)
   ignore (unique_id r)
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -774,7 +719,6 @@ let foo () =
   ignore_once y;
   ignore_once r;
 [%%expect{|
-
 val foo : unit -> unit = <fun>
 |}]
 
@@ -784,7 +728,6 @@ let foo () =
   ignore_once x;
   ignore_once r;
 [%%expect{|
-
 Line 5, characters 14-15:
 5 |   ignore_once r;
                   ^
@@ -803,7 +746,6 @@ let foo () =
   (* doesn't work for normal fields *)
   ignore (unique_id r)
 [%%expect{|
-
 Line 6, characters 20-21:
 6 |   ignore (unique_id r)
                         ^
@@ -822,9 +764,7 @@ let foo () =
   ignore (unique_id r);
   ignore ({r with x = "hello again"; y = "world again"})
 [%%expect{|
-
 type r = { x : string; y : string; }
-
 Line 5, characters 9-56:
 5 |   ignore ({r with x = "hello again"; y = "world again"})
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

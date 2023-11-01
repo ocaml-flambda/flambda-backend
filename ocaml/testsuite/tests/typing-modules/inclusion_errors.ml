@@ -33,7 +33,6 @@ end = struct
   type ('a, 'b) t = 'a * 'b
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type ('a, 'b) t = 'a * 'b
@@ -58,9 +57,7 @@ end = struct
   type ('b,'c,'a) t = ('b * 'c * 'a * 'c * 'a) x
 end
 [%%expect{|
-
 type 'a x
-
 Lines 4-6, characters 6-3:
 4 | ......struct
 5 |   type ('b,'c,'a) t = ('b * 'c * 'a * 'c * 'a) x
@@ -85,7 +82,6 @@ end = struct
   type t = <m : 'a. 'a * ('a * 'foo)> as 'foo
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <m : 'a. 'a * ('a * 'foo)> as 'foo
@@ -108,7 +104,6 @@ Error: Signature mismatch:
 
 type s = private < m : int; .. >;;
 [%%expect{|
-
 type s = private < m : int; .. >
 |}];;
 
@@ -118,7 +113,6 @@ end = struct
   type t = <m : int>
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <m : int>
@@ -142,7 +136,6 @@ end = struct
   type t = s
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = s
@@ -168,7 +161,6 @@ end = struct
     | Foo of (int*int)*float
 end;;
 [%%expect{|
-
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   type t =
@@ -196,7 +188,6 @@ end = struct
   type t = (int * float * int)
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = (int * float * int)
@@ -219,7 +210,6 @@ end = struct
   type t = <n : int; f : float>
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <n : int; f : float>
@@ -244,7 +234,6 @@ end = struct
   type t = <n : int>
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <n : int>
@@ -268,7 +257,6 @@ end = struct
   type t = <n : int; m : int>
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <n : int; m : int>
@@ -295,7 +283,6 @@ end = struct
     | Foo of [`Bar of string]
 end;;
 [%%expect{|
-
 Lines 4-7, characters 6-3:
 4 | ......struct
 5 |   type t =
@@ -325,7 +312,6 @@ end = struct
   type t = private [`C]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [`C]
@@ -349,7 +335,6 @@ end = struct
   type t = private [`C of int]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [`C of int]
@@ -373,7 +358,6 @@ end = struct
   type t = [`C of [< `A | `B] | `C of [`A]]
 end;;
 [%%expect{|
-
 module M : sig type t = [ `C of [ `A ] ] end
 |}];;
 
@@ -383,7 +367,6 @@ end = struct
   type t = private [`A of int]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [`A of int]
@@ -407,7 +390,6 @@ end = struct
   type t = private [> `A of int]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [> `A of int]
@@ -431,7 +413,6 @@ end = struct
   type 'a t =  [> `A of int] as 'a
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type 'a t =  [> `A of int] as 'a
@@ -456,7 +437,6 @@ end = struct
   type 'a t =  [> `A of int | `C of float] as 'a
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type 'a t =  [> `A of int | `C of float] as 'a
@@ -481,7 +461,6 @@ end = struct
   type t = [`C of [< `A] | `C of [`A]]
 end;;
 [%%expect{|
-
 module M : sig type t = [ `C of [ `A ] ] end
 |}];;
 
@@ -491,7 +470,6 @@ end = struct
   type t = private [< `C of int&float]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [< `C of int&float]
@@ -528,18 +506,12 @@ module Choose () = struct
 end
 module Ignore = Force(Choose)
 [%%expect{|
-
 module type T = sig type t end
-
 module Int : sig type t = int end
-
 module type S = sig module Choice : T val r : Choice.t list ref ref end
-
 module Force : functor (X : functor () -> S) -> sig end
-
 module Choose :
   functor () -> sig module Choice : T val r : '_weak1 list ref ref end
-
 Line 17, characters 16-29:
 17 | module Ignore = Force(Choose)
                      ^^^^^^^^^^^^^
@@ -569,7 +541,6 @@ module O = struct
   end
 end;;
 [%%expect{|
-
 Lines 5-8, characters 8-5:
 5 | ........struct
 6 |     module type s
@@ -599,7 +570,6 @@ end = struct
   let f (x : <m : 'a. ('a * 'foo)> as 'foo) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : <m : 'a. ('a * 'foo)> as 'foo) = ()
@@ -629,9 +599,7 @@ end = struct
   let f (x : <m : int>) = x
 end;;
 [%%expect{|
-
 type s = private < m : int; .. >
-
 Lines 5-7, characters 6-3:
 5 | ......struct
 6 |   let f (x : <m : int>) = x
@@ -657,7 +625,6 @@ end = struct
   let f : 'b -> int = fun _ -> 0
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f : 'b -> int = fun _ -> 0
@@ -681,7 +648,6 @@ end = struct
   let x = ref []
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let x = ref []
@@ -703,11 +669,8 @@ module M = struct let r = ref [] end;;
 type t;;
 module N : sig val r : t list ref end = M;;
 [%%expect{|
-
 module M : sig val r : '_weak3 list ref end
-
 type t
-
 Line 3, characters 40-41:
 3 | module N : sig val r : t list ref end = M;;
                                             ^
@@ -748,13 +711,9 @@ let foo p (e : (T.t, T.s) eq) (x : T.t) (y : T.s) =
     let module O : N.S = M in
     ();;
 [%%expect{|
-
 type (_, _) eq = Refl : ('a, 'a) eq
-
 module T : sig type t type s val eq : (t, s) eq end
-
 module M : sig val r : '_weak4 list ref end
-
 Line 22, characters 25-26:
 22 |     let module O : N.S = M in
                               ^
@@ -778,7 +737,6 @@ end = struct
   let f (x : 'a) = x
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : 'a) = x
@@ -802,7 +760,6 @@ end = struct
   let f (x : (int * int)) = x
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : (int * int)) = x
@@ -827,7 +784,6 @@ end = struct
   let f (x : <m : int; f : float>) = x
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : <m : int; f : float>) = x
@@ -853,7 +809,6 @@ end = struct
   let f (x : [ `Foo | `Bar]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [ `Foo | `Bar]) = ()
@@ -878,7 +833,6 @@ end = struct
   let f (x : [< `Foo]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [< `Foo]) = ()
@@ -903,7 +857,6 @@ end = struct
   let f (x : [< `Foo]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [< `Foo]) = ()
@@ -928,7 +881,6 @@ end = struct
   let f (x : < m : 'a. [< `Foo] as 'a >) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : < m : 'a. [< `Foo] as 'a >) = ()
@@ -953,7 +905,6 @@ end = struct
   let f (x : < m : [`Foo]>) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : < m : [`Foo]>) = ()
@@ -978,7 +929,6 @@ end = struct
   let f (x : [< `C of int&float]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [< `C of int&float]) = ()
@@ -1003,7 +953,6 @@ end = struct
   let f (x : [`Foo of int]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [`Foo of int]) = ()
@@ -1028,7 +977,6 @@ end = struct
   let f (x : [`Foo]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [`Foo]) = ()
@@ -1053,7 +1001,6 @@ end = struct
   let f (x : [< `Foo | `Bar | `Baz]) = ()
 end;;
 [%%expect{|
-
 module M : sig val f : [< `Bar | `Baz | `Foo ] -> unit end
 |}];;
 
@@ -1063,7 +1010,6 @@ end = struct
   let f (x : [> `Foo | `Bar]) = ()
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   let f (x : [> `Foo | `Bar]) = ()
@@ -1091,7 +1037,6 @@ end = struct
   type t = [`C]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = [`C]
@@ -1114,7 +1059,6 @@ end = struct
   type t = private [> `A]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [> `A]
@@ -1137,7 +1081,6 @@ end = struct
   type t = [`B]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = [`B]
@@ -1160,7 +1103,6 @@ end = struct
   type t = [`A]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = [`A]
@@ -1183,7 +1125,6 @@ end = struct
    type t = private [< `A of & int]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |    type t = private [< `A of & int]
@@ -1207,7 +1148,6 @@ end = struct
   type t = private [< `A]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [< `A]
@@ -1231,7 +1171,6 @@ end = struct
   type t = private [< `A]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [< `A]
@@ -1254,7 +1193,6 @@ end = struct
   type t = [`A of float]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = [`A of float]
@@ -1277,7 +1215,6 @@ end = struct
   type t = private [`A | `B]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [`A | `B]
@@ -1302,7 +1239,6 @@ end = struct
   type t = private [`A | `B]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [`A | `B]
@@ -1325,7 +1261,6 @@ end = struct
   type t = private [< `A | `B]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [< `A | `B]
@@ -1349,7 +1284,6 @@ end = struct
   type t = <b : int>
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <b : int>
@@ -1372,7 +1306,6 @@ end = struct
   type t = <a : int>
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = <a : int>
@@ -1399,13 +1332,9 @@ end = struct
   type t = private u
 end;;
 [%%expect{|
-
 type w = private float
-
 type q = private int * w
-
 type u = private int * q
-
 Lines 6-8, characters 6-3:
 6 | ......struct
 7 |   type t = private u
@@ -1432,13 +1361,9 @@ end = struct
   type t = private u
 end;;
 [%%expect{|
-
 type w = float
-
 type q = int * w
-
 type u = private int * q
-
 Lines 6-8, characters 6-3:
 6 | ......struct
 7 |   type t = private u
@@ -1465,9 +1390,7 @@ end = struct
   type t = private s
 end;;
 [%%expect{|
-
 type s = private int
-
 Lines 5-7, characters 6-3:
 5 | ......struct
 6 |   type t = private s
@@ -1490,7 +1413,6 @@ end = struct
   type t = private A
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private A
@@ -1513,7 +1435,6 @@ end = struct
   type t = private A | B
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private A | B
@@ -1536,7 +1457,6 @@ end = struct
   type t = private A of { x : int; y : bool }
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private A of { x : int; y : bool }
@@ -1559,7 +1479,6 @@ end = struct
   type t = private { x : int; y : bool }
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private { x : int; y : bool }
@@ -1582,7 +1501,6 @@ end = struct
   type t = private A | B
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private A | B
@@ -1605,7 +1523,6 @@ end = struct
   type t = private A
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private A
@@ -1628,7 +1545,6 @@ end = struct
   type t = private { x : int; y : bool }
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private { x : int; y : bool }
@@ -1651,7 +1567,6 @@ end = struct
   type t = private { x : int }
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private { x : int }
@@ -1674,7 +1589,6 @@ end = struct
   type t = private { x : int; y : bool }
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private { x : int; y : bool }
@@ -1697,7 +1611,6 @@ end = struct
   type t = private A | B
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private A | B
@@ -1720,7 +1633,6 @@ end = struct
   type t = private [> `A | `B]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [> `A | `B]
@@ -1743,7 +1655,6 @@ end = struct
   type t = private [< `A | `B]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [< `A | `B]
@@ -1766,7 +1677,6 @@ end = struct
   type t = private [< `A | `B > `A]
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private [< `A | `B > `A]
@@ -1789,7 +1699,6 @@ end = struct
   type t = private < m : int; .. >
 end;;
 [%%expect{|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = private < m : int; .. >
@@ -1814,7 +1723,6 @@ end = struct
   type _ t = A : (<x:'a * 'a> as 'a) -> (<y:'b> as 'b) t
 end
 [%%expect {|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type _ t = A : (<x:'a * 'a> as 'a) -> (<y:'b> as 'b) t
@@ -1844,7 +1752,6 @@ end = struct
   type t = { a: (<x:'a * 'a> as 'a) }
 end
 [%%expect {|
-
 Lines 3-5, characters 6-3:
 3 | ......struct
 4 |   type t = { a: (<x:'a * 'a> as 'a) }
@@ -1873,9 +1780,7 @@ end = struct
   type _ ext  += A : (<x:'a * 'a> as 'a) -> (<y:'b> as 'b) ext
 end
 [%%expect {|
-
 type _ ext = ..
-
 Lines 4-6, characters 6-3:
 4 | ......struct
 5 |   type _ ext  += A : (<x:'a * 'a> as 'a) -> (<y:'b> as 'b) ext

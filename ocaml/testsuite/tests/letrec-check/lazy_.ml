@@ -12,7 +12,6 @@ Error: This kind of expression is not allowed as right-hand side of `let rec'
 
 let rec e = lazy (fun _ -> f) and f = ();;
 [%%expect{|
-
 val e : ('a -> unit) lazy_t = lazy <fun>
 val f : unit = ()
 |}];;
@@ -20,6 +19,5 @@ val f : unit = ()
 let rec x = lazy (Lazy.force x + Lazy.force x)
   ;;
 [%%expect{|
-
 val x : int Lazy.t = <lazy>
 |}];;

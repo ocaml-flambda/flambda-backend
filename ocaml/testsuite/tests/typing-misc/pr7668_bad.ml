@@ -57,7 +57,6 @@ let a b =
 end
 ;;
 [%%expect{|
-
 Lines 8-27, characters 6-3:
  8 | ......struct
  9 |   type t = [

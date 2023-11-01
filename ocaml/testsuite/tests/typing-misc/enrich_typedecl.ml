@@ -45,7 +45,6 @@ end = struct
     | B -> ()
 end;;
 [%%expect{|
-
 Lines 3-10, characters 6-3:
  3 | ......struct
  4 |   type 'a t = A of 'a | B
@@ -78,7 +77,6 @@ end = struct
     | B -> ()
 end;;
 [%%expect{|
-
 Lines 3-10, characters 6-3:
  3 | ......struct
  4 |   type 'a t = A of 'a | B
@@ -112,7 +110,6 @@ end = struct
     | B -> ()
 end;;
 [%%expect{|
-
 Lines 3-10, characters 6-3:
  3 | ......struct
  4 |   type 'a t = A of 'a | B
@@ -145,7 +142,6 @@ end = struct
     | B -> ()
 end;;
 [%%expect{|
-
 Lines 3-10, characters 6-3:
  3 | ......struct
  4 |   type 'a t = A of 'a | B
@@ -178,7 +174,6 @@ end = struct
     | B -> ()
 end;;
 [%%expect{|
-
 Lines 3-10, characters 6-3:
  3 | ......struct
  4 |   type 'a t = A of 'a | B
@@ -211,7 +206,6 @@ end = struct
     | B -> ()
 end;;
 [%%expect{|
-
 Lines 3-10, characters 6-3:
  3 | ......struct
  4 |   type 'a t = A of 'a | B
@@ -244,7 +238,6 @@ end = struct
   let coerce : 'a 'b. ('a, 'b) t -> ('a, 'b) F.t = fun x -> x
 end;;
 [%%expect{|
-
 Lines 3-9, characters 6-3:
 3 | ......struct
 4 |   type ('a, 'b) t = Foo of 'b
