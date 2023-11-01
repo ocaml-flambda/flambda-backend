@@ -53,6 +53,7 @@ let rec fact_tail acc = function
   | n -> (fact_tail [@tailcall true]) (n * acc) (n - 1)
 ;;
 [%%expect{|
+
 val fact_tail : int -> int -> int = <fun>
 |}]
 
