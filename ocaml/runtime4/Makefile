@@ -137,7 +137,7 @@ ifeq "$(TOOLCHAIN)" "msvc"
 ASMFLAGS=
 endif
 
-ASPPFLAGS = -DSYS_$(SYSTEM) -I$(ROOTDIR)/runtime
+ASPPFLAGS = -DSYS_$(SYSTEM) -I$(ROOTDIR)/runtime4
 ifeq "$(UNIX_OR_WIN32)" "unix"
 ASPPFLAGS += -DMODEL_$(MODEL)
 endif

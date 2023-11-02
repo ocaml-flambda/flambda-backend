@@ -86,7 +86,7 @@
 #define DOMAIN_STATE(c_type, name) \
         .equ    domain_field_caml_##name, domain_curr_field ; \
         .set    domain_curr_field, domain_curr_field + 1
-#include "../runtime/caml/domain_state.tbl"
+#include "../runtime4/caml/domain_state.tbl"
 #undef DOMAIN_STATE
 
 #define CAML_STATE(var,reg) 8*domain_field_caml_##var(reg)
