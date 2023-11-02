@@ -651,7 +651,6 @@ runtime_COMMON_C_SOURCES = \
   signals \
   simd \
   skiplist \
-  stacks \
   startup_aux \
   str \
   sys \
@@ -665,6 +664,7 @@ runtime_BYTECODE_ONLY_C_SOURCES = \
   interp \
   roots_byt \
   signals_byt \
+  stacks \
   startup_byt
 runtime_BYTECODE_C_SOURCES = \
   $(runtime_COMMON_C_SOURCES:%=runtime4/%.c) \
