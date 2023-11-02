@@ -36,7 +36,7 @@ reference = "${test_source_directory}/backtrace_dynlink.flambda.reference"
 let ()  =
   Dynlink.allow_unsafe_modules true;
   try
-    Dynlink.loadfile "backtrace_dynlink_plugin.cmxs"
+    (Dynlink.loadfile [@inlined never]) "backtrace_dynlink_plugin.cmxs"
   with
   | Dynlink.Error err ->
      print_endline @@ Dynlink.error_message err;
