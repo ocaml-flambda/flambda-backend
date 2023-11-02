@@ -1,4 +1,4 @@
-x1name: build
+name: build
 on: [push, pull_request]
 jobs:
   build:
@@ -112,8 +112,10 @@ jobs:
       run: sudo apt-get install afl++
 
     - name: Install AFL (for macOS workers)
+      # The "afl-fuzz" package is deprecated (2023-10) and can no longer be installed
       if: matrix.os == 'macos-latest'
       run: true
+      # run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
 
     - name: Cache OCaml 4.14 and dune
       uses: actions/cache@v2
