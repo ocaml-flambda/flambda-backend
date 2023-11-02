@@ -70,6 +70,8 @@
 
 #undef HAS_ISSETUGID
 
+#undef HAS_STDATOMIC_H
+
 /* 2. For the Unix library. */
 
 #undef HAS_SOCKETS

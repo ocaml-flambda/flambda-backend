@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#include "camlatomic.h"
+
 /* Deprecation warnings */
 
 #if defined(__GNUC__) || defined(__clang__)
