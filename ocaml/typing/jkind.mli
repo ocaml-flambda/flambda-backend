@@ -327,12 +327,10 @@ type const =
   | Immediate
   | Float64
 
-type 'a loc := 'a Location.loc
-
 val const_of_user_written_annotation :
   ?legacy_immediate:bool ->
   context:annotation_context ->
-  Jane_asttypes.const_jkind loc ->
+  Jane_asttypes.jkind_annotation ->
   const
 
 val const_to_user_written_annotation : const -> Jane_asttypes.const_jkind
@@ -393,6 +391,8 @@ val of_annotation_option_default :
   context:annotation_context ->
   Jane_asttypes.jkind_annotation option ->
   t * const option
+
+(* CR layouts v1.5: remove [of_attributes] when we reroute [@@immediate]. *)
 
 (** Find a jkind in attributes.  Returns error if a disallowed jkind is
     present, but always allows immediate attributes if ~legacy_immediate is

@@ -438,6 +438,10 @@ module Const : sig
     | Immediate
     | Float64
 
+  (** The function names are suffixed with "unchecked" to suggest that
+      they don't check whether the layouts extension is enabled.
+  *)
+
   val of_user_written_attribute_unchecked :
     Builtin_attributes.jkind_attribute -> t
 
