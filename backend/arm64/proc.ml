@@ -354,7 +354,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then all_phys_regs else destroyed_at_c_noalloc_call
+    if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_noalloc_call
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
