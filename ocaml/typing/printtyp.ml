@@ -1638,9 +1638,9 @@ let rec tree_of_type_decl id decl =
      Note [When to print jkind annotations] *)
   let jkind_annotation = match ty, unboxed with
     | (Otyp_abstract, _) | (_, true) ->
-        (* (C1.1) from the Note corresponds to Otyp_abstract. Anything
-           but the default must be user-written, so we print the user-written
-           annotation. *)
+        (* The two cases of (C1) from the Note correspond to Otyp_abstract.
+           Anything but the default must be user-written, so we print the
+           user-written annotation. *)
         decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
