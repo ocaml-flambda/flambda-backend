@@ -489,13 +489,8 @@ type const = Const.t =
   | Immediate
   | Float64
 
-let string_of_const : const -> _ = function
-  | Any -> "any"
-  | Value -> "value"
-  | Void -> "void"
-  | Immediate64 -> "immediate64"
-  | Immediate -> "immediate"
-  | Float64 -> "float64"
+let string_of_const const =
+  Jane_asttypes.jkind_to_string (Const.to_user_written_annotation const)
 
 let equal_const (c1 : const) (c2 : const) =
   match c1, c2 with
@@ -553,8 +548,7 @@ let of_const ~why : const -> t = function
   | Void -> fresh_jkind (Sort Sort.void) ~why
   | Float64 -> fresh_jkind (Sort Sort.float64) ~why
 
-let check_user_written_annotation ?(legacy_immediate = false) ~context ~loc
-    annot =
+let check_extension_for_const ?(legacy_immediate = false) ~context ~loc annot =
   match annot with
   | (Immediate | Immediate64 | Value) as const when legacy_immediate -> const
   | const ->
@@ -568,7 +562,7 @@ let const_of_user_written_annotation ?legacy_immediate ~context
   match Const.of_user_written_annotation_unchecked annot with
   | None -> raise ~loc (Unknown_jkind annot)
   | Some unchecked ->
-    check_user_written_annotation ?legacy_immediate ~context ~loc unchecked
+    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
 
 let const_to_user_written_annotation = Const.to_user_written_annotation
 
@@ -576,7 +570,7 @@ let const_of_user_written_attribute ?legacy_immediate ~context
     Location.{ loc; txt = attribute } =
   let unchecked = Const.of_user_written_attribute_unchecked attribute in
   let checked =
-    check_user_written_annotation ?legacy_immediate ~context ~loc unchecked
+    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
   in
   Location.{ loc; txt = checked }
 
