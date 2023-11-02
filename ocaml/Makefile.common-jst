@@ -226,7 +226,7 @@ install_for_test: _install
 	   rm -f $$exe; ln -s $$exe.byte $$exe; \
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
-	 mkdir runtime; \
+	 mkdir runtime4; \
 	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime4/caml/threads.h; do \
 	   ln -s ../$$f runtime4/`basename $$f`; \
 	 done; \
