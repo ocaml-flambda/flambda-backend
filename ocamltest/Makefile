@@ -151,7 +151,7 @@ ocamltest.opt$(EXE): $(deps_opt) $(native_modules)
 %.cmi: %.mli $(deps_byte)
 	$(V_OCAMLC)$(ocamlc) -c $<
 
-ocamltest_unix.ml: ocamltest_unix_$(ocamltest_unix_impl).ml
+ocamltest_unix.ml: ocamltest_unix.$(ocamltest_unix_impl).ml
 	$(V_GEN)echo '# 1 "$<"' > $@ && \
 	cat $< >> $@
 
