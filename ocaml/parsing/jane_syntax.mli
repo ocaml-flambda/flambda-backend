@@ -306,7 +306,7 @@ module Layouts : sig
     Parsetree.extension_constructor
 
   (** See also [Ast_helper.Type.constructor], which is a direct inspiration for
-      the interface here. It's meant to be able to be a drop-in replacement.  *)
+      the interface here. *)
   val constructor_declaration_of :
     loc:Location.t ->
     attrs:Parsetree.attributes ->
@@ -329,7 +329,7 @@ module Layouts : sig
     option
 
   (** See also [Ast_helper.Type.mk], which is a direct inspiration for
-      the interface here. It's meant to be able to be a drop-in replacement.  *)
+      the interface here. *)
   val type_declaration_of :
     loc:Location.t ->
     attrs:Parsetree.attributes ->
