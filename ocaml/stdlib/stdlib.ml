@@ -629,9 +629,9 @@ module Complex        = Complex
 module Condition      = Condition
 *)
 module Digest         = Digest
+module Domain         = Domain
 (* CR ocaml 5 runtime:
    BACKPORT
-module Domain         = Domain
 module Effect         = Effect
 *)
 module Either         = Either
