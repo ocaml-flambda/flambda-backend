@@ -29,7 +29,7 @@ EXTRACAMLFLAGS=-nolabels
 
 # This flag is used to disable compatibility definitions in header files to
 # ensure that they're not accidentally used in the library itself.
-OC_CPPFLAGS += -DCAML_BUILDING_UNIX
+OC_CPPFLAGS += -DCAML_BUILDING_UNIX -Wno-implicit-function-declaration
 
 unixLabels.cmi: \
   EXTRACAMLFLAGS += -pp "$(AWK) -f $(ROOTDIR)/stdlib/expand_module_aliases.awk"
