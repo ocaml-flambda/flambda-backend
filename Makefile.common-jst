@@ -227,8 +227,8 @@ install_for_test: _install
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
 	 mkdir runtime; \
-	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime/caml/threads.h; do \
-	   ln -s ../$$f runtime/`basename $$f`; \
+	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime4/caml/threads.h; do \
+	   ln -s ../$$f runtime4/`basename $$f`; \
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
