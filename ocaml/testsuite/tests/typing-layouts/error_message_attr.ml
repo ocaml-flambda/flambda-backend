@@ -196,7 +196,7 @@ Error: This expression has type bool but an expression was expected of type
        custom message
 |}]
 
-(* Doesn't work when the type mismatch happens later. This differ from
+(* Doesn't work when the type mismatch happens later. This differs from
    the layout annotation case. *)
 let f x: bool = (x : int)[@error_message "custom message"]
 [%%expect{|
