@@ -34,7 +34,7 @@ type global_flag =
 (** [const_jkind] is private to limit confusion with type variables, which
     are also strings in the parser.
 *)
-type const_jkind = private string
+type const_jkind
 
 val jkind_of_string : string -> const_jkind
 

@@ -7,8 +7,8 @@
    a type-checking error soon.
 *)
 
-(* This test makes sure that [type t : unboxed = manifest] doesn't get
-   (incorrectly) interpreted as [type t = manifest [@@unboxed]].
+(* This test makes sure that [type t : unboxed = kind] doesn't get
+   (incorrectly) interpreted as [type t = kind [@@unboxed]].
  *)
 
 type t : unboxed = { single_field : string }
