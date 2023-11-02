@@ -8373,7 +8373,7 @@ let report_type_expected_explanation expl ppf =
   | Comprehension_when ->
       because "a when-clause in a comprehension"
   | Error_message_attr msg ->
-      fprintf ppf "@ because [@error_message]: %s" msg
+      fprintf ppf "@\n@[%s@]" msg
 
 let escaping_hint failure_reason submode_reason
       (context : Env.closure_context option) =

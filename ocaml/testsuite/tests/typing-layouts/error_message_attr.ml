@@ -166,7 +166,7 @@ Line 1, characters 28-44:
 1 | let f (x : bool) = (x : int)[@error_message]
                                 ^^^^^^^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'error_message'.
-Error_message attribute expects a string argument
+error_message attribute expects a string argument
 Line 1, characters 20-21:
 1 | let f (x : bool) = (x : int)[@error_message]
                         ^
@@ -177,16 +177,12 @@ Error: This expression has type bool but an expression was expected of type
 (* Can only be applied once *)
 let f (x : bool) = (x : int)[@error_message "A"][@error_message "B"]
 [%%expect{|
-Line 1, characters 48-68:
-1 | let f (x : bool) = (x : int)[@error_message "A"][@error_message "B"]
-                                                    ^^^^^^^^^^^^^^^^^^^^
-Warning 47 [attribute-payload]: illegal payload for attribute 'error_message'.
-More than one error_message attribute present. All of them will be ignored.
 Line 1, characters 20-21:
 1 | let f (x : bool) = (x : int)[@error_message "A"][@error_message "B"]
                         ^
 Error: This expression has type bool but an expression was expected of type
          int
+       A
 |}]
 
 (* Simple test case *)
@@ -197,7 +193,7 @@ Line 1, characters 20-21:
                         ^
 Error: This expression has type bool but an expression was expected of type
          int
-       because [@error_message]: custom message
+       custom message
 |}]
 
 (* Doesn't work when the type mismatch happens later. This differ from
@@ -231,7 +227,7 @@ Line 1, characters 22-23:
                           ^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       because [@error_message]: custom message
+       custom message
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
@@ -254,7 +250,8 @@ Line 1, characters 12-29:
 1 | let f () = (fun (x: int) -> x : string)[@error_message "custom message"]
                 ^^^^^^^^^^^^^^^^^
 Error: This expression should not be a function, the expected type is
-       string because [@error_message]: custom message
+       string
+       custom message
 |}]
 
 (* Same when the function is not declared inline *)
@@ -279,5 +276,5 @@ Line 2, characters 12-13:
                 ^
 Error: This expression has type int -> int
        but an expression was expected of type string
-       because [@error_message]: custom message
+       custom message
 |}]
