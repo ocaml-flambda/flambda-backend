@@ -114,11 +114,7 @@ TOOLS_TO_INSTALL_NAT = ocamldep ocamlobjinfo
 
 # Tools to be compiled to bytecode only, then installed
 TOOLS_TO_INSTALL_BYT = \
-  ocamlcmt ocamlprof ocamlcp ocamlmklib ocamlmktop
-
-ifeq "$(NATIVE_COMPILER)" "true"
-TOOLS_TO_INSTALL_BYT += ocamloptp
-endif
+  ocamlcmt ocamlmklib ocamlmktop
 
 # Clean should remove tools/ocamloptp etc. unconditionally because
 # the configuration is not available during clean so we don't
@@ -679,7 +675,6 @@ runtime_NATIVE_ONLY_C_SOURCES = \
   clambda_checks \
   dynlink_nat \
   fail_nat \
-  frame_descriptors \
   roots_nat \
   startup_nat \
   signals_nat
