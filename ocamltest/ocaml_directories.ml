@@ -30,7 +30,7 @@ let toplevel =
   Filename.make_path [srcdir; "toplevel"]
 
 let runtime =
-  Filename.make_path [srcdir; "runtime"]
+  Filename.make_path [srcdir; "runtime4"]
 
 let tools =
   Filename.make_path [srcdir; "tools"]
