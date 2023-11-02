@@ -454,6 +454,7 @@
     (.dynlink_internal_common.objs/native/dynlink_types.cmx
     as
     dynlink/dynlink_types.cmx)
+    (.dynlink_internal.objs/native/dynlink.cmx as dynlink/dynlink.cmx)
 
     (dynlink.cma as dynlink/dynlink.cma)
     (dynlink.cmxa as dynlink/dynlink.cmxa)
