@@ -2,6 +2,9 @@
    flags = '-extension layouts'
    * expect
 *)
+(* CR layouts: Using [-extension layouts] here is not backward-compatible.
+   We can delete this when internal ticket 1110 is resolved.
+*)
 
 type r = R of r list [@@unboxed]
 let rec a = R [a];;
