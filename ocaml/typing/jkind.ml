@@ -438,17 +438,11 @@ module Const : sig
     | Immediate
     | Float64
 
-<<<<<<< HEAD
   val of_attribute : Builtin_attributes.jkind_attribute -> t
-=======
-  (** The function names are suffixed with "unchecked" to suggest that
-      they don't check whether the layouts extension is enabled.
+
+  (** The function name is suffixed with "unchecked" to suggest that
+      it doesn't check whether the layouts extension is enabled.
   *)
-
-  val of_user_written_attribute_unchecked :
-    Builtin_attributes.jkind_attribute -> t
->>>>>>> nroberts/layouts-are-strings-in-parsetree
-
   val of_user_written_annotation_unchecked :
     Jane_asttypes.const_jkind -> t option
 
@@ -573,7 +567,6 @@ let of_const ~why : const -> t = function
   | Void -> fresh_jkind (Sort Sort.void) ~why
   | Float64 -> fresh_jkind (Sort Sort.float64) ~why
 
-<<<<<<< HEAD
 let const_of_user_written_annotation ~context ~is_type_decl
     Location.{ loc; txt = annot } =
   match Const.of_user_written_annotation_unchecked annot with
@@ -587,39 +580,6 @@ let const_of_user_written_annotation ~context ~is_type_decl
       raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
     const
 
-let const_to_user_written_annotation = Const.to_user_written_annotation
-
-=======
-let check_extension_for_const ?(legacy_immediate = false) ~context ~loc annot =
-  match annot with
-  | (Immediate | Immediate64 | Value) as const when legacy_immediate -> const
-  | const ->
-    let required_layouts_level = get_required_layouts_level context const in
-    if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then raise ~loc (Insufficient_level (context, const));
-    const
-
-let const_of_user_written_annotation ?legacy_immediate ~context
-    Location.{ loc; txt = annot } =
-  match Const.of_user_written_annotation_unchecked annot with
-  | None -> raise ~loc (Unknown_jkind annot)
-  | Some unchecked ->
-    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
-
-let const_of_user_written_attribute ?legacy_immediate ~context
-    Location.{ loc; txt = attribute } =
-  let unchecked = Const.of_user_written_attribute_unchecked attribute in
-  let checked =
-    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
-  in
-  Location.{ loc; txt = checked }
-
-let const_of_attributes ~legacy_immediate ~context attrs =
-  Builtin_attributes.jkind ~legacy_immediate attrs
-  |> Result.map
-       (Option.map (const_of_user_written_attribute ~legacy_immediate ~context))
-
->>>>>>> nroberts/layouts-are-strings-in-parsetree
 let of_annotated_const ~context Location.{ txt = const; loc = const_loc } =
   of_const ~why:(Annotated (context, const_loc)) const
 
@@ -649,12 +609,26 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     Builtin_attributes.jkind decl.ptype_attributes
     |> Option.map (fun attr ->
            let t, const = of_attribute ~context attr in
-           t, const, decl.ptype_attributes)
+           (* This is a bit of a lie: the "annotation" here is being
+              forged based on the jkind attribute. But: the jkind
+              annotation is just used in printing/untypeast, and the
+              all strings valid to use as a jkind attribute are
+              valid (and equivalent) to write as an annotation, so
+              this lie is harmless.
+           *)
+           let annot =
+             Location.map
+               (fun attr ->
+                 Builtin_attributes.jkind_attribute_to_string attr
+                 |> Jane_asttypes.jkind_of_string)
+               attr
+           in
+           t, (const, annot), decl.ptype_attributes)
   in
   match jkind_of_annotation, jkind_of_attribute with
   | None, None -> None
   | (Some _ as x), None | None, (Some _ as x) -> x
-  | Some (_, from_annotation, _), Some (_, from_attribute, _) ->
+  | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 

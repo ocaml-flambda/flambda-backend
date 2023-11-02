@@ -57,11 +57,7 @@ type out_value =
   | Oval_variant of string * out_value option
 
 type out_jkind =
-  (* CR layouts v1.5: It would be a bit better to store [Jkind.const] here, and
-     indeed I will do that in the stacked PR after deleting the one site where
-     we need to populate a string.
-  *)
-  | Olay_const of string
+  | Olay_const of Jkind.const
   | Olay_var of string
 
 type out_type_param =

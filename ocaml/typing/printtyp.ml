@@ -1184,7 +1184,7 @@ let print_labels = ref true
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const Value -> None
-  | Const jkind -> Some (Olay_const (Jkind.string_of_const jkind))
+  | Const jkind -> Some (Olay_const jkind)
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
     then Some (Olay_var (Jkind.Sort.var_name v))
@@ -1650,20 +1650,8 @@ let rec tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-<<<<<<< HEAD
-          (fun x -> Olay_const (Jkind.const_to_user_written_annotation x))
+          (fun x -> Olay_const x)
           jkind_annotation;
-=======
-          (fun { txt } ->
-             let jkind_attribute =
-               Builtin_attributes.jkind_attribute_to_string txt
-             in
-             (* CR layouts 1.5: This is a bit of a lie: we're interpreting the
-                jkind attribute as a jkind *annotation*. This will go away in a
-                child PR when we move jkind annotations into Jane Syntax. *)
-             Olay_const jkind_attribute)
-          lay;
->>>>>>> nroberts/layouts-are-strings-in-parsetree
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2279,7 +2267,7 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> Olay_const (Jkind.string_of_const clay)
+            | Const clay -> Olay_const clay
             | Var v      -> Olay_var (Jkind.Sort.var_name v)
           in
           Otyp_jkind_annot (out, olay)

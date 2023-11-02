@@ -212,7 +212,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_arity = arity;
       type_kind = Type_abstract abstract_reason;
       type_jkind;
-      type_jkind_annotation;
+      type_jkind_annotation = Option.map fst type_jkind_annotation;
       type_private = sdecl.ptype_private;
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -769,7 +769,7 @@ let transl_declaration env sdecl (id, uid) =
         type_arity = arity;
         type_kind = kind;
         type_jkind = jkind;
-        type_jkind_annotation = jkind_annotation;
+        type_jkind_annotation = Option.map fst jkind_annotation;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -2322,6 +2322,7 @@ let approx_type_decl sdecl_list =
            ~default:(Jkind.value ~why:Default_type_jkind)
            sdecl
        in
+       let jkind_annotation = Option.map fst jkind_annotation in
        let params =
          List.map (fun (param, _) -> get_type_param_jkind path param)
            sdecl.ptype_params
