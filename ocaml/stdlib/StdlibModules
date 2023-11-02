@@ -98,7 +98,7 @@ STDLIB_MODULE_BASENAMES = \
   stdLabels \
   in_channel \
   out_channel \
-  camlinternalComprehensions
+  camlinternalComprehension
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))
