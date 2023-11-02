@@ -477,8 +477,7 @@ let raise ~loc err = raise (User_error (loc, err))
 let get_required_layouts_level (context : annotation_context) (jkind : const) :
     Language_extension.maturity =
   match context, jkind with
-  | _, Value -> Stable
-  | _, (Immediate | Immediate64 | Any | Float64) -> Beta
+  | _, (Value | Immediate | Immediate64 | Any | Float64) -> Stable
   | _, Void -> Alpha
 
 (******************************)
