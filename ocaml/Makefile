@@ -29,7 +29,7 @@ defaultentry: $(DEFAULT_BUILD_TARGET)
 
 include stdlib/StdlibModules
 
-CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims runtime/primitives
+CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims runtime4/primitives
 CAMLOPT=$(OCAMLRUN) ./ocamlopt$(EXE) $(STDLIBFLAGS) -I otherlibs/dynlink
 ARCHES=amd64 arm64 power s390x riscv
 VPATH = utils parsing typing bytecomp file_formats lambda middle_end \
@@ -84,11 +84,11 @@ utils/config_main.ml: utils/config.generated.ml utils/config.common.ml
 reconfigure:
 	ac_read_git_config=true ./configure $(CONFIGURE_ARGS)
 
-utils/domainstate.ml: utils/domainstate.ml.c runtime/caml/domain_state.tbl
-	$(V_GEN)$(CPP) -I runtime/caml $< > $@
+utils/domainstate.ml: utils/domainstate.ml.c runtime4/caml/domain_state.tbl
+	$(V_GEN)$(CPP) -I runtime4/caml $< > $@
 
-utils/domainstate.mli: utils/domainstate.mli.c runtime/caml/domain_state.tbl
-	$(V_GEN)$(CPP) -I runtime/caml $< > $@
+utils/domainstate.mli: utils/domainstate.mli.c runtime4/caml/domain_state.tbl
+	$(V_GEN)$(CPP) -I runtime4/caml $< > $@
 
 configure: tools/autogen configure.ac aclocal.m4 build-aux/ocaml_version.m4
 	$<
@@ -168,7 +168,7 @@ OCAML_NATIVE_PROGRAMS = ocamlnat tools/lintapidiff.opt
 $(foreach PROGRAM, $(OCAML_NATIVE_PROGRAMS),\
   $(eval $(call OCAML_NATIVE_PROGRAM,$(PROGRAM))))
 
-USE_RUNTIME_PRIMS = -use-prims ../runtime/primitives
+USE_RUNTIME_PRIMS = -use-prims ../runtime4/primitives
 USE_STDLIB = -nostdlib -I ../stdlib
 
 FLEXDLL_OBJECTS = \
@@ -180,7 +180,7 @@ FLEXDLL_SOURCE_FILES = \
   $(wildcard $(FLEXDLL_SOURCES)/*.c) $(wildcard $(FLEXDLL_SOURCES)/*.h) \
   $(wildcard $(FLEXDLL_SOURCES)/*.ml)
 
-boot/ocamlruns$(EXE): runtime/ocamlruns$(EXE)
+boot/ocamlruns$(EXE): runtime4/ocamlruns$(EXE)
 	cp $< $@
 
 boot/flexlink.byte$(EXE): $(FLEXDLL_SOURCE_FILES)
@@ -195,20 +195,20 @@ boot/flexlink.byte$(EXE): $(FLEXDLL_SOURCE_FILES)
 # The process depends on whether FlexDLL is also being bootstrapped.
 # Normal procedure:
 #   - Build the runtime
-#   - Build the standard library using runtime/ocamlrun
+#   - Build the standard library using runtime4/ocamlrun
 # FlexDLL procedure:
 #   - Build ocamlruns
 #   - Build the standard library using boot/ocamlruns
 #   - Build flexlink and FlexDLL support objects
 #   - Build the runtime
-# runtime/ocamlrun is then installed to boot/ocamlrun and the stdlib artefacts
+# runtime4/ocamlrun is then installed to boot/ocamlrun and the stdlib artefacts
 # are copied to boot/
 .PHONY: coldstart
 coldstart: $(COLDSTART_DEPS)
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
 	$(MAKE) runtime-all
 	$(MAKE) -C stdlib \
-	  OCAMLRUN='$$(ROOTDIR)/runtime/ocamlrun$(EXE)' \
+	  OCAMLRUN='$$(ROOTDIR)/runtime4/ocamlrun$(EXE)' \
 	  CAMLC='$$(BOOT_OCAMLC) $(USE_RUNTIME_PRIMS)' all
 else
 	$(MAKE) -C stdlib OCAMLRUN='$$(ROOTDIR)/boot/ocamlruns$(EXE)' \
@@ -217,10 +217,10 @@ else
 	$(MAKE) runtime-all
 endif # ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
 	rm -f boot/ocamlrun$(EXE)
-	cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)
+	cp runtime4/ocamlrun$(EXE) boot/ocamlrun$(EXE)
 	cd boot; rm -f $(LIBFILES)
 	cd stdlib; cp $(LIBFILES) ../boot
-	cd boot; $(LN) ../runtime/libcamlrun.$(A) .
+	cd boot; $(LN) ../runtime4/libcamlrun.$(A) .
 
 # Recompile the core system using the bootstrap compiler
 .PHONY: coreall
@@ -277,7 +277,7 @@ promote-cross: promote-common
 promote: PROMOTE = $(OCAMLRUN) tools/stripdebug -all
 promote: promote-common
 	rm -f boot/ocamlrun$(EXE)
-	cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)
+	cp runtime4/ocamlrun$(EXE) boot/ocamlrun$(EXE)
 
 # Compile the native-code compiler
 .PHONY: opt-core
@@ -319,16 +319,16 @@ ifeq "$(FLAT_FLOAT_ARRAY)" "true"
 coreboot:
 # Promote the new compiler but keep the old runtime
 # This compiler runs on boot/ocamlrun and produces bytecode for
-# runtime/ocamlrun
+# runtime4/ocamlrun
 	$(MAKE) promote-cross
-# Rebuild ocamlc and ocamllex (run on runtime/ocamlrun)
+# Rebuild ocamlc and ocamllex (run on runtime4/ocamlrun)
 # utils/config.ml will have the fixed bootstrap configuration
 	$(MAKE) partialclean
 	$(MAKE) IN_COREBOOT_CYCLE=true ocamlc ocamllex ocamltools
-# Rebuild the library (using runtime/ocamlrun ./ocamlc)
+# Rebuild the library (using runtime4/ocamlrun ./ocamlc)
 	$(MAKE) library-cross
 # Promote the new compiler and the new runtime
-	$(MAKE) OCAMLRUN=runtime/ocamlrun$(EXE) promote
+	$(MAKE) OCAMLRUN=runtime4/ocamlrun$(EXE) promote
 # Rebuild the core system
 # utils/config.ml must still have the fixed bootstrap configuration
 	$(MAKE) partialclean
@@ -413,7 +413,7 @@ flexlink:
 	@false
 
 ifeq "$(wildcard ocamlopt.opt$(EXE))" ""
-  FLEXLINK_OCAMLOPT=../runtime/ocamlrun$(EXE) ../ocamlopt$(EXE)
+  FLEXLINK_OCAMLOPT=../runtime4/ocamlrun$(EXE) ../ocamlopt$(EXE)
 else
   FLEXLINK_OCAMLOPT=../ocamlopt.opt$(EXE)
 endif
@@ -517,7 +517,7 @@ TOPFLAGS ?=
 OC_TOPFLAGS = $(STDLIBFLAGS) -I toplevel -noinit $(TOPINCLUDES) $(TOPFLAGS)
 
 # Note: Beware that, since this rule begins with a coldstart, both
-# boot/ocamlrun and runtime/ocamlrun will be the same when the toplevel
+# boot/ocamlrun and runtime4/ocamlrun will be the same when the toplevel
 # is run.
 .PHONY: runtop
 runtop:
@@ -548,8 +548,8 @@ beforedepend:: parsing/lexer.ml
 
 # The predefined exceptions and primitives
 
-lambda/runtimedef.ml: lambda/generate_runtimedef.sh runtime/caml/fail.h \
-    runtime/primitives
+lambda/runtimedef.ml: lambda/generate_runtimedef.sh runtime4/caml/fail.h \
+    runtime4/primitives
 	$(V_GEN)$^ > $@
 
 partialclean::
@@ -612,14 +612,15 @@ partialclean::
 ## Lists of source files
 
 runtime_COMMON_C_SOURCES = \
-  addrmap \
   afl \
   alloc \
   array \
   backtrace \
   bigarray \
   callback \
+  clambda_checks \
   codefrag \
+  compact \
   compare \
   custom \
   debugger \
@@ -627,18 +628,19 @@ runtime_COMMON_C_SOURCES = \
   dynlink \
   eventlog \
   extern \
-  fiber \
   finalise \
+  fix_code \
   floats \
+  freelist \
   gc_ctrl \
-  gc_stats \
   globroots \
   hash \
+  instrtrace \
   intern \
+  interp \
   ints \
   io \
   lexing \
-  lf_skiplist \
   main \
   major_gc \
   md5 \
@@ -649,15 +651,13 @@ runtime_COMMON_C_SOURCES = \
   misc \
   obj \
   parsing \
-  platform \
   printexc \
-  prng \
-  roots \
   signals \
+  simd \
   skiplist \
+  stacks \
   startup_aux \
   str \
-  sync \
   sys \
   $(UNIX_OR_WIN32) \
   weak
@@ -667,10 +667,12 @@ runtime_BYTECODE_ONLY_C_SOURCES = \
   fail_byt \
   fix_code \
   interp \
+  roots_byt \
+  signals_byt \
   startup_byt
 runtime_BYTECODE_C_SOURCES = \
-  $(runtime_COMMON_C_SOURCES:%=runtime/%.c) \
-  $(runtime_BYTECODE_ONLY_C_SOURCES:%=runtime/%.c)
+  $(runtime_COMMON_C_SOURCES:%=runtime4/%.c) \
+  $(runtime_BYTECODE_ONLY_C_SOURCES:%=runtime4/%.c)
 
 runtime_NATIVE_ONLY_C_SOURCES = \
   backtrace_nat \
@@ -678,46 +680,47 @@ runtime_NATIVE_ONLY_C_SOURCES = \
   dynlink_nat \
   fail_nat \
   frame_descriptors \
+  roots_nat \
   startup_nat \
   signals_nat
 runtime_NATIVE_C_SOURCES = \
-  $(runtime_COMMON_C_SOURCES:%=runtime/%.c) \
-  $(runtime_NATIVE_ONLY_C_SOURCES:%=runtime/%.c)
+  $(runtime_COMMON_C_SOURCES:%=runtime4/%.c) \
+  $(runtime_NATIVE_ONLY_C_SOURCES:%=runtime4/%.c)
 
 ## Header files generated by configure
-runtime_CONFIGURED_HEADERS = $(addprefix runtime/caml/, m.h s.h version.h)
+runtime_CONFIGURED_HEADERS = $(addprefix runtime4/caml/, m.h s.h version.h)
 
 ## Header files generated by make
-runtime_BUILT_HEADERS = $(addprefix runtime/, \
+runtime_BUILT_HEADERS = $(addprefix runtime4/, \
   caml/opnames.h caml/jumptbl.h build_config.h)
 
 ## Targets to build and install
 
-runtime_PROGRAMS = runtime/ocamlrun$(EXE)
-runtime_BYTECODE_STATIC_LIBRARIES = $(addprefix runtime/, \
+runtime_PROGRAMS = runtime4/ocamlrun$(EXE)
+runtime_BYTECODE_STATIC_LIBRARIES = $(addprefix runtime4/, \
   ld.conf libcamlrun.$(A))
 runtime_BYTECODE_SHARED_LIBRARIES =
-runtime_NATIVE_STATIC_LIBRARIES = runtime/libasmrun.$(A)
+runtime_NATIVE_STATIC_LIBRARIES = runtime4/libasmrun.$(A)
 runtime_NATIVE_SHARED_LIBRARIES =
 
 ifeq "$(RUNTIMED)" "true"
-runtime_PROGRAMS += runtime/ocamlrund$(EXE)
-runtime_BYTECODE_STATIC_LIBRARIES += runtime/libcamlrund.$(A)
-runtime_NATIVE_STATIC_LIBRARIES += runtime/libasmrund.$(A)
+runtime_PROGRAMS += runtime4/ocamlrund$(EXE)
+runtime_BYTECODE_STATIC_LIBRARIES += runtime4/libcamlrund.$(A)
+runtime_NATIVE_STATIC_LIBRARIES += runtime4/libasmrund.$(A)
 endif
 
 ifeq "$(INSTRUMENTED_RUNTIME)" "true"
-runtime_PROGRAMS += runtime/ocamlruni$(EXE)
-runtime_BYTECODE_STATIC_LIBRARIES += runtime/libcamlruni.$(A)
-runtime_NATIVE_STATIC_LIBRARIES += runtime/libasmruni.$(A)
+runtime_PROGRAMS += runtime4/ocamlruni$(EXE)
+runtime_BYTECODE_STATIC_LIBRARIES += runtime4/libcamlruni.$(A)
+runtime_NATIVE_STATIC_LIBRARIES += runtime4/libasmruni.$(A)
 endif
 
 ifeq "$(UNIX_OR_WIN32)" "unix"
 ifeq "$(SUPPORTS_SHARED_LIBRARIES)" "true"
-runtime_BYTECODE_STATIC_LIBRARIES += runtime/libcamlrun_pic.$(A)
-runtime_BYTECODE_SHARED_LIBRARIES += runtime/libcamlrun_shared.$(SO)
-runtime_NATIVE_STATIC_LIBRARIES += runtime/libasmrun_pic.$(A)
-runtime_NATIVE_SHARED_LIBRARIES += runtime/libasmrun_shared.$(SO)
+runtime_BYTECODE_STATIC_LIBRARIES += runtime4/libcamlrun_pic.$(A)
+runtime_BYTECODE_SHARED_LIBRARIES += runtime4/libcamlrun_shared.$(SO)
+runtime_NATIVE_STATIC_LIBRARIES += runtime4/libasmrun_pic.$(A)
+runtime_NATIVE_SHARED_LIBRARIES += runtime4/libasmrun_shared.$(SO)
 endif
 endif
 
@@ -730,7 +733,7 @@ libcamlrun_non_shared_OBJECTS = \
           $(libcamlrun_OBJECTS))
 
 libcamlrund_OBJECTS = $(runtime_BYTECODE_C_SOURCES:.c=.bd.$(O)) \
-  runtime/instrtrace.bd.$(O)
+  runtime4/instrtrace.bd.$(O)
 
 libcamlruni_OBJECTS = $(runtime_BYTECODE_C_SOURCES:.c=.bi.$(O))
 
@@ -750,7 +753,7 @@ libasmrunpic_OBJECTS = $(runtime_NATIVE_C_SOURCES:.c=.npic.$(O)) \
 
 ## General (non target-specific) assembler and compiler flags
 
-runtime_CPPFLAGS = -DCAMLDLLIMPORT= -DIN_CAML_RUNTIME
+runtime_CPPFLAGS = -DCAMLDLLIMPORT= -DIN_CAML_RUNTIME -Wno-strict-prototypes -Wno-missing-prototypes -Wno-implicit-function-declaration -DCAML_NAME_SPACE
 ocamlrund_CPPFLAGS = -DDEBUG
 ocamlruni_CPPFLAGS = -DCAML_INSTR
 
@@ -772,7 +775,7 @@ endif
 
 ## Generated non-object files
 
-runtime/ld.conf: $(ROOTDIR)/Makefile.config
+runtime4/ld.conf: $(ROOTDIR)/Makefile.config
 	$(V_GEN)echo "$(STUBLIBDIR)" > $@ && \
 	echo "$(LIBDIR)" >> $@
 
@@ -797,13 +800,13 @@ runtime/ld.conf: $(ROOTDIR)/Makefile.config
 
 # To speed up builds, we avoid changing "primitives" when files
 # containing primitives change but the primitives table does not
-runtime/primitives: \
-  $(shell runtime/gen_primitives.sh > runtime/primitives.new; \
-                    cmp -s runtime/primitives runtime/primitives.new || \
-                    echo runtime/primitives.new)
+runtime4/primitives: \
+  $(shell runtime4/gen_primitives.sh > runtime4/primitives.new; \
+                    cmp -s runtime4/primitives runtime4/primitives.new || \
+                    echo runtime4/primitives.new)
 	$(V_GEN)cp $^ $@
 
-runtime/prims.c : runtime/primitives
+runtime4/prims.c : runtime4/primitives
 	$(V_GEN)export LC_ALL=C; \
 	(echo '#include "caml/config.h"'; \
 	 echo 'typedef intnat value;'; \
@@ -819,7 +822,7 @@ runtime/prims.c : runtime/primitives
 	 sed -e 's/.*/  "&",/' $<; \
 	 echo '  0 };') > $@
 
-runtime/caml/opnames.h : runtime/caml/instruct.h
+runtime4/caml/opnames.h : runtime4/caml/instruct.h
 	$(V_GEN)tr -d '\r' < $< | \
 	sed -e '/\/\*/d' \
 	    -e '/^#/d' \
@@ -827,8 +830,8 @@ runtime/caml/opnames.h : runtime/caml/instruct.h
 	    -e 's/{$$/[] = {/' \
 	    -e 's/\([[:upper:]][[:upper:]_0-9]*\)/"\1"/g' > $@
 
-# runtime/caml/jumptbl.h is required only if you have GCC 2.0 or later
-runtime/caml/jumptbl.h : runtime/caml/instruct.h
+# runtime4/caml/jumptbl.h is required only if you have GCC 2.0 or later
+runtime4/caml/jumptbl.h : runtime4/caml/instruct.h
 	$(V_GEN)tr -d '\r' < $< | \
 	sed -n -e '/^  /s/ \([A-Z]\)/ \&\&lbl_\1/gp' \
 	       -e '/^}/q' > $@
@@ -839,96 +842,96 @@ SAK_CC ?= $(CC)
 SAK_CFLAGS ?= $(OC_CFLAGS) $(CFLAGS) $(OC_CPPFLAGS) $(CPPFLAGS)
 SAK_LINK ?= $(MKEXE_VIA_CC)
 
-$(SAK): runtime/sak.$(O)
+$(SAK): runtime4/sak.$(O)
 	$(V_MKEXE)$(call SAK_LINK,$@,$^)
 
-runtime/sak.$(O): runtime/sak.c runtime/caml/misc.h runtime/caml/config.h
+runtime4/sak.$(O): runtime4/sak.c runtime4/caml/misc.h runtime4/caml/config.h
 	$(V_CC)$(SAK_CC) -c $(SAK_CFLAGS) $(OUTPUTOBJ)$@ $<
 
 C_LITERAL = $(shell $(SAK) encode-C-literal '$(1)')
 
-runtime/build_config.h: $(ROOTDIR)/Makefile.config $(SAK)
+runtime4/build_config.h: $(ROOTDIR)/Makefile.config $(SAK)
 	$(V_GEN)echo '/* This file is generated from $(ROOTDIR)/Makefile.config */' > $@ && \
 	echo '#define OCAML_STDLIB_DIR $(call C_LITERAL,$(LIBDIR))' >> $@ && \
 	echo '#define HOST "$(HOST)"' >> $@
 
 ## Runtime libraries and programs
 
-runtime/ocamlrun$(EXE): runtime/prims.$(O) runtime/libcamlrun.$(A)
+runtime4/ocamlrun$(EXE): runtime4/prims.$(O) runtime4/libcamlrun.$(A)
 	$(V_MKEXE)$(MKEXE) -o $@ $^ $(BYTECCLIBS)
 
-runtime/ocamlruns$(EXE): runtime/prims.$(O) runtime/libcamlrun_non_shared.$(A)
+runtime4/ocamlruns$(EXE): runtime4/prims.$(O) runtime4/libcamlrun_non_shared.$(A)
 	$(V_MKEXE)$(call MKEXE_VIA_CC,$@,$^ $(BYTECCLIBS))
 
-runtime/libcamlrun.$(A): $(libcamlrun_OBJECTS)
+runtime4/libcamlrun.$(A): $(libcamlrun_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libcamlrun_non_shared.$(A): $(libcamlrun_non_shared_OBJECTS)
+runtime4/libcamlrun_non_shared.$(A): $(libcamlrun_non_shared_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/ocamlrund$(EXE): runtime/prims.$(O) runtime/libcamlrund.$(A)
+runtime4/ocamlrund$(EXE): runtime4/prims.$(O) runtime4/libcamlrund.$(A)
 	$(V_MKEXE)$(MKEXE) $(MKEXEDEBUGFLAG) -o $@ $^ $(BYTECCLIBS)
 
-runtime/libcamlrund.$(A): $(libcamlrund_OBJECTS)
+runtime4/libcamlrund.$(A): $(libcamlrund_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/ocamlruni$(EXE): runtime/prims.$(O) runtime/libcamlruni.$(A)
+runtime4/ocamlruni$(EXE): runtime4/prims.$(O) runtime4/libcamlruni.$(A)
 	$(V_MKEXE)$(MKEXE) -o $@ $^ $(INSTRUMENTED_RUNTIME_LIBS) $(BYTECCLIBS)
 
-runtime/libcamlruni.$(A): $(libcamlruni_OBJECTS)
+runtime4/libcamlruni.$(A): $(libcamlruni_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libcamlrun_pic.$(A): $(libcamlrunpic_OBJECTS)
+runtime4/libcamlrun_pic.$(A): $(libcamlrunpic_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libcamlrun_shared.$(SO): $(libcamlrunpic_OBJECTS)
+runtime4/libcamlrun_shared.$(SO): $(libcamlrunpic_OBJECTS)
 	$(V_MKDLL)$(MKDLL) -o $@ $^ $(BYTECCLIBS)
 
-runtime/libasmrun.$(A): $(libasmrun_OBJECTS)
+runtime4/libasmrun.$(A): $(libasmrun_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libasmrund.$(A): $(libasmrund_OBJECTS)
+runtime4/libasmrund.$(A): $(libasmrund_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libasmruni.$(A): $(libasmruni_OBJECTS)
+runtime4/libasmruni.$(A): $(libasmruni_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libasmrun_pic.$(A): $(libasmrunpic_OBJECTS)
+runtime4/libasmrun_pic.$(A): $(libasmrunpic_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
-runtime/libasmrun_shared.$(SO): $(libasmrunpic_OBJECTS)
+runtime4/libasmrun_shared.$(SO): $(libasmrunpic_OBJECTS)
 	$(V_MKDLL)$(MKDLL) -o $@ $^ $(NATIVECCLIBS)
 
 ## Runtime target-specific preprocessor and compiler flags
 
-runtime/%.$(O): OC_CPPFLAGS += $(runtime_CPPFLAGS)
-$(DEPDIR)/runtime/%.$(D): OC_CPPFLAGS += $(runtime_CPPFLAGS)
+runtime4/%.$(O): OC_CPPFLAGS += $(runtime_CPPFLAGS)
+$(DEPDIR)/runtime4/%.$(D): OC_CPPFLAGS += $(runtime_CPPFLAGS)
 
-runtime/%.bd.$(O): OC_CPPFLAGS += $(ocamlrund_CPPFLAGS)
-$(DEPDIR)/runtime/%.bd.$(D): OC_CPPFLAGS += $(ocamlrund_CPPFLAGS)
+runtime4/%.bd.$(O): OC_CPPFLAGS += $(ocamlrund_CPPFLAGS)
+$(DEPDIR)/runtime4/%.bd.$(D): OC_CPPFLAGS += $(ocamlrund_CPPFLAGS)
 
-runtime/%.bi.$(O): OC_CPPFLAGS += $(ocamlruni_CPPFLAGS)
-$(DEPDIR)/runtime/%.bi.$(D): OC_CPPFLAGS += $(ocamlruni_CPPFLAGS)
+runtime4/%.bi.$(O): OC_CPPFLAGS += $(ocamlruni_CPPFLAGS)
+$(DEPDIR)/runtime4/%.bi.$(D): OC_CPPFLAGS += $(ocamlruni_CPPFLAGS)
 
-runtime/%.bpic.$(O): OC_CFLAGS += $(SHAREDLIB_CFLAGS)
+runtime4/%.bpic.$(O): OC_CFLAGS += $(SHAREDLIB_CFLAGS)
 
-runtime/%.n.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
-runtime/%.n.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
-$(DEPDIR)/runtime/%.n.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
+runtime4/%.n.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
+runtime4/%.n.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
+$(DEPDIR)/runtime4/%.n.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 
-runtime/%.nd.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
-runtime/%.nd.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) $(ocamlrund_CPPFLAGS)
-$(DEPDIR)/runtime/%.nd.$(D): \
+runtime4/%.nd.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
+runtime4/%.nd.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) $(ocamlrund_CPPFLAGS)
+$(DEPDIR)/runtime4/%.nd.$(D): \
   OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) $(ocamlrund_CPPFLAGS)
 
-runtime/%.ni.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
-runtime/%.ni.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) $(ocamlruni_CPPFLAGS)
-$(DEPDIR)/runtime/%.ni.$(D): \
+runtime4/%.ni.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS)
+runtime4/%.ni.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) $(ocamlruni_CPPFLAGS)
+$(DEPDIR)/runtime4/%.ni.$(D): \
   OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS) $(ocamlruni_CPPFLAGS)
 
-runtime/%.npic.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS) $(SHAREDLIB_CFLAGS)
-runtime/%.npic.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
-$(DEPDIR)/runtime/%.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
+runtime4/%.npic.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS) $(SHAREDLIB_CFLAGS)
+runtime4/%.npic.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
+$(DEPDIR)/runtime4/%.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 
 ## Compilation of runtime C files
 
@@ -945,9 +948,9 @@ ifneq "$(1)" "%"
 # ones will not be generated. For this reason, we don't use -MG and
 # instead include $(runtime_BUILT_HEADERS) in the order only dependencies
 # to ensure that they exist before dependencies are computed.
-$(DEPDIR)/$(1).$(D): runtime/%.c | $(DEPDIR)/runtime $(runtime_BUILT_HEADERS)
+$(DEPDIR)/$(1).$(D): runtime4/%.c | $(DEPDIR)/runtime $(runtime_BUILT_HEADERS)
 	$$(V_CCDEPS)$$(DEP_CC) $$(OC_CPPFLAGS) $$(CPPFLAGS) $$< -MT \
-	  'runtime/$$*$(subst runtime/%,,$(1)).$(O)' -MF $$@
+	  'runtime4/$$*$(subst runtime4/%,,$(1)).$(O)' -MF $$@
 endif # ifneq "$(1)" "%"
 $(1).$(O): $(2).c
 else
@@ -968,17 +971,17 @@ runtime_OBJECT_TYPES += %.n %.nd %.ni %.np %.npic
 endif
 
 $(foreach runtime_OBJECT_TYPE, $(runtime_OBJECT_TYPES), \
-  $(eval $(call COMPILE_C_FILE,runtime/$(runtime_OBJECT_TYPE),runtime/%)))
+  $(eval $(call COMPILE_C_FILE,runtime4/$(runtime_OBJECT_TYPE),runtime4/%)))
 
-runtime/$(UNIX_OR_WIN32)_non_shared.%.$(O): \
+runtime4/$(UNIX_OR_WIN32)_non_shared.%.$(O): \
   OC_CPPFLAGS += -DBUILDING_LIBCAMLRUNS
 
-$(eval $(call COMPILE_C_FILE,runtime/$(UNIX_OR_WIN32)_non_shared.%, \
-  runtime/$(UNIX_OR_WIN32)))
+$(eval $(call COMPILE_C_FILE,runtime4/$(UNIX_OR_WIN32)_non_shared.%, \
+  runtime4/$(UNIX_OR_WIN32)))
 
 $(foreach runtime_OBJECT_TYPE,$(subst %,,$(runtime_OBJECT_TYPES)), \
   $(eval \
-    runtime/dynlink$(runtime_OBJECT_TYPE).$(O): $(ROOTDIR)/Makefile.config))
+    runtime4/dynlink$(runtime_OBJECT_TYPE).$(O): $(ROOTDIR)/Makefile.config))
 
 ## Compilation of runtime assembly files
 
@@ -987,42 +990,42 @@ ASPP_ERROR = \
           echo "unhappy with the preprocessor. Check your assembler, or";\
           echo "try producing $*.o by hand.";\
           exit 2; }
-runtime/%.o: runtime/%.S
+runtime4/%.o: runtime4/%.S
 	$(V_ASM)$(ASPP) $(OC_ASPPFLAGS) -o $@ $< || $(ASPP_ERROR)
 
-runtime/%.d.o: runtime/%.S
+runtime4/%.d.o: runtime4/%.S
 	$(V_ASM)$(ASPP) $(OC_ASPPFLAGS) $(ocamlrund_CPPFLAGS) -o $@ $< || $(ASPP_ERROR)
 
-runtime/%.i.o: runtime/%.S
+runtime4/%.i.o: runtime4/%.S
 	$(V_ASM)$(ASPP) $(OC_ASPPFLAGS) $(ocamlruni_CPPFLAGS) -o $@ $< || $(ASPP_ERROR)
 
-runtime/%_libasmrunpic.o: runtime/%.S
+runtime4/%_libasmrunpic.o: runtime4/%.S
 	$(V_ASM)$(ASPP) $(OC_ASPPFLAGS) $(SHAREDLIB_CFLAGS) -o $@ $<
 
-runtime/domain_state64.inc: \
-  runtime/gen_domain_state64_inc.awk runtime/caml/domain_state.tbl
+runtime4/domain_state64.inc: \
+  runtime4/gen_domain_state64_inc.awk runtime4/caml/domain_state.tbl
 	$(V_GEN)$(AWK) -f $^ > $@
 
-runtime/domain_state32.inc: \
-  runtime/gen_domain_state32_inc.awk runtime/caml/domain_state.tbl
+runtime4/domain_state32.inc: \
+  runtime4/gen_domain_state32_inc.awk runtime4/caml/domain_state.tbl
 	$(V_GEN)$(AWK) -f $^ > $@
 
-runtime/amd64nt.obj: runtime/amd64nt.asm runtime/domain_state64.inc
+runtime4/amd64nt.obj: runtime4/amd64nt.asm runtime4/domain_state64.inc
 	$(V_ASM)$(ASM)$@ $<
 
-runtime/amd64nt.d.obj: runtime/amd64nt.asm runtime/domain_state64.inc
+runtime4/amd64nt.d.obj: runtime4/amd64nt.asm runtime4/domain_state64.inc
 	$(V_ASM)$(ASM)$@ $(ocamlrund_CPPFLAGS) $<
 
-runtime/amd64nt.i.obj: runtime/amd64nt.asm runtime/domain_state64.inc
+runtime4/amd64nt.i.obj: runtime4/amd64nt.asm runtime4/domain_state64.inc
 	$(V_ASM)$(ASM)$@ $(ocamlruni_CPPFLAGS) $<
 
-runtime/%_libasmrunpic.obj: runtime/%.asm
+runtime4/%_libasmrunpic.obj: runtime4/%.asm
 	$(V_ASM)$(ASM)$@ $<
 
 ## Runtime dependencies
 
 runtime_DEP_FILES := $(addsuffix .b, \
-  $(basename $(runtime_BYTECODE_C_SOURCES) runtime/instrtrace))
+  $(basename $(runtime_BYTECODE_C_SOURCES) runtime4/instrtrace))
 ifeq "$(NATIVE_COMPILER)" "true"
 runtime_DEP_FILES += $(addsuffix .n, $(basename $(runtime_NATIVE_C_SOURCES)))
 endif
@@ -1049,15 +1052,15 @@ endif
 .PHONY: makeruntime
 makeruntime: runtime-all
 stdlib/libcamlrun.$(A): runtime-all
-	cd stdlib; $(LN) ../runtime/libcamlrun.$(A) .
+	cd stdlib; $(LN) ../runtime4/libcamlrun.$(A) .
 clean::
-	rm -f $(addprefix runtime/, *.o *.obj *.a *.lib *.so *.dll ld.conf)
-	rm -f $(addprefix runtime/, ocamlrun ocamlrund ocamlruni ocamlruns sak)
-	rm -f $(addprefix runtime/, \
+	rm -f $(addprefix runtime4/, *.o *.obj *.a *.lib *.so *.dll ld.conf)
+	rm -f $(addprefix runtime4/, ocamlrun ocamlrund ocamlruni ocamlruns sak)
+	rm -f $(addprefix runtime4/, \
 	  ocamlrun.exe ocamlrund.exe ocamlruni.exe ocamlruns.exe sak.exe)
-	rm -f runtime/primitives runtime/primitives.new runtime/prims.c \
+	rm -f runtime4/primitives runtime4/primitives.new runtime4/prims.c \
 	  $(runtime_BUILT_HEADERS)
-	rm -f runtime/domain_state*.inc
+	rm -f runtime4/domain_state*.inc
 	rm -rf $(DEPDIR)
 	rm -f stdlib/libcamlrun.a stdlib/libcamlrun.lib
 
@@ -1067,7 +1070,7 @@ runtimeopt: stdlib/libasmrun.$(A)
 .PHONY: makeruntimeopt
 makeruntimeopt: runtime-allopt
 stdlib/libasmrun.$(A): runtime-allopt
-	cd stdlib; $(LN) ../runtime/libasmrun.$(A) .
+	cd stdlib; $(LN) ../runtime4/libasmrun.$(A) .
 
 clean::
 	rm -f stdlib/libasmrun.a stdlib/libasmrun.lib
@@ -1093,7 +1096,7 @@ library: ocamlc
 
 .PHONY: library-cross
 library-cross:
-	$(MAKE) -C stdlib OCAMLRUN=../runtime/ocamlrun$(EXE) all
+	$(MAKE) -C stdlib OCAMLRUN=../runtime4/ocamlrun$(EXE) all
 
 .PHONY: libraryopt
 libraryopt:
@@ -1416,7 +1419,7 @@ make_opcodes = tools/make_opcodes$(EXE)
 make_opcodes_LIBRARIES =
 make_opcodes_MODULES = tools/make_opcodes
 
-tools/opnames.ml: runtime/caml/instruct.h $(make_opcodes)
+tools/opnames.ml: runtime4/caml/instruct.h $(make_opcodes)
 	$(V_GEN)$(NEW_OCAMLRUN) $(make_opcodes) -opnames < $< > $@
 
 clean::
@@ -1531,7 +1534,7 @@ toplevel/native/topeval.cmx: otherlibs/dynlink/dynlink.cmxa
 
 # The numeric opcodes
 
-bytecomp/opcodes.ml: runtime/caml/instruct.h $(make_opcodes)
+bytecomp/opcodes.ml: runtime4/caml/instruct.h $(make_opcodes)
 	$(V_GEN)$(NEW_OCAMLRUN) $(make_opcodes) -opcodes < $< > $@
 
 bytecomp/opcodes.mli: bytecomp/opcodes.ml
@@ -1618,7 +1621,7 @@ ifneq "$(runtime_BYTECODE_SHARED_LIBRARIES)" ""
 	$(INSTALL_PROG) $(runtime_BYTECODE_SHARED_LIBRARIES) \
 	  "$(INSTALL_LIBDIR)"
 endif
-	$(INSTALL_DATA) runtime/caml/domain_state.tbl runtime/caml/*.h \
+	$(INSTALL_DATA) runtime4/caml/domain_state.tbl runtime4/caml/*.h \
 	  "$(INSTALL_INCDIR)"
 	$(INSTALL_PROG) ocaml$(EXE) "$(INSTALL_BINDIR)"
 ifeq "$(INSTALL_BYTECODE_PROGRAMS)" "true"
