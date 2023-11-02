@@ -801,7 +801,7 @@ runtime4/ld.conf: $(ROOTDIR)/Makefile.config
 # To speed up builds, we avoid changing "primitives" when files
 # containing primitives change but the primitives table does not
 runtime4/primitives: \
-  $(shell runtime4/gen_primitives.sh > runtime4/primitives.new; \
+  $(shell (cd $(ROOTDIR)/runtime4 && ./gen_primitives.sh) > runtime4/primitives.new; \
                     cmp -s runtime4/primitives runtime4/primitives.new || \
                     echo runtime4/primitives.new)
 	$(V_GEN)cp $^ $@
