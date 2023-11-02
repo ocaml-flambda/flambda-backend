@@ -166,13 +166,18 @@ let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)
       ?(jkind=Jkind.value ~why:(Primitive type_ident))
+      (* [jkind_annotation] is just used for printing. It's best to
+         provide it if the jkind is not implied by the kind of the
+         type, as then the type, if printed, will be clearer.
+      *)
+      ?jkind_annotation
       env =
   let decl =
     {type_params = [];
      type_arity = 0;
      type_kind = kind;
      type_jkind = jkind;
-     type_jkind_annotation = None;
+     type_jkind_annotation = jkind_annotation;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -194,6 +199,9 @@ let common_initial_env add_type add_extension empty_env =
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract Abstract_def)
         ?(jkind=Jkind.value ~why:(Primitive type_ident))
+        (* See the comment on the [jkind_annotation] argument to [mk_add_type]
+        *)
+        ?jkind_annotation
       ~variance ~separability env =
     let param = newgenvar (Jkind.value ~why:Type_argument) in
     let decl =
@@ -201,7 +209,7 @@ let common_initial_env add_type add_extension empty_env =
        type_arity = 1;
        type_kind = kind param;
        type_jkind = jkind;
-       type_jkind_annotation = None;
+       type_jkind_annotation = jkind_annotation;
        type_loc = Location.none;
        type_private = Asttypes.Public;
        type_manifest = None;
@@ -246,6 +254,7 @@ let common_initial_env add_type add_extension empty_env =
                 [| [| |]; [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
+      ~jkind_annotation:Immediate
   |> add_type ident_exn
        ~kind:Type_open
        ~jkind:(Jkind.value ~why:Extensible_variant)
@@ -253,6 +262,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_float
   |> add_type ident_floatarray
   |> add_type ident_int ~jkind:(Jkind.immediate ~why:(Primitive ident_int))
+      ~jkind_annotation:Immediate
   |> add_type ident_int32
   |> add_type ident_int64
   |> add_type1 ident_lazy_t
@@ -279,6 +289,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
+       ~jkind_annotation:Float64
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
