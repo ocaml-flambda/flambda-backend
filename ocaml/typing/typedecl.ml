@@ -428,8 +428,13 @@ let make_constructor
           (fun (v, l) ->
             v.txt,
             Option.map
-              (Jkind.const_of_user_written_annotation
-                  ~context:(Constructor_type_parameter (cstr_path, v.txt)))
+              (fun annot ->
+                 let const =
+                    Jkind.const_of_user_written_annotation
+                      ~context:(Constructor_type_parameter (cstr_path, v.txt))
+                      annot
+                 in
+                 const, annot)
               l)
           vars_jkinds
   in

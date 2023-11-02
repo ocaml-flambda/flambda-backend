@@ -489,6 +489,8 @@ type const = Const.t =
   | Immediate
   | Float64
 
+type annotation = const * Jane_asttypes.jkind_annotation
+
 let string_of_const const =
   Jane_asttypes.jkind_to_string (Const.to_user_written_annotation const)
 
@@ -564,8 +566,6 @@ let const_of_user_written_annotation ?legacy_immediate ~context
   | Some unchecked ->
     check_extension_for_const ?legacy_immediate ~context ~loc unchecked
 
-let const_to_user_written_annotation = Const.to_user_written_annotation
-
 let const_of_user_written_attribute ?legacy_immediate ~context
     Location.{ loc; txt = attribute } =
   let unchecked = Const.of_user_written_attribute_unchecked attribute in
@@ -593,7 +593,7 @@ let of_annotation ?legacy_immediate ~context (annot : _ Location.loc) =
     const_of_user_written_annotation ?legacy_immediate ~context annot
   in
   let jkind = of_annotated_const { txt = const; loc = annot.loc } ~context in
-  jkind, const
+  jkind, (const, annot)
 
 let of_annotation_option_default ?legacy_immediate ~default ~context =
   Option.fold ~none:(default, None) ~some:(fun annot ->

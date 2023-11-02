@@ -185,7 +185,7 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string * Jkind.const option
+  | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
 
 and fun_curry_state =
@@ -734,15 +734,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * Jkind.const option
+  | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * Jkind.const option
+  | Ttyp_alias of core_type * string option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * Jkind.const option) list * core_type
+  | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -817,7 +817,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * Jkind.const option) list;
+     cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -857,7 +857,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * Jkind.const option) list *
+    Text_decl of (string * Jkind.annotation option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc

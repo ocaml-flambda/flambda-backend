@@ -333,8 +333,6 @@ val const_of_user_written_annotation :
   Jane_asttypes.jkind_annotation ->
   const
 
-val const_to_user_written_annotation : const -> Jane_asttypes.const_jkind
-
 val string_of_const : const -> string
 
 val equal_const : const -> const -> bool
@@ -377,20 +375,23 @@ val of_sort_for_error : why:concrete_jkind_reason -> sort -> t
 
 val of_const : why:creation_reason -> const -> t
 
+(** The typed jkind together with its user-written annotation. *)
+type annotation = const * Jane_asttypes.jkind_annotation
+
 (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
    is rerouted away from the new annotations mechanism *)
 val of_annotation :
   ?legacy_immediate:bool ->
   context:annotation_context ->
   Jane_asttypes.jkind_annotation ->
-  t * const
+  t * annotation
 
 val of_annotation_option_default :
   ?legacy_immediate:bool ->
   default:t ->
   context:annotation_context ->
   Jane_asttypes.jkind_annotation option ->
-  t * const option
+  t * annotation option
 
 (* CR layouts v1.5: remove [of_attributes] when we reroute [@@immediate]. *)
 

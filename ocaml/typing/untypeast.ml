@@ -149,8 +149,7 @@ let attributes sub l = List.map (sub.attribute sub) l
 
 let var_jkind ~loc (var, jkind) =
   let add_loc x = mkloc x loc in
-  add_loc var,
-  Option.map (fun x -> add_loc (Jkind.const_to_user_written_annotation x)) jkind
+  add_loc var, Option.map (fun (_, annot) -> annot) jkind
 
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
@@ -427,10 +426,9 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some jkind) ->
-        let jkind = Jkind.const_to_user_written_annotation jkind in
+    | Texp_newtype (s, Some (_, jkind)) ->
         Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, add_loc jkind, sexp))
+          (Lexp_newtype(add_loc s, jkind, sexp))
         |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
@@ -939,10 +937,9 @@ let core_type sub ct =
   let desc = match ct.ctyp_desc with
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
-    | Ttyp_var (name, Some jkind) ->
-        let jkind = Jkind.const_to_user_written_annotation jkind in
+    | Ttyp_var (name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_var { name; jkind = mkloc jkind loc }) |>
+          (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
@@ -957,11 +954,10 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some jkind) ->
-        let jkind = Jkind.const_to_user_written_annotation jkind in
+    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
-                        jkind = mkloc jkind loc }) |>
+                        jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
       Misc.fatal_error "anonymous alias without layout annotation in Untypeast"

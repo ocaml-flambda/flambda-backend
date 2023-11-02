@@ -272,7 +272,7 @@ let pr_present =
 let pr_var = Printast.tyvar
 
 let print_out_jkind ppf = function
-  | Olay_const jkind -> fprintf ppf "%s" (Jane_asttypes.jkind_to_string jkind)
+  | Olay_const jkind -> fprintf ppf "%s" jkind
   | Olay_var v     -> fprintf ppf "%s" v
 
 let print_out_jkind_annot ppf = function
@@ -377,7 +377,7 @@ let mode_agree expected real =
   linearity_agree expected.oam_linearity real.oam_linearity
 
 let print_out_jkind ppf = function
-  | Olay_const jkind -> fprintf ppf "%s" (Jane_asttypes.jkind_to_string jkind)
+  | Olay_const jkind -> fprintf ppf "%s" jkind
   | Olay_var v     -> fprintf ppf "%s" v
 
 let is_local mode =
