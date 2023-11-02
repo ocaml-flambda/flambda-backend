@@ -146,7 +146,8 @@ let dummy1_str_it_desc =
                           c_rhs =
                             exp_desc_to_exp
                               (mkTexp_assert
-                                 (exp_desc_to_exp false_expr) Location.none);
+                                 (exp_desc_to_exp false_expr)
+                                 Location.none);
                         };
                       ];
                   }))

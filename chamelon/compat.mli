@@ -51,9 +51,7 @@ val mkTexp_match :
   expression * computation case list * partial ->
   expression_desc
 
-val mkTexp_assert :
-  expression -> Location.t -> expression_desc
-
+val mkTexp_assert : expression -> Location.t -> expression_desc
 val mkTtyp_any : core_type_desc
 val mkTtyp_var : string -> core_type_desc
 val is_type_name_used : core_type_desc -> string -> bool

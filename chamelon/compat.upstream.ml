@@ -44,8 +44,7 @@ type texp_match_identifier = unit
 let mkTexp_match ?id:(() = ()) (e, cases, partial) =
   Texp_match (e, cases, partial)
 
-let mkTexp_assert e _loc =
-  Texp_assert e
+let mkTexp_assert e _loc = Texp_assert e
 
 type matched_expression_desc =
   | Texp_ident of
@@ -177,5 +176,5 @@ let rec replace_id_in_path path to_rep : Path.t =
   match (path : Path.t) with
   | Pident _ -> Pident to_rep
   | Papply (p1, p2) ->
-    Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
+      Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
   | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
