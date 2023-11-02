@@ -429,59 +429,7 @@ let immediate ~why = fresh_jkind Immediate ~why:(Immediate_creation why)
 
 let float64 ~why = fresh_jkind (Sort Sort.float64) ~why:(Float64_creation why)
 
-module Const : sig
-  type t =
-    | Any
-    | Value
-    | Void
-    | Immediate64
-    | Immediate
-    | Float64
-
-  val of_attribute : Builtin_attributes.jkind_attribute -> t
-
-  (** The function name is suffixed with "unchecked" to suggest that
-      it doesn't check whether the layouts extension is enabled.
-  *)
-  val of_user_written_annotation_unchecked :
-    Jane_asttypes.const_jkind -> t option
-
-  val to_user_written_annotation : t -> Jane_asttypes.const_jkind
-end = struct
-  type t =
-    | Any
-    | Value
-    | Void
-    | Immediate64
-    | Immediate
-    | Float64
-
-  let of_attribute : Builtin_attributes.jkind_attribute -> _ = function
-    | Immediate -> Immediate
-    | Immediate64 -> Immediate64
-
-  let of_user_written_annotation_unchecked annot =
-    match Jane_asttypes.jkind_to_string annot with
-    | "any" -> Some Any
-    | "value" -> Some Value
-    | "void" -> Some Void
-    | "immediate64" -> Some Immediate64
-    | "immediate" -> Some Immediate
-    | "float64" -> Some Float64
-    | _ -> None
-
-  let to_user_written_annotation annot =
-    Jane_asttypes.jkind_of_string
-      (match annot with
-      | Any -> "any"
-      | Value -> "value"
-      | Void -> "void"
-      | Immediate64 -> "immediate64"
-      | Immediate -> "immediate"
-      | Float64 -> "float64")
-end
-
-type const = Const.t =
+type const =
   | Any
   | Value
   | Void
@@ -491,8 +439,33 @@ type const = Const.t =
 
 type annotation = const * Jane_asttypes.jkind_annotation
 
+let const_of_attribute : Builtin_attributes.jkind_attribute -> _ = function
+  | Immediate -> Immediate
+  | Immediate64 -> Immediate64
+
+(** The function name is suffixed with "unchecked" to suggest that
+    it doesn't check whether the layouts extension is enabled.
+
+    It should be inverse to [string_of_const].
+  *)
+let const_of_user_written_annotation_unchecked annot =
+  match Jane_asttypes.jkind_to_string annot with
+  | "any" -> Some Any
+  | "value" -> Some Value
+  | "void" -> Some Void
+  | "immediate64" -> Some Immediate64
+  | "immediate" -> Some Immediate
+  | "float64" -> Some Float64
+  | _ -> None
+
 let string_of_const const =
-  Jane_asttypes.jkind_to_string (Const.to_user_written_annotation const)
+  match const with
+  | Any -> "any"
+  | Value -> "value"
+  | Void -> "void"
+  | Immediate64 -> "immediate64"
+  | Immediate -> "immediate"
+  | Float64 -> "float64"
 
 let equal_const (c1 : const) (c2 : const) =
   match c1, c2 with
@@ -569,7 +542,7 @@ let of_const ~why : const -> t = function
 
 let const_of_user_written_annotation ~context ~is_type_decl
     Location.{ loc; txt = annot } =
-  match Const.of_user_written_annotation_unchecked annot with
+  match const_of_user_written_annotation_unchecked annot with
   | None -> raise ~loc (Unknown_jkind annot)
   | Some const ->
     let required_layouts_level =
@@ -595,7 +568,7 @@ let of_annotation_option_default ~default ~context ~is_type_decl =
 
 let of_attribute ~context
     (attribute : Builtin_attributes.jkind_attribute Location.loc) =
-  let const = Const.of_attribute attribute.txt in
+  let const = const_of_attribute attribute.txt in
   of_annotated_const ~context { txt = const; loc = attribute.loc }, const
 
 let of_type_decl ~context (decl : Parsetree.type_declaration) =
