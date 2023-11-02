@@ -1,5 +1,5 @@
 Raised by primitive operation at Backtrace_dynlink_plugin in file "backtrace_dynlink_plugin.ml", line 6, characters 13-38
-Called from Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
+Called from Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
 Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_common.ml", line 367, characters 13-72
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
@@ -9,9 +9,9 @@ execution of module initializers in the shared library failed: Failure("SUCCESS"
 Raised at Stdlib.failwith in file "stdlib.ml", line 34, characters 17-33
 Called from Backtrace_dynlink_plugin in file "backtrace_dynlink_plugin.ml", line 3, characters 4-22
 Re-raised at Backtrace_dynlink_plugin in file "backtrace_dynlink_plugin.ml", line 8, characters 5-12
-Called from Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
-Called from Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
-Re-raised at Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 124, characters 6-137
+Called from Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
+Called from Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
+Re-raised at Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 124, characters 6-137
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
 Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_common.ml", line 367, characters 13-72
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15

@@ -3,13 +3,12 @@ Raised at Stdlib.failwith in file "stdlib.ml", line 34, characters 17-33
 Called from Test10_plugin.g in file "test10_plugin.ml" (inlined), line 2, characters 15-38
 Called from Test10_plugin.f in file "test10_plugin.ml", line 6, characters 2-6
 Called from Test10_plugin in file "test10_plugin.ml", line 10, characters 2-6
-Called from Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
-Called from Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
-Re-raised at Dynlink.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 124, characters 6-137
+Called from Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
+Called from Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 112, characters 8-25
+Re-raised at Dynlink_internal_native.Native.ndl_run in file "otherlibs/dynlink/dynlink.ml", line 124, characters 6-137
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
 Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_common.ml", line 367, characters 13-72
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
 Called from Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 363, characters 8-408
 Re-raised at Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 376, characters 8-17
-Called from Dynlink_common.Make.loadfile in file "otherlibs/dynlink/dynlink_common.ml" (inlined), line 378, characters 26-45
 Called from Test10_main in file "test10_main.ml", line 49, characters 30-87
