@@ -481,7 +481,10 @@ type type_declaration =
        Ctype.add_jkind_equation. *)
 
     type_jkind_annotation: Jkind.const option;
-    (* This is the jkind annotation written by the user. *)
+    (* This is the jkind annotation written by the user. If the user did
+    not write this declaration (because it's a synthesized declaration
+    for an e.g. local abstract type or an inlined record), then this field
+    can safely be [None]. It's used only for printing. *)
 
     type_private: private_flag;
     type_manifest: type_expr option;
