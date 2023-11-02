@@ -770,10 +770,10 @@ let transl_declaration env sdecl (id, uid) =
        doing anything for us?  Abstract types are updated by
        check_coherence and record/variant types are updated by
        update_decl_jkind.  *)
-      match jkind_annotation, man with
-      | Some annot, _ -> annot
-      | None, Some typ -> Ctype.estimate_type_jkind env typ
-      | None, None -> jkind_default
+      match jkind_annotation, man, tkind with
+      | Some annot, _, _ -> annot
+      | None, Some typ, Ttype_abstract -> Ctype.estimate_type_jkind env typ
+      | None, _, _ -> jkind_default
     in
     let arity = List.length params in
     let decl =
