@@ -1328,7 +1328,7 @@ end
 let report_error ~loc = function
   | Unknown_jkind jkind ->
     Location.errorf ~loc
-      (* CR layouts errors: use the context to produce a better error message.
+      (* CR layouts v2.9: use the context to produce a better error message.
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
       "@[<v>Unknown layout %a@]" Jane_syntax.Layouts.Pprint.const_jkind jkind
