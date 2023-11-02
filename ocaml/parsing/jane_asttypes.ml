@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*               Antal Spector-Zabusky, Jane Street, New York             *)
+(*                   Nick Roberts, Jane Street, New York                  *)
 (*                                                                        *)
 (*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)

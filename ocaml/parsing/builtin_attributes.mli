@@ -175,6 +175,8 @@ val has_unique: Parsetree.attributes -> (bool,unit) result
 
 val has_once : Parsetree.attributes -> (bool, unit) result
 
+(* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
+   after rerouting [@@immediate]. *)
 type jkind_attribute =
   | Immediate64
   | Immediate

@@ -438,7 +438,16 @@ module Const : sig
     | Immediate
     | Float64
 
+<<<<<<< HEAD
   val of_attribute : Builtin_attributes.jkind_attribute -> t
+=======
+  (** The function names are suffixed with "unchecked" to suggest that
+      they don't check whether the layouts extension is enabled.
+  *)
+
+  val of_user_written_attribute_unchecked :
+    Builtin_attributes.jkind_attribute -> t
+>>>>>>> nroberts/layouts-are-strings-in-parsetree
 
   val of_user_written_annotation_unchecked :
     Jane_asttypes.const_jkind -> t option
@@ -486,13 +495,10 @@ type const = Const.t =
   | Immediate
   | Float64
 
-let string_of_const : const -> _ = function
-  | Any -> "any"
-  | Value -> "value"
-  | Void -> "void"
-  | Immediate64 -> "immediate64"
-  | Immediate -> "immediate"
-  | Float64 -> "float64"
+type annotation = const * Jane_asttypes.jkind_annotation
+
+let string_of_const const =
+  Jane_asttypes.jkind_to_string (Const.to_user_written_annotation const)
 
 let equal_const (c1 : const) (c2 : const) =
   match c1, c2 with
@@ -567,6 +573,7 @@ let of_const ~why : const -> t = function
   | Void -> fresh_jkind (Sort Sort.void) ~why
   | Float64 -> fresh_jkind (Sort Sort.float64) ~why
 
+<<<<<<< HEAD
 let const_of_user_written_annotation ~context ~is_type_decl
     Location.{ loc; txt = annot } =
   match Const.of_user_written_annotation_unchecked annot with
@@ -582,13 +589,44 @@ let const_of_user_written_annotation ~context ~is_type_decl
 
 let const_to_user_written_annotation = Const.to_user_written_annotation
 
+=======
+let check_extension_for_const ?(legacy_immediate = false) ~context ~loc annot =
+  match annot with
+  | (Immediate | Immediate64 | Value) as const when legacy_immediate -> const
+  | const ->
+    let required_layouts_level = get_required_layouts_level context const in
+    if not (Language_extension.is_at_least Layouts required_layouts_level)
+    then raise ~loc (Insufficient_level (context, const));
+    const
+
+let const_of_user_written_annotation ?legacy_immediate ~context
+    Location.{ loc; txt = annot } =
+  match Const.of_user_written_annotation_unchecked annot with
+  | None -> raise ~loc (Unknown_jkind annot)
+  | Some unchecked ->
+    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
+
+let const_of_user_written_attribute ?legacy_immediate ~context
+    Location.{ loc; txt = attribute } =
+  let unchecked = Const.of_user_written_attribute_unchecked attribute in
+  let checked =
+    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
+  in
+  Location.{ loc; txt = checked }
+
+let const_of_attributes ~legacy_immediate ~context attrs =
+  Builtin_attributes.jkind ~legacy_immediate attrs
+  |> Result.map
+       (Option.map (const_of_user_written_attribute ~legacy_immediate ~context))
+
+>>>>>>> nroberts/layouts-are-strings-in-parsetree
 let of_annotated_const ~context Location.{ txt = const; loc = const_loc } =
   of_const ~why:(Annotated (context, const_loc)) const
 
 let of_annotation ~context ~is_type_decl (annot : _ Location.loc) =
   let const = const_of_user_written_annotation ~is_type_decl ~context annot in
   let jkind = of_annotated_const { txt = const; loc = annot.loc } ~context in
-  jkind, const
+  jkind, (const, annot)
 
 let of_annotation_option_default ~default ~context ~is_type_decl =
   Option.fold ~none:(default, None) ~some:(fun annot ->
@@ -1345,7 +1383,7 @@ end
 let report_error ~loc = function
   | Unknown_jkind jkind ->
     Location.errorf ~loc
-      (* CR layouts errors: use the context to produce a better error message.
+      (* CR layouts v2.9: use the context to produce a better error message.
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
       "@[<v>Unknown layout %a@]" Jane_syntax.Layouts.Pprint.const_jkind jkind

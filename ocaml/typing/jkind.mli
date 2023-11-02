@@ -327,12 +327,15 @@ type const =
   | Immediate
   | Float64
 
-type 'a loc := 'a Location.loc
-
 val const_of_user_written_annotation :
+<<<<<<< HEAD
   context:annotation_context -> Jane_asttypes.const_jkind loc -> const
-
-val const_to_user_written_annotation : const -> Jane_asttypes.const_jkind
+=======
+  ?legacy_immediate:bool ->
+  context:annotation_context ->
+  Jane_asttypes.jkind_annotation ->
+  const
+>>>>>>> nroberts/layouts-are-strings-in-parsetree
 
 val string_of_const : const -> string
 
@@ -376,14 +379,29 @@ val of_sort_for_error : why:concrete_jkind_reason -> sort -> t
 
 val of_const : why:creation_reason -> const -> t
 
+<<<<<<< HEAD
 val of_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> t * const
+=======
+(** The typed jkind together with its user-written annotation. *)
+type annotation = const * Jane_asttypes.jkind_annotation
+
+(* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
+   is rerouted away from the new annotations mechanism *)
+val of_annotation :
+  ?legacy_immediate:bool ->
+  context:annotation_context ->
+  Jane_asttypes.jkind_annotation ->
+  t * annotation
+>>>>>>> nroberts/layouts-are-strings-in-parsetree
 
 val of_annotation_option_default :
   default:t ->
   context:annotation_context ->
   Jane_asttypes.jkind_annotation option ->
-  t * const option
+  t * annotation option
+
+(* CR layouts v1.5: remove [of_attributes] when we reroute [@@immediate]. *)
 
 (** Find a jkind from a type declaration. Type declarations are special because
     the jkind may have been provided via [: jkind] syntax (which goes through

@@ -402,19 +402,6 @@ let transl_constructor_arguments env univars closed = function
       Types.Cstr_record lbls',
       Cstr_record lbls
 
-let transl_constructor_type_parameters (svars : _ Either.t) ~cstr_path =
-  match svars with
-  | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
-  | Right vars_jkinds ->
-      List.map
-        (fun (v, l) ->
-           v.txt,
-           Option.map
-             (Jkind.const_of_user_written_annotation
-                ~context:(Constructor_type_parameter (cstr_path, v.txt)))
-             l)
-        vars_jkinds
-
 (* Note that [make_constructor] does not fill in the [ld_jkind] field of any
    computed record types, because it's called too early in the translation of a
    type declaration to compute accurate jkinds in the presence of recursively
@@ -423,12 +410,28 @@ let transl_constructor_type_parameters (svars : _ Either.t) ~cstr_path =
 let make_constructor
       env loc ~cstr_path ~type_path type_params (svars : _ Either.t)
       sargs sret_type =
+  let tvars = match svars with
+    | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
+    | Right vars_jkinds ->
+        List.map
+          (fun (v, l) ->
+            v.txt,
+            Option.map
+              (fun annot ->
+                 let const =
+                    Jkind.const_of_user_written_annotation
+                      ~context:(Constructor_type_parameter (cstr_path, v.txt))
+                      annot
+                 in
+                 const, annot)
+              l)
+          vars_jkinds
+  in
   match sret_type with
   | None ->
       let args, targs =
         transl_constructor_arguments env None true sargs
       in
-      let tvars = transl_constructor_type_parameters svars ~cstr_path in
         tvars, targs, None, args, None
   | Some sret_type -> TyVarEnv.with_local_scope begin fun () ->
       (* if it's a generalized constructor we must work in a narrowed
@@ -445,11 +448,6 @@ let make_constructor
            Some (TyVarEnv.make_poly_univars_jkinds
                    ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
                    vars_jkinds), true
-      in
-      let tvars =
-        match univars with
-        | None -> transl_constructor_type_parameters svars ~cstr_path
-        | Some univars -> TyVarEnv.ttyp_poly_arg univars
       in
       let args, targs =
         transl_constructor_arguments env univars closed sargs

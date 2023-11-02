@@ -18,7 +18,6 @@
 (* Typechecking of type expressions for the core language *)
 
 open Asttypes
-open Jane_asttypes
 open Misc
 open Parsetree
 open Typedtree
@@ -47,7 +46,7 @@ type cannot_quantify_reason =
    the body of the type *)
 type jkind_info =
   { original_jkind : jkind;
-    jkind_annot : Jkind.const option;
+    jkind_annot : Jkind.annotation option;
     defaulted : bool;
   }
 
@@ -101,7 +100,7 @@ module TyVarEnv : sig
   val with_univars : poly_univars -> (unit -> 'a) -> 'a
   (* evaluate with a locally extended set of univars *)
 
-  val ttyp_poly_arg : poly_univars -> (string * Jkind.const option) list
+  val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
   (* something suitable as an argument to [Ttyp_poly] *)
 
   val make_poly_univars : string Location.loc list -> poly_univars
@@ -109,7 +108,7 @@ module TyVarEnv : sig
 
   val make_poly_univars_jkinds :
     context:(string -> Jkind.annotation_context) ->
-    (string Location.loc * jkind_annotation option) list -> poly_univars
+    (string Location.loc * Jane_asttypes.jkind_annotation option) list -> poly_univars
   (* see mli file *)
 
   val check_poly_univars : Env.t -> Location.t -> poly_univars -> type_expr list
@@ -442,7 +441,7 @@ let valid_tyvar_name name =
   name <> "" && name.[0] <> '_'
 
 let transl_type_param_var env loc attrs name_opt
-      (jkind : jkind) (jkind_annot : Jkind.const option) =
+      (jkind : jkind) jkind_annot =
   let tvar = Ttyp_var (name_opt, jkind_annot) in
   let name =
     match name_opt with
@@ -462,11 +461,11 @@ let transl_type_param_var env loc attrs name_opt
 let transl_type_param_jst env loc attrs path :
   Jane_syntax.Core_type.t -> _ =
   function
-  | Jtyp_layout (Ltyp_var { name; jkind = annot }) ->
-     let jkind, annot =
-       Jkind.of_annotation ~context:(Type_parameter (path, name)) annot
+  | Jtyp_layout (Ltyp_var { name; jkind = jkind_annot }) ->
+     let jkind, jkind_annot =
+       Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot
      in
-     transl_type_param_var env loc attrs name jkind (Some annot)
+     transl_type_param_var env loc attrs name jkind (Some jkind_annot)
   | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _) ->
     Misc.fatal_error "non-type-variable in transl_type_param_jst"
 
