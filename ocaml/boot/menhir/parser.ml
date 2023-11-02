@@ -1219,7 +1219,7 @@ let unboxed_float sloc sign (f, m) =
 
 let assert_unboxed_float_type ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Stable)
 
 let unboxed_float_type sloc tys =
   assert_unboxed_float_type ~loc:(make_loc sloc);

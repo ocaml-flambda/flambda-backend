@@ -8,12 +8,10 @@
      flags = "-extension layouts_beta"
    * bytecode
      flags = "-extension layouts_beta"
-   * setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
+   * native
      flags = "-extension layouts"
-   ** ocamlc.byte
-     compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
-   *** check-ocamlc.byte-output
+   * bytecode
+     flags = "-extension layouts"
 *)
 
 (* This file contains various tests for float#.  It's not an expect test to make
