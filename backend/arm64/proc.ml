@@ -333,7 +333,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
     assert false
   | Op( Intoffloat | Floatofint
-       | Load(Single, _, _) | Store(Single, _, _)) ->
+      | Load {memory_chunk = Single; _ } | Store(Single, _, _)) ->
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
@@ -354,7 +354,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then all_phys_regs else destroyed_at_c_call
+    if alloc then all_phys_regs else destroyed_at_c_noalloc_call
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
@@ -415,6 +415,7 @@ let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
 type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
+[@@ocaml.warning "-37"]
 
 let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
       ~fun_num_stack_slots:_ =
@@ -449,6 +450,7 @@ let operation_supported = function
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
   | Cbeginregion | Cendregion | Ctuple_field _
+  | Cdls_get
     -> true
 
 let trap_size_in_bytes = 16

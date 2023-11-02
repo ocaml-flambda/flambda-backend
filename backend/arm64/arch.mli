@@ -40,6 +40,8 @@ type addressing_mode =
 type cmm_label = int
   (* Do not introduce a dependency to Cmm *)
 
+type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
+
 type specific_operation =
   | Ifar_poll of { return_label: cmm_label option }
   | Ifar_alloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo }
@@ -56,13 +58,15 @@ type specific_operation =
   | Imulsubf      (* floating-point multiply and subtract *)
   | Inegmulsubf   (* floating-point negate, multiply and subtract *)
   | Isqrtf        (* floating-point square root *)
-  | Ibswap of int (* endianness conversion *)
+  | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Imove32       (* 32-bit integer move *)
   | Isignext of int (* sign extension *)
 
 and arith_operation =
     Ishiftadd
   | Ishiftsub
+
+val equal_specific_operation : specific_operation -> specific_operation -> bool
 
 (* Sizes, endianness *)
 
@@ -74,6 +78,8 @@ val size_int : int
 
 val size_float : int
 
+val size_vec128 : int
+
 val allow_unaligned_access : bool
 
 (* Behavior of division *)
@@ -81,6 +87,8 @@ val allow_unaligned_access : bool
 val division_crashes_on_overflow : bool
 
 (* Operations on addressing modes *)
+
+val equal_addressing_mode : addressing_mode -> addressing_mode -> bool
 
 val identity_addressing : addressing_mode
 
@@ -103,6 +111,10 @@ val is_logical_immediate : nativeint -> bool
 (* Specific operations that are pure *)
 
 val operation_is_pure : specific_operation -> bool
+
+(* Specific operations that allocate *)
+
+val operation_allocates : specific_operation -> bool
 
 (* Specific operations that can raise *)
 
