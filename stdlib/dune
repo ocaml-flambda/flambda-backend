@@ -89,6 +89,7 @@
   callback.ml
   callback.mli
   camlinternalAtomic.ml
+  camlinternalAtomic.mli
   camlinternalComprehension.ml
   camlinternalComprehension.mli
   camlinternalFormat.ml
@@ -389,6 +390,7 @@
   .stdlib.objs/byte/camlinternalLazy.cmt
   .stdlib.objs/byte/camlinternalOO.cmt
   .stdlib.objs/byte/camlinternalFormat.cmt
+  .stdlib.objs/byte/camlinternalAtomic.cmti
   .stdlib.objs/byte/camlinternalComprehension.cmti
   .stdlib.objs/byte/camlinternalMod.cmti
   .stdlib.objs/byte/camlinternalFormatBasics.cmti
