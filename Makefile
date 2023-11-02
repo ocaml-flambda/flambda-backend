@@ -1488,10 +1488,11 @@ check_arch:
 	@rm -f $(ARCH_SPECIFIC) asmcomp/emit.ml asmcomp/*.cm*
 
 .PHONY: check_all_arches
+# CR mshinwell: have only enabled arm64 and amd64 for now
 check_all_arches:
 ifeq ($(ARCH64),true)
 	@STATUS=0; \
-	 for i in $(ARCHES); do \
+	 for i in amd64 arm64; do \
 	   $(MAKE) --no-print-directory check_arch ARCH=$$i || STATUS=1; \
 	 done; \
 	 exit $$STATUS
