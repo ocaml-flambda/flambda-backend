@@ -689,9 +689,9 @@ let f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
 ;; (* fail *)
 [%%expect{|
 type (_, _) eq = Eq : ('a, 'a) eq
-Line 3, characters 18-72:
-3 | let f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Lines 3-4, characters 4-15:
+3 | ....f : type a b. (a,b) eq -> (<m : a; ..> as 'c) -> (<m : b; ..> as 'c) =
+4 |   fun Eq o -> o
 Error: The universal type variable 'b cannot be generalized:
        it is already bound to another variable.
 |}];;
