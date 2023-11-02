@@ -17,7 +17,7 @@
  (stdlib
   (exit_module std_exit)
   (internal_modules Camlinternal*)
-  (modules_before_stdlib camlinternalFormatBasics))
+  (modules_before_stdlib camlinternalFormatBasics camlinternalAtomic))
  (flags
   (-strict-sequence
    -absname

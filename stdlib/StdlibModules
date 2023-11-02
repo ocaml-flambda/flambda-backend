@@ -35,6 +35,7 @@
 # with lowercase first letters). These must be listed in dependency order.
 STDLIB_MODULE_BASENAMES = \
   camlinternalFormatBasics \
+  camlinternalAtomic \
   stdlib \
   either \
   sys \
