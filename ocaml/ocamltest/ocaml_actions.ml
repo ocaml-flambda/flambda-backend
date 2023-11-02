@@ -1178,6 +1178,20 @@ let no_flambda = make
     "support for flambda disabled"
     "support for flambda enabled")
 
+let flambda2 = Actions.make
+  ~name:"flambda2"
+  ~description:"Passes if the compiler is configured with flambda2 enabled"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.flambda2)
+    "support for flambda2 enabled"
+    "support for flambda2 disabled")
+
+let no_flambda2 = make
+  ~name:"no-flambda2"
+  ~description:"Passes if the compiler is NOT configured with flambda2 enabled"
+  (Actions_helpers.pass_or_skip (not (Ocamltest_config.flambda2))
+    "support for flambda2 disabled"
+    "support for flambda2 enabled")
+
 let shared_libraries = Actions.make
   ~name:"shared-libraries"
   ~description:"Passes if shared libraries are supported"
@@ -1463,6 +1477,8 @@ let _ =
     no_flat_float_array;
     flambda;
     no_flambda;
+    flambda2;
+    no_flambda2;
     shared_libraries;
     no_shared_libraries;
     native_compiler;
