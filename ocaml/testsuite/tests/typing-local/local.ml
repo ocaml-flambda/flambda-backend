@@ -171,11 +171,7 @@ let foo () =
     ((fun y z -> z) : int -> local_ (int -> int)) in
   ()
 [%%expect{|
-Line 3, characters 4-49:
-3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> int -> int
+val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
@@ -195,11 +191,7 @@ let foo () =
     ((fun y z -> z) : _ -> local_ (_ -> _)) in
   ()
 [%%expect{|
-Line 3, characters 4-43:
-3 |     ((fun y z -> z) : _ -> local_ (_ -> _)) in
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'b -> local_ ('c -> 'c)
-       but an expression was expected of type 'a -> 'a -> 'a
+val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
@@ -2795,11 +2787,7 @@ let foo () =
   let local_ _bar2 z : int -> int -> int = local_ (fun x y -> x + y + z) in
   ()
 [%%expect{|
-Line 2, characters 6-66:
-2 |   let local_ _bar1 : int -> int -> int = local_ (fun x y -> x + y) in
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> (int -> int)
+val foo : unit -> unit = <fun>
 |}];;
 
 let foo () =
