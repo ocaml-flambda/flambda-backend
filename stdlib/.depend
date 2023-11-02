@@ -130,8 +130,11 @@ stdlib__Callback.cmx : callback.ml \
     stdlib__Callback.cmi
 stdlib__Callback.cmi : callback.mli \
     stdlib.cmi
-camlinternalAtomic.cmo :
-camlinternalAtomic.cmx :
+camlinternalAtomic.cmo : \
+    camlinternalAtomic.cmi
+camlinternalAtomic.cmx : \
+    camlinternalAtomic.cmi
+camlinternalAtomic.cmi :
 camlinternalComprehension.cmo : \
     stdlib.cmi \
     camlinternalComprehension.cmi
