@@ -1,3 +1,4 @@
+# 1 "domain.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -15,6 +16,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
 
 (* CR ocaml 5 runtime: domain-local-storage assumes single-domain,
    i.e. calling split will never be necessary. *)
