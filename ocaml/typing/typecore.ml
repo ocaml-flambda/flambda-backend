@@ -4621,7 +4621,7 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attrib
       let expr = Exp.constraint_ ~loc ~attrs:mode_annot_attrs expr typ in
       List.fold_right (Exp.newtype ~loc) vars expr
 
-let vb_pat_constraint ~force_toplevel rec_mode_var
+let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_attributes = attrs; _ } as vb) =
   let mode_annot_attrs =
     Builtin_attributes.filter_attributes
@@ -4652,6 +4652,9 @@ let vb_pat_constraint ~force_toplevel rec_mode_var
           ~attrs:mode_annot_attrs
     | _ -> pat
   in
+  vb.pvb_attributes, spat
+
+let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
   let pat_mode, exp_mode =
     if force_toplevel
     then simple_pat_mode Value.legacy, mode_legacy
@@ -4669,8 +4672,7 @@ let vb_pat_constraint ~force_toplevel rec_mode_var
     | Some mode ->
         simple_pat_mode mode, mode_exact mode
   in
-  vb.pvb_attributes, pat_mode, exp_mode, spat
-
+  attrs, pat_mode, exp_mode, spat
 
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
@@ -7578,9 +7580,8 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Recursive -> Some Value.legacy
     | Nonrecursive -> None
   in
-  let spatl =
-    List.map (vb_pat_constraint ~force_toplevel rec_mode_var) spat_sexp_list
-  in
+  let spatl = List.map vb_pat_constraint spat_sexp_list in
+  let spatl = List.map (pat_modes ~force_toplevel rec_mode_var) spatl in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
 
