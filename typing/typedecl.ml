@@ -755,24 +755,17 @@ let transl_declaration env sdecl (id, uid) =
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
-       - If there's no annotation but there is a manifest, we estimate the
-         jkind based on the manifest here. This upper bound saves time
-         later by avoiding expanding the manifest in jkind checks, but it
-         would be sound to leave in `any`. We can't give a perfectly
-         accurate jkind here because we don't have access to the
-         manifests of mutually defined types (but we could one day consider
-         improving it at a later point in transl_type_decl).
+         Both of those functions update the [type_jkind] field in the
+         [type_declaration] as appropriate.
+       - If there's no annotation but there is a manifest, just use [any].
+         This will get updated to the manifest's jkind in [check_coherence].
        - If there's no annotation and no manifest, we fill in with the
          default calculated above here. It will get updated in
          [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
     *)
-    (* CR layouts: Is the estimation mentioned in the second bullet above
-       doing anything for us?  Abstract types are updated by
-       check_coherence and record/variant types are updated by
-       update_decl_jkind.  *)
       match jkind_annotation, man with
       | Some annot, _ -> annot
-      | None, Some typ -> Ctype.estimate_type_jkind env typ
+      | None, Some _ -> Jkind.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1777,10 +1770,10 @@ let transl_type_decl env rec_flag sdecl_list =
     | Typedecl_separability.Error (loc, err) ->
         raise (Error (loc, Separability err))
   in
+  (* Check re-exportation, updating [type_jkind] from the manifest *)
+  let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
   (* Compute the final environment with variance and immediacy *)
   let final_env = add_types_to_env decls env in
-  (* Check re-exportation *)
-  let decls = List.map2 (check_abbrev final_env) sdecl_list decls in
   (* Keep original declaration *)
   let final_decls =
     List.map2
