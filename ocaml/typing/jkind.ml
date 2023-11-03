@@ -634,7 +634,7 @@ end = struct
           | "Location" | "Longident" -> "ocamlcommon"
           | mn ->
             mn |> String.lowercase_ascii |> delete_trailing_double_underscore)
-      | Pident _ | Papply _ -> None
+      | Pident _ | Papply _ | Pextra_ty _ -> None
     in
     Option.iter
       (fprintf ppf "@,Hint: Adding \"%s\" to your dependencies might help.")

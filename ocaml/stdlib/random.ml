@@ -14,6 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR ocaml 5 runtime: we should update this to the OCaml 5 splittable PRNG
+*)
+
 open! Stdlib
 
 [@@@ocaml.flambda_o3]

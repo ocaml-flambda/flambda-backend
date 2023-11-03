@@ -12,6 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR mshinwell: fix properly using -enable-dev PR's changes *)
+[@@@ocaml.warning "-27-32"]
+
 open! Asm_targets
 open! Dwarf_low
 open! Dwarf_high
@@ -65,6 +68,8 @@ let construct_type_of_value_description state ~parent ident_for_type
 type location_description =
   | Simple of Simple_location_description.t
   | Composite of Composite_location_description.t
+
+let _to_silence_warning x = Composite x
 
 let reg_location_description reg ~offset ~need_rvalue :
     location_description option =

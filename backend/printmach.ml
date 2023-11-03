@@ -176,12 +176,16 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (if alloc then "" else " (noalloc)")
   | Istackoffset n ->
       fprintf ppf "offset stack %i" n
-  | Iload(chunk, addr, Immutable) ->
-      fprintf ppf "%s[%a]"
-       (Printcmm.chunk chunk) (Arch.print_addressing reg addr) arg
-  | Iload(chunk, addr, Mutable) ->
-      fprintf ppf "%s mut[%a]"
-       (Printcmm.chunk chunk) (Arch.print_addressing reg addr) arg
+  | Iload { memory_chunk; addressing_mode; mutability=Immutable; is_atomic } ->
+    fprintf ppf "%s %a[%a]"
+      (Printcmm.chunk memory_chunk)
+      (fun pp a -> if a then fprintf pp "atomic" else ()) is_atomic
+      (Arch.print_addressing reg addressing_mode) arg
+  | Iload { memory_chunk; addressing_mode; mutability=Mutable; is_atomic } ->
+    fprintf ppf "%s %a mut[%a]"
+      (Printcmm.chunk memory_chunk)
+      (fun pp a -> if a then fprintf pp "atomic" else ()) is_atomic
+      (Arch.print_addressing reg addressing_mode) arg
   | Istore(chunk, addr, is_assign) ->
       fprintf ppf "%s[%a] := %a %s"
        (Printcmm.chunk chunk)
@@ -248,6 +252,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
+  | Idls_get -> fprintf ppf "dls_get"
   | Ipoll { return_label } ->
       fprintf ppf "poll call";
       (match return_label with
@@ -379,10 +384,10 @@ let interval ppf i =
       i.ranges in
   fprintf ppf "@[<2>%a:%t@]@." reg i.reg interv
 
-let intervals ppf () =
+let intervals ppf (intervals : Interval.result) =
   fprintf ppf "*** Intervals@.";
-  List.iter (interval ppf) (Interval.all_fixed_intervals());
-  List.iter (interval ppf) (Interval.all_intervals())
+  List.iter (interval ppf) intervals.fixed_intervals;
+  List.iter (interval ppf) intervals.intervals
 
 let preference ppf r =
   let prefs ppf =

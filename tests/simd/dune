@@ -5,7 +5,7 @@
  (language c)
  (names stubs)
  (flags -msse4.2)
- (include_dirs "../../ocaml/runtime"))
+ (include_dirs "../../ocaml/runtime4"))
 
 ; Tests with external assembler
 

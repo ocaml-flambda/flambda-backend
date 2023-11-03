@@ -19,8 +19,7 @@ define dune_boot_context
 ; We need to call the boot context "default" so that dune selects it for merlin
 (context (default
   (name default)
-  ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile boot)
+  (profile dev)
   (env (_
     (flags (:standard -warn-error +A))
     (env-vars ("OCAMLPARAM" ""))))))
@@ -75,7 +74,9 @@ runtime-stdlib: boot-compiler
 	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
-	$(dune) build $(ws_main) --only-package=ocaml @install $(ocamldir)/ocamltest/ocamltest.byte
+	$(dune) build $(ws_main) --only-package=ocaml @install \
+	  $(ocamldir)/ocamltest/ocamltest.byte \
+	  $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
 	$(dune) runtest $(ws_main)
@@ -225,9 +226,9 @@ install_for_test: _install
 	   rm -f $$exe; ln -s $$exe.byte $$exe; \
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
-	 mkdir runtime; \
-	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime/caml/threads.h; do \
-	   ln -s ../$$f runtime/`basename $$f`; \
+	 mkdir runtime4; \
+	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime4/caml/threads.h; do \
+	   ln -s ../$$f runtime4/`basename $$f`; \
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
@@ -236,7 +237,6 @@ install_for_test: _install
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
-         ${cpl} stdlib/bigarray/bigarray* otherlibs/bigarray; \
 	 ln -s ../_build/main/$(ocamldir)/toplevel/byte/.ocamltoplevel.objs/byte toplevel; \
 	)
 
@@ -248,7 +248,7 @@ install_for_test: _install
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/byte/*.cmo _runtest/utils
 	rm -f _runtest/utils/{topdirs,opttopdirs}.cmi
 	cp _install/lib/ocaml/*.{cmi,cma,a,cmxa} _runtest/utils
-	cp _install/lib/ocaml/{unix,str,dynlink,bigarray}/*.{cmi,cma,a,cmxa} _runtest/utils
+	cp _install/lib/ocaml/{unix,str,dynlink}/*.{cmi,cma,a,cmxa} _runtest/utils
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/native/config.o _runtest/utils
 	# Needed for tests/warnings
 	cp $(ocamldir)/utils/warnings.ml _runtest/utils
@@ -273,6 +273,7 @@ install_for_test: _install
 	mkdir _runtest/tools
 	ln -s ../_install/bin/ocamlmklib.byte _runtest/tools/ocamlmklib
 	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
+	ln -s ../_install/bin/dumpobj.byte _runtest/tools/dumpobj
         # ocamldoc
 	rm _runtest/ocamldoc
 	mkdir _runtest/ocamldoc

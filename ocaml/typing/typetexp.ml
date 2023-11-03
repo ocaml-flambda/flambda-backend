@@ -117,7 +117,7 @@ module TyVarEnv : sig
   val fixed_policy : policy (* no wildcards allowed *)
   val extensible_policy : policy (* common case *)
   val univars_policy : policy (* fresh variables are univars (in methods) *)
-  val new_anon_var : Location.t -> Env.t -> Jkind.t -> policy -> type_expr
+  val new_any_var : Location.t -> Env.t -> Jkind.t -> policy -> type_expr
     (* create a new variable to represent a _; fails for fixed_policy *)
   val new_var : ?name:string -> Jkind.t -> policy -> type_expr
     (* create a new variable according to the given policy *)
@@ -136,7 +136,8 @@ module TyVarEnv : sig
        a new e.g. type signature. Optionally pass some univars that
        are in scope. *)
 
-  val lookup_local : string -> type_expr
+  val lookup_local :
+    row_context:type_expr option ref list -> string -> type_expr
     (* look up a local type variable; throws Not_found if it isn't in scope *)
 
   val remember_used : string -> type_expr -> Location.t -> unit
@@ -159,7 +160,7 @@ end = struct
 
   let not_generic v = get_level v <> Btype.generic_level
 
-  (* These are the type variables that were in scope before
+  (* These are the "global" type variables: they were in scope before
      we started processing the current type.
   *)
   let type_variables = ref (TyVarMap.empty : type_expr TyVarMap.t)
@@ -178,7 +179,6 @@ end = struct
 
   let reset () =
     reset_global_level ();
-    Ctype.reset_reified_var_counter ();
     type_variables := TyVarMap.empty
 
   let is_in_scope name =
@@ -210,65 +210,88 @@ end = struct
     TyVarMap.fold add_name !type_variables []
 
   (*****)
-  type poly_univars = (string * type_expr * jkind_info) list
-
   (* These are variables we expect to become univars (they were introduced with
      e.g. ['a .]), but we need to make sure they don't unify first.  Why not
      just birth them as univars? Because they might successfully unify with a
      row variable in the ['a. < m : ty; .. > as 'a] idiom.  They are like the
      [used_variables], but will not be globalized in [globalize_used_variables].
   *)
+  type pending_univar = {
+    univar: type_expr  (** the univar itself *);
+    mutable associated: type_expr option ref list;
+     (** associated references to row variables that we want to generalize
+       if possible *)
+    jkind_info : jkind_info (** the original kind *)
+  }
+
+  type poly_univars = (string * pending_univar) list
+
   let univars = ref ([] : poly_univars)
-  let assert_not_generic uvs =
-    assert (List.for_all (fun (_name, v, _lay) -> not_generic v) uvs)
+  let assert_univars uvs =
+    assert (List.for_all (fun (_name, v) -> not_generic v.univar) uvs)
 
   let rec find_poly_univars name = function
     | [] -> raise Not_found
-    | (n, t, _) :: rest ->
+    | (n, t) :: rest ->
       if String.equal name n
       then t
       else find_poly_univars name rest
 
   let with_univars new_ones f =
-    assert_not_generic new_ones;
+    assert_univars new_ones;
     let old_univars = !univars in
     univars := new_ones @ !univars;
     Fun.protect
       f
       ~finally:(fun () -> univars := old_univars)
 
-  let mk_poly_univars_triple_with_jkind ~context var jkind =
+  let mk_pending_univar name jkind jkind_info =
+    { univar = newvar ~name jkind; associated = []; jkind_info }
+
+  let mk_poly_univars_tuple_with_jkind ~context var jkind =
     let name = var.txt in
     let original_jkind = Jkind.of_annotation ~context:(context name) jkind in
     let jkind_info = { original_jkind; defaulted = false } in
-    name, newvar ~name original_jkind, jkind_info
+    name, mk_pending_univar name original_jkind jkind_info
 
-  let mk_poly_univars_triple_without_jkind var =
+  let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
     let original_jkind = Jkind.value ~why:Univar in
     let jkind_info = { original_jkind; defaulted = true } in
-    name, newvar ~name original_jkind, jkind_info
+    name, mk_pending_univar name original_jkind jkind_info
 
   let make_poly_univars vars =
-    List.map mk_poly_univars_triple_without_jkind vars
+    List.map mk_poly_univars_tuple_without_jkind vars
 
   let make_poly_univars_jkinds ~context vars_jkinds =
     let mk_trip = function
-        | (v, None) -> mk_poly_univars_triple_without_jkind v
-        | (v, Some l) -> mk_poly_univars_triple_with_jkind ~context v l
+        | (v, None) -> mk_poly_univars_tuple_without_jkind v
+        | (v, Some l) -> mk_poly_univars_tuple_with_jkind ~context v l
     in
     List.map mk_trip vars_jkinds
 
+  let promote_generics_to_univars promoted vars =
+      List.fold_left
+        (fun acc v ->
+           match get_desc v with
+           | Tvar { name; jkind } when get_level v = Btype.generic_level ->
+               set_type_desc v (Tunivar { name; jkind });
+               v :: acc
+           | _ -> acc
+        )
+        promoted vars
+
   let check_poly_univars env loc vars =
-    vars |> List.iter (fun (_, v, _) -> generalize v);
-    vars |> List.map (fun (name, ty1,
-                           ({ original_jkind; _ } as jkind_info)) ->
+    vars |> List.iter (fun (_, p) -> generalize p.univar);
+    let univars =
+      vars |> List.map (fun (name, {univar=ty1; jkind_info; _ }) ->
       let v = Btype.proxy ty1 in
       let cant_quantify reason =
         raise (Error (loc, env, Cannot_quantify(name, reason)))
       in
       begin match get_desc v with
-      | Tvar { jkind } when not (Jkind.equate jkind original_jkind) ->
+      | Tvar { jkind } when
+          not (Jkind.equate jkind jkind_info.original_jkind) ->
         let reason =
           Bad_univar_jkind { name; jkind_info; inferred_jkind = jkind }
         in
@@ -283,6 +306,17 @@ end = struct
          cant_quantify (Unified v)
       end;
       v)
+    in
+    (* Since we are promoting variables to univars in
+       {!promote_generics_to_univars}, even if a row variable is associated with
+       multiple univars we will promote it once, when checking the nearest
+       univar associated to this row variable.
+    *)
+    let promote_associated acc (_,v) =
+      let enclosed_rows = List.filter_map (!) v.associated in
+      promote_generics_to_univars acc enclosed_rows
+    in
+    List.fold_left promote_associated univars vars
 
   let instance_poly_univars env loc vars =
     let vs = check_poly_univars env loc vars in
@@ -295,14 +329,20 @@ end = struct
 
   (*****)
   let reset_locals ?univars:(uvs=[]) () =
-    assert_not_generic uvs;
+    assert_univars uvs;
     univars := uvs;
     used_variables := TyVarMap.empty
 
+  let associate row_context p =
+    let add l x = if List.memq x l then l else x :: l in
+    p.associated <- List.fold_left add row_context p.associated
+
   (* throws Not_found if the variable is not in scope *)
-  let lookup_local name =
+  let lookup_local ~row_context name =
     try
-      find_poly_univars name !univars
+      let p = find_poly_univars name !univars in
+      associate row_context p;
+      p.univar
     with Not_found ->
       instance (fst (TyVarMap.find name !used_variables))
       (* This call to instance might be redundant; all variables
@@ -331,15 +371,7 @@ end = struct
   let collect_univars f =
     pre_univars := [];
     let result = f () in
-    let univs =
-      List.fold_left
-        (fun acc v ->
-           match get_desc v with
-           | Tvar { name; jkind } when get_level v = Btype.generic_level ->
-               set_type_desc v (Tunivar { name; jkind });
-               v :: acc
-           | _ -> acc)
-        [] !pre_univars in
+    let univs = promote_generics_to_univars [] !pre_univars in
     result, univs
 
   let new_var ?name jkind policy =
@@ -347,7 +379,7 @@ end = struct
     add_pre_univar tv policy;
     tv
 
-  let new_anon_var loc env jkind = function
+  let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
     | policy -> new_var jkind policy
 
@@ -384,24 +416,23 @@ end
 let transl_modtype_longident = ref (fun _ -> assert false)
 let transl_modtype = ref (fun _ -> assert false)
 
-let create_package_mty fake loc env (p, l) =
-  let l =
-    List.sort
-      (fun (s1, _t1) (s2, _t2) ->
-         if s1.txt = s2.txt then
-           raise (Error (loc, env, Multiple_constraints_on_type s1.txt));
-         compare s1.txt s2.txt)
-      l
-  in
-  l,
+let sort_constraints_no_duplicates loc env l =
+  List.sort
+    (fun (s1, _t1) (s2, _t2) ->
+       if s1.txt = s2.txt then
+         raise (Error (loc, env, Multiple_constraints_on_type s1.txt));
+       compare s1.txt s2.txt)
+    l
+
+let create_package_mty loc p l =
   List.fold_left
-    (fun mty (s, t) ->
+    (fun mty (s, _) ->
       let d = {ptype_name = mkloc (Longident.last s.txt) s.loc;
                ptype_params = [];
                ptype_cstrs = [];
                ptype_kind = Ptype_abstract;
                ptype_private = Asttypes.Public;
-               ptype_manifest = if fake then None else Some t;
+               ptype_manifest = None;
                ptype_attributes = [];
                ptype_loc = loc} in
       Ast_helper.Mty.mk ~loc
@@ -411,6 +442,8 @@ let create_package_mty fake loc env (p, l) =
     l
 
 (* Translation of type expressions *)
+
+let generalize_ctyp typ = generalize typ.ctyp_type
 
 let strict_ident c = (c = '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')
 
@@ -554,11 +587,11 @@ let transl_bound_vars : (_, _) Either.t -> _ =
                           TyVarEnv.make_poly_univars_jkinds
                             ~context:(fun v -> Univar v) vars_jkinds
 
-let rec transl_type env policy mode styp =
+let rec transl_type env ~policy ?(aliased=false) ~row_context mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
-    (fun () -> transl_type_aux env policy mode styp)
+    (fun () -> transl_type_aux env ~policy ~aliased ~row_context mode styp)
 
-and transl_type_aux env policy mode styp =
+and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   let loc = styp.ptyp_loc in
   let ctyp ctyp_desc ctyp_type =
     { ctyp_desc; ctyp_type; ctyp_env = env;
@@ -566,17 +599,21 @@ and transl_type_aux env policy mode styp =
   in
   match Jane_syntax.Core_type.of_ast styp with
   | Some (etyp, attrs) ->
-    let desc, typ = transl_type_aux_jst env policy mode attrs loc etyp in
+    let desc, typ =
+      transl_type_aux_jst env ~policy ~row_context mode attrs loc etyp
+    in
     ctyp desc typ
   | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
      let ty =
-       TyVarEnv.new_anon_var loc env (Jkind.any ~why:Wildcard) policy
+       TyVarEnv.new_any_var loc env (Jkind.any ~why:Wildcard) policy
      in
      ctyp (Ttyp_var (None, None)) ty
   | Ptyp_var name ->
-      let desc, typ = transl_type_var env policy styp.ptyp_loc name None in
+      let desc, typ =
+        transl_type_var env ~policy ~row_context styp.ptyp_loc name None
+      in
       ctyp desc typ
   | Ptyp_arrow _ ->
       let args, ret, ret_mode = extract_params styp in
@@ -584,7 +621,7 @@ and transl_type_aux env policy mode styp =
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
-          let arg_cty = transl_type env policy arg_mode arg in
+          let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
           let acc_mode =
             Alloc.Const.join
               (Alloc.Const.close_over arg_mode)
@@ -636,12 +673,14 @@ and transl_type_aux env policy mode styp =
             newty (Tarrow(arrow_desc, arg_ty, ret_cty.ctyp_type, commu_ok))
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
-        | [] -> transl_type env policy ret_mode ret
+        | [] -> transl_type env ~policy ~row_context ret_mode ret
       in
       loop mode args
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);
-    let ctys = List.map (transl_type env policy Alloc.Const.legacy) stl in
+    let ctys =
+      List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
+    in
     List.iter (fun {ctyp_type; ctyp_loc} ->
       (* CR layouts v5: remove value requirement *)
       match
@@ -667,7 +706,9 @@ and transl_type_aux env policy mode styp =
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
-      let args = List.map (transl_type env policy Alloc.Const.legacy) stl in
+      let args =
+        List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
+      in
       let params = instance_list decl.type_params in
       let unify_param =
         match decl.type_manifest with
@@ -686,55 +727,36 @@ and transl_type_aux env policy mode styp =
         newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
       ctyp (Ttyp_constr (path, lid, args)) constr
   | Ptyp_object (fields, o) ->
-      let ty, fields = transl_fields env policy o fields in
+      let ty, fields = transl_fields env ~policy ~row_context o fields in
       ctyp (Ttyp_object (fields, o)) (newobj ty)
   | Ptyp_class(lid, stl) ->
-      let (path, decl, _is_variant) =
-        try
-          let path, decl = Env.find_type_by_name lid.txt env in
-          let rec check decl =
-            match decl.type_manifest with
-              None -> raise Not_found
-            | Some ty ->
-                match get_desc ty with
-                  Tvariant row when Btype.static_row row -> ()
-                | Tconstr (path, _, _) ->
-                    check (Env.find_type path env)
-                | _ -> raise Not_found
-          in check decl;
-          Location.deprecated styp.ptyp_loc
-            "old syntax for polymorphic variant type";
-          ignore(Env.lookup_type ~loc:lid.loc lid.txt env);
-          (path, decl,true)
-        with Not_found -> try
-          let lid2 =
-            match lid.txt with
-              Longident.Lident s     -> Longident.Lident ("#" ^ s)
-            | Longident.Ldot(r, s)   -> Longident.Ldot (r, "#" ^ s)
-            | Longident.Lapply(_, _) -> fatal_error "Typetexp.transl_type"
-          in
-          let path, decl = Env.find_type_by_name lid2 env in
-          ignore(Env.lookup_cltype ~loc:lid.loc lid.txt env);
-          (path, decl, false)
-        with Not_found -> try
-          (* Raise a different error if it matches the name of an unboxed type *)
-          let lid3 =
-            match lid.txt with
-              Longident.Lident s     -> Longident.Lident (s ^ "#")
-            | Longident.Ldot(r, s)   -> Longident.Ldot (r, s ^ "#")
-            | Longident.Lapply(_, _) -> fatal_error "Typetexp.transl_type"
-          in
-          ignore (Env.find_type_by_name lid3 env : Path.t * Types.type_declaration);
-          raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
-        with Not_found ->
-          ignore (Env.lookup_cltype ~loc:lid.loc lid.txt env); assert false
+      let (path, decl) =
+        match Env.lookup_cltype ~loc:lid.loc lid.txt env with
+        | (path, decl) -> (path, decl.clty_hash_type)
+        (* Raise a different error if it matches the name of an unboxed type *)
+        | exception
+            (Env.Error (Lookup_error (_, _, Unbound_cltype _)) as exn)
+          ->
+            let unboxed_lid : Longident.t =
+              match lid.txt with
+              | Lident s -> Lident (s ^ "#")
+              | Ldot (l, s) -> Ldot (l, s ^ "#")
+              | Lapply _ -> fatal_error "Typetexp.transl_type"
+            in
+            match Env.find_type_by_name unboxed_lid env with
+            | exception Not_found -> raise exn
+            | (_ : _ * _) ->
+                raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
       in
       if List.length stl <> decl.type_arity then
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
-      let args = List.map (transl_type env policy Alloc.Const.legacy) stl in
-      let params = instance_list decl.type_params in
+      let args =
+        List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
+      in
+      let body = Option.get decl.type_manifest in
+      let (params, body) = instance_parameterized_type decl.type_params body in
       List.iter2
         (fun (sty, cty) ty' ->
            try unify_var env ty' cty.ctyp_type with Unify err ->
@@ -742,37 +764,21 @@ and transl_type_aux env policy mode styp =
              raise (Error(sty.ptyp_loc, env, Type_mismatch err))
         )
         (List.combine stl args) params;
-        let ty_args = List.map (fun ctyp -> ctyp.ctyp_type) args in
-      let ty = Ctype.expand_head env (newconstr path ty_args) in
+      let ty_args = List.map (fun ctyp -> ctyp.ctyp_type) args in
+      let ty = Ctype.apply ~use_current_level:true env params body ty_args in
       let ty = match get_desc ty with
-        Tvariant row ->
-          let fields =
-            List.map
-              (fun (l,f) -> l,
-                match row_field_repr f with
-                | Rpresent oty -> rf_either_of oty
-                | _ -> f)
-              (row_fields row)
-          in
-          (* NB: row is always non-static here; more is thus never Tnil *)
-          let more =
-            TyVarEnv.new_var (Jkind.value ~why:Row_variable) policy
-          in
-          let row =
-            create_row ~fields ~more
-              ~closed:true ~fixed:None ~name:(Some (path, ty_args))
-          in
-          newty (Tvariant row)
-      | Tobject (fi, _) ->
-          let _, tv = flatten_fields fi in
-          TyVarEnv.add_pre_univar tv policy;
-          ty
-      | _ ->
-          assert false
+        | Tobject (fi, _) ->
+            let _, tv = flatten_fields fi in
+            TyVarEnv.add_pre_univar tv policy;
+            ty
+        | _ ->
+            assert false
       in
       ctyp (Ttyp_class (path, lid, args)) ty
   | Ptyp_alias(st, alias) ->
-    let desc, typ = transl_type_alias env policy mode loc st (Some alias) None in
+    let desc, typ =
+      transl_type_alias env ~policy ~row_context mode loc st (Some alias) None
+    in
     ctyp desc typ
   | Ptyp_variant(fields, closed, present) ->
       let name = ref None in
@@ -795,7 +801,7 @@ and transl_type_aux env policy mode styp =
         with Not_found ->
           Hashtbl.add hfields h (l,f)
       in
-      let add_field field =
+      let add_field row_context field =
         let rf_loc = field.prf_loc in
         let rf_attributes = field.prf_attributes in
         let rf_desc = match field.prf_desc with
@@ -804,7 +810,9 @@ and transl_type_aux env policy mode styp =
             let tl =
               Builtin_attributes.warning_scope rf_attributes
                 (fun () ->
-                   List.map (transl_type env policy Alloc.Const.legacy) stl)
+                   List.map
+                     (transl_type env ~policy ~row_context Alloc.Const.legacy)
+                     stl)
             in
             List.iter (fun {ctyp_type; ctyp_loc} ->
               (* CR layouts: at some point we'll allow different jkinds in
@@ -833,7 +841,9 @@ and transl_type_aux env policy mode styp =
             add_typed_field styp.ptyp_loc l.txt f;
               Ttag (l,c,tl)
         | Rinherit sty ->
-          let cty = transl_type env policy Alloc.Const.legacy sty in
+            let cty =
+              transl_type env ~policy ~row_context Alloc.Const.legacy sty
+            in
             let ty = cty.ctyp_type in
             let nm =
               match get_desc cty.ctyp_type with
@@ -865,7 +875,11 @@ and transl_type_aux env policy mode styp =
         in
         { rf_desc; rf_loc; rf_attributes; }
       in
-      let tfields = List.map add_field fields in
+      let more_slot = ref None in
+      let row_context =
+        if aliased then row_context else more_slot :: row_context
+      in
+      let tfields = List.map (add_field row_context) fields in
       let fields = List.rev (Hashtbl.fold (fun _ p l -> p :: l) hfields []) in
       begin match present with None -> ()
       | Some present ->
@@ -884,11 +898,13 @@ and transl_type_aux env policy mode styp =
         then newty Tnil
         else TyVarEnv.new_var (Jkind.value ~why:Row_variable) policy
       in
+      more_slot := Some more;
       let ty = newty (Tvariant (make_row more)) in
       ctyp (Ttyp_variant (tfields, closed, present)) ty
   | Ptyp_poly(vars, st) ->
       let desc, typ =
-        transl_type_poly env policy mode styp.ptyp_loc (Either.Left vars) st
+        transl_type_poly env ~policy ~row_context mode styp.ptyp_loc
+          (Either.Left vars) st
       in
       ctyp desc typ
   | Ptyp_package (p, l) ->
@@ -902,11 +918,16 @@ and transl_type_aux env policy mode styp =
     *)
     (* CR layouts: and in the long term, rewrite all of this to eliminate
        the [create_package_mty] hack that constructs fake source code. *)
-      let l, mty = create_package_mty true styp.ptyp_loc env (p, l) in
-      let mty = TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
-      let ptys = List.map (fun (s, pty) ->
-                             s, transl_type env policy Alloc.Const.legacy pty
-                          ) l in
+      let loc = styp.ptyp_loc in
+      let l = sort_constraints_no_duplicates loc env l in
+      let mty = create_package_mty loc p l in
+      let mty =
+        TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
+      let ptys =
+        List.map (fun (s, pty) ->
+          s, transl_type env ~policy ~row_context Alloc.Const.legacy pty
+        ) l
+      in
       List.iter (fun (s,{ctyp_type=ty}) ->
         match
           Ctype.constrain_type_jkind env ty (Jkind.value ~why:Package_hack)
@@ -916,7 +937,7 @@ and transl_type_aux env policy mode styp =
           raise (Error(s.loc,env,
                        Non_value {vloc=Package_constraint; typ=ty; err=e})))
         ptys;
-      let path = !transl_modtype_longident styp.ptyp_loc env p.txt in
+      let path = !transl_modtype_longident loc env p.txt in
       let ty = newty (Tpackage (path,
                        List.map (fun (s, cty) -> (s.txt, cty.ctyp_type)) ptys))
       in
@@ -929,30 +950,33 @@ and transl_type_aux env policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_type_aux_jst env policy mode _attrs loc :
+and transl_type_aux_jst env ~policy ~row_context mode _attrs loc :
       Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_layout typ -> transl_type_aux_jst_layout env policy mode loc typ
+  | Jtyp_layout typ ->
+    transl_type_aux_jst_layout env ~policy ~row_context mode loc typ
 
-and transl_type_aux_jst_layout env policy mode loc :
+and transl_type_aux_jst_layout env ~policy ~row_context mode loc :
       Jane_syntax.Layouts.core_type -> _ = function
   | Ltyp_var { name = None; jkind } ->
     let tjkind = Jkind.of_annotation ~context:(Type_wildcard loc) jkind in
     Ttyp_var (None, Some jkind.txt),
-    TyVarEnv.new_anon_var loc env tjkind policy
+    TyVarEnv.new_any_var loc env tjkind policy
   | Ltyp_var { name = Some name; jkind } ->
-    transl_type_var env policy loc name (Some jkind)
+    transl_type_var env ~policy ~row_context loc name (Some jkind)
   | Ltyp_poly { bound_vars; inner_type } ->
-    transl_type_poly env policy mode loc (Either.Right bound_vars) inner_type
+    transl_type_poly env ~policy ~row_context mode loc (Either.Right bound_vars)
+      inner_type
   | Ltyp_alias { aliased_type; name; jkind } ->
-    transl_type_alias env policy mode loc aliased_type name (Some jkind)
+    transl_type_alias env ~policy ~row_context mode loc aliased_type name
+      (Some jkind)
 
-and transl_type_var env policy loc name jkind_annot_opt =
+and transl_type_var env ~policy ~row_context loc name jkind_annot_opt =
   let print_name = "'" ^ name in
   if not (valid_tyvar_name name) then
     raise (Error (loc, env, Invalid_variable_name print_name));
   let of_annot = Jkind.of_annotation ~context:(Type_variable print_name) in
   let ty = try
-      let ty = TyVarEnv.lookup_local name in
+      let ty = TyVarEnv.lookup_local ~row_context name in
       begin match jkind_annot_opt with
       | None -> ()
       | Some jkind_annot ->
@@ -974,27 +998,34 @@ and transl_type_var env policy loc name jkind_annot_opt =
   in
   Ttyp_var (Some name, Option.map Location.get_txt jkind_annot_opt), ty
 
-and transl_type_poly env policy mode loc (vars : (_, _) Either.t) st =
-  begin_def();
-  let typed_vars, new_univars = transl_bound_vars vars in
-  let cty = TyVarEnv.with_univars new_univars begin fun () ->
-    transl_type env policy mode st
-  end in
+and transl_type_poly env ~policy ~row_context mode loc (vars : (_, _) Either.t)
+      st =
+  let typed_vars, new_univars, cty =
+    with_local_level begin fun () ->
+      let typed_vars, new_univars = transl_bound_vars vars in
+      let cty = TyVarEnv.with_univars new_univars begin fun () ->
+        transl_type env ~policy ~row_context mode st
+      end in
+      (typed_vars, new_univars, cty)
+    end
+      ~post:(fun (_,_,cty) -> generalize_ctyp cty)
+  in
   let ty = cty.ctyp_type in
-  end_def();
-  generalize ty;
   let ty_list = TyVarEnv.check_poly_univars env loc new_univars in
   let ty_list = List.filter (fun v -> deep_occur v ty) ty_list in
   let ty' = Btype.newgenty (Tpoly(ty, ty_list)) in
   unify_var env (newvar (Jkind.any ~why:Dummy_jkind)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
-and transl_type_alias env policy mode alias_loc styp name_opt jkind_annot_opt =
+and transl_type_alias env ~row_context ~policy mode alias_loc styp name_opt
+      jkind_annot_opt =
   let cty = match name_opt with
     | Some alias ->
       begin try
-        let t = TyVarEnv.lookup_local alias in
-        let cty = transl_type env policy mode styp in
+        let t = TyVarEnv.lookup_local ~row_context alias in
+        let cty =
+          transl_type env ~policy ~aliased:true ~row_context mode styp
+        in
         begin try unify_var env t cty.ctyp_type with Unify err ->
           let err = Errortrace.swap_unification_error err in
           raise(Error(alias_loc, env, Alias_type_mismatch err))
@@ -1013,24 +1044,25 @@ and transl_type_alias env policy mode alias_loc styp name_opt jkind_annot_opt =
         end;
         cty
       with Not_found ->
-        if !Clflags.principal then begin_def ();
-        let jkind =
-          Jkind.(of_annotation_option_default
-            ~default:(any ~why:Dummy_jkind)
-            ~context:(Type_variable alias)
-            jkind_annot_opt)
+        let t, ty =
+          with_local_level_if_principal begin fun () ->
+            let jkind =
+              Jkind.(of_annotation_option_default
+                ~default:(any ~why:Dummy_jkind)
+                ~context:(Type_variable alias)
+                jkind_annot_opt)
+            in
+            let t = newvar jkind in
+            TyVarEnv.remember_used alias t alias_loc;
+            let ty = transl_type env ~policy ~row_context mode styp in
+            begin try unify_var env t ty.ctyp_type with Unify err ->
+              let err = Errortrace.swap_unification_error err in
+              raise(Error(alias_loc, env, Alias_type_mismatch err))
+            end;
+            (t, ty)
+          end
+          ~post: (fun (t, _) -> generalize_structure t)
         in
-        let t = newvar jkind in
-        TyVarEnv.remember_used alias t alias_loc;
-        let cty = transl_type env policy mode styp in
-        begin try unify_var env t cty.ctyp_type with Unify err ->
-          let err = Errortrace.swap_unification_error err in
-          raise(Error(alias_loc, env, Alias_type_mismatch err))
-        end;
-        if !Clflags.principal then begin
-          end_def ();
-          generalize_structure t;
-        end;
         let t = instance t in
         let px = Btype.proxy t in
         begin match get_desc px with
@@ -1040,10 +1072,10 @@ and transl_type_alias env policy mode alias_loc styp name_opt jkind_annot_opt =
            set_type_desc px (Tunivar {name = Some alias; jkind})
         | _ -> ()
         end;
-        { cty with ctyp_type = t }
+        { ty with ctyp_type = t }
       end
     | None ->
-      let cty = transl_type env policy mode styp in
+      let cty = transl_type env ~policy ~row_context mode styp in
       let cty_expr = cty.ctyp_type in
       let jkind_annot = match jkind_annot_opt with
         | None -> Misc.fatal_error "anonymous alias without layout annotation"
@@ -1064,7 +1096,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt jkind_annot_opt =
   Ttyp_alias (cty, name_opt, Option.map Location.get_txt jkind_annot_opt),
   cty.ctyp_type
 
-and transl_fields env policy o fields =
+and transl_fields env ~policy ~row_context o fields =
   let hfields = Hashtbl.create 17 in
   let add_typed_field loc l ty =
     try
@@ -1082,9 +1114,8 @@ and transl_fields env policy o fields =
     | Otag (s, ty1) -> begin
         let ty1 =
           Builtin_attributes.warning_scope of_attributes
-            (fun () ->
-               transl_type env policy Alloc.Const.legacy
-                 (Ast_helper.Typ.force_poly ty1))
+            (fun () -> transl_type env ~policy ~row_context Alloc.Const.legacy
+                (Ast_helper.Typ.force_poly ty1))
         in
         begin
           match
@@ -1102,7 +1133,7 @@ and transl_fields env policy o fields =
         field
       end
     | Oinherit sty -> begin
-        let cty = transl_type env policy Alloc.Const.legacy sty in
+        let cty = transl_type env ~policy ~row_context Alloc.Const.legacy sty in
         let nm =
           match get_desc cty.ctyp_type with
             Tconstr(p, _, _) -> Some p
@@ -1166,11 +1197,12 @@ let rec make_fixed_univars ty =
         Btype.iter_type_expr make_fixed_univars ty
     end
 
+let transl_type env policy mode styp =
+  transl_type env ~policy ~row_context:[] mode styp
+
 let make_fixed_univars ty =
   make_fixed_univars ty;
   Btype.unmark_type ty
-
-let create_package_mty = create_package_mty false
 
 let transl_simple_type env ?univars ~closed mode styp =
   TyVarEnv.reset_locals ?univars ();
@@ -1182,14 +1214,14 @@ let transl_simple_type env ?univars ~closed mode styp =
 
 let transl_simple_type_univars env styp =
   TyVarEnv.reset_locals ();
-  let typ, univs = TyVarEnv.collect_univars begin fun () ->
-    begin_def ();
-    let policy = TyVarEnv.univars_policy in
-    let typ = transl_type env policy Alloc.Const.legacy styp in
-    TyVarEnv.globalize_used_variables policy env ();
-    end_def ();
-    generalize typ.ctyp_type;
-    typ
+  let typ, univs =
+    TyVarEnv.collect_univars begin fun () ->
+      with_local_level ~post:generalize_ctyp begin fun () ->
+        let policy = TyVarEnv.univars_policy in
+        let typ = transl_type env policy Alloc.Const.legacy styp in
+        TyVarEnv.globalize_used_variables policy env ();
+        typ
+      end
   end in
   make_fixed_univars typ.ctyp_type;
     { typ with ctyp_type =
@@ -1197,39 +1229,50 @@ let transl_simple_type_univars env styp =
 
 let transl_simple_type_delayed env mode styp =
   TyVarEnv.reset_locals ();
-  begin_def ();
-  let policy = TyVarEnv.extensible_policy in
-  let typ = transl_type env policy mode styp in
-  end_def ();
-  make_fixed_univars typ.ctyp_type;
-  (* This brings the used variables to the global level, but doesn't link them
-     to their other occurrences just yet. This will be done when [force] is
-     called. *)
-  let force = TyVarEnv.globalize_used_variables policy env in
-  (* Generalizes everything except the variables that were just globalized. *)
-  generalize typ.ctyp_type;
+  let typ, force =
+    with_local_level begin fun () ->
+      let policy = TyVarEnv.extensible_policy in
+      let typ = transl_type env policy mode styp in
+      make_fixed_univars typ.ctyp_type;
+      (* This brings the used variables to the global level, but doesn't link
+         them to their other occurrences just yet. This will be done when
+         [force] is  called. *)
+      let force = TyVarEnv.globalize_used_variables policy env in
+      (typ, force)
+    end
+    (* Generalize everything except the variables that were just globalized. *)
+    ~post:(fun (typ,_) -> generalize_ctyp typ)
+  in
   (typ, instance typ.ctyp_type, force)
 
 let transl_type_scheme_mono env styp =
-  begin_def();
-  let typ = transl_simple_type env ~closed:false Alloc.Const.legacy styp in
-  end_def();
+  let typ =
+    with_local_level begin fun () ->
+      TyVarEnv.reset ();
+      transl_simple_type env ~closed:false Alloc.Const.legacy styp
+    end
+    ~post:generalize_ctyp
+  in
   (* This next line is very important: it stops [val] and [external]
      declarations from having undefaulted jkind variables. Without
      this line, we might accidentally export a jkind-flexible definition
      from a compilation unit, which would lead to miscompilation. *)
   remove_mode_and_jkind_variables typ.ctyp_type;
-  generalize typ.ctyp_type;
   typ
 
 let transl_type_scheme_poly env attrs loc vars inner_type =
-  begin_def();
-  let typed_vars, univars = transl_bound_vars vars in
-  let typ =
-    transl_simple_type env ~univars ~closed:true Alloc.Const.legacy inner_type
+  let typed_vars, univars, typ =
+    with_local_level begin fun () ->
+      TyVarEnv.reset ();
+      let typed_vars, univars = transl_bound_vars vars in
+      let typ =
+        transl_simple_type env ~univars ~closed:true Alloc.Const.legacy
+          inner_type
+      in
+      (typed_vars, univars, typ)
+    end
+    ~post:(fun (_,_,typ) -> generalize_ctyp typ)
   in
-  end_def();
-  generalize typ.ctyp_type;
   let _ = TyVarEnv.instance_poly_univars env loc univars in
   { ctyp_desc = Ttyp_poly (typed_vars, typ);
     ctyp_type = typ.ctyp_type;
@@ -1245,7 +1288,6 @@ let transl_type_scheme_jst env styp attrs loc : Jane_syntax.Core_type.t -> _ =
     transl_type_scheme_mono env styp
 
 let transl_type_scheme env styp =
-  TyVarEnv.reset ();
   match Jane_syntax.Core_type.of_ast styp with
   | Some (etyp, attrs) ->
     transl_type_scheme_jst env styp attrs styp.ptyp_loc etyp
@@ -1304,7 +1346,7 @@ let report_error env ppf = function
         "@[<v>@[The constructor %s is missing from the upper bound@ \
          (between '<'@ and '>')@ of this polymorphic variant@ \
          but is present in@ its lower bound (after '>').@]@,\
-         @[Hint: Either add `%s in the upper bound,@ \
+         @[@{<hint>Hint@}: Either add `%s in the upper bound,@ \
          or remove it@ from the lower bound.@]@]"
          l l
   | Constructor_mismatch (ty, ty') ->
@@ -1400,7 +1442,7 @@ let report_error env ppf = function
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Did_you_mean_unboxed lid ->
-    fprintf ppf "@[%a is neither a polymorphic variant nor a class type.@ \
+    fprintf ppf "@[%a isn't a class type.@ \
                  Did you mean the unboxed type %a#?@]" longident lid longident lid
 
 let () =
