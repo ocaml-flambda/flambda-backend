@@ -77,6 +77,7 @@ STDLIB_MODULE_BASENAMES = \
   fun \
   gc \
   digest \
+  domain \
   bigarray \
   random \
   hashtbl \
@@ -99,8 +100,7 @@ STDLIB_MODULE_BASENAMES = \
   stdLabels \
   in_channel \
   out_channel \
-  camlinternalComprehension \
-  domain
+  camlinternalComprehension
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))
