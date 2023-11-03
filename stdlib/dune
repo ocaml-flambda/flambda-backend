@@ -76,6 +76,8 @@
   arrayLabels.mli
   atomic.ml
   atomic.mli
+  effect.ml
+  effect.mli
   bigarray.ml
   bigarray.mli
   bool.ml
@@ -213,6 +215,9 @@
   .stdlib.objs/byte/stdlib__Atomic.cmi
   .stdlib.objs/byte/stdlib__Atomic.cmt
   .stdlib.objs/byte/stdlib__Atomic.cmti
+  .stdlib.objs/byte/stdlib__Effect.cmi
+  .stdlib.objs/byte/stdlib__Effect.cmt
+  .stdlib.objs/byte/stdlib__Effect.cmti
   .stdlib.objs/byte/stdlib__Bigarray.cmi
   .stdlib.objs/byte/stdlib__Bigarray.cmt
   .stdlib.objs/byte/stdlib__Bigarray.cmti
@@ -462,6 +467,7 @@
   .stdlib.objs/native/stdlib__BytesLabels.cmx
   .stdlib.objs/native/stdlib__Digest.cmx
   .stdlib.objs/native/stdlib__Atomic.cmx
+  .stdlib.objs/native/stdlib__Effect.cmx
   .stdlib.objs/native/stdlib__Either.cmx
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
