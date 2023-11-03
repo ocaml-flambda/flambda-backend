@@ -550,12 +550,12 @@ let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
       raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
     const
 
-let of_annotated_const ~context Location.{ txt = const; loc = const_loc } =
+let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
 
 let of_annotation ~context (annot : _ Location.loc) =
   let const = const_of_user_written_annotation ~context annot in
-  let jkind = of_annotated_const { txt = const; loc = annot.loc } ~context in
+  let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
   jkind, (const, annot)
 
 let of_annotation_option_default ~default ~context =
@@ -566,7 +566,7 @@ let of_annotation_option_default ~default ~context =
 let of_attribute ~context
     (attribute : Builtin_attributes.jkind_attribute Location.loc) =
   let const = const_of_attribute attribute.txt in
-  of_annotated_const ~context { txt = const; loc = attribute.loc }, const
+  of_annotated_const ~context ~const ~const_loc:attribute.loc, const
 
 let of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
