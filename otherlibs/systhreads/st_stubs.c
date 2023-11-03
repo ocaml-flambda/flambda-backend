@@ -251,7 +251,9 @@ static void memprof_ctx_iter(th_ctx_action f, void* data)
   } while (th != curr_thread);
 }
 
-static void thread_save_runtime_state(void)
+/* Saving and restoring runtime state in curr_thread */
+
+CAMLexport void caml_thread_save_runtime_state(void)
 {
   if (Caml_state->_in_minor_collection)
     caml_fatal_error("Thread switch from inside minor GC");
@@ -279,8 +281,12 @@ static void thread_save_runtime_state(void)
   caml_memprof_leave_thread();
 }
 
-static void thread_restore_runtime_state(void)
+CAMLexport void caml_thread_restore_runtime_state(void)
 {
+  /* Update curr_thread to point to the thread descriptor corresponding
+     to the thread currently executing */
+  curr_thread = st_tls_get(thread_descriptor_key);
+
 #ifdef NATIVE_CODE
   Caml_state->_top_of_stack = curr_thread->top_of_stack;
   Caml_state->_bottom_of_stack= curr_thread->bottom_of_stack;
@@ -305,24 +311,16 @@ static void thread_restore_runtime_state(void)
   caml_memprof_enter_thread(curr_thread->memprof_ctx);
 }
 
-CAMLexport void caml_thread_switch_runtime_state(void)
-{
-  caml_thread_t new_thread = st_tls_get(thread_descriptor_key);
-  if (new_thread == curr_thread) return;
-  thread_save_runtime_state();
-  curr_thread = new_thread;
-  thread_restore_runtime_state();
-}
-
 CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* new)
 {
   struct caml_locking_scheme* old;
 
+  caml_thread_save_runtime_state();
   old = atomic_exchange(&caml_locking_scheme, new);
   /* We hold 'old', but it is no longer the runtime lock */
   old->unlock(old->context);
   acquire_runtime_lock();
-  caml_thread_switch_runtime_state();
+  caml_thread_restore_runtime_state();
 }
 
 
@@ -331,6 +329,9 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
 
 static void caml_thread_enter_blocking_section(void)
 {
+  /* Save the current runtime state in the thread descriptor
+     of the current thread */
+  caml_thread_save_runtime_state();
   /* Tell other threads that the runtime is free */
   release_runtime_lock();
 }
@@ -345,7 +346,7 @@ static void caml_thread_leave_blocking_section(void)
 #endif
   /* Wait until the runtime is free */
   acquire_runtime_lock();
-  caml_thread_switch_runtime_state();
+  caml_thread_restore_runtime_state();
 #ifdef _WIN32
   SetLastError(error);
 #endif
@@ -637,7 +638,7 @@ static void caml_thread_stop(void)
      changed as the thread was running, so we save it in the
      curr_thread data to make sure that the cleanup logic
      below uses accurate information. */
-  thread_save_runtime_state();
+  caml_thread_save_runtime_state();
   /* Tell memprof that this thread is terminating. */
   caml_memprof_delete_th_ctx(curr_thread->memprof_ctx);
   /* Signal that the thread has terminated */
@@ -888,6 +889,7 @@ CAMLprim value caml_thread_yield(value unit)        /* ML */
   */
   caml_raise_async_if_exception(caml_process_pending_signals_exn(),
                                 "signal handler");
+  caml_thread_save_runtime_state();
   /* caml_locking_scheme may have changed in caml_process_pending_signals_exn */
   s = atomic_load(&caml_locking_scheme);
   s->yield(s->context);
@@ -896,7 +898,7 @@ CAMLprim value caml_thread_yield(value unit)        /* ML */
     s->unlock(s->context);
     acquire_runtime_lock();
   }
-  caml_thread_switch_runtime_state();
+  caml_thread_restore_runtime_state();
   caml_raise_async_if_exception(caml_process_pending_signals_exn(),
                                 "signal handler");
 
