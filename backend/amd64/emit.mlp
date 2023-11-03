@@ -981,6 +981,7 @@ let emit_simd_instr op i =
     assert (i.res.(0) = phys_xmm0v ())
   );
   match (op : Simd.operation) with
+  | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
   | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)

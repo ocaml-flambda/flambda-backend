@@ -377,4 +377,9 @@ module I : sig
   val pcmpistri: arg -> arg -> arg -> unit
   val pcmpistrm: arg -> arg -> arg -> unit
   val crc32: arg -> arg -> unit
+
+  (* CLMUL instructions *)
+
+  val pclmulqdq: arg -> arg -> arg -> unit
+
 end

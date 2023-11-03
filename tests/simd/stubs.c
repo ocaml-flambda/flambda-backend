@@ -324,6 +324,8 @@ BUILTIN(caml_sse42_vec128_cmpistro);
 BUILTIN(caml_sse42_vec128_cmpistrs);
 BUILTIN(caml_sse42_vec128_cmpistrz);
 
+BUILTIN(caml_clmul_int64x2);
+
 #include <float.h>
 #include <math.h>
 
