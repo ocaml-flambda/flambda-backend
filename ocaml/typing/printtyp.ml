@@ -1650,7 +1650,7 @@ let rec tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind =
         Option.map
-          (fun x -> Olay_const x)
+          (fun (const, _) -> Olay_const const)
           jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }

@@ -480,11 +480,11 @@ type type_declaration =
        be computed from the decl kind. This happens in
        Ctype.add_jkind_equation. *)
 
-    type_jkind_annotation: Jkind.const option;
+    type_jkind_annotation: Jkind.annotation option;
     (* This is the jkind annotation written by the user. If the user did
     not write this declaration (because it's a synthesized declaration
     for an e.g. local abstract type or an inlined record), then this field
-    can safely be [None]. It's used only for printing. *)
+    can safely be [None]. It's used only for printing and in untypeast. *)
 
     type_private: private_flag;
     type_manifest: type_expr option;

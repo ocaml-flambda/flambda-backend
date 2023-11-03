@@ -162,6 +162,22 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+let predef_jkind_annotation const =
+  Option.map
+    (fun const ->
+       (* This is a bit of a hack: we're trying to figure out what a user
+          could have written on a predef type declaration to give it the
+          right kind. But this hack is OK as its result is just used in
+          printing/untypeast.
+       *)
+       let user_written : _ Location.loc =
+         { txt = Jane_asttypes.jkind_of_string (Jkind.string_of_const const);
+           loc = Location.none;
+         }
+       in
+       const, user_written)
+    const
+
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)
@@ -177,7 +193,7 @@ let mk_add_type add_type
      type_arity = 0;
      type_kind = kind;
      type_jkind = jkind;
-     type_jkind_annotation = jkind_annotation;
+     type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -209,7 +225,7 @@ let common_initial_env add_type add_extension empty_env =
        type_arity = 1;
        type_kind = kind param;
        type_jkind = jkind;
-       type_jkind_annotation = jkind_annotation;
+       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
        type_loc = Location.none;
        type_private = Asttypes.Public;
        type_manifest = None;
