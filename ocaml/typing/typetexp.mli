@@ -51,11 +51,8 @@ module TyVarEnv : sig
     (** Same as [check_poly_univars], but instantiates the resulting
        type scheme (i.e. variables become Tvar rather than Tunivar) *)
 
-<<<<<<< HEAD
   val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
     (** A suitable arg to the corresponding [Ttyp_poly] type. *)
-=======
->>>>>>> origin/main
 end
 
 val valid_tyvar_name : string -> bool

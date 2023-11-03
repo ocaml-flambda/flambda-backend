@@ -183,7 +183,15 @@ val has_unique: Parsetree.attributes -> (bool,unit) result
 
 val has_once : Parsetree.attributes -> (bool, unit) result
 
-<<<<<<< HEAD
+(** This filter selects attributes corresponding to mode annotations on
+    let-bindings.
+
+    This filter is used principally by the type-checker when it copies [local_],
+    [unique_], and [once_] mode annotation attributes from let-bindings to both
+    the let-bound expression and its pattern.
+*)
+val mode_annotation_attributes_filter : Attributes_filter.t
+
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
    after rerouting [@@immediate]. *)
 type jkind_attribute =
@@ -196,16 +204,6 @@ type jkind_attribute =
 
 val jkind_attribute_to_string : jkind_attribute -> string
 val jkind_attribute_of_string : string -> jkind_attribute option
-=======
-(** This filter selects attributes corresponding to mode annotations on
-    let-bindings.
-
-    This filter is used principally by the type-checker when it copies [local_],
-    [unique_], and [once_] mode annotation attributes from let-bindings to both
-    the let-bound expression and its pattern.
-*)
-val mode_annotation_attributes_filter : Attributes_filter.t
->>>>>>> origin/main
 
 (* [jkind] gets the jkind in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.

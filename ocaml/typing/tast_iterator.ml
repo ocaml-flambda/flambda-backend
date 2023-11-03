@@ -34,12 +34,8 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-<<<<<<< HEAD
     jkind_annotation: iterator -> Jkind.const -> unit;
-=======
-    jkind_annotation: iterator -> const_jkind -> unit;
     location: iterator -> Location.t -> unit;
->>>>>>> origin/main
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
@@ -595,13 +591,8 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       iter_loc sub lid;
       List.iter (sub.typ sub) list
   | Ttyp_alias (ct, _, jkind) ->
-<<<<<<< HEAD
-    sub.typ sub ct;
-    Option.iter (fun (jkind, _) -> sub.jkind_annotation sub jkind) jkind
-=======
       sub.typ sub ct;
-      Option.iter (sub.jkind_annotation sub) jkind
->>>>>>> origin/main
+      Option.iter (fun (jkind, _) -> sub.jkind_annotation sub jkind) jkind
   | Ttyp_variant (list, _, _) -> List.iter (sub.row_field sub) list
   | Ttyp_poly (vars, ct) ->
       List.iter (fun (_, l) -> Option.iter (fun (j, _) -> sub.jkind_annotation sub j) l) vars;

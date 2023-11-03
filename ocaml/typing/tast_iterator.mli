@@ -38,12 +38,8 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-<<<<<<< HEAD
     jkind_annotation: iterator -> Jkind.const -> unit;
-=======
-    jkind_annotation: iterator -> const_jkind -> unit;
     location: iterator -> Location.t -> unit;
->>>>>>> origin/main
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
