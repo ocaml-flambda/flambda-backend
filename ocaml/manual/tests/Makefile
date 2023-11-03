@@ -3,7 +3,6 @@ include $(ROOTDIR)/api_docgen/Makefile.docfiles
 include $(ROOTDIR)/Makefile.common
 include $(ROOTDIR)/stdlib/StdlibModules
 include $(ROOTDIR)/Makefile.best_binaries
-STDLIBFLAGS = -nostdlib -I $(ROOTDIR)/stdlib
 OCAMLC ?= $(BEST_OCAMLC) $(STDLIBFLAGS)
 
 MANUAL=$(ROOTDIR)/manual/src
@@ -26,7 +25,9 @@ check-cross-references: cross-reference-checker
 	  -auxfile $(MANUAL)/texstuff/manual.aux \
 	  $(ROOTDIR)/utils/warnings.ml \
 	  $(ROOTDIR)/driver/main_args.ml \
-	  $(ROOTDIR)/lambda/translmod.ml
+	  $(ROOTDIR)/lambda/translmod.ml \
+	  $(ROOTDIR)/typing/typemod.ml \
+	  $(ROOTDIR)/typing/typeclass.ml
 
 # check that all standard library modules are referenced by the
 # standard library chapter of the manual
@@ -58,3 +59,6 @@ endif
 .PHONY: clean
 clean:
 	rm -f *.cm? *.cmx? cross-reference-checker
+
+.PHONY: distclean
+distclean: clean

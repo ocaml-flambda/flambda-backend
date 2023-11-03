@@ -138,8 +138,15 @@ val warning_scope:
     misplaced attribute warnings. *)
 val has_attribute : string list -> Parsetree.attributes -> bool
 
-(** [filter_attributes nms_and_conds attrs] finds those attrs which
-    appear in one of the sublists of nms_and_conds with cond=true.
+module Attributes_filter : sig
+  type t
+
+  val create : (string list * bool) list -> t
+end
+
+(** [filter_attributes (Attributes_filter.create nms_and_conds) attrs] finds
+    those attrs which appear in one of the sublists of nms_and_conds with
+    cond=true.
 
     Each element [(nms, conds)] of the [nms_and_conds] list is a list of
     attribute names along with a boolean indicating whether to include
@@ -148,9 +155,10 @@ val has_attribute : string list -> Parsetree.attributes -> bool
     "unrolled" only in the case where flambda or flambda2 is configured).  We
     handle this by taking a bool, rather than simply passing fewer nms in those
     cases, to support misplaced attribute warnings - the attribute should not
-    count as misplaced if the compiler could use it in some configuration. *)
+    count as misplaced if the compiler could use it in some configuration.
+*)
 val filter_attributes :
-  (string list * bool) list -> Parsetree.attributes -> Parsetree.attributes
+  Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
@@ -175,6 +183,7 @@ val has_unique: Parsetree.attributes -> (bool,unit) result
 
 val has_once : Parsetree.attributes -> (bool, unit) result
 
+<<<<<<< HEAD
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
    after rerouting [@@immediate]. *)
 type jkind_attribute =
@@ -187,6 +196,16 @@ type jkind_attribute =
 
 val jkind_attribute_to_string : jkind_attribute -> string
 val jkind_attribute_of_string : string -> jkind_attribute option
+=======
+(** This filter selects attributes corresponding to mode annotations on
+    let-bindings.
+
+    This filter is used principally by the type-checker when it copies [local_],
+    [unique_], and [once_] mode annotation attributes from let-bindings to both
+    the let-bound expression and its pattern.
+*)
+val mode_annotation_attributes_filter : Attributes_filter.t
+>>>>>>> origin/main
 
 (* [jkind] gets the jkind in the attributes if one is present.  We always
    allow the [value] annotation, even if the layouts extensions are disabled.

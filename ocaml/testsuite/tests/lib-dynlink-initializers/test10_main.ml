@@ -53,5 +53,4 @@ let () =
     end
   with
   | Dynlink.Error (Dynlink.Library's_module_initializers_failed exn) ->
-      Printf.eprintf "Error: %s\n%!" (Printexc.to_string exn);
-      Printexc.print_backtrace stderr
+      Printf.eprintf "Error: %s\n%!" (Printexc.to_string exn)

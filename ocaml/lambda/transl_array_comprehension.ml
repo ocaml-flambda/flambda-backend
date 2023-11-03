@@ -209,7 +209,7 @@ end = struct
     let slot =
       transl_extension_path
         loc
-        (Lazy.force Env.initial_safe_string)
+        (Lazy.force Env.initial)
         Predef.path_invalid_argument
     in
     (* CR-someday aspectorzabusky: We might want to raise an event here for
@@ -456,6 +456,7 @@ let iterator ~transl_exp ~scopes ~loc
       let stop  = bound "stop"  stop  in
       let mk_iterator body =
         Lfor { for_id     = ident
+             ; for_loc    = loc
              ; for_from   = start.var
              ; for_to     = stop.var
              ; for_dir    = direction
@@ -483,6 +484,7 @@ let iterator ~transl_exp ~scopes ~loc
         (* for iter_ix = 0 to Array.length iter_arr - 1 ... *)
         (* CR layouts v4: will need updating when we allow non-values in arrays. *)
         Lfor { for_id     = iter_ix
+             ; for_loc    = loc
              ; for_from   = l0
              ; for_to     = iter_len.var - l1
              ; for_dir    = Upto

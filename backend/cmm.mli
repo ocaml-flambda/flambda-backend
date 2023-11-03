@@ -181,8 +181,8 @@ type memory_chunk =
   | Single
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
-  | Onetwentyeight                     (* word-aligned 128-bit vector
-                                          CR mslater: (SIMD) alignment *)
+  | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
+  | Onetwentyeight_aligned             (* 16-byte-aligned 128-bit vector *)
 
 type vector_cast =
   | Bits128
@@ -205,8 +205,13 @@ type operation =
       }
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
-          An empty list means "all arguments are machine words [XInt]". *)
-  | Cload of memory_chunk * Asttypes.mutable_flag
+          An empty list means "all arguments are machine words [XInt]".
+          The boolean indicates whether the function may allocate. *)
+  | Cload of
+      { memory_chunk: memory_chunk;
+        mutability: Asttypes.mutable_flag;
+        is_atomic: bool;
+      }
   | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool }  | Cdivi | Cmodi
@@ -234,12 +239,15 @@ type operation =
                    then the index.
                    It results in a bounds error if the index is greater than
                    or equal to the bound. *)
+  | Ccheckalign of { bytes_pow2: int } (* Takes one argument : the address to
+                                          check. May raise alignment error. *)
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
   | Ctuple_field of int * machtype array
       (* the [machtype array] refers to the whole tuple *)
+  | Cdls_get
 
 (* This is information used exclusively during construction of cmm terms by
    cmmgen, and thus irrelevant for selectgen and flambda2. *)
