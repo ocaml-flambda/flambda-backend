@@ -1,6 +1,6 @@
 (* TEST
-   * flambda2
    modules = "stubs.c"
+   * flambda2
    reference = "${test_source_directory}/c_api.reference"
    ** native
      flags = "-extension layouts_alpha"
