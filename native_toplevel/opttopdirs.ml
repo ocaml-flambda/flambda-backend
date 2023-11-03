@@ -137,14 +137,12 @@ let match_printer_type ppf desc typename =
         fprintf ppf "Cannot find type Topdirs.%s.@." typename;
         raise Exit
   in
-  Ctype.begin_def();
-  let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
-  Ctype.unify !toplevel_env
-    (Ctype.newconstr printer_type [ty_arg])
-    (Ctype.instance desc.val_type);
-  Ctype.end_def();
-  Ctype.generalize ty_arg;
-  ty_arg
+  Ctype.with_local_level ~post:Ctype.generalize (fun () ->
+    let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
+    Ctype.unify !toplevel_env
+      (Ctype.newconstr printer_type [ty_arg])
+      (Ctype.instance desc.val_type);
+    ty_arg)
 
 let find_printer_type ppf lid =
   match Env.find_value_by_name lid !toplevel_env with

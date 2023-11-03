@@ -9,9 +9,9 @@ type architecture =
 
 val architecture : unit -> architecture
 
-val is_64_bit : bool
+val is_64_bit : unit -> bool
 
-val is_32_bit : bool
+val is_32_bit : unit -> bool
 
 type derived_system =
   | Linux

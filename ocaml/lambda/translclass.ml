@@ -85,13 +85,13 @@ let mkappl (func, args, layout) =
          ap_specialised=Default_specialise;
          ap_probe=None;
        }],
-     Loc_unknown);;
+     Loc_unknown)
 
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
 
 let lfield v i =
-  Lprim(Pfield (i, Reads_vary), [Lvar v], Loc_unknown)
+  Lprim(Pfield (i, Pointer, Reads_vary), [Lvar v], Loc_unknown)
 
 let transl_label l = share (Const_immstring l)
 
@@ -163,7 +163,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let env =
         match envs with None -> []
         | Some envs ->
-            [Lprim(Pfield (List.length inh_init + 1, Reads_vary),
+            [Lprim(Pfield (List.length inh_init + 1, Pointer, Reads_vary),
                    [Lvar envs],
                    Loc_unknown)]
       in
@@ -321,7 +321,7 @@ let rec index a = function
 
 let bind_id_as_val (id, _) = ("", id)
 
-let class_field i = Pfield (i, Reads_vary)
+let class_field i = Pfield (i, Pointer, Reads_vary)
 
 let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
   match cl.cl_desc with
@@ -623,7 +623,7 @@ let rec builtin_meths self env env2 body =
     | p when const_path p -> "const", [p]
     | Lprim(Parrayrefu _, [Lvar s; Lvar n], _) when List.mem s self ->
         "var", [Lvar n]
-    | Lprim(Pfield (n, _), [Lvar e], _) when Ident.same e env ->
+    | Lprim(Pfield(n, _, _), [Lvar e], _) when Ident.same e env ->
         "env", [Lvar env2; Lconst(const_int n)]
     | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
         "meth", [met]

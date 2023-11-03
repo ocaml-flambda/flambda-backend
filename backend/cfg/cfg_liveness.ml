@@ -50,10 +50,7 @@ module Transfer :
     @@
     match instr.desc with
     | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
-      if Cfg.is_pure_basic instr.desc
-         && Reg.disjoint_set_array before instr.res
-         && (not (Proc.regs_are_volatile instr.arg))
-         && not (Proc.regs_are_volatile instr.res)
+      if Cfg.is_pure_basic instr.desc && Reg.disjoint_set_array before instr.res
       then
         (* If the operation is without side-effects and the result is unused
            then don't mark the arguments as used because this instruction could
