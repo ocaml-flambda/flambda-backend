@@ -11,9 +11,6 @@ configure.ac            @mshinwell @xclerc
 
 flambda_backend.opam    @mshinwell @lthls
 
-HACKING.md      @mshinwell @goldfirere
-README.md       @mshinwell @goldfirere
-
 build_ocaml_compiler.sexp       @poechsel
 
 backend/                        @gretay-js @xclerc
@@ -64,8 +61,6 @@ native_toplevel/                @mshinwell @xclerc
 
 ocaml/asmcomp/                  @gretay-js @xclerc
 ocaml/runtime/                  @stedolan
-ocaml/typing/                   @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan
-ocaml/testsuite/tests/          @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @gretay-js @xclerc @lukemaurer
 
 scripts/                        @mshinwell @xclerc
 
