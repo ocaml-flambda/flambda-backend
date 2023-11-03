@@ -149,15 +149,19 @@ module type S = sig
       | Pos_Pos :
           ('a, 'b, 'd) C.morph
           -> ('a * positive, 'd pos, 'b * positive, 'd pos) morph
+          (** The monotone morphism from a positive lattice to a positive lattice  *)
       | Pos_Neg :
           ('a, 'b, 'd) C.morph
           -> ('a * positive, 'd pos, 'b * negative, 'd neg) morph
+          (** The antitone morphism from a positive lattice to a negative lattice  *)
       | Neg_Pos :
           ('a, 'b, 'd) C.morph
           -> ('a * negative, 'd neg, 'b * positive, 'd pos) morph
+          (** The antitone morphism from a negative lattice to a positive lattice  *)
       | Neg_Neg :
           ('a, 'b, 'd) C.morph
           -> ('a * negative, 'd neg, 'b * negative, 'd neg) morph
+          (** The monotone morphism from a negative lattice to a negative lattice *)
 
     (* [id] and [compose] not used; just for fun *)
     val id : 'a obj -> ('a, 'l * 'r, 'a, 'l * 'r) morph
@@ -170,53 +174,78 @@ module type S = sig
 
     type ('a, 'd) mode
 
+    (** Disallows a mode of being on the RHS of [submode].  *)
     val disallow_right : ('a, 'l * 'r) mode -> ('a, 'l * disallowed) mode
 
+    (** Disallows a mode of being on the LHS of [submode].  *)
     val disallow_left : ('a, 'l * 'r) mode -> ('a, disallowed * 'r) mode
 
+    (** Generalizes a mode's ability to be on the RHS of [submode].  *)
     val allow_right : ('a, 'l * allowed) mode -> ('a, 'l * 'r) mode
 
+    (** Generalizes a mode's ability to be on the LHS of [submode].  *)
     val allow_left : ('a, allowed * 'r) mode -> ('a, 'l * 'r) mode
 
+    (** Returns the result of applying the morphism to the mode. *)
     val apply :
       'b obj ->
       ('a, 'd0 * 'd1, 'b, 'e0 * 'e1) morph ->
       ('a, 'd0 * 'd1) mode ->
       ('b, 'e0 * 'e1) mode
 
+    (** Returns the mode representing the given constant. *)
     val of_const : ('a * 'p) obj -> 'a -> ('a * 'p, 'l * 'r) mode
 
+    (** The minimum mode in the lattice *)
     val min : 'a obj -> ('a, 'l * 'r) mode
 
+    (** The maximum mode in the lattice *)
     val max : 'a obj -> ('a, 'l * 'r) mode
 
+    (** Pushes the mode variable to the lowest constant possible. *)
     val constrain_lower : ('a * 'p) obj -> ('a * 'p, allowed * 'r) mode -> 'a
 
+    (** Pushes the mode variable to the highest constant possible. *)
     val constrain_upper : ('a * 'p) obj -> ('a * 'p, 'l * allowed) mode -> 'a
 
+    (** Create a new mode variable of the full range. *)
     val newvar : 'a obj -> ('a, 'l * 'r) mode
 
+    (** Try to constrain the first mode below the second mode. *)
     val submode :
       ('a * 'p) obj ->
       ('a * 'p, allowed * 'r) mode ->
       ('a * 'p, 'l * allowed) mode ->
       (unit, 'a error) result
 
+    (** Creates a new mode variable above the given mode and returns [true]. In
+        the speical case where the given mode is top, returns a constant mode
+        and [false]. *)
     val newvar_above :
       'a obj -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
 
+    (** Creates a new mode variable below the given mode and returns [true]. In
+        the speical case where the given mode is bottom, returns a constant mode
+        and [false]. *)
     val newvar_below :
       'a obj -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
 
+    (** Returns the join of the list of modes. *)
     val join : 'a obj -> ('a, allowed * 'r) mode list -> ('a, left_only) mode
 
+    (** Return the meet of the list of modes. *)
     val meet : 'a obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
 
+    (** Checks if a mode has been constrained sufficiently to a constant.
+        Expensive. *)
     val check_const : ('a * 'p) obj -> ('a * 'p, 'l * 'r) mode -> 'a option
 
+    (** Print a mode. Calls [check_const] for cleaner printing and thus
+    expensive.  *)
     val print :
       ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
 
+    (** Print a mode without calling [check_const]. *)
     val print_raw :
       ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
   end
