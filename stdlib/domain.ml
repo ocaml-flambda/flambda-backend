@@ -16,6 +16,57 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR ocaml 5 runtime: domain-local-storage assumes single-domain,
+   i.e. calling split will never be necessary. *)
+
+module DLS = struct
+
+  let unique_value = Obj.repr (ref 0)
+  let state = ref (Array.make 8 unique_value)
+
+  type 'a key = int * (unit -> 'a)
+
+  let key_counter = ref 0
+
+  let new_key ?split_from_parent:_ init_orphan =
+    let idx = !key_counter in
+    key_counter := idx + 1;
+    (idx, init_orphan)
+
+  (* If necessary, grow the current domain's local state array such that [idx]
+   * is a valid index in the array. *)
+  let maybe_grow idx =
+    let st = !state in
+    let sz = Array.length st in
+    if idx < sz then st
+    else begin
+      let rec compute_new_size s =
+        if idx < s then s else compute_new_size (2 * s)
+      in
+      let new_sz = compute_new_size sz in
+      let new_st = Array.make new_sz unique_value in
+      Array.blit st 0 new_st 0 sz;
+      state := new_st;
+      new_st
+    end
+
+  let set (idx, _init) x =
+    let st = maybe_grow idx in
+    (* [Sys.opaque_identity] ensures that flambda does not look at the type of
+     * [x], which may be a [float] and conclude that the [st] is a float array.
+     * We do not want OCaml's float array optimisation kicking in here. *)
+    st.(idx) <- Obj.repr (Sys.opaque_identity x)
+
+  let get (idx, init) =
+    let st = maybe_grow idx in
+    let v = st.(idx) in
+    if v == unique_value then
+      let v' = Obj.repr (init ()) in
+      st.(idx) <- (Sys.opaque_identity v');
+      Obj.magic v'
+    else Obj.magic v
+end
+
 (* CR ocaml 5 runtime: domains not supported on 4.x
 
 module Raw = struct

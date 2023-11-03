@@ -1408,13 +1408,13 @@ module Complex        = Complex
 module Condition      = Condition
 *)
 module Digest         = Digest
-(* CR ocaml 5 runtime:
-BACKPORT
 module Domain         = Domain
 [@@alert "-unstable"]
 [@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
 ]
+(* CR ocaml 5 runtime:
+BACKPORT
 module Effect         = Effect
 [@@alert "-unstable"]
 [@@alert unstable

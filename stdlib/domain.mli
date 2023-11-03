@@ -92,6 +92,7 @@ val recommended_domain_count : unit -> int
     simultaneously (including domains already running).
 
     The value returned is at least [1]. *)
+*)
 
 module DLS : sig
 (** Domain-local Storage *)
@@ -146,5 +147,3 @@ module DLS : sig
         to [k], which cannot be restored later. *)
 
 end
-
-*)
