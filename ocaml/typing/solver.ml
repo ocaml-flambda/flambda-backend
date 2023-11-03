@@ -518,6 +518,12 @@ end
 module Solver_polarized (C : Lattices_mono) = struct
   module S = Solver_mono (C)
 
+  type changes = S.changes
+
+  let undo_changes = S.undo_changes
+
+  let append_changes = S.append_changes
+
   type 'a obj =
     | Positive : 'a C.obj -> ('a * positive) obj
     | Negative : 'a C.obj -> ('a * negative) obj

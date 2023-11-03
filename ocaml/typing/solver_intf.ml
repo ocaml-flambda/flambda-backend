@@ -123,87 +123,14 @@ module type S = sig
       right : 'a
     }
 
-  module Solver_mono (C : Lattices_mono) : sig
+  (** Solver that supports polarized lattices; needed because some morphisms
+      are antitone  *)
+  module Solver_polarized (C : Lattices_mono) : sig
     type changes
 
     val undo_changes : changes -> unit
 
     val append_changes : (changes ref -> unit) ref
-
-    type ('a, 'd) mode
-
-    (** The minimum in the given object *)
-    val min : 'a C.obj -> ('a, 'l * 'r) mode
-
-    (** The maximum in the given object *)
-    val max : 'a C.obj -> ('a, 'l * 'r) mode
-
-    (** Returns a constant mode *)
-    val of_const : 'a -> ('a, 'l * 'r) mode
-
-    (** Applying morphism to mode *)
-    val apply :
-      'b C.obj ->
-      ('a, 'b, 'd0 * 'd1) C.morph ->
-      ('a, 'd0 * 'd1) mode ->
-      ('b, 'd0 * 'd1) mode
-
-    (** Force the first mode to be less than the second mode *)
-    val submode :
-      'a C.obj ->
-      ('a, allowed * 'r) mode ->
-      ('a, 'l * allowed) mode ->
-      (unit, 'a error) result
-
-    (** Create a new mode *)
-    val newvar : 'a C.obj -> ('a, 'l * 'r) mode
-
-    (** Fix a potentially floating mode to its lower bound, which is returned *)
-    val constrain_lower : 'a C.obj -> ('a, allowed * 'r) mode -> 'a
-
-    (** Fix a potentially floating mode to its upper bound, which is returned *)
-    val constrain_upper : 'a C.obj -> ('a, 'e * allowed) mode -> 'a
-
-    (** Create a new mode above the given mode *)
-    val newvar_above :
-      'a C.obj -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
-
-    (** Create a new mode below the given mode *)
-    val newvar_below :
-      'a C.obj -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
-
-    (** Give the least upper bound of the list of modes *)
-    val join : 'a C.obj -> ('a, allowed * 'r) mode list -> ('a, left_only) mode
-
-    (** Give the greatest lower bound of the list of modes *)
-    val meet : 'a C.obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
-
-    (** Check if the mode has been constrained into a constant *)
-    val check_const : 'a C.obj -> ('a, 'd0 * 'd1) mode -> 'a option
-
-    (** Print the given mode.
-    [verbose] decides whether mode variable identifiers are printed instead of a
-    question mark. *)
-    val print :
-      ?verbose:bool ->
-      'a C.obj ->
-      Format.formatter ->
-      ('a, 'l * 'r) mode ->
-      unit
-
-    val print_raw :
-      ?verbose:bool ->
-      'a C.obj ->
-      Format.formatter ->
-      ('a, 'l * 'r) mode ->
-      unit
-  end
-
-  (** Extending [Solver_mono] to support dualized objects. This is needed
-   because the morphisms between uniqueness and linearity can be anti-tone. *)
-
-  module Solver_polarized (C : Lattices_mono) : sig
-    module S : module type of Solver_mono (C)
 
     (* First construct a new category based on the original category C. The
        objects are those from the C, and those from C but flipped lattice
@@ -241,9 +168,7 @@ module type S = sig
       ('a, 'al * 'ar, 'b, 'bl * 'br) morph ->
       ('a, 'al * 'ar, 'c, 'cl * 'cr) morph
 
-    type ('a, 'd) mode =
-      | Positive : ('a, 'd) S.mode -> ('a * positive, 'd pos) mode
-      | Negative : ('a, 'd) S.mode -> ('a * negative, 'd neg) mode
+    type ('a, 'd) mode
 
     val disallow_right : ('a, 'l * 'r) mode -> ('a, 'l * disallowed) mode
 

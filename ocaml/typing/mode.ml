@@ -672,11 +672,11 @@ end
 module C = Lattices_mono
 module S = Solver_polarized (C)
 
-type changes = S.S.changes
+type changes = S.changes
 
-let undo_changes = S.S.undo_changes
+let undo_changes = S.undo_changes
 
-let append_changes = S.S.append_changes
+let append_changes = S.append_changes
 
 (** Representing a single object *)
 module type Obj = sig
