@@ -151,7 +151,8 @@ build_and_test_upstream: build_upstream
 	if $$(which gfortran > /dev/null 2>&1); then \
 	  export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	fi; \
-	cd _build_upstream/testsuite \
+	export OCAMLSRCDIR=$$(pwd)/_build_upstream \
+         && cd _build_upstream/testsuite \
 	 && if $$(which parallel > /dev/null 2>&1); \
             then \
 	      echo "Running testsuite in parallel (nproc=$$(nproc))"; \

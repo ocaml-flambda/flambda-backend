@@ -357,9 +357,9 @@ val f : ('a : float64). 'a -> 'a = <fun>
 let f : type (a : any). a -> a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 4-43:
+Line 1, characters 24-30:
 1 | let f : type (a : any). a -> a = fun x -> x
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            ^^^^^^
 Error: The universal type variable 'a was declared to have
        layout any, but was inferred to have a representable layout.
 |}]

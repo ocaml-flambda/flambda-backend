@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+set -xeu -o pipefail
+
+github=github.com
+if test -n "${GITHUB-}"; then
+  github=$GITHUB
+fi
+
+echo "using github host: $github"
+
+# cd to root of repo
+cd $(git rev-parse --show-toplevel)
+
+finish_merge () {
+  unresolved=$(git status --porcelain | grep ^U | awk '{print $2}')
+  for f in $unresolved; do
+    git add $f
+  done
+
+  git merge --continue
+}
+
+export EDITOR=:
+
+# First, pull in the flambda-patches branch of ocaml-jst
+# This has no effect on the repo, but avoids merge conflicts later by
+# ensuring that these commits appear in this repo's history
+git subtree -P ocaml -m 'Merge ocaml-jst' pull --squash git@${github}:ocaml-flambda/ocaml-jst flambda-patches || true
+finish_merge
+
+# Second, actually import ocaml-jst
+git subtree -P ocaml -m 'Merge ocaml-jst' pull --squash git@${github}:ocaml-flambda/ocaml-jst main || true
+finish_merge

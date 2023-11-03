@@ -76,7 +76,7 @@ inherit Reloadgen.reload_generic as super
 
 method! reload_operation op arg res =
   match op with
-  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icheckbound) ->
+  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icheckbound|Icheckalign _) ->
       (* One of the two arguments can reside in the stack, but not both *)
       if stackp arg.(0) && stackp arg.(1)
       then ([|arg.(0); self#makereg arg.(1)|], res)
@@ -99,8 +99,6 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then let r = self#makereg arg.(0) in ([|r|],[|r|])
       else (arg, res)
-  | Ispecific Ifloat_iround
-  | Ispecific (Ifloat_round _)
   | Iintop_imm (Icomp _, _) ->
       (* The argument(s) can be either in register or on stack.
          The result must be in a register. *)
@@ -110,7 +108,7 @@ method! reload_operation op arg res =
       arg, res
   | Iintop(Imulh _ | Idiv | Imod | Ilsl | Ilsr | Iasr)
   | Iintop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-               | Imulh _ | Idiv | Imod | Icheckbound), _) ->
+               | Imulh _ | Idiv | Imod | Icheckbound | Icheckalign _), _) ->
       (* The argument(s) and results can be either in register or on stack *)
       (* Note: Imulh, Idiv, Imod: arg(0) and res(0) already forced in regs
                Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
@@ -128,31 +126,7 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
-  | Ispecific(Ifloat_min | Ifloat_max) ->
-      if stackp arg.(0)
-      then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
-      else (arg, res)
-  | Ispecific(Isimd op) ->
-    (match Simd_selection.register_behavior op with
-    | RM_to_R ->
-      (* Result must be in a register. *)
-      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
-      (arg, [|res0|])
-    | R_to_R ->
-      (* Argument and result must be in registers. *)
-      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
-      ([|arg0|], [|res0|])
-    | R_R_to_fst ->
-      (* Both arguments must be registers; the result must be the first arg. *)
-      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      let arg1 = if stackp arg.(1) then self#makereg arg.(1) else arg.(1) in
-      ([|arg0; arg1|], [|arg0|])
-    | R_RM_to_fst ->
-      (* First argument must be a register; the result must be the first arg.
-         Note that stack-spilled vectors are properly aligned. *)
-      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
-      ([|arg0; arg.(1)|], [|arg0|]))
+  | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
@@ -209,19 +183,18 @@ method! reload_operation op arg res =
     ([| self#makereg arg.(0) |], [| self#makereg res.(0) |])
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Iintop_atomic _
-  | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
+  | Ispecific  (Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
-               | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+               | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
                | Ipause
                | Ilfence | Isfence | Imfence
-               | Iprefetch _
-               | Ibswap _| Ifloatsqrtf _)
+               | Iprefetch _ | Ibswap _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Iconst_vec128 _|Icall_ind|Icall_imm _
   | Icompf _
-  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)
+  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _
-  | Ibeginregion | Iendregion | Ipoll _
+  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
     -> (* Other operations: all args and results in registers,
           except moves, probes, and vector casts. *)
       super#reload_operation op arg res

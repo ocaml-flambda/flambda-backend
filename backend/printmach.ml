@@ -112,6 +112,7 @@ let floatcomp c =
 let is_unary_op = function
   | Iclz _
   | Ictz _
+  | Icheckalign _
   | Ipopcnt -> true
   | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
@@ -136,7 +137,8 @@ let intop = function
   | Ictz { arg_is_non_zero; } -> Printf.sprintf "ctz %B " arg_is_non_zero
   | Ipopcnt -> "popcnt "
   | Icomp cmp -> intcomp cmp
-  | Icheckbound -> Printf.sprintf "check > "
+  | Icheckbound -> "checkbound > "
+  | Icheckalign { bytes_pow2 } -> Printf.sprintf "checkalign[%d] " bytes_pow2
 
 let test' ?(print_reg = reg) tst ppf arg =
   let reg = print_reg in
@@ -174,12 +176,16 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (if alloc then "" else " (noalloc)")
   | Istackoffset n ->
       fprintf ppf "offset stack %i" n
-  | Iload(chunk, addr, Immutable) ->
-      fprintf ppf "%s[%a]"
-       (Printcmm.chunk chunk) (Arch.print_addressing reg addr) arg
-  | Iload(chunk, addr, Mutable) ->
-      fprintf ppf "%s mut[%a]"
-       (Printcmm.chunk chunk) (Arch.print_addressing reg addr) arg
+  | Iload { memory_chunk; addressing_mode; mutability=Immutable; is_atomic } ->
+    fprintf ppf "%s %a[%a]"
+      (Printcmm.chunk memory_chunk)
+      (fun pp a -> if a then fprintf pp "atomic" else ()) is_atomic
+      (Arch.print_addressing reg addressing_mode) arg
+  | Iload { memory_chunk; addressing_mode; mutability=Mutable; is_atomic } ->
+    fprintf ppf "%s %a mut[%a]"
+      (Printcmm.chunk memory_chunk)
+      (fun pp a -> if a then fprintf pp "atomic" else ()) is_atomic
+      (Arch.print_addressing reg addressing_mode) arg
   | Istore(chunk, addr, is_assign) ->
       fprintf ppf "%s[%a] := %a %s"
        (Printcmm.chunk chunk)
@@ -246,6 +252,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
+  | Idls_get -> fprintf ppf "dls_get"
   | Ipoll { return_label } ->
       fprintf ppf "poll call";
       (match return_label with
@@ -377,10 +384,10 @@ let interval ppf i =
       i.ranges in
   fprintf ppf "@[<2>%a:%t@]@." reg i.reg interv
 
-let intervals ppf () =
+let intervals ppf (intervals : Interval.result) =
   fprintf ppf "*** Intervals@.";
-  List.iter (interval ppf) (Interval.all_fixed_intervals());
-  List.iter (interval ppf) (Interval.all_intervals())
+  List.iter (interval ppf) intervals.fixed_intervals;
+  List.iter (interval ppf) intervals.intervals
 
 let preference ppf r =
   let prefs ppf =

@@ -425,7 +425,7 @@ and subst_cont_handler env cont_handler =
         ~is_cold:(Continuation_handler.is_cold cont_handler))
 
 and subst_apply env apply =
-  let callee = subst_simple env (Apply_expr.callee apply) in
+  let callee = Option.map (subst_simple env) (Apply_expr.callee apply) in
   let continuation = Apply_expr.continuation apply in
   let exn_continuation = Apply_expr.exn_continuation apply in
   let args = List.map (subst_simple env) (Apply_expr.args apply) in
@@ -981,7 +981,8 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
   in
   let ok = ref atomic_things_equal in
   let callee1' =
-    simple_exprs env (Apply.callee apply1) (Apply.callee apply2)
+    options ~f:simple_exprs ~subst:subst_simple env (Apply.callee apply1)
+      (Apply.callee apply2)
     |> Comparison.chain ~if_equivalent:(Apply.callee apply2) ~ok
   in
   let args1' =

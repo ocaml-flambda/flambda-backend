@@ -331,3 +331,15 @@ Error: Layout void is more experimental than allowed by -extension layouts.
 
 (* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
    type parameter.  Bring back here when we have one enabled by default. *)
+
+(****************************************************)
+(* Test 35: check bad layout error in filter_arrow *)
+
+(* CR layouts: This test moved to [basics_beta.ml] as it needs an immediate
+   type parameter.  Bring back here when we have one enabled by default. *)
+
+(**************************************************)
+(* Test 36: Disallow non-representable statements *)
+
+(* CR layouts: This test moved to [basics_beta.ml]. Bring here when we have
+   non-representable layouts enabled by default. *)

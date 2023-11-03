@@ -210,7 +210,7 @@ let mk_add_type add_type
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
-let common_initial_env add_type add_extension empty_env =
+let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract Abstract_def)
@@ -305,7 +305,11 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
+<<<<<<< HEAD
        ~jkind_annotation:Float64
+=======
+  |> add_type ident_bytes
+>>>>>>> nroberts/layouts-are-strings-in-parsetree
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
@@ -331,13 +335,6 @@ let common_initial_env add_type add_extension empty_env =
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[type_string; type_int; type_int])]
        [| Jkind.value ~why:Tuple |]
-
-let build_initial_env add_type add_exception empty_env =
-  let common = common_initial_env add_type add_exception empty_env in
-  let add_type = mk_add_type add_type in
-  let safe_string = add_type ident_bytes common in
-  let unsafe_string = add_type ident_bytes ~manifest:type_string common in
-  (safe_string, unsafe_string)
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in

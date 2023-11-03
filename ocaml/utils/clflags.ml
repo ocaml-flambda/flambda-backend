@@ -42,10 +42,13 @@ let objfiles = ref ([] : string list)   (* .cmo and .cma files *)
 and ccobjs = ref ([] : string list)     (* .o, .a, .so and -cclib -lxxx *)
 and dllibs = ref ([] : string list)     (* .so and -dllib -lxxx *)
 
+let cmi_file = ref None
+
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
 and include_dirs = ref ([] : string list)(* -I *)
 and no_std_include = ref false          (* -nostdlib *)
+and no_cwd = ref false                  (* -nocwd *)
 and print_types = ref false             (* -i *)
 and make_archive = ref false            (* -a *)
 and debug = ref false                   (* -g *)
@@ -63,6 +66,7 @@ and all_ccopts = ref ([] : string list)     (* -ccopt *)
 and classic = ref false                 (* -nolabels *)
 and nopervasives = ref false            (* -nopervasives *)
 and match_context_rows = ref 32         (* -match-context-rows *)
+and safer_matching = ref false          (* -safer-matching *)
 and preprocessor = ref(None : string option) (* -pp *)
 and all_ppx = ref ([] : string list)        (* -ppx *)
 let absname = ref false                 (* -absname *)
@@ -86,7 +90,7 @@ and principal = ref false               (* -principal *)
 and real_paths = ref true               (* -short-paths *)
 and recursive_types = ref false         (* -rectypes *)
 and strict_sequence = ref false         (* -strict-sequence *)
-and strict_formats = ref false          (* -strict-formats *)
+and strict_formats = ref true           (* -strict-formats *)
 and applicative_functors = ref true     (* -no-app-funct *)
 and make_runtime = ref false            (* -make-runtime *)
 and c_compiler = ref (None: string option) (* -cc *)
@@ -156,11 +160,9 @@ let insn_sched = ref insn_sched_default (* -[no-]insn-sched *)
 let std_include_flag prefix =
   if !no_std_include then ""
   else (prefix ^ (Filename.quote Config.standard_library))
-;;
 
 let std_include_dir () =
   if !no_std_include then [] else [Config.standard_library]
-;;
 
 let shared = ref false (* -shared *)
 let dlcode = ref true (* not -nodynlink *)
@@ -169,15 +171,12 @@ let pic_code = ref (match Config.architecture with (* -fPIC *)
                      | "amd64" -> true
                      | _       -> false)
 
-let runtime_variant = ref "";;      (* -runtime-variant *)
-let with_runtime = ref true;;         (* -with-runtime *)
+let runtime_variant = ref ""
+
+let with_runtime = ref true         (* -with-runtime *)
 
 let keep_docs = ref false              (* -keep-docs *)
 let keep_locs = ref true               (* -keep-locs *)
-let unsafe_string =
-  if Config.safe_string then ref false
-  else ref (not Config.default_safe_string)
-                                   (* -safe-string / -unsafe-string *)
 
 let classic_inlining = ref false       (* -Oclassic *)
 let inlining_report = ref false    (* -inlining-report *)
@@ -508,11 +507,13 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/src/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
+  type t = Parsing | Typing | Lambda
+         | Scheduling | Emit | Simplify_cfg | Selection
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
+    | Lambda -> "lambda"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
@@ -521,6 +522,7 @@ module Compiler_pass = struct
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
+    | "lambda" -> Some Lambda
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
@@ -530,6 +532,7 @@ module Compiler_pass = struct
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Lambda -> 2
     | Selection -> 20
     | Simplify_cfg -> 49
     | Scheduling -> 50
@@ -538,6 +541,7 @@ module Compiler_pass = struct
   let passes = [
     Parsing;
     Typing;
+    Lambda;
     Scheduling;
     Emit;
     Simplify_cfg;
@@ -549,14 +553,14 @@ module Compiler_pass = struct
     | Emit -> true
     | Simplify_cfg -> true
     | Selection -> true
-    | Parsing | Typing -> false
+    | Parsing | Typing | Lambda -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
     | Scheduling -> true
     | Simplify_cfg -> true
     | Selection -> true
-    | Parsing | Typing | Emit -> false
+    | Parsing | Typing | Lambda | Emit -> false
 
   let available_pass_names ~filter ~native =
     passes
@@ -572,7 +576,7 @@ module Compiler_pass = struct
     | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
     | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
-    | Emit | Parsing | Typing -> Misc.fatal_error "Not supported"
+    | Emit | Parsing | Typing | Lambda -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
     match Compiler_ir.extract_extension_with_pass name with
@@ -635,5 +639,37 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-let zero_alloc_check = ref false            (* -zero-alloc-check *)
+module Annotations = struct
+  type t = Check_default | Check_all | Check_opt_only | No_check
+
+  let all = [ Check_default; Check_all; Check_opt_only; No_check ]
+
+  let to_string = function
+    | Check_default -> "default"
+    | Check_all -> "all"
+    | Check_opt_only -> "opt"
+    | No_check -> "none"
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Check_default, Check_default -> true
+    | Check_all, Check_all -> true
+    | No_check, No_check -> true
+    | Check_opt_only, Check_opt_only -> true
+    | (Check_default | Check_all | Check_opt_only | No_check), _ -> false
+
+  let of_string v =
+    let f t =
+      if String.equal (to_string t) v then Some t else None
+    in
+    List.find_map f all
+
+  let doc =
+    "\n\    The argument specifies which annotations to check: \n\
+     \      \"opt\" means attributes with \"opt\" payload and is intended for debugging;\n\
+     \      \"default\" means attributes without \"opt\" payload; \n\
+     \      \"all\" covers both \"opt\" and \"default\" and is intended for optimized builds."
+end
+
+let zero_alloc_check = ref Annotations.No_check         (* -zero-alloc-check *)
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)

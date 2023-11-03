@@ -223,7 +223,7 @@ let int = Array.init 8 (fun _ -> Reg.create Int)
 
 let val_ = Array.init 8 (fun _ -> Reg.create Val)
 
-let addr = Array.init 8 (fun _ -> Reg.create Addr)
+let _addr = Array.init 8 (fun _ -> Reg.create Addr)
 
 let float = Array.init 8 (fun _ -> Reg.create Float)
 
@@ -471,7 +471,7 @@ let () =
 let () =
   check "Regalloc specific instructions are checked when creating description"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg = Cfg_desc.make ~remove_regalloc:false ~remove_locs:true templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
@@ -480,7 +480,7 @@ let () =
 let () =
   check "Terminator result count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(call_label).terminator.res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -493,7 +493,7 @@ let () =
 let () =
   check "Instruction result count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(add_label).!(0).res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -506,7 +506,7 @@ let () =
 let () =
   check "Terminator argument count"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(return_label).terminator.arg <- [||];
       let cfg2 = Cfg_desc.make_post templ in
@@ -519,7 +519,7 @@ let () =
 let () =
   check "Function argument isn't preassigned"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       templ.fun_args.(0) <- Reg.dummy;
       let cfg1 = Cfg_desc.make_pre templ in
       let cfg2 = Cfg_desc.make_post templ in
@@ -532,7 +532,7 @@ let () =
 let () =
   check "Function argument count changed"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.fun_args <- Array.sub templ.fun_args 0 1;
       let cfg2 = Cfg_desc.make_post templ in
@@ -545,7 +545,7 @@ let () =
 let () =
   check "Function argument precoloring changed"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.fun_args.(0) <- templ.fun_args.(1);
       let cfg2 = Cfg_desc.make_post templ in
@@ -558,7 +558,7 @@ let () =
 let () =
   check "Location can't be unknown after allocation"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg = Cfg_desc.make_pre templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
@@ -569,7 +569,7 @@ let () =
 let () =
   check "Precoloring can't change"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       templ.&(move_param_label).!(7).res <- templ.&(move_param_label).!(6).res;
       let cfg2 = Cfg_desc.make_post templ in
@@ -717,7 +717,7 @@ let () =
 let () =
   check "Regalloc reordered instructions between blocks"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let add_body = templ.&(add_label).body in
       templ.&(add_label).body <- [];
@@ -733,7 +733,7 @@ let () =
 let () =
   check "Regalloc reordered instructions within a block"
     (fun () ->
-      let templ, make_id = base_templ () in
+      let templ, _make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
       let block = templ.&(move_tmp_res_label) in
       block.body

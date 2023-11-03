@@ -97,7 +97,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * field_read_semantics
+  | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -110,6 +110,11 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  (* Context switches *)
+  | Prunstack
+  | Pperform
+  | Presume
+  | Preperform
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -173,24 +178,29 @@ type primitive =
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
   (* size of the nth dimension of a Bigarray *)
   | Pbigarraydim of int
-  (* load/set 16,32,64 bits from a string: (unsafe)*)
+  (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
+  | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
+  | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_64 of bool
-  (* load/set 16,32,64 bits from a
+  | Pbytes_set_128 of { unsafe : bool }
+  (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of bool
   | Pbigstring_load_32 of bool * alloc_mode
   | Pbigstring_load_64 of bool * alloc_mode
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
   | Pbigstring_set_16 of bool
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -198,6 +208,11 @@ type primitive =
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of alloc_mode
+  (* Atomic operations *)
+  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -219,6 +234,8 @@ type primitive =
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
      if the value is locally allocated *)
+  (* Fetching domain-local state *)
+  | Pdls_get
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -396,6 +413,7 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
@@ -507,6 +525,7 @@ and lambda_while =
 
 and lambda_for =
   { for_id : Ident.t;
+    for_loc : scoped_location;
     for_from : lambda;
     for_to : lambda;
     for_dir : direction_flag;
@@ -757,6 +776,8 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
+val array_ref_kind_result_layout: array_ref_kind -> layout
+
 val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
@@ -764,3 +785,4 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
+val is_check_enabled : opt:bool -> property -> bool

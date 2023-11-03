@@ -1,20 +1,25 @@
 (* TEST
    reference = "${test_source_directory}/unboxed_floats.reference"
-   * native
+   * flambda2
+   ** native
      flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
      flags = "-extension layouts_alpha"
-   * native
+   ** native
      flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
      flags = "-extension layouts_beta"
-   * setup-ocamlc.byte-build-env
+   ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
      flags = "-extension layouts"
-   ** ocamlc.byte
+   *** ocamlc.byte
      compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
-   *** check-ocamlc.byte-output
+   **** check-ocamlc.byte-output
 *)
+
+(* mshinwell: This test is now only run with flambda2, as the corresponding
+   ocamltest predicate is reliable for testing whether this is an
+   flambda-backend build. *)
 
 (* This file contains various tests for float#.  It's not an expect test to make
    sure it gets tested for native code. *)
