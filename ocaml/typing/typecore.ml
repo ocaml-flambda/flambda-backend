@@ -3242,8 +3242,7 @@ type untyped_apply_arg =
         ty_arg : type_expr;
         sort_arg : Jkind.sort;
         mode_arg : Alloc.t;
-        level: int;
-        next_arg_loc: Location.t option }
+        level: int; }
 
 type untyped_omitted_param =
   { mode_fun: Alloc.t;
@@ -3397,15 +3396,19 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                   (* [rev_args] is the arguments typed until now, in reverse
                      order of appearance. Not all arguments have a location
                      attached (eg. an optional argument that is not passed). *)
+                  (* CR ccasinghino: the above comment is confusing - these
+                     arguments are in reverse order according to the function
+                     type, but not according to their positions in the source
+                     program.  We diverge from upstream here by not trying to
+                     provide a good location in the [Eliminated_optional_arg]
+                     case - maybe fix one day if it is noticeable. *)
                   rev_args
                   |> List.find_map
                        (function
                          | (_, Arg ( Known_arg { sarg; _ }
                                    | Unknown_arg { sarg; _ })) ->
                            Some sarg.pexp_loc
-                         | (_,
-                            Arg (Eliminated_optional_arg { next_arg_loc })) ->
-                           next_arg_loc
+                         | (_, Arg (Eliminated_optional_arg _))
                          | (_, Omitted _) -> None)
                   |> Option.value ~default:funct.exp_loc
                 in
@@ -3463,13 +3466,12 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
               mode_fun; mode_arg; wrapped_in_some })
         in
-        let eliminate_optional_arg next_arg_loc =
+        let eliminate_optional_arg () =
           may_warn funct.exp_loc
             (Warnings.Non_principal_labels "eliminated optional argument");
           Arg
             (Eliminated_optional_arg
-               { mode_fun; ty_arg; mode_arg; sort_arg; level = lv;
-                 next_arg_loc })
+               { mode_fun; ty_arg; mode_arg; sort_arg; level = lv })
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -3486,7 +3488,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   List.exists (function (Nolabel, _) -> true | _ -> false)
                     sargs
                 then
-                  (sargs, eliminate_optional_arg (Some sarg.pexp_loc))
+                  (sargs, eliminate_optional_arg ())
                 else
                   raise(Error(sarg.pexp_loc, env,
                               Apply_wrong_label(l', ty_fun', optional)))
@@ -3506,7 +3508,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             | None ->
                 sargs,
                 if optional && List.mem_assoc Nolabel sargs then
-                  eliminate_optional_arg None
+                  eliminate_optional_arg ()
                 else begin
                   (* No argument was given for this parameter, we abstract over
                      it. *)
