@@ -88,14 +88,18 @@ let load_lambda ppf lam =
   let bytecode, closure = Meta.reify_bytecode code [| events |] None in
   match
     may_trace := true;
-    Fun.protect
-      ~finally:(fun () -> may_trace := false;
-                          if can_free then Meta.release_bytecode bytecode)
-      closure
+    closure ()
   with
-  | retval -> Result retval
+  | retval ->
+    may_trace := false;
+    if can_free then Meta.release_bytecode bytecode;
+
+    Result retval
   | exception x ->
+    may_trace := false;
     record_backtrace ();
+    if can_free then Meta.release_bytecode bytecode;
+
     toplevel_value_bindings := initial_bindings; (* PR#6211 *)
     Symtable.restore_state initial_symtable;
     Exception x
@@ -158,12 +162,18 @@ let execute_phrase print_outcome ppf phr =
               in
               Ophr_exception (exn, outv)
         in
-        !print_out_phrase ppf out_phr;
+        begin match out_phr with
+        | Ophr_signature [] -> ()
+        | _ ->
+            Location.separate_new_message ppf;
+            !print_out_phrase ppf out_phr;
+        end;
         if Printexc.backtrace_status ()
         then begin
           match !backtrace with
             | None -> ()
             | Some b ->
+                Location.separate_new_message ppf;
                 pp_print_string ppf b;
                 pp_print_flush ppf ();
                 backtrace := None;

@@ -150,7 +150,9 @@ let split_direct_over_application apply
       | None -> Apply.continuation apply
       | Some (_, cont) -> Apply.Result_continuation.Return cont
     in
-    Apply.create ~callee:(Simple.var func_var) ~continuation
+    Apply.create
+      ~callee:(Some (Simple.var func_var))
+      ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args ~args_arity:remaining_arity
       ~return_arity:(Apply.return_arity apply)

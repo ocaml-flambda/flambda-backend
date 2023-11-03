@@ -36,7 +36,7 @@
 #include "caml/mlvalues.h"
 #include "caml/misc.h"
 #include "caml/reverse.h"
-#include "caml/stacks.h"
+#include "caml/fiber.h"
 
 #if defined(HAS_LOCALE) || defined(__MINGW32__)
 
@@ -151,13 +151,10 @@ void caml_free_locale(void)
 
 CAMLexport value caml_copy_double(double d)
 {
+  Caml_check_caml_state();
   value res;
 
-#define Setup_for_gc
-#define Restore_after_gc
-  Alloc_small(res, Double_wosize, Double_tag);
-#undef Setup_for_gc
-#undef Restore_after_gc
+  Alloc_small(res, Double_wosize, Double_tag, Alloc_small_enter_GC);
   Store_double_val(res, d);
   return res;
 }

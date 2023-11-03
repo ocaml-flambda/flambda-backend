@@ -235,6 +235,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
   let actions_at_instruction0 ~(insn : L.instruction)
       ~(prev_insn : L.instruction option) ~known_available_after_prev_insn
       ~available_before ~available_across =
+    ignore insn;
+    ignore prev_insn;
     let case_1b =
       KS.diff available_across
         (KS.union known_available_after_prev_insn available_before)

@@ -34,7 +34,7 @@ let ocamlrun =
     | Debug -> "ocamlrund"
     | Instrumented -> "ocamlruni" in
   let ocamlrunfile = Filename.mkexe runtime in
-  Filename.make_path [Ocaml_directories.srcdir; "runtime"; ocamlrunfile]
+  Filename.make_path [Ocaml_directories.srcdir; "runtime4"; ocamlrunfile]
 
 let ocamlc =
   Filename.make_path [Ocaml_directories.srcdir; Filename.mkexe "ocamlc"]

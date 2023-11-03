@@ -240,7 +240,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_atomic _)
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _  | Const_vec128 _ | Compf _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
-       | Valueofint | Intofvalue | Opaque | Begin_region | End_region )
+       | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get )
   | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _)

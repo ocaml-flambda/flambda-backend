@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
 AC_INIT([The Flambda backend for OCaml],
-        4.14.0+dev0-2022-12-19,
+        5.1.1+jst-runtime4,
         [mshinwell@janestreet.com],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
