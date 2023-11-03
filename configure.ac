@@ -51,6 +51,12 @@ AC_ARG_ENABLE([legacy-library-layout],
   [legacy_layout=yes],
   [legacy_layout=no])
 
+AC_ARG_ENABLE([warn-error],
+  [AS_HELP_STRING([--enable-warn-error],
+    [treat C compiler warnings as errors])],
+  [warn_error=""], # if the user passed this, it will already be passed through
+  [warn_error=--enable-warn-error])
+
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
@@ -62,7 +68,7 @@ AC_SUBST([legacy_layout])
 AC_DISABLE_OPTION_CHECKING
 
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest],
+  [$middle_end_arg,$warn_error,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest],
   [],
   [],
   [])
