@@ -36,8 +36,6 @@ val cse_depth : unit -> int
 
 val join_depth : unit -> int
 
-val safe_string : unit -> bool
-
 val flat_float_array : unit -> bool
 
 val function_result_types : is_a_functor:bool -> bool

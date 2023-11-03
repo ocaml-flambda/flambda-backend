@@ -47,7 +47,7 @@
 (rule
   (target opnames.ml)
   (deps make_opcodes.exe (universe))
-  (action (system "./make_opcodes.exe -opnames < ../../ocaml/runtime/caml/instruct.h > opnames.ml")))
+  (action (system "./make_opcodes.exe -opnames < ../runtime4/caml/instruct.h > opnames.ml")))
 
 (library
   (name opnames)
@@ -59,6 +59,14 @@
   (modes byte)
   (modules dumpobj)
   (libraries ocamlcommon ocamlbytecomp opnames))
+
+(install
+  (files
+    (dumpobj.bc as dumpobj.byte)
+    (dumpobj.exe as dumpobj.opt)
+  )
+  (section bin)
+  (package ocaml))
 
 (executable
   (name cmpbyt)

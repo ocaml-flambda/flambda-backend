@@ -35,7 +35,12 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/_opam
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-2.9.1-g7606d586
+        key: ${{ matrix.os }}-cache-ocaml-414-dune-2.9.1-g7606d586-menhir20210419
+
+    - name: Install menhir
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        opam pin menhir 20210419
 
     - name: Build bisect_ppx
       if: steps.cache.outputs.cache-hit != 'true'

@@ -730,7 +730,7 @@ let set_paths () =
       [expand "+camlp4"];
     ]
   in
-  Load_path.init load_path
+  Load_path.init load_path ~auto_include:Compmisc.auto_include
 
 let initialize_toplevel_env () =
   toplevel_env := Compmisc.initial_env();

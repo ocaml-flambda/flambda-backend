@@ -1,0 +1,32 @@
+/**************************************************************************/
+/*                                                                        */
+/*                                 OCaml                                  */
+/*                                                                        */
+/*             Sebastien Hinderer, projet Cambium, INRIA Paris            */
+/*                                                                        */
+/*   Copyright 2021 Institut National de Recherche en Informatique et     */
+/*     en Automatique.                                                    */
+/*                                                                        */
+/*   All rights reserved.  This file is distributed under the terms of    */
+/*   the GNU Lesser General Public License version 2.1, with the          */
+/*   special exception on linking described in the file LICENSE.          */
+/*                                                                        */
+/**************************************************************************/
+
+/* Macros defining the current version of OCaml */
+
+#undef OCAML_VERSION_MAJOR
+#undef OCAML_VERSION_MINOR
+#undef OCAML_VERSION_PATCHLEVEL
+#undef OCAML_VERSION_ADDITIONAL
+#undef OCAML_VERSION_EXTRA
+#undef OCAML_VERSION
+#undef OCAML_VERSION_STRING
+
+/* Macros defining differences between Jane Street's version of OCaml and
+   stock OCaml 5, which we will not port over to the OCaml 5 runtime.
+ */
+
+#define JANE_STREET_HAS_OCAML_4_GC
+#define JANE_STREET_HAS_OCAML_4_PRNG
+#define JANE_STREET_HAS_NO_DOMAINS

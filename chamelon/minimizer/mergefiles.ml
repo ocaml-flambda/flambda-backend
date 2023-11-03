@@ -87,12 +87,6 @@ let rec remove_head_lid li =
   | Ldot (li, s) -> Ldot (remove_head_lid li, s)
   | _ -> li
 
-let rec print_path p =
-  match p with
-  | Pident id -> Ident.name id
-  | Pdot (p, s) -> print_path p ^ "." ^ s
-  | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
-
 let rec print_path_lid p =
   match p with
   | Lident id -> id

@@ -244,8 +244,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
            | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
            | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
            | Ivalueofint | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _
-           | Ivectorcast _ | Iprobe_is_enabled _ | Ibeginregion | Iendregion )
-          as op) ->
+           | Ivectorcast _ | Iprobe_is_enabled _ | Ibeginregion | Iendregion
+           | Idls_get ) as op) ->
         (* We split the calculation of registers that become unavailable after a
            call into two parts. First: anything that the target marks as
            destroyed by the operation, combined with any registers that will be
@@ -308,7 +308,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
           | Isubf | Imulf | Idivf | Icsel _ | Ifloatofint | Iintoffloat
           | Ivalueofint | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _
           | Ivectorcast _ | Iname_for_debugger _ | Iprobe_is_enabled _
-          | Ibeginregion ->
+          | Ibeginregion | Idls_get ->
             RD.Set.empty
         in
         let made_unavailable =

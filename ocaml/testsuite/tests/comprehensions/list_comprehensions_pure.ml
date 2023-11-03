@@ -160,6 +160,7 @@ Line 1, characters 7-8:
 1 | [x for x in ["one"; "two"; "three"] for x in [10; 20; 30]];;
            ^
 Warning 26 [unused-var]: unused variable x.
+
 - : int list = [10; 20; 30; 10; 20; 30; 10; 20; 30]
 |}];;
 
@@ -181,6 +182,7 @@ Line 1, characters 7-8:
 1 | [a for a in [0] for a in [1]];;
            ^
 Warning 26 [unused-var]: unused variable a.
+
 - : int list = [1]
 |}];;
 
@@ -451,5 +453,6 @@ Line 1, characters 8-9:
 1 | M.B :: [A for _ = 1 to 3];;
             ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
+
 - : M.t list = [M.B; M.A; M.A; M.A]
 |}];;

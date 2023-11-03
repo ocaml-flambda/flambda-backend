@@ -1993,6 +1993,10 @@ let assemble_line b loc ins =
     | Cfi_startproc -> ()
     | Cfi_endproc -> ()
     | Cfi_adjust_cfa_offset _ -> ()
+    | Cfi_remember_state -> ()
+    | Cfi_restore_state -> ()
+    | Cfi_def_cfa_register _ -> ()
+    | Cfi_def_cfa_offset _ -> ()
     | File _ -> ()
     | Loc _ -> ()
     | Private_extern _ -> assert false

@@ -86,6 +86,8 @@ type texp_match_identifier = Jkind.sort
 let mkTexp_match ?id:(sort = Jkind.Sort.value) (e, cases, partial) =
   Texp_match (e, sort, cases, partial)
 
+let mkTexp_assert e loc = Texp_assert (e, loc)
+
 type matched_expression_desc =
   | Texp_ident of
       Path.t
@@ -245,3 +247,18 @@ let is_type_name_used desc typ_name =
   | Ttyp_alias (_, Some s, _) -> s = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
+
+let rec print_path p =
+  match (p : Path.t) with
+  | Pident id -> Ident.name id
+  | Pdot (p, s) -> print_path p ^ "." ^ s
+  | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
+  | Pextra_ty _ -> Format.asprintf "%a" Path.print p
+
+let rec replace_id_in_path path to_rep : Path.t =
+  match (path : Path.t) with
+  | Pident _ -> Pident to_rep
+  | Papply (p1, p2) ->
+      Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
+  | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
+  | Pextra_ty (p, extra_ty) -> Pextra_ty (replace_id_in_path p to_rep, extra_ty)
