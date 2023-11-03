@@ -371,6 +371,7 @@ let print_instr b = function
   | PALIGNR (n, arg1, arg2) -> i3 b "palignr" n arg1 arg2
   | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
+  | PCLMULQDQ (n, arg1, arg2) -> i3 b "pclmulqdq" n arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
