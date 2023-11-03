@@ -20,6 +20,7 @@ val popcnt_support : bool ref
 val prefetchw_support : bool ref
 val prefetchwt1_support : bool ref
 val trap_notes : bool ref
+val clmul_support : bool ref
 val sse3_support : bool ref
 val ssse3_support : bool ref
 val sse41_support : bool ref
