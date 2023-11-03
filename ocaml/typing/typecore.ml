@@ -6031,7 +6031,7 @@ and type_expect_
           ~post:generalize_structure begin fun () ->
           let let_loc = slet.pbop_op.loc in
           let op_path, op_desc = type_binding_op_ident env slet.pbop_op in
-          let op_type = instance op_desc.val_type in
+          let op_type = op_desc.val_type in
           let spat_params, ty_params, param_sort =
             let initial_jkind, initial_sort = match sands with
               | [] ->
@@ -7886,7 +7886,7 @@ and type_andops env sarg sands expected_sort expected_ty =
             ty_result, op_result_sort =
           with_local_level_iter_if_principal begin fun () ->
             let op_path, op_desc = type_binding_op_ident env sop in
-            let op_type = instance op_desc.val_type in
+            let op_type = op_desc.val_type in
             let ty_arg, sort_arg = new_rep_var ~why:Function_argument () in
             let ty_rest, sort_rest = new_rep_var ~why:Function_argument () in
             let ty_result, op_result_sort =
