@@ -6289,24 +6289,24 @@ and type_function
   in
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort } =
-    with_local_level_iter_if separate ~post:generalize_structure begin fun () ->
+    with_local_level_if separate begin fun () ->
       let force_tpoly =
         (* If [has_poly] is true then we rely on the later call to
            type_pat to enforce the invariant that the parameter type
            be a [Tpoly] node *)
         not has_poly
       in
-      let { ty_arg; ty_ret; _ } as filtered_arrow =
-        try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
-        with Filter_arrow_failed err ->
-          let first = Option.is_none in_function in
-          let err =
-            error_of_filter_arrow_failure ~explanation ~first ty_fun err
-          in
-          raise (Error(loc_fun, env, err))
-      in
-      (filtered_arrow, [ty_arg; ty_ret])
+      try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
+      with Filter_arrow_failed err ->
+        let first = Option.is_none in_function in
+        let err =
+          error_of_filter_arrow_failure ~explanation ~first ty_fun err
+        in
+        raise (Error(loc_fun, env, err))
     end
+      ~post:(fun {ty_arg; ty_ret; _} ->
+        generalize_structure ty_arg;
+        generalize_structure ty_ret)
   in
   apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
   if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
@@ -7163,7 +7163,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
                             (lid.txt, constr.cstr_arity, List.length sargs)));
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let ty_args, ty_res, texp =
-    with_local_level_iter_if separate ~post:generalize_structure begin fun () ->
+    with_local_level_if separate begin fun () ->
       let ty_args, ty_res, texp =
         with_local_level_if separate begin fun () ->
           let (ty_args, ty_res, _) =
@@ -7185,8 +7185,11 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
               (instance ty_expected));
         end
       in
-      ((ty_args, ty_res, texp), ty_res::(List.map fst ty_args))
+      (ty_args, ty_res, texp)
     end
+      ~post:(fun (ty_args, ty_res, _) ->
+        generalize_structure ty_res;
+        List.iter (fun (ty, _) -> generalize_structure ty) ty_args)
   in
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map fst ty_args)) with
