@@ -1,13 +1,6 @@
 # Later lines in the file take precedence.
 
-.github/                @mshinwell @xclerc
 .github/CODEOWNERS      @mshinwell @lpw25
-.gitignore              @mshinwell @xclerc
-
-.vscode                 @mshinwell
-
-autoconf-aux            @mshinwell @xclerc
-configure.ac            @mshinwell @xclerc
 
 flambda_backend.opam    @mshinwell @lthls
 
@@ -18,11 +11,7 @@ backend/debug/                  @mshinwell @poechsel
 
 chamelon/                       @Ekdohibs
 
-driver/                         @mshinwell @xclerc
-
 external/memtrace/              @stedolan
-
-file_formats/                   @mshinwell @xclerc
 
 middle_end/                     @mshinwell @lthls
 
@@ -56,20 +45,3 @@ middle_end/flambda2/scripts             @mshinwell @lthls
 middle_end/flambda2/docs/backend_exceptions.md  @lthls
 middle_end/flambda2/docs/to_cmm.md              @gbury
 middle_end/flambda2/docs/types.md               @lthls
-
-native_toplevel/                @mshinwell @xclerc
-
-ocaml/asmcomp/                  @gretay-js @xclerc
-ocaml/runtime/                  @stedolan
-
-scripts/                        @mshinwell @xclerc
-
-testsuite/tools                 @gretay-js
-testsuite/flambda2-test-list    @xclerc
-
-tools/merge_archives.ml         @mshinwell @xclerc
-tools/merge_dot_a_files.sh      @mshinwell @xclerc
-tools/objinfo.ml                @mshinwell @xclerc
-
-testsuite/tests/unboxed-primitive-args  @TheNumbat
-tests/simd                              @TheNumbat
