@@ -3065,10 +3065,10 @@ let rec check_counter_example_pat
       in
       map_fold_cont type_label_pat fields
         (fun fields -> mkp k (Tpat_record (fields, closed)))
-  | Tpat_array (mut, tpl) ->
-      let ty_elt = solve_Ppat_array ~refine loc env mut expected_ty in
+  | Tpat_array (mut, _, tpl) ->
+      let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mut expected_ty in
       map_fold_cont (fun p -> check_rec p ty_elt) tpl
-        (fun pl -> mkp k (Tpat_array (mut, pl)))
+        (fun pl -> mkp k (Tpat_array (mut, arg_sort, pl)))
   | Tpat_or(tp1, tp2, _) ->
       (* We are in counter-example mode, but try to avoid backtracking *)
       let must_split =
