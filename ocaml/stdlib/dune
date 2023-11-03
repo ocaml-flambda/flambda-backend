@@ -78,8 +78,6 @@
   atomic.mli
   effect.ml
   effect.mli
-  domain.ml
-  domain.mli
   bigarray.ml
   bigarray.mli
   bool.ml
@@ -220,9 +218,6 @@
   .stdlib.objs/byte/stdlib__Effect.cmi
   .stdlib.objs/byte/stdlib__Effect.cmt
   .stdlib.objs/byte/stdlib__Effect.cmti
-  .stdlib.objs/byte/stdlib__Domain.cmi
-  .stdlib.objs/byte/stdlib__Domain.cmt
-  .stdlib.objs/byte/stdlib__Domain.cmti
   .stdlib.objs/byte/stdlib__Bigarray.cmi
   .stdlib.objs/byte/stdlib__Bigarray.cmt
   .stdlib.objs/byte/stdlib__Bigarray.cmti
@@ -473,7 +468,6 @@
   .stdlib.objs/native/stdlib__Digest.cmx
   .stdlib.objs/native/stdlib__Atomic.cmx
   .stdlib.objs/native/stdlib__Effect.cmx
-  .stdlib.objs/native/stdlib__Domain.cmx
   .stdlib.objs/native/stdlib__Either.cmx
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
