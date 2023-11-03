@@ -755,16 +755,15 @@ let transl_declaration env sdecl (id, uid) =
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
-       - If there's no annotation but there is a manifest, we estimate the
-         jkind based on the manifest here. This upper bound saves time
+       - If there's no annotation but it's an abstract type and there is a manifest,
+         we estimate the jkind based on the manifest here. This upper bound saves time
          later by avoiding expanding the manifest in jkind checks, but it
          would be sound to leave in `any`. We can't give a perfectly
          accurate jkind here because we don't have access to the
          manifests of mutually defined types (but we could one day consider
          improving it at a later point in transl_type_decl).
-       - If there's no annotation and no manifest, we fill in with the
-         default calculated above here. It will get updated in
-         [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
+       - Otherwise, we fill in with the default calculated above here. It will get
+         updated in [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
     *)
     (* CR layouts: Is the estimation mentioned in the second bullet above
        doing anything for us?  Abstract types are updated by
