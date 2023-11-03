@@ -13,19 +13,25 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module VarMap = Map.Make (struct
+  type t = int
+
+  let compare = Int.compare
+end)
+
 type 'a var =
-  { mutable upper : 'a;
+  { mvid : int;
+    mutable upper : 'a;
     mutable lower : 'a;
-    mutable vlower : 'a var list;
-    mutable mark : bool;
-    mvid : int
+    mutable vlower : 'a var VarMap.t;
+    mutable mark : bool
   }
 
 type changes =
   | Cnil : changes
   | Cupper : 'a var * 'a * changes -> changes
   | Clower : 'a var * 'a * changes -> changes
-  | Cvlower : 'a var * 'a var list * changes -> changes
+  | Cvlower : 'a var * 'a var VarMap.t * changes -> changes
 
 let set_lower ~log v lower =
   log := Clower (v, v.lower, !log);
@@ -144,7 +150,12 @@ module Solver (L : Lattice) : Solver with type const := L.t = struct
 
   let fresh () =
     incr next_id;
-    { upper = L.max; lower = L.min; vlower = []; mvid = !next_id; mark = false }
+    { upper = L.max;
+      lower = L.min;
+      vlower = VarMap.empty;
+      mvid = !next_id;
+      mark = false
+    }
 
   exception NotSubmode
 
@@ -164,7 +175,7 @@ module Solver (L : Lattice) : Solver with type const := L.t = struct
     else
       let m = L.join v.lower m in
       set_lower ~log v m;
-      if L.eq m v.upper then set_vlower ~log v []
+      if L.eq m v.upper then set_vlower ~log v VarMap.empty
 
   let rec submode_vc ~log v m =
     if L.le v.upper m
@@ -175,21 +186,21 @@ module Solver (L : Lattice) : Solver with type const := L.t = struct
       let m = L.meet v.upper m in
       set_upper ~log v m;
       v.vlower
-      |> List.iter (fun a ->
+      |> VarMap.iter (fun _ a ->
              (* a <= v <= m *)
              submode_vc ~log a m;
              set_lower ~log v (L.join v.lower a.lower));
-      if L.eq v.lower m then set_vlower ~log v []
+      if L.eq v.lower m then set_vlower ~log v VarMap.empty
 
   let submode_vv ~log a b =
     (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
     if L.le a.upper b.lower
     then ()
-    else if a == b || List.memq a b.vlower
+    else if a == b || VarMap.mem a.mvid b.vlower
     then ()
     else (
       submode_vc ~log a b.upper;
-      set_vlower ~log b (a :: b.vlower);
+      set_vlower ~log b (VarMap.add a.mvid a b.vlower);
       submode_cv ~log a.lower b)
 
   let rec all_equal v = function
@@ -341,7 +352,7 @@ module Solver (L : Lattice) : Solver with type const := L.t = struct
       then ()
       else (
         mark v';
-        new_vlower := v' :: !new_vlower;
+        new_vlower := VarMap.add v'.mvid v' !new_vlower;
         trans_low v')
     and trans_low v' =
       assert (v != v');
@@ -354,19 +365,19 @@ module Solver (L : Lattice) : Solver with type const := L.t = struct
         then
           (* v is now a constant, no need to keep computing bounds *)
           raise Became_constant);
-      List.iter trans v'.vlower
+      VarMap.iter (fun _ x -> trans x) v'.vlower
     in
     mark v;
-    List.iter mark v.vlower;
+    VarMap.iter (fun _ x -> mark x) v.vlower;
     let became_constant =
-      match List.iter trans_low v.vlower with
+      match VarMap.iter (fun _ x -> trans_low x) v.vlower with
       | () -> false
       | exception Became_constant -> true
     in
-    List.iter unmark !new_vlower;
+    VarMap.iter (fun _ x -> unmark x) !new_vlower;
     unmark v;
     assert (!nmarked = 0);
-    if became_constant then new_vlower := [];
+    if became_constant then new_vlower := VarMap.empty;
     if !new_lower != v.lower || !new_vlower != v.vlower
     then (
       let log = ref Cnil in
@@ -393,12 +404,12 @@ module Solver (L : Lattice) : Solver with type const := L.t = struct
   let print_var_id ppf v = Format.fprintf ppf "?%i" v.mvid
 
   let print_var ppf v =
-    if v.vlower = []
+    if VarMap.is_empty v.vlower
     then print_var_id ppf v
     else
       Format.fprintf ppf "%a[> %a]" print_var_id v
         (Format.pp_print_list print_var_id)
-        v.vlower
+        (VarMap.to_seq v.vlower |> Seq.map snd |> List.of_seq)
 
   let print' ?(verbose = true) ?label ppf a =
     match const_or_var a with
