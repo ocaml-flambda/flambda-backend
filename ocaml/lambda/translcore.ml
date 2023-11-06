@@ -258,7 +258,7 @@ let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = wrap_bindings bindings exp}]
   | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
-      let mode = Mode.alloc_as_value arg_mode in
+      let mode = Mode.alloc_as_value (Env.region exp.exp_env) arg_mode in
       let param = Typecore.name_cases "param" cases in
       let desc =
         {val_type = pat.pat_type; val_kind = Val_reg;

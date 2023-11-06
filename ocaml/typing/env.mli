@@ -199,10 +199,6 @@ type shared_context =
   | Probe
   | Lazy
 
-type closure_error =
-  | Locality of closure_context option
-  | Linearity
-
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -226,7 +222,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_escaping of Longident.t * escaping_context
   | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * closure_error
+  | Value_used_in_closure of Longident.t * Mode.Value.Comonadic.error * closure_context option
   | Local_value_used_in_exclave of Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -452,10 +448,24 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context -> ('l * allowed) Mode.Locality.t
-  -> ('l_ * allowed) Mode.Linearity.t -> t -> t
-val add_region_lock : t -> t
-val add_exclave_lock : t -> t
+val add_closure_lock : ?closure_context:closure_context
+  -> ('l * allowed) Mode.Value.Comonadic.t -> t -> t
+
+(** Enter a region *)
+val enter_region : t -> t
+
+(** Return the current region  *)
+val region : t -> Mode.Regionality.Index.t
+
+(** Return the mode local to the current region *)
+val local : t -> ('l * 'r) Mode.Regionality.t
+
+(** Enter an exclave. *)
+val enter_exclave : Mode.Regionality.Index.t -> t -> t
+
+(** Returns the mode needed to escape the current region *)
+val escape : t -> Mode.Regionality.r
+
 val add_unboxed_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)

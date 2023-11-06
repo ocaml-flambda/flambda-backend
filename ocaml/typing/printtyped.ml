@@ -354,7 +354,7 @@ and locality_mode i ppf m =
     (Mode.Locality.print ()) m
 
 and value_mode i ppf m =
-  line i ppf "value_mode %a\n" (Mode.Value.print ()) m
+  line i ppf "value_mode %a\n" (Mode.Value.print Mode.Regionality.Index.max) m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
