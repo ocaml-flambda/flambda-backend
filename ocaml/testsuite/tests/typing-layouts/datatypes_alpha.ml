@@ -339,7 +339,7 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-        'a has layout void, which does not overlap with value.
+         'a has layout void, which does not overlap with value.
        The fix will likely be to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -358,7 +358,7 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-        'a has layout value, which is not a sublayout of immediate.
+         'a has layout value, which is not a sublayout of immediate.
        The fix will likely be to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -375,7 +375,7 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-        float# has layout float64, which is not a sublayout of void.
+         float# has layout float64, which is not a sublayout of void.
        The fix will likely be to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
