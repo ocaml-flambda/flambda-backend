@@ -1475,7 +1475,6 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let new_env =
     Env.create ~current_unit:(Env.current_unit env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
-      ~ret_mode
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
@@ -1716,7 +1715,6 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
   let env =
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
-      ~ret_mode:Lambda.alloc_heap
   in
   let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation

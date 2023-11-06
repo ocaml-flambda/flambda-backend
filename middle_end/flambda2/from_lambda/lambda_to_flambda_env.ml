@@ -39,7 +39,6 @@ type t =
     static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
     recursive_static_catches : Numeric_types.Int.Set.t;
     my_region : Ident.t;
-    ret_mode : Lambda.alloc_mode;
     (* CR-someday ncourant: replace this with [my_region: Ident.t option] *)
     region_stack : region_stack_element list;
     region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
@@ -47,8 +46,7 @@ type t =
     ident_stamp_upon_starting : int
   }
 
-let create ~current_unit ~return_continuation ~exn_continuation ~my_region
-    ~ret_mode =
+let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
   let mutables_needed_by_continuations =
     Continuation.Map.of_list
       [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
@@ -69,7 +67,6 @@ let create ~current_unit ~return_continuation ~exn_continuation ~my_region
     static_exn_continuation = Numeric_types.Int.Map.empty;
     recursive_static_catches = Numeric_types.Int.Set.empty;
     my_region;
-    ret_mode;
     region_stack = [];
     region_stack_in_cont_scope =
       Continuation.Map.singleton return_continuation [];

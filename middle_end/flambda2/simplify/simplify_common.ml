@@ -118,7 +118,8 @@ let split_direct_over_application apply
     = 0);
   let func_var = Variable.create "full_apply" in
   let result_mode = Code_metadata.result_mode callee's_code_metadata in
-  let needs_region, inner_apply_alloc_mode, outer_apply_alloc_mode =
+  let outer_apply_alloc_mode = apply_alloc_mode in
+  let needs_region, inner_apply_alloc_mode =
     (* If the function being called might do a local allocation that escapes,
        then we need a region for such function's return value, unless the
        allocation mode of the [Apply] is already [Local]. Note that we must not
@@ -127,15 +128,15 @@ let split_direct_over_application apply
        [End_region] primitive corresponding to such region) whilst the return
        value is still live (and with the caller expecting such value to have
        been allocated in their region). *)
-    match apply_alloc_mode, result_mode with
-    | Heap, Alloc_local ->
-      let region = Variable.create "over_app_region" in
-      ( Some (region, Continuation.create ()),
-        Alloc_mode.For_allocations.local ~region,
-        Alloc_mode.For_allocations.heap )
-    | Local _, Alloc_local -> None, apply_alloc_mode, apply_alloc_mode
-    | (Heap | Local _), Alloc_heap ->
-      None, Alloc_mode.For_allocations.heap, apply_alloc_mode
+    match result_mode with
+    | Alloc_heap -> None, Alloc_mode.For_allocations.heap
+    | Alloc_local -> (
+      match apply_alloc_mode with
+      | Heap ->
+        let region = Variable.create "over_app_region" in
+        ( Some (region, Continuation.create ()),
+          Alloc_mode.For_allocations.local ~region )
+      | Local _ -> None, apply_alloc_mode)
   in
   let perform_over_application =
     let continuation =

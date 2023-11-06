@@ -25,7 +25,6 @@ val create :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   my_region:Ident.t ->
-  ret_mode:Lambda.alloc_mode ->
   t
 
 val current_unit : t -> Compilation_unit.t
