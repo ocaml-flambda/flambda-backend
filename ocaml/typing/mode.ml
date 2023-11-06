@@ -24,7 +24,7 @@ module Product = struct
     | Axis1 -> fun (_, x) -> x
 
   let eq_axis (type a0 a1 a b) :
-      (a0, a1, a) axis -> (a0, a1, b) axis -> (a, b) eq option =
+      (a0, a1, a) axis -> (a0, a1, b) axis -> (a, b) Misc.eq option =
    fun a b ->
     match a, b with
     | Axis0, Axis0 -> Some Refl
@@ -71,11 +71,11 @@ module Product = struct
   let proj_set (type a0 a1 a b0 b1 b b') :
       (b0, b1, b') axis ->
       (a0, a1, a, b0, b1, b) saxis ->
-      ((b, b') eq, (a0, a1, b') axis) Either.t =
+      ((b, b') Misc.eq, (a0, a1, b') axis) Either.t =
    fun ax sax ->
     match sax, ax with
-    | SAxis0, Axis0 -> Either.left Refl
-    | SAxis1, Axis1 -> Either.left Refl
+    | SAxis0, Axis0 -> Either.left Misc.Refl
+    | SAxis1, Axis1 -> Either.left Misc.Refl
     | SAxis0, Axis1 -> Either.right Axis1
     | SAxis1, Axis0 -> Either.right Axis0
 
@@ -85,11 +85,11 @@ module Product = struct
   let set_set (type a0 a1 a b0 b1 b b' c0 c1 c) :
       (b0, b1, b', c0, c1, c) saxis ->
       (a0, a1, a, b0, b1, b) saxis ->
-      ((a0, a1, a, c0, c1, c) saxis * (b, b') eq) option =
+      ((a0, a1, a, c0, c1, c) saxis * (b, b') Misc.eq) option =
    fun sax0 sax1 ->
     match sax0, sax1 with
-    | SAxis0, SAxis0 -> Some (SAxis0, Refl)
-    | SAxis1, SAxis1 -> Some (SAxis1, Refl)
+    | SAxis0, SAxis0 -> Some (SAxis0, Misc.Refl)
+    | SAxis1, SAxis1 -> Some (SAxis1, Misc.Refl)
     | _ -> None
 
   module Lattice (L0 : Lattice) (L1 : Lattice) :
@@ -350,15 +350,15 @@ module Lattices = struct
     | Comonadic_with_locality -> Comonadic_with_locality.print
     | Comonadic_with_regionality -> Comonadic_with_regionality.print
 
-  let eq_obj : type a b. a obj -> b obj -> (a, b) eq option =
+  let eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
    fun a b ->
     match a, b with
-    | Locality, Locality -> Some Refl
-    | Regionality, Regionality -> Some Refl
-    | Uniqueness_op, Uniqueness_op -> Some Refl
-    | Linearity, Linearity -> Some Refl
-    | Comonadic_with_locality, Comonadic_with_locality -> Some Refl
-    | Comonadic_with_regionality, Comonadic_with_regionality -> Some Refl
+    | Locality, Locality -> Some Misc.Refl
+    | Regionality, Regionality -> Some Misc.Refl
+    | Uniqueness_op, Uniqueness_op -> Some Misc.Refl
+    | Linearity, Linearity -> Some Misc.Refl
+    | Comonadic_with_locality, Comonadic_with_locality -> Some Misc.Refl
+    | Comonadic_with_regionality, Comonadic_with_regionality -> Some Misc.Refl
     | _ -> None
 end
 
@@ -760,7 +760,7 @@ module Locality = struct
   module Obj = struct
     type const = Const.t
 
-    type polarity = positive
+    type polarity = S.positive
 
     let obj = C.Locality
 
@@ -784,7 +784,7 @@ module Regionality = struct
   module Obj = struct
     type const = Const.t
 
-    type polarity = positive
+    type polarity = S.positive
 
     let obj_s : (const * polarity) S.obj = S.Positive C.Regionality
   end
@@ -808,7 +808,7 @@ module Linearity = struct
   module Obj = struct
     type const = Const.t
 
-    type polarity = positive
+    type polarity = S.positive
 
     let obj = C.Linearity
 
@@ -833,7 +833,7 @@ module Uniqueness = struct
     type const = Const.t
 
     (* the negation of Uniqueness_op gives us the proper uniqueness *)
-    type polarity = negative
+    type polarity = S.negative
 
     let obj = C.Uniqueness_op
 
@@ -876,7 +876,7 @@ module Comonadic_with_regionality = struct
   module Obj = struct
     type const = Const.t
 
-    type polarity = positive
+    type polarity = S.positive
 
     let obj : const C.obj = C.Comonadic_with_regionality
 
@@ -963,7 +963,7 @@ module Comonadic_with_locality = struct
   module Obj = struct
     type const = Const.t
 
-    type polarity = positive
+    type polarity = S.positive
 
     let obj : const C.obj = C.Comonadic_with_locality
 

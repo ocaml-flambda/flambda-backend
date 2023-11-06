@@ -524,6 +524,14 @@ module Solver_polarized (C : Lattices_mono) = struct
 
   let append_changes = S.append_changes
 
+  type positive = private Positive
+
+  type negative = private Negative
+
+  type 'a pos = 'b * 'c constraint 'a = 'b * 'c
+
+  type 'a neg = 'c * 'b constraint 'a = 'b * 'c
+
   type 'a obj =
     | Positive : 'a C.obj -> ('a * positive) obj
     | Negative : 'a C.obj -> ('a * negative) obj

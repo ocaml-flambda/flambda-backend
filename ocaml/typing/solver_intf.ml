@@ -2,21 +2,13 @@ type allowed = private Allowed
 
 type disallowed = private Disallowed
 
-type positive = private Positive
 
-type negative = private Negative
 
 type left_only = allowed * disallowed
 
 type right_only = disallowed * allowed
 
 type both = allowed * allowed
-
-type ('a, 'b) eq = Refl : ('a, 'a) eq
-
-type 'a pos = 'b * 'c constraint 'a = 'b * 'c
-
-type 'a neg = 'c * 'b constraint 'a = 'b * 'c
 
 (** A collection of lattices, indexed by [obj] *)
 module type Lattices = sig
@@ -35,7 +27,7 @@ module type Lattices = sig
 
   val print : 'a obj -> Format.formatter -> 'a -> unit
 
-  val eq_obj : 'a obj -> 'b obj -> ('a, 'b) eq option
+  val eq_obj : 'a obj -> 'b obj -> ('a, 'b) Misc.eq option
 end
 
 (** Extend [Lattices] with monotone functions (including identity) to form a
@@ -46,9 +38,11 @@ module type Lattices_mono = sig
 
   (** Morphism from object of base type ['a] to object of base type ['b].
       ['d] is ['l] * ['r], where ['l] can be:
-      - [allowed], meaning the morphism can be on the left/having right adjoint)
-      - [disallowed], meaning the morphism cannot be on the right/not having right adjoint)
-      Similar for ['r] *)
+      - [allowed], meaning the morphism can be on the left because it has right
+        adjoint.
+      - [disallowed], meaning the morphism cannot be on the left because
+        it does not have right adjoint.
+      Similar for ['r]. *)
   type ('a, 'b, 'd) morph
 
   (* Due to the implementation in [solver.ml], a mode doesn't have sufficient
@@ -61,8 +55,8 @@ module type Lattices_mono = sig
      in, every time it invokes the solver on some modes.
 
      Roughly, ['a mode] is represented in the solver as constant of ['a], or [f
-     v] where [f] is a morphism from ['b] to ['a] and [v] is some variable in
-     ['a]. The ['a] needs additional ['a obj] to decide its position in the
+     v] where [f] is a morphism from ['b] to ['a] and [v] is some variable of
+     ['b]. The ['a] needs additional ['a obj] to decide its position in the
      lattice structure (because again, multiple lattices can share the same
      carrier type). One might think the morphism [f] should know its own source
      and target objects. But since its target object is already given by the
@@ -126,6 +120,9 @@ module type S = sig
   (** Solver that supports polarized lattices; needed because some morphisms
       are antitone  *)
   module Solver_polarized (C : Lattices_mono) : sig
+
+    (* Backtracking facilities used by [types.ml] *)
+
     type changes
 
     val undo_changes : changes -> unit
@@ -136,6 +133,14 @@ module type S = sig
        objects are those from the C, and those from C but flipped lattice
        structure. The morphisms are the obvious four copies of the original
        morhpisms. *)
+
+       type positive = private Positive
+
+       type negative = private Negative
+
+       type 'a pos = 'b * 'c constraint 'a = 'b * 'c
+
+       type 'a neg = 'c * 'b constraint 'a = 'b * 'c
 
     type 'a obj =
       | Positive : 'a C.obj -> ('a * positive) obj
@@ -172,6 +177,9 @@ module type S = sig
       ('a, 'al * 'ar, 'b, 'bl * 'br) morph ->
       ('a, 'al * 'ar, 'c, 'cl * 'cr) morph
 
+    (* A mode with carrier type ['a] and left/right status ['d] derived from
+       the morphism it contains. See comments for [morph] for the format of ['d]
+    *)
     type ('a, 'd) mode
 
     (** Disallows a mode of being on the RHS of [submode].  *)
@@ -219,14 +227,14 @@ module type S = sig
       (unit, 'a error) result
 
     (** Creates a new mode variable above the given mode and returns [true]. In
-        the speical case where the given mode is top, returns a constant mode
+        the speical case where the given mode is top, returns the constant top
         and [false]. *)
     val newvar_above :
       'a obj -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
 
     (** Creates a new mode variable below the given mode and returns [true]. In
-        the speical case where the given mode is bottom, returns a constant mode
-        and [false]. *)
+        the speical case where the given mode is bottom, returns the constant
+        bottom and [false]. *)
     val newvar_below :
       'a obj -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
 
