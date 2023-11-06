@@ -197,10 +197,13 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       then Recursive
       else Non_recursive
     in
-    if NO.mem_var free_names_of_body my_region &&
-       Lambda.is_heap_mode (Code.result_mode code) then
-      Misc.fatal_errorf "Unexpected free my_region in code with heap result mode:\n%a"
-        (RE.print (UA.are_rebuilding_terms uacc)) body;
+    if NO.mem_var free_names_of_body my_region
+       && Lambda.is_heap_mode (Code.result_mode code)
+    then
+      Misc.fatal_errorf
+        "Unexpected free my_region in code with heap result mode:\n%a"
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
     let free_names_of_code =
       free_names_of_body
       |> NO.remove_continuation ~continuation:return_continuation
@@ -430,8 +433,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~newer_version_of ~params_arity:(Code.params_arity code)
       ~param_modes:(Code.param_modes code)
       ~first_complex_local_param:(Code.first_complex_local_param code)
-      ~result_arity ~result_types
-      ~result_mode:(Code.result_mode code)
+      ~result_arity ~result_types ~result_mode:(Code.result_mode code)
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)

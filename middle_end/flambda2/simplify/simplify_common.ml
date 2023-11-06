@@ -91,8 +91,8 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply
-    ~(apply_alloc_mode : Alloc_mode.For_allocations.t)
-    ~callee's_code_id ~callee's_code_metadata =
+    ~(apply_alloc_mode : Alloc_mode.For_allocations.t) ~callee's_code_id
+    ~callee's_code_metadata =
   let callee's_params_arity =
     Code_metadata.params_arity callee's_code_metadata
   in
@@ -117,9 +117,7 @@ let split_direct_over_application apply
       (Flambda_arity.cardinal_unarized remaining_arity)
     = 0);
   let func_var = Variable.create "full_apply" in
-  let result_mode =
-    Code_metadata.result_mode callee's_code_metadata
-  in
+  let result_mode = Code_metadata.result_mode callee's_code_metadata in
   let needs_region, inner_apply_alloc_mode, outer_apply_alloc_mode =
     (* If the function being called might do a local allocation that escapes,
        then we need a region for such function's return value, unless the
@@ -132,11 +130,10 @@ let split_direct_over_application apply
     match apply_alloc_mode, result_mode with
     | Heap, Alloc_local ->
       let region = Variable.create "over_app_region" in
-      Some (region, Continuation.create ()),
-      Alloc_mode.For_allocations.local ~region,
-      Alloc_mode.For_allocations.heap
-    | Local _, Alloc_local ->
-      None, apply_alloc_mode, apply_alloc_mode
+      ( Some (region, Continuation.create ()),
+        Alloc_mode.For_allocations.local ~region,
+        Alloc_mode.For_allocations.heap )
+    | Local _, Alloc_local -> None, apply_alloc_mode, apply_alloc_mode
     | (Heap | Local _), Alloc_heap ->
       None, Alloc_mode.For_allocations.heap, apply_alloc_mode
   in
@@ -239,7 +236,8 @@ let split_direct_over_application apply
       (Apply.exn_continuation apply)
       ~args:first_args ~args_arity:callee's_params_arity
       ~return_arity:(Code_metadata.result_arity callee's_code_metadata)
-      ~call_kind:(Call_kind.direct_function_call callee's_code_id inner_apply_alloc_mode)
+      ~call_kind:
+        (Call_kind.direct_function_call callee's_code_id inner_apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe:(Apply.probe apply) ~position:(Apply.position apply)

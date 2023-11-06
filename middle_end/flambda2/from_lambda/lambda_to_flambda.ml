@@ -1385,8 +1385,17 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
         match binding with
         | L.Lfunction
-            { kind; params; body = fbody; attr; loc; ret_mode; mode; region; return; _ }
-          -> (
+            { kind;
+              params;
+              body = fbody;
+              attr;
+              loc;
+              ret_mode;
+              mode;
+              region;
+              return;
+              _
+            } -> (
           match
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
               ~return ~attr ~loc ~ret_mode ~mode ~region
@@ -1449,8 +1458,8 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     bindings_with_wrappers
 
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
-    ({ kind; params; return; body; attr; loc; mode; ret_mode; region } : L.lfunction) :
-    Function_decl.t =
+    ({ kind; params; return; body; attr; loc; mode; ret_mode; region } :
+      L.lfunction) : Function_decl.t =
   let first_complex_local_param =
     List.length params
     - match kind with Curried { nlocal } -> nlocal | Tupled -> 0

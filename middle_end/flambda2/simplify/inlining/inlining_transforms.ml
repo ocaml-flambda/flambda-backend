@@ -97,7 +97,8 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
     match Apply.call_kind apply with
     | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> alloc_mode
     | C_call _ ->
-      Misc.fatal_error "Trying to call [Inlining_transforms.inline] on a C call."
+      Misc.fatal_error
+        "Trying to call [Inlining_transforms.inline] on a C call."
   in
   let args = Apply.args apply in
   let apply_return_continuation = Apply.continuation apply in

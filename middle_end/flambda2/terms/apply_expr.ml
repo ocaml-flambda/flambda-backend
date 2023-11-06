@@ -139,7 +139,7 @@ let invariant
        inlining_state = _;
        probe = _;
        position = _;
-       relative_history = _;
+       relative_history = _
      } as t) =
   (match callee with
   | Some _ -> ()

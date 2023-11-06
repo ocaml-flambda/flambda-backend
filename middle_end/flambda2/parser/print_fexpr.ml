@@ -850,7 +850,9 @@ and code_binding ppf
     params variable closure_var variable region_var variable depth_var
     continuation_id ret_cont continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
-    ret_arity (match result_mode with Heap -> "" | Local -> " local") (expr Outer) body
+    ret_arity
+    (match result_mode with Heap -> "" | Local -> " local")
+    (expr Outer) body
 
 let flambda_unit ppf ({ body } : flambda_unit) =
   Format.fprintf ppf "@[<v>@[%a@]@ @]" (expr Outer) body

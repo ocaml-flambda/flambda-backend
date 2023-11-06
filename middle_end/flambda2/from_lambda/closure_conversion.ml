@@ -345,7 +345,8 @@ module Inlining = struct
       match Apply.call_kind apply with
       | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> alloc_mode
       | C_call _ ->
-        Misc.fatal_error "Trying to call [Closure_conversion.Inlining.inline] on a C call."
+        Misc.fatal_error
+          "Trying to call [Closure_conversion.Inlining.inline] on a C call."
     in
     let args = Apply.args apply in
     let apply_return_continuation = Apply.continuation apply in
@@ -403,8 +404,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
        prim_native_repr_res
      } :
       Primitive.description) ~(args : Simple.t list list) exn_continuation dbg
-    (k : Acc.t -> Named.t list -> Expr_with_acc.t) :
-    Expr_with_acc.t =
+    (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   let args =
     List.map
       (function
@@ -1724,10 +1724,10 @@ let close_functions acc external_env ~current_region function_declarations =
       (fun approx_map decl ->
         (* The only fields of metadata which are used for this pass are
            params_arity, param_modes, is_tupled, first_complex_local_param,
-           contains_no_escaping_local_allocs, result_mode, and result_arity. We try to
-           populate the different fields as much as possible, but put dummy
-           values when they are not yet computed or simply too expensive to
-           compute for the other fields. *)
+           contains_no_escaping_local_allocs, result_mode, and result_arity. We
+           try to populate the different fields as much as possible, but put
+           dummy values when they are not yet computed or simply too expensive
+           to compute for the other fields. *)
         let function_slot = Function_decl.function_slot decl in
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
@@ -2126,7 +2126,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         ~return:result_arity ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
-        ~result_mode ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
+        ~result_mode ~contains_no_escaping_local_allocs Recursive.Non_recursive
+    ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
@@ -2177,7 +2178,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let call_kind =
       Call_kind.indirect_function_call_unknown_arity
-        (Alloc_mode.For_allocations.from_lambda apply.mode ~current_region:apply_region)
+        (Alloc_mode.For_allocations.from_lambda apply.mode
+           ~current_region:apply_region)
     in
     let continuation =
       match needs_region with
@@ -2255,7 +2257,7 @@ type call_args_split =
         provided_arity : [`Complex] Flambda_arity.t;
         remaining : IR.simple list;
         remaining_arity : [`Complex] Flambda_arity.t;
-        result_mode : Lambda.alloc_mode;
+        result_mode : Lambda.alloc_mode
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
@@ -2375,9 +2377,10 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~provided_arity ~missing_arity ~missing_param_modes ~result_arity
-        ~arity:params_arity ~first_complex_local_param
-        ~result_mode ~contains_no_escaping_local_allocs
-    | Over_app { full; provided_arity; remaining; remaining_arity; result_mode } ->
+        ~arity:params_arity ~first_complex_local_param ~result_mode
+        ~contains_no_escaping_local_allocs
+    | Over_app { full; provided_arity; remaining; remaining_arity; result_mode }
+      ->
       let full_args_call apply_continuation ~region acc =
         close_exact_or_unknown_apply acc env
           { apply with

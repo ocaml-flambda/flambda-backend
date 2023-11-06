@@ -82,8 +82,7 @@ let simplify_self_tail_call dacc apply self_cont ~down_to_up =
     ~down_to_up
 
 let simplify_direct_tuple_application ~simplify_expr dacc apply
-    ~apply_alloc_mode ~callee's_code_id ~callee's_code_metadata
-    ~down_to_up =
+    ~apply_alloc_mode ~callee's_code_id ~callee's_code_metadata ~down_to_up =
   let dbg = Apply.dbg apply in
   let tuple_size =
     (* The code for the function being applied has exactly as many parameters as
@@ -428,9 +427,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
       | Heap ->
         Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
-          Code_id.print callee's_code_id (Debuginfo.to_string (Apply.dbg apply))
-      | Local {region} ->
-        Alloc_mode.For_allocations.local ~region, 0
+          Code_id.print callee's_code_id
+          (Debuginfo.to_string (Apply.dbg apply))
+      | Local { region } -> Alloc_mode.For_allocations.local ~region, 0
   in
   (match closure_alloc_mode_from_type with
   | Heap_or_local -> ()
@@ -517,7 +516,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       Apply.exn_continuation apply |> Exn_continuation.without_extra_args
     in
     let apply_alloc_mode =
-      Alloc_mode.For_allocations.from_lambda result_mode ~current_region:my_region
+      Alloc_mode.For_allocations.from_lambda result_mode
+        ~current_region:my_region
     in
     let call_kind =
       Call_kind.direct_function_call callee's_code_id apply_alloc_mode
@@ -609,7 +609,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~params_arity:remaining_param_arity
           ~param_modes:remaining_params_alloc_modes ~first_complex_local_param
           ~result_arity ~result_types:Unknown ~result_mode
-          ~contains_no_escaping_local_allocs:(Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata)
+          ~contains_no_escaping_local_allocs:
+            (Code_metadata.contains_no_escaping_local_allocs
+               callee's_code_metadata)
           ~stub:true ~inline:Default_inline ~poll_attribute:Default
           ~check:Check_attribute.Default_check ~is_a_functor:false ~recursive
           ~cost_metrics:cost_metrics_of_body
@@ -760,8 +762,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
     if must_be_detupled
     then
       simplify_direct_tuple_application ~simplify_expr dacc apply
-        ~apply_alloc_mode ~callee's_code_id
-        ~callee's_code_metadata ~down_to_up
+        ~apply_alloc_mode ~callee's_code_id ~callee's_code_metadata ~down_to_up
     else
       let args_arity = Apply.args_arity apply in
       let provided_num_args = Flambda_arity.num_params args_arity in
@@ -801,8 +802,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
              %a"
             Apply.print apply;
         simplify_direct_over_application ~simplify_expr dacc apply ~down_to_up
-          ~coming_from_indirect ~apply_alloc_mode
-          ~callee's_code_id ~callee's_code_metadata)
+          ~coming_from_indirect ~apply_alloc_mode ~callee's_code_id
+          ~callee's_code_metadata)
       else if provided_num_args > 0 && provided_num_args < num_params
       then (
         (* See comment above. *)
@@ -975,8 +976,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
         ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
         ~result_types:(Code_metadata.result_types callee's_code_metadata)
         ~recursive:(Code_metadata.recursive callee's_code_metadata)
-        ~must_be_detupled ~closure_alloc_mode_from_type
-        ~apply_alloc_mode func_decl_type ~down_to_up
+        ~must_be_detupled ~closure_alloc_mode_from_type ~apply_alloc_mode
+        func_decl_type ~down_to_up
     | Need_meet -> type_unavailable ()
     | Invalid ->
       let rebuild uacc ~after_rebuild =

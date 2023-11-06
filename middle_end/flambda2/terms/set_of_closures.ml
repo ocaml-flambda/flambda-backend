@@ -113,7 +113,9 @@ let free_names { function_decls; value_slots; alloc_mode } =
       value_slots Name_occurrences.empty
   in
   Name_occurrences.union_list
-    [Function_declarations.free_names function_decls; free_names_of_value_slots; Alloc_mode.For_allocations.free_names alloc_mode]
+    [ Function_declarations.free_names function_decls;
+      free_names_of_value_slots;
+      Alloc_mode.For_allocations.free_names alloc_mode ]
 
 let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
   let alloc_mode' =

@@ -65,6 +65,7 @@ val indirect_function_call_unknown_arity : Alloc_mode.For_allocations.t -> t
 
 val indirect_function_call_known_arity : Alloc_mode.For_allocations.t -> t
 
-val method_call : Method_kind.t -> obj:Simple.t -> Alloc_mode.For_allocations.t -> t
+val method_call :
+  Method_kind.t -> obj:Simple.t -> Alloc_mode.For_allocations.t -> t
 
 val c_call : alloc:bool -> is_c_builtin:bool -> t

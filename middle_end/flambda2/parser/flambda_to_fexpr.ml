@@ -876,7 +876,8 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
       in
-      let result_mode : Fexpr.alloc_mode_for_assignments = match Code.result_mode code with
+      let result_mode : Fexpr.alloc_mode_for_assignments =
+        match Code.result_mode code with
         | Alloc_heap -> Heap
         | Alloc_local -> Local
       in

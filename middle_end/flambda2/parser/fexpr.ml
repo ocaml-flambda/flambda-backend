@@ -515,7 +515,7 @@ and code =
     code_size : code_size;
     is_tupled : bool;
     loopify : loopify_attribute option;
-    result_mode : alloc_mode_for_assignments;
+    result_mode : alloc_mode_for_assignments
   }
 
 and code_size = int

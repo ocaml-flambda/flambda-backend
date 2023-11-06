@@ -84,7 +84,8 @@ let create_code' code =
     }
 
 let create_set_of_closures are_rebuilding set =
-  let set = Set_of_closures.create
+  let set =
+    Set_of_closures.create
       ~value_slots:(Set_of_closures.value_slots set)
       Alloc_mode.For_allocations.heap
       (Set_of_closures.function_decls set)

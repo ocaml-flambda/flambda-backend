@@ -726,7 +726,8 @@ module Function_decls = struct
         ~removed_params ~return ~return_continuation ~exn_continuation
         ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
         ~free_idents_of_body recursive ~closure_alloc_mode
-        ~first_complex_local_param ~result_mode ~contains_no_escaping_local_allocs =
+        ~first_complex_local_param ~result_mode
+        ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"

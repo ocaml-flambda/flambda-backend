@@ -891,7 +891,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             (fun _ -> Alloc_mode.For_types.heap)
             (Flambda_arity.unarize params_arity)
         in
-        let result_mode = match result_mode with Heap -> Lambda.alloc_heap | Local -> Lambda.alloc_local in
+        let result_mode =
+          match result_mode with
+          | Heap -> Lambda.alloc_heap
+          | Local -> Lambda.alloc_local
+        in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body

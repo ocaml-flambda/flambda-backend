@@ -112,8 +112,7 @@ let free_names t =
   | Function { function_call = Indirect_unknown_arity; alloc_mode }
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     Alloc_mode.For_allocations.free_names alloc_mode
-  | C_call { alloc = _; is_c_builtin = _ } ->
-    Name_occurrences.empty
+  | C_call { alloc = _; is_c_builtin = _ } -> Name_occurrences.empty
   | Method { kind = _; obj; alloc_mode } ->
     Name_occurrences.union (Simple.free_names obj)
       (Alloc_mode.For_allocations.free_names alloc_mode)
@@ -122,29 +121,44 @@ let apply_renaming t renaming =
   match t with
   | Function { function_call = Direct code_id; alloc_mode } ->
     let code_id' = Renaming.apply_code_id renaming code_id in
-    let alloc_mode' = Alloc_mode.For_allocations.apply_renaming alloc_mode renaming in
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
     if code_id == code_id' && alloc_mode == alloc_mode'
     then t
     else Function { function_call = Direct code_id'; alloc_mode = alloc_mode' }
-  | Function { function_call = (Indirect_unknown_arity | Indirect_known_arity) as function_call; alloc_mode } ->
-    let alloc_mode' = Alloc_mode.For_allocations.apply_renaming alloc_mode renaming in
-    if alloc_mode == alloc_mode' then t
+  | Function
+      { function_call =
+          (Indirect_unknown_arity | Indirect_known_arity) as function_call;
+        alloc_mode
+      } ->
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
+    if alloc_mode == alloc_mode'
+    then t
     else Function { function_call; alloc_mode = alloc_mode' }
-  | C_call { alloc = _; is_c_builtin = _ } ->
-    t
+  | C_call { alloc = _; is_c_builtin = _ } -> t
   | Method { kind; obj; alloc_mode } ->
     let obj' = Simple.apply_renaming obj renaming in
-    let alloc_mode' = Alloc_mode.For_allocations.apply_renaming alloc_mode renaming in
-    if obj == obj' && alloc_mode == alloc_mode' then t else Method { kind; obj = obj'; alloc_mode = alloc_mode' }
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
+    if obj == obj' && alloc_mode == alloc_mode'
+    then t
+    else Method { kind; obj = obj'; alloc_mode = alloc_mode' }
 
 let ids_for_export t =
   match t with
   | Function { function_call = Direct code_id; alloc_mode } ->
-    Ids_for_export.add_code_id (Alloc_mode.For_allocations.ids_for_export alloc_mode) code_id
+    Ids_for_export.add_code_id
+      (Alloc_mode.For_allocations.ids_for_export alloc_mode)
+      code_id
   | Function { function_call = Indirect_unknown_arity; alloc_mode }
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
-  | C_call { alloc = _; is_c_builtin = _ } ->
-    Ids_for_export.empty
+  | C_call { alloc = _; is_c_builtin = _ } -> Ids_for_export.empty
   | Method { kind = _; obj; alloc_mode } ->
-    Ids_for_export.union (Ids_for_export.from_simple obj) (Alloc_mode.For_allocations.ids_for_export alloc_mode)
+    Ids_for_export.union
+      (Ids_for_export.from_simple obj)
+      (Alloc_mode.For_allocations.ids_for_export alloc_mode)
