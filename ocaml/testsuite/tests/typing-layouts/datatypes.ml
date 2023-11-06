@@ -86,3 +86,8 @@ Error: Layout immediate is more experimental than allowed by -extension layouts.
 (* Test 8: Type parameters in the presence of recursive concrete usage *)
 
 (* CR layouts: copy test from datatypes_alpha with float64 when available *)
+
+(*****************************************************************************)
+(* Test 9: Looking through polytypes in mutually recursive type declarations *)
+
+(* CR layouts: copy test from datatypes_beta float64 is available. *)
