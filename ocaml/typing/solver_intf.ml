@@ -211,10 +211,10 @@ module type S = sig
     val max : 'a obj -> ('a, 'l * 'r) mode
 
     (** Pushes the mode variable to the lowest constant possible. *)
-    val constrain_lower : ('a * 'p) obj -> ('a * 'p, allowed * 'r) mode -> 'a
+    val zap_to_floor : ('a * 'p) obj -> ('a * 'p, allowed * 'r) mode -> 'a
 
     (** Pushes the mode variable to the highest constant possible. *)
-    val constrain_upper : ('a * 'p) obj -> ('a * 'p, 'l * allowed) mode -> 'a
+    val zap_to_ceil : ('a * 'p) obj -> ('a * 'p, 'l * allowed) mode -> 'a
 
     (** Create a new mode variable of the full range. *)
     val newvar : 'a obj -> ('a, 'l * 'r) mode

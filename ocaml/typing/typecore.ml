@@ -621,7 +621,7 @@ let register_allocation (expected_mode : expected_mode) =
 
 let optimise_allocations () =
   List.iter
-    (fun mode -> ignore (Alloc.constrain_upper mode))
+    (fun mode -> ignore (Alloc.zap_to_ceil mode))
     !allocations;
   reset_allocations ()
 

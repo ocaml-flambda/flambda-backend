@@ -6,7 +6,7 @@ let transl_locality_mode = function
   | Locality.Const.Local -> alloc_local
 
 let transl_locality_mode_l locality =
-  Locality.constrain_lower locality
+  Locality.zap_to_floor locality
   |> transl_locality_mode
 
 let transl_locality_mode_r locality =
@@ -27,6 +27,6 @@ let transl_alloc_mode_r mode =
   |> transl_locality_mode_r
 
 let transl_modify_mode locality =
-  match Locality.constrain_lower locality with
+  match Locality.zap_to_floor locality with
   | Global -> modify_heap
   | Local -> modify_maybe_stack
