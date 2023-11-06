@@ -334,3 +334,8 @@ and 'a t8_6 = 'a void_t;;
 type ('a : void) t8_5 = { x : 'a t8_6; y : string; }
 and ('a : void) t8_6 = 'a void_t
 |}]
+
+(*****************************************************************************)
+(* Test 9: Looking through polytypes in mutually recursive type declarations *)
+
+(* Doesn't need layouts_alpha. *)

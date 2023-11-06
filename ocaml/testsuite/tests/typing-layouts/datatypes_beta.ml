@@ -289,3 +289,25 @@ Error: This expression has type float but an expression was expected of type
 (* CR layouts v5: copy test from datatypes_alpha when non-values can go in
    general datatype declarations. *)
 
+(*****************************************************************************)
+(* Test 9: Looking through polytypes in mutually recursive type declarations *)
+
+type 'a t9_1 = unit
+and t9_2 = { x : string t9_1 }
+and t9_3 = { x : 'a. 'a t9_1 }
+
+[%%expect {|
+type 'a t9_1 = unit
+and t9_2 = { x : string t9_1; }
+and t9_3 = { x : 'a. 'a t9_1; }
+|}]
+
+type 'a floaty = float#
+and t9_4 = { x : float#; y : string floaty }
+and t9_5 = { x : float#; y : 'a. 'a floaty }
+
+[%%expect {|
+type 'a floaty = float#
+and t9_4 = { x : float#; y : string floaty; }
+and t9_5 = { x : float#; y : 'a. 'a floaty; }
+|}]
