@@ -36,7 +36,7 @@ CAMLOPT=$(OCAMLRUN) $(OPTCOMPILER)
 CAMLDEP=$(BOOT_OCAMLC) -depend
 DEPFLAGS=-slash
 
-OC_CPPFLAGS += -I$(ROOTDIR)/runtime4
+OC_CPPFLAGS += -I$(ROOTDIR)/$(RUNTIME_DIR)
 
 include StdlibModules
 

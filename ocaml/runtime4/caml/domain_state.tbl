@@ -18,8 +18,10 @@ DOMAIN_STATE(value*, young_limit)
 DOMAIN_STATE(value*, young_ptr)
 /* Minor heap limit. See minor_gc.c. */
 
-DOMAIN_STATE(char*, exception_pointer)
+DOMAIN_STATE(char*, exn_handler)
 /* Exception pointer that points into the current stack */
+/* This was called [exception_pointer] before but has been renamed to
+   match the 5.x runtime */
 
 DOMAIN_STATE(char*, async_exception_pointer)
 /* Async exception pointer that points into the current stack */

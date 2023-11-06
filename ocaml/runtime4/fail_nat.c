@@ -58,10 +58,10 @@ CAMLnoreturn_start
   extern void caml_raise_exception (caml_domain_state* state, value bucket)
 CAMLnoreturn_end;
 
-static void unwind_local_roots(char *exception_pointer)
+static void unwind_local_roots(char *exn_handler)
 {
   while (Caml_state->local_roots != NULL &&
-         (char *)Caml_state->local_roots < exception_pointer)
+         (char *)Caml_state->local_roots < exn_handler)
   {
     Caml_state->local_roots = Caml_state->local_roots->next;
   }
@@ -77,12 +77,12 @@ void caml_raise(value v)
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
 
-  if (Caml_state->exception_pointer == NULL) {
+  if (Caml_state->exn_handler == NULL) {
     caml_terminate_signals();
     caml_fatal_uncaught_exception(v);
   }
 
-  unwind_local_roots(Caml_state->exception_pointer);
+  unwind_local_roots(Caml_state->exn_handler);
   caml_raise_exception(Caml_state, v);
 }
 
@@ -102,7 +102,7 @@ CAMLno_asan void caml_raise_async(value v)
     caml_fatal_uncaught_exception(v);
 
   unwind_local_roots(Caml_state->async_exception_pointer);
-  Caml_state->exception_pointer = Caml_state->async_exception_pointer;
+  Caml_state->exn_handler = Caml_state->async_exception_pointer;
   Caml_state->raising_async_exn = 1;
   caml_raise_exception(Caml_state, v);
 }
