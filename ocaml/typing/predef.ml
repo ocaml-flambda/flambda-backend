@@ -305,11 +305,8 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
-<<<<<<< HEAD
        ~jkind_annotation:Float64
-=======
   |> add_type ident_bytes
->>>>>>> nroberts/layouts-are-strings-in-parsetree
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)

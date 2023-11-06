@@ -1806,24 +1806,7 @@ let class_infos define_class kind
   let cl_abbr =
     { cl_td with
      type_params = cl_params;
-<<<<<<< HEAD
-     type_arity = arity;
-     type_kind = Type_abstract Abstract_def;
-     type_jkind = Jkind.value ~why:Object;
-     type_jkind_annotation = None;
-     type_private = Public;
      type_manifest = Some cl_ty;
-     type_variance = Variance.unknown_signature ~injective:false ~arity;
-     type_separability = Types.Separability.default_signature ~arity;
-     type_is_newtype = false;
-     type_expansion_scope = Btype.lowest_level;
-     type_loc = cl.pci_loc;
-     type_attributes = []; (* or keep attrs from cl? *)
-     type_unboxed_default = false;
-     type_uid = dummy_class.cty_uid;
-=======
-     type_manifest = Some cl_ty
->>>>>>> nroberts/layouts-are-strings-in-parsetree
     }
   in
   let cltydef =

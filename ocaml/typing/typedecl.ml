@@ -764,15 +764,7 @@ let transl_declaration env sdecl (id, uid) =
          default calculated above here. It will get updated in
          [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
     *)
-<<<<<<< HEAD
-    (* CR layouts: Is the estimation mentioned in the second bullet above
-       doing anything for us?  Abstract types are updated by
-       check_coherence and record/variant types are updated by
-       update_decl_jkind.  *)
       match jkind_from_annotation, man with
-=======
-      match jkind_annotation, man with
->>>>>>> nroberts/layouts-are-strings-in-parsetree
       | Some annot, _ -> annot
       | None, Some _ -> Jkind.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
