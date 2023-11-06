@@ -224,6 +224,7 @@ install_for_test: _install
          ln -s . boot; \
 	 for exe in ocamlc ocamlopt ocamllex; do \
 	   rm -f $$exe; ln -s $$exe.byte $$exe; \
+         touch ocamlc.opt ocamlopt.opt; \
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
 	 mkdir runtime4; \

@@ -575,7 +575,6 @@ parsing/parse.cmi : \
     parsing/parsetree.cmi \
     parsing/longident.cmi
 parsing/parser.cmo : \
-    utils/warnings.cmi \
     parsing/syntaxerr.cmi \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
@@ -592,7 +591,6 @@ parsing/parser.cmo : \
     parsing/ast_helper.cmi \
     parsing/parser.cmi
 parsing/parser.cmx : \
-    utils/warnings.cmx \
     parsing/syntaxerr.cmx \
     parsing/parsetree.cmi \
     parsing/longident.cmx \

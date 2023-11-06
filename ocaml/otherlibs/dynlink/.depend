@@ -3,6 +3,9 @@ byte/dynlink.cmo : \
     byte/dynlink_compilerlibs.cmi \
     dynlink_common.cmi \
     byte/dynlink.cmi
+dynlink.cmo : \
+    dynlink_types.cmi \
+    dynlink.cmi
 dynlink.cmi :
 dynlink_common.cmo : \
     dynlink_types.cmi \
@@ -19,6 +22,9 @@ dynlink_platform_intf.cmi : \
 dynlink_types.cmo : \
     dynlink_types.cmi
 dynlink_types.cmi :
+dynlink.cmx : \
+    dynlink_types.cmx \
+    dynlink.cmi
 dynlink_common.cmx : \
     dynlink_types.cmx \
     dynlink_platform_intf.cmx \

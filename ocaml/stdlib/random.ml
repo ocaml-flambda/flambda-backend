@@ -15,6 +15,9 @@
 (**************************************************************************)
 
 (* CR ocaml 5 runtime: we should update this to the OCaml 5 splittable PRNG
+
+  Note (mslater): the interface is now compatible with 5, but
+  splitting and binary string conversion are unimplemented (they raise)
 *)
 
 open! Stdlib
@@ -200,6 +203,9 @@ module State = struct
     then fun s -> Nativeint.of_int32 (bits32 s)
     else fun s -> Int64.to_nativeint (bits64 s)
 
+  let split _ = failwith "Random.split not implemented in OCaml 5 minus."
+  let to_binary_string _ = failwith "Random.to_binary_string not implemented in OCaml 5 minus."
+  let of_binary_string _ = failwith "Random.of_binary_string not implemented in OCaml 5 minus."
 end
 
 (* This is the state you get with [init 27182818] and then applying
@@ -240,6 +246,7 @@ let self_init () = full_init (random_seed())
 
 let get_state () = State.copy default
 let set_state s = State.assign default s
+let split () = State.split default
 
 (********************
 

@@ -347,6 +347,7 @@ type instruction =
   | PALIGNR of arg * arg * arg
   | MPSADBW of arg * arg * arg
   | PHMINPOSUW of arg * arg
+  | PCLMULQDQ of arg * arg * arg
 
 (* ELF specific *)
 type reloc_type =

@@ -102,13 +102,11 @@ CAMLextern_libthreads
 void caml_switch_runtime_locking_scheme(struct caml_locking_scheme*);
 
 CAMLextern_libthreads
-void caml_thread_switch_runtime_state(void);
+void caml_thread_save_runtime_state(void);
 
-/* A prior version of this API used save/restore rather than a single switch.
-   For compatibility, aliases are defined for the old API.
-   (These will be removed when the lone user of this API is updated) */
-#define caml_thread_save_runtime_state()
-#define caml_thread_restore_runtime_state caml_thread_switch_runtime_state
+CAMLextern_libthreads
+void caml_thread_restore_runtime_state(void);
+
 
 #ifdef __cplusplus
 }
