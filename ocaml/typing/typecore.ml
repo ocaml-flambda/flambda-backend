@@ -1485,12 +1485,16 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     | Immutable -> Predef.type_iarray
     | Mutable -> Predef.type_array
   in
-  (* CR layouts v4: in the future we'll have arrays of other jkinds *)
-  let ty_elt = newgenvar (Jkind.value ~why:Array_element) in
+  (* CR layouts v4: The code below is written this way to make it easier to update
+     when we generalize array to contain non-value jkinds. When that happens,
+     change the next two lines to use [Jkind.of_new_sort_var]. *)
+  let jkind = Jkind.value ~why:Array_element in
+  let arg_sort = Jkind.sort_of_jkind jkind in
+  let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
     loc env (type_some_array ty_elt) expected_ty;
-  ty_elt
+  ty_elt, arg_sort
 
 let solve_Ppat_lazy  ~refine loc env expected_ty =
   let nv = newgenvar (Jkind.value ~why:Lazy_expression) in
@@ -2279,7 +2283,7 @@ and type_pat_aux
        keep them in sync, at the cost of a worse diff with upstream; it
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
-    let ty_elt = solve_Ppat_array ~refine loc env mutability expected_ty in
+    let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let alloc_mode =
       match mutability with
       | Mutable -> simple_pat_mode Value.legacy
@@ -2287,7 +2291,7 @@ and type_pat_aux
     in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
-      pat_desc = Tpat_array (mutability, pl);
+      pat_desc = Tpat_array (mutability, arg_sort, pl);
       pat_loc = loc; pat_extra=[];
       pat_type = instance expected_ty;
       pat_attributes;
@@ -3061,10 +3065,11 @@ let rec check_counter_example_pat
       in
       map_fold_cont type_label_pat fields
         (fun fields -> mkp k (Tpat_record (fields, closed)))
-  | Tpat_array (mut, tpl) ->
-      let ty_elt = solve_Ppat_array ~refine loc env mut expected_ty in
+  | Tpat_array (mut, original_arg_sort, tpl) ->
+      let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mut expected_ty in
+      assert (Jkind.Sort.equate original_arg_sort arg_sort);
       map_fold_cont (fun p -> check_rec p ty_elt) tpl
-        (fun pl -> mkp k (Tpat_array (mut, pl)))
+        (fun pl -> mkp k (Tpat_array (mut, arg_sort, pl)))
   | Tpat_or(tp1, tp2, _) ->
       (* We are in counter-example mode, but try to avoid backtracking *)
       let must_split =

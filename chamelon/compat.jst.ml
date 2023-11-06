@@ -156,9 +156,10 @@ type tpat_alias_identifier = Value.t
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = Asttypes.mutable_flag
+type tpat_array_identifier = Asttypes.mutable_flag * Jkind.sort
 
-let mkTpat_array ?id:(mut = Asttypes.Mutable) l = Tpat_array (mut, l)
+let mkTpat_array ?id:(mut, arg_sort = (Asttypes.Mutable, Jkind.Sort.value)) l =
+  Tpat_array (mut, arg_sort, l)
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -179,7 +180,7 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
   | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
   | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
-  | Tpat_array (mut, l) -> Tpat_array (l, mut)
+  | Tpat_array (mut, arg_sort, l) -> Tpat_array (l, (mut, arg_sort))
   | _ -> O p
 
 type tstr_eval_identifier = Jkind.sort
