@@ -259,7 +259,7 @@ module Solver_mono (C : Lattices_mono) = struct
       Result.map_error (C.apply obj f) (submode_vc ?log src v a')
 
   (** Calculate the precise lower bound *)
-  let constrain_lower_try (type a) (obj : a C.obj) (v : a var) =
+  let zap_to_floor_try (type a) (obj : a C.obj) (v : a var) =
     let rec loop lower =
       let log = ref [] in
       let r = submode_vc ~log obj v lower in
@@ -273,7 +273,7 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let constrain_mlower_try dst (Amorphvar (v, f)) =
     let src = C.src dst f in
-    let log, lower = constrain_lower_try src v in
+    let log, lower = zap_to_floor_try src v in
     log, C.apply dst f lower
 
   let eq_morphvar :
@@ -392,17 +392,17 @@ module Solver_mono (C : Lattices_mono) = struct
       Ok ()
     | Error _ as e -> e
 
-  let constrain_upper_morphvar obj mv =
+  let zap_to_ceil_morphvar obj mv =
     assert (submode obj (Amode (mupper obj mv)) (Amodevar mv) |> Result.is_ok);
     mupper obj mv
 
-  let constrain_upper : type a l. a C.obj -> (a, l * allowed) mode -> a =
+  let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> a =
    fun obj -> function
     | Amode m -> m
-    | Amodevar mv -> constrain_upper_morphvar obj mv
+    | Amodevar mv -> zap_to_ceil_morphvar obj mv
     | Amodemeet (a, mvs) ->
       List.fold_left
-        (fun acc mv -> C.meet obj acc (constrain_upper_morphvar obj mv))
+        (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv))
         a mvs
 
   let join :
@@ -441,19 +441,19 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop (C.max obj) [] l
 
-  let constrain_lower_morphvar ~commit obj mv =
+  let zap_to_floor_morphvar ~commit obj mv =
     let log, lower = constrain_mlower_try obj mv in
     if commit then !append_changes log else undo_changes !log;
     lower
 
-  let constrain_lower : type a r. a C.obj -> (a, allowed * r) mode -> a =
+  let zap_to_floor : type a r. a C.obj -> (a, allowed * r) mode -> a =
    fun obj -> function
     | Amode a -> a
-    | Amodevar mv -> constrain_lower_morphvar ~commit:true obj mv
+    | Amodevar mv -> zap_to_floor_morphvar ~commit:true obj mv
     | Amodejoin (a, mvs) ->
       List.fold_left
         (fun acc mv ->
-          C.join obj acc (constrain_lower_morphvar ~commit:true obj mv))
+          C.join obj acc (zap_to_floor_morphvar ~commit:true obj mv))
         a mvs
 
   (* because lower bound conservative, this check is also conservative.
@@ -463,7 +463,7 @@ module Solver_mono (C : Lattices_mono) = struct
    fun obj -> function
     | Amode a -> Some a
     | Amodevar mv ->
-      let lower = constrain_lower_morphvar ~commit:false obj mv in
+      let lower = zap_to_floor_morphvar ~commit:false obj mv in
       if C.le obj (mupper obj mv) lower then Some lower else None
     | Amodemeet (a, mvs) ->
       let upper =
@@ -472,7 +472,7 @@ module Solver_mono (C : Lattices_mono) = struct
       let lower =
         List.fold_left
           (fun x mv ->
-            C.meet obj x (constrain_lower_morphvar ~commit:false obj mv))
+            C.meet obj x (zap_to_floor_morphvar ~commit:false obj mv))
           a mvs
       in
       if C.le obj upper lower then Some upper else None
@@ -483,7 +483,7 @@ module Solver_mono (C : Lattices_mono) = struct
       let lower =
         List.fold_left
           (fun x mv ->
-            C.join obj x (constrain_lower_morphvar ~commit:false obj mv))
+            C.join obj x (zap_to_floor_morphvar ~commit:false obj mv))
           a mvs
       in
       if C.le obj upper lower then Some lower else None
@@ -649,15 +649,15 @@ module Solver_polarized (C : Lattices_mono) = struct
     | Positive obj -> Positive (S.max obj)
     | Negative obj -> Negative (S.min obj)
 
-  let constrain_lower :
-      type a p r. (a * p) obj -> (a * p, allowed * r) mode -> a = function
-    | Positive obj -> fun (Positive m) -> S.constrain_lower obj m
-    | Negative obj -> fun (Negative m) -> S.constrain_upper obj m
+  let zap_to_floor : type a p r. (a * p) obj -> (a * p, allowed * r) mode -> a =
+    function
+    | Positive obj -> fun (Positive m) -> S.zap_to_floor obj m
+    | Negative obj -> fun (Negative m) -> S.zap_to_ceil obj m
 
-  let constrain_upper :
-      type a p l. (a * p) obj -> (a * p, l * allowed) mode -> a = function
-    | Positive obj -> fun (Positive m) -> S.constrain_upper obj m
-    | Negative obj -> fun (Negative m) -> S.constrain_lower obj m
+  let zap_to_ceil : type a p l. (a * p) obj -> (a * p, l * allowed) mode -> a =
+    function
+    | Positive obj -> fun (Positive m) -> S.zap_to_ceil obj m
+    | Negative obj -> fun (Negative m) -> S.zap_to_floor obj m
 
   let newvar_above :
       type a r_ l r. a obj -> (a, allowed * r_) mode -> (a, l * r) mode * bool =

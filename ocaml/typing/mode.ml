@@ -745,9 +745,9 @@ module Common (Obj : Obj) = struct
     then S.print_raw ?verbose obj_s ppf m
     else S.print ?verbose obj_s ppf m
 
-  let constrain_upper m = S.constrain_upper obj_s m
+  let zap_to_ceil m = S.zap_to_ceil obj_s m
 
-  let constrain_lower m = S.constrain_lower obj_s m
+  let zap_to_floor m = S.zap_to_floor obj_s m
 
   let of_const : type l r. const -> (l * r) t = fun a -> S.of_const obj_s a
 
@@ -775,7 +775,7 @@ module Locality = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = constrain_lower
+  let constrain_legacy = zap_to_floor
 end
 
 module Regionality = struct
@@ -799,7 +799,7 @@ module Regionality = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = constrain_lower
+  let constrain_legacy = zap_to_floor
 end
 
 module Linearity = struct
@@ -823,7 +823,7 @@ module Linearity = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = constrain_lower
+  let constrain_legacy = zap_to_floor
 end
 
 module Uniqueness = struct
@@ -848,7 +848,7 @@ module Uniqueness = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = constrain_upper
+  let constrain_legacy = zap_to_ceil
 end
 
 let unique_to_linear m =
@@ -929,7 +929,7 @@ module Comonadic_with_regionality = struct
       (S.Pos_Pos (C.Set (Product.SAxis1, C.Const_min Linearity)))
       (S.disallow_right m)
 
-  let constrain_legacy = constrain_lower
+  let constrain_legacy = zap_to_floor
 
   let legacy = of_const Const.legacy
 
@@ -1016,7 +1016,7 @@ module Comonadic_with_locality = struct
       (S.Pos_Pos (C.Set (Product.SAxis1, C.Const_min Linearity)))
       (S.disallow_right m)
 
-  let constrain_legacy = constrain_lower
+  let constrain_legacy = zap_to_floor
 
   let legacy = of_const Const.legacy
 
@@ -1155,16 +1155,12 @@ module Value = struct
       (Monadic.print ?raw ?verbose ())
       monadic
 
-  let constrain_lower { comonadic; monadic } =
-    match
-      Monadic.constrain_lower monadic, Comonadic.constrain_lower comonadic
-    with
+  let zap_to_floor { comonadic; monadic } =
+    match Monadic.zap_to_floor monadic, Comonadic.zap_to_floor comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
-  let constrain_upper { comonadic; monadic } =
-    match
-      Monadic.constrain_upper monadic, Comonadic.constrain_upper comonadic
-    with
+  let zap_to_ceil { comonadic; monadic } =
+    match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
   let constrain_legacy { comonadic; monadic } =
@@ -1384,16 +1380,12 @@ module Alloc = struct
       (Monadic.print ?raw ?verbose ())
       monadic
 
-  let constrain_lower { comonadic; monadic } =
-    match
-      Monadic.constrain_lower monadic, Comonadic.constrain_lower comonadic
-    with
+  let zap_to_floor { comonadic; monadic } =
+    match Monadic.zap_to_floor monadic, Comonadic.zap_to_floor comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
-  let constrain_upper { comonadic; monadic } =
-    match
-      Monadic.constrain_upper monadic, Comonadic.constrain_upper comonadic
-    with
+  let zap_to_ceil { comonadic; monadic } =
+    match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
   let constrain_legacy { comonadic; monadic } =

@@ -80,9 +80,9 @@ module type Common = sig
     ('l * 'r) t ->
     unit
 
-  val constrain_lower : (allowed * 'r) t -> Const.t
+  val zap_to_floor : (allowed * 'r) t -> Const.t
 
-  val constrain_upper : ('l * allowed) t -> Const.t
+  val zap_to_ceil : ('l * allowed) t -> Const.t
 
   val check_const : ('l * 'r) t -> Const.t option
 
