@@ -2,8 +2,6 @@ type allowed = private Allowed
 
 type disallowed = private Disallowed
 
-
-
 type left_only = allowed * disallowed
 
 type right_only = disallowed * allowed
@@ -120,7 +118,6 @@ module type S = sig
   (** Solver that supports polarized lattices; needed because some morphisms
       are antitone  *)
   module Solver_polarized (C : Lattices_mono) : sig
-
     (* Backtracking facilities used by [types.ml] *)
 
     type changes
@@ -129,27 +126,31 @@ module type S = sig
 
     val append_changes : (changes ref -> unit) ref
 
-    (* First construct a new category based on the original category C. The
-       objects are those from the C, and those from C but flipped lattice
-       structure. The morphisms are the obvious four copies of the original
-       morhpisms. *)
+    type positive = private Positive
 
-       type positive = private Positive
+    type negative = private Negative
 
-       type negative = private Negative
+    type 'a pos = 'b * 'c constraint 'a = 'b * 'c
 
-       type 'a pos = 'b * 'c constraint 'a = 'b * 'c
+    type 'a neg = 'c * 'b constraint 'a = 'b * 'c
 
-       type 'a neg = 'c * 'b constraint 'a = 'b * 'c
+    (* Construct a new category based on the original category [C]. Objects are
+       two copies of the objects in [C] of opposite polarity. The positive copy
+       is identical to the original lattice. The negative copy has its lattice
+       structure reversed. Morphism are four copies of the morphisms in [C], from
+       two copies of objects to two copies of objects. *)
 
+    (** [('a * 'p) obj] identifies an object in the new category, where ['a] is
+        the carrier type and ['p] indicates polarity. *)
     type 'a obj =
       | Positive : 'a C.obj -> ('a * positive) obj
           (** The original lattice of obj *)
       | Negative : 'a C.obj -> ('a * negative) obj
           (** the dual lattice of obj *)
 
-    (* ['a] and ['b] are source and destination objects;
-       ['d] and ['e] are source and desitnation adjoint status *)
+    (** [('a, 'd, 'b, 'e) morph] identifies a morphism in the new category.
+    where ['a] and ['b] are source and destination carrier types, and ['d] and
+    ['e] are source and destination adjoint status *)
     type ('a, 'd, 'b, 'e) morph =
       | Pos_Pos :
           ('a, 'b, 'd) C.morph
@@ -177,9 +178,8 @@ module type S = sig
       ('a, 'al * 'ar, 'b, 'bl * 'br) morph ->
       ('a, 'al * 'ar, 'c, 'cl * 'cr) morph
 
-    (* A mode with carrier type ['a] and left/right status ['d] derived from
-       the morphism it contains. See comments for [morph] for the format of ['d]
-    *)
+    (* A mode with carrier type ['a] and left/right status ['d] derived from the
+       morphism it contains. See comments for [morph] for the format of ['d] *)
     type ('a, 'd) mode
 
     (** Disallows a mode of being on the RHS of [submode].  *)
