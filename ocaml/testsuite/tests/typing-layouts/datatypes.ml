@@ -290,6 +290,36 @@ Error: This expression has type float but an expression was expected of type
 
 (* CR layouts: copy test from datatypes_alpha with float64 when available *)
 
+type ('a : float64) float64_t
+
+[%%expect {|
+type ('a : float64) float64_t
+|}]
+
+type 'b t = 'b float64_t * t2
+and t2 = t_float64 float64_t
+
+[%%expect {|
+type ('b : float64) t = 'b float64_t * t2
+and t2 = t_float64 float64_t
+|}]
+
+type 'b t = 'b float64_t * t2
+and t2 = Mk1 of t_float64 t | Mk2
+
+[%%expect {|
+type ('b : float64) t = 'b float64_t * t2
+and t2 = Mk1 of t_float64 t | Mk2
+|}]
+
+type 'a t8_5 = { x : 'a t8_6; y : string}
+and 'a t8_6 = 'a float64_t;;
+[%%expect {|
+type ('a : float64) t8_5 = { x : 'a t8_6; y : string; }
+and ('a : float64) t8_6 = 'a float64_t
+|}]
+
+
 (*****************************************************************************)
 (* Test 9: Looking through polytypes in mutually recursive type declarations *)
 
