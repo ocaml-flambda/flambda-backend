@@ -111,10 +111,6 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get install afl++
 
-    - name: Install AFL (for macOS workers)
-      if: matrix.os == 'macos-latest'
-      run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
-
     - name: Cache OCaml 4.14 and dune
       uses: actions/cache@v2
       id: cache
