@@ -290,9 +290,11 @@ Error: This expression has type float but an expression was expected of type
 
 (* CR layouts: copy test from datatypes_alpha with float64 when available *)
 
+type t_float64 : float64
 type ('a : float64) float64_t
 
 [%%expect {|
+type t_float64 : float64
 type ('a : float64) float64_t
 |}]
 
