@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Parsetree
 open Ast_helper
 
@@ -459,19 +458,39 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
+type jkind_attribute =
+  | Any
+  | Value
+  | Void
+  | Immediate64
+  | Immediate
+  | Float64
+
+let jkind_attribute_of_string = function
+  | "ocaml.any" | "any" -> Some Any
+  | "ocaml.value" | "value" -> Some Value
+  | "ocaml.void" | "void" -> Some Void
+  | "ocaml.immediate64" | "immediate64" -> Some Immediate64
+  | "ocaml.immediate" | "immediate" -> Some Immediate
+  | "ocaml.float64" | "float64" -> Some Float64
+  | _ -> None
+
+let jkind_attribute_to_string = function
+  | Any -> "any"
+  | Value -> "value"
+  | Void -> "void"
+  | Immediate64 -> "immediate64"
+  | Immediate -> "immediate"
+  | Float64 -> "float64"
+
 let jkind ~legacy_immediate attrs =
   let jkind =
     List.find_map
       (fun a ->
-         match a.attr_name.txt with
-         | "ocaml.void"|"void" -> Some (a, Void)
-         | "ocaml.value"|"value" -> Some (a, Value)
-         | "ocaml.any"|"any" -> Some (a, Any)
-         | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
-         | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
-         | "ocaml.float64"|"float64" -> Some (a, Float64)
-         | _ -> None
-        ) attrs
+         match jkind_attribute_of_string a.attr_name.txt with
+         | Some attr -> Some (a, attr)
+         | None -> None
+      ) attrs
   in
   match jkind with
   | None -> Ok None

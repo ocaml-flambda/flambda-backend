@@ -914,16 +914,6 @@ let mk_directive ~loc name arg =
       pdir_loc = make_loc loc;
     }
 
-let check_jkind ~loc id : const_jkind =
-  match id with
-  | "any" -> Any
-  | "value" -> Value
-  | "void" -> Void
-  | "immediate64" -> Immediate64
-  | "immediate" -> Immediate
-  | "float64" -> Float64
-  | _ -> expecting_loc loc "layout"
-
 (* Unboxed literals *)
 
 (* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
@@ -3737,21 +3727,18 @@ type_parameters:
 ;
 
 jkind_annotation: (* : jkind_annotation *)
-  ident { let loc = make_loc $sloc in
-          mkloc (check_jkind ~loc $1) loc }
-;
-
-jkind_string: (* : string with_loc *)
-  (* the [check_jkind] just ensures this is the name of a jkind *)
-  ident { let loc = make_loc $sloc in
-          ignore (check_jkind ~loc $1 : const_jkind);
-          mkloc $1 loc }
+  ident { mkloc (Jane_asttypes.jkind_of_string $1) (make_loc $sloc) }
 ;
 
 jkind_attr:
   COLON
-  jkind=jkind_string
-    { Attr.mk ~loc:jkind.loc jkind (PStr []) }
+  jkind=jkind_annotation
+  { (* CR layouts 1.5: this will go away in the child PR *)
+    let jkind_attribute = Jane_asttypes.jkind_to_string jkind.txt in
+    (match Builtin_attributes.jkind_attribute_of_string jkind_attribute with
+     | None -> expecting $loc(jkind) "layout"
+     | Some _ -> ());
+    Attr.mk ~loc:jkind.loc { loc = jkind.loc; txt = jkind_attribute } (PStr []) }
 ;
 
 %inline type_param_with_jkind:

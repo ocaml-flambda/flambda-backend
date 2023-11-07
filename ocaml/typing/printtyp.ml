@@ -1196,7 +1196,7 @@ let print_labels = ref true
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const Value -> None
-  | Const clay -> Some (Olay_const clay)
+  | Const jkind -> Some (Olay_const (Jkind.string_of_const jkind))
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
     then Some (Olay_var (Jkind.Sort.var_name v))
@@ -1707,8 +1707,8 @@ let tree_of_type_decl id decl =
        begin match
          Builtin_attributes.jkind ~legacy_immediate:true decl.type_attributes
        with
-       | Ok annot -> annot
-       | Error annot -> Some annot  (* don't care here about extensions *)
+       | Ok attr -> attr
+       | Error attr -> Some attr  (* don't care here about extensions *)
        end
     | _ -> None (* other cases have no jkind annotation *)
   in
@@ -1716,7 +1716,17 @@ let tree_of_type_decl id decl =
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_jkind = Option.map (fun { txt } -> Olay_const txt) lay;
+      otype_jkind =
+        Option.map
+          (fun { txt } ->
+             let jkind_attribute =
+               Builtin_attributes.jkind_attribute_to_string txt
+             in
+             (* CR layouts 1.5: This is a bit of a lie: we're interpreting the
+                jkind attribute as a jkind *annotation*. This will go away in a
+                child PR when we move jkind annotations into Jane Syntax. *)
+             Olay_const jkind_attribute)
+          lay;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2451,7 +2461,7 @@ let trees_of_type_expansion'
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
-            | Const clay -> Olay_const clay
+            | Const clay -> Olay_const (Jkind.string_of_const clay)
             | Var v      -> Olay_var (Jkind.Sort.var_name v)
           in
           Otyp_jkind_annot (out, olay)

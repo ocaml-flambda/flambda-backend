@@ -89,7 +89,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Jkind.const
+  | Layout_not_enabled of Builtin_attributes.jkind_attribute
 
 open Typedtree
 
@@ -434,7 +434,19 @@ let make_constructor
   let tvars = match svars with
     | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
     | Right vars_jkinds ->
-      List.map (fun (v, l) -> v.txt, Option.map Location.get_txt l) vars_jkinds
+        List.map
+          (fun (v, l) ->
+            v.txt,
+            Option.map
+              (fun annot ->
+                 let const =
+                    Jkind.const_of_user_written_annotation
+                      ~context:(Constructor_type_parameter (cstr_path, v.txt))
+                      annot
+                 in
+                 const, annot)
+              l)
+          vars_jkinds
   in
   match sret_type with
   | None ->
@@ -2954,7 +2966,7 @@ let report_error ppf = function
       fprintf ppf
         "@[Layout %s is used here, but the appropriate layouts extension is \
          not enabled@]"
-        (Jkind.string_of_const c)
+        (Builtin_attributes.jkind_attribute_to_string c)
 
 let () =
   Location.register_error_of_exn

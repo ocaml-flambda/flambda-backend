@@ -324,23 +324,9 @@ module Stringable_const_jkind = struct
 
   let indefinite_article_and_name = "a", "layout"
 
-  let to_string = function
-    | Any -> "any"
-    | Value -> "value"
-    | Void -> "void"
-    | Immediate64 -> "immediate64"
-    | Immediate -> "immediate"
-    | Float64 -> "float64"
+  let to_string = jkind_to_string
 
-  (* CR layouts v1.5: revise when moving jkind recognition away from parser *)
-  let of_string = function
-    | "any" -> Some Any
-    | "value" -> Some Value
-    | "void" -> Some Void
-    | "immediate" -> Some Immediate
-    | "immediate64" -> Some Immediate64
-    | "float64" -> Some Float64
-    | _ -> None
+  let of_string t = Some (jkind_of_string t)
 end
 
 module Jkinds_pprint = struct

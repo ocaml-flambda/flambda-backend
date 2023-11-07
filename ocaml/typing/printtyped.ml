@@ -149,9 +149,10 @@ let typevar_jkind ~print_quote ppf (v, l) =
   in
   match l with
   | None -> fprintf ppf " %a" pptv v
-  | Some lay -> fprintf ppf " (%a : %a)"
-                    pptv v
-                    Jane_syntax.Layouts.Pprint.const_jkind lay
+  | Some (_, lay) ->
+      fprintf ppf " (%a : %a)"
+        pptv v
+        Jane_syntax.Layouts.Pprint.const_jkind lay.txt
 
 let typevars ppf vs =
   List.iter (typevar_jkind ~print_quote:true ppf) vs
@@ -194,7 +195,7 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
-let jkind_annotation i ppf jkind =
+let jkind_annotation i ppf (jkind, _) =
   line i ppf "%s" (Jkind.string_of_const jkind)
 
 let rec core_type i ppf x =

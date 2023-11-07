@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*               Antal Spector-Zabusky, Jane Street, New York             *)
+(*                   Nick Roberts, Jane Street, New York                  *)
 (*                                                                        *)
 (*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
@@ -12,30 +12,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Auxiliary Jane Street extensions to AST types used by parsetree and
-    typedtree.
-
-    This file exists because [Asttypes] is considered part of the parse tree,
-    and we can't modify the parse tree.  This also enables us to build other
-    files with the upstream compiler as long as [jane_asttypes.mli] is present;
-    see Note [Buildable with upstream] in jane_syntax.mli for details on that.
-
-  {b Warning:} this module is unstable and part of
-  {{!Compiler_libs}compiler-libs}.
-
-*)
-
 type global_flag =
   | Global
   | Nothing
 
-(** [const_jkind] is private to limit confusion with type variables, which
-    are also strings in the parser.
-*)
-type const_jkind
+type const_jkind = string
 
-val jkind_of_string : string -> const_jkind
+let jkind_of_string x = x
 
-val jkind_to_string : const_jkind -> string
+let jkind_to_string x = x
 
 type jkind_annotation = const_jkind Location.loc
