@@ -16,6 +16,7 @@
 (* Environment handling *)
 
 open Types
+open Mode
 open Misc
 
 val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
@@ -34,7 +35,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description * Mode.Value.t
+  | Env_value of summary * Ident.t * value_description * Mode.Value.l
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -198,10 +199,6 @@ type shared_context =
   | Probe
   | Lazy
 
-type closure_error =
-  | Locality of closure_context option
-  | Linearity
-
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -223,10 +220,10 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_escaping of Longident.t * escaping_context
-  | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * closure_error
-  | Local_value_used_in_exclave of Longident.t
+  | Local_value_escaping of Path.t * escaping_context
+  | Once_value_used_in of Path.t * shared_context
+  | Value_used_in_closure of Path.t * Mode.Value.Comonadic.error * closure_context option
+  | Local_value_used_in_exclave of Path.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
@@ -251,8 +248,8 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
     as argument, so that sub-moding error is triggered at the place where error
     hints are immediately available. *)
 val lookup_value:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Mode.Value.t * shared_context option
+  ?use:bool -> loc:Location.t -> ?borrow:bool -> Longident.t -> t ->
+  Path.t * value_description * Mode.Value.l * shared_context option
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
@@ -347,10 +344,10 @@ val make_copy_of_types: t -> (t -> t)
 (* Insertion by identifier *)
 
 val add_value_lazy:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
-    ?check:(string -> Warnings.t) -> ?mode:(Mode.Value.t) ->
+    ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Types.value_description -> t -> t
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
@@ -451,10 +448,25 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context -> Mode.Locality.t
-  -> Mode.Linearity.t -> t -> t
-val add_region_lock : t -> t
-val add_exclave_lock : t -> t
+val add_closure_lock : ?closure_context:closure_context
+  -> ('l * allowed) Mode.Value.Comonadic.t -> t -> t
+val add_borrow_lock : (Path.t * Location.t) list ref -> t -> t
+
+(** Enter a region *)
+val enter_region : t -> t
+
+(** Return the current region  *)
+val region : t -> Mode.Regionality.Index.t
+
+(** Return the mode local to the current region *)
+val local : t -> ('l * 'r) Mode.Regionality.t
+
+(** Enter an exclave. *)
+val enter_exclave : Mode.Regionality.Index.t -> t -> t
+
+(** Returns the mode needed to escape the current region *)
+val escape : t -> Mode.Regionality.r
+
 val add_unboxed_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)

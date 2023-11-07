@@ -205,10 +205,10 @@ val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
-        Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
-        -> Mode.Locality.t
+        (Mode.allowed * 'r) Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
+        -> (Mode.allowed * 'r) Mode.Locality.t
 val instance_prim_mode:
-        Primitive.description -> type_expr -> type_expr * Mode.Locality.t option
+        Primitive.description -> type_expr -> type_expr * Mode.Locality.lr option
 
 val apply:
         ?use_current_level:bool ->
@@ -277,10 +277,10 @@ val unify_delaying_jkind_checks :
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : Mode.Alloc.t;
+    arg_mode : Mode.Alloc.lr;
     arg_sort : Jkind.sort;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t;
+    ret_mode : Mode.Alloc.lr;
     ret_sort : Jkind.sort
   }
 

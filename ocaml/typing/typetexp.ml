@@ -568,7 +568,7 @@ let get_alloc_mode styp =
     | Error () ->
       raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
   in
-  { locality = locality; uniqueness; linearity }
+  (locality, linearity, uniqueness )
 
 let rec extract_params styp =
   let final styp =
@@ -636,15 +636,12 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
           let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
-          let acc_mode =
+          let (loc, lin, _) =
             Alloc.Const.join
               (Alloc.Const.close_over arg_mode)
               (Alloc.Const.partial_apply acc_mode)
           in
-          let acc_mode =
-            Alloc.Const.join acc_mode
-              (Alloc.Const.min_with_uniqueness Uniqueness.Const.Shared)
-          in
+          let acc_mode = (loc, lin, Uniqueness.Const.Shared) in
           let ret_mode =
             match rest with
             | [] -> ret_mode
