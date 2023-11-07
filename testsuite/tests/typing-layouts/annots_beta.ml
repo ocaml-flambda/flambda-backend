@@ -292,7 +292,14 @@ type ('a : immediate) t_imm
 Line 3, characters 15-39:
 3 | type s = { f : ('a : value). 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type 'a has layout value, which is not a sublayout of immediate.
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         'a has layout value, which is not a sublayout of immediate.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard
    to improve, because it comes from re-checking typedtree, where we don't
