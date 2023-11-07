@@ -12,36 +12,3 @@ backend/debug/                  @mshinwell @poechsel
 chamelon/                       @Ekdohibs
 
 external/memtrace/              @stedolan
-
-middle_end/                     @mshinwell @lthls
-
-middle_end/flambda2/                    @mshinwell @lthls
-middle_end/flambda2/algorithms          @gbury @chambart
-middle_end/flambda2/bound_identifiers   @mshinwell @lthls
-middle_end/flambda2/cmx                 @lthls @mshinwell
-middle_end/flambda2/from_lambda         @lthls @mshinwell
-middle_end/flambda2/identifiers         @mshinwell @lthls
-middle_end/flambda2/kinds               @mshinwell @lthls
-middle_end/flambda2/lattices            @mshinwell @lthls
-middle_end/flambda2/nominal             @mshinwell @lthls
-middle_end/flambda2/numbers             @mshinwell @gbury
-middle_end/flambda2/simplify            @mshinwell @gbury
-middle_end/flambda2/simplify/env        @mshinwell @gbury
-middle_end/flambda2/simplify/inlining   @poechsel @lukemaurer
-middle_end/flambda2/simplify/lifting    @mshinwell @chambart
-middle_end/flambda2/simplify/unboxing   @chambart @gbury
-middle_end/flambda2/term_basics         @mshinwell @lthls
-middle_end/flambda2/terms               @mshinwell @lthls
-middle_end/flambda2/to_cmm              @gbury @lthls
-middle_end/flambda2/types               @lthls @chambart
-middle_end/flambda2/ui                  @mshinwell @poechsel
-
-middle_end/flambda2/compare             @lukemaurer
-middle_end/flambda2/parser              @lukemaurer
-middle_end/flambda2/tests               @lukemaurer
-
-middle_end/flambda2/scripts             @mshinwell @lthls
-
-middle_end/flambda2/docs/backend_exceptions.md  @lthls
-middle_end/flambda2/docs/to_cmm.md              @gbury
-middle_end/flambda2/docs/types.md               @lthls
