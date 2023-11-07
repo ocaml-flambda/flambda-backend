@@ -362,16 +362,18 @@ static void extern_record_location_with_data(struct caml_extern_state* s,
 /* Record the output position for the given object [obj]. */
 /* The [h] parameter is the index in the hash table where the object
    must be inserted.  It was determined during lookup. */
-static void extern_record_location(value obj, uintnat h)
+static void extern_record_location(struct caml_extern_state* s,
+                                   value obj, uintnat h)
 {
-  extern_record_location_with_data(obj, h, obj_counter);
+  extern_record_location_with_data(s, obj, h, s->obj_counter);
 }
 
 /* Update the data associated with the given object [obj]. */
-static void extern_update_location_with_data(uintnat h, uintnat data)
+static void extern_update_location_with_data(struct caml_extern_state* s,
+                                             uintnat h, uintnat data)
 {
-  if (extern_flags & NO_SHARING) return;
-  pos_table.entries[h].pos = data;
+  if (s->extern_flags & NO_SHARING) return;
+  s->pos_table.entries[h].pos = data;
 }
 
 /* To buffer the output */
