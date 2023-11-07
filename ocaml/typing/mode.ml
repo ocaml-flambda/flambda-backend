@@ -697,7 +697,8 @@ module Lattices_mono = struct
       cap_r i j, 1
     | Set (sax, f) ->
       let dst = proj_obj (Product.dst sax) dst in
-      Product.set sax (apply dst f), 1
+      let f', c = apply' dst f in
+      Product.set sax f', c
 
   and apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f ->
@@ -724,8 +725,6 @@ module Lattices_mono = struct
     match m0, m1 with
     | Id, m -> Some m
     | m, Id -> Some m
-    | (Regional_to_local mid | Regional_to_global mid), Inj src ->
-      if src = mid then Some m0 else None
     | Inj_l mid, Inj_l src ->
       let (Regionality dst) = dst in
       assert (Regionality.Index.le dst mid);
@@ -756,6 +755,12 @@ module Lattices_mono = struct
       assert (Regionality.Index.le src mid);
       assert (Regionality.Index.le mid dst);
       if src = mid then Some (Cap_r src) else Some (Inj src)
+    | Regional_to_global mid, Cap_r src ->
+      assert (Regionality.Index.le src mid);
+      Some (Regional_to_global src)
+    | Regional_to_local mid, Inj src ->
+      assert (Regionality.Index.le src mid);
+      Some (Regional_to_local src)
     | Const_min mid, f -> Some (Const_min (src mid f))
     | Const_max mid, f -> Some (Const_max (src mid f))
     | Proj (mid, ax0), Max_with ax1 -> (
