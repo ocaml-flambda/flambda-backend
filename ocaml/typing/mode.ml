@@ -1164,9 +1164,7 @@ module Value = struct
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
   let zap_to_legacy { comonadic; monadic } =
-    match
-      Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic
-    with
+    match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
   let check_const { comonadic; monadic } =
@@ -1389,9 +1387,7 @@ module Alloc = struct
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
   let zap_to_legacy { comonadic; monadic } =
-    match
-      Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic
-    with
+    match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
   let check_const { comonadic; monadic } =
