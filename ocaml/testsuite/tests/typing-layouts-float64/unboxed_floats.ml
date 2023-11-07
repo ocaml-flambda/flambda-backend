@@ -9,12 +9,17 @@
      flags = "-extension layouts_beta"
    ** bytecode
      flags = "-extension layouts_beta"
+   ** native
+     flags = "-extension layouts"
+   ** bytecode
+     flags = "-extension layouts"
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
-     flags = "-extension layouts"
    *** ocamlc.byte
      compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
    **** check-ocamlc.byte-output
+
+
 *)
 
 (* mshinwell: This test is now only run with flambda2, as the corresponding
