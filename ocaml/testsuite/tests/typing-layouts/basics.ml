@@ -1388,7 +1388,14 @@ type ('a : immediate) t2_imm
 Line 3, characters 15-40:
 3 | type s = { f : ('a : value) . 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type 'a has layout value, which is not a sublayout of immediate.
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         'a has layout value, which is not a sublayout of immediate.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 
 (****************************************************)

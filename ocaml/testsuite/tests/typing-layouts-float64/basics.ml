@@ -257,9 +257,17 @@ and 'a t5_11 = {x : 'a t5_10; y : 'a}
 type ('a : float64) t5_12 = {x : 'a; y : float#};;
 [%%expect{|
 type ('a : float64, 'b : float64) t5_9 = { x : 'a; y : 'b; z : 'a; }
-type ('a : float64) t5_10 = 'a t_float64_id
-and ('a : float64) t5_11 = { x : 'a t5_10; y : 'a; }
-type ('a : float64) t5_12 = { x : 'a; y : float#; }
+Line 4, characters 20-28:
+4 | and 'a t5_11 = {x : 'a t5_10; y : 'a}
+                        ^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         'a has layout float64, which does not overlap with value.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}];;
 
 type ('a : float64) t5_13 = {x : 'a; y : float#};;

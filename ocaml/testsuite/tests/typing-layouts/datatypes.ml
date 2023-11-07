@@ -317,8 +317,17 @@ and t2 = Mk1 of t_float64 t | Mk2
 type 'a t8_5 = { x : 'a t8_6; y : string}
 and 'a t8_6 = 'a float64_t;;
 [%%expect {|
-type ('a : float64) t8_5 = { x : 'a t8_6; y : string; }
-and ('a : float64) t8_6 = 'a float64_t
+Line 1, characters 21-28:
+1 | type 'a t8_5 = { x : 'a t8_6; y : string}
+                         ^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         'a has layout float64, which does not overlap with value.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
 
 
