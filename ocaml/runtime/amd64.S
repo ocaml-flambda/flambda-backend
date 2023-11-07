@@ -145,15 +145,19 @@
 
 /* struct c_stack_link */
 #if defined(SYS_mingw64) || defined (SYS_cygwin)
-#define Cstack_stack            32
-#define Cstack_sp               40
-#define Cstack_prev             48
-#define SIZEOF_C_STACK_LINK     56
+#define Cstack_stack             32
+#define Cstack_sp                40
+#define Cstack_prev              48
+#define Cstack_async_exn_handler 56
+#define SIZEOF_C_STACK_LINK      64
+#error "Asynchronous exceptions support for Windows isn't finished"
 #else
-#define Cstack_stack             0
-#define Cstack_sp                8
-#define Cstack_prev             16
-#define SIZEOF_C_STACK_LINK     24
+#define Cstack_stack              0
+#define Cstack_sp                 8
+#define Cstack_prev              16
+#define Cstack_async_exn_handler 24
+/* 8 bytes are left empty to ensure the stack is 16-aligned */
+#define SIZEOF_C_STACK_LINK      40
 #endif
 
 /******************************************************************************/
@@ -514,10 +518,9 @@ CFI_STARTPROC
         RESTORE_ALL_REGS
         LEAVE_FUNCTION
         ret
-1:      RESTORE_ALL_REGS
-        LEA_VAR(caml_exn_Stack_overflow, %rax)
-        add     $16, %rsp /* pop argument, retaddr */
-        jmp     GCALL(caml_raise_exn)
+1:      SWITCH_OCAML_TO_C
+        LEA_VAR(caml_exn_Stack_overflow, %rdi)
+        C_call  (GCALL(caml_raise_async))
 CFI_ENDPROC
 ENDFUNCTION(G(caml_call_realloc_stack))
 
@@ -700,6 +703,8 @@ LBL(caml_start_program):
         movq    $0, Cstack_sp(%rsp)
         movq    Caml_state(c_stack), %r10
         movq    %r10, Cstack_prev(%rsp)
+        movq    Caml_state(async_exn_handler), %r10
+        movq    %r10, Cstack_async_exn_handler(%rsp)
         movq    %rsp, Caml_state(c_stack)
         CHECK_STACK_ALIGNMENT
     /* Load the OCaml stack. */
@@ -719,6 +724,7 @@ LBL(caml_start_program):
         movq    Caml_state(exn_handler), %r11
         movq    %r11, 0(%r10)
         movq    %r10, Caml_state(exn_handler)
+        movq    %r10, Caml_state(async_exn_handler)
     /* Switch stacks and call the OCaml code */
         movq    %r10, %rsp
 #ifdef ASM_CFI_SUPPORTED
@@ -728,7 +734,7 @@ LBL(caml_start_program):
             /* %rsp + 16 contains the C_STACK_SP */                   \
           DW_OP_breg + DW_REG_rsp, 16 /* exn handler */, DW_OP_deref, \
           DW_OP_plus_uconst,                                          \
-             24  /* struct c_stack_link */ +                          \
+             SIZEOF_C_STACK_LINK  /* struct c_stack_link */ +         \
              6*8 /* callee save regs */ +                             \
              8   /* ret addr */
 #endif
@@ -750,6 +756,8 @@ LBL(108):
         movq    Caml_state(c_stack), %rsp
         CFI_RESTORE_STATE
     /* Pop the struct c_stack_link */
+        movq    Cstack_async_exn_handler(%rsp), %r10
+        movq    %r10, Caml_state(async_exn_handler)
         movq    Cstack_prev(%rsp), %r10
         movq    %r10, Caml_state(c_stack)
         addq    $SIZEOF_C_STACK_LINK, %rsp; CFI_ADJUST(-SIZEOF_C_STACK_LINK)
@@ -803,6 +811,7 @@ LBL(117):
         ret
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_exn))
+
 
 FUNCTION(G(caml_reraise_exn))
 CFI_STARTPROC

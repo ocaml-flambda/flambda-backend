@@ -306,6 +306,10 @@ CAMLextern void caml_fatal_error (char *, ...)
 #endif
 CAMLnoreturn_end;
 
+CAMLnoreturn_start
+CAMLextern void caml_fatal_out_of_memory (void)
+CAMLnoreturn_end;
+
 /* Detection of available C built-in functions, the Clang way. */
 
 #ifdef __has_builtin

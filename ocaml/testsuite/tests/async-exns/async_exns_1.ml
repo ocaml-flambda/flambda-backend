@@ -56,7 +56,7 @@ let raise_break_from_finaliser () =
       let _ = Sys.opaque_identity (42, Random.int 42) in
       ()
     done
-  with exn -> Printf.printf "3a. wrong handler\n%!"; exit 1
+  with exn -> Printf.printf "3a/b/c/d. wrong handler\n%!"; exit 1
 
 external test_caml_callback_exn_collects_async_exns : (unit -> unit) -> unit
   = "test_caml_callback_exn_collects_async_exns"
@@ -134,7 +134,7 @@ let () =
     )
   with
   | Sys.Break -> Printf.printf "4a. OK\n%!"
-  | _ -> assert false
+  | e -> Printf.eprintf "WRONG: %s" (Printexc.to_string e); assert false
 
 (* Same but for a 2-parameter callback *)
 

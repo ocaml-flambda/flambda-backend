@@ -468,7 +468,8 @@ void caml_maybe_expand_stack (void)
     (value*)stk->sp - Stack_base(stk);
   uintnat stack_needed =
     Stack_threshold / sizeof(value)
-    + 8 /* for words pushed by caml_start_program */;
+    + 10 /* for words pushed by caml_start_program */;
+  /* XXX does this "8" need updating?  Provisionally changed to 10 */
 
   if (stack_available < stack_needed)
     if (!caml_try_realloc_stack (stack_needed))
@@ -607,19 +608,28 @@ CAMLexport void caml_do_local_roots (
 #ifdef NATIVE_CODE
 /* Update absolute exception pointers for new stack*/
 void caml_rewrite_exception_stack(struct stack_info *old_stack,
-                                  value** exn_ptr, struct stack_info *new_stack)
+                                  value** exn_ptr, value** async_exn_ptr,
+                                  struct stack_info *new_stack)
 {
   fiber_debug_log("Old [%p, %p]", Stack_base(old_stack), Stack_high(old_stack));
   fiber_debug_log("New [%p, %p]", Stack_base(new_stack), Stack_high(new_stack));
   if(exn_ptr) {
+    CAMLassert(async_exn_ptr != NULL);
+
     fiber_debug_log ("*exn_ptr=%p", *exn_ptr);
+    fiber_debug_log ("*async_exn_ptr=%p", *async_exn_ptr);
 
     while (Stack_base(old_stack) < *exn_ptr &&
            *exn_ptr <= Stack_high(old_stack)) {
+      int must_update_async_exn_ptr = *exn_ptr == *async_exn_ptr;
 #ifdef DEBUG
       value* old_val = *exn_ptr;
 #endif
       *exn_ptr = Stack_high(new_stack) - (Stack_high(old_stack) - *exn_ptr);
+
+      if (must_update_async_exn_ptr) *async_exn_ptr = *exn_ptr;
+      fiber_debug_log ("must_update_async_exn_ptr=%d",
+        must_update_async_exn_ptr);
 
       fiber_debug_log ("Rewriting %p to %p", old_val, *exn_ptr);
 
@@ -631,6 +641,7 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
     fiber_debug_log ("finished with *exn_ptr=%p", *exn_ptr);
   } else {
     fiber_debug_log ("exn_ptr is null");
+    CAMLassert(async_exn_ptr == NULL);
   }
 }
 
@@ -728,8 +739,13 @@ int caml_try_realloc_stack(asize_t required_space)
   new_stack->sp = Stack_high(new_stack) - stack_used;
   Stack_parent(new_stack) = Stack_parent(old_stack);
 #ifdef NATIVE_CODE
+  /* There's no need to do another pass rewriting from
+     Caml_state->async_exn_handler because every asynchronous exception trap
+     frame is also a normal exception trap frame.  However
+     Caml_state->async_exn_handler itself must be updated. */
   caml_rewrite_exception_stack(old_stack, (value**)&Caml_state->exn_handler,
-                              new_stack);
+                               (value**) &Caml_state->async_exn_handler,
+                               new_stack);
 #ifdef WITH_FRAME_POINTERS
   rewrite_frame_pointers(old_stack, new_stack);
 #endif
@@ -745,6 +761,20 @@ int caml_try_realloc_stack(asize_t required_space)
         link->stack = new_stack;
         link->sp = (void*)((char*)Stack_high(new_stack) -
                            ((char*)Stack_high(old_stack) - (char*)link->sp));
+      }
+      if (link->async_exn_handler > (char*) Stack_base(old_stack)
+          && link->async_exn_handler <= (char*) Stack_high(old_stack)) {
+        /* The asynchronous exception trap frame pointed to by the current
+           c_stack_link lies on the OCaml stack being reallocated.  Repoint the
+           trap frame to the new stack. */
+        fiber_debug_log("Rewriting link->async_exn_handler %p...",
+          link->async_exn_handler);
+        link->async_exn_handler +=
+          (char*) Stack_high(new_stack) - (char*) Stack_high(old_stack);
+        fiber_debug_log("...to %p", link->async_exn_handler);
+      } else {
+        fiber_debug_log("Not touching link->async_exn_handler %p",
+          link->async_exn_handler);
       }
     }
   }

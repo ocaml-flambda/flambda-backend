@@ -115,6 +115,8 @@ struct c_stack_link {
   /* OCaml return address */
   void* sp;
   struct c_stack_link* prev;
+  char* async_exn_handler;
+  void* padding; /* for stack alignment in caml_start_program */
 };
 
 /* `gc_regs` and `gc_regs_buckets`.
@@ -268,7 +270,8 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
                            char** sp /* out */, uintnat* pc /* out */);
 void
 caml_rewrite_exception_stack(struct stack_info *old_stack,
-                             value** exn_ptr, struct stack_info *new_stack);
+                             value** exn_ptr, value** async_exn_ptr,
+                             struct stack_info *new_stack);
 #endif
 
 value caml_continuation_use (value cont);

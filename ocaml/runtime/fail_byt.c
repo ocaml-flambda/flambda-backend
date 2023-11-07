@@ -37,8 +37,7 @@ CAMLexport void caml_raise(value v)
   Unlock_exn();
   CAMLassert(!Is_exception_result(v));
 
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
+  v = caml_process_pending_actions_with_root(v);
   if (Is_exception_result(v))
     v = Extract_exception(v);
 
@@ -51,6 +50,24 @@ CAMLexport void caml_raise(value v)
   Caml_state->local_roots = Caml_state->external_raise->local_roots;
 
   siglongjmp(Caml_state->external_raise->jmp->buf, 1);
+}
+
+CAMLexport void caml_raise_async(value v)
+{
+  Caml_check_caml_state();
+  Unlock_exn();
+  CAMLassert(!Is_exception_result(v));
+
+  if (Caml_state->external_raise_async == NULL) {
+    caml_terminate_signals();
+    caml_fatal_uncaught_exception(v);
+  }
+  *Caml_state->external_raise_async->exn_bucket = v;
+
+  Caml_state->local_roots = Caml_state->external_raise_async->local_roots;
+
+  Caml_state->raising_async_exn = 1;
+  siglongjmp(Caml_state->external_raise_async->jmp->buf, 1);
 }
 
 CAMLexport void caml_raise_constant(value tag)
@@ -177,7 +194,7 @@ CAMLexport void caml_raise_out_of_memory(void)
 CAMLexport void caml_raise_stack_overflow(void)
 {
   check_global_data("Stack_overflow");
-  caml_raise_constant(Field(caml_global_data, STACK_OVERFLOW_EXN));
+  caml_raise_async(Field(caml_global_data, STACK_OVERFLOW_EXN));
 }
 
 CAMLexport void caml_raise_sys_error(value msg)
@@ -208,12 +225,6 @@ CAMLexport void caml_raise_sys_blocked_io(void)
 {
   check_global_data("Sys_blocked_io");
   caml_raise_constant(Field(caml_global_data, SYS_BLOCKED_IO));
-}
-
-CAMLexport value caml_raise_if_exception(value res)
-{
-  if (Is_exception_result(res)) caml_raise(Extract_exception(res));
-  return res;
 }
 
 int caml_is_special_exception(value exn) {
