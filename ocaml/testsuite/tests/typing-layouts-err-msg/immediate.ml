@@ -61,6 +61,3 @@ Error: This expression has type [ `A | `B ]
 
 (* Gc_ignorable_check *)
 (* Only used within [Result.is_ok] and not thrown as an exception *)
-
-(* Value_kind *)
-(* Not used anywhere *)

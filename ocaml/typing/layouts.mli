@@ -198,7 +198,6 @@ module Layout : sig
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
     | Gc_ignorable_check
-    | Value_kind
 
   type immediate64_creation_reason =
     | Local_mode_cross_check

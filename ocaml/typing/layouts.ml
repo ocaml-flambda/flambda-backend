@@ -292,7 +292,6 @@ module Layout = struct
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
     | Gc_ignorable_check
-    | Value_kind
 
   type immediate64_creation_reason =
     | Local_mode_cross_check
@@ -731,9 +730,6 @@ module Layout = struct
          fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Gc_ignorable_check ->
          fprintf ppf "the check to see whether a value can be ignored by GC"
-      | Value_kind ->
-         fprintf ppf
-           "the check to see whether a polymorphic variant is immediate"
 
     let format_immediate64_creation_reason ppf = function
       | Local_mode_cross_check ->
@@ -1134,7 +1130,6 @@ module Layout = struct
       | Immediate_polymorphic_variant ->
         fprintf ppf "Immediate_polymorphic_variant"
       | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
-      | Value_kind -> fprintf ppf "Value_kind"
 
     let immediate64_creation_reason ppf = function
       | Local_mode_cross_check -> fprintf ppf "Local_mode_cross_check"
