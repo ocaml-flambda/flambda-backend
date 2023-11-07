@@ -775,7 +775,7 @@ module Locality = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = zap_to_floor
+  let zap_to_legacy = zap_to_floor
 end
 
 module Regionality = struct
@@ -799,7 +799,7 @@ module Regionality = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = zap_to_floor
+  let zap_to_legacy = zap_to_floor
 end
 
 module Linearity = struct
@@ -823,7 +823,7 @@ module Linearity = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = zap_to_floor
+  let zap_to_legacy = zap_to_floor
 end
 
 module Uniqueness = struct
@@ -848,7 +848,7 @@ module Uniqueness = struct
 
   let legacy = of_const Const.legacy
 
-  let constrain_legacy = zap_to_ceil
+  let zap_to_legacy = zap_to_ceil
 end
 
 let unique_to_linear m =
@@ -929,7 +929,7 @@ module Comonadic_with_regionality = struct
       (S.Pos_Pos (C.Set (Product.SAxis1, C.Const_min Linearity)))
       (S.disallow_right m)
 
-  let constrain_legacy = zap_to_floor
+  let zap_to_legacy = zap_to_floor
 
   let legacy = of_const Const.legacy
 
@@ -1016,7 +1016,7 @@ module Comonadic_with_locality = struct
       (S.Pos_Pos (C.Set (Product.SAxis1, C.Const_min Linearity)))
       (S.disallow_right m)
 
-  let constrain_legacy = zap_to_floor
+  let zap_to_legacy = zap_to_floor
 
   let legacy = of_const Const.legacy
 
@@ -1163,9 +1163,9 @@ module Value = struct
     match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
-  let constrain_legacy { comonadic; monadic } =
+  let zap_to_legacy { comonadic; monadic } =
     match
-      Monadic.constrain_legacy monadic, Comonadic.constrain_legacy comonadic
+      Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic
     with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
@@ -1388,9 +1388,9 @@ module Alloc = struct
     match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 
-  let constrain_legacy { comonadic; monadic } =
+  let zap_to_legacy { comonadic; monadic } =
     match
-      Monadic.constrain_legacy monadic, Comonadic.constrain_legacy comonadic
+      Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic
     with
     | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
 

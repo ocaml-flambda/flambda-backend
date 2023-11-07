@@ -122,7 +122,7 @@ module type S = sig
 
     val local : lr
 
-    val constrain_legacy : (allowed * 'r) t -> Const.t
+    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Regionality : sig
@@ -145,7 +145,7 @@ module type S = sig
 
     val local : lr
 
-    val constrain_legacy : (allowed * 'r) t -> Const.t
+    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Linearity : sig
@@ -165,7 +165,7 @@ module type S = sig
 
     val once : lr
 
-    val constrain_legacy : (allowed * 'r) t -> Const.t
+    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Uniqueness : sig
@@ -185,7 +185,7 @@ module type S = sig
 
     val unique : lr
 
-    val constrain_legacy : ('l * allowed) t -> Const.t
+    val zap_to_legacy : ('l * allowed) t -> Const.t
   end
 
   module Value : sig
@@ -271,7 +271,7 @@ module type S = sig
 
     val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
 
-    val constrain_legacy : lr -> Const.t
+    val zap_to_legacy : lr -> Const.t
   end
 
   module Alloc : sig
@@ -363,7 +363,7 @@ module type S = sig
 
     val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
 
-    val constrain_legacy : lr -> Const.t
+    val zap_to_legacy : lr -> Const.t
 
     (** Returns the lower bound needed for a closure in relation to argument *)
     val close_over : (allowed * 'r) Comonadic.t -> ('l * allowed) Monadic.t -> l

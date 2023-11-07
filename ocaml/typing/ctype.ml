@@ -538,8 +538,8 @@ let remove_mode_and_jkind_variables ty =
       | Tvar { jkind } -> Jkind.default_to_value jkind
       | Tunivar { jkind } -> Jkind.default_to_value jkind
       | Tarrow ((_,marg,mret),targ,tret,_) ->
-         let _ = Alloc.constrain_legacy marg in
-         let _ = Alloc.constrain_legacy mret in
+         let _ = Alloc.zap_to_legacy marg in
+         let _ = Alloc.zap_to_legacy mret in
          go targ; go tret
       | _ -> iter_type_expr go ty
     end
