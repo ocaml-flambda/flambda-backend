@@ -1344,9 +1344,9 @@ let extract_or_mk_pat label rem closed =
    is missing a label or has an a extra label (unlabeled components morally
    share the same special label).
 
-   If [closed] is [Open], then no "missing label" errors are possible;
-   instead, [_] patterns will be generated for those labels. However, an
-   unnecessarily [Open] pattern is an error.
+   If [closed] is [Open], then no "missing label" errors are possible; instead,
+   [_] patterns will be generated for those labels. An unnecessarily [Open]
+   pattern results in a warning.
 
    (Note: an alternative approach to creating [_] patterns could be to add a
     [closed] flag to the typedtree)
@@ -1368,6 +1368,8 @@ let reorder_pat loc env patl closed labeled_tl expected_ty =
     raise
       (Error (loc, !env, Extra_tuple_label(extra_label, expected_ty)))
 
+(* This assumes the [args] have already been reordered according to the
+   [expected_ty], if needed.  *)
 let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
   let arity = List.length args in
   let arg_modes =
@@ -2536,11 +2538,9 @@ and type_pat_aux
         | Some (Jpat_tuple (Ltpat_tuple _), attrs) when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
           -> raise (Error(loc, !env, Constructor_labeled_arg))
-        | Some (
-            (Jpat_immutable_array _, _)
-          | (Jpat_layout _, _)
-          | (Jpat_tuple _, _)
-        ) -> [sarg']
+        | Some ((Jpat_immutable_array _, _)
+               | (Jpat_layout _, _)
+               | (Jpat_tuple _, _)) -> [sarg']
         | None -> match sarg' with
         | {ppat_desc = Ppat_tuple spl} as sp when
             constr.cstr_arity > 1 ||
@@ -3116,9 +3116,11 @@ let rec check_counter_example_pat
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
   | Tpat_tuple tpl ->
       let tpl_ann =
-        solve_Ppat_tuple ~refine ~alloc_mode loc env tpl expected_ty
+        solve_Ppat_tuple ~refine ~alloc_mode loc env tpl
+          expected_ty
       in
-      map_fold_cont (fun (l,p,t,_) k -> check_rec p t (fun p -> k (l, p))) tpl_ann
+      map_fold_cont (fun (l,p,t,_) k -> check_rec p t (fun p -> k (l, p)))
+        tpl_ann
         (fun pl ->
            mkp k (Tpat_tuple pl)
              ~pat_type:(newty (Ttuple (List.map (fun (l,p) -> (l,p.pat_type))

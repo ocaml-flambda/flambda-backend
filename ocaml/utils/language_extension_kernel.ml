@@ -79,7 +79,7 @@ let of_string extn_name : Exist.t option =
   | Some (Pair (ext, _)) -> Some (Pack ext)
   | None -> None
 
-(* We'll do this~/ocaml/ in a more principled way later. *)
+(* We'll do this in a more principled way later. *)
 (* CR layouts: Note that layouts is only "mostly" erasable, because of annoying
    interactions with the pre-layouts [@@immediate] attribute like:
 
