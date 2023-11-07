@@ -8659,9 +8659,16 @@ open Format
 
 let longident = Printtyp.longident
 
-let tuple_component ppf = function
-| Some s -> fprintf ppf "component with label %s" s
-| None -> fprintf ppf "unlabeled component"
+let tuple_component ~print_article ppf lbl =
+  let article =
+    match print_article, lbl with
+    | true, Some _ -> "a "
+    | true, None -> "an "
+    | false, _ -> ""
+  in
+  match lbl with
+  | Some s -> fprintf ppf "%scomponent with label %s" article s
+  | None -> fprintf ppf "%sunlabeled component" article
 
 (* Returns the first diff of the trace *)
 let type_clash_of_trace trace =
@@ -8932,14 +8939,22 @@ let report_error ~loc env = function
       Location.errorf ~loc
         "This pattern was expected to match values of type@ %a,@ but it \
          contains an extra %a."
-         Printtyp.type_expr typ
-         tuple_component lbl;
+        Printtyp.type_expr typ
+        (tuple_component ~print_article:false) lbl;
   | Missing_tuple_label (lbl, typ) ->
+      let hint ppf () =
+        (* We only hint if the missing component is labeled.  This is
+           unlikely to be a correct fix for traditional tuples. *)
+        match lbl with
+        | Some _ -> fprintf ppf "@ Hint: use .. to ignore some components."
+        | None -> ()
+      in
       Location.errorf ~loc
         "This pattern was expected to match values of type@ %a,@ but it is \
-         missing a %a.@ Hint: use .. to ignore some components."
+         missing %a.%a"
         Printtyp.type_expr typ
-         tuple_component lbl;
+        (tuple_component ~print_article:true) lbl
+        hint ()
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->

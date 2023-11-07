@@ -92,8 +92,7 @@ Line 1, characters 37-53:
 1 | let f : (int * bar:int) -> int = fun (~foo, ~bar:bar) -> foo * 10 + bar
                                          ^^^^^^^^^^^^^^^^
 Error: This pattern was expected to match values of type int * bar:int,
-       but it is missing a unlabeled component.
-       Hint: use .. to ignore some components.
+       but it is missing an unlabeled component.
 |}]
 
 let f = fun (~foo, ~bar:bar) : (foo:int * int) -> foo * 10 + bar
@@ -142,8 +141,7 @@ Line 1, characters 7-11:
 1 | let f (~x,y : (int * int)) : int = x + y
            ^^^^
 Error: This pattern was expected to match values of type int * int,
-       but it is missing a unlabeled component.
-       Hint: use .. to ignore some components.
+       but it is missing an unlabeled component.
 |}]
 
 let f (~x,y : (int * x:int)) : int = x + y
@@ -473,8 +471,7 @@ Line 2, characters 15-29:
 2 | | { contents = ~x:x0, ~y , ~x } -> y
                    ^^^^^^^^^^^^^^
 Error: This pattern was expected to match values of type
-       x:int * y:int * x:int * int, but it is missing a unlabeled component.
-       Hint: use .. to ignore some components.
+       x:int * y:int * x:int * int, but it is missing an unlabeled component.
 |}]
 
 (* Extra unordered label *)
