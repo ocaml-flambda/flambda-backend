@@ -28,7 +28,7 @@
 
 (copy_files# utils/*.ml{,i})
 (copy_files# parsing/*.ml{,i})
-(copy_files parsing/parser.mly)
+;(copy_files parsing/parser.mly)
 (copy_files# typing/*.ml{,i})
 (copy_files# bytecomp/*.ml{,i})
 (copy_files# driver/*.ml{,i})
@@ -41,14 +41,6 @@
 ;(copy_files# middle_end/flambda/*.ml{,i})
 ;(copy_files# middle_end/flambda/base_types/*.ml{,i})
 
-(menhir
-  (modules parser)
-  (flags
-    --lalr --explain --dump --require-aliases --strict
-    --unused-token COMMENT --unused-token DOCSTRING --unused-token EOL --unused-token GREATERRBRACKET
-    --fixed-exception --table
-    --strategy simplified))
-
 (library
  (name ocamlcommon)
  (wrapped false)
@@ -59,13 +51,6 @@
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (preprocess
-   (per_module
-     ((action
-        (progn
-          (echo "module MenhirLib = CamlinternalMenhirLib")
-          (run cat %{input-file})))
-       parser)))
  (library_flags -linkall)
  (modules_without_implementation
    annot asttypes cmo_format outcometree parsetree debug_event)
