@@ -1,5 +1,9 @@
 name: coverage-linux
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 jobs:
   build:
     name: ${{ matrix.name }}
