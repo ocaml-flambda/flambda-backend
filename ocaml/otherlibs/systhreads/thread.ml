@@ -76,10 +76,6 @@ let exit () =
   ignore (Sys.opaque_identity (check_memprof_cb ()));
   exit_stub ()
 
-let exit () =
-  ignore (Sys.opaque_identity (check_memprof_cb ()));
-  exit_stub ()
-
 (* Thread.kill is currently not implemented due to problems with
    cleanup handlers on several platforms *)
 
