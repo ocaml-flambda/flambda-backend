@@ -41,6 +41,10 @@ jobs:
             os: ubuntu-latest
             build_ocamlparam: _,ocamlcfg=1
 
+          - name: flambda2_runtime5
+            config: --enable-middle-end=flambda2 --enable-runtime5
+            os: ubuntu-latest
+
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
