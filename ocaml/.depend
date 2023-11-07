@@ -1149,29 +1149,20 @@ typing/oprint.cmo : \
     parsing/printast.cmi \
     typing/outcometree.cmi \
     utils/language_extension.cmi \
-<<<<<<< HEAD
     typing/jkind.cmi \
-=======
->>>>>>> nroberts/layouts-are-strings-in-parsetree
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmx : \
     parsing/printast.cmx \
     typing/outcometree.cmi \
     utils/language_extension.cmx \
-<<<<<<< HEAD
     typing/jkind.cmx \
-=======
->>>>>>> nroberts/layouts-are-strings-in-parsetree
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmi : \
     typing/outcometree.cmi
 typing/outcometree.cmi : \
-<<<<<<< HEAD
     typing/jkind.cmi \
-=======
->>>>>>> nroberts/layouts-are-strings-in-parsetree
     parsing/asttypes.cmi
 typing/parmatch.cmo : \
     utils/warnings.cmi \
@@ -1297,6 +1288,7 @@ typing/predef.cmo : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
+    parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -1308,6 +1300,7 @@ typing/predef.cmx : \
     parsing/parsetree.cmi \
     parsing/location.cmx \
     typing/jkind.cmx \
+    parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
@@ -1944,6 +1937,7 @@ typing/typedtree.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
+    parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi \
@@ -1959,6 +1953,7 @@ typing/typedtree.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/jkind.cmx \
+    parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
@@ -1974,6 +1969,7 @@ typing/typedtree.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
+    parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi
