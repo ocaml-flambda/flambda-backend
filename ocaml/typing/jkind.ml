@@ -69,7 +69,7 @@ module Sort = struct
 
   let set : var -> t option -> unit =
    fun v t_op ->
-    log_change (v, t_op);
+    log_change (v, !v);
     v := t_op
 
   (* Post-condition: If the result is a [Var v], then [!v] is [None]. *)

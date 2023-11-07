@@ -73,6 +73,7 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
@@ -850,7 +851,7 @@ let rec check_constraints_rec env loc visited ty =
         | Unification_failure err ->
           raise (Error(loc, Constraint_failed (env, err)))
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
-          raise (Error(loc, Jkind_mismatch_of_type (ty,
+          raise (Error(loc, Jkind_mismatch_in_check_constraints (ty,
                               (Jkind.Violation.of_ (Not_a_subjkind
                                  (original_jkind, inferred_jkind))))))
         | All_good -> ()
@@ -1741,14 +1742,17 @@ let transl_type_decl env rec_flag sdecl_list =
         raise (Error (loc, Type_clash (new_env, err))))
       checks)
     delayed_jkind_checks;
-  (* Check that constraints are enforced *)
-  List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Check that all type variables are closed; this also defaults any remaining
      sort variables. Defaulting must happen before update_decls_jkind,
      Typedecl_seperability.update_decls, and add_types_to_env, all of which need
-     to check whether parts of the type are void (and currently use
-     Jkind.equate to do this which would set any remaining sort variables
-     to void). *)
+     to check whether parts of the type are void (and currently use Jkind.equate
+     to do this which would set any remaining sort variables to void). It also
+     must happen before check_constraints, so that check_constraints can detect
+     when a jkind is inferred incorrectly.  (The unification that
+     check_constraints does is undone via backtracking, and thus forgetting to
+     do the defaulting first is actually unsound: the unification in
+     check_constraints will succeed via mutation, be backtracked, and then
+     perhaps a sort variable gets defaulted to value. Bad bad.) *)
   List.iter2
     (fun sdecl tdecl ->
       let decl = tdecl.typ_type in
@@ -1756,6 +1760,8 @@ let transl_type_decl env rec_flag sdecl_list =
          Some ty -> raise(Error(sdecl.ptype_loc, Unbound_type_var(ty,decl)))
        | None   -> ())
     sdecl_list tdecls;
+  (* Check that constraints are enforced *)
+  List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Add type properties to declarations *)
   let decls =
     try
@@ -2625,6 +2631,18 @@ module Reaching_path = struct
     pp path
 end
 
+let report_jkind_mismatch_in_check_constraints ppf ty violation =
+  fprintf ppf
+    "@[<v>Layout mismatch in final type declaration consistency check.@ \
+     This is most often caused by the fact that type inference is not@ \
+     clever enough to propagate layouts through variables in different@ \
+     declarations. It is also not clever enough to produce a good error@ \
+     message, so we'll say this instead:@;<1 2>@[%a@]@ \
+     The fix will likely be to add a layout annotation on a parameter to@ \
+     the declaration where this error is reported.@]"
+    (Jkind.Violation.report_with_offender
+       ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+
 let report_error ppf = function
   | Repeated_parameter ->
       fprintf ppf "A type parameter occurs several times"
@@ -2664,11 +2682,24 @@ let report_error ppf = function
            "the original" "this" "definition" env)
         err
   | Constraint_failed (env, err) ->
+      let get_jkind_error : _ Errortrace.elt -> _ = function
+      | Bad_jkind (ty, violation) | Bad_jkind_sort (ty, violation) ->
+        Some (ty, violation)
+      | Unequal_var_jkinds _ | Diff _ | Variant _ | Obj _
+      | Escape _ | Incompatible_fields _ | Rec_occur _ -> None
+      in
+      begin match List.find_map get_jkind_error err.trace with
+      | Some (ty, violation) ->
+        report_jkind_mismatch_in_check_constraints ppf ty violation
+      | None ->
       fprintf ppf "@[<v>Constraints are not satisfied in this type.@ ";
       Printtyp.report_unification_error ppf env err
         (fun ppf -> fprintf ppf "Type")
         (fun ppf -> fprintf ppf "should be an instance of");
       fprintf ppf "@]"
+      end
+  | Jkind_mismatch_in_check_constraints (ty, violation) ->
+      report_jkind_mismatch_in_check_constraints ppf ty violation
   | Non_regular { definition; used_as; defined_as; reaching_path } ->
       let reaching_path = Reaching_path.simplify reaching_path in
       Printtyp.prepare_for_printing [used_as; defined_as];
