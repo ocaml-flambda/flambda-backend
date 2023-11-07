@@ -1105,7 +1105,8 @@ typing/jkind.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
     parsing/jane_asttypes.cmi \
-    typing/ident.cmi
+    typing/ident.cmi \
+    parsing/builtin_attributes.cmi
 typing/mode.cmo : \
     utils/misc.cmi \
     typing/mode.cmi
@@ -1149,20 +1150,21 @@ typing/oprint.cmo : \
     parsing/printast.cmi \
     typing/outcometree.cmi \
     utils/language_extension.cmi \
-    typing/jkind.cmi \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmx : \
     parsing/printast.cmx \
     typing/outcometree.cmi \
     utils/language_extension.cmx \
-    typing/jkind.cmx \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmi : \
     typing/outcometree.cmi
 typing/outcometree.cmi : \
+<<<<<<< HEAD
     typing/jkind.cmi \
+=======
+>>>>>>> main
     parsing/asttypes.cmi
 typing/parmatch.cmo : \
     utils/warnings.cmi \
@@ -1937,7 +1939,6 @@ typing/typedtree.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
-    parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi \
@@ -1953,7 +1954,10 @@ typing/typedtree.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/jkind.cmx \
+<<<<<<< HEAD
     parsing/jane_asttypes.cmx \
+=======
+>>>>>>> main
     typing/ident.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
@@ -1969,7 +1973,6 @@ typing/typedtree.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
-    parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi

@@ -274,7 +274,11 @@ let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
 let print_out_jkind ppf = function
+<<<<<<< HEAD
   | Olay_const jkind -> fprintf ppf "%s" (Jkind.string_of_const jkind)
+=======
+  | Olay_const jkind -> fprintf ppf "%s" jkind
+>>>>>>> main
   | Olay_var v     -> fprintf ppf "%s" v
 
 let print_out_jkind_annot ppf = function
@@ -379,7 +383,11 @@ let mode_agree expected real =
   linearity_agree expected.oam_linearity real.oam_linearity
 
 let print_out_jkind ppf = function
+<<<<<<< HEAD
   | Olay_const jkind -> fprintf ppf "%s" (Jkind.string_of_const jkind)
+=======
+  | Olay_const jkind -> fprintf ppf "%s" jkind
+>>>>>>> main
   | Olay_var v     -> fprintf ppf "%s" v
 
 let is_local mode =

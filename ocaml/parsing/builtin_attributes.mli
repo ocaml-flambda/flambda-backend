@@ -195,8 +195,27 @@ val mode_annotation_attributes_filter : Attributes_filter.t
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
    after rerouting [@@immediate]. *)
 type jkind_attribute =
+<<<<<<< HEAD
   | Immediate64
   | Immediate
+=======
+  | Any
+  | Value
+  | Void
+  | Immediate64
+  | Immediate
+  | Float64
+
+val jkind_attribute_to_string : jkind_attribute -> string
+val jkind_attribute_of_string : string -> jkind_attribute option
+
+(* [jkind] gets the jkind in the attributes if one is present.  We always
+   allow the [value] annotation, even if the layouts extensions are disabled.
+   If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
+   attributes even if the layouts extensions are disabled - this is used to
+   support the original immediacy attributes, which are now implemented in terms
+   of jkinds.
+>>>>>>> main
 
 val jkind_attribute_to_string : jkind_attribute -> string
 val jkind_attribute_of_string : string -> jkind_attribute option
@@ -205,4 +224,11 @@ val jkind_attribute_of_string : string -> jkind_attribute option
    attributes can be provided even in the absence of the layouts extension
    as the attribute mechanism predates layouts.
 *)
+<<<<<<< HEAD
 val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
+=======
+(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
+   turn on layouts by default). *)
+val jkind : legacy_immediate:bool -> Parsetree.attributes ->
+  (jkind_attribute Location.loc option, jkind_attribute Location.loc) result
+>>>>>>> main

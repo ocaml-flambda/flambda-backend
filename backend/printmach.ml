@@ -384,10 +384,10 @@ let interval ppf i =
       i.ranges in
   fprintf ppf "@[<2>%a:%t@]@." reg i.reg interv
 
-let intervals ppf (intervals : Interval.result) =
+let intervals ppf () =
   fprintf ppf "*** Intervals@.";
-  List.iter (interval ppf) intervals.fixed_intervals;
-  List.iter (interval ppf) intervals.intervals
+  List.iter (interval ppf) (Interval.all_fixed_intervals());
+  List.iter (interval ppf) (Interval.all_intervals())
 
 let preference ppf r =
   let prefs ppf =

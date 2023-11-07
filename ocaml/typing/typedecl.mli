@@ -114,6 +114,7 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
