@@ -205,8 +205,7 @@ module Layout : sig
     | Gc_ignorable_check
     | Separability_check
 
-  type void_creation_reason =
-    | V1_safety_check
+  type void_creation_reason = |
 
   type any_creation_reason =
     | Missing_cmi of Path.t

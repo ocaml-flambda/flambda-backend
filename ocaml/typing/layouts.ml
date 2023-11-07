@@ -299,8 +299,7 @@ module Layout = struct
     | Gc_ignorable_check
     | Separability_check
 
-  type void_creation_reason =
-    | V1_safety_check
+  type void_creation_reason = |
 
   type any_creation_reason =
     | Missing_cmi of Path.t
@@ -795,11 +794,6 @@ module Layout = struct
       | Unknown s -> fprintf ppf "unknown @[(please alert the Jane Street@;\
                        compilers team with this message: %s)@]" s
 
-
-    let format_void_creation_reason ppf : void_creation_reason -> _ = function
-      | V1_safety_check -> fprintf ppf "the check to make sure there are no voids"
-        (* CR layouts: remove this when we remove its uses *)
-
     let format_float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id ->
         fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
@@ -813,8 +807,7 @@ module Layout = struct
          format_immediate_creation_reason ppf immediate
       | Immediate64_creation immediate64 ->
          format_immediate64_creation_reason ppf immediate64
-      | Void_creation void ->
-        format_void_creation_reason ppf void
+      | Void_creation _ -> .
       | Value_creation value ->
          format_value_creation_reason ppf value
       | Float64_creation float ->
@@ -1186,9 +1179,6 @@ module Layout = struct
       | Captured_in_object -> fprintf ppf "Captured_in_object"
       | Unknown s -> fprintf ppf "Unknown %s" s
 
-    let void_creation_reason ppf : void_creation_reason -> _ = function
-      | V1_safety_check -> fprintf ppf "V1_safety_check"
-
     let float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
@@ -1205,8 +1195,7 @@ module Layout = struct
          fprintf ppf "Immediate64_creation %a" immediate64_creation_reason immediate64
       | Value_creation value ->
          fprintf ppf "Value_creation %a" value_creation_reason value
-      | Void_creation void ->
-         fprintf ppf "Void_creation %a" void_creation_reason void
+      | Void_creation _ -> .
       | Float64_creation float ->
          fprintf ppf "Float64_creation %a" float64_creation_reason float
       | Concrete_creation concrete ->
