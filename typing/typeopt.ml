@@ -564,25 +564,25 @@ let value_kind env loc ty =
 let layout env loc sort ty =
   match Jkind.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue (value_kind env loc ty)
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
   | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Beta, Some ty)))
+    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, Some ty)))
   | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
 
 let layout_of_sort loc sort =
   match Jkind.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
   | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Beta, None)))
+    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, None)))
   | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
 
 let layout_of_const_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
   | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
   | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"

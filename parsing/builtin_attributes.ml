@@ -506,9 +506,9 @@ let jkind ~legacy_immediate attrs =
      | Value -> check true
      | Immediate | Immediate64 ->
         check  (legacy_immediate
-             || Language_extension.(is_at_least Layouts Beta))
+             || Language_extension.(is_at_least Layouts Stable))
      | Any | Float64 ->
-        check Language_extension.(is_at_least Layouts Beta)
+        check Language_extension.(is_at_least Layouts Stable)
      | Void ->
         check Language_extension.(is_at_least Layouts Alpha)
 
