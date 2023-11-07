@@ -1,0 +1,10 @@
+event.cmo : \
+    event.cmi
+event.cmx : \
+    event.cmi
+event.cmi :
+thread.cmo : \
+    thread.cmi
+thread.cmx : \
+    thread.cmi
+thread.cmi :
