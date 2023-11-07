@@ -220,10 +220,10 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_escaping of Longident.t * escaping_context
-  | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * Mode.Value.Comonadic.error * closure_context option
-  | Local_value_used_in_exclave of Longident.t
+  | Local_value_escaping of Path.t * escaping_context
+  | Once_value_used_in of Path.t * shared_context
+  | Value_used_in_closure of Path.t * Mode.Value.Comonadic.error * closure_context option
+  | Local_value_used_in_exclave of Path.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
@@ -248,7 +248,7 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
     as argument, so that sub-moding error is triggered at the place where error
     hints are immediately available. *)
 val lookup_value:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  ?use:bool -> loc:Location.t -> ?borrow:bool -> Longident.t -> t ->
   Path.t * value_description * Mode.Value.l * shared_context option
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
@@ -450,6 +450,7 @@ val add_escape_lock : escaping_context -> t -> t
 val add_share_lock : shared_context -> t -> t
 val add_closure_lock : ?closure_context:closure_context
   -> ('l * allowed) Mode.Value.Comonadic.t -> t -> t
+val add_borrow_lock : (Path.t * Location.t) list ref -> t -> t
 
 (** Enter a region *)
 val enter_region : t -> t

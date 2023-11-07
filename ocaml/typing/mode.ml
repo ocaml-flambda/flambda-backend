@@ -1237,6 +1237,10 @@ module Comonadic_with_regionality = struct
 
   let inj ~src ~dst m =
     assert (Regionality.Index.le src dst);
+    (* Format.eprintf "applying inj_%a->%a on %a\n"
+       Regionality.Index.print src
+       Regionality.Index.print dst
+       (print_raw ~verbose:true src) m; *)
     S.apply (Obj.obj_s dst) (Pos_Pos (Set (SAxis0, Inj src))) m
 
   let inj_l ~src ~dst m =

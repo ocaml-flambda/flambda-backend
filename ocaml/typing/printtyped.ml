@@ -343,6 +343,11 @@ and expression_extra i ppf (x,_,attrs) =
   | Texp_newtype (s, lay) ->
       line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
+  | Texp_borrow _ ->
+      line i ppf "Texp_borrow\n"
+  | Texp_region ->
+      line i ppf "Texp_region\n"
+
 
 and alloc_mode i ppf m =
   line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m

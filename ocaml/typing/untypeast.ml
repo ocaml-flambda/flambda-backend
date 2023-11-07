@@ -430,6 +430,8 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, jkind, sexp))
         |> add_jane_syntax_attributes
+    | Texp_borrow _ -> assert false
+    | Texp_region -> assert false
   in
   Exp.mk ~loc ~attrs:!attrs desc
 

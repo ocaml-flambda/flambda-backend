@@ -52,6 +52,14 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type borrow_kind =
+  | Borrow_self
+  (** The expression itself is being borrowed *)
+  | Borrow_var of Path.t
+  (** The expression is borrowing the variable, usually a function closing over
+  a borrowing. *)
+  (* Borrowing multiple variables are represented by multiple [Texp_borrow] *)
+
 val shared_many_use : unique_use
 
 type pattern = value general_pattern
@@ -187,6 +195,13 @@ and exp_extra =
         (** Used for method bodies. *)
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
+  | Texp_borrow of borrow_kind
+        (** Indicates this expression is borrowing. *)
+  | Texp_region
+        (** Indicates this expression is wrapped inside a fake region. *)
+        (* NB. If an expression has both [Texp_borrow] and [Texp_region], we
+        assume the [Texp_borrow] is outer than [Texp_region]. Currently it's
+        impossible. *)
 
 and fun_curry_state =
   | More_args of { partial_mode : Mode.Alloc.l }

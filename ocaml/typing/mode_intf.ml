@@ -376,29 +376,29 @@ module type S = sig
     val regionality :
       Regionality.Index.t -> ('l * 'r) t -> ('l * 'r) Regionality.t
 
-    val inj :
-      src:Regionality.Index.t ->
-      dst:Regionality.Index.t ->
-      ('l * 'r) t ->
-      ('l * 'r) t
-
     val inj_l :
       src:Regionality.Index.t ->
       dst:Regionality.Index.t ->
       ('l * 'r) t ->
       ('l * disallowed) t
 
-    val cap_r :
+    val inj :
       src:Regionality.Index.t ->
       dst:Regionality.Index.t ->
       ('l * 'r) t ->
-      (disallowed * 'r) t
+      ('l * 'r) t
 
     val cap :
       src:Regionality.Index.t ->
       dst:Regionality.Index.t ->
       ('l * 'r) t ->
       ('l * 'r) t
+
+    val cap_r :
+      src:Regionality.Index.t ->
+      dst:Regionality.Index.t ->
+      ('l * 'r) t ->
+      (disallowed * 'r) t
 
     val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
 

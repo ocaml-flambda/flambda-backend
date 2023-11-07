@@ -38,6 +38,10 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type borrow_kind =
+  | Borrow_self
+  | Borrow_var of Path.t
+
 let shared_many_use =
   ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
     Mode.Linearity.disallow_right Mode.Linearity.many )
@@ -106,7 +110,8 @@ and exp_extra =
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
-
+  | Texp_borrow of borrow_kind
+  | Texp_region
 
 and fun_curry_state =
   | More_args of { partial_mode : Mode.Alloc.l }

@@ -328,6 +328,8 @@ let expr sub x =
         Texp_coerce (Option.map (sub.typ sub) cty1, sub.typ sub cty2)
     | Texp_newtype _ as d -> d
     | Texp_poly cto -> Texp_poly (Option.map (sub.typ sub) cto)
+    | Texp_borrow _ as d -> d
+    | Texp_region as d -> d
   in
   let exp_loc = sub.location sub x.exp_loc in
   let exp_extra = List.map (tuple3 extra (sub.location sub) id) x.exp_extra in

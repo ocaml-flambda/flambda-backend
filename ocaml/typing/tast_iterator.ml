@@ -266,6 +266,8 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
         sub.typ sub cty2
     | Texp_newtype _ -> ()
     | Texp_poly cto -> Option.iter (sub.typ sub) cto
+    | Texp_borrow _ -> ()
+    | Texp_region -> ()
   in
   sub.location sub exp_loc;
   sub.attributes sub exp_attributes;

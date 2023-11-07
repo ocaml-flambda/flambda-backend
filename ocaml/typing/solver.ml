@@ -386,11 +386,20 @@ module Solver_mono (C : Lattices_mono) = struct
       Error e
 
   let submode obj a b =
-    match submode_try obj a b with
-    | Ok log ->
-      Option.iter !append_changes log;
-      Ok ()
-    | Error _ as e -> e
+    try
+      match submode_try obj a b with
+      | Ok log ->
+        Option.iter !append_changes log;
+        Ok ()
+      | Error _ as e -> e
+    with _ ->
+      Printexc.print_backtrace stderr;
+      Format.eprintf "submode %a <= %a\n"
+        (print_raw ~verbose:true obj)
+        a
+        (print_raw ~verbose:true obj)
+        b;
+      assert false
 
   let zap_to_ceil_morphvar obj mv =
     assert (submode obj (Amode (mupper obj mv)) (Amodevar mv) |> Result.is_ok);

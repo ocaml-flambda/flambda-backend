@@ -23,7 +23,6 @@ open Mode
 open Typedtree
 open Btype
 open Ctype
-open Uniqueness_analysis
 
 type comprehension_type =
   | List_comprehension
@@ -100,6 +99,11 @@ type existential_restriction =
 type submode_reason =
   | Application of type_expr
   | Other
+
+let report_borrow_kind = function
+  | Borrow_self -> []
+  | Borrow_var _ -> [ Location.msg  "@[It borrows because it closes over\
+  this borrowing.@]"]
 
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
@@ -203,6 +207,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Borrow_out_of_context of borrow_kind
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -303,6 +308,23 @@ type position_in_region =
     of the current region. [p] indicates whether we are also at the tail of a
     function (for tail call escape detection) *)
 
+type borrow_context = {
+    is_borrowing : bool ref;
+    (** borrowing will set this to [True] *)
+    borrow_region : Regionality.Index.t;
+    (** The fake region for borrowing *)
+    outer_region : Regionality.Index.t;
+    (** The region surrounding the fake region *)
+}
+
+let enter_borrow env =
+  let outer_region = Env.region env in
+  let env = Env.enter_region env in
+  let borrow_region = Env.region env in
+  let is_borrowing = ref false in
+  let borrow_context = {is_borrowing; borrow_region; outer_region} in
+  borrow_context, env
+
 type expected_mode =
   { position : position_in_region;
     closure_context : Env.closure_context option;
@@ -310,16 +332,20 @@ type expected_mode =
     (* the upper bound, hence r (right) *)
     mode : Value.r;
 
-    (* in some scnearios, we want to restrict the alloc mode exactly. *)
+    (* Unsound to drop. But it is only used inside uncurried functions. *)
     exact : Alloc.lr option;
 
     (* Indicates that the expression was directly annotated with [local], which
     should force any allocations to be on the stack. If [true] the [mode] field
-    must be greater than [local]. *)
+    must be greater than [local].
+    Sound to reset to [false] but will affect performance. *)
     strictly_local : bool;
 
     tuple_modes : Value.r list;
     (* for t in tuple_modes, t <= regional_to_global mode *)
+
+    borrow_context : borrow_context option;
+    (* [Some] if borrowing allowed at current position *)
   }
 
 type position_and_mode = {
@@ -375,6 +401,11 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
     end
   | None -> ()
 
+(** Returns [Some x] if the given expression is an identifier [x]. *)
+let rec maybe_ident = function
+  | Texp_ident (_, ident, _, _, _) -> Some ident.txt
+  | Texp_field (e, _, _, _, _) -> maybe_ident e.exp_desc
+  | _ -> None
 let le_regionality_right region regionality mode =
   let mode = Value.disallow_left mode in
   Value.meet region [mode; (Value.max_with_regionality region regionality)]
@@ -435,7 +466,8 @@ let mode_default mode =
     mode = Value.disallow_left mode;
     exact = None;
     strictly_local = false;
-    tuple_modes = [] }
+    tuple_modes = [];
+    borrow_context = None }
 
 let mode_legacy = mode_default Value.legacy
 
@@ -504,12 +536,14 @@ let mode_strictly_local env expected_mode =
 let mode_unique env expected_mode =
   let region = Env.region env in
   let mode = le_unique_right region expected_mode.mode in
-  { expected_mode with mode }
+  { expected_mode with mode; tuple_modes = [] }
 
 let mode_once env expected_mode =
   let region = Env.region env in
   { expected_mode with
-    mode = Value.set_linearity_max region expected_mode.mode}
+    mode = Value.set_linearity_max region expected_mode.mode;
+    tuple_modes = []
+    }
 
 let mode_tailcall_function mode =
   { (mode_default mode) with
@@ -525,6 +559,7 @@ let mode_partial_application env expected_mode =
   let mode = alloc_as_value i (value_to_alloc_r2g i expected_mode.mode) in
   { expected_mode with
     mode;
+    tuple_modes = [];
     closure_context = Some Partial_application }
 
 let mode_trywith expected_mode =
@@ -538,6 +573,32 @@ let mode_tuple mode tuple_modes =
 let mode_exact mode exact =
   { (mode_default mode) with
     exact = Some exact }
+
+let mode_borrow_binding ?borrow_context expected_mode =
+  { expected_mode with
+    borrow_context
+  }
+
+(* Both [env] and [expected_mode] are outside of the borrow region *)
+let mode_borrow borrow_context expected_mode =
+  let morph =
+    if !(borrow_context.is_borrowing) then Value.inj
+    else Value.cap_r
+  in
+  let morph =
+      morph
+      ~src:borrow_context.outer_region
+      ~dst:borrow_context.borrow_region
+  in
+  {expected_mode with
+    mode = morph expected_mode.mode;
+    tuple_modes= List.map morph expected_mode.tuple_modes }
+
+let exp_extra_borrow borrow_context =
+  if !(borrow_context.is_borrowing) then
+    [Texp_region, Location.none, []]
+  else
+    []
 
 let mode_argument env ~funct ~index ~position_and_mode ~partial_app marg =
   let region = Env.region env in
@@ -622,6 +683,20 @@ let optimise_allocations () =
     (fun mode -> ignore (Alloc.zap_to_ceil mode))
     !allocations;
   reset_allocations ()
+
+let type_borrow ~loc ~env ~borrow_kind (expected_mode : expected_mode) =
+  let borrow_region =
+    match expected_mode.borrow_context with
+    | None -> raise (Error (loc, env, Borrow_out_of_context borrow_kind))
+    | Some {borrow_region; is_borrowing} ->
+        is_borrowing := true;
+        borrow_region
+  in
+  let region = Env.region env in
+  submode ~loc ~env (Value.min_with_regionality region
+    (Regionality.local borrow_region)) expected_mode;
+  submode ~loc ~env (Value.min_with_uniqueness region
+    Uniqueness.shared) expected_mode
 
 (* Typing of constants *)
 
@@ -4621,6 +4696,7 @@ let with_explanation explanation f =
         raise (Error (loc', env', err))
 
 let unique_use ~loc ~env mode_l mode_r  =
+  (* Format.eprintf "unique_use: %a\n" Location.print_loc loc; *)
   let region = Env.region env in
   let uniqueness = Uniqueness.disallow_left (Value.uniqueness mode_r) in
   let linearity = Linearity.disallow_right (Value.linearity region mode_l) in
@@ -4870,6 +4946,7 @@ and type_expect_
          pexp_desc = Pexp_match (sval, [Ast_helper.Exp.case spat sbody])}
         ty_expected_explained
   | Pexp_let(rec_flag, spat_sexp_list, sbody) ->
+      let borrow_context, env = enter_borrow env in
       let existential_context =
         if rec_flag = Recursive then In_rec
         else if List.compare_length_with spat_sexp_list 1 > 0 then In_group
@@ -4893,13 +4970,22 @@ and type_expect_
             else Modules_rejected
           in
           let (pat_exp_list, new_env) =
-            type_let existential_context env rec_flag spat_sexp_list
-              allow_modules
+            type_let ~borrow_context existential_context env rec_flag
+              spat_sexp_list allow_modules
           in
           let in_function =
             match sexp.pexp_attributes with
             | [{Parsetree.attr_name = {txt="#default"};_}] -> in_function
             | _ -> None
+          in
+          let expected_mode =
+            try
+              mode_borrow borrow_context expected_mode
+            with _ ->  begin
+              Printexc.print_backtrace stderr;
+              Format.eprintf "mode_borrow excpetion: %a\n" Location.print_loc loc;
+              assert false
+            end
           in
           let body =
             type_expect ?in_function
@@ -4944,7 +5030,7 @@ and type_expect_
       in
       re {
         exp_desc = Texp_let(rec_flag, pat_exp_list, body);
-        exp_loc = loc; exp_extra = [];
+        exp_loc = loc; exp_extra = exp_extra_borrow borrow_context;
         exp_type = body.exp_type;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
@@ -5097,8 +5183,33 @@ and type_expect_
             exp_attributes = sexp.pexp_attributes;
           }
       end
+  | Pexp_apply ({pexp_desc = Pexp_extension(
+      {txt = ("ocaml.borrow" | "borrow" | "extension.borrow" as txt); loc = bor_loc}, PStr []) },
+    [Nolabel, sbody]) ->
+      if txt = "extension.borrow" then (
+        if not (Language_extension.is_enabled Unique) then
+        raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Unique));
+      );
+      let borrow_kind = Borrow_self in
+      type_borrow ~loc ~env ~borrow_kind expected_mode;
+
+      (* If [exp] is an identifier, or a record field of an identifier,
+          every enclosing function is borrowing as well *)
+      let exp =
+        type_expect ?in_function ~recarg env expected_mode sbody ty_expected_explained
+      in
+      (match maybe_ident exp.exp_desc with
+      | None -> ()
+      | Some ident ->
+        (* only for the side effects of touching Borrow_lock *)
+        ignore (Env.lookup_value ~loc ident env ~borrow:true)
+      );
+      {exp with
+        exp_extra = (Texp_borrow borrow_kind, bor_loc, [])  :: exp.exp_extra
+      }
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
+      let borrow_context, env = enter_borrow env in
       let pm = position_and_mode env expected_mode sexp in
       let funct_mode, funct_expected_mode =
         match pm.apply_position with
@@ -5110,6 +5221,7 @@ and type_expect_
           let mode = Value.newvar (Env.region env) in
           mode, mode_default mode
       in
+      let funct_expected_mode = mode_borrow_binding ~borrow_context funct_expected_mode in
       (* does the function return a tvar which is too generic? *)
       let rec ret_tvar seen ty_fun =
         let ty = expand_head env ty_fun in
@@ -5171,15 +5283,16 @@ and type_expect_
             (rt, funct), sargs
       in
       let (args, ty_res, ap_mode, pm) =
-        type_application env loc expected_mode pm funct funct_mode sargs rt
+        type_application env loc expected_mode pm borrow_context funct funct_mode sargs rt
       in
       rue {
         exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode);
-        exp_loc = loc; exp_extra = [];
+        exp_loc = loc; exp_extra = exp_extra_borrow borrow_context;
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
+      let borrow_context, env = enter_borrow env in
       let arg_pat_mode, arg_expected_mode =
         match cases_tuple_arity caselist with
         | Not_local_tuple | Maybe_local_tuple ->
@@ -5195,6 +5308,7 @@ and type_expect_
           let mode = value_regional_to_local env mode in
           tuple_pat_mode mode modes, mode_tuple mode modes
       in
+      let arg_expected_mode = mode_borrow_binding ~borrow_context arg_expected_mode in
       let arg, sort =
         with_local_level begin fun () ->
           let expected_ty, sort = new_rep_var ~why:Match () in
@@ -5205,6 +5319,7 @@ and type_expect_
         end ~post:(fun (arg, _) ->
           may_lower_contravariant_then_generalize env arg)
       in
+      let expected_mode = mode_borrow borrow_context expected_mode in
       let cases, partial =
         type_cases Computation env arg_pat_mode expected_mode
           arg.exp_type ty_expected_explained true loc caselist in
@@ -5214,7 +5329,7 @@ and type_expect_
       then check_partial_application ~statement:false arg;
       re {
         exp_desc = Texp_match(arg, sort, cases, partial);
-        exp_loc = loc; exp_extra = [];
+        exp_loc = loc; exp_extra = exp_extra_borrow borrow_context;
         exp_type = instance ty_expected;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
@@ -6474,9 +6589,24 @@ and type_function
       end
     end
   in
+  let bor_vars = ref [] in
+  let new_env = Env.add_borrow_lock bor_vars new_env in
   let cases, partial =
     type_cases Value ?in_function new_env (simple_pat_mode arg_value_mode)
       cases_expected_mode ty_arg_mono (mk_expected ty_ret) true loc caselist in
+  let exp_extra =
+    match !bor_vars with
+    | [] -> []
+    | bor_vars ->
+      (* arbitrarily pick one for possible error message *)
+      let id, loc = List.hd bor_vars in
+      let borrow_kind = Borrow_var id in
+      type_borrow ~loc ~env ~borrow_kind expected_mode;
+      List.map (fun (id, loc) ->
+        let borrow_kind = Borrow_var id  in
+        let attrs = [] in
+        (Texp_borrow borrow_kind, loc, attrs)) bor_vars
+  in
   let not_nolabel_function ty =
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
@@ -6493,7 +6623,7 @@ and type_function
         { arg_label; param; cases; partial; region; curry; warnings;
           arg_mode = Alloc.disallow_right arg_mode; arg_sort;
           alloc_mode = Alloc.disallow_left alloc_mode; ret_sort };
-    exp_loc = loc; exp_extra = [];
+    exp_loc = loc; exp_extra;
     exp_type =
       instance (newgenty (Tarrow((arg_label,arg_mode,ret_mode),
                                  ty_arg, ty_ret, commu_ok)));
@@ -7045,11 +7175,12 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       unify_exp env texp ty_expected;
       texp
 
-and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
+and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~borrow_context ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument env ~funct ~index ~position_and_mode ~partial_app mode_arg in
+      let expected_mode = mode_borrow_binding ~borrow_context expected_mode in
       let arg =
         type_expect env expected_mode sarg (mk_expected ty_arg_mono)
       in
@@ -7062,6 +7193,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
                      mode_arg; wrapped_in_some; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument env ~funct ~index ~position_and_mode ~partial_app mode_arg in
+      let expected_mode = mode_borrow_binding ~borrow_context expected_mode in
       let ty_arg', vars = tpoly_get_poly ty_arg in
       let arg =
         if vars = [] then begin
@@ -7123,7 +7255,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
       (lbl, Arg (arg, Value.legacy, sort_arg))
   | Omitted _ as arg -> (lbl, arg)
 
-and type_application env app_loc expected_mode position_and_mode
+and type_application env app_loc expected_mode position_and_mode borrow_context
       funct funct_mode sargs ret_tvar =
   let is_ignore funct =
     is_prim ~name:"%ignore" funct &&
@@ -7147,6 +7279,7 @@ and type_application env app_loc expected_mode position_and_mode
       let arg_mode, _ =
         mode_argument env ~funct ~index:0 ~position_and_mode ~partial_app:false arg_mode
       in
+      let arg_mode = mode_borrow_binding ~borrow_context arg_mode in
       let exp = type_expect env arg_mode sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
       ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, position_and_mode)
@@ -7169,7 +7302,7 @@ and type_application env app_loc expected_mode position_and_mode
            true)
         end
       in
-      let ty_ret, mode_ret, args, position_and_mode =
+      let ty_ret, mode_ret, args, expected_mode, position_and_mode =
         with_local_level_if_principal begin fun () ->
           let ty_ret, mode_ret, untyped_args =
             collect_apply_args env funct ignore_labels ty (instance ty)
@@ -7182,15 +7315,16 @@ and type_application env app_loc expected_mode position_and_mode
           let args =
             List.mapi (fun index arg ->
                 type_apply_arg env ~app_loc ~funct ~index
-                  ~position_and_mode ~partial_app arg)
+                  ~position_and_mode ~borrow_context ~partial_app arg)
               untyped_args
           in
+          let expected_mode = mode_borrow borrow_context expected_mode in
           let ty_ret, mode_ret, args =
             type_omitted_parameters expected_mode env ty_ret mode_ret args
           in
           check_local_application_complete ~env ~app_loc untyped_args;
-          ty_ret, mode_ret, args, position_and_mode
-        end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
+          ty_ret, mode_ret, args, expected_mode, position_and_mode
+        end ~post:(fun (ty_ret, _, _, _, _) -> generalize_structure ty_ret)
       in
       let ap_mode = Locality.disallow_right (Alloc.locality mode_ret) in
       let mode_ret =
@@ -7611,7 +7745,7 @@ and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
 
 (* Typing of let bindings *)
 
-and type_let ?check ?check_strict ?(force_toplevel = false)
+and type_let ?check ?check_strict ?(force_toplevel = false) ?borrow_context
     existential_context env rec_flag spat_sexp_list allow_modules =
   let rec sexp_is_fun sexp =
     match Jane_syntax.Expression.of_ast sexp with
@@ -7734,6 +7868,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
         type_let_def_wrap_warnings ?check ?check_strict ~is_recursive
           ~entirely_functions
           ~exp_env ~new_env ~spat_sexp_list ~attrs_list ~mode_pat_typ_list ~pvs
+          ~borrow_context
           (fun exp_env ({pvb_attributes; _} as vb) mode expected_ty ->
             let sexp = vb_exp_constraint vb in
             match get_desc expected_ty with
@@ -7824,7 +7959,7 @@ and type_let_def_wrap_warnings
     ?(check = fun s -> Warnings.Unused_var s)
     ?(check_strict = fun s -> Warnings.Unused_var_strict s)
     ~is_recursive ~entirely_functions ~exp_env ~new_env ~spat_sexp_list
-    ~attrs_list ~mode_pat_typ_list ~pvs
+    ~attrs_list ~mode_pat_typ_list ~pvs ~borrow_context
     type_def =
   let is_fake_let =
     match spat_sexp_list with
@@ -7925,6 +8060,7 @@ and type_let_def_wrap_warnings
   let exp_list =
     List.map2
       (fun case (mode, expected_ty, slot) ->
+        let mode = mode_borrow_binding ?borrow_context mode in
         if is_recursive then current_slot := slot;
         type_def exp_env case mode expected_ty)
       spat_sexp_list mode_typ_slot_list
@@ -8509,11 +8645,11 @@ and type_send env loc explanation e met =
 
 let maybe_check_uniqueness_exp exp =
   if Language_extension.is_enabled Unique then
-    check_uniqueness_exp exp
+    Uniqueness_analysis.expression exp
 
 let maybe_check_uniqueness_value_bindings vbl =
   if Language_extension.is_enabled Unique then
-    check_uniqueness_value_bindings vbl
+    Uniqueness_analysis.value_bindings vbl
 
 (* Typing of toplevel bindings *)
 
@@ -9351,6 +9487,11 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Borrow_out_of_context borrow_kind ->
+      let sub = report_borrow_kind borrow_kind in
+      Location.errorf ~sub ~loc
+        "@[Cannot borrow here; borrowing is currently supported in the RHS of @ \
+        let-bindings, or expressions being matched, or function arguments.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
