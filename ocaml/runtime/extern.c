@@ -1367,7 +1367,8 @@ enum reachable_words_node_state {
    * root that we reached it from */
 };
 
-static void add_to_long_value(value *v, intnat x) {
+/* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
+static void add_to_long_value(volatile value *v, intnat x) {
   *v = Val_long(Long_val(*v) + x);
 }
 
