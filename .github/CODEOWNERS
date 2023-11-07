@@ -6,9 +6,6 @@ flambda_backend.opam    @mshinwell @lthls
 
 build_ocaml_compiler.sexp       @poechsel
 
-backend/                        @gretay-js @xclerc
-backend/debug/                  @mshinwell @poechsel
-
 chamelon/                       @Ekdohibs
 
 external/memtrace/              @stedolan
