@@ -1120,20 +1120,12 @@ typing/mode.cmo : \
     utils/misc.cmi \
     typing/mode.cmi
 typing/mode.cmx : \
-    typing/solver_intf.cmx \
+    typing/solver_intf.cmi \
     typing/solver.cmx \
-    typing/mode_intf.cmx \
+    typing/mode_intf.cmi \
     utils/misc.cmx \
     typing/mode.cmi
 typing/mode.cmi : \
-    typing/mode_intf.cmi
-typing/mode_intf.cmo : \
-    typing/solver_intf.cmi \
-    typing/solver.cmi \
-    typing/mode_intf.cmi
-typing/mode_intf.cmx : \
-    typing/solver_intf.cmx \
-    typing/solver.cmx \
     typing/mode_intf.cmi
 typing/mode_intf.cmi : \
     typing/solver_intf.cmi \
@@ -1529,15 +1521,9 @@ typing/solver.cmo : \
     typing/solver_intf.cmi \
     typing/solver.cmi
 typing/solver.cmx : \
-    typing/solver_intf.cmx \
+    typing/solver_intf.cmi \
     typing/solver.cmi
 typing/solver.cmi : \
-    typing/solver_intf.cmi
-typing/solver_intf.cmo : \
-    utils/misc.cmi \
-    typing/solver_intf.cmi
-typing/solver_intf.cmx : \
-    utils/misc.cmx \
     typing/solver_intf.cmi
 typing/solver_intf.cmi : \
     utils/misc.cmi

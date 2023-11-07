@@ -68,7 +68,7 @@
        parser)))
  (library_flags -linkall)
  (modules_without_implementation
-   annot asttypes cmo_format outcometree parsetree debug_event)
+   annot asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
