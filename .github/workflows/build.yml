@@ -103,6 +103,10 @@ jobs:
             config: --enable-middle-end=closure
             os: ubuntu-20.04
 
+          - name: build_upstream_closure_runtime5
+            config: --enable-middle-end=closure --enable-runtime5
+            os: ubuntu-20.04
+
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
