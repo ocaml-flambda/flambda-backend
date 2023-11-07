@@ -123,7 +123,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Jkind.const
+  | Layout_not_enabled of Builtin_attributes.jkind_attribute
 
 exception Error of Location.t * error
 

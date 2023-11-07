@@ -319,13 +319,19 @@ end
 
 (** Constant jkinds are used both for user-written annotations and within
     the type checker when we know a jkind has no variables *)
-type const = Jane_asttypes.const_jkind =
+type const =
   | Any
   | Value
   | Void
   | Immediate64
   | Immediate
   | Float64
+
+val const_of_user_written_annotation :
+  ?legacy_immediate:bool ->
+  context:annotation_context ->
+  Jane_asttypes.jkind_annotation ->
+  const
 
 val string_of_const : const -> string
 
@@ -364,20 +370,25 @@ val of_new_sort : why:concrete_jkind_reason -> t
 
 val of_const : why:creation_reason -> const -> t
 
+(** The typed jkind together with its user-written annotation. *)
+type annotation = const * Jane_asttypes.jkind_annotation
+
 (* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
    is rerouted away from the new annotations mechanism *)
 val of_annotation :
   ?legacy_immediate:bool ->
   context:annotation_context ->
   Jane_asttypes.jkind_annotation ->
-  t
+  t * annotation
 
 val of_annotation_option_default :
   ?legacy_immediate:bool ->
   default:t ->
   context:annotation_context ->
   Jane_asttypes.jkind_annotation option ->
-  t
+  t * annotation option
+
+(* CR layouts v1.5: remove [of_attributes] when we reroute [@@immediate]. *)
 
 (** Find a jkind in attributes.  Returns error if a disallowed jkind is
     present, but always allows immediate attributes if ~legacy_immediate is
@@ -386,7 +397,7 @@ val of_attributes :
   legacy_immediate:bool ->
   context:annotation_context ->
   Parsetree.attributes ->
-  (t option, Jane_asttypes.jkind_annotation) result
+  (t option, Builtin_attributes.jkind_attribute Location.loc) result
 
 (** Find a jkind in attributes, defaulting to ~default.  Returns error if a
     disallowed jkind is present, but always allows immediate if
@@ -396,7 +407,7 @@ val of_attributes_default :
   context:annotation_context ->
   default:t ->
   Parsetree.attributes ->
-  (t, Jane_asttypes.jkind_annotation) result
+  (t, Builtin_attributes.jkind_attribute Location.loc) result
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)

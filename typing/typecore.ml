@@ -7497,7 +7497,7 @@ and type_cases
 
 and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
       name jkind_annot_opt sbody =
-  let jkind =
+  let jkind, jkind_annot =
     Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
       ~default:(Jkind.value ~why:Univar) jkind_annot_opt
   in
@@ -7536,7 +7536,7 @@ and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
         exp_extra =
-        (Texp_newtype (name, Option.map Location.get_txt jkind_annot_opt),
+        (Texp_newtype (name, jkind_annot),
          loc, attributes) :: body.exp_extra }
 
 (* Typing of let bindings *)
