@@ -1352,7 +1352,8 @@ let report_error ~loc = function
         (* CR layouts errors: use the context to produce a better error message.
            When RAE tried this, some types got printed like [t/2], but the
            [/2] shouldn't be there. Investigate and fix. *)
-        "@[<v>Layout %s is more experimental than allowed by the enabled layouts extension.@;\
+        "@[<v>Layout %s is more experimental than allowed by the enabled \
+         layouts extension.@;\
          %t@]"
         (string_of_const jkind) hint)
 
