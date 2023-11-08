@@ -1339,15 +1339,11 @@ let report_error ~loc = function
         (Language_extension.to_command_line_string Layouts
            required_layouts_level)
     in
-    match Language_extension.get_command_line_string_if_enabled Layouts with
-    | None ->
+    match Language_extension.is_enabled Layouts with
+    | false ->
       Location.errorf ~loc
         "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
-    | Some _cmd_line_string ->
-      (* We don't print _cmd_line_string because it leads to different
-         error messages in layouts vs. layouts_beta, which complicates expect
-         tests.
-      *)
+    | true ->
       Location.errorf ~loc
         (* CR layouts errors: use the context to produce a better error message.
            When RAE tried this, some types got printed like [t/2], but the
