@@ -142,6 +142,7 @@ module Layout : sig
     | Function_result
     | Structure_item_expression
     | V1_safety_check
+    (* CR layouts: Remove V1_safety_check when it's no longer used *)
     | External_argument
     | External_result
     | Statement
