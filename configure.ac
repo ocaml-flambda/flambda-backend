@@ -69,6 +69,7 @@ flexdll_dir=
 lib_dynlink=false
 lib_str=false
 lib_systhreads=false
+lib_systhreads_path=""
 lib_unix=false
 ocamltest_libunix=None
 ocamltest_unix_impl="dummy"
@@ -170,6 +171,7 @@ AC_SUBST([lib_dynlink])
 AC_SUBST([lib_runtime_events])
 AC_SUBST([lib_str])
 AC_SUBST([lib_systhreads])
+AC_SUBST([lib_systhreads_path])
 AC_SUBST([lib_unix])
 AC_SUBST([ocamltest_CPP])
 AC_SUBST([ocamltest_libunix])
@@ -2116,6 +2118,12 @@ AS_CASE([$host],
 
 ## Activate the systhread library
 
+if [ "$enable_runtime5" = "yes" ]; then
+  runtime_suffix=
+else
+  runtime_suffix=4
+fi
+
 AS_CASE([$enable_systhreads,$enable_unix_lib],
   [yes,no],
     [systhread_support=false
@@ -2124,9 +2132,10 @@ AS_CASE([$enable_systhreads,$enable_unix_lib],
     [systhread_support=false
     AC_MSG_NOTICE([the threads library is disabled])],
   [systhread_support=true
-  AC_CONFIG_FILES([otherlibs/systhreads/META])
-  otherlibraries="$otherlibraries systhreads"
+  AC_CONFIG_FILES([otherlibs/systhreads${runtime_suffix}/META])
+  otherlibraries="$otherlibraries systhreads${runtime_suffix}"
   lib_systhreads=true
+  lib_systhreads_path="systhreads${runtime_suffix}"
   AC_MSG_NOTICE([the threads library is supported])])
 
 ## Does the assembler support debug prefix map and CFI directives
