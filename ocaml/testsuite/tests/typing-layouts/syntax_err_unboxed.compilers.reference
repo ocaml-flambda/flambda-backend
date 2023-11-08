@@ -1,5 +1,0 @@
-Line 14, characters 9-16:
-14 | type t : unboxed = { single_field : string };;
-              ^^^^^^^
-Error: Unknown layout unboxed
-
