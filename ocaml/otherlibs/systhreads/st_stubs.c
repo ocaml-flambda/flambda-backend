@@ -103,7 +103,7 @@ struct caml_thread_struct {
   char * bottom_of_stack;   /* Saved value of Caml_state->_bottom_of_stack */
   uintnat last_retaddr;     /* Saved value of Caml_state->_last_return_address */
   value * gc_regs;          /* Saved value of Caml_state->_gc_regs */
-  char * exception_pointer; /* Saved value of Caml_state->_exception_pointer */
+  char * exn_handler;       /* Saved value of Caml_state->_exn_handler */
   char * async_exception_pointer;
                        /* Saved value of Caml_state->_async_exception_pointer */
   struct caml__roots_block * local_roots; /* Saved value of local_roots */
@@ -262,7 +262,7 @@ CAMLexport void caml_thread_save_runtime_state(void)
   curr_thread->bottom_of_stack = Caml_state->_bottom_of_stack;
   curr_thread->last_retaddr = Caml_state->_last_return_address;
   curr_thread->gc_regs = Caml_state->_gc_regs;
-  curr_thread->exception_pointer = Caml_state->_exception_pointer;
+  curr_thread->exn_handler = Caml_state->_exn_handler;
   curr_thread->async_exception_pointer = Caml_state->_async_exception_pointer;
   curr_thread->local_arenas = caml_get_local_arenas();
 #else
@@ -292,7 +292,7 @@ CAMLexport void caml_thread_restore_runtime_state(void)
   Caml_state->_bottom_of_stack= curr_thread->bottom_of_stack;
   Caml_state->_last_return_address = curr_thread->last_retaddr;
   Caml_state->_gc_regs = curr_thread->gc_regs;
-  Caml_state->_exception_pointer = curr_thread->exception_pointer;
+  Caml_state->_exn_handler = curr_thread->exn_handler;
   Caml_state->_async_exception_pointer = curr_thread->async_exception_pointer;
   caml_set_local_arenas(curr_thread->local_arenas);
 #else
@@ -440,7 +440,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->bottom_of_stack = NULL;
   th->top_of_stack = NULL;
   th->last_retaddr = 1;
-  th->exception_pointer = NULL;
+  th->exn_handler = NULL;
   th->async_exception_pointer = NULL;
   th->local_roots = NULL;
   th->local_arenas = NULL;

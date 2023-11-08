@@ -32,7 +32,7 @@ $(patsubst %.cmo,%.cmx,$(patsubst %.cma,%.cmxa,$1))
 endef
 
 CAMLC = $(BOOT_OCAMLC) -g -nostdlib -I $(ROOTDIR)/boot \
-        -use-prims $(ROOTDIR)/runtime/primitives -I $(ROOTDIR)
+        -use-prims $(ROOTDIR)/$(RUNTIME_DIR)/primitives -I $(ROOTDIR)
 CAMLOPT = $(OCAMLRUN) $(ROOTDIR)/ocamlopt$(EXE) \
   -g -nostdlib -I $(ROOTDIR)/stdlib
 INCLUDES = $(addprefix -I $(ROOTDIR)/,utils parsing typing bytecomp \

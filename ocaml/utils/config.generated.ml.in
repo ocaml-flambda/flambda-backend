@@ -115,3 +115,5 @@ let systhread_supported = @systhread_support@
 let flexdll_dirs = [@flexdll_dir@]
 
 let ar_supports_response_files = @ar_supports_response_files@
+
+let runtime5 = "@enable_runtime5@" = "yes"

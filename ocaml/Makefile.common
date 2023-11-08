@@ -90,14 +90,14 @@ FLEXDLL_SUBMODULE_PRESENT := $(wildcard $(ROOTDIR)/flexdll/Makefile)
 IN_COREBOOT_CYCLE ?= false
 
 # Variables used to represent the OCaml runtime system
-# Most of the time, boot/ocamlrun and runtime4/ocamlrun are the same.
+# Most of the time, boot/ocamlrun and $(RUNTIME_DIR)/ocamlrun are the same.
 # However, under some circumstances it is important to be able to
 # distinguish one from the other, hence these two variables.
 # Boot/ocamlrun is the most frequently used in the build system, so
 # we use OCAMLRUN to designate it and keep NEW_OCAMLRUN to refer
-# to runtime4/ocamlrun, because it's less frequently used.
+# to $(RUNTIME_DIR)/ocamlrun, because it's less frequently used.
 OCAMLRUN ?= $(ROOTDIR)/boot/ocamlrun$(EXE)
-NEW_OCAMLRUN ?= $(ROOTDIR)/runtime4/ocamlrun$(EXE)
+NEW_OCAMLRUN ?= $(ROOTDIR)/$(RUNTIME_DIR)/ocamlrun$(EXE)
 
 # Standard library flags
 STDLIBFLAGS ?= -nostdlib -I $(ROOTDIR)/stdlib
@@ -159,8 +159,8 @@ ifeq "$(COMPUTE_DEPS)" "true"
 RUNTIME_HEADERS :=
 REQUIRED_HEADERS :=
 else
-RUNTIME_HEADERS := $(wildcard $(ROOTDIR)/runtime4/caml/*.tbl) \
-                   $(wildcard $(ROOTDIR)/runtime4/caml/*.h)
+RUNTIME_HEADERS := $(wildcard $(ROOTDIR)/$(RUNTIME_DIR)/caml/*.tbl) \
+                   $(wildcard $(ROOTDIR)/$(RUNTIME_DIR)/caml/*.h)
 REQUIRED_HEADERS := $(RUNTIME_HEADERS) $(wildcard *.h)
 endif
 
@@ -217,7 +217,7 @@ OCAMLYACCFLAGS ?= --strict -v
 %.ml %.mli: %.mly
 	$(V_OCAMLYACC)$(OCAMLYACC) $(OCAMLYACCFLAGS) $<
 
-SAK = $(ROOTDIR)/runtime4/sak$(EXE)
+SAK = $(ROOTDIR)/$(RUNTIME_DIR)/sak$(EXE)
 
 # stdlib/StdlibModules cannot be include'd unless $(SAK) has been built. These
 # two rules add that dependency. They have to be pattern rules since

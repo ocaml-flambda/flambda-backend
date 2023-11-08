@@ -37,6 +37,12 @@ DOMAIN_STATE(struct stack_info*, current_stack)
 DOMAIN_STATE(void*, exn_handler)
 /* Pointer into the current stack */
 
+/* Local allocations */
+DOMAIN_STATE(struct caml_local_arenas*, local_arenas)
+DOMAIN_STATE(intnat, local_sp)
+DOMAIN_STATE(void*, local_top)
+DOMAIN_STATE(intnat, local_limit)
+
 DOMAIN_STATE(int, action_pending)
 /* Whether we are due to start the processing of delayable pending
    actions. See runtime/signal.c. */
