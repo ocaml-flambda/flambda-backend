@@ -19287,7 +19287,7 @@ esac
 
 ## Activate the systhread library
 
-if  "$enable_runtime5" = "yes" ; then
+if [ "$enable_runtime5" = "yes" ]; then
   runtime_suffix=
 else
   runtime_suffix=4
