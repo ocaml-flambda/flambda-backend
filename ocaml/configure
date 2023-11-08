@@ -784,6 +784,7 @@ ocamltest_libunix
 ocamltest_CPP
 lib_unix
 lib_systhreads
+lib_systhreads_path
 lib_str
 lib_runtime_events
 lib_dynlink
@@ -3214,6 +3215,7 @@ flexdll_dir=
 lib_dynlink=false
 lib_str=false
 lib_systhreads=false
+lib_systhreads_path=""
 lib_unix=false
 ocamltest_libunix=None
 ocamltest_unix_impl="dummy"
@@ -19285,6 +19287,12 @@ esac
 
 ## Activate the systhread library
 
+if [ "$enable_runtime5" = "yes" ]; then
+  runtime_suffix=
+else
+  runtime_suffix=4
+fi
+
 case $enable_systhreads,$enable_unix_lib in #(
   yes,no) :
     systhread_support=false
@@ -19295,10 +19303,11 @@ case $enable_systhreads,$enable_unix_lib in #(
 printf "%s\n" "$as_me: the threads library is disabled" >&6;} ;; #(
   *) :
     systhread_support=true
-  ac_config_files="$ac_config_files otherlibs/systhreads/META"
+  ac_config_files="$ac_config_files otherlibs/systhreads${runtime_suffix}/META"
 
-  otherlibraries="$otherlibraries systhreads"
+  otherlibraries="$otherlibraries systhreads${runtime_suffix}"
   lib_systhreads=true
+  lib_systhreads_path="systhreads${runtime_suffix}"
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: the threads library is supported" >&5
 printf "%s\n" "$as_me: the threads library is supported" >&6;} ;;
 esac
@@ -21258,6 +21267,7 @@ do
     "otherlibs/unix/META") CONFIG_FILES="$CONFIG_FILES otherlibs/unix/META" ;;
     "otherlibs/str/META") CONFIG_FILES="$CONFIG_FILES otherlibs/str/META" ;;
     "otherlibs/systhreads/META") CONFIG_FILES="$CONFIG_FILES otherlibs/systhreads/META" ;;
+    "otherlibs/systhreads4/META") CONFIG_FILES="$CONFIG_FILES otherlibs/systhreads4/META" ;;
     "ocamldoc/META") CONFIG_FILES="$CONFIG_FILES ocamldoc/META" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
@@ -22394,5 +22404,3 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
-

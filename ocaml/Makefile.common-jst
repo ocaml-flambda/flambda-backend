@@ -110,7 +110,15 @@ dune_config_targets = \
   $(ocamldir)/duneconf/jst-extra.inc \
   dune-project \
   $(ocamldir)/stdlib/ocaml_compiler_internal_params \
-  $(ocamldir)/dune.runtime_selection
+  $(ocamldir)/dune.runtime_selection \
+  $(ocamldir)/otherlibs/dune
+
+$(ocamldir)/otherlibs/dune:
+	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
+          echo "(dirs (:standard \ systhreads))" > $@; \
+	else \
+          echo "(dirs (:standard \ systhreads4))" > $@; \
+	fi
 
 $(ocamldir)/dune.runtime_selection:
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
@@ -242,7 +250,7 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
-	 ln -s ../stdlib/threads otherlibs/systhreads; \
+	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
