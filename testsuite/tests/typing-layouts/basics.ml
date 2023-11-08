@@ -1,6 +1,8 @@
 (* TEST
    * expect
    flags = "-extension layouts"
+   * expect
+   flags = "-extension layouts_beta"
 *)
 
 
@@ -23,7 +25,8 @@ type t_void  : void;;
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 (************************************************************)
@@ -295,7 +298,7 @@ type ('a : void) void4 = Void4  of 'a;;
 Line 1, characters 11-15:
 1 | type ('a : void) void4 = Void4  of 'a;;
                ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
@@ -605,7 +608,7 @@ end;;
 Line 2, characters 13-17:
 2 |   type ('a : void) t = { x : int; v : 'a }
                  ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 
@@ -986,7 +989,8 @@ type 'a t_void_16 : void;;
 Line 1, characters 20-24:
 1 | type 'a t_void_16 : void;;
                         ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 (**************************************************************************)

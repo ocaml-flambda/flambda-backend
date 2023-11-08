@@ -89,21 +89,10 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Builtin_attributes.jkind_attribute
 
 open Typedtree
 
 exception Error of Location.t * error
-
-let jkind_of_attributes ~legacy_immediate ~context attrs =
-  match Jkind.of_attributes ~legacy_immediate ~context attrs with
-  | Ok l -> l
-  | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
-
-let jkind_of_attributes_default ~legacy_immediate ~context ~default attrs =
-  match Jkind.of_attributes_default ~legacy_immediate ~context ~default attrs with
-  | Ok l -> l
-  | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
 let get_unboxed_from_attributes sdecl =
   let unboxed = Builtin_attributes.has_unboxed sdecl.ptype_attributes in
@@ -209,13 +198,11 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      jkind of the variable put in manifests here is updated when constraints
      are checked and then unified with the real manifest and checked against the
      kind. *)
-  let type_jkind =
-    (* We set ~legacy_immediate to true because we're looking at a declaration
-       that was already allowed to be [@@immediate] *)
-    jkind_of_attributes_default
-      ~legacy_immediate:true ~context:(Type_declaration path)
+  let type_jkind, type_jkind_annotation, sdecl_attributes =
+    Jkind.of_type_decl_default
+      ~context:(Type_declaration path)
       ~default:(Jkind.any ~why:Initial_typedecl_env)
-      sdecl.ptype_attributes
+      sdecl
   in
   let abstract_reason, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
@@ -234,6 +221,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_arity = arity;
       type_kind = Type_abstract abstract_reason;
       type_jkind;
+      type_jkind_annotation;
       type_private = sdecl.ptype_private;
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -241,7 +229,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = sdecl.ptype_loc;
-      type_attributes = sdecl.ptype_attributes;
+      type_attributes = sdecl_attributes;
       type_unboxed_default = false;
       type_uid = uid;
     }
@@ -653,11 +641,11 @@ let transl_declaration env sdecl (id, uid) =
     | _ -> false, false (* Not unboxable, mark as boxed *)
   in
   verify_unboxed_attr unboxed_attr sdecl;
-  let jkind_annotation =
-    (* We set legacy_immediate to true because you were already allowed to write
-       [@@immediate] on declarations.  *)
-    jkind_of_attributes ~legacy_immediate:true ~context:(Type_declaration path)
-      sdecl.ptype_attributes
+  let jkind_from_annotation, jkind_annotation, sdecl_attributes =
+    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
+    | Some (jkind, jkind_annotation, sdecl_attributes) ->
+        Some jkind, Some jkind_annotation, sdecl_attributes
+    | None -> None, None, sdecl.ptype_attributes
   in
   let (tman, man) = match sdecl.ptype_manifest with
       None -> None, None
@@ -776,7 +764,7 @@ let transl_declaration env sdecl (id, uid) =
          default calculated above here. It will get updated in
          [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
     *)
-      match jkind_annotation, man with
+      match jkind_from_annotation, man with
       | Some annot, _ -> annot
       | None, Some _ -> Jkind.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
@@ -787,6 +775,7 @@ let transl_declaration env sdecl (id, uid) =
         type_arity = arity;
         type_kind = kind;
         type_jkind = jkind;
+        type_jkind_annotation = jkind_annotation;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -794,7 +783,7 @@ let transl_declaration env sdecl (id, uid) =
         type_is_newtype = false;
         type_expansion_scope = Btype.lowest_level;
         type_loc = sdecl.ptype_loc;
-        type_attributes = sdecl.ptype_attributes;
+        type_attributes = sdecl_attributes;
         type_unboxed_default = unboxed_default;
         type_uid = uid;
       } in
@@ -825,7 +814,8 @@ let transl_declaration env sdecl (id, uid) =
       typ_manifest = tman;
       typ_kind = tkind;
       typ_private = sdecl.ptype_private;
-      typ_attributes = sdecl.ptype_attributes;
+      typ_attributes = sdecl_attributes;
+      typ_jkind_annotation = Option.map snd jkind_annotation;
     }
   end
 
@@ -2416,23 +2406,27 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_kind, type_unboxed_default, type_jkind =
+  let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
     (* Here, `man = None` indicates we have a "fake" with constraint built by
        [Typetexp.create_package_mty] for a package type. *)
     if arity_ok && man <> None then
-      sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_jkind
+      sig_decl.type_kind,
+      sig_decl.type_unboxed_default,
+      sig_decl.type_jkind,
+      sig_decl.type_jkind_annotation
     else
       (* CR layouts: this is a gross hack.  See the comments in the
          [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
       let jkind = Jkind.value ~why:Package_hack in
         (* Jkind.(of_attributes ~default:value sdecl.ptype_attributes) *)
-      Type_abstract Abstract_def, false, jkind
+      Type_abstract Abstract_def, false, jkind, None
   in
   let new_sig_decl =
     { type_params = params;
       type_arity = arity;
       type_kind;
       type_jkind;
+      type_jkind_annotation;
       type_private = priv;
       type_manifest = man;
       type_variance = [];
@@ -2471,6 +2465,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
       type_jkind = new_sig_decl.type_jkind;
+      type_jkind_annotation = new_sig_decl.type_jkind_annotation;
       type_private = new_sig_decl.type_private;
       type_manifest = new_sig_decl.type_manifest;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -2494,13 +2489,14 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
+    typ_jkind_annotation = Option.map snd type_jkind_annotation;
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
 
 (* Approximate a type declaration: just make all types abstract *)
 
-let abstract_type_decl ~injective jkind params =
+let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
@@ -2508,6 +2504,7 @@ let abstract_type_decl ~injective jkind params =
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;
       type_jkind = jkind;
+      type_jkind_annotation = jkind_annotation;
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
@@ -2528,19 +2525,17 @@ let approx_type_decl sdecl_list =
        let id = Ident.create_scoped ~scope sdecl.ptype_name.txt in
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
-       let jkind =
-         (* We set legacy_immediate to true because you were already allowed
-            to write [@@immediate] on declarations. *)
-         jkind_of_attributes_default ~legacy_immediate:true
+       let jkind, jkind_annotation, _sdecl_attributes =
+         Jkind.of_type_decl_default
            ~context:(Type_declaration path)
            ~default:(Jkind.value ~why:Default_type_jkind)
-           sdecl.ptype_attributes
+           sdecl
        in
        let params =
          List.map (fun (param, _) -> get_type_param_jkind path param)
            sdecl.ptype_params
        in
-       (id, abstract_type_decl ~injective jkind params))
+       (id, abstract_type_decl ~injective ~jkind ~jkind_annotation ~params))
     sdecl_list
 
 (* Check the well-formedness conditions on type abbreviations defined
@@ -2962,11 +2957,6 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Layout_not_enabled c ->
-      fprintf ppf
-        "@[Layout %s is used here, but the appropriate layouts extension is \
-         not enabled@]"
-        (Builtin_attributes.jkind_attribute_to_string c)
 
 let () =
   Location.register_error_of_exn

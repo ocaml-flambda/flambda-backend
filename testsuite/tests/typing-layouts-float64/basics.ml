@@ -14,7 +14,7 @@
    convenient example of a concrete [float64] type in some tests, but its
    behavior isn't the primary purpose of this test. *)
 
-type t_float64 [@@float64]
+type t_float64 : float64
 type ('a : float64) t_float64_id = 'a
 
 (*********************************)

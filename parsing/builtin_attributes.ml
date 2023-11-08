@@ -76,12 +76,8 @@ let builtin_attrs =
   ; "ppwarning"; "ocaml.ppwarning"
   ; "explicit_arity"; "ocaml.explicit_arity"
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
-  ; "float64"; "ocaml.float64"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
-  ; "void"; "ocaml.void"
-  ; "value"; "ocaml.value"
-  ; "any"; "ocaml.any"
   ; "boxed"; "ocaml.boxed"
   ; "unboxed"; "ocaml.unboxed"
   ; "principal"; "ocaml.principal"
@@ -459,31 +455,19 @@ let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
 type jkind_attribute =
-  | Any
-  | Value
-  | Void
   | Immediate64
   | Immediate
-  | Float64
 
 let jkind_attribute_of_string = function
-  | "ocaml.any" | "any" -> Some Any
-  | "ocaml.value" | "value" -> Some Value
-  | "ocaml.void" | "void" -> Some Void
   | "ocaml.immediate64" | "immediate64" -> Some Immediate64
   | "ocaml.immediate" | "immediate" -> Some Immediate
-  | "ocaml.float64" | "float64" -> Some Float64
   | _ -> None
 
 let jkind_attribute_to_string = function
-  | Any -> "any"
-  | Value -> "value"
-  | Void -> "void"
   | Immediate64 -> "immediate64"
   | Immediate -> "immediate"
-  | Float64 -> "float64"
 
-let jkind ~legacy_immediate attrs =
+let jkind attrs =
   let jkind =
     List.find_map
       (fun a ->
@@ -493,24 +477,10 @@ let jkind ~legacy_immediate attrs =
       ) attrs
   in
   match jkind with
-  | None -> Ok None
+  | None -> None
   | Some (a, l) ->
      mark_used a.attr_name;
-     let l_loc = Location.mkloc l a.attr_loc in
-     let check b =
-       if b
-       then Ok (Some l_loc)
-       else Error l_loc
-     in
-     match l with
-     | Value -> check true
-     | Immediate | Immediate64 ->
-        check  (legacy_immediate
-             || Language_extension.(is_at_least Layouts Stable))
-     | Any | Float64 ->
-        check Language_extension.(is_at_least Layouts Stable)
-     | Void ->
-        check Language_extension.(is_at_least Layouts Alpha)
+     Some (Location.mkloc l a.attr_loc)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the
