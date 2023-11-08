@@ -1333,6 +1333,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind =
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = jkind;
+    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = manifest;
     type_variance = [];
@@ -6195,6 +6196,7 @@ let nondep_type_decl env mid is_covariant decl =
       type_arity = decl.type_arity;
       type_kind = tk;
       type_jkind = decl.type_jkind;
+      type_jkind_annotation = decl.type_jkind_annotation;
       type_manifest = tm;
       type_private = priv;
       type_variance = decl.type_variance;
