@@ -1,6 +1,8 @@
 (* TEST
    * expect
    flags = "-extension layouts"
+   * expect
+   flags = "-extension layouts_beta"
 *)
 
 type t_value : value
