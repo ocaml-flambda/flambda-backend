@@ -641,8 +641,8 @@ module Layout = struct
     open Format
 
     let format_with_notify_js ppf str =
-      fprintf ppf "@[%s@ \
-        Please notify the Jane Street compilers group if you see this output.@]" str
+      fprintf ppf "@[%s.@ \
+        Please notify the Jane Street compilers group if you see this output@]" str
 
     let format_position ~arity position =
       let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
@@ -719,7 +719,7 @@ module Layout = struct
           "a dummy layout of any is used to check mutually recursive datatypes"
       | Dummy_layout ->
         format_with_notify_js ppf
-          "it's assigned a dummy layout that should have been overwritten;"
+          "it's assigned a dummy layout that should have been overwritten"
       (* CR layouts: Improve output or remove this constructor ^^ *)
       | Type_expression_call ->
          format_with_notify_js ppf "there's a call to [type_expression] via the ocaml API"
@@ -792,7 +792,7 @@ module Layout = struct
          fprintf ppf "it's stored in a module structure"
       | Debug_printer_argument ->
         format_with_notify_js ppf
-          "it's used as the argument to a debugger printer function."
+          "it's used as the argument to a debugger printer function"
       | V1_safety_check ->
           fprintf ppf "it has to be value for the V1 safety check"
       | Captured_in_object -> fprintf ppf "it's captured in an object"
