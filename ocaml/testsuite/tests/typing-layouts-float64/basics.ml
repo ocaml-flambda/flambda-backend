@@ -14,20 +14,7 @@
    convenient example of a concrete [float64] type in some tests, but its
    behavior isn't the primary purpose of this test. *)
 
-<<<<<<< HEAD
-(* CR layouts: Bring tests here from [basics_alpha.ml] once we have float64 by
-   default *)
-
 type t_float64 : float64
-type ('a : float64) t_float64_id = 'a;;
-[%%expect{|
-Line 1, characters 17-24:
-1 | type t_float64 : float64
-                     ^^^^^^^
-Error: Layout float64 is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_beta to use this feature.
-=======
-type t_float64 [@@float64]
 type ('a : float64) t_float64_id = 'a
 
 (*********************************)
@@ -185,7 +172,6 @@ Line 1, characters 32-34:
                                     ^^
 Error: This type ('b : value) should be an instance of type ('a : float64)
        'a has layout float64, which does not overlap with value.
->>>>>>> main
 |}]
 
 (******************************************************************************)

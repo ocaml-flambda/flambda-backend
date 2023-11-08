@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension layouts"
    * expect
 *)
 
@@ -6,8 +7,9 @@
    here when the stuff from v5 no longer needs extension flags. *)
 type t_void : void;;
 [%%expect {|
-Line 1, characters 0-18:
+Line 1, characters 14-18:
 1 | type t_void : void;;
-    ^^^^^^^^^^^^^^^^^^
-Error: The extension "layouts" is disabled and cannot be used
+                  ^^^^
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}]
