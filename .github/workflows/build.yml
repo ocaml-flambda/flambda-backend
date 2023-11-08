@@ -21,11 +21,6 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: closure_cfg
-            config: --enable-middle-end=closure --enable-poll-insertion
-            os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=1
-
           - name: flambda1
             config: --enable-middle-end=flambda
             os: ubuntu-latest
@@ -35,11 +30,6 @@ jobs:
             config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             build_ocamlparam: ''
-
-          - name: flambda1_cfg
-            config: --enable-middle-end=flambda --enable-poll-insertion
-            os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=1
 
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
@@ -73,10 +63,10 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
-          - name: flambda2_cfg
+          - name: flambda2_no_cfg
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=1
+            build_ocamlparam: _,ocamlcfg=0
 
           - name: flambda2_macos
             config: --enable-middle-end=flambda2
