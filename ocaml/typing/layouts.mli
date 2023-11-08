@@ -198,10 +198,13 @@ module Layout : sig
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
     | Gc_ignorable_check
+    (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
   type immediate64_creation_reason =
     | Local_mode_cross_check
+    (* CR layouts v2.8: Remove Local_mode_cross_check after the check uses modal kinds *)
     | Gc_ignorable_check
+    (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
     | Separability_check
 
   type void_creation_reason = |
