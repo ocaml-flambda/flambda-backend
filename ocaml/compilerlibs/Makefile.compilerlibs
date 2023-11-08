@@ -432,7 +432,7 @@ beforedepend:: utils/config_main.mli utils/config_boot.mli
 $(addprefix compilerlibs/,\
   ocamlcommon.cma ocamlbytecomp.cma ocamloptcomp.cma ocamlmiddleend.cma \
   ocamltoplevel.cma): \
-  CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims $(runtime_dir)/primitives
+  CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims $(RUNTIME_DIR)/primitives
 
 compilerlibs/ocamlcommon.cma: $(COMMON_CMI) $(ALL_CONFIG_CMO) $(COMMON)
 	$(V_LINKC)$(CAMLC) -a -linkall -o $@ $(COMMON)

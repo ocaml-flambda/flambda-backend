@@ -29,7 +29,7 @@ defaultentry: $(DEFAULT_BUILD_TARGET)
 
 include stdlib/StdlibModules
 
-CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims runtime$(RUNTIME_SUFFIX)/primitives
+CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims $(RUNTIME_DIR)/primitives
 CAMLOPT=$(OCAMLRUN) ./ocamlopt$(EXE) $(STDLIBFLAGS) -I otherlibs/dynlink
 ARCHES=amd64 arm64 power s390x riscv
 VPATH = utils parsing typing bytecomp file_formats lambda middle_end \
@@ -793,18 +793,18 @@ endif
 
 ## List of object files for each target
 
-libcamlrun_OBJECTS = $(runtime$(RUNTIME_SUFFIX)_BYTECODE_C_SOURCES:.c=.b.$(O))
+libcamlrun_OBJECTS = $(runtime_BYTECODE_C_SOURCES:.c=.b.$(O))
 
 libcamlrun_non_shared_OBJECTS = \
   $(subst $(UNIX_OR_WIN32).b.$(O),$(UNIX_OR_WIN32)_non_shared.b.$(O), \
           $(libcamlrun_OBJECTS))
 
-libcamlrund_OBJECTS = $(runtime$(RUNTIME_SUFFIX)_BYTECODE_C_SOURCES:.c=.bd.$(O)) \
+libcamlrund_OBJECTS = $(runtime_BYTECODE_C_SOURCES:.c=.bd.$(O)) \
   $(RUNTIME_DIR)/instrtrace.bd.$(O)
 
-libcamlruni_OBJECTS = $(runtime$(RUNTIME_SUFFIX)_BYTECODE_C_SOURCES:.c=.bi.$(O))
+libcamlruni_OBJECTS = $(runtime_BYTECODE_C_SOURCES:.c=.bi.$(O))
 
-libcamlrunpic_OBJECTS = $(runtime$(RUNTIME_SUFFIX)_BYTECODE_C_SOURCES:.c=.bpic.$(O))
+libcamlrunpic_OBJECTS = $(runtime_BYTECODE_C_SOURCES:.c=.bpic.$(O))
 
 libasmrun_OBJECTS = \
   $(runtime$(RUNTIME_SUFFIX)_NATIVE_C_SOURCES:.c=.n.$(O)) $(runtime_ASM_OBJECTS)
@@ -873,11 +873,13 @@ $(RUNTIME_DIR)/ld.conf: $(ROOTDIR)/Makefile.config
 # containing primitives change but the primitives table does not
 ifeq "$(RUNTIME_SUFFIX)" "4"
   GEN_PRIMS_DIR=$(RUNTIME_DIR)
+  GEN_PRIMS_REL=.
 else
   GEN_PRIMS_DIR=
+  GEN_PRIMS_REL=$(RUNTIME_DIR)
 endif
 $(RUNTIME_DIR)/primitives: \
-  $(shell (cd $(ROOTDIR)/$(GEN_PRIMS_DIR) && $(RUNTIME_DIR)/gen_primitives.sh) > $(ROOTDIR)/$(RUNTIME_DIR)/primitives.new; \
+  $(shell (cd $(ROOTDIR)/$(GEN_PRIMS_DIR) && $(GEN_PRIMS_REL)/gen_primitives.sh) > $(ROOTDIR)/$(RUNTIME_DIR)/primitives.new; \
                     cmp -s $(RUNTIME_DIR)/primitives $(RUNTIME_DIR)/primitives.new || \
                     echo $(RUNTIME_DIR)/primitives.new)
 	$(V_GEN)cp $^ $@
