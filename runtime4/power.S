@@ -177,7 +177,7 @@ FUNCTION(caml_call_gc)
     /* Save current allocation pointer for debugging purposes */
         stg     ALLOC_PTR, Caml_state(young_ptr)
     /* Save exception pointer (if e.g. a sighandler raises) */
-        stg     TRAP_PTR, Caml_state(exception_pointer)
+        stg     TRAP_PTR, Caml_state(exn_handler)
     /* Save all registers used by the code generator */
         addi    11, 1, 8*32 + PARAM_SAVE_AREA + RESERVED_STACK - WORD
         stgu    3, WORD(11)
@@ -324,7 +324,7 @@ FUNCTION(caml_c_call)
         stg     C_CALL_RET_ADDR, Caml_state(last_return_address)
     /* Make the exception handler and alloc ptr available to the C code */
         stg     ALLOC_PTR, Caml_state(young_ptr)
-        stg     TRAP_PTR, Caml_state(exception_pointer)
+        stg     TRAP_PTR, Caml_state(exn_handler)
     /* Call C function (address in C_CALL_FUN) */
 #if defined(MODEL_ppc)
         mtctr   C_CALL_FUN
@@ -396,7 +396,7 @@ FUNCTION(caml_raise_exception)
         bne     .L121
 .L120:
     /* Reload OCaml global registers */
-        lg      1, Caml_state(exception_pointer)
+        lg      1, Caml_state(exn_handler)
         lg      ALLOC_PTR, Caml_state(young_ptr)
     /* Pop trap frame */
         lg      0, TRAP_HANDLER_OFFSET(1)
@@ -410,7 +410,7 @@ FUNCTION(caml_raise_exception)
                                 /* arg1: exception bucket, already in r3 */
         lg      4, Caml_state(last_return_address) /* arg2: PC of raise */
         lg      5, Caml_state(bottom_of_stack)     /* arg3: SP of raise */
-        lg      6, Caml_state(exception_pointer)   /* arg4: SP of handler */
+        lg      6, Caml_state(exn_handler)   /* arg4: SP of handler */
         addi    1, 1, -(PARAM_SAVE_AREA + RESERVED_STACK)
                                          /* reserve stack space for C call */
         bl      caml_stash_backtrace
@@ -498,7 +498,7 @@ FUNCTION(caml_start_program)
         .cfi_adjust_cfa_offset TRAP_SIZE
         mflr    0
         stg     0, TRAP_HANDLER_OFFSET(1)
-        lg      11, Caml_state(exception_pointer)
+        lg      11, Caml_state(exn_handler)
         stg     11, TRAP_PREVIOUS_OFFSET(1)
         mr      TRAP_PTR, 1
     /* Reload allocation pointer */
@@ -522,9 +522,9 @@ FUNCTION(caml_start_program)
 #else
 #error "wrong MODEL"
 #endif
-    /* Pop the trap frame, restoring caml_exception_pointer */
+    /* Pop the trap frame, restoring caml_exn_handler */
         lg      0, TRAP_PREVIOUS_OFFSET(1)
-        stg     0, Caml_state(exception_pointer)
+        stg     0, Caml_state(exn_handler)
         addi    1, 1, TRAP_SIZE
         .cfi_adjust_cfa_offset -TRAP_SIZE
     /* Pop the callback link, restoring the global variables */
@@ -588,8 +588,8 @@ FUNCTION(caml_start_program)
 #ifdef TOC_SAVE_PARENT
         ld      2, (STACKSIZE + TOC_SAVE_PARENT)(1)
 #endif
-    /* Update caml_exception_pointer */
-        stg     TRAP_PTR, Caml_state(exception_pointer)
+    /* Update caml_exn_handler */
+        stg     TRAP_PTR, Caml_state(exn_handler)
     /* Encode exception bucket as an exception result and return it */
         ori     3, 3, 2
         b       .L106

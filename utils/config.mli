@@ -276,6 +276,10 @@ val poll_insertion : bool
 val ar_supports_response_files: bool
 (** Whether ar supports @FILE arguments. *)
 
+val runtime5 : bool
+(** [true] if using the OCaml 5.x runtime, [false] if using the
+    OCaml 4.14 runtime. *)
+
 (** Access to configuration values *)
 val print_config : out_channel -> unit
 

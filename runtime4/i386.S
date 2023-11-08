@@ -285,15 +285,15 @@ LBL(106):
     /* Build an exception handler */
         pushl   $ LBL(108); CFI_ADJUST(4)
         ALIGN_STACK(8)
-        pushl   CAML_STATE(exception_pointer, %edi); CFI_ADJUST(4)
-        movl    %esp, CAML_STATE(exception_pointer, %edi)
+        pushl   CAML_STATE(exn_handler, %edi); CFI_ADJUST(4)
+        movl    %esp, CAML_STATE(exn_handler, %edi)
         movl    %esp, CAML_STATE(async_exception_pointer, %edi)
     /* Call the OCaml code */
         call    *%esi
 LBL(107):
         movl    G(Caml_state), %edi
     /* Pop the exception handler */
-        popl    CAML_STATE(exception_pointer, %edi); CFI_ADJUST(-4)
+        popl    CAML_STATE(exn_handler, %edi); CFI_ADJUST(-4)
         addl    $12, %esp       ; CFI_ADJUST(-12)
 LBL(109):
         movl    G(Caml_state), %edi /* Reload for LBL(109) entry */
@@ -325,13 +325,13 @@ FUNCTION(caml_raise_exn)
         movl    G(Caml_state), %ebx
         testl   $1, CAML_STATE(backtrace_active, %ebx)
         jne     LBL(110)
-        movl    CAML_STATE(exception_pointer, %ebx), %esp
-        popl    CAML_STATE(exception_pointer, %ebx); CFI_ADJUST(-4)
+        movl    CAML_STATE(exn_handler, %ebx), %esp
+        popl    CAML_STATE(exn_handler, %ebx); CFI_ADJUST(-4)
         UNDO_ALIGN_STACK(8)
         ret
 LBL(110):
         movl    %eax, %esi          /* Save exception bucket in esi */
-        movl    CAML_STATE(exception_pointer, %ebx), %edi /* SP of handler */
+        movl    CAML_STATE(exn_handler, %ebx), %edi /* SP of handler */
         movl    0(%esp), %eax       /* PC of raise */
         leal    4(%esp), %edx       /* SP of raise */
         ALIGN_STACK(12)
@@ -342,7 +342,7 @@ LBL(110):
         call    G(caml_stash_backtrace)
         movl    %esi, %eax              /* Recover exception bucket */
         movl    %edi, %esp
-        popl    CAML_STATE(exception_pointer, %ebx); CFI_ADJUST(-4)
+        popl    CAML_STATE(exn_handler, %ebx); CFI_ADJUST(-4)
         UNDO_ALIGN_STACK(8)
         ret
         CFI_ENDPROC
@@ -356,15 +356,15 @@ FUNCTION(caml_raise_exception)
         testl   $1, CAML_STATE(backtrace_active, %ebx)
         jne     LBL(112)
         movl    8(%esp), %eax
-        movl    CAML_STATE(exception_pointer, %ebx), %esp
-        popl    CAML_STATE(exception_pointer, %ebx); CFI_ADJUST(-4)
+        movl    CAML_STATE(exn_handler, %ebx), %esp
+        popl    CAML_STATE(exn_handler, %ebx); CFI_ADJUST(-4)
         UNDO_ALIGN_STACK(8)
         ret
 LBL(112):
         movl    8(%esp), %esi          /* Save exception bucket in esi */
         ALIGN_STACK(12)
         /* 4: sp of handler */
-        pushl   CAML_STATE(exception_pointer, %ebx); CFI_ADJUST(4)
+        pushl   CAML_STATE(exn_handler, %ebx); CFI_ADJUST(4)
         /* 3: sp of raise */
         pushl   CAML_STATE(bottom_of_stack, %ebx); CFI_ADJUST(4)
         /* 2: pc of raise */
@@ -373,8 +373,8 @@ LBL(112):
         pushl   %esi; CFI_ADJUST(4)
         call    G(caml_stash_backtrace)
         movl    %esi, %eax              /* Recover exception bucket */
-        movl    CAML_STATE(exception_pointer, %ebx), %esp
-        popl    CAML_STATE(exception_pointer, %ebx); CFI_ADJUST(-4)
+        movl    CAML_STATE(exn_handler, %ebx), %esp
+        popl    CAML_STATE(exn_handler, %ebx); CFI_ADJUST(-4)
         UNDO_ALIGN_STACK(8)
         ret
         CFI_ENDPROC
