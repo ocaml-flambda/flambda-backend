@@ -13,12 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let auto_include find_in_dir fn =
-  if !Clflags.no_std_include then
+(* Unlike upstream, we do not add the directory or alert.
+   Instead, the build system requires all direct
+   dependencies to be specified explicitly. *)
+let auto_include _find_in_dir _fn =
     raise Not_found
-  else
-    let alert = Location.auto_include_alert in
-    Load_path.auto_include_otherlibs alert find_in_dir fn
 
 (* Initialize the search path.
    [dir] (default: the current directory)
