@@ -74,7 +74,11 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
   how = sigprocmask_cmd[Int_val(vaction)];
   decode_sigset(vset, &set);
   caml_enter_blocking_section();
+#ifdef OCAML_RUNTIME_5
+  retcode = pthread_sigmask(how, &set, &oldset);
+#else
   retcode = caml_sigmask_hook(how, &set, &oldset);
+#endif
   caml_leave_blocking_section();
   /* Run any handlers for just-unmasked pending signals */
   caml_process_pending_actions();
