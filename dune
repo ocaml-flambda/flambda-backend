@@ -196,7 +196,6 @@
   interval
   linear
   internal_assembler
-  linearize
   linscan
   liveness
   mach
@@ -254,10 +253,8 @@
   merge_straightline_blocks
   extra_debug
   label
-  linear_to_cfg
   linear_utils
   simplify_terminator
-  trap_stack
   cfg_equivalence
   ;; backend/regalloc
   regalloc_invariants
