@@ -1343,14 +1343,18 @@ let report_error ~loc = function
     | None ->
       Location.errorf ~loc
         "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
-    | Some cmd_line_string ->
+    | Some _cmd_line_string ->
+      (* We don't print _cmd_line_string because it leads to different
+         error messages in layouts vs. layouts_beta, which complicates expect
+         tests.
+      *)
       Location.errorf ~loc
         (* CR layouts errors: use the context to produce a better error message.
            When RAE tried this, some types got printed like [t/2], but the
            [/2] shouldn't be there. Investigate and fix. *)
-        "@[<v>Layout %s is more experimental than allowed by -extension %s.@;\
+        "@[<v>Layout %s is more experimental than allowed by the enabled layouts extension.@;\
          %t@]"
-        (string_of_const jkind) cmd_line_string hint)
+        (string_of_const jkind) hint)
 
 let () =
   Location.register_error_of_exn (function

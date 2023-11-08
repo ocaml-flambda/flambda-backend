@@ -11,4 +11,4 @@
    (incorrectly) interpreted as [type t = kind [@@unboxed]].
  *)
 
-type t : unboxed = { single_field : string }
+type t : unboxed = { single_field : string };;

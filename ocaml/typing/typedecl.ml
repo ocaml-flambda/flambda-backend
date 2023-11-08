@@ -89,7 +89,6 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Builtin_attributes.jkind_attribute
 
 open Typedtree
 
@@ -2958,11 +2957,6 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Layout_not_enabled c ->
-      fprintf ppf
-        "@[Layout %s is used here, but the appropriate layouts extension is \
-         not enabled@]"
-        (Builtin_attributes.jkind_attribute_to_string c)
 
 let () =
   Location.register_error_of_exn

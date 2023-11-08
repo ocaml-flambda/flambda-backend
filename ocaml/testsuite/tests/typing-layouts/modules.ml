@@ -21,7 +21,8 @@ type t_void  : void;;
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 (*********************************************************)
@@ -37,7 +38,7 @@ end;;
 Line 2, characters 13-17:
 2 |   type ('a : void) t
                  ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
@@ -215,7 +216,8 @@ end;;
 Line 8, characters 11-15:
 8 |   type t : void
                ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 module rec Foo3f : sig
@@ -446,7 +448,8 @@ end
 Line 2, characters 11-15:
 2 |   type t : void
                ^^^^
-Error: Layout void is used here, but the appropriate layouts extension is not enabled
+Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}]
 
 module type S6_1f = sig
