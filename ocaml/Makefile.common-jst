@@ -69,7 +69,7 @@ boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib: boot-compiler
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build --verbose $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
 #	dune does not believe the compiler can make .cmxs unless the following file exists
 	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
