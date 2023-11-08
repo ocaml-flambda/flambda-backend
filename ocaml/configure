@@ -19995,6 +19995,11 @@ Please pass '--enable-stack-allocation=no'." "$LINENO" 5
 fi
 fi
 
+if test x"$enable_runtime5" = "xyes"
+then :
+  stack_allocation=false
+fi
+
 if test x"$enable_poll_insertion" = "xyes"
 then :
   printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h

@@ -2360,6 +2360,10 @@ AS_IF([test x"$enable_stack_allocation" = "xno"],
     [AC_MSG_ERROR([Stack allocation is only supported on 64-bit platforms. \
 Please pass '--enable-stack-allocation=no'.])])])
 
+# CR ocaml 5 runtime: forward port locals
+AS_IF([test x"$enable_runtime5" = "xyes"],
+  [stack_allocation=false])
+
 AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
    poll_insertion=true],
