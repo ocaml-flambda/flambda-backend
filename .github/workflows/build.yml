@@ -114,6 +114,7 @@ jobs:
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
       build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
+      expected_fail: "${{matrix.expected_fail == 'true'}}"
 
     steps:
     - name: Checkout the Flambda backend repo
