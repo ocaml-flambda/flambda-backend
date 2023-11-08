@@ -82,11 +82,6 @@ CAMLextern void caml_free_signal_stack(void *);
 /* These hooks are not modified after other threads are spawned. */
 CAMLextern void (*caml_enter_blocking_section_hook)(void);
 CAMLextern void (*caml_leave_blocking_section_hook)(void);
-
-#ifdef POSIX_SIGNALS
-CAMLextern int (*caml_sigmask_hook)(int, const sigset_t *, sigset_t *);
-#endif
-
 #endif /* CAML_INTERNALS */
 
 #ifdef __cplusplus
