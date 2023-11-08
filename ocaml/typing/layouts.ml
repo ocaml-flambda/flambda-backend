@@ -237,7 +237,7 @@ module Layout = struct
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter
+    | Unannotated_type_parameter of string option
     | Record_projection
     | Record_assignment
     | Let_binding
@@ -655,8 +655,9 @@ module Layout = struct
       | Label_declaration lbl ->
         fprintf ppf "it's used in the declaration of the record field \"%a\""
           Ident.print lbl
-      | Unannotated_type_parameter ->
-        fprintf ppf "it instantiates an unannotated type parameter"
+      | Unannotated_type_parameter name_opt ->
+        let suffix = match name_opt with None -> "" | Some n -> " of " ^ n in
+        fprintf ppf "it instantiates an unannotated type parameter%s" suffix
       | Record_projection ->
         fprintf ppf "it's used as the record in a projection"
       | Record_assignment ->
@@ -1073,8 +1074,9 @@ module Layout = struct
           fprintf ppf "Constructor_declaration %d" idx
       | Label_declaration lbl ->
           fprintf ppf "Label_declaration %a" Ident.print lbl
-      | Unannotated_type_parameter ->
-          fprintf ppf "Unannotated_type_parameter"
+      | Unannotated_type_parameter name_opt ->
+          fprintf ppf "Unannotated_type_parameter %a"
+            (Misc.Stdlib.Option.print Misc.Stdlib.String.print) name_opt
       | Record_projection ->
           fprintf ppf "Record_projection"
       | Record_assignment ->
