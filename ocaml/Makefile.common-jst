@@ -250,7 +250,7 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
-	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
+	 ln -s ../stdlib/threads otherlibs/systhreads; \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
