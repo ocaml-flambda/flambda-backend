@@ -233,8 +233,6 @@ let result_layout (p : primitive) =
   | Pmakeufloatblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
   | Pfield _ | Pfield_computed -> Lambda.layout_field
-  | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
-  | Pmake_unboxed_product layouts -> Lambda.layout_unboxed_product layouts
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> Lambda.layout_boxed_float
