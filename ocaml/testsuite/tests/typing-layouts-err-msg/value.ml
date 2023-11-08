@@ -225,7 +225,7 @@ Error: This expression has type 'b * 'c
 |}];;
 
 (* Row_variable *)
-(* CR layouts v2.9: add test *)
+(* Unable to produce this error *)
 
 (* Polymorphic_variant *)
 type ('a: void) t = 'a
@@ -260,10 +260,10 @@ Error: This expression has type int -> int
 |}]
 
 (* Tfield *)
-(* CR layouts v2.9: add test *)
+(* Unable to produce this error *)
 
 (* Tnil *)
-(* CR layouts v2.9: add test *)
+(* Unable to produce this error *)
 
 (* First_class_module *)
 type ('a: void) t = 'a
@@ -430,4 +430,4 @@ Error: m1 must have a type of layout value because it is captured by an object.
 |}];;
 
 (* Unknown *)
-(* CR layouts v2.9: add test *)
+(* Unable to produce this error *)

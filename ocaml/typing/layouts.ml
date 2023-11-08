@@ -640,6 +640,10 @@ module Layout = struct
 
     open Format
 
+    let format_with_notify_js ppf str =
+      fprintf ppf "@[%s@ \
+        Please notify the Jane Street compilers group if you see this output.@]" str
+
     let format_position ~arity position =
       let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
       match arity with
@@ -705,19 +709,20 @@ module Layout = struct
 
     let format_any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p ->
-         fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
+        fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
       | Wildcard ->
-        fprintf ppf "there's a _ in the type"
+        format_with_notify_js ppf "there's a _ in the type"
       | Unification_var ->
-         fprintf ppf "it's a fresh unification variable"
+        format_with_notify_js ppf "it's a fresh unification variable"
       | Initial_typedecl_env ->
-         fprintf ppf "a dummy layout of any is used to check mutually recursive datatypes"
+        format_with_notify_js ppf
+          "a dummy layout of any is used to check mutually recursive datatypes"
       | Dummy_layout ->
-         fprintf ppf "@[it's assigned a dummy layout that should have been overwritten;@ \
-                      Please notify the Jane Street compilers group if you see this output.@]"
+        format_with_notify_js ppf
+          "it's assigned a dummy layout that should have been overwritten;"
       (* CR layouts: Improve output or remove this constructor ^^ *)
       | Type_expression_call ->
-         fprintf ppf "there's a call to [type_expression] via the ocaml API"
+         format_with_notify_js ppf "there's a call to [type_expression] via the ocaml API"
 
     let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
       function
@@ -743,7 +748,7 @@ module Layout = struct
     let format_value_creation_reason ppf : value_creation_reason -> _ = function
       | Class_let_binding -> fprintf ppf "it's let-bound in a class expression"
       | Tuple_element -> fprintf ppf "it's a tuple element"
-      | Probe -> fprintf ppf "it's a probe"
+      | Probe -> format_with_notify_js  ppf "it's a probe"
       | Package_hack -> fprintf ppf "it's used as an element in a first-class module"
       | Object -> fprintf ppf "it's an object"
       | Instance_variable -> fprintf ppf "it's an instance variable"
@@ -759,11 +764,13 @@ module Layout = struct
           (format_position ~arity position)
           !printtyp_path parent_path
       | Tuple -> fprintf ppf "it's a tuple type"
-      | Row_variable -> fprintf ppf "it's a row variable"
+      | Row_variable -> format_with_notify_js ppf "it's a row variable"
       | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant"
       | Arrow -> fprintf ppf "it's a function type"
-      | Tfield -> fprintf ppf "it's an internal Tfield type (you shouldn't see this)"
-      | Tnil -> fprintf ppf "it's an internal Tnil type (you shouldn't see this)"
+      | Tfield ->
+        format_with_notify_js ppf "it's an internal Tfield type (you shouldn't see this)"
+      | Tnil ->
+        format_with_notify_js ppf "it's an internal Tnil type (you shouldn't see this)"
       | First_class_module -> fprintf ppf "it's a first-class module type"
       | Separability_check ->
         fprintf ppf "the check that a type is definitely not `float`"
@@ -784,7 +791,8 @@ module Layout = struct
       | Structure_element ->
          fprintf ppf "it's stored in a module structure"
       | Debug_printer_argument ->
-         fprintf ppf "it's used as the argument to a debugger printer function"
+        format_with_notify_js ppf
+          "it's used as the argument to a debugger printer function."
       | V1_safety_check ->
           fprintf ppf "it has to be value for the V1 safety check"
       | Captured_in_object -> fprintf ppf "it's captured in an object"
