@@ -564,6 +564,18 @@ module Layout = struct
 
   (***********************************)
   (* layout histories *)
+
+  (* Not all layout history reasons are created equal. Some are more helpful than others.
+  This function encodes that information.
+  The reason with higher score should get preserved when combined with one of lower
+  score. *)
+  let score_reason = function
+    (* want to highlight missing cmi issues *)
+    | Creation (Any_creation (Missing_cmi _)) -> 1
+    (* Concrete creation is quite vague, prefer more specific reasons *)
+    | Creation (Concrete_creation _) -> -1
+    | _ -> 0
+
   let has_imported_history t =
     match t with
     | {history = Creation Imported; } -> true
@@ -922,13 +934,23 @@ module Layout = struct
       in
       let l1, l2, fmt_l1, fmt_l2, missing_cmi_option = match t with
         | { violation = Not_a_sublayout(l1, l2); missing_cmi } ->
+          let enhance_history l path =
+            (* Layout histories are only updated when a change in layout occurs.
+               This means the Missing_cmi reason can be lost in some cases.
+               We want to add it back to the history. *)
+            let reason = Any_creation (Missing_cmi path) in
+            match l.layout with
+            | Any when score_reason l.history < score_reason (Creation reason) ->
+              update_reason l reason
+            | _ -> l
+          in
           begin match missing_cmi with
           | None ->
             l1, l2,
             dprintf "layout %a" format l1,
             sublayout_format "is not" l2, None
           | Some p ->
-            l1, l2,
+            enhance_history l1 p, enhance_history l2 p,
             dprintf "an unknown layout",
             sublayout_format "might not be" l2, Some p
           end
@@ -996,12 +1018,10 @@ module Layout = struct
     then begin match sub_desc (get_internal lhs.layout) (get_internal rhs.layout) with
       | Sub -> lhs.history
       | Not_sub -> rhs.history  (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
-      | Equal -> begin match lhs.history, rhs.history with
-        (* Prefer other creation_reasons over Concrete_creation *)
-        | h, Creation (Concrete_creation _)
-        | Creation (Concrete_creation _), h -> h
-        | h, _ -> h
-        end
+      | Equal ->
+        if score_reason lhs.history >= score_reason rhs.history
+        then lhs.history
+        else rhs.history
     end else Interact { reason; lhs_layout = lhs.layout; lhs_history = lhs.history;
                         rhs_layout = rhs.layout; rhs_history = rhs.history }
 
