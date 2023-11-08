@@ -19285,6 +19285,12 @@ esac
 
 ## Activate the systhread library
 
+if  "$enable_runtime5" = "yes" ; then
+  runtime_suffix=
+else
+  runtime_suffix=4
+fi
+
 case $enable_systhreads,$enable_unix_lib in #(
   yes,no) :
     systhread_support=false
@@ -19295,9 +19301,9 @@ case $enable_systhreads,$enable_unix_lib in #(
 printf "%s\n" "$as_me: the threads library is disabled" >&6;} ;; #(
   *) :
     systhread_support=true
-  ac_config_files="$ac_config_files otherlibs/systhreads/META"
+  ac_config_files="$ac_config_files otherlibs/systhreads${runtime_suffix}/META"
 
-  otherlibraries="$otherlibraries systhreads"
+  otherlibraries="$otherlibraries systhreads${runtime_suffix}"
   lib_systhreads=true
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: the threads library is supported" >&5
 printf "%s\n" "$as_me: the threads library is supported" >&6;} ;;
@@ -21257,7 +21263,7 @@ do
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "otherlibs/unix/META") CONFIG_FILES="$CONFIG_FILES otherlibs/unix/META" ;;
     "otherlibs/str/META") CONFIG_FILES="$CONFIG_FILES otherlibs/str/META" ;;
-    "otherlibs/systhreads/META") CONFIG_FILES="$CONFIG_FILES otherlibs/systhreads/META" ;;
+    "otherlibs/systhreads${runtime_suffix}/META") CONFIG_FILES="$CONFIG_FILES otherlibs/systhreads${runtime_suffix}/META" ;;
     "ocamldoc/META") CONFIG_FILES="$CONFIG_FILES ocamldoc/META" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

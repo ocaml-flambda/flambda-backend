@@ -2116,6 +2116,12 @@ AS_CASE([$host],
 
 ## Activate the systhread library
 
+if [ "$enable_runtime5" = "yes" ]; then
+  runtime_suffix=
+else
+  runtime_suffix=4
+fi
+
 AS_CASE([$enable_systhreads,$enable_unix_lib],
   [yes,no],
     [systhread_support=false
@@ -2124,8 +2130,8 @@ AS_CASE([$enable_systhreads,$enable_unix_lib],
     [systhread_support=false
     AC_MSG_NOTICE([the threads library is disabled])],
   [systhread_support=true
-  AC_CONFIG_FILES([otherlibs/systhreads/META])
-  otherlibraries="$otherlibraries systhreads"
+  AC_CONFIG_FILES([otherlibs/systhreads${runtime_suffix}/META])
+  otherlibraries="$otherlibraries systhreads${runtime_suffix}"
   lib_systhreads=true
   AC_MSG_NOTICE([the threads library is supported])])
 
