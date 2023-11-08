@@ -221,8 +221,13 @@ jobs:
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
-        (if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi) \
-          || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi)
+        if [ $build_upstream = true ]; then \
+          make -j$J build_and_test_upstream \
+            || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi);
+        else \
+          make $target \
+            || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi);
+        fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.build_ocamlparam }}
         OCAMLPARAM: ${{ matrix.ocamlparam }}
