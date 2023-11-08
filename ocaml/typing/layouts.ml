@@ -649,12 +649,12 @@ module Layout = struct
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
       | Match ->
-        fprintf ppf "it's matched against a pattern"
-      | Constructor_declaration idx ->
-        fprintf ppf "it's used as constructor field %d" idx
+        fprintf ppf "a value of this type is matched against a pattern"
+      | Constructor_declaration _ ->
+        fprintf ppf "it's used as the type of a constructor field"
       | Label_declaration lbl ->
-        fprintf ppf "it's used in the declaration of the record field \"%a\""
-          Ident.print lbl
+        fprintf ppf "it is the type of record field %s"
+          (Ident.name lbl)
       | Unannotated_type_parameter name_opt ->
         let suffix = match name_opt with None -> "" | Some n -> " of " ^ n in
         fprintf ppf "it instantiates an unannotated type parameter%s" suffix
@@ -663,13 +663,13 @@ module Layout = struct
       | Record_assignment ->
         fprintf ppf "it's used as the record in an assignment"
       | Let_binding ->
-        fprintf ppf "it's bound by a `let`"
+        fprintf ppf "it's the type of a variable bound by a `let`"
       | Function_argument ->
         fprintf ppf "it's used as a function argument"
       | Function_result ->
         fprintf ppf "it's used as a function result"
       | Structure_item_expression ->
-        fprintf ppf "it's used in an expression in a structure"
+        fprintf ppf "it's used as the type of an expression in a structure"
       | V1_safety_check ->
         fprintf ppf "it's part of the v1 safety check"
       | External_argument ->
