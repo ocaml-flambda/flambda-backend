@@ -23,14 +23,6 @@ type error = Bad_immediate of string
 
 exception Error of error
 
-let () =
-  let report_error ppf = function
-    | Bad_immediate msg -> Format.pp_print_string ppf msg
-  in
-  Location.register_error_of_exn (function
-    | Error err -> Some (Location.error_of_printer_file report_error err)
-    | _ -> None)
-
 let bad_immediate fmt =
   Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
 
@@ -527,3 +519,13 @@ let pseudoregs_for_operation op arg res =
   | R_RM_rax_rdx_to_xmm0 -> [| arg.(0); arg.(1); rax; rdx |], [| xmm0v () |]
   | R_RM_to_rcx -> arg, [| rcx |]
   | R_RM_to_xmm0 -> arg, [| xmm0v () |]
+
+(* Error report *)
+
+let report_error ppf = function
+  | Bad_immediate msg -> Format.pp_print_string ppf msg
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)
