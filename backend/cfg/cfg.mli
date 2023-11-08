@@ -154,10 +154,10 @@ val print_instruction :
    exception handling. It has a lot of redundancy and the result of the
    computation is not used.
 
-   CFG instructions still include push/poptraps.
-   To remove these push/poptraps from CFG IR, we need to split blocks at every
-   push/poptrap. Then, we can annotate the blocks with the top of the trap
-   stack, instead of carrying the copy of the stack. *)
+   CFG instructions still include push/poptraps. To remove these push/poptraps
+   from CFG IR, we need to split blocks at every push/poptrap. Then, we can
+   annotate the blocks with the top of the trap stack, instead of carrying the
+   copy of the stack. *)
 
 (* CR-someday gyorsh: store label after separately and update after
    reordering. *)
