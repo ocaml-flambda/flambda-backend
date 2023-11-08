@@ -123,6 +123,7 @@ let x = (~x:1, ~y:2)
 let x = ((~x:1, ~y:2) [@test.attr])
 let _ = ( ~x: 5, 2, ~z, ~(punned:int))
 let (x : (x:int * y:int)) = (~x:1, ~y:2)
+let (x : ((x:int * y:int) [@test.attr])) = (~x:1, ~y:2)
 
 let (~x:x0, ~s, ~(y:int), ..) : (x:int * s:string * y:int * string) =
    (~x: 1, ~s: "a", ~y: 2, "ignore me")
@@ -145,6 +146,7 @@ let foo xy k_good k_bad =
    | exception Odd -> k_bad ()
 
 let (~(x:int), ~y, _) = (~x: 1, ~y: 2, "ignore me")
+let ((~(x:int), ~y, _) [@test.attr]) = (~x: 1, ~y: 2, "ignore me")
 let f = fun (~foo, ~bar:bar) -> foo * 10 + bar
 let f ((~(x:int),y) : (x:int * int)) : int = x + y
 
