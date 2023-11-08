@@ -66,7 +66,7 @@ boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
-	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib: boot-compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
@@ -79,7 +79,7 @@ compiler: runtime-stdlib
 	  $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
-	$(dune) runtest $(ws_main)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_main)
 
 
 # This Makefile supports old versions that don't have $(file), so we're using
@@ -376,7 +376,7 @@ hacking: _build/_bootinstall
 
 .PHONY: hacking-emacs-poller
 hacking-emacs-poller: _build/_bootinstall
-	$(dune) build $(ws_boot) --passive-watch-mode
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) --passive-watch-mode
 
 .PHONY: hacking-emacs-builder
 hacking-emacs-builder: _build/_bootinstall
@@ -385,7 +385,7 @@ hacking-emacs-builder: _build/_bootinstall
 
 .PHONY: debug-printers
 debug-printers: runtime-stdlib # required for $(ws_main) to work
-	$(dune) build $(ws_main) $(ocamldir)/tools/debug_printers
+	RUNTIME_DIR=$(RUNTIME_DIR)  $(dune) build $(ws_main) $(ocamldir)/tools/debug_printers
 	@echo
 	@echo To load into ocamldebug, use:
 	@echo source \"$$(realpath _build/main/$(ocamldir)/tools/debug_printers)\"
