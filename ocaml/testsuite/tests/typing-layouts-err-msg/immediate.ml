@@ -7,6 +7,13 @@
 (* Immediate layout errors *)
 
 (* Empty_record *)
+type ('a: void) t: void = { a: 'a }
+[%%expect{|
+Line 1, characters 0-35:
+1 | type ('a: void) t: void = { a: 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Records must contain at least one runtime value.
+|}]
 (* Records with all void fields are not yet supported *)
 
 (* Enumeration *)

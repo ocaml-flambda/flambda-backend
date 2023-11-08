@@ -318,19 +318,16 @@ Error: This expression has type t_float64
 |}];;
 
 (* Default_type_layout *)
-type t
-let f : t -> ('a : void) = fun x -> x
+type ('a : immediate) t2 = {a: 'a} and t3 = t t2 and t
 [%%expect{|
-type t
-Line 2, characters 36-37:
-2 | let f : t -> ('a : void) = fun x -> x
-                                        ^
-Error: This expression has type t but an expression was expected of type
-         ('a : void)
+Line 1, characters 49-54:
+1 | type ('a : immediate) t2 = {a: 'a} and t3 = t t2 and t
+                                                     ^^^^^
+Error:
        The layout of t is value, because
-         of the definition of t at line 1, characters 0-6.
-       But the layout of t must be a sublayout of void, because
-         of the annotation on the type variable 'a.
+         an abstract type has the value layout by default.
+       But the layout of t must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t2.
 |}];;
 
 (* Float_record_field *)

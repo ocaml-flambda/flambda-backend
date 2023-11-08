@@ -130,11 +130,31 @@ Error: This expression has type t_any but an expression was expected of type
 (* See [concrete_v1_check.ml] *)
 
 (* External_argument *)
-(* external eq : t_any -> 'a -> bool = "%equal" *)
+external eq : t_any -> 'a -> bool = "%equal"
+[%%expect{|
+Line 1, characters 14-19:
+1 | external eq : t_any -> 'a -> bool = "%equal"
+                  ^^^^^
+Error: Function argument types must have a representable layout.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-16.
+       But the layout of t_any must be a sublayout of '_representable_layout_8, because
+         it's used as a function argument.
+|}]
 (* Shadowed by Function_argument *)
 
 (* External_result *)
-(* external eq : 'a -> 'a -> t_any = "%equal" *)
+external eq : 'a -> 'a -> t_any = "%equal"
+[%%expect{|
+Line 1, characters 26-31:
+1 | external eq : 'a -> 'a -> t_any = "%equal"
+                              ^^^^^
+Error: Function return types must have a representable layout.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-16.
+       But the layout of t_any must be a sublayout of '_representable_layout_9, because
+         it's used as a function result.
+|}]
 (* Shadowed by Function_result *)
 
 (* Statement *)
