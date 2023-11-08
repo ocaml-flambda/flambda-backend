@@ -429,63 +429,7 @@ let immediate ~why = fresh_jkind Immediate ~why:(Immediate_creation why)
 
 let float64 ~why = fresh_jkind (Sort Sort.float64) ~why:(Float64_creation why)
 
-<<<<<<< HEAD
 type const =
-=======
-module Const : sig
-  type t =
-    | Any
-    | Value
-    | Void
-    | Immediate64
-    | Immediate
-    | Float64
-
-  (** The function names are suffixed with "unchecked" to suggest that
-      they don't check whether the layouts extension is enabled.
-  *)
-
-  val of_user_written_attribute_unchecked :
-    Builtin_attributes.jkind_attribute -> t
-
-  val of_user_written_annotation_unchecked :
-    Jane_asttypes.const_jkind -> t option
-
-  val to_user_written_annotation : t -> Jane_asttypes.const_jkind
-end = struct
-  type t = Builtin_attributes.jkind_attribute =
-    | Any
-    | Value
-    | Void
-    | Immediate64
-    | Immediate
-    | Float64
-
-  let of_user_written_attribute_unchecked t = t
-
-  let of_user_written_annotation_unchecked annot =
-    match Jane_asttypes.jkind_to_string annot with
-    | "any" -> Some Any
-    | "value" -> Some Value
-    | "void" -> Some Void
-    | "immediate64" -> Some Immediate64
-    | "immediate" -> Some Immediate
-    | "float64" -> Some Float64
-    | _ -> None
-
-  let to_user_written_annotation annot =
-    Jane_asttypes.jkind_of_string
-      (match annot with
-      | Any -> "any"
-      | Value -> "value"
-      | Void -> "void"
-      | Immediate64 -> "immediate64"
-      | Immediate -> "immediate"
-      | Float64 -> "float64")
-end
-
-type const = Const.t =
->>>>>>> main
   | Any
   | Value
   | Void
@@ -495,14 +439,12 @@ type const = Const.t =
 
 type annotation = const * Jane_asttypes.jkind_annotation
 
-<<<<<<< HEAD
 let const_of_attribute : Builtin_attributes.jkind_attribute -> _ = function
   | Immediate -> Immediate
   | Immediate64 -> Immediate64
 
 (** The function name is suffixed with "unchecked" to suggest that
     it doesn't check whether the layouts extension is enabled.
-
     It should be inverse to [string_of_const].
   *)
 let const_of_user_written_annotation_unchecked annot =
@@ -523,10 +465,6 @@ let string_of_const const =
   | Immediate64 -> "immediate64"
   | Immediate -> "immediate"
   | Float64 -> "float64"
-=======
-let string_of_const const =
-  Jane_asttypes.jkind_to_string (Const.to_user_written_annotation const)
->>>>>>> main
 
 let equal_const (c1 : const) (c2 : const) =
   match c1, c2 with
@@ -550,7 +488,6 @@ let sub_const (c1 : const) (c2 : const) =
 (******************************)
 (*** user errors ***)
 type error =
-<<<<<<< HEAD
   | Insufficient_level of
       { jkind : const;
         required_layouts_level : Language_extension.maturity
@@ -560,10 +497,6 @@ type error =
       { from_annotation : const;
         from_attribute : const
       }
-=======
-  | Insufficient_level of annotation_context * const
-  | Unknown_jkind of Jane_asttypes.const_jkind
->>>>>>> main
 
 exception User_error of Location.t * error
 
@@ -576,19 +509,13 @@ let raise ~loc err = raise (User_error (loc, err))
    enabled, because these are exactly equivalent to the pre-existing and
    well-loved [@@immediate] and [@@immediate64] attributes.
 
-   Once immediate/immediate64 graduate from Beta to Stable, we can likely
+   Once immediate/immediate64 have been in Stable for a while, we can likely
    delete the [context] parameter.
 *)
 let get_required_layouts_level (context : annotation_context) (jkind : const) :
     Language_extension.maturity =
   match context, jkind with
-<<<<<<< HEAD
-  | _, Value -> Stable
-  | Type_declaration _, (Immediate | Immediate64) -> Stable
-  | _, (Immediate | Immediate64 | Any | Float64) -> Beta
-=======
   | _, (Value | Immediate | Immediate64 | Any | Float64) -> Stable
->>>>>>> main
   | _, Void -> Alpha
 
 (******************************)
@@ -608,7 +535,6 @@ let of_const ~why : const -> t = function
   | Void -> fresh_jkind (Sort Sort.void) ~why
   | Float64 -> fresh_jkind (Sort Sort.float64) ~why
 
-<<<<<<< HEAD
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   match const_of_user_written_annotation_unchecked annot with
   | None -> raise ~loc (Unknown_jkind annot)
@@ -675,65 +601,6 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   match of_type_decl ~context decl with
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
-=======
-let check_extension_for_const ?(legacy_immediate = false) ~context ~loc annot =
-  match annot with
-  | (Immediate | Immediate64 | Value) as const when legacy_immediate -> const
-  | const ->
-    let required_layouts_level = get_required_layouts_level context const in
-    if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then raise ~loc (Insufficient_level (context, const));
-    const
-
-let const_of_user_written_annotation ?legacy_immediate ~context
-    Location.{ loc; txt = annot } =
-  match Const.of_user_written_annotation_unchecked annot with
-  | None -> raise ~loc (Unknown_jkind annot)
-  | Some unchecked ->
-    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
-
-let const_of_user_written_attribute ?legacy_immediate ~context
-    Location.{ loc; txt = attribute } =
-  let unchecked = Const.of_user_written_attribute_unchecked attribute in
-  let checked =
-    check_extension_for_const ?legacy_immediate ~context ~loc unchecked
-  in
-  Location.{ loc; txt = checked }
-
-let const_of_attributes ~legacy_immediate ~context attrs =
-  Builtin_attributes.jkind ~legacy_immediate attrs
-  |> Result.map
-       (Option.map (const_of_user_written_attribute ~legacy_immediate ~context))
-
-let of_annotated_const ~context Location.{ txt = const; loc = const_loc } =
-  of_const ~why:(Annotated (context, const_loc)) const
-
-let of_annotated_const_option ~context =
-  Option.map (of_annotated_const ~context)
-
-let of_annotated_const_default ~context ~default =
-  Option.fold ~none:default ~some:(of_annotated_const ~context)
-
-let of_annotation ?legacy_immediate ~context (annot : _ Location.loc) =
-  let const =
-    const_of_user_written_annotation ?legacy_immediate ~context annot
-  in
-  let jkind = of_annotated_const { txt = const; loc = annot.loc } ~context in
-  jkind, (const, annot)
-
-let of_annotation_option_default ?legacy_immediate ~default ~context =
-  Option.fold ~none:(default, None) ~some:(fun annot ->
-      let t, annot = of_annotation ?legacy_immediate ~context annot in
-      t, Some annot)
-
-let of_attributes ~legacy_immediate ~context attrs =
-  const_of_attributes ~legacy_immediate ~context attrs
-  |> Result.map (of_annotated_const_option ~context)
-
-let of_attributes_default ~legacy_immediate ~context ~default attrs =
-  const_of_attributes ~legacy_immediate ~context attrs
-  |> Result.map (of_annotated_const_default ~context ~default)
->>>>>>> main
 
 let for_boxed_record ~all_void =
   if all_void then immediate ~why:Empty_record else value ~why:Boxed_record
@@ -1459,7 +1326,6 @@ let report_error ~loc = function
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
       "@[<v>Unknown layout %a@]" Jane_syntax.Layouts.Pprint.const_jkind jkind
-<<<<<<< HEAD
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
@@ -1468,10 +1334,6 @@ let report_error ~loc = function
       (string_of_const from_annotation)
       (string_of_const from_attribute)
   | Insufficient_level { jkind; required_layouts_level } -> (
-=======
-  | Insufficient_level (context, jkind) -> (
-    let required_layouts_level = get_required_layouts_level context jkind in
->>>>>>> main
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
         (Language_extension.to_command_line_string Layouts

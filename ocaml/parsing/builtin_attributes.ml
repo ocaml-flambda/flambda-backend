@@ -455,7 +455,6 @@ let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
 type jkind_attribute =
-<<<<<<< HEAD
   | Immediate64
   | Immediate
 
@@ -469,33 +468,6 @@ let jkind_attribute_to_string = function
   | Immediate -> "immediate"
 
 let jkind attrs =
-=======
-  | Any
-  | Value
-  | Void
-  | Immediate64
-  | Immediate
-  | Float64
-
-let jkind_attribute_of_string = function
-  | "ocaml.any" | "any" -> Some Any
-  | "ocaml.value" | "value" -> Some Value
-  | "ocaml.void" | "void" -> Some Void
-  | "ocaml.immediate64" | "immediate64" -> Some Immediate64
-  | "ocaml.immediate" | "immediate" -> Some Immediate
-  | "ocaml.float64" | "float64" -> Some Float64
-  | _ -> None
-
-let jkind_attribute_to_string = function
-  | Any -> "any"
-  | Value -> "value"
-  | Void -> "void"
-  | Immediate64 -> "immediate64"
-  | Immediate -> "immediate"
-  | Float64 -> "float64"
-
-let jkind ~legacy_immediate attrs =
->>>>>>> main
   let jkind =
     List.find_map
       (fun a ->
@@ -508,25 +480,7 @@ let jkind ~legacy_immediate attrs =
   | None -> None
   | Some (a, l) ->
      mark_used a.attr_name;
-<<<<<<< HEAD
      Some (Location.mkloc l a.attr_loc)
-=======
-     let l_loc = Location.mkloc l a.attr_loc in
-     let check b =
-       if b
-       then Ok (Some l_loc)
-       else Error l_loc
-     in
-     match l with
-     | Value -> check true
-     | Immediate | Immediate64 ->
-        check  (legacy_immediate
-             || Language_extension.(is_at_least Layouts Stable))
-     | Any | Float64 ->
-        check Language_extension.(is_at_least Layouts Stable)
-     | Void ->
-        check Language_extension.(is_at_least Layouts Alpha)
->>>>>>> main
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the

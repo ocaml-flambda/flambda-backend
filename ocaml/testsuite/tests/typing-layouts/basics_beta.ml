@@ -23,8 +23,7 @@ type t_void  : void;;
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts_beta.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 (************************************************************)
@@ -987,8 +986,7 @@ type 'a t_void_16 : void;;
 Line 1, characters 20-24:
 1 | type 'a t_void_16 : void;;
                         ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts_beta.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 (**************************************************************************)

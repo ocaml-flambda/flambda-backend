@@ -12,19 +12,11 @@ type t_float64 : float64
 type t_any : any;;
 
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 13-16:
-1 | type t_any : any;;
-                 ^^^
-Error: Layout any is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_beta to use this feature.
-=======
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_any : any
->>>>>>> main
 |}]
 
 type t_void : void;;
@@ -33,8 +25,7 @@ type t_void : void;;
 Line 1, characters 14-18:
 1 | type t_void : void;;
                   ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}]
 
 (***************************************)

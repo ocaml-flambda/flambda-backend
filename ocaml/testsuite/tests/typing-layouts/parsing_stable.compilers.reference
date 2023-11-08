@@ -9,14 +9,7 @@ Line 2, characters 11-15:
 2 | type ('a : valu) t0 = 'a list;;
                ^^^^
 Error: Unknown layout valu
-<<<<<<< HEAD:ocaml/testsuite/tests/typing-layouts/parsing.compilers.reference
-Line 2, characters 9-15:
-2 | type t = float#;;
-             ^^^^^^
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
-=======
 type t = float#
->>>>>>> main:ocaml/testsuite/tests/typing-layouts/parsing_stable.compilers.reference
 Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^

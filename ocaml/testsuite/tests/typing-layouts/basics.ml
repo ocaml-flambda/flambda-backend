@@ -18,25 +18,12 @@ type t_float64 : float64
 type t_any : any
 |}]
 
-<<<<<<< HEAD
-type t_any   : any;;
-[%%expect{|
-Line 1, characters 15-18:
-1 | type t_any   : any;;
-                   ^^^
-Error: Layout any is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_beta to use this feature.
-|}];;
-
-=======
->>>>>>> main
 type t_void  : void;;
 [%%expect{|
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 (************************************************************)
@@ -999,8 +986,7 @@ type 'a t_void_16 : void;;
 Line 1, characters 20-24:
 1 | type 'a t_void_16 : void;;
                         ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 (**************************************************************************)
@@ -1090,16 +1076,8 @@ let f () =
   let rec g x : _ t22f = g x in
   g (assert false);;
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 14-18:
-1 | type t_void : void;;
-                  ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
-=======
 type ('a : float64) t22f = 'a
 val f : ('a : float64). unit -> 'a t22f t22f = <fun>
->>>>>>> main
 |}];;
 
 

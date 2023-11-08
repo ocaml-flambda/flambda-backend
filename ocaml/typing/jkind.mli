@@ -328,14 +328,7 @@ type const =
   | Float64
 
 val const_of_user_written_annotation :
-<<<<<<< HEAD
   context:annotation_context -> Jane_asttypes.jkind_annotation -> const
-=======
-  ?legacy_immediate:bool ->
-  context:annotation_context ->
-  Jane_asttypes.jkind_annotation ->
-  const
->>>>>>> main
 
 val string_of_const : const -> string
 
@@ -377,29 +370,14 @@ val of_const : why:creation_reason -> const -> t
 (** The typed jkind together with its user-written annotation. *)
 type annotation = const * Jane_asttypes.jkind_annotation
 
-<<<<<<< HEAD
 val of_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> t * annotation
-=======
-(* CR layouts v1.5: remove legacy_immediate when the old attributes mechanism
-   is rerouted away from the new annotations mechanism *)
-val of_annotation :
-  ?legacy_immediate:bool ->
-  context:annotation_context ->
-  Jane_asttypes.jkind_annotation ->
-  t * annotation
->>>>>>> main
 
 val of_annotation_option_default :
   default:t ->
   context:annotation_context ->
   Jane_asttypes.jkind_annotation option ->
   t * annotation option
-<<<<<<< HEAD
-=======
-
-(* CR layouts v1.5: remove [of_attributes] when we reroute [@@immediate]. *)
->>>>>>> main
 
 (** Find a jkind from a type declaration. Type declarations are special because
     the jkind may have been provided via [: jkind] syntax (which goes through
@@ -416,13 +394,8 @@ val of_annotation_option_default :
 *)
 val of_type_decl :
   context:annotation_context ->
-<<<<<<< HEAD
   Parsetree.type_declaration ->
   (t * annotation * Parsetree.attributes) option
-=======
-  Parsetree.attributes ->
-  (t option, Builtin_attributes.jkind_attribute Location.loc) result
->>>>>>> main
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
     defaulting to ~default.
@@ -432,13 +405,8 @@ val of_type_decl :
 val of_type_decl_default :
   context:annotation_context ->
   default:t ->
-<<<<<<< HEAD
   Parsetree.type_declaration ->
   t * annotation option * Parsetree.attributes
-=======
-  Parsetree.attributes ->
-  (t, Builtin_attributes.jkind_attribute Location.loc) result
->>>>>>> main
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)

@@ -3732,20 +3732,8 @@ jkind_annotation: (* : jkind_annotation *)
   ident { mkloc (Jane_asttypes.jkind_of_string $1) (make_loc $sloc) }
 ;
 
-<<<<<<< HEAD
 jkind_constraint:
   COLON jkind_annotation { $2 }
-=======
-jkind_attr:
-  COLON
-  jkind=jkind_annotation
-  { (* CR layouts 1.5: this will go away in the child PR *)
-    let jkind_attribute = Jane_asttypes.jkind_to_string jkind.txt in
-    (match Builtin_attributes.jkind_attribute_of_string jkind_attribute with
-     | None -> expecting $loc(jkind) "layout"
-     | Some _ -> ());
-    Attr.mk ~loc:jkind.loc { loc = jkind.loc; txt = jkind_attribute } (PStr []) }
->>>>>>> main
 ;
 
 %inline type_param_with_jkind:

@@ -12,20 +12,8 @@ type t_any   : any;;
 type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
-<<<<<<< HEAD
-|}];;
-
-type t_any   : any;;
-[%%expect{|
-Line 1, characters 15-18:
-1 | type t_any   : any;;
-                   ^^^
-Error: Layout any is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_beta to use this feature.
-=======
 type t_float64 : float64
 type t_any : any
->>>>>>> main
 |}];;
 
 type t_void  : void;;
@@ -33,8 +21,7 @@ type t_void  : void;;
 Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 (*********************************************************)
@@ -228,8 +215,7 @@ end;;
 Line 8, characters 11-15:
 8 |   type t : void
                ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
 module rec Foo3f : sig
@@ -460,8 +446,7 @@ end
 Line 2, characters 11-15:
 2 |   type t : void
                ^^^^
-Error: Layout void is more experimental than allowed by -extension layouts.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}]
 
 module type S6_1f = sig
