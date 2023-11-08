@@ -552,7 +552,7 @@ let transl_bound_vars : (_, _) Either.t -> _ =
                       TyVarEnv.make_poly_univars vars_only
   | Right vars_layouts -> List.map mk_pair vars_layouts,
                           TyVarEnv.make_poly_univars_layouts
-                            ~context:(fun v -> Univar v) vars_layouts
+                            ~context:(fun v -> Univar ("'"^v)) vars_layouts
 
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
@@ -1008,7 +1008,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         | None -> ()
         | Some layout_annot ->
           let layout =
-            Layout.of_annotation ~context:(Type_variable alias) layout_annot
+            Layout.of_annotation ~context:(Type_variable ("'" ^ alias)) layout_annot
           in
           begin match constrain_type_layout env t layout with
           | Ok () -> ()
@@ -1022,7 +1022,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         let layout =
           Layout.(of_annotation_option_default
             ~default:(any ~why:Dummy_layout)
-            ~context:(Type_variable alias)
+            ~context:(Type_variable ("'" ^ alias))
             layout_annot_opt)
         in
         let t = newvar layout in
