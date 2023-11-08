@@ -120,6 +120,7 @@ let f x =
 (******************)
 (* Labeled tuples *)
 let x = (~x:1, ~y:2)
+let x = ((~x:1, ~y:2) [@test.attr])
 let _ = ( ~x: 5, 2, ~z, ~(punned:int))
 let (x : (x:int * y:int)) = (~x:1, ~y:2)
 
