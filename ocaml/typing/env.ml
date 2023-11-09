@@ -341,7 +341,7 @@ type shared_context =
 type value_lock =
   | Escape_lock of escaping_context
   | Share_lock of shared_context
-  | Closure_lock of closure_context option * Mode.Locality.r * Mode.Linearity.r
+  | Closure_lock of closure_context option * Mode.Value.Comonadic.r
   | Region_lock
   | Exclave_lock
   | Unboxed_lock (* to prevent capture of terms with non-value types *)
@@ -710,10 +710,6 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
-type closure_error =
-  | Locality of closure_context option
-  | Linearity
-
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -737,7 +733,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_escaping of Longident.t * escaping_context
   | Once_value_used_in of Longident.t * shared_context
-  | Value_used_in_closure of Longident.t * closure_error
+  | Value_used_in_closure of Longident.t * Mode.Value.Comonadic.error * closure_context option
   | Local_value_used_in_exclave of Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -2378,11 +2374,10 @@ let add_share_lock shared_context env =
   let lock = Share_lock shared_context in
   { env with values = IdTbl.add_lock lock env.values }
 
-let add_closure_lock ?closure_context locality linearity env =
+let add_closure_lock ?closure_context comonadic env =
   let lock = Closure_lock
     (closure_context,
-     Mode.Locality.disallow_left locality,
-     Mode.Linearity.disallow_left linearity)
+     Mode.Value.Comonadic.disallow_left comonadic)
   in
   { env with values = IdTbl.add_lock lock env.values }
 
@@ -2977,29 +2972,20 @@ let share_mode ~errors ~env ~loc id vmode shared_context =
         (Once_value_used_in (id, shared_context))
   | Ok () -> Mode.Value.join [Mode.Value.min_with_uniqueness Mode.Uniqueness.shared; vmode]
 
-let closure_mode ~errors ~env ~loc id vmode closure_context locality linearity =
+let closure_mode ~errors ~env ~loc id vmode closure_context comonadic =
   begin
     match
-      Mode.Regionality.submode
-        (Mode.Value.regionality vmode)
-        (Mode.locality_as_regionality locality)
-      with
-    | Error _ ->
+      Mode.Value.Comonadic.submode vmode.Mode.comonadic comonadic
+    with
+    | Error e ->
         may_lookup_error errors loc env
-          (Value_used_in_closure (id, Locality closure_context))
-    | Ok () -> ()
-  end;
-  begin
-    match Mode.Linearity.submode (Mode.Value.linearity vmode) linearity with
-    | Error _ ->
-        may_lookup_error errors loc env
-          (Value_used_in_closure (id, Linearity))
+          (Value_used_in_closure (id, e, closure_context))
     | Ok () -> ()
   end;
   let uniqueness =
     Mode.Uniqueness.join
       [ Mode.Value.uniqueness vmode;
-        Mode.linear_to_unique linearity]
+        Mode.linear_to_unique (Mode.Value.Comonadic.linearity comonadic) ]
   in
   Mode.Value.join [Mode.Value.min_with_uniqueness uniqueness; vmode]
 
@@ -3026,10 +3012,9 @@ let lock_mode ~errors ~loc env id vda locks =
       | Share_lock shared_context ->
           let vmode = share_mode ~errors ~env ~loc id vmode shared_context in
           vmode, must_lock, Some shared_context
-      | Closure_lock (closure_context, locality, linearity) ->
+      | Closure_lock (closure_context, comonadic) ->
           let vmode =
-            closure_mode ~errors ~env ~loc id vmode closure_context
-              locality linearity
+            closure_mode ~errors ~env ~loc id vmode closure_context comonadic
           in
           vmode, must_lock, reason
       | Exclave_lock ->
@@ -3968,18 +3953,18 @@ let report_lookup_error _loc env ppf = function
         "@[The value %a is once, so cannot be used \
             inside %s@]"
         !print_longident lid (string_of_shared_context context)
-  | Value_used_in_closure (lid, error) ->
+  | Value_used_in_closure (lid, error, context) ->
       let e0, e1 =
         match error with
-        | Locality _ -> "local", "might escape"
-        | Linearity -> "once", "is many"
+        | `Regionality _ -> "local", "might escape"
+        | `Linearity _ -> "once", "is many"
       in
       fprintf ppf
       "@[The value %a is %s, so cannot be used \
             inside a closure that %s.@]"
       !print_longident lid e0 e1;
-      begin match error with
-      | Locality (Some Tailcall_argument) ->
+      begin match error, context with
+      | `Regionality _, Some Tailcall_argument ->
          fprintf ppf "@.@[Hint: The closure might escape because it \
                           is an argument to a tail call@]"
       | _ -> ()
