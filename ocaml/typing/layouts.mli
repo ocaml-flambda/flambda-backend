@@ -134,7 +134,7 @@ module Layout : sig
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter of string option
+    | Unannotated_type_parameter of Path.t
     | Record_projection
     | Record_assignment
     | Let_binding

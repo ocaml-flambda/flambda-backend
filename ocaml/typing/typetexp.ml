@@ -466,12 +466,11 @@ let transl_type_param env path styp =
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
    have layout any).  But it might be possible to infer any in some cases. *)
   let attrs = styp.ptyp_attributes in
+  let layout = Layout.of_new_sort_var ~why:(Unannotated_type_parameter path) in
   match styp.ptyp_desc with
   | Ptyp_any ->
-    let layout = Layout.of_new_sort_var ~why:(Unannotated_type_parameter None) in
     transl_type_param_var env loc attrs None layout None
   | Ptyp_var name ->
-    let layout = Layout.of_new_sort_var ~why:(Unannotated_type_parameter (Some name)) in
     transl_type_param_var env loc attrs (Some name) layout None
   | _ -> assert false
 
@@ -483,7 +482,7 @@ let transl_type_param env path styp =
 
 let get_type_param_layout path styp =
   match Jane_syntax.Core_type.of_ast styp with
-  | None -> Layout.of_new_sort_var ~why:(Unannotated_type_parameter None)
+  | None -> Layout.of_new_sort_var ~why:(Unannotated_type_parameter path)
   | Some (Jtyp_layout (Ltyp_var { name; layout }), _attrs) ->
     Layout.of_annotation ~context:(Type_parameter (path, name)) layout
   | Some _ -> Misc.fatal_error "non-type-variable in get_type_param_layout"
