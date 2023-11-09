@@ -270,6 +270,7 @@ let read_one_param ppf position name v =
   | "noassert" -> set "noassert" [ noassert ] v
   | "noautolink" -> set "noautolink" [ no_auto_link ] v
   | "nostdlib" -> set "nostdlib" [ no_std_include ] v
+  | "no-auto-include-otherlibs" -> set "nostdlib" [ no_auto_include_otherlibs ] v
   | "nocwd" -> set "nocwd" [ no_cwd ] v
   | "linkall" -> set "linkall" [ link_everything ] v
   | "nolabels" -> set "nolabels" [ classic ] v
