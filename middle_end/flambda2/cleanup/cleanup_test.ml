@@ -154,75 +154,7 @@ and rev_expr =
     free_names : Name_occurrences.t
   }
 
-module Deps = struct
-  type field =
-    | Block of int
-    | Value_slot of Value_slot.t
-    | Function_slot of Function_slot.t
-
-  module Dep = struct
-    type t =
-      | Alias of Name.t
-      | Use of Name.t
-      | Contains of Name.t
-      | Field of field * Name.t
-      | Block of field * Name.t
-      | Apply of Name.t * Code_id.t
-
-    let compare = compare
-  end
-
-  module DepSet = Set.Make (Dep)
-
-  type graph =
-    { name_to_dep : (Name.t, DepSet.t) Hashtbl.t;
-      used : (Name.t, unit) Hashtbl.t (* TODO: Conditionnal on a Code_id *)
-    }
-
-  let create () =
-    { name_to_dep = Hashtbl.create 100; used = Hashtbl.create 100 }
-
-  let insert t k v =
-    match Hashtbl.find_opt t k with
-    | None -> Hashtbl.add t k (DepSet.singleton v)
-    | Some s -> Hashtbl.replace t k (DepSet.add v s)
-
-  let add_opaque_let_dependency t bp fv =
-    let tbl = t.name_to_dep in
-    let bound_to = Bound_pattern.free_names bp in
-    let f () bound_to =
-      Name_occurrences.fold_names fv
-        ~f:(fun () dep -> insert tbl bound_to (Dep.Use dep))
-        ~init:()
-    in
-    Name_occurrences.fold_names bound_to ~f ~init:()
-
-  let add_let_field t bp field name =
-    let tbl = t.name_to_dep in
-    let bound_to = Bound_pattern.free_names bp in
-    let f () bound_to = insert tbl bound_to (Dep.Field (field, name)) in
-    Name_occurrences.fold_names bound_to ~f ~init:()
-
-  let add_dep t bound_to dep =
-    let tbl = t.name_to_dep in
-    insert tbl bound_to dep
-
-  let add_let_dep t bp dep =
-    let tbl = t.name_to_dep in
-    let bound_to = Bound_pattern.free_names bp in
-    let f () bound_to = insert tbl bound_to dep in
-    Name_occurrences.fold_names bound_to ~f ~init:()
-
-  let add_cont_dep t bp dep =
-    let tbl = t.name_to_dep in
-    insert tbl (Name.var bp) (Alias dep)
-
-  let add_func_param t ~param ~arg =
-    let tbl = t.name_to_dep in
-    insert tbl (Name.var param) (Alias arg)
-
-  let add_use t dep = Hashtbl.replace t.used dep ()
-end
+module Deps = Cleanup_deps
 
 module Dot = struct
   let dep_graph_ppf =
@@ -428,6 +360,8 @@ type dacc = Dacc.t
 
 type cont_kind =
   | Normal of Variable.t list
+  (* TODO: not really useful, we could just have a dummy variable for the result
+     of return and exn (and remove the Return and Exn cases *)
   | Return
   | Exn
 
@@ -449,7 +383,8 @@ let apply_cont_deps denv dacc apply_cont =
     List.fold_left2
       (fun dacc param dep -> Dacc.cont_dep param dep dacc)
       dacc params args
-  | Return | Exn -> Dacc.todo' dacc
+  | Return | Exn ->
+    List.fold_left (fun dacc dep -> Dacc.used dep dacc) dacc args
 
 let prepare_code dacc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
@@ -512,7 +447,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             | Never_returns -> dacc
             | Return cont -> (
               match Continuation.Map.find cont denv.conts with
-              | Return | Exn -> Dacc.todo' dacc
+              | Return | Exn -> begin
+                List.fold_left
+                  (fun dacc arg -> Dacc.used (Simple.var arg) dacc)
+                  dacc code_dep.return
+              end
               | Normal params ->
                 List.fold_left2
                   (fun dacc param arg ->
@@ -988,6 +927,9 @@ let run (unit : Flambda_unit.t) =
       Format.printf "CLEANUP %i@." (size / 1000));
   Format.printf "DACC %a@." Dacc.pp _dacc;
   let () = Dot.print_dep (Dacc.deps _dacc) in
+  Format.printf "USED %a@." Cleanup_deps.pp_used (Dacc.deps _dacc);
+  let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
+  Format.printf "RESULT %a@." Dep_solver.pp_result _solved_dep;
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr holed)
   in
