@@ -589,9 +589,45 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     let dep : (Name.t * Deps.Dep.t) list =
       match defining_expr with
       | Set_of_closures _set_of_closures -> default ()
-      | Static_consts _group ->
+      | Static_consts group ->
+        let bound_static =
+          match bound_pattern with
+          | Static b -> b
+          | Singleton _ | Set_of_closures _ -> assert false
+        in
+        Flambda.Static_const_group.match_against_bound_static group bound_static
+          ~init:[]
+          ~code:(fun acc _code_id _code ->
+            (* TODO: (is there anything to do here ? *)
+            acc)
+          ~deleted_code:(fun acc _ -> acc)
+          ~set_of_closures:(fun acc ~closure_symbols:_ _ ->
+            (* TODO *)
+            acc)
+          ~block_like:(fun acc symbol static_const ->
+            (* TODO *)
+            let name = Name.symbol symbol in
+            match[@ocaml.warning "-4"] static_const with
+            | Block (_tag, _mut, fields) ->
+              let acc = ref acc in
+              List.iteri
+                (fun i (field : Field_of_static_block.t) ->
+                  match field with
+                  | Symbol s ->
+                    acc
+                      := (name, Deps.Dep.Block (Deps.Block i, Name.symbol s))
+                         :: !acc
+                  | Tagged_immediate _ -> ()
+                  | Dynamically_computed (v, _) ->
+                    acc
+                      := (name, Deps.Dep.Block (Deps.Block i, Name.var v))
+                         :: !acc)
+                fields;
+              !acc
+            | Set_of_closures _ -> assert false
+            | _ -> acc)
         (* TODO makeblock makeclosure *)
-        default ()
+        (* default () *)
       | Prim (prim, _dbg) -> begin
         match[@ocaml.warning "-4"] prim with
         | Variadic (Make_block (_, _mutability, _), fields) ->
