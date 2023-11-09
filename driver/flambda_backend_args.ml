@@ -146,8 +146,9 @@ let mk_gc_timings f =
 
 let mk_no_auto_include_otherlibs f =
   "-no-auto-include-otherlibs", Arg.Unit f,
-  "Add only stdlib to the list of include directories. Do not add subdirectories of other\
-   libraries distributed with the compiler (such as unix, str, dynlink). Do not alert when \
+  "Add only stdlib to the list of include directories (unless -nostdlib is \
+   specified). Do not add subdirectories of other libraries distributed with \
+   the compiler (such as unix, str, dynlink). Do not alert when \
    they are missing."
 
 module Flambda2 = Flambda_backend_flags.Flambda2
