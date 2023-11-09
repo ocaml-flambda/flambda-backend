@@ -352,12 +352,12 @@ let transl_ident loc env ty path desc kind =
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
 let can_apply_primitive p pmode pos args =
-  let is_omitted = function
+  let is_absent = function
     | Arg _ -> false
     | Omitted _ -> true
     | Dummy _ -> true
   in
-  if List.exists (fun (_, arg) -> is_omitted arg) args then false
+  if List.exists (fun (_, arg) -> is_absent arg) args then false
   else begin
     let nargs = List.length args in
     if nargs = p.prim_arity then true
@@ -1153,7 +1153,7 @@ and transl_apply ~scopes
       !defs body
   in
 
-  let rec build_apply lam args loc pos ap_mode prot = function
+  let rec build_apply lam args loc pos ap_mode ~prot = function
     (* [prot = true] means the remaining arguments are already protected *)
     | Dummy _ :: _ -> assert false
     | Omitted ({ mode_closure; mode_arg; mode_ret; sort_arg } : omitted_parameter) :: l ->
@@ -1183,7 +1183,7 @@ and transl_apply ~scopes
           let arg_mode = transl_alloc_mode mode_arg in
           let ret_mode = transl_alloc_mode mode_ret in
           let body =
-            build_apply handle [Lvar id_arg] loc Rc_normal ret_mode true l
+            build_apply handle [Lvar id_arg] loc Rc_normal ret_mode ~prot:true l
           in
           let nlocal =
             match join_mode mode (join_mode arg_mode ret_mode) with
@@ -1205,14 +1205,14 @@ and transl_apply ~scopes
           lfunction ~kind:(Curried {nlocal}) ~params
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc)
-    | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode prot l
+    | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode ~prot l
     | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
   in
 
-  let rec build_apply_underscore lam rev_args loc prot = function
+  let rec build_apply_dummy lam rev_args loc ~prot = function
   (* [prot = true] means [lam] [rev_args] and the remaining args are already
      protected *)
-    | [] -> build_apply lam [] loc position mode prot (List.rev rev_args)
+    | [] -> build_apply lam [] loc position mode ~prot (List.rev rev_args)
     | Dummy { mode_closure; mode_arg; mode_ret; sort_arg } :: rest ->
       with_protect (fun protect ->
         let lam, _ =
@@ -1244,7 +1244,7 @@ and transl_apply ~scopes
               | Arg arg -> Arg (protect "arg" arg))
             rest
         in
-        let id_arg = Ident.create_local "underscore" in
+        let id_arg = Ident.create_local "dummy" in
 
         let loc = map_scopes enter_partial_or_eta_wrapper loc in
         let mode = transl_alloc_mode mode_closure in
@@ -1269,13 +1269,13 @@ and transl_apply ~scopes
             mode = arg_mode
           }] in
         let arg = Arg (Lvar id_arg, layout_arg) in
-        let body = build_apply_underscore lam (arg :: rev_args) loc prot rest in
+        let body = build_apply_dummy lam (arg :: rev_args) loc ~prot rest in
         lfunction ~kind:(Curried {nlocal}) ~params
                   ~return:result_layout ~body ~mode ~region
                   ~attr:default_stub_attribute ~loc)
-    | arg :: rest -> build_apply_underscore lam (arg :: rev_args) loc prot rest
+    | arg :: rest -> build_apply_dummy lam (arg :: rev_args) loc ~prot rest
   in
-  build_apply_underscore lam [] loc false args
+  build_apply_dummy lam [] loc ~prot:false args
 
 and transl_curried_function
       ~scopes ~arg_sort ~arg_layout ~arg_mode ~return_sort ~return_layout loc repr ~region

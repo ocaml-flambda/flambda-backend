@@ -3215,14 +3215,14 @@ let is_partial_apply args =
 let remaining_function_type ty_ret mode_ret rev_args =
   let ty_ret, _, _, _ =
     List.fold_left
-      (fun (ty_ret, mode_ret, closed_args, underscore_args) (lbl, arg) ->
+      (fun (ty_ret, mode_ret, closed_args, dummy_args) (lbl, arg) ->
          match arg with
          | Arg (Unknown_arg { mode_arg; _ } | Known_arg { mode_arg; _ }) ->
              let closed_args = mode_arg :: closed_args in
-             (ty_ret, mode_ret, closed_args, underscore_args)
+             (ty_ret, mode_ret, closed_args, dummy_args)
          | Dummy { mode_arg; _} ->
-            let underscore_args = mode_arg :: underscore_args in
-              (ty_ret, mode_ret, closed_args, underscore_args)
+            let dummy_args = mode_arg :: dummy_args in
+              (ty_ret, mode_ret, closed_args, dummy_args)
          | Arg (Eliminated_optional_arg
                   { mode_fun; ty_arg; mode_arg; level })
          | Omitted ({ mode_fun; ty_arg; mode_arg; level } : untyped_omitted_param) ->
@@ -3232,9 +3232,9 @@ let remaining_function_type ty_ret mode_ret rev_args =
                  (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
              let mode_ret =
-               Alloc.join (mode_fun :: closed_args @ underscore_args)
+               Alloc.join (mode_fun :: closed_args @ dummy_args)
              in
-             (ty_ret, mode_ret, closed_args, underscore_args))
+             (ty_ret, mode_ret, closed_args, dummy_args))
       (ty_ret, mode_ret, [], []) rev_args
   in
   ty_ret
@@ -3474,18 +3474,18 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   loop ty_fun ty_fun0 mode_fun [] sargs
 
 let type_omitted_parameters expected_mode env ty_ret ~mode_ret ~mode_funct args =
-  let ty_ret, mode_ret, open_args, closed_args, underscore_args, args =
+  let ty_ret, mode_ret, open_args, closed_args, dummy_args, args =
     List.fold_left
-      (fun (ty_ret, mode_ret, open_args, closed_args, underscore_args, args) (lbl, arg) ->
+      (fun (ty_ret, mode_ret, open_args, closed_args, dummy_args, args) (lbl, arg) ->
          match arg with
          | Arg (exp, exp_mode, sort) ->
              let open_args = (exp_mode, exp.exp_loc) :: open_args in
              let args = (lbl, Arg (exp, sort)) :: args in
-             (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
+             (ty_ret, mode_ret, open_args, closed_args, dummy_args, args)
          | Dummy { mode_fun; ty_arg; mode_arg; level; sort_arg; dummy_loc } ->
-             let underscore_args = mode_arg :: underscore_args in
+             let dummy_args = mode_arg :: dummy_args in
              let args = (lbl, Dummy {mode_fun; ty_arg; mode_arg; level; sort_arg; dummy_loc} ) :: args in
-             (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
+             (ty_ret, mode_ret, open_args, closed_args, dummy_args, args)
          | Omitted ({ mode_fun; ty_arg; mode_arg; level; sort_arg} : untyped_omitted_param) ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
@@ -3503,18 +3503,18 @@ let type_omitted_parameters expected_mode env ty_ret ~mode_ret ~mode_funct args 
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
              (* note that [mode_fun] is closed_over, not partial_apply *)
-             let all_closed = mode_fun :: closed_args @ underscore_args in
+             let all_closed = mode_fun :: closed_args @ dummy_args in
              let mode_closure, _ =
                all_closed |> List.map Alloc.close_over |> Alloc.join |> Alloc.newvar_above
              in
              register_allocation_mode mode_closure;
              let arg = Omitted { mode_closure; mode_arg; mode_ret; sort_arg } in
              let args = (lbl, arg) :: args in
-             (ty_ret, mode_closure, open_args, closed_args, underscore_args, args))
+             (ty_ret, mode_closure, open_args, closed_args, dummy_args, args))
       (ty_ret, mode_ret, [], [], [], []) (List.rev args)
   in
   let closed_args =
-    if List.length underscore_args = 0 then closed_args
+    if List.length dummy_args = 0 then closed_args
     else
     let new_closed_args =
       List.map
@@ -3526,10 +3526,10 @@ let type_omitted_parameters expected_mode env ty_ret ~mode_ret ~mode_funct args 
     in
     mode_funct :: new_closed_args @ closed_args
   in
-  let rec type_underscore_parameters closed_args = function
+  let rec type_dummy_arguments closed_args = function
     | [] -> ty_ret, mode_ret, []
     | (lbl, Dummy { mode_fun = _; ty_arg; mode_arg; level; sort_arg; dummy_loc }) :: rest ->
-        let ty_ret, mode_ret, args = type_underscore_parameters (mode_arg :: closed_args) rest in
+        let ty_ret, mode_ret, args = type_dummy_arguments (mode_arg :: closed_args) rest in
         let arrow_desc = (lbl, mode_arg, mode_ret) in
         let ty_ret =
           newty2 ~level
@@ -3541,14 +3541,11 @@ let type_omitted_parameters expected_mode env ty_ret ~mode_ret ~mode_funct args 
         register_allocation_mode mode_closure;
         let arg = Dummy {mode_closure; mode_arg; mode_ret; sort_arg; dummy_loc } in
         ty_ret, mode_closure, (lbl, arg) :: args
-    | (lbl, Omitted r) :: rest ->
-      let ty_ret, mode_ret, args = type_underscore_parameters closed_args rest in
-      ty_ret, mode_ret, (lbl, Omitted r) :: args
-    | (lbl, Arg r) :: rest ->
-      let ty_ret, mode_ret, args = type_underscore_parameters closed_args rest in
-      ty_ret, mode_ret, (lbl, Arg r) :: args
+    | (lbl, (Omitted _ | Arg _ as arg)) :: rest ->
+      let ty_ret, mode_ret, args = type_dummy_arguments closed_args rest in
+      ty_ret, mode_ret, (lbl, arg) :: args
   in
-  type_underscore_parameters closed_args args
+  type_dummy_arguments closed_args args
 
 (* Generalization criterion for expressions *)
 

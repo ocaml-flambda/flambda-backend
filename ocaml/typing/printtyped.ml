@@ -1074,7 +1074,7 @@ and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
   (match e with
-  | Dummy _ -> line (i + 1) ppf "(underscore)\n"
+  | Dummy _ -> line (i + 1) ppf "(dummy)\n"
   | Omitted _ -> line (i + 1) ppf "(omitted)\n"
   | Arg (e, _) -> expression (i+1) ppf e
   )

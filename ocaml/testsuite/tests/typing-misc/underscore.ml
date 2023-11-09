@@ -64,7 +64,7 @@ let f ?foo () = "hello"
 val f : ?foo:'a -> unit -> string = <fun>
 |}]
 
-(* Due to our implementation, it's more natural to simply forbid underscore
+(* Due to our implementation, it's more natural to simply forbid dummy arguments
    wrapped in Some *)
 let g = f ~foo:_
 [%%expect{|
