@@ -758,3 +758,8 @@ CAMLprim value caml_sys_isatty(value chan)
 
   return ret;
 }
+
+CAMLprim value caml_sys_const_naked_pointers_checked(value unit)
+{
+  return Val_false;
+}
