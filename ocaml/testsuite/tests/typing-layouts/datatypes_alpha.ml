@@ -53,7 +53,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_1, because
-         it's used as constructor field 0.
+         it's used as the type of a constructor field.
 |}];;
 
 type t2_any2 = T2_any2 of t_immediate * t_any
@@ -65,7 +65,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_2, because
-         it's used as constructor field 1.
+         it's used as the type of a constructor field.
 |}];;
 
 type t2_any3 = T2_any3 of t_any * t_value
@@ -77,7 +77,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_3, because
-         it's used as constructor field 0.
+         it's used as the type of a constructor field.
 |}];;
 
 type 'a t1_constraint = T1_con of 'a constraint 'a = 'b t1_constraint'
@@ -90,7 +90,7 @@ Error:
        The layout of 'b t1_constraint' is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of 'b t1_constraint' must be a sublayout of '_representable_layout_4, because
-         it instantiates an unannotated type parameter.
+         it instantiates an unannotated type parameter of t1_constraint.
 |}]
 (* CR layouts errors: this error is blamed on the wrong piece *)
 
@@ -151,7 +151,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_5, because
-         it's used in the declaration of the record field "x/341".
+         it is the type of record field x.
 |}];;
 
 type t4_any2 = { x : t_immediate; y : t_any }
@@ -163,7 +163,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_6, because
-         it's used in the declaration of the record field "y/344".
+         it is the type of record field y.
 |}];;
 
 type t4_any3 =  { x : t_any; y : t_value }
@@ -175,7 +175,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_7, because
-         it's used in the declaration of the record field "x/346".
+         it is the type of record field x.
 |}];;
 
 type t4_cany1 = C of { x : t_any }
@@ -187,7 +187,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_8, because
-         it's used in the declaration of the record field "x/350".
+         it is the type of record field x.
 |}];;
 
 type t4_cany2 = C of { x : t_immediate; y : t_any }
@@ -199,7 +199,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_9, because
-         it's used in the declaration of the record field "y/354".
+         it is the type of record field y.
 |}];;
 
 type t4_cany3 = C of { x : t_any; y : t_value }
@@ -211,7 +211,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_10, because
-         it's used in the declaration of the record field "x/357".
+         it is the type of record field x.
 |}];;
 
 (*********************************************************)
@@ -245,7 +245,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_11, because
-         it's used as constructor field 0.
+         it's used as the type of a constructor field.
 |}];;
 
 type t5 += T5_8 of t_immediate * t_any
@@ -257,7 +257,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_12, because
-         it's used as constructor field 1.
+         it's used as the type of a constructor field.
 |}];;
 
 type t5 += T5_9 of t_any * t_value
@@ -269,7 +269,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_13, because
-         it's used as constructor field 0.
+         it's used as the type of a constructor field.
 |}];;
 
 type t5 += T5_11 of { x : t_value }
@@ -303,7 +303,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_14, because
-         it's used in the declaration of the record field "y/387".
+         it is the type of record field y.
 |}];;
 
 (**************************************************************************)

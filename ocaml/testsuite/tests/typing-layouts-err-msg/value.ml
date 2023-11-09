@@ -37,7 +37,7 @@ Line 3, characters 6-7:
           ^
 Error: Variables bound in a class must have layout value.
        The layout of v is float64, because
-         it's bound by a `let`, defaulted to layout float64.
+         it's the type of a variable bound by a `let`, defaulted to layout float64.
        But the layout of v must be a sublayout of value, because
          it's let-bound in a class expression.
 |}];;

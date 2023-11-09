@@ -76,7 +76,7 @@ Line 1, characters 27-29:
                                ^^
 Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void, because
-         of the annotation on the universal variable a.
+         of the annotation on the universal variable 'a.
        But the layout of 'a must overlap with value, because
          of the definition of value at line 1, characters 0-30.
 |}]
@@ -93,7 +93,7 @@ Error: This alias is bound to type 'a -> int
        The layout of 'a -> int is value, because
          it's a function type.
        But the layout of 'a -> int must be a sublayout of void, because
-         of the annotation on the type variable b.
+         of the annotation on the type variable 'b.
 |}]
 
 (* Type_wildcard *)

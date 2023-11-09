@@ -71,7 +71,7 @@ Error: The type constraints are not consistent.
        The layout of t is any, because
          of the definition of t at line 2, characters 2-14.
        But the layout of t must be a sublayout of '_representable_layout_3, because
-         it instantiates an unannotated type parameter.
+         it instantiates an unannotated type parameter of s.
 |}]
 
 module type S1 = sig
@@ -88,7 +88,7 @@ Error: The type constraints are not consistent.
        The layout of t is any, because
          of the definition of t at line 2, characters 2-14.
        But the layout of t must be a sublayout of '_representable_layout_4, because
-         it instantiates an unannotated type parameter.
+         it instantiates an unannotated type parameter of s.
 |}]
 
 let f1 () : t_any = assert false;;
@@ -902,7 +902,7 @@ Line 3, characters 11-12:
                ^
 Error: Variables bound in a class must have layout value.
        The layout of v is void, because
-         it's bound by a `let`, defaulted to layout void.
+         it's the type of a variable bound by a `let`, defaulted to layout void.
        But the layout of v must be a sublayout of value, because
          it's let-bound in a class expression.
 |}];;

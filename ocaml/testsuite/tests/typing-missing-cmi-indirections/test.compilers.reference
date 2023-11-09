@@ -3,7 +3,7 @@ File "client.ml", line 2, characters 0-19:
     ^^^^^^^^^^^^^^^^^^^
 Error: 
        The layout of alias is any, because
-         a dummy layout of any is used to check mutually recursive datatypes.
+         the .cmi file for Missing.t is missing.
        But the layout of alias must be a sublayout of value, because
          the type argument of list has layout value.
        No .cmi file found containing Missing.t.

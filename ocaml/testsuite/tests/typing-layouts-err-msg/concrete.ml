@@ -23,7 +23,7 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_1, because
-         it's matched against a pattern.
+         a value of this type is matched against a pattern.
 |}]
 
 (* Constructor_declaration *)
@@ -37,7 +37,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_2, because
-         it's used as constructor field 0.
+         it's used as the type of a constructor field.
 |}]
 
 (* Label_declaration *)
@@ -51,7 +51,7 @@ Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_3, because
-         it's used in the declaration of the record field "a/279".
+         it is the type of record field a.
 |}]
 
 (* Unannotated_type_parameter *)
@@ -67,7 +67,7 @@ Error: This type t_any should be an instance of type
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_4, because
-         it instantiates an unannotated type parameter.
+         it instantiates an unannotated type parameter of t.
 |}]
 
 (* Record_projection *)
@@ -89,7 +89,7 @@ Error: This pattern matches values of type t_any
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be a sublayout of '_representable_layout_5, because
-         it's bound by a `let`.
+         it's the type of a variable bound by a `let`.
 |}]
 
 (* Function_argument *)
