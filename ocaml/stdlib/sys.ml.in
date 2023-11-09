@@ -129,7 +129,13 @@ let catch_break on =
   else
     set_signal sigint Signal_default
 
-external with_async_exns : (unit -> 'a) -> 'a = "caml_with_async_exns"
+external runtime5 : unit -> bool = "%runtime5"
+
+external sys_with_async_exns : (unit -> 'a) -> 'a = "caml_with_async_exns"
+
+let with_async_exns f =
+  if runtime5 () then try f () with exn -> raise exn
+  else sys_with_async_exns f
 
 external enable_runtime_warnings: bool -> unit =
   "caml_ml_enable_runtime_warnings"
