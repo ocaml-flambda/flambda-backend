@@ -1,0 +1,4 @@
+File "immediates.ml", line 35, characters 30-56:
+35 | let[@inline never] test1 (f : ('a : immediate). 'a -> 'a) =
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The extension "layouts" is disabled and cannot be used
