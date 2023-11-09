@@ -371,6 +371,13 @@ let mk_nostdlib f =
   "-nostdlib", Arg.Unit f,
   " Do not add default directory to the list of include directories"
 
+let mk_no_auto_include_otherlibs f =
+  "-no-auto-include-otherlibs", Arg.Unit f,
+  "Add only stdlib to the list of include directories (unless -nostdlib is \
+   specified). Do not add subdirectories of other libraries distributed with \
+   the compiler (such as unix, str, dynlink). Do not alert when \
+   they are missing."
+
 let mk_nocwd f =
   "-nocwd", Arg.Unit f,
   " Do not implicitly add the current directory to the load path"
@@ -854,6 +861,7 @@ module type Common_options = sig
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
+  val _no_auto_include_otherlibs : unit -> unit
   val _nocwd : unit -> unit
   val _open : string -> unit
   val _ppx : string -> unit
@@ -1150,6 +1158,7 @@ struct
     mk_noautolink_byt F._noautolink;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_o F._o;
@@ -1245,6 +1254,7 @@ struct
     mk_noprompt F._noprompt;
     mk_nopromptcont F._nopromptcont;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_open F._open;
@@ -1368,6 +1378,7 @@ struct
     mk_no_insn_sched F._no_insn_sched;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
@@ -1509,6 +1520,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_noprompt F._noprompt;
     mk_nopromptcont F._nopromptcont;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
@@ -1607,6 +1619,7 @@ struct
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_open F._open;
     mk_pp F._pp;
@@ -1711,6 +1724,7 @@ module Default = struct
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
+    let _no_auto_include_otherlibs = set no_auto_include_otherlibs
     let _nocwd = set no_cwd
     let _open s = open_modules := (s :: (!open_modules))
     let _principal = set principal
