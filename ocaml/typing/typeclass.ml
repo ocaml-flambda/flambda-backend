@@ -109,6 +109,7 @@ type error =
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
+  | Dummy_argument
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1326,6 +1327,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                 match sargs with
                 | [] -> assert false
                 | (l', sarg) :: remaining_sargs ->
+                  match Jane_syntax.Dummy_arguments.of_expr sarg with
+                  | Some Dummy_argument ->
+                      raise (Error(sarg.pexp_loc, val_env, Dummy_argument))
+                  | None ->
                     if name = Btype.label_name l' ||
                        (not optional && l' = Nolabel)
                     then
@@ -1340,12 +1345,17 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       raise(Error(sarg.pexp_loc, val_env, Apply_wrong_label l'))
               end else
                 match Btype.extract_label name sargs with
-                | Some (l', sarg, _, remaining_sargs) ->
-                    if not optional && Btype.is_optional l' then
-                      Location.prerr_warning sarg.pexp_loc
-                        (Warnings.Nonoptional_label
-                           (Printtyp.string_of_label l));
-                    remaining_sargs, use_arg sarg l'
+                | Some (l', sarg, _, remaining_sargs) -> begin
+                    match Jane_syntax.Dummy_arguments.of_expr sarg with
+                    | Some Dummy_argument ->
+                        raise (Error(sarg.pexp_loc, val_env, Dummy_argument))
+                    | None ->
+                        if not optional && Btype.is_optional l' then
+                          Location.prerr_warning sarg.pexp_loc
+                            (Warnings.Nonoptional_label
+                               (Printtyp.string_of_label l));
+                        remaining_sargs, use_arg sarg l'
+                    end
                 | None ->
                     sargs,
                     if Btype.is_optional l && List.mem_assoc Nolabel sargs then
@@ -2249,6 +2259,10 @@ let report_error env ppf = function
     fprintf ppf
       "@[Variables bound in a class must have layout value.@ %a@]"
       (Jkind.Violation.report_with_name ~name:nm) err
+  | Dummy_argument ->
+    fprintf ppf
+      "@[Dummy arguments are not supported for classes.@]"
+
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

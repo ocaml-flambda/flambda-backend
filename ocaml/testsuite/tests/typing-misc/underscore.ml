@@ -152,3 +152,19 @@ Line 1, characters 19-24:
 Error: This argument has type 'b -> 'b which is less general than
          'a. 'a -> 'a
 |}]
+
+(* classes don't support dummy arguments *)
+class c() = object
+end
+
+[%%expect{|
+class c : unit -> object  end
+|}]
+
+class d = c _
+[%%expect{|
+Line 1, characters 12-13:
+1 | class d = c _
+                ^
+Error: Dummy arguments are not supported for classes.
+|}]
