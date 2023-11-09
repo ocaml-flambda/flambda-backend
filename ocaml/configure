@@ -783,8 +783,8 @@ ocamltest_unix_impl
 ocamltest_libunix
 ocamltest_CPP
 lib_unix
-lib_systhreads
 lib_systhreads_path
+lib_systhreads
 lib_str
 lib_runtime_events
 lib_dynlink
@@ -3269,6 +3269,7 @@ OCAML_VERSION_SHORT=5.1
 # Note: This is present for the flexdll bootstrap where it exposed as the old
 # TOOLPREF variable. It would be better if flexdll where updated to require
 # WINDRES instead.
+
 
 
 
@@ -19287,8 +19288,10 @@ esac
 
 ## Activate the systhread library
 
-if [ "$enable_runtime5" = "yes" ]; then
+if [ x"$enable_runtime5" = x"yes" ]; then
   runtime_suffix=
+  # CR ocaml 5 runtime: forward port locals
+  enable_stack_allocation="no"
 else
   runtime_suffix=4
 fi
@@ -19303,7 +19306,9 @@ case $enable_systhreads,$enable_unix_lib in #(
 printf "%s\n" "$as_me: the threads library is disabled" >&6;} ;; #(
   *) :
     systhread_support=true
-  ac_config_files="$ac_config_files otherlibs/systhreads${runtime_suffix}/META"
+  ac_config_files="$ac_config_files otherlibs/systhreads/META"
+
+  ac_config_files="$ac_config_files otherlibs/systhreads4/META"
 
   otherlibraries="$otherlibraries systhreads${runtime_suffix}"
   lib_systhreads=true
@@ -19993,11 +19998,6 @@ else $as_nop
   as_fn_error $? "Stack allocation is only supported on 64-bit platforms. \
 Please pass '--enable-stack-allocation=no'." "$LINENO" 5
 fi
-fi
-
-if test x"$enable_runtime5" = "xyes"
-then :
-  stack_allocation=false
 fi
 
 if test x"$enable_poll_insertion" = "xyes"
@@ -22409,3 +22409,5 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
+
+

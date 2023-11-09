@@ -2118,8 +2118,10 @@ AS_CASE([$host],
 
 ## Activate the systhread library
 
-if [ "$enable_runtime5" = "yes" ]; then
+if [[ x"$enable_runtime5" = x"yes" ]]; then
   runtime_suffix=
+  # CR ocaml 5 runtime: forward port locals
+  enable_stack_allocation="no"
 else
   runtime_suffix=4
 fi
@@ -2132,7 +2134,8 @@ AS_CASE([$enable_systhreads,$enable_unix_lib],
     [systhread_support=false
     AC_MSG_NOTICE([the threads library is disabled])],
   [systhread_support=true
-  AC_CONFIG_FILES([otherlibs/systhreads${runtime_suffix}/META])
+  AC_CONFIG_FILES([otherlibs/systhreads/META])
+  AC_CONFIG_FILES([otherlibs/systhreads4/META])
   otherlibraries="$otherlibraries systhreads${runtime_suffix}"
   lib_systhreads=true
   lib_systhreads_path="systhreads${runtime_suffix}"
@@ -2359,10 +2362,6 @@ AS_IF([test x"$enable_stack_allocation" = "xno"],
      stack_allocation=true],
     [AC_MSG_ERROR([Stack allocation is only supported on 64-bit platforms. \
 Please pass '--enable-stack-allocation=no'.])])])
-
-# CR ocaml 5 runtime: forward port locals
-AS_IF([test x"$enable_runtime5" = "xyes"],
-  [stack_allocation=false])
 
 AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
