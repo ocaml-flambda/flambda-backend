@@ -204,7 +204,7 @@ coldstart: $(COLDSTART_DEPS)
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
 	$(MAKE) runtime-all
 	$(MAKE) -C stdlib \
-	  OCAMLRUN='$$(ROOTDIR)/$(RUNTIME_DIR)/ocamlrun$(EXE)' \
+	  OCAMLRUN='$$(ROOTDIR)/boot/ocamlrun$(EXE)' \
 	  CAMLC='$$(BOOT_OCAMLC) $(USE_RUNTIME_PRIMS)' all
 else
 	$(MAKE) -C stdlib OCAMLRUN='$$(ROOTDIR)/boot/ocamlruns$(EXE)' \
@@ -212,11 +212,13 @@ else
 	$(MAKE) boot/flexlink.byte$(EXE)
 	$(MAKE) runtime-all
 endif # ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
+ifeq "$(RUNTIME_DIR)" "runtime4"
 	rm -f boot/ocamlrun$(EXE)
 	cp $(RUNTIME_DIR)/ocamlrun$(EXE) boot/ocamlrun$(EXE)
+endif
 	cd boot; rm -f $(LIBFILES)
 	cd stdlib; cp $(LIBFILES) ../boot
-	cd boot; $(LN) ../$(RUNTIME_DIR)/libcamlrun.$(A) .
+	cd boot; $(LN) ../runtime4/libcamlrun.$(A) .
 
 # Recompile the core system using the bootstrap compiler
 .PHONY: coreall
@@ -1170,7 +1172,7 @@ alldepend: depend
 
 .PHONY: library
 library: ocamlc
-	$(MAKE) -C stdlib all
+	$(MAKE) -C stdlib OCAMLRUN=../$(RUNTIME_DIR)/ocamlrun$(EXE) all
 
 .PHONY: library-cross
 library-cross:
@@ -1182,7 +1184,7 @@ library-cross5:
 
 .PHONY: libraryopt
 libraryopt:
-	$(MAKE) -C stdlib allopt
+	$(MAKE) -C stdlib OCAMLRUN=../$(RUNTIME_DIR)/ocamlrun$(EXE) allopt
 
 partialclean::
 	$(MAKE) -C stdlib clean
