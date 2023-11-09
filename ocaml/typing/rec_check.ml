@@ -803,6 +803,7 @@ let rec expression : Typedtree.expression -> term_judg =
           (* param P ::=
               | ?(pat = expr)
               | pat
+
              Define pat(P) as
                 pat if P = ?(pat = expr)
                 pat if P = pat
@@ -883,6 +884,7 @@ and function_body body =
         G |- e : m
         ------------------
         G |-{body} e : m (**)
+
       (**) The "e" here stands for [Tfunction_body] as opposed to
            [Tfunction_cases].
     *)
@@ -892,6 +894,7 @@ and function_body body =
         (Gi; _ |- pi -> ei : m)^i    (**)
         ------------------
         sum(Gi)^i |-{body} function (pi -> ei)^i : m
+
       (**) Contrarily to match, the values that are pattern-matched
            are bound locally, so the pattern modes do not influence
            the final environment.

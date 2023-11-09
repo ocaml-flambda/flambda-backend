@@ -414,7 +414,7 @@ type loop_attribute =
   | Never_loop (* [@loop never] *)
   | Default_loop (* no [@loop] attribute *)
 
-type curried_function_kind = { nlocal: int }
+type curried_function_kind = { nlocal: int } [@@unboxed]
 (* [nlocal] determines how many arguments may be partially applied
     before the resulting closure must be locally allocated.
     See [lfunction] for details *)

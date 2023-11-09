@@ -223,6 +223,8 @@ exception Error_forward of Location.error
     whether it's the first/final value parameter or not, e.g. for calculating
     the [fp_curry] field. We calculate [pparam_indexes] to keep track of the
     index of the first/final value parameter in the parameter list.
+
+    These are 0-indexed.
 *)
 type pparam_indexes =
   { first_val_param: int;
@@ -6621,6 +6623,7 @@ and type_function
             | Some constraint_ ->
               (* The typing of function case coercions/constraints is
                   analogous to the typing of expression coercions/constraints.
+
                   - [type_with_constraint]: If there is a constraint, then call
                     [type_argument] on the cases, and discard the cases'
                     inferred type in favor of the constrained type. (Function
@@ -6632,10 +6635,10 @@ and type_function
               let function_cases_constraint_arg =
                 { is_self = (fun _ -> false);
                   type_with_constraint = (fun env expected_mode ty ->
-                    let body, split_history, _ =
+                    let cases, split_history, _ =
                       type_cases_expect env expected_mode ty
                     in
-                    body, split_history);
+                    cases, split_history);
                   type_without_constraint = (fun env expected_mode ->
                     (* The analogy to [type_exp] for expressions. *)
                     let body, split_history, type_result =

@@ -1006,7 +1006,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let assume_zero_alloc = get_assume_zero_alloc ~scopes in
         let scopes = enter_value_definition ~scopes ~assume_zero_alloc funcid in
         lfunction
-          ~kind:(Curried {nlocal=0 })
+          ~kind:(Curried {nlocal=0})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
           ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
