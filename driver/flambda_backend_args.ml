@@ -144,6 +144,12 @@ let mk_internal_assembler f =
 let mk_gc_timings f =
   "-dgc-timings", Arg.Unit f, "Output information about time spent in the GC"
 
+let mk_no_auto_include_otherlibs f =
+  "-no-auto-include-otherlibs", Arg.Unit f,
+  "Add only stdlib to the list of include directories. Do not add subdirectories of other\
+   libraries distributed with the compiler (such as unix, str, dynlink). Do not alert when \
+   they are missing."
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
@@ -603,6 +609,7 @@ module type Flambda_backend_options = sig
   val internal_assembler : unit -> unit
 
   val gc_timings : unit -> unit
+  val no_auto_include_otherlibs : unit -> unit
 
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit
@@ -708,6 +715,7 @@ struct
     mk_internal_assembler F.internal_assembler;
 
     mk_gc_timings F.gc_timings;
+    mk_no_auto_include_otherlibs F.no_auto_include_otherlibs;
 
     mk_flambda2_debug F.flambda2_debug;
     mk_no_flambda2_debug F.no_flambda2_debug;
@@ -867,6 +875,7 @@ module Flambda_backend_options_impl = struct
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
   let gc_timings = set' Flambda_backend_flags.gc_timings
+  let no_auto_include_otherlibs = set' Clflags.no_auto_include_otherlibs
 
   let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
   let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
@@ -1088,6 +1097,7 @@ module Extra_params = struct
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
+    | "auto-include-otherlibs" -> set' Clflags.no_auto_include_otherlibs
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
