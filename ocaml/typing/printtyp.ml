@@ -1196,7 +1196,7 @@ let print_labels = ref true
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const Value -> None
-  | Const clay -> Some (Olay_const clay)
+  | Const jkind -> Some (Olay_const jkind)
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
     then Some (Olay_var (Jkind.Sort.var_name v))
@@ -1697,26 +1697,22 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let lay = match ty, unboxed with
+  let jkind_annotation = match ty, unboxed with
     | (Otyp_abstract, _) | (_, true) ->
-        (* (C1.1) from the Note corresponds to Otyp_abstract. Anything
-           but the default must be user-written, so we just look in the
-           attributes. Similarly, look in the attributes for (C1.2), the
-           unboxed case. Because this is just printing, we liberally
-           allow [@@immediate]. *)
-       begin match
-         Builtin_attributes.jkind ~legacy_immediate:true decl.type_attributes
-       with
-       | Ok annot -> annot
-       | Error annot -> Some annot  (* don't care here about extensions *)
-       end
+        (* The two cases of (C1) from the Note correspond to Otyp_abstract.
+           Anything but the default must be user-written, so we print the
+           user-written annotation. *)
+        decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
     { otype_name = name;
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_jkind = Option.map (fun { txt } -> Olay_const txt) lay;
+      otype_jkind =
+        Option.map
+          (fun (const, _) -> Olay_const const)
+          jkind_annotation;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2115,6 +2111,7 @@ let dummy =
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = Jkind.any ~why:Dummy_jkind;
+    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
     type_variance = [];

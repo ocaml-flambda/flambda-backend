@@ -204,7 +204,7 @@ L(caml_call_gc):
     /* Save current allocation pointer for debugging purposes */
         str     ALLOC_PTR, Caml_state(young_ptr)
     /* Save trap pointer in case an exception is raised during GC */
-        str     TRAP_PTR, Caml_state(exception_pointer)
+        str     TRAP_PTR, Caml_state(exn_handler)
     /* Call the garbage collector */
         bl      G(caml_garbage_collection)
     /* Restore registers */
@@ -294,7 +294,7 @@ FUNCTION(caml_c_call)
         str     TMP, Caml_state(bottom_of_stack)
     /* Make the exception handler alloc ptr available to the C code */
         str     ALLOC_PTR, Caml_state(young_ptr)
-        str     TRAP_PTR, Caml_state(exception_pointer)
+        str     TRAP_PTR, Caml_state(exn_handler)
     /* Call the function */
         blr     ADDITIONAL_ARG
     /* Reload alloc ptr  */
@@ -342,7 +342,7 @@ L(jump_to_caml):
         CFI_ADJUST(32)
         str     x10, [sp, 16]
     /* Setup a trap frame to catch exceptions escaping the OCaml code */
-        ldr     x8, Caml_state(exception_pointer)
+        ldr     x8, Caml_state(exn_handler)
         adr     x9, L(trap_handler)
         stp     x8, x9, [sp, -16]!
         CFI_ADJUST(16)
@@ -352,10 +352,10 @@ L(jump_to_caml):
     /* Call the OCaml code */
         blr     TMP2
 L(caml_retaddr):
-    /* Pop the trap frame, restoring caml_exception_pointer */
+    /* Pop the trap frame, restoring caml_exn_handler */
         ldr     x8, [sp], 16
         CFI_ADJUST(-16)
-        str     x8, Caml_state(exception_pointer)
+        str     x8, Caml_state(exn_handler)
     /* Pop the callback link, restoring the global variables */
 L(return_result):
         ldr     x10, [sp, 16]
@@ -389,7 +389,7 @@ L(return_result):
 L(trap_handler):
         CFI_STARTPROC
     /* Save exception pointer */
-        str     TRAP_PTR, Caml_state(exception_pointer)
+        str     TRAP_PTR, Caml_state(exn_handler)
     /* Encode exception bucket as an exception result */
         orr     x0, x0, #2
     /* Return it */
@@ -432,7 +432,7 @@ FUNCTION(caml_raise_exception)
     /* Load the exception bucket */
         mov     x0, C_ARG_2
     /* Reload trap ptr and alloc ptr */
-        ldr     TRAP_PTR, Caml_state(exception_pointer)
+        ldr     TRAP_PTR, Caml_state(exn_handler)
         ldr     ALLOC_PTR, Caml_state(young_ptr)
     /* Test if backtrace is active */
         ldr     TMP, Caml_state(backtrace_active)

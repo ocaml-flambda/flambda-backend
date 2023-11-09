@@ -63,23 +63,23 @@ boot_targets = \
   $(boot_ocamlobjinfo)
 
 boot-compiler: _build/_bootinstall
-	$(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
-	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib: boot-compiler
-	$(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
 #	dune does not believe the compiler can make .cmxs unless the following file exists
 	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
-	$(dune) build $(ws_main) --only-package=ocaml @install \
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --only-package=ocaml @install \
 	  $(ocamldir)/ocamltest/ocamltest.byte \
 	  $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
-	$(dune) runtest $(ws_main)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_main)
 
 
 # This Makefile supports old versions that don't have $(file), so we're using
@@ -109,7 +109,23 @@ dune_config_targets = \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
   dune-project \
-  $(ocamldir)/stdlib/ocaml_compiler_internal_params
+  $(ocamldir)/stdlib/ocaml_compiler_internal_params \
+  $(ocamldir)/dune.runtime_selection \
+  $(ocamldir)/otherlibs/dune
+
+$(ocamldir)/otherlibs/dune:
+	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
+          echo "(dirs (:standard \ systhreads))" > $@; \
+	else \
+          echo "(dirs (:standard \ systhreads4))" > $@; \
+	fi
+
+$(ocamldir)/dune.runtime_selection:
+	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
+          echo "(dirs (:standard \ runtime))" > $@; \
+	else \
+          echo "(dirs (:standard \ runtime4))" > $@; \
+	fi
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)
 	echo -n '$(NATDYNLINKOPTS)' > $(ocamldir)/otherlibs/dynlink/natdynlinkops
@@ -227,14 +243,14 @@ install_for_test: _install
          touch ocamlc.opt ocamlopt.opt; \
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
-	 mkdir runtime4; \
-	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime4/caml/threads.h; do \
-	   ln -s ../$$f runtime4/`basename $$f`; \
+	 mkdir $(RUNTIME_DIR); \
+	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* $(RUNTIME_DIR)/caml/threads.h; do \
+	   ln -s ../$$f $(RUNTIME_DIR)/`basename $$f`; \
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
-	 ln -s ../stdlib/threads otherlibs/systhreads; \
+	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
@@ -358,7 +374,7 @@ promote-one-no-rebuild:
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	$(dune) build $(ws_boot) -w $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) -w $(boot_targets)
 
 # The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
 # possible to run the polling build with Emacs's `M-x compile`.  You should run
@@ -368,7 +384,7 @@ hacking: _build/_bootinstall
 
 .PHONY: hacking-emacs-poller
 hacking-emacs-poller: _build/_bootinstall
-	$(dune) build $(ws_boot) --passive-watch-mode
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) --passive-watch-mode
 
 .PHONY: hacking-emacs-builder
 hacking-emacs-builder: _build/_bootinstall
@@ -377,7 +393,7 @@ hacking-emacs-builder: _build/_bootinstall
 
 .PHONY: debug-printers
 debug-printers: runtime-stdlib # required for $(ws_main) to work
-	$(dune) build $(ws_main) $(ocamldir)/tools/debug_printers
+	RUNTIME_DIR=$(RUNTIME_DIR)  $(dune) build $(ws_main) $(ocamldir)/tools/debug_printers
 	@echo
 	@echo To load into ocamldebug, use:
 	@echo source \"$$(realpath _build/main/$(ocamldir)/tools/debug_printers)\"

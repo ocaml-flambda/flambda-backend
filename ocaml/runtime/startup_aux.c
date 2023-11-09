@@ -1,3 +1,5 @@
+/* CR mshinwell: Reverted to 5.x version, need to check conflicts */
+
 /**************************************************************************/
 /*                                                                        */
 /*                                 OCaml                                  */
@@ -95,47 +97,6 @@ void caml_parse_ocamlrunparam(void)
   if (opt != NULL){
     while (*opt != '\0'){
       switch (*opt++){
-<<<<<<< HEAD
-      case 'a': scanmult (opt, &caml_init_policy); break;
-      case 'b': scanmult (opt, &p); caml_record_backtraces(p); break;
-      case 'c': scanmult (opt, &p); caml_cleanup_on_exit = (p != 0); break;
-      case 'h': scanmult (opt, &caml_init_heap_wsz); break;
-      case 'H': scanmult (opt, &caml_use_huge_pages); break;
-      case 'i': scanmult (opt, &caml_init_heap_chunk_sz); break;
-      case 'l': scanmult (opt, &caml_init_max_stack_wsz); break;
-      case 'M': scanmult (opt, &caml_init_custom_major_ratio); break;
-      case 'm': scanmult (opt, &caml_init_custom_minor_ratio); break;
-      case 'n': scanmult (opt, &caml_init_custom_minor_max_bsz); break;
-      case 'o': scanmult (opt, &caml_init_percent_free); break;
-      case 'O': scanmult (opt, &caml_init_max_percent_free); break;
-      case 'p': scanmult (opt, &p); caml_parser_trace = (p != 0); break;
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-      case 'a': scanmult (opt, &p); caml_set_allocation_policy ((intnat) p);
-        break;
-      case 'b': scanmult (opt, &p); caml_record_backtrace(Val_int (p));
-        break;
-||||||||| 24dbb0976a
-      case 'a': scanmult (opt, &p); caml_set_allocation_policy ((intnat) p);
-        break;
-      case 'b': scanmult (opt, &p); caml_record_backtrace(Val_bool (p));
-        break;
-=========
-      case 'a': scanmult (opt, &caml_init_policy); break;
-      case 'b': scanmult (opt, &p); caml_record_backtraces(p); break;
->>>>>>>>> Temporary merge branch 2
-      case 'c': scanmult (opt, &p); caml_cleanup_on_exit = (p != 0); break;
-      case 'h': scanmult (opt, &caml_init_heap_wsz); break;
-      case 'H': scanmult (opt, &caml_use_huge_pages); break;
-      case 'i': scanmult (opt, &caml_init_heap_chunk_sz); break;
-      case 'l': scanmult (opt, &caml_init_max_stack_wsz); break;
-      case 'M': scanmult (opt, &caml_init_custom_major_ratio); break;
-      case 'm': scanmult (opt, &caml_init_custom_minor_ratio); break;
-      case 'n': scanmult (opt, &caml_init_custom_minor_max_bsz); break;
-      case 'o': scanmult (opt, &caml_init_percent_free); break;
-      case 'O': scanmult (opt, &caml_init_max_percent_free); break;
-      case 'p': scanmult (opt, &p); caml_parser_trace = (p != 0); break;
-=======
       case 'b': scanmult (opt, &params.backtrace_enabled); break;
       case 'c': scanmult (opt, &params.cleanup_on_exit); break;
       case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
@@ -145,7 +106,6 @@ void caml_parse_ocamlrunparam(void)
       case 'n': scanmult (opt, &params.init_custom_minor_max_bsz); break;
       case 'o': scanmult (opt, &params.init_percent_free); break;
       case 'p': scanmult (opt, &params.parser_trace); break;
->>>>>>> ocaml/5.1
       case 'R': break; /*  see stdlib/hashtbl.mli */
       case 's': scanmult (opt, &params.init_minor_heap_wsz); break;
       case 't': scanmult (opt, &params.trace_level); break;

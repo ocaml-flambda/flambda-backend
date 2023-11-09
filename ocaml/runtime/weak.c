@@ -1,3 +1,5 @@
+/* CR mshinwell: Reverted to 5.x version, need to check conflicts */
+
 /**************************************************************************/
 /*                                                                        */
 /*                                 OCaml                                  */
@@ -43,118 +45,8 @@ struct caml_ephe_info* caml_alloc_ephe_info (void)
   return e;
 }
 
-<<<<<<< HEAD
-/* The minor heap is considered alive. Outside minor and major heap it is
-   considered alive (out of reach of the GC). */
-Caml_inline int Test_if_its_white(value x){
-  CAMLassert (x != caml_ephe_none);
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-}
-
-/* If it is not white during clean phase it is dead, i.e it will be swept */
-Caml_inline int Is_Dead_during_clean(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_clean);
-  return Test_if_its_white(x);
-}
-
-/** caml_ephe_none is considered as not white  */
-Caml_inline int Is_White_During_Mark(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_mark);
-  if (x == caml_ephe_none ) return 0;
-  return Test_if_its_white(x);
-}
-
-/** The minor heap doesn't have to be marked, outside they should
-    already be black. Remains the value in the heap to mark.
-*/
-Caml_inline int Must_be_Marked_during_mark(value x)
-{
-  CAMLassert (x != caml_ephe_none);
-  CAMLassert (caml_gc_phase == Phase_mark);
-#ifdef NO_NAKED_POINTERS
-  return Is_block (x) && !Is_young (x);
-#else
-  return Is_block (x) && Is_in_heap (x);
-#endif
-}
-
-/* [len] is a number of words (fields) */
-CAMLexport value caml_ephemeron_create (mlsize_t len)
-||||||| merged common ancestors
-/* The minor heap is considered alive. Outside minor and major heap it is
-   considered alive (out of reach of the GC). */
-Caml_inline int Test_if_its_white(value x){
-  CAMLassert (x != caml_ephe_none);
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-}
-
-/* If it is not white during clean phase it is dead, i.e it will be swept */
-Caml_inline int Is_Dead_during_clean(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_clean);
-<<<<<<<<< Temporary merge branch 1
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-||||||||| 24dbb0976a
-  if (!Is_block(x)) return 0;
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-#ifdef NO_NAKED_POINTERS
-  return Is_white_val(x) && !Is_young (x);
-#else
-  return Is_white_val(x) && Is_in_heap (x);
-#endif
-=========
-  return Test_if_its_white(x);
->>>>>>>>> Temporary merge branch 2
-}
-
-/** caml_ephe_none is considered as not white  */
-Caml_inline int Is_White_During_Mark(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_mark);
-  if (x == caml_ephe_none ) return 0;
-  return Test_if_its_white(x);
-}
-
-/** The minor heap doesn't have to be marked, outside they should
-    already be black. Remains the value in the heap to mark.
-*/
-Caml_inline int Must_be_Marked_during_mark(value x)
-{
-  CAMLassert (x != caml_ephe_none);
-  CAMLassert (caml_gc_phase == Phase_mark);
-#ifdef NO_NAKED_POINTERS
-  return Is_block (x) && !Is_young (x);
-#else
-  return Is_block (x) && Is_in_heap (x);
-#endif
-}
-
-/* [len] is a number of words (fields) */
-CAMLexport value caml_ephemeron_create (mlsize_t len)
-=======
 /* [len] is a value that represents a number of words (fields) */
 CAMLprim value caml_ephe_create (value len)
->>>>>>> ocaml/5.1
 {
   mlsize_t size, i;
   value res;

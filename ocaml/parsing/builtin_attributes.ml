@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Parsetree
 open Ast_helper
 
@@ -77,12 +76,8 @@ let builtin_attrs =
   ; "ppwarning"; "ocaml.ppwarning"
   ; "explicit_arity"; "ocaml.explicit_arity"
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
-  ; "float64"; "ocaml.float64"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
-  ; "void"; "ocaml.void"
-  ; "value"; "ocaml.value"
-  ; "any"; "ocaml.any"
   ; "boxed"; "ocaml.boxed"
   ; "unboxed"; "ocaml.unboxed"
   ; "principal"; "ocaml.principal"
@@ -459,39 +454,33 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-let jkind ~legacy_immediate attrs =
+type jkind_attribute =
+  | Immediate64
+  | Immediate
+
+let jkind_attribute_of_string = function
+  | "ocaml.immediate64" | "immediate64" -> Some Immediate64
+  | "ocaml.immediate" | "immediate" -> Some Immediate
+  | _ -> None
+
+let jkind_attribute_to_string = function
+  | Immediate64 -> "immediate64"
+  | Immediate -> "immediate"
+
+let jkind attrs =
   let jkind =
     List.find_map
       (fun a ->
-         match a.attr_name.txt with
-         | "ocaml.void"|"void" -> Some (a, Void)
-         | "ocaml.value"|"value" -> Some (a, Value)
-         | "ocaml.any"|"any" -> Some (a, Any)
-         | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
-         | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
-         | "ocaml.float64"|"float64" -> Some (a, Float64)
-         | _ -> None
-        ) attrs
+         match jkind_attribute_of_string a.attr_name.txt with
+         | Some attr -> Some (a, attr)
+         | None -> None
+      ) attrs
   in
   match jkind with
-  | None -> Ok None
+  | None -> None
   | Some (a, l) ->
      mark_used a.attr_name;
-     let l_loc = Location.mkloc l a.attr_loc in
-     let check b =
-       if b
-       then Ok (Some l_loc)
-       else Error l_loc
-     in
-     match l with
-     | Value -> check true
-     | Immediate | Immediate64 ->
-        check  (legacy_immediate
-             || Language_extension.(is_at_least Layouts Beta))
-     | Any | Float64 ->
-        check Language_extension.(is_at_least Layouts Beta)
-     | Void ->
-        check Language_extension.(is_at_least Layouts Alpha)
+     Some (Location.mkloc l a.attr_loc)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the

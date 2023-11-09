@@ -306,7 +306,7 @@ module Layouts : sig
     Parsetree.extension_constructor
 
   (** See also [Ast_helper.Type.constructor], which is a direct inspiration for
-      the interface here. It's meant to be able to be a drop-in replacement.  *)
+      the interface here. *)
   val constructor_declaration_of :
     loc:Location.t ->
     attrs:Parsetree.attributes ->
@@ -327,6 +327,32 @@ module Layouts : sig
     ((string Location.loc * Jane_asttypes.jkind_annotation option) list
     * Parsetree.attributes)
     option
+
+  (** See also [Ast_helper.Type.mk], which is a direct inspiration for
+      the interface here. *)
+  val type_declaration_of :
+    loc:Location.t ->
+    attrs:Parsetree.attributes ->
+    docs:Docstrings.docs ->
+    text:Docstrings.text option ->
+    params:
+      (Parsetree.core_type * (Asttypes.variance * Asttypes.injectivity)) list ->
+    cstrs:(Parsetree.core_type * Parsetree.core_type * Location.t) list ->
+    kind:Parsetree.type_kind ->
+    priv:Asttypes.private_flag ->
+    manifest:Parsetree.core_type option ->
+    jkind:Jane_asttypes.jkind_annotation option ->
+    string Location.loc ->
+    Parsetree.type_declaration
+
+  (** Extract the jkind annotation from a [type_declaration]; returns
+      leftover attributes. Similar to [of_constructor_declaration] in the
+      sense that users of this function will have to process the remaining
+      pieces of the original [type_declaration].
+  *)
+  val of_type_declaration :
+    Parsetree.type_declaration ->
+    (Jane_asttypes.jkind_annotation * Parsetree.attributes) option
 end
 
 (******************************************)

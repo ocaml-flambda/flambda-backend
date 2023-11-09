@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Typedtree
 
 type iterator =
@@ -35,7 +34,7 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-    jkind_annotation: iterator -> const_jkind -> unit;
+    jkind_annotation: iterator -> Jkind.const -> unit;
     location: iterator -> Location.t -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
@@ -250,7 +249,7 @@ let pat
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) ->
       List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l
-  | Tpat_array (_, l) -> List.iter (sub.pat sub) l
+  | Tpat_array (_, _, l) -> List.iter (sub.pat sub) l
   | Tpat_alias (p, _, s, _, _) -> sub.pat sub p; iter_loc sub s
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)
@@ -579,7 +578,7 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
   sub.env sub ctyp_env;
   match ctyp_desc with
   | Ttyp_var (_, jkind) ->
-      Option.iter (sub.jkind_annotation sub) jkind
+      Option.iter (fun (jkind, _) -> sub.jkind_annotation sub jkind) jkind
   | Ttyp_arrow (_, ct1, ct2) ->
       sub.typ sub ct1;
       sub.typ sub ct2
@@ -593,10 +592,10 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       List.iter (sub.typ sub) list
   | Ttyp_alias (ct, _, jkind) ->
       sub.typ sub ct;
-      Option.iter (sub.jkind_annotation sub) jkind
+      Option.iter (fun (jkind, _) -> sub.jkind_annotation sub jkind) jkind
   | Ttyp_variant (list, _, _) -> List.iter (sub.row_field sub) list
   | Ttyp_poly (vars, ct) ->
-      List.iter (fun (_, l) -> Option.iter (sub.jkind_annotation sub) l) vars;
+      List.iter (fun (_, l) -> Option.iter (fun (j, _) -> sub.jkind_annotation sub j) l) vars;
       sub.typ sub ct
   | Ttyp_package pack -> sub.package_type sub pack
 

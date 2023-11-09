@@ -57,7 +57,7 @@ type out_value =
   | Oval_variant of string * out_value option
 
 type out_jkind =
-  | Olay_const of Jane_asttypes.const_jkind
+  | Olay_const of Jkind.const
   | Olay_var of string
 
 type out_type_param =
