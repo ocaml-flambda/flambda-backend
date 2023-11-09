@@ -1098,7 +1098,7 @@ module Extra_params = struct
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
-    | "auto-include-otherlibs" -> set' Clflags.no_auto_include_otherlibs
+    | "no-auto-include-otherlibs" -> set' Clflags.no_auto_include_otherlibs
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
