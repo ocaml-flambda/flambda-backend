@@ -195,46 +195,14 @@ val mode_annotation_attributes_filter : Attributes_filter.t
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
    after rerouting [@@immediate]. *)
 type jkind_attribute =
-  | Any
-  | Value
-  | Void
   | Immediate64
   | Immediate
-  | Float64
 
 val jkind_attribute_to_string : jkind_attribute -> string
 val jkind_attribute_of_string : string -> jkind_attribute option
 
-(* [jkind] gets the jkind in the attributes if one is present.  We always
-   allow the [value] annotation, even if the layouts extensions are disabled.
-   If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
-   attributes even if the layouts extensions are disabled - this is used to
-   support the original immediacy attributes, which are now implemented in terms
-   of jkinds.
-
-   The return value is [Error <jkind>] if a jkind attribute is present but
-   not allowed by the current set of extensions.  Otherwise it is [Ok None] if
-   there is no jkind annotation and [Ok (Some jkind)] if there is one.
-
-   - If no layout extensions are on and [~legacy_immediate] is false, this will
-     always return [Ok None], [Ok (Some Value)], or [Error ...].
-   - If no layout extensions are on and [~legacy_immediate] is true, this will
-     error on [void], [float64], or [any], but allow [immediate], [immediate64],
-     and [value].
-   - If the [Layouts_beta] extension is on, this behaves like the previous case
-     regardless of the value of [~legacy_immediate], except that it allows
-     [float64] and [any].
-   - If the [Layouts_alpha] extension is on, this can return any jkind and
-     never errors.
-
-   Currently, the [Layouts] extension is ignored - it's no different than
-   turning on no layout extensions.
-
-   This is not the only place the layouts extension level is checked.  If you're
-   changing what's allowed in a given level, you may also need to make changes
-   in the parser, Jkind.get_required_layouts_level, and Typeopt.
+(* [jkind] gets the first jkind in the attributes if one is present.  All such
+   attributes can be provided even in the absence of the layouts extension
+   as the attribute mechanism predates layouts.
 *)
-(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
-   turn on layouts by default). *)
-val jkind : legacy_immediate:bool -> Parsetree.attributes ->
-  (jkind_attribute Location.loc option, jkind_attribute Location.loc) result
+val jkind : Parsetree.attributes -> jkind_attribute Location.loc option

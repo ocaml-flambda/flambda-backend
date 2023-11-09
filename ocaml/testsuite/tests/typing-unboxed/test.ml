@@ -1,7 +1,12 @@
 (* TEST
-   flags = "-strict-sequence"
+   flags = "-extension layouts -strict-sequence"
    * expect
 *)
+(* CR layouts: Using [-extension layouts] here is not backward-compatible.
+   We can delete this when internal ticket 1110 is resolved.
+*)
+
+
 external a : (int [@untagged]) -> unit = "a" "a_nat"
 external b : (int32 [@unboxed]) -> unit = "b" "b_nat"
 external c : (int64 [@unboxed]) -> unit = "c" "c_nat"
@@ -746,7 +751,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 
 (* PR#7424 *)
-type 'a b = B of 'a b b [@@unboxed] [@@value];;
+type 'a b : value = B of 'a b b [@@unboxed];;
 [%%expect{|
 type 'a b : value = B of 'a b b [@@unboxed]
 |}]

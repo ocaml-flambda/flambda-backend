@@ -59,6 +59,7 @@ module type Flambda_backend_options = sig
   val internal_assembler : unit -> unit
 
   val gc_timings : unit -> unit
+  val no_auto_include_otherlibs : unit -> unit
 
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit

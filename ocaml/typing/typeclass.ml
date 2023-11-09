@@ -1555,6 +1555,7 @@ let temp_abbrev loc arity uid =
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
        type_jkind = Jkind.value ~why:Object;
+       type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1785,6 +1786,7 @@ let class_infos define_class kind
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
      type_jkind = Jkind.value ~why:Object;
+     type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1804,7 +1806,7 @@ let class_infos define_class kind
   let cl_abbr =
     { cl_td with
      type_params = cl_params;
-     type_manifest = Some cl_ty
+     type_manifest = Some cl_ty;
     }
   in
   let cltydef =

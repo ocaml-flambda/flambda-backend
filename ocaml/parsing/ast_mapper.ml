@@ -1201,7 +1201,7 @@ module PpxContext = struct
           (* Duplicates Compmisc.auto_include, since we can't reference Compmisc
              from this module. *)
           let auto_include find_in_dir fn =
-            if !Clflags.no_std_include then
+            if !Clflags.no_auto_include_otherlibs || !Clflags.no_std_include then
               raise Not_found
             else
               let alert = Location.auto_include_alert in
