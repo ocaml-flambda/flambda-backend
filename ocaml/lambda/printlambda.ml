@@ -432,7 +432,8 @@ let primitive ppf = function
        | Ostype_unix -> "ostype_unix"
        | Ostype_win32 -> "ostype_win32"
        | Ostype_cygwin -> "ostype_cygwin"
-       | Backend_type -> "backend_type" in
+       | Backend_type -> "backend_type"
+       | Runtime5 -> "runtime5" in
      fprintf ppf "sys.constant_%s" const_name
   | Pisint { variant_only } ->
       fprintf ppf (if variant_only then "isint" else "obj_is_int")
