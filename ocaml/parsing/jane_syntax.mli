@@ -506,3 +506,16 @@ module Extension_constructor : sig
     t ->
     Parsetree.extension_constructor
 end
+
+(* Dummy arguments can only be used as application arguments, in contrast to
+   the extensions above, which are standalone language constructs that can be
+   used everywhere. *)
+module Dummy_arguments : sig
+  type expression = Dummy_argument  (** A single dummy argument *)
+  (* More constructors to come for other kinds of dummy arguments, such as
+     ellipsis *)
+
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+
+  val of_expr : Parsetree.expression -> expression option
+end

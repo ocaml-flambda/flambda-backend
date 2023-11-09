@@ -515,7 +515,12 @@ let expression sub exp =
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
               match arg with
-              | Dummy _ -> list
+              | Dummy {dummy_loc; _} ->
+                let ext =
+                  Jane_syntax.Dummy_arguments.expr_of
+                    ~loc:dummy_loc Dummy_argument
+                in
+                (label, ext) :: list
               | Omitted _ -> list
               | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) list [])

@@ -154,8 +154,6 @@ let local_ext_loc loc = mkloc "extension.local" loc
 let unique_ext_loc loc = mkloc "extension.unique" loc
 let once_ext_loc loc = mkloc "extension.once" loc
 
-let dummy_ext_loc loc = mkloc "extension.dummy" loc
-
 let local_attr loc =
   mk_attr ~loc (local_ext_loc loc) (PStr [])
 
@@ -173,9 +171,6 @@ let unique_extension loc =
 
 let once_extension loc =
   Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
-
-let dummy_extension loc =
-  Exp.mk ~loc:(ghost_loc loc) (Pexp_extension(dummy_ext_loc (make_loc loc), PStr []))
 
 let mkexp_stack ~loc ~kwd_loc exp =
   Exp.mk ~loc (Pexp_apply(local_extension kwd_loc, [Nolabel, exp]))
@@ -3099,11 +3094,11 @@ labeled_simple_expr:
   | OPTLABEL simple_expr %prec below_HASH
       { (Optional $1, $2) }
   | UNDERSCORE
-      { (Nolabel, dummy_extension $loc($1)) }
+      { (Nolabel, Jane_syntax.Dummy_arguments.expr_of ~loc:(make_loc $loc($1)) Dummy_argument) }
   | LABEL UNDERSCORE
-      { (Labelled $1, dummy_extension $loc($2)) }
+      { (Labelled $1, Jane_syntax.Dummy_arguments.expr_of ~loc:(make_loc $loc($2)) Dummy_argument) }
   | OPTLABEL UNDERSCORE
-      { (Optional $1, dummy_extension $loc($2)) }
+      { (Optional $1, Jane_syntax.Dummy_arguments.expr_of ~loc:(make_loc $loc($2)) Dummy_argument) }
 ;
 %inline lident_list:
   xs = mkrhs(LIDENT)+

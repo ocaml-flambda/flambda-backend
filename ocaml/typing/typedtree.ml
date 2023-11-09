@@ -41,6 +41,20 @@ type unique_use = Mode.Uniqueness.t * Mode.Linearity.t
 
 let shared_many_use = (Mode.Uniqueness.shared, Mode.Linearity.many)
 
+type omitted_parameter =
+  { mode_closure : Mode.Alloc.t;
+    mode_arg : Mode.Alloc.t;
+    mode_ret : Mode.Alloc.t;
+    sort_arg : Jkind.sort }
+
+(** Identical to [omitted_parameter] but with location info *)
+type dummy_parameter =
+  { mode_closure : Mode.Alloc.t;
+    mode_arg : Mode.Alloc.t;
+    mode_ret : Mode.Alloc.t;
+    sort_arg : Jkind.sort;
+    dummy_loc   : Location.t }
+
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
 
@@ -255,13 +269,7 @@ and ('a, 'b, 'c) arg_or_omitted =
   | Omitted of 'b
   | Dummy of 'c
 
-and omitted_parameter =
-  { mode_closure : Mode.Alloc.t;
-    mode_arg : Mode.Alloc.t;
-    mode_ret : Mode.Alloc.t;
-    sort_arg : Jkind.sort }
-
-and apply_arg = (expression * Jkind.sort, omitted_parameter, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter, dummy_parameter) arg_or_omitted
 
 and apply_position =
   | Tail

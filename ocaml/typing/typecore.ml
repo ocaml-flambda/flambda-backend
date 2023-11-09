@@ -3195,6 +3195,14 @@ type untyped_omitted_param =
     level: int;
     sort_arg : Jkind.sort }
 
+type untyped_dummy_param =
+  { mode_fun: Alloc.t;
+    ty_arg : type_expr;
+    mode_arg : Alloc.t;
+    level: int;
+    sort_arg : Jkind.sort;
+    dummy_loc : Location.t }
+
 let is_partial_apply args =
   List.exists
     (fun (_, arg) ->
@@ -3217,7 +3225,7 @@ let remaining_function_type ty_ret mode_ret rev_args =
               (ty_ret, mode_ret, closed_args, underscore_args)
          | Arg (Eliminated_optional_arg
                   { mode_fun; ty_arg; mode_arg; level })
-         | Omitted { mode_fun; ty_arg; mode_arg; level } ->
+         | Omitted ({ mode_fun; ty_arg; mode_arg; level } : untyped_omitted_param) ->
              let arrow_desc = lbl, mode_arg, mode_ret in
              let ty_ret =
                newty2 ~level
@@ -3245,7 +3253,7 @@ let check_local_application_complete ~env ~app_loc args =
     | Arg ( Known_arg { mode_fun; _ }
           | Unknown_arg { mode_fun; _ }
           | Eliminated_optional_arg { mode_fun; _ })
-    | Omitted { mode_fun; _ }
+    | Omitted ({ mode_fun; _ } : untyped_omitted_param)
     | Dummy { mode_fun; _ } -> mode_fun
   in
   let rec loop has_commuted = function
@@ -3254,7 +3262,7 @@ let check_local_application_complete ~env ~app_loc args =
                   | Unknown_arg { mode_fun; mode_arg; _ }
                   | Eliminated_optional_arg { mode_fun; mode_arg; _ })
             | Dummy { mode_fun; mode_arg; _}
-            | Omitted { mode_fun; mode_arg; _ } as arg))
+            | Omitted ({ mode_fun; mode_arg; _ } : untyped_omitted_param) as arg))
       :: ((next :: _) as rest) ->
       let mode_ret = arg_mode_fun next in
       let has_commuted =
@@ -3347,13 +3355,11 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                               (expand_head env funct.exp_type)))
         in
         let arg =
-          match sarg.pexp_desc with
-          | Pexp_extension({txt = "extension.dummy"; loc}, PStr []) ->
-              if not (Language_extension.is_enabled Dummy_arguments) then
-                raise (Typetexp.Error (loc, env,
-                  Unsupported_extension Dummy_arguments));
-              Dummy {ty_arg; mode_fun; mode_arg; sort_arg; level = lv}
-          | _ ->
+          match Jane_syntax.Dummy_arguments.of_expr sarg with
+          | Some Dummy_argument ->
+              Dummy {ty_arg; mode_fun; mode_arg; sort_arg; level = lv;
+                     dummy_loc = sarg.pexp_loc }
+          | None ->
               Arg (Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg })
         in
         loop ty_res mode_ret ((lbl, arg) :: rev_args) rest
@@ -3393,16 +3399,14 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         and optional = is_optional l in
         let use_arg ~commuted sarg l' =
           let wrapped_in_some = optional && not (is_optional l') in
-          match sarg.pexp_desc with
-          | Pexp_extension({txt = "extension.dummy"; loc}, PStr []) ->
-              if not (Language_extension.is_enabled Dummy_arguments) then
-                raise (Typetexp.Error (loc, env,
-                  Unsupported_extension Dummy_arguments));
+          match Jane_syntax.Dummy_arguments.of_expr sarg with
+          | Some Dummy_argument ->
+              let loc = sarg.pexp_loc in
               if wrapped_in_some then
                 raise (Error (loc, env, Dummy_wrapped_in_some))
               else
-                Dummy { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
-          | _ ->
+                Dummy { mode_fun; ty_arg; mode_arg; level = lv; sort_arg; dummy_loc = loc}
+          | None ->
               if wrapped_in_some then
                 may_warn sarg.pexp_loc
                 (Warnings.Not_principal "using an optional argument here");
@@ -3469,7 +3473,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
-let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
+let type_omitted_parameters expected_mode env ty_ret ~mode_ret ~mode_funct args =
   let ty_ret, mode_ret, open_args, closed_args, underscore_args, args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, underscore_args, args) (lbl, arg) ->
@@ -3478,11 +3482,11 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
              let open_args = (exp_mode, exp.exp_loc) :: open_args in
              let args = (lbl, Arg (exp, sort)) :: args in
              (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
-         | Dummy { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
+         | Dummy { mode_fun; ty_arg; mode_arg; level; sort_arg; dummy_loc } ->
              let underscore_args = mode_arg :: underscore_args in
-             let args = (lbl, Dummy {mode_fun; ty_arg; mode_arg; level; sort_arg} ) :: args in
+             let args = (lbl, Dummy {mode_fun; ty_arg; mode_arg; level; sort_arg; dummy_loc} ) :: args in
              (ty_ret, mode_ret, open_args, closed_args, underscore_args, args)
-         | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg;} ->
+         | Omitted ({ mode_fun; ty_arg; mode_arg; level; sort_arg} : untyped_omitted_param) ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
                newty2 ~level
@@ -3520,11 +3524,11 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
           Value.regional_to_local_alloc marg)
         open_args
     in
-    funct_mode :: new_closed_args @ closed_args
+    mode_funct :: new_closed_args @ closed_args
   in
   let rec type_underscore_parameters closed_args = function
     | [] -> ty_ret, mode_ret, []
-    | (lbl, Dummy { mode_fun = _; ty_arg; mode_arg; level; sort_arg }) :: rest ->
+    | (lbl, Dummy { mode_fun = _; ty_arg; mode_arg; level; sort_arg; dummy_loc }) :: rest ->
         let ty_ret, mode_ret, args = type_underscore_parameters (mode_arg :: closed_args) rest in
         let arrow_desc = (lbl, mode_arg, mode_ret) in
         let ty_ret =
@@ -3535,7 +3539,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret funct_mode args =
           closed_args |> List.map Alloc.close_over |> Alloc.join |> Alloc.newvar_above
         in
         register_allocation_mode mode_closure;
-        let arg = Dummy {mode_closure; mode_arg; mode_ret; sort_arg } in
+        let arg = Dummy {mode_closure; mode_arg; mode_ret; sort_arg; dummy_loc } in
         ty_ret, mode_closure, (lbl, arg) :: args
     | (lbl, Omitted r) :: rest ->
       let ty_ret, mode_ret, args = type_underscore_parameters closed_args rest in
@@ -3634,18 +3638,16 @@ let rec is_nonexpansive exp =
      is_nonexpansive e
   | Texp_apply(e, args, _, _)
      when is_nonexpansive e
-       && List.for_all is_nonexpansive_arg (List.map snd args) ->
-     let has_underscore =
-       List.exists (fun (_, arg) -> match arg with
-       | Dummy _ -> true
-       | _ -> false
-       ) args
-     in
-     if has_underscore then true
-     else begin
-       match args with
-       | (_, Omitted _) :: _ -> true
-       | _ -> false
+       && List.for_all (fun (_, arg) -> is_nonexpansive_arg arg) args ->
+     (* An application is translated into a lambda if the first arg is omitted
+        or if any arg is dummy. *)
+     begin match args with
+     | (_, Omitted _) :: _ -> true
+     | args ->
+         List.exists (function
+             | (_, Dummy _) -> true
+             | (_, (Omitted _ | Arg _)) -> false)
+           args
      end
   | Texp_array (_, _ :: _, _)
   | Texp_apply _
@@ -6946,7 +6948,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
   | Dummy _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode pm
-      funct funct_mode sargs ret_tvar =
+      funct mode_funct sargs ret_tvar =
   let is_ignore funct =
     is_prim ~name:"%ignore" funct &&
     (try ignore (filter_arrow_mono env (instance funct.exp_type) Nolabel); true
@@ -6998,7 +7000,7 @@ and type_application env app_loc expected_mode pm
       if !Clflags.principal then begin_def () ;
       let ty_ret, mode_ret, untyped_args =
         collect_apply_args env funct ignore_labels ty (instance ty)
-          (Value.regional_to_local_alloc funct_mode) sargs ret_tvar
+          (Value.regional_to_local_alloc mode_funct) sargs ret_tvar
       in
       let partial_app = is_partial_apply untyped_args in
       let pm = if partial_app then position_and_mode_default else pm in
@@ -7009,8 +7011,8 @@ and type_application env app_loc expected_mode pm
           untyped_args
       in
       let ty_ret, mode_ret, args =
-        type_omitted_parameters expected_mode env ty_ret mode_ret
-          (Value.regional_to_local_alloc funct_mode) args
+        type_omitted_parameters expected_mode env ty_ret ~mode_ret
+          ~mode_funct:(Value.regional_to_local_alloc mode_funct) args
       in
       check_local_application_complete ~env ~app_loc untyped_args;
       if !Clflags.principal then begin

@@ -1156,7 +1156,7 @@ and transl_apply ~scopes
   let rec build_apply lam args loc pos ap_mode prot = function
     (* [prot = true] means the remaining arguments are already protected *)
     | Dummy _ :: _ -> assert false
-    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
+    | Omitted ({ mode_closure; mode_arg; mode_ret; sort_arg } : omitted_parameter) :: l ->
         assert (pos = Rc_normal);
         let lam =
           if args = [] then

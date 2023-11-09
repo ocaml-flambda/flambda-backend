@@ -53,6 +53,20 @@ type unique_barrier = Mode.Uniqueness.t option
 
 type unique_use = Mode.Uniqueness.t * Mode.Linearity.t
 
+type omitted_parameter =
+  { mode_closure : Mode.Alloc.t;
+    mode_arg : Mode.Alloc.t;
+    mode_ret : Mode.Alloc.t;
+    sort_arg : Jkind.sort }
+
+(** Identical to [omitted_parameter] but with location info *)
+type dummy_parameter =
+  { mode_closure : Mode.Alloc.t;
+    mode_arg : Mode.Alloc.t;
+    mode_ret : Mode.Alloc.t;
+    sort_arg : Jkind.sort;
+    dummy_loc   : Location.t }
+
 val shared_many_use : unique_use
 
 type pattern = value general_pattern
@@ -443,13 +457,7 @@ and ('a, 'b, 'c) arg_or_omitted =
   | Omitted of 'b
   | Dummy of 'c
 
-and omitted_parameter =
-  { mode_closure : Mode.Alloc.t;
-    mode_arg : Mode.Alloc.t;
-    mode_ret : Mode.Alloc.t;
-    sort_arg : Jkind.sort }
-
-and apply_arg = (expression * Jkind.sort, omitted_parameter, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.sort, omitted_parameter, dummy_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)

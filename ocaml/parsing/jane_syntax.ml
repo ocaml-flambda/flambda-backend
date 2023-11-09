@@ -1767,3 +1767,25 @@ module Extension_constructor = struct
       (* See Note [Outer attributes at end] *)
       { ext_ctor with pext_attributes = ext_ctor.pext_attributes @ attrs }
 end
+
+module Dummy_arguments = struct
+  type expression = Dummy_argument
+
+  let embedded_name = "jane.non_erasable.dummy_arguments"
+
+  let expr_of ~loc = function
+    | Dummy_argument ->
+      (* the string doesn't exist anywhere in the source code *)
+      let name = Location.mknoloc embedded_name in
+      Ast_helper.Exp.extension ~loc (name, PStr [])
+
+  let of_expr e =
+    match e.pexp_desc with
+    | Pexp_extension ({ txt; loc }, PStr []) ->
+      if txt = embedded_name
+      then (
+        assert_extension_enabled ~loc Dummy_arguments ();
+        Some Dummy_argument)
+      else None
+    | _ -> None
+end
