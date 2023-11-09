@@ -2749,7 +2749,7 @@ Error: This local value escapes its region
         Specifying 1 more argument may make the value non-local
 |}]
 
-let foo (local_ f) = local_ f _
+let foo (local_ f) = exclave_ f _
 [%%expect{|
 val foo : local_ ('a -> 'b) -> 'a -> 'b = <fun>
 |}]
@@ -2791,4 +2791,29 @@ Line 1, characters 12-26:
 Error: This value escapes its region
   Hint: This is a partial application
         Specifying 2 more arguments will make the value non-local
+|}]
+
+let f_local (local_ x : string) = ()
+
+let f : string -> unit = f_local
+[%%expect{|
+val f_local : local_ string -> unit = <fun>
+Line 3, characters 25-32:
+3 | let f : string -> unit = f_local
+                             ^^^^^^^
+Error: This expression has type local_ string -> unit
+       but an expression was expected of type string -> unit
+|}]
+
+(* dummy arguments don't change argument mode, so can't be used for argumentmode
+weakening *)
+let f : string -> unit = f_local _
+[%%expect{|
+Line 1, characters 25-34:
+1 | let f : string -> unit = f_local _
+                             ^^^^^^^^^
+Error: This expression has type local_ string -> unit
+       but an expression was expected of type string -> unit
+  Hint: This function application is partial,
+  maybe some arguments are missing.
 |}]
