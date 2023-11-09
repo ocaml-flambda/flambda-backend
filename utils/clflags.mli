@@ -301,3 +301,4 @@ end
 val zero_alloc_check : Annotations.t ref
 val zero_alloc_check_assert_all : bool ref
 
+val no_auto_include_otherlibs : bool ref
