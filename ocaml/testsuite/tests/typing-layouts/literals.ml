@@ -4,86 +4,155 @@
 *)
 
 (*****************************************)
+(* Prelude: Functions on unboxed floats. *)
+
+module Float_u = struct
+  include Stdlib__Float_u
+
+  let ( + ) = add
+  let ( - ) = sub
+  let ( * ) = mul
+  let ( / ) = div
+  let ( ** ) = pow
+  let ( > ) x y = (compare x y) > 0
+end
+
+let test s f = Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()
+
+[%%expect{|
+module Float_u :
+  sig
+    external to_float : float# -> (float [@local_opt]) = "%box_float"
+    external of_float : (float [@local_opt]) -> float# = "%unbox_float"
+    val neg : float# -> float#
+    val add : float# -> float# -> float#
+    val sub : float# -> float# -> float#
+    val mul : float# -> float# -> float#
+    val div : float# -> float# -> float#
+    val fma : float# -> float# -> float# -> float#
+    val rem : float# -> float# -> float#
+    val succ : float# -> float#
+    val pred : float# -> float#
+    val abs : float# -> float#
+    val is_finite : float# -> bool
+    val is_infinite : float# -> bool
+    val is_nan : float# -> bool
+    val is_integer : float# -> bool
+    val of_int : int -> float#
+    val to_int : float# -> int
+    val of_string : string -> float#
+    val to_string : float# -> string
+    type fpclass =
+      fpclass =
+        FP_normal
+      | FP_subnormal
+      | FP_zero
+      | FP_infinite
+      | FP_nan
+    val classify_float : float# -> fpclass
+    val pow : float# -> float# -> float#
+    val sqrt : float# -> float#
+    val cbrt : float# -> float#
+    val exp : float# -> float#
+    val exp2 : float# -> float#
+    val log : float# -> float#
+    val log10 : float# -> float#
+    val log2 : float# -> float#
+    val expm1 : float# -> float#
+    val log1p : float# -> float#
+    val cos : float# -> float#
+    val sin : float# -> float#
+    val tan : float# -> float#
+    val acos : float# -> float#
+    val asin : float# -> float#
+    val atan : float# -> float#
+    val atan2 : float# -> float# -> float#
+    val hypot : float# -> float# -> float#
+    val cosh : float# -> float#
+    val sinh : float# -> float#
+    val tanh : float# -> float#
+    val acosh : float# -> float#
+    val asinh : float# -> float#
+    val atanh : float# -> float#
+    val erf : float# -> float#
+    val erfc : float# -> float#
+    val trunc : float# -> float#
+    val round : float# -> float#
+    val ceil : float# -> float#
+    val floor : float# -> float#
+    val next_after : float# -> float# -> float#
+    val copy_sign : float# -> float# -> float#
+    val sign_bit : float# -> bool
+    val ldexp : float# -> int -> float#
+    type t = float#
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
+    val min : t -> t -> t
+    val max : float# -> float# -> float#
+    val min_num : t -> t -> t
+    val max_num : t -> t -> t
+    val ( + ) : float# -> float# -> float#
+    val ( - ) : float# -> float# -> float#
+    val ( * ) : float# -> float# -> float#
+    val ( / ) : float# -> float# -> float#
+    val ( ** ) : float# -> float# -> float#
+    val ( > ) : t -> t -> bool
+  end
+val test : string -> float# -> unit = <fun>
+|}]
+
+(*****************************************)
 (* Expressions *)
 
-let e = #2.718281828459045
+let () = test "e" #2.718281828459045
+
 [%%expect{|
-Line 1, characters 8-26:
-1 | let e = #2.718281828459045
-            ^^^^^^^^^^^^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+e: 2.718282
 |}]
 
-let negative_one_half = -#0.5
+let () = test "negative_one_half" (-#0.5)
 [%%expect{|
-Line 1, characters 24-29:
-1 | let negative_one_half = -#0.5
-                            ^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let negative_one_half = - #0.5
+let () = test "negative_one_half" (- #0.5)
 [%%expect{|
-Line 1, characters 24-30:
-1 | let negative_one_half = - #0.5
-                            ^^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let negative_one_half = -.#0.5
+let () = test "negative_one_half" (-.#0.5)
 [%%expect{|
-Line 1, characters 24-30:
-1 | let negative_one_half = -.#0.5
-                            ^^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let negative_one_half = -. #0.5
+let () = test "negative_one_half" (-. #0.5)
 [%%expect{|
-Line 1, characters 24-31:
-1 | let negative_one_half = -. #0.5
-                            ^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let positive_one_dot = +#1.
+let () = test "positive_one_dot" (+#1.)
 [%%expect{|
-Line 1, characters 23-27:
-1 | let positive_one_dot = +#1.
-                           ^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let positive_one_dot = + #1.
+let () = test "positive_one_dot" (+ #1.)
 [%%expect{|
-Line 1, characters 23-28:
-1 | let positive_one_dot = + #1.
-                           ^^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let positive_one_dot = +.#1.
+let () = test "positive_one_dot" (+.#1.)
 [%%expect{|
-Line 1, characters 23-28:
-1 | let positive_one_dot = +.#1.
-                           ^^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let positive_one_dot = +. #1.
+let () = test "positive_one_dot" (+. #1.)
 [%%expect{|
-Line 1, characters 23-29:
-1 | let positive_one_dot = +. #1.
-                           ^^^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let one_billion = #1e9
+let () = test "one_billion" (#1e9)
 [%%expect{|
-Line 1, characters 18-22:
-1 | let one_billion = #1e9
-                      ^^^^
-Error: Unboxed float literals aren't supported yet.
+one_billion: 1000000000.000000
 |}]
 
 let zero = #0n
@@ -150,28 +219,22 @@ Line 1, characters 26-36:
 Error: Unboxed int literals aren't supported yet.
 |}]
 
-let one_twenty_seven_point_two_five_in_floating_hex = #0x7f.4
+let () = test "one_twenty_seven_point_two_five_in_floating_hex" (#0x7f.4)
 [%%expect{|
-Line 1, characters 54-61:
-1 | let one_twenty_seven_point_two_five_in_floating_hex = #0x7f.4
-                                                          ^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+one_twenty_seven_point_two_five_in_floating_hex: 127.250000
 |}]
 
-let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
+let () = test "five_point_three_seven_five_in_floating_hexponent" (#0xa.cp-1)
 [%%expect{|
-Line 1, characters 56-65:
-1 | let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
-                                                            ^^^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+five_point_three_seven_five_in_floating_hexponent: 5.375000
 |}]
 
-let unknown_floating_point_suffix = #0.P
+let () = test "unknown_floating_point_suffix" (#0.P)
 [%%expect{|
-Line 1, characters 36-40:
-1 | let unknown_floating_point_suffix = #0.P
-                                        ^^^^
-Error: Unboxed float literals aren't supported yet.
+Line 1, characters 46-52:
+1 | let () = test "unknown_floating_point_suffix" (#0.P)
+                                                  ^^^^^^
+Error: Unknown modifier 'P' for literal #0.P
 |}]
 
 (*****************************************)
@@ -201,17 +264,29 @@ let f x =
 
 f #5.;;
 [%%expect {|
-Line 3, characters 4-7:
-3 |   | #4. -> `Four
-        ^^^
-Error: Unboxed float literals aren't supported yet.
+val f : float# -> [> `Five | `Four | `Other ] = <fun>
+- : [> `Five | `Four | `Other ] = `Five
+|}];;
+
+let f x =
+  match x with
+  | #4. -> #0.
+  | #5. -> #1.
+  | x ->  x
+;;
+
+test "result" (f #7.);;
+[%%expect {|
+val f : float# -> float# = <fun>
+result: 7.000000
+- : unit = ()
 |}];;
 
 (*****************************************)
 (* Lexing edge cases *)
 
 (* Unboxed literals at the beginning of the line aren't directives. *)
-let f _ _ = ();;
+let f (_ : float#) _ = ();;
 let () = f
 #2.
 #2L
@@ -222,13 +297,14 @@ let () = f
 ;;
 
 [%%expect{|
-val f : 'a -> 'b -> unit = <fun>
-Line 3, characters 0-3:
-3 | #2.
+val f : float# -> 'a -> unit = <fun>
+Line 4, characters 0-3:
+4 | #2L
     ^^^
-Error: Unboxed float literals aren't supported yet.
+Error: Unboxed int literals aren't supported yet.
 |}];;
 
+let f _ _ = ();;
 let () = f
 (* This lexes as a directive. #2 is not a valid unboxed int literal
    anyway, as it lacks a suffix.
@@ -239,4 +315,5 @@ let () = f
 ;;
 
 [%%expect{|
+val f : 'a -> 'b -> unit = <fun>
 |}];;
