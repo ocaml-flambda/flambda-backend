@@ -9,7 +9,7 @@ module Dep = struct
     | Use of Name.t
     | Contains of Name.t
     | Field of field * Name.t
-    | Block of field * Name.t
+    | Block of field * Code_id_or_name.t
     | Apply of Name.t * Code_id.t
 
   let compare = compare

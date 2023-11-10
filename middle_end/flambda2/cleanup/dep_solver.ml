@@ -45,14 +45,14 @@ let rec join_elt e1 e2 =
 
 and unioner _k e1 e2 = Some (join_elt e1 e2)
 
-let propagate (elt : elt) (dep : dep) : (Name.t * elt) option =
+let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
   match elt with
   | Bottom -> None
   | Top | Fields _ -> begin
     match dep with
-    | Alias n -> Some (n, elt)
-    | Apply (n, _) | Contains n | Use n -> Some (n, Top)
-    | Field (f, n) -> Some (n, Fields (Field.Map.singleton f elt))
+    | Alias n -> Some (Code_id_or_name.name n, elt)
+    | Apply (n, _) | Contains n | Use n -> Some (Code_id_or_name.name n, Top)
+    | Field (f, n) -> Some (Code_id_or_name.name n, Fields (Field.Map.singleton f elt))
     | Block (f, n) -> begin
       match elt with
       | Bottom -> assert false
@@ -75,7 +75,7 @@ let pp_result ppf (res : result) =
     in
     Format.pp_print_list ~pp_sep pp ppf l
   in
-  Format.fprintf ppf "{ %a }" pp elts
+  Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
 
 let fixpoint (graph : graph) : result =
   (* TODO topological sort *)
@@ -101,7 +101,6 @@ let fixpoint (graph : graph) : result =
         | None -> ()
         | Some (dep_upon, dep_elt) -> (
           assert (dep_elt <> Bottom);
-          let dep_upon = Code_id_or_name.name dep_upon in
           match Hashtbl.find_opt result dep_upon with
           | None ->
             Hashtbl.replace result dep_upon dep_elt;

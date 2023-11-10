@@ -195,8 +195,10 @@ module Dot = struct
       Hashtbl.iter
         (fun name _ ->
           let root =
-            Code_id_or_name.pattern_match' ~code_id:(fun _ -> false)
-            ~name:(fun name -> Hashtbl.mem t.Deps.used name) name
+            Code_id_or_name.pattern_match'
+              ~code_id:(fun _ -> false)
+              ~name:(fun name -> Hashtbl.mem t.Deps.used name)
+              name
           in
           node ~ctx ~root ppf name)
         t.Deps.name_to_dep
@@ -204,19 +206,18 @@ module Dot = struct
     let edge ~ctx ppf src (dst : Deps.Dep.t) =
       let color, deps =
         match dst with
-        | Alias name -> "black", [name]
+        | Alias name -> "black", [Code_id_or_name.name name]
         | Use name ->
           (* ignore name; *)
           (* "red", [] *)
-          "red", [name]
-        | Contains name -> "yellow", [name]
-        | Field (_, name) -> "green", [name]
+          "red", [Code_id_or_name.name name]
+        | Contains name -> "yellow", [Code_id_or_name.name name]
+        | Field (_, name) -> "green", [Code_id_or_name.name name]
         | Block (_, name) -> "blue", [name]
-        | Apply (name, _code) -> "pink", [name]
+        | Apply (name, _code) -> "pink", [Code_id_or_name.name name]
       in
       List.iter
         (fun dst ->
-          let dst = Code_id_or_name.name dst in
           Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) src
             (node_id ~ctx) dst color)
         deps
@@ -261,6 +262,8 @@ module Dacc : sig
   val let_dep : Bound_pattern.t -> Deps.Dep.t -> t -> t
 
   val record_dep : Name.t -> Deps.Dep.t -> t -> t
+
+  val record_dep' : Code_id_or_name.t -> Deps.Dep.t -> t -> t
 
   val cont_dep : Variable.t -> Simple.t -> t -> t
 
@@ -338,6 +341,10 @@ end = struct
     Deps.add_dep t.deps name dep;
     t
 
+  let record_dep' code_id_or_name dep t =
+    Deps.add_dep t.deps code_id_or_name dep;
+    t
+
   let cont_dep pat dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ -> Deps.add_cont_dep t.deps pat name)
@@ -400,6 +407,18 @@ let prepare_code dacc (code_id : Code_id.t) (code : Code.t) =
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
   let code_dep = { return; exn; params } in
+  let dacc =
+    (* TODO finer grain to only leak the full results when the function
+       escapes *)
+    let deps =
+      List.map (fun var -> Deps.Dep.Use (Name.var var)) return
+      @ List.map (fun var -> Deps.Dep.Use (Name.var var)) exn
+    in
+    List.fold_left
+      (fun dacc dep ->
+        Dacc.record_dep' (Code_id_or_name.code_id code_id) dep dacc)
+      dacc deps
+  in
   Dacc.add_code code_id code_dep dacc
 
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
@@ -606,11 +625,45 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             (* TODO: (is there anything to do here ? *)
             acc)
           ~deleted_code:(fun acc _ -> acc)
-          ~set_of_closures:(fun acc ~closure_symbols:_ _ ->
-            (* TODO *)
+          ~set_of_closures:(fun acc ~closure_symbols set_of_closures ->
+            let funs =
+              Function_declarations.funs
+                (Set_of_closures.function_decls set_of_closures)
+            in
+            let deps_function_slots =
+              Function_slot.Map.fold
+                (fun function_slot code_id set ->
+                  let code_id = Code_id_or_name.code_id code_id in
+                  Deps.DepSet.add
+                    (Block (Function_slot function_slot, code_id))
+                    set)
+                funs Deps.DepSet.empty
+            in
+            let deps =
+              Value_slot.Map.fold
+                (fun value_slot simple set ->
+                  Simple.pattern_match
+                    ~const:(fun _ -> set)
+                    ~name:(fun name ~coercion:_ ->
+                      Deps.DepSet.add
+                        (Block (Value_slot value_slot, Code_id_or_name.name name))
+                        set)
+                    simple)
+                (Set_of_closures.value_slots set_of_closures)
+                deps_function_slots
+            in
+            let acc =
+              Function_slot.Lmap.fold
+                (fun _function_slot closure_symbol acc ->
+                  (* Should this account for projections ? *)
+                  List.rev_map
+                    (fun dep -> Name.symbol closure_symbol, dep)
+                    (Deps.DepSet.elements deps)
+                  @ acc)
+                closure_symbols acc
+            in
             acc)
           ~block_like:(fun acc symbol static_const ->
-            (* TODO *)
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
             | Block (_tag, _mut, fields) ->
@@ -620,19 +673,21 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                   match field with
                   | Symbol s ->
                     acc
-                      := (name, Deps.Dep.Block (Deps.Block i, Name.symbol s))
+                      := ( name,
+                           Deps.Dep.Block
+                             (Deps.Block i, Code_id_or_name.symbol s) )
                          :: !acc
                   | Tagged_immediate _ -> ()
                   | Dynamically_computed (v, _) ->
                     acc
-                      := (name, Deps.Dep.Block (Deps.Block i, Name.var v))
+                      := ( name,
+                           Deps.Dep.Block (Deps.Block i, Code_id_or_name.var v)
+                         )
                          :: !acc)
                 fields;
               !acc
             | Set_of_closures _ -> assert false
             | _ -> acc)
-        (* TODO makeblock makeclosure *)
-        (* default () *)
       | Prim (prim, _dbg) -> begin
         match[@ocaml.warning "-4"] prim with
         | Variadic (Make_block (_, _mutability, _), fields) ->
@@ -641,7 +696,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             (fun i field ->
               Simple.pattern_match field
                 ~name:(fun name ~coercion:_ ->
-                  acc := Deps.Dep.Block (Deps.Block i, name) :: !acc)
+                  acc
+                    := Deps.Dep.Block (Deps.Block i, Code_id_or_name.name name)
+                       :: !acc)
                 ~const:(fun _ -> ()))
             fields;
           default_bps !acc
@@ -711,7 +768,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             let value_dep =
               Simple.pattern_match value
                 ~name:(fun name ~coercion:_ ->
-                  [block, Deps.Dep.Block (Block field, name)])
+                  [ ( block,
+                      Deps.Dep.Block (Block field, Code_id_or_name.name name) )
+                  ])
                 ~const:(fun _ -> [])
             in
             (* TODO: record dependency on the primitive for side effects *)
@@ -968,9 +1027,9 @@ let run (unit : Flambda_unit.t) =
       Format.printf "CLEANUP %i@." (size / 1000));
   Format.printf "DACC %a@." Dacc.pp _dacc;
   let () = Dot.print_dep (Dacc.deps _dacc) in
-  Format.printf "USED %a@." Cleanup_deps.pp_used (Dacc.deps _dacc);
+  Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc);
   let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
-  Format.printf "RESULT %a@." Dep_solver.pp_result _solved_dep;
+  Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr holed)
   in
