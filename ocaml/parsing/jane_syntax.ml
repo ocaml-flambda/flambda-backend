@@ -1218,13 +1218,13 @@ module Labeled_tuples = struct
     | PStr [] -> names, attrs
     | _ -> Desugaring_error.raise loc (Has_payload payload)
 
-  let typ_of ~loc ~attrs = function
+  let typ_of ~loc = function
     | Lttyp_tuple tl ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Core_type.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) tl in
           Core_type.make_jane_syntax feature names
-          @@ Ast_helper.Typ.tuple ~attrs (List.map snd tl))
+          @@ Ast_helper.Typ.tuple (List.map snd tl))
 
   (* Returns remaining unconsumed attributes *)
   let of_typ typ =
@@ -1241,13 +1241,13 @@ module Labeled_tuples = struct
       Lttyp_tuple labeled_components, ptyp_attributes
     | _ -> Desugaring_error.raise typ.ptyp_loc Malformed
 
-  let expr_of ~loc ~attrs = function
+  let expr_of ~loc = function
     | Ltexp_tuple el ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) el in
           Expression.make_jane_syntax feature names
-          @@ Ast_helper.Exp.tuple ~attrs (List.map snd el))
+          @@ Ast_helper.Exp.tuple (List.map snd el))
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr =
@@ -1264,14 +1264,14 @@ module Labeled_tuples = struct
       Ltexp_tuple labeled_components, pexp_attributes
     | _ -> Desugaring_error.raise expr.pexp_loc Malformed
 
-  let pat_of ~loc ~attrs = function
+  let pat_of ~loc = function
     | Ltpat_tuple (pl, closed) ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Pattern.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) pl in
           Pattern.make_jane_syntax feature
             (string_of_closed_flag closed :: names)
-          @@ Ast_helper.Pat.tuple ~attrs (List.map snd pl))
+          @@ Ast_helper.Pat.tuple (List.map snd pl))
 
   (* Returns remaining unconsumed attributes *)
   let of_pat pat =
@@ -1774,7 +1774,7 @@ module Core_type = struct
     let core_type =
       match t with
       | Jtyp_layout x -> Layouts.type_of ~loc x
-      | Jtyp_tuple x -> Labeled_tuples.typ_of ~loc ~attrs x
+      | Jtyp_tuple x -> Labeled_tuples.typ_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
@@ -1829,7 +1829,7 @@ module Expression = struct
       | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc x
       | Jexp_layout x -> Layouts.expr_of ~loc x
       | Jexp_n_ary_function x -> N_ary_functions.expr_of ~loc x
-      | Jexp_tuple x -> Labeled_tuples.expr_of ~loc ~attrs x
+      | Jexp_tuple x -> Labeled_tuples.expr_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
@@ -1865,7 +1865,7 @@ module Pattern = struct
       match t with
       | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc x
       | Jpat_layout x -> Layouts.pat_of ~loc x
-      | Jpat_tuple x -> Labeled_tuples.pat_of ~loc ~attrs x
+      | Jpat_tuple x -> Labeled_tuples.pat_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with

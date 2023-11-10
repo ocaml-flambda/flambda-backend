@@ -21,27 +21,27 @@ let complex_record loc =
 (* Malformed labeled tuples *)
 let lt_unlabeled_typ loc =
   let typ = H.Typ.mk (Ptyp_var "'baz") in
-  Jane_syntax.Labeled_tuples.typ_of ~loc ~attrs:[]
+  Jane_syntax.Labeled_tuples.typ_of ~loc
     (Lttyp_tuple [None, typ; None, typ])
 
 let lt_unlabeled_exp loc =
   let exp = H.Exp.mk (Pexp_constant (Pconst_char 'a')) in
-  Jane_syntax.Labeled_tuples.expr_of ~loc ~attrs:[]
+  Jane_syntax.Labeled_tuples.expr_of ~loc
     (Ltexp_tuple [None, exp; None, exp])
 
 let lt_unlabeled_pat loc =
   let pat = H.Pat.mk Ppat_any in
-  Jane_syntax.Labeled_tuples.pat_of ~loc ~attrs:[]
+  Jane_syntax.Labeled_tuples.pat_of ~loc
     (Ltpat_tuple ([None, pat; None, pat], Closed))
 
 let lt_empty_open_pat loc =
   let pat = H.Pat.mk Ppat_any in
-  Jane_syntax.Labeled_tuples.pat_of ~loc ~attrs:[]
+  Jane_syntax.Labeled_tuples.pat_of ~loc
     (Ltpat_tuple ([], Open))
 
 let lt_short_closed_pat loc =
   let pat = H.Pat.mk Ppat_any in
-  Jane_syntax.Labeled_tuples.pat_of ~loc ~attrs:[]
+  Jane_syntax.Labeled_tuples.pat_of ~loc
     (Ltpat_tuple ([Some "baz", pat], Closed))
 
 let super = M.default_mapper

@@ -670,12 +670,12 @@ let removed_string_set loc =
 
 let ppat_lttuple loc elts closed =
   Jane_syntax.Labeled_tuples.pat_of
-    ~loc:(make_loc loc) ~attrs:[]
+    ~loc:(make_loc loc)
     (Ltpat_tuple (elts, closed))
 
 let ptyp_lttuple loc tl =
   Jane_syntax.Labeled_tuples.typ_of
-    ~loc:(make_loc loc) ~attrs:[]
+    ~loc:(make_loc loc)
     (Lttyp_tuple tl)
 
 let mktyp_tuple loc ltys =
@@ -686,7 +686,7 @@ let mktyp_tuple loc ltys =
 
 let pexp_lttuple loc args =
   Jane_syntax.Labeled_tuples.expr_of
-    ~loc:(make_loc loc) ~attrs:[]
+    ~loc:(make_loc loc)
     (Ltexp_tuple args)
 
 (* Using the function [not_expecting] in a semantic action means that this

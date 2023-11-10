@@ -240,20 +240,11 @@ module Labeled_tuples : sig
         - If Open, [n >= 1]
       *)
 
-  val typ_of :
-    loc:Location.t ->
-    attrs:Parsetree.attributes ->
-    core_type ->
-    Parsetree.core_type
+  val typ_of : loc:Location.t -> core_type -> Parsetree.core_type
 
-  val expr_of :
-    loc:Location.t ->
-    attrs:Parsetree.attributes ->
-    expression ->
-    Parsetree.expression
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
 
-  val pat_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> pattern -> Parsetree.pattern
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge

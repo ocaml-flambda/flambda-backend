@@ -365,8 +365,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         if List.for_all (fun (label, _) -> Option.is_none label) list then
           Ppat_tuple (List.map (fun (_, p) -> sub.pat sub p) list)
         else
-          Jane_syntax.Labeled_tuples.pat_of
-            ~loc ~attrs:[]
+          Jane_syntax.Labeled_tuples.pat_of ~loc
             (Ltpat_tuple
               (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed))
           |> add_jane_syntax_attributes
@@ -539,7 +538,7 @@ let expression sub exp =
         if (List.for_all Option.is_none (List.map fst list)) then
           Pexp_tuple (List.map (fun (_, e) -> (sub.expr sub e)) list)
         else
-          Jane_syntax.Labeled_tuples.expr_of ~loc ~attrs:[]
+          Jane_syntax.Labeled_tuples.expr_of ~loc
             (Ltexp_tuple (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list))
           |> add_jane_syntax_attributes
     | Texp_construct (lid, _, args, _) ->
@@ -969,7 +968,7 @@ let core_type sub ct =
           Ptyp_tuple
             (List.map (fun (_, typ) -> sub.typ sub typ) list)
         else
-          Jane_syntax.Labeled_tuples.typ_of ~loc ~attrs:[]
+          Jane_syntax.Labeled_tuples.typ_of ~loc
             (Lttyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list))
           |> add_jane_syntax_attributes
     | Ttyp_constr (_path, lid, list) ->
