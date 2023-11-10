@@ -179,22 +179,25 @@ module Dot = struct
       print ~ctx:!dot_count ~print_name ppf graph
 
   module P = struct
-    let node_id ~ctx ppf (variable : Name.t) =
+    let node_id ~ctx ppf (variable : Code_id_or_name.t) =
       Format.fprintf ppf "node_%d_%d" ctx (variable :> int)
 
     let node ~ctx ~root ppf name =
       if root
       then
         Format.fprintf ppf "%a [shape=record label=\"%a\"];@\n" (node_id ~ctx)
-          name Name.print name
+          name Code_id_or_name.print name
       else
         Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name
-          Name.print name
+          Code_id_or_name.print name
 
     let nodes ~ctx ppf t =
       Hashtbl.iter
         (fun name _ ->
-          let root = Hashtbl.mem t.Deps.used name in
+          let root =
+            Code_id_or_name.pattern_match' ~code_id:(fun _ -> false)
+            ~name:(fun name -> Hashtbl.mem t.Deps.used name) name
+          in
           node ~ctx ~root ppf name)
         t.Deps.name_to_dep
 
@@ -213,6 +216,7 @@ module Dot = struct
       in
       List.iter
         (fun dst ->
+          let dst = Code_id_or_name.name dst in
           Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) src
             (node_id ~ctx) dst color)
         deps
@@ -330,6 +334,7 @@ end = struct
     t
 
   let record_dep name dep t =
+    let name = Code_id_or_name.name name in
     Deps.add_dep t.deps name dep;
     t
 

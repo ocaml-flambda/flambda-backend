@@ -18,7 +18,7 @@ end
 module DepSet = Set.Make (Dep)
 
 type graph =
-  { name_to_dep : (Name.t, DepSet.t) Hashtbl.t;
+  { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
     used : (Name.t, unit) Hashtbl.t (* TODO: Conditionnal on a Code_id *)
   }
 
@@ -43,7 +43,8 @@ let add_opaque_let_dependency t bp fv =
   let bound_to = Bound_pattern.free_names bp in
   let f () bound_to =
     Name_occurrences.fold_names fv
-      ~f:(fun () dep -> insert tbl bound_to (Dep.Use dep))
+      ~f:(fun () dep ->
+        insert tbl (Code_id_or_name.name bound_to) (Dep.Use dep))
       ~init:()
   in
   Name_occurrences.fold_names bound_to ~f ~init:()
@@ -51,7 +52,9 @@ let add_opaque_let_dependency t bp fv =
 let add_let_field t bp field name =
   let tbl = t.name_to_dep in
   let bound_to = Bound_pattern.free_names bp in
-  let f () bound_to = insert tbl bound_to (Dep.Field (field, name)) in
+  let f () bound_to =
+    insert tbl (Code_id_or_name.name bound_to) (Dep.Field (field, name))
+  in
   Name_occurrences.fold_names bound_to ~f ~init:()
 
 let add_dep t bound_to dep =
@@ -61,15 +64,15 @@ let add_dep t bound_to dep =
 let add_let_dep t bp dep =
   let tbl = t.name_to_dep in
   let bound_to = Bound_pattern.free_names bp in
-  let f () bound_to = insert tbl bound_to dep in
+  let f () bound_to = insert tbl (Code_id_or_name.name bound_to) dep in
   Name_occurrences.fold_names bound_to ~f ~init:()
 
 let add_cont_dep t bp dep =
   let tbl = t.name_to_dep in
-  insert tbl (Name.var bp) (Alias dep)
+  insert tbl (Code_id_or_name.var bp) (Alias dep)
 
 let add_func_param t ~param ~arg =
   let tbl = t.name_to_dep in
-  insert tbl (Name.var param) (Alias arg)
+  insert tbl (Code_id_or_name.var param) (Alias arg)
 
 let add_use t dep = Hashtbl.replace t.used dep ()

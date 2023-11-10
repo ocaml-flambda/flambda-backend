@@ -64,14 +64,14 @@ let propagate (elt : elt) (dep : dep) : (Name.t * elt) option =
     end
   end
 
-type result = (Name.t, elt) Hashtbl.t
+type result = (Code_id_or_name.t, elt) Hashtbl.t
 
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
     let pp_sep ppf () = Format.pp_print_string ppf ",@ " in
     let pp ppf (name, elt) =
-      Format.fprintf ppf "%a: %a" Name.print name pp_elt elt
+      Format.fprintf ppf "%a: %a" Code_id_or_name.print name pp_elt elt
     in
     Format.pp_print_list ~pp_sep pp ppf l
   in
@@ -83,6 +83,7 @@ let fixpoint (graph : graph) : result =
   let q = Queue.create () in
   Hashtbl.iter
     (fun n () ->
+      let n = Code_id_or_name.name n in
       Hashtbl.replace result n Top;
       Queue.push n q)
     graph.used;
@@ -100,6 +101,7 @@ let fixpoint (graph : graph) : result =
         | None -> ()
         | Some (dep_upon, dep_elt) -> (
           assert (dep_elt <> Bottom);
+          let dep_upon = Code_id_or_name.name dep_upon in
           match Hashtbl.find_opt result dep_upon with
           | None ->
             Hashtbl.replace result dep_upon dep_elt;
