@@ -131,6 +131,7 @@ let all_coherent column =
         | Const_int64 _, Const_int64 _
         | Const_nativeint _, Const_nativeint _
         | Const_float _, Const_float _
+        | Const_unboxed_float _, Const_unboxed_float _
         | Const_string _, Const_string _ -> true
         | ( Const_char _
           | Const_int _
@@ -138,6 +139,7 @@ let all_coherent column =
           | Const_int64 _
           | Const_nativeint _
           | Const_float _
+          | Const_unboxed_float _
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 -> l1 = l2
@@ -240,6 +242,7 @@ let is_absent_pat d =
 
 let const_compare x y =
   match x,y with
+  | Const_unboxed_float f1, Const_unboxed_float f2
   | Const_float f1, Const_float f2 ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
@@ -248,6 +251,7 @@ let const_compare x y =
     |Const_char _
     |Const_string (_, _, _)
     |Const_float _
+    |Const_unboxed_float _
     |Const_int32 _
     |Const_int64 _
     |Const_nativeint _
@@ -2074,7 +2078,7 @@ let inactive ~partial pat =
         | Tpat_constant c -> begin
             match c with
             | Const_string _
-            | Const_int _ | Const_char _ | Const_float _
+            | Const_int _ | Const_char _ | Const_float _ | Const_unboxed_float _
             | Const_int32 _ | Const_int64 _ | Const_nativeint _ -> true
           end
         | Tpat_tuple ps | Tpat_construct (_, _, ps, _)

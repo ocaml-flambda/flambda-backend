@@ -390,7 +390,18 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_ident (of_location ~scopes e.exp_loc)
         e.exp_env e.exp_type path desc kind
   | Texp_constant cst ->
-      Lconst(Const_base cst)
+    begin match cst with
+    | Const_int c -> Lconst(Const_base (Const_int c))
+    | Const_char c -> Lconst(Const_base (Const_char c))
+    | Const_string (s,loc,d) -> Lconst(Const_base (Const_string (s,loc,d)))
+    | Const_float c -> Lconst(Const_base (Const_float c))
+    | Const_int32 c -> Lconst(Const_base (Const_int32 c))
+    | Const_int64 c -> Lconst(Const_base (Const_int64 c))
+    | Const_nativeint c -> Lconst(Const_base (Const_nativeint c))
+    | Const_unboxed_float f ->
+      Lprim (Punbox_float, [Lconst (Const_base (Const_float f))],
+        of_location ~scopes e.exp_loc)
+    end
   | Texp_let(rec_flag, pat_expr_list, body) ->
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list

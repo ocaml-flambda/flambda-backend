@@ -130,14 +130,29 @@ let rec extract_letop_patterns n pat =
 
 (** Mapping functions. *)
 
-let constant = function
-  | Const_char c -> Pconst_char c
-  | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
-  | Const_int i -> Pconst_integer (Int.to_string i, None)
-  | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
-  | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
-  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
-  | Const_float f -> Pconst_float (f,None)
+let constant_to_pat ~loc add_jane_syntax_attributes = function
+  | Const_char c -> Ppat_constant (Pconst_char c)
+  | Const_string (s,loc,d) -> Ppat_constant (Pconst_string (s,loc,d))
+  | Const_int i -> Ppat_constant (Pconst_integer (Int.to_string i, None))
+  | Const_int32 i -> Ppat_constant (Pconst_integer (Int32.to_string i, Some 'l'))
+  | Const_int64 i -> Ppat_constant (Pconst_integer (Int64.to_string i, Some 'L'))
+  | Const_nativeint i -> Ppat_constant (Pconst_integer (Nativeint.to_string i, Some 'n'))
+  | Const_float f -> Ppat_constant (Pconst_float (f,None))
+  | Const_unboxed_float f ->
+    Jane_syntax.Layouts.pat_of ~loc (Lpat_constant (Float (f, None)))
+    |> add_jane_syntax_attributes
+
+let constant_to_exp ~loc add_jane_syntax_attributes = function
+  | Const_char c -> Pexp_constant (Pconst_char c)
+  | Const_string (s,loc,d) -> Pexp_constant (Pconst_string (s,loc,d))
+  | Const_int i -> Pexp_constant (Pconst_integer (Int.to_string i, None))
+  | Const_int32 i -> Pexp_constant (Pconst_integer (Int32.to_string i, Some 'l'))
+  | Const_int64 i -> Pexp_constant (Pconst_integer (Int64.to_string i, Some 'L'))
+  | Const_nativeint i -> Pexp_constant (Pconst_integer (Nativeint.to_string i, Some 'n'))
+  | Const_float f -> Pexp_constant (Pconst_float (f,None))
+  | Const_unboxed_float f ->
+    Jane_syntax.Layouts.expr_of ~loc (Lexp_constant (Float (f, None)))
+    |> add_jane_syntax_attributes
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;
@@ -358,7 +373,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
 
     | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
-    | Tpat_constant cst -> Ppat_constant (constant cst)
+    | Tpat_constant cst -> constant_to_pat ~loc add_jane_syntax_attributes cst
     | Tpat_tuple list ->
         Ppat_tuple (List.map (sub.pat sub) list)
     | Tpat_construct (lid, _, args, vto) ->
@@ -494,7 +509,7 @@ let expression sub exp =
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
-    | Texp_constant cst -> Pexp_constant (constant cst)
+    | Texp_constant cst -> constant_to_exp ~loc add_jane_syntax_attributes cst
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,

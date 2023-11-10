@@ -312,7 +312,7 @@ val type_package:
   (Env.t -> Parsetree.module_expr -> Path.t -> (Longident.t * type_expr) list ->
   Typedtree.module_expr * (Longident.t * type_expr) list) ref
 
-val constant: Parsetree.constant -> (Asttypes.constant, error) result
+val constant: Parsetree.constant -> (Typedtree.constant, error) result
 
 val check_recursive_bindings : Env.t -> Typedtree.value_binding list -> unit
 val check_recursive_class_bindings :
