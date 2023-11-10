@@ -6640,12 +6640,12 @@ and type_function
                     in
                     cases, split_history);
                   type_without_constraint = (fun env expected_mode ->
-                    (* The analogy to [type_exp] for expressions. *)
-                    let body, split_history, type_result =
+                    let cases, split_history, ty_fun =
+                      (* The analogy to [type_exp] for expressions. *)
                       type_cases_expect env expected_mode
                         (newvar (Jkind.any ~why:Dummy_jkind))
                     in
-                    (body, split_history), type_result);
+                    (cases, split_history), ty_fun);
                 }
               in
               let (body, split_history), exp_type, exp_extra =
@@ -8393,25 +8393,29 @@ and type_n_ary_function
     begin match params_contain_gadt with
     | false -> ()
     | true ->
-        let mode_var () = Mode.Alloc.newvar () in
-        let jkind_var () = Jkind.any ~why:Dummy_jkind in
+        let jkind_arg_var () =
+          newvar (Jkind.of_new_sort ~why:Function_argument)
+        in
+        let jkind_ret_var () =
+          newvar (Jkind.of_new_sort ~why:Function_result)
+        in
+        let tarrow arg_label ret_ty =
+          (* Internally to Jane Street, we wrap in [Tpoly] because that's
+             consistent with the polymorphic parameters language feature.
+          *)
+          let arg_ty = newty (Tpoly (jkind_arg_var (), [])) in
+          newty
+            (Tarrow
+               ((arg_label, Mode.Alloc.newvar (), Mode.Alloc.newvar ()),
+                arg_ty, ret_ty, commu_ok))
+        in
         let ty_function =
           List.fold_right
-            (fun param rest_ty ->
-              newty
-                (Tarrow
-                   ((param.fp_arg_label, mode_var (), mode_var ()),
-                    newvar (jkind_var ()), rest_ty, commu_ok)))
+            (fun param rest_ty -> tarrow param.fp_arg_label rest_ty)
             params
             (match body with
-            | Tfunction_body _ -> newvar (jkind_var ())
-            | Tfunction_cases _ ->
-              newty
-                (Tarrow
-                   ( (Nolabel, mode_var (), mode_var ())
-                   , newvar (jkind_var ())
-                   , newvar (jkind_var ())
-                   , commu_ok ) ) )
+            | Tfunction_body _ -> jkind_ret_var ()
+            | Tfunction_cases _ -> tarrow Nolabel (jkind_ret_var ()))
         in
         try unify env ty_function exp_type
         with Unify trace ->

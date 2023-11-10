@@ -1,5 +1,5 @@
 (* TEST
- expect;
+  * expect
  *)
 
 type nothing = |
@@ -31,8 +31,8 @@ print_endline (ok ());;
 Line 1, characters 14-21:
 1 | print_endline (ok ());;
                   ^^^^^^^
-Error: This expression has type "'a -> 'b"
-       but an expression was expected of type "string"
+Error: This expression has type 'a -> 'b
+       but an expression was expected of type string
   Hint: This function application is partial,
   maybe some arguments are missing.
 |}];;
@@ -45,10 +45,13 @@ let bad : type a. ?opt:(a, int -> int) eq -> unit -> a =
 Line 2, characters 2-67:
 2 |   fun ?opt:((Eq : (a, int -> int) eq) = assert false) () x -> x + 1;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "?opt:(a, int -> int) eq -> unit -> 'a -> 'b"
-       but an expression was expected of type
-         "?opt:(a, int -> int) eq -> unit -> a"
-       Type "'a -> 'b" is not compatible with type "a"
+Error: The syntactic arity of the function doesn't match the type constraint:
+       This function has 3 syntactic arguments, but its type is constrained to
+         ?opt:(a, int -> int) eq -> unit -> a.
+        Hint: consider splitting the function definition into
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
 
 (* Workaround 1: no GADT in default argument pattern *)
@@ -90,7 +93,6 @@ Line 5, characters 16-48:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Neq
-
 val ok : ('a -> 'b, int -> int) eq_or_not -> 'a -> 'b = <fun>
 |}];;
 
@@ -104,13 +106,16 @@ Line 2, characters 6-38:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Neq
-
 Line 2, characters 2-49:
 2 |   fun (Eq : (a, int -> int) eq_or_not) x -> x + 1;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "(a, int -> int) eq_or_not -> 'a -> 'b"
-       but an expression was expected of type "(a, int -> int) eq_or_not -> a"
-       Type "'a -> 'b" is not compatible with type "a"
+Error: The syntactic arity of the function doesn't match the type constraint:
+       This function has 2 syntactic arguments, but its type is constrained to
+         (a, int -> int) eq_or_not -> a.
+        Hint: consider splitting the function definition into
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
 
 
@@ -129,9 +134,13 @@ let bad : type a. (a, int -> int) eq lazy_t -> a =
 Line 2, characters 2-26:
 2 |   fun (lazy Eq) x -> x + 1
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "(a, int -> int) eq lazy_t -> 'a -> 'b"
-       but an expression was expected of type "(a, int -> int) eq lazy_t -> a"
-       Type "'a -> 'b" is not compatible with type "a"
+Error: The syntactic arity of the function doesn't match the type constraint:
+       This function has 2 syntactic arguments, but its type is constrained to
+         (a, int -> int) eq lazy_t -> a.
+        Hint: consider splitting the function definition into
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
 
 
@@ -144,7 +153,11 @@ let spurious : type a. (a, int -> int) eq -> a =
 Line 2, characters 2-15:
 2 |   fun Eq x -> x
       ^^^^^^^^^^^^^
-Error: This expression has type "(a, int -> int) eq -> 'a -> 'b"
-       but an expression was expected of type "(a, int -> int) eq -> a"
-       Type "'a -> 'b" is not compatible with type "a"
+Error: The syntactic arity of the function doesn't match the type constraint:
+       This function has 2 syntactic arguments, but its type is constrained to
+         (a, int -> int) eq -> a.
+        Hint: consider splitting the function definition into
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
