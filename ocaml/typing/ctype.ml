@@ -2150,7 +2150,14 @@ let is_immediate64 env ty =
     Btype.backtrack snap;
     result
   else
-    perform_check ()
+    (* CR layouts v2.8: Remove the backtracking once mode crossing is
+       implemented correctly; it's needed for now because checking whether
+       a jkind is immediate (rightly) sets the sort to be Value. It worked
+       previous to this patch because the subjkind check failed earlier. *)
+    let snap = Btype.snapshot () in
+    let result = perform_check () in
+    Btype.backtrack snap;
+    result
 
 (* We will require Int63 to be [global many unique] on 32-bit platforms, so
    this is fine *)
