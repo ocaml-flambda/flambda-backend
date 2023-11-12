@@ -1126,7 +1126,6 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
-
   let with_protect f =
     let defs = ref [] in
     let protect name (lam, layout) =
@@ -1142,7 +1141,6 @@ and transl_apply ~scopes
       (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
       !defs body
   in
-
   let lfunction_helper ~mode_closure ~mode_arg ~mode_ret loc
     id_arg sort_arg body_gen =
     let loc = map_scopes enter_partial_or_eta_wrapper loc in
@@ -1212,7 +1210,6 @@ and transl_apply ~scopes
     | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode ~prot l
     | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
   in
-
   let rec build_apply_dummy lam rev_args loc ~prot = function
   (* [prot = true] means [lam] [rev_args] and the remaining args are already
      protected *)
