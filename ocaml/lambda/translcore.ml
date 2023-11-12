@@ -1126,16 +1126,6 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
-  let args =
-    List.map
-      (fun (_, arg) ->
-         match arg with
-         | Omitted _ as arg -> arg
-         | Dummy _ as arg -> arg
-         | Arg (exp, sort_arg) ->
-           Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
-      sargs
-  in
 
   let with_protect f =
     let defs = ref [] in
@@ -1153,6 +1143,52 @@ and transl_apply ~scopes
       !defs body
   in
 
+  let lfunction_helper ~mode_closure ~mode_arg ~mode_ret loc
+    id_arg sort_arg body_gen =
+    let loc = map_scopes enter_partial_or_eta_wrapper loc in
+    let mode = transl_alloc_mode mode_closure in
+    let arg_mode = transl_alloc_mode mode_arg in
+    let ret_mode = transl_alloc_mode mode_ret in
+    let nlocal =
+      match join_mode mode (join_mode arg_mode ret_mode) with
+      | Alloc_local -> 1
+      | Alloc_heap -> 0
+    in
+    let region =
+      match ret_mode with
+      | Alloc_local -> false
+      | Alloc_heap -> true
+    in
+    let layout_arg = layout_of_sort (to_location loc) sort_arg in
+    let params = [{
+        name = id_arg;
+        layout = layout_arg;
+        attributes = Lambda.default_param_attribute;
+        mode = arg_mode
+      }] in
+    let body = body_gen loc layout_arg ret_mode in
+    lfunction ~kind:(Curried {nlocal}) ~params
+              ~return:result_layout ~body ~mode ~region
+              ~attr:default_stub_attribute ~loc
+  in
+  let protect_arg_no_dummy protect l =
+    List.map
+      (fun arg ->
+        match arg with
+        | Dummy _ -> assert false
+        | Omitted _ -> arg
+        | Arg arg -> Arg (protect "arg" arg))
+      l
+  in
+  let protect_arg protect l =
+    List.map
+      (fun arg ->
+        match arg with
+        | Dummy _ -> arg
+        | Omitted _ -> arg
+        | Arg arg -> Arg (protect "arg" arg))
+      l
+  in
   let rec build_apply lam args loc pos ap_mode ~prot = function
     (* [prot = true] means the remaining arguments are already protected *)
     | Dummy _ :: _ -> assert false
@@ -1166,45 +1202,13 @@ and transl_apply ~scopes
         in
         with_protect (fun protect ->
           let handle, _ = protect "func" (lam, layout_function) in
-          let l =
-            if prot then l
-            else
-            List.map
-              (fun arg ->
-                 match arg with
-                 | Dummy _ -> assert false
-                 | Omitted _ -> arg
-                 | Arg arg -> Arg (protect "arg" arg))
-              l
-          in
+          let l = if prot then l else protect_arg_no_dummy protect l in
           let id_arg = Ident.create_local "param" in
-          let loc = map_scopes enter_partial_or_eta_wrapper loc in
-          let mode = transl_alloc_mode mode_closure in
-          let arg_mode = transl_alloc_mode mode_arg in
-          let ret_mode = transl_alloc_mode mode_ret in
-          let body =
+          let body_gen loc _layout_arg ret_mode =
             build_apply handle [Lvar id_arg] loc Rc_normal ret_mode ~prot:true l
           in
-          let nlocal =
-            match join_mode mode (join_mode arg_mode ret_mode) with
-            | Alloc_local -> 1
-            | Alloc_heap -> 0
-          in
-          let region =
-            match ret_mode with
-            | Alloc_local -> false
-            | Alloc_heap -> true
-          in
-          let layout_arg = layout_of_sort (to_location loc) sort_arg in
-          let params = [{
-              name = id_arg;
-              layout = layout_arg;
-              attributes = Lambda.default_param_attribute;
-              mode = arg_mode
-            }] in
-          lfunction ~kind:(Curried {nlocal}) ~params
-                    ~return:result_layout ~body ~mode ~region
-                    ~attr:default_stub_attribute ~loc)
+          lfunction_helper ~mode_closure ~mode_arg ~mode_ret loc id_arg
+            sort_arg body_gen)
     | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode ~prot l
     | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
   in
@@ -1222,58 +1226,27 @@ and transl_apply ~scopes
             protect "func" (lam, layout_function)
         in
         let rev_args =
-          if prot then rev_args
-          else
-            List.map
-            (fun arg ->
-              match arg with
-              | Dummy _ -> assert false
-              | Omitted _ -> arg
-              | Arg arg -> Arg (protect "arg" arg)
-              )
-            rev_args
+          if prot then rev_args else protect_arg_no_dummy protect rev_args
         in
-        let rest =
-          if prot then rest
-          else
-            List.map
-            (fun arg ->
-              match arg with
-              | Dummy _ -> arg
-              | Omitted _ -> arg
-              | Arg arg -> Arg (protect "arg" arg))
-            rest
-        in
+        let rest = if prot then rest else protect_arg protect rest in
         let id_arg = Ident.create_local "dummy" in
-
-        let loc = map_scopes enter_partial_or_eta_wrapper loc in
-        let mode = transl_alloc_mode mode_closure in
-        let arg_mode = transl_alloc_mode mode_arg in
-        let ret_mode = transl_alloc_mode mode_ret in
-
-        let nlocal =
-          match join_mode mode (join_mode arg_mode ret_mode) with
-          | Alloc_local -> 1
-          | Alloc_heap -> 0
+        let body_gen loc layout_arg _ret_mode =
+          let arg = Arg (Lvar id_arg, layout_arg) in
+          build_apply_dummy lam (arg :: rev_args) loc ~prot rest
         in
-        let region =
-          match ret_mode with
-          | Alloc_local -> false
-          | Alloc_heap -> true
-        in
-        let layout_arg = layout_of_sort (to_location loc) sort_arg in
-        let params = [{
-            name = id_arg;
-            layout = layout_arg;
-            attributes = Lambda.default_param_attribute;
-            mode = arg_mode
-          }] in
-        let arg = Arg (Lvar id_arg, layout_arg) in
-        let body = build_apply_dummy lam (arg :: rev_args) loc ~prot rest in
-        lfunction ~kind:(Curried {nlocal}) ~params
-                  ~return:result_layout ~body ~mode ~region
-                  ~attr:default_stub_attribute ~loc)
+        lfunction_helper ~mode_closure ~mode_arg ~mode_ret loc id_arg
+          sort_arg body_gen)
     | arg :: rest -> build_apply_dummy lam (arg :: rev_args) loc ~prot rest
+  in
+  let args =
+    List.map
+      (fun (_, arg) ->
+         match arg with
+         | Omitted _ as arg -> arg
+         | Dummy _ as arg -> arg
+         | Arg (exp, sort_arg) ->
+           Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
+      sargs
   in
   build_apply_dummy lam [] loc ~prot:false args
 
