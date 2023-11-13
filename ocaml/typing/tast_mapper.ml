@@ -914,7 +914,7 @@ let value_binding sub x =
 
 let env _sub x = x
 
-let jkind_annotation _sub l = l
+let jkind_annotation sub (c, l) = (c, map_loc sub l)
 
 let default =
   {
