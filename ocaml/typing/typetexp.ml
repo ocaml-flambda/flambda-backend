@@ -553,7 +553,7 @@ let transl_bound_vars : (_, _) Either.t -> _ =
                       TyVarEnv.make_poly_univars vars_only
   | Right vars_layouts -> List.map mk_pair vars_layouts,
                           TyVarEnv.make_poly_univars_layouts
-                            ~context:(fun v -> Univar ("'"^v)) vars_layouts
+                            ~context:(fun v -> Univar ("'" ^ v)) vars_layouts
 
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
