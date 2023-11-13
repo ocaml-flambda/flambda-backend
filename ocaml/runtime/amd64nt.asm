@@ -427,8 +427,8 @@ caml_ml_array_bound_error:
 caml_system__code_end:
 
         .DATA
-        PUBLIC  caml_system__frametable
-caml_system__frametable LABEL QWORD
+        PUBLIC  caml_system.frametable
+caml_system.frametable LABEL QWORD
         QWORD   1           ; one descriptor
         QWORD   L107        ; return address into callback
         WORD    -1          ; negative frame size => use callback link
