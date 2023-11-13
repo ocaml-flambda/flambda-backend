@@ -1305,6 +1305,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Ostype_cygwin -> make_const_bool (Sys.os_type = "Cygwin")
         | Backend_type ->
             make_const_int 0 (* tag 0 is the same as Native here *)
+        | Runtime5 -> make_const_bool Config.runtime5
       in
       let arg, _approx = close env arg in
       let id = Ident.create_local "dummy" in
