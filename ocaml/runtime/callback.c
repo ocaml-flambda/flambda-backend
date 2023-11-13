@@ -309,6 +309,11 @@ CAMLexport value caml_callbackN (value closure, int narg, value args[])
   return caml_raise_if_exception(caml_callbackN_exn(closure, narg, args));
 }
 
+CAMLprim value caml_with_async_exns(value body_callback)
+{
+  caml_failwith("Called caml_with_async_exns in runtime5: not implemented.");
+}
+
 /* Naming of OCaml values */
 
 struct named_value {
