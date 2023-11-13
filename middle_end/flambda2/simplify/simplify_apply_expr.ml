@@ -418,22 +418,24 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
      [first_complex_local_param]. *)
-  let first_complex_local_param =
+  let new_closure_alloc_mode, first_complex_local_param =
     if num_non_unarized_args <= first_complex_local_param
-    then first_complex_local_param - num_non_unarized_args
+    then
+      ( Alloc_mode.For_allocations.heap,
+        first_complex_local_param - num_non_unarized_args )
     else
       match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
       | Heap ->
         Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
           Code_id.print callee's_code_id
           (Debuginfo.to_string (Apply.dbg apply))
-      | Local _ -> 0
+      | Local _ -> apply_alloc_mode, 0
   in
   (match closure_alloc_mode_from_type with
   | Heap_or_local -> ()
   | Heap -> ()
   | Local -> (
-    match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
+    match (new_closure_alloc_mode : Alloc_mode.For_allocations.t) with
     | Local _ -> ()
     | Heap ->
       Misc.fatal_errorf
