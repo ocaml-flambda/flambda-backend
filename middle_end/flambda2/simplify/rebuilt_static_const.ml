@@ -84,6 +84,9 @@ let create_code' code =
     }
 
 let create_set_of_closures are_rebuilding set =
+  (* Even if the set of closures was locally allocated, this allocation is
+     global. This will not cause leaks, as lifted constants are static and
+     therefore only allocated once. *)
   let set =
     Set_of_closures.create
       ~value_slots:(Set_of_closures.value_slots set)

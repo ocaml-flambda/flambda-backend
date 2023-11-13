@@ -1105,15 +1105,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        unwind the local allocation stack if the exception handler is invoked.
        There is no corresponding [End_region] on the non-exceptional path
        because there might be a local allocation in the "try" block that needs
-       to be returned. In effect, such allocations are treated as if they were
-       in the parent region, although they will be annotated with the region
-       identifier of the "try region". To handle this correctly we annotate the
-       [Begin_region] with its parent region. This use of the parent region will
-       ensure that the parent does not get deleted unless the try region is
-       unused. However, if there is no enclosing region (and we are not
-       returning a local value), then we need to ensure we do not create the
-       [Begin_region], as it would reference the toplevel [my_region] parameter,
-       which is expected to be unused in this case. *)
+       to be returned. However, the inner allocations happen in the outer
+       region, as we need to ensure the outer region is not deleted if we return
+       normally from the "try" block. We annotate the begin and end region
+       primitives to specify they correspond to try-regions, to ensure they are
+       not deleted. *)
     (* Under a try-with block, any exception might introduce a branch to the
        handler. So while for static catches we could simplify the body in the
        same toplevel context, here we need to assume that all of the body could

@@ -419,15 +419,15 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
      of the application. We check here that it is consistent with
      [first_complex_local_param]. *)
   let first_complex_local_param =
-    match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
-    | Heap ->
-      if num_non_unarized_args > first_complex_local_param
-      then
+    if num_non_unarized_args <= first_complex_local_param
+    then first_complex_local_param - num_non_unarized_args
+    else
+      match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
+      | Heap ->
         Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
           Code_id.print callee's_code_id
-          (Debuginfo.to_string (Apply.dbg apply));
-      first_complex_local_param - num_non_unarized_args
-    | Local _ -> 0
+          (Debuginfo.to_string (Apply.dbg apply))
+      | Local _ -> 0
   in
   (match closure_alloc_mode_from_type with
   | Heap_or_local -> ()
