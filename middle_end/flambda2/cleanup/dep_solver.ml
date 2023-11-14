@@ -69,7 +69,7 @@ type result = (Code_id_or_name.t, elt) Hashtbl.t
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
-    let pp_sep ppf () = Format.pp_print_string ppf ",@ " in
+    let pp_sep ppf () = Format.fprintf ppf ",@ " in
     let pp ppf (name, elt) =
       Format.fprintf ppf "%a: %a" Code_id_or_name.print name pp_elt elt
     in

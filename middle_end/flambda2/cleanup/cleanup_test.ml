@@ -191,6 +191,30 @@ module Dot = struct
         Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name
           Code_id_or_name.print name
 
+    let dep_names (dep : Deps.Dep.t) =
+      match dep with
+      | Deps.Dep.Alias n
+      | Deps.Dep.Use n
+      | Deps.Dep.Contains n
+      | Deps.Dep.Field (_, n) ->
+        [Code_id_or_name.name n]
+      | Deps.Dep.Block (_, n) -> [n]
+      | Deps.Dep.Apply (n, c) ->
+        [Code_id_or_name.name n; Code_id_or_name.code_id c]
+
+    let all_names t =
+      let names = Hashtbl.create 100 in
+      Hashtbl.iter
+        (fun name dep ->
+          let dep_names =
+            Deps.DepSet.fold (fun dep acc -> dep_names dep @ acc) dep []
+          in
+          List.iter
+            (fun name -> Hashtbl.replace names name ())
+            (name :: dep_names))
+        t.Deps.name_to_dep;
+      names
+
     let nodes ~ctx ppf t =
       Hashtbl.iter
         (fun name _ ->
@@ -201,7 +225,7 @@ module Dot = struct
               name
           in
           node ~ctx ~root ppf name)
-        t.Deps.name_to_dep
+        (all_names t)
 
     let edge ~ctx ppf src (dst : Deps.Dep.t) =
       let color, deps =
