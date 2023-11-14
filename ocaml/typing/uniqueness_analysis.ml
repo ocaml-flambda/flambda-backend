@@ -62,7 +62,7 @@ module Maybe_unique : sig
   (** Returns the uniqueness represented by this usage. If this identifier is
       expected to be unique in any branch, it will return unique. If the current
       usage is forced, it will return shared. *)
-  val uniqueness : t -> Uniqueness.t
+  val uniqueness : t -> Uniqueness.r
 end = struct
   (** Occurrences with modes to be forced shared and many in the future if
       needed. This is a list because of multiple control flows. For example, if
@@ -93,11 +93,11 @@ end = struct
          - the expected mode must be higher than [shared]
          - the access mode must be lower than [many] *)
       match Linearity.submode lin Linearity.many with
-      | Error () -> Error { occ; axis = Linearity }
+      | Error _ -> Error { occ; axis = Linearity }
       | Ok () -> (
         match Uniqueness.submode Uniqueness.shared uni with
         | Ok () -> Ok ()
-        | Error () -> Error { occ; axis = Uniqueness })
+        | Error _ -> Error { occ; axis = Uniqueness })
     in
     iter_error force_one l
 
@@ -125,7 +125,7 @@ module Maybe_shared : sig
        must be Borrowed (hence no code motion); if that mode is not restricted
        to Unique, this usage can be Borrowed or Shared (prefered). Raise if
         called more than once. *)
-  val set_barrier : t -> Uniqueness.t -> unit
+  val set_barrier : t -> Uniqueness.r -> unit
 
   val meet : t -> t -> t
 

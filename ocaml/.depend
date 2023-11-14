@@ -1107,12 +1107,30 @@ typing/jkind.cmi : \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi
 typing/mode.cmo : \
+    typing/solver_intf.cmi \
+    typing/solver.cmi \
+    typing/mode_intf.cmi \
     utils/misc.cmi \
     typing/mode.cmi
 typing/mode.cmx : \
+    typing/solver_intf.cmx \
+    typing/solver.cmx \
+    typing/mode_intf.cmx \
     utils/misc.cmx \
     typing/mode.cmi
-typing/mode.cmi :
+typing/mode.cmi : \
+    typing/mode_intf.cmi
+typing/mode_intf.cmo : \
+    typing/solver_intf.cmi \
+    typing/solver.cmi \
+    typing/mode_intf.cmi
+typing/mode_intf.cmx : \
+    typing/solver_intf.cmx \
+    typing/solver.cmx \
+    typing/mode_intf.cmi
+typing/mode_intf.cmi : \
+    typing/solver_intf.cmi \
+    typing/solver.cmi
 typing/mtype.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
@@ -1496,6 +1514,22 @@ typing/signature_group.cmx : \
     typing/signature_group.cmi
 typing/signature_group.cmi : \
     typing/types.cmi
+typing/solver.cmo : \
+    typing/solver_intf.cmi \
+    typing/solver.cmi
+typing/solver.cmx : \
+    typing/solver_intf.cmx \
+    typing/solver.cmi
+typing/solver.cmi : \
+    typing/solver_intf.cmi
+typing/solver_intf.cmo : \
+    utils/misc.cmi \
+    typing/solver_intf.cmi
+typing/solver_intf.cmx : \
+    utils/misc.cmx \
+    typing/solver_intf.cmi
+typing/solver_intf.cmi : \
+    utils/misc.cmi
 typing/stypes.cmo : \
     typing/typedtree.cmi \
     typing/printtyp.cmi \
