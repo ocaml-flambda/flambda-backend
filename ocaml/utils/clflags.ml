@@ -671,7 +671,7 @@ module Annotations = struct
      \      \"all\" covers both \"opt\" and \"default\" and is intended for optimized builds."
 end
 
-let zero_alloc_check = ref Annotations.No_check         (* -zero-alloc-check *)
+let zero_alloc_check = ref Annotations.Check_default    (* -zero-alloc-check *)
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
 
 let no_auto_include_otherlibs = ref false      (* -no-auto-include-otherlibs *)
