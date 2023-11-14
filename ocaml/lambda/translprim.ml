@@ -186,6 +186,7 @@ let lookup_primitive loc poly pos p =
     | "%ostype_unix" -> Primitive ((Pctconst Ostype_unix), 1)
     | "%ostype_win32" -> Primitive ((Pctconst Ostype_win32), 1)
     | "%ostype_cygwin" -> Primitive ((Pctconst Ostype_cygwin), 1)
+    | "%runtime5" -> Primitive ((Pctconst Runtime5), 1)
     | "%frame_pointers" -> Frame_pointers
     | "%negint" -> Primitive (Pnegint, 1)
     | "%succint" -> Primitive ((Poffsetint 1), 1)

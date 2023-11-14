@@ -34,6 +34,7 @@ external unix : unit -> bool = "%ostype_unix"
 external win32 : unit -> bool = "%ostype_win32"
 external cygwin : unit -> bool = "%ostype_cygwin"
 external get_backend_type : unit -> backend_type = "%backend_type"
+external runtime5 : unit -> bool = "%runtime5"
 
 let executable_name = get_executable_name()
 let (os_type, _, _) = get_config()
@@ -44,6 +45,7 @@ let int_size = int_size ()
 let unix = unix ()
 let win32 = win32 ()
 let cygwin = cygwin ()
+let runtime5 = runtime5 ()
 let max_array_length = max_wosize ()
 let max_floatarray_length = max_array_length / (64 / word_size)
 let max_string_length = word_size / 8 * max_array_length - 1
@@ -129,7 +131,11 @@ let catch_break on =
   else
     set_signal sigint Signal_default
 
-external with_async_exns : (unit -> 'a) -> 'a = "caml_with_async_exns"
+external sys_with_async_exns : (unit -> 'a) -> 'a = "caml_with_async_exns"
+
+let with_async_exns f =
+  if runtime5 then try f () with exn -> raise exn
+  else sys_with_async_exns f
 
 external enable_runtime_warnings: bool -> unit =
   "caml_ml_enable_runtime_warnings"
