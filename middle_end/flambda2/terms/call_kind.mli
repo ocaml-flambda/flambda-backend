@@ -36,6 +36,14 @@ module Method_kind : sig
   val to_lambda : t -> Lambda.meth_kind
 end
 
+(* The allocation mode corresponds to the type of the function that is called:
+   if the function has return mode [Heap], then the alloc_mode is [Heap] as
+   well; if the function has return mode [Local], then the alloc_mode is [Local
+   {region}] where the result must be allocated in the region [region]. Note
+   that even if the result does not need to be allocated (as in [unit -> local_
+   unit]), the function is still permitted to allocate in [region] in that
+   case. *)
+
 (** Whether an application expression corresponds to an OCaml function
     invocation, an OCaml method invocation, or an external call. *)
 type t = private
