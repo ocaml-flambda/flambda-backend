@@ -428,7 +428,7 @@ let ident_name = Naming_context.ident_name
 let reset_naming_context = Naming_context.reset
 
 let ident ppf id = pp_print_string ppf
-    (Out_name.print (Naming_context.ident_name None id))
+    (Out_name.print (Naming_context.ident_name_simple None id))
 
 let namespaced_ident namespace  id =
   Out_name.print (Naming_context.ident_name (Some namespace) id)
