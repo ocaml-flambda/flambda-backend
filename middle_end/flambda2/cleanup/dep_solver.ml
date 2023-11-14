@@ -38,10 +38,13 @@ let rec equal_elt e1 e2 =
     if f1 == f2 then true else Field.Map.equal equal_elt f1 f2
 
 let rec join_elt e1 e2 =
-  match e1, e2 with
-  | Bottom, e | e, Bottom -> e
-  | Top, _ | _, Top -> Top
-  | Fields f1, Fields f2 -> Fields (Field.Map.union unioner f1 f2)
+  if e1 == e2
+  then e1
+  else
+    match e1, e2 with
+    | Bottom, e | e, Bottom -> e
+    | Top, _ | _, Top -> Top
+    | Fields f1, Fields f2 -> Fields (Field.Map.union unioner f1 f2)
 
 and unioner _k e1 e2 = Some (join_elt e1 e2)
 
@@ -50,9 +53,12 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
   | Bottom -> None
   | Top | Fields _ -> begin
     match dep with
+    | Return_of_that_function _n -> failwith "TODO"
     | Alias n -> Some (Code_id_or_name.name n, elt)
-    | Apply (n, _) | Contains n | Use n -> Some (Code_id_or_name.name n, Top)
-    | Field (f, n) -> Some (Code_id_or_name.name n, Fields (Field.Map.singleton f elt))
+    | Apply (n, _) -> Some (Code_id_or_name.name n, Top)
+    | Contains n | Use n -> Some (Code_id_or_name.name n, Top)
+    | Field (f, n) ->
+      Some (Code_id_or_name.name n, Fields (Field.Map.singleton f elt))
     | Block (f, n) -> begin
       match elt with
       | Bottom -> assert false

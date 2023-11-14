@@ -11,6 +11,7 @@ module Dep = struct
     | Field of field * Name.t
     | Block of field * Code_id_or_name.t
     | Apply of Name.t * Code_id.t
+    | Return_of_that_function of Name.t
 
   let compare = compare
 end

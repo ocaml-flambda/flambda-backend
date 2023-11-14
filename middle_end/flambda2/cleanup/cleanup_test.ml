@@ -193,6 +193,7 @@ module Dot = struct
 
     let dep_names (dep : Deps.Dep.t) =
       match dep with
+      | Deps.Dep.Return_of_that_function n
       | Deps.Dep.Alias n
       | Deps.Dep.Use n
       | Deps.Dep.Contains n
@@ -230,6 +231,7 @@ module Dot = struct
     let edge ~ctx ppf src (dst : Deps.Dep.t) =
       let color, deps =
         match dst with
+        | Return_of_that_function name -> "purple", [Code_id_or_name.name name]
         | Alias name -> "black", [Code_id_or_name.name name]
         | Use name ->
           (* ignore name; *)
@@ -266,6 +268,7 @@ end
 
 type code_dep =
   { params : Variable.t list;
+    my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
     exn : Variable.t list (* Dummy variable representing exn return value *)
   }
@@ -425,18 +428,23 @@ let apply_cont_deps denv dacc apply_cont =
 let prepare_code dacc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
   let exn = [Variable.create "function_exn"] in
+  let my_closure = Variable.create "my_closure" in
   let params =
     let arity = Code.params_arity code in
     List.init (Flambda_arity.cardinal arity) (fun i ->
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
-  let code_dep = { return; exn; params } in
+  let code_dep = { return; my_closure; exn; params } in
   let dacc =
     (* TODO finer grain to only leak the full results when the function
        escapes *)
     let deps =
-      List.map (fun var -> Deps.Dep.Use (Name.var var)) return
-      @ List.map (fun var -> Deps.Dep.Use (Name.var var)) exn
+      List.map
+        (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
+        return
+      @ List.map
+          (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
+          exn
     in
     List.fold_left
       (fun dacc dep ->
@@ -489,6 +497,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             List.fold_left2
               (fun dacc param arg -> Dacc.cont_dep param arg dacc)
               dacc code_dep.params (Apply_expr.args apply)
+          in
+          let dacc =
+            Dacc.cont_dep code_dep.my_closure (Apply_expr.callee apply) dacc
           in
           let dacc =
             match Apply_expr.continuation apply with
@@ -894,6 +905,11 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
           dacc
           (Bound_parameters.to_list params)
           code_dep.params
+      in
+      let dacc =
+        Dacc.record_dep (Name.var my_closure)
+          (Alias (Name.var code_dep.my_closure))
+          dacc
       in
       let body, dacc = traverse { parent = Up; conts } dacc body in
       let params_and_body =
