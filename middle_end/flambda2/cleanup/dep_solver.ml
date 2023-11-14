@@ -11,22 +11,34 @@ module Field = struct
     type t = field
 
     let compare : t -> t -> int = compare
+
+    let equal a b = compare a b = 0
+
+    let hash = Hashtbl.hash
+
+    let print = Cleanup_deps.pp_field
   end
 
-  module Set = Set.Make (M)
-  module Map = Map.Make (M)
+  module Container = Container_types.Make (M)
+  module Set = Container.Set
+  module Map = Container.Map
 end
+
+let max_depth = 2
 
 type elt =
   | Top
-  | Fields of elt Field.Map.t
+  | Fields of int * elt Field.Map.t
   | Bottom
 
-let pp_elt ppf elt =
+(* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is Top *)
+
+
+let rec pp_elt ppf elt =
   match elt with
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
-  | Fields _f -> Format.pp_print_string ppf "S"
+  | Fields (_, f) -> Format.fprintf ppf "{ %a }" (Field.Map.print pp_elt) f
 
 let rec equal_elt e1 e2 =
   match e1, e2 with
@@ -34,19 +46,44 @@ let rec equal_elt e1 e2 =
   | Bottom, (Top | Fields _) | (Top | Fields _), Bottom -> false
   | Top, Top -> true
   | Top, Fields _ | Fields _, Top -> false
-  | Fields f1, Fields f2 ->
+  | Fields (_, f1), Fields (_, f2) ->
     if f1 == f2 then true else Field.Map.equal equal_elt f1 f2
+
+let depth_of e = match e with Bottom | Top -> 0 | Fields (d, _) -> d
 
 let rec join_elt e1 e2 =
   if e1 == e2
-  then e1
+  then e1, depth_of e1
   else
     match e1, e2 with
-    | Bottom, e | e, Bottom -> e
-    | Top, _ | _, Top -> Top
-    | Fields f1, Fields f2 -> Fields (Field.Map.union unioner f1 f2)
+    | Bottom, e | e, Bottom -> e, depth_of e
+    | Top, _ | _, Top -> Top, 0
+    | Fields (_, f1), Fields (_, f2) ->
+      let max_depth = ref 0 in
+      let unioner _k e1 e2 =
+        let e, depth = join_elt e1 e2 in
+        max_depth := max depth !max_depth;
+        Some e
+      in
+      let fields = Field.Map.union unioner f1 f2 in
+      Fields (1 + !max_depth, fields), 1 + !max_depth
 
-and unioner _k e1 e2 = Some (join_elt e1 e2)
+let join_elt e1 e2 = fst @@ join_elt e1 e2
+
+let rec cut_at depth elt =
+  match elt with
+  | Top | Bottom -> elt
+  | Fields (d, fields) ->
+    if d <= depth then
+      elt
+    else
+    if depth = 0 then
+      Top
+    else
+      let fields =
+        Field.Map.map (cut_at (depth - 1)) fields
+      in
+      Fields (depth, fields)
 
 let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
   match elt with
@@ -61,12 +98,14 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
     | Contains n -> Some (n, Top)
     | Use n -> Some (Code_id_or_name.name n, Top)
     | Field (f, n) ->
-      Some (Code_id_or_name.name n, Fields (Field.Map.singleton f elt))
+      let elt = cut_at (max_depth-1) elt in
+      let depth = depth_of elt + 1 in
+      Some (Code_id_or_name.name n, Fields (depth, Field.Map.singleton f elt))
     | Block (f, n) -> begin
       match elt with
       | Bottom -> assert false
       | Top -> Some (n, Top)
-      | Fields path -> (
+      | Fields (_, path) -> (
         match Field.Map.find_opt f path with
         | None -> None
         | Some elt -> Some (n, elt))
@@ -115,7 +154,11 @@ let fixpoint (graph : graph) : result =
             Hashtbl.replace result dep_upon dep_elt;
             Queue.push dep_upon q
           | Some prev_dep ->
+            (* Format.printf "new case@."; *)
             let u = join_elt dep_elt prev_dep in
+            (* Format.printf "dep_elt  %a@." pp_elt dep_elt; *)
+            (* Format.printf "prev_dep %a@." pp_elt prev_dep; *)
+            (* Format.printf "union    %a@." pp_elt u; *)
             if not (equal_elt u prev_dep)
             then begin
               Hashtbl.replace result dep_upon dep_elt;

@@ -3,6 +3,11 @@ type field =
   | Value_slot of Value_slot.t
   | Function_slot of Function_slot.t
 
+let pp_field ppf = function
+  | Block i -> Format.fprintf ppf "%i" i
+  | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
+  | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
+
 module Dep = struct
   type t =
     | Alias of Name.t

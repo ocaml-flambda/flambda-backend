@@ -162,10 +162,11 @@ module Dot = struct
       (let filename = "dep.dot" in
        let ch = open_out filename in
        let ppf = Format.formatter_of_out_channel ch in
-       Format.fprintf ppf "digraph g {@\n";
-       at_exit (fun () ->
-           Format.fprintf ppf "@\n}@.";
-           close_out ch);
+       (* Format.fprintf ppf "digraph g {@\n"; *)
+       (* at_exit (fun () -> *)
+       (*     Format.fprintf ppf "@\n}@."; *)
+       (*     close_out ch); *)
+
        ppf)
 
   let dot_count = ref ~-1
@@ -176,7 +177,9 @@ module Dot = struct
     | Some print_name ->
       incr dot_count;
       let ppf = Lazy.force lazy_ppf in
-      print ~ctx:!dot_count ~print_name ppf graph
+      Format.fprintf ppf "digraph g {@\n";
+      print ~ctx:!dot_count ~print_name ppf graph;
+      Format.fprintf ppf "@\n}@."
 
   module P = struct
     let node_id ~ctx ppf (variable : Code_id_or_name.t) =
@@ -753,9 +756,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                          )
                          :: !acc)
                 fields;
-              !acc
+              records dacc !acc
             | Set_of_closures _ -> assert false
-            | _ -> acc)
+            | _ -> dacc)
       | Prim (prim, _dbg) -> begin
         match[@ocaml.warning "-4"] prim with
         | Variadic (Make_block (_, _mutability, _), fields) ->
