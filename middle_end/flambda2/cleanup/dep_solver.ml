@@ -53,10 +53,13 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
   | Bottom -> None
   | Top | Fields _ -> begin
     match dep with
-    | Return_of_that_function _n -> failwith "TODO"
+    | Return_of_that_function n ->
+      Format.eprintf "TODO@.";
+      Some (Code_id_or_name.name n, elt)
     | Alias n -> Some (Code_id_or_name.name n, elt)
     | Apply (n, _) -> Some (Code_id_or_name.name n, Top)
-    | Contains n | Use n -> Some (Code_id_or_name.name n, Top)
+    | Contains n -> Some (n, Top)
+    | Use n -> Some (Code_id_or_name.name n, Top)
     | Field (f, n) ->
       Some (Code_id_or_name.name n, Fields (Field.Map.singleton f elt))
     | Block (f, n) -> begin

@@ -7,7 +7,7 @@ module Dep = struct
   type t =
     | Alias of Name.t
     | Use of Name.t
-    | Contains of Name.t
+    | Contains of Code_id_or_name.t
     | Field of field * Name.t
     | Block of field * Code_id_or_name.t
     | Apply of Name.t * Code_id.t
@@ -39,6 +39,11 @@ let insert t k v =
   | None -> Hashtbl.add t k (DepSet.singleton v)
   | Some s -> Hashtbl.replace t k (DepSet.add v s)
 
+let inserts t k v =
+  match Hashtbl.find_opt t k with
+  | None -> Hashtbl.add t k v
+  | Some s -> Hashtbl.replace t k (DepSet.union v s)
+
 let add_opaque_let_dependency t bp fv =
   let tbl = t.name_to_dep in
   let bound_to = Bound_pattern.free_names bp in
@@ -61,6 +66,10 @@ let add_let_field t bp field name =
 let add_dep t bound_to dep =
   let tbl = t.name_to_dep in
   insert tbl bound_to dep
+
+let add_deps t bound_to deps =
+  let tbl = t.name_to_dep in
+  inserts tbl bound_to deps
 
 let add_let_dep t bp dep =
   let tbl = t.name_to_dep in
