@@ -671,7 +671,6 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 
   /* Associate the thread descriptor with the thread */
   st_tls_set(thread_descriptor_key, (void *) th);
-  st_thread_set_id(Ident(th->descr));
   sch = atomic_load(&caml_locking_scheme);
   if (sch->thread_start != NULL)
     sch->thread_start(sch->context, Thread_type_caml);
