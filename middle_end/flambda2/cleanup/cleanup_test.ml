@@ -684,9 +684,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         ~f:(fun dacc bound_to -> Dacc.record_dep bound_to dep dacc)
         ~init:dacc
     in
-    let default_bps dacc dep : Dacc.t =
-      List.fold_left default_bp dacc dep
-    in
+    let default_bps dacc dep : Dacc.t = List.fold_left default_bp dacc dep in
     let default dacc : Dacc.t =
       Name_occurrences.fold_names
         ~f:(fun dacc free_name -> default_bp dacc (Deps.Dep.Use free_name))
@@ -699,77 +697,45 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         let names_and_function_slots =
           let bound_vars =
             match bound_pattern with
-            | Set_of_closures set ->
-              set
-            | Static _
-            | Singleton _ -> assert false
+            | Set_of_closures set -> set
+            | Static _ | Singleton _ -> assert false
           in
           let funs =
-            Function_declarations.funs_in_order (Set_of_closures.function_decls set_of_closures)
+            Function_declarations.funs_in_order
+              (Set_of_closures.function_decls set_of_closures)
           in
-          Function_slot.Lmap.of_list @@
-          List.map2 (fun function_slot bound_var ->
-            function_slot, (Name.var (Bound_var.var bound_var))
-            )
-            (Function_slot.Lmap.keys funs) bound_vars
+          Function_slot.Lmap.of_list
+          @@ List.map2
+               (fun function_slot bound_var ->
+                 function_slot, Name.var (Bound_var.var bound_var))
+               (Function_slot.Lmap.keys funs)
+               bound_vars
         in
-        record_set_of_closures_deps names_and_function_slots set_of_closures dacc
+        record_set_of_closures_deps names_and_function_slots set_of_closures
+          dacc
       | Static_consts group ->
-        records dacc @@
         let bound_static =
           match bound_pattern with
           | Static b -> b
           | Singleton _ | Set_of_closures _ -> assert false
         in
         Flambda.Static_const_group.match_against_bound_static group bound_static
-          ~init:[]
-          ~code:(fun acc _code_id _code ->
+          ~init:dacc
+          ~code:(fun dacc _code_id _code ->
             (* TODO: (is there anything to do here ? *)
-            acc)
-          ~deleted_code:(fun acc _ -> acc)
-          ~set_of_closures:(fun acc ~closure_symbols set_of_closures ->
-            let funs =
-              Function_declarations.funs
-                (Set_of_closures.function_decls set_of_closures)
+            dacc)
+          ~deleted_code:(fun dacc _ -> dacc)
+          ~set_of_closures:(fun dacc ~closure_symbols set_of_closures ->
+            let names_and_function_slots =
+              Function_slot.Lmap.map Name.symbol closure_symbols
             in
-            let deps_function_slots =
-              Function_slot.Map.fold
-                (fun function_slot code_id set ->
-                  let code_id = Code_id_or_name.code_id code_id in
-                  Deps.DepSet.add
-                    (Block (Function_slot function_slot, code_id))
-                    set)
-                funs Deps.DepSet.empty
-            in
-            let deps =
-              Value_slot.Map.fold
-                (fun value_slot simple set ->
-                  Simple.pattern_match
-                    ~const:(fun _ -> set)
-                    ~name:(fun name ~coercion:_ ->
-                      Deps.DepSet.add
-                        (Block (Value_slot value_slot, Code_id_or_name.name name))
-                        set)
-                    simple)
-                (Set_of_closures.value_slots set_of_closures)
-                deps_function_slots
-            in
-            let acc =
-              Function_slot.Lmap.fold
-                (fun _function_slot closure_symbol acc ->
-                  (* Should this account for projections ? *)
-                  List.rev_map
-                    (fun dep -> Name.symbol closure_symbol, dep)
-                    (Deps.DepSet.elements deps)
-                  @ acc)
-                closure_symbols acc
-            in
-            acc)
-          ~block_like:(fun acc symbol static_const ->
+            record_set_of_closures_deps names_and_function_slots set_of_closures
+              dacc)
+          ~block_like:(fun dacc symbol static_const ->
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
             | Block (_tag, _mut, fields) ->
-              let acc = ref acc in
+              let acc = ref [] in
               List.iteri
                 (fun i (field : Field_of_static_block.t) ->
                   match field with
