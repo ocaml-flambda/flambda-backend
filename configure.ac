@@ -68,7 +68,7 @@ AC_SUBST([legacy_layout])
 AC_DISABLE_OPTION_CHECKING
 
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,$runtime5_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest],
+  [$middle_end_arg,$runtime5_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest,--without-zstd],
   [],
   [],
   [])
