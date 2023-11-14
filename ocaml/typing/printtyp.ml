@@ -845,7 +845,14 @@ let is_unambiguous path env =
       List.for_all (fun p -> lid_of_path p = id) rem &&
       Path.same p (fst (Env.find_type_by_name id env))
 
-let rec get_best_path r =
+let ambiguity_penalty path env =
+  if is_unambiguous path env then 0 else 10
+
+let path_size path env =
+  let l, s = path_size path in
+  l + ambiguity_penalty path env, s
+
+let rec get_best_path r env =
   match !r with
     Best p' -> p'
   | Paths [] -> raise Not_found
@@ -855,11 +862,10 @@ let rec get_best_path r =
         (fun p ->
           (* Format.eprintf "evaluating %a@." path p; *)
           match !r with
-            Best p' when path_size p >= path_size p' -> ()
-          | _ -> if is_unambiguous p !printing_env then r := Best p)
-              (* else Format.eprintf "%a ignored as ambiguous@." path p *)
+            Best p' when path_size p env >= path_size p' env -> ()
+          | _ -> r := Best p)
         l;
-      get_best_path r
+      get_best_path r env
 
 let best_type_path p =
   if !printing_env == Env.empty
@@ -870,11 +876,11 @@ let best_type_path p =
     let (p', s) = normalize_type_path !printing_env p in
     let get_path () =
       try
-        get_best_path (Path.Map.find p' !printing_map)
-      with Not_found -> if path_size p' < path_size p then p' else p
+        get_best_path (Path.Map.find p' !printing_map) !printing_env
+      with Not_found -> p'
     in
     while !printing_cont <> [] &&
-      fst (path_size (get_path ())) > !printing_depth
+      fst (path_size (get_path ()) !printing_env) > !printing_depth
     do
       printing_cont := List.map snd (Env.run_iter_cont !printing_cont);
       incr printing_depth;
