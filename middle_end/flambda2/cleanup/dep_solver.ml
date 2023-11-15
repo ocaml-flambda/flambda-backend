@@ -31,8 +31,8 @@ type elt =
   | Fields of int * elt Field.Map.t
   | Bottom
 
-(* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is Top *)
-
+(* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is
+   Top *)
 
 let rec pp_elt ppf elt =
   match elt with
@@ -74,15 +74,12 @@ let rec cut_at depth elt =
   match elt with
   | Top | Bottom -> elt
   | Fields (d, fields) ->
-    if d <= depth then
-      elt
+    if d <= depth
+    then elt
+    else if depth = 0
+    then Top
     else
-    if depth = 0 then
-      Top
-    else
-      let fields =
-        Field.Map.map (cut_at (depth - 1)) fields
-      in
+      let fields = Field.Map.map (cut_at (depth - 1)) fields in
       Fields (depth, fields)
 
 let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
@@ -101,7 +98,7 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
     | Contains n -> Some (n, Top)
     | Use n -> Some (Code_id_or_name.name n, Top)
     | Field (f, n) ->
-      let elt = cut_at (max_depth-1) elt in
+      let elt = cut_at (max_depth - 1) elt in
       let depth = depth_of elt + 1 in
       Some (Code_id_or_name.name n, Fields (depth, Field.Map.singleton f elt))
     | Block (f, n) -> begin
@@ -176,6 +173,9 @@ let fixpoint (graph : graph) : result =
         | None -> ()
         | Some (dep_upon, dep_elt) -> (
           assert (dep_elt <> Bottom);
+          (* if Code_id_or_name.equal dep_upon n then begin *)
+          (*   Misc.fatal_errorf "ICI %a" Code_id_or_name.print n *)
+          (* end; *)
           match Hashtbl.find_opt result dep_upon with
           | None ->
             Hashtbl.replace result dep_upon dep_elt;
