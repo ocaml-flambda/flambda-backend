@@ -300,7 +300,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     raise_unhandled_effect_closure = caml_alloc_small (2, Closure_tag);
     Code_val(raise_unhandled_effect_closure) =
       (code_t)raise_unhandled_effect_code;
-    Closinfo_val(raise_unhandled_effect_closure) = Make_closinfo(0, 2);
+    Closinfo_val(raise_unhandled_effect_closure) = Make_closinfo(0, 2, 1);
     raise_unhandled_effect = raise_unhandled_effect_closure;
     caml_register_generational_global_root(&raise_unhandled_effect);
     caml_global_data = Val_unit;
@@ -624,7 +624,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         Field(accu, 2) = env;
         for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
         Code_val(accu) = pc - 3; /* Point to the preceding RESTART instr. */
-        Closinfo_val(accu) = Make_closinfo(0, 2);
+        Closinfo_val(accu) = Make_closinfo(0, 2, 1);
         sp += num_args;
         goto do_return;
       }
@@ -648,7 +648,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       /* The code pointer is not in the heap, so no need to go through
          caml_initialize. */
       Code_val(accu) = pc + *pc;
-      Closinfo_val(accu) = Make_closinfo(0, 2);
+      Closinfo_val(accu) = Make_closinfo(0, 2, 1);
       pc++;
       sp += nvars;
       Next;
@@ -680,13 +680,13 @@ value caml_interprete(code_t prog, asize_t prog_size)
       *--sp = accu;
       p = &Field(accu, 0);
       *p++ = (value) (pc + pc[0]);
-      *p++ = Make_closinfo(0, envofs);
+      *p++ = Make_closinfo(0, envofs, nfuncs < 2);
       for (i = 1; i < nfuncs; i++) {
         *p++ = Make_header(i * 3, Infix_tag, 0); /* color irrelevant */
         *--sp = (value) p;
         *p++ = (value) (pc + pc[i]);
         envofs -= 3;
-        *p++ = Make_closinfo(0, envofs);
+        *p++ = Make_closinfo(0, envofs, i == nfuncs - 1);
       }
       pc += nfuncs;
       Next;
