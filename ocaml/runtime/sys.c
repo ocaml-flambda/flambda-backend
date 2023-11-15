@@ -700,6 +700,12 @@ CAMLprim value caml_sys_const_backend_type(value unit)
 {
   return Val_int(1); /* Bytecode backed */
 }
+
+CAMLprim value caml_sys_const_runtime5(value unit)
+{
+  return Val_true;
+}
+
 CAMLprim value caml_sys_get_config(value unit)
 {
   CAMLparam0 ();   /* unit is unused */
@@ -757,4 +763,9 @@ CAMLprim value caml_sys_isatty(value chan)
 #endif
 
   return ret;
+}
+
+CAMLprim value caml_sys_const_naked_pointers_checked(value unit)
+{
+  return Val_false;
 }

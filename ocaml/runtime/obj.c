@@ -66,6 +66,13 @@ CAMLprim value caml_obj_set_raw_field(value arg, value pos, value bits)
   return Val_unit;
 }
 
+CAMLprim value caml_obj_make_forward(value blk, value fwd)
+{
+  caml_modify(&Field(blk, 0), fwd);
+  Tag_val (blk) = Forward_tag;
+  return Val_unit;
+}
+
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {
