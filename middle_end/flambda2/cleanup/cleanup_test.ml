@@ -156,6 +156,14 @@ and rev_expr =
 
 module Deps = Cleanup_deps
 
+
+type code_dep =
+  { params : Variable.t list;
+    my_closure : Variable.t;
+    return : Variable.t list; (* Dummy variable representing return value *)
+    exn : Variable.t list (* Dummy variable representing exn return value *)
+  }
+
 module Dot = struct
   let dep_graph_ppf =
     lazy
@@ -218,9 +226,10 @@ module Dot = struct
         t.Deps.name_to_dep;
       names
 
-    let nodes ~ctx ppf t =
+    let nodes ~all_cdep ~ctx ppf t =
       Hashtbl.iter
         (fun name _ ->
+           if Code_id_or_name.Set.mem name all_cdep then () else
           let root =
             Code_id_or_name.pattern_match'
               ~code_id:(fun _ -> false)
@@ -256,24 +265,39 @@ module Dot = struct
           Deps.DepSet.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
         t.Deps.name_to_dep
 
-    let fresh = ref 0
-    let print_fundep ~ctx code_id ppf t =
-      incr fresh;
-      Format.fprintf ppf
-        "subgraph cluster_%d_%d { label=\"%a\"@\n%a@\n%a@\n}@\n" ctx !fresh Code_id.print code_id
-        (nodes ~ctx) t (edges ~ctx) t
+    let code_deps ~ctx ~code_id ppf code_dep =
+      node ~ctx ~root:false ppf (Code_id_or_name.code_id code_id);
+      node ~ctx ~root:false ppf (Code_id_or_name.var code_dep.my_closure);
+      List.iter (fun v -> node ~ctx ~root:false ppf (Code_id_or_name.var v)) (code_dep.exn @ code_dep.return @ code_dep.params)
 
-    let print_fundeps ~ctx ppf fundeps =
+    let print_fundep ~all_cdep ~code_dep ~ctx code_id ppf t =
+      Format.fprintf ppf
+        "subgraph cluster_%d_%a { label=\"%a\"@\n subgraph cluster_%d_%a_intf { label=\"interface\"@\n %a } @\n%a@\n@\n}@\n" ctx Code_id.print code_id Code_id.print code_id ctx Code_id.print code_id
+        (code_deps ~ctx ~code_id) code_dep
+        (nodes ~all_cdep ~ctx) t
+
+    let print_fundeps ~all_cdep ~code_dep ~ctx ppf fundeps =
       Hashtbl.iter (fun code_id fungraph ->
-          print_fundep ~ctx code_id ppf fungraph
+          print_fundep ~all_cdep ~code_dep:(Code_id.Map.find code_id code_dep) ~ctx code_id ppf fungraph
         ) fundeps
 
-    let print ~ctx ~print_name ppf (t : Deps.graph) =
+    let all_edges ~ctx ppf (t : Deps.graph) =
+      edges ~ctx ppf t.toplevel_graph;
+      Hashtbl.iter (fun _ fungraph -> edges ~ctx ppf fungraph) t.function_graphs
+
+    let print ~ctx ~print_name ppf ((code_dep, t) : code_dep Code_id.Map.t * Deps.graph) =
+      let all_cdep = Code_id.Map.fold (fun code_id dep s ->
+          List.fold_left (fun s x -> Code_id_or_name.Set.add x s) s
+            (Code_id_or_name.code_id code_id ::
+             List.map Code_id_or_name.var (dep.my_closure :: dep.exn @ dep.return @ dep.params))
+        ) code_dep Code_id_or_name.Set.empty
+      in
       Flambda_colours.without_colours ~f:(fun () ->
           Format.fprintf ppf
             "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a}@." ctx print_name
-            (nodes ~ctx) t.toplevel_graph (edges ~ctx) t.toplevel_graph
-            (print_fundeps ~ctx) t.function_graphs
+            (nodes ~all_cdep ~ctx) t.toplevel_graph
+            (print_fundeps ~all_cdep ~code_dep ~ctx) t.function_graphs
+            (all_edges ~ctx) t
         )
   end
 
@@ -281,13 +305,6 @@ module Dot = struct
     let print_name = Some "dep" in
     print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:P.print
 end
-
-type code_dep =
-  { params : Variable.t list;
-    my_closure : Variable.t;
-    return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t list (* Dummy variable representing exn return value *)
-  }
 
 module Dacc : sig
   type t
@@ -326,6 +343,8 @@ module Dacc : sig
 
   val find_code : t -> Code_id.t -> code_dep
 
+  val code_deps : t -> code_dep Code_id.Map.t
+
   val pp : Format.formatter -> t -> unit
 
   val deps : t -> Deps.graph
@@ -351,6 +370,8 @@ end = struct
   let pp ppf t =
     Format.fprintf ppf "let : %i@ let_cont : %i@ let_rec_cont : %i@ func : %i"
       t.let_ t.let_cont t.let_rec_cont t.func
+
+  let code_deps t = t.code
 
   let deps t = t.deps
 
@@ -1140,7 +1161,7 @@ let run (unit : Flambda_unit.t) =
       let size = Obj.reachable_words (Obj.repr holed) in
       Format.printf "CLEANUP %i@." (size / 1000));
   Format.printf "DACC %a@." Dacc.pp _dacc;
-  let () = Dot.print_dep (Dacc.deps _dacc) in
+  let () = Dot.print_dep (Dacc.code_deps _dacc, Dacc.deps _dacc) in
   (* Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc); *)
   let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
   Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
