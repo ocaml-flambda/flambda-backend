@@ -17,17 +17,7 @@
 
 (install
  (files
-  (byte/threads.cma as threads/threads.cma)
-  (native/threadsnat.cmxa as threads/threads.cmxa)
-  (native/threadsnat.a as threads/threads.a)
-  (byte/libthreads_stubs.a as libthreads_stubs.a)
-  (byte/dllthreads_stubs.so as stublibs/dllthreads_stubs.so)
-  (native/libthreadsnat_stubs.a as libthreadsnat_stubs.a)
-  (native/libthreadsnat_stubs.a as libthreadsnat_stubs_native.a) ; for special_dune compat
   (thread.mli as threads/thread.mli)
-  (threads.h as caml/threads.h)
-  (native/.threadsnat.objs/native/thread.cmx as threads/thread.cmx)
-  (byte/.threads.objs/byte/thread.cmi as threads/thread.cmi)
-  (byte/.threads.objs/byte/thread.cmti as threads/thread.cmti))
+  (threads.h as caml/threads.h))
  (section lib)
  (package ocaml))
