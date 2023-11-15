@@ -476,6 +476,35 @@ int caml_num_rows_fd(int fd)
 #endif
 }
 
+void caml_print_timestamp(FILE* channel, int formatted)
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  if (!formatted) {
+    fprintf(channel, "%ld.%06d ", (long)tv.tv_sec, (int)tv.tv_usec);
+  } else {
+    struct tm tm;
+    char tz[10] = "Z";
+    localtime_r(&tv.tv_sec, &tm);
+    if (tm.tm_gmtoff != 0) {
+      long tzhour = tm.tm_gmtoff / 60 / 60;
+      long tzmin = (tm.tm_gmtoff / 60) % 60;
+      if (tzmin < 0) {tzmin += 60; tzhour--;}
+      sprintf(tz, "%+03ld:%02ld", tzhour, tzmin);
+    }
+    fprintf(channel,
+            "[%04d-%02d-%02d %02d:%02d:%02d.%06d%s] ",
+            1900 + tm.tm_year,
+            tm.tm_mon + 1,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec,
+            (int)tv.tv_usec,
+            tz);
+  }
+}
+
 void caml_init_os_params(void)
 {
   caml_plat_mmap_alignment = caml_plat_pagesize = sysconf(_SC_PAGESIZE);
