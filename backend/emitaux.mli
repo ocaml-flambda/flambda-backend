@@ -128,8 +128,7 @@ end
 exception Error of error
 val report_error: Format.formatter -> error -> unit
 
-(* BACKPORT BEGIN *)
-(*type preproc_stack_check_result =
+type preproc_stack_check_result =
   { max_frame_size : int;
     contains_nontail_calls : bool }
 
@@ -137,5 +136,4 @@ val preproc_stack_check:
   fun_body:Linear.instruction ->
   frame_size:int ->
   trap_size:int ->
-  preproc_stack_check_result*)
-(* BACKPORT END *)
+  preproc_stack_check_result

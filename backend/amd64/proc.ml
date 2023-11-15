@@ -309,10 +309,7 @@ let win64_float_external_arguments =
 let win64_loc_external_arguments arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let reg = ref 0
-  (* BACKPORT BEGIN *)
-  (* and ofs = ref 0 in *)
-  and ofs = ref 32 in
-  (* BACKPORT END *)
+  and ofs = ref (if Config.runtime5 then 0 else 32) in
   for i = 0 to Array.length arg - 1 do
     match arg.(i) with
     | Val | Int | Addr as ty ->
@@ -374,10 +371,16 @@ let domainstate_ptr_dwarf_register_number = 14
 
 (* Registers destroyed by operations *)
 
+let int_regs_destroyed_at_c_call_win64 =
+  if Config.runtime5 then [|0;1;4;5;6;7;10;11;12|] else [|0;4;5;6;7;10;11|]
+
+let int_regs_destroyed_at_c_call =
+  if Config.runtime5 then [|0;1;2;3;4;5;6;7;10;11|] else [|0;2;3;4;5;6;7;10;11|]
+
 let destroyed_at_c_call_win64 =
   (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
   let basic_regs = Array.append
-    (Array.map (phys_reg Int) [|0;4;5;6;7;10;11|]  )
+    (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
     (Array.sub hard_float_reg 0 6)
   in
   fun () -> if simd_regalloc_disabled ()
@@ -387,7 +390,7 @@ let destroyed_at_c_call_win64 =
 let destroyed_at_c_call_unix =
   (* Unix: rbx, rbp, r12-r15 preserved *)
   let basic_regs = Array.append
-      (Array.map (phys_reg Int) [|0;2;3;4;5;6;7;10;11|])
+      (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
     hard_float_reg
   in
   fun () -> if simd_regalloc_disabled ()

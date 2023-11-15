@@ -534,8 +534,7 @@ let report_error ppf = function
       name Debuginfo.print_compact dbg
 
 
-(* BACKPORT BEGIN *)
-(*type preproc_stack_check_result =
+type preproc_stack_check_result =
   { max_frame_size : int;
     contains_nontail_calls : bool }
 
@@ -562,5 +561,4 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       | Lentertrap | Lraise _ ->
         loop i.next fs max_fs nontail_flag
   in
-  loop fun_body frame_size frame_size false*)
-(* BACKPORT END *)
+  loop fun_body frame_size frame_size false
