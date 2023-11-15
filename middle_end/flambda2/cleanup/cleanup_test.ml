@@ -1145,6 +1145,8 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
     ~module_symbol:(Flambda_unit.module_symbol unit)
     ~used_value_slots:(Flambda_unit.used_value_slots unit)
 
+let do_print = true
+
 let run (unit : Flambda_unit.t) =
   (* Format.printf "CLEANUP@."; *)
   let dacc = Dacc.empty () in
@@ -1160,11 +1162,11 @@ let run (unit : Flambda_unit.t) =
   Profile.record_call ~accumulate:false "size" (fun () ->
       let size = Obj.reachable_words (Obj.repr holed) in
       Format.printf "CLEANUP %i@." (size / 1000));
-  Format.printf "DACC %a@." Dacc.pp _dacc;
-  let () = Dot.print_dep (Dacc.code_deps _dacc, Dacc.deps _dacc) in
-  (* Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc); *)
+  if do_print then Format.printf "DACC %a@." Dacc.pp _dacc;
+  let () = if do_print then Dot.print_dep (Dacc.deps _dacc) in
+  (* if do_print then Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc); *)
   let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
-  Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
+  if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr holed)
   in
