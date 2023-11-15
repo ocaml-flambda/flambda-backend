@@ -762,23 +762,6 @@ let rec normalize_type_path ?(cache=false) env p =
     Not_found ->
       (Env.normalize_type_path None env p, Id)
 
-let penalty s =
-  if s <> "" && s.[0] = '_' then
-    10
-  else
-    match find_double_underscore s with
-    | None -> 1
-    | Some _ -> 10
-
-let rec path_size = function
-    Pident id ->
-      penalty (Ident.name id), -Ident.scope id
-  | Pdot (p, _) ->
-      let (l, b) = path_size p in (1+l, b)
-  | Papply (p1, p2) ->
-      let (l, b) = path_size p1 in
-      (l + fst (path_size p2), b)
-
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
   Env.same_types !printing_old env
@@ -845,11 +828,30 @@ let is_unambiguous path env =
       List.for_all (fun p -> lid_of_path p = id) rem &&
       Path.same p (fst (Env.find_type_by_name id env))
 
+let penalty_size = 10
+
+let name_penalty s =
+  if s <> "" && s.[0] = '_' then
+    penalty_size
+  else
+    match find_double_underscore s with
+    | None -> 1
+    | Some _ -> penalty_size
+
 let ambiguity_penalty path env =
-  if is_unambiguous path env then 0 else 10
+  if is_unambiguous path env then 0 else penalty_size
 
 let path_size path env =
-  let l, s = path_size path in
+  let rec size = function
+      Pident id ->
+        name_penalty (Ident.name id), -Ident.scope id
+    | Pdot (p, _) ->
+        let (l, b) = size p in (1+l, b)
+    | Papply (p1, p2) ->
+        let (l, b) = size p1 in
+        (l + fst (size p2), b)
+  in
+  let l, s = size path in
   l + ambiguity_penalty path env, s
 
 let rec get_best_path r env =
