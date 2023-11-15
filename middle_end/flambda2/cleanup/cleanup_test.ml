@@ -224,7 +224,7 @@ module Dot = struct
           let root =
             Code_id_or_name.pattern_match'
               ~code_id:(fun _ -> false)
-              ~name:(fun name -> Hashtbl.mem t.Deps.used name)
+              ~name:(fun name -> Hashtbl.mem t.Deps.used (Code_id_or_name.name name))
               name
           in
           node ~ctx ~root ppf name)
@@ -256,11 +256,25 @@ module Dot = struct
           Deps.DepSet.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
         t.Deps.name_to_dep
 
-    let print ~ctx ~print_name ppf t =
+    let fresh = ref 0
+    let print_fundep ~ctx code_id ppf t =
+      incr fresh;
+      Format.fprintf ppf
+        "subgraph cluster_%d_%d { label=\"%a\"@\n%a@\n%a@\n}@\n" ctx !fresh Code_id.print code_id
+        (nodes ~ctx) t (edges ~ctx) t
+
+    let print_fundeps ~ctx ppf fundeps =
+      Hashtbl.iter (fun code_id fungraph ->
+          print_fundep ~ctx code_id ppf fungraph
+        ) fundeps
+
+    let print ~ctx ~print_name ppf (t : Deps.graph) =
       Flambda_colours.without_colours ~f:(fun () ->
           Format.fprintf ppf
-            "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n}@." ctx print_name
-            (nodes ~ctx) t (edges ~ctx) t)
+            "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a}@." ctx print_name
+            (nodes ~ctx) t.toplevel_graph (edges ~ctx) t.toplevel_graph
+            (print_fundeps ~ctx) t.function_graphs
+        )
   end
 
   let print_dep dep =
@@ -302,6 +316,8 @@ module Dacc : sig
 
   val used : Simple.t -> t -> t
 
+  val used_code_id : Code_id.t -> t -> t
+
   val opaque_let_dependency : Bound_pattern.t -> Name_occurrences.t -> t -> t
 
   val let_field : Bound_pattern.t -> Deps.field -> Name.t -> t -> t
@@ -314,6 +330,10 @@ module Dacc : sig
 
   val deps : t -> Deps.graph
 
+  val cur_func : t -> Code_id.t option
+
+  val with_cur_func : t -> Code_id.t option -> t
+
   val todo : unit -> t
 
   val todo' : t -> t
@@ -324,7 +344,8 @@ end = struct
       let_rec_cont : int;
       func : int;
       code : code_dep Code_id.Map.t;
-      deps : Deps.graph
+      deps : Deps.graph;
+      cur_func : Code_id.t option;
     }
 
   let pp ppf t =
@@ -333,13 +354,18 @@ end = struct
 
   let deps t = t.deps
 
+  let cur_func t = t.cur_func
+
+  let with_cur_func t cur_func = { t with cur_func }
+
   let empty () =
     { let_ = 0;
       let_cont = 0;
       let_rec_cont = 0;
       func = 0;
       code = Code_id.Map.empty;
-      deps = Deps.create ()
+      deps = { toplevel_graph = Deps.create (); function_graphs = Hashtbl.create 100 };
+      cur_func = None ;
     }
 
   let add_code code_id dep t =
@@ -355,47 +381,60 @@ end = struct
 
   let func t = { t with func = t.func + 1 }
 
+  let cur_deps t =
+    match t.cur_func with
+    | None -> t.deps.toplevel_graph
+    | Some code_id ->
+      (match Hashtbl.find_opt t.deps.function_graphs code_id with
+       | None -> let deps = Deps.create () in Hashtbl.add t.deps.function_graphs code_id deps; deps
+       | Some deps -> deps
+      )
+
   let opaque_let_dependency pat fv t =
-    Deps.add_opaque_let_dependency t.deps pat fv;
+    Deps.add_opaque_let_dependency (cur_deps t) pat fv;
     t
 
   let let_field pat field name t =
-    Deps.add_let_field t.deps pat field name;
+    Deps.add_let_field (cur_deps t) pat field name;
     t
 
   let let_dep pat dep t =
-    Deps.add_let_dep t.deps pat dep;
+    Deps.add_let_dep (cur_deps t) pat dep;
     t
 
   let record_dep name dep t =
     let name = Code_id_or_name.name name in
-    Deps.add_dep t.deps name dep;
+    Deps.add_dep (cur_deps t) name dep;
     t
 
   let record_dep' code_id_or_name dep t =
-    Deps.add_dep t.deps code_id_or_name dep;
+    Deps.add_dep (cur_deps t) code_id_or_name dep;
     t
 
   let record_deps code_id_or_name deps t =
-    Deps.add_deps t.deps code_id_or_name deps;
+    Deps.add_deps (cur_deps t) code_id_or_name deps;
     t
 
   let cont_dep pat dep t =
     Simple.pattern_match dep
-      ~name:(fun name ~coercion:_ -> Deps.add_cont_dep t.deps pat name)
+      ~name:(fun name ~coercion:_ -> Deps.add_cont_dep (cur_deps t) pat name)
       ~const:(fun _ -> ());
     t
 
   let func_param_dep param arg t =
-    Deps.add_func_param t.deps
+    Deps.add_func_param (cur_deps t)
       ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg);
     t
 
   let used dep t =
     Simple.pattern_match dep
-      ~name:(fun name ~coercion:_ -> Deps.add_use t.deps name)
+      ~name:(fun name ~coercion:_ -> Deps.add_use (cur_deps t) (Code_id_or_name.name name))
       ~const:(fun _ -> ());
+    t
+
+  let used_code_id code_id t =
+    Deps.add_use (cur_deps t) (Code_id_or_name.code_id code_id);
     t
 
   let todo _ = empty ()
@@ -566,7 +605,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           (* TODO record exn continuation *)
           let dacc = Dacc.todo' dacc in
           (* TODO record function use *)
-          let dacc = Dacc.todo' dacc in
+          let dacc = Dacc.used_code_id code_id dacc in
           dacc
         else default_dacc dacc
       | Function
@@ -910,6 +949,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
 and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
     rev_code * dacc =
   let dacc = Dacc.func dacc in
+  let old_cur_func = Dacc.cur_func dacc in
+  let dacc = Dacc.with_cur_func dacc (Some code_id) in
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
@@ -944,6 +985,7 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
           dacc
       in
       let body, dacc = traverse { parent = Up; conts } dacc body in
+      let dacc = Dacc.with_cur_func dacc old_cur_func in
       let params_and_body =
         { return_continuation;
           exn_continuation;
@@ -1099,7 +1141,7 @@ let run (unit : Flambda_unit.t) =
       Format.printf "CLEANUP %i@." (size / 1000));
   Format.printf "DACC %a@." Dacc.pp _dacc;
   let () = Dot.print_dep (Dacc.deps _dacc) in
-  Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc);
+  (* Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc); *)
   let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
   Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
   let rebuilt_expr =

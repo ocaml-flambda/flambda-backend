@@ -23,16 +23,23 @@ end
 
 module DepSet = Set.Make (Dep)
 
-type graph =
+type fun_graph =
   { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
-    used : (Name.t, unit) Hashtbl.t (* TODO: Conditionnal on a Code_id *)
+    used : (Code_id_or_name.t, unit) Hashtbl.t;
   }
 
-let pp_used ppf (graph : graph) =
+type graph =
+  {
+    toplevel_graph : fun_graph ;
+    function_graphs : (Code_id.t, fun_graph) Hashtbl.t ;
+  }
+
+
+let pp_used ppf (graph : fun_graph) =
   let elts = List.of_seq @@ Hashtbl.to_seq graph.used in
   let pp ppf l =
     let pp_sep ppf () = Format.pp_print_string ppf ",@ " in
-    let pp ppf (name, ()) = Format.fprintf ppf "%a" Name.print name in
+    let pp ppf (name, ()) = Format.fprintf ppf "%a" Code_id_or_name.print name in
     Format.pp_print_list ~pp_sep pp ppf l
   in
   Format.fprintf ppf "{ %a }" pp elts

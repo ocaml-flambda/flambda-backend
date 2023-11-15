@@ -129,20 +129,44 @@ let fixpoint (graph : graph) : result =
   (* TODO topological sort *)
   let result : result = Hashtbl.create 100 in
   let q = Queue.create () in
-  Hashtbl.iter
-    (fun n () ->
-      let n = Code_id_or_name.name n in
-      Hashtbl.replace result n Top;
-      Queue.push n q)
-    graph.used;
-  while not (Queue.is_empty q) do
+  let all_deps = Hashtbl.copy graph.toplevel_graph.name_to_dep in
+  let add_used used =
+    Hashtbl.iter
+      (fun n () ->
+         Hashtbl.replace result n Top;
+         Queue.push n q)
+      used
+  in
+  let add_fungraph (fungraph : Cleanup_deps.fun_graph) =
+    Hashtbl.iter (fun n deps ->
+        (match Hashtbl.find_opt all_deps n with
+         | None -> Hashtbl.add all_deps n deps
+         | Some deps2 -> Hashtbl.replace all_deps n (DepSet.union deps deps2));
+        if Hashtbl.mem result n then Queue.push n q
+      ) fungraph.name_to_dep;
+    add_used fungraph.used;
+  in
+  let added_fungraphs = Hashtbl.create 100 in
+  let check_and_add_fungraph n elt =
+    Code_id_or_name.pattern_match'
+      ~name:(fun _ -> ())
+      ~code_id:(fun code_id ->
+          if (match elt with Bottom -> false | Top -> true | Fields _ -> assert false) && not (Hashtbl.mem added_fungraphs code_id) && Hashtbl.mem graph.function_graphs code_id then begin
+            add_fungraph (Hashtbl.find graph.function_graphs code_id);
+            Hashtbl.add added_fungraphs code_id ()
+          end
+        ) n
+  in
+  add_used graph.toplevel_graph.used;
+    while not (Queue.is_empty q) do
     let n = Queue.pop q in
     let deps =
-      match Hashtbl.find_opt graph.name_to_dep n with
+      match Hashtbl.find_opt all_deps n with
       | None -> DepSet.empty
       | Some s -> s
     in
     let elt = Hashtbl.find result n in
+    check_and_add_fungraph n elt;
     DepSet.iter
       (fun dep ->
         match propagate elt dep with
