@@ -380,6 +380,25 @@ CAMLexport value caml_alloc_shr_noexc(mlsize_t wosize, tag_t tag) {
   return alloc_shr(wosize, tag, 0, 1);
 }
 
+CAMLprim value caml_local_stack_offset(value blk)
+{
+  /* CR ocaml 5 runtime: implement properly for locals */
+  return Val_long(0);
+}
+
+CAMLprim value caml_obj_is_stack(value blk)
+{
+  /* CR ocaml 5 runtime: implement properly for locals */
+  return Val_false;
+}
+
+extern value caml_create_bytes(value);
+CAMLprim value caml_create_local_bytes(value len)
+{
+  /* CR ocaml 5 runtime: implement properly for locals */
+  return caml_create_bytes(len);
+}
+
 /* Global memory pool.
 
    The pool is structured as a ring of blocks, where each block's header
