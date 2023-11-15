@@ -1182,7 +1182,7 @@ let run (unit : Flambda_unit.t) =
       Format.printf "CLEANUP %i@." (size / 1000));
   if do_print then Format.printf "DACC %a@." Dacc.pp _dacc;
   let () = if do_print then Dot.print_dep (Dacc.code_deps _dacc, Dacc.deps _dacc) in
-  (* if do_print then Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc); *)
+  if do_print then Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc);
   let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
   if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
   let rebuilt_expr =
