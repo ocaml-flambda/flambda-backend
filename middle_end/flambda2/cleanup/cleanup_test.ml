@@ -1,3 +1,7 @@
+[@@@ocaml.warning "-32"]
+
+[@@@ocaml.warning "-34"]
+
 module Rebuilt_expr = struct
   type continuation_handler =
     { handler : Flambda.Continuation_handler.t;
@@ -174,7 +178,6 @@ module Dot = struct
        (* at_exit (fun () -> *)
        (*     Format.fprintf ppf "@\n}@."; *)
        (*     close_out ch); *)
-
        ppf)
 
   let dot_count = ref ~-1
