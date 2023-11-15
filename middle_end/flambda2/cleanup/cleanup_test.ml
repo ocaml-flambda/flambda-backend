@@ -307,13 +307,6 @@ module Dot = struct
     print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:P.print
 end
 
-type code_dep =
-  { params : Variable.t list;
-    my_closure : Variable.t;
-    return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t list (* Dummy variable representing exn return value *)
-  }
-
 type cont_kind =
   | Normal of Variable.t list
   (* TODO: not really useful, we could just have a dummy variable for the result
@@ -1185,7 +1178,7 @@ let run (unit : Flambda_unit.t) =
       let size = Obj.reachable_words (Obj.repr holed) in
       Format.printf "CLEANUP %i@." (size / 1000));
   if do_print then Format.printf "DACC %a@." Dacc.pp _dacc;
-  let () = if do_print then Dot.print_dep (Dacc.deps _dacc) in
+  let () = if do_print then Dot.print_dep (Dacc.code_deps _dacc, Dacc.deps _dacc) in
   (* if do_print then Format.printf "USED %a@." Deps.pp_used (Dacc.deps _dacc); *)
   let _solved_dep = Dep_solver.fixpoint (Dacc.deps _dacc) in
   if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
