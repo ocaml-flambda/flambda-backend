@@ -524,6 +524,15 @@ static void intern_rec(struct caml_intern_state* s,
         caml_failwith("input_value: integer too large");
         break;
 #endif
+      case CODE_UNBOXED_INT64:
+#ifdef ARCH_SIXTYFOUR
+        v = (intnat) (read64u(s));
+        break;
+#else
+        intern_cleanup();
+        caml_failwith("input_value: CODE_UNBOXED_INT64 not supported on 32 bit");
+        break;
+#endif
       case CODE_SHARED8:
         ofs = read8u(s);
       read_shared:

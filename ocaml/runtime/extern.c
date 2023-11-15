@@ -594,6 +594,15 @@ Caml_inline void extern_int(struct caml_extern_state* s, intnat n)
   }
 }
 
+Caml_inline void extern_unboxed_int(struct caml_extern_state* s, intnat n)
+{
+  if (s->extern_flags & COMPAT_32)
+    extern_failwith(s,
+      "output_value: cannot marshal unboxed values on 32 bit");
+
+  writecode64(s, CODE_UNBOXED_INT64, n);
+}
+
 /* Marshaling references to previously-marshaled blocks */
 
 Caml_inline void extern_shared_reference(struct caml_extern_state* s,
@@ -750,7 +759,7 @@ static void extern_code_pointer(struct caml_extern_state* s, char * codeptr)
   }
 }
 
-/* Marshaling the non-environment part of closures */
+/* Marshaling the non-scanned-environment part of closures */
 
 Caml_inline mlsize_t extern_closure_up_to_env(struct caml_extern_state* s,
                                               value v)
@@ -772,8 +781,12 @@ Caml_inline mlsize_t extern_closure_up_to_env(struct caml_extern_state* s,
     if (Arity_closinfo(info) != 0 && Arity_closinfo(info) != 1) {
       extern_code_pointer(s, (char *) Field(v, i++));
     }
-  } while (i < startenv);
-  CAMLassert(i == startenv);
+  } while (!Is_last_closinfo(info));
+  CAMLassert(i <= startenv);
+  /* The non-scanned part of the environment */
+  while (i < startenv) {
+    extern_unboxed_int(s, Field(v, i++));
+  }
   return startenv;
 }
 
