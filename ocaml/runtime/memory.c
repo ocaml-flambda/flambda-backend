@@ -380,6 +380,16 @@ CAMLexport value caml_alloc_shr_noexc(mlsize_t wosize, tag_t tag) {
   return alloc_shr(wosize, tag, 0, 1);
 }
 
+CAMLprim value caml_local_stack_offset(value blk)
+{
+  caml_failwith("caml_local_stack_offset not yet implemented");
+}
+
+CAMLprim value caml_obj_is_stack(value blk)
+{
+  return Val_false;
+}
+
 /* Global memory pool.
 
    The pool is structured as a ring of blocks, where each block's header
