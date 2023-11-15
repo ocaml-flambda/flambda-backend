@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*           Xavier Leroy and Pascal Cuoq, INRIA Rocquencourt             *)
+(*   Xavier Leroy and Pascal Cuoq, projet Cristal, INRIA Rocquencourt     *)
 (*                                                                        *)
 (*   Copyright 1995 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
@@ -14,7 +14,7 @@
 (**************************************************************************)
 
 type t
-external create: unit -> t = "caml_mutex_new"
-external lock: t -> unit = "caml_mutex_lock"
-external try_lock: t -> bool = "caml_mutex_try_lock"
-external unlock: t -> unit = "caml_mutex_unlock"
+external create: unit -> t = "caml_ml_condition_new"
+external wait: t -> Mutex.t -> unit = "caml_ml_condition_wait"
+external signal: t -> unit = "caml_ml_condition_signal"
+external broadcast: t -> unit = "caml_ml_condition_broadcast"
