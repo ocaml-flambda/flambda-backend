@@ -228,7 +228,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~loc:(of_location ~scopes pat.pat_loc)
                    ~body
                    ~mode:alloc_heap
-                   ~ret_mode:alloc_heap (* XXX check *)
+                   ~ret_mode:alloc_heap
                    ~region:true
        in
        begin match obj_init with
@@ -517,7 +517,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~loc:(of_location ~scopes pat.pat_loc)
                   ~body
                   ~mode:alloc_heap
-                  ~ret_mode:alloc_heap (* XXX check *)
+                  ~ret_mode:alloc_heap
                   ~region:true
       in
       (path, path_lam,
@@ -879,7 +879,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~loc:Loc_unknown
                            ~return:layout_function
                            ~mode:alloc_heap
-                           ~ret_mode:alloc_heap (* XXX check *)
+                           ~ret_mode:alloc_heap
                            ~region:true
                            ~params:[lparam cla layout_table] ~body:cl_init) in
     Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
@@ -905,7 +905,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~loc:Loc_unknown
                           ~return:layout_function
                           ~mode:alloc_heap
-                          ~ret_mode:alloc_heap (* XXX check *)
+                          ~ret_mode:alloc_heap
                           ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
@@ -966,7 +966,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
-                   ~ret_mode:alloc_heap (* XXX check *)
+                   ~ret_mode:alloc_heap
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lcache lam =
@@ -992,7 +992,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~attr:default_function_attribute
          ~loc:Loc_unknown
          ~mode:alloc_heap
-         ~ret_mode:alloc_heap (* XXX check *)
+         ~ret_mode:alloc_heap
          ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]

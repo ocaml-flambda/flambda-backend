@@ -1177,7 +1177,7 @@ and transl_apply ~scopes
               mode = arg_mode
             }] in
           lfunction ~kind:(Curried {nlocal}) ~params
-                    ~return:result_layout ~body ~mode ~ret_mode (* XXX check *) ~region
+                    ~return:result_layout ~body ~mode ~ret_mode ~region
                     ~attr:default_stub_attribute ~loc
         in
         List.fold_right
