@@ -593,3 +593,37 @@ CAMLprim value caml_array_fill(value array,
   }
   return Val_unit;
 }
+
+/* Linker compatibility with stdlib externals
+   CR ocaml 5 runtime: implement locals
+   CR ocaml 5 runtime: implement iarrays */
+
+CAMLprim value caml_array_concat_local(value al)
+{
+  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+}
+
+CAMLprim value caml_array_sub_local(value al, value a, value b)
+{
+  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+}
+
+CAMLprim value caml_make_local_vect(value i, value a)
+{
+  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+}
+
+CAMLprim value caml_array_append_local(value a1, value a2)
+{
+  caml_failwith("Called caml_array_append_local in runtime5: not implemented.");
+}
+
+CAMLprim value caml_iarray_of_array(value a)
+{
+  return a;
+}
+
+CAMLprim value caml_array_of_iarray(value a)
+{
+  return a;
+}
