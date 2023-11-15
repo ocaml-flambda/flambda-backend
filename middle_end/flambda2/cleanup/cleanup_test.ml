@@ -474,12 +474,11 @@ type cont_kind =
 
 type denv =
   { parent : rev_expr_holed;
-    conts : cont_kind Continuation.Map.t
+    conts : cont_kind Continuation.Map.t;
+    current_code_id : Code_id.t option
   }
 
 type handlers = cont_handler Continuation.Map.t
-
-type tt = handlers -> rev_expr * dacc
 
 let apply_cont_deps denv dacc apply_cont =
   let cont = Apply_cont_expr.continuation apply_cont in
@@ -651,8 +650,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let cont_handler =
             Flambda.Non_recursive_let_cont_handler.handler handler
           in
-          traverse_cont_handler { parent = Up; conts = denv.conts }
-            dacc cont_handler (fun handler dacc ->
+          traverse_cont_handler
+            { parent = Up;
+              conts = denv.conts;
+              current_code_id = denv.current_code_id
+            } dacc cont_handler (fun handler dacc ->
               let conts =
                 Continuation.Map.add cont
                   (Normal (Bound_parameters.vars handler.bound_parameters))
@@ -660,7 +662,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               in
               let denv =
                 { parent = Let_cont { cont; handler; parent = denv.parent };
-                  conts
+                  conts;
+                  current_code_id = denv.current_code_id
                 }
               in
               traverse denv dacc body))
@@ -696,7 +699,14 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                 let is_cold =
                   Flambda.Continuation_handler.is_cold cont_handler
                 in
-                let expr, dacc = traverse { parent = Up; conts } dacc handler in
+                let expr, dacc =
+                  traverse
+                    { parent = Up;
+                      conts;
+                      current_code_id = denv.current_code_id
+                    }
+                    dacc handler
+                in
                 let handler =
                   { bound_parameters; expr; is_exn_handler; is_cold }
                 in
@@ -708,7 +718,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             { parent =
                 Let_cont_rec
                   { invariant_params; handlers; parent = denv.parent };
-              conts
+              conts;
+              current_code_id = denv.current_code_id
             }
           in
           traverse denv dacc body)
@@ -965,7 +976,12 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     let let_acc =
       Let { bound_pattern; defining_expr = named; parent = denv.parent }
     in
-    traverse { parent = let_acc; conts = denv.conts } dacc body
+    traverse
+      { parent = let_acc;
+        conts = denv.conts;
+        current_code_id = denv.current_code_id
+      }
+      dacc body
 
 and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
     rev_code * dacc =
@@ -1005,8 +1021,11 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
           (Alias (Name.var code_dep.my_closure))
           dacc
       in
-      let body, dacc = traverse { parent = Up; conts } dacc body in
-      let dacc = Dacc.with_cur_func dacc old_cur_func in
+      let body, dacc =
+        traverse
+          { parent = Up; conts; current_code_id = Some code_id }
+          dacc body
+      in
       let params_and_body =
         { return_continuation;
           exn_continuation;
@@ -1157,7 +1176,9 @@ let run (unit : Flambda_unit.t) =
             [ Flambda_unit.return_continuation unit, Return;
               Flambda_unit.exn_continuation unit, Exn ]
         in
-        traverse { parent = Up; conts } dacc (Flambda_unit.body unit))
+        traverse
+          { parent = Up; conts; current_code_id = None }
+          dacc (Flambda_unit.body unit))
   in
   Profile.record_call ~accumulate:false "size" (fun () ->
       let size = Obj.reachable_words (Obj.repr holed) in
