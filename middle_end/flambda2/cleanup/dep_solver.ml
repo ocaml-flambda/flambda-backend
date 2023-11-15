@@ -90,9 +90,12 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
   | Bottom -> None
   | Top | Fields _ -> begin
     match dep with
-    | Return_of_that_function n ->
-      Format.eprintf "TODO@.";
-      Some (Code_id_or_name.name n, elt)
+    | Return_of_that_function n -> begin
+      match elt with
+      | Bottom -> assert false
+      | Fields _ -> None
+      | Top -> Some (Code_id_or_name.name n, Top)
+    end
     | Alias n -> Some (Code_id_or_name.name n, elt)
     | Apply (n, _) -> Some (Code_id_or_name.name n, Top)
     | Contains n -> Some (n, Top)
