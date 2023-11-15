@@ -60,7 +60,7 @@
 #define FRAME_RETURN_TO_C 0xFFFF
 
 typedef struct {
-  uintnat retaddr;
+  int32_t retaddr_rel; /* offset of return address from &retaddr_rel */
   uint16_t frame_data; /* frame size and various flags */
   uint16_t num_live;
   uint16_t live_ofs[1 /* num_live */];
@@ -104,6 +104,10 @@ Caml_inline bool frame_has_debug(frame_descr *d) {
 
 #define Hash_retaddr(addr, mask)                          \
   (((uintnat)(addr) >> 3) & (mask))
+
+#define Retaddr_frame(d) \
+  ((uintnat)&(d)->retaddr_rel + \
+   (uintnat)(intnat)((d)->retaddr_rel))
 
 void caml_init_frame_descriptors(void);
 void caml_register_frametables(void **tables, int ntables);
