@@ -1,4 +1,4 @@
-    access from literal: Allocation
-access from Iarray.init: Allocation
-       match on literal: Allocation
-   match on Iarray.init: Allocation
+    access from literal: No Allocation
+access from Iarray.init: No Allocation
+       match on literal: No Allocation
+   match on Iarray.init: No Allocation

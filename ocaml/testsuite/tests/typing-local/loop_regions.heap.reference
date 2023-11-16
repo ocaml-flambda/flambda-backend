@@ -4,3 +4,5 @@
       nonlocal while body: [0; 0; 0]
          local while cond: [0; 0; 0]
       nonlocal while cond: [0; 0; 0]
+               local func: [0; 0; 0]
+            nonlocal func: [0; 0; 0]
