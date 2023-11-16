@@ -395,11 +395,6 @@ CAMLprim value caml_create_local_bytes(void)
   caml_failwith("caml_create_local_bytes not yet implemented");
 }
 
-CAMLprim value caml_floatarray_create_local(void)
-{
-  caml_failwith("caml_floatarray_create_local not yet implemented");
-}
-
 /* Global memory pool.
 
    The pool is structured as a ring of blocks, where each block's header

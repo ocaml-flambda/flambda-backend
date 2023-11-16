@@ -600,22 +600,32 @@ CAMLprim value caml_array_fill(value array,
 
 CAMLprim value caml_array_concat_local(value al)
 {
-  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+  /* CR ocaml 5 runtime: replace with proper locals implementation */
+  return caml_array_concat(al);
 }
 
 CAMLprim value caml_array_sub_local(value al, value a, value b)
 {
-  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+  /* CR ocaml 5 runtime: replace with proper locals implementation */
+  return caml_array_sub(al, a, b);
 }
 
 CAMLprim value caml_make_local_vect(value i, value a)
 {
-  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+  /* CR ocaml 5 runtime: replace with proper locals implementation */
+  return caml_make_vect(i, a);
 }
 
 CAMLprim value caml_array_append_local(value a1, value a2)
 {
-  caml_failwith("Called caml_array_append_local in runtime5: not implemented.");
+  /* CR ocaml 5 runtime: replace with proper locals implementation */
+  return caml_array_append(a1, a2);
+}
+
+CAMLprim value caml_floatarray_create_local(value len)
+{
+  /* CR ocaml 5 runtime: replace with proper locals implementation */
+  return caml_floatarray_create(len);
 }
 
 CAMLprim value caml_iarray_of_array(value a)
