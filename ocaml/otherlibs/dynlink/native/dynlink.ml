@@ -16,6 +16,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* Dynamic loading of .cmx files *)
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Dynlink_compilerlibs
@@ -41,6 +43,8 @@ module Native = struct
   (* mshinwell: We need something better than caml_sys_exit *)
   external ndl_open : string -> bool -> handle * Cmxs_format.dynheader
     = "caml_sys_exit" "caml_natdynlink_open"
+  external ndl_register : handle -> string array -> unit
+    = "caml_sys_exit" "caml_natdynlink_register"
   external ndl_run : handle -> string -> unit
     = "caml_sys_exit" "caml_natdynlink_run"
   external ndl_getmap : unit -> global_map list
@@ -103,34 +107,22 @@ module Native = struct
       init
       (ndl_getmap ())
 
+  let run_shared_startup handle =
+    ndl_run handle "caml_shared_startup"
+
+  let run _lock handle ~unit_header ~priv:_ =
+    List.iter (fun cu ->
+        try ndl_run handle cu
+        with exn ->
+          Printexc.raise_with_backtrace
+            (DT.Error (Library's_module_initializers_failed exn))
+            (Printexc.get_raw_backtrace ()))
+      (Unit_header.defined_symbols unit_header)
+
   exception Register_dyn_global_duplicate
   let () =
     Callback.register "Register_dyn_global_duplicate"
       Register_dyn_global_duplicate
-
-  let ndl_run handle cu ~filename ~priv =
-    try ndl_run handle cu
-    with
-    | Register_dyn_global_duplicate ->
-      if not priv then
-        failwith (Printf.sprintf "Attempt to register duplicate dynamic \
-          GC roots for non-privately-loaded library `%s'; this is a bug in \
-          [Dynlink]" filename)
-      else
-        Printexc.raise_with_backtrace
-          (DT.Error (Library_file_already_loaded_privately { filename }))
-          (Printexc.get_raw_backtrace ())
-    | exn ->
-      Printexc.raise_with_backtrace
-        (DT.Error (Library's_module_initializers_failed exn))
-        (Printexc.get_raw_backtrace ())
-
-  let run_shared_startup handle ~filename ~priv =
-    ndl_run handle "caml_shared_startup" ~filename ~priv
-
-  let run handle ~filename ~unit_header ~priv =
-    List.iter (fun cu -> ndl_run handle cu ~filename ~priv)
-      (Unit_header.defined_symbols unit_header)
 
   let load ~filename ~priv =
     let handle, header =
@@ -140,7 +132,29 @@ module Native = struct
     if header.dynu_magic <> Config.cmxs_magic_number then begin
       raise (DT.Error (Not_a_bytecode_file filename))
     end;
-    handle, header.dynu_units
+    let syms =
+      "caml_shared_startup" ::
+      List.concat_map Unit_header.defined_symbols header.dynu_units
+    in
+    try (
+      ndl_register handle (Array.of_list syms);
+      handle, header.dynu_units )
+    with
+    | Register_dyn_global_duplicate ->
+      (* CR mshinwell: This used to be a failure, but now this [load]
+         function is called before [check].  For the moment just assume
+         this is a [Module_already_loaded] case. *)
+      if not priv then (
+        (* CR mshinwell: [Module_already_loaded] should really take a
+           module name, not a filename! *)
+        Printexc.raise_with_backtrace
+          (DT.Error (Module_already_loaded filename))
+          (Printexc.get_raw_backtrace ())
+      )
+      else
+        Printexc.raise_with_backtrace
+          (DT.Error (Library_file_already_loaded_privately { filename }))
+          (Printexc.get_raw_backtrace ())
 
   let unsafe_get_global_value ~bytecode_or_asm_symbol =
     match ndl_loadsym bytecode_or_asm_symbol with

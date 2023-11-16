@@ -60,13 +60,11 @@ module type S = sig
     -> priv:bool
     -> handle * (Unit_header.t list)
 
-  val run_shared_startup : handle -> filename:string -> priv:bool -> unit
+  val run_shared_startup : handle -> unit
 
   val run
-     : (* CR ocaml 5 runtime: The first argument upstream is a mutex. *)
-       (* Mutex.t -> *)
-       handle
-    -> filename:string
+     : Mutex.t option
+    -> handle
     -> unit_header:Unit_header.t
     -> priv:bool
     -> unit

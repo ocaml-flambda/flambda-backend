@@ -79,11 +79,18 @@ module Make (P : Dynlink_platform_intf.S) = struct
       mutable inited:bool;
       mutable unsafe_allowed:bool;
     }
-    (* val lock: Mutex.t *)
+    val lock: Mutex.t option
     val with_lock: (t->'a) -> 'a
   end
   = struct
-    (* let lock = Mutex.create () *)
+    external runtime5 : unit -> bool = "%runtime5"
+
+    let lock =
+      (* We cannot call [Mutex.create] on runtime4 without making the dynlink
+         library depend on the threads library. *)
+      if runtime5 () then Some (Mutex.create ())
+      else None
+
     type t = {
       mutable state:State.t;
       mutable inited:bool;
@@ -93,16 +100,16 @@ module Make (P : Dynlink_platform_intf.S) = struct
       state = State.empty;
       inited = false;
       unsafe_allowed = false;
-
     }
 
-    (* CR ocaml 5 runtime *)
-    (* let with_lock0 f =
-      Mutex.lock lock;
-      Fun.protect f
-        ~finally:(fun () -> Mutex.unlock lock) *)
+    let with_lock0 f =
+      match lock with
+      | None -> f ()
+      | Some lock ->
+        Mutex.lock lock;
+        Fun.protect f
+          ~finally:(fun () -> Mutex.unlock lock)
 
-    let with_lock0 f = f ()
     let with_lock f = with_lock0 (fun () -> f state)
   end
   open Global
@@ -358,13 +365,13 @@ module Make (P : Dynlink_platform_intf.S) = struct
             global.state <- check filename units global.state
                 ~unsafe_allowed
                 ~priv;
-            P.run_shared_startup handle ~filename ~priv;
+            P.run_shared_startup handle;
           );
         List.iter
           (fun unit_header ->
              (* Linked modules might call Dynlink themselves,
                 we need to release the lock *)
-             P.run (* Global.lock *) handle ~filename ~unit_header ~priv;
+             P.run Global.lock handle ~unit_header ~priv;
              if not priv then with_lock (fun global ->
                  global.state <- set_loaded filename unit_header global.state
                )
