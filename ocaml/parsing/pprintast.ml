@@ -447,17 +447,31 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
       jkind_annotation jkind
   | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
+
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   if has_non_curry_attr attrs then core_type_jane_syntax ctxt attrs f x
   else
     match x with
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
       pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
+    | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
     | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
   | None -> pp f "_"
   | Some name -> tyvar f name
+
+and core_type1_labeled_tuple ctxt _attrs f
+      : Jane_syntax.Labeled_tuples.core_type -> _ = function
+  | Lttyp_tuple tl ->
+      pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
+
+and labeled_core_type1 ctxt f (label, ty) =
+  begin match label with
+  | None   -> ()
+  | Some s -> pp f "%s:" s
+  end;
+  core_type1 ctxt f ty
 
 and return_type ctxt f x =
   if x.ptyp_attributes <> [] then maybe_local_type core_type1 ctxt f x
@@ -525,6 +539,20 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
            | None -> pp f "%a" longident_loc li)
     | _ -> simple_pattern ctxt f x
 
+and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
+  let simple_name = match x with
+    | {ppat_desc = Ppat_var { txt=s; _ }; ppat_attributes = []; _} -> Some s
+    | _ -> None
+  in
+  match label, simple_name with
+  | None, _ ->
+    pattern1 ctxt f x
+  | Some lbl, Some simple_name when String.equal simple_name lbl ->
+    pp f "~%s" lbl
+  | Some lbl, _ ->
+    pp f "~%s:" lbl;
+    pattern1 ctxt f x
+
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
   else match Jane_syntax.Pattern.of_ast x with
@@ -578,6 +606,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
         | Jpat_layout (Lpat_constant _) -> false
+        | Jpat_tuple (Ltpat_tuple _) -> true
         end
         | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
@@ -596,6 +625,14 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
     | Jpat_immutable_array (Iapat_immutable_array l) ->
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
     | Jpat_layout (Lpat_constant c) -> unboxed_constant ctxt f c
+    | Jpat_tuple (Ltpat_tuple (l, closed)) ->
+        let closed_flag ppf = function
+        | Closed -> ()
+        | Open -> pp ppf ",@;.."
+        in
+        pp f "@[<1>(%a%a)@]"
+          (list ~sep:",@;" (labeled_pattern1 ctxt)) l
+          closed_flag closed
 
 and maybe_local_pat ctxt is_local f p =
   if is_local then
@@ -1892,6 +1929,19 @@ and label_x_expression_param ctxt f (l,e) =
       else
         pp f "~%s:%a" lbl (simple_expr ctxt) e
 
+and tuple_component ctxt f (l,e) =
+  let simple_name = match e with
+    | {pexp_desc=Pexp_ident {txt=Lident l;_};
+       pexp_attributes=[]} -> Some l
+    | _ -> None
+  in match (simple_name, l) with
+  (* Labeled component can be represented with pun *)
+  | Some simple_name, Some lbl when String.equal simple_name lbl -> pp f "~%s" lbl
+  (* Labeled component general case *)
+  | _, Some lbl -> pp f "~%s:%a" lbl (simple_expr ctxt) e
+  (* Unlabeled component *)
+  | _, None  -> expression2 ctxt f e (* level 2*)
+
 and directive_argument f x =
   match x.pdira_desc with
   | Pdir_string (s) -> pp f "@ %S" s
@@ -1915,6 +1965,7 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
   | Jexp_n_ary_function x   ->
       if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
       else n_ary_function_expr ctxt f x
+  | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -2059,6 +2110,11 @@ and n_ary_function_expr
         (fun f ->
           function_params_then_body
             ctxt f params constraint_ body ~delimiter:"->")
+
+and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
+  match x with
+  | Ltexp_tuple l ->
+    pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") l
 
 (******************************************************************************)
 (* All exported functions must be defined or redefined below here and wrapped in

@@ -90,6 +90,10 @@ type tpat_array_identifier = unit
 
 let mkTpat_array ?id:(() = ()) l = Tpat_array l
 
+type tpat_tuple_identifier = unit
+
+let mkTpat_tuple ?id:(() = ()) l = Tpat_tuple l
+
 type 'a matched_pattern_desc =
   | Tpat_var :
       Ident.t * string Location.loc * tpat_var_identifier
@@ -103,6 +107,9 @@ type 'a matched_pattern_desc =
   | Tpat_array :
       value general_pattern list * tpat_array_identifier
       -> value matched_pattern_desc
+  | Tpat_tuple :
+      value general_pattern list * tpat_tuple_identifier
+      -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
@@ -110,6 +117,7 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   | Tpat_var (ident, name) -> Tpat_var (ident, name, ())
   | Tpat_alias (p, ident, name) -> Tpat_alias (p, ident, name, ())
   | Tpat_array l -> Tpat_array (l, ())
+  | Tpat_tuple l -> Tpat_tuple (l, ())
   | _ -> O p
 
 type tstr_eval_identifier = unit
