@@ -13,17 +13,17 @@
 
 /* For testing global root registration */
 
-/* BACKPORT
+#ifdef CAML_RUNTIME_5
 #define CAML_INTERNALS
-*/
+#endif
 
 #include "caml/mlvalues.h"
 #include "caml/memory.h"
 #include "caml/alloc.h"
 #include "caml/gc.h"
-/* BACKPORT
+#ifdef CAML_RUNTIME_5
 #include "caml/shared_heap.h"
-*/
+#endif
 #include "caml/callback.h"
 
 struct block { value header; value v; };
@@ -39,11 +39,11 @@ value gb_get(value vblock)
 value gb_classic_register(value v)
 {
   struct block * b = caml_stat_alloc(sizeof(struct block));
-  /* BACKPORT BEGIN
+#ifdef CAML_RUNTIME_5
   b->header = Make_header(1, 0, NOT_MARKABLE);
-  */
+#else
   b->header = Make_header(1, 0, Caml_black);
-  /* BACKPORT END */
+#endif
   b->v = v;
   caml_register_global_root(&(b->v));
   return Val_block(b);
@@ -64,11 +64,11 @@ value gb_classic_remove(value vblock)
 value gb_generational_register(value v)
 {
   struct block * b = caml_stat_alloc(sizeof(struct block));
-  /* BACKPORT BEGIN
+#ifdef CAML_RUNTIME_5
   b->header = Make_header(1, 0, NOT_MARKABLE);
-  */
+#else
   b->header = Make_header(1, 0, Caml_black);
-  /* BACKPORT END */
+#endif
   b->v = v;
   caml_register_generational_global_root(&(b->v));
   return Val_block(b);
