@@ -1113,7 +1113,7 @@ let find_ident_module id env =
   match find_same_module id env.modules with
   | Mod_local data -> data
   | Mod_unbound _ -> raise Not_found
-  | Mod_persistent -> find_pers_mod (id |> modname_of_ident)
+  | Mod_persistent -> find_pers_mod ~allow_hidden:true (id |> modname_of_ident)
 
 let rec find_module_components path env =
   match path with
@@ -2695,8 +2695,10 @@ let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in
-  Persistent_env.save_cmi !persistent_env
-    { Persistent_env.Persistent_signature.filename; cmi };
+  let pers_sig =
+    Persistent_env.Persistent_signature.{ filename; cmi; visibility = Visible }
+  in
+  Persistent_env.save_cmi !persistent_env pers_sig;
   cmi
 
 let save_signature ~alerts sg modname filename =
@@ -2935,10 +2937,10 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
       let name = s |> Compilation_unit.Name.of_string in
       match load with
       | Don't_load ->
-          check_pers_mod ~loc name;
+          check_pers_mod ~allow_hidden:false ~loc name;
           path, (() : a)
       | Load -> begin
-          match find_pers_mod name with
+          match find_pers_mod ~allow_hidden:false name with
           | mda ->
               use_module ~use ~loc path mda;
               path, (mda : a)
@@ -3546,7 +3548,10 @@ let bound_module name env =
   | exception Not_found ->
       if Current_unit_name.is name then false
       else begin
-        match find_pers_mod (name |> Compilation_unit.Name.of_string) with
+        match
+          find_pers_mod ~allow_hidden:false
+            (name |> Compilation_unit.Name.of_string)
+        with
         | _ -> true
         | exception Not_found -> false
       end
