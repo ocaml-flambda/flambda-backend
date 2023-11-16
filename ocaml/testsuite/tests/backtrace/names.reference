@@ -1,8 +1,8 @@
 Raised at Names.bang in file "names.ml", line 9, characters 29-39
 Called from Names.nontailcall in file "names.ml", line 106, characters 2-6
 Called from Names.lazy_ in file "names.ml", line 101, characters 41-45
-Called from CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 126, characters 19-29
-Re-raised at CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 131, characters 6-13
+Called from CamlinternalLazy.Lazy.<force>
+Re-raised at CamlinternalLazy.Lazy.<force>
 Called from Names.inline_object.object#othermeth in file "names.ml", line 96, characters 6-10
 Called from Names.inline_object.object#meth in file "names.ml", line 94, characters 6-26
 Called from Names.klass2#othermeth.(fun) in file "names.ml", line 88, characters 18-22
