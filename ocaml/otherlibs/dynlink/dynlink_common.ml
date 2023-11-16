@@ -356,13 +356,13 @@ module Make (P : Dynlink_platform_intf.S) = struct
             global.state <- check filename units global.state
                 ~unsafe_allowed
                 ~priv;
-            P.run_shared_startup handle ~filename ~priv;
+            P.run_shared_startup handle;
           );
         List.iter
           (fun unit_header ->
              (* Linked modules might call Dynlink themselves,
                 we need to release the lock *)
-             P.run Global.lock handle ~filename ~unit_header ~priv;
+             P.run Global.lock handle ~unit_header ~priv;
              if not priv then with_lock (fun global ->
                  global.state <- set_loaded filename unit_header global.state
                )

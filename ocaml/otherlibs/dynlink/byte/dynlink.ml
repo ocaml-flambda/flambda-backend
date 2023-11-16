@@ -113,14 +113,14 @@ module Bytecode = struct
       init
       !default_crcs
 
-  let run_shared_startup _ ~filename:_ ~priv:_ = ()
+  let run_shared_startup _ = ()
 
   let with_lock lock f =
     Mutex.lock lock;
     Fun.protect f
       ~finally:(fun () -> Mutex.unlock lock)
 
-  let run lock (ic, file_name, file_digest) ~filename:_ ~unit_header ~priv =
+  let run lock (ic, file_name, file_digest) ~unit_header ~priv =
     let open Misc in
     let clos = with_lock lock (fun () ->
         let old_state = Symtable.current_state () in
