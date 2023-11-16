@@ -788,8 +788,8 @@ end
 Line 3, characters 11-12:
 3 |     let VV v = v in
                ^
-Error: Variables bound in a class must have layout value.
-       v has layout void, which is not a sublayout of value.
+Error: The types of variables bound by a 'let' in a class function
+       must have layout value. Instead, v's type has layout void.
 |}];;
 
 (* Hits the Cfk_concrete case of Pcf_val *)
@@ -1624,6 +1624,7 @@ Line 1, characters 9-31:
 1 | let () = (assert false : t_any); ()
              ^^^^^^^^^^^^^^^^^^^^^^
 Warning 10 [non-unit-statement]: this expression should have type unit.
+
 Line 1, characters 10-22:
 1 | let () = (assert false : t_any); ()
               ^^^^^^^^^^^^
@@ -1639,6 +1640,7 @@ Line 1, characters 24-46:
 1 | let () = while false do (assert false : t_any); done
                             ^^^^^^^^^^^^^^^^^^^^^^
 Warning 10 [non-unit-statement]: this expression should have type unit.
+
 Line 1, characters 25-37:
 1 | let () = while false do (assert false : t_any); done
                              ^^^^^^^^^^^^
@@ -1654,6 +1656,7 @@ Line 1, characters 27-49:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                ^^^^^^^^^^^^^^^^^^^^^^
 Warning 10 [non-unit-statement]: this expression should have type unit.
+
 Line 1, characters 28-40:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                 ^^^^^^^^^^^^

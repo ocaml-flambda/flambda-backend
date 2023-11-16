@@ -259,7 +259,8 @@ let load_env_field ~fun_offset
     | Atom { offset = var_offset; layout } ->
       let pos = var_offset - fun_offset in
       let layout = layout_of_atom layout in
-      Uprim (Pfield (pos, layout), [closure_using_field pos], Debuginfo.none), layout
+      Uprim (Pfield (pos, layout, Pointer, Immutable),
+        [closure_using_field pos], Debuginfo.none), layout
     | Product parts ->
       let parts = Array.to_list @@ Array.map rebuild parts in
       let parts, layouts = List.split parts in
@@ -495,7 +496,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
         Flambda.print_named named
     end
   | Read_symbol_field (symbol, field) ->
-    Uprim (Pfield (field, Pvalue Pgenval),
+    Uprim (Pfield (field, Pvalue Pgenval, Pointer, Mutable),
       [to_clambda_symbol env symbol], Debuginfo.none),
     Lambda.layout_any_value
   | Set_of_closures set_of_closures ->
@@ -535,7 +536,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
       load_env_field ~fun_offset ~closure_using_field:check_field var_offset,
       kind
     end
-  | Prim (Pfield (index, layout), [block], dbg) ->
+  | Prim (Pfield (index, layout, imm_or_ptr, sem), [block], dbg) ->
     begin match layout with
       | Pvalue _ -> ()
       | _ ->
@@ -543,7 +544,8 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
           Flambda.print_named named
     end;
     let block, _block_layout = subst_var env block in
-    Uprim (Pfield (index, layout), [check_field t block index None], dbg),
+    Uprim (Pfield (index, layout, imm_or_ptr, sem),
+      [check_field t block index None], dbg),
     Lambda.layout_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in

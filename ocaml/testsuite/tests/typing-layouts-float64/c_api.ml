@@ -1,15 +1,20 @@
 (* TEST
    modules = "stubs.c"
+   * flambda2
    reference = "${test_source_directory}/c_api.reference"
-   * native
+   ** native
      flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
      flags = "-extension layouts_alpha"
-   * native
+   ** native
      flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
      flags = "-extension layouts_beta"
 *)
+
+(* mshinwell: This test is now only run with flambda2, as the corresponding
+   ocamltest predicate is reliable for testing whether this is an
+   flambda-backend build. *)
 
 (* This file tests using external C functions with float#. *)
 

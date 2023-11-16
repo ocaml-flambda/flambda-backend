@@ -18,7 +18,6 @@
 [@@@ocaml.warning "-40"]
 
 open Misc
-open Arch
 open Asttypes
 open Primitive
 open Types
@@ -117,8 +116,21 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
+(* BACKPORT
+(* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
+let min_mut x y =
+  match x,y with
+  | Immutable,_ | _,Immutable -> Immutable
+  | Mutable,Mutable -> Mutable
+*)
+
+(* BACKPORT BEGIN
+let get_field env mut ptr n dbg =
+  let mut = min_mut mut (mut_from_env env ptr) in
+*)
 let get_field env layout ptr n dbg =
   let mut = mut_from_env env ptr in
+(* BACKPORT END *)
   let memory_chunk =
     match layout with
     | Pvalue Pintval | Punboxed_int _ -> Word_int
@@ -140,7 +152,6 @@ type rhs_kind =
   | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
   | RHS_floatblock of Lambda.alloc_mode * int
   | RHS_nonrec
-;;
 
 let rec expr_size env = function
   | Uvar id ->
@@ -275,7 +286,6 @@ let box_int dbg bi mode arg =
 
 let typ_of_boxed_number = function
   | Boxed_float _ -> Cmm.typ_float
-  | Boxed_integer (Pint64, _,_) when size_int = 4 -> [|Int;Int|]
   | Boxed_integer _ -> Cmm.typ_int
 
 let equal_unboxed_integer ui1 ui2 =
@@ -470,6 +480,13 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
+      (* #11482, #12481: the 'clos_vars' may be arbitrary expressions
+         and may invoke the GC, which would be able to observe the
+         partially-filled block. This is safe because 'make_alloc'
+         evaluates and fills fields from left to right, and does not
+         call a GC between the allocation and filling fields. So the
+         closure metadata, which comes before the closure variables,
+         will always have been written before a GC can happen. *)
       make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 functions)
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
@@ -609,7 +626,7 @@ let rec transl env e =
             dbg)
       | (Pbigarraydim(n), [b]) ->
           let dim_ofs = 4 + n in
-          tag_int (Cop(Cload (Word_int, Mutable),
+          tag_int (Cop(mk_load_mut Word_int,
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
       | (Pprobe_is_enabled {name}, []) ->
@@ -628,6 +645,10 @@ let rec transl env e =
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
       | ((Pfield_computed|Psequand
+         | Prunstack | Pperform | Presume | Preperform
+         | Pdls_get
+         | Patomic_load _ | Patomic_exchange
+         | Patomic_cas | Patomic_fetch_add
          | Psequor | Pnot | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
          | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
@@ -772,7 +793,7 @@ let rec transl env e =
       end
   | Uunreachable ->
       let dbg = Debuginfo.none in
-      Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
+      Cop(mk_load_mut Word_int, [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
   | Uexclave e ->
@@ -884,8 +905,6 @@ and transl_ccall env prim args dbg =
     | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
-    | _, Unboxed_integer Pint64 when size_int = 4 ->
-        ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
     | _, Unboxed_vector _ ->
@@ -902,7 +921,7 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield (n, layout) ->
+  | Pfield (n, layout, _, _) ->
       get_field env layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
@@ -971,7 +990,27 @@ and transl_prim_1 env p arg dbg =
         (transl env arg) dbg)) dbg) dbg
   | Pget_header m ->
       box_int dbg Pnativeint m (get_header (transl env arg) dbg)
+  | Pperform ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (* CR mshinwell: use [Runtimetags] once available
+      let cont =
+        make_alloc dbg cont_tag [int_const dbg 0] ~mode:Lambda.alloc_heap
+      in
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop(Capply (typ_val, Rc_normal),
+       [Cconst_symbol ("caml_perform", dbg); transl env arg; cont],
+       dbg)
+      *)
+  | Pdls_get ->
+      Cop(Cdls_get, [transl env arg], dbg)
+  | Patomic_load {immediate_or_pointer = Immediate} ->
+      Cop(mk_load_atomic Word_int, [transl env arg], dbg)
+  | Patomic_load {immediate_or_pointer = Pointer} ->
+      Cop(mk_load_atomic Word_val, [transl env arg], dbg)
   | (Pfield_computed | Psequand | Psequor
+    | Prunstack | Presume | Preperform
+    | Patomic_exchange | Patomic_cas | Patomic_fetch_add
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
@@ -1160,6 +1199,14 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
+  | Patomic_exchange ->
+     Cop (Cextcall ("caml_atomic_exchange", typ_val, [], false),
+          [transl env arg1; transl env arg2], dbg)
+  | Patomic_fetch_add ->
+     Cop (Cextcall ("caml_atomic_fetch_add", typ_int, [], false),
+          [transl env arg1; transl env arg2], dbg)
+  | Prunstack | Pperform | Presume | Preperform | Pdls_get
+  | Patomic_cas | Patomic_load _
   | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
@@ -1214,6 +1261,44 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       bigstring_set size unsafe (transl env arg1) (transl env arg2)
         (transl_unbox_sized size dbg env arg3) dbg
 
+  | Patomic_cas ->
+     Cop (Cextcall ("caml_atomic_cas", typ_int, [], false),
+          [transl env arg1; transl env arg2; transl env arg3], dbg)
+
+  (* Effects *)
+  | Presume ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (*
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop (Capply (typ_val, Rc_normal),
+           [Cconst_symbol ("caml_resume", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+      *)
+  | Prunstack ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (*
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop (Capply (typ_val, Rc_normal),
+           [Cconst_symbol ("caml_runstack", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+      *)
+  | Preperform ->
+      Misc.fatal_error "Effects-related primitives not yet supported"
+      (*
+      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
+         to be in production by then *)
+      Cop (Capply (typ_val, Rc_normal),
+           [Cconst_symbol ("caml_reperform", dbg);
+           transl env arg1; transl env arg2; transl env arg3],
+           dbg)
+      *)
+
+  | Pperform | Pdls_get
+  | Patomic_exchange | Patomic_fetch_add | Patomic_load _
   | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _

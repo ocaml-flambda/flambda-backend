@@ -94,7 +94,7 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
           fprintf ppf "@[{%a%t}@]"
             pretty_lvals filtered_lvs elision_mark
       end
-  | Tpat_array (am, vs) ->
+  | Tpat_array (am, _arg_sort, vs) ->
       let punct = match am with
         | Mutable   -> '|'
         | Immutable -> ':'

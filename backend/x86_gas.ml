@@ -371,6 +371,7 @@ let print_instr b = function
   | PALIGNR (n, arg1, arg2) -> i3 b "palignr" n arg1 arg2
   | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
+  | PCLMULQDQ (n, arg1, arg2) -> i3 b "pclmulqdq" n arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
@@ -457,6 +458,10 @@ let print_line b = function
   | Cfi_adjust_cfa_offset n -> bprintf b "\t.cfi_adjust_cfa_offset %d" n
   | Cfi_endproc -> bprintf b "\t.cfi_endproc"
   | Cfi_startproc -> bprintf b "\t.cfi_startproc"
+  | Cfi_remember_state -> bprintf b "\t.cfi_remember_state"
+  | Cfi_restore_state -> bprintf b "\t.cfi_restore_state"
+  | Cfi_def_cfa_register reg -> bprintf b "\t.cfi_def_cfa_register %%%s" reg
+  | Cfi_def_cfa_offset n -> bprintf b "\t.cfi_def_cfa_offset %d" n
   | File (file_num, file_name) ->
       bprintf b "\t.file\t%d\t\"%s\""
         file_num (X86_proc.string_of_string_literal file_name)

@@ -358,11 +358,16 @@ val apply4_wrapped : int -> int = <fun>
 |}]
 let ill_typed () = g 1 2 3 4 5
 [%%expect{|
-Line 1, characters 19-20:
+Line 1, characters 19-30:
 1 | let ill_typed () = g 1 2 3 4 5
-                       ^
-Error: This function has type local_ 'a -> int -> (local_ 'b -> int -> int)
-       It is applied to too many arguments; maybe you forgot a `;'.
+                       ^^^^^^^^^^^
+Error: The function 'g' has type
+         local_ 'a -> int -> (local_ 'b -> int -> int)
+       It is applied to too many arguments
+Line 1, characters 29-30:
+1 | let ill_typed () = g 1 2 3 4 5
+                                 ^
+  This extra argument is not expected.
 |}]
 
 (*
@@ -2046,6 +2051,32 @@ Line 3, characters 63-64:
                                                                    ^
 Error: This local value escapes its region
   Hint: This argument cannot be local, because this is a tail call
+|}]
+
+(* boolean operator when at tail of function makes the function local-returning
+   if its RHS is local-returning *)
+let foo () = exclave_ let local_ _x = "hello" in true
+let testboo3 () =  true && (foo ())
+[%%expect{|
+val foo : unit -> local_ bool = <fun>
+val testboo3 : unit -> local_ bool = <fun>
+|}]
+
+(* Test from Nathanaëlle Courant.
+  User can define strange AND. Supposedly [strange_and] will look at its first
+  arguments, and returns [None] or tailcall on second argument accordingly.
+  The second argument should not cross modes in generall. *)
+external strange_and : bool -> 'a option -> 'a option = "%sequand"
+
+let testboo4 () =
+  let local_ x = Some "hello" in
+  strange_and true x
+[%%expect{|
+external strange_and : bool -> 'a option -> 'a option = "%sequand"
+Line 5, characters 19-20:
+5 |   strange_and true x
+                       ^
+Error: This value escapes its region
 |}]
 
 (* mode-crossing using unary + *)

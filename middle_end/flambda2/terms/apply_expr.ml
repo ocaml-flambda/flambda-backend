@@ -69,7 +69,7 @@ module Position = struct
 end
 
 type t =
-  { callee : Simple.t;
+  { callee : Simple.t option;
     continuation : Result_continuation.t;
     exn_continuation : Exn_continuation.t;
     args : Simple.t list;
@@ -108,7 +108,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(probe@ %a)@]@ \
       @[<hov 1>(position@ %a)@]\
       )@]"
-    Simple.print callee
+    (Misc.Stdlib.Option.print Simple.print) callee
     Result_continuation.print continuation
     Exn_continuation.print exn_continuation
     Flambda_colours.variable
@@ -147,17 +147,24 @@ let invariant
        relative_history = _;
        region = _
      } as t) =
+  (match callee with
+  | Some _ -> ()
+  | None -> (
+    match[@ocaml.warning "-fragile-match"] call_kind with
+    | Function { function_call = Direct _; _ } -> ()
+    | _ -> Misc.fatal_errorf "Missing callee:@ %a" print t));
   (match call_kind with
   | Function _ | Method _ -> ()
   | C_call _ -> (
-    if not (Simple.is_symbol callee)
-    then
+    (match callee with
+    | Some callee when Simple.is_symbol callee -> ()
+    | None | Some _ ->
       (* CR-someday mshinwell: We could expose indirect C calls at the source
          language level. *)
       Misc.fatal_errorf
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
-        print t;
+        print t);
     match Flambda_arity.unarized_components return_arity with
     | [] | [_] -> ()
     | _ :: _ :: _ ->
@@ -228,7 +235,9 @@ let free_names_without_exn_continuation
       region
     } =
   Name_occurrences.union_list
-    [ Simple.free_names callee;
+    [ (match callee with
+      | None -> Name_occurrences.empty
+      | Some callee -> Simple.free_names callee);
       Result_continuation.free_names continuation;
       Simple.List.free_names args;
       Call_kind.free_names call_kind;
@@ -259,7 +268,9 @@ let free_names_except_callee
 
 let free_names t =
   Name_occurrences.union
-    (Simple.free_names t.callee)
+    (match t.callee with
+    | None -> Name_occurrences.empty
+    | Some callee -> Simple.free_names callee)
     (free_names_except_callee t)
 
 let apply_renaming
@@ -284,7 +295,13 @@ let apply_renaming
   let exn_continuation' =
     Exn_continuation.apply_renaming exn_continuation renaming
   in
-  let callee' = Simple.apply_renaming callee renaming in
+  let callee' =
+    match callee with
+    | None -> None
+    | Some orig_callee ->
+      let new_callee = Simple.apply_renaming orig_callee renaming in
+      if orig_callee == new_callee then callee else Some new_callee
+  in
   let args' = Simple.List.apply_renaming args renaming in
   let call_kind' = Call_kind.apply_renaming call_kind renaming in
   let region' = Renaming.apply_variable renaming region in
@@ -326,7 +343,11 @@ let ids_for_export
       relative_history = _;
       region
     } =
-  let callee_ids = Ids_for_export.from_simple callee in
+  let callee_ids =
+    match callee with
+    | None -> Ids_for_export.empty
+    | Some callee -> Ids_for_export.from_simple callee
+  in
   let callee_and_args_ids =
     List.fold_left
       (fun ids arg -> Ids_for_export.add_simple ids arg)
@@ -342,6 +363,8 @@ let ids_for_export
        (Ids_for_export.union callee_and_args_ids call_kind_ids)
        (Ids_for_export.union result_continuation_ids exn_continuation_ids))
     region
+
+let erase_callee t = { t with callee = None }
 
 let with_continuation t continuation = { t with continuation }
 
