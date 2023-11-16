@@ -3247,8 +3247,7 @@ type untyped_apply_arg =
         ty_arg : type_expr;
         sort_arg : Jkind.sort;
         mode_arg : Alloc.t;
-        level: int;
-        next_arg_loc: Location.t option }
+        level: int; }
 
 type untyped_omitted_param =
   { mode_fun: Alloc.t;
@@ -3402,15 +3401,19 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                   (* [rev_args] is the arguments typed until now, in reverse
                      order of appearance. Not all arguments have a location
                      attached (eg. an optional argument that is not passed). *)
+                  (* CR ccasinghino: the above comment is confusing - these
+                     arguments are in reverse order according to the function
+                     type, but not according to their positions in the source
+                     program.  We diverge from upstream here by not trying to
+                     provide a good location in the [Eliminated_optional_arg]
+                     case - maybe fix one day if it is noticeable. *)
                   rev_args
                   |> List.find_map
                        (function
                          | (_, Arg ( Known_arg { sarg; _ }
                                    | Unknown_arg { sarg; _ })) ->
                            Some sarg.pexp_loc
-                         | (_,
-                            Arg (Eliminated_optional_arg { next_arg_loc })) ->
-                           next_arg_loc
+                         | (_, Arg (Eliminated_optional_arg _))
                          | (_, Omitted _) -> None)
                   |> Option.value ~default:funct.exp_loc
                 in
@@ -3468,13 +3471,12 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
               mode_fun; mode_arg; wrapped_in_some })
         in
-        let eliminate_optional_arg next_arg_loc =
+        let eliminate_optional_arg () =
           may_warn funct.exp_loc
             (Warnings.Non_principal_labels "eliminated optional argument");
           Arg
             (Eliminated_optional_arg
-               { mode_fun; ty_arg; mode_arg; sort_arg; level = lv;
-                 next_arg_loc })
+               { mode_fun; ty_arg; mode_arg; sort_arg; level = lv })
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -3491,7 +3493,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   List.exists (function (Nolabel, _) -> true | _ -> false)
                     sargs
                 then
-                  (sargs, eliminate_optional_arg (Some sarg.pexp_loc))
+                  (sargs, eliminate_optional_arg ())
                 else
                   raise(Error(sarg.pexp_loc, env,
                               Apply_wrong_label(l', ty_fun', optional)))
@@ -3511,7 +3513,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             | None ->
                 sargs,
                 if optional && List.mem_assoc Nolabel sargs then
-                  eliminate_optional_arg None
+                  eliminate_optional_arg ()
                 else begin
                   (* No argument was given for this parameter, we abstract over
                      it. *)
@@ -4624,7 +4626,7 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attrib
       let expr = Exp.constraint_ ~loc ~attrs:mode_annot_attrs expr typ in
       List.fold_right (Exp.newtype ~loc) vars expr
 
-let vb_pat_constraint ~force_toplevel rec_mode_var
+let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_attributes = attrs; _ } as vb) =
   let mode_annot_attrs =
     Builtin_attributes.filter_attributes
@@ -4655,6 +4657,9 @@ let vb_pat_constraint ~force_toplevel rec_mode_var
           ~attrs:mode_annot_attrs
     | _ -> pat
   in
+  vb.pvb_attributes, spat
+
+let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
   let pat_mode, exp_mode =
     if force_toplevel
     then simple_pat_mode Value.legacy, mode_legacy
@@ -4672,8 +4677,7 @@ let vb_pat_constraint ~force_toplevel rec_mode_var
     | Some mode ->
         simple_pat_mode mode, mode_exact mode
   in
-  vb.pvb_attributes, pat_mode, exp_mode, spat
-
+  attrs, pat_mode, exp_mode, spat
 
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
@@ -6032,7 +6036,7 @@ and type_expect_
           ~post:generalize_structure begin fun () ->
           let let_loc = slet.pbop_op.loc in
           let op_path, op_desc = type_binding_op_ident env slet.pbop_op in
-          let op_type = instance op_desc.val_type in
+          let op_type = op_desc.val_type in
           let spat_params, ty_params, param_sort =
             let initial_jkind, initial_sort = match sands with
               | [] ->
@@ -6292,24 +6296,24 @@ and type_function
   in
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort } =
-    with_local_level_iter_if separate ~post:generalize_structure begin fun () ->
+    with_local_level_if separate begin fun () ->
       let force_tpoly =
         (* If [has_poly] is true then we rely on the later call to
            type_pat to enforce the invariant that the parameter type
            be a [Tpoly] node *)
         not has_poly
       in
-      let { ty_arg; ty_ret; _ } as filtered_arrow =
-        try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
-        with Filter_arrow_failed err ->
-          let first = Option.is_none in_function in
-          let err =
-            error_of_filter_arrow_failure ~explanation ~first ty_fun err
-          in
-          raise (Error(loc_fun, env, err))
-      in
-      (filtered_arrow, [ty_arg; ty_ret])
+      try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
+      with Filter_arrow_failed err ->
+        let first = Option.is_none in_function in
+        let err =
+          error_of_filter_arrow_failure ~explanation ~first ty_fun err
+        in
+        raise (Error(loc_fun, env, err))
     end
+      ~post:(fun {ty_arg; ty_ret; _} ->
+        generalize_structure ty_arg;
+        generalize_structure ty_ret)
   in
   apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
   if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
@@ -7166,7 +7170,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
                             (lid.txt, constr.cstr_arity, List.length sargs)));
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let ty_args, ty_res, texp =
-    with_local_level_iter_if separate ~post:generalize_structure begin fun () ->
+    with_local_level_if separate begin fun () ->
       let ty_args, ty_res, texp =
         with_local_level_if separate begin fun () ->
           let (ty_args, ty_res, _) =
@@ -7188,8 +7192,11 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
               (instance ty_expected));
         end
       in
-      ((ty_args, ty_res, texp), ty_res::(List.map fst ty_args))
+      (ty_args, ty_res, texp)
     end
+      ~post:(fun (ty_args, ty_res, _) ->
+        generalize_structure ty_res;
+        List.iter (fun (ty, _) -> generalize_structure ty) ty_args)
   in
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map fst ty_args)) with
@@ -7578,9 +7585,8 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Recursive -> Some Value.legacy
     | Nonrecursive -> None
   in
-  let spatl =
-    List.map (vb_pat_constraint ~force_toplevel rec_mode_var) spat_sexp_list
-  in
+  let spatl = List.map vb_pat_constraint spat_sexp_list in
+  let spatl = List.map (pat_modes ~force_toplevel rec_mode_var) spatl in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
 
@@ -7885,7 +7891,7 @@ and type_andops env sarg sands expected_sort expected_ty =
             ty_result, op_result_sort =
           with_local_level_iter_if_principal begin fun () ->
             let op_path, op_desc = type_binding_op_ident env sop in
-            let op_type = instance op_desc.val_type in
+            let op_type = op_desc.val_type in
             let ty_arg, sort_arg = new_rep_var ~why:Function_argument () in
             let ty_rest, sort_rest = new_rep_var ~why:Function_argument () in
             let ty_result, op_result_sort =
