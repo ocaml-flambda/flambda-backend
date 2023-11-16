@@ -74,8 +74,12 @@ module IR : sig
 
   type switch =
     { numconsts : int;
-      consts : (int * Continuation.t * trap_action option * simple list) list;
-      failaction : (Continuation.t * trap_action option * simple list) option
+      (* CR mshinwell: use record types *)
+      consts :
+        (int * Continuation.t * Debuginfo.t * trap_action option * simple list)
+        list;
+      failaction :
+        (Continuation.t * Debuginfo.t * trap_action option * simple list) option
     }
 
   val print_simple : Format.formatter -> simple -> unit
@@ -208,6 +212,8 @@ module Acc : sig
   type t
 
   val create : slot_offsets:Slot_offsets.t -> cmx_loader:Flambda_cmx.loader -> t
+
+  val manufacture_symbol_short_name : t -> t * Linkage_name.t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 

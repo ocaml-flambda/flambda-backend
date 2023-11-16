@@ -184,7 +184,7 @@ let delete_before cell =
     | Empty ->
       (* convention: cannot delete_before the first element in the list *)
       assert false
-    | Node prev_cell_node -> delete_curr { node = cell_node.prev; t = cell.t })
+    | Node _prev_cell_node -> delete_curr { node = cell_node.prev; t = cell.t })
 
 let delete_after cell =
   match cell.node with
@@ -196,7 +196,7 @@ let delete_after cell =
     | Empty ->
       (* convention: cannot delete_after the last element in the list *)
       assert false
-    | Node next_cell_node -> delete_curr { node = cell_node.next; t = cell.t })
+    | Node _next_cell_node -> delete_curr { node = cell_node.next; t = cell.t })
 
 let remove_first : 'a t -> f:('a -> bool) -> unit =
  fun t ~f ->

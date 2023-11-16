@@ -19,7 +19,6 @@ open Misc
 open Format
 open Longident
 open Path
-open Layouts
 open Types
 open Outcometree
 module Out_name = Printtyp.Out_name
@@ -212,6 +211,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           else Oide_dot (Printtyp.tree_of_path p, Out_name.print name)
       | Papply _ ->
           Printtyp.tree_of_path ty_path
+      | Pextra_ty _ ->
+          (* These can only appear directly inside of the associated
+             constructor so we can just drop the prefix *)
+          Oide_ident name
 
     let tree_of_constr =
       tree_of_qualified
@@ -382,7 +385,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                      1) Whether the value is a block or immediate (because tags
                         are only unique within a category).
                      2) The `constructor_description`s, because the declarations
-                        don't record the layout information needed to determine
+                        don't record the jkind information needed to determine
                         which constructors are immediate due to void arguments.
                   *)
                     let cstrs =
@@ -394,7 +397,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                       then false, O.tag obj
                       else true, O.obj obj
                     in
-                    let {cstr_uid;cstr_arg_layouts} =
+                    let {cstr_uid;cstr_arg_jkinds} =
                       Datarepr.find_constr_by_tag ~constant tag cstrs
                     in
                     let {cd_id;cd_args;cd_res} =
@@ -427,7 +430,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             List.mapi
                               (fun i ty_arg ->
                                  (ty_arg,
-                                  Layout.is_void_defaulting cstr_arg_layouts.(i))
+                                  Jkind.is_void_defaulting cstr_arg_jkinds.(i))
                               ) ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
@@ -506,12 +509,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           lbl_list pos obj unboxed =
         let rec tree_of_fields first pos = function
           | [] -> []
-          | {ld_id; ld_type; ld_layout} :: remainder ->
+          | {ld_id; ld_type; ld_jkind} :: remainder ->
               let ty_arg = instantiate_type env type_params ty_list ld_type in
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Layout.is_void_defaulting ld_layout in
+              let is_void = Jkind.is_void_defaulting ld_jkind in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
@@ -534,8 +537,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
 
-      (* CR layouts v4: When we allow other layouts in tuples, this should be
-         generalized to take a list or array of layouts, rather than just
+      (* CR layouts v4: When we allow other jkinds in tuples, this should be
+         generalized to take a list or array of jkinds, rather than just
          pairing each type with a bool indicating whether it is void *)
       and tree_of_val_list start depth obj ty_list =
         let rec tree_list i = function
@@ -616,7 +619,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
         let args = List.mapi (fun i arg ->
-            (arg, Layout.is_void_defaulting cstr.cstr_arg_layouts.(i)))
+            (arg, Jkind.is_void_defaulting cstr.cstr_arg_jkinds.(i)))
             args
         in
         tree_of_constr_with_args

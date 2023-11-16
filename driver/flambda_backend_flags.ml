@@ -13,13 +13,13 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-let use_ocamlcfg = ref false            (* -ocamlcfg *)
+let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
-let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
+let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
@@ -159,6 +159,7 @@ module Flambda2 = struct
       let max_unboxing_depth = 3
       let can_inline_recursive_functions = false
       let max_function_simplify_run = 2
+      let shorten_symbol_names = false
     end
 
     type flags = {
@@ -169,6 +170,7 @@ module Flambda2 = struct
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
+      shorten_symbol_names : bool
     }
 
     let default = {
@@ -179,11 +181,13 @@ module Flambda2 = struct
       max_unboxing_depth = Default.max_unboxing_depth;
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
       max_function_simplify_run = Default.max_function_simplify_run;
+      shorten_symbol_names = Default.shorten_symbol_names;
     }
 
     let oclassic = {
       default with
       fallback_inlining_heuristic = true;
+      shorten_symbol_names = true;
     }
 
     let o2 = {
@@ -203,6 +207,7 @@ module Flambda2 = struct
     let max_unboxing_depth = ref Default
     let can_inline_recursive_functions = ref Default
     let max_function_simplify_run = ref Default
+    let shorten_symbol_names = ref Default
   end
 
   module Debug = struct

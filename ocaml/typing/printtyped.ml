@@ -13,18 +13,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Asttypes;;
-open Format;;
-open Lexing;;
-open Location;;
-open Typedtree;;
+open Asttypes
+open Format
+open Lexing
+open Location
+open Typedtree
 
 let fmt_position f l =
   if l.pos_lnum = -1
   then fprintf f "%s[%d]" l.pos_fname l.pos_cnum
   else fprintf f "%s[%d,%d+%d]" l.pos_fname l.pos_lnum l.pos_bol
                (l.pos_cnum - l.pos_bol)
-;;
 
 let fmt_location f loc =
   if not !Clflags.locations then ()
@@ -32,17 +31,15 @@ let fmt_location f loc =
     fprintf f "(%a..%a)" fmt_position loc.loc_start fmt_position loc.loc_end;
     if loc.loc_ghost then fprintf f " ghost";
   end
-;;
 
 let rec fmt_longident_aux f x =
   match x with
   | Longident.Lident (s) -> fprintf f "%s" s;
   | Longident.Ldot (y, s) -> fprintf f "%a.%s" fmt_longident_aux y s;
   | Longident.Lapply (y, z) ->
-      fprintf f "%a(%a)" fmt_longident_aux y fmt_longident_aux z;
-;;
+      fprintf f "%a(%a)" fmt_longident_aux y fmt_longident_aux z
 
-let fmt_longident f x = fprintf f "\"%a\"" fmt_longident_aux x.txt;;
+let fmt_longident f x = fprintf f "\"%a\"" fmt_longident_aux x.txt
 
 let fmt_ident = Ident.print
 
@@ -52,45 +49,42 @@ let fmt_modname f = function
 
 let rec fmt_path_aux f x =
   match x with
-  | Path.Pident (s) -> fprintf f "%a" fmt_ident s;
-  | Path.Pdot (y, s) -> fprintf f "%a.%s" fmt_path_aux y s;
+  | Path.Pident (s) -> fprintf f "%a" fmt_ident s
+  | Path.Pdot (y, s) | Path.(Pextra_ty (y, Pcstr_ty s)) ->
+      fprintf f "%a.%s" fmt_path_aux y s
   | Path.Papply (y, z) ->
-      fprintf f "%a(%a)" fmt_path_aux y fmt_path_aux z;
-;;
+      fprintf f "%a(%a)" fmt_path_aux y fmt_path_aux z
+  | Path.Pextra_ty (y, Pext_ty) -> fmt_path_aux f y
 
-let fmt_path f x = fprintf f "\"%a\"" fmt_path_aux x;;
+let fmt_path f x = fprintf f "\"%a\"" fmt_path_aux x
 
 let fmt_constant f x =
   match x with
-  | Const_int (i) -> fprintf f "Const_int %d" i;
-  | Const_char (c) -> fprintf f "Const_char %02x" (Char.code c);
+  | Const_int (i) -> fprintf f "Const_int %d" i
+  | Const_char (c) -> fprintf f "Const_char %02x" (Char.code c)
   | Const_string (s, strloc, None) ->
-      fprintf f "Const_string(%S,%a,None)" s fmt_location strloc;
+      fprintf f "Const_string(%S,%a,None)" s fmt_location strloc
   | Const_string (s, strloc, Some delim) ->
-      fprintf f "Const_string (%S,%a,Some %S)" s fmt_location strloc delim;
-  | Const_float (s) -> fprintf f "Const_float %s" s;
-  | Const_int32 (i) -> fprintf f "Const_int32 %ld" i;
-  | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i;
-  | Const_nativeint (i) -> fprintf f "Const_nativeint %nd" i;
-;;
+      fprintf f "Const_string (%S,%a,Some %S)" s fmt_location strloc delim
+  | Const_float (s) -> fprintf f "Const_float %s" s
+  | Const_int32 (i) -> fprintf f "Const_int32 %ld" i
+  | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i
+  | Const_nativeint (i) -> fprintf f "Const_nativeint %nd" i
 
 let fmt_mutable_flag f x =
   match x with
-  | Immutable -> fprintf f "Immutable";
-  | Mutable -> fprintf f "Mutable";
-;;
+  | Immutable -> fprintf f "Immutable"
+  | Mutable -> fprintf f "Mutable"
 
 let fmt_virtual_flag f x =
   match x with
-  | Virtual -> fprintf f "Virtual";
-  | Concrete -> fprintf f "Concrete";
-;;
+  | Virtual -> fprintf f "Virtual"
+  | Concrete -> fprintf f "Concrete"
 
 let fmt_override_flag f x =
   match x with
-  | Override -> fprintf f "Override";
-  | Fresh -> fprintf f "Fresh";
-;;
+  | Override -> fprintf f "Override"
+  | Fresh -> fprintf f "Fresh"
 
 let fmt_closed_flag f x =
   match x with
@@ -99,35 +93,30 @@ let fmt_closed_flag f x =
 
 let fmt_rec_flag f x =
   match x with
-  | Nonrecursive -> fprintf f "Nonrec";
-  | Recursive -> fprintf f "Rec";
-;;
+  | Nonrecursive -> fprintf f "Nonrec"
+  | Recursive -> fprintf f "Rec"
 
 let fmt_direction_flag f x =
   match x with
-  | Upto -> fprintf f "Up";
-  | Downto -> fprintf f "Down";
-;;
+  | Upto -> fprintf f "Up"
+  | Downto -> fprintf f "Down"
 
 let fmt_private_flag f x =
   match x with
-  | Public -> fprintf f "Public";
-  | Private -> fprintf f "Private";
-;;
+  | Public -> fprintf f "Public"
+  | Private -> fprintf f "Private"
 
 let line i f s (*...*) =
   fprintf f "%s" (String.make (2*i) ' ');
   fprintf f s (*...*)
-;;
 
 let list i f ppf l =
   match l with
-  | [] -> line i ppf "[]\n";
+  | [] -> line i ppf "[]\n"
   | _ :: _ ->
      line i ppf "[\n";
      List.iter (f (i+1) ppf) l;
-     line i ppf "]\n";
-;;
+     line i ppf "]\n"
 
 let array i f ppf a =
   if Array.length a = 0 then
@@ -137,25 +126,22 @@ let array i f ppf a =
     Array.iter (f (i+1) ppf) a;
     line i ppf "]\n"
   end
-;;
 
 let option i f ppf x =
   match x with
-  | None -> line i ppf "None\n";
+  | None -> line i ppf "None\n"
   | Some x ->
       line i ppf "Some\n";
-      f (i+1) ppf x;
-;;
+      f (i+1) ppf x
 
-let longident i ppf li = line i ppf "%a\n" fmt_longident li;;
-let string i ppf s = line i ppf "\"%s\"\n" s;;
+let longident i ppf li = line i ppf "%a\n" fmt_longident li
+let string i ppf s = line i ppf "\"%s\"\n" s
 let arg_label i ppf = function
   | Nolabel -> line i ppf "Nolabel\n"
   | Optional s -> line i ppf "Optional \"%s\"\n" s
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
-;;
 
-let typevar_layout ~print_quote ppf (v, l) =
+let typevar_jkind ~print_quote ppf (v, l) =
   let pptv =
     if print_quote
     then Printast.tyvar
@@ -163,17 +149,17 @@ let typevar_layout ~print_quote ppf (v, l) =
   in
   match l with
   | None -> fprintf ppf " %a" pptv v
-  | Some lay -> fprintf ppf " (%a : %a)"
-                    pptv v
-                    Jane_syntax.Layouts.Pprint.const_layout lay
+  | Some (_, lay) ->
+      fprintf ppf " (%a : %a)"
+        pptv v
+        Jane_syntax.Layouts.Pprint.const_jkind lay.txt
 
 let typevars ppf vs =
-  List.iter (typevar_layout ~print_quote:true ppf) vs
-;;
+  List.iter (typevar_jkind ~print_quote:true ppf) vs
 
-let layout_array i ppf layouts =
-  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Layouts.Layout.format l)
-    ppf layouts
+let jkind_array i ppf jkinds =
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.format l)
+    ppf jkinds
 
 let tag ppf = let open Types in function
   | Ordinary {src_index;runtime_tag} ->
@@ -183,16 +169,16 @@ let tag ppf = let open Types in function
 let variant_representation i ppf = let open Types in function
   | Variant_unboxed ->
     line i ppf "Variant_unboxed\n"
-  | Variant_boxed layouts ->
+  | Variant_boxed jkinds ->
     line i ppf "Variant_boxed %a\n"
-      (array (i+1) (fun _ ppf -> layout_array (i+1) ppf)) layouts
+      (array (i+1) (fun _ ppf -> jkind_array (i+1) ppf)) jkinds
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
     line i ppf "Record_unboxed\n"
-  | Record_boxed layouts ->
-    line i ppf "Record_boxed %a\n" (layout_array i) layouts
+  | Record_boxed jkinds ->
+    line i ppf "Record_boxed %a\n" (jkind_array i) jkinds
   | Record_inlined (t,v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
@@ -209,17 +195,17 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
-let layout_annotation i ppf layout =
-  line i ppf "%s" (Layouts.Layout.string_of_const layout)
+let jkind_annotation i ppf (jkind, _) =
+  line i ppf "%s" (Jkind.string_of_const jkind)
 
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
   let i = i+1 in
   match x.ctyp_desc with
-  | Ttyp_var (s, layout) ->
+  | Ttyp_var (s, jkind) ->
       line i ppf "Ttyp_var %s\n" (Option.value ~default:"_" s);
-      option i layout_annotation ppf layout
+      option i jkind_annotation ppf jkind
   | Ttyp_arrow (l, ct1, ct2) ->
       line i ppf "Ttyp_arrow\n";
       arg_label i ppf l;
@@ -251,13 +237,13 @@ let rec core_type i ppf x =
   | Ttyp_class (li, _, l) ->
       line i ppf "Ttyp_class %a\n" fmt_path li;
       list i core_type ppf l;
-  | Ttyp_alias (ct, s, layout) ->
+  | Ttyp_alias (ct, s, jkind) ->
       line i ppf "Ttyp_alias \"%s\"\n" (Option.value s ~default:"_");
       core_type i ppf ct;
-      option i layout_annotation ppf layout
+      option i jkind_annotation ppf jkind
   | Ttyp_poly (sl, ct) ->
       line i ppf "Ttyp_poly%a\n"
-        (fun ppf -> List.iter (typevar_layout ~print_quote:true ppf)) sl;
+        (fun ppf -> List.iter (typevar_jkind ~print_quote:true ppf)) sl;
       core_type i ppf ct;
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
@@ -305,8 +291,9 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   | Tpat_record (l, _c) ->
       line i ppf "Tpat_record\n";
       list i longident_x_pattern ppf l;
-  | Tpat_array (am, l) ->
+  | Tpat_array (am, arg_sort, l) ->
       line i ppf "Tpat_array %a\n" fmt_mutable_flag am;
+      line i ppf "%a\n" Jkind.Sort.format arg_sort;
       list i pattern ppf l;
   | Tpat_lazy p ->
       line i ppf "Tpat_lazy\n";
@@ -354,7 +341,7 @@ and expression_extra i ppf (x,_,attrs) =
       attributes i ppf attrs;
       option i core_type ppf cto;
   | Texp_newtype (s, lay) ->
-      line i ppf "Texp_newtype %a\n" (typevar_layout ~print_quote:false) (s, lay);
+      line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
 
 and alloc_mode i ppf m =
@@ -410,7 +397,7 @@ and expression i ppf x =
   | Texp_match (e, sort, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
-      line i ppf "%a\n" Layouts.Sort.format sort;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       list i case ppf l;
   | Texp_try (e, l) ->
       line i ppf "Texp_try\n";
@@ -466,7 +453,7 @@ and expression i ppf x =
   | Texp_sequence (e1, s, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
-      line i ppf "%a\n" Layouts.Sort.format s;
+      line i ppf "%a\n" Jkind.Sort.format s;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";
@@ -478,17 +465,14 @@ and expression i ppf x =
       expression i ppf for_from;
       expression i ppf for_to;
       expression i ppf for_body
-  | Texp_send (e, Tmeth_name s, _, am) ->
+  | Texp_send (e, Tmeth_name s, _) ->
       line i ppf "Texp_send \"%s\"\n" s;
-      alloc_mode i ppf am;
       expression i ppf e
-  | Texp_send (e, Tmeth_val s, _, am) ->
+  | Texp_send (e, Tmeth_val s, _) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-      alloc_mode i ppf am;
       expression i ppf e
-  | Texp_send (e, Tmeth_ancestor(s, _), _, am) ->
+  | Texp_send (e, Tmeth_ancestor(s, _), _) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-      alloc_mode i ppf am;
       expression i ppf e
   | Texp_new (li, _, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
   | Texp_setinstvar (_, s, _, e) ->
@@ -505,7 +489,7 @@ and expression i ppf x =
       line i ppf "Texp_letexception\n";
       extension_constructor i ppf cd;
       expression i ppf e;
-  | Texp_assert (e) ->
+  | Texp_assert (e, _) ->
       line i ppf "Texp_assert";
       expression i ppf e;
   | Texp_lazy (e) ->
@@ -914,6 +898,9 @@ and module_expr i ppf x =
       line i ppf "Tmod_apply\n";
       module_expr i ppf me1;
       module_expr i ppf me2;
+  | Tmod_apply_unit me1 ->
+      line i ppf "Tmod_apply_unit\n";
+      module_expr i ppf me1;
   | Tmod_constraint (me, _, Tmodtype_explicit mt, _) ->
       line i ppf "Tmod_constraint\n";
       module_expr i ppf me;
@@ -932,7 +919,7 @@ and structure_item i ppf x =
   | Tstr_eval (e, l, attrs) ->
       line i ppf "Tstr_eval\n";
       attributes i ppf attrs;
-      line i ppf "%a\n" Layouts.Sort.format l;
+      line i ppf "%a\n" Jkind.Sort.format l;
       expression i ppf e;
   | Tstr_value (rf, l) ->
       line i ppf "Tstr_value %a\n" fmt_rec_flag rf;
@@ -1091,11 +1078,10 @@ and label_x_bool_x_core_type_list i ppf x =
   | Tinherit (ct) ->
       line i ppf "Tinherit\n";
       core_type (i+1) ppf ct
-;;
 
-let interface ppf x = list 0 signature_item ppf x.sig_items;;
+let interface ppf x = list 0 signature_item ppf x.sig_items
 
-let implementation ppf x = list 0 structure_item ppf x.str_items;;
+let implementation ppf x = list 0 structure_item ppf x.str_items
 
 let implementation_with_coercion ppf Typedtree.{structure; _} =
   implementation ppf structure

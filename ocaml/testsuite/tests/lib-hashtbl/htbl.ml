@@ -1,6 +1,11 @@
 (* TEST
 *)
 
+(* CR ocaml 5 runtime: [String] will gain a [seeded_hash]
+   function, implemented in the OCaml 5 runtime. When that
+   happens, we should checkout this test to [tip-5].
+*)
+
 (* Hashtable operations, using maps as a reference *)
 
 open Printf
@@ -159,13 +164,6 @@ module HSL = HofM(MSL)
 module HS2 = Hashtbl.Make(SS)
 module HI2 = Hashtbl.Make(SI)
 
-(* Specific weak functorial hashes *)
-module WS = Ephemeron.K1.Make(SS)
-module WSP1 = Ephemeron.K1.Make(SSP)
-module WSP2 = Ephemeron.K2.Make(SS)(SS)
-module WSL = Ephemeron.K1.Make(SSL)
-module WSA = Ephemeron.Kn.Make(SS)
-
 (* Instantiating the test *)
 
 module TS1 = Test(HS1)(MS)
@@ -174,14 +172,6 @@ module TI1 = Test(HI1)(MI)
 module TI2 = Test(HI2)(MI)
 module TSP = Test(HSP)(MSP)
 module TSL = Test(HSL)(MSL)
-
-(* These work with the old ephemeron API *)
-[@@@alert "-old_ephemeron_api"]
-module TWS  = Test(WS)(MS)
-module TWSP1 = Test(WSP1)(MSP)
-module TWSP2 = Test(WSP2)(MSP)
-module TWSL = Test(WSL)(MSL)
-module TWSA = Test(WSA)(MSA)
 
 (* Data set: strings from a file, associated with their line number *)
 
@@ -257,20 +247,8 @@ let _ =
   printf "-- Pairs of strings\n%!";
   TSP.test (pair_data d);
   printf "-- Lists of strings\n%!";
-  TSL.test (list_data d);
-  (* weak *)
-  let d =
-    try file_data "../../LICENSE" with Sys_error _ -> string_data in
-  printf "-- Weak K1 -- Strings, functorial interface\n%!";
-  TWS.test d;
-  printf "-- Weak K1 -- Pairs of strings\n%!";
-  TWSP1.test (pair_data d);
-  printf "-- Weak K2 -- Pairs of strings\n%!";
-  TWSP2.test (pair_data d);
-  printf "-- Weak K1 -- Lists of strings\n%!";
-  TWSL.test (list_data d);
-  printf "-- Weak Kn -- Arrays of strings\n%!";
-  TWSA.test (Array.map (fun (l,i) -> (Array.of_list l,i)) (list_data d))
+  TSL.test (list_data d)
+;;
 
 
 let () =

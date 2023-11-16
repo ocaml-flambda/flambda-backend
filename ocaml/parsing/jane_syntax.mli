@@ -135,12 +135,12 @@ module N_ary_functions : sig
         {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
     *)
     | Pparam_newtype of
-        string Asttypes.loc * Jane_asttypes.layout_annotation option
-        (** [Pparam_newtype (x, layout)] represents the parameter [(type x)].
+        string Asttypes.loc * Jane_asttypes.jkind_annotation option
+        (** [Pparam_newtype (x, jkind)] represents the parameter [(type x)].
         [x] carries the location of the identifier, whereas [pparam_loc] is
         the location of the [(type x)] as a whole.
 
-        [layout] is the same as [Lexp_newtype]'s layout.
+        [jkind] is the same as [Lexp_newtype]'s jkind.
 
         Multiple parameters [(type a b c)] are represented as multiple
         [Pparam_newtype] nodes, let's say:
@@ -222,7 +222,7 @@ module Strengthen : sig
   val mty_of : loc:Location.t -> module_type -> Parsetree.module_type
 end
 
-(** The ASTs for layouts and other unboxed-types features *)
+(** The ASTs for jkinds and other unboxed-types features *)
 module Layouts : sig
   type constant =
     | Float of string * char option
@@ -236,7 +236,7 @@ module Layouts : sig
     (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
     | Lexp_newtype of
         string Location.loc
-        * Jane_asttypes.layout_annotation
+        * Jane_asttypes.jkind_annotation
         * Parsetree.expression
 
   type nonrec pattern =
@@ -250,45 +250,45 @@ module Layouts : sig
        a [Ptyp_var] node. *)
     | Ltyp_var of
         { name : string option;
-          layout : Jane_asttypes.layout_annotation
+          jkind : Jane_asttypes.jkind_annotation
         }
     (* [('a : immediate) 'b 'c ('d : value). 'a -> 'b -> 'c -> 'd] *)
     (* This is represented by an attribute wrapping a [Ptyp_poly] node. *)
     (* This is used instead of [Ptyp_poly] only where there is at least one
-       actual layout annotation. If there is a polytype with no layout
+       actual jkind annotation. If there is a polytype with no jkind
        annotations at all, [Ptyp_poly] is used instead. This saves space in the
        parsed representation and guarantees that we don't accidentally try to
        require the layouts extension. *)
     | Ltyp_poly of
         { bound_vars :
-            (string Location.loc * Jane_asttypes.layout_annotation option) list;
+            (string Location.loc * Jane_asttypes.jkind_annotation option) list;
           inner_type : Parsetree.core_type
         }
     (* [ty as ('a : immediate)] *)
     (* This is represented by an attribute wrapping either a [Ptyp_alias] node
-       or, in the [ty as (_ : layout)] case, the annotated type itself, with no
+       or, in the [ty as (_ : jkind)] case, the annotated type itself, with no
        intervening [type_desc]. *)
     | Ltyp_alias of
         { aliased_type : Parsetree.core_type;
           name : string option;
-          layout : Jane_asttypes.layout_annotation
+          jkind : Jane_asttypes.jkind_annotation
         }
 
   type nonrec extension_constructor =
     (* [ 'a ('b : immediate) ('c : float64). 'a * 'b * 'c -> exception ] *)
     (* This is represented as an attribute on a [Pext_decl] node. *)
-    (* Like [Ltyp_poly], this is used only when there is at least one layout
+    (* Like [Ltyp_poly], this is used only when there is at least one jkind
        annotation. Otherwise, we will have a [Pext_decl]. *)
     | Lext_decl of
-        (string Location.loc * Jane_asttypes.layout_annotation option) list
+        (string Location.loc * Jane_asttypes.jkind_annotation option) list
         * Parsetree.constructor_arguments
         * Parsetree.core_type option
 
   module Pprint : sig
-    val const_layout : Format.formatter -> Jane_asttypes.const_layout -> unit
+    val const_jkind : Format.formatter -> Jane_asttypes.const_jkind -> unit
 
-    val layout_annotation :
-      Format.formatter -> Jane_asttypes.layout_annotation -> unit
+    val jkind_annotation :
+      Format.formatter -> Jane_asttypes.jkind_annotation -> unit
   end
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
@@ -306,27 +306,53 @@ module Layouts : sig
     Parsetree.extension_constructor
 
   (** See also [Ast_helper.Type.constructor], which is a direct inspiration for
-      the interface here. It's meant to be able to be a drop-in replacement.  *)
+      the interface here. *)
   val constructor_declaration_of :
     loc:Location.t ->
     attrs:Parsetree.attributes ->
     info:Docstrings.info ->
-    vars_layouts:
-      (string Location.loc * Jane_asttypes.layout_annotation option) list ->
+    vars_jkinds:
+      (string Location.loc * Jane_asttypes.jkind_annotation option) list ->
     args:Parsetree.constructor_arguments ->
     res:Parsetree.core_type option ->
     string Location.loc ->
     Parsetree.constructor_declaration
 
-  (** Extract the layouts from a [constructor_declaration]; returns leftover
+  (** Extract the jkinds from a [constructor_declaration]; returns leftover
       attributes along with the annotated variables. Unlike other pieces
       of jane-syntax, users of this function will still have to process
       the remaining pieces of the original [constructor_declaration]. *)
   val of_constructor_declaration :
     Parsetree.constructor_declaration ->
-    ((string Location.loc * Jane_asttypes.layout_annotation option) list
+    ((string Location.loc * Jane_asttypes.jkind_annotation option) list
     * Parsetree.attributes)
     option
+
+  (** See also [Ast_helper.Type.mk], which is a direct inspiration for
+      the interface here. *)
+  val type_declaration_of :
+    loc:Location.t ->
+    attrs:Parsetree.attributes ->
+    docs:Docstrings.docs ->
+    text:Docstrings.text option ->
+    params:
+      (Parsetree.core_type * (Asttypes.variance * Asttypes.injectivity)) list ->
+    cstrs:(Parsetree.core_type * Parsetree.core_type * Location.t) list ->
+    kind:Parsetree.type_kind ->
+    priv:Asttypes.private_flag ->
+    manifest:Parsetree.core_type option ->
+    jkind:Jane_asttypes.jkind_annotation option ->
+    string Location.loc ->
+    Parsetree.type_declaration
+
+  (** Extract the jkind annotation from a [type_declaration]; returns
+      leftover attributes. Similar to [of_constructor_declaration] in the
+      sense that users of this function will have to process the remaining
+      pieces of the original [type_declaration].
+  *)
+  val of_type_declaration :
+    Parsetree.type_declaration ->
+    (Jane_asttypes.jkind_annotation * Parsetree.attributes) option
 end
 
 (******************************************)

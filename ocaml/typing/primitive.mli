@@ -24,7 +24,7 @@ type boxed_vector = Pvec128 of vec128_type
 (* Representation of arguments/result for the native code version
    of a primitive *)
 type native_repr =
-  | Same_as_ocaml_repr of Layouts.Sort.const
+  | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
@@ -106,7 +106,7 @@ val native_name_is_external : description -> bool
 
 (** [sort_of_native_repr] returns the sort expected during typechecking (which
     may be different than the sort used in the external interface). *)
-val sort_of_native_repr : native_repr -> Layouts.Sort.const
+val sort_of_native_repr : native_repr -> Jkind.Sort.const
 
 type error =
   | Old_style_float_with_native_repr_attribute

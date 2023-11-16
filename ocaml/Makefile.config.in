@@ -24,7 +24,7 @@ OCAML_VERSION_MINOR=@OCAML_VERSION_MINOR@
 OCAML_VERSION_PATCHLEVEL=@OCAML_VERSION_PATCHLEVEL@
 OCAML_VERSION_EXTRA=@OCAML_VERSION_EXTRA@
 
-## The EMPTY variable, used in other definitions
+## The EMPTY variable, used in other definitions to preserve spaces
 EMPTY=
 
 ## Arguments passed to the configure script
@@ -78,11 +78,6 @@ CC=@CC@
 CC_HAS_DEBUG_PREFIX_MAP=@cc_has_debug_prefix_map@
 AS_HAS_DEBUG_PREFIX_MAP=@as_has_debug_prefix_map@
 
-### Additional link-time options
-# To support dynamic loading of shared libraries (they need to look at
-# our own symbols):
-OC_LDFLAGS=@oc_ldflags@
-
 LDFLAGS?=@LDFLAGS@
 
 ### How to invoke the C preprocessor through the C compiler
@@ -96,7 +91,7 @@ O=@OBJEXT@
 EXT_OBJ=.@OBJEXT@
 
 ### How to tell the C compiler to output an object file
-OUTPUTOBJ=@outputobj@
+OUTPUTOBJ=@outputobj@$(EMPTY)
 
 ### Extension of static libraries
 A=@libext@
@@ -164,34 +159,23 @@ INSTALL_BYTECODE_PROGRAMS=@install_bytecode_programs@
 
 ### Which libraries to compile and install
 # Currently available:
-#       bigarray          Large, multidimensional numerical arrays
-#                           (legacy support: this library is now part of the
-#                            Standard Library)
 #       dynlink           Dynamic linking (bytecode and native)
 #       (win32)unix       Unix system calls
 #       str               Regular expressions and high-level string processing
 #       systhreads        Same as threads, requires POSIX threads
 OTHERLIBRARIES=@otherlibraries@
 
-### Link-time options to ocamlc or ocamlopt for linking with POSIX threads
-# Needed for the "systhreads" package
-PTHREAD_LIBS=@PTHREAD_LIBS@
-PTHREAD_CAML_LIBS=$(addprefix -cclib ,$(PTHREAD_LIBS))
-
 UNIX_OR_WIN32=@unix_or_win32@
-UNIXLIB=@unixlib@
 INSTALL_SOURCE_ARTIFACTS=@install_source_artifacts@
 
-OC_CFLAGS=@oc_cflags@
-CFLAGS?=@CFLAGS@
-OC_CPPFLAGS=@oc_cppflags@
-CPPFLAGS?=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+CPPFLAGS=@CPPFLAGS@
 OCAMLC_CFLAGS=@ocamlc_cflags@
 
 OCAMLC_CPPFLAGS=@ocamlc_cppflags@
-BYTECCLIBS=@bytecclibs@
+BYTECCLIBS=@cclibs@
 EXE=@exeext@
-OUTPUTEXE=@outputexe@
+OUTPUTEXE=@outputexe@$(EMPTY)
 SUPPORTS_SHARED_LIBRARIES=@supports_shared_libraries@
 MKSHAREDLIBRPATH=@mksharedlibrpath@
 DYNLINKOPTS=@DLLIBS@
@@ -203,29 +187,29 @@ MKLIB=@mklib@
 #        two drivers should be identical.
 OCAMLOPT_CFLAGS=@ocamlc_cflags@
 OCAMLOPT_CPPFLAGS=@ocamlc_cppflags@
-NATIVECCLIBS=@nativecclibs@
+NATIVECCLIBS=@cclibs@
 SYSTHREAD_SUPPORT=@systhread_support@
-PACKLD=@PACKLD@
-FLEXDLL_CHAIN=@flexdll_chain@
-EXTRALIBS=@extralibs@
+PACKLD=@PACKLD@$(EMPTY)
 CCOMPTYPE=@ccomptype@
 TOOLCHAIN=@toolchain@
 CMXS=@cmxs@
 
 # On Windows, MKDLL, MKEXE and MKMAINDLL must ultimately be equivalent to
-#   $(FLEXLINK_CMD) $(FLEXLINK_FLAGS) [-exe|-maindll]
-# or OCAML_FLEXLINK overriding will not work (see utils/config.mlp)
+#   flexlink $(FLEXLINK_FLAGS) [-exe|-maindll]
+# or OCAML_FLEXLINK overriding will not work (see utils/config.generated.ml.in)
+
+FLEXDLL_CHAIN=@flexdll_chain@
+FLEXLINK_FLAGS=@flexlink_flags@
 
 MKEXE=@mkexe@
-MKDLL=@mksharedlib@
+MKDLL=@mkdll@
 MKMAINDLL=@mkmaindll@
-
 MKEXEDEBUGFLAG=@mkexedebugflag@
+
 RUNTIMED=@debug_runtime@
 INSTRUMENTED_RUNTIME=@instrumented_runtime@
 INSTRUMENTED_RUNTIME_LIBS=@instrumented_runtime_libs@
 WITH_DEBUGGER=@with_debugger@
-WITH_CAMLTEX=@with_camltex@
 WITH_OCAMLDOC=@ocamldoc@
 WITH_OCAMLTEST=@ocamltest@
 ASM_CFI_SUPPORTED=@asm_cfi_supported@
@@ -233,6 +217,10 @@ WITH_FRAME_POINTERS=@frame_pointers@
 WITH_CPP_MANGLING=@cpp_mangling@
 WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
+HEADER_RESERVED_BITS=@reserved_header_bits@
+LIBUNWIND_AVAILABLE=@libunwind_available@
+LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
+LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@
 WITH_FPIC=@fpic@
 TARGET=@target@
 HOST=@host@
@@ -240,8 +228,8 @@ FLAMBDA=@flambda@
 FLAMBDA2=@flambda2@
 WITH_FLAMBDA_INVARIANTS=@flambda_invariants@
 WITH_CMM_INVARIANTS=@cmm_invariants@
-FORCE_SAFE_STRING=@force_safe_string@
-DEFAULT_SAFE_STRING=@default_safe_string@
+FORCE_SAFE_STRING=true
+DEFAULT_SAFE_STRING=true
 WINDOWS_UNICODE=@windows_unicode@
 AFL_INSTRUMENT=@afl@
 FLAT_FLOAT_ARRAY=@flat_float_array@
@@ -255,35 +243,20 @@ STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
 
-### Native command to build ocamlrun.exe
-
-ifeq "$(TOOLCHAIN)" "msvc"
-  MERGEMANIFESTEXE=test ! -f $(1).manifest \
-          || mt -nologo -outputresource:$(1) -manifest $(1).manifest \
-          && rm -f $(1).manifest
-  MKEXE_USING_COMPILER=$(CC) $(OC_CFLAGS) $(CFLAGS) $(OUTPUTEXE)$(1) $(2) \
-    /link /subsystem:console $(OC_LDFLAGS) $(LDFLAGS) && ($(MERGEMANIFESTEXE))
+# Selection of OCaml 4.x or 5.x runtime
+ifeq "@enable_runtime5@" "yes"
+  RUNTIME_SUFFIX=
 else
-  MKEXE_USING_COMPILER=$(CC) $(OC_CFLAGS) $(CFLAGS) $(OC_LDFLAGS) $(LDFLAGS) \
-    $(OUTPUTEXE)$(1) $(2)
-endif # ifeq "$(TOOLCHAIN)" "msvc"
-
-FLEXLINK_FLAGS=@flexlink_flags@
-FLEXLINK_CMD=flexlink
-FLEXLINK=$(FLEXLINK_CMD) $(FLEXLINK_FLAGS)
+  RUNTIME_SUFFIX=4
+endif
+RUNTIME_DIR=runtime$(RUNTIME_SUFFIX)
 
 # Deprecated variables
+
+## Variables deprecated since OCaml 5.0
+
+UNIXLIB=unix
 
 ## Variables renamed in OCaml 4.13
 
 RUNTIMEI=$(INSTRUMENTED_RUNTIME)
-
-### pthread-related variables
-
-PTHREAD_LINK=$(PTHREAD_LIBS)
-PTHREAD_CAML_LINK=$(PTHREAD_CAML_LIBS)
-
-### It is expected that the value of PTHREAD_LINK changes between OCaml
-### 4.12 and 4.13. Indeed, for OCaml 4.12 most of the time the variable
-### contained -lpthread. From 4.13 onward it will most of the time be
-### empty since we have -pthread in CFLAGS which implies -lpthread.

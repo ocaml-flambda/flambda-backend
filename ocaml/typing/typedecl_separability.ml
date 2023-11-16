@@ -14,7 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Layouts
 open Types
 
 type type_definition = type_declaration
@@ -478,12 +477,12 @@ let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
    this when we add unboxed floats, or, better, just delete the float
    array optimization and this entire file at that point. *)
 let msig_of_external_type env decl =
-  let check_layout =
-    Ctype.check_decl_layout env decl
+  let check_jkind =
+    Ctype.check_decl_jkind env decl
   in
-  if Result.is_error (check_layout (Layout.value ~why:Separability_check))
+  if Result.is_error (check_jkind (Jkind.value ~why:Separability_check))
      || Result.is_ok
-          (check_layout (Layout.immediate64 ~why:Separability_check))
+          (check_jkind (Jkind.immediate64 ~why:Separability_check))
   then best_msig decl
   else worst_msig decl
 

@@ -1,8 +1,9 @@
 (* TEST
 
 include systhreads
-* hassysthreads
-** not-windows
+* skip
+reason = "OCaml 5 only"
+** hassysthreads
 *** bytecode
 *** native
 

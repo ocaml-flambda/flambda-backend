@@ -21,7 +21,7 @@ Line 1, characters 21-22:
 1 | let cast (x : fn) = (x : lfn)
                          ^
 Error: This expression has type fn = string -> int
-       but an expression was expected of type lfn = (string [@local]) -> int
+       but an expression was expected of type (string [@local]) -> int
 |}]
 
 let local_ref (f : lfn -> unit) =

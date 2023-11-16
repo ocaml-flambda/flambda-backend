@@ -46,7 +46,7 @@ module Simple : sig
     | `Variant of label * pattern option * row_desc ref
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of mutable_flag * pattern list
+    | `Array of mutable_flag * Jkind.sort * pattern list
     | `Lazy of pattern
   ]
   type pattern = view pattern_data
@@ -89,7 +89,7 @@ module Head : sig
           type_row : unit -> row_desc; }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of mutable_flag * int
+    | Array of mutable_flag * Jkind.sort * int
     | Lazy
 
   type t = desc pattern_data

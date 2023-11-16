@@ -13,6 +13,10 @@
 #*                                                                        *
 #**************************************************************************
 
+# CR ocaml 5 merge: this file only exists to get the dune build to work
+# while we hack on the merge conflicts; upstream has merged it into the top-level
+# Makefile. We should see what we can do to delete this file.
+
 # Makefile for the parser generator.
 
 ROOTDIR = ..

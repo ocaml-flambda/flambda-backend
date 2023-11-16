@@ -24,6 +24,7 @@
 #include "caml/config.h"
 #include "caml/debugger.h"
 #include "caml/fail.h"
+#include "caml/fiber.h"
 #include "caml/fix_code.h"
 #include "caml/interp.h"
 #include "caml/intext.h"
@@ -33,8 +34,7 @@
 #include "caml/misc.h"
 #include "caml/mlvalues.h"
 #include "caml/prims.h"
-#include "caml/signals.h"
-#include "caml/stacks.h"
+#include "caml/startup_aux.h"
 
 #ifndef NATIVE_CODE
 
@@ -43,14 +43,11 @@ CAMLprim value caml_get_global_data(value unit)
   return caml_global_data;
 }
 
-char * caml_section_table = NULL;
-asize_t caml_section_table_size;
-
 CAMLprim value caml_get_section_table(value unit)
 {
-  if (caml_section_table == NULL) caml_raise_not_found();
-  return caml_input_value_from_block(caml_section_table,
-                                     caml_section_table_size);
+  if (caml_params->section_table == NULL) caml_raise_not_found();
+  return caml_input_value_from_block(caml_params->section_table,
+                                     caml_params->section_table_size);
 }
 
 struct bytecode {
@@ -103,12 +100,10 @@ CAMLprim value caml_reify_bytecode(value ls_prog,
   prog = (code_t)buffer_of_bytes_array(ls_prog, &len);
   caml_add_debug_info(prog, Val_long(len), debuginfo);
   /* match (digest_opt : string option) with */
-  if (Is_block(digest_opt)) {
-    /* | Some digest -> */
+  if (Is_some(digest_opt)) {
     digest_kind = DIGEST_PROVIDED;
-    digest = (unsigned char *) String_val(Field(digest_opt, 0));
+    digest = (unsigned char *) String_val(Some_val(digest_opt));
   } else {
-    /* | None -> */
     digest_kind = DIGEST_LATER;
     digest = NULL;
   }
@@ -126,7 +121,7 @@ CAMLprim value caml_reify_bytecode(value ls_prog,
 
   clos = caml_alloc_small (2, Closure_tag);
   Code_val(clos) = (code_t) prog;
-  Closinfo_val(clos) = Make_closinfo(0, 2, 1);
+  Closinfo_val(clos) = Make_closinfo(0, 2);
   bytecode = caml_alloc_small (2, Abstract_tag);
   Bytecode_val(bytecode)->prog = prog;
   Bytecode_val(bytecode)->len = len;
@@ -162,10 +157,11 @@ CAMLprim value caml_static_release_bytecode(value bc)
 CAMLprim value caml_realloc_global(value size)
 {
   mlsize_t requested_size, actual_size, i;
-  value new_global_data;
+  value new_global_data, old_global_data;
+  old_global_data = caml_global_data;
 
   requested_size = Long_val(size);
-  actual_size = Wosize_val(caml_global_data);
+  actual_size = Wosize_val(old_global_data);
   if (requested_size >= actual_size) {
     requested_size = (requested_size + 0x100) & 0xFFFFFF00;
     caml_gc_message (0x08, "Growing global data to %"
@@ -173,20 +169,18 @@ CAMLprim value caml_realloc_global(value size)
                      requested_size);
     new_global_data = caml_alloc_shr(requested_size, 0);
     for (i = 0; i < actual_size; i++)
-      caml_initialize(&Field(new_global_data, i), Field(caml_global_data, i));
+      caml_initialize(&Field(new_global_data, i), Field(old_global_data, i));
     for (i = actual_size; i < requested_size; i++){
       Field (new_global_data, i) = Val_long (0);
     }
-    // Give gc a chance to run, and run memprof callbacks
-    caml_global_data = new_global_data;
-    caml_process_pending_actions();
+    caml_modify_generational_global_root(&caml_global_data, new_global_data);
   }
   return Val_unit;
 }
 
 CAMLprim value caml_get_current_environment(value unit)
 {
-  return *Caml_state->extern_sp;
+  return *Caml_state->current_stack->sp;
 }
 
 CAMLprim value caml_invoke_traced_function(value codeptr, value env, value arg)
@@ -219,9 +213,9 @@ CAMLprim value caml_invoke_traced_function(value codeptr, value env, value arg)
   value * osp, * nsp;
   int i;
 
-  osp = Caml_state->extern_sp;
-  Caml_state->extern_sp -= 4;
-  nsp = Caml_state->extern_sp;
+  osp = Caml_state->current_stack->sp;
+  Caml_state->current_stack->sp -= 4;
+  nsp = Caml_state->current_stack->sp;
   for (i = 0; i < 7; i++) nsp[i] = osp[i];
   nsp[7] = (value) Nativeint_val(codeptr);
   nsp[8] = env;

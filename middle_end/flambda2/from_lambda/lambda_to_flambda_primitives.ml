@@ -145,7 +145,13 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
     =
   match kind with
   | Pgenarray_ref mode ->
-    check_float_array_optimisation_enabled ();
+    (* CR mshinwell: We can't check this because of the translations of
+       primitives for Obj.size, Obj.field and Obj.set_field, which can be used
+       both on arrays and blocks. We should probably propagate the "%obj_..."
+       primitives which these functions use all the way to the middle end. Then
+       this check could be reinstated for all normal cases.
+
+       check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_ref mode
   | Paddrarray_ref -> Array_ref_kind Values
   | Pintarray_ref -> Array_ref_kind Immediates
@@ -159,7 +165,9 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
     =
   match kind with
   | Pgenarray_set mode ->
-    check_float_array_optimisation_enabled ();
+    (* CR mshinwell: see CR in [convert_array_ref_kind] above
+
+       check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_set (Alloc_mode.For_assignments.from_lambda mode)
   | Paddrarray_set mode ->
     Array_set_kind
@@ -214,6 +222,17 @@ let box_bint bi mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
 
 let unbox_bint bi (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number (boxable_number_of_boxed_integer bi), arg))
+
+let box_vec128 mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
+    =
+  Unary
+    ( Box_number
+        ( Naked_vec128,
+          Alloc_mode.For_allocations.from_lambda mode ~current_region ),
+      Prim arg )
+
+let unbox_vec128 (arg : H.simple_or_prim) : H.simple_or_prim =
+  Prim (Unary (Unbox_number Naked_vec128, arg))
 
 let bint_unary_prim bi mode prim arg1 =
   box_bint bi mode
@@ -303,12 +322,13 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
       | Sixteen -> 1
       | Thirty_two -> 3
       | Sixty_four -> 7
+      | One_twenty_eight _ -> 15
     in
     Targetint_31_63.of_int offset
   in
   match (access_size : Flambda_primitive.string_accessor_width) with
   | Eight -> length (* micro-optimization *)
-  | Sixteen | Thirty_two | Sixty_four ->
+  | Sixteen | Thirty_two | Sixty_four | One_twenty_eight _ ->
     let offset = length_offset_of_size access_size in
     let reduced_length =
       H.Prim
@@ -334,6 +354,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
            nativeint_res ))
 
 (* String-like validity conditions *)
+
 let string_like_access_validity_condition ~size_int ~access_size ~length index :
     H.expr_primitive =
   check_bound_tagged index
@@ -359,15 +380,28 @@ let bigstring_alignment_validity_condition bstr alignment tagged_index :
 
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
     string index =
+  (match (access_size : P.string_accessor_width) with
+  | One_twenty_eight { aligned = true } ->
+    Misc.fatal_error
+      "flambda2 cannot yet check string/bytes aligned access safety"
+  | Eight | Sixteen | Thirty_two | Sixty_four
+  | One_twenty_eight { aligned = false } ->
+    ());
   checked_access ~dbg ~primitive
     ~conditions:
       [ string_or_bytes_access_validity_condition ~size_int string kind
           access_size index ]
 
 let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
-  (* TODO(mslater): check alignment based on access size *)
-  ignore checked_alignment;
-  ignore bigstring_alignment_validity_condition;
+  let primitive =
+    match (access_size : P.string_accessor_width) with
+    | One_twenty_eight { aligned = true } ->
+      checked_alignment ~dbg ~primitive
+        ~conditions:[bigstring_alignment_validity_condition arg1 16 arg2]
+    | Eight | Sixteen | Thirty_two | Sixty_four
+    | One_twenty_eight { aligned = false } ->
+      primitive
+  in
   checked_access ~dbg ~primitive
     ~conditions:
       [bigstring_access_validity_condition ~size_int arg1 access_size arg2]
@@ -380,7 +414,9 @@ let string_like_load_unsafe ~access_size kind mode string index ~current_region
     | (Eight | Sixteen), None -> tag_int
     | Thirty_two, Some mode -> box_bint Pint32 mode ~current_region
     | Sixty_four, Some mode -> box_bint Pint64 mode ~current_region
-    | (Eight | Sixteen), Some _ | (Thirty_two | Sixty_four), None ->
+    | One_twenty_eight _, Some mode -> box_vec128 mode ~current_region
+    | (Eight | Sixteen), Some _
+    | (Thirty_two | Sixty_four | One_twenty_eight _), None ->
       Misc.fatal_error "Inconsistent alloc_mode for string or bytes load"
   in
   wrap (Binary (String_or_bigstring_load (kind, access_size), string, index))
@@ -418,6 +454,7 @@ let bytes_like_set_unsafe ~access_size kind bytes index new_value =
     | Eight | Sixteen -> untag_int
     | Thirty_two -> unbox_bint Pint32
     | Sixty_four -> unbox_bint Pint64
+    | One_twenty_eight _ -> unbox_vec128
   in
   H.Ternary
     (Bytes_or_bigstring_set (kind, access_size), bytes, index, wrap new_value)
@@ -941,6 +978,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_load_64 (true (* unsafe *), mode), [[bytes]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bytes (Some mode) bytes
         index ~current_region ]
+  | Pstring_load_128 { unsafe = true; mode }, [[str]; [index]] ->
+    [ string_like_load_unsafe
+        ~access_size:(One_twenty_eight { aligned = false })
+        String (Some mode) str index ~current_region ]
+  | Pbytes_load_128 { unsafe = true; mode }, [[str]; [index]] ->
+    [ string_like_load_unsafe
+        ~access_size:(One_twenty_eight { aligned = false })
+        Bytes (Some mode) str index ~current_region ]
   | Pstring_load_16 false (* safe *), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen String None str
         index ~current_region ]
@@ -950,6 +995,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pstring_load_64 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four String
         (Some mode) str index ~current_region ]
+  | Pstring_load_128 { unsafe = false; mode }, [[str]; [index]] ->
+    [ string_like_load_safe ~dbg ~size_int
+        ~access_size:(One_twenty_eight { aligned = false })
+        String (Some mode) str index ~current_region ]
   | Pbytes_load_16 false (* safe *), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bytes None bytes
         index ~current_region ]
@@ -959,12 +1008,20 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_load_64 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
         (Some mode) bytes index ~current_region ]
+  | Pbytes_load_128 { unsafe = false; mode }, [[bytes]; [index]] ->
+    [ string_like_load_safe ~dbg ~size_int
+        ~access_size:(One_twenty_eight { aligned = false })
+        Bytes (Some mode) bytes index ~current_region ]
   | Pbytes_set_16 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [bytes_like_set_unsafe ~access_size:Sixteen Bytes bytes index new_value]
   | Pbytes_set_32 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [bytes_like_set_unsafe ~access_size:Thirty_two Bytes bytes index new_value]
   | Pbytes_set_64 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [bytes_like_set_unsafe ~access_size:Sixty_four Bytes bytes index new_value]
+  | Pbytes_set_128 { unsafe = true }, [[bytes]; [index]; [new_value]] ->
+    [ bytes_like_set_unsafe
+        ~access_size:(One_twenty_eight { aligned = false })
+        Bytes bytes index new_value ]
   | Pbytes_set_16 false (* safe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bytes bytes index
         new_value ]
@@ -974,6 +1031,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_set_64 false (* safe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes bytes
         index new_value ]
+  | Pbytes_set_128 { unsafe = false }, [[bytes]; [index]; [new_value]] ->
+    [ bytes_like_set_safe ~dbg ~size_int
+        ~access_size:(One_twenty_eight { aligned = false })
+        Bytes bytes index new_value ]
   | Pisint { variant_only }, [[arg]] ->
     [tag_int (Unary (Is_int { variant_only }, arg))]
   | Pisout, [[arg1]; [arg2]] ->
@@ -1024,7 +1085,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Simple.const (Reg_width_const.tagged_immediate (Targetint_31_63.of_int n))
     in
     [Binary (Int_arith (I.Tagged_immediate, Add), arg, Simple const)]
-  | Pfield (index, sem), [[arg]] ->
+  | Pfield (index, _int_or_ptr, sem), [[arg]] ->
+    (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Pfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
@@ -1173,13 +1235,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       [ Simple
           (Simple.const_int
              (Targetint_31_63.of_int
-                ((1 lsl ((8 * size_int) - (10 + Config.profinfo_width))) - 1)))
-      ]
+                ((1 lsl ((8 * size_int) - (10 + Config.reserved_header_bits)))
+                - 1))) ]
     | Ostype_unix -> [Simple (Simple.const_bool (Sys.os_type = "Unix"))]
     | Ostype_win32 -> [Simple (Simple.const_bool (Sys.os_type = "Win32"))]
     | Ostype_cygwin -> [Simple (Simple.const_bool (Sys.os_type = "Cygwin"))]
     | Backend_type ->
-      [Simple Simple.const_zero] (* constructor 0 is the same as Native here *))
+      [Simple Simple.const_zero] (* constructor 0 is the same as Native here *)
+    | Runtime5 -> [Simple (Simple.const_bool Config.runtime5)])
   | Pbswap16, [[arg]] ->
     [ tag_int
         (Unary (Int_arith (Naked_immediate, Swap_byte_endianness), untag_int arg))
@@ -1274,6 +1337,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_load_64 (true (* unsafe *), mode), [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
         big_str index ~current_region ]
+  | Pbigstring_load_128 { unsafe = true; aligned; mode }, [[big_str]; [index]]
+    ->
+    [ string_like_load_unsafe
+        ~access_size:(One_twenty_eight { aligned })
+        Bigstring (Some mode) big_str index ~current_region ]
   | Pbigstring_load_16 false (* safe *), [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bigstring None
         big_str index ~current_region ]
@@ -1283,6 +1351,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_load_64 (false (* safe *), mode), [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
         (Some mode) big_str index ~current_region ]
+  | Pbigstring_load_128 { unsafe = false; aligned; mode }, [[big_str]; [index]]
+    ->
+    [ string_like_load_safe ~dbg ~size_int
+        ~access_size:(One_twenty_eight { aligned })
+        Bigstring (Some mode) big_str index ~current_region ]
   | Pbigstring_set_16 true (* unsafe *), [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixteen Bigstring bigstring index
         new_value ]
@@ -1292,6 +1365,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_set_64 true (* unsafe *), [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixty_four Bigstring bigstring index
         new_value ]
+  | ( Pbigstring_set_128 { unsafe = true; aligned },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set_unsafe
+        ~access_size:(One_twenty_eight { aligned })
+        Bigstring bigstring index new_value ]
   | Pbigstring_set_16 false (* safe *), [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bigstring
         bigstring index new_value ]
@@ -1301,6 +1379,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_set_64 false (* safe *), [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
         bigstring index new_value ]
+  | ( Pbigstring_set_128 { unsafe = false; aligned },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set_safe ~dbg ~size_int
+        ~access_size:(One_twenty_eight { aligned })
+        Bigstring bigstring index new_value ]
   | Pcompare_ints, [[i1]; [i2]] ->
     [ tag_int
         (Binary
@@ -1359,12 +1442,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Plsrint | Pasrint | Pdivint _ | Pmodint _ | Psetfield _ | Pintcomp _
       | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _
       | Pstringrefu | Pbytesrefu | Pstringrefs | Pbytesrefs | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _
-      | Pbytes_load_32 _ | Pbytes_load_64 _ | Pisout | Paddbint _ | Psubbint _
-      | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
-      | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
+      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
+      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
+      | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _ | Pmulbint _
+      | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
+      | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
       | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
+      | Pbigstring_load_128 _
       | Parrayrefu
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
       | Parrayrefs
@@ -1384,8 +1469,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set)
       | Parraysets
           (Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set)
-      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ ),
+      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
+      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+      | Pbigstring_set_128 _ ),
       ( []
       | [_]
       | [_; _]
@@ -1406,6 +1492,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
+      Printlambda.primitive prim
+  | ( ( Prunstack | Pperform | Presume | Preperform | Patomic_exchange
+      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ),
+      _ ) ->
+    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc
