@@ -92,6 +92,7 @@
     (startup.h as caml/startup.h)
     (sync.h as caml/sync.h)
     (sys.h as caml/sys.h)
+    (simd.h as caml/simd.h)
     (version.h as caml/version.h)
     (weak.h as caml/weak.h)
     (winsupport.h as caml/winsupport.h)
