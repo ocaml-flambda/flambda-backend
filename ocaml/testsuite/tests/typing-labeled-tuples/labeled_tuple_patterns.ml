@@ -561,3 +561,81 @@ Line 4, characters 34-35:
 Error: This expression has type y:int * x:int
        but an expression was expected of type x:int * y:int
 |}]
+
+(* More re-ordering stress tests *)
+type t =
+  x:int *
+  y:int *
+  int *
+  x:int *
+  x:int *
+  y:int *
+  y:int *
+  int *
+  int *
+  y:int *
+  x:int
+
+let t : t = ~x:1, ~y:2, 3, ~x:4, ~x:5, ~y:6, ~y:7, 8, 9, ~y:10, ~x:11
+
+let _ =
+  let (~y, ~y:y2, ~y:y3, ..) = t in
+  y, y2, y3
+[%%expect{|
+type t =
+    x:int * y:int * int * x:int * x:int * y:int * y:int * int * int *
+    y:int * x:int
+val t : t = (~x:1, ~y:2, 3, ~x:4, ~x:5, ~y:6, ~y:7, 8, 9, ~y:10, ~x:11)
+- : int * int * int = (2, 6, 7)
+|}]
+
+let _ =
+  let (a, b, c, ..) = t in
+  (a, b, c)
+[%%expect{|
+- : int * int * int = (3, 8, 9)
+|}]
+
+let _ =
+  let (n3, ~y:n2, ~y, ~x:n1, ..) = t in
+  (n1, n2, n3, y)
+[%%expect{|
+- : int * int * int * int = (1, 2, 3, 6)
+|}]
+
+let _ =
+  let (~x:x1, ~x:x2, ~x:x3, ~x, ..) = t in
+  (x1, x2, x3, x)
+[%%expect{|
+- : int * int * int * int = (1, 4, 5, 11)
+|}]
+
+let _ =
+  let (~y:n2, ~y:n6, n3, ~x:n1, ~y:n7, n8, ~y:n10, ~x:n4, ~x:n5, ~x:n11, n9) =
+    t
+  in
+  (n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11)
+[%%expect{|
+- : int * int * int * int * int * int * int * int * int * int * int =
+(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+|}]
+
+let _ =
+  let (n3, n8, n9, ~y:n2, ~y:n6, ~y:n7, ~y:n10, ~x:n1, ~x:n4, ~x:n5, ~x:n11) =
+    t
+  in
+  (n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11)
+[%%expect{|
+- : int * int * int * int * int * int * int * int * int * int * int =
+(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+|}]
+
+let _ =
+  let (~x:n1, ~y:n2, n3, ~x:n4, ~x:n5, ~y:n6, ~y:n7, n8, n9, ~y:n10, ~x:n11) =
+    t
+  in
+  (n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11)
+[%%expect{|
+- : int * int * int * int * int * int * int * int * int * int * int =
+(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+|}]
