@@ -1298,6 +1298,13 @@ let runtime4 = Actions.make
   (Actions_helpers.pass_or_skip (not Config.runtime5)
     "4.x runtime being used"
     "5.x runtime being used")
+
+let runtime5 = Actions.make
+  ~name:"runtime5"
+  ~description:"Passes if the OCaml 5.x runtime is being used"
+  (Actions_helpers.pass_or_skip Config.runtime5
+    "5.x runtime being used"
+    "4.x runtime being used")
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1509,5 +1516,6 @@ let _ =
     codegen;
     cc;
     ocamlobjinfo;
-    runtime4
+    runtime4;
+    runtime5
   ]
