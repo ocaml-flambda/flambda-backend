@@ -62,6 +62,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Module_strengthening -> (module Unit)
   | Layouts -> (module Maturity)
   | SIMD -> (module Unit)
+  | Labeled_tuples -> (module Unit)
 
 type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 
@@ -95,9 +96,10 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | Module_strengthening, Module_strengthening -> Some Refl
   | Layouts, Layouts -> Some Refl
   | SIMD, SIMD -> Some Refl
+  | Labeled_tuples, Labeled_tuples -> Some Refl
   | ( ( Comprehensions | Local | Unique | Include_functor
       | Polymorphic_parameters | Immutable_arrays | Module_strengthening
-      | Layouts | SIMD ),
+      | Layouts | SIMD | Labeled_tuples ),
       _ ) ->
     None
 
@@ -192,7 +194,8 @@ let default_extensions : extn_pair list =
   [ Pair (Local, ());
     Pair (Include_functor, ());
     Pair (Polymorphic_parameters, ());
-    Pair (Immutable_arrays, ()) ]
+    Pair (Immutable_arrays, ());
+    Pair (Labeled_tuples, ()) ]
 
 let extensions : extn_pair list ref = ref default_extensions
 

@@ -1859,7 +1859,8 @@ let transl_extension_constructor ~scope env type_path type_params
         (* Remove "_" names from parameters used in the constructor *)
         if not cdescr.cstr_generalized then begin
           let vars =
-            Ctype.free_variables (Btype.newgenty (Ttuple (List.map fst args)))
+            Ctype.free_variables
+              (Btype.newgenty (Ttuple (List.map (fun (t,_) -> None, t) args)))
           in
           List.iter
             (fun ty ->
@@ -2588,7 +2589,7 @@ let explain_unbound_single ppf tv ty =
         (fun (_l,f) -> match row_field_repr f with
           Rpresent (Some t) -> t
         | Reither (_,[t],_) -> t
-        | Reither (_,tl,_) -> Btype.newgenty (Ttuple tl)
+        | Reither (_,tl,_) -> Btype.newgenty (Ttuple (List.map (fun e -> None, e) tl))
         | _ -> Btype.newgenty (Ttuple[]))
         "case" (fun (lab,_) -> "`" ^ lab ^ " of ")
   | _ -> trivial ty
@@ -2750,9 +2751,9 @@ let report_error ppf = function
       begin match decl.type_kind, decl.type_manifest with
       | Type_variant (tl, _rep), _ ->
           explain_unbound_gen ppf ty tl (fun c ->
-            let tl = tys_of_constr_args c.Types.cd_args in
-            Btype.newgenty (Ttuple tl)
-          )
+              let tl = tys_of_constr_args c.Types.cd_args in
+              Btype.newgenty (Ttuple (List.map (fun t -> None, t) tl))
+            )
             "case" (fun ppf c ->
               fprintf ppf
                 "%a of %a" Printtyp.ident c.Types.cd_id

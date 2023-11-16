@@ -21,9 +21,16 @@ type texp_apply_identifier = apply_position * Locality.t
 let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
   Texp_apply (exp, args, pos, mode)
 
-type texp_tuple_identifier = Alloc.t
+type texp_tuple_identifier = string option list * Alloc.t
 
-let mkTexp_tuple ?id:(mode = Alloc.legacy) exps = Texp_tuple (exps, mode)
+let mkTexp_tuple ?id exps =
+  let labels, alloc =
+    match id with
+    | None -> (List.map (fun _ -> None) exps, Alloc.legacy)
+    | Some id -> id
+  in
+  let exps = List.combine labels exps in
+  Texp_tuple (exps, alloc)
 
 type texp_construct_identifier = Alloc.t option
 
@@ -115,7 +122,9 @@ let view_texp (e : expression_desc) =
   | Texp_apply (exp, args, pos, mode) -> Texp_apply (exp, args, (pos, mode))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
-  | Texp_tuple (args, mode) -> Texp_tuple (args, mode)
+  | Texp_tuple (args, mode) ->
+      let labels, args = List.split args in
+      Texp_tuple (args, (labels, mode))
   | Texp_function
       {
         arg_label;
@@ -161,6 +170,16 @@ type tpat_array_identifier = Asttypes.mutable_flag * Jkind.sort
 let mkTpat_array ?id:(mut, arg_sort = (Asttypes.Mutable, Jkind.Sort.value)) l =
   Tpat_array (mut, arg_sort, l)
 
+type tpat_tuple_identifier = string option list
+
+let mkTpat_tuple ?id pats =
+  let labels =
+    match id with
+    | None -> List.map (fun _ -> None) pats
+    | Some labels -> labels
+  in
+  Tpat_tuple (List.combine labels pats)
+
 type 'a matched_pattern_desc =
   | Tpat_var :
       Ident.t * string Location.loc * tpat_var_identifier
@@ -174,6 +193,9 @@ type 'a matched_pattern_desc =
   | Tpat_array :
       value general_pattern list * tpat_array_identifier
       -> value matched_pattern_desc
+  | Tpat_tuple :
+      value general_pattern list * tpat_tuple_identifier
+      -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
@@ -181,6 +203,9 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
   | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
   | Tpat_array (mut, arg_sort, l) -> Tpat_array (l, (mut, arg_sort))
+  | Tpat_tuple pats ->
+      let labels, pats = List.split pats in
+      Tpat_tuple (pats, labels)
   | _ -> O p
 
 type tstr_eval_identifier = Jkind.sort
