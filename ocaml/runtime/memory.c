@@ -382,17 +382,21 @@ CAMLexport value caml_alloc_shr_noexc(mlsize_t wosize, tag_t tag) {
 
 CAMLprim value caml_local_stack_offset(value blk)
 {
-  caml_failwith("caml_local_stack_offset not yet implemented");
+  /* CR ocaml 5 runtime: implement properly for locals */
+  return Val_long(0);
 }
 
 CAMLprim value caml_obj_is_stack(value blk)
 {
+  /* CR ocaml 5 runtime: implement properly for locals */
   return Val_false;
 }
 
-CAMLprim value caml_create_local_bytes(void)
+extern value caml_create_bytes(value);
+CAMLprim value caml_create_local_bytes(value len)
 {
-  caml_failwith("caml_create_local_bytes not yet implemented");
+  /* CR ocaml 5 runtime: implement properly for locals */
+  return caml_create_bytes(len);
 }
 
 /* Global memory pool.
