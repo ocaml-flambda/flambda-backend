@@ -16,6 +16,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* Dynamic loading of .cmx files *)
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Dynlink_compilerlibs
@@ -128,7 +130,7 @@ module Native = struct
   let run_shared_startup handle ~filename ~priv =
     ndl_run handle "caml_shared_startup" ~filename ~priv
 
-  let run handle ~filename ~unit_header ~priv =
+  let run _lock handle ~filename ~unit_header ~priv =
     List.iter (fun cu -> ndl_run handle cu ~filename ~priv)
       (Unit_header.defined_symbols unit_header)
 
