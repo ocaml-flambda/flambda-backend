@@ -1144,6 +1144,8 @@ let config_variables _log env =
     Ocaml_variables.ocamlrunparam, Sys.safe_getenv "OCAMLRUNPARAM";
     Ocaml_variables.ocamlsrcdir, Ocaml_directories.srcdir;
     Ocaml_variables.os_type, Sys.os_type;
+    Ocaml_variables.runtime_dir,
+      if Config.runtime5 then "runtime" else "runtime4"
   ] env
 
 let flat_float_array = Actions.make
