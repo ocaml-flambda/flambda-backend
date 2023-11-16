@@ -864,7 +864,7 @@ let path_size path env =
     | Papply (p1, p2) ->
         let (l, b) = size p1 in
         (l + fst (size p2), b)
-    | Pextra_ty (p, _) -> path_size p
+    | Pextra_ty (p, _) -> size p
   in
   let l, s = size path in
   l + ambiguity_penalty path env, s
