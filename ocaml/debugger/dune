@@ -12,16 +12,23 @@
 ;*                                                                        *
 ;**************************************************************************
 
-; mshinwell: Disabled for now -- otherlibs/dynlink/dune needs fixing first.
+(ocamllex debugger_lexer)
+(ocamlyacc debugger_parser)
 
-;(ocamllex lexer)
-;(ocamlyacc parser)
-;
-;(executable
-; (name main)
-; (modes byte)
-; (flags (:standard -w -9))
-; (modules_without_implementation parser_aux)
-; (libraries ocamlcommon ocamltoplevel runtime stdlib unix))
-;
-;(rule (copy main.exe ocamldebug.byte))
+(library
+ (name ocamldebug)
+ (flags (:standard -principal -w -9))
+ (modules (:standard \ ocamldebug_entry))
+ (modules_without_implementation parser_aux)
+ (libraries ocamlcommon ocamltoplevel unix dynlink_internal))
+
+(executable
+  (name ocamldebug_entry)
+  (modes byte)
+  (modules ocamldebug_entry)
+  (libraries unix ocamldebug))
+
+(install
+  (files (ocamldebug_entry.bc as ocamldebug))
+  (section bin)
+  (package ocaml))
