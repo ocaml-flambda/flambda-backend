@@ -122,9 +122,9 @@ $(ocamldir)/otherlibs/dune:
 
 $(ocamldir)/dune.runtime_selection:
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
-          echo "(dirs (:standard \ runtime))" > $@; \
+          echo "(dirs (:standard \ runtime debugger))" > $@; \
 	else \
-          echo "(dirs (:standard \ runtime4))" > $@; \
+          echo "(dirs (:standard \ runtime4 debugger4))" > $@; \
 	fi
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)
