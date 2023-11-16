@@ -104,6 +104,8 @@ CAMLprim value caml_natdynlink_open(value filename, value global)
   CAMLreturn(res);
 }
 
+/* CR mshinwell: The registration needs splitting out as per the 5 runtime */
+
 CAMLprim value caml_natdynlink_run(value handle_v, value symbol) {
   CAMLparam2 (handle_v, symbol);
   CAMLlocal1 (result);

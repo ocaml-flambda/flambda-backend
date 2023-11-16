@@ -136,15 +136,26 @@ module Native = struct
       "caml_shared_startup" ::
       List.concat_map Unit_header.defined_symbols header.dynu_units
     in
-    try
+    try (
       ndl_register handle (Array.of_list syms);
-      handle, header.dynu_units
+      handle, header.dynu_units )
     with
     | Register_dyn_global_duplicate ->
-      if not priv then
-        failwith (Printf.sprintf "Attempt to register duplicate dynamic \
-          GC roots for non-privately-loaded library `%s'; this is a bug in \
-          [Dynlink]" filename)
+      (* CR mshinwell: This used to be a failure, but now this [load]
+         function is called before [check].  For the moment just assume
+         this is a [Module_already_loaded] case. *)
+      if not priv then (
+        (* CR mshinwell: [Module_already_loaded] should really take a
+           module name, not a filename! *)
+        if Config.runtime5 then
+          Printexc.raise_with_backtrace
+            (DT.Error (Module_already_loaded filename))
+            (Printexc.get_raw_backtrace ())
+        else
+          failwith (Printf.sprintf "Attempt to register duplicate dynamic \
+            GC roots for non-privately-loaded library `%s'; this is a bug in \
+            [Dynlink]" filename)
+      )
       else
         Printexc.raise_with_backtrace
           (DT.Error (Library_file_already_loaded_privately { filename }))
