@@ -26,10 +26,10 @@
      maniparray: Allocation
     manipfarray: Allocation
             ref: Allocation
-          bytes: No Allocation
+          bytes: Allocation
      stringbint: Allocation
   bigstringbint: Allocation
        verylong: Allocation
        manylong: Allocation
-    optionalarg: No Allocation
+    optionalarg: Allocation
     optionaleta: Allocation

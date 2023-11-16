@@ -1,7 +1,7 @@
           init_local: Allocation
         append_local: Allocation
         concat_local: Allocation
-           sub_local: No Allocation
+           sub_local: Allocation
        to_list_local: Allocation
        of_list_local: Allocation
            map_local: Allocation
