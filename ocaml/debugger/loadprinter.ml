@@ -40,8 +40,8 @@ let rec loadfiles ppf name =
     Dynlink.loadfile filename;
     let d = Filename.dirname name in
     if d <> Filename.current_dir_name then begin
-      if not (List.mem d (Load_path.get_paths ())) then
-        Load_path.add_dir d;
+      if not (List.mem d (Load_path.get_path_list ())) then
+        Load_path.add_dir ~hidden:false d;
     end;
     fprintf ppf "File %s loaded@."
       (if d <> Filename.current_dir_name then
@@ -71,14 +71,16 @@ let loadfile ppf name =
    the debuggee. *)
 
 let rec eval_address = function
-  | Env.Aident id ->
-    assert (Ident.persistent id);
-    let bytecode_or_asm_symbol = Ident.name id in
+  | Env.Aunit cu ->
+    let bytecode_or_asm_symbol =
+      Ident.name (cu |> Compilation_unit.to_global_ident_for_bytecode)
+    in
     begin match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol with
     | None ->
       raise (Symtable.Error (Symtable.Undefined_global bytecode_or_asm_symbol))
     | Some obj -> obj
     end
+  | Env.Alocal _ -> assert false
   | Env.Adot(addr, pos) -> Obj.field (eval_address addr) pos
 
 let eval_value_path env path =
@@ -91,7 +93,7 @@ let eval_value_path env path =
 
 let match_printer_type desc make_printer_type =
   Ctype.with_local_level ~post:Ctype.generalize begin fun () ->
-    let ty_arg = Ctype.newvar() in
+    let ty_arg = Ctype.newvar Jkind.(value ~why:Debug_printer_argument) in
     Ctype.unify Env.empty
       (make_printer_type ty_arg)
       (Ctype.instance desc.val_type);
