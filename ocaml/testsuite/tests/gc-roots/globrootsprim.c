@@ -13,9 +13,7 @@
 
 /* For testing global root registration */
 
-#ifdef CAML_RUNTIME_5
 #define CAML_INTERNALS
-#endif
 
 #include "caml/mlvalues.h"
 #include "caml/memory.h"
