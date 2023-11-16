@@ -1,8 +1,9 @@
 (* TEST
-   modules = "cstubs.c np.ml"
-   * naked_pointers
-   ** bytecode
-   ** native
+   * runtime4
+      modules = "cstubs.c np.ml"
+      ** naked_pointers
+      *** bytecode
+      *** native
 *)
 
 open Np
