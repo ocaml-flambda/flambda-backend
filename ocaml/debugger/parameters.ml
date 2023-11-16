@@ -32,7 +32,7 @@ let version = ref true
 
 let add_path dir =
   Load_path.add_dir dir;
-  Envaux.reset_cache()
+  Envaux.reset_cache ~preserve_persistent_env:false
 
 let add_path_for mdl dir =
   let old = try Hashtbl.find load_path_for mdl with Not_found -> [] in

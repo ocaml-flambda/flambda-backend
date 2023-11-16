@@ -263,7 +263,7 @@ let instr_dir ppf lexbuf =
     if new_directory = [] then begin
       if yes_or_no "Reinitialize directory list" then begin
         Load_path.init ~auto_include:Compmisc.auto_include !default_load_path;
-        Envaux.reset_cache ();
+        Envaux.reset_cache ~preserve_persistent_env:false;
         Hashtbl.clear Debugger_config.load_path_for;
         flush_buffer_list ()
         end

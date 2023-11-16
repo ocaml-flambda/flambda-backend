@@ -39,13 +39,16 @@ exception Error of error
 
 let abstract_type =
   Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), [], ref Mnil))
+let get_global_or_predef id =
+  try
+    Debugcom.Remote_value.global (Symtable.get_global_position id)
+  with Symtable.Error _ -> raise(Error(Unbound_identifier id))
 
 let rec address path event = function
-  | Env.Aident id ->
-      if Ident.global id then
-        try
-          Debugcom.Remote_value.global (Symtable.get_global_position id)
-        with Symtable.Error _ -> raise(Error(Unbound_identifier id))
+  | Env.Aunit cu ->
+      get_global_or_predef (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Env.Alocal id ->
+      if Ident.is_predef id then get_global_or_predef id
       else
         begin match event with
           Some {ev_ev = ev} ->

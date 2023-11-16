@@ -130,7 +130,7 @@ let initialize_loading () =
   Symbols.read_symbols Debugcom.main_frag !program_name;
   let dirs = Load_path.get_paths () @ !Symbols.program_source_dirs in
   Load_path.init ~auto_include:Compmisc.auto_include dirs;
-  Envaux.reset_cache ();
+  Envaux.reset_cache ~preserve_persistent_env:false;
   if !debug_loading then
     prerr_endline "Opening a socket...";
   open_connection !socket_name
