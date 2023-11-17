@@ -97,20 +97,20 @@ let string_is_prefix sub str =
 
 let rec lident_of_path = function
   | Path.Pident id -> Longident.Lident (Ident.name id)
-  | Path.Pdot (p, s) -> Longident.Ldot (lident_of_path p, s)
   | Path.Papply (p1, p2) ->
       Longident.Lapply (lident_of_path p1, lident_of_path p2)
+  | Path.Pdot (p, s) | Path.Pextra_ty (p, Pcstr_ty s) ->
+      Longident.Ldot (lident_of_path p, s)
+  | Path.Pextra_ty (p, _) -> lident_of_path p
 
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 
 (** Try a name [$name$0], check if it's free, if not, increment and repeat. *)
 let fresh_name s env =
-  let rec aux i =
-    let name = s ^ Int.to_string i in
-    if Env.bound_value name env then aux (i+1)
-    else name
-  in
-  aux 0
+  let name i = s ^ Int.to_string i in
+  let available i = not (Env.bound_value (name i) env) in
+  let first_i = Misc.find_first_mono available in
+  name first_i
 
 (** Extract the [n] patterns from the case of a letop *)
 let rec extract_letop_patterns n pat =
@@ -147,9 +147,9 @@ let attribute sub a = {
 
 let attributes sub l = List.map (sub.attribute sub) l
 
-let var_layout ~loc (var, layout) =
+let var_jkind ~loc (var, jkind) =
   let add_loc x = mkloc x loc in
-  add_loc var, Option.map add_loc layout
+  add_loc var, Option.map (fun (_, annot) -> annot) jkind
 
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
@@ -238,7 +238,8 @@ let type_parameter sub (ct, v) = (sub.typ sub ct, v)
 let type_declaration sub decl =
   let loc = sub.location sub decl.typ_loc in
   let attrs = sub.attributes sub decl.typ_attributes in
-  Type.mk ~loc ~attrs
+  Jane_syntax.Layouts.type_declaration_of
+    ~loc ~attrs
     ~params:(List.map (type_parameter sub) decl.typ_params)
     ~cstrs:(
       List.map
@@ -247,7 +248,10 @@ let type_declaration sub decl =
         decl.typ_cstrs)
     ~kind:(sub.type_kind sub decl.typ_kind)
     ~priv:decl.typ_private
-    ?manifest:(Option.map (sub.typ sub) decl.typ_manifest)
+    ~manifest:(Option.map (sub.typ sub) decl.typ_manifest)
+    ~docs:Docstrings.empty_docs
+    ~text:None
+    ~jkind:decl.typ_jkind_annotation
     (map_loc sub decl.typ_name)
 
 let type_kind sub tk = match tk with
@@ -265,9 +269,9 @@ let constructor_arguments sub = function
 let constructor_declaration sub cd =
   let loc = sub.location sub cd.cd_loc in
   let attrs = sub.attributes sub cd.cd_attributes in
-  let vars_layouts = List.map (var_layout ~loc) cd.cd_vars in
+  let vars_jkinds = List.map (var_jkind ~loc) cd.cd_vars in
   Jane_syntax.Layouts.constructor_declaration_of ~loc ~attrs
-    ~vars_layouts
+    ~vars_jkinds
     ~args:(constructor_arguments sub cd.cd_args)
     ~res:(Option.map (sub.typ sub) cd.cd_res)
     ~info:Docstrings.empty_info
@@ -300,7 +304,7 @@ let extension_constructor sub ext =
   let name = map_loc sub ext.ext_name in
   match ext.ext_kind with
   | Text_decl (vs, args, ret) ->
-    let vs = List.map (var_layout ~loc) vs in
+    let vs = List.map (var_jkind ~loc) vs in
     let args = constructor_arguments sub args in
     let ret = Option.map (sub.typ sub) ret in
     Jane_syntax.Extension_constructor.extension_constructor_of
@@ -384,7 +388,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array (am, list) -> begin
+    | Tpat_array (am, _, list) -> begin
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
@@ -426,9 +430,9 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some layout) ->
+    | Texp_newtype (s, Some (_, jkind)) ->
         Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, add_loc layout, sexp))
+          (Lexp_newtype(add_loc s, jkind, sexp))
         |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
@@ -570,7 +574,7 @@ let expression sub exp =
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
           Option.map (sub.expr sub) expo)
-    | Texp_sequence (exp1, _layout, exp2) ->
+    | Texp_sequence (exp1, _jkind, exp2) ->
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
@@ -578,7 +582,7 @@ let expression sub exp =
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,
           for_dir, sub.expr sub for_body)
-    | Texp_send (exp, meth, _, _) ->
+    | Texp_send (exp, meth, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
           | Tmeth_val id -> mkloc (Ident.name id) loc
@@ -598,7 +602,7 @@ let expression sub exp =
     | Texp_letexception (ext, exp) ->
         Pexp_letexception (sub.extension_constructor sub ext,
                            sub.expr sub exp)
-    | Texp_assert exp -> Pexp_assert (sub.expr sub exp)
+    | Texp_assert (exp, _) -> Pexp_assert (sub.expr sub exp)
     | Texp_lazy exp -> Pexp_lazy (sub.expr sub exp)
     | Texp_object (cl, _) ->
         Pexp_object (sub.class_structure sub cl)
@@ -788,7 +792,7 @@ let module_type (sub : mapper) mty =
       Mty.mk ~loc ~attrs (Pmty_ident (map_loc sub lid))
   | Tmty_alias (_path, lid) ->
       Mty.mk ~loc ~attrs (Pmty_alias (map_loc sub lid))
-  | Tmty_signature sg -> 
+  | Tmty_signature sg ->
       Mty.mk ~loc ~attrs (Pmty_signature (sub.signature sub sg))
   | Tmty_functor (arg, mtype2) ->
       Mty.mk ~loc ~attrs
@@ -838,7 +842,10 @@ let module_expr (sub : mapper) mexpr =
               Pmod_functor
                 (functor_parameter sub arg, sub.module_expr sub mexpr)
           | Tmod_apply (mexp1, mexp2, _) ->
-              Pmod_apply (sub.module_expr sub mexp1, sub.module_expr sub mexp2)
+              Pmod_apply (sub.module_expr sub mexp1,
+                          sub.module_expr sub mexp2)
+          | Tmod_apply_unit mexp1 ->
+              Pmod_apply_unit (sub.module_expr sub mexp1)
           | Tmod_constraint (mexpr, _, Tmodtype_explicit mtype, _) ->
               Pmod_constraint (sub.module_expr sub mexpr,
                 sub.module_type sub mtype)
@@ -937,9 +944,9 @@ let core_type sub ct =
   let desc = match ct.ctyp_desc with
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
-    | Ttyp_var (name, Some layout) ->
+    | Ttyp_var (name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_var { name; layout = mkloc layout loc }) |>
+          (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
@@ -954,17 +961,17 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some layout) ->
+    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
-                        layout = mkloc layout loc }) |>
+                        jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
       Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
     | Ttyp_variant (list, bool, labels) ->
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
-        let bound_vars = List.map (var_layout ~loc) list in
+        let bound_vars = List.map (var_jkind ~loc) list in
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes

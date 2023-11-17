@@ -30,8 +30,26 @@ type a = A
 val a : a = A
 type a = A
 val b : a = A
+type a = A
+val c : a = A
 Line 2, characters 4-5:
 2 | a = b;;
+        ^
+Error: This expression has type a/2 but an expression was expected of type
+         a/3
+       Hint: The type a has been defined multiple times in this toplevel
+         session. Some toplevel values still refer to old versions of this
+         type. Did you try to redefine them?
+Line 1, characters 4-5:
+1 | a = c;;
+        ^
+Error: This expression has type a/1 but an expression was expected of type
+         a/2
+       Hint: The type a has been defined multiple times in this toplevel
+         session. Some toplevel values still refer to old versions of this
+         type. Did you try to redefine them?
+Line 1, characters 4-5:
+1 | b = c;;
         ^
 Error: This expression has type a/1 but an expression was expected of type
          a/2

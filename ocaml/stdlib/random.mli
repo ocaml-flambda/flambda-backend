@@ -130,6 +130,11 @@ module State : sig
   (** These functions are the same as the basic functions, except that they
       use (and update) the given PRNG state instead of the default one.
   *)
+
+  (* CR ocaml 5 runtime: unimplemented *)
+  val split : t -> t
+  val to_binary_string : t -> string
+  val of_binary_string : string -> t
 end
 
 
@@ -138,3 +143,6 @@ val get_state : unit -> State.t
 
 val set_state : State.t -> unit
 (** Set the state of the generator used by the basic functions. *)
+
+(* CR ocaml 5 runtime: unimplemented *)
+val split : unit -> State.t

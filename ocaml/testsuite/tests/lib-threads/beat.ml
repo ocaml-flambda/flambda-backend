@@ -2,9 +2,10 @@
 
 * hassysthreads
 include systhreads
-** not-macos
-*** bytecode
-*** native
+* skip
+reason = "off-by-one error on MacOS+Clang (#408)"
+** bytecode
+** native
 
 *)
 

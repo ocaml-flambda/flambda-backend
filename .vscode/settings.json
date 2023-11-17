@@ -2,5 +2,11 @@
         "ocaml.sandbox": {
                 "kind": "opam",
                 "switch": "4.14.1"
+        },
+        "files.associations": {
+                "*.mlp": "ocaml",
+                "smmintrin.h": "c",
+                "tmmintrin.h": "c",
+                "pmmintrin.h": "c"
         }
 }

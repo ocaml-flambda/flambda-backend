@@ -8,13 +8,22 @@
      flags = "-extension layouts_beta"
    * bytecode
      flags = "-extension layouts_beta"
+   * native
+     flags = "-extension layouts"
+   * bytecode
+     flags = "-extension layouts"
    * setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
-     flags = "-extension layouts"
    ** ocamlc.byte
      compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
    *** check-ocamlc.byte-output
+
+
 *)
+
+(* mshinwell: This test is now only run with flambda2, as the corresponding
+   ocamltest predicate is reliable for testing whether this is an
+   flambda-backend build. *)
 
 (* This file contains various tests for float#.  It's not an expect test to make
    sure it gets tested for native code. *)
@@ -474,4 +483,12 @@ let rb' = { xb = 3.14; yb = 42.1 }
 let _ =
   Printf.printf "Test 11, heterogeneous polymorphic equality.\n";
   Printf.printf "  equal: %b\n" (Ex ru = Ex rb);
-  Printf.printf "  unequal: %b\n" (Ex ru = Ex rb');
+  Printf.printf "  unequal: %b\n" (Ex ru = Ex rb')
+
+(*************************************************)
+(* Test 12: If-then-else with float64 and assert *)
+
+let _ =
+  let a = if Sys.opaque_identity true then Float_u.of_int 1 else assert false in
+  Printf.printf "Test 12, If-then-else with assert and float64.\n";
+  print_floatu "  result (1.00)" a

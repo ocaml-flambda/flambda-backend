@@ -251,3 +251,10 @@ module Never_returns_normally = struct
  let[@zero_alloc] foo x = failwithf "%d" x
  let[@zero_alloc] bar x y = invalid_argf "%d" (x+y)
 end
+
+
+module Opt = struct
+  (* passes because -zero-alloc-check-opt is not provided. *)
+  let[@zero_alloc opt] test x = x,x
+  let[@zero_alloc opt strict] test x = x,x
+end

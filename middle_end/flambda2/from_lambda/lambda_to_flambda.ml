@@ -53,9 +53,11 @@ let print_compact_location ppf (loc : Location.t) =
 let name_for_function (func : Lambda.lfunction) =
   (* Name anonymous functions by their source location, if known. *)
   match func.loc with
-  | Loc_unknown -> "anon-fn"
+  | Loc_unknown -> "fn"
   | Loc_known { loc; _ } ->
-    Format.asprintf "anon-fn[%a]" print_compact_location loc
+    if Flambda_features.Expert.shorten_symbol_names ()
+    then "fn"
+    else Format.asprintf "fn[%a]" print_compact_location loc
 
 let extra_args_for_exn_continuation env exn_handler =
   List.map
@@ -167,6 +169,39 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
         acc ccenv)
     acc ccenv
 
+let rec try_to_find_location (lam : L.lambda) =
+  (* This is very much best-effort and may overshoot, but will still likely be
+     better than nothing. *)
+  match lam with
+  | Lprim (_, _, loc)
+  | Lfunction { loc; _ }
+  | Lapply { ap_loc = loc; _ }
+  | Lfor { for_loc = loc; _ }
+  | Lswitch (_, _, loc, _)
+  | Lstringswitch (_, _, _, loc, _)
+  | Lsend (_, _, _, _, _, _, loc, _)
+  | Levent (_, { lev_loc = loc; _ }) ->
+    loc
+  | Llet (_, _, _, lam, _)
+  | Lmutlet (_, _, lam, _)
+  | Lletrec ((_, lam) :: _, _)
+  | Lifthenelse (lam, _, _, _)
+  | Lstaticcatch (lam, _, _, _)
+  | Lstaticraise (_, lam :: _)
+  | Lwhile { wh_cond = lam; _ }
+  | Lsequence (lam, _)
+  | Lassign (_, lam)
+  | Lifused (_, lam)
+  | Lregion (lam, _)
+  | Lexclave lam
+  | Ltrywith (lam, _, _, _) ->
+    try_to_find_location lam
+  | Lvar _ | Lmutvar _ | Lconst _ | Lletrec _ | Lstaticraise (_, []) ->
+    Debuginfo.Scoped_location.Loc_unknown
+
+let try_to_find_debuginfo lam =
+  Debuginfo.from_location (try_to_find_location lam)
+
 let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
   let switch : Lambda.lambda_switch =
     { sw_numconsts = 2;
@@ -176,7 +211,7 @@ let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
       sw_failaction = None
     }
   in
-  L.Lswitch (cond, switch, Loc_unknown, kind)
+  L.Lswitch (cond, switch, try_to_find_location cond, kind)
 
 let transform_primitive env (prim : L.primitive) args loc =
   match prim, args with
@@ -229,7 +264,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Psetfield (_, _, _), [L.Lprim (Pgetglobal _, [], _); _] ->
     Misc.fatal_error
       "[Psetfield (Pgetglobal ...)] is forbidden upon entry to the middle end"
-  | Pfield (index, _), _ when index < 0 ->
+  | Pfield (index, _, _), _ when index < 0 ->
     Misc.fatal_error "Pfield with negative field index"
   | Pfloatfield (i, _, _), _ when i < 0 ->
     Misc.fatal_error "Pfloatfield with negative field index"
@@ -306,27 +341,26 @@ let rec_catch_for_while_loop env cond body =
   in
   env, lam
 
-let rec_catch_for_for_loop env ident start stop (dir : Asttypes.direction_flag)
-    body =
+let rec_catch_for_for_loop env loc ident start stop
+    (dir : Asttypes.direction_flag) body =
   let cont = L.next_raise_count () in
   let env = Env.mark_as_recursive_static_catch env cont in
   let start_ident = Ident.create_local "for_start" in
   let stop_ident = Ident.create_local "for_stop" in
   let first_test : L.lambda =
     match dir with
-    | Upto ->
-      Lprim (Pintcomp Cle, [L.Lvar start_ident; L.Lvar stop_ident], Loc_unknown)
+    | Upto -> Lprim (Pintcomp Cle, [L.Lvar start_ident; L.Lvar stop_ident], loc)
     | Downto ->
-      Lprim (Pintcomp Cge, [L.Lvar start_ident; L.Lvar stop_ident], Loc_unknown)
+      Lprim (Pintcomp Cge, [L.Lvar start_ident; L.Lvar stop_ident], loc)
   in
   let subsequent_test : L.lambda =
-    Lprim (Pintcomp Cne, [L.Lvar ident; L.Lvar stop_ident], Loc_unknown)
+    Lprim (Pintcomp Cne, [L.Lvar ident; L.Lvar stop_ident], loc)
   in
   let one : L.lambda = Lconst (Const_base (Const_int 1)) in
   let next_value_of_counter =
     match dir with
-    | Upto -> L.Lprim (Paddint, [L.Lvar ident; one], Loc_unknown)
-    | Downto -> L.Lprim (Psubint, [L.Lvar ident; one], Loc_unknown)
+    | Upto -> L.Lprim (Paddint, [L.Lvar ident; one], loc)
+    | Downto -> L.Lprim (Psubint, [L.Lvar ident; one], loc)
   in
   let lam : L.lambda =
     (* Care needs to be taken here not to cause overflow if, for an incrementing
@@ -530,18 +564,23 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pstring_load_16 false
   | Pstring_load_32 (false, _)
   | Pstring_load_64 (false, _)
+  | Pstring_load_128 { unsafe = false; _ }
   | Pbytes_load_16 false
   | Pbytes_load_32 (false, _)
   | Pbytes_load_64 (false, _)
+  | Pbytes_load_128 { unsafe = false; _ }
   | Pbytes_set_16 false
   | Pbytes_set_32 false
   | Pbytes_set_64 false
+  | Pbytes_set_128 { unsafe = false; _ }
   | Pbigstring_load_16 false
   | Pbigstring_load_32 (false, _)
   | Pbigstring_load_64 (false, _)
+  | Pbigstring_load_128 { unsafe = false; _ }
   | Pbigstring_set_16 false
   | Pbigstring_set_32 false
   | Pbigstring_set_64 false
+  | Pbigstring_set_128 { unsafe = false; _ }
   | Pdivbint { is_safe = Safe; _ }
   | Pmodbint { is_safe = Safe; _ }
   | Pbigarrayref (false, _, _, _)
@@ -590,23 +629,32 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pstring_load_16 true
   | Pstring_load_32 (true, _)
   | Pstring_load_64 (true, _)
+  | Pstring_load_128 { unsafe = true; _ }
   | Pbytes_load_16 true
   | Pbytes_load_32 (true, _)
   | Pbytes_load_64 (true, _)
+  | Pbytes_load_128 { unsafe = true; _ }
   | Pbytes_set_16 true
   | Pbytes_set_32 true
   | Pbytes_set_64 true
+  | Pbytes_set_128 { unsafe = true; _ }
   | Pbigstring_load_16 true
   | Pbigstring_load_32 (true, _)
   | Pbigstring_load_64 (true, _)
+  | Pbigstring_load_128 { unsafe = true; _ }
   | Pbigstring_set_16 true
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
+  | Pbigstring_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
+  | Prunstack | Pperform | Presume | Preperform | Patomic_exchange | Patomic_cas
+  | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
+      Printlambda.primitive prim
 
 type non_tail_continuation =
   Acc.t ->
@@ -853,6 +901,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           [new_id, value_kind]
           User_visible (Simple new_value) ~body)
       k_exn
+  | Llet ((Strict | Alias | StrictOpt), _layout, id, defining_expr, Lvar id')
+    when Ident.same id id' ->
+    (* Simplif already simplifies such bindings, but we can generate new ones
+       when translating primitives (see the Lprim case below). *)
+    (* This case must not be moved above the case for let-bound primitives. *)
+    cps acc env ccenv defining_expr k k_exn
   | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, is_user_visible env id, layout]
@@ -904,6 +958,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         Misc.fatal_errorf "Wrong number of arguments for Lraise: %a"
           Printlambda.primitive prim)
     | _ ->
+      (* The code for translating primitives needs a let binding, so we
+         introduce such a binding explicitly. *)
+      (* For primitives like [Psequand], which are transformed instead, this
+         binding is useless and can move calls out of tail position, so we rely
+         on a special case above that removes such bindings when the bound
+         expression isn't a primitive. *)
       let name = Printlambda.name_of_primitive prim in
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
@@ -1108,12 +1168,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     cps acc env ccenv loop k k_exn
   | Lfor
       { for_id = ident;
+        for_loc = loc;
         for_from = start;
         for_to = stop;
         for_dir = dir;
         for_body = body
       } ->
-    let env, loop = rec_catch_for_for_loop env ident start stop dir body in
+    let env, loop = rec_catch_for_for_loop env loc ident start stop dir body in
     cps acc env ccenv loop k k_exn
   | Lassign (being_assigned, new_value) ->
     if not (Env.is_mutable env being_assigned)
@@ -1509,7 +1570,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           in
           let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
-            (arm, k, None, IR.Var var :: extra_args) :: consts_rev
+            (arm, k, Debuginfo.none, None, IR.Var var :: extra_args)
+            :: consts_rev
           in
           consts_rev, wrappers
         | Lconst cst ->
@@ -1520,7 +1582,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           in
           let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
-            (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
+            (arm, k, Debuginfo.none, None, IR.Const cst :: extra_args)
+            :: consts_rev
           in
           consts_rev, wrappers
         | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
@@ -1533,8 +1596,9 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
              it is safe to exclude them from passing along the extra arguments
              for mutable values. *)
           let cont = Continuation.create () in
+          let dbg = try_to_find_debuginfo action in
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
-          let consts_rev = (arm, cont, None, []) :: consts_rev in
+          let consts_rev = (arm, cont, dbg, None, []) :: consts_rev in
           let wrappers = (cont, action) :: wrappers in
           consts_rev, wrappers)
       ([], wrappers) cases
@@ -1554,9 +1618,10 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | None -> None, wrappers
         | Some action ->
           let cont = Continuation.create () in
+          let dbg = try_to_find_debuginfo action in
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
           let wrappers = (cont, action) :: wrappers in
-          Some (cont, None, []), wrappers
+          Some (cont, dbg, None, []), wrappers
       in
       let const_switch : IR.switch =
         { numconsts = switch.sw_numconsts; consts; failaction }
@@ -1586,7 +1651,9 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           let block_cont = Continuation.create () in
           let isint_switch : IR.switch =
             { numconsts = 2;
-              consts = [0, block_cont, None, []; 1, const_cont, None, []];
+              consts =
+                [ 0, block_cont, condition_dbg, None, [];
+                  1, const_cont, condition_dbg, None, [] ];
               failaction = None
             }
           in

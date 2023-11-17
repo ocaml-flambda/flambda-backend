@@ -16,9 +16,13 @@
 
 type t
 
+val boolean : t
+
 val signed : t
 
 val float : t
+
+val unsigned : t
 
 val size : t -> int
 

@@ -36,8 +36,6 @@ val cse_depth : unit -> int
 
 val join_depth : unit -> int
 
-val safe_string : unit -> bool
-
 val flat_float_array : unit -> bool
 
 val function_result_types : is_a_functor:bool -> bool
@@ -134,6 +132,8 @@ module Expert : sig
   val can_inline_recursive_functions : unit -> bool
 
   val max_function_simplify_run : unit -> int
+
+  val shorten_symbol_names : unit -> bool
 end
 
 val stack_allocation_enabled : unit -> bool

@@ -2,9 +2,9 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_layout = Layouts.Layout.value ~why:Type_argument
+let dummy_jkind = Jkind.value ~why:Type_argument
 let dummy_value_mode = Value.legacy
-let mkTvar name = Tvar { name; layout = dummy_layout }
+let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
   Tarrow ((label, Alloc.legacy, Alloc.legacy), t1, t2, comm)
@@ -43,8 +43,8 @@ type texp_function_identifier = {
   region : bool;
   curry : fun_curry_state;
   warnings : Warnings.state;
-  arg_sort : Layouts.sort;
-  ret_sort : Layouts.sort;
+  arg_sort : Jkind.sort;
+  ret_sort : Jkind.sort;
 }
 
 let texp_function_defaults =
@@ -55,8 +55,8 @@ let texp_function_defaults =
     region = false;
     curry = Final_arg { partial_mode = Alloc.legacy };
     warnings = Warnings.backup ();
-    arg_sort = Layouts.Sort.value;
-    ret_sort = Layouts.Sort.value;
+    arg_sort = Jkind.Sort.value;
+    ret_sort = Jkind.Sort.value;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -76,15 +76,17 @@ let mkTexp_function ?(id = texp_function_defaults)
       ret_sort = id.ret_sort;
     }
 
-type texp_sequence_identifier = Layouts.sort
+type texp_sequence_identifier = Jkind.sort
 
-let mkTexp_sequence ?id:(sort = Layouts.Sort.value) (e1, e2) =
+let mkTexp_sequence ?id:(sort = Jkind.Sort.value) (e1, e2) =
   Texp_sequence (e1, sort, e2)
 
-type texp_match_identifier = Layouts.sort
+type texp_match_identifier = Jkind.sort
 
-let mkTexp_match ?id:(sort = Layouts.Sort.value) (e, cases, partial) =
+let mkTexp_match ?id:(sort = Jkind.Sort.value) (e, cases, partial) =
   Texp_match (e, sort, cases, partial)
+
+let mkTexp_assert e loc = Texp_assert (e, loc)
 
 type matched_expression_desc =
   | Texp_ident of
@@ -154,9 +156,10 @@ type tpat_alias_identifier = Value.t
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = Asttypes.mutable_flag
+type tpat_array_identifier = Asttypes.mutable_flag * Jkind.sort
 
-let mkTpat_array ?id:(mut = Asttypes.Mutable) l = Tpat_array (mut, l)
+let mkTpat_array ?id:(mut, arg_sort = (Asttypes.Mutable, Jkind.Sort.value)) l =
+  Tpat_array (mut, arg_sort, l)
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -177,12 +180,12 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
   | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
   | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
-  | Tpat_array (mut, l) -> Tpat_array (l, mut)
+  | Tpat_array (mut, arg_sort, l) -> Tpat_array (l, (mut, arg_sort))
   | _ -> O p
 
-type tstr_eval_identifier = Layouts.sort
+type tstr_eval_identifier = Jkind.sort
 
-let mkTstr_eval ?id:(sort = Layouts.Sort.value) (e, attrs) =
+let mkTstr_eval ?id:(sort = Jkind.Sort.value) (e, attrs) =
   Tstr_eval (e, sort, attrs)
 
 type matched_structure_item_desc =
@@ -194,9 +197,9 @@ let view_tstr (si : structure_item_desc) =
   | Tstr_eval (e, sort, attrs) -> Tstr_eval (e, attrs, sort)
   | _ -> O si
 
-type arg_identifier = Layouts.sort
+type arg_identifier = Jkind.sort
 
-let mkArg ?id:(sort = Layouts.Sort.value) e = Arg (e, sort)
+let mkArg ?id:(sort = Jkind.Sort.value) e = Arg (e, sort)
 
 let map_arg_or_omitted f arg =
   match arg with Arg (e, sort) -> Arg (f e, sort) | Omitted o -> Omitted o
@@ -223,7 +226,7 @@ let mk_constructor_description cstr_name =
     cstr_attributes = [];
     cstr_inlined = None;
     cstr_uid = Uid.internal_not_actually_unique;
-    cstr_arg_layouts = [||];
+    cstr_arg_jkinds = [||];
     cstr_repr = Variant_boxed [||];
     cstr_constant = true;
   }
@@ -234,7 +237,7 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_expr;
     vb_attributes;
     vb_loc = Location.none;
-    vb_sort = Layouts.Sort.value;
+    vb_sort = Jkind.Sort.value;
   }
 
 let mkTtyp_any = Ttyp_var (None, None)
@@ -245,3 +248,18 @@ let is_type_name_used desc typ_name =
   | Ttyp_alias (_, Some s, _) -> s = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
+
+let rec print_path p =
+  match (p : Path.t) with
+  | Pident id -> Ident.name id
+  | Pdot (p, s) -> print_path p ^ "." ^ s
+  | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
+  | Pextra_ty _ -> Format.asprintf "%a" Path.print p
+
+let rec replace_id_in_path path to_rep : Path.t =
+  match (path : Path.t) with
+  | Pident _ -> Pident to_rep
+  | Papply (p1, p2) ->
+      Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
+  | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
+  | Pextra_ty (p, extra_ty) -> Pextra_ty (replace_id_in_path p to_rep, extra_ty)

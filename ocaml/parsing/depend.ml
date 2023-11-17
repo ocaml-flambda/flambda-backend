@@ -96,13 +96,13 @@ let handle_extension ext =
   | _ ->
     ()
 
-(* CR layouts: Remember to add this when layouts can have module
+(* CR layouts: Remember to add this when jkinds can have module
    prefixes. *)
-let add_layout _bv (_layout : layout_annotation) = ()
+let add_jkind _bv (_jkind : jkind_annotation) = ()
 
-let add_vars_layouts bv vars_layouts =
-  let add_one (_, layout) = Option.iter (add_layout bv) layout in
-  List.iter add_one vars_layouts
+let add_vars_jkinds bv vars_jkinds =
+  let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
+  List.iter add_one vars_jkinds
 
 let rec add_type bv ty =
   match Jane_syntax.Core_type.of_ast ty with
@@ -135,14 +135,14 @@ and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
 
 and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
-  | Ltyp_var { name = _; layout } ->
-    add_layout bv layout
+  | Ltyp_var { name = _; jkind } ->
+    add_jkind bv jkind
   | Ltyp_poly { bound_vars; inner_type } ->
-    add_vars_layouts bv bound_vars;
+    add_vars_jkinds bv bound_vars;
     add_type bv inner_type
-  | Ltyp_alias { aliased_type; name = _; layout } ->
+  | Ltyp_alias { aliased_type; name = _; jkind } ->
     add_type bv aliased_type;
-    add_layout bv layout
+    add_jkind bv jkind
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -176,8 +176,8 @@ let add_type_declaration bv td =
 
 let add_extension_constructor_jst bv :
   Jane_syntax.Extension_constructor.t -> _ = function
-  | Jext_layout (Lext_decl (vars_layouts, args, res)) ->
-    add_vars_layouts bv vars_layouts;
+  | Jext_layout (Lext_decl (vars_jkinds, args, res)) ->
+    add_vars_jkinds bv vars_jkinds;
     add_constructor_arguments bv args;
     Option.iter (add_type bv) res
 
@@ -365,8 +365,8 @@ and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
 
 and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
   | Lexp_constant _ -> add_constant
-  | Lexp_newtype (_, layout, inner_expr) ->
-    add_layout bv layout;
+  | Lexp_newtype (_, jkind, inner_expr) ->
+    add_jkind bv jkind;
     add_expr bv inner_expr
 
 and add_n_ary_function bv : Jane_syntax.N_ary_functions.expression -> _ =
@@ -413,7 +413,18 @@ and add_case bv {pc_lhs; pc_guard; pc_rhs} =
 and add_bindings recf bv pel =
   let bv' = List.fold_left (fun bv x -> add_pattern bv x.pvb_pat) bv pel in
   let bv = if recf = Recursive then bv' else bv in
-  List.iter (fun x -> add_expr bv x.pvb_expr) pel;
+  let add_constraint = function
+    | Pvc_constraint {locally_abstract_univars=_; typ} ->
+        add_type bv typ
+    | Pvc_coercion { ground; coercion } ->
+        Option.iter (add_type bv) ground;
+        add_type bv coercion
+  in
+  let add_one_binding { pvb_pat= _ ; pvb_loc= _ ; pvb_constraint; pvb_expr } =
+    add_expr bv pvb_expr;
+    Option.iter add_constraint pvb_constraint
+  in
+  List.iter add_one_binding pel;
   bv'
 
 and add_binding_op bv bv' pbop =
@@ -599,8 +610,11 @@ and add_module_expr bv modl =
           | Some name -> String.Map.add name bound bv
       in
       add_module_expr bv modl
-  | Pmod_apply(mod1, mod2) ->
-      add_module_expr bv mod1; add_module_expr bv mod2
+  | Pmod_apply (mod1, mod2) ->
+      add_module_expr bv mod1;
+      add_module_expr bv mod2
+  | Pmod_apply_unit mod1 ->
+      add_module_expr bv mod1
   | Pmod_constraint(modl, mty) ->
       add_module_expr bv modl; add_modtype bv mty
   | Pmod_unpack(e) ->
