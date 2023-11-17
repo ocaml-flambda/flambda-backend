@@ -109,8 +109,8 @@ CAMLprim value caml_gc_counters(value v)
 
   /* get a copy of these before allocating anything... */
   double minwords = Caml_state->stat_minor_words
-    + ((double) Wsize_bsize ((uintnat)Caml_state->young_end -
-        (uintnat) Caml_state->young_ptr)) / sizeof(value);
+    + (double) Wsize_bsize ((uintnat)Caml_state->young_end -
+        (uintnat) Caml_state->young_ptr);
   double prowords = Caml_state->stat_promoted_words;
   double majwords = Caml_state->stat_major_words +
                     (double) Caml_state->allocated_words;
