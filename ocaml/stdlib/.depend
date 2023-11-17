@@ -257,11 +257,13 @@ stdlib__Digest.cmi : digest.mli \
     stdlib.cmi
 stdlib__Domain.cmo : domain.ml \
     stdlib__Sys.cmi \
+    stdlib.cmi \
     stdlib__Obj.cmi \
     stdlib__Array.cmi \
     stdlib__Domain.cmi
 stdlib__Domain.cmx : domain.ml \
     stdlib__Sys.cmx \
+    stdlib.cmx \
     stdlib__Obj.cmx \
     stdlib__Array.cmx \
     stdlib__Domain.cmi

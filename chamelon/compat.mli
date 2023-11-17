@@ -81,6 +81,7 @@ val view_texp : expression_desc -> matched_expression_desc
 type tpat_var_identifier
 type tpat_alias_identifier
 type tpat_array_identifier
+type tpat_tuple_identifier
 
 val mkTpat_var :
   ?id:tpat_var_identifier -> Ident.t * string Location.loc -> value pattern_desc
@@ -92,6 +93,9 @@ val mkTpat_alias :
 
 val mkTpat_array :
   ?id:tpat_array_identifier -> value general_pattern list -> value pattern_desc
+
+val mkTpat_tuple :
+  ?id:tpat_tuple_identifier -> value general_pattern list -> value pattern_desc
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -105,6 +109,9 @@ type 'a matched_pattern_desc =
       -> value matched_pattern_desc
   | Tpat_array :
       value general_pattern list * tpat_array_identifier
+      -> value matched_pattern_desc
+  | Tpat_tuple :
+      value general_pattern list * tpat_tuple_identifier
       -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 

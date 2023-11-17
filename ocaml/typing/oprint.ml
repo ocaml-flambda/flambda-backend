@@ -148,6 +148,37 @@ let rec print_typlist print_elem sep ppf =
       pp_print_space ppf ();
       print_typlist print_elem sep ppf tyl
 
+let print_label_type ppf =
+  function
+  | Some s ->
+    pp_print_string ppf s;
+    pp_print_string ppf ":";
+  | None -> ()
+
+let print_label ppf =
+  function
+  | Some s ->
+    pp_print_string ppf "~";
+    pp_print_string ppf s;
+    pp_print_string ppf ":";
+  | None -> ()
+
+let rec print_labeled_typlist print_elem sep ppf =
+  function
+    [] -> ()
+  | [label, ty] ->
+      pp_open_box ppf 0;
+      print_label_type ppf label;
+      print_elem ppf ty;
+      pp_close_box ppf ()
+  | (label, ty) :: tyl ->
+      pp_open_box ppf 0;
+      print_label_type ppf label;
+      print_elem ppf ty;
+      pp_close_box ppf ();
+      pp_print_string ppf sep;
+      pp_print_space ppf ();
+      print_labeled_typlist print_elem sep ppf tyl
 
 let print_out_string ppf s =
   let not_escaped =
@@ -228,7 +259,7 @@ let print_out_value ppf tree =
     | Oval_ellipsis -> raise Ellipsis
     | Oval_printer f -> f ppf
     | Oval_tuple tree_list ->
-        fprintf ppf "@[<1>(%a)@]" (print_tree_list print_tree_1 ",") tree_list
+        fprintf ppf "@[<1>(%a)@]" (print_labeled_tree_list print_tree_1 ",") tree_list
     | tree -> fprintf ppf "@[<1>(%a)@]" (cautious print_tree_1) tree
   and print_fields first ppf =
     function
@@ -248,6 +279,17 @@ let print_out_value ppf tree =
           print_list false ppf tree_list
     in
     cautious (print_list true) ppf tree_list
+  and print_labeled_tree_list print_item sep ppf labeled_tree_list =
+    let rec print_list first ppf =
+      function
+        [] -> ()
+      | (label, tree) :: labeled_tree_list ->
+          if not first then fprintf ppf "%s@ " sep;
+          print_label ppf label;
+          print_item ppf tree;
+          print_list false ppf labeled_tree_list
+    in
+    cautious (print_list true) ppf labeled_tree_list
   in
   cautious print_tree_1 ppf tree
 
@@ -397,6 +439,12 @@ let is_once mode =
   | Olinm_once -> true
   | _ -> false
 
+(* Labeled tuples with the first element labeled sometimes require parens. *)
+let is_initially_labeled_tuple ty =
+  match ty with
+  | Otyp_tuple ((Some _, _) :: _) -> true
+  | _ -> false
+
 let rec print_out_type_0 mode ppf =
   function
   | Otyp_alias {non_gen; aliased; alias } ->
@@ -412,10 +460,18 @@ let rec print_out_type_0 mode ppf =
   | ty ->
       print_out_type_1 mode ppf ty
 
-and print_out_type_mode mode ppf ty =
+(* We must parenthesize a labeled tuple with the first element labeled when:
+   - It is an argument to a function ([~arg])
+   - Or, there is at least one mode to print.
+ *)
+and print_out_type_mode ~arg mode ppf ty =
   let is_local = is_local mode in
   let is_unique = is_unique mode in
   let is_once = is_once mode in
+  let parens =
+    is_initially_labeled_tuple ty
+    && (arg || is_local || is_unique || is_once)
+  in
   if (not is_local || Language_extension.is_enabled Local) &&
      (not is_unique || Language_extension.is_enabled Unique) &&
      (not is_once || Language_extension.is_enabled Unique)
@@ -430,7 +486,11 @@ and print_out_type_mode mode ppf ty =
     if is_once then begin
       pp_print_string ppf "once_";
       pp_print_space ppf () end;
-    print_out_type_2 mode ppf ty end
+    if parens then
+      pp_print_char ppf '(';
+    print_out_type_2 mode ppf ty;
+    if parens then
+      pp_print_char ppf ')' end
   else
     (* otherwise we would rather print everything in attributes
        even if extensions are enabled *)
@@ -454,10 +514,10 @@ and print_out_type_1 mode ppf =
       in
       print_out_ret mode rm ppf ty2;
       pp_close_box ppf ()
-  | ty -> print_out_type_mode mode ppf ty
+  | ty -> print_out_type_mode ~arg:false mode ppf ty
 
 and print_out_arg am ppf ty =
-  print_out_type_mode am ppf ty
+  print_out_type_mode ~arg:true am ppf ty
 
 and print_out_ret mode rm ppf =
   function
@@ -465,13 +525,14 @@ and print_out_ret mode rm ppf =
   | Otyp_arrow _ as ty ->
     if mode_agree mode rm
       then print_out_type_1 rm ppf ty
-      else print_out_type_mode rm ppf ty
-  | ty -> print_out_type_mode rm ppf ty
+      else print_out_type_mode ~arg:false rm ppf ty
+  | ty -> print_out_type_mode ~arg:false rm ppf ty
 
 and print_out_type_2 mode ppf =
   function
-    Otyp_tuple tyl ->
-      fprintf ppf "@[<0>%a@]" (print_typlist print_simple_out_type " *") tyl
+  | Otyp_tuple tyl ->
+      fprintf
+        ppf "@[<0>%a@]" (print_labeled_typlist print_simple_out_type " *") tyl
   | ty -> print_out_type_3 mode ppf ty
 and print_out_type_3 mode ppf =
   function
