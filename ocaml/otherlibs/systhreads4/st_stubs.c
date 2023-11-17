@@ -534,7 +534,10 @@ static void caml_thread_reinitialize(void)
 }
 
 /* Installation of hooks for OCaml 5 stdlib compatibility.
-   See runtime4/domain.{c,h}
+   See runtime4/domain.{c,h}.
+   Another approach would have been to use weak symbols, to override
+   dummy implementations in domain.c, but unfortunately that doesn't work
+   with the bytecode interpreter.
  */
 
 value caml_mutex_new(value unit);

@@ -116,9 +116,12 @@ module Bytecode = struct
   let run_shared_startup _ = ()
 
   let with_lock lock f =
-    Mutex.lock lock;
-    Fun.protect f
-      ~finally:(fun () -> Mutex.unlock lock)
+    match lock with
+    | None -> f ()
+    | Some lock ->
+      Mutex.lock lock;
+      Fun.protect f
+        ~finally:(fun () -> Mutex.unlock lock)
 
   let run lock (ic, file_name, file_digest) ~unit_header ~priv =
     let open Misc in
