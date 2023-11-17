@@ -1,8 +1,14 @@
 (* TEST
-  * native
-    reference = "${test_source_directory}/get_header.opt.reference"
-  * bytecode
-    reference = "${test_source_directory}/get_header.byte.reference"
+  * stack-allocation
+    ** native
+      reference = "${test_source_directory}/get_header.opt.local.reference"
+    ** bytecode
+      reference = "${test_source_directory}/get_header.byte.local.reference"
+  * no-stack-allocation
+    ** native
+      reference = "${test_source_directory}/get_header.opt.reference"
+    ** bytecode
+      reference = "${test_source_directory}/get_header.byte.reference"
 *)
 
 external repr : ('a[@local_opt]) -> (Obj.t[@local_opt]) = "%identity"
