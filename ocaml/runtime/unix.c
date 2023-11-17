@@ -43,9 +43,8 @@
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
-#ifdef HAS_POSIX_MONOTONIC_CLOCK
 #include <time.h>
-#elif HAS_MACH_ABSOLUTE_TIME
+#ifdef HAS_MACH_ABSOLUTE_TIME
 #include <mach/mach_time.h>
 #endif
 #ifdef HAS_DIRENT
