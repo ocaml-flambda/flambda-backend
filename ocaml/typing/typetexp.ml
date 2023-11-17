@@ -500,7 +500,8 @@ let transl_type_param_jst env loc attrs path :
        Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot
      in
      transl_type_param_var env loc attrs name jkind (Some jkind_annot)
-  | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _) ->
+  | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _)
+  | Jtyp_tuple (Lttyp_tuple _) ->
     Misc.fatal_error "non-type-variable in transl_type_param_jst"
 
 let transl_type_param env path styp =
@@ -613,10 +614,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   in
   match Jane_syntax.Core_type.of_ast styp with
   | Some (etyp, attrs) ->
-    let desc, typ =
-      transl_type_aux_jst env ~policy ~row_context mode attrs loc etyp
-    in
-    ctyp desc typ
+    transl_type_aux_jst env ~policy ~row_context mode attrs loc etyp
   | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
@@ -691,23 +689,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       loop mode args
   | Ptyp_tuple stl ->
-    assert (List.length stl >= 2);
-    let ctys =
-      List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
+    let desc, typ =
+      transl_type_aux_tuple env ~policy ~row_context
+        (List.map (fun t -> (None, t)) stl)
     in
-    List.iter (fun {ctyp_type; ctyp_loc} ->
-      (* CR layouts v5: remove value requirement *)
-      match
-        constrain_type_jkind
-          env ctyp_type (Jkind.value ~why:Tuple_element)
-      with
-      | Ok _ -> ()
-      | Error e ->
-        raise (Error(ctyp_loc, env,
-                     Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
-      ctys;
-    let ty = newty (Ttuple (List.map (fun ctyp -> ctyp.ctyp_type) ctys)) in
-    ctyp (Ttyp_tuple ctys) ty
+    ctyp desc typ
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
@@ -964,10 +950,17 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_type_aux_jst env ~policy ~row_context mode _attrs loc :
-      Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_layout typ ->
-    transl_type_aux_jst_layout env ~policy ~row_context mode loc typ
+and transl_type_aux_jst env ~policy ~row_context mode attrs loc
+      (jtyp : Jane_syntax.Core_type.t) =
+  let ctyp_desc, ctyp_type =
+    match jtyp with
+    | Jtyp_layout typ ->
+      transl_type_aux_jst_layout env ~policy ~row_context mode loc typ
+    | Jtyp_tuple (Lttyp_tuple x) ->
+      transl_type_aux_tuple env ~policy ~row_context x
+  in
+  { ctyp_desc; ctyp_type; ctyp_env = env; ctyp_loc = loc;
+    ctyp_attributes = attrs }
 
 and transl_type_aux_jst_layout env ~policy ~row_context mode loc :
       Jane_syntax.Layouts.core_type -> _ = function
@@ -1116,6 +1109,29 @@ and transl_type_alias env ~row_context ~policy mode alias_loc styp name_opt
   in
   Ttyp_alias (cty, name_opt, jkind_annot),
   cty.ctyp_type
+
+and transl_type_aux_tuple env ~policy ~row_context stl =
+  assert (List.length stl >= 2);
+  let ctys =
+    List.map
+      (fun (label, t) ->
+         label, transl_type env ~policy ~row_context Alloc.Const.legacy t)
+      stl
+  in
+  List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
+    (* CR layouts v5: remove value requirement *)
+    match
+      constrain_type_jkind env ctyp_type (Jkind.value ~why:Tuple_element)
+    with
+    | Ok _ -> ()
+    | Error e ->
+      raise (Error(ctyp_loc, env,
+                   Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
+    ctys;
+  let ctyp_type =
+    newty (Ttuple (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) ctys))
+  in
+  Ttyp_tuple ctys, ctyp_type
 
 and transl_fields env ~policy ~row_context o fields =
   let hfields = Hashtbl.create 17 in
@@ -1306,7 +1322,8 @@ let transl_type_scheme_jst env styp attrs loc : Jane_syntax.Core_type.t -> _ =
   function
   | Jtyp_layout (Ltyp_poly { bound_vars; inner_type }) ->
     transl_type_scheme_poly env attrs loc (Right bound_vars) inner_type
-  | Jtyp_layout (Ltyp_var _ | Ltyp_alias _) ->
+  | Jtyp_layout (Ltyp_var _ | Ltyp_alias _)
+  | Jtyp_tuple (Lttyp_tuple _) ->
     transl_type_scheme_mono env styp
 
 let transl_type_scheme env styp =

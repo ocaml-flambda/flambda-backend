@@ -121,6 +121,8 @@ end
 module T = struct
   (* Type expressions for the core language *)
 
+  module LT = Jane_syntax.Labeled_tuples
+
   let row_field sub {
       prf_desc;
       prf_loc;
@@ -171,9 +173,14 @@ module T = struct
       let jkind = map_loc_txt sub sub.jkind_annotation jkind in
       Ltyp_alias { aliased_type; name; jkind }
 
+  let map_jst_labeled_tuple sub : LT.core_type -> LT.core_type = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Lttyp_tuple tl -> Lttyp_tuple (List.map (map_snd (sub.typ sub)) tl)
+
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
     | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
+    | Jtyp_tuple x -> Jtyp_tuple (map_jst_labeled_tuple sub x)
 
   let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                  as typ) =
@@ -518,6 +525,7 @@ module E = struct
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
+  module LT = Jane_syntax.Labeled_tuples
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -607,12 +615,17 @@ module E = struct
       let body = map_function_body sub body in
       params, constraint_, body
 
+  let map_ltexp sub : LT.expression -> LT.expression = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Ltexp_tuple el -> Ltexp_tuple (List.map (map_snd (sub.expr sub)) el)
+
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
     | Jexp_n_ary_function x -> Jexp_n_ary_function (map_n_ary_exp sub x)
+    | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -718,6 +731,7 @@ module P = struct
 
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
+  module LT = Jane_syntax.Labeled_tuples
 
   let map_iapat sub : IA.pattern -> IA.pattern = function
     | Iapat_immutable_array elts ->
@@ -729,10 +743,16 @@ module P = struct
     *)
     | Float _ | Integer _ as x -> x
 
+  let map_ltpat sub : LT.pattern -> LT.pattern = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Ltpat_tuple (pl, closed) ->
+      Ltpat_tuple (List.map (map_snd (sub.pat sub)) pl, closed)
+
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
     | Jpat_layout (Lpat_constant x) ->
         Jpat_layout (Lpat_constant (map_unboxed_constant_pat sub x))
+    | Jpat_tuple ltpat -> Jpat_tuple (map_ltpat sub ltpat)
 
   let map sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -1124,11 +1144,16 @@ module PpxContext = struct
     }
 
   let make ~tool_name () =
+    let Load_path.{ visible; hidden } = Load_path.get_paths () in
     let fields =
       [
         lid "tool_name",    make_string tool_name;
-        lid "include_dirs", make_list make_string !Clflags.include_dirs;
-        lid "load_path",    make_list make_string (Load_path.get_paths ());
+        lid "include_dirs", make_list make_string (!Clflags.include_dirs);
+        lid "hidden_include_dirs",
+          make_list make_string (!Clflags.hidden_include_dirs);
+        lid "load_path",
+          make_pair (make_list make_string) (make_list make_string)
+            (visible, hidden);
         lid "open_modules", make_list make_string !Clflags.open_modules;
         lid "for_package",  make_option make_string !Clflags.for_package;
         lid "debug",        make_bool !Clflags.debug;
@@ -1197,6 +1222,8 @@ module PpxContext = struct
           tool_name_ref := get_string payload
       | "include_dirs" ->
           Clflags.include_dirs := get_list get_string payload
+      | "hidden_include_dirs" ->
+          Clflags.hidden_include_dirs := get_list get_string payload
       | "load_path" ->
           (* Duplicates Compmisc.auto_include, since we can't reference Compmisc
              from this module. *)
@@ -1207,7 +1234,10 @@ module PpxContext = struct
               let alert = Location.auto_include_alert in
               Load_path.auto_include_otherlibs alert find_in_dir fn
           in
-          Load_path.init ~auto_include (get_list get_string payload)
+          let visible, hidden =
+            get_pair (get_list get_string) (get_list get_string) payload
+          in
+          Load_path.init ~auto_include ~visible ~hidden
       | "open_modules" ->
           Clflags.open_modules := get_list get_string payload
       | "for_package" ->

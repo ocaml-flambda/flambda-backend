@@ -168,6 +168,7 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
 
 CAMLprim value caml_obj_dup(value arg)
 {
+  if (!Is_block(arg)) return arg;
   return caml_obj_with_tag(Val_long(Tag_val(arg)), arg);
 }
 

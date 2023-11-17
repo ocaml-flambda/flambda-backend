@@ -284,6 +284,7 @@ Caml_inline void* Ptr_val(value val)
    closure to the scannable part of the environment.
    The non-scannable part of the environment lives between the end of the
    last closure and the start of the scannable environment within the block. */
+/* CR ncourant: it might be cleaner to use a packed struct here */
 #ifdef ARCH_SIXTYFOUR
 #define Arity_closinfo(info) ((intnat)(info) >> 56)
 #define Start_env_closinfo(info) (((uintnat)(info) << 9) >> 10)

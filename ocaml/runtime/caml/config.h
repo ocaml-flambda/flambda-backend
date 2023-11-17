@@ -229,7 +229,7 @@ typedef uint64_t uintnat;
 #define Minor_heap_min (Max_young_wosize + 1)
 
 /* Default size of the minor zone. (words)  */
-#define Minor_heap_def 262144
+#define Minor_heap_def 1048576
 
 /* Minimum size increment when growing the heap (words).
    Must be a multiple of [Page_size / sizeof (value)]. */
