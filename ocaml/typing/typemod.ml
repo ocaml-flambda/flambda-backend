@@ -3391,10 +3391,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if !Clflags.cmi_file <> None || Sys.file_exists sourceintf then begin
+          let import = Compilation_unit.name modulename in
           let intf_file =
             match !Clflags.cmi_file with
             | None ->
-              let basename = modulename |> Compilation_unit.name_as_string in
+              let basename = import |> Compilation_unit.Name.to_string in
               (try
                 Load_path.find_uncap (basename ^ ".cmi")
               with Not_found ->
@@ -3402,12 +3403,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
           in
-          let import = Compilation_unit.Name.of_string basename in
           let dclsig =
             Env.read_signature import intf_file ~add_binding:false
-          in
-          let import =
-            Compilation_unit.name modulename
           in
           let arg_type_from_cmi = Env.implemented_parameter import in
           if not (Option.equal Compilation_unit.Name.equal
