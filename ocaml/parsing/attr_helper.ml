@@ -23,7 +23,11 @@ type error =
 exception Error of Location.t * error
 
 let get_no_payload_attribute alt_names attrs =
-  match Builtin_attributes.filter_attributes [alt_names,true] attrs with
+  match
+    Builtin_attributes.filter_attributes
+      (Builtin_attributes.Attributes_filter.create [alt_names,true])
+      attrs
+  with
   | [] -> None
   | [ {attr_name = name; attr_payload = PStr []; attr_loc = _} ] -> Some name
   | [ {attr_name = name; _} ] ->

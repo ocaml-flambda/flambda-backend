@@ -18,11 +18,12 @@ Allows the implementation of typed tree inspection using open recursion
 *)
 
 open Asttypes
-open Jane_asttypes
 open Typedtree
 
 type iterator =
   {
+    attribute: iterator -> attribute -> unit;
+    attributes: iterator -> attributes -> unit;
     binding_op: iterator -> binding_op -> unit;
     case: 'k . iterator -> 'k case -> unit;
     class_declaration: iterator -> class_declaration -> unit;
@@ -37,7 +38,8 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
-    layout_annotation: iterator -> const_layout -> unit;
+    jkind_annotation: iterator -> Jkind.annotation -> unit;
+    location: iterator -> Location.t -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;

@@ -825,6 +825,9 @@ and module_expr i ppf x =
   attributes i ppf x.pmod_attributes;
   let i = i+1 in
   match x.pmod_desc with
+  | Pmod_apply_unit _ ->
+    (* CR xclerc: TODO *)
+    assert false
   | Pmod_ident (li) -> line i ppf "Pmod_ident %a\n" fmt_longident_loc li;
   | Pmod_structure (s) ->
       line i ppf "Pmod_structure\n";

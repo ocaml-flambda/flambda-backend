@@ -136,6 +136,7 @@ let transl_store_label_init ~get_global size f arg =
   assert(!Clflags.native_code);
   let glob = get_global (Loc_unknown : scoped_location) in
   method_cache := Lprim(mod_field ~read_semantics:Reads_vary size,
+                        (* XXX KC: conservative *)
                         [glob],
                         Loc_unknown);
   let expr = f arg in

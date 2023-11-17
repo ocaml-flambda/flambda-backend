@@ -60,8 +60,11 @@ external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
 external with_tag : int -> t -> t = "caml_obj_with_tag"
 
 let first_non_constant_constructor_tag = 0
-let last_non_constant_constructor_tag = 245
+let last_non_constant_constructor_tag = 243
 
+let forcing_tag = 244
+(* Note that cmmgen.ml contains a copy of [cont_tag] of its own *)
+let cont_tag = 245
 let lazy_tag = 246
 let closure_tag = 247
 let object_tag = 248
@@ -75,7 +78,6 @@ let string_tag = 252
 let double_tag = 253
 let double_array_tag = 254
 let custom_tag = 255
-let final_tag = custom_tag
 
 
 let int_tag = 1000
@@ -132,10 +134,6 @@ struct
     (obj (field (repr slot) 1) : int)
 end
 
-let extension_constructor = Extension_constructor.of_val
-let extension_name = Extension_constructor.name
-let extension_id = Extension_constructor.id
-
 module Ephemeron = struct
   type obj_t = t
 
@@ -145,7 +143,7 @@ module Ephemeron = struct
   let additional_values = 2
   let max_ephe_length = Sys.max_array_length - additional_values
 
-  external create : int -> t = "caml_ephe_create";;
+  external create : int -> t = "caml_ephe_create"
   let create l =
     if not (0 <= l && l <= max_ephe_length) then
       invalid_arg "Obj.Ephemeron.create";

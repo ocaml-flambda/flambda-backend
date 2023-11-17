@@ -21,7 +21,7 @@ let report ~name ~text =
 
 let typecheck_with_extension ?(full_name = false) name =
   let success =
-    match Typecore.type_expression (Lazy.force Env.initial_safe_string)
+    match Typecore.type_expression (Lazy.force Env.initial)
             extension_parsed_expression
     with
     | _ -> true

@@ -20,7 +20,6 @@
 
 *)
 
-open Layouts
 open Types
 
 module Signature_names : sig
@@ -70,7 +69,7 @@ val package_units:
 
 (* Should be in Envaux, but it breaks the build of the debugger *)
 val initial_env:
-  loc:Location.t -> safe_string:bool ->
+  loc:Location.t ->
   initially_opened_module:string option ->
   open_implicit_modules:string list -> Env.t
 
@@ -127,8 +126,9 @@ type error =
   | With_changes_module_alias of Longident.t * Ident.t * Path.t
   | With_cannot_remove_constrained_type
   | Repeated_name of Sig_component_kind.t * string
-  | Non_generalizable of type_expr
-  | Non_generalizable_module of module_type
+  | Non_generalizable of { vars : type_expr list; expression : type_expr }
+  | Non_generalizable_module of
+      { vars : type_expr list; item : value_description; mty : module_type }
   | Implementation_is_required of string
   | Interface_not_compiled of string
   | Not_allowed_in_functor_body
@@ -145,7 +145,7 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
-  | Toplevel_nonvalue of string * sort
+  | Toplevel_nonvalue of string * Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter

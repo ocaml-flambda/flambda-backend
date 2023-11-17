@@ -155,15 +155,25 @@ let basic_or_terminator_of_operation :
       (if String.equal (State.get_fun_name state) func.sym_name
       then Tailcall_self { destination = State.get_tailrec_label state }
       else Tailcall_func (Direct func))
-  | Iextcall { func; ty_res; ty_args; alloc; returns } ->
-    let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
+  | Iextcall { func; ty_res; ty_args; alloc; returns; stack_ofs } ->
+    let external_call =
+      { Cfg.func_symbol = func; alloc; ty_res; ty_args; stack_ofs }
+    in
     if returns
     then
       With_next_label
         (fun label_after -> Prim { op = External external_call; label_after })
     else Terminator (Call_no_return external_call)
   | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
-  | Iload (mem, mode, mut) -> Basic (Op (Load (mem, mode, mut)))
+  | Iload { memory_chunk; addressing_mode; mutability; is_atomic } ->
+    Basic
+      (Op
+         (Load
+            { memory_chunk;
+              addressing_mode;
+              mutability = Mach.of_ast_mutable_flag mutability;
+              is_atomic
+            }))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
     With_next_label
@@ -173,6 +183,10 @@ let basic_or_terminator_of_operation :
     With_next_label
       (fun label_after ->
         Prim { op = Checkbound { immediate = None }; label_after })
+  | Iintop (Icheckalign { bytes_pow2 }) ->
+    With_next_label
+      (fun label_after ->
+        Prim { op = Checkalign { bytes_pow2; immediate = None }; label_after })
   | Ipoll { return_label = None } ->
     With_next_label (fun label_after -> Poll_and_jump label_after)
   | Ipoll { return_label = Some return_label } ->
@@ -182,6 +196,10 @@ let basic_or_terminator_of_operation :
     With_next_label
       (fun label_after ->
         Prim { op = Checkbound { immediate = Some i }; label_after })
+  | Iintop_imm (Icheckalign { bytes_pow2 }, i) ->
+    With_next_label
+      (fun label_after ->
+        Prim { op = Checkalign { bytes_pow2; immediate = Some i }; label_after })
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
@@ -230,6 +248,7 @@ let basic_or_terminator_of_operation :
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
   | Ibeginregion -> Basic (Op Begin_region)
   | Iendregion -> Basic (Op End_region)
+  | Idls_get -> Basic (Op Dls_get)
 
 let float_test_of_float_comparison :
     Cmm.float_comparison ->
@@ -694,7 +713,8 @@ module Stack_offset_and_exn = struct
         | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
         | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
         | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ )
+        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
+          )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 

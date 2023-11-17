@@ -37,7 +37,7 @@ type complex32_elt = Complex32_elt
 type complex64_elt = Complex64_elt
 
 type ('a, 'b) kind =
-    Float32 : (float, float32_elt) kind
+  | Float32 : (float, float32_elt) kind
   | Float64 : (float, float64_elt) kind
   | Int8_signed : (int, int8_signed_elt) kind
   | Int8_unsigned : (int, int8_unsigned_elt) kind
@@ -119,11 +119,10 @@ module Genarray = struct
          done
   let init (type t) kind (layout : t layout) dims f =
     let arr = create kind layout dims in
-    match Array.length dims, layout with
-    | 0, _ -> arr
-    | dlen, C_layout -> cloop arr (Array.make dlen 0) f 0 dims; arr
-    | dlen, Fortran_layout -> floop arr (Array.make dlen 1) f (pred dlen) dims;
-                              arr
+    let dlen = Array.length dims in
+    match layout with
+    | C_layout -> cloop arr (Array.make dlen 0) f 0 dims; arr
+    | Fortran_layout -> floop arr (Array.make dlen 1) f (pred dlen) dims; arr
 
   external num_dims: ('a, 'b, 'c) t -> int = "caml_ba_num_dims"
   external nth_dim: ('a, 'b, 'c) t -> int -> int = "caml_ba_dim"

@@ -21,13 +21,6 @@ let is_attr names (attr : attribute) = List.mem attr.attr_name.txt names
 
 (* ______ id replacement mapper ______ *)
 
-let rec replace_id_in_path path to_rep =
-  match path with
-  | Pident _ -> Pident to_rep
-  | Papply (p1, p2) ->
-      Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
-  | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
-
 let replace_id_exp_desc id to_replace =
   {
     Tast_mapper.default with
@@ -47,12 +40,6 @@ let rec path_eq p1 p2 =
   | Pdot (t1, s1), Pdot (t2, s2) -> path_eq t1 t2 && s1 = s2
   | Papply (t11, t12), Papply (t21, t22) -> path_eq t11 t21 && path_eq t12 t22
   | _ -> false
-
-let rec print_path p =
-  match p with
-  | Pident id -> Ident.name id
-  | Pdot (p, s) -> print_path p ^ "." ^ s
-  | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
 
 (** [replace_path path n_path] is a mapper replacing each occurence of the path [path] by [n_path]*)
 let replace_path path n_path =

@@ -578,16 +578,22 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
         else C.Tailcall_func (Direct func_symbol)
       in
       terminator desc
-    | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
+    | Iextcall { func; alloc; ty_args; ty_res; returns = false; stack_ofs } ->
       terminator
-        (C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res })
+        (C.Call_no_return
+           { func_symbol = func; alloc; ty_args; ty_res; stack_ofs })
     | Icall_ind -> terminator_call Indirect
     | Icall_imm { func } -> terminator_call (Direct func)
-    | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
-      terminator_prim (External { func_symbol = func; alloc; ty_args; ty_res })
+    | Iextcall { func; alloc; ty_args; ty_res; returns = true; stack_ofs } ->
+      terminator_prim
+        (External { func_symbol = func; alloc; ty_args; ty_res; stack_ofs })
     | Iintop Icheckbound -> terminator_prim (Checkbound { immediate = None })
     | Iintop_imm (Icheckbound, i) ->
       terminator_prim (Checkbound { immediate = Some i })
+    | Iintop (Icheckalign { bytes_pow2 }) ->
+      terminator_prim (Checkalign { bytes_pow2; immediate = None })
+    | Iintop_imm (Icheckalign { bytes_pow2 }, i) ->
+      terminator_prim (Checkalign { bytes_pow2; immediate = Some i })
     | Ialloc { bytes; dbginfo; mode } ->
       terminator_prim (Alloc { bytes; dbginfo; mode })
     | Iprobe { name; handler_code_sym; enabled_at_init } ->
@@ -616,7 +622,14 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Ivalueofint -> basic Valueofint
     | Iintofvalue -> basic Intofvalue
     | Iprobe_is_enabled { name } -> basic (Probe_is_enabled { name })
-    | Iload (c, a, m) -> basic (Load (c, a, m))
+    | Iload { memory_chunk; addressing_mode; mutability; is_atomic } ->
+      basic
+        (Load
+           { memory_chunk;
+             addressing_mode;
+             mutability = Mach.of_ast_mutable_flag mutability;
+             is_atomic
+           })
     | Istore (c, a, b) -> basic (Store (c, a, b))
     | Imove -> basic Move
     | Ispill -> basic Spill
@@ -644,6 +657,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       basic
         (Name_for_debugger
            { ident; which_parameter; provenance; is_assignment; regs })
+    | Idls_get -> basic Dls_get
     | Ispecific op ->
       if Arch.operation_can_raise op
       then

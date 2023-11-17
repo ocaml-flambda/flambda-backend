@@ -1,5 +1,9 @@
 name: build
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -17,11 +21,6 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: closure_cfg
-            config: --enable-middle-end=closure --enable-poll-insertion
-            os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=1
-
           - name: flambda1
             config: --enable-middle-end=flambda
             os: ubuntu-latest
@@ -32,10 +31,10 @@ jobs:
             os: ubuntu-latest
             build_ocamlparam: ''
 
-          - name: flambda1_cfg
-            config: --enable-middle-end=flambda --enable-poll-insertion
+          - name: flambda2_runtime5
+            config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=1
+            expected_fail: true
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
@@ -64,10 +63,10 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
-          - name: flambda2_cfg
+          - name: flambda2_no_cfg
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=1
+            build_ocamlparam: _,ocamlcfg=0
 
           - name: flambda2_macos
             config: --enable-middle-end=flambda2
@@ -95,11 +94,17 @@ jobs:
             config: --enable-middle-end=closure
             os: ubuntu-20.04
 
+          - name: build_upstream_closure_runtime5
+            config: --enable-middle-end=closure --enable-runtime5
+            os: ubuntu-20.04
+            expected_fail: true
+
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
       build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
+      expected_fail: "${{matrix.expected_fail == true}}"
 
     steps:
     - name: Checkout the Flambda backend repo
@@ -112,15 +117,17 @@ jobs:
       run: sudo apt-get install afl++
 
     - name: Install AFL (for macOS workers)
+      # The "afl-fuzz" package is deprecated (2023-10) and can no longer be installed
       if: matrix.os == 'macos-latest'
-      run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
+      run: true
+      # run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
 
-    - name: Cache OCaml 4.14 and dune
+    - name: Cache OCaml 4.14, dune and menhir
       uses: actions/cache@v2
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-361
+        key: ${{ matrix.os }}-cache-ocaml-414-dune-361-menhir-20210419
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
@@ -155,6 +162,29 @@ jobs:
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make release
         cp _boot/dune.exe $GITHUB_WORKSPACE/ocaml-414/_install/bin/dune
 
+    # CR mshinwell: This should use git@gitlab.inria.fr:fpottier/menhir.git
+    - name: Checkout menhir github repo
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'LexiFi/menhir'
+        ref: '20210419'
+        path: 'menhir'
+
+    - name: Build menhir
+      working-directory: menhir
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH dune build
+        cp _build/install/default/bin/menhir $GITHUB_WORKSPACE/ocaml-414/_install/bin/menhir
+        # Our dune rule uses `menhirLib.mli`, which we can't simply `cp`
+        # because it's a symbolic link to a relative path.
+        export SOURCE_DIR=_build/install/default/lib/menhirLib
+        export TARGET_DIR=$GITHUB_WORKSPACE/ocaml-414/_install/lib/menhirLib
+        mkdir -p $TARGET_DIR
+        cat $SOURCE_DIR/menhirLib.mli > $TARGET_DIR/menhirLib.mli
+        cat $SOURCE_DIR/menhirLib.ml > $TARGET_DIR/menhirLib.ml
+
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
@@ -181,7 +211,13 @@ jobs:
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
-        if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
+        if [ $build_upstream = true ]; then \
+          make -j$J build_and_test_upstream \
+            || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi); \
+        else \
+          make $target \
+            || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi); \
+        fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.build_ocamlparam }}
         OCAMLPARAM: ${{ matrix.ocamlparam }}

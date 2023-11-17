@@ -46,8 +46,8 @@ type iterator = {
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
+  jkind_annotation:iterator -> Jane_asttypes.const_jkind -> unit;
   label_declaration: iterator -> label_declaration -> unit;
-  layout_annotation:iterator -> Jane_asttypes.const_layout -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
   module_declaration: iterator -> module_declaration -> unit;
@@ -98,6 +98,8 @@ let iter_loc_txt sub f { loc; txt } =
 module T = struct
   (* Type expressions for the core language *)
 
+  module LT = Jane_syntax.Labeled_tuples
+
   let row_field sub {
       prf_desc;
       prf_loc;
@@ -120,25 +122,29 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let layout_annotation sub =
-    iter_loc_txt sub sub.layout_annotation
+  let jkind_annotation sub =
+    iter_loc_txt sub sub.jkind_annotation
 
-  let bound_var sub (_, layout) = match layout with
+  let bound_var sub (_, jkind) = match jkind with
     | None -> ()
-    | Some annot -> layout_annotation sub annot
+    | Some annot -> jkind_annotation sub annot
 
   let iter_jst_layout sub : Jane_syntax.Layouts.core_type -> _ = function
-    | Ltyp_var { name = _; layout } ->
-      iter_loc_txt sub sub.layout_annotation layout
+    | Ltyp_var { name = _; jkind } ->
+      iter_loc_txt sub sub.jkind_annotation jkind
     | Ltyp_poly { bound_vars; inner_type } ->
       List.iter (bound_var sub) bound_vars;
       sub.typ sub inner_type
-    | Ltyp_alias { aliased_type; name = _; layout } ->
+    | Ltyp_alias { aliased_type; name = _; jkind } ->
       sub.typ sub aliased_type;
-      iter_loc_txt sub sub.layout_annotation layout
+      iter_loc_txt sub sub.jkind_annotation jkind
+
+  let iter_jst_labeled_tuple sub : LT.core_type -> _ = function
+    | Lttyp_tuple tl -> List.iter (iter_snd (sub.typ sub)) tl
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
     | Jtyp_layout typ -> iter_jst_layout sub typ
+    | Jtyp_tuple lt_typ -> iter_jst_labeled_tuple sub lt_typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
@@ -384,7 +390,10 @@ module M = struct
         iter_functor_param sub param;
         sub.module_expr sub body
     | Pmod_apply (m1, m2) ->
-        sub.module_expr sub m1; sub.module_expr sub m2
+        sub.module_expr sub m1;
+        sub.module_expr sub m2
+    | Pmod_apply_unit m1 ->
+        sub.module_expr sub m1
     | Pmod_constraint (m, mty) ->
         sub.module_expr sub m; sub.module_type sub mty
     | Pmod_unpack e -> sub.expr sub e
@@ -435,6 +444,7 @@ module E = struct
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
+  module LT = Jane_syntax.Labeled_tuples
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -468,8 +478,8 @@ module E = struct
 
   let iter_layout_exp sub : L.expression -> _ = function
     | Lexp_constant _ -> iter_constant
-    | Lexp_newtype (_str, layout, inner_expr) ->
-      iter_loc_txt sub sub.layout_annotation layout;
+    | Lexp_newtype (_str, jkind, inner_expr) ->
+      iter_loc_txt sub sub.jkind_annotation jkind;
       sub.expr sub inner_expr
 
   let iter_function_param sub : N_ary.function_param -> _ =
@@ -479,9 +489,9 @@ module E = struct
       | Pparam_val (_label, def, pat) ->
           iter_opt (sub.expr sub) def;
           sub.pat sub pat
-      | Pparam_newtype (newtype, layout) ->
+      | Pparam_newtype (newtype, jkind) ->
           iter_loc sub newtype;
-          iter_opt (iter_loc_txt sub sub.layout_annotation) layout
+          iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
 
   let iter_function_constraint sub : N_ary.function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any
@@ -508,11 +518,15 @@ module E = struct
       Option.iter (iter_function_constraint sub) constraint_;
       iter_function_body sub body
 
+  let iter_labeled_tuple sub : LT.expression -> _ = function
+    | Ltexp_tuple el -> List.iter (iter_snd (sub.expr sub)) el
+
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
     | Jexp_n_ary_function n_ary_exp -> iter_n_ary_function sub n_ary_exp
+    | Jexp_tuple lt_exp -> iter_labeled_tuple sub lt_exp
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
@@ -608,14 +622,20 @@ module P = struct
   (* Patterns *)
 
   module IA = Jane_syntax.Immutable_arrays
+  module LT = Jane_syntax.Labeled_tuples
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
+  let iter_labeled_tuple sub : LT.pattern -> _ = function
+    | Ltpat_tuple (pl, _) ->
+      List.iter (iter_snd (sub.pat sub)) pl
+
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_layout (Lpat_constant _) -> iter_constant
+    | Jpat_tuple ltpat -> iter_labeled_tuple sub ltpat
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -829,9 +849,17 @@ let default_iterator =
 
 
     value_binding =
-      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc} ->
+      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint} ->
          this.pat this pvb_pat;
          this.expr this pvb_expr;
+         Option.iter (function
+             | Parsetree.Pvc_constraint {locally_abstract_univars=vars; typ} ->
+                 List.iter (iter_loc this) vars;
+                 this.typ this typ
+             | Pvc_coercion { ground; coercion } ->
+                 Option.iter (this.typ this) ground;
+                 this.typ this coercion;
+           ) pvb_constraint;
          this.location this pvb_loc;
          this.attributes this pvb_attributes
       );
@@ -846,8 +874,8 @@ let default_iterator =
            | None ->
              List.iter (iter_loc this) pcd_vars;
              pcd_attributes
-           | Some (vars_layouts, attrs) ->
-             List.iter (T.bound_var this) vars_layouts;
+           | Some (vars_jkinds, attrs) ->
+             List.iter (T.bound_var this) vars_jkinds;
              attrs
          in
          T.iter_constructor_arguments this pcd_args;
@@ -889,5 +917,5 @@ let default_iterator =
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
 
-    layout_annotation = (fun _this _l -> ());
+    jkind_annotation = (fun _this _l -> ());
   }
