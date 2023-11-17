@@ -1,5 +1,10 @@
 (* TEST
-   * native
+   * stack-allocation
+   ** native
+      reference = "${test_source_directory}/regression_cmm_unboxing.stack.reference"
+   * no-stack-allocation
+   ** native
+      reference = "${test_source_directory}/regression_cmm_unboxing.heap.reference"
 *)
 
 (* Regression test for a bad interaction between Cmm unboxing

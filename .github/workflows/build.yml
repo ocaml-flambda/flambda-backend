@@ -26,6 +26,11 @@ jobs:
             os: ubuntu-latest
             build_ocamlparam: ''
 
+          - name: flambda1_heap
+            config: --enable-middle-end=flambda --disable-stack-allocation
+            os: ubuntu-latest
+            ocamlparam: ''
+
           - name: flambda1_frame_pointers
             config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
