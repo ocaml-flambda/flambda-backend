@@ -88,7 +88,7 @@ let frame_size env =                     (* includes return address *)
        + 8
        + (if fp then 8 else 0))
     in
-    Misc.align sz 16
+    if Config.runtime5 then Misc.align sz 16 else sz
   end else
     env.stack_offset + 8
 

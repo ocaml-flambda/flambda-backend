@@ -686,6 +686,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         *--sp = (value) p;
         *p++ = (value) (pc + pc[i]);
         envofs -= 3;
+        CAMLassert(i <= nfuncs - 1);
         *p++ = Make_closinfo(0, envofs, i == nfuncs - 1);
       }
       pc += nfuncs;

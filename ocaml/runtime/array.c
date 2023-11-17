@@ -605,12 +605,12 @@ CAMLprim value caml_array_concat_local(value al)
 
 CAMLprim value caml_array_sub_local(value al, value a, value b)
 {
-  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+  caml_failwith("Called caml_array_sub_local in runtime5: not implemented.");
 }
 
 CAMLprim value caml_make_local_vect(value i, value a)
 {
-  caml_failwith("Called caml_array_concat_local in runtime5: not implemented.");
+  caml_failwith("Called caml_array_make_local_vect in runtime5: not implemented.");
 }
 
 CAMLprim value caml_array_append_local(value a1, value a2)
@@ -623,7 +623,9 @@ CAMLprim value caml_iarray_of_array(value a)
   return a;
 }
 
+extern value caml_obj_dup(value);
+
 CAMLprim value caml_array_of_iarray(value a)
 {
-  return a;
+  return caml_obj_dup(a);
 }
