@@ -770,6 +770,7 @@ Line 5, characters 9-56:
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 23 [useless-record-with]: all the fields are explicitly listed in this record:
 the 'with' clause is useless.
+
 Line 5, characters 11-12:
 5 |   ignore ({r with x = "hello again"; y = "world again"})
                ^

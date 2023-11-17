@@ -18,7 +18,6 @@
 open Asttypes
 open Primitive
 open Types
-open Layouts
 open Typedtree
 open Typeopt
 open Lambda
@@ -163,10 +162,10 @@ let lookup_primitive loc poly pos p =
     | "%loc_POS" -> Loc Loc_POS
     | "%loc_MODULE" -> Loc Loc_MODULE
     | "%loc_FUNCTION" -> Loc Loc_FUNCTION
-    | "%field0" -> Primitive (Pfield (0, Reads_vary), 1)
-    | "%field1" -> Primitive (Pfield (1, Reads_vary), 1)
-    | "%field0_immut" -> Primitive ((Pfield (0, Reads_agree)), 1)
-    | "%field1_immut" -> Primitive ((Pfield (1, Reads_agree)), 1)
+    | "%field0" -> Primitive (Pfield (0, Pointer, Reads_vary), 1)
+    | "%field1" -> Primitive (Pfield (1, Pointer, Reads_vary), 1)
+    | "%field0_immut" -> Primitive ((Pfield (0, Pointer, Reads_agree)), 1)
+    | "%field1_immut" -> Primitive ((Pfield (1, Pointer, Reads_agree)), 1)
     | "%setfield0" ->
        let mode = get_first_arg_mode () in
        Primitive ((Psetfield(0, Pointer, Assignment mode)), 2)
@@ -187,6 +186,7 @@ let lookup_primitive loc poly pos p =
     | "%ostype_unix" -> Primitive ((Pctconst Ostype_unix), 1)
     | "%ostype_win32" -> Primitive ((Pctconst Ostype_win32), 1)
     | "%ostype_cygwin" -> Primitive ((Pctconst Ostype_cygwin), 1)
+    | "%runtime5" -> Primitive ((Pctconst Runtime5), 1)
     | "%frame_pointers" -> Frame_pointers
     | "%negint" -> Primitive (Pnegint, 1)
     | "%succint" -> Primitive ((Poffsetint 1), 1)
@@ -365,36 +365,68 @@ let lookup_primitive loc poly pos p =
     | "%caml_string_get32u" -> Primitive ((Pstring_load_32(true, mode)), 2)
     | "%caml_string_get64" -> Primitive ((Pstring_load_64(false, mode)), 2)
     | "%caml_string_get64u" -> Primitive ((Pstring_load_64(true, mode)), 2)
+    | "%caml_string_getu128" ->
+      Primitive ((Pstring_load_128 {unsafe = false; mode}), 2)
+    | "%caml_string_getu128u" ->
+      Primitive ((Pstring_load_128 {unsafe = true; mode}), 2)
     | "%caml_string_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_string_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_string_set32" -> Primitive ((Pbytes_set_32(false)), 3)
     | "%caml_string_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
     | "%caml_string_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_string_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
+    | "%caml_string_setu128" ->
+      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
+    | "%caml_string_setu128u" ->
+      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bytes_get16" -> Primitive ((Pbytes_load_16(false)), 2)
     | "%caml_bytes_get16u" -> Primitive ((Pbytes_load_16(true)), 2)
     | "%caml_bytes_get32" -> Primitive ((Pbytes_load_32(false, mode)), 2)
     | "%caml_bytes_get32u" -> Primitive ((Pbytes_load_32(true, mode)), 2)
     | "%caml_bytes_get64" -> Primitive ((Pbytes_load_64(false, mode)), 2)
     | "%caml_bytes_get64u" -> Primitive ((Pbytes_load_64(true, mode)), 2)
+    | "%caml_bytes_getu128" ->
+      Primitive ((Pbytes_load_128 {unsafe = false; mode}), 2)
+    | "%caml_bytes_getu128u" ->
+      Primitive ((Pbytes_load_128 {unsafe = true; mode}), 2)
     | "%caml_bytes_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_bytes_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_bytes_set32" -> Primitive ((Pbytes_set_32(false)), 3)
     | "%caml_bytes_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
     | "%caml_bytes_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_bytes_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
+    | "%caml_bytes_setu128" ->
+      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
+    | "%caml_bytes_setu128u" ->
+      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_bigstring_get16" -> Primitive ((Pbigstring_load_16(false)), 2)
     | "%caml_bigstring_get16u" -> Primitive ((Pbigstring_load_16(true)), 2)
     | "%caml_bigstring_get32" -> Primitive ((Pbigstring_load_32(false, mode)), 2)
     | "%caml_bigstring_get32u" -> Primitive ((Pbigstring_load_32(true, mode)), 2)
     | "%caml_bigstring_get64" -> Primitive ((Pbigstring_load_64(false, mode)), 2)
     | "%caml_bigstring_get64u" -> Primitive ((Pbigstring_load_64(true, mode)), 2)
+    | "%caml_bigstring_getu128" ->
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode}), 2)
+    | "%caml_bigstring_getu128u" ->
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode}), 2)
+    | "%caml_bigstring_geta128" ->
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode}), 2)
+    | "%caml_bigstring_geta128u" ->
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode}), 2)
     | "%caml_bigstring_set16" -> Primitive ((Pbigstring_set_16(false)), 3)
     | "%caml_bigstring_set16u" -> Primitive ((Pbigstring_set_16(true)), 3)
     | "%caml_bigstring_set32" -> Primitive ((Pbigstring_set_32(false)), 3)
     | "%caml_bigstring_set32u" -> Primitive ((Pbigstring_set_32(true)), 3)
     | "%caml_bigstring_set64" -> Primitive ((Pbigstring_set_64(false)), 3)
     | "%caml_bigstring_set64u" -> Primitive ((Pbigstring_set_64(true)), 3)
+    | "%caml_bigstring_setu128" ->
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false}), 3)
+    | "%caml_bigstring_setu128u" ->
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true}), 3)
+    | "%caml_bigstring_seta128" ->
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false}), 3)
+    | "%caml_bigstring_seta128u" ->
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
@@ -419,6 +451,16 @@ let lookup_primitive loc poly pos p =
     | "%unbox_float" -> Primitive(Punbox_float, 1)
     | "%box_float" -> Primitive(Pbox_float mode, 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
+    | "%atomic_load" ->
+        Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
+    | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
+    | "%atomic_cas" -> Primitive (Patomic_cas, 3)
+    | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
+    | "%runstack" -> Primitive (Prunstack, 3)
+    | "%reperform" -> Primitive (Preperform, 3)
+    | "%perform" -> Primitive (Pperform, 1)
+    | "%resume" -> Primitive (Presume, 3)
+    | "%dls_get" -> Primitive (Pdls_get, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -533,6 +575,12 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       | Pointer -> None
       | Immediate -> Some (Primitive (Psetfield(n, Immediate, init), arity))
     end
+  | Primitive (Pfield (n, Pointer, mut), arity), _ ->
+      (* try strength reduction based on the *result type* *)
+      let is_int = match is_function_type env ty with
+        | None -> Pointer
+        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
+      Some (Primitive (Pfield (n, is_int, mut), arity))
   | Primitive (Parraylength t, arity), [p] -> begin
       let array_type = glb_array_type t (array_type_kind env p) in
       if t = array_type then None
@@ -577,13 +625,20 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let shape =
         List.map (fun typ ->
           Lambda.must_be_value (Typeopt.layout env (to_location loc)
-                                  Sort.for_block_element typ))
+                                  Jkind.Sort.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
+    end
+  | Primitive (Patomic_load { immediate_or_pointer = Pointer },
+               arity), _ ->begin
+      let is_int = match is_function_type env ty with
+        | None -> Pointer
+        | Some (_p1, rhs) -> maybe_pointer_type env rhs in
+      Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
     if (has_constant_constructor
@@ -895,7 +950,7 @@ let transl_primitive loc p env ty ~poly_mode path =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort = sort_of_native_repr res_repr in
-      [], Typeopt.layout env (to_location loc) (Sort.of_const res_sort) ty
+      [], Typeopt.layout env (to_location loc) (Jkind.Sort.of_const res_sort) ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
@@ -904,7 +959,7 @@ let transl_primitive loc p env ty ~poly_mode path =
       | Some (arg_ty, ret_ty) ->
           let arg_sort = sort_of_native_repr arg_repr in
           let arg_layout =
-            Typeopt.layout env (to_location loc) (Sort.of_const arg_sort) arg_ty
+            Typeopt.layout env (to_location loc) (Jkind.Sort.of_const arg_sort) arg_ty
           in
           let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
@@ -963,10 +1018,12 @@ let lambda_primitive_needs_event_after = function
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
   | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
-  | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _ | Pbytes_load_32 _
-  | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-  | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+  | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
+  | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _
+  | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
+  | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Prunstack | Pperform | Preperform | Presume
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
   | Pbytes_to_string | Pbytes_of_string
@@ -986,7 +1043,9 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
+  | Pdls_get
   | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

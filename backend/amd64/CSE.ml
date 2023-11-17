@@ -33,10 +33,9 @@ method! class_of_operation op =
     | Istore_int(_, _, is_asg) -> Op_store is_asg
     | Ioffset_loc(_, _) -> Op_store true
     | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load Mutable
-    | Ibswap _ | Isqrtf -> super#class_of_operation op
+    | Ibswap _ -> super#class_of_operation op
     | Irdtsc | Irdpmc
     | Ilfence | Isfence | Imfence -> Op_other
-    | Ifloat_iround | Ifloat_min | Ifloat_max | Ifloat_round _ -> Op_pure
     | Isimd op ->
       begin match Simd.class_of_operation op with
       | Pure -> Op_pure
@@ -53,7 +52,7 @@ method! class_of_operation op =
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _ | Iintop_atomic _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Ipoll _
+  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
     -> super#class_of_operation op
 
 end

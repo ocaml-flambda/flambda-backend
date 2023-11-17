@@ -25,20 +25,17 @@
 
 *)
 
-open Asttypes
-
 type global_flag =
   | Global
   | Nothing
 
-(* constant layouts are parsed as layout annotations, and also used
-   in the type checker as already-inferred (i.e. non-variable) layouts *)
-type const_layout =
-  | Any
-  | Value
-  | Void
-  | Immediate64
-  | Immediate
-  | Float64
+(** [const_jkind] is private to limit confusion with type variables, which
+    are also strings in the parser.
+*)
+type const_jkind
 
-type layout_annotation = const_layout loc
+val jkind_of_string : string -> const_jkind
+
+val jkind_to_string : const_jkind -> string
+
+type jkind_annotation = const_jkind Location.loc

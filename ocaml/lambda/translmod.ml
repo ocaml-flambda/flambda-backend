@@ -18,7 +18,6 @@
 
 open Misc
 open Asttypes
-open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -39,7 +38,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of type_expr * Layout.Violation.t
+| Non_value_jkind of type_expr * Jkind.sort
 
 exception Error of Location.t * error
 
@@ -55,14 +54,8 @@ exception Error of Location.t * error
    When this sanity check is removed, consider whether it must be replaced with
    some defaulting. *)
 let sort_must_not_be_void loc ty sort =
-  if Sort.is_void_defaulting sort then
-    let violation =
-      Layout.(Violation.of_
-                (Not_a_sublayout
-                   (Layout.of_sort ~why:V1_safety_check sort,
-                    value ~why:V1_safety_check)))
-    in
-    raise (Error (loc, Non_value_layout (ty, violation)))
+  if Jkind.Sort.is_void_defaulting sort then
+    raise (Error (loc, Non_value_jkind (ty, sort)))
 
 let cons_opt x_opt xs =
   match x_opt with
@@ -190,15 +183,17 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
   (*Format.eprintf "%a@." Printlambda.lambda lam;
   Ident.Set.iter (fun id -> Format.eprintf "%a " Ident.print id) fv;
   Format.eprintf "@.";*)
-  let (lam,s) =
-    List.fold_left (fun (lam, s) (id',pos,c) ->
+  let (lam, _fv, s) =
+    List.fold_left (fun (lam, fv, s) (id',pos,c) ->
       if Ident.Set.mem id' fv then
         let id'' = Ident.create_local (Ident.name id') in
-        (Llet(Alias, Lambda.layout_module_field, id'',
-             apply_coercion loc Alias c (get_field pos),lam),
+        let rhs = apply_coercion loc Alias c (get_field pos) in
+        let fv_rhs = free_variables rhs in
+        (Llet(Alias, Lambda.layout_module_field, id'', rhs, lam),
+         Ident.Set.union fv fv_rhs,
          Ident.Map.add id' id'' s)
-      else (lam, s))
-      (lam, Ident.Map.empty) id_pos_list
+      else (lam, fv, s))
+      (lam, fv, Ident.Map.empty) id_pos_list
   in
   if s == Ident.Map.empty then lam else Lambda.rename s lam
 
@@ -215,7 +210,10 @@ let rec compose_coercions c1 c2 =
       let v2 = Array.of_list pc2 in
       let ids1 =
         List.map (fun (id,pos1,c1) ->
-          let (pos2,c2) = v2.(pos1) in (id, pos2, compose_coercions c1 c2))
+            if pos1 < 0 then (id, pos1, c1)
+            else
+              let (pos2,c2) = v2.(pos1) in
+              (id, pos2, compose_coercions c1 c2))
           ids1
       in
       Tcoerce_structure
@@ -612,27 +610,33 @@ and transl_module ~scopes cc rootpath mexp =
       oo_wrap mexp.mod_env true (fun () ->
         compile_functor ~scopes mexp cc rootpath loc) ()
   | Tmod_apply(funct, arg, ccarg) ->
-      let inlined_attribute =
-        Translattribute.get_inlined_attribute_on_module funct
-      in
-      oo_wrap mexp.mod_env true
-        (apply_coercion loc Strict cc)
-        (Lapply{
-           ap_loc=loc;
-           ap_func=transl_module ~scopes Tcoerce_none None funct;
-           ap_args=[transl_module ~scopes ccarg None arg];
-           ap_result_layout = Lambda.layout_module;
-           ap_region_close=Rc_normal;
-           ap_mode=alloc_heap;
-           ap_tailcall=Default_tailcall;
-           ap_inlined=inlined_attribute;
-           ap_specialised=Default_specialise;
-           ap_probe=None;})
+      let translated_arg = transl_module ~scopes ccarg None arg in
+      transl_apply ~scopes ~loc ~cc mexp.mod_env funct translated_arg
+  | Tmod_apply_unit funct ->
+      transl_apply ~scopes ~loc ~cc mexp.mod_env funct lambda_unit
   | Tmod_constraint(arg, _, _, ccarg) ->
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
       apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Sort.for_module arg)
+        (Translcore.transl_exp ~scopes Jkind.Sort.for_module arg)
+
+and transl_apply ~scopes ~loc ~cc mod_env funct translated_arg =
+  let inlined_attribute =
+    Translattribute.get_inlined_attribute_on_module funct
+  in
+  oo_wrap mod_env true
+    (apply_coercion loc Strict cc)
+    (Lapply{
+       ap_loc=loc;
+       ap_func=transl_module ~scopes Tcoerce_none None funct;
+       ap_args=[translated_arg];
+       ap_result_layout = Lambda.layout_module;
+       ap_region_close=Rc_normal;
+       ap_mode=alloc_heap;
+       ap_tailcall=Default_tailcall;
+       ap_inlined=inlined_attribute;
+       ap_specialised=Default_specialise;
+       ap_probe=None;})
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items
@@ -1133,10 +1137,10 @@ and all_idents = function
       List.map (fun (ci, _) -> ci.ci_id_class) cl_list @ all_idents rem
     | Tstr_class_type _ -> all_idents rem
 
-    | Tstr_include{incl_type; incl_mod={mod_desc =
-                              ( Tmod_constraint ({mod_desc = Tmod_structure str},
-                                              _, _, _)
-                              | Tmod_structure str ) }} ->
+    | Tstr_include{incl_type;
+                   incl_mod={mod_desc =
+                     ( Tmod_constraint({mod_desc=Tmod_structure str}, _, _, _)
+                     | Tmod_structure str )}} ->
         bound_value_identifiers incl_type
         @ all_idents str.str_items
         @ all_idents rem
@@ -1175,7 +1179,7 @@ let transl_store_subst = ref Ident.Map.empty
 
 let nat_toplevel_name id =
   try match Ident.Map.find id !transl_store_subst with
-    | Lprim(Pfield (pos, _),
+    | Lprim(Pfield (pos, _, _),
             [Lprim(Pgetglobal glob, [], _)], _) -> (glob,pos)
     | _ -> raise Not_found
   with Not_found ->
@@ -1407,6 +1411,7 @@ let transl_store_structure ~scopes get_glob rootpath map prims aliases str =
               | _ -> assert false
             in
             Lsequence(lam, loop ids0 map)
+
         | Tstr_include incl ->
             let ids = bound_value_identifiers incl.incl_type in
             let modl = incl.incl_mod in
@@ -1593,15 +1598,18 @@ let transl_store_paired_module_blocks
     apply_coercion Loc_unknown Strict restr (Lvar primary_id)
   in
   let glob = Lprim(Pgetglobal module_name, [], Loc_unknown) in
-  let set_module_blocks =
-    Lsequence(Lprim(mod_setfield 0, [glob; Lvar primary_id], Loc_unknown),
-              Lprim(mod_setfield 1, [glob; Lvar secondary_id], Loc_unknown))
+  let set_primary_module_block =
+    Lprim(mod_setfield 0, [glob; Lvar primary_id], Loc_unknown)
+  in
+  let set_secondary_module_block =
+    Lprim(mod_setfield 1, [glob; Lvar secondary_id], Loc_unknown)
   in
   let lam =
     Llet(Strict, layout_module, primary_id, init_primary_lam,
-        Lsequence(set_primary_fields,
-                  Llet(Strict, layout_module, secondary_id, secondary_lam,
-                      set_module_blocks)))
+         Lsequence(set_primary_module_block,
+                   Lsequence(set_primary_fields,
+                             Llet(Strict, layout_module, secondary_id, secondary_lam,
+                                  set_secondary_module_block))))
   in
   2, lam
 
@@ -2025,20 +2033,20 @@ let explanation_submsg (id, unsafe_info) =
 
 let report_error loc = function
   | Circular_dependency cycle ->
-      let[@manual.ref "s:recursive-modules"] chapter, section = 10, 2 in
+      let[@manual.ref "s:recursive-modules"] manual_ref = [ 12; 2 ] in
       Location.errorf ~loc ~sub:(List.map explanation_submsg cycle)
         "Cannot safely evaluate the definition of the following cycle@ \
          of recursively-defined modules:@ %a.@ \
-         There are no safe modules in this cycle@ (see manual section %d.%d)."
-        print_cycle cycle chapter section
+         There are no safe modules in this cycle@ %a."
+        print_cycle cycle Misc.print_see_manual manual_ref
   | Conflicting_inline_attributes ->
       Location.errorf "@[Conflicting 'inline' attributes@]"
-  | Non_value_layout (ty, err) ->
+  | Non_value_jkind (ty, sort) ->
       Location.errorf
-        "Non-value detected in [translmod]:@ Please report this error to \
-         the Jane Street compilers team.@ %a"
-        (Layout.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+        "Non-value sort %a detected in [translmod] in type %a:@ \
+         Please report this error to the Jane Street compilers team."
+        Jkind.Sort.format sort
+        Printtyp.type_expr ty
 
 let () =
   Location.register_error_of_exn

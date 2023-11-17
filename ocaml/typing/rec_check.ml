@@ -27,7 +27,7 @@ but some other are meaningless
 {[
   let rec x = x
   let rec x = x+1
-|}
+]}
 
 Intuitively, a recursive definition makes sense when the body of the
 definition can be evaluated without fully knowing what the recursive
@@ -254,7 +254,7 @@ let classify_expression : Typedtree.expression -> sd =
             *)
             Dynamic
         end
-    | Path.Pdot _ | Path.Papply _ ->
+    | Path.Pdot _ | Path.Papply _ | Path.Pextra_ty _ ->
         (* local modules could have such paths to local definitions;
             classify_expression could be extend to compute module
             shapes more precisely *)
@@ -606,7 +606,7 @@ let rec expression : Typedtree.expression -> term_judg =
         in
         join [expression e; list arg args] << app_mode
     | Texp_tuple (exprs, _) ->
-      list expression exprs << Guard
+      list expression (List.map snd exprs) << Guard
     | Texp_array (_, exprs, _) ->
       list expression exprs << array_mode exp
     | Texp_list_comprehension { comp_body; comp_clauses } ->
@@ -709,7 +709,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression wh_cond << Dereference;
         expression wh_body << Guard;
       ]
-    | Texp_send (e1, _, _, _) ->
+    | Texp_send (e1, _, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)
@@ -741,7 +741,7 @@ let rec expression : Typedtree.expression -> term_judg =
          G |- let exception A in e: m
       *)
       remove_id ext_id (expression e)
-    | Texp_assert e ->
+    | Texp_assert (e, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------
@@ -896,6 +896,8 @@ and modexp : Typedtree.module_expr -> term_judg =
         modexp f << Dereference;
         modexp p << Dereference;
       ]
+    | Tmod_apply_unit f ->
+      modexp f << Dereference
     | Tmod_constraint (mexp, _, _, coe) ->
       let rec coercion coe k = match coe with
         | Tcoerce_none ->
@@ -945,6 +947,8 @@ and path : Path.t -> term_judg =
           path f << Dereference;
           path p << Dereference;
         ]
+    | Path.Pextra_ty (p, _extra) ->
+        path p
 
 (* G |- struct ... end : m *)
 and structure : Typedtree.structure -> term_judg =

@@ -1,7 +1,12 @@
 (* TEST
+   * flambda2
    flags = "-extension layouts_beta"
-   * native
+   ** native
 *)
+
+(* mshinwell: This test is now only run with flambda2, as the corresponding
+   ocamltest predicate is reliable for testing whether this is an
+   flambda-backend build. *)
 
 (* A test comparing allocations with unboxed floats to allocations with boxed
    floats. *)

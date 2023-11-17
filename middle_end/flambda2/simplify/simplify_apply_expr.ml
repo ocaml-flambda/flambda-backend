@@ -53,24 +53,27 @@ let loopify_decision_for_call dacc apply =
   match DE.closure_info denv with
   | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
     Loopify_state.do_not_loopify
-  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
+  | Closure { return_continuation; exn_continuation; my_closure; _ } -> (
     let tenv = DE.typing_env denv in
     let[@inline always] canon simple =
       Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
     in
-    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
-       && (match Apply.continuation apply with
-          | Never_returns ->
-            (* If we never return, then this call is a tail-call *)
-            true
-          | Return apply_return_continuation ->
-            Continuation.equal apply_return_continuation return_continuation)
-       && Exn_continuation.equal
-            (Apply.exn_continuation apply)
-            (Exn_continuation.create ~exn_handler:exn_continuation
-               ~extra_args:[])
-    then DE.loopify_state denv
-    else Loopify_state.do_not_loopify
+    match Apply.callee apply with
+    | None -> Loopify_state.do_not_loopify
+    | Some callee ->
+      if Simple.equal (canon (Simple.var my_closure)) (canon callee)
+         && (match Apply.continuation apply with
+            | Never_returns ->
+              (* If we never return, then this call is a tail-call *)
+              true
+            | Return apply_return_continuation ->
+              Continuation.equal apply_return_continuation return_continuation)
+         && Exn_continuation.equal
+              (Apply.exn_continuation apply)
+              (Exn_continuation.create ~exn_handler:exn_continuation
+                 ~extra_args:[])
+      then DE.loopify_state denv
+      else Loopify_state.do_not_loopify)
 
 let simplify_self_tail_call dacc apply self_cont ~down_to_up =
   Simplify_apply_cont_expr.simplify_apply_cont dacc
@@ -152,7 +155,8 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
   simplify_expr dacc expr ~down_to_up
 
 let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
-    ~result_arity ~coming_from_indirect uacc ~after_rebuild =
+    ~result_arity ~coming_from_indirect ~callee's_code_metadata:_ uacc
+    ~after_rebuild =
   let uacc =
     if coming_from_indirect
     then
@@ -164,6 +168,17 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
   in
+  let erase_callee = false in
+  (* CR ncourant: find out how we can erase the callee in simplify mode and
+     still update to newer code pointers after resimplification. *)
+  (* let erase_callee =
+   *   match Apply.callee apply with
+   *   | None -> false
+   *   | Some callee ->
+   *     Simple.is_symbol callee
+   *     && not (Code_metadata.is_my_closure_used callee's_code_metadata)
+   * in *)
+  let apply = if erase_callee then Apply.erase_callee apply else apply in
   let uacc, expr =
     match use_id with
     | None ->
@@ -181,36 +196,43 @@ type inlining_decision =
   | Do_not_inline of { erase_attribute : bool }
   | Inline of DA.t * Expr.t
 
+(* CR vlaviron: fetch [params_arity], [result_arity] and [result_types] from
+   [callee's_code_metadata] to prevent using the wrong one by mistake *)
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
     ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
-    let decision =
-      Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
-        ~function_type ~return_arity:result_arity
-    in
-    let unrolling_depth =
-      Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
-        (Call_site_inlining_decision.get_rec_info dacc ~function_type)
-    in
-    if Are_rebuilding_terms.are_rebuilding
-         (DE.are_rebuilding_terms (DA.denv dacc))
-    then
-      Inlining_report.record_decision_at_call_site_for_known_function
-        ~pass:Inlining_report.Pass.Before_simplify ~unrolling_depth
-        ~callee:(Code_metadata.absolute_history callee's_code_metadata)
-        ~tracker:(DE.inlining_history_tracker (DA.denv dacc))
-        ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
-        ~apply decision;
-    match Call_site_inlining_decision_type.can_inline decision with
-    | Do_not_inline { erase_attribute_if_ignored } ->
-      Do_not_inline { erase_attribute = erase_attribute_if_ignored }
-    | Inline { unroll_to; was_inline_always } ->
-      let dacc, inlined =
-        Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
-          function_type
+    match function_type with
+    | None ->
+      (* No rec info available, prevent inlining to avoid problems *)
+      Do_not_inline { erase_attribute = false }
+    | Some function_type -> (
+      let decision =
+        Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
+          ~function_type ~return_arity:result_arity
       in
-      Inline (dacc, inlined)
+      let unrolling_depth =
+        Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
+          (Call_site_inlining_decision.get_rec_info dacc ~function_type)
+      in
+      if Are_rebuilding_terms.are_rebuilding
+           (DE.are_rebuilding_terms (DA.denv dacc))
+      then
+        Inlining_report.record_decision_at_call_site_for_known_function
+          ~pass:Inlining_report.Pass.Before_simplify ~unrolling_depth
+          ~callee:(Code_metadata.absolute_history callee's_code_metadata)
+          ~tracker:(DE.inlining_history_tracker (DA.denv dacc))
+          ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
+          ~apply decision;
+      match Call_site_inlining_decision_type.can_inline decision with
+      | Do_not_inline { erase_attribute_if_ignored } ->
+        Do_not_inline { erase_attribute = erase_attribute_if_ignored }
+      | Inline { unroll_to; was_inline_always } ->
+        let dacc, inlined =
+          Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
+            function_type
+        in
+        Inline (dacc, inlined))
   in
   match inlined with
   | Inline (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
@@ -326,7 +348,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       down_to_up dacc
         ~rebuild:
           (rebuild_non_inlined_direct_full_application apply ~use_id
-             ~exn_cont_use_id ~result_arity ~coming_from_indirect))
+             ~exn_cont_use_id ~result_arity ~coming_from_indirect
+             ~callee's_code_metadata))
 
 (* CR mshinwell: need to work out what to do for local alloc transformations
    when there are zero args. *)
@@ -493,10 +516,16 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           In_closure { var; value; value_slot = mk_value_slot kind })
     in
     let applied_callee =
-      applied_value (Apply.callee apply, K.With_subkind.any_value)
+      match Apply.callee apply with
+      | None -> None
+      | Some callee -> Some (applied_value (callee, K.With_subkind.any_value))
     in
     let applied_unarized_args = List.map applied_value applied_unarized_args in
-    let applied_values = applied_callee :: applied_unarized_args in
+    let applied_values =
+      match applied_callee with
+      | None -> applied_unarized_args
+      | Some applied_callee -> applied_callee :: applied_unarized_args
+    in
     let my_closure = Variable.create "my_closure" in
     let my_region = Variable.create "my_region" in
     let my_depth = Variable.create "my_depth" in
@@ -511,7 +540,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         | Symbol symbol -> Simple.symbol symbol
         | In_closure { var; _ } -> Simple.var var
       in
-      let callee = arg applied_callee in
+      let callee = Option.map arg applied_callee in
       let args =
         List.map arg applied_unarized_args
         @ Bound_parameters.simples remaining_params
@@ -768,9 +797,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
             \     (expected %a, found  %a):@ %a" Flambda_arity.print
             result_arity Flambda_arity.print result_arity_of_application
             Apply.print apply;
-        simplify_direct_full_application ~simplify_expr dacc apply function_decl
-          ~params_arity ~result_arity ~result_types ~down_to_up
-          ~coming_from_indirect ~callee's_code_metadata)
+        simplify_direct_full_application ~simplify_expr dacc apply
+          (Some function_decl) ~params_arity ~result_arity ~result_types
+          ~down_to_up ~coming_from_indirect ~callee's_code_metadata)
       else if provided_num_args > num_params
       then (
         (* See comment above. *)
@@ -910,49 +939,70 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   (* CR-someday mshinwell: Should this be using [meet_shape], like for
      primitives? *)
   let denv = DA.denv dacc in
-  match T.meet_single_closures_entry (DE.typing_env denv) callee_ty with
-  | Known_result
-      ( callee's_function_slot,
-        closure_alloc_mode_from_type,
-        _closures_entry,
-        func_decl_type ) ->
-    let callee's_code_id_from_call_kind =
-      match call with
-      | Direct code_id -> Some code_id
-      | Indirect_unknown_arity | Indirect_known_arity -> None
-    in
-    let callee's_code_id_from_type = T.Function_type.code_id func_decl_type in
-    let callee's_code_or_metadata =
-      DE.find_code_exn denv callee's_code_id_from_type
-    in
-    let callee's_code_metadata =
-      Code_or_metadata.code_metadata callee's_code_or_metadata
-    in
-    let must_be_detupled =
-      call_must_be_detupled (Code_metadata.is_tupled callee's_code_metadata)
-    in
-    let current_region = Apply.region apply in
-    simplify_direct_function_call ~simplify_expr dacc apply
-      ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-      ~callee's_function_slot
-      ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
-      ~result_types:(Code_metadata.result_types callee's_code_metadata)
-      ~recursive:(Code_metadata.recursive callee's_code_metadata)
-      ~must_be_detupled ~closure_alloc_mode_from_type ~current_region
-      ~apply_alloc_mode func_decl_type ~down_to_up
-  | Need_meet -> type_unavailable ()
-  | Invalid ->
-    let rebuild uacc ~after_rebuild =
-      let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
-      EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
-    in
-    down_to_up dacc ~rebuild
+  match callee_ty with
+  | None -> (
+    match call with
+    | Direct callee's_code_id ->
+      let callee's_code_or_metadata = DE.find_code_exn denv callee's_code_id in
+      let callee's_code_metadata =
+        Code_or_metadata.code_metadata callee's_code_or_metadata
+      in
+      simplify_direct_full_application ~simplify_expr dacc apply None
+        ~params_arity:(Code_metadata.params_arity callee's_code_metadata)
+        ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
+        ~result_types:(Code_metadata.result_types callee's_code_metadata)
+        ~down_to_up ~coming_from_indirect:false ~callee's_code_metadata
+    | Indirect_known_arity | Indirect_unknown_arity ->
+      Misc.fatal_errorf
+        "No callee provided for non-direct OCaml function call:@ %a" Apply.print
+        apply)
+  | Some callee_ty -> (
+    match T.meet_single_closures_entry (DE.typing_env denv) callee_ty with
+    | Known_result
+        ( callee's_function_slot,
+          closure_alloc_mode_from_type,
+          _closures_entry,
+          func_decl_type ) ->
+      let callee's_code_id_from_call_kind =
+        match call with
+        | Direct code_id -> Some code_id
+        | Indirect_unknown_arity | Indirect_known_arity -> None
+      in
+      let callee's_code_id_from_type = T.Function_type.code_id func_decl_type in
+      let callee's_code_or_metadata =
+        DE.find_code_exn denv callee's_code_id_from_type
+      in
+      let callee's_code_metadata =
+        Code_or_metadata.code_metadata callee's_code_or_metadata
+      in
+      let must_be_detupled =
+        call_must_be_detupled (Code_metadata.is_tupled callee's_code_metadata)
+      in
+      let current_region = Apply.region apply in
+      simplify_direct_function_call ~simplify_expr dacc apply
+        ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
+        ~callee's_function_slot
+        ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
+        ~result_types:(Code_metadata.result_types callee's_code_metadata)
+        ~recursive:(Code_metadata.recursive callee's_code_metadata)
+        ~must_be_detupled ~closure_alloc_mode_from_type ~current_region
+        ~apply_alloc_mode func_decl_type ~down_to_up
+    | Need_meet -> type_unavailable ()
+    | Invalid ->
+      let rebuild uacc ~after_rebuild =
+        let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
+        EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
+      in
+      down_to_up dacc ~rebuild)
 
 let simplify_apply_shared dacc apply =
-  let callee_ty =
-    S.simplify_simple dacc (Apply.callee apply) ~min_name_mode:NM.normal
+  let simplified_callee, callee_ty =
+    match Apply.callee apply with
+    | None -> None, None
+    | Some callee ->
+      let callee_ty = S.simplify_simple dacc callee ~min_name_mode:NM.normal in
+      Some (T.get_alias_exn callee_ty), Some callee_ty
   in
-  let simplified_callee = T.get_alias_exn callee_ty in
   let { S.simples = args; simple_tys = arg_types } =
     S.simplify_simples dacc (Apply.args apply)
   in
@@ -1148,6 +1198,19 @@ let simplify_apply ~simplify_expr dacc apply ~down_to_up =
     simplify_function_call ~simplify_expr dacc apply ~callee_ty function_call
       ~apply_alloc_mode ~down_to_up
   | Method { kind; obj; alloc_mode = _ } ->
+    let callee_ty =
+      match callee_ty with
+      | Some callee_ty -> callee_ty
+      | None ->
+        Misc.fatal_errorf "No callee provided for method call:@ %a" Apply.print
+          apply
+    in
     simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types ~down_to_up
   | C_call { alloc = _; is_c_builtin = _ } ->
+    let callee_ty =
+      match callee_ty with
+      | Some callee_ty -> callee_ty
+      | None ->
+        Misc.fatal_errorf "No callee provided for C call:@ %a" Apply.print apply
+    in
     simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up

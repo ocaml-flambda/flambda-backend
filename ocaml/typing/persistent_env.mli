@@ -28,7 +28,6 @@ type error = private
   | Illegal_renaming of Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
   | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Need_recursive_types of Compilation_unit.Name.t
-  | Depend_on_unsafe_string_unit of Compilation_unit.Name.t
   | Inconsistent_package_declaration_between_imports of
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
@@ -41,6 +40,7 @@ type error = private
         parameter : Compilation_unit.Name.t;
   }
 
+
 exception Error of error
 
 val report_error: Format.formatter -> error -> unit
@@ -48,12 +48,15 @@ val report_error: Format.formatter -> error -> unit
 module Persistent_signature : sig
   type t =
     { filename : string; (** Name of the file containing the signature. *)
-      cmi : Cmi_format.cmi_infos_lazy }
+      cmi : Cmi_format.cmi_infos_lazy;
+      visibility : Load_path.visibility
+    }
 
   (** Function used to load a persistent signature. The default is to look for
       the .cmi file in the load path. This function can be overridden to load
       it from memory, for instance to build a self-contained toplevel. *)
-  val load : (unit_name:Compilation_unit.Name.t -> t option) ref
+  val load :
+    (allow_hidden:bool -> unit_name:Compilation_unit.Name.t -> t option) ref
 end
 
 type can_load_cmis =
@@ -82,12 +85,12 @@ type 'a sig_reader =
    bind the module name in the environment. *)
 val read : 'a t -> 'a sig_reader
   -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
-val find : 'a t -> 'a sig_reader
+val find : allow_hidden:bool -> 'a t -> 'a sig_reader
   -> Compilation_unit.Name.t -> 'a
 
 val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 
-val check : 'a t -> 'a sig_reader
+val check : allow_hidden:bool -> 'a t -> 'a sig_reader
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter and thus is expected

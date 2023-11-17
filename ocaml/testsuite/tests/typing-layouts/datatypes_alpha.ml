@@ -3,7 +3,7 @@
    * expect
 *)
 
-(* Tests for layouts in algebraic datatypes *)
+(* Tests for jkinds in algebraic datatypes *)
 
 (* CR layouts v5: add mixed block restriction tests. *)
 
@@ -264,7 +264,7 @@ Error: Record element types must have a representable layout.
 |}];;
 
 (**************************************************************************)
-(* Test 6: fields in all-float records get layout value.  may change in the
+(* Test 6: fields in all-float records get jkind value.  may change in the
    future, but record fields must at least be representable. *)
 type t6 = { fld6 : float }
 type ('a : immediate) s6 = S6 of 'a
@@ -331,6 +331,56 @@ and t2 = Mk1 of t_void t | Mk2
 type 'a t8_5 = { x : 'a t8_6; y : string}
 and 'a t8_6 = 'a void_t;;
 [%%expect {|
-type ('a : void) t8_5 = { x : 'a t8_6; y : string; }
-and ('a : void) t8_6 = 'a void_t
+Line 1, characters 21-28:
+1 | type 'a t8_5 = { x : 'a t8_6; y : string}
+                         ^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         'a has layout void, which does not overlap with value.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
+
+type ('a : immediate) imm_t
+type 'a t10 = { x : 'a t10_2; y : string}
+and 'a t10_2 = 'a imm_t;;
+
+[%%expect{|
+type ('a : immediate) imm_t
+Line 2, characters 20-28:
+2 | type 'a t10 = { x : 'a t10_2; y : string}
+                        ^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         'a has layout value, which is not a sublayout of immediate.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+type 'a t = { x : ('b : void). 'b t -> 'b t }
+            constraint 'a = float#
+
+[%%expect{|
+Line 1, characters 18-43:
+1 | type 'a t = { x : ('b : void). 'b t -> 'b t }
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         float# has layout float64, which is not a sublayout of void.
+       The fix will likely be to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+(*****************************************************************************)
+(* Test 9: Looking through polytypes in mutually recursive type declarations *)
+
+(* Doesn't need layouts_alpha. *)

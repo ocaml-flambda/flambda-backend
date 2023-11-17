@@ -30,6 +30,8 @@ type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
   | Illegal_renaming of CU.t * CU.t * string
+  | Mismatching_for_pack of
+      string * CU.Prefix.t * CU.Name.t * CU.Prefix.t option
 
 exception Error of error
 
@@ -89,7 +91,8 @@ let current_unit =
     ui_apply_fun = [];
     ui_send_fun = [];
     ui_force_link = false;
-    ui_export_info = default_ui_export_info }
+    ui_export_info = default_ui_export_info;
+    ui_for_pack = None }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -165,6 +168,22 @@ let get_unit_info comp_unit =
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
+            (* Linking to a compilation unit expected to go into a
+               pack is possible only from
+               inside the same pack, but it is perfectly ok to link to
+               an unit outside of the pack. *)
+            let[@inline] for_pack_prefix unit =
+              let prefix = CU.for_pack_prefix unit in
+              if CU.Prefix.is_empty prefix then None else Some prefix
+            in
+            (match for_pack_prefix ui.ui_unit,
+                   for_pack_prefix current_unit.ui_unit
+             with
+             | None, _ -> ()
+             | Some p1, Some p2 when CU.Prefix.equal p1 p2 -> ()
+             | Some p1, p2 ->
+               raise (Error (Mismatching_for_pack
+                        (filename, p1, CU.name current_unit.ui_unit, p2))));
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
@@ -364,6 +383,16 @@ let report_error ppf = function
         Location.print_filename filename
         CU.print name
         CU.print modname
+  | Mismatching_for_pack(filename, pack_1, current_unit, None) ->
+      fprintf ppf "%a@ was built with -for-pack %a, but the \
+                   @ current unit %a is not"
+        Location.print_filename filename CU.Prefix.print pack_1
+          CU.Name.print current_unit
+  | Mismatching_for_pack(filename, pack_1, current_unit, Some pack_2) ->
+      fprintf ppf "%a@ was built with -for-pack %a, but the \
+                   @ current unit %a is built with -for-pack %a"
+        Location.print_filename filename CU.Prefix.print pack_1
+          CU.Name.print current_unit CU.Prefix.print pack_2
 
 let () =
   Location.register_error_of_exn

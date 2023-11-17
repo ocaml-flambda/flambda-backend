@@ -95,7 +95,7 @@ let mulhi bi ~signed args dbg =
 
 let ext_pointer_load chunk name args dbg =
   let p = int_as_pointer (one_arg name args) dbg in
-  Some (Cop (Cload (chunk, Mutable), [p], dbg))
+  Some (Cop (mk_load_mut chunk, [p], dbg))
 
 let ext_pointer_store chunk name args dbg =
   let arg1, arg2 = two_args name args in
@@ -110,7 +110,7 @@ let bigstring_prefetch ~is_write locality args dbg =
       bind "index" arg2 (fun idx ->
           bind "ba" arg1 (fun ba ->
               bind "ba_data"
-                (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
+                (Cop (mk_load_mut Word_int, [field_address ba 1 dbg], dbg))
                 (fun ba_data ->
                   (* pointer to element "idx" of "ba" of type (char,
                      int8_unsigned_elt, c_layout) Bigarray.Array1.t is simply
@@ -151,9 +151,7 @@ let bigstring_cas size (arg1, arg2, arg3, arg4) dbg =
                   bind "bs" arg1 (fun bs ->
                       bind "bs_data"
                         (Cop
-                           ( Cload (Word_int, Mutable),
-                             [field_address bs 1 dbg],
-                             dbg ))
+                           (mk_load_mut Word_int, [field_address bs 1 dbg], dbg))
                         (fun bs_data ->
                           bind "dst" (add_int bs_data idx dbg) (fun dst ->
                               tag_int
@@ -182,8 +180,7 @@ let bigstring_atomic_add size (arg1, arg2, arg3) dbg =
           bind "idx" arg2 (fun idx ->
               bind "bs" arg1 (fun bs ->
                   bind "bs_data"
-                    (Cop
-                       (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg))
+                    (Cop (mk_load_mut Word_int, [field_address bs 1 dbg], dbg))
                     (fun bs_data ->
                       bind "dst" (add_int bs_data idx dbg) (fun dst ->
                           Cop (op, [src; dst], dbg)))))))
@@ -255,7 +252,7 @@ let pack_int8s i0 i1 i2 i3 i4 i5 i6 i7 =
          (logor (shift_left i3 24) (shift_left i2 16))
          (logor (shift_left i1 8) i0)))
 
-let transl_vec128_builtin name args dbg typ_res =
+let transl_vec128_builtin name args dbg _typ_res =
   match name with
   (* Vector casts (no-ops) *)
   | "caml_vec128_cast" ->
@@ -503,39 +500,39 @@ let transl_builtin name args dbg typ_res =
     Some (value_of_int (one_arg name args) dbg)
   | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
-    Some (Cop (Cload (Word_int, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Word_int, args, dbg))
   | "caml_native_pointer_store_immediate"
   | "caml_native_pointer_store_unboxed_nativeint" ->
     Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
-    Some (Cop (Cload (Word_int, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Word_int, args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
     Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_signed_int32"
   | "caml_native_pointer_load_unboxed_int32" ->
-    Some (Cop (Cload (Thirtytwo_signed, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Thirtytwo_signed, args, dbg))
   | "caml_native_pointer_store_signed_int32"
   | "caml_native_pointer_store_unboxed_int32" ->
     Some
       (return_unit dbg (Cop (Cstore (Thirtytwo_signed, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int32" ->
-    Some (Cop (Cload (Thirtytwo_unsigned, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Thirtytwo_unsigned, args, dbg))
   | "caml_native_pointer_store_unsigned_int32" ->
     Some
       (return_unit dbg
          (Cop (Cstore (Thirtytwo_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_float" ->
-    Some (Cop (Cload (Double, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Double, args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
     Some (return_unit dbg (Cop (Cstore (Double, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int8" ->
-    Some (Cop (Cload (Byte_unsigned, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Byte_unsigned, args, dbg))
   | "caml_native_pointer_load_signed_int8" ->
-    Some (Cop (Cload (Byte_signed, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Byte_signed, args, dbg))
   | "caml_native_pointer_load_unsigned_int16" ->
-    Some (Cop (Cload (Sixteen_unsigned, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Sixteen_unsigned, args, dbg))
   | "caml_native_pointer_load_signed_int16" ->
-    Some (Cop (Cload (Sixteen_signed, Mutable), args, dbg))
+    Some (Cop (mk_load_mut Sixteen_signed, args, dbg))
   | "caml_native_pointer_store_unsigned_int8" ->
     Some (return_unit dbg (Cop (Cstore (Byte_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_store_signed_int8" ->

@@ -11,7 +11,7 @@ type t
 
 val build : Cfg.t -> t
 (* Computes all dominator-related information, in particular immediate
-   dominators, dominance frontiers, and dominator tree for the passed CFG. *)
+   dominators, dominance frontiers, and dominator forest for the passed CFG. *)
 
 val is_dominating : t -> Label.t -> Label.t -> bool
 (* [is_dominating doms x y] is [true] iff [x] is dominating [y] according to
@@ -29,8 +29,9 @@ val find_dominance_frontier : t -> Label.t -> Label.Set.t
    dominance frontier of a node n is the set of all nodes m such that n
    dominates a predecessor of m, but does not strictly dominate m itself". *)
 
-val dominator_tree : t -> dominator_tree
+val dominator_forest : t -> dominator_tree list
 
-val iter_breadth_dominator_tree : t -> f:(Label.t -> unit) -> unit
-(* [iter_breadth_dominator_tree doms ~f] iterates over the dominator tree from
-   [doms] in a breadth-first manner, applying [f] to visited nodes. *)
+val iter_breadth_dominator_forest : t -> f:(Label.t -> unit) -> unit
+(* [iter_breadth_dominator_forest doms ~f] iterates over the dominator forest
+   from [doms] in a breadth-first manner (iterating over a whole tree of the
+   forest before moving to the next tree), applying [f] to visited nodes. *)

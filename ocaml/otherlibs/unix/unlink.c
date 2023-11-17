@@ -21,7 +21,7 @@
 #include <caml/osdeps.h>
 #include "unixsupport.h"
 
-CAMLprim value unix_unlink(value path)
+CAMLprim value caml_unix_unlink(value path)
 {
   CAMLparam1(path);
   char_os * p;
@@ -29,10 +29,9 @@ CAMLprim value unix_unlink(value path)
   caml_unix_check_path(path, "unlink");
   p = caml_stat_strdup_to_os(String_val(path));
   caml_enter_blocking_section();
-  /* CR mshinwell: caml_unlink causes a compiler error on macOS */
-  ret = unlink(p);
+  ret = caml_unlink(p);
   caml_leave_blocking_section();
   caml_stat_free(p);
-  if (ret == -1) uerror("unlink", path);
+  if (ret == -1) caml_uerror("unlink", path);
   CAMLreturn(Val_unit);
 }

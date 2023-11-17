@@ -16,7 +16,6 @@
 (* Inclusion checks for the core language *)
 
 open Typedtree
-open Layouts
 open Types
 
 type position = Errortrace.position = First | Second
@@ -48,6 +47,14 @@ type privacy_mismatch =
   | Private_row_type
 
 type locality_mismatch = { order : position }
+
+type type_kind =
+  | Kind_abstract
+  | Kind_record
+  | Kind_variant
+  | Kind_open
+
+type kind_mismatch = type_kind * type_kind
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -95,7 +102,7 @@ type private_object_mismatch =
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
-  | Kind
+  | Kind of kind_mismatch
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
   | Private_variant of type_expr * type_expr * private_variant_mismatch
@@ -105,7 +112,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.t
+  | Jkind of Jkind.Violation.t
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->

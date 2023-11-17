@@ -245,13 +245,13 @@ let scan_file ~shared genfns file (objfiles, tolink) =
       check_consistency ~unit
         (Array.of_list info.ui_imports_cmi)
         (Array.of_list info.ui_imports_cmx);
-      Cmm_helpers.Generic_fns_tbl.add genfns info.ui_generic_fns;
+      Generic_fns.Tbl.add genfns info.ui_generic_fns;
       object_file_name :: objfiles, unit :: tolink
   | Library (file_name,infos) ->
       (* This is an archive file. Each unit contained in it will be linked
          in only if needed. *)
       add_ccobjs (Filename.dirname file_name) infos;
-      Cmm_helpers.Generic_fns_tbl.add genfns infos.lib_generic_fns;
+      Generic_fns.Tbl.add genfns infos.lib_generic_fns;
       check_cmi_consistency file_name infos.lib_imports_cmi;
       check_cmx_consistency file_name infos.lib_imports_cmx;
       let objfiles =
@@ -363,8 +363,8 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     List.flatten (List.map (fun u -> u.defines) units) in
   List.iter compile_phrase (Cmm_helpers.entry_point name_list);
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions false genfns));
+    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+      (Generic_fns.compile ~shared:false genfns));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
     Runtimedef.builtin_exceptions;
@@ -373,7 +373,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   compile_phrase (Cmm_helpers.globals_map globals_map);
   let name_list =
     if !Flambda_backend_flags.use_cached_generic_functions then
-      CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions") :: name_list
+      name_list
     else name_list
   in
   compile_phrase
@@ -408,8 +408,8 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     sourcefile_for_dwarf;
   Emit.begin_assembly unix;
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions true genfns));
+    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+      (Generic_fns.compile ~shared:true genfns));
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
   compile_phrase (Cmm_helpers.plugin_header dynunits);
   compile_phrase
@@ -433,7 +433,7 @@ let link_shared unix ~ppf_dump objfiles output_name =
       (* CR-soon gyorsh: workaround to turn off internal assembler temporarily,
          until it is properly tested for shared library linking. *)
       Emitaux.binary_backend_available := false;
-    let genfns = Cmm_helpers.Generic_fns_tbl.make () in
+    let genfns = Generic_fns.Tbl.make () in
     let ml_objfiles, units_tolink =
       List.fold_right (scan_file ~shared:true genfns) objfiles ([],[]) in
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
@@ -512,7 +512,7 @@ let link unix ~ppf_dump objfiles output_name =
       if !Clflags.nopervasives then objfiles
       else if !Clflags.output_c_object then stdlib :: objfiles
       else stdlib :: (objfiles @ [stdexit]) in
-    let genfns = Cmm_helpers.Generic_fns_tbl.make () in
+    let genfns = Generic_fns.Tbl.make () in
     let ml_objfiles, units_tolink =
       List.fold_right (scan_file ~shared:false genfns) objfiles ([],[]) in
     begin match extract_missing_globals() with
