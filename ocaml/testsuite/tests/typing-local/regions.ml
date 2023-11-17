@@ -1,6 +1,6 @@
 (* TEST
-   * stack-allocation
    modules = "cstubs.c"
+   * stack-allocation
    include ocamlcommon
    ** native *)
 
