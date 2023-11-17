@@ -5,7 +5,7 @@ Boxed:
   estimate: 3.141693
   allocations: Allocated
 Construction (40 bytes for record):
-  allocated bytes: 5.00
+  allocated bytes: 40.00
   a: 3.14
   b: 42.00
   c: 6.28
