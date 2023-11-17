@@ -1556,15 +1556,18 @@ let transl_store_paired_module_blocks
     apply_coercion Loc_unknown Strict restr (Lvar primary_id)
   in
   let glob = Lprim(Pgetglobal module_name, [], Loc_unknown) in
-  let set_module_blocks =
-    Lsequence(Lprim(mod_setfield 0, [glob; Lvar primary_id], Loc_unknown),
-              Lprim(mod_setfield 1, [glob; Lvar secondary_id], Loc_unknown))
+  let set_primary_module_block =
+    Lprim(mod_setfield 0, [glob; Lvar primary_id], Loc_unknown)
+  in
+  let set_secondary_module_block =
+    Lprim(mod_setfield 1, [glob; Lvar secondary_id], Loc_unknown)
   in
   let lam =
     Llet(Strict, layout_module, primary_id, init_primary_lam,
-        Lsequence(set_primary_fields,
-                  Llet(Strict, layout_module, secondary_id, secondary_lam,
-                      set_module_blocks)))
+         Lsequence(set_primary_module_block,
+                   Lsequence(set_primary_fields,
+                             Llet(Strict, layout_module, secondary_id, secondary_lam,
+                                  set_secondary_module_block))))
   in
   2, lam
 
