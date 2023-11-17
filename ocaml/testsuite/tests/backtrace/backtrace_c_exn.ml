@@ -4,9 +4,9 @@
    ocamlrunparam += ",b=1"
    * runtime4
     ** bytecode
-      reference = "${test_source_directory}/backtrace_c_exn.byte.reference"
+      reference = "${test_source_directory}/backtrace_c_exn.byte4.reference"
     ** native
-      reference = "${test_source_directory}/backtrace_c_exn.opt.reference"
+      reference = "${test_source_directory}/backtrace_c_exn.opt4.reference"
    * runtime5
       reference = "${test_source_directory}/backtrace_c_exn.byte.reference"
 *)
