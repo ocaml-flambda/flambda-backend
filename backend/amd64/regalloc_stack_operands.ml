@@ -7,11 +7,14 @@ open! Regalloc_utils
 let debug = false
 
 let may_use_stack_operand_for_second_argument
-  : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
-  = fun map instr ->
+  : type a . num_args:int -> res_is_fst:bool ->
+             spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun ~num_args ~res_is_fst map instr ->
   if debug then begin
-    check_lengths instr ~of_arg:2 ~of_res:1;
-    check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
+    check_lengths instr ~of_arg:num_args ~of_res:1;
+    if res_is_fst then begin
+      check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
+    end;
   end;
   begin match is_spilled map instr.arg.(1) with
   | false -> ()
@@ -49,9 +52,7 @@ let may_use_stack_operand_for_only_result
 let may_use_stack_operand_for_result
   : type a . num_args:int -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun ~num_args map instr ->
-  if debug then begin
-    check_lengths instr ~of_arg:num_args ~of_res:1;
-  end;
+  if debug then check_lengths instr ~of_arg:num_args ~of_res:1;
   begin match is_spilled map instr.res.(0) with
   | false -> ()
   | true ->
@@ -176,13 +177,20 @@ let unary_operation_argument_or_result_on_stack
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
-  | Op (Addf | Subf | Mulf | Divf)
-  | Op (Specific (Ifloat_min | Ifloat_max)) ->
-    may_use_stack_operand_for_second_argument map instr
+  | Op (Addf | Subf | Mulf | Divf) ->
+    may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
   | Op (Specific (Isimd op)) ->
     (match Simd_selection.register_behavior op with
-    | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
-    | R_RM_to_fst -> may_use_stack_operand_for_second_argument map instr
+    | R_to_fst | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
+    | R_RM_to_fst ->
+      may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
+    | R_RM_to_rcx | R_RM_to_xmm0 ->
+      may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:false
+    | R_RM_rax_rdx_to_rcx | R_RM_rax_rdx_to_xmm0 ->
+      may_use_stack_operand_for_second_argument map instr ~num_args:4 ~res_is_fst:false
+    | R_RM_xmm0_to_fst ->
+      may_use_stack_operand_for_second_argument map instr ~num_args:3 ~res_is_fst:true
+    | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
     | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
   | Op (Scalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2))) ->
     unary_operation_argument_or_result_on_stack map instr
@@ -213,7 +221,6 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     binary_operation map instr Result_can_be_on_stack
   | Op (Intop (Icomp _)) ->
     binary_operation map instr Result_cannot_be_on_stack
-  | Op (Specific (Ifloat_iround | Ifloat_round _))
   | Op (Intop_imm (Icomp _, _)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Intop_imm (Iadd, _)) ->
@@ -233,21 +240,21 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_atomic _)
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _  | Const_vec128 _ | Compf _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
-       | Valueofint | Intofvalue | Opaque | Begin_region | End_region )
-  | Op (Specific (Isqrtf | Isextend32 | Izextend32 | Ilea _
+       | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get )
+  | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
                  | Ipause
                  | Iprefetch _
-                 | Ibswap _| Ifloatsqrtf _))
+                 | Ibswap _ | Ifloatsqrtf _))
   | Reloadretaddr
   | Pushtrap _
   | Poptrap
   | Prologue ->
     (* no rewrite *)
     May_still_have_spilled_registers
-  | Op (Intop Icheckbound)
-  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ | Icheckbound), _)) ->
+  | Op (Intop (Icheckbound | Icheckalign _))
+  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ | Icheckbound | Icheckalign _), _)) ->
     (* should not happen *)
     fatal "unexpected instruction"
   end
@@ -259,11 +266,16 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; }
   | Prim  {op = Checkbound { immediate = None; }; _} ->
     binary_operation map term No_result
+  | Prim  {op = Checkalign { immediate = None; _ }; _} ->
+    may_use_stack_operand_for_only_argument ~has_result:false map term
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = Some _; }
   | Parity_test { ifso = _; ifnot = _; }
   | Truth_test { ifso = _; ifnot = _; }
   | Prim {op = Checkbound { immediate = Some _; }; _} ->
     may_use_stack_operand_for_only_argument ~has_result:false map term
+  | Prim {op = Checkalign { immediate = Some _; _ }; _} ->
+    if debug then check_lengths term ~of_arg:0 ~of_res:0;
+    All_spilled_registers_rewritten
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
        makes it more difficult than the cases above, because (i) multiple

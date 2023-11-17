@@ -78,10 +78,10 @@ type ('a : immediate) t = 'a or_null
 
 [%%expect {|
 success
-success (inferring an immediate layout for [t] and non_null_immediate for ['a])
+success (inferring an immediate jkind for [t] and non_null_immediate for ['a])
 |}]
 
-(* more layout checking *)
+(* more jkind checking *)
 type t : non_null_value = string or_null
 
 [%%expect {|

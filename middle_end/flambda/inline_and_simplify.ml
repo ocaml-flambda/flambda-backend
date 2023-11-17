@@ -1106,7 +1106,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
       in
       begin match prim, args, args_approxs with
       (* CR-someday mshinwell: Optimise [Pfield_computed]. *)
-      | Pfield (field_index, _), [arg], [arg_approx] ->
+      | Pfield (field_index, _, _, _), [arg], [arg_approx] ->
         let projection : Projection.t = Field (field_index, arg) in
         begin match E.find_projection env ~projection with
         | Some var ->

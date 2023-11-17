@@ -35,10 +35,14 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
   | Icheckbound
+  | Icheckalign of { bytes_pow2 : int }
 
 type float_comparison = Cmm.float_comparison
 
 type mutable_flag = Immutable | Mutable
+
+val of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag
+val to_ast_mutable_flag : mutable_flag -> Asttypes.mutable_flag
 
 type test =
     Itruetest
@@ -63,9 +67,13 @@ type operation =
   | Itailcall_imm of { func : Cmm.symbol; }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
-                  alloc : bool; returns : bool; }
+                  alloc : bool; returns : bool;
+                  stack_ofs : int; }
   | Istackoffset of int
-  | Iload of Cmm.memory_chunk * Arch.addressing_mode * mutable_flag
+  | Iload of { memory_chunk : Cmm.memory_chunk;
+               addressing_mode : Arch.addressing_mode;
+               mutability : Asttypes.mutable_flag;
+               is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
                                  (* false = initialization, true = assignment *)
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
@@ -96,6 +104,7 @@ type operation =
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
+  | Idls_get
 
 type instruction =
   { desc: instruction_desc;
@@ -133,9 +142,6 @@ type fundecl =
 
 val dummy_instr: instruction
 val end_instr: unit -> instruction
-val instr_cons:
-      instruction_desc -> Reg.t array -> Reg.t array -> instruction ->
-        instruction
 val instr_cons_debug:
       instruction_desc -> Reg.t array -> Reg.t array -> Debuginfo.t ->
         instruction -> instruction

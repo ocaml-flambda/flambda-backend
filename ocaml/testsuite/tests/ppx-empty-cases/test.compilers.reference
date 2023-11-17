@@ -1,0 +1,40 @@
+(setglobal Test!
+  (let
+    (empty_cases_returning_string/266 =
+       (function {nlocal = 0} param/268
+         (raise
+           (makeblock 0 (getpredef Match_failure/26!!) [0: "test.ml" 28 50])))
+     empty_cases_returning_float64/269 =
+       (function {nlocal = 0} param/271 : unboxed_float
+         (raise
+           (makeblock 0 (getpredef Match_failure/26!!) [0: "test.ml" 29 50])))
+     empty_cases_accepting_string/272 =
+       (function {nlocal = 0} param/274
+         (raise
+           (makeblock 0 (getpredef Match_failure/26!!) [0: "test.ml" 30 50])))
+     empty_cases_accepting_float64/275 =
+       (function {nlocal = 0} param/277[unboxed_float]
+         (raise
+           (makeblock 0 (getpredef Match_failure/26!!) [0: "test.ml" 31 50])))
+     non_empty_cases_returning_string/278 =
+       (function {nlocal = 0} param/280
+         (raise
+           (makeblock 0 (getpredef Assert_failure/36!!) [0: "test.ml" 32 68])))
+     non_empty_cases_returning_float64/281 =
+       (function {nlocal = 0} param/283 : unboxed_float
+         (raise
+           (makeblock 0 (getpredef Assert_failure/36!!) [0: "test.ml" 33 68])))
+     non_empty_cases_accepting_string/284 =
+       (function {nlocal = 0} param/286
+         (raise
+           (makeblock 0 (getpredef Assert_failure/36!!) [0: "test.ml" 34 68])))
+     non_empty_cases_accepting_float64/287 =
+       (function {nlocal = 0} param/289[unboxed_float]
+         (raise
+           (makeblock 0 (getpredef Assert_failure/36!!) [0: "test.ml" 35 68]))))
+    (makeblock 0 empty_cases_returning_string/266
+      empty_cases_returning_float64/269 empty_cases_accepting_string/272
+      empty_cases_accepting_float64/275 non_empty_cases_returning_string/278
+      non_empty_cases_returning_float64/281
+      non_empty_cases_accepting_string/284
+      non_empty_cases_accepting_float64/287)))

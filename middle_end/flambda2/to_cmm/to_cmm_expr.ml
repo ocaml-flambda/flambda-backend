@@ -82,12 +82,18 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
      effects/coeffects values currently ignored on the following two lines. At
      the moment they can be ignored as we always deem all calls to have
      arbitrary effects and coeffects. *)
-  let To_cmm_env.
-        { env;
-          res;
-          expr = { cmm = callee; free_vars = callee_free_vars; effs = _ }
-        } =
-    C.simple ~dbg env res callee_simple
+  let env, res, callee, callee_free_vars =
+    match callee_simple with
+    | Some callee_simple ->
+      let To_cmm_env.
+            { env;
+              res;
+              expr = { cmm = callee; free_vars = callee_free_vars; effs = _ }
+            } =
+        C.simple ~dbg env res callee_simple
+      in
+      env, res, Some callee, callee_free_vars
+    | None -> env, res, None, Backend_var.Set.empty
   in
   let args, args_free_vars, env, res, _ = C.simple_list ~dbg env res args in
   let free_vars = Backend_var.Set.union callee_free_vars args_free_vars in
@@ -126,7 +132,17 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     then Misc.fatal_errorf "Wrong arity for direct call";
     let args =
       if Code_metadata.is_my_closure_used code_metadata
-      then args @ [callee]
+      then
+        let callee =
+          match callee with
+          | Some callee -> callee
+          | None ->
+            Misc.fatal_errorf
+              "Need callee to compile call to@ %a@ but application expression \
+               did not supply one:@ %a"
+              Code_metadata.print code_metadata Apply.print apply
+        in
+        args @ [callee]
       else args
     in
     let code_sym = To_cmm_result.symbol_of_code_id res code_id in
@@ -149,6 +165,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
+    let callee =
+      match callee with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for indirect call:@ %a"
+          Apply.print apply
+    in
     ( C.indirect_call ~dbg return_ty pos
         (Alloc_mode.For_types.to_lambda alloc_mode)
         callee args_ty args,
@@ -158,6 +182,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Ece.all )
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     fail_if_probe apply;
+    let callee =
+      match callee with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for indirect call:@ %a"
+          Apply.print apply
+    in
     if not (C.check_arity (Apply.args_arity apply) args)
     then
       Misc.fatal_errorf
@@ -174,11 +206,17 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   | Call_kind.C_call { alloc; is_c_builtin } ->
     fail_if_probe apply;
     let callee =
-      match Simple.must_be_symbol callee_simple with
-      | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+      match callee_simple with
       | None ->
-        Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
-          Simple.print callee_simple
+        Misc.fatal_errorf
+          "Application expression did not provide callee for C call:@ %a"
+          Apply.print apply
+      | Some callee_simple -> (
+        match Simple.must_be_symbol callee_simple with
+        | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+        | None ->
+          Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
+            Simple.print callee_simple)
     in
     let returns = Apply.returns apply in
     let wrap =
@@ -216,6 +254,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
+    let callee =
+      match callee with
+      | Some callee -> callee
+      | None ->
+        Misc.fatal_errorf
+          "Application expression did not provide callee for method call:@ %a"
+          Apply.print apply
+    in
     let To_cmm_env.
           { env;
             res;
@@ -923,7 +969,11 @@ and switch env res switch =
   let make_arm ~must_tag_discriminant env res (d, action) =
     let d = prepare_discriminant ~must_tag:must_tag_discriminant d in
     let cmm_action, action_free_vars, res = apply_cont env res action in
-    (d, cmm_action, action_free_vars, Apply_cont.debuginfo action), res
+    ( ( d,
+        cmm_action,
+        action_free_vars,
+        Env.add_inlined_debuginfo env (Apply_cont.debuginfo action) ),
+      res )
   in
   match Targetint_31_63.Map.cardinal arms with
   (* Binary case: if-then-else *)

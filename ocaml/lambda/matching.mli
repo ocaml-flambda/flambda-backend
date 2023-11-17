@@ -22,7 +22,7 @@ open Debuginfo.Scoped_location
 (* Entry points to match compiler *)
 val for_function:
         scopes:scopes ->
-        arg_sort:Layouts.sort -> arg_layout:layout -> return_layout:layout ->
+        arg_sort:Jkind.sort -> arg_layout:layout -> return_layout:layout ->
         Location.t -> int ref option -> lambda -> (pattern * lambda) list ->
         partial ->
         lambda
@@ -31,12 +31,12 @@ val for_trywith:
         lambda -> (pattern * lambda) list ->
         lambda
 val for_let:
-        scopes:scopes -> arg_sort:Layouts.sort -> return_layout:layout ->
+        scopes:scopes -> arg_sort:Jkind.sort -> return_layout:layout ->
         Location.t -> lambda -> pattern -> lambda ->
         lambda
 val for_multiple_match:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        (lambda * Layouts.sort * layout) list -> alloc_mode ->
+        (lambda * Jkind.sort * layout) list -> alloc_mode ->
         (pattern * lambda) list -> partial ->
         lambda
 

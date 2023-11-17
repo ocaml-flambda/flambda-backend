@@ -44,7 +44,7 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val zero_alloc_check : unit -> unit
+  val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
@@ -84,6 +84,8 @@ module type Flambda_backend_options = sig
   val flambda2_expert_can_inline_recursive_functions : unit -> unit
   val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
   val flambda2_expert_max_function_simplify_run : int -> unit
+  val flambda2_expert_shorten_symbol_names : unit -> unit
+  val no_flambda2_expert_shorten_symbol_names : unit -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit

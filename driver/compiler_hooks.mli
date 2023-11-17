@@ -10,9 +10,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Misc
-open Compile_common
-
 (* Hooks allow to inspect the IR produced by a pass without altering
    the compilation pipeline.
 

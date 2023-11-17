@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -86,13 +85,13 @@ let mkappl (func, args, layout) =
          ap_specialised=Default_specialise;
          ap_probe=None;
        }],
-     Loc_unknown);;
+     Loc_unknown)
 
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
 
 let lfield v i =
-  Lprim(Pfield (i, Reads_vary), [Lvar v], Loc_unknown)
+  Lprim(Pfield (i, Pointer, Reads_vary), [Lvar v], Loc_unknown)
 
 let transl_label l = share (Const_immstring l)
 
@@ -103,7 +102,7 @@ let transl_meth_list lst =
 
 let set_inst_var ~scopes obj id expr =
   Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
-    [Lvar obj; Lvar id; transl_exp ~scopes Sort.for_instance_var expr],
+    [Lvar obj; Lvar id; transl_exp ~scopes Jkind.Sort.for_instance_var expr],
         Loc_unknown)
 
 let transl_val tbl create name =
@@ -164,7 +163,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let env =
         match envs with None -> []
         | Some envs ->
-            [Lprim(Pfield (List.length inh_init + 1, Reads_vary),
+            [Lprim(Pfield (List.length inh_init + 1, Pointer, Reads_vary),
                    [Lvar envs],
                    Loc_unknown)]
       in
@@ -210,7 +209,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         let arg_sort = Sort.for_class_arg in
+         let arg_sort = Jkind.Sort.for_class_arg in
          let arg_layout =
            Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
          in
@@ -322,7 +321,7 @@ let rec index a = function
 
 let bind_id_as_val (id, _) = ("", id)
 
-let class_field i = Pfield (i, Reads_vary)
+let class_field i = Pfield (i, Pointer, Reads_vary)
 
 let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
   match cl.cl_desc with
@@ -363,7 +362,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
             | Tcf_method (name, _, Tcfk_concrete (_, exp)) ->
                 let scopes = enter_method_definition ~scopes name.txt in
                 let met_code =
-                  msubst true (transl_scoped_exp ~scopes Sort.for_method exp)
+                  msubst true (transl_scoped_exp ~scopes Jkind.Sort.for_method exp)
                 in
                 let met_code =
                   if !Clflags.native_code && List.length met_code = 1 then
@@ -380,7 +379,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                  Lsequence(mkappl (oo_prim "add_initializer",
                                    Lvar cla :: msubst false
                                                  (transl_exp ~scopes
-                                                    Sort.for_initializer exp),
+                                                    Jkind.Sort.for_initializer exp),
                                    layout_unit),
                            cl_init),
                  methods, values)
@@ -498,7 +497,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        let arg_sort = Sort.for_class_arg in
+        let arg_sort = Jkind.Sort.for_class_arg in
         let arg_layout =
           Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
         in
@@ -624,7 +623,7 @@ let rec builtin_meths self env env2 body =
     | p when const_path p -> "const", [p]
     | Lprim(Parrayrefu _, [Lvar s; Lvar n], _) when List.mem s self ->
         "var", [Lvar n]
-    | Lprim(Pfield (n, _), [Lvar e], _) when Ident.same e env ->
+    | Lprim(Pfield(n, _, _), [Lvar e], _) when Ident.same e env ->
         "env", [Lvar env2; Lconst(const_int n)]
     | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
         "meth", [met]
