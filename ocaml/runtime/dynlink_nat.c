@@ -47,7 +47,7 @@ static value Val_handle(void* handle) {
 }
 
 static void *getsym(void *handle, const char *module, const char *name){
-  char *fullname = caml_stat_strconcat(4, "caml", module, ".", name);
+  char *fullname = caml_stat_strconcat(3, module, ".", name);
   void *sym;
   sym = caml_dlsym (handle, fullname);
   /*  printf("%s => %lx\n", fullname, (uintnat) sym); */
@@ -110,17 +110,6 @@ CAMLprim value caml_natdynlink_register(value handle_v, value symbols) {
 
   for (i = 0; i < nsymbols; i++) {
     const char* unit = String_val(Field(symbols, i));
-    table[i] = getsym(handle, unit, "frametable");
-    if (table[i] == NULL) {
-      caml_stat_free(table);
-      caml_invalid_argument_value(
-        caml_alloc_sprintf("Dynlink: Missing frametable for %s", unit));
-    }
-  }
-  caml_register_frametables(table, nsymbols);
-
-  for (i = 0; i < nsymbols; i++) {
-    const char* unit = String_val(Field(symbols, i));
     table[i] = getsym(handle, unit, "gc_roots");
     if (table[i] == NULL) {
       caml_stat_free(table);
@@ -129,6 +118,19 @@ CAMLprim value caml_natdynlink_register(value handle_v, value symbols) {
     }
   }
   caml_register_dyn_globals(table, nsymbols);
+  /* [caml_register_dyn_global] can raise, so do it prior to registering
+     frametables etc. */
+
+  for (i = 0; i < nsymbols; i++) {
+    const char* unit = String_val(Field(symbols, i));
+    table[i] = getsym(handle, unit, "frametable");
+    if (table[i] == NULL) {
+      caml_stat_free(table);
+      caml_invalid_argument_value(
+        caml_alloc_sprintf("Dynlink: Missing frametable for %s", unit));
+    }
+  }
+  caml_register_frametables(table, nsymbols);
 
   for (i = 0; i < nsymbols; i++) {
     const char* unit = String_val(Field(symbols, i));
