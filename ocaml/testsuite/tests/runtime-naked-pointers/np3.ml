@@ -1,6 +1,6 @@
 (* TEST
+   modules = "cstubs.c np.ml"
    * runtime4
-     modules = "cstubs.c np.ml"
      ** naked_pointers
      *** bytecode
      *** native
