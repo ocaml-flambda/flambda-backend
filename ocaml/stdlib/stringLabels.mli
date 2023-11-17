@@ -485,9 +485,6 @@ val get_int32_ne : string -> int -> int32
     @since 4.13
 *)
 
-(* BACKPORT
-   not in 4.x runtime (caml_string_hash)
-
 val hash : t -> int
 (** An unseeded hash function for strings, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
@@ -501,7 +498,6 @@ val seeded_hash : int -> t -> int
     argument to the functor {!Hashtbl.MakeSeeded}.
 
     @since 5.0 *)
-*)
 
 val get_int32_be : string -> int -> int32
 (** [get_int32_be b i] is [b]'s big-endian 32-bit integer
