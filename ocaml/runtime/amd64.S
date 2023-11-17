@@ -1032,6 +1032,14 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_ml_array_bound_error))
 
+FUNCTION(G(caml_ml_array_align_error))
+CFI_STARTPROC
+        ENTER_FUNCTION
+        LEA_VAR(caml_array_align_error_asm, %rax)
+        jmp     LBL(caml_c_call)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_ml_array_align_error))
+
 FUNCTION(G(caml_assert_stack_invariants))
 CFI_STARTPROC
 /*      CHECK_STACK_ALIGNMENT */
