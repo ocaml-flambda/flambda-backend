@@ -280,6 +280,7 @@ Caml_inline void* Ptr_val(value val)
    The remaining bits are the field number for the first word of the
    environment, or, in other words, the offset (in words) from the closure
    to the environment part. */
+/* CR ncourant: it might be cleaner to use a packed struct here */
 #ifdef ARCH_SIXTYFOUR
 #define Arity_closinfo(info) ((intnat)(info) >> 56)
 #define Start_env_closinfo(info) (((uintnat)(info) << 8) >> 9)
