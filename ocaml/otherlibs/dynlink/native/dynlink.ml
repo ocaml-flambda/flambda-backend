@@ -147,14 +147,9 @@ module Native = struct
       if not priv then (
         (* CR mshinwell: [Module_already_loaded] should really take a
            module name, not a filename! *)
-        if Config.runtime5 then
-          Printexc.raise_with_backtrace
-            (DT.Error (Module_already_loaded filename))
-            (Printexc.get_raw_backtrace ())
-        else
-          failwith (Printf.sprintf "Attempt to register duplicate dynamic \
-            GC roots for non-privately-loaded library `%s'; this is a bug in \
-            [Dynlink]" filename)
+        Printexc.raise_with_backtrace
+          (DT.Error (Module_already_loaded filename))
+          (Printexc.get_raw_backtrace ())
       )
       else
         Printexc.raise_with_backtrace
