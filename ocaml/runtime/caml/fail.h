@@ -146,6 +146,10 @@ CAMLextern void caml_array_bound_error (void)
 CAMLnoreturn_end;
 
 CAMLnoreturn_start
+CAMLextern void caml_array_align_error (void)
+CAMLnoreturn_end;
+
+CAMLnoreturn_start
 CAMLextern void caml_raise_sys_blocked_io (void)
 CAMLnoreturn_end;
 
