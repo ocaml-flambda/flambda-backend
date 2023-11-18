@@ -535,6 +535,9 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
+and abstract_element = Imm | Float | Float64
+and abstract_block_shape = abstract_element array
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
@@ -546,6 +549,9 @@ and record_representation =
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
      but operations on these (e.g., projection, update) work with unboxed floats
      rather than boxed floats. *)
+  | Record_abstract of abstract_block_shape
+  (* Block will get abstract tag (so in particular polymorphic operations will
+     not work). *)
 
 (* For unboxed variants, we record the jkind of the mandatory single argument.
    For boxed variants, we record the jkinds for the arguments of each

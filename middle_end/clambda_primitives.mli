@@ -40,6 +40,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakeabstractblock of mutable_flag * abstract_block_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -48,6 +49,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
+  | Pabstractfield of int * abstract_element * alloc_mode
+  | Psetabstractfield of int * abstract_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -196,6 +199,10 @@ and block_shape = Lambda.block_shape
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and abstract_element = Lambda.abstract_element =
+    Imm | Float | Float64
+and abstract_block_shape = abstract_element array
 
 and vec128_type = Lambda.vec128_type =
   | Unknown128

@@ -179,6 +179,11 @@ let variant_representation i ppf = let open Types in function
       (array (i+1) (fun _ ppf -> jkind_array (i+1) ppf)) jkinds
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
+let abstract_block_element i ppf = let open Types in function
+  | Imm -> line i ppf "Immediate\n"
+  | Float -> line i ppf "Float\n"
+  | Float64 -> line i ppf "Float64\n"
+
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
     line i ppf "Record_unboxed\n"
@@ -188,6 +193,8 @@ let record_representation i ppf = let open Types in function
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
   | Record_ufloat -> line i ppf "Record_ufloat\n"
+  | Record_abstract abs ->
+    line i ppf "Record_abstract %a\n" (array (i+1) abstract_block_element) abs
 
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;

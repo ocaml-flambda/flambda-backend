@@ -756,6 +756,17 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
+  | Pmakeabstractblock (mutability, shape, mode), _ ->
+    let args = List.flatten args in
+    let args = List.mapi (fun i arg ->
+      match shape.(i) with
+      | Float -> unbox_float arg
+      | Float64 | Imm -> arg)
+      args
+    in
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    let mutability = Mutability.from_lambda mutability in
+    [Variadic (Make_abstract_block (shape, mutability, mode), args)]
   | Pmakearray (array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -798,6 +809,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           }
       | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
+      | Record_abstract _ -> Abstract
       | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
         Values
           { tag = Tag.Scannable.create_exn runtime_tag;
@@ -1115,6 +1127,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
+  | Pabstractfield (field, shape, sem, mode), [[arg]] ->
+    let imm = Targetint_31_63.of_int field in
+    check_non_negative_imm imm "Pabstractfield";
+    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let mutability = convert_field_read_semantics sem in
+    let block_access : P.Block_access_kind.t =
+      Abstract { field_kind = shape; size = Unknown }
+    in
+    let block_access : H.expr_primitive =
+      Binary (Block_load (block_access, mutability), arg, Simple field)
+    in
+    begin match shape with
+    | Imm | Float64 -> [block_access]
+    | Float -> [box_float mode block_access ~current_region]
+    end
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -1149,6 +1176,23 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
+    [ Ternary
+        (Block_set (block_access, init_or_assign), block, Simple field, value)
+    ]
+  | Psetabstractfield (field, shape, initialization_or_assignment),
+    [[block]; [value]] ->
+    let imm = Targetint_31_63.of_int field in
+    check_non_negative_imm imm "Psetufloatfield";
+    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let block_access : P.Block_access_kind.t =
+      Abstract { field_kind = shape; size = Unknown }
+    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
+    let value =
+      match shape with
+      | Imm | Float64 -> value
+      | Float -> unbox_float value
+    in
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]
@@ -1443,7 +1487,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
       | Punboxed_product_field _ | Pget_header _ | Pufloatfield _
-      | Patomic_load _ ),
+      | Pabstractfield _ | Patomic_load _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1458,7 +1502,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _ | Pmulbint _
       | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
       | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
+      | Psetfloatfield _ | Psetufloatfield _ | Psetabstractfield _ | Pbintcomp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Pbigstring_load_128 _
       | Parrayrefu

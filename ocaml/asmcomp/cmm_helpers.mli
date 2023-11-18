@@ -376,6 +376,15 @@ val make_alloc :
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
+(** Allocate an abstract block of the corresponding shape.  Initial values of
+    shape should be provided unboxed. *)
+val make_abstract_alloc :
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  Lambda.abstract_block_shape ->
+  expression list ->
+  expression
+
 (** Bounds checking *)
 
 (** Generate a [Ccheckbound] term *)

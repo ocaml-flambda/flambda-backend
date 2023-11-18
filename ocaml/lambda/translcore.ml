@@ -67,7 +67,7 @@ let record_field_kind l =
 let check_record_field_sort loc sort repres =
   match Jkind.Sort.get_default_value sort, repres with
   | Value, _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_abstract _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (loc, Illegal_record_field Float64))
@@ -555,6 +555,21 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_inlined (_, Variant_extensible) ->
           Lprim (Pfield (lbl.lbl_pos + 1, maybe_pointer e, sem), [targ],
                  of_location ~scopes e.exp_loc)
+        | Record_abstract abs ->
+          let loc = of_location ~scopes e.exp_loc in
+          (* alloc_mode is arbitrary for the non-float cases, as they don't
+             allocate. *)
+          begin match abs.(lbl.lbl_num) with
+          | Imm ->
+            Lprim (Pabstractfield (lbl.lbl_pos, Imm, sem, alloc_heap),
+                   [targ], loc)
+          | Float ->
+            let mode = transl_alloc_mode (Option.get alloc_mode) in
+            Lprim (Pabstractfield (lbl.lbl_pos, Float, sem, mode), [targ], loc)
+          | Float64 ->
+            Lprim (Pabstractfield (lbl.lbl_pos, Float64, sem, alloc_heap),
+                   [targ], loc)
+          end
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
@@ -577,6 +592,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_ufloat -> Psetufloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Variant_extensible) ->
           Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
+        | Record_abstract abs -> begin
+          match abs.(lbl.lbl_num) with
+          | Imm -> Psetabstractfield(lbl.lbl_pos, Imm, mode)
+          | Float -> Psetabstractfield (lbl.lbl_pos, Float, mode)
+          | Float64 -> Psetabstractfield (lbl.lbl_pos, Float64, mode)
+        end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
                      transl_exp ~scopes lbl_sort newval],
@@ -1511,6 +1532,14 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                        so it's simpler to leave it Alloc_heap *)
                     Pfloatfield (i, sem, alloc_heap)
                  | Record_ufloat -> Pufloatfield (i, sem)
+                 | Record_abstract abs -> begin
+                     (* alloc_mode: for floats, same as above. for others it's
+                        unused. *)
+                     match abs.(lbl.lbl_num) with
+                     | Imm -> Pabstractfield (i, Imm, sem, alloc_heap)
+                     | Float -> Pabstractfield (i, Float, sem, alloc_heap)
+                     | Float64 -> Pabstractfield (i, Float64, sem, alloc_heap)
+                   end
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
@@ -1537,7 +1566,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
-        | Record_ufloat ->
+        | Record_ufloat | Record_abstract _ ->
             (* CR layouts v2.5: When we add unboxed float literals, we may need
                to do something here.  (Currrently this case isn't reachable for
                `float#` records because `extact_constant` will have raised
@@ -1567,6 +1596,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
+        | Record_abstract abs ->
+            Lprim(Pmakeabstractblock(mut, abs, Option.get mode), ll, loc)
     in
     begin match opt_init_expr with
       None -> lam
@@ -1599,6 +1630,16 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 let pos = lbl.lbl_pos + 1 in
                 let ptr = maybe_pointer expr in
                 Psetfield(pos, ptr, Assignment modify_heap)
+            | Record_abstract abs -> begin
+                match abs.(lbl.lbl_num) with
+                | Imm ->
+                  Psetabstractfield(lbl.lbl_pos, Imm, Assignment modify_heap)
+                | Float ->
+                  Psetabstractfield (lbl.lbl_pos, Float, Assignment modify_heap)
+                | Float64 ->
+                  Psetabstractfield (lbl.lbl_pos, Float64,
+                                     Assignment modify_heap)
+              end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
                                 transl_exp ~scopes lbl_sort expr],

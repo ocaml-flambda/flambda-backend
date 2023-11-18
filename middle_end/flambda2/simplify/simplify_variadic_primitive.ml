@@ -146,6 +146,67 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     in
     SPR.create named ~try_reify:true dacc
 
+(* XXX layouts: Don't really know what I'm doing here.  In particular for [ty]
+   I've picked [T.any_block] because exisiting more specific types for blocks
+   all want the fields to have the same kind.  I don't eve know of [any_block]
+   is correct - perhaps it's meant to be normal blocks below no scan tag.
+*)
+let simplify_make_abstract_block ~original_prim ~kind
+      ~(mutable_or_immutable : Mutability.t) _alloc_mode
+      dacc ~original_term _dbg ~args_with_tys ~result_var =
+  let args, _arg_tys = List.split args_with_tys in
+  if Array.length kind <> List.length args
+  then
+    Misc.fatal_errorf
+      "Shape in [Make_abstract_block] of different length from argument list:@ %a"
+      Named.print original_term;
+  let (_, result) =
+    let typing_env = DA.typing_env dacc in
+    List.fold_left
+      (fun (idx, env_extension) arg : (int * (_ Or_bottom.t)) ->
+        (idx+1,
+         let open Or_bottom.Let_syntax in
+         let<* env_extension = env_extension in
+         let arg_kind = P.Abstract_block_kind.element_kind idx kind in
+          Simple.pattern_match' arg
+            ~var:(fun _ ~coercion:_ : _ Or_bottom.t ->
+              let<* _ty, env_extension' =
+                T.meet typing_env
+                  (T.alias_type_of arg_kind arg)
+                  (T.unknown arg_kind)
+              in
+              let<+ env_extension =
+                T.Typing_env_extension.meet typing_env env_extension
+                  env_extension'
+              in
+              env_extension)
+            ~const:(fun _ : _ Or_bottom.t -> Ok env_extension)
+            ~symbol:(fun _ ~coercion:_ : _ Or_bottom.t -> Ok env_extension)))
+      (0, Or_bottom.Ok TEE.empty) args
+  in
+  match result with
+  | Bottom -> SPR.create_invalid dacc
+  | Ok env_extension ->
+    let dacc =
+      DA.map_denv dacc ~f:(fun denv ->
+          DE.map_typing_env denv ~f:(fun typing_env ->
+              TE.add_env_extension typing_env env_extension))
+    in
+    let ty = T.any_block in
+    let dacc = DA.add_variable dacc result_var ty in
+    let dacc =
+      match mutable_or_immutable with
+      | Immutable_unique | Mutable -> dacc
+      | Immutable -> (
+        match P.Eligible_for_cse.create original_prim with
+        | None -> dacc
+        | Some prim ->
+          DA.map_denv dacc ~f:(fun denv ->
+              DE.add_cse denv prim
+                ~bound_to:(Simple.var (Bound_var.var result_var))))
+    in
+    SPR.create original_term ~try_reify:true dacc
+
 let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
   let original_term = Named.create_prim original_prim dbg in
@@ -160,5 +221,8 @@ let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
         alloc_mode
     | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
       simplify_make_array array_kind ~mutable_or_immutable alloc_mode
+    | Make_abstract_block (kind, mutable_or_immutable, alloc_mode) ->
+      simplify_make_abstract_block ~original_prim ~kind ~mutable_or_immutable
+        alloc_mode
   in
   simplifier dacc ~original_term dbg ~args_with_tys ~result_var

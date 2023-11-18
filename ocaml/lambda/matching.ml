@@ -119,7 +119,7 @@ let jkind_layout_must_be_value loc jkind =
 let check_record_field_jkind lbl =
   match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
   | (Value | Immediate | Immediate64), _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_abstract _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
@@ -2305,6 +2305,22 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
+        | Record_abstract abs ->
+          begin
+            (* TODO: could optimise to Alloc_local sometimes (only matters in
+               the Float case) *)
+            match abs.(pos) with
+            | Imm ->
+              Lprim (Pabstractfield (lbl.lbl_pos, Imm, sem, alloc_heap),
+                     [ arg ], loc)
+            | Float ->
+              Lprim (Pabstractfield (lbl.lbl_pos, Float, sem, alloc_heap),
+                     [ arg ], loc)
+            | Float64 ->
+              Lprim (Pabstractfield (lbl.lbl_pos, Float64, sem, alloc_heap),
+                     [ arg ], loc)
+          end,
+          lbl_sort, lbl_layout
       in
       let str =
         match lbl.lbl_mut with

@@ -219,7 +219,6 @@ type value_creation_reason =
   | Univar
   | Polymorphic_variant_field
   | Default_type_jkind
-  | Float_record_field
   | Existential_type_variable
   | Array_element
   | Lazy_expression

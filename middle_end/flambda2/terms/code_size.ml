@@ -135,7 +135,7 @@ let box_number kind =
 (* alloc *)
 
 let block_load (kind : Flambda_primitive.Block_access_kind.t) =
-  match kind with Values _ | Naked_floats _ -> 1
+  match kind with Values _ | Naked_floats _ | Abstract _ -> 1
 
 let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
@@ -149,6 +149,8 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
   | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
+  | Abstract { field_kind = (Imm | Float | Float64); _ },
+    (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   match kind with
@@ -379,7 +381,8 @@ let variadic_prim_size prim args =
   | Make_block (_, _mut, _alloc_mode)
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)
-  | Make_array (_, _mut, _alloc_mode) ->
+  | Make_array (_, _mut, _alloc_mode)
+  | Make_abstract_block (_, _mut, _alloc_mode) ->
     alloc_size + List.length args
 
 let prim (prim : Flambda_primitive.t) =

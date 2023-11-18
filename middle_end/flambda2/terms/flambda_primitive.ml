@@ -94,6 +94,42 @@ module Array_kind = struct
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
 end
 
+module Abstract_block_kind = struct
+  type t = Lambda.abstract_block_shape
+
+  let print_abstract_block_element ppf (e : Lambda.abstract_element) =
+    match e with
+    | Imm -> Format.fprintf ppf "Imm"
+    | Float -> Format.fprintf ppf "Float"
+    | Float64 -> Format.fprintf ppf "Float64"
+
+  let print ppf t =
+    Format.fprintf ppf "[|@ ";
+    Array.iteri (fun i elem ->
+      print_abstract_block_element ppf elem;
+      if i <> Array.length t - 1 then Format.fprintf ppf ";@ "
+    ) t;
+    Format.fprintf ppf "|]"
+
+  let compare_abstract_element e1 e2 =
+    match (e1 : Lambda.abstract_element), (e2 : Lambda.abstract_element) with
+    | Imm, Imm -> 0
+    | Float, Float -> 0
+    | Float64, Float64 -> 0
+    | Float, Float64 -> -1
+    | Float64, Float -> 1
+    | Imm, _ -> -1
+    | _, Imm -> 1
+
+  let compare = Misc.Stdlib.Array.compare compare_abstract_element
+
+  let element_kind i t =
+    Lambda.(match t.(i) with
+    | Imm -> K.value
+    | Float | Float64 -> K.naked_float)
+end
+
+
 module Init_or_assign = struct
   type t =
     | Initialization
@@ -168,6 +204,7 @@ module Duplicate_block_kind = struct
           length : Targetint_31_63.t
         }
     | Naked_floats of { length : Targetint_31_63.t }
+    | Abstract
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -185,6 +222,9 @@ module Duplicate_block_kind = struct
           @[<hov 1>(length@ %a)@]\
           )@]"
         Targetint_31_63.print length
+    | Abstract ->
+      Format.fprintf ppf
+        "@[<hov 1>(Block_of_naked_floats)@]"
 
   let compare t1 t2 =
     match t1, t2 with
@@ -194,8 +234,11 @@ module Duplicate_block_kind = struct
       if c <> 0 then c else Targetint_31_63.compare length1 length2
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
       Targetint_31_63.compare length1 length2
-    | Values _, Naked_floats _ -> -1
-    | Naked_floats _, Values _ -> 1
+    | Abstract, Abstract -> 0
+    | Naked_floats _, Abstract -> -1
+    | Abstract, Naked_floats _ -> 1
+    | Values _, _ -> -1
+    | _, Values _ -> 1
 end
 
 module Duplicate_array_kind = struct
@@ -239,6 +282,14 @@ module Block_access_field_kind = struct
   let compare = Stdlib.compare
 end
 
+module Abstract_block_access_field_kind = struct
+  type t = Lambda.abstract_element = Imm | Float | Float64
+
+  let print = Printlambda.abstract_element
+
+  let compare = Stdlib.compare
+end
+
 module Block_access_kind = struct
   type t =
     | Values of
@@ -247,6 +298,8 @@ module Block_access_kind = struct
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
+    | Abstract of { size : Targetint_31_63.t Or_unknown.t;
+                    field_kind : Abstract_block_access_field_kind.t }
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -266,9 +319,27 @@ module Block_access_kind = struct
           @[<hov 1>(size@ %a)@]\
           )@]"
         (Or_unknown.print Targetint_31_63.print) size
+    | Abstract { size; field_kind } ->
+      Format.fprintf ppf
+        "@[<hov 1>(Abstract@ \
+          @[<hov 1>(size@ %a)@]@ \
+          @[<hov 1>(field_kind@ %a)@]\
+          )@]"
+        (Or_unknown.print Targetint_31_63.print) size
+        Abstract_block_access_field_kind.print field_kind
 
   let element_kind_for_load t =
-    match t with Values _ -> K.value | Naked_floats _ -> K.naked_float
+    match t with
+    | Values _ -> K.value
+    | Naked_floats _ -> K.naked_float
+    | Abstract { field_kind; _ } -> begin
+        match field_kind with
+        | Imm -> K.value
+        | Float | Float64 -> K.naked_float
+        (* XXX layouts: based on the Naked_floats case I believe naked_float is
+           correct here for both Float and Float64, but an flambda2 person
+           should check. *)
+      end
 
   let element_kind_for_set = element_kind_for_load
 
@@ -286,8 +357,16 @@ module Block_access_kind = struct
         else Block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats { size = size1 }, Naked_floats { size = size2 } ->
       Or_unknown.compare Targetint_31_63.compare size1 size2
-    | Values _, Naked_floats _ -> -1
-    | Naked_floats _, Values _ -> 1
+    | Abstract { size = size1; field_kind = field_kind1 },
+      Abstract { size = size2; field_kind = field_kind2 } ->
+      let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
+      if c <> 0
+      then c
+      else Abstract_block_access_field_kind.compare field_kind1 field_kind2
+    | Naked_floats _, Abstract _ -> -1
+    | Abstract _, Naked_floats _-> 1
+    | Values _, _ -> -1
+    | _, Values _ -> 1
 end
 
 type string_or_bytes =
@@ -1576,17 +1655,23 @@ let ids_for_export_ternary_primitive p =
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_abstract_block of
+      Lambda.abstract_block_shape * Mutability.t * Alloc_mode.For_allocations.t
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
-  | Make_block (_, _, Local _) | Make_array (_, Immutable, Local _) -> false
-  | Make_block (_, Immutable, Heap) | Make_array (_, Immutable, _) ->
+  | Make_block (_, _, Local _) | Make_array (_, Immutable, Local _)
+  | Make_abstract_block (_, _, Local _) -> false
+  | Make_block (_, Immutable, Heap) | Make_array (_, Immutable, _)
+  | Make_abstract_block (_, Immutable, Heap) ->
     (* See comment in [unary_primitive_eligible_for_cse], above, on [Box_number]
        case. *)
     List.exists (fun arg -> Simple.is_var arg) args
-  | Make_block (_, Immutable_unique, _) | Make_array (_, Immutable_unique, _) ->
+  | Make_block (_, Immutable_unique, _) | Make_array (_, Immutable_unique, _)
+  | Make_abstract_block (_, Immutable_unique, _) ->
     false
-  | Make_block (_, Mutable, _) | Make_array (_, Mutable, _) -> false
+  | Make_block (_, Mutable, _) | Make_array (_, Mutable, _)
+  | Make_abstract_block (_, Mutable, _) -> false
 
 let compare_variadic_primitive p1 p2 =
   match p1, p2 with
@@ -1610,8 +1695,20 @@ let compare_variadic_primitive p1 p2 =
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
-  | Make_block _, Make_array _ -> -1
-  | Make_array _, Make_block _ -> 1
+  | Make_abstract_block (kind1, mut1, alloc_mode1),
+    Make_abstract_block (kind2, mut2, alloc_mode2) ->
+    let c = Abstract_block_kind.compare kind1 kind2 in
+    if c <> 0
+    then c
+    else
+      let c = Stdlib.compare mut1 mut2 in
+      if c <> 0
+      then c
+      else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+  | Make_array _, Make_abstract_block _ -> -1
+  | Make_abstract_block _, Make_array _ -> 1
+  | Make_block _, _ -> -1
+  | _, Make_block _ -> 1
 
 let equal_variadic_primitive p1 p2 = compare_variadic_primitive p1 p2 = 0
 
@@ -1624,6 +1721,10 @@ let print_variadic_primitive ppf p =
   | Make_array (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_array@ %a@ %a@ %a)@]" Array_kind.print kind
       Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
+  | Make_abstract_block (kind, mut, alloc_mode) ->
+    fprintf ppf "@[<hov 1>(Make_abstract_block@ %a@ %a@ %a)@]"
+      Abstract_block_kind.print kind
+      Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
 
 let args_kind_of_variadic_primitive p : arg_kinds =
   match p with
@@ -1631,13 +1732,18 @@ let args_kind_of_variadic_primitive p : arg_kinds =
     Variadic_all_of_kind (Block_kind.element_kind kind)
   | Make_array (kind, _, _) ->
     Variadic_all_of_kind (Array_kind.element_kind_for_creation kind)
+  | Make_abstract_block (kind, _, _) ->
+    Variadic (List.init (Array.length kind)
+                (fun i -> Abstract_block_kind.element_kind i kind))
 
 let result_kind_of_variadic_primitive p : result_kind =
-  match p with Make_block _ | Make_array _ -> Singleton K.value
+  match p with
+  | Make_block _ | Make_array _ | Make_abstract_block _ -> Singleton K.value
 
 let effects_and_coeffects_of_variadic_primitive p =
   match p with
-  | Make_block (_, mut, alloc_mode) | Make_array (_, mut, alloc_mode) ->
+  | Make_block (_, mut, alloc_mode) | Make_array (_, mut, alloc_mode)
+  | Make_abstract_block (_, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
       | Heap -> Coeffects.No_coeffects
@@ -1646,13 +1752,16 @@ let effects_and_coeffects_of_variadic_primitive p =
     Effects.Only_generative_effects mut, coeffects, Placement.Strict
 
 let variadic_classify_for_printing p =
-  match p with Make_block _ | Make_array _ -> Constructive
+  match p with
+  | Make_block _ | Make_array _ | Make_abstract_block _ -> Constructive
 
 let free_names_variadic_primitive p =
   match p with
   | Make_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
+    Alloc_mode.For_allocations.free_names alloc_mode
+  | Make_abstract_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
 
 let apply_renaming_variadic_primitive p renaming =
@@ -1667,12 +1776,20 @@ let apply_renaming_variadic_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Make_array (kind, mut, alloc_mode')
+  | Make_abstract_block (kind, mut, alloc_mode) ->
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
+    if alloc_mode == alloc_mode' then p
+    else Make_abstract_block (kind, mut, alloc_mode')
 
 let ids_for_export_variadic_primitive p =
   match p with
   | Make_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
+    Alloc_mode.For_allocations.ids_for_export alloc_mode
+  | Make_abstract_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
 
 type t =
@@ -1982,7 +2099,8 @@ module Eligible_for_cse = struct
             | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
               let kinds = List.map K.With_subkind.erase_subkind kinds in
               Make_block (Values (tag, kinds), mutability, alloc_mode)
-            | Make_block (Naked_floats, _, _) | Make_array _ -> prim
+            | Make_block (Naked_floats, _, _) | Make_array _
+            | Make_abstract_block _ -> prim
           in
           Variadic (prim, args)
       in

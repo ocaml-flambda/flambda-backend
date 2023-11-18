@@ -1224,9 +1224,10 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
     let rec fill_fields idx = function
       | [] -> Cvar id
       | e1 :: el ->
+        let ofs = 1 + (idx * 2) in
         Csequence
-          ( set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
-            fill_fields (idx + 2) el )
+          ( set_fn idx (Cvar id) (Cconst_int (ofs, dbg)) e1 dbg,
+            fill_fields (idx + 1) el )
     in
     Clet
       ( VP.create id,
@@ -1246,10 +1247,10 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
               },
             [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)],
             dbg ),
-        fill_fields 1 args )
+        fill_fields 0 args )
 
 let make_alloc ~mode dbg tag args =
-  let addr_array_init arr ofs newval dbg =
+  let addr_array_init _ arr ofs newval dbg =
     Cop
       ( Cextcall
           { func = "caml_initialize";
@@ -1267,9 +1268,28 @@ let make_alloc ~mode dbg tag args =
   make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode float_array_set dbg tag
+  make_alloc_generic ~mode
+    (fun _ -> float_array_set)
+    dbg tag
     (List.length args * size_float / size_addr)
     args
+
+let make_abstract_alloc ~mode dbg shape args =
+  (* args with shape [Float] must already have been unboxed. *)
+  let set_fn idx arr ofs newval dbg =
+    match (shape.(idx) : Lambda.abstract_element) with
+    | Imm -> int_array_set arr ofs newval dbg
+    | Float | Float64 -> float_array_set arr ofs newval dbg
+  in
+  let size =
+    Array.fold_left
+      (fun sz (shape : Lambda.abstract_element) ->
+        match shape with
+        | Imm -> sz + 1
+        | Float | Float64 -> sz + (size_float / size_addr))
+      0 shape
+  in
+  make_alloc_generic ~mode set_fn dbg Obj.abstract_tag size args
 
 (* Bounds checking *)
 

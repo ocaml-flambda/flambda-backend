@@ -118,10 +118,10 @@ let preserve_tailcall_for_prim = function
   | Pget_header _
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakeabstractblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
-  | Pufloatfield _ | Psetufloatfield _
+  | Pufloatfield _ | Psetufloatfield _ | Pabstractfield _ | Psetabstractfield _
   | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
@@ -175,6 +175,7 @@ type rhs_kind =
   | RHS_block of int
   | RHS_infix of { blocksize : int; offset : int }
   | RHS_floatblock of int
+  | RHS_abstractblock of { imms : int; floats : int }
   | RHS_nonrec
   | RHS_function of int * int
 
@@ -198,6 +199,15 @@ let rec size_of_lambda env = function
       | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float | Record_ufloat -> RHS_floatblock size
       | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
+      | Record_abstract abs ->
+        let (imms, floats) =
+          Array.fold_left (fun (imms, floats) shape ->
+            match shape with
+            | Imm -> (imms+1, floats)
+            | Float | Float64 -> (imms, floats+1))
+            (0, 0) abs
+        in
+        RHS_abstractblock { imms; floats }
       end
   | Llet(_str, _k, id, arg, body) ->
       size_of_lambda (Ident.add id (size_of_lambda env arg) env) body
@@ -225,6 +235,15 @@ let rec size_of_lambda env = function
   | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
+  | Lprim (Pmakeabstractblock (_, abs, _), _, _) ->
+      let (imms, floats) =
+         Array.fold_left (fun (imms, floats) shape ->
+           match shape with
+           | Imm -> (imms+1, floats)
+           | Float | Float64 -> (imms, floats+1))
+           (0, 0) abs
+       in
+       RHS_abstractblock { imms; floats }
   | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
@@ -437,6 +456,22 @@ let comp_primitive stack_info p sz args =
      instructions for the ufloat primitives. *)
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
+  | Pabstractfield (n, shape, _sem, _mode) -> begin
+      (* CR layouts: This assumes immediates and floats are the same size (false
+         on 32 bits), and will need reworking when we have other sizes. *)
+      match shape with
+      | Imm -> Kgetfield n
+      | (Float | Float64) -> Kgetfloatfield n
+      (* Note float64s are unboxed in records but otherwise boxed in bytecode. *)
+    end
+  | Psetabstractfield (n, shape, _init) -> begin
+      (* CR layouts: This assumes immediates and floats are the same size (false
+         on 32 bits), and will need reworking when we have other sizes. *)
+      match shape with
+      | Imm -> Ksetfield n
+      | (Float | Float64) -> Ksetfloatfield n
+      (* Note float64s are unboxed in records but otherwise boxed in bytecode. *)
+    end
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
   | Pperform ->
@@ -582,6 +617,7 @@ let comp_primitive stack_info p sz args =
   | Pmakeblock _
   | Pmakefloatblock _
   | Pmakeufloatblock _
+  | Pmakeabstractblock _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
   | Pmake_unboxed_product _ | Punboxed_product_field _
@@ -719,6 +755,12 @@ let rec comp_expr stack_info env exp sz cont =
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy_float", 1) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
+          | (id, _exp, RHS_abstractblock {imms; floats}) :: rem ->
+              Kconst(Const_base(Const_int floats)) ::
+              Kpush ::
+              Kconst(Const_base(Const_int imms)) ::
+              Kccall("caml_alloc_dummy_abstract", 2) :: Kpush ::
+              comp_init (add_var id (sz+1) new_env) (sz+1) rem
           | (id, _exp, RHS_block blocksize) :: rem ->
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy", 1) :: Kpush ::
@@ -741,7 +783,8 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_nonrec new_env sz i = function
           | [] -> comp_rec new_env sz ndecl decl_size
           | (_id, _exp, (RHS_block _ | RHS_infix _ |
-                         RHS_floatblock _ | RHS_function _))
+                         RHS_floatblock _ | RHS_abstractblock _ |
+                         RHS_function _))
             :: rem ->
               comp_nonrec new_env sz (i-1) rem
           | (_id, exp, RHS_nonrec) :: rem ->
@@ -750,7 +793,8 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_rec new_env sz i = function
           | [] -> comp_expr stack_info new_env body sz (add_pop ndecl cont)
           | (_id, exp, (RHS_block _ | RHS_infix _ |
-                        RHS_floatblock _ | RHS_function _))
+                        RHS_floatblock _ | RHS_abstractblock _ |
+                        RHS_function _))
             :: rem ->
               comp_expr stack_info new_env exp sz
                 (Kpush :: Kacc i :: Kccall("caml_update_dummy", 2) ::
@@ -823,6 +867,12 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
+  | Lprim(Pmakeabstractblock _, args, loc) ->
+      (* The implementation of [Kmakeabsblock] figures out which args are floats
+         in need of unboxing dynamically. *)
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args stack_info env args sz
+        (Kmakeabstractblock(List.length args) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

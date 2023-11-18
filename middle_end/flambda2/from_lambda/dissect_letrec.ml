@@ -122,6 +122,7 @@ type block_type =
   | Normal of int
   (* tag *)
   | Flat_float_record
+  | Abstract of Lambda.abstract_block_shape
 
 type block =
   { block_type : block_type;
@@ -287,6 +288,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         build_block cl (size + 1) (Normal 0) arg letrec
       | Record_float | Record_ufloat ->
         build_block cl size Flat_float_record arg letrec
+      | Record_abstract shape ->
+        build_block cl size (Abstract shape) arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->
@@ -564,16 +567,37 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
       }
   in
   let preallocations =
+    let alloc_normal_dummy cfun size =
+      let desc = Primitive.simple_on_values ~name:cfun ~arity:1 ~alloc:true in
+      let size : lambda = Lconst (Const_base (Const_int size)) in
+      Lprim (Pccall desc, [size], Loc_unknown)
+    in
+    let alloc_abstract_dummy shape =
+      let (imms, floats) =
+        Array.fold_left (fun (imms, floats) shape ->
+          match shape with
+          | Imm -> (imms+1, floats)
+          | Float | Float64 -> (imms, floats+1))
+          (0, 0) shape
+      in
+      let imms = Lconst (Const_base (Const_int imms)) in
+      let floats = Lconst (Const_base (Const_int floats)) in
+      let desc =
+        Primitive.simple_on_values ~name:"caml_alloc_dummy_abstract" ~arity:2
+          ~alloc:true
+      in
+      Lprim (Pccall desc, [imms; floats], Loc_unknown)
+    in
     List.map
       (fun (id, { block_type; size }) ->
-        let fn =
-          match block_type with
-          | Normal _tag -> "caml_alloc_dummy"
-          | Flat_float_record -> "caml_alloc_dummy_float"
-        in
-        let desc = Primitive.simple_on_values ~name:fn ~arity:1 ~alloc:true in
-        let size : lambda = Lconst (Const_base (Const_int size)) in
-        id, Lprim (Pccall desc, [size], Loc_unknown))
+         let ccall =
+           match block_type with
+           | Normal _tag -> alloc_normal_dummy "caml_alloc_dummy" size
+           | Flat_float_record ->
+             alloc_normal_dummy "caml_alloc_dummy_float" size
+           | Abstract shape -> alloc_abstract_dummy shape
+         in
+         id, ccall)
       letrec.blocks
   in
   let body = if not letrec.needs_region then body else Lexclave body in

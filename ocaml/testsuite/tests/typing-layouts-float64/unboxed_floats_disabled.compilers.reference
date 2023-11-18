@@ -1,4 +1,4 @@
-File "unboxed_floats.ml", line 325, characters 25-31:
-325 | let ( let* ) x (f : _ -> float#) = f x
+File "unboxed_floats.ml", line 327, characters 25-31:
+327 | let ( let* ) x (f : _ -> float#) = f x
                                ^^^^^^
 Error: This construct requires the stable version of the extension "layouts", which is disabled and cannot be used

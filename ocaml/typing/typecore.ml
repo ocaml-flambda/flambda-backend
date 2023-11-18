@@ -2004,7 +2004,8 @@ module Label = NameChoice (struct
     Env.lookup_all_labels_from_type ~loc usage path env
   let in_env lbl =
     match lbl.lbl_repres with
-    | Record_boxed _ | Record_float | Record_ufloat | Record_unboxed -> true
+    | Record_boxed _ | Record_float | Record_ufloat | Record_unboxed
+    | Record_abstract _ -> true
     | Record_inlined _ -> false
 end)
 
@@ -5532,9 +5533,15 @@ and type_expect_
         type_label_access env srecord Env.Projection lid
       in
       let alloc_mode = match label.lbl_repres with
-      (* projecting out of packed-float-record needs allocation *)
+        (* projecting out of packed-float-record needs allocation *)
         | Record_float -> Some (register_allocation expected_mode)
-        | _ -> None
+        | Record_abstract shape -> begin
+            match shape.(label.lbl_num) with
+            | Imm | Float64 -> None
+            | Float -> Some (register_allocation expected_mode)
+          end
+        | Record_unboxed | Record_inlined _ | Record_boxed _ | Record_ufloat ->
+          None
       in
       let mode = modality_unbox_left label.lbl_global rmode in
       let ty_arg =
@@ -6799,7 +6806,9 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
     match label.lbl_repres with
     | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
       expected_mode
-    | _ -> mode_subcomponent expected_mode
+    | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
+    | Record_boxed _ | Record_float | Record_ufloat | Record_abstract _ ->
+      mode_subcomponent expected_mode
   in
   let arg_mode = mode_box_modality label.lbl_global rmode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:

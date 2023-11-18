@@ -30,6 +30,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakearray (Pfloatarray, mutability, mode)
   | Pmakeufloatblock (mutability, mode) ->
       Pmakeufloatblock (mutability, mode)
+  | Pmakeabstractblock (mutability, abs, mode) ->
+      Pmakeabstractblock (mutability, abs, mode)
   | Pfield (field, imm_or_ptr, sem) ->
     let sem : Lambda.mutable_flag =
       match sem with
@@ -48,6 +50,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pufloatfield (field, _sem) -> Pufloatfield field
   | Psetufloatfield (field, init_or_assign) ->
       Psetufloatfield (field, init_or_assign)
+  | Pabstractfield (field, shape, _sem, mode) ->
+      Pabstractfield (field, shape, mode)
+  | Psetabstractfield (field, shape, init_or_assign) ->
+      Psetabstractfield (field, shape, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
   | Pmake_unboxed_product layouts -> Pmake_unboxed_product layouts
   | Punboxed_product_field (field, layouts) ->

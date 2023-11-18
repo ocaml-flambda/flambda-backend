@@ -879,6 +879,7 @@ let rec choice ctx t =
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
     | Pufloatfield _ | Psetufloatfield _
+    | Pabstractfield _  | Psetabstractfield _
     | Pccall _
     | Praise _
     | Pnot
@@ -912,9 +913,10 @@ let rec choice ctx t =
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
 
-    (* we don't handle all-float records *)
+    (* we don't handle all-float records or abstract blocks *)
     | Pmakefloatblock _
     | Pmakeufloatblock _
+    | Pmakeabstractblock _
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _

@@ -196,6 +196,9 @@ module Stdlib : sig
     val equal : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool
     (** Compare two arrays for equality, using the supplied predicate for
         element equality *)
+
+    val compare : ('a -> 'a -> int) -> 'a array -> 'a array -> int
+    (** Compare two arrays, using the supplied predicate for element equality *)
   end
 
 (** {2 Extensions to the String module} *)
