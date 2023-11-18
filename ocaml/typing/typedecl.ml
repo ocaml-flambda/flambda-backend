@@ -742,12 +742,15 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_record lbls ->
           let lbls, lbls' = transl_labels env None true lbls in
           let rep, jkind =
+            (* Note this is innaccurate, using `Record_boxed` in cases where the
+               correct representaiton is [Record_float], [Record_ufloat], or
+               [Record_abstract].  Those cases are fixed up after we can get
+               accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
               Record_unboxed, any
-            else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
-            then Record_float
-            else Record_boxed (Array.make (List.length lbls) any)),
-                 Jkind.value ~why:Boxed_record
+            else
+              Record_boxed (Array.make (List.length lbls) any),
+              Jkind.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
@@ -1101,8 +1104,12 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
 let update_decl_jkind env dpath decl =
   let open struct
     (* For tracking what types appear in record blocks. *)
-    type has_values = Has_values | No_values
-    type has_float64s = Has_float64s | No_float64s
+    type element_reprs =
+      {  mutable values : bool; (* value here means non-immediate, non-float
+                                   value *)
+         mutable imms : bool;
+         mutable floats: bool;
+         mutable float64s : bool }
   end in
 
   (* returns updated labels, updated rep, and updated jkind *)
@@ -1116,37 +1123,113 @@ let update_decl_jkind env dpath decl =
     | _, Record_boxed jkinds ->
       let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
       let jkind = Jkind.for_boxed_record ~all_void in
-      let has_values, has_floats =
-        Array.fold_left
-          (fun (values, floats) jkind ->
-             match Jkind.get_default_value jkind with
-             | Value | Immediate64 | Immediate -> (Has_values, floats)
-             | Float64 -> (values, Has_float64s)
-             | Void -> (values, floats)
-             | Any -> assert false)
-          (No_values, No_float64s) jkinds
+
+      let element_reprs =
+        { values = false; imms = false; floats = false; float64s = false }
+      in
+      (* Check for [Record_float], [Record_ufloat], and [Record_abstract], and
+         compute the [abstract_block_shape] for the latter case. *)
+      let rec scan_jkinds_and_compute_abstract_suffix
+          i
+          lbls
+          ~running_abstract_count
+          ~seen_non_value_with_runtime_component =
+        match lbls with
+        | [] ->
+            if seen_non_value_with_runtime_component then
+              Some (Array.init running_abstract_count (fun _ -> Imm), false)
+            else
+              None
+        | lbl :: lbls ->
+            let abstract_element, is_non_value_with_runtime_component =
+              if is_float env lbl.Types.ld_type then begin
+                element_reprs.floats <- true;
+                Some Float, false
+              end else match Jkind.get_default_value jkinds.(i) with
+                | Value | Immediate64 ->
+                    element_reprs.values <- true;
+                    None, false
+                | Immediate ->
+                    element_reprs.imms <- true;
+                    Some Imm, false
+                | Float64 -> begin
+                    element_reprs.float64s <- true;
+                    Some Float64, true
+                  end
+                | Void -> Some Imm, false (* has no runtime component *)
+                | Any ->
+                    Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
+            in
+            (* CR nroberts: different kind of error. *)
+            if seen_non_value_with_runtime_component
+            && Option.is_none abstract_element
+            then raise (Error (loc, Mixed_block));
+            match
+              scan_jkinds_and_compute_abstract_suffix (i + 1) lbls
+                ~seen_non_value_with_runtime_component:
+                  (seen_non_value_with_runtime_component ||
+                    is_non_value_with_runtime_component)
+                ~running_abstract_count:
+                  (if Option.is_some abstract_element then
+                     running_abstract_count + 1
+                   else 0)
+            with
+            | None -> None
+            | Some (arr, done_) as some ->
+                if done_ then some
+                else match abstract_element with
+                  | None -> Some (arr, true)
+                  | Some elem ->
+                      arr.(running_abstract_count) <- elem;
+                      some
+      in
+      let abstract_suffix =
+        scan_jkinds_and_compute_abstract_suffix 0 lbls
+          ~running_abstract_count:0
+          ~seen_non_value_with_runtime_component:false
       in
       let rep =
-        match has_values, has_floats with
-        | Has_values, Has_float64s -> raise (Error (loc, Mixed_block))
-        | Has_values, No_float64s -> rep
-        | No_values, Has_float64s -> Record_ufloat
-        | No_values, No_float64s ->
+        match element_reprs with
+        | { values = true ; imms = _    ; floats = _    ; float64s = true  }
+        | { values = _    ; imms = true ; floats = _    ; float64s = true  }
+        | { values = _    ; imms = _    ; floats = true ; float64s = true  } ->
+            (* CR nroberts: do this from some central place... *)
+            if Config.reserved_header_bits < 8 then
+              failwith "Need at least 8 reserved header bits to play this game.";
+            if Config.naked_pointers then
+              failwith "You won't get any useful information from testing this with naked pointers enabled.";
+            begin match abstract_suffix with
+            | Some (abstract_suffix, done_) ->
+                let value_prefix_len =
+                  Array.length jkinds - Array.length abstract_suffix
+                in
+                if not done_ && value_prefix_len <> 0 then
+                  fatal_error
+                    "Expected [done_] flag to be [true] if there is a scanned \
+                     prefix.";
+                Record_abstract { value_prefix_len; abstract_suffix }
+            | None ->
+                Misc.fatal_error
+                  "Typedecl.update_record_kind: expected abstract suffix for \
+                   mixed block"
+            end
+        | { values = true ; imms = _    ; floats = _    ; float64s = false }
+        | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
+          rep
+        | { values = false; imms = false; floats = true ; float64s = false } ->
+          Record_float
+        | { values = false; imms = false; floats = false; float64s = true  } ->
+          Record_ufloat
+        | { values = false; imms = false; floats = false; float64s = false } ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
-    | _, Record_float ->
-      (* CR layouts v2.5: When we have an unboxed float jkind, does it make
-         sense to use that here?  The use of value feels inaccurate, but I think
-         the code that would look at first looks at the rep. *)
-      let lbls =
-        List.map (fun lbl ->
-          { lbl with ld_jkind = Jkind.value ~why:Float_record_field })
-          lbls
-      in
-      lbls, rep, Jkind.value ~why:Boxed_record
-    | (([] | (_ :: _)), Record_unboxed
-      | _, (Record_inlined _ | Record_ufloat)) -> assert false
+    | _, ( Record_inlined _ | Record_float | Record_ufloat
+         | Record_abstract _)
+    | ([] | (_ :: _)), Record_unboxed ->
+      (* These are never created by [transl_declaration]. *)
+      Misc.fatal_error
+        "Typedecl.update_record_kind: unexpected record representation"
   in
 
   (* returns updated constructors, updated rep, and updated jkind *)
@@ -2928,7 +3011,7 @@ let report_error ppf = function
       Printtyp.type_expr typ struct_desc
   | Mixed_block  ->
     fprintf ppf
-      "@[Records may not contain both unboxed floats and normal values.@]"
+      "@[Records may not contain both unboxed floats and boxed values.@]"
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

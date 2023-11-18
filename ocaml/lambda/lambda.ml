@@ -145,14 +145,17 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakeabstractblock of mutable_flag * abstract_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
+  | Pabstractfield of int * abstract_element * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
+  | Psetabstractfield of int * abstract_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -301,6 +304,12 @@ and layout =
 
 and block_shape =
   value_kind list option
+
+and abstract_element = Types.abstract_element = Imm | Float | Float64
+and abstract_block_shape = Types.abstract_block_shape =
+  { value_prefix_len : int;
+    abstract_suffix : abstract_element array;
+  }
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
@@ -1448,11 +1457,15 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
+  | Pmakeabstractblock (_, _, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
+  | Pabstractfield (_, Float, _, m) -> Some m
+  | Pabstractfield (_, (Imm | Float64), _, _) -> None
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
+  | Psetabstractfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
   | Pccall p ->
@@ -1574,14 +1587,14 @@ let primitive_result_layout (p : primitive) =
   | Popaque layout | Pobj_magic layout -> layout
   | Pbytes_to_string | Pbytes_of_string -> layout_string
   | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
-  | Psetufloatfield _
+  | Psetufloatfield _ | Psetabstractfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _
+  | Pmakeufloatblock _ | Pmakeabstractblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
@@ -1589,7 +1602,10 @@ let primitive_result_layout (p : primitive) =
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
-  | Pufloatfield _ | Punbox_float -> Punboxed_float
+  | Pufloatfield _ | Punbox_float -> layout_unboxed_float
+  | Pabstractfield (_, Imm, _, _) -> layout_int
+  | Pabstractfield (_, Float, _, _) -> layout_boxed_float
+  | Pabstractfield (_, Float64, _, _) -> layout_unboxed_float
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

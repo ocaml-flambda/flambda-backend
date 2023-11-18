@@ -261,12 +261,19 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
+and abstract_element = Imm | Float | Float64
+and abstract_block_shape =
+    { value_prefix_len : int;
+      abstract_suffix : abstract_element array;
+    }
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
   | Record_boxed of Jkind.t array
   | Record_float
   | Record_ufloat
+  | Record_abstract of abstract_block_shape
 
 and variant_representation =
   | Variant_unboxed
@@ -553,6 +560,13 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
 
+let equal_abstract_element abs1 abs2 =
+  match abs1, abs2 with
+  | Imm, Imm -> true
+  | Float, Float -> true
+  | Float64, Float64 -> true
+  | (Imm | Float | Float64), _ -> false
+
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
       true
@@ -564,8 +578,12 @@ let equal_record_representation r1 r2 = match r1, r2 with
       true
   | Record_ufloat, Record_ufloat ->
       true
+  | Record_abstract { value_prefix_len = l1; abstract_suffix = abs1 },
+    Record_abstract { value_prefix_len = l2; abstract_suffix = abs2 }
+    [@warning "+9"] (* get alerted when we add another field *) ->
+      l1 = l2 && Misc.Stdlib.Array.equal equal_abstract_element abs1 abs2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
-    | Record_ufloat ), _ ->
+    | Record_ufloat | Record_abstract _), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -586,7 +604,8 @@ let find_unboxed_type decl =
                   Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
-                    | Record_boxed _ | Record_float | Record_ufloat ))
+                    | Record_boxed _ | Record_float | Record_ufloat
+                    | Record_abstract _))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
   | Type_abstract _ | Type_open ->

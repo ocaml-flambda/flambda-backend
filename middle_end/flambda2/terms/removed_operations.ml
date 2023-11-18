@@ -56,7 +56,8 @@ let prim (prim : Flambda_primitive.t) =
   | Nullary _ -> zero
   | Binary (_, _, _) | Ternary (_, _, _, _) -> { zero with prim = 1 }
   | Variadic (prim, _) -> (
-    match prim with Make_block _ | Make_array _ -> alloc)
+    match prim with
+    | Make_block _ | Make_array _ | Make_abstract_block _ -> alloc)
   [@@ocaml.warning "-fragile-match"]
 
 let branch = { zero with branch = 1 }

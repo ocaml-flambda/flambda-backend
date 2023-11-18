@@ -81,7 +81,7 @@ and type_desc =
   | Ttuple of (string option * type_expr) list
   (** [Ttuple [None, t1; ...; None, tn]] ==> [t1 * ... * tn]
       [Ttuple [Some "l1", t1; ...; Some "ln", tn]] ==> [l1:t1 * ... * ln:tn]
-      
+
       Any mix of labeled and unlabeled components also works:
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
@@ -535,6 +535,13 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
+(* CR nroberts: rename these *)
+and abstract_element = Imm | Float | Float64
+and abstract_block_shape =
+  { value_prefix_len : int;
+    abstract_suffix : abstract_element array;
+  }
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
@@ -546,6 +553,11 @@ and record_representation =
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
      but operations on these (e.g., projection, update) work with unboxed floats
      rather than boxed floats. *)
+  (* CR nroberts: rename this. *)
+  | Record_abstract of abstract_block_shape
+  (* CR nroberts: This comment shouldn't be true if we use this repr for
+     all-immediate records. *)
+  (* The block is tagged such that polymorphic operations will not work. *)
 
 (* For unboxed variants, we record the jkind of the mandatory single argument.
    For boxed variants, we record the jkinds for the arguments of each

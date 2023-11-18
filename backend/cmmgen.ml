@@ -193,6 +193,9 @@ type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
   | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
   | RHS_floatblock of Lambda.alloc_mode * int
+  | RHS_abstractblock of { imms : int;
+                           floats : int;
+                           blockmode : Lambda.alloc_mode }
   | RHS_nonrec
 
 let rec expr_size env = function
@@ -218,6 +221,19 @@ let rec expr_size env = function
       RHS_block (mode, List.length args)
   | Uprim(Pmakeufloatblock (_, mode), args, _) ->
       RHS_floatblock (mode, List.length args)
+  | Uprim
+      (Pmakeabstractblock
+         (_, { value_prefix_len; abstract_suffix }, blockmode) ,
+       _args, _) ->
+      let (imms, floats) =
+        Array.fold_left (fun (imms, floats) shape ->
+          match (shape : Lambda.abstract_element) with
+          | Imm -> (imms+1, floats)
+          | Float | Float64 -> (imms, floats+1))
+          (value_prefix_len, 0) abstract_suffix
+      in
+      (* CR nroberts: rename [imms] to [values]. *)
+      RHS_abstractblock { imms; floats; blockmode }
   | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
       RHS_block (mode, List.length args)
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
@@ -643,13 +659,15 @@ let rec transl env e =
           Ctuple (List.map (transl env) args)
       | (Pread_symbol sym, []) ->
           Cconst_symbol (global_symbol sym, dbg)
-      | ((Pmakeblock _ | Pmakeufloatblock _), []) ->
+      | ((Pmakeblock _ | Pmakeufloatblock _ | Pmakeabstractblock _), []) ->
           assert false
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
           make_alloc ~mode dbg tag (List.map (transl env) args)
       | (Pmakeufloatblock(_mut, mode), args) ->
           make_float_alloc ~mode dbg Obj.double_array_tag
             (List.map (transl env) args)
+      | (Pmakeabstractblock(_mut, abs, mode), args) ->
+          transl_make_abstract_block dbg env abs mode args
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
       | (Pduparray (kind, _), [Uprim (Pmakearray (kind', _, _), args, _dbg)]) ->
@@ -746,6 +764,7 @@ let rec transl env e =
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
          | Pufloatfield _ | Psetufloatfield (_, _)
+         | Pabstractfield (_, _, _) | Psetabstractfield (_, _, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
          | Pcompare_ints | Pcompare_floats | Pcompare_bints _
          | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _ | Parraylength _
@@ -953,6 +972,23 @@ and transl_make_array dbg env kind mode args =
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
 
+and transl_make_abstract_block dbg env
+    ({ value_prefix_len; abstract_suffix } as abs : abstract_block_shape)
+    mode
+    args
+  =
+  (* XXX layouts: double check that `Float` args will be boxed for all middle
+     ends that use this file. *)
+  make_abstract_alloc ~mode dbg abs
+    (List.mapi (fun i arg ->
+       if i < value_prefix_len then
+         transl env arg
+       else
+         match abstract_suffix.(i - value_prefix_len) with
+         | Imm | Float64 -> transl env arg
+         | Float -> transl_unbox_float dbg env arg)
+     args)
+
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
     match native_repr with
@@ -1010,6 +1046,14 @@ and transl_prim_1 env p arg dbg =
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
       get_field env Mutable Punboxed_float (transl env arg) n dbg
+  | Pabstractfield (n, shape, mode) ->
+      (* XXX layouts: a backend person to confirm these are fine to use here. *)
+      let ptr = transl env arg in
+      begin match shape with
+      | Imm -> get_field env Mutable Lambda.layout_int ptr n dbg
+      | Float -> box_float dbg mode (floatfield n ptr dbg)
+      | Float64 -> get_field env Mutable Punboxed_float ptr n dbg
+      end
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
@@ -1103,7 +1147,8 @@ and transl_prim_1 env p arg dbg =
     | Pbytesrefs | Pbytessets | Pisout | Pread_symbol _
     | Pmakeblock (_, _, _, _) | Psetfield (_, _, _) | Psetfield_computed (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
-    | Pmakeufloatblock (_, _) | Psetufloatfield (_, _)
+    | Pmakeufloatblock (_, _) | Pmakeabstractblock (_, _, _)
+    | Psetufloatfield (_, _) | Psetabstractfield (_, _, _)
     | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Punboxed_float_comp _ | Pmakearray (_, _, _)
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
@@ -1134,6 +1179,14 @@ and transl_prim_2 env p arg1 arg2 dbg =
       let ptr = transl env arg1 in
       let float_val = transl env arg2 in
       setfloatfield n init ptr float_val dbg
+  | Psetabstractfield (n, shape, init) ->
+      let ptr = transl env arg1 in
+      (* XXX layouts: a backend person to confirm these are fine to use here. *)
+      begin match shape with
+      | Imm -> setfield n Immediate init ptr (transl env arg2) dbg
+      | Float -> setfloatfield n init ptr (transl_unbox_float dbg env arg2) dbg
+      | Float64 -> setfloatfield n init ptr (transl env arg2) dbg
+      end
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
@@ -1321,6 +1374,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
+  | Pmakeabstractblock (_, _, _) | Pabstractfield (_, _, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
   | Pmakearray (_, _, _) | Pduparray (_, _) | Parraylength _ | Parraysetu _
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _, _)
@@ -1428,6 +1482,8 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
+  | Pmakeabstractblock (_, _, _)
+  | Pabstractfield (_, _, _) | Psetabstractfield (_, _, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _
@@ -1703,7 +1759,8 @@ and transl_letrec env bindings cont =
     | (_, _,
        (RHS_block (Alloc_local, _) |
         RHS_infix {blockmode=Alloc_local; _} |
-        RHS_floatblock (Alloc_local, _))) :: _ ->
+        RHS_floatblock (Alloc_local, _) |
+        RHS_abstractblock {blockmode=Alloc_local; _})) :: _ ->
       Misc.fatal_error "Invalid stack allocation found"
     | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
@@ -1715,18 +1772,25 @@ and transl_letrec env bindings cont =
     | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
           init_blocks rem)
+    | (id, _exp, RHS_abstractblock {imms; floats; blockmode=Alloc_heap})
+      :: rem ->
+        let imms = int_const dbg imms in
+        let floats = int_const dbg floats in
+        Clet(id, op_alloc "caml_alloc_dummy_abstract" [imms; floats],
+             init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->
         Clet (id, Cconst_int (1, dbg), init_blocks rem)
   and fill_nonrec = function
     | [] -> fill_blocks bsz
     | (_id, _exp,
-       (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
+       (RHS_block _ | RHS_infix _ | RHS_floatblock _ | RHS_abstractblock _)) :: rem ->
         fill_nonrec rem
     | (id, exp, RHS_nonrec) :: rem ->
         Clet(id, transl env exp, fill_nonrec rem)
   and fill_blocks = function
     | [] -> cont
-    | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
+    | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _ | RHS_abstractblock _))
+      :: rem ->
         let op =
           Cop(Cextcall { func = "caml_update_dummy"; ty = typ_void;
                          builtin = false;

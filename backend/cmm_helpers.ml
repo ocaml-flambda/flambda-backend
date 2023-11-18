@@ -68,17 +68,42 @@ let mk_load_atomic memory_chunk =
 
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
-let block_header tag sz =
-  Nativeint.add
-    (Nativeint.shift_left (Nativeint.of_int sz) 10)
-    (Nativeint.of_int tag)
+type scannable_prefix =
+  | Scan_all
+  | Scan_prefix of int
+
+let block_header ?(scannable_prefix = Scan_all) tag sz =
+  let hdr =
+    Nativeint.add
+      (Nativeint.shift_left (Nativeint.of_int sz) 10)
+      (Nativeint.of_int tag)
+  in
+  match scannable_prefix with
+  | Scan_all -> hdr
+  | Scan_prefix scannable_prefix ->
+    (* CR nroberts: check sz isn't too big *)
+    (* CR nroberts: 55 should be constant somewhere *)
+    (* CR nroberts: 8 should be constant somewhere. Different configuration
+       mechanism? *)
+    (* CR nroberts: how to check for bytecode vs. not? *)
+    (* CR nroberts: need to check with mark about GC bit *)
+    assert (Config.reserved_header_bits >= 8);
+    let x =
+      Nativeint.add
+        (Nativeint.shift_left (Nativeint.of_int (scannable_prefix + 1)) 56)
+        hdr
+    in
+    if !Clflags.verbose
+    then Printf.printf "header = 0x%x\n" (Nativeint.to_int x);
+    x
 
 (* Static data corresponding to "value"s must be marked black in case we are in
    no-naked-pointers mode. See [caml_darken] and the code below that emits
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
-let local_block_header tag sz = Nativeint.logor (block_header tag sz) caml_local
+let local_block_header ?scannable_prefix tag sz =
+  Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
 
 let white_closure_header sz = block_header Obj.closure_tag sz
 
@@ -1225,15 +1250,17 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ~mode set_fn dbg tag wordsize args =
+let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
+    wordsize args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
       match mode with
-      | Lambda.Alloc_local -> local_block_header tag wordsize
-      | Lambda.Alloc_heap -> block_header tag wordsize
+      (* CR nroberts: test for locals? *)
+      | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
+      | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -1241,18 +1268,27 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
     let rec fill_fields idx = function
       | [] -> Cvar id
       | e1 :: el ->
+        let ofs = 1 + (idx * 2) in
         Csequence
-          ( set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
-            fill_fields (idx + 2) el )
+          ( set_fn idx (Cvar id) (Cconst_int (ofs, dbg)) e1 dbg,
+            fill_fields (idx + 1) el )
+    in
+    let caml_alloc_func, caml_alloc_args =
+      match Config.runtime5, scannable_prefix with
+      | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | false, Scan_all -> "caml_alloc", [wordsize; tag]
+      | true, Scan_prefix prefix_len ->
+        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
+      | false, Scan_prefix _ ->
+        Misc.fatal_error
+          "mixed blocks not implemented for runtime 4. (It uses the PROFINFO \
+           configuration instead of HEADER_RESERVED_WORDS.)"
     in
     Clet
       ( VP.create id,
         Cop
           ( Cextcall
-              { func =
-                  (if Config.runtime5
-                  then "caml_alloc_shr_check_gc"
-                  else "caml_alloc");
+              { func = caml_alloc_func;
                 ty = typ_val;
                 alloc = true;
                 builtin = false;
@@ -1261,32 +1297,66 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
                 coeffects = Has_coeffects;
                 ty_args = []
               },
-            [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)],
+            List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args,
             dbg ),
-        fill_fields 1 args )
+        fill_fields 0 args )
+
+let addr_array_init arr ofs newval dbg =
+  Cop
+    ( Cextcall
+        { func = "caml_initialize";
+          ty = typ_void;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty_args = []
+        },
+      [array_indexing log2_size_addr arr ofs dbg; newval],
+      dbg )
 
 let make_alloc ~mode dbg tag args =
-  let addr_array_init arr ofs newval dbg =
-    Cop
-      ( Cextcall
-          { func = "caml_initialize";
-            ty = typ_void;
-            alloc = false;
-            builtin = false;
-            returns = true;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects;
-            ty_args = []
-          },
-        [array_indexing log2_size_addr arr ofs dbg; newval],
-        dbg )
-  in
-  make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
+  make_alloc_generic ~mode
+    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
+    dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode float_array_set dbg tag
+  make_alloc_generic ~mode
+    (fun _ -> float_array_set)
+    dbg tag
     (List.length args * size_float / size_addr)
     args
+
+(* CR nroberts: I just do not understand this. Why are floats / float64s
+   different lengths depending on platform? If they are, then that threatens our
+   ability to output this code anyway, so we should raise instead of pretending
+   as though we can handle it... *)
+
+let make_abstract_alloc ~mode dbg
+    ({ value_prefix_len; abstract_suffix } : Lambda.abstract_block_shape) args =
+  (* args with shape [Float] must already have been unboxed. *)
+  let set_fn idx arr ofs newval dbg =
+    if idx < value_prefix_len
+    then addr_array_init arr ofs newval dbg
+    else
+      match
+        (abstract_suffix.(idx - value_prefix_len) : Lambda.abstract_element)
+      with
+      | Imm -> int_array_set arr ofs newval dbg
+      | Float | Float64 -> float_array_set arr ofs newval dbg
+  in
+  let size =
+    Array.fold_left
+      (fun sz (shape : Lambda.abstract_element) ->
+        match shape with
+        | Imm -> sz + 1
+        | Float | Float64 -> sz + (size_float / size_addr))
+      value_prefix_len abstract_suffix
+  in
+  (* CR nroberts: need to do additional things in the header of course... *)
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+    set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Bounds checking *)
 
@@ -4324,3 +4394,6 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
         },
       [atomic; old_value; new_value],
       dbg )
+
+(* Drop internal optional arguments from exported interface *)
+let block_header x y = block_header x y

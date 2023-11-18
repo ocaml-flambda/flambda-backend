@@ -739,7 +739,7 @@ Caml_inline void mark_stack_push_range(struct mark_stack* stk,
 static intnat mark_stack_push_block(struct mark_stack* stk, value block)
 {
   int i, end;
-  uintnat block_wsz = Wosize_val(block), offset = 0;
+  uintnat block_wsz, offset = 0;
 
   if (Tag_val(block) == Closure_tag) {
     /* Skip the code pointers and integers at beginning of closure;
@@ -755,6 +755,13 @@ static intnat mark_stack_push_block(struct mark_stack* stk, value block)
   CAMLassert(Tag_val(block) != Infix_tag);
   CAMLassert(Tag_val(block) < No_scan_tag);
   CAMLassert(Tag_val(block) != Cont_tag);
+
+  uintnat succ_scannable = Reserved_val(block);
+  if (succ_scannable == 0) {
+    block_wsz = Wosize_val(block);
+  } else {
+    block_wsz = succ_scannable - 1;
+  }
 
   /* Optimisation to avoid pushing small, unmarkable objects such as
      [Some 42] into the mark stack. */
@@ -909,7 +916,13 @@ again:
       }
 
       me.start = Op_val(block);
-      me.end = me.start + Wosize_hd(hd);
+
+      uintnat succ_scannable = Reserved_hd(hd);
+      if (succ_scannable > 0) {
+        me.end = me.start + succ_scannable - 1;
+      } else {
+        me.end = me.start + Wosize_hd(hd);
+      }
 
       if (Tag_hd(hd) == Closure_tag) {
         uintnat env_offset = Start_env_closinfo(Closinfo_val(block));

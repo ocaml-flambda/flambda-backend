@@ -30,6 +30,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
   | Pmakeblock (_, _, _, m)
   | Pmakeufloatblock (_, m)
+  | Pmakeabstractblock (_, _, m)
   | Pmakearray (_, Mutable, m) -> Only_generative_effects, coeffects_of m
   | Pmakearray (_, (Immutable | Immutable_unique), m) ->
      No_effects, coeffects_of m
@@ -124,6 +125,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pfield_computed
   | Pfloatfield _
   | Pufloatfield _
+  | Pabstractfield _
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
@@ -145,6 +147,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psetfield_computed _
   | Psetfloatfield _
   | Psetufloatfield _
+  | Psetabstractfield _
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
@@ -200,6 +203,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   match prim with
   | Pmakeblock (_, _, _, m)
   | Pmakeufloatblock (_, m)
+  | Pmakeabstractblock (_, _, m)
   | Pmakearray (_, _, m) -> is_local_alloc m
   | Pduparray (_, _)
   | Pduprecord (_,_) -> false
@@ -276,6 +280,11 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
       false
   | Pfloatfield (_, m) -> is_local_alloc m
   | Pufloatfield _ -> false
+  | Pabstractfield (_, shape, m) -> begin
+      match shape with
+      | Imm | Float64 -> false
+      | Float -> is_local_alloc m
+    end
   | Pstring_load (_, Safe, m)
   | Pbytes_load (_, Safe, m)
   | Pbigstring_load (_, Safe, m) -> is_local_alloc m
@@ -287,6 +296,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Psetfield_computed _
   | Psetfloatfield _
   | Psetufloatfield _
+  | Psetabstractfield _
   | Parraysetu _
   | Parraysets _
   | Pbytessetu

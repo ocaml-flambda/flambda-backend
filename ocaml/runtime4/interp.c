@@ -128,6 +128,32 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
   if (Caml_state->trapsp >= Caml_state->trap_barrier) \
     caml_debugger(TRAP_BARRIER, Val_unit)
 
+/* Initializing abstract records.  Only correct for 64-bit bytecode.
+
+   XXX layouts: check that we really don't need to support 32-bit bytecode.
+   Perhaps this function should crash loudly if invoked on 32-bits?  Note this
+   isn't the only place where we're assuming 64-bits - otherwise the
+   implementation of projection and update will be wrong.
+
+   This code assumes that both [Float] and [Float64] elements are provided
+   boxed, which is only true in bytecode.  It further assumes that immediates
+   are 64-bits wide: otherwise the use of [Store_double_flat_field] may
+   calculate an incorrect offset.
+
+   [block] is the block to store into (a value)
+   [idx] is the index into the block
+   [element] is the value to store, which may be either an immediate or a pointer
+   to a float
+ */
+Caml_inline void store_abs_flat_field(value block, mlsize_t idx, uintptr_t element) {
+  if (Is_block((int)element)) {
+    double d = (Double_val(element));
+    Store_double_flat_field(block, idx, d);
+  } else {
+    Field(block, idx) = (int)element;
+  }
+}
+
 /* Register optimization.
    Some compilers underestimate the use of the local variables representing
    the abstract machine registers, and don't put them in hardware registers,
@@ -766,6 +792,23 @@ value caml_interprete(code_t prog, asize_t prog_size)
       Store_double_flat_field(block, 0, Double_val(accu));
       for (i = 1; i < size; i++){
         Store_double_flat_field(block, i, Double_val(*sp));
+        ++ sp;
+      }
+      accu = block;
+      Next;
+    }
+    Instruct(MAKEABSTRACTBLOCK): {
+      mlsize_t size = *pc++;
+      mlsize_t i;
+      value block;
+      if (size <= Max_young_wosize / Double_wosize) {
+        Alloc_small(block, size * Double_wosize, Abstract_tag);
+      } else {
+        block = caml_alloc_shr(size * Double_wosize, Abstract_tag);
+      }
+      store_abs_flat_field(block, 0, accu);
+      for (i = 1; i < size; i++){
+        store_abs_flat_field(block, i, *sp);
         ++ sp;
       }
       accu = block;

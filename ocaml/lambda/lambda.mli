@@ -102,14 +102,18 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakeabstractblock of mutable_flag * abstract_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
+  | Pabstractfield of int * abstract_element * field_read_semantics * alloc_mode
+      (* Note the alloc_mode here is only relevant for float fields. *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
+  | Psetabstractfield of int * abstract_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -293,6 +297,12 @@ and layout =
 
 and block_shape =
   value_kind list option
+
+and abstract_element = Types.abstract_element = Imm | Float | Float64
+and abstract_block_shape = Types.abstract_block_shape =
+  { value_prefix_len : int;
+    abstract_suffix : abstract_element array;
+  }
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64

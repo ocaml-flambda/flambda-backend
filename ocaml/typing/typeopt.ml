@@ -502,10 +502,11 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
       | [] | _ :: _ :: _ -> assert false
     end
-  | _ -> begin
-      let (is_mutable, num_nodes_visited), fields =
+  | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
+  | Record_boxed _ | Record_float | Record_ufloat | Record_abstract _ -> begin
+      let (_, is_mutable, num_nodes_visited), fields =
         List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
+          (fun (idx, is_mutable, num_nodes_visited)
                (label:Types.label_declaration) ->
             let is_mutable =
               match label.ld_mutable with
@@ -519,19 +520,26 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                  sort (we can get this info from the label.ld_jkind).  For now
                  we rely on the layout check at the top of value_kind to rule
                  out void. *)
+              (* We're using the `Pfloatval` value kind for unboxed floats
+                 inside of records.  This is kind of a lie, but that was already
+                 happening here due to the float record optimization. *)
               match rep with
               | Record_float | Record_ufloat ->
-                (* We're using the `Pfloatval` value kind for unboxed floats.
-                   This is kind of a lie (there are unboxed floats in here, not
-                   boxed floats), but that was already happening here due to the
-                   float record optimization. *)
                 num_nodes_visited, Pfloatval
+              | Record_abstract { value_prefix_len; abstract_suffix } ->
+                if idx < value_prefix_len then
+                  value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                    label.ld_type
+                else begin match abstract_suffix.(idx - value_prefix_len) with
+                  | Imm -> num_nodes_visited, Pintval
+                  | Float | Float64 -> num_nodes_visited, Pfloatval
+                end
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited
                   label.ld_type
             in
-            (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+            (idx + 1, is_mutable, num_nodes_visited), field)
+          (0, false, num_nodes_visited) labels
       in
       if is_mutable then
         num_nodes_visited, Pgenval
@@ -542,6 +550,8 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [runtime_tag, fields]
           | Record_float | Record_ufloat ->
             [ Obj.double_array_tag, fields ]
+          | Record_abstract _ ->
+            [ Obj.abstract_tag, fields ]
           | Record_boxed _ ->
             [0, fields]
           | Record_inlined (Extension _, _) ->
