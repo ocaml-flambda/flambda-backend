@@ -97,6 +97,9 @@ void caml_gc_message (int level, char *msg, ...)
   if ((atomic_load_relaxed(&caml_verb_gc) & level) != 0){
     va_list ap;
     va_start(ap, msg);
+    if (caml_verb_gc & 0x1000) {
+      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
+    }
     vfprintf (stderr, msg, ap);
     va_end(ap);
     fflush (stderr);
