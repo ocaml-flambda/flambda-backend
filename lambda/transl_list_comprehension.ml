@@ -259,6 +259,7 @@ let rec translate_bindings
           ~attr:default_function_attribute
           ~loc
           ~mode:alloc_local
+          ~ret_mode:alloc_local
           ~region:false
           ~body:(add_bindings body)
       in
