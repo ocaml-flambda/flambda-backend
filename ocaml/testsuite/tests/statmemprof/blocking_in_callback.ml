@@ -1,8 +1,7 @@
 (* TEST
 * hassysthreads
 include systhreads
-* skip
-reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+* runtime4
 ** bytecode
 ** native
 *)
