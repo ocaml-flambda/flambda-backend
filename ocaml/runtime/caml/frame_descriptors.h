@@ -79,7 +79,7 @@ typedef struct {
 
 typedef struct {
   int32_t retaddr_rel; /* offset of return address from &retaddr_rel */
-  uint16_t marker;     /* LONG_FRAME_MARKER */
+  uint16_t marker;     /* FRAME_LONG_MARKER */
   uint16_t _pad;       /* Ensure frame_data is 4-byte aligned */
   uint32_t frame_data; /* frame size and various flags */
   uint32_t num_live;
@@ -101,7 +101,7 @@ Caml_inline bool frame_return_to_C(frame_descr *d) {
 }
 
 Caml_inline bool frame_is_long(frame_descr *d) {
-  CAMLassert(d && d -> frame_data != FRAME_RETURN_TO_C);
+  CAMLassert(d && !frame_return_to_C(d));
   return (d -> frame_data == FRAME_LONG_MARKER);
 }
 
@@ -128,7 +128,7 @@ Caml_inline unsigned char *frame_end_of_live_ofs(frame_descr *d) {
   }
 }
 
-Caml_inline uint16_t frame_size(frame_descr *d) {
+Caml_inline uint32_t frame_size(frame_descr *d) {
   return frame_data(d) &~ FRAME_DESCRIPTOR_FLAGS;
 }
 
