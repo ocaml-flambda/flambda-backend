@@ -270,6 +270,12 @@ module Block_access_kind = struct
   let element_kind_for_load t =
     match t with Values _ -> K.value | Naked_floats _ -> K.naked_float
 
+  let element_subkind_for_load t =
+    match t with
+    | Values { field_kind = Any_value; _ } -> K.With_subkind.any_value
+    | Values { field_kind = Immediate; _ } -> K.With_subkind.tagged_immediate
+    | Naked_floats _ -> K.With_subkind.naked_float
+
   let element_kind_for_set = element_kind_for_load
 
   let compare t1 t2 =

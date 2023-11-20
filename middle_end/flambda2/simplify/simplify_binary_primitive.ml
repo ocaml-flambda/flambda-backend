@@ -918,10 +918,10 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
       ~const:(fun const ->
         match Reg_width_const.descr const with
         | Tagged_immediate index ->
+          let kind = P.Block_access_kind.element_subkind_for_load access_kind in
           Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
             (Symbol_projection.Projection.block_load ~index)
-            ~projection_bound_to:result_var
-            ~kind:Flambda_kind.With_subkind.tagged_immediate
+            ~projection_bound_to:result_var ~kind
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
         | Naked_nativeint _ | Naked_vec128 _ ->
           Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"

@@ -131,6 +131,8 @@ module Block_access_kind : sig
   val compare : t -> t -> int
 
   val element_kind_for_load : t -> Flambda_kind.t
+
+  val element_subkind_for_load : t -> Flambda_kind.With_subkind.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
