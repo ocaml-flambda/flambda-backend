@@ -139,6 +139,8 @@ CAMLprim value caml_natdynlink_register(value handle_v, value symbols) {
   for (int i = 0; i < nsymbols; i++)
     caml_register_frametable(table[i]);
 
+  caml_stat_free(table);
+
   for (i = 0; i < nsymbols; i++) {
     void* sym;
     void* sym2;
@@ -159,7 +161,6 @@ CAMLprim value caml_natdynlink_register(value handle_v, value symbols) {
     }
   }
 
-  caml_stat_free(table);
   CAMLreturn (Val_unit);
 }
 
