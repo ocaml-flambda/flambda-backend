@@ -1,7 +1,7 @@
 (* TEST
+* runtime4
 * hassysthreads
 include systhreads
-* runtime4
 ** bytecode
 ** native
 *)

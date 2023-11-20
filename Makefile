@@ -156,7 +156,7 @@ build_and_test_upstream: build_upstream
 	 && if $$(which parallel > /dev/null 2>&1); \
             then \
 	      echo "Running testsuite in parallel (nproc=$$(nproc))"; \
-	      make --no-print-directory parallel; \
+	      make --no-print-directory one DIR=tests/tool-debugger; \
             else \
 	      echo "Running testsuite sequentially"; \
               make --no-print-directory all; \

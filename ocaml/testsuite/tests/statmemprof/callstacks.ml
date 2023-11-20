@@ -3,15 +3,15 @@
 
    * flat-float-array
      reference = "${test_source_directory}/callstacks.flat-float-array.reference"
-   * runtime4
-   ** native
-   ** bytecode
+   ** runtime4
+   *** native
+   *** bytecode
 
    * no-flat-float-array
      reference = "${test_source_directory}/callstacks.no-flat-float-array.reference"
-   * runtime4
-   ** native
-   ** bytecode
+   ** runtime4
+   *** native
+   *** bytecode
 *)
 
 open Gc.Memprof
