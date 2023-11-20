@@ -211,6 +211,8 @@ module Bytecode = struct
       close_in ic;
       raise exc
 
+  let register _handle _header ~priv:_ ~filename:_ = ()
+
   let unsafe_get_global_value ~bytecode_or_asm_symbol =
     let id = Ident.create_persistent bytecode_or_asm_symbol in
     match Symtable.get_global_value id with

@@ -365,6 +365,17 @@ module Make (P : Dynlink_platform_intf.S) = struct
             global.state <- check filename units global.state
                 ~unsafe_allowed
                 ~priv;
+            (* [register] must be called after [check]:
+               1. so as not to leave outdated entries in the frame table
+                  list (etc) after a failure of [check];
+               2. so that the duplicate dyn-globals test only triggers in
+                  public-loading mode in the event of a bug in [Dynlink],
+                  matching the 4.x semantics. *)
+            P.register handle units ~priv ~filename;
+            (* [run_shared_startup] doesn't take [lock] because a lock isn't
+               needed for the native implementation (neither for [run]) and
+               the bytecode implementation, where [run] does need a lock,
+               has [run_shared_startup] as a no-op. *)
             P.run_shared_startup handle;
           );
         List.iter

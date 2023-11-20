@@ -132,29 +132,29 @@ module Native = struct
     if header.dynu_magic <> Config.cmxs_magic_number then begin
       raise (DT.Error (Not_a_bytecode_file filename))
     end;
+    handle, header.dynu_units
+
+  let register handle dynu_units ~priv ~filename =
     let syms =
       "caml_shared_startup" ::
-      List.concat_map Unit_header.defined_symbols header.dynu_units
+      List.concat_map Unit_header.defined_symbols dynu_units
     in
-    try (
-      ndl_register handle (Array.of_list syms);
-      handle, header.dynu_units )
+    try
+      ndl_register handle (Array.of_list syms)
     with
     | Register_dyn_global_duplicate ->
-      (* CR mshinwell: This used to be a failure, but now this [load]
-         function is called before [check].  For the moment just assume
-         this is a [Module_already_loaded] case. *)
-      if not priv then (
-        (* CR mshinwell: [Module_already_loaded] should really take a
-           module name, not a filename! *)
-        Printexc.raise_with_backtrace
-          (DT.Error (Module_already_loaded filename))
-          (Printexc.get_raw_backtrace ())
-      )
+      if not priv then
+        failwith (Printf.sprintf "Attempt to register duplicate dynamic \
+          GC roots for non-privately-loaded library `%s'; this is a bug in \
+          [Dynlink]" filename)
       else
         Printexc.raise_with_backtrace
           (DT.Error (Library_file_already_loaded_privately { filename }))
           (Printexc.get_raw_backtrace ())
+    | exn ->
+      Printexc.raise_with_backtrace
+        (DT.Error (Library's_module_initializers_failed exn))
+        (Printexc.get_raw_backtrace ())
 
   let unsafe_get_global_value ~bytecode_or_asm_symbol =
     match ndl_loadsym bytecode_or_asm_symbol with

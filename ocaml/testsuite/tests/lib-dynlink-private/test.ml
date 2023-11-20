@@ -194,11 +194,9 @@ let test_cow_repeated () =
     let load () = Dynlink.loadfile_private "plugin2/cow.cmxs" in
     begin try load () with _ -> assert false end;
     match load () with
-    | _ -> assert false
+    | () -> assert false
     | exception Dynlink.Error (
-        Dynlink.Cannot_open_dynamic_library (
-          Dynlink.Error (
-            Dynlink.Library_file_already_loaded_privately _))) -> ()
+        Dynlink.Library_file_already_loaded_privately _) -> ()
   end
 
 (* Test repeated loading of the same privately-loaded module from two
@@ -268,11 +266,8 @@ let test_pheasant () =
       Dynlink.loadfile "plugin6/partridge.cmo"
   with
   | () -> assert false
-  | exception Dynlink.Error (Dynlink.Module_already_loaded _) -> ()
-  (* CR mshinwell: on runtime4, the string here is "Partridge" *)
   | exception Dynlink.Error (
-      Dynlink.Cannot_open_dynamic_library (
-        Dynlink.Error (Dynlink.Module_already_loaded _))) -> ()
+      Dynlink.Module_already_loaded "Partridge") -> ()
 
 let debug_runtime = String.equal (Sys.runtime_variant ()) "d"
 
