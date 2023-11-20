@@ -29,6 +29,7 @@ type compile_time_constant =
   | Ostype_win32
   | Ostype_cygwin
   | Backend_type
+  | Runtime5
 
 type immediate_or_pointer =
   | Immediate
@@ -54,6 +55,8 @@ val alloc_local : locality_mode
 val modify_heap : modify_mode
 
 val modify_maybe_stack : modify_mode
+
+val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
 
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
@@ -514,6 +517,7 @@ and lfunction = private
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
     mode : alloc_mode;     (* alloc mode of the closure itself *)
+    ret_mode: alloc_mode;
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
   }
@@ -634,6 +638,7 @@ val lfunction :
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
   mode:alloc_mode ->
+  ret_mode:alloc_mode ->
   region:bool ->
   lambda
 

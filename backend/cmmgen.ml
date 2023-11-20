@@ -155,21 +155,22 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-(* BACKPORT
 (* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
 let min_mut x y =
   match x,y with
-  | Immutable,_ | _,Immutable -> Immutable
-  | Mutable,Mutable -> Mutable
-*)
+  | Asttypes.Immutable, _
+  | _, Asttypes.Immutable -> Asttypes.Immutable
+  | Asttypes.Mutable, Asttypes.Mutable -> Asttypes.Mutable
 
-(* BACKPORT BEGIN
-let get_field env mut ptr n dbg =
-  let mut = min_mut mut (mut_from_env env ptr) in
-*)
- let get_field env layout ptr n dbg =
-   let mut = mut_from_env env ptr in
-(* BACKPORT END *)
+let mut_from_lambda = function
+  | Lambda.Immutable -> Asttypes.Immutable
+  | Lambda.Immutable_unique -> Asttypes.Immutable
+  | Lambda.Mutable -> Asttypes.Mutable
+
+let get_field env mut layout ptr n dbg =
+  let mut = if Config.runtime5
+    then min_mut (mut_from_lambda mut) (mut_from_env env ptr)
+    else mut_from_env env ptr in
   let memory_chunk =
     match layout with
     | Pvalue Pintval | Punboxed_int _ -> Word_int
@@ -1002,13 +1003,13 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield (n, layout, _, _) ->
-      get_field env layout (transl env arg) n dbg
+  | Pfield (n, layout, _, mut) ->
+      get_field env mut layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
-      get_field env Punboxed_float (transl env arg) n dbg
+      get_field env Mutable Punboxed_float (transl env arg) n dbg
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)

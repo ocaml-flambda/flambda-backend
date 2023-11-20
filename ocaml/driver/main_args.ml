@@ -153,6 +153,11 @@ let mk_i f =
 let mk_I f =
   "-I", Arg.String f, "<dir>  Add <dir> to the list of include directories"
 
+let mk_H f =
+  "-H", Arg.String f,
+  "<dir>  Add <dir> to the list of \"hidden\" include directories\n\
+ \     (Like -I, but the program can not directly reference these dependencies)"
+
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
 
@@ -370,6 +375,13 @@ let mk_nopromptcont f =
 let mk_nostdlib f =
   "-nostdlib", Arg.Unit f,
   " Do not add default directory to the list of include directories"
+
+let mk_no_auto_include_otherlibs f =
+  "-no-auto-include-otherlibs", Arg.Unit f,
+  "Add only stdlib to the list of include directories (unless -nostdlib is \
+   specified). Do not add subdirectories of other libraries distributed with \
+   the compiler (such as unix, str, dynlink). Do not alert when \
+   they are missing."
 
 let mk_nocwd f =
   "-nocwd", Arg.Unit f,
@@ -842,6 +854,7 @@ module type Common_options = sig
   val _no_absname : unit -> unit
   val _alert : string -> unit
   val _I : string -> unit
+  val _H : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -854,6 +867,7 @@ module type Common_options = sig
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
+  val _no_auto_include_otherlibs : unit -> unit
   val _nocwd : unit -> unit
   val _open : string -> unit
   val _ppx : string -> unit
@@ -1128,6 +1142,7 @@ struct
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
     mk_I F._I;
+    mk_H F._H;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1150,6 +1165,7 @@ struct
     mk_noautolink_byt F._noautolink;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_o F._o;
@@ -1229,6 +1245,7 @@ struct
     mk_no_absname F._no_absname;
     mk_alert F._alert;
     mk_I F._I;
+    mk_H F._H;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
@@ -1245,6 +1262,7 @@ struct
     mk_noprompt F._noprompt;
     mk_nopromptcont F._nopromptcont;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_open F._open;
@@ -1336,6 +1354,7 @@ struct
     mk_no_probes F._no_probes;
     mk_i F._i;
     mk_I F._I;
+    mk_H F._H;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1368,6 +1387,7 @@ struct
     mk_no_insn_sched F._no_insn_sched;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
@@ -1478,6 +1498,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_alert F._alert;
     mk_compact F._compact;
     mk_I F._I;
+    mk_H F._H;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1509,6 +1530,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_noprompt F._noprompt;
     mk_nopromptcont F._nopromptcont;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_nopervasives F._nopervasives;
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
@@ -1590,6 +1612,7 @@ struct
     mk_no_absname F._no_absname;
     mk_alert F._alert;
     mk_I F._I;
+    mk_H F._H;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1607,6 +1630,7 @@ struct
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
+    mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
     mk_open F._open;
     mk_pp F._pp;
@@ -1711,6 +1735,7 @@ module Default = struct
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
+    let _no_auto_include_otherlibs = set no_auto_include_otherlibs
     let _nocwd = set no_cwd
     let _open s = open_modules := (s :: (!open_modules))
     let _principal = set principal
@@ -1731,7 +1756,8 @@ module Default = struct
 
   module Core = struct
     include Common
-    let _I dir = include_dirs := (dir :: (!include_dirs))
+    let _I dir = include_dirs := dir :: (!include_dirs)
+    let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
     let _dparsetree = set dump_parsetree
@@ -1979,6 +2005,11 @@ module Default = struct
     let _I(_:string) =
       (* placeholder:
          Odoc_global.include_dirs := (s :: (!Odoc_global.include_dirs))
+      *) ()
+    let _H(_:string) =
+      (* placeholder:
+         Odoc_global.hidden_include_dirs :=
+           (s :: (!Odoc_global.hidden_include_dirs))
       *) ()
     let _impl (_:string) =
       (* placeholder:

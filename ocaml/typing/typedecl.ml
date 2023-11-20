@@ -73,6 +73,7 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
@@ -88,21 +89,10 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Jkind.const
 
 open Typedtree
 
 exception Error of Location.t * error
-
-let jkind_of_attributes ~legacy_immediate ~context attrs =
-  match Jkind.of_attributes ~legacy_immediate ~context attrs with
-  | Ok l -> l
-  | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
-
-let jkind_of_attributes_default ~legacy_immediate ~context ~default attrs =
-  match Jkind.of_attributes_default ~legacy_immediate ~context ~default attrs with
-  | Ok l -> l
-  | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
 let get_unboxed_from_attributes sdecl =
   let unboxed = Builtin_attributes.has_unboxed sdecl.ptype_attributes in
@@ -208,13 +198,11 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      jkind of the variable put in manifests here is updated when constraints
      are checked and then unified with the real manifest and checked against the
      kind. *)
-  let type_jkind =
-    (* We set ~legacy_immediate to true because we're looking at a declaration
-       that was already allowed to be [@@immediate] *)
-    jkind_of_attributes_default
-      ~legacy_immediate:true ~context:(Type_declaration path)
+  let type_jkind, type_jkind_annotation, sdecl_attributes =
+    Jkind.of_type_decl_default
+      ~context:(Type_declaration path)
       ~default:(Jkind.any ~why:Initial_typedecl_env)
-      sdecl.ptype_attributes
+      sdecl
   in
   let abstract_reason, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
@@ -233,6 +221,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_arity = arity;
       type_kind = Type_abstract abstract_reason;
       type_jkind;
+      type_jkind_annotation;
       type_private = sdecl.ptype_private;
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -240,7 +229,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = sdecl.ptype_loc;
-      type_attributes = sdecl.ptype_attributes;
+      type_attributes = sdecl_attributes;
       type_unboxed_default = false;
       type_uid = uid;
     }
@@ -433,7 +422,19 @@ let make_constructor
   let tvars = match svars with
     | Left vars_only -> List.map (fun v -> v.txt, None) vars_only
     | Right vars_jkinds ->
-      List.map (fun (v, l) -> v.txt, Option.map Location.get_txt l) vars_jkinds
+        List.map
+          (fun (v, l) ->
+            v.txt,
+            Option.map
+              (fun annot ->
+                 let const =
+                    Jkind.const_of_user_written_annotation
+                      ~context:(Constructor_type_parameter (cstr_path, v.txt))
+                      annot
+                 in
+                 const, annot)
+              l)
+          vars_jkinds
   in
   match sret_type with
   | None ->
@@ -640,11 +641,11 @@ let transl_declaration env sdecl (id, uid) =
     | _ -> false, false (* Not unboxable, mark as boxed *)
   in
   verify_unboxed_attr unboxed_attr sdecl;
-  let jkind_annotation =
-    (* We set legacy_immediate to true because you were already allowed to write
-       [@@immediate] on declarations.  *)
-    jkind_of_attributes ~legacy_immediate:true ~context:(Type_declaration path)
-      sdecl.ptype_attributes
+  let jkind_from_annotation, jkind_annotation, sdecl_attributes =
+    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
+    | Some (jkind, jkind_annotation, sdecl_attributes) ->
+        Some jkind, Some jkind_annotation, sdecl_attributes
+    | None -> None, None, sdecl.ptype_attributes
   in
   let (tman, man) = match sdecl.ptype_manifest with
       None -> None, None
@@ -755,24 +756,17 @@ let transl_declaration env sdecl (id, uid) =
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
-       - If there's no annotation but there is a manifest, we estimate the
-         jkind based on the manifest here. This upper bound saves time
-         later by avoiding expanding the manifest in jkind checks, but it
-         would be sound to leave in `any`. We can't give a perfectly
-         accurate jkind here because we don't have access to the
-         manifests of mutually defined types (but we could one day consider
-         improving it at a later point in transl_type_decl).
+         Both of those functions update the [type_jkind] field in the
+         [type_declaration] as appropriate.
+       - If there's no annotation but there is a manifest, just use [any].
+         This will get updated to the manifest's jkind in [check_coherence].
        - If there's no annotation and no manifest, we fill in with the
          default calculated above here. It will get updated in
          [update_decl_jkind]. See Note [Default jkinds in transl_declaration].
     *)
-    (* CR layouts: Is the estimation mentioned in the second bullet above
-       doing anything for us?  Abstract types are updated by
-       check_coherence and record/variant types are updated by
-       update_decl_jkind.  *)
-      match jkind_annotation, man with
+      match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some typ -> Ctype.estimate_type_jkind env typ
+      | None, Some _ -> Jkind.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -781,6 +775,7 @@ let transl_declaration env sdecl (id, uid) =
         type_arity = arity;
         type_kind = kind;
         type_jkind = jkind;
+        type_jkind_annotation = jkind_annotation;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -788,7 +783,7 @@ let transl_declaration env sdecl (id, uid) =
         type_is_newtype = false;
         type_expansion_scope = Btype.lowest_level;
         type_loc = sdecl.ptype_loc;
-        type_attributes = sdecl.ptype_attributes;
+        type_attributes = sdecl_attributes;
         type_unboxed_default = unboxed_default;
         type_uid = uid;
       } in
@@ -819,7 +814,8 @@ let transl_declaration env sdecl (id, uid) =
       typ_manifest = tman;
       typ_kind = tkind;
       typ_private = sdecl.ptype_private;
-      typ_attributes = sdecl.ptype_attributes;
+      typ_attributes = sdecl_attributes;
+      typ_jkind_annotation = Option.map snd jkind_annotation;
     }
   end
 
@@ -857,7 +853,7 @@ let rec check_constraints_rec env loc visited ty =
         | Unification_failure err ->
           raise (Error(loc, Constraint_failed (env, err)))
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
-          raise (Error(loc, Jkind_mismatch_of_type (ty,
+          raise (Error(loc, Jkind_mismatch_in_check_constraints (ty,
                               (Jkind.Violation.of_ (Not_a_subjkind
                                  (original_jkind, inferred_jkind))))))
         | All_good -> ()
@@ -1748,14 +1744,17 @@ let transl_type_decl env rec_flag sdecl_list =
         raise (Error (loc, Type_clash (new_env, err))))
       checks)
     delayed_jkind_checks;
-  (* Check that constraints are enforced *)
-  List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Check that all type variables are closed; this also defaults any remaining
      sort variables. Defaulting must happen before update_decls_jkind,
      Typedecl_seperability.update_decls, and add_types_to_env, all of which need
-     to check whether parts of the type are void (and currently use
-     Jkind.equate to do this which would set any remaining sort variables
-     to void). *)
+     to check whether parts of the type are void (and currently use Jkind.equate
+     to do this which would set any remaining sort variables to void). It also
+     must happen before check_constraints, so that check_constraints can detect
+     when a jkind is inferred incorrectly.  (The unification that
+     check_constraints does is undone via backtracking, and thus forgetting to
+     do the defaulting first is actually unsound: the unification in
+     check_constraints will succeed via mutation, be backtracked, and then
+     perhaps a sort variable gets defaulted to value. Bad bad.) *)
   List.iter2
     (fun sdecl tdecl ->
       let decl = tdecl.typ_type in
@@ -1763,6 +1762,8 @@ let transl_type_decl env rec_flag sdecl_list =
          Some ty -> raise(Error(sdecl.ptype_loc, Unbound_type_var(ty,decl)))
        | None   -> ())
     sdecl_list tdecls;
+  (* Check that constraints are enforced *)
+  List.iter2 (check_constraints new_env) sdecl_list decls;
   (* Add type properties to declarations *)
   let decls =
     try
@@ -1777,10 +1778,10 @@ let transl_type_decl env rec_flag sdecl_list =
     | Typedecl_separability.Error (loc, err) ->
         raise (Error (loc, Separability err))
   in
+  (* Check re-exportation, updating [type_jkind] from the manifest *)
+  let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
   (* Compute the final environment with variance and immediacy *)
   let final_env = add_types_to_env decls env in
-  (* Check re-exportation *)
-  let decls = List.map2 (check_abbrev final_env) sdecl_list decls in
   (* Keep original declaration *)
   let final_decls =
     List.map2
@@ -1858,7 +1859,8 @@ let transl_extension_constructor ~scope env type_path type_params
         (* Remove "_" names from parameters used in the constructor *)
         if not cdescr.cstr_generalized then begin
           let vars =
-            Ctype.free_variables (Btype.newgenty (Ttuple (List.map fst args)))
+            Ctype.free_variables
+              (Btype.newgenty (Ttuple (List.map (fun (t,_) -> None, t) args)))
           in
           List.iter
             (fun ty ->
@@ -2405,23 +2407,27 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_kind, type_unboxed_default, type_jkind =
+  let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
     (* Here, `man = None` indicates we have a "fake" with constraint built by
        [Typetexp.create_package_mty] for a package type. *)
     if arity_ok && man <> None then
-      sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_jkind
+      sig_decl.type_kind,
+      sig_decl.type_unboxed_default,
+      sig_decl.type_jkind,
+      sig_decl.type_jkind_annotation
     else
       (* CR layouts: this is a gross hack.  See the comments in the
          [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
       let jkind = Jkind.value ~why:Package_hack in
         (* Jkind.(of_attributes ~default:value sdecl.ptype_attributes) *)
-      Type_abstract Abstract_def, false, jkind
+      Type_abstract Abstract_def, false, jkind, None
   in
   let new_sig_decl =
     { type_params = params;
       type_arity = arity;
       type_kind;
       type_jkind;
+      type_jkind_annotation;
       type_private = priv;
       type_manifest = man;
       type_variance = [];
@@ -2460,6 +2466,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
       type_jkind = new_sig_decl.type_jkind;
+      type_jkind_annotation = new_sig_decl.type_jkind_annotation;
       type_private = new_sig_decl.type_private;
       type_manifest = new_sig_decl.type_manifest;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -2483,13 +2490,14 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
+    typ_jkind_annotation = Option.map snd type_jkind_annotation;
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
 
 (* Approximate a type declaration: just make all types abstract *)
 
-let abstract_type_decl ~injective jkind params =
+let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
@@ -2497,6 +2505,7 @@ let abstract_type_decl ~injective jkind params =
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;
       type_jkind = jkind;
+      type_jkind_annotation = jkind_annotation;
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
@@ -2517,19 +2526,17 @@ let approx_type_decl sdecl_list =
        let id = Ident.create_scoped ~scope sdecl.ptype_name.txt in
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
-       let jkind =
-         (* We set legacy_immediate to true because you were already allowed
-            to write [@@immediate] on declarations. *)
-         jkind_of_attributes_default ~legacy_immediate:true
+       let jkind, jkind_annotation, _sdecl_attributes =
+         Jkind.of_type_decl_default
            ~context:(Type_declaration path)
            ~default:(Jkind.value ~why:Default_type_jkind)
-           sdecl.ptype_attributes
+           sdecl
        in
        let params =
          List.map (fun (param, _) -> get_type_param_jkind path param)
            sdecl.ptype_params
        in
-       (id, abstract_type_decl ~injective jkind params))
+       (id, abstract_type_decl ~injective ~jkind ~jkind_annotation ~params))
     sdecl_list
 
 (* Check the well-formedness conditions on type abbreviations defined
@@ -2582,7 +2589,7 @@ let explain_unbound_single ppf tv ty =
         (fun (_l,f) -> match row_field_repr f with
           Rpresent (Some t) -> t
         | Reither (_,[t],_) -> t
-        | Reither (_,tl,_) -> Btype.newgenty (Ttuple tl)
+        | Reither (_,tl,_) -> Btype.newgenty (Ttuple (List.map (fun e -> None, e) tl))
         | _ -> Btype.newgenty (Ttuple[]))
         "case" (fun (lab,_) -> "`" ^ lab ^ " of ")
   | _ -> trivial ty
@@ -2632,6 +2639,18 @@ module Reaching_path = struct
     pp path
 end
 
+let report_jkind_mismatch_in_check_constraints ppf ty violation =
+  fprintf ppf
+    "@[<v>Layout mismatch in final type declaration consistency check.@ \
+     This is most often caused by the fact that type inference is not@ \
+     clever enough to propagate layouts through variables in different@ \
+     declarations. It is also not clever enough to produce a good error@ \
+     message, so we'll say this instead:@;<1 2>@[%a@]@ \
+     The fix will likely be to add a layout annotation on a parameter to@ \
+     the declaration where this error is reported.@]"
+    (Jkind.Violation.report_with_offender
+       ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+
 let report_error ppf = function
   | Repeated_parameter ->
       fprintf ppf "A type parameter occurs several times"
@@ -2671,15 +2690,29 @@ let report_error ppf = function
            "the original" "this" "definition" env)
         err
   | Constraint_failed (env, err) ->
+      let get_jkind_error : _ Errortrace.elt -> _ = function
+      | Bad_jkind (ty, violation) | Bad_jkind_sort (ty, violation) ->
+        Some (ty, violation)
+      | Unequal_var_jkinds _ | Diff _ | Variant _ | Obj _
+      | Escape _ | Incompatible_fields _ | Rec_occur _ -> None
+      in
+      begin match List.find_map get_jkind_error err.trace with
+      | Some (ty, violation) ->
+        report_jkind_mismatch_in_check_constraints ppf ty violation
+      | None ->
       fprintf ppf "@[<v>Constraints are not satisfied in this type.@ ";
       Printtyp.report_unification_error ppf env err
         (fun ppf -> fprintf ppf "Type")
         (fun ppf -> fprintf ppf "should be an instance of");
       fprintf ppf "@]"
+      end
+  | Jkind_mismatch_in_check_constraints (ty, violation) ->
+      report_jkind_mismatch_in_check_constraints ppf ty violation
   | Non_regular { definition; used_as; defined_as; reaching_path } ->
       let reaching_path = Reaching_path.simplify reaching_path in
       Printtyp.prepare_for_printing [used_as; defined_as];
       Reaching_path.add_to_preparation reaching_path;
+      Printtyp.Naming_context.reset ();
       fprintf ppf
         "@[<hv>This recursive type is not regular.@ \
          The type constructor %s is defined as@;<1 2>type %a@ \
@@ -2718,9 +2751,9 @@ let report_error ppf = function
       begin match decl.type_kind, decl.type_manifest with
       | Type_variant (tl, _rep), _ ->
           explain_unbound_gen ppf ty tl (fun c ->
-            let tl = tys_of_constr_args c.Types.cd_args in
-            Btype.newgenty (Ttuple tl)
-          )
+              let tl = tys_of_constr_args c.Types.cd_args in
+              Btype.newgenty (Ttuple (List.map (fun t -> None, t) tl))
+            )
             "case" (fun ppf c ->
               fprintf ppf
                 "%a of %a" Printtyp.ident c.Types.cd_id
@@ -2785,6 +2818,7 @@ let report_error ppf = function
       (match n with
        | Variance_variable_error { error; variable; context } ->
            Printtyp.prepare_for_printing [ variable ];
+           Printtyp.Naming_context.reset ();
            begin match context with
            | Type_declaration (id, decl) ->
                Printtyp.add_type_declaration_to_preparation id decl;
@@ -2926,11 +2960,6 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Layout_not_enabled c ->
-      fprintf ppf
-        "@[Layout %s is used here, but the appropriate layouts extension is \
-         not enabled@]"
-        (Jkind.string_of_const c)
 
 let () =
   Location.register_error_of_exn

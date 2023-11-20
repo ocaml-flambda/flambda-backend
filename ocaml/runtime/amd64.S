@@ -1054,14 +1054,14 @@ G(caml_system__code_end):
         .globl  G(caml_system.frametable)
         .align  EIGHT_ALIGN
 G(caml_system.frametable):
-        .quad   2           /* two descriptors */
-        .quad   LBL(108)    /* return address into callback */
-        .value  -1          /* negative frame size => use callback link */
-        .value  0           /* no roots here */
+        .quad   2            /* two descriptors */
+        .4byte  LBL(108) - . /* return address into callback */
+        .value  -1           /* negative frame size => use callback link */
+        .value  0            /* no roots here */
         .align  EIGHT_ALIGN
-        .quad   LBL(frame_runstack) /* return address into fiber_val_handler */
-        .value  -1          /* negative frame size => use callback link */
-        .value  0           /* no roots here */
+        .4byte  LBL(frame_runstack) - . /* return address into fiber_val_handler */
+        .value  -1                      /* negative frame size => use callback link */
+        .value  0                       /* no roots here */
 
 #if defined(SYS_macosx)
         .literal16

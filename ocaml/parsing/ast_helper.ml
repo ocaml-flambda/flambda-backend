@@ -523,13 +523,11 @@ module Type = struct
   let mk ?(loc = !default_loc) ?(attrs = [])
         ?(docs = empty_docs) ?(text = [])
       ?(params = [])
-      ?jkind
       ?(cstrs = [])
       ?(kind = Ptype_abstract)
       ?(priv = Public)
       ?manifest
       name =
-    let jkind_attrs = Option.to_list jkind in
     {
      ptype_name = name;
      ptype_params = params;
@@ -537,8 +535,7 @@ module Type = struct
      ptype_kind = kind;
      ptype_private = priv;
      ptype_manifest = manifest;
-     ptype_attributes =
-       jkind_attrs @ add_text_attrs text (add_docs_attrs docs attrs);
+     ptype_attributes = add_text_attrs text (add_docs_attrs docs attrs);
      ptype_loc = loc;
     }
 

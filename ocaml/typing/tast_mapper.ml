@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Typedtree
 
 (* TODO: add 'methods' for extension,
@@ -40,7 +39,7 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
-    jkind_annotation: mapper -> const_jkind -> const_jkind;
+    jkind_annotation: mapper -> Jkind.annotation -> Jkind.annotation;
     location: mapper -> Location.t -> Location.t;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
@@ -298,7 +297,8 @@ let pat
     | Tpat_any
     | Tpat_constant _ -> x.pat_desc
     | Tpat_var (id, s, uid, m) -> Tpat_var (id, map_loc sub s, uid, m)
-    | Tpat_tuple l -> Tpat_tuple (List.map (sub.pat sub) l)
+    | Tpat_tuple l ->
+        Tpat_tuple (List.map (fun (label, p) -> label, sub.pat sub p) l)
     | Tpat_construct (loc, cd, l, vto) ->
         let vto = Option.map (fun (vl,cty) ->
           List.map (map_loc sub) vl, sub.typ sub cty) vto in
@@ -307,7 +307,7 @@ let pat
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed)
-    | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
+    | Tpat_array (am, arg_sort, l) -> Tpat_array (am, arg_sort, List.map (sub.pat sub) l)
     | Tpat_alias (p, id, s, uid, m) ->
         Tpat_alias (sub.pat sub p, id, map_loc sub s, uid, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
@@ -379,10 +379,10 @@ let expr sub x =
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
     | Texp_function { arg_label; param; cases; partial; region; curry;
-                      warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
+                      warnings; arg_mode; arg_sort; ret_mode; ret_sort; alloc_mode } ->
         let cases = List.map (sub.case sub) cases in
         Texp_function { arg_label; param; cases; partial; region; curry;
-                        warnings; arg_mode; arg_sort; ret_sort; alloc_mode }
+                        warnings; arg_mode; arg_sort; ret_mode; ret_sort; alloc_mode }
     | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,
@@ -405,7 +405,7 @@ let expr sub x =
           List.map (sub.case sub) cases
         )
     | Texp_tuple (list, am) ->
-        Texp_tuple (List.map (sub.expr sub) list, am)
+        Texp_tuple (List.map (fun (label, e) -> label, sub.expr sub e) list, am)
     | Texp_construct (lid, cd, args, am) ->
         Texp_construct (map_loc sub lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
@@ -818,7 +818,8 @@ let typ sub x =
         Ttyp_var (s, Some (sub.jkind_annotation sub jkind))
     | Ttyp_arrow (label, ct1, ct2) ->
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
-    | Ttyp_tuple list -> Ttyp_tuple (List.map (sub.typ sub) list)
+    | Ttyp_tuple list ->
+        Ttyp_tuple (List.map (fun (label, t) -> label, sub.typ sub t) list)
     | Ttyp_constr (path, lid, list) ->
         Ttyp_constr (path, map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_object (list, closed) ->
@@ -915,7 +916,7 @@ let value_binding sub x =
 
 let env _sub x = x
 
-let jkind_annotation _sub l = l
+let jkind_annotation sub (c, l) = (c, map_loc sub l)
 
 let default =
   {

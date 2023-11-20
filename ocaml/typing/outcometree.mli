@@ -53,11 +53,11 @@ type out_value =
   | Oval_record of (out_ident * out_value) list
   | Oval_string of string * int * out_string (* string, size-to-print, kind *)
   | Oval_stuff of string
-  | Oval_tuple of out_value list
+  | Oval_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
 
 type out_jkind =
-  | Olay_const of Jane_asttypes.const_jkind
+  | Olay_const of Jkind.const
   | Olay_var of string
 
 type out_type_param =
@@ -90,7 +90,7 @@ type out_type =
   | Otyp_record of (string * out_mutable_or_global * out_type) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
-  | Otyp_tuple of out_type list
+  | Otyp_tuple of (string option * out_type) list
   | Otyp_var of bool * string
   | Otyp_variant of out_variant * bool * (string list) option
   | Otyp_poly of out_vars_jkinds * out_type

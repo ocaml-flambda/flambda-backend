@@ -255,11 +255,19 @@ stdlib__Digest.cmx : digest.ml \
     stdlib__Digest.cmi
 stdlib__Digest.cmi : digest.mli \
     stdlib.cmi
-domain.cmo : \
-    domain.cmi
-domain.cmx : \
-    domain.cmi
-domain.cmi :
+stdlib__Domain.cmo : domain.ml \
+    stdlib__Sys.cmi \
+    stdlib.cmi \
+    stdlib__Obj.cmi \
+    stdlib__Array.cmi \
+    stdlib__Domain.cmi
+stdlib__Domain.cmx : domain.ml \
+    stdlib__Sys.cmx \
+    stdlib.cmx \
+    stdlib__Obj.cmx \
+    stdlib__Array.cmx \
+    stdlib__Domain.cmi
+stdlib__Domain.cmi : domain.mli
 effect.cmo : \
     effect.cmi
 effect.cmx : \

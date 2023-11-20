@@ -427,12 +427,12 @@ caml_ml_array_bound_error:
 caml_system__code_end:
 
         .DATA
-        PUBLIC  caml_system__frametable
-caml_system__frametable LABEL QWORD
-        QWORD   1           ; one descriptor
-        QWORD   L107        ; return address into callback
-        WORD    -1          ; negative frame size => use callback link
-        WORD    0           ; no roots here
+        PUBLIC  caml_system.frametable
+caml_system.frametable LABEL QWORD
+        QWORD   1                ; one descriptor
+        DWORD   L107 - THIS BYTE ; return address into callback
+        WORD    -1               ; negative frame size => use callback link
+        WORD    0                ; no roots here
         ALIGN   8
 
         PUBLIC  caml_negf_mask

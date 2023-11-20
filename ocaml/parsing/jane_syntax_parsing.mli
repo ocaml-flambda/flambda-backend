@@ -206,6 +206,8 @@ module Extension_constructor :
 module Constructor_declaration :
   AST with type ast = Parsetree.constructor_declaration
 
+module Type_declaration : AST with type ast = Parsetree.type_declaration
+
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
     saying otherwise.  This is intended to be used in [jane_syntax.ml] when a

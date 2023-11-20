@@ -432,7 +432,8 @@ let primitive ppf = function
        | Ostype_unix -> "ostype_unix"
        | Ostype_win32 -> "ostype_win32"
        | Ostype_cygwin -> "ostype_cygwin"
-       | Backend_type -> "backend_type" in
+       | Backend_type -> "backend_type"
+       | Runtime5 -> "runtime5" in
      fprintf ppf "sys.constant_%s" const_name
   | Pisint { variant_only } ->
       fprintf ppf (if variant_only then "isint" else "obj_is_int")
@@ -806,7 +807,7 @@ let rec lam ppf = function
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
         apply_probe ap.ap_probe
-  | Lfunction{kind; params; return; body; attr; mode; region} ->
+  | Lfunction{kind; params; return; body; attr; ret_mode; mode} ->
       let pr_params ppf params =
         match kind with
         | Curried {nlocal} ->
@@ -829,10 +830,9 @@ let rec lam ppf = function
                  layout ppf p.layout)
               params;
             fprintf ppf ")" in
-      let rmode = if region then alloc_heap else alloc_local in
       fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
         (alloc_kind mode) pr_params params
-        function_attribute attr return_kind (rmode, return) lam body
+        function_attribute attr return_kind (ret_mode, return) lam body
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->
