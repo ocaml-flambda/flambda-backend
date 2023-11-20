@@ -259,7 +259,7 @@ let rec translate_bindings
           ~attr:default_function_attribute
           ~loc
           ~mode:alloc_local
-          ~region:true (* One region per iterator, like for loops *)
+          ~region:false
           ~body:(add_bindings body)
       in
       let result =
