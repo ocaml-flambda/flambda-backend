@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Semaphores
 
   A semaphore is a thread synchronization device that can be used to

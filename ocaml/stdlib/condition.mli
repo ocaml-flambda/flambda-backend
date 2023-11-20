@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (**Condition variables.
 
    Condition variables are useful when several threads wish to access a
