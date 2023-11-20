@@ -1,6 +1,6 @@
 (* TEST
    * flambda2
-   flags = "-extension layouts_beta"
+   flags = "-extension layouts_alpha"
    ** native
 *)
 
