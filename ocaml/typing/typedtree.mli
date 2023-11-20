@@ -231,13 +231,14 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Mode.Alloc.t;
-      (* Mode at which the closure is allocated *)
       arg_sort : Jkind.sort;
       ret_mode : Mode.Alloc.t;
       (* Mode where the function allocates, ie local for a function of
          type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
       ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t}
+      alloc_mode : Mode.Alloc.t
+      (* Mode at which the closure is allocated *)
+    }
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
 
