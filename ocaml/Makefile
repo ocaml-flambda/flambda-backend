@@ -1016,7 +1016,6 @@ $(DEPDIR)/$(RUNTIME_DIR)/%.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 # This is a workaround for an Intel CPU bug:
 # https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
 $(RUNTIME_DIR)/major_gc.%: OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
-$(DEPDIR)/$(RUNTIME_DIR)/major_gc.%: OC_CPPFLAGS += $(INTEL_JCC_BUG_CFLAGS)
 
 ## Compilation of runtime C files
 
