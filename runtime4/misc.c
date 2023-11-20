@@ -28,7 +28,9 @@ __declspec(noreturn) void __cdecl abort(void);
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include "caml/alloc.h"
 #include "caml/config.h"
+#include "caml/fail.h"
 #include "caml/misc.h"
 #include "caml/memory.h"
 #include "caml/osdeps.h"
@@ -224,4 +226,65 @@ void caml_flambda2_invalid (value message)
   fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
   fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
   abort ();
+}
+
+/* Fake atomic operations - runtime4 is single threaded, but we need to
+   provide these symbols for compatibility with the 5 Stdlib updates. */
+
+CAMLprim value caml_atomic_make(value v)
+{
+  CAMLparam1(v);
+  value ref = caml_alloc_small(1, 0);
+  Field(ref, 0) = v;
+  CAMLreturn(ref);
+}
+
+CAMLprim value caml_atomic_load(value ref)
+{
+  return Field(ref, 0);
+}
+
+CAMLprim value caml_atomic_cas(value ref, value oldv, value newv)
+{
+  value* p = Op_val(ref);
+  if (*p == oldv) {
+    caml_modify(p, newv);
+    return Val_int(1);
+  } else {
+    return Val_int(0);
+  }
+}
+
+CAMLprim value caml_atomic_exchange(value ref, value v)
+{
+  value ret = Field(ref, 0);
+  caml_modify(Op_val(ref), v);
+  return ret;
+}
+
+CAMLprim value caml_atomic_fetch_add(value ref, value incr)
+{
+  value ret;
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  ret = *p;
+  *p = Val_long(Long_val(ret) + Long_val(incr));
+  return ret;
+}
+
+/* Fake lazy operations - stdlib compatiblity with the 5 lazy implementation. */
+
+CAMLprim value caml_lazy_update_to_forward(value v)
+{
+  caml_failwith("Called caml_lazy_update_to_forward in runtime4: not supported.");
+}
+
+CAMLprim value caml_lazy_reset_to_lazy(value v)
+{
+  caml_failwith("Called caml_lazy_reset_to_lazy in runtime4: not supported.");
+}
+
+CAMLprim value caml_lazy_update_to_forcing(value v)
+{
+  caml_failwith("Called caml_lazy_update_to_forcing in runtime4: not supported.");
 }

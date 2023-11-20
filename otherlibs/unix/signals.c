@@ -75,11 +75,9 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
   decode_sigset(vset, &set);
   caml_enter_blocking_section();
 #ifdef CAML_RUNTIME_5
-  // CR ocaml 5 runtime: the upstream 5.0 unix lib uses sigprocmask here,
-  // which seems wrong? Previously, there was a global caml_sigmask_hook wrapper
-  // that got installed as sigprocmask or pthread_sigmask based on whether
-  // systhreads was enabled. The 5 runtime is now multithreaded, so always
-  // links pthread, so should always use pthread_sigmask.
+  // Differs from upstream at the point we branched, but this PR
+  // changes the behaviour to what we have here:
+  // https://github.com/ocaml/ocaml/pull/12743
   retcode = pthread_sigmask(how, &set, &oldset);
 #else
   retcode = caml_sigmask_hook(how, &set, &oldset);
