@@ -135,11 +135,7 @@ let delete_alarm a = Atomic.set a false
 
 module Memprof =
   struct
-(* BACKPORT BEGIN
-    type t
-*)
     type t = unit
-(* BACKPORT END *)
     type allocation_source = Normal | Marshal | Custom
     type allocation =
       { n_samples : int;
@@ -174,8 +170,4 @@ module Memprof =
       c_start sampling_rate callstack_size tracker
 
     external stop : unit -> unit = "caml_memprof_stop"
-
-(* BACKPORT
-    external discard : t -> unit = "caml_memprof_discard"
-*)
   end

@@ -16,56 +16,78 @@
  (targets primitives)
  (mode    fallback)
  (deps
-   ; matches the line structure of files in gen_primitives.sh
-   alloc.c array.c compare.c extern.c floats.c gc_ctrl.c hash.c intern.c
-     interp.c ints.c io.c
-   lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c
-     callback.c weak.c
-   finalise.c dynlink.c backtrace_byt.c backtrace.c
-     afl.c
-   bigarray.c runtime_events.c)
- (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
+    ; matches the line structure of files in gen_primitives.sh
+   alloc.c array.c compare.c extern.c floats.c gc_ctrl.c hash.c intern.c interp.c ints.c io.c
+   lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c callback.c weak.c
+   finalise.c domain.c platform.c fiber.c memory.c startup_aux.c runtime_events.c sync.c
+   dynlink.c backtrace_byt.c backtrace.c afl.c
+   bigarray.c prng.c win32.c
+ )
+ (action  (with-stdout-to %{targets}
+   (chdir ..  (run %{dep:gen_primitives.sh})))))
 
 (rule
- (targets libcamlrun.a)
+ (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
+    libasmrun_shared.so libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
+    libcamlrun_shared.so ocamlrun ocamlrund ocamlruni ld.conf
+    sak)
  (mode    fallback)
  (deps
    ../Makefile.config
    ../Makefile.build_config
    ../Makefile.config_if_required
-   ../Makefile.common Makefile
+   ../Makefile.common ../Makefile
+   ../compilerlibs/Makefile.compilerlibs
+   ../Makefile.menhir
+   ../.depend
+   ../.depend.menhir
+   ../config.status
    (glob_files caml/*.h)
-   ; matches the line structure of files in Makefile/BYTECODE_C_SOURCES
-   interp.c misc.c fix_code.c startup_aux.c startup_byt.c freelist.c
-     major_gc.c
-   minor_gc.c memory.c alloc.c roots_byt.c globroots.c fail_byt.c signals.c
-   signals_byt.c printexc.c backtrace_byt.c backtrace.c compare.c ints.c
-   floats.c str.c array.c io.c extern.c intern.c hash.c sys.c meta.c parsing.c
-     gc_ctrl.c  md5.c obj.c
-   lexing.c callback.c debugger.c weak.c compact.c finalise.c custom.c dynlink.c
-   afl.c unix.c win32.c bigarray.c main.c memprof.c domain.c
-   skiplist.c codefrag.c
+   (glob_files *.h)
+   caml/domain_state.tbl
+   primitives
+   (glob_files *.S)
+   (glob_files *.c)
  )
  (action
+ (no-infer
    (progn
      (bash "touch .depend") ; hack.
-     (run make %{targets} COMPUTE_DEPS=false)
-     (bash "rm .depend"))))
+     (bash "cd .. && make V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
+     (bash "cd .. && make V=1 -sj8 runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
+    runtime/libasmrun_shared.so runtime/libcamlrun.a runtime/libcamlrund.a runtime/libcamlruni.a runtime/libcamlrun_pic.a \
+    runtime/libcamlrun_shared.so runtime/ocamlrun runtime/ocamlrund runtime/ocamlruni runtime/ld.conf COMPUTE_DEPS=false")
+     (bash "rm .depend")))))
 
-;; HACK
-(library
-  (name runtime)
-  (modes byte)
-  (wrapped false)
-  (modules runtime)
-  (flags (-nostdlib -nopervasives))
-  (library_flags -cclib "-I runtime")
-  (self_build_stubs_archive (runtime)))
+(install
+  (files
+    ocamlrun
+    ocamlrund
+    ocamlruni
+  )
+  (section bin)
+  (package ocaml_runtime_stdlib))
 
-(rule
-  (targets libruntime_stubs.a)
-  (action (copy libcamlrun.a %{targets})))
+(install
+  (files
+    ld.conf
 
-(rule
-  (targets runtime.ml)
-  (action (write-file %{targets} "let linkme = ()")))
+    libcamlrun.a
+    libcamlrund.a
+    libcamlruni.a
+    libcamlrun_pic.a
+    libcamlrun_shared.so
+  )
+  (section lib)
+  (package ocaml_runtime_stdlib))
+
+(install
+  (files
+    libasmrun.a
+    libasmrund.a
+    libasmruni.a
+    libasmrun_pic.a
+    libasmrun_shared.so
+  )
+  (section lib)
+  (package ocaml_runtime_stdlib))

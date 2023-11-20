@@ -16,6 +16,8 @@
 #ifndef CAML_CONFIG_H
 #define CAML_CONFIG_H
 
+#define CAML_RUNTIME_5
+
 /* CAML_NAME_SPACE was introduced in OCaml 3.08 to declare compatibility with
    the newly caml_-prefixed names of C runtime functions and to disable the
    definition of compatibility macros for the un-prefixed names. The
@@ -227,7 +229,7 @@ typedef uint64_t uintnat;
 #define Minor_heap_min (Max_young_wosize + 1)
 
 /* Default size of the minor zone. (words)  */
-#define Minor_heap_def 262144
+#define Minor_heap_def 1048576
 
 /* Minimum size increment when growing the heap (words).
    Must be a multiple of [Page_size / sizeof (value)]. */

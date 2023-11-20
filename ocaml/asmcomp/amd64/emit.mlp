@@ -62,7 +62,6 @@ let cfi_endproc () =
 let cfi_adjust_cfa_offset n =
   if Config.asm_cfi_supported then D.cfi_adjust_cfa_offset n
 
-(* BACKPORT
 let cfi_remember_state () =
   if Config.asm_cfi_supported then D.cfi_remember_state ()
 
@@ -71,7 +70,6 @@ let cfi_restore_state () =
 
 let cfi_def_cfa_register reg =
   if Config.asm_cfi_supported then D.cfi_def_cfa_register reg
-*)
 
 let emit_debug_info dbg =
   emit_debug_info_gen dbg D.file D.loc
@@ -90,13 +88,7 @@ let frame_size env =                     (* includes return address *)
        + 8
        + (if fp then 8 else 0))
     in
-(* BACKPORT BEGIN *)
-    Misc.align
-(* BACKPORT END *)
-      sz
-(* BACKPORT BEGIN *)
-      16
-(* BACKPORT END *)
+    if Config.runtime5 then sz else Misc.align sz 16
   end else
     env.stack_offset + 8
 
@@ -676,25 +668,19 @@ let emit_instr env fallthrough i =
           end
         end
       end
-  | Lop(Iextcall { func; alloc; stack_ofs
-      (* BACKPORT BEGIN *)
-      = _
-      (* BACKPORT END *)
-      }) ->
+  | Lop(Iextcall { func; alloc; stack_ofs }) ->
       add_used_symbol func;
-(* BEGIN BACKPORT
-      if stack_ofs > 0 then begin
+      if Config.runtime5 && stack_ofs > 0 then begin
         I.mov rsp r13;
         I.lea (mem64 QWORD stack_ofs RSP) r12;
         load_symbol_addr func rax;
         emit_call "caml_c_call_stack_args";
         record_frame env i.live (Dbg_other i.dbg);
-      end else *) if alloc then begin
+      end else if alloc then begin
         load_symbol_addr func rax;
         emit_call "caml_c_call";
         record_frame env i.live (Dbg_other i.dbg);
-(* BEGIN BACKPORT *)
-        if system <> S_win64 then begin
+        if not Config.runtime5 && system <> S_win64 then begin
 
           (* In amd64.S, "caml_c_call" tail-calls the C function (in order to
              produce nicer backtraces), so we need to restore r15 manually after
@@ -706,24 +692,21 @@ let emit_instr env fallthrough i =
 
           I.mov (domain_field Domainstate.Domain_young_ptr) r15
         end
-(* END BACKPORT *)
       end else begin
-(* BEGIN BACKPORT
-        I.mov rsp rbx;
-        cfi_remember_state ();
-        cfi_def_cfa_register "rbx";
-        (* NB: gdb has asserts on contiguous stacks that mean it
-           will not unwind through this unless we were to tag this
-           calling frame with cfi_signal_frame in it's definition. *)
-        I.mov (domain_field Domainstate.Domain_c_stack) rsp; *)
-(* END BACKPORT *)
-        emit_call func
-(* BEGIN BACKPORT
-        ;
-        I.mov rbx rsp;
-        cfi_restore_state ();
-*)
-(* END BACKPORT *)
+        if Config.runtime5 then begin
+          I.mov rsp rbx;
+          cfi_remember_state ();
+          cfi_def_cfa_register "rbx";
+          (* NB: gdb has asserts on contiguous stacks that mean it
+            will not unwind through this unless we were to tag this
+            calling frame with cfi_signal_frame in it's definition. *)
+          I.mov (domain_field Domainstate.Domain_c_stack) rsp;
+        end;
+        emit_call func;
+        if Config.runtime5 then begin
+          I.mov rbx rsp;
+          cfi_restore_state ();
+        end;
       end
   | Lop(Istackoffset n) ->
       emit_stack_offset env n
@@ -947,12 +930,10 @@ let emit_instr env fallthrough i =
     I.cmp (int 0) (res16 i 0);
     I.set (cond (Iunsigned Cne)) (res8 i 0);
     I.movzx (res8 i 0) (res i 0)
-(* BACKPORT BEGIN
   | Lop (Idls_get) ->
-      I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
-*)
-  | Lop (Idls_get) -> Misc.fatal_error "Idls_get not implemented"
-(* BACKPORT END *)
+    if Config.runtime5
+    then  I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
+    else Misc.fatal_error "Idls_get not implemented in runtime4."
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -1046,8 +1027,6 @@ let emit_instr env fallthrough i =
       let delta = 16 * delta_traps in
       cfi_adjust_cfa_offset delta;
       env.stack_offset <- env.stack_offset + delta
-(* BACKPORT BEGIN
-   (exception handling)
   | Lpushtrap { lbl_handler; } ->
       let load_label_addr s arg =
         if !Clflags.pic_code then
@@ -1071,41 +1050,6 @@ let emit_instr env fallthrough i =
   | Lraise k ->
       begin match k with
       | Lambda.Raise_regular ->
-          emit_call "caml_raise_exn";
-          record_frame env Reg.Set.empty (Dbg_raise i.dbg)
-      | Lambda.Raise_reraise ->
-          emit_call "caml_reraise_exn";
-          record_frame env Reg.Set.empty (Dbg_raise i.dbg)
-      | Lambda.Raise_notrace ->
-          I.mov (domain_field Domainstate.Domain_exn_handler) rsp;
-          I.pop (domain_field Domainstate.Domain_exn_handler);
-          I.pop r11;
-          I.jmp r11
-      end
-*)
-  | Lpushtrap { lbl_handler; } ->
-      let load_label_addr s arg =
-        if !Clflags.pic_code then
-          I.lea (mem64_rip NONE (emit_label s)) arg
-        else
-          I.mov (sym (emit_label s)) arg
-      in
-      load_label_addr lbl_handler r11;
-      I.push r11;
-      cfi_adjust_cfa_offset 8;
-      I.push (domain_field Domainstate.Domain_exception_pointer);
-      cfi_adjust_cfa_offset 8;
-      I.mov rsp (domain_field Domainstate.Domain_exception_pointer);
-      env.stack_offset <- env.stack_offset + 16;
-  | Lpoptrap ->
-      I.pop (domain_field Domainstate.Domain_exception_pointer);
-      cfi_adjust_cfa_offset (-8);
-      I.add (int 8) rsp;
-      cfi_adjust_cfa_offset (-8);
-      env.stack_offset <- env.stack_offset - 16
-  | Lraise k ->
-      begin match k with
-      | Lambda.Raise_regular ->
           I.mov (int 0) (domain_field Domainstate.Domain_backtrace_pos);
           emit_call "caml_raise_exn";
           record_frame env Reg.Set.empty (Dbg_raise i.dbg)
@@ -1113,12 +1057,11 @@ let emit_instr env fallthrough i =
           emit_call "caml_raise_exn";
           record_frame env Reg.Set.empty (Dbg_raise i.dbg)
       | Lambda.Raise_notrace ->
-          I.mov (domain_field Domainstate.Domain_exception_pointer) rsp;
-          I.pop (domain_field Domainstate.Domain_exception_pointer);
+          I.mov (domain_field Domainstate.Domain_exn_handler) rsp;
+          I.pop (domain_field Domainstate.Domain_exn_handler);
           I.pop r11;
           I.jmp r11
       end
-(* BACKPORT END *)
 
 let rec emit_all env fallthrough i =
   match i.desc with

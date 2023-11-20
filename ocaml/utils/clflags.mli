@@ -58,6 +58,7 @@ val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
+val hidden_include_dirs : string list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref
@@ -301,3 +302,4 @@ end
 val zero_alloc_check : Annotations.t ref
 val zero_alloc_check_assert_all : bool ref
 
+val no_auto_include_otherlibs : bool ref

@@ -269,9 +269,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_stuff "<poly>"
           | Tarrow _ ->
               Oval_stuff "<fun>"
-          | Ttuple(ty_list) ->
-              let ty_list = List.map (fun t -> (t,false)) ty_list in
-              Oval_tuple (tree_of_val_list 0 depth obj ty_list)
+          | Ttuple(labeled_tys) ->
+              Oval_tuple (tree_of_labeled_val_list 0 depth obj labeled_tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
               if O.is_block obj then
@@ -536,6 +535,14 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               (lid, v) :: tree_of_fields false pos remainder
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
+
+      and tree_of_labeled_val_list start depth obj labeled_tys =
+        let rec tree_list i = function
+          | [] -> []
+          | (label, ty) :: labeled_tys ->
+              let tree = nest tree_of_val (depth - 1) (O.field obj i) ty in
+              (label, tree) :: tree_list (i + 1) labeled_tys in
+      tree_list start labeled_tys
 
       (* CR layouts v4: When we allow other jkinds in tuples, this should be
          generalized to take a list or array of jkinds, rather than just

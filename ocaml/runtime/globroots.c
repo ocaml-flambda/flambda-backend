@@ -187,11 +187,39 @@ void caml_register_dyn_globals(void **globals, int nglobals) {
   caml_plat_unlock(&roots_mutex);
 }
 
+/* Logic to determine at which index within a global root to start
+   scanning.  [*glob_block] and [*start] may be updated by this function. */
+static void compute_index_for_global_root_scan(value* glob_block, int* start)
+{
+  *start = 0;
+
+  CAMLassert (Is_block(*glob_block));
+
+  if (Tag_val(*glob_block) < No_scan_tag) {
+    /* Note: if a [Closure_tag] block is registered as a global root
+       (possibly containing one or more [Infix_tag] blocks), then only one
+       out of the combined set of the [Closure_tag] and [Infix_tag] blocks
+       may be registered as a global root.  Multiple registrations can cause
+       the compactor to traverse the same fields of a block twice, which can
+       cause a failure. */
+    if (Tag_val(*glob_block) == Infix_tag)
+      *glob_block -= Infix_offset_val(*glob_block);
+    if (Tag_val(*glob_block) == Closure_tag)
+      *start = Start_env_closinfo(Closinfo_val(*glob_block));
+  }
+  else {
+    /* Set the index such that none of the block's fields will be scanned. */
+    *start = Wosize_val(*glob_block);
+  }
+}
+
 static void scan_native_globals(scanning_action f, void* fdata)
 {
   int i, j;
   static link* dyn_globals;
   value* glob;
+  value glob_block;
+  int start;
   link* lnk;
 
   caml_plat_lock(&roots_mutex);
@@ -201,8 +229,10 @@ static void scan_native_globals(scanning_action f, void* fdata)
   /* The global roots */
   for (i = 0; caml_globals[i] != 0; i++) {
     for(glob = caml_globals[i]; *glob != 0; glob++) {
-      for (j = 0; j < Wosize_val(*glob); j++){
-        f(fdata, Field(*glob, j), &Field(*glob, j));
+      glob_block = *glob;
+      compute_index_for_global_root_scan(&glob_block, &start);
+      for (j = start; j < Wosize_val(glob_block); j++) {
+        f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }
   }
@@ -210,8 +240,10 @@ static void scan_native_globals(scanning_action f, void* fdata)
   /* Dynamic (natdynlink) global roots */
   iter_list(dyn_globals, lnk) {
     for(glob = (value *) lnk->data; *glob != 0; glob++) {
-      for (j = 0; j < Wosize_val(*glob); j++){
-        f(fdata, Field(*glob, j), &Field(*glob, j));
+      glob_block = *glob;
+      compute_index_for_global_root_scan(&glob_block, &start);
+      for (j = start; j < Wosize_val(glob_block); j++) {
+        f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }
   }

@@ -25,12 +25,12 @@
  (mode    fallback)
  (deps    (:conf ../Makefile.config)
           (:c domainstate.ml.c)
-          (:tbl ../runtime4/caml/domain_state.tbl)
-          (glob_files ../runtime4/caml/{config,m,s}.h))
+          (:tbl ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml/domain_state.tbl)
+          (glob_files ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml/{config,m,s}.h))
  (action
    (with-stdout-to %{targets}
      (bash
-       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../runtime4/caml %{c}"
+       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml %{c}"
        ))))
 
 (rule
@@ -38,10 +38,10 @@
  (mode    fallback)
  (deps    (:conf ../Makefile.config)
           (:c domainstate.mli.c)
-          (:tbl ../runtime4/caml/domain_state.tbl)
-          (glob_files ../runtime4/caml/{config,m,s}.h))
+          (:tbl ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml/domain_state.tbl)
+          (glob_files ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml/{config,m,s}.h))
  (action
    (with-stdout-to %{targets}
      (bash
-       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../runtime4/caml %{c}"
+       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml %{c}"
        ))))

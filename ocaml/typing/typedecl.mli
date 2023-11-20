@@ -47,7 +47,14 @@ val transl_with_constraint:
     Typedtree.type_declaration
 
 val abstract_type_decl:
-    injective:bool -> Jkind.t -> Jkind.t list -> type_declaration
+  injective:bool ->
+  jkind:Jkind.t ->
+  (* [jkind_annotation] is what the user wrote, and is just used when printing
+     the type produced by this function. *)
+  jkind_annotation:Jkind.annotation option ->
+  params:Jkind.t list ->
+  type_declaration
+
 val approx_type_decl:
     Parsetree.type_declaration list -> (Ident.t * type_declaration) list
 val check_recmod_typedecl:
@@ -107,6 +114,7 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
@@ -122,7 +130,6 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Jkind.const
 
 exception Error of Location.t * error
 

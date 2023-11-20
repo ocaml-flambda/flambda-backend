@@ -233,8 +233,8 @@ let simplify_exits lam =
   | Lapply ap ->
       Lapply{ap with ap_func = simplif ~layout:None ~try_depth ap.ap_func;
                      ap_args = List.map (simplif ~layout:None ~try_depth) ap.ap_args}
-  | Lfunction{kind; params; return; mode; region; body = l; attr; loc} ->
-     lfunction ~kind ~params ~return ~mode ~region
+  | Lfunction{kind; params; return; mode; ret_mode; region; body = l; attr; loc} ->
+     lfunction ~kind ~params ~return ~mode ~region ~ret_mode
        ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
   | Llet(str, kind, v, l1, l2) ->
       Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
@@ -556,12 +556,12 @@ let simplify_lets lam =
       | _ -> no_opt ()
       end
   | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
-              attr; loc; mode; region=outer_region} ->
+              attr; loc; ret_mode; mode; region=outer_region} ->
       begin match outer_kind, outer_region, simplif l with
         Curried {nlocal=0},
         true,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
-                  body; attr; loc; mode=inner_mode; region}
+                  body; attr; loc; mode=inner_mode; ret_mode; region}
         when optimize &&
              List.length params + List.length params' <= Lambda.max_arity() ->
           (* The returned function's mode should match the outer return mode *)
@@ -571,9 +571,9 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
-          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~region
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~ret_mode ~region
       | kind, region, body ->
-          lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~region
+          lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~ret_mode ~region
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
@@ -759,7 +759,7 @@ and list_emit_tail_infos is_tail =
    function's body. *)
 
 let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
-      ~attr ~loc ~mode ~region:orig_region =
+      ~attr ~loc ~mode ~ret_mode ~region:orig_region =
   let rec aux map add_region = function
     (* When compiling [fun ?(x=expr) -> body], this is first translated
        to:
@@ -836,7 +836,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
             ~params:new_ids
-            ~return ~body ~attr ~loc ~mode ~region:true
+            ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))
   in
@@ -849,9 +849,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true); inner]
   with Exit ->
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:orig_region)]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

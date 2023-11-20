@@ -19,6 +19,13 @@
 open Arch
 open Simd
 
+type error = Bad_immediate of string
+
+exception Error of error
+
+let bad_immediate fmt =
+  Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
+
 (* This will need to be expanded with the addition of three and four argument
    operations in AVX2 and AVX512. *)
 type register_behavior =
@@ -41,10 +48,10 @@ let extract_constant args name ~max =
   | Cmm.Cconst_int (i, _) :: args ->
     if i < 0 || i > max
     then
-      Misc.fatal_errorf "Immediate for %s must be in range [0,%d] (got %d)" name
-        max i;
+      bad_immediate "Immediate for %s must be in range [0,%d] (got %d)" name max
+        i;
     i, args
-  | _ -> Misc.fatal_errorf "Did not get integer immediate for %s" name
+  | _ -> bad_immediate "Did not get integer immediate for %s" name
 
 let float_condition_of_int = function
   | 0 -> EQf
@@ -55,7 +62,7 @@ let float_condition_of_int = function
   | 5 -> NLTf
   | 6 -> NLEf
   | 7 -> ORDf
-  | i -> Misc.fatal_errorf "Invalid float condition immediate: %d" i
+  | i -> bad_immediate "Invalid float condition immediate: %d" i
 
 let float_rounding_of_int = function
   (* Starts at 8, as these rounding modes also imply _MM_FROUND_NO_EXC (0x8) *)
@@ -64,7 +71,7 @@ let float_rounding_of_int = function
   | 0xA -> RoundUp
   | 0xB -> RoundTruncate
   | 0xC -> RoundCurrent
-  | i -> Misc.fatal_errorf "Invalid float rounding immediate: %d" i
+  | i -> bad_immediate "Invalid float rounding immediate: %d" i
 
 let select_operation_clmul op args =
   if not !Arch.clmul_support
@@ -526,3 +533,13 @@ let pseudoregs_for_operation op arg res =
   | R_RM_rax_rdx_to_xmm0 -> [| arg.(0); arg.(1); rax; rdx |], [| xmm0v () |]
   | R_RM_to_rcx -> arg, [| rcx |]
   | R_RM_to_xmm0 -> arg, [| xmm0v () |]
+
+(* Error report *)
+
+let report_error ppf = function
+  | Bad_immediate msg -> Format.pp_print_string ppf msg
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

@@ -361,8 +361,8 @@ let check_poll_local loc attr =
       ()
 
 let lfunction_with_attr ~attr
-  { kind; params; return; body; attr=_; loc; mode; region } =
-  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region
+  { kind; params; return; body; attr=_; loc; mode; ret_mode; region } =
+  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
 
 let add_inline_attribute expr loc attributes =
   match expr with

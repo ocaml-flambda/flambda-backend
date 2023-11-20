@@ -49,6 +49,9 @@ val libunix : bool option
 val systhreads : bool
 (** Indicates whether systhreads is available. *)
 
+val systhreads_path : string
+(** Indicates where the systhreads library is installed under otherlibs/. *)
+
 val str : bool
 (** Indicates whether str is available. *)
 

@@ -1,13 +1,7 @@
 (* TEST
-   * setup-ocamlc.byte-build-env
-   ** ocamlc.byte
    flags = "-g"
    ocamlrunparam += ",b=1"
 *)
-
-(* CR mshinwell: re-enable for native once Flambda 2 fixed to say
-   "Raised by primitive operation" in backtraces rather than just
-   "Raised" for bounds check failures *)
 
 (* #11436: bad backtrace for out-of-bounds exception *)
 

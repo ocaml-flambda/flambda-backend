@@ -140,6 +140,8 @@ type function_description =
     fun_poll: poll_attribute;           (* Behaviour for polls *)
     fun_region: bool;                   (* If false, may locally allocate
                                            in caller's region *)
+    fun_argmodes: Lambda.alloc_mode list;
+    fun_retmode: Lambda.alloc_mode;
   }
 
 (* Approximation of values *)

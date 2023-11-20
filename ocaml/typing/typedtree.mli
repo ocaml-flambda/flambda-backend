@@ -22,7 +22,6 @@
 *)
 
 open Asttypes
-open Jane_asttypes
 
 module Uid = Shape.Uid
 
@@ -99,8 +98,10 @@ and 'k pattern_desc =
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
-  | Tpat_tuple : value general_pattern list -> value pattern_desc
-        (** (P1, ..., Pn)
+  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
+        (** (P1, ..., Pn)                  [(None,P1); ...; (None,Pn)])
+            (L1:P1, ... Ln:Pn)             [(Some L1,P1); ...; (Some Ln,Pn)])
+            Any mix, e.g. (L1:P1, P2)      [(Some L1,P1); ...; (None,P2)])
 
             Invariant: n >= 2
          *)
@@ -134,7 +135,7 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
@@ -186,7 +187,7 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string * const_jkind option
+  | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
 
 and fun_curry_state =
@@ -231,8 +232,13 @@ and expression_desc =
       warnings : Warnings.state;
       arg_mode : Mode.Alloc.t;
       arg_sort : Jkind.sort;
+      ret_mode : Mode.Alloc.t;
+      (* Mode where the function allocates, ie local for a function of
+         type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
       ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t}
+      alloc_mode : Mode.Alloc.t
+      (* Mode at which the closure is allocated *)
+    }
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
 
@@ -273,8 +279,12 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of expression list * Mode.Alloc.t
-        (** (E1, ..., EN) *)
+  | Texp_tuple of (string option * expression) list * Mode.Alloc.t
+        (** [Texp_tuple(el)] represents
+            - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
+            - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
+            - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+          *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
       expression list * Mode.Alloc.t option
@@ -736,15 +746,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * const_jkind option
+  | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
-  | Ttyp_tuple of core_type list
+  | Ttyp_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * const_jkind option
+  | Ttyp_alias of core_type * string option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * const_jkind option) list * core_type
+  | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -796,6 +806,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
+    typ_jkind_annotation: Jane_asttypes.jkind_annotation option;
    }
 
 and type_kind =
@@ -819,7 +830,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * const_jkind option) list;
+     cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -859,7 +870,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * const_jkind option) list *
+    Text_decl of (string * Jkind.annotation option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc

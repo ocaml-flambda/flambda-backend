@@ -24,9 +24,7 @@
   (flags
    (:standard -w +a-4-9-40-41-42-44-45-48-66-67-70 -warn-error +A))))
 
-; Disable the runtime/ directory for now
-; (We're currently using runtime4/ instead)
-(dirs (:standard \ runtime))
+(include dune.runtime_selection)
 
 (copy_files# utils/*.ml{,i})
 (copy_files# parsing/*.ml{,i})
@@ -70,7 +68,7 @@
        parser)))
  (library_flags -linkall)
  (modules_without_implementation
-   annot asttypes jane_asttypes cmo_format outcometree parsetree debug_event)
+   annot asttypes cmo_format outcometree parsetree debug_event)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
@@ -83,8 +81,8 @@
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
    camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
-   attr_helper builtin_attributes ast_invariants depend jane_syntax_parsing
-   jane_syntax ; manual update: mli only files asttypes jane_asttypes parsetree
+   attr_helper builtin_attributes ast_invariants depend jane_asttypes jane_syntax_parsing
+   jane_syntax ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
    ident path jkind primitive shape types btype oprint subst predef datarepr

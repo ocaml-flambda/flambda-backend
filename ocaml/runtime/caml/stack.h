@@ -47,6 +47,7 @@
 /* Size of the gc_regs structure, in words.
    See amd64.S and amd64/proc.ml for the indices */
 #define Wosize_gc_regs (13 /* int regs */ + 16 /* float regs */)
+/* CR ocaml 5 runtime (mshinwell): does Wosize_gc_regs need updating for SIMD? */
 #define Saved_return_address(sp) *((intnat *)((sp) - 8))
 #ifdef WITH_FRAME_POINTERS
 #define Pop_frame_pointer(sp) (sp) += sizeof(value)

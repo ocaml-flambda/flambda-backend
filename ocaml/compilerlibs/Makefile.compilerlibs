@@ -63,6 +63,7 @@ PARSING = \
   parsing/printast.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
+  parsing/jane_asttypes.cmo \
   parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
   parsing/pprintast.cmo \
   parsing/ast_iterator.cmo \
@@ -77,7 +78,6 @@ PARSING = \
   parsing/depend.cmo
 PARSING_CMI = \
   parsing/asttypes.cmi \
-  parsing/jane_asttypes.cmi \
   parsing/parsetree.cmi
 
 TYPING = \
@@ -432,7 +432,7 @@ beforedepend:: utils/config_main.mli utils/config_boot.mli
 $(addprefix compilerlibs/,\
   ocamlcommon.cma ocamlbytecomp.cma ocamloptcomp.cma ocamlmiddleend.cma \
   ocamltoplevel.cma): \
-  CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims runtime4/primitives
+  CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims $(RUNTIME_DIR)/primitives
 
 compilerlibs/ocamlcommon.cma: $(COMMON_CMI) $(ALL_CONFIG_CMO) $(COMMON)
 	$(V_LINKC)$(CAMLC) -a -linkall -o $@ $(COMMON)

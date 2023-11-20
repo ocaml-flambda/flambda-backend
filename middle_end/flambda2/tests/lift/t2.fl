@@ -1,11 +1,8 @@
-(
-  let a = %Opaque 5555555 in
-  let b = %Opaque 2222222 in
-  cont k (a, b, b, a)
-) where
-  k (a, b, c, d) =
+(let a = %Opaque 5555555 in
+ let b = %Opaque 2222222 in
+ cont k (a, b, b, a))
+  where k (a, b, c, d) =
     let $X = Block 1 (a, b, a, c, d) in
     let $Y = Block 2 (a, b, c, c, d) in
     let $camlT2 = Block 33 ($X, $Y) in
     cont done ($camlT2)
-

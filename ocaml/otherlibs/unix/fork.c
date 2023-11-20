@@ -17,16 +17,16 @@
 
 #include <caml/mlvalues.h>
 #include <caml/debugger.h>
-#if 0 /* BACKPORT BEGIN */
+#ifdef CAML_RUNTIME_5
 #include <caml/runtime_events.h>
-#endif
+#else
 #include <caml/eventlog.h>
-/* BACKPORT END */
+#endif
 #include "unixsupport.h"
 #include <caml/domain.h>
 #include <caml/fail.h>
 
-#if 0 /* BACKPORT */
+#ifdef CAML_RUNTIME_5
 /* Post-fork tasks to be carried out in the parent */
 void caml_atfork_parent(pid_t child_pid) {
   CAML_EV_LIFECYCLE(EV_FORK_PARENT, child_pid);
@@ -42,22 +42,21 @@ void caml_atfork_child(void) {
 CAMLprim value caml_unix_fork(value unit)
 {
   int ret;
- /* BACKPORT
+
+#ifdef CAML_RUNTIME_5
   if (caml_domain_is_multicore()) {
     caml_failwith
       ("Unix.fork may not be called while other domains were created");
   }
-*/
-
-/* BACKPORT BEGIN */
+#else
   CAML_EV_FLUSH();
-/* BACKPORT END */
+#endif
 
   ret = fork();
 
   if (ret == -1) caml_uerror("fork", Nothing);
 
-#if 0 /* BACKPORT BEGIN */
+#ifdef CAML_RUNTIME_5
   if (ret == 0) {
     caml_atfork_child();
     /* the following hook can be redefined in other places */
@@ -65,12 +64,12 @@ CAMLprim value caml_unix_fork(value unit)
   } else {
     caml_atfork_parent(ret);
   }
-#endif
+#else
   CAML_EVENTLOG_DO({
       if (ret == 0)
         caml_eventlog_disable();
   });
-/* BACKPORT END */
+#endif
 
   if (caml_debugger_in_use)
     if ((caml_debugger_fork_mode && ret == 0) ||

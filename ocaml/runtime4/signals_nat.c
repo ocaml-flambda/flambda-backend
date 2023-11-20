@@ -169,7 +169,7 @@ DECLARE_SIGNAL_HANDLER(trap_handler)
     caml_sigmask_hook(SIG_UNBLOCK, &mask, NULL);
   }
 #endif
-  Caml_state->exception_pointer = (char *) CONTEXT_EXCEPTION_POINTER;
+  Caml_state->exn_handler = (char *) CONTEXT_EXCEPTION_POINTER;
   Caml_state->young_ptr = (value *) CONTEXT_YOUNG_PTR;
   Caml_state->bottom_of_stack = (char *) CONTEXT_SP;
   Caml_state->last_return_address = (uintnat) CONTEXT_PC;
@@ -229,7 +229,7 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
     Caml_state->young_ptr = (value *) CONTEXT_YOUNG_PTR;
 #endif
 #if defined(CONTEXT_EXCEPTION_POINTER)
-    Caml_state->exception_pointer = (char *) CONTEXT_EXCEPTION_POINTER;
+    Caml_state->exn_handler = (char *) CONTEXT_EXCEPTION_POINTER;
 #endif
     caml_raise_stack_overflow();
 #endif
