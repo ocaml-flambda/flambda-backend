@@ -700,9 +700,10 @@ static int create_tick_thread(void)
 
 static st_retcode start_tick_thread(void)
 {
-  if (Tick_thread_running) return;
+  if (Tick_thread_running) return 0;
   st_retcode err = create_tick_thread();
   if (err == 0) Tick_thread_running = 1;
+  return err;
 }
 
 CAMLprim value caml_enable_tick_thread(value v_enable)
@@ -711,7 +712,7 @@ CAMLprim value caml_enable_tick_thread(value v_enable)
 
   if (enable) {
     st_retcode err = start_tick_thread();
-    st_check_error(err, "caml_enable_tick_thread");
+    sync_check_error(err, "caml_enable_tick_thread");
   } else {
     stop_tick_thread();
   }
