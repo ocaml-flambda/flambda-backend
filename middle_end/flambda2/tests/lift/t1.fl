@@ -1,7 +1,7 @@
-(let a = %Opaque 5555555 in cont k1 (a))
-  where
-    k1 (a) =
-      let $X = Block 1 (a) in
-      let $Y = Block 2 (a, a) in
-      let $camlT1 = Block 33 ($X, $Y) in
-      cont done ($camlT1)
+(let a = %Opaque 5555555 in
+ cont k1 (a))
+  where k1 (a) =
+    let $X = Block 1 (a) in
+    let $Y = Block 2 (a, a) in
+    let $camlT1 = Block 33 ($X, $Y) in
+    cont done ($camlT1)

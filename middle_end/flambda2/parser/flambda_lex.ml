@@ -142,6 +142,7 @@ let prim_table =
     "bytes_load", PRIM_BYTES_LOAD;
     "bytes_set", PRIM_BYTES_SET;
     "end_region", PRIM_END_REGION;
+    "end_try_region", PRIM_END_TRY_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
     "int_comp", PRIM_INT_COMP;
@@ -189,7 +190,7 @@ let symbol cunit_ident cunit_linkage_name ident =
   SYMBOL (cunit, unquote_ident ident)
 
 
-# 193 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 194 "middle_end/flambda2/parser/flambda_lex.ml.new"
 let __ocaml_lex_tables = {
   Lexing.lex_base =
    "\000\000\200\255\201\255\058\000\088\000\218\000\046\001\137\000\
@@ -1286,345 +1287,345 @@ let rec token lexbuf =
 and __ocaml_lex_token_rec lexbuf __ocaml_lex_state =
   match Lexing.new_engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 225 "middle_end/flambda2/parser/flambda_lex.mll"
+# 226 "middle_end/flambda2/parser/flambda_lex.mll"
       ( Lexing.new_line lexbuf; token lexbuf )
-# 1292 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1293 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 1 ->
-# 227 "middle_end/flambda2/parser/flambda_lex.mll"
+# 228 "middle_end/flambda2/parser/flambda_lex.mll"
       ( token lexbuf )
-# 1297 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1298 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 2 ->
-# 229 "middle_end/flambda2/parser/flambda_lex.mll"
+# 230 "middle_end/flambda2/parser/flambda_lex.mll"
       ( comment 1 lexbuf;
         token lexbuf )
-# 1303 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1304 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 3 ->
-# 232 "middle_end/flambda2/parser/flambda_lex.mll"
+# 233 "middle_end/flambda2/parser/flambda_lex.mll"
       ( COLON )
-# 1308 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1309 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 4 ->
-# 234 "middle_end/flambda2/parser/flambda_lex.mll"
+# 235 "middle_end/flambda2/parser/flambda_lex.mll"
       ( COMMA )
-# 1313 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1314 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 5 ->
-# 236 "middle_end/flambda2/parser/flambda_lex.mll"
+# 237 "middle_end/flambda2/parser/flambda_lex.mll"
       ( DOT )
-# 1318 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1319 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 6 ->
-# 238 "middle_end/flambda2/parser/flambda_lex.mll"
+# 239 "middle_end/flambda2/parser/flambda_lex.mll"
       ( SEMICOLON )
-# 1323 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1324 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 7 ->
-# 240 "middle_end/flambda2/parser/flambda_lex.mll"
+# 241 "middle_end/flambda2/parser/flambda_lex.mll"
       ( EQUAL )
-# 1328 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1329 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 8 ->
-# 242 "middle_end/flambda2/parser/flambda_lex.mll"
+# 243 "middle_end/flambda2/parser/flambda_lex.mll"
       ( BLANK )
-# 1333 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1334 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 9 ->
-# 244 "middle_end/flambda2/parser/flambda_lex.mll"
+# 245 "middle_end/flambda2/parser/flambda_lex.mll"
       ( LBRACE )
-# 1338 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1339 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 10 ->
-# 246 "middle_end/flambda2/parser/flambda_lex.mll"
+# 247 "middle_end/flambda2/parser/flambda_lex.mll"
       ( RBRACE )
-# 1343 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1344 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 11 ->
-# 248 "middle_end/flambda2/parser/flambda_lex.mll"
+# 249 "middle_end/flambda2/parser/flambda_lex.mll"
       ( LPAREN )
-# 1348 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1349 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 12 ->
-# 250 "middle_end/flambda2/parser/flambda_lex.mll"
+# 251 "middle_end/flambda2/parser/flambda_lex.mll"
       ( RPAREN )
-# 1353 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1354 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 13 ->
-# 252 "middle_end/flambda2/parser/flambda_lex.mll"
+# 253 "middle_end/flambda2/parser/flambda_lex.mll"
       ( LBRACK )
-# 1358 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1359 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 14 ->
-# 254 "middle_end/flambda2/parser/flambda_lex.mll"
+# 255 "middle_end/flambda2/parser/flambda_lex.mll"
       ( RBRACK )
-# 1363 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1364 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 15 ->
-# 256 "middle_end/flambda2/parser/flambda_lex.mll"
+# 257 "middle_end/flambda2/parser/flambda_lex.mll"
       ( LBRACKPIPE )
-# 1368 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1369 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 16 ->
-# 258 "middle_end/flambda2/parser/flambda_lex.mll"
+# 259 "middle_end/flambda2/parser/flambda_lex.mll"
       ( RBRACKPIPE )
-# 1373 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1374 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 17 ->
-# 259 "middle_end/flambda2/parser/flambda_lex.mll"
+# 260 "middle_end/flambda2/parser/flambda_lex.mll"
          ( PLUS )
-# 1378 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1379 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 18 ->
-# 260 "middle_end/flambda2/parser/flambda_lex.mll"
+# 261 "middle_end/flambda2/parser/flambda_lex.mll"
          ( MINUS )
-# 1383 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1384 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 19 ->
-# 261 "middle_end/flambda2/parser/flambda_lex.mll"
+# 262 "middle_end/flambda2/parser/flambda_lex.mll"
          ( STAR )
-# 1388 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1389 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 20 ->
-# 262 "middle_end/flambda2/parser/flambda_lex.mll"
+# 263 "middle_end/flambda2/parser/flambda_lex.mll"
          ( SLASH )
-# 1393 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1394 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 21 ->
-# 263 "middle_end/flambda2/parser/flambda_lex.mll"
+# 264 "middle_end/flambda2/parser/flambda_lex.mll"
          ( PERCENT )
-# 1398 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1399 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 22 ->
-# 264 "middle_end/flambda2/parser/flambda_lex.mll"
+# 265 "middle_end/flambda2/parser/flambda_lex.mll"
          ( LESS )
-# 1403 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1404 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 23 ->
-# 265 "middle_end/flambda2/parser/flambda_lex.mll"
+# 266 "middle_end/flambda2/parser/flambda_lex.mll"
          ( GREATER )
-# 1408 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1409 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 24 ->
-# 266 "middle_end/flambda2/parser/flambda_lex.mll"
+# 267 "middle_end/flambda2/parser/flambda_lex.mll"
          ( LESSEQUAL )
-# 1413 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1414 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 25 ->
-# 267 "middle_end/flambda2/parser/flambda_lex.mll"
+# 268 "middle_end/flambda2/parser/flambda_lex.mll"
          ( GREATEREQUAL )
-# 1418 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1419 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 26 ->
-# 268 "middle_end/flambda2/parser/flambda_lex.mll"
+# 269 "middle_end/flambda2/parser/flambda_lex.mll"
          ( NOTEQUAL )
-# 1423 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1424 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 27 ->
-# 269 "middle_end/flambda2/parser/flambda_lex.mll"
+# 270 "middle_end/flambda2/parser/flambda_lex.mll"
          ( QMARK )
-# 1428 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1429 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 28 ->
-# 270 "middle_end/flambda2/parser/flambda_lex.mll"
+# 271 "middle_end/flambda2/parser/flambda_lex.mll"
          ( PLUSDOT )
-# 1433 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1434 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 29 ->
-# 271 "middle_end/flambda2/parser/flambda_lex.mll"
+# 272 "middle_end/flambda2/parser/flambda_lex.mll"
          ( MINUSDOT )
-# 1438 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1439 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 30 ->
-# 272 "middle_end/flambda2/parser/flambda_lex.mll"
+# 273 "middle_end/flambda2/parser/flambda_lex.mll"
          ( STARDOT )
-# 1443 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1444 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 31 ->
-# 273 "middle_end/flambda2/parser/flambda_lex.mll"
+# 274 "middle_end/flambda2/parser/flambda_lex.mll"
          ( SLASHDOT )
-# 1448 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1449 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 32 ->
-# 274 "middle_end/flambda2/parser/flambda_lex.mll"
+# 275 "middle_end/flambda2/parser/flambda_lex.mll"
          ( EQUALDOT )
-# 1453 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1454 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 33 ->
-# 275 "middle_end/flambda2/parser/flambda_lex.mll"
+# 276 "middle_end/flambda2/parser/flambda_lex.mll"
           ( NOTEQUALDOT )
-# 1458 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1459 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 34 ->
-# 276 "middle_end/flambda2/parser/flambda_lex.mll"
+# 277 "middle_end/flambda2/parser/flambda_lex.mll"
          ( LESSDOT )
-# 1463 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1464 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 35 ->
-# 277 "middle_end/flambda2/parser/flambda_lex.mll"
+# 278 "middle_end/flambda2/parser/flambda_lex.mll"
           ( LESSEQUALDOT )
-# 1468 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1469 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 36 ->
-# 278 "middle_end/flambda2/parser/flambda_lex.mll"
+# 279 "middle_end/flambda2/parser/flambda_lex.mll"
          ( QMARKDOT )
-# 1473 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1474 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 37 ->
-# 279 "middle_end/flambda2/parser/flambda_lex.mll"
+# 280 "middle_end/flambda2/parser/flambda_lex.mll"
          ( LESSMINUS )
-# 1478 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1479 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 38 ->
-# 280 "middle_end/flambda2/parser/flambda_lex.mll"
+# 281 "middle_end/flambda2/parser/flambda_lex.mll"
          ( MINUSGREATER )
-# 1483 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1484 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 39 ->
-# 281 "middle_end/flambda2/parser/flambda_lex.mll"
+# 282 "middle_end/flambda2/parser/flambda_lex.mll"
         ( AT )
-# 1488 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1489 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 40 ->
-# 282 "middle_end/flambda2/parser/flambda_lex.mll"
+# 283 "middle_end/flambda2/parser/flambda_lex.mll"
          ( PIPE )
-# 1493 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1494 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 41 ->
-# 283 "middle_end/flambda2/parser/flambda_lex.mll"
+# 284 "middle_end/flambda2/parser/flambda_lex.mll"
          ( TILDE )
-# 1498 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1499 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 42 ->
-# 284 "middle_end/flambda2/parser/flambda_lex.mll"
+# 285 "middle_end/flambda2/parser/flambda_lex.mll"
           ( TILDEMINUS )
-# 1503 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1504 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 43 ->
-# 285 "middle_end/flambda2/parser/flambda_lex.mll"
+# 286 "middle_end/flambda2/parser/flambda_lex.mll"
          ( AMP )
-# 1508 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1509 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 44 ->
-# 286 "middle_end/flambda2/parser/flambda_lex.mll"
+# 287 "middle_end/flambda2/parser/flambda_lex.mll"
          ( CARET )
-# 1513 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1514 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 45 ->
-# 287 "middle_end/flambda2/parser/flambda_lex.mll"
+# 288 "middle_end/flambda2/parser/flambda_lex.mll"
            ( BIGARROW )
-# 1518 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1519 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 46 ->
 let
-# 288 "middle_end/flambda2/parser/flambda_lex.mll"
-                             ident
-# 1524 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 289 "middle_end/flambda2/parser/flambda_lex.mll"
+                             ident
+# 1525 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
+# 290 "middle_end/flambda2/parser/flambda_lex.mll"
          ( ident_or_keyword ident )
-# 1528 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1529 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 47 ->
 let
-# 290 "middle_end/flambda2/parser/flambda_lex.mll"
-                    ident
-# 1534 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 291 "middle_end/flambda2/parser/flambda_lex.mll"
+                    ident
+# 1535 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
+# 292 "middle_end/flambda2/parser/flambda_lex.mll"
          ( IDENT (unquote_ident ident) )
-# 1538 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1539 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 48 ->
 let
-# 293 "middle_end/flambda2/parser/flambda_lex.mll"
+# 294 "middle_end/flambda2/parser/flambda_lex.mll"
                                      cunit_ident
-# 1544 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1545 "middle_end/flambda2/parser/flambda_lex.ml.new"
 = Lexing.sub_lexeme_opt lexbuf lexbuf.Lexing.lex_mem.(2) lexbuf.Lexing.lex_mem.(1)
 and
-# 294 "middle_end/flambda2/parser/flambda_lex.mll"
+# 295 "middle_end/flambda2/parser/flambda_lex.mll"
                                           cunit_linkage_name
-# 1549 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1550 "middle_end/flambda2/parser/flambda_lex.ml.new"
 = Lexing.sub_lexeme_opt lexbuf lexbuf.Lexing.lex_mem.(4) lexbuf.Lexing.lex_mem.(3)
 and
-# 296 "middle_end/flambda2/parser/flambda_lex.mll"
-                                    ident
-# 1554 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_mem.(0) lexbuf.Lexing.lex_curr_pos in
 # 297 "middle_end/flambda2/parser/flambda_lex.mll"
+                                    ident
+# 1555 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_mem.(0) lexbuf.Lexing.lex_curr_pos in
+# 298 "middle_end/flambda2/parser/flambda_lex.mll"
          ( symbol cunit_ident cunit_linkage_name ident )
-# 1558 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1559 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 49 ->
 let
-# 298 "middle_end/flambda2/parser/flambda_lex.mll"
-                       p
-# 1564 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme lexbuf (lexbuf.Lexing.lex_start_pos + 1) lexbuf.Lexing.lex_curr_pos in
 # 299 "middle_end/flambda2/parser/flambda_lex.mll"
+                       p
+# 1565 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme lexbuf (lexbuf.Lexing.lex_start_pos + 1) lexbuf.Lexing.lex_curr_pos in
+# 300 "middle_end/flambda2/parser/flambda_lex.mll"
          ( prim ~lexbuf p )
-# 1568 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1569 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 50 ->
 let
-# 300 "middle_end/flambda2/parser/flambda_lex.mll"
+# 301 "middle_end/flambda2/parser/flambda_lex.mll"
                     lit
-# 1574 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1575 "middle_end/flambda2/parser/flambda_lex.ml.new"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_mem.(0)
 and
-# 300 "middle_end/flambda2/parser/flambda_lex.mll"
-                                          modif
-# 1579 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme_char_opt lexbuf lexbuf.Lexing.lex_mem.(1) in
 # 301 "middle_end/flambda2/parser/flambda_lex.mll"
+                                          modif
+# 1580 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme_char_opt lexbuf lexbuf.Lexing.lex_mem.(1) in
+# 302 "middle_end/flambda2/parser/flambda_lex.mll"
          ( INT (lit, modif) )
-# 1583 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1584 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 51 ->
 let
-# 302 "middle_end/flambda2/parser/flambda_lex.mll"
-                                         lit
-# 1589 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 303 "middle_end/flambda2/parser/flambda_lex.mll"
+                                         lit
+# 1590 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
+# 304 "middle_end/flambda2/parser/flambda_lex.mll"
          ( FLOAT (lit |> Float.of_string) )
-# 1593 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1594 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 52 ->
 let
-# 304 "middle_end/flambda2/parser/flambda_lex.mll"
-                                                                    lit
-# 1599 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
 # 305 "middle_end/flambda2/parser/flambda_lex.mll"
+                                                                    lit
+# 1600 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
+# 306 "middle_end/flambda2/parser/flambda_lex.mll"
          ( error ~lexbuf (Invalid_literal lit) )
-# 1603 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1604 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 53 ->
 let
-# 306 "middle_end/flambda2/parser/flambda_lex.mll"
+# 307 "middle_end/flambda2/parser/flambda_lex.mll"
                                   s
-# 1609 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1610 "middle_end/flambda2/parser/flambda_lex.ml.new"
 = Lexing.sub_lexeme lexbuf (lexbuf.Lexing.lex_start_pos + 1) (lexbuf.Lexing.lex_curr_pos + -1) in
-# 308 "middle_end/flambda2/parser/flambda_lex.mll"
+# 309 "middle_end/flambda2/parser/flambda_lex.mll"
          ( STRING (Scanf.unescaped s) )
-# 1613 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1614 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 54 ->
-# 309 "middle_end/flambda2/parser/flambda_lex.mll"
+# 310 "middle_end/flambda2/parser/flambda_lex.mll"
          ( EOF )
-# 1618 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1619 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 55 ->
 let
-# 310 "middle_end/flambda2/parser/flambda_lex.mll"
-         ch
-# 1624 "middle_end/flambda2/parser/flambda_lex.ml.new"
-= Lexing.sub_lexeme_char lexbuf lexbuf.Lexing.lex_start_pos in
 # 311 "middle_end/flambda2/parser/flambda_lex.mll"
+         ch
+# 1625 "middle_end/flambda2/parser/flambda_lex.ml.new"
+= Lexing.sub_lexeme_char lexbuf lexbuf.Lexing.lex_start_pos in
+# 312 "middle_end/flambda2/parser/flambda_lex.mll"
          ( error ~lexbuf (Illegal_character ch) )
-# 1628 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1629 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_token_rec lexbuf __ocaml_lex_state
@@ -1634,25 +1635,25 @@ and comment n lexbuf =
 and __ocaml_lex_comment_rec n lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 315 "middle_end/flambda2/parser/flambda_lex.mll"
+# 316 "middle_end/flambda2/parser/flambda_lex.mll"
          ( Lexing.new_line lexbuf; comment n lexbuf )
-# 1640 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1641 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 1 ->
-# 317 "middle_end/flambda2/parser/flambda_lex.mll"
+# 318 "middle_end/flambda2/parser/flambda_lex.mll"
          ( if n = 1 then ()
            else comment (n-1) lexbuf )
-# 1646 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1647 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 2 ->
-# 320 "middle_end/flambda2/parser/flambda_lex.mll"
+# 321 "middle_end/flambda2/parser/flambda_lex.mll"
          ( comment (n+1) lexbuf )
-# 1651 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1652 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | 3 ->
-# 322 "middle_end/flambda2/parser/flambda_lex.mll"
+# 323 "middle_end/flambda2/parser/flambda_lex.mll"
          ( comment n lexbuf )
-# 1656 "middle_end/flambda2/parser/flambda_lex.ml.new"
+# 1657 "middle_end/flambda2/parser/flambda_lex.ml.new"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_comment_rec n lexbuf __ocaml_lex_state
