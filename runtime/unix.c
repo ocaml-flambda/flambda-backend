@@ -483,7 +483,7 @@ void caml_print_timestamp(FILE* channel, int formatted)
     fprintf(channel, "%ld.%06d ", (long)tv.tv_sec, (int)tv.tv_usec);
   } else {
     struct tm tm;
-    char tz[10] = "Z";
+    char tz[64] = "Z";
     localtime_r(&tv.tv_sec, &tm);
     if (tm.tm_gmtoff != 0) {
       long tzhour = tm.tm_gmtoff / 60 / 60;
