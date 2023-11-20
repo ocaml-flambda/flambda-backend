@@ -209,6 +209,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
   | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
   | Pfloatcomp(cmp) -> Printlambda.float_comparison ppf cmp
+  | Punboxed_float_comp(cmp) ->
+    fprintf ppf "%a (unboxed)" Printlambda.float_comparison cmp
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
   | Pstringrefs -> fprintf ppf "string.get"

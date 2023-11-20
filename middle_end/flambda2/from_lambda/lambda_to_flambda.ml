@@ -600,7 +600,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
   | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
   | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
+  | Pdivfloat _ | Pfloatcomp _ | Punboxed_float_comp _
+  | Pstringlength | Pstringrefu | Pbyteslength
   | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
   | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
   | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _

@@ -754,8 +754,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
       | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
       | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
-      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
-      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
+      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Punboxed_float_comp _
+      | Pstringlength | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
       | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
       | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
       | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
