@@ -40,6 +40,7 @@ type t =
         evaluated_to : float;
         threshold : float
       }
+  | X_dir_inlining_forbidden
 
 val print : Format.formatter -> t -> unit
 

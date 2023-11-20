@@ -99,7 +99,8 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = default_ui_export_info }
+    ui_export_info = default_ui_export_info;
+    ui_in_current_dir = None }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -145,6 +146,14 @@ let read_unit_info filename =
       | Flambda2_raw (Some info) ->
         Flambda2 (Some (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections info))
     in
+    let in_current_dir =
+      try
+        (* CR mshinwell: this won't work for a separate build dir *)
+        let dir = Filename.dirname filename |> Unix.realpath in
+        let cwd = Sys.getcwd () |> Unix.realpath in
+        Some (String.equal dir cwd)
+      with Sys_error _ -> None
+    in
     let ui = {
       ui_unit = uir.uir_unit;
       ui_defines = uir.uir_defines;
@@ -153,7 +162,8 @@ let read_unit_info filename =
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
       ui_checks = Checks.of_raw uir.uir_checks;
-      ui_force_link = uir.uir_force_link
+      ui_force_link = uir.uir_force_link;
+      ui_in_current_dir = in_current_dir;
     }
     in
     (ui, crc)
@@ -214,10 +224,20 @@ let get_unit_info comp_unit =
 let which_cmx_file comp_unit =
   CU.which_cmx_file comp_unit ~accessed_by:(CU.get_current_exn ())
 
+type in_current_dir =
+  | In_current_dir
+  | Not_in_current_dir
+  | Unknown
+
 let get_unit_export_info comp_unit =
   match get_unit_info comp_unit with
   | None -> None
-  | Some ui -> Some ui.ui_export_info
+  | Some ui ->
+    Some (ui.ui_export_info,
+      match ui.ui_in_current_dir with
+      | None -> Unknown
+      | Some true -> In_current_dir
+      | Some false -> Not_in_current_dir)
 
 let get_global_info comp_unit =
   get_unit_info (which_cmx_file comp_unit)

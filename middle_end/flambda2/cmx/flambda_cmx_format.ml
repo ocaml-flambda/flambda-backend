@@ -139,7 +139,7 @@ module Const_importer = Make_importer (Reg_width_const)
 module Code_id_importer = Make_importer (Code_id)
 module Continuation_importer = Make_importer (Continuation)
 
-let import_typing_env_and_code0 ~sections t =
+let import_typing_env_and_code0 ~sections ~in_current_dir t =
   let symbols = Symbol_importer.import t.table_data.symbols in
   let variables = Variable_importer.import t.table_data.variables in
   let simples = Simple_importer.import t.table_data.simples in
@@ -156,24 +156,26 @@ let import_typing_env_and_code0 ~sections t =
     Flambda2_types.Typing_env.Serializable.apply_renaming t.final_typing_env
       renaming
   in
-  let all_code = Exported_code.from_raw ~sections t.all_code in
+  let all_code = Exported_code.from_raw ~sections ~in_current_dir t.all_code in
   let all_code = Exported_code.apply_renaming code_ids renaming all_code in
   typing_env, all_code
 
-let import_typing_env_and_code (t, sections) =
+let import_typing_env_and_code (t, sections) ~in_current_dir =
   match t with
   | [] -> Misc.fatal_error "Flambda cmx info should never be empty"
-  | [t0] -> import_typing_env_and_code0 ~sections t0
+  | [t0] -> import_typing_env_and_code0 ~sections ~in_current_dir t0
   | t0 :: rem ->
     List.fold_left
       (fun (typing_env, code) t0 ->
-        let typing_env0, code0 = import_typing_env_and_code0 ~sections t0 in
+        let typing_env0, code0 =
+          import_typing_env_and_code0 ~sections ~in_current_dir t0
+        in
         let typing_env =
           Flambda2_types.Typing_env.Serializable.merge typing_env typing_env0
         in
         let code = Exported_code.merge code code0 in
         typing_env, code)
-      (import_typing_env_and_code0 ~sections t0)
+      (import_typing_env_and_code0 ~sections ~in_current_dir t0)
       rem
 
 let exported_offsets (t, _) =
@@ -214,7 +216,12 @@ let print0 ~sections ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
   Compilation_unit.set_current (Some t.original_compilation_unit);
-  let typing_env, code = import_typing_env_and_code0 ~sections t in
+  let typing_env, code =
+    import_typing_env_and_code0 ~sections
+      ~in_current_dir:In_current_dir
+        (* maximally preserve inlining attributes *)
+      t
+  in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
     Flambda2_types.Typing_env.Serializable.print typing_env;
   Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;

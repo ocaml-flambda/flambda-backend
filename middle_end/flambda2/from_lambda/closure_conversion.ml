@@ -262,11 +262,17 @@ module Inlining = struct
           | Always_inlined _ | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
           | Default_inlined | Unroll _ ->
-            (* Closure ignores completely [@unrolled] attributes, so it seems
-               safe to do the same. *)
-            ( Call_site_inlining_decision_type.Definition_says_inline
-                { was_inline_always = false },
-              Inlinable code )
+            if (not !Flambda_backend_flags.x_dir_inlining)
+               && Code_metadata.inline_only_with_attribute metadata
+            then
+              ( Call_site_inlining_decision_type.X_dir_inlining_forbidden,
+                Not_inlinable )
+            else
+              (* Closure ignores completely [@unrolled] attributes, so it seems
+                 safe to do the same. *)
+              ( Call_site_inlining_decision_type.Definition_says_inline
+                  { was_inline_always = false },
+                Inlinable code )
         in
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None

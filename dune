@@ -315,6 +315,7 @@
   flambda2_identifiers
   flambda2_cmx
   compiler_owee
+  unix
   gc_timings
   dwarf_low
   dwarf_high))

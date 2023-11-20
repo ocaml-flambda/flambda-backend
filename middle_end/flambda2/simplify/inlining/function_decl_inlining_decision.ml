@@ -17,8 +17,6 @@
 let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
     ~is_a_functor ~(recursive : Recursive.t) :
     Function_decl_inlining_decision_type.t =
-  (* At present, we follow Closure, taking inlining decisions without first
-     examining call sites. *)
   match (inline : Inline_attribute.t) with
   | Never_inline -> Never_inline_attribute
   | Always_inline -> Attribute_inline

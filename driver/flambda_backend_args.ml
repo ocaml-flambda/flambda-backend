@@ -126,6 +126,12 @@ let mk_debug_long_frames_threshold f =
 let mk_caml_apply_inline_fast_path f =
   "-caml-apply-inline-fast-path", Arg.Unit f, " Inline the fast path of caml_applyN"
 
+let mk_x_dir_inlining f =
+  "-x-dir-inlining", Arg.Unit f, " Allow inlining as normal from .cmx files in directories other than that containing the source file"
+
+let mk_no_x_dir_inlining f =
+  "-no-x-dir-inlining", Arg.Unit f, " Only inline from .cmx files in directories other than that containing the source file if inlining attributes are present"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
@@ -600,6 +606,10 @@ module type Flambda_backend_options = sig
   val long_frames_threshold : int -> unit
 
   val caml_apply_inline_fast_path : unit -> unit
+
+  val x_dir_inlining : unit -> unit
+  val no_x_dir_inlining : unit -> unit
+
   val internal_assembler : unit -> unit
 
   val gc_timings : unit -> unit
@@ -704,6 +714,9 @@ struct
     mk_debug_long_frames_threshold F.long_frames_threshold;
 
     mk_caml_apply_inline_fast_path F.caml_apply_inline_fast_path;
+
+    mk_x_dir_inlining F.x_dir_inlining;
+    mk_no_x_dir_inlining F.no_x_dir_inlining;
 
     mk_internal_assembler F.internal_assembler;
 
@@ -863,6 +876,12 @@ module Flambda_backend_options_impl = struct
 
   let caml_apply_inline_fast_path =
     set' Flambda_backend_flags.caml_apply_inline_fast_path
+
+  let x_dir_inlining =
+    set' Flambda_backend_flags.x_dir_inlining
+
+  let no_x_dir_inlining =
+    clear' Flambda_backend_flags.x_dir_inlining
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 

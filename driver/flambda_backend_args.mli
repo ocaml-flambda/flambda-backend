@@ -56,6 +56,8 @@ module type Flambda_backend_options = sig
   val long_frames_threshold : int -> unit
 
   val caml_apply_inline_fast_path : unit -> unit
+  val x_dir_inlining : unit -> unit
+  val no_x_dir_inlining : unit -> unit
   val internal_assembler : unit -> unit
 
   val gc_timings : unit -> unit

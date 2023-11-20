@@ -145,11 +145,15 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
     ~return_arity : Call_site_inlining_decision_type.t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
-  let decision =
-    Code_or_metadata.code_metadata code_or_metadata
-    |> Code_metadata.inlining_decision
-  in
-  if Function_decl_inlining_decision_type.must_be_inlined decision
+  let code_metadata = Code_or_metadata.code_metadata code_or_metadata in
+  let decision = Code_metadata.inlining_decision code_metadata in
+  if (not !Flambda_backend_flags.x_dir_inlining)
+     && Code_metadata.inline_only_with_attribute code_metadata
+  then
+    if Function_decl_inlining_decision_type.has_attribute_inline decision
+    then Definition_says_inline { was_inline_always = true }
+    else X_dir_inlining_forbidden
+  else if Function_decl_inlining_decision_type.must_be_inlined decision
   then
     Definition_says_inline
       { was_inline_always =

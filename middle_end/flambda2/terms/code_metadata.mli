@@ -48,6 +48,8 @@ module type Code_metadata_accessors_result_type = sig
 
   val inline : 'a t -> Inline_attribute.t
 
+  val inline_only_with_attribute : 'a t -> bool
+
   val check : 'a t -> Check_attribute.t
 
   val poll_attribute : 'a t -> Poll_attribute.t
@@ -129,3 +131,5 @@ val ids_for_export : t -> Ids_for_export.t
 val approx_equal : t -> t -> bool
 
 val map_result_types : t -> f:(Flambda2_types.t -> Flambda2_types.t) -> t
+
+val adjust_for_current_dir : t -> In_current_dir.t -> t

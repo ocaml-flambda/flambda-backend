@@ -32,7 +32,9 @@ val create :
   t
 
 val import_typing_env_and_code :
-  t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
+  t ->
+  in_current_dir:In_current_dir.t ->
+  Flambda2_types.Typing_env.Serializable.t * Exported_code.t
 
 val exported_offsets : t -> Exported_offsets.t
 

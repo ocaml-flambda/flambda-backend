@@ -36,7 +36,11 @@ val create : Code.t -> t
 
 val create_metadata_only : Code_metadata.t -> t
 
-val from_raw : sections:Flambda_backend_utils.File_sections.t -> raw -> t
+val from_raw :
+  sections:Flambda_backend_utils.File_sections.t ->
+  in_current_dir:In_current_dir.t ->
+  raw ->
+  t
 
 val to_raw : add_section:(Obj.t -> int) -> t -> raw
 
