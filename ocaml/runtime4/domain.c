@@ -162,7 +162,7 @@ CAMLprim value caml_ml_condition_wait(value wcond, value wmut)
 
 CAMLprim value caml_ml_condition_signal(value wrapper)
 {
-  if (caml_hook_condition_broadcast == NULL)
+  if (caml_hook_condition_signal == NULL)
     caml_failwith("Must initialize systhreads library before using Condition");
 
   return (*caml_hook_condition_signal)(wrapper);

@@ -69,3 +69,5 @@ val protect : t -> (unit -> 'a) -> 'a
     in some signal handler.
 
     @since 5.1 *)
+(* CR ocaml 5 runtime (mshinwell): looks like [protect] needs to use
+   Sys.with_async_exns? *)
