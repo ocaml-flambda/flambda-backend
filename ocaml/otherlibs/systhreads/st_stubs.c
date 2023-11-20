@@ -113,7 +113,7 @@ struct caml_thread_table {
   caml_thread_t active_thread;
   st_masterlock thread_lock;
   int tick_thread_running;
-  int caml_tick_thread_enabled;
+  int tick_thread_enabled;
   st_thread_id tick_thread_id;
 };
 
@@ -494,7 +494,8 @@ CAMLprim value caml_thread_initialize(value unit)
   return Val_unit;
 }
 
-static void stop_tick_thread(void) {
+static void stop_tick_thread(void)
+{
   if (!Tick_thread_running) return;
   atomic_store_release(&Tick_thread_stop, 1);
   st_thread_join(Tick_thread_id);
