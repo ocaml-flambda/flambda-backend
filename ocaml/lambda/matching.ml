@@ -1925,274 +1925,281 @@ let get_mod_field modname field =
          | path, _ -> transl_value_path Loc_unknown env path
        ))
 
-(* BACKPORT BEGIN
-   This is the OCaml 5 lazy implementation merged into ocaml-jst.
+(* This is the OCaml 5 lazy implementation merged into ocaml-jst. *)
+module Lazy5 = struct
 
-let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
+  (* CR ocaml 5 runtime: redefine target tags in their own file (see PR#1857) *)
+  let forcing_tag = 244
 
-let code_force_lazy = get_mod_field "CamlinternalLazy" "force_gen"
+  let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
 
-(* inline_lazy_force inlines the beginning of the code of Lazy.force. When
-   the value argument is tagged as:
-   - forward, take field 0
-   - lazy || forcing, call the primitive that forces
-   - anything else, return it
+  let code_force_lazy = get_mod_field "CamlinternalLazy" "force_gen"
 
-   Using Lswitch below relies on the fact that the GC does not shortcut
-   Forward(val_out_of_heap).
-*)
+  (* inline_lazy_force inlines the beginning of the code of Lazy.force. When
+    the value argument is tagged as:
+    - forward, take field 0
+    - lazy || forcing, call the primitive that forces
+    - anything else, return it
 
-let call_force_lazy_block ?(inlined = Default_inlined) varg loc ~pos =
-  (* The argument is wrapped with [Popaque] to prevent the rest of the compiler
-     from making any assumptions on its contents (see comments on
-     [CamlinternalLazy.force_gen], and discussions on PRs #9998 and #10909).
-     Alternatively, [ap_inlined] could be set to [Never_inline] to achieve a
-     similar result. *)
-  let force_fun = Lazy.force code_force_lazy_block in
-  Lapply
-    { ap_tailcall = Default_tailcall;
-      ap_loc = loc;
-      ap_func = force_fun;
-      ap_args = [ Lprim (Popaque Lambda.layout_lazy, [ varg ], loc) ];
-      ap_result_layout = Lambda.layout_lazy_contents;
-      ap_region_close = pos;
-      ap_mode = alloc_heap;
-      ap_inlined = inlined;
-      ap_specialised = Default_specialise;
-      ap_probe = None;
-    }
+    Using Lswitch below relies on the fact that the GC does not shortcut
+    Forward(val_out_of_heap).
+  *)
 
-let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
-
-let inline_lazy_force_cond arg pos loc =
-  let idarg = Ident.create_local "lzarg" in
-  let varg = Lvar idarg in
-  let tag = Ident.create_local "tag" in
-  let test_tag t =
-    Lprim(Pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
-  in
-  Llet
-    ( Strict,
-      Lambda.layout_lazy,
-      idarg,
-      arg,
-      Llet
-        ( Alias,
-          Lambda.layout_int,
-          tag,
-          Lprim (Pccall prim_obj_tag, [ varg ], loc),
-          Lifthenelse
-            ( (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
-              test_tag Obj.forward_tag,
-              Lprim (lazy_forward_field, [ varg ], loc),
-              Lifthenelse
-                (
-                  (* ... if tag == Obj.lazy_tag || tag == Obj.forcing_tag then
-                         Lazy.force varg
-                       else ... *)
-                  Lprim (Psequor,
-                       [test_tag Obj.lazy_tag; test_tag Obj.forcing_tag], loc),
-                  (* nroberts: We probably don't need [Never_inlined] anymore
-                     now that [ap_args] is opaque. *)
-                  call_force_lazy_block ~inlined:Never_inlined varg loc ~pos,
-                  (* ... arg *)
-                  varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
-
-let inline_lazy_force_switch arg pos loc =
-  let idarg = Ident.create_local "lzarg" in
-  let varg = Lvar idarg in
-  Llet
-    ( Strict,
-      Lambda.layout_lazy,
-      idarg,
-      arg,
-      Lifthenelse
-        ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
-          varg,
-          Lswitch
-            ( Lprim (Pccall prim_obj_tag, [ varg ], loc),
-              { sw_numblocks = 0;
-                sw_blocks = [];
-                sw_numconsts = 256;
-                (* PR#6033 - tag ranges from 0 to 255 *)
-                sw_consts =
-                  [ (Obj.forward_tag, Lprim (Pfield(0, Pointer, Reads_vary),
-                                             [ varg ], loc));
-                    (Obj.lazy_tag, call_force_lazy_block varg loc ~pos);
-                    (Obj.forcing_tag, call_force_lazy_block varg loc ~pos)
-                  ];
-                sw_failaction = Some varg
-              },
-              loc, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) )
-
-let inline_lazy_force arg pos loc =
-  if !Clflags.afl_instrument then
-    (* Disable inlining optimisation if AFL instrumentation active,
-       so that the GC forwarding optimisation is not visible in the
-       instrumentation output.
-       (see https://github.com/stedolan/crowbar/issues/14) *)
+  let call_force_lazy_block ?(inlined = Default_inlined) varg loc ~pos =
+    (* The argument is wrapped with [Popaque] to prevent the rest of the compiler
+      from making any assumptions on its contents (see comments on
+      [CamlinternalLazy.force_gen], and discussions on PRs #9998 and #10909).
+      Alternatively, [ap_inlined] could be set to [Never_inline] to achieve a
+      similar result. *)
+    let force_fun = Lazy.force code_force_lazy_block in
     Lapply
       { ap_tailcall = Default_tailcall;
         ap_loc = loc;
-        ap_func = Lazy.force code_force_lazy;
-        ap_args = [ Lconst (Const_base (Const_int 0)); arg ];
+        ap_func = force_fun;
+        ap_args = [ Lprim (Popaque Lambda.layout_lazy, [ varg ], loc) ];
         ap_result_layout = Lambda.layout_lazy_contents;
         ap_region_close = pos;
         ap_mode = alloc_heap;
-        (* nroberts: To make sure this wasn't inlined:
-             - Upstream changed [code_force_lazy] to a non-inlineable
-               function when compiling with AFL support.
-             - We just changed this to Never_inlined.
-
-           If these two approaches are solving the same problem, we should
-           just converge to one.
-        *)
-        ap_inlined = Never_inlined;
+        ap_inlined = inlined;
         ap_specialised = Default_specialise;
-        ap_probe=None;
+        ap_probe = None;
       }
-  else if !Clflags.native_code && not (Clflags.is_flambda2 ()) then
-    (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
-       caml_obj_tag and the switch on arbitrary tags *)
-    (* Lswitch generates compact and efficient native code *)
-    inline_lazy_force_switch arg pos loc
-  else
-    (* generating bytecode: Lswitch would generate too many rather big
-         tables (~ 250 elts); conditionals are better *)
-    inline_lazy_force_cond arg pos loc
-*)
-(* BACKPORT END *)
 
+  let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
+
+  let inline_lazy_force_cond arg pos loc =
+    let idarg = Ident.create_local "lzarg" in
+    let varg = Lvar idarg in
+    let tag = Ident.create_local "tag" in
+    let test_tag t =
+      Lprim(Pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
+    in
+    Llet
+      ( Strict,
+        Lambda.layout_lazy,
+        idarg,
+        arg,
+        Llet
+          ( Alias,
+            Lambda.layout_int,
+            tag,
+            Lprim (Pccall prim_obj_tag, [ varg ], loc),
+            Lifthenelse
+              ( (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
+                test_tag Obj.forward_tag,
+                Lprim (lazy_forward_field, [ varg ], loc),
+                Lifthenelse
+                  (
+                    (* ... if tag == Obj.lazy_tag || tag == forcing_tag then
+                          Lazy.force varg
+                        else ... *)
+                    Lprim (Psequor,
+                        [test_tag Obj.lazy_tag; test_tag forcing_tag], loc),
+                    (* nroberts: We probably don't need [Never_inlined] anymore
+                      now that [ap_args] is opaque. *)
+                    call_force_lazy_block ~inlined:Never_inlined varg loc ~pos,
+                    (* ... arg *)
+                    varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
+
+  let inline_lazy_force_switch arg pos loc =
+    let idarg = Ident.create_local "lzarg" in
+    let varg = Lvar idarg in
+    Llet
+      ( Strict,
+        Lambda.layout_lazy,
+        idarg,
+        arg,
+        Lifthenelse
+          ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
+            varg,
+            Lswitch
+              ( Lprim (Pccall prim_obj_tag, [ varg ], loc),
+                { sw_numblocks = 0;
+                  sw_blocks = [];
+                  sw_numconsts = 256;
+                  (* PR#6033 - tag ranges from 0 to 255 *)
+                  sw_consts =
+                    [ (Obj.forward_tag, Lprim (Pfield(0, Pointer, Reads_vary),
+                                              [ varg ], loc));
+                      (Obj.lazy_tag, call_force_lazy_block varg loc ~pos);
+                      (forcing_tag, call_force_lazy_block varg loc ~pos)
+                    ];
+                  sw_failaction = Some varg
+                },
+                loc, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) )
+
+  let inline_lazy_force arg pos loc =
+    if !Clflags.afl_instrument then
+      (* Disable inlining optimisation if AFL instrumentation active,
+        so that the GC forwarding optimisation is not visible in the
+        instrumentation output.
+        (see https://github.com/stedolan/crowbar/issues/14) *)
+      Lapply
+        { ap_tailcall = Default_tailcall;
+          ap_loc = loc;
+          ap_func = Lazy.force code_force_lazy;
+          ap_args = [ Lconst (Const_base (Const_int 0)); arg ];
+          ap_result_layout = Lambda.layout_lazy_contents;
+          ap_region_close = pos;
+          ap_mode = alloc_heap;
+          (* nroberts: To make sure this wasn't inlined:
+              - Upstream changed [code_force_lazy] to a non-inlineable
+                function when compiling with AFL support.
+              - We just changed this to Never_inlined.
+
+            If these two approaches are solving the same problem, we should
+            just converge to one.
+          *)
+          ap_inlined = Never_inlined;
+          ap_specialised = Default_specialise;
+          ap_probe=None;
+        }
+    else if !Clflags.native_code && not (Clflags.is_flambda2 ()) then
+      (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
+        caml_obj_tag and the switch on arbitrary tags *)
+      (* Lswitch generates compact and efficient native code *)
+      inline_lazy_force_switch arg pos loc
+    else
+      (* generating bytecode: Lswitch would generate too many rather big
+          tables (~ 250 elts); conditionals are better *)
+      inline_lazy_force_cond arg pos loc
+end
+
+(* CR ocaml 5 runtime: delete the old implementation *)
 (* This is the OCaml 4 implementation of lazy with a tweak to the
    Pfield occurrence in lazy_forward_field (to add "Pointer"). *)
+module Lazy4 = struct
 
-let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
+  let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
 
-let code_force_lazy = get_mod_field "CamlinternalLazy" "force"
+  let code_force_lazy = get_mod_field "CamlinternalLazy" "force"
 
-(* inline_lazy_force inlines the beginning of the code of Lazy.force. When
-   the value argument is tagged as:
-   - forward, take field 0
-   - lazy, call the primitive that forces (without testing again the tag)
-   - anything else, return it
+  (* inline_lazy_force inlines the beginning of the code of Lazy.force. When
+    the value argument is tagged as:
+    - forward, take field 0
+    - lazy, call the primitive that forces (without testing again the tag)
+    - anything else, return it
 
-   Using Lswitch below relies on the fact that the GC does not shortcut
-   Forward(val_out_of_heap).
-*)
+    Using Lswitch below relies on the fact that the GC does not shortcut
+    Forward(val_out_of_heap).
+  *)
 
-let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
+  let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
 
-let inline_lazy_force_cond arg pos loc =
-  let idarg = Ident.create_local "lzarg" in
-  let varg = Lvar idarg in
-  let tag = Ident.create_local "tag" in
-  let tag_var = Lvar tag in
-  let force_fun = Lazy.force code_force_lazy_block in
-  Llet
-    ( Strict,
-      Lambda.layout_lazy,
-      idarg,
-      arg,
-      Llet
-        ( Alias,
-          Lambda.layout_int,
-          tag,
-          Lprim (Pccall prim_obj_tag, [ varg ], loc),
-          Lifthenelse
-            (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
-            ( Lprim
-                ( Pintcomp Ceq,
-                  [ tag_var; Lconst (Const_base (Const_int Obj.forward_tag)) ],
-                  loc ),
-              Lprim (lazy_forward_field, [ varg ], loc),
-              Lifthenelse
-                (* if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
-                ( Lprim
-                    ( Pintcomp Ceq,
-                      [ tag_var; Lconst (Const_base (Const_int Obj.lazy_tag)) ],
-                      loc ),
-                  Lapply
-                    { ap_tailcall = Default_tailcall;
-                      ap_loc = loc;
-                      ap_func = force_fun;
-                      ap_args = [ varg ];
-                      ap_result_layout = Lambda.layout_lazy_contents;
-                      ap_region_close = pos;
-                      ap_mode = alloc_heap;
-                      ap_inlined = Never_inlined;
-                      ap_specialised = Default_specialise;
-                      ap_probe=None
-                    },
-                  (* ... arg *)
-                  varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
+  let inline_lazy_force_cond arg pos loc =
+    let idarg = Ident.create_local "lzarg" in
+    let varg = Lvar idarg in
+    let tag = Ident.create_local "tag" in
+    let tag_var = Lvar tag in
+    let force_fun = Lazy.force code_force_lazy_block in
+    Llet
+      ( Strict,
+        Lambda.layout_lazy,
+        idarg,
+        arg,
+        Llet
+          ( Alias,
+            Lambda.layout_int,
+            tag,
+            Lprim (Pccall prim_obj_tag, [ varg ], loc),
+            Lifthenelse
+              (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
+              ( Lprim
+                  ( Pintcomp Ceq,
+                    [ tag_var; Lconst (Const_base (Const_int Obj.forward_tag)) ],
+                    loc ),
+                Lprim (lazy_forward_field, [ varg ], loc),
+                Lifthenelse
+                  (* if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
+                  ( Lprim
+                      ( Pintcomp Ceq,
+                        [ tag_var; Lconst (Const_base (Const_int Obj.lazy_tag)) ],
+                        loc ),
+                    Lapply
+                      { ap_tailcall = Default_tailcall;
+                        ap_loc = loc;
+                        ap_func = force_fun;
+                        ap_args = [ varg ];
+                        ap_result_layout = Lambda.layout_lazy_contents;
+                        ap_region_close = pos;
+                        ap_mode = alloc_heap;
+                        ap_inlined = Never_inlined;
+                        ap_specialised = Default_specialise;
+                        ap_probe=None
+                      },
+                    (* ... arg *)
+                    varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
 
-let inline_lazy_force_switch arg pos loc =
-  let idarg = Ident.create_local "lzarg" in
-  let varg = Lvar idarg in
-  let force_fun = Lazy.force code_force_lazy_block in
-  Llet
-    ( Strict,
-      Lambda.layout_lazy,
-      idarg,
-      arg,
-      Lifthenelse
-        ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
-          varg,
-          Lswitch
-            ( varg,
-              { sw_numconsts = 0;
-                sw_consts = [];
-                sw_numblocks = 256;
-                (* PR#6033 - tag ranges from 0 to 255 *)
-                sw_blocks =
-                  [ ( Obj.forward_tag,
-                      Lprim (lazy_forward_field, [ varg ], loc) );
-                    ( Obj.lazy_tag,
-                      Lapply
-                        { ap_tailcall = Default_tailcall;
-                          ap_loc = loc;
-                          ap_func = force_fun;
-                          ap_args = [ varg ];
-                          ap_result_layout = Lambda.layout_lazy_contents;
-                          ap_region_close = pos;
-                          ap_mode = alloc_heap;
-                          ap_inlined = Default_inlined;
-                          ap_specialised = Default_specialise;
-                          ap_probe=None;
-                        } )
-                  ];
-                sw_failaction = Some varg
-              },
-              loc, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) )
+  let inline_lazy_force_switch arg pos loc =
+    let idarg = Ident.create_local "lzarg" in
+    let varg = Lvar idarg in
+    let force_fun = Lazy.force code_force_lazy_block in
+    Llet
+      ( Strict,
+        Lambda.layout_lazy,
+        idarg,
+        arg,
+        Lifthenelse
+          ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
+            varg,
+            Lswitch
+              ( varg,
+                { sw_numconsts = 0;
+                  sw_consts = [];
+                  sw_numblocks = 256;
+                  (* PR#6033 - tag ranges from 0 to 255 *)
+                  sw_blocks =
+                    [ ( Obj.forward_tag,
+                        Lprim (lazy_forward_field, [ varg ], loc) );
+                      ( Obj.lazy_tag,
+                        Lapply
+                          { ap_tailcall = Default_tailcall;
+                            ap_loc = loc;
+                            ap_func = force_fun;
+                            ap_args = [ varg ];
+                            ap_result_layout = Lambda.layout_lazy_contents;
+                            ap_region_close = pos;
+                            ap_mode = alloc_heap;
+                            ap_inlined = Default_inlined;
+                            ap_specialised = Default_specialise;
+                            ap_probe=None;
+                          } )
+                    ];
+                  sw_failaction = Some varg
+                },
+                loc, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) )
 
-let inline_lazy_force arg pos loc =
-  if !Clflags.afl_instrument then
-    (* Disable inlining optimisation if AFL instrumentation active,
-       so that the GC forwarding optimisation is not visible in the
-       instrumentation output.
-       (see https://github.com/stedolan/crowbar/issues/14) *)
-    Lapply
-      { ap_tailcall = Default_tailcall;
-        ap_loc = loc;
-        ap_func = Lazy.force code_force_lazy;
-        ap_args = [ arg ];
-        ap_result_layout = Lambda.layout_lazy_contents;
-        ap_region_close = pos;
-        ap_mode = alloc_heap;
-        ap_inlined = Never_inlined;
-        ap_specialised = Default_specialise;
-        ap_probe=None;
-      }
-  else if !Clflags.native_code && not (Clflags.is_flambda2 ()) then
-    (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
-       caml_obj_tag and the switch on arbitrary tags *)
-    (* Lswitch generates compact and efficient native code *)
-    inline_lazy_force_switch arg pos loc
-  else
-    (* generating bytecode: Lswitch would generate too many rather big
-         tables (~ 250 elts); conditionals are better *)
-    inline_lazy_force_cond arg pos loc
+  let inline_lazy_force arg pos loc =
+    if !Clflags.afl_instrument then
+      (* Disable inlining optimisation if AFL instrumentation active,
+        so that the GC forwarding optimisation is not visible in the
+        instrumentation output.
+        (see https://github.com/stedolan/crowbar/issues/14) *)
+      Lapply
+        { ap_tailcall = Default_tailcall;
+          ap_loc = loc;
+          ap_func = Lazy.force code_force_lazy;
+          ap_args = [ arg ];
+          ap_result_layout = Lambda.layout_lazy_contents;
+          ap_region_close = pos;
+          ap_mode = alloc_heap;
+          ap_inlined = Never_inlined;
+          ap_specialised = Default_specialise;
+          ap_probe=None;
+        }
+    else if !Clflags.native_code && not (Clflags.is_flambda2 ()) then
+      (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
+        caml_obj_tag and the switch on arbitrary tags *)
+      (* Lswitch generates compact and efficient native code *)
+      inline_lazy_force_switch arg pos loc
+    else
+      (* generating bytecode: Lswitch would generate too many rather big
+          tables (~ 250 elts); conditionals are better *)
+      inline_lazy_force_cond arg pos loc
+end
 
+let inline_lazy_force =
+  if Config.runtime5 then Lazy5.inline_lazy_force else Lazy4.inline_lazy_force
 
 (* End of lazy implementations. *)
 

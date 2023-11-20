@@ -244,6 +244,13 @@ CAMLexport int caml_atomic_cas_field (
   }
 }
 
+CAMLprim value caml_atomic_make(value v)
+{
+  CAMLparam1(v);
+  value ref = caml_alloc_small(1, 0);
+  Field(ref, 0) = v;
+  CAMLreturn(ref);
+}
 
 CAMLprim value caml_atomic_load (value ref)
 {

@@ -57,30 +57,36 @@ type 'a t = 'a CamlinternalLazy.t
 exception Undefined = CamlinternalLazy.Undefined
 external make_forward : 'a -> 'a lazy_t = "caml_lazy_make_forward"
 external force : 'a t -> 'a = "%lazy_force"
+external runtime5 : unit -> bool = "%runtime5"
+let runtime5 = runtime5 ()
 
-(* CR ocaml 5 runtime:
-   BACKPORT BEGIN
 let force_val l = CamlinternalLazy.force_gen ~only_val:true l
-*)
-let force_val = CamlinternalLazy.force_val
-(* BACKPORT END *)
 
 let from_fun (f : unit -> 'arg) =
   let x = Obj.new_block Obj.lazy_tag 1 in
   Obj.set_field x 0 (Obj.repr f);
   (Obj.obj x : 'arg t)
 
-let from_val (v : 'arg) =
+let from_val4 (v : 'arg) =
   let t = Obj.tag (Obj.repr v) in
   if t = Obj.forward_tag || t = Obj.lazy_tag
-(* BACKPORT BEGIN
-    || t = Obj.forcing_tag *)
-(* BACKPORT END *)
     || t = Obj.double_tag then begin
     make_forward v
   end else begin
     (Obj.magic v : 'arg t)
   end
+
+let from_val5 (v : 'arg) =
+  let t = Obj.tag (Obj.repr v) in
+  if t = Obj.forward_tag || t = Obj.lazy_tag
+    || t = Obj.forcing_tag
+    || t = Obj.double_tag then begin
+    make_forward v
+  end else begin
+    (Obj.magic v : 'arg t)
+  end
+
+let from_val = if runtime5 then from_val5 else from_val4
 
 let is_val (l : 'arg t) = Obj.tag (Obj.repr l) <> Obj.lazy_tag
 

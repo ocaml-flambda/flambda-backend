@@ -556,26 +556,17 @@ let ( ^^ ) (Format (fmt1, str1)) (Format (fmt2, str2)) =
 external sys_exit : int -> 'a = "caml_sys_exit"
 
 (* for at_exit *)
-(* BACKPORT BEGIN
 type 'a atomic_t
+(* BACKPORT BEGIN
 external atomic_make : 'a -> 'a atomic_t = "%makemutable"
 external atomic_get : 'a atomic_t -> 'a = "%atomic_load"
 external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool
   = "%atomic_cas"
 *)
-type 'a t = {mutable v: 'a}
-
-let atomic_make v = {v}
-let atomic_get r = r.v
-let[@inline never] atomic_compare_and_set r seen v =
-  (* BEGIN ATOMIC *)
-  let cur = r.v in
-  if cur == seen then (
-    r.v <- v;
-    (* END ATOMIC *)
-    true
-  ) else
-    false
+external atomic_make : 'a -> 'a atomic_t = "caml_atomic_make"
+external atomic_get : 'a atomic_t -> 'a = "caml_atomic_load"
+external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool
+  = "caml_atomic_cas"
 (* BACKPORT END *)
 
 let exit_function = atomic_make flush_all

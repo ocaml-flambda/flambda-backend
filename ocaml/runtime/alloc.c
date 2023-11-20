@@ -312,7 +312,7 @@ CAMLprim value caml_alloc_dummy_infix(value vsize, value voffset)
      block contains no pointers into the heap.  However, the block
      cannot be marshaled or hashed, because not all closinfo fields
      and infix header fields are correctly initialized. */
-  Closinfo_val(v) = Make_closinfo(0, wosize);
+  Closinfo_val(v) = Make_closinfo(0, wosize, 1);
   if (offset > 0) {
     v += Bsize_wsize(offset);
     (((header_t *) (v)) [-1]) = Make_header(offset, Infix_tag, 0);
