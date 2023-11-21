@@ -912,9 +912,7 @@ module Layout = struct
           the choice of error message. (Though the [Path.t] payload *is*
           indeed just about the payload.) *)
 
-    let of_ violation = { violation; missing_cmi = None }
-
-    let record_missing_cmi ~missing_cmi_for t = { t with missing_cmi = Some missing_cmi_for }
+    let of_ ?missing_cmi violation = { violation; missing_cmi }
 
     let is_missing_cmi { missing_cmi } = Option.is_some missing_cmi
 

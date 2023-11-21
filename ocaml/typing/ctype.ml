@@ -2040,7 +2040,7 @@ let rec constrain_type_layout ~fixed env ty layout fuel =
         | Unboxed ty ->
             constrain_type_layout ~fixed env ty layout (fuel - 1)
         | Missing missing_cmi_for ->
-          Error Layout.(Violation.of_ (Not_a_sublayout (update_reason layout_bound (Missing_cmi missing_cmi_for), layout)))
+          Error Layout.(Violation.of_ ~missing_cmi:missing_cmi_for (Not_a_sublayout (update_reason layout_bound (Missing_cmi missing_cmi_for), layout)))
         end
     end
   | Tpoly (ty, _) -> constrain_type_layout ~fixed env ty layout fuel

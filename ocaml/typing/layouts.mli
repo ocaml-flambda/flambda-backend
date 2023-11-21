@@ -253,10 +253,9 @@ module Layout : sig
 
     type t
 
-    val of_ : violation -> t
+    (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-    (** Mark a [t] as having arisen from a missing cmi *)
-    val record_missing_cmi : missing_cmi_for:Path.t -> t -> t
+    val of_ : ?missing_cmi:Path.t -> violation -> t
 
     (** Is this error from a missing cmi? *)
     val is_missing_cmi : t -> bool

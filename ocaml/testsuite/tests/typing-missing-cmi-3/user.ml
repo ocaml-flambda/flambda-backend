@@ -102,15 +102,5 @@ val k : unit = ()
 
 let f (x: Middle.u) = x
 [%%expect {|
-Line 1, characters 6-23:
-1 | let f (x: Middle.u) = x
-          ^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of Original.u is any, because
-         the .cmi file for Original.u is missing.
-       But the layout of Original.u must be a sublayout of value, because
-         it has to be value for the V1 safety check.
-       No .cmi file found containing Original.u.
-       Hint: Adding "original" to your dependencies might help.
+val f : Middle.u -> Middle.u = <fun>
 |}]
