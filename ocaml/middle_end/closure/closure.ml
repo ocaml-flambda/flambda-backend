@@ -1143,6 +1143,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               })
              ~loc
              ~mode:new_clos_mode
+             ~ret_mode
+             (* CR ncourant: this is incorrect, but the mode will not be used for anything *)
              ~region:fundesc.fun_region
              ~attr:default_function_attribute)
         in
@@ -1493,8 +1495,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (List.map
          (function
            | (id, Lfunction{kind; params; return; body; attr;
-                            loc; mode; region}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
+                            loc; mode; ret_mode; region}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode ~region
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )

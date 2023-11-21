@@ -163,6 +163,11 @@ CAMLexport void caml_array_bound_error(void)
   caml_invalid_argument("index out of bounds");
 }
 
+CAMLexport void caml_array_align_error(void)
+{
+  caml_invalid_argument("address was misaligned");
+}
+
 CAMLexport void caml_raise_out_of_memory(void)
 {
   check_global_data("Out_of_memory");

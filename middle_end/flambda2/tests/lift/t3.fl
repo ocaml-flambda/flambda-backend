@@ -1,12 +1,14 @@
-(
-  let a = %Opaque 5555555 in
-  let b = %Opaque 2222222 in
-  let c = %Opaque 1 in
-  let c_u = %untag_imm c in
-  switch c_u | 0 -> r1 | 1 -> r2
-  where r1 = cont ret (a, b, b)
-  where r2 = cont ret (a, a, b)
-)
+(let a = %Opaque 5555555 in
+ let b = %Opaque 2222222 in
+ let c = %Opaque 1 in
+ let c_u = %untag_imm c in
+ switch c_u
+   | 0 -> r1
+   | 1 -> r2
+   where r1 =
+     cont ret (a, b, b)
+   where r2 =
+     cont ret (a, a, b))
   where ret (a, b, c) =
     let $X = Block 1 (a, b, c) in
     let $camlT3 = Block 33 ($X) in

@@ -481,10 +481,12 @@ let simplify_opaque_identity dacc ~kind ~original_term ~arg:_ ~arg_ty:_
     ~result_var =
   SPR.create_unknown dacc ~result_var kind ~original_term
 
-let simplify_begin_try_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var K.region ~original_term
-
 let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  let ty = T.this_tagged_immediate Targetint_31_63.zero in
+  let dacc = DA.add_variable dacc result_var ty in
+  SPR.create original_term ~try_reify:false dacc
+
+let simplify_end_try_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let ty = T.this_tagged_immediate Targetint_31_63.zero in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
@@ -649,8 +651,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _; kind } ->
       simplify_opaque_identity ~kind
-    | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
+    | End_try_region -> simplify_end_try_region
     | Obj_dup -> simplify_obj_dup dbg
     | Get_header -> simplify_get_header ~original_prim
   in

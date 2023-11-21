@@ -222,6 +222,34 @@ void caml_array_bound_error_asm(void)
   caml_raise_exception(Caml_state, array_bound_exn());
 }
 
+static value array_align_exn(void)
+{
+  static atomic_uintnat exn_cache = ATOMIC_UINTNAT_INIT(0);
+  const value* exn = (const value*)atomic_load_acquire(&exn_cache);
+  if (!exn) {
+    exn = caml_named_value("Pervasives.array_align_error");
+    if (!exn) {
+      fprintf(stderr, "Fatal error: exception "
+        "Invalid_argument(\"address was misaligned\")\n");
+      exit(2);
+    }
+    atomic_store_release(&exn_cache, (uintnat)exn);
+  }
+  return *exn;
+}
+
+void caml_array_align_error(void)
+{
+  caml_raise(array_align_exn());
+}
+
+void caml_array_align_error_asm(void)
+{
+  /* This exception is raised directly from ocamlopt-compiled OCaml,
+     not C, so we jump directly to the OCaml handler (and avoid GC) */
+  caml_raise_exception(Caml_state, array_align_exn());
+}
+
 int caml_is_special_exception(value exn) {
   return exn == (value) caml_exn_Match_failure
     || exn == (value) caml_exn_Assert_failure

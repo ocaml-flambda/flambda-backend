@@ -25,7 +25,8 @@
         EXTRN  caml_apply3: NEAR
         EXTRN  caml_program: NEAR
         EXTRN  caml_array_bound_error_asm: NEAR
-       EXTRN  caml_stash_backtrace: NEAR
+        EXTRN  caml_array_align_error: NEAR
+        EXTRN  caml_stash_backtrace: NEAR
 
 INCLUDE domain_state64.inc
 
@@ -421,6 +422,12 @@ caml_callback3_asm:
         ALIGN   16
 caml_ml_array_bound_error:
         lea     rax, caml_array_bound_error_asm
+        jmp     caml_c_call
+
+        PUBLIC  caml_ml_array_align_error
+        ALIGN   16
+caml_ml_array_align_error:
+        lea     rax, caml_array_align_error_asm
         jmp     caml_c_call
 
         PUBLIC caml_system__code_end

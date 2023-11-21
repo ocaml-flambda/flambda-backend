@@ -14,7 +14,6 @@ let code rec loopify(never) size(18) newer_version_of(g_1)
         ($camlTests5__f_2 ~ depth my_depth -> succ my_depth : _ -> imm tagged
          )
           (Psubint)
-          &my_region
           -> k * k1
 and $camlTests5__f_2 =
   closure f_0_1 @f
@@ -35,7 +34,6 @@ and code rec loopify(never) size(18) newer_version_of(f_0)
         ($camlTests5__g_3 ~ depth my_depth -> succ my_depth : _ -> imm tagged
          )
           (Psubint)
-          &my_region
           -> k * k1
 in
 let $camlTests5 = Block 0 ($camlTests5__f_2, $camlTests5__g_3) in

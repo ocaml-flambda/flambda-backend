@@ -1102,6 +1102,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             _) as fapprox)), uargs)
           when nargs < List.length params_layout ->
         let (first_layouts, rem_layouts) = split_list nargs params_layout in
+        let (_, rem_modes) = split_list nargs fundesc.fun_argmodes in
         let first_args = List.map2 (fun arg kind ->
           (V.create_local "arg", arg, kind) ) uargs first_layouts in
         let kinds =
@@ -1122,15 +1123,13 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             alloc_local, Curried {nlocal = nlocal - supplied_local_args}
         in
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
-        (* CR ncourant: mode = new_clos_mode is incorrect; but the modes will
-           not be used for anything, so it is fine here. *)
         let final_args =
-          List.map (fun kind -> {
+          List.map2 (fun kind mode -> {
                 name = V.create_local "arg";
                 layout = kind;
                 attributes = Lambda.default_param_attribute;
-                mode = new_clos_mode
-              }) rem_layouts
+                mode = mode
+              }) rem_layouts rem_modes
         in
         let rec iter args body =
           match args with
@@ -1167,6 +1166,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                })
                ~loc
                ~mode:new_clos_mode
+               ~ret_mode:fundesc.fun_retmode
                ~region:fundesc.fun_region
                ~attr:default_function_attribute)
         in
@@ -1529,8 +1529,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (List.map
          (function
            | (id, Lfunction{kind; params; return; body; attr;
-                            loc; mode; region}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
+                            loc; mode; ret_mode; region}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode ~region
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )
@@ -1555,7 +1555,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     List.map
       (function
           (id, Lfunction(
-              {kind; params; return; body; attr; loc; mode; region})) ->
+              {kind; params; return; body; attr; loc; mode; region; ret_mode})) ->
             let attrib = attr.check in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
@@ -1573,7 +1573,10 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
                fun_poll = attr.poll;
-               fun_region = region} in
+               fun_region = region;
+               fun_argmodes = List.map (fun (p : Lambda.lparam) -> p.mode) params;
+               fun_retmode = ret_mode;
+              } in
             let dbg = Debuginfo.from_location loc in
             (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
              return, body, mode, attrib, fundesc, dbg)

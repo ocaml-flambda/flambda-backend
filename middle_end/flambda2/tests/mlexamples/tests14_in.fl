@@ -18,7 +18,7 @@ let code size(30)
         my_closure my_region my_depth
         -> k * k1
         : imm tagged =
-  (let try_region = %begin_try_region my_region in
+  (let try_region = %begin_try_region in
    cont k4 push(k3)
      where k4 =
        let Popaque = %Opaque 42 in
@@ -26,7 +26,7 @@ let code size(30)
           where k4 =
             cont k2 (Popaque))
      where k3 exn (`exn`) =
-       let `unit` = %end_region try_region in
+       let `unit` = %end_try_region try_region in
        let prim = %phys_eq (`exn`, $`*predef*`.caml_exn_Not_found) in
        let Pintcomp = %Tag_imm prim in
        ((let untagged = %untag_imm Pintcomp in
