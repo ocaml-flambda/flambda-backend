@@ -6,98 +6,12 @@
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
 
-module Float_u = struct
-  include Stdlib__Float_u
-
-  let ( + ) = add
-  let ( - ) = sub
-  let ( * ) = mul
-  let ( / ) = div
-  let ( ** ) = pow
-  let ( > ) x y = (compare x y) > 0
-end
+module Float_u = Stdlib__Float_u
 
 let test s f = Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()
 
 [%%expect{|
-module Float_u :
-  sig
-    external to_float : float# -> (float [@local_opt]) = "%box_float"
-    external of_float : (float [@local_opt]) -> float# = "%unbox_float"
-    val neg : float# -> float#
-    val add : float# -> float# -> float#
-    val sub : float# -> float# -> float#
-    val mul : float# -> float# -> float#
-    val div : float# -> float# -> float#
-    val fma : float# -> float# -> float# -> float#
-    val rem : float# -> float# -> float#
-    val succ : float# -> float#
-    val pred : float# -> float#
-    val abs : float# -> float#
-    val is_finite : float# -> bool
-    val is_infinite : float# -> bool
-    val is_nan : float# -> bool
-    val is_integer : float# -> bool
-    val of_int : int -> float#
-    val to_int : float# -> int
-    val of_string : string -> float#
-    val to_string : float# -> string
-    type fpclass =
-      fpclass =
-        FP_normal
-      | FP_subnormal
-      | FP_zero
-      | FP_infinite
-      | FP_nan
-    val classify_float : float# -> fpclass
-    val pow : float# -> float# -> float#
-    val sqrt : float# -> float#
-    val cbrt : float# -> float#
-    val exp : float# -> float#
-    val exp2 : float# -> float#
-    val log : float# -> float#
-    val log10 : float# -> float#
-    val log2 : float# -> float#
-    val expm1 : float# -> float#
-    val log1p : float# -> float#
-    val cos : float# -> float#
-    val sin : float# -> float#
-    val tan : float# -> float#
-    val acos : float# -> float#
-    val asin : float# -> float#
-    val atan : float# -> float#
-    val atan2 : float# -> float# -> float#
-    val hypot : float# -> float# -> float#
-    val cosh : float# -> float#
-    val sinh : float# -> float#
-    val tanh : float# -> float#
-    val acosh : float# -> float#
-    val asinh : float# -> float#
-    val atanh : float# -> float#
-    val erf : float# -> float#
-    val erfc : float# -> float#
-    val trunc : float# -> float#
-    val round : float# -> float#
-    val ceil : float# -> float#
-    val floor : float# -> float#
-    val next_after : float# -> float# -> float#
-    val copy_sign : float# -> float# -> float#
-    val sign_bit : float# -> bool
-    val ldexp : float# -> int -> float#
-    type t = float#
-    val compare : t -> t -> int
-    val equal : t -> t -> bool
-    val min : t -> t -> t
-    val max : float# -> float# -> float#
-    val min_num : t -> t -> t
-    val max_num : t -> t -> t
-    val ( + ) : float# -> float# -> float#
-    val ( - ) : float# -> float# -> float#
-    val ( * ) : float# -> float# -> float#
-    val ( / ) : float# -> float# -> float#
-    val ( ** ) : float# -> float# -> float#
-    val ( > ) : t -> t -> bool
-  end
+module Float_u = Stdlib__Float_u
 val test : string -> float# -> unit = <fun>
 |}]
 
