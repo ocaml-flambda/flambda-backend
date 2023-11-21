@@ -4530,31 +4530,37 @@ type 'ret constraint_arg =
     is_self: 'ret -> bool;
   }
 
-(* Split a function type into its argument/return types along with some
-   extra information relevant to typechecking. The "extra information"
+(* The result of splitting a function type into its argument/return types along
+   with some extra information relevant to typechecking. The "extra information"
    is documented on the fields of [t] below.
+
+   As a running example, we'll suppose the type of a function
+   [f = fun x_1 ... x_n -> e] is [a_1 -> a_2 -> ... -> a_n -> b], and we're
+   currently typechecking [a_i -> a_{i+1} -> ... -> b] for [i <= n].
  *)
 type split_function_ty =
-  { (* The split arg/return types, modes, and sorts as returned from
-        [Ctype.filter_arrow]
-      *)
+  { (* The result of calling [Ctype.filter_arrow] on
+       [a_i -> a_{i+1} -> ... -> b].
+    *)
     filtered_arrow: filtered_arrow;
+    (* If [i = n], then [Final_arg];
+       if [i < n], then the mode of the result of partially applying
+       [f] up to [a_i].
+    *)
     curry: function_curry;
-    (* [ty_arg_mono] is the type of the parameter from the function
-        body's perspective. It differs from [filtered_arrow.ty_arg]
-        for non-polymorphic parameters.
-      *)
+    (* An instance of [a_i], unless [x_i] is annotated as polymorphic,
+       in which case it's just [a_i] (not an instance).
+    *)
     ty_arg_mono: type_expr;
-    (* [expected_pat_mode] and [expected_inner_mode] are what you want
-        in preference to [filtered_arrow.arg_mode] and
-        [filtered_arrow.ret_mode] for typechecking the rest of the function.
-        (They are related to the [filtered_arrow] modes, but also consult
-        whether mode crossing is available or if the function has a region.)
+    (* [expected_pat_mode] and [expected_inner_mode] are the arguments you
+       should pass to [type_cases]. (As opposed to, say, using
+       [filtered_arrow.arg_mode] and [filtered_arrow.ret_mode].) They are
+       related to the [filtered_arrow] modes, but also consult whether mode
+       crossing is available or if the function has a region.
       *)
     expected_pat_mode: expected_pat_mode;
     expected_inner_mode: expected_mode;
-    (* [alloc_mode] is the alloc mode of the function whose type is being
-       split. *)
+    (* [alloc_mode] is the mode of [fun x_i ... x_n -> e]. *)
     alloc_mode: Mode.Alloc.t;
   }
 
