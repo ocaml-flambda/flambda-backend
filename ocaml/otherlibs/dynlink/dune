@@ -104,6 +104,7 @@
     symtable
     asttypes
     parsetree
+    typedtree
     outcometree
     cmo_format
     cmxs_format
@@ -178,6 +179,7 @@
 (copy_files ../../typing/subst.ml)
 (copy_files ../../typing/predef.ml)
 (copy_files ../../typing/datarepr.ml)
+(copy_files ../../typing/typedtree.ml)
 (copy_files ../../file_formats/cmi_format.ml)
 (copy_files ../../typing/persistent_env.ml)
 (copy_files ../../typing/env.ml)
@@ -240,6 +242,7 @@
 (copy_files ../../typing/subst.mli)
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
+(copy_files ../../typing/typedtree.mli)
 (copy_files ../../file_formats/cmi_format.mli)
 (copy_files ../../typing/persistent_env.mli)
 (copy_files ../../typing/env.mli)

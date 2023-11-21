@@ -1094,6 +1094,19 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
+(* Translation of constants *)
+
+let transl_constant loc (cst : Typedtree.constant) = match cst with
+| Const_int c -> Lconst(Const_base (Const_int c))
+| Const_char c -> Lconst(Const_base (Const_char c))
+| Const_string (s,loc,d) -> Lconst(Const_base (Const_string (s,loc,d)))
+| Const_float c -> Lconst(Const_base (Const_float c))
+| Const_int32 c -> Lconst(Const_base (Const_int32 c))
+| Const_int64 c -> Lconst(Const_base (Const_int64 c))
+| Const_nativeint c -> Lconst(Const_base (Const_nativeint c))
+| Const_unboxed_float f ->
+  Lprim (Punbox_float, [Lconst (Const_base (Const_float f))], loc)
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function

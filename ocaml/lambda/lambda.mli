@@ -665,6 +665,8 @@ val transl_prim: string -> string -> lambda
     ]}
 *)
 
+val transl_constant : scoped_location -> Typedtree.constant -> lambda
+
 val free_variables: lambda -> Ident.Set.t
 
 val transl_module_path: scoped_location -> Env.t -> Path.t -> lambda
