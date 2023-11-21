@@ -118,6 +118,7 @@ let run_mdflx_file filename : Outcome.t =
     Error
 
 let _ =
+  Symbol0.force_runtime4_symbols ();
   if not Config.stack_allocation
   then (
     Printf.printf "flexpect not supported when stack allocation disabled";
