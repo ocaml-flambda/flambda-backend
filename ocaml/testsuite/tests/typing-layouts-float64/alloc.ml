@@ -168,9 +168,9 @@ let _ =
   let allocs = get_exact_allocations () in
   Printf.printf "CSE test (0 bytes):\n  allocated bytes: %.2f\n" allocs
 
-let[@inline never] literal_test () =
+let[@inline never] literal_test x y =
   let open Float_u in
-  (#1. + #2.) * (#3. - #4.) / (#3. ** #1.)
+  (#1. + x) * (y - #4.) / (#3. ** #1.)
 
 let print_allocs s =
   let allocs = get_exact_allocations () in
@@ -179,6 +179,6 @@ let print_allocs s =
     s allocs
 
 let _ =
-  let r = measure_alloc literal_test in
+  let r = measure_alloc (fun () -> literal_test #2. #3.) in
   assert (Float_u.equal r (-#1.));
   print_allocs "Float literals";
