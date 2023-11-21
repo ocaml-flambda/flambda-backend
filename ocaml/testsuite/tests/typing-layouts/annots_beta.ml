@@ -59,7 +59,7 @@ Error: This alias is bound to type int list
        The layout of int list is value, because
          it's a boxed variant.
        But the layout of int list must be a sublayout of immediate, because
-         of the annotation on the type variable a.
+         of the annotation on the type variable 'a.
 |}]
 (* CR layouts: error message could be phrased better *)
 
@@ -278,7 +278,7 @@ Line 3, characters 15-39:
 3 | type s = { f : ('a : value). 'a -> 'a u }
                    ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type 'a is value, because
-         of the annotation on the universal variable a.
+         of the annotation on the universal variable 'a.
        But the layout of type 'a must be a sublayout of immediate, because
          of the definition of t_imm at line 1, characters 0-27.
 |}]
@@ -411,7 +411,7 @@ Error: This expression has type string but an expression was expected of type
        The layout of string is value, because
          it is the primitive value type string.
        But the layout of string must be a sublayout of immediate, because
-         of the annotation on the universal variable a.
+         of the annotation on the universal variable 'a.
 |}]
 
 (**************************************)
@@ -514,9 +514,9 @@ Line 1, characters 37-53:
 Error: This definition has type 'b -> 'b which is less general than
          'a. 'a -> 'a
        The layout of 'a is value, because
-         of the annotation on the universal variable a.
+         of the annotation on the universal variable 'a.
        But the layout of 'a must be a sublayout of immediate, because
-         of the annotation on the universal variable a.
+         of the annotation on the universal variable 'a.
 |}]
 
 type (_ : value) g =

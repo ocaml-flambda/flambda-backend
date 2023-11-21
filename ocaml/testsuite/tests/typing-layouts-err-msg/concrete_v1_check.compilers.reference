@@ -1,0 +1,9 @@
+type t_void : void
+File "_none_", line 1:
+Error: Non-value detected in [translmod]:
+       Please report this error to the Jane Street compilers team.
+       The layout of t_void is void, because
+         it's part of the v1 safety check, defaulted to layout void.
+       But the layout of t_void must be a sublayout of value, because
+         it has to be value for the V1 safety check.
+

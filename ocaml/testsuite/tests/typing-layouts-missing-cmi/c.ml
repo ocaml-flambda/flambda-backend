@@ -48,7 +48,7 @@ Line 1, characters 12-19:
 Error: This type B.b_value = A.a_value should be an instance of type
          ('a : immediate)
        The layout of B.b_value is value, because
-         of layout requirements from an imported definition.
+         the .cmi file for A.a_value is missing.
        But the layout of B.b_value must be a sublayout of immediate, because
          of the definition of imm_arg at line 3, characters 0-29.
        No .cmi file found containing A.a_value.

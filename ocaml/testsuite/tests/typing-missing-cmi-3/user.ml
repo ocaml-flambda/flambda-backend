@@ -99,3 +99,8 @@ let k = match Middle.s with Middle.S -> ()
 [%%expect {|
 val k : unit = ()
 |}]
+
+let f (x: Middle.u) = x
+[%%expect {|
+val f : Middle.u -> Middle.u = <fun>
+|}]

@@ -13,3 +13,5 @@ let r = Original.r
 
 type s = Original.s = S
 let s : s = Original.s
+
+type u = { y: Original.u } [@@unboxed]

@@ -465,10 +465,11 @@ let transl_type_param env path styp =
    to ask for it with an annotation.  Some restriction here seems necessary
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
    have layout any).  But it might be possible to infer any in some cases. *)
-  let layout = Layout.of_new_sort_var ~why:Unannotated_type_parameter in
   let attrs = styp.ptyp_attributes in
+  let layout = Layout.of_new_sort_var ~why:(Unannotated_type_parameter path) in
   match styp.ptyp_desc with
-    Ptyp_any -> transl_type_param_var env loc attrs None layout None
+  | Ptyp_any ->
+    transl_type_param_var env loc attrs None layout None
   | Ptyp_var name ->
     transl_type_param_var env loc attrs (Some name) layout None
   | _ -> assert false
@@ -481,7 +482,7 @@ let transl_type_param env path styp =
 
 let get_type_param_layout path styp =
   match Jane_syntax.Core_type.of_ast styp with
-  | None -> Layout.of_new_sort_var ~why:Unannotated_type_parameter
+  | None -> Layout.of_new_sort_var ~why:(Unannotated_type_parameter path)
   | Some (Jtyp_layout (Ltyp_var { name; layout }), _attrs) ->
     Layout.of_annotation ~context:(Type_parameter (path, name)) layout
   | Some _ -> Misc.fatal_error "non-type-variable in get_type_param_layout"
@@ -552,7 +553,7 @@ let transl_bound_vars : (_, _) Either.t -> _ =
                       TyVarEnv.make_poly_univars vars_only
   | Right vars_layouts -> List.map mk_pair vars_layouts,
                           TyVarEnv.make_poly_univars_layouts
-                            ~context:(fun v -> Univar v) vars_layouts
+                            ~context:(fun v -> Univar ("'" ^ v)) vars_layouts
 
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
@@ -1008,7 +1009,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         | None -> ()
         | Some layout_annot ->
           let layout =
-            Layout.of_annotation ~context:(Type_variable alias) layout_annot
+            Layout.of_annotation ~context:(Type_variable ("'" ^ alias)) layout_annot
           in
           begin match constrain_type_layout env t layout with
           | Ok () -> ()
@@ -1022,7 +1023,7 @@ and transl_type_alias env policy mode alias_loc styp name_opt layout_annot_opt =
         let layout =
           Layout.(of_annotation_option_default
             ~default:(any ~why:Dummy_layout)
-            ~context:(Type_variable alias)
+            ~context:(Type_variable ("'" ^ alias))
             layout_annot_opt)
         in
         let t = newvar layout in

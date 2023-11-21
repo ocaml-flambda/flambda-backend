@@ -237,7 +237,7 @@ module Layout = struct
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter
+    | Unannotated_type_parameter of Path.t
     | Record_projection
     | Record_assignment
     | Let_binding
@@ -292,15 +292,13 @@ module Layout = struct
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
     | Gc_ignorable_check
-    | Value_kind
 
   type immediate64_creation_reason =
     | Local_mode_cross_check
     | Gc_ignorable_check
     | Separability_check
 
-  type void_creation_reason =
-    | V1_safety_check
+  type void_creation_reason = |
 
   type any_creation_reason =
     | Missing_cmi of Path.t
@@ -316,7 +314,6 @@ module Layout = struct
   type annotation_context =
     | Type_declaration of Path.t
     | Type_parameter of Path.t * string option
-    | With_constraint of string
     | Newtype_declaration of string
     | Constructor_type_parameter of Path.t * string
     | Univar of string
@@ -325,6 +322,7 @@ module Layout = struct
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
+    | Missing_cmi of Path.t
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason
@@ -643,6 +641,10 @@ module Layout = struct
 
     open Format
 
+    let format_with_notify_js ppf str =
+      fprintf ppf "@[%s.@ \
+        Please notify the Jane Street compilers group if you see this output@]" str
+
     let format_position ~arity position =
       let to_ordinal num = Int.to_string num ^ Misc.ordinal_suffix num in
       match arity with
@@ -652,26 +654,27 @@ module Layout = struct
     let format_concrete_layout_reason ppf : concrete_layout_reason -> unit =
       function
       | Match ->
-        fprintf ppf "it's matched against a pattern"
-      | Constructor_declaration idx ->
-        fprintf ppf "it's used as constructor field %d" idx
+        fprintf ppf "a value of this type is matched against a pattern"
+      | Constructor_declaration _ ->
+        fprintf ppf "it's used as the type of a constructor field"
       | Label_declaration lbl ->
-        fprintf ppf "it's used in the declaration of the record field \"%a\""
-          Ident.print lbl
-      | Unannotated_type_parameter ->
-        fprintf ppf "it instantiates an unannotated type parameter"
+        fprintf ppf "it is the type of record field %s"
+          (Ident.name lbl)
+      | Unannotated_type_parameter path ->
+        fprintf ppf "it instantiates an unannotated type parameter of %a"
+          !printtyp_path path
       | Record_projection ->
         fprintf ppf "it's used as the record in a projection"
       | Record_assignment ->
         fprintf ppf "it's used as the record in an assignment"
       | Let_binding ->
-        fprintf ppf "it's bound by a `let`"
+        fprintf ppf "it's the type of a variable bound by a `let`"
       | Function_argument ->
         fprintf ppf "it's used as a function argument"
       | Function_result ->
         fprintf ppf "it's used as a function result"
       | Structure_item_expression ->
-        fprintf ppf "it's used in an expression in a structure"
+        fprintf ppf "it's used as the type of an expression in a structure"
       | V1_safety_check ->
         fprintf ppf "it's part of the v1 safety check"
       | External_argument ->
@@ -690,8 +693,6 @@ module Layout = struct
           fprintf ppf "@[%s@ in the declaration of the type@ %a@]"
             var_string
             !printtyp_path path
-      | With_constraint s ->
-          fprintf ppf "the `with` constraint for %s" s
       | Newtype_declaration name ->
           fprintf ppf "the abstract type declaration for %s"
             name
@@ -709,19 +710,20 @@ module Layout = struct
 
     let format_any_creation_reason ppf : any_creation_reason -> unit = function
       | Missing_cmi p ->
-         fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
+        fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
       | Wildcard ->
-        fprintf ppf "there's a _ in the type"
+        format_with_notify_js ppf "there's a _ in the type"
       | Unification_var ->
-         fprintf ppf "it's a fresh unification variable"
+        format_with_notify_js ppf "it's a fresh unification variable"
       | Initial_typedecl_env ->
-         fprintf ppf "a dummy layout of any is used to check mutually recursive datatypes"
+        format_with_notify_js ppf
+          "a dummy layout of any is used to check mutually recursive datatypes"
       | Dummy_layout ->
-         fprintf ppf "@[it's assigned a dummy layout that should have been overwritten;@ \
-                      Please notify the Jane Street compilers group if you see this output.@]"
+        format_with_notify_js ppf
+          "it's assigned a dummy layout that should have been overwritten"
       (* CR layouts: Improve output or remove this constructor ^^ *)
       | Type_expression_call ->
-         fprintf ppf "there's a call to [type_expression] via the ocaml API"
+         format_with_notify_js ppf "there's a call to [type_expression] via the ocaml API"
 
     let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
       function
@@ -735,9 +737,6 @@ module Layout = struct
          fprintf ppf "it's an enumeration variant (all constructors are constant)"
       | Gc_ignorable_check ->
          fprintf ppf "the check to see whether a value can be ignored by GC"
-      | Value_kind ->
-         fprintf ppf
-           "the check to see whether a polymorphic variant is immediate"
 
     let format_immediate64_creation_reason ppf = function
       | Local_mode_cross_check ->
@@ -750,7 +749,7 @@ module Layout = struct
     let format_value_creation_reason ppf : value_creation_reason -> _ = function
       | Class_let_binding -> fprintf ppf "it's let-bound in a class expression"
       | Tuple_element -> fprintf ppf "it's a tuple element"
-      | Probe -> fprintf ppf "it's a probe"
+      | Probe -> format_with_notify_js  ppf "it's a probe"
       | Package_hack -> fprintf ppf "it's used as an element in a first-class module"
       | Object -> fprintf ppf "it's an object"
       | Instance_variable -> fprintf ppf "it's an instance variable"
@@ -766,11 +765,13 @@ module Layout = struct
           (format_position ~arity position)
           !printtyp_path parent_path
       | Tuple -> fprintf ppf "it's a tuple type"
-      | Row_variable -> fprintf ppf "it's a row variable"
+      | Row_variable -> format_with_notify_js ppf "it's a row variable"
       | Polymorphic_variant -> fprintf ppf "it's a polymorphic variant"
       | Arrow -> fprintf ppf "it's a function type"
-      | Tfield -> fprintf ppf "it's an internal Tfield type (you shouldn't see this)"
-      | Tnil -> fprintf ppf "it's an internal Tnil type (you shouldn't see this)"
+      | Tfield ->
+        format_with_notify_js ppf "it's an internal Tfield type (you shouldn't see this)"
+      | Tnil ->
+        format_with_notify_js ppf "it's an internal Tnil type (you shouldn't see this)"
       | First_class_module -> fprintf ppf "it's a first-class module type"
       | Separability_check ->
         fprintf ppf "the check that a type is definitely not `float`"
@@ -791,17 +792,13 @@ module Layout = struct
       | Structure_element ->
          fprintf ppf "it's stored in a module structure"
       | Debug_printer_argument ->
-         fprintf ppf "it's used as the argument to a debugger printer function"
+        format_with_notify_js ppf
+          "it's used as the argument to a debugger printer function"
       | V1_safety_check ->
           fprintf ppf "it has to be value for the V1 safety check"
       | Captured_in_object -> fprintf ppf "it's captured in an object"
       | Unknown s -> fprintf ppf "unknown @[(please alert the Jane Street@;\
                        compilers team with this message: %s)@]" s
-
-
-    let format_void_creation_reason ppf : void_creation_reason -> _ = function
-      | V1_safety_check -> fprintf ppf "the check to make sure there are no voids"
-        (* CR layouts: remove this when we remove its uses *)
 
     let format_float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id ->
@@ -810,14 +807,15 @@ module Layout = struct
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
           fprintf ppf "of the annotation on %a" format_annotation_context ctx
+      | Missing_cmi p ->
+          fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
       | Any_creation any ->
          format_any_creation_reason ppf any
       | Immediate_creation immediate ->
          format_immediate_creation_reason ppf immediate
       | Immediate64_creation immediate64 ->
          format_immediate64_creation_reason ppf immediate64
-      | Void_creation void ->
-        format_void_creation_reason ppf void
+      | Void_creation _ -> .
       | Value_creation value ->
          format_value_creation_reason ppf value
       | Float64_creation float ->
@@ -914,9 +912,7 @@ module Layout = struct
           the choice of error message. (Though the [Path.t] payload *is*
           indeed just about the payload.) *)
 
-    let of_ violation = { violation; missing_cmi = None }
-
-    let record_missing_cmi ~missing_cmi_for t = { t with missing_cmi = Some missing_cmi_for }
+    let of_ ?missing_cmi violation = { violation; missing_cmi }
 
     let is_missing_cmi { missing_cmi } = Option.is_some missing_cmi
 
@@ -927,6 +923,14 @@ module Layout = struct
       in
       let l1, l2, fmt_l1, fmt_l2, missing_cmi_option = match t with
         | { violation = Not_a_sublayout(l1, l2); missing_cmi } ->
+          let missing_cmi = match missing_cmi with
+            | None -> begin match l1.history with
+              | Creation (Missing_cmi p) -> Some p
+              | Creation (Any_creation (Missing_cmi p)) -> Some p
+              | _ -> None
+            end
+            | Some _ -> missing_cmi
+          in
           begin match missing_cmi with
           | None ->
             l1, l2,
@@ -1087,8 +1091,9 @@ module Layout = struct
           fprintf ppf "Constructor_declaration %d" idx
       | Label_declaration lbl ->
           fprintf ppf "Label_declaration %a" Ident.print lbl
-      | Unannotated_type_parameter ->
-          fprintf ppf "Unannotated_type_parameter"
+      | Unannotated_type_parameter path ->
+          fprintf ppf "Unannotated_type_parameter %a"
+            !printtyp_path path
       | Record_projection ->
           fprintf ppf "Record_projection"
       | Record_assignment ->
@@ -1117,8 +1122,6 @@ module Layout = struct
           fprintf ppf "Type_parameter (%a, %a)"
             Path.print p
             (Misc.Stdlib.Option.print Misc.Stdlib.String.print) var
-      | With_constraint s ->
-          fprintf ppf "With_constraint %S" s
       | Newtype_declaration name ->
           fprintf ppf "Newtype_declaration %s" name
       | Constructor_type_parameter (cstr, name) ->
@@ -1146,7 +1149,6 @@ module Layout = struct
       | Immediate_polymorphic_variant ->
         fprintf ppf "Immediate_polymorphic_variant"
       | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
-      | Value_kind -> fprintf ppf "Value_kind"
 
     let immediate64_creation_reason ppf = function
       | Local_mode_cross_check -> fprintf ppf "Local_mode_cross_check"
@@ -1191,9 +1193,6 @@ module Layout = struct
       | Captured_in_object -> fprintf ppf "Captured_in_object"
       | Unknown s -> fprintf ppf "Unknown %s" s
 
-    let void_creation_reason ppf : void_creation_reason -> _ = function
-      | V1_safety_check -> fprintf ppf "V1_safety_check"
-
     let float64_creation_reason ppf : float64_creation_reason -> _ = function
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
@@ -1202,6 +1201,9 @@ module Layout = struct
         fprintf ppf "Annotated (%a,%a)"
           annotation_context ctx
           Location.print_loc loc
+      | Missing_cmi p ->
+        fprintf ppf "Missing_cmi %a"
+          !printtyp_path p
       | Any_creation any ->
          fprintf ppf "Any_creation %a" any_creation_reason any
       | Immediate_creation immediate ->
@@ -1210,8 +1212,7 @@ module Layout = struct
          fprintf ppf "Immediate64_creation %a" immediate64_creation_reason immediate64
       | Value_creation value ->
          fprintf ppf "Value_creation %a" value_creation_reason value
-      | Void_creation void ->
-         fprintf ppf "Void_creation %a" void_creation_reason void
+      | Void_creation _ -> .
       | Float64_creation float ->
          fprintf ppf "Float64_creation %a" float64_creation_reason float
       | Concrete_creation concrete ->
