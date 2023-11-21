@@ -4254,3 +4254,56 @@ let kind_of_layout (layout : Lambda.layout) =
   | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
   | Punboxed_product _ ->
     Any
+
+(* Atomics *)
+
+let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
+  let memory_chunk =
+    match imm_or_ptr with Immediate -> Word_int | Pointer -> Word_val
+  in
+  Cop (mk_load_atomic memory_chunk, [atomic], dbg)
+
+let atomic_exchange ~dbg atomic new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_exchange";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_val;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; new_value],
+      dbg )
+
+let atomic_fetch_and_add ~dbg atomic i =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_fetch_add";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; i],
+      dbg )
+
+let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_cas";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; old_value; new_value],
+      dbg )

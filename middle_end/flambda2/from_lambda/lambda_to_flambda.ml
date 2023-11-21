@@ -650,8 +650,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
-  | Prunstack | Pperform | Presume | Preperform | Patomic_exchange | Patomic_cas
-  | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
+  | Prunstack | Pperform | Presume | Preperform | Pdls_get ->
     Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 
