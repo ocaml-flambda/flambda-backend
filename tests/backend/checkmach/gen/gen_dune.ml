@@ -44,8 +44,6 @@ let () =
       | "exit_code" -> string_of_int exit_code
       | "cutoff" -> string_of_int cutoff
       | "extra_flags" -> extra_flags
-      (* CR ocaml 5 runtime: remove once we're always using the 5 runtime *)
-      | "__" -> "."  (* symbol separators *)
       | _ -> assert false
     in
     Buffer.clear buf;

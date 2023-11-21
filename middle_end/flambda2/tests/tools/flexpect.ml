@@ -118,6 +118,7 @@ let run_mdflx_file filename : Outcome.t =
     Error
 
 let _ =
+  (* CR ocaml 5 runtime: remove this once we are on the 5 runtime *)
   Symbol0.force_runtime4_symbols ();
   if not Config.stack_allocation
   then (
