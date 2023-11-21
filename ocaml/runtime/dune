@@ -42,6 +42,7 @@
    ../.depend
    ../.depend.menhir
    ../config.status
+   ../stdlib/StdlibModules
    (glob_files caml/*.h)
    (glob_files *.h)
    caml/domain_state.tbl

@@ -1,4 +1,4 @@
 File "fail23.ml", line 3, characters 5-15:
-Error: Annotation check for zero_alloc strict failed on function Fail23.test1 (camlFail23__test1_HIDE_STAMP)
+Error: Annotation check for zero_alloc strict failed on function Fail23.test1 (camlFail23.test1_HIDE_STAMP)
 File "fail23.ml", line 7, characters 10-40:
   allocate 32 bytes on a path to exceptional return
