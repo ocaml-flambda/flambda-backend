@@ -19,11 +19,13 @@ type dll_handle
 type dll_address
 type dll_mode = For_checking | For_execution
 
-(* BACKPORT BEGIN
-external dll_open: string -> dll_handle = "caml_dynlink_open_lib"
-*)
-external dll_open: dll_mode -> string -> dll_handle = "caml_dynlink_open_lib"
-(* BACKPORT END *)
+external dll_open5: string -> dll_handle = "caml_dynlink_open_lib"
+
+external dll_open4: dll_mode -> string -> dll_handle = "caml_dynlink_open_lib"
+
+let dll_open mode path =
+  if Config.runtime5 then dll_open5 path else dll_open4 mode path
+
 external dll_close: dll_handle -> unit = "caml_dynlink_close_lib"
 external dll_sym: dll_handle -> string -> dll_address
                 = "caml_dynlink_lookup_symbol"
@@ -85,11 +87,7 @@ let open_dll mode name =
           failwith (fullname ^ ": " ^ Binutils.error_to_string err)
       end
   | (None | Some (Checking _) as current), For_execution ->
-(* BACKPORT BEGIN
-      begin match dll_open fullname with
-*)
       begin match dll_open For_execution fullname with
-(* BACKPORT END *)
       | dll ->
           let opened = match current with
             | None -> List.remove_assoc fullname !opened_dlls

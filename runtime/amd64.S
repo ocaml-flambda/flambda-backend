@@ -445,22 +445,22 @@ G(caml_system__code_begin):
         movq    %r10,        10*8(%r15);               \
              /* %r11 is at   11*8(%r15); */            \
         movq    %rbp,        12*8(%r15);               \
-        movsd   %xmm0,   (0+13)*8(%r15);               \
-        movsd   %xmm1,   (1+13)*8(%r15);               \
-        movsd   %xmm2,   (2+13)*8(%r15);               \
-        movsd   %xmm3,   (3+13)*8(%r15);               \
-        movsd   %xmm4,   (4+13)*8(%r15);               \
-        movsd   %xmm5,   (5+13)*8(%r15);               \
-        movsd   %xmm6,   (6+13)*8(%r15);               \
-        movsd   %xmm7,   (7+13)*8(%r15);               \
-        movsd   %xmm8,   (8+13)*8(%r15);               \
-        movsd   %xmm9,   (9+13)*8(%r15);               \
-        movsd   %xmm10, (10+13)*8(%r15);               \
-        movsd   %xmm11, (11+13)*8(%r15);               \
-        movsd   %xmm12, (12+13)*8(%r15);               \
-        movsd   %xmm13, (13+13)*8(%r15);               \
-        movsd   %xmm14, (14+13)*8(%r15);               \
-        movsd   %xmm15, (15+13)*8(%r15)
+        movupd  %xmm0,       (0*16 + 13*8)(%r15);      \
+        movupd  %xmm1,       (1*16 + 13*8)(%r15);      \
+        movupd  %xmm2,       (2*16 + 13*8)(%r15);      \
+        movupd  %xmm3,       (3*16 + 13*8)(%r15);      \
+        movupd  %xmm4,       (4*16 + 13*8)(%r15);      \
+        movupd  %xmm5,       (5*16 + 13*8)(%r15);      \
+        movupd  %xmm6,       (6*16 + 13*8)(%r15);      \
+        movupd  %xmm7,       (7*16 + 13*8)(%r15);      \
+        movupd  %xmm8,       (8*16 + 13*8)(%r15);      \
+        movupd  %xmm9,       (9*16 + 13*8)(%r15);      \
+        movupd  %xmm10,      (10*16 + 13*8)(%r15);     \
+        movupd  %xmm11,      (11*16 + 13*8)(%r15);     \
+        movupd  %xmm12,      (12*16 + 13*8)(%r15);     \
+        movupd  %xmm13,      (13*16 + 13*8)(%r15);     \
+        movupd  %xmm14,      (14*16 + 13*8)(%r15);     \
+        movupd  %xmm15,      (15*16 + 13*8)(%r15)
 
 /* Undo SAVE_ALL_REGS. Expects gc_regs bucket in %r15 */
 #define RESTORE_ALL_REGS                               \
@@ -482,22 +482,22 @@ G(caml_system__code_begin):
         movq         10*8(%r15),%r10;                  \
         movq         11*8(%r15),%r11;                  \
         movq         12*8(%r15),%rbp;                  \
-        movsd    (0+13)*8(%r15),%xmm0;                 \
-        movsd    (1+13)*8(%r15),%xmm1;                 \
-        movsd    (2+13)*8(%r15),%xmm2;                 \
-        movsd    (3+13)*8(%r15),%xmm3;                 \
-        movsd    (4+13)*8(%r15),%xmm4;                 \
-        movsd    (5+13)*8(%r15),%xmm5;                 \
-        movsd    (6+13)*8(%r15),%xmm6;                 \
-        movsd    (7+13)*8(%r15),%xmm7;                 \
-        movsd    (8+13)*8(%r15),%xmm8;                 \
-        movsd    (9+13)*8(%r15),%xmm9;                 \
-        movsd   (10+13)*8(%r15),%xmm10;                \
-        movsd   (11+13)*8(%r15),%xmm11;                \
-        movsd   (12+13)*8(%r15),%xmm12;                \
-        movsd   (13+13)*8(%r15),%xmm13;                \
-        movsd   (14+13)*8(%r15),%xmm14;                \
-        movsd   (15+13)*8(%r15),%xmm15;                \
+        movupd       (0*16 + 13*8)(%r15),%xmm0;        \
+        movupd       (1*16 + 13*8)(%r15),%xmm1;        \
+        movupd       (2*16 + 13*8)(%r15),%xmm2;        \
+        movupd       (3*16 + 13*8)(%r15),%xmm3;        \
+        movupd       (4*16 + 13*8)(%r15),%xmm4;        \
+        movupd       (5*16 + 13*8)(%r15),%xmm5;        \
+        movupd       (6*16 + 13*8)(%r15),%xmm6;        \
+        movupd       (7*16 + 13*8)(%r15),%xmm7;        \
+        movupd       (8*16 + 13*8)(%r15),%xmm8;        \
+        movupd       (9*16 + 13*8)(%r15),%xmm9;        \
+        movupd       (10*16 + 13*8)(%r15),%xmm10;      \
+        movupd       (11*16 + 13*8)(%r15),%xmm11;      \
+        movupd       (12*16 + 13*8)(%r15),%xmm12;      \
+        movupd       (13*16 + 13*8)(%r15),%xmm13;      \
+        movupd       (14*16 + 13*8)(%r15),%xmm14;      \
+        movupd       (15*16 + 13*8)(%r15),%xmm15;      \
         movq    Caml_state(young_ptr), %r15
 
 FUNCTION(G(caml_call_realloc_stack))

@@ -122,9 +122,9 @@ $(ocamldir)/otherlibs/dune:
 
 $(ocamldir)/dune.runtime_selection:
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
-          echo "(dirs (:standard \ runtime))" > $@; \
+          echo "(dirs (:standard \ runtime debugger))" > $@; \
 	else \
-          echo "(dirs (:standard \ runtime4))" > $@; \
+          echo "(dirs (:standard \ runtime4 debugger4))" > $@; \
 	fi
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)
@@ -276,10 +276,10 @@ install_for_test: _install
 	mkdir -p _runtest/lib/ocaml/stublibs/
 	cp $(main_prefix)/lib/ocaml/stublibs/*.so _runtest/lib/ocaml/stublibs
 	# ocamldebug
-	mkdir _runtest/debugger
-	ln -s ../ocamldebug _runtest/debugger
-	cp $(main_build)/$(ocamldir)/debugger/.ocamldebug.objs/byte/*.cm* \
-	  _runtest/debugger
+	mkdir _runtest/debugger$(RUNTIME_SUFFIX)
+	ln -s ../ocamldebug _runtest/debugger$(RUNTIME_SUFFIX)
+	cp $(main_build)/$(ocamldir)/debugger$(RUNTIME_SUFFIX)/.ocamldebug.objs/byte/*.cm* \
+	  _runtest/debugger$(RUNTIME_SUFFIX)
 	# The ast_invariants test needs VERSION to be present.  In fact ideally
 	# we should have all the source files in _runtest too for this test,
 	# but for the moment we accept it being a weaker check.  We're not

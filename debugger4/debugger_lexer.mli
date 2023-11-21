@@ -2,9 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*   Xavier Leroy and Pascal Cuoq, projet Cristal, INRIA Rocquencourt     *)
+(*           Jerome Vouillon, projet Cristal, INRIA Rocquencourt          *)
+(*           OCaml port by John Malecki and Xavier Leroy                  *)
 (*                                                                        *)
-(*   Copyright 1995 Institut National de Recherche en Informatique et     *)
+(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
@@ -13,8 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t
-external create: unit -> t = "caml_condition_new"
-external wait: t -> Mutex.t -> unit = "caml_condition_wait"
-external signal: t -> unit = "caml_condition_signal"
-external broadcast: t -> unit = "caml_condition_broadcast"
+exception Int_overflow
+
+val line: Lexing.lexbuf -> string
+val lexeme: Lexing.lexbuf -> Debugger_parser.token
+val argument: Lexing.lexbuf -> Debugger_parser.token
+val line_argument: Lexing.lexbuf -> Debugger_parser.token
