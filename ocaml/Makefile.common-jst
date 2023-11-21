@@ -276,10 +276,10 @@ install_for_test: _install
 	mkdir -p _runtest/lib/ocaml/stublibs/
 	cp $(main_prefix)/lib/ocaml/stublibs/*.so _runtest/lib/ocaml/stublibs
 	# ocamldebug
-	mkdir _runtest/debugger
-	ln -s ../ocamldebug _runtest/debugger
+	mkdir _runtest/debugger$(RUNTIME_SUFFIX)
+	ln -s ../ocamldebug _runtest/debugger$(RUNTIME_SUFFIX)
 	cp $(main_build)/$(ocamldir)/debugger$(RUNTIME_SUFFIX)/.ocamldebug.objs/byte/*.cm* \
-	  _runtest/debugger
+	  _runtest/debugger$(RUNTIME_SUFFIX)
 	# The ast_invariants test needs VERSION to be present.  In fact ideally
 	# we should have all the source files in _runtest too for this test,
 	# but for the moment we accept it being a weaker check.  We're not
