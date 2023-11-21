@@ -46,7 +46,13 @@ include Identifiable.Make (struct
 end)
 
 let caml_symbol_prefix = "caml"
-let separator = if Config.runtime5 then "." else "__"
+
+let force_runtime4_symbols = ref false
+
+let separator () =
+  if Config.runtime5 && not !force_runtime4_symbols then "." else "__"
+
+let force_runtime4_symbols () = force_runtime4_symbols := true
 
 let linkage_name t = t.linkage_name
 
@@ -74,7 +80,7 @@ let linkage_name_for_compilation_unit comp_unit =
       let pack_names =
         CU.Prefix.to_list for_pack_prefix |> List.map CU.Name.to_string
       in
-      String.concat separator (pack_names @ [name])
+      String.concat (separator ()) (pack_names @ [name])
   in
   caml_symbol_prefix ^ suffix
   |> Linkage_name.of_string
@@ -98,7 +104,7 @@ let for_name compilation_unit name =
     linkage_name_for_compilation_unit compilation_unit |> Linkage_name.to_string
   in
   let linkage_name =
-    prefix ^ separator ^ name |> Linkage_name.of_string
+    prefix ^ (separator ()) ^ name |> Linkage_name.of_string
   in
   { compilation_unit;
     linkage_name;

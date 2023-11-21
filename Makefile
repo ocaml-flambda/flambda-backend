@@ -720,6 +720,7 @@ runtime_COMMON_C_SOURCES = \
   runtime_events \
   shared_heap \
   signals \
+  simd \
   skiplist \
   startup_aux \
   str \
