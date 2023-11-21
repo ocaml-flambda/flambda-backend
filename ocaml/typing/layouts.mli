@@ -226,6 +226,7 @@ module Layout : sig
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
+    | Missing_cmi of Path.t
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason

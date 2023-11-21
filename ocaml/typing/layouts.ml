@@ -322,6 +322,7 @@ module Layout = struct
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
+    | Missing_cmi of Path.t
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
     | Immediate64_creation of immediate64_creation_reason
@@ -564,18 +565,6 @@ module Layout = struct
 
   (***********************************)
   (* layout histories *)
-
-  (* Not all layout history reasons are created equal. Some are more helpful than others.
-  This function encodes that information.
-  The reason with higher score should get preserved when combined with one of lower
-  score. *)
-  let score_reason = function
-    (* want to highlight missing cmi issues *)
-    | Creation (Any_creation (Missing_cmi _)) -> 1
-    (* Concrete creation is quite vague, prefer more specific reasons *)
-    | Creation (Concrete_creation _) -> -1
-    | _ -> 0
-
   let has_imported_history t =
     match t with
     | {history = Creation Imported; } -> true
@@ -818,6 +807,8 @@ module Layout = struct
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
           fprintf ppf "of the annotation on %a" format_annotation_context ctx
+      | Missing_cmi p ->
+          fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
       | Any_creation any ->
          format_any_creation_reason ppf any
       | Immediate_creation immediate ->
@@ -934,15 +925,13 @@ module Layout = struct
       in
       let l1, l2, fmt_l1, fmt_l2, missing_cmi_option = match t with
         | { violation = Not_a_sublayout(l1, l2); missing_cmi } ->
-          let enhance_history l path =
-            (* Layout histories are only updated when a change in layout occurs.
-               This means the Missing_cmi reason can be lost in some cases.
-               We want to add it back to the history. *)
-            let reason = Any_creation (Missing_cmi path) in
-            match l.layout with
-            | Any when score_reason l.history < score_reason (Creation reason) ->
-              update_reason l reason
-            | _ -> l
+          let missing_cmi = match missing_cmi with
+            | None -> begin match l1.history with
+              | Creation (Missing_cmi p) -> Some p
+              | Creation (Any_creation (Missing_cmi p)) -> Some p
+              | _ -> None
+            end
+            | Some _ -> missing_cmi
           in
           begin match missing_cmi with
           | None ->
@@ -950,7 +939,7 @@ module Layout = struct
             dprintf "layout %a" format l1,
             sublayout_format "is not" l2, None
           | Some p ->
-            enhance_history l1 p, enhance_history l2 p,
+            l1, l2,
             dprintf "an unknown layout",
             sublayout_format "might not be" l2, Some p
           end
@@ -1018,10 +1007,12 @@ module Layout = struct
     then begin match sub_desc (get_internal lhs.layout) (get_internal rhs.layout) with
       | Sub -> lhs.history
       | Not_sub -> rhs.history  (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
-      | Equal ->
-        if score_reason lhs.history >= score_reason rhs.history
-        then lhs.history
-        else rhs.history
+      | Equal -> begin match lhs.history, rhs.history with
+        (* Prefer other creation_reasons over Concrete_creation *)
+        | h, Creation (Concrete_creation _)
+        | Creation (Concrete_creation _), h -> h
+        | h, _ -> h
+        end
     end else Interact { reason; lhs_layout = lhs.layout; lhs_history = lhs.history;
                         rhs_layout = rhs.layout; rhs_history = rhs.history }
 
@@ -1212,6 +1203,9 @@ module Layout = struct
         fprintf ppf "Annotated (%a,%a)"
           annotation_context ctx
           Location.print_loc loc
+      | Missing_cmi p ->
+        fprintf ppf "Missing_cmi %a"
+          !printtyp_path p
       | Any_creation any ->
          fprintf ppf "Any_creation %a" any_creation_reason any
       | Immediate_creation immediate ->
