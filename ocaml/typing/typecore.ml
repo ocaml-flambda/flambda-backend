@@ -45,6 +45,7 @@ type type_forcing_context =
   | Comprehension_for_start
   | Comprehension_for_stop
   | Comprehension_when
+  | Error_message_attr of string
 
 type type_expected = {
   ty: type_expr;
@@ -5374,7 +5375,11 @@ and type_expect_
       end_def ();
       generalize_structure ty;
       let ty' = instance ty in
-      let arg = type_argument env expected_mode sarg ty (instance ty) in
+      let error_message_attr_opt =
+        Builtin_attributes.error_message_attr sexp.pexp_attributes in
+      let explanation = Option.map (fun msg -> Error_message_attr msg)
+                          error_message_attr_opt in
+      let arg = type_argument ?explanation env expected_mode sarg ty (instance ty) in
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
@@ -8367,6 +8372,8 @@ let report_type_expected_explanation expl ppf =
       because "a range-based for iterator stop index in a comprehension"
   | Comprehension_when ->
       because "a when-clause in a comprehension"
+  | Error_message_attr msg ->
+      fprintf ppf "@\n@[%s@]" msg
 
 let escaping_hint failure_reason submode_reason
       (context : Env.closure_context option) =

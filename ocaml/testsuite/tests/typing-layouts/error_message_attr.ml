@@ -154,3 +154,127 @@ Error: Bad layout annotation:
 |}]
 
 (* Currently it's not possible to attach attributes to Ltyp_poly *)
+
+(* *************************************************************** *)
+(* Tests for [@error_message] applied to [Pexp_constraint].
+   Seperate implementation from when it's applied to layout annotations. *)
+
+(* Needs a string body *)
+let f (x : bool) = (x : int)[@error_message]
+[%%expect{|
+Line 1, characters 28-44:
+1 | let f (x : bool) = (x : int)[@error_message]
+                                ^^^^^^^^^^^^^^^^
+Warning 47 [attribute-payload]: illegal payload for attribute 'error_message'.
+error_message attribute expects a string argument
+Line 1, characters 20-21:
+1 | let f (x : bool) = (x : int)[@error_message]
+                        ^
+Error: This expression has type bool but an expression was expected of type
+         int
+|}]
+
+(* Can only be applied once *)
+let f (x : bool) = (x : int)[@error_message "A"][@error_message "B"]
+[%%expect{|
+Line 1, characters 20-21:
+1 | let f (x : bool) = (x : int)[@error_message "A"][@error_message "B"]
+                        ^
+Error: This expression has type bool but an expression was expected of type
+         int
+       A
+|}]
+
+(* Simple test case *)
+let f (x : bool) = (x : int)[@error_message "custom message"]
+[%%expect{|
+Line 1, characters 20-21:
+1 | let f (x : bool) = (x : int)[@error_message "custom message"]
+                        ^
+Error: This expression has type bool but an expression was expected of type
+         int
+       custom message
+|}]
+
+(* Doesn't work when the type mismatch happens later. This differs from
+   the layout annotation case. *)
+let f x: bool = (x : int)[@error_message "custom message"]
+[%%expect{|
+Line 1, characters 16-25:
+1 | let f x: bool = (x : int)[@error_message "custom message"]
+                    ^^^^^^^^^
+Error: This expression has type int but an expression was expected of type
+         bool
+|}]
+
+(* Doesn't apply when the type error is from elsewhere within the expression *)
+let g (x : int) = x
+let f (x : bool) = (let y = false in g y : int)[@error_message "custom message"]
+[%%expect{|
+val g : int -> int = <fun>
+Line 2, characters 39-40:
+2 | let f (x : bool) = (let y = false in g y : int)[@error_message "custom message"]
+                                           ^
+Error: This expression has type bool but an expression was expected of type
+         int
+|}]
+
+(* Can be used to enforce layouts but not great *)
+let f (x : string) = (x : (_ : immediate))[@error_message "custom message"]
+[%%expect{|
+Line 1, characters 22-23:
+1 | let f (x : string) = (x : (_ : immediate))[@error_message "custom message"]
+                          ^
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
+       custom message
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 26-41.
+|}]
+
+(* Doesn't apply when the mismatch is deep *)
+let f () = (fun (x: int) -> x : string -> string)[@error_message "custom message"]
+[%%expect{|
+Line 1, characters 16-24:
+1 | let f () = (fun (x: int) -> x : string -> string)[@error_message "custom message"]
+                    ^^^^^^^^
+Error: This pattern matches values of type int
+       but a pattern was expected which matches values of type string
+|}]
+
+let f () = (fun (x: int) -> x : string)[@error_message "custom message"]
+[%%expect{|
+Line 1, characters 12-29:
+1 | let f () = (fun (x: int) -> x : string)[@error_message "custom message"]
+                ^^^^^^^^^^^^^^^^^
+Error: This expression should not be a function, the expected type is
+       string
+       custom message
+|}]
+
+(* Same when the function is not declared inline *)
+let g (x: int) = x
+let f () = (g : (string -> string))[@error_message "custom message"]
+[%%expect{|
+val g : int -> int = <fun>
+Line 2, characters 12-13:
+2 | let f () = (g : (string -> string))[@error_message "custom message"]
+                ^
+Error: This expression has type int -> int
+       but an expression was expected of type string -> string
+       Type int is not compatible with type string
+|}]
+
+let g (x: int) = x
+let f () = (g : string)[@error_message "custom message"]
+[%%expect{|
+val g : int -> int = <fun>
+Line 2, characters 12-13:
+2 | let f () = (g : string)[@error_message "custom message"]
+                ^
+Error: This expression has type int -> int
+       but an expression was expected of type string
+       custom message
+|}]
