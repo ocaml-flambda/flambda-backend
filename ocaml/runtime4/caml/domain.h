@@ -27,6 +27,16 @@ extern "C" {
 
 void caml_init_domain(void);
 
+/* OCaml 5 stdlib compatibility hooks */
+extern value (*caml_hook_mutex_new)(value unit);
+extern value (*caml_hook_mutex_lock)(value wrapper);
+extern value (*caml_hook_mutex_unlock)(value wrapper);
+extern value (*caml_hook_mutex_try_lock)(value wrapper);
+extern value (*caml_hook_condition_new)(value unit);
+extern value (*caml_hook_condition_wait)(value wcond, value wmut);
+extern value (*caml_hook_condition_signal)(value wrapper);
+extern value (*caml_hook_condition_broadcast)(value wrapper);
+
 #endif /* CAML_INTERNALS */
 
 #ifdef __cplusplus

@@ -230,8 +230,6 @@ Caml_inline void scan_stack_frames(
   uintnat retaddr;
   value * regs;
   frame_descr * d;
-  int n, ofs;
-  unsigned short * p;
   value *root;
   caml_frame_descrs fds = caml_get_frame_descrs();
 
@@ -250,14 +248,31 @@ next_chunk:
     CAMLassert(d);
     if (!frame_return_to_C(d)) {
       /* Scan the roots in this frame */
-      for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
-        ofs = *p;
-        if (ofs & 1) {
-          root = regs + (ofs >> 1);
-        } else {
-          root = (value *)(sp + ofs);
+      if (frame_is_long(d)) {
+        frame_descr_long *dl = frame_as_long(d);
+        uint32_t *p;
+        uint32_t n;
+        for (p = dl->live_ofs, n = dl->num_live; n > 0; n--, p++) {
+          uint32_t ofs = *p;
+          if (ofs & 1) {
+            root = regs + (ofs >> 1);
+          } else {
+            root = (value *)(sp + ofs);
+          }
+          f (fdata, *root, root);
         }
-        f (fdata, *root, root);
+      } else {
+        uint16_t *p;
+        uint16_t n;
+        for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
+          uint16_t ofs = *p;
+          if (ofs & 1) {
+            root = regs + (ofs >> 1);
+          } else {
+            root = (value *)(sp + ofs);
+          }
+          f (fdata, *root, root);
+        }
       }
       /* Move to next frame */
       sp += frame_size(d);

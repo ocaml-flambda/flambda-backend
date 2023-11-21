@@ -1,11 +1,13 @@
 (* TEST
 * hassysthreads
 include systhreads
-* skip
-reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
-** bytecode
-** native
+** runtime4
+*** bytecode
+*** native
 *)
+
+(* CR ocaml 5 runtime: Once statmemprof is ported, remove "runtime4" stanzas
+   for the tests/statmemprof/ tests. *)
 
 let _ =
   let main_thread = Thread.id (Thread.self ()) in

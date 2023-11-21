@@ -533,12 +533,42 @@ static void caml_thread_reinitialize(void)
   }
 }
 
+/* Installation of hooks for OCaml 5 stdlib compatibility.
+   See runtime4/domain.{c,h}.
+   Another approach would have been to use weak symbols, to override
+   dummy implementations in domain.c, but unfortunately that doesn't work
+   with the bytecode interpreter.
+ */
+
+value caml_mutex_new(value unit);
+value caml_mutex_lock(value wrapper);
+value caml_mutex_unlock(value wrapper);
+value caml_mutex_try_lock(value wrapper);
+value caml_condition_new(value unit);
+value caml_condition_wait(value wcond, value wmut);
+value caml_condition_signal(value wrapper);
+value caml_condition_broadcast(value wrapper);
+
+static void install_ocaml_5_compatibility_hooks(void)
+{
+  caml_hook_mutex_new = &caml_mutex_new;
+  caml_hook_mutex_lock = &caml_mutex_lock;
+  caml_hook_mutex_try_lock = &caml_mutex_try_lock;
+  caml_hook_mutex_unlock = &caml_mutex_unlock;
+  caml_hook_condition_new = &caml_condition_new;
+  caml_hook_condition_wait = &caml_condition_wait;
+  caml_hook_condition_signal = &caml_condition_signal;
+  caml_hook_condition_broadcast = &caml_condition_broadcast;
+}
+
 /* Initialize the thread machinery */
 
 CAMLprim value caml_thread_initialize(value unit)   /* ML */
 {
   /* Protect against repeated initialization (PR#3532) */
   if (curr_thread != NULL) return Val_unit;
+  /* OCaml 5 compatibility */
+  install_ocaml_5_compatibility_hooks();
   /* OS-specific initialization */
   st_initialize();
   /* Initialize and acquire the master lock */

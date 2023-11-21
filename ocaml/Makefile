@@ -1158,7 +1158,7 @@ clean::
 subdirs = \
   stdlib $(addprefix otherlibs/, \
     $(filter-out runtime_events, $(ALL_OTHERLIBS))) \
-  debugger ocamldoc ocamltest
+  debugger$(RUNTIME_SUFFIX) ocamldoc ocamltest
 
 .PHONY: alldepend
 alldepend: depend
@@ -1352,10 +1352,10 @@ clean::
 
 .PHONY: ocamldebugger
 ocamldebugger: ocamlc ocamlyacc ocamllex otherlibraries
-	$(MAKE) -C debugger all
+	$(MAKE) -C debugger$(RUNTIME_SUFFIX) all
 
 partialclean::
-	$(MAKE) -C debugger clean
+	$(MAKE) -C debugger$(RUNTIME_SUFFIX) clean
 
 # Check that the native-code compiler is supported
 .PHONY: checknative
@@ -1667,7 +1667,7 @@ depend: beforedepend
 
 .PHONY: distclean
 distclean: clean
-	$(MAKE) -C debugger distclean
+	$(MAKE) -C debugger$(RUNTIME_SUFFIX) distclean
 	$(MAKE) -C manual distclean
 	$(MAKE) -C ocamldoc distclean
 	$(MAKE) -C ocamltest distclean
@@ -1797,7 +1797,7 @@ ifeq "$(WITH_OCAMLDOC)-$(STDLIB_MANPAGES)" "ocamldoc-true"
 	$(MAKE) -C api_docgen install
 endif
 	if test -n "$(WITH_DEBUGGER)"; then \
-	  $(MAKE) -C debugger install; \
+	  $(MAKE) -C debugger$(RUNTIME_SUFFIX) install; \
 	fi
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "true"
 ifeq "$(TOOLCHAIN)" "msvc"

@@ -2,9 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*           Xavier Leroy and Pascal Cuoq, INRIA Rocquencourt             *)
+(*           Jerome Vouillon, projet Cristal, INRIA Rocquencourt          *)
+(*           OCaml port by John Malecki and Xavier Leroy                  *)
 (*                                                                        *)
-(*   Copyright 1995 Institut National de Recherche en Informatique et     *)
+(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
@@ -13,8 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t
-external create: unit -> t = "caml_mutex_new"
-external lock: t -> unit = "caml_mutex_lock"
-external try_lock: t -> bool = "caml_mutex_try_lock"
-external unlock: t -> unit = "caml_mutex_unlock"
+(* Handling of keyboard interrupts *)
+
+val protect : (unit -> unit) -> unit
+val unprotect : (unit -> unit) -> unit
