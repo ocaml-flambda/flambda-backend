@@ -222,62 +222,11 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-(** A [Pexp_function]'s parameter list consists of both newtype parameters
-    and value parameters. The process of typing a value parameter depends on
-    whether it's the first/final value parameter or not, e.g. for calculating
-    the [fp_curry] field. We calculate [pparam_indexes] to keep track of the
-    index of the first/final value parameter in the parameter list.
-
-    These are 0-indexed.
-*)
-type pparam_indexes =
-  { first_val_param: int;
-    final_val_param: int;
-  }
-
-let compute_param_indexes =
-  let open Jane_syntax.N_ary_functions in
-  let is_val_param param =
-    match param.pparam_desc with
-    | Pparam_val _ -> true
-    | Pparam_newtype _ -> false
-  in
-  let rec find_final_val_param i params body =
-    match params with
-    | [] ->
-        begin match body with
-        | Pfunction_cases _ -> Some i
-        | Pfunction_body _ -> None
-        end
-    | param :: params ->
-        begin match find_final_val_param (i+1) params body with
-        | None -> if is_val_param param then Some i else None
-        | Some _ as index -> index
-        end
-  in
-  let rec loop i params body =
-    match params with
-    | [] ->
-        begin match body with
-        | Pfunction_cases _ -> { first_val_param = i; final_val_param = i }
-        | Pfunction_body _ -> Misc.fatal_error "Function without value params"
-        end
-    | param :: params ->
-        if is_val_param param
-        then
-          match find_final_val_param (i+1) params body with
-          | None -> { first_val_param = i; final_val_param = i }
-          | Some final_val_param -> { first_val_param = i; final_val_param }
-        else loop (i+1) params body
-  in
-  fun params body -> loop 0 params body
-
 type in_function =
   { ty_fun: type_expected;
     loc_fun: Location.t;
     (** [region_locked] is whether the function has its own region. *)
     region_locked: bool;
-    param_indexes: pparam_indexes;
   }
 
 let error_of_filter_arrow_failure ~explanation ~first ty_fun
@@ -4581,18 +4530,11 @@ type split_function_ty =
     @param mode_annots mode annotations placed on the function parameter
     @param in_function Information about the [Pexp_function] node that's in
       the process of being typechecked (its overall type and its location).
-    @param param_index the index of the value parameter in the
-            [Parsetree.function_param] list, belonging to the same index
-            space as [param_indexes].
 *)
 let split_function_ty
     env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
-    ~mode_annots ~in_function ~param_index
+    ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
-  let is_first_val_param, is_final_val_param =
-    let { first_val_param; final_val_param } = in_function.param_indexes in
-    param_index = first_val_param, param_index = final_val_param
-  in
   let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
   let alloc_mode =
     if expected_mode.exact then
@@ -6354,7 +6296,7 @@ and type_binding_op_ident env s =
 
 and type_function
       env (expected_mode : expected_mode) ty_expected
-      params_suffix body_constraint body ~in_function ~param_index
+      params_suffix body_constraint body ~in_function ~seen_val_param
   : type_function_result
   =
   let open Jane_syntax.N_ary_functions in
@@ -6390,7 +6332,7 @@ and type_function
             *)
             type_function env expected_mode
               (newvar (Jkind.any ~why:Dummy_jkind))
-              rest body_constraint body ~in_function ~param_index:(param_index+1)
+              rest body_constraint body ~in_function ~seen_val_param
           in
           (fun_alloc_mode, params, body, body_sort, newtypes, contains_gadt),
           exp_type)
@@ -6413,6 +6355,20 @@ and type_function
       && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
                                Unsupported_extension Polymorphic_parameters));
+      let is_final_val_param =
+        match body with
+        | Pfunction_cases _ -> false
+        | Pfunction_body _ ->
+            (* This may appear quadratic but it's actually linear when amortized
+               over the outer call to [type_function], as we visit each
+               [Pparam_newtype] only once. *)
+            List.for_all
+              (fun { pparam_desc } ->
+                match pparam_desc with
+                | Pparam_val _ -> false
+                | Pparam_newtype _ -> true)
+              rest
+      in
       let env,
           { filtered_arrow =
               { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort };
@@ -6420,7 +6376,8 @@ and type_function
             alloc_mode;
           } =
         split_function_ty env expected_mode ty_expected loc
-          ~param_index ~arg_label ~in_function ~has_poly ~mode_annots
+          ~is_first_val_param:(not seen_val_param) ~is_final_val_param
+          ~arg_label ~in_function ~has_poly ~mode_annots
       in
       (* [ty_arg_internal_mono] is the type of the parameter viewed internally
          to the function. This is different than [ty_arg_mono] exactly for
@@ -6481,7 +6438,7 @@ and type_function
                 =
                 type_function ext_env expected_inner_mode ty_expected
                   rest body_constraint body
-                  ~in_function ~param_index:(param_index+1)
+                  ~in_function ~seen_val_param:true
               in
               let contains_gadt =
                 if param_contains_gadt then
@@ -6573,6 +6530,7 @@ and type_function
           let type_cases_expect env expected_mode ty_expected =
             type_function_cases_expect
               env expected_mode ty_expected loc cases attributes ~in_function
+              ~is_first_val_param:(not seen_val_param)
           in
           let (body, fun_alloc_mode, body_sort, exp_type), exp_extra =
             match body_constraint with
@@ -7755,13 +7713,14 @@ and type_cases
     and [in_function].
 *)
 and type_function_cases_expect
-    env expected_mode ty_expected loc cases attrs ~in_function =
+    env expected_mode ty_expected loc cases attrs ~in_function
+    ~is_first_val_param =
   Builtin_attributes.warning_scope attrs begin fun () ->
     let env, split_function_ty_result =
       split_function_ty
         env expected_mode ty_expected loc ~arg_label:Nolabel
         ~in_function ~has_poly:false ~mode_annots:mode_annots_none
-        ~param_index:in_function.param_indexes.final_val_param
+        ~is_first_val_param ~is_final_val_param:true
     in
     let { filtered_arrow =
             { ty_arg; ty_ret; arg_mode; ret_mode; arg_sort; ret_sort };
@@ -8327,19 +8286,17 @@ and type_n_ary_function
       ((params, constraint_, body) : Jane_syntax.N_ary_functions.expression)
     =
     let region_locked = not (is_local_returning_function_body body) in
-    let param_indexes = compute_param_indexes params body in
     let in_function =
       { ty_fun = mk_expected (instance ty_expected) ?explanation;
         loc_fun = loc;
         region_locked;
-        param_indexes;
       }
     in
     let { function_ = exp_type, params, body; body_sort;
           newtypes; params_contain_gadt = contains_gadt; fun_alloc_mode
         } =
       type_function env expected_mode ty_expected params constraint_ body
-        ~in_function ~param_index:0
+        ~in_function ~seen_val_param:false
     in
     let fun_alloc_mode, body_sort =
       match fun_alloc_mode, body_sort with
