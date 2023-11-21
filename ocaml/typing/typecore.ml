@@ -4534,247 +4534,182 @@ type 'ret constraint_arg =
    extra information relevant to typechecking. The "extra information"
    is documented on the fields of [t] below.
  *)
-module Split_function_ty : sig
-  type t = private
-    { (* The split arg/return types, modes, and sorts as returned from
-         [Ctype.filter_arrow]
-       *)
-      filtered_arrow: filtered_arrow;
-      curry: function_curry;
-      (* [ty_arg_mono] is the type of the parameter from the function
-         body's perspective. It differs from [filtered_arrow.ty_arg]
-         for non-polymorphic parameters.
-       *)
-      ty_arg_mono: type_expr;
-      (* [expected_pat_mode] and [expected_inner_mode] are what you want
-         in preference to [filtered_arrow.arg_mode] and
-         [filtered_arrow.ret_mode] for typechecking the rest of the function.
-         (They are related to the [filtered_arrow] modes, but also consult
-         whether mode crossing is available or if the function has a region.)
-       *)
-      expected_pat_mode: expected_pat_mode;
-      expected_inner_mode: expected_mode;
-      (* If [t] is the result of splitting the first function parameter,
-         [alloc_mode] is the alloc mode of the overall function.
-       *)
-      alloc_mode: Mode.Alloc.t;
-    }
+type split_function_ty =
+  { (* The split arg/return types, modes, and sorts as returned from
+        [Ctype.filter_arrow]
+      *)
+    filtered_arrow: filtered_arrow;
+    curry: function_curry;
+    (* [ty_arg_mono] is the type of the parameter from the function
+        body's perspective. It differs from [filtered_arrow.ty_arg]
+        for non-polymorphic parameters.
+      *)
+    ty_arg_mono: type_expr;
+    (* [expected_pat_mode] and [expected_inner_mode] are what you want
+        in preference to [filtered_arrow.arg_mode] and
+        [filtered_arrow.ret_mode] for typechecking the rest of the function.
+        (They are related to the [filtered_arrow] modes, but also consult
+        whether mode crossing is available or if the function has a region.)
+      *)
+    expected_pat_mode: expected_pat_mode;
+    expected_inner_mode: expected_mode;
+    (* [alloc_mode] is the alloc mode of the function whose type is being
+       split. *)
+    alloc_mode: Mode.Alloc.t;
+  }
 
-  type mode_annots :=
-    (Mode.Locality.Const.t option, Mode.Uniqueness.Const.t option,
-     Mode.Linearity.Const.t option)
-      Mode.modes
+(** Return the updated environment (e.g. it may have a closure lock)
+    as well as the split function type. This function is called for
+    each value parameter of a function.
 
-  (** Return the updated environment (e.g. it may have a closure lock)
-      as well as the split function type. This function is called for
-      each value parameter of a function.
+    The mode, type, and location arguments are for the "rest of the
+    function"; i.e., the rest of the parameter list (starting at the current
+    parameter) followed by the body.
 
-      The mode, type, and location arguments are for the "rest of the
-      function"; i.e., the rest of the parameter list (starting at the current
-      parameter) followed by the body.
-
-      @param arg_label label for the relevant parameter
-      @param has_poly whether the parameter has a polymorphic type annotation
-      @param mode_annots mode annotations placed on the function parameter
-      @param in_function Information about the [Pexp_function] node that's in
-        the process of being typechecked (its overall type and its location).
-      @param param_index the index of the value parameter in the
-             [Parsetree.function_param] list, belonging to the same index
-             space as [param_indexes].
-  *)
-  val split_function_ty
-    :  Env.t
-    -> expected_mode
-    -> Types.type_expr
-    -> Location.t
-    -> arg_label:Asttypes.arg_label
-    -> has_poly:bool
-    -> mode_annots:mode_annots
-    -> in_function:in_function
-    -> param_index:int
-    -> Env.t * t
-
-  type history_summary = private
-    { first_param : t
-    ; final_param : t
-    }
-
-  (** A history records the [t] values corresponding to the
-      first and last value parameter.
-   *)
-  type history
-
-  val empty_history : history
-  val append_to_history : t -> history -> history
-  val singleton_history : t -> history
-  val assert_nonempty_history : history -> history_summary
-end = struct
-  type t =
-    { filtered_arrow: filtered_arrow;
-      curry: function_curry;
-      ty_arg_mono: type_expr;
-      expected_pat_mode: expected_pat_mode;
-      expected_inner_mode: expected_mode;
-      alloc_mode: Mode.Alloc.t;
-    }
-
-  let split_function_ty
-      env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
-      ~mode_annots ~in_function ~param_index
-    =
-    let is_first_val_param, is_final_val_param =
-      let { first_val_param; final_val_param } = in_function.param_indexes in
-      param_index = first_val_param, param_index = final_val_param
-    in
-    let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
-    let alloc_mode =
-      if expected_mode.exact then
-        (* expected_mode.mode is exact *)
-        alloc_mode
-      else
-        (* expected_mode.mode is upper bound *)
-        fst (Alloc.newvar_below alloc_mode)
-    in
-    if expected_mode.strictly_local then
-      Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
-    register_allocation_mode alloc_mode;
-    let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
-      in_function
-    in
-    let separate = !Clflags.principal || Env.has_local_constraints env in
-    if separate then begin_def ();
-    let force_tpoly =
-      (* If [has_poly] is true then we rely on the later call to
-        type_pat to enforce the invariant that the parameter type
-        be a [Tpoly] node *)
-      not has_poly
-    in
-    let { ty_arg; ty_ret; arg_mode; ret_mode } as filtered_arrow =
-      try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
-      with Filter_arrow_failed err ->
-        let err =
-          error_of_filter_arrow_failure ~explanation ~first:is_first_val_param
-            ty_fun err
-        in
-        raise (Error(loc_fun, env, err))
-    in
-    apply_mode_annots ~loc:loc_fun ~env ~ty_expected mode_annots arg_mode;
-    if separate then begin
-      end_def ();
-      generalize_structure ty_arg;
-      generalize_structure ty_ret;
-    end;
-    if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
-       && get_level ty_arg < Btype.generic_level then begin
-      let snap = Btype.snapshot () in
-      let really_poly =
-        try
-          unify env (newmono (newvar (Jkind.any ~why:Dummy_jkind))) ty_arg;
-          false
-        with Unify _ -> true
+    @param arg_label label for the relevant parameter
+    @param has_poly whether the parameter has a polymorphic type annotation
+    @param mode_annots mode annotations placed on the function parameter
+    @param in_function Information about the [Pexp_function] node that's in
+      the process of being typechecked (its overall type and its location).
+    @param param_index the index of the value parameter in the
+            [Parsetree.function_param] list, belonging to the same index
+            space as [param_indexes].
+*)
+let split_function_ty
+    env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
+    ~mode_annots ~in_function ~param_index
+  =
+  let is_first_val_param, is_final_val_param =
+    let { first_val_param; final_val_param } = in_function.param_indexes in
+    param_index = first_val_param, param_index = final_val_param
+  in
+  let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
+  let alloc_mode =
+    if expected_mode.exact then
+      (* expected_mode.mode is exact *)
+      alloc_mode
+    else
+      (* expected_mode.mode is upper bound *)
+      fst (Alloc.newvar_below alloc_mode)
+  in
+  if expected_mode.strictly_local then
+    Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
+  register_allocation_mode alloc_mode;
+  let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
+    in_function
+  in
+  let separate = !Clflags.principal || Env.has_local_constraints env in
+  if separate then begin_def ();
+  let force_tpoly =
+    (* If [has_poly] is true then we rely on the later call to
+      type_pat to enforce the invariant that the parameter type
+      be a [Tpoly] node *)
+    not has_poly
+  in
+  let { ty_arg; ty_ret; arg_mode; ret_mode } as filtered_arrow =
+    try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
+    with Filter_arrow_failed err ->
+      let err =
+        error_of_filter_arrow_failure ~explanation ~first:is_first_val_param
+          ty_fun err
       in
-      Btype.backtrack snap;
-      if really_poly then
-        Location.prerr_warning loc
-          (Warnings.Not_principal "this higher-rank function");
-    end;
-    let env =
-      match is_first_val_param with
-      | false -> env
-      | true ->
-          let env =
-            Env.add_closure_lock
-              ?closure_context:expected_mode.closure_context
-              (Alloc.locality alloc_mode)
-              (Alloc.linearity alloc_mode)
-              env
-          in
-          if region_locked then Env.add_region_lock env
-          else env
+      raise (Error(loc_fun, env, err))
+  in
+  apply_mode_annots ~loc:loc_fun ~env ~ty_expected mode_annots arg_mode;
+  if separate then begin
+    end_def ();
+    generalize_structure ty_arg;
+    generalize_structure ty_ret;
+  end;
+  if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
+      && get_level ty_arg < Btype.generic_level then begin
+    let snap = Btype.snapshot () in
+    let really_poly =
+      try
+        unify env (newmono (newvar (Jkind.any ~why:Dummy_jkind))) ty_arg;
+        false
+      with Unify _ -> true
     in
-    let expected_inner_mode, curry =
-      if not is_final_val_param then
-        (* no need to check mode crossing in this case*)
-        (* because ty_res always a function *)
-        let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
-        begin match
-          Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
-        with
-        | Ok () -> ()
-        | Error e ->
-          raise (Error(loc_fun, env, Uncurried_function_escapes e))
-        end;
-        begin match
-          Alloc.submode (Alloc.partial_apply alloc_mode) inner_alloc_mode
-        with
-        | Ok () -> ()
-        | Error e ->
-          raise (Error(loc_fun, env, Uncurried_function_escapes e))
-        end;
-        mode_exact (Value.of_alloc inner_alloc_mode),
-        More_args {partial_mode = inner_alloc_mode}
-      else
-        let ret_value_mode = Value.of_alloc ret_mode in
-        let ret_value_mode =
-          if region_locked then mode_return ret_value_mode
-          else begin
-            (* if the function has no region, we force the ret_mode to be local *)
-            match
-              Locality.submode Locality.local (Alloc.locality ret_mode)
-            with
-            | Ok () -> mode_default ret_value_mode
-            | Error () -> raise (Error (loc_fun, env, Function_returns_local))
-          end
+    Btype.backtrack snap;
+    if really_poly then
+      Location.prerr_warning loc
+        (Warnings.Not_principal "this higher-rank function");
+  end;
+  let env =
+    match is_first_val_param with
+    | false -> env
+    | true ->
+        let env =
+          Env.add_closure_lock
+            ?closure_context:expected_mode.closure_context
+            (Alloc.locality alloc_mode)
+            (Alloc.linearity alloc_mode)
+            env
         in
-        let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
-        ret_value_mode, Final_arg
-    in
-    let ty_arg_mono =
-      if has_poly then ty_arg
-      else begin
-        let ty, vars = tpoly_get_poly ty_arg in
-        if vars = [] then ty
+        if region_locked then Env.add_region_lock env
+        else env
+  in
+  let expected_inner_mode, curry =
+    if not is_final_val_param then
+      (* no need to check mode crossing in this case*)
+      (* because ty_res always a function *)
+      let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
+      begin match
+        Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
+      with
+      | Ok () -> ()
+      | Error e ->
+        raise (Error(loc_fun, env, Uncurried_function_escapes e))
+      end;
+      begin match
+        Alloc.submode (Alloc.partial_apply alloc_mode) inner_alloc_mode
+      with
+      | Ok () -> ()
+      | Error e ->
+        raise (Error(loc_fun, env, Uncurried_function_escapes e))
+      end;
+      mode_exact (Value.of_alloc inner_alloc_mode),
+      More_args {partial_mode = inner_alloc_mode}
+    else
+      let ret_value_mode = Value.of_alloc ret_mode in
+      let ret_value_mode =
+        if region_locked then mode_return ret_value_mode
         else begin
-          begin_def ();
-          init_def generic_level;
-          let _, ty_arg = instance_poly ~keep_names:true false vars ty in
-          end_def ();
-          ty_arg
+          (* if the function has no region, we force the ret_mode to be local *)
+          match
+            Locality.submode Locality.local (Alloc.locality ret_mode)
+          with
+          | Ok () -> mode_default ret_value_mode
+          | Error () -> raise (Error (loc_fun, env, Function_returns_local))
         end
+      in
+      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
+      ret_value_mode, Final_arg
+  in
+  let ty_arg_mono =
+    if has_poly then ty_arg
+    else begin
+      let ty, vars = tpoly_get_poly ty_arg in
+      if vars = [] then ty
+      else begin
+        begin_def ();
+        init_def generic_level;
+        let _, ty_arg = instance_poly ~keep_names:true false vars ty in
+        end_def ();
+        ty_arg
       end
-    in
-    let arg_value_mode =
-      let arg_value_mode = Value.of_alloc arg_mode in
-      if region_locked then Value.local_to_regional arg_value_mode
-      else arg_value_mode
-    in
-    let expected_pat_mode = simple_pat_mode arg_value_mode in
-    env,
-    { filtered_arrow; alloc_mode; ty_arg_mono;
-      expected_inner_mode; expected_pat_mode; curry;
-    }
-
-  type history_summary =
-    { first_param : t
-    ; final_param : t
-    }
-
-  type history = history_summary option
-
-  let empty_history : history = None
-
-  let append_to_history t (history : history) : history =
-    match history with
-    | None -> Some { first_param = t; final_param = t }
-    | Some history -> Some { history with first_param = t }
-
-  let singleton_history t = append_to_history t empty_history
-
-  let assert_nonempty_history : history -> history_summary = function
-    | Some summary -> summary
-    | None ->
-        Misc.fatal_error "Incorrect claim of non-empty value param history"
-end
+    end
+  in
+  let arg_value_mode =
+    let arg_value_mode = Value.of_alloc arg_mode in
+    if region_locked then Value.local_to_regional arg_value_mode
+    else arg_value_mode
+  in
+  let expected_pat_mode = simple_pat_mode arg_value_mode in
+  env,
+  { filtered_arrow; alloc_mode; ty_arg_mono;
+    expected_inner_mode; expected_pat_mode; curry;
+  }
 
 (* The result of checking the "rest of the function": the parameter suffix
    followed by the body.
@@ -4785,9 +4720,12 @@ type type_function_result =
     newtypes: (string loc * Jane_asttypes.jkind_annotation option) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: bool;
-    (* The history of calling [Split_function_ty.split_function_ty] for
-       the parameter suffix. *)
-    split_history: Split_function_ty.history;
+    (* The alloc mode of the "rest of the function". It's None only
+       when the parameter suffix of the "rest of the function" is
+       empty.
+    *)
+    fun_alloc_mode: Mode.Alloc.t option;
+    ret_sort: Jkind.sort option;
   }
 
 let rec type_exp ?recarg env expected_mode sexp =
@@ -6424,12 +6362,13 @@ and type_function
   match params_suffix with
   | { pparam_desc = Pparam_newtype (newtype_var, layout) } :: rest ->
       (* Check everything else in the scope of (type a). *)
-      let (params, body, newtypes, params_contain_gadt, split_history),
+      let (params, body, newtypes, params_contain_gadt, fun_alloc_mode,
+           ret_sort),
           exp_type
         =
         type_newtype_gen loc env newtype_var.txt layout (fun env ->
           let { function_ = exp_type, params, body;
-                split_history; newtypes; params_contain_gadt;
+                fun_alloc_mode; ret_sort; newtypes; params_contain_gadt;
               }
             =
             (* mimic the typing of Pexp_newtype by minting a new type var,
@@ -6439,15 +6378,16 @@ and type_function
               (newvar (Jkind.any ~why:Dummy_jkind))
               rest body_constraint body ~in_function ~param_index:(param_index+1)
           in
-          (params, body, newtypes, params_contain_gadt, split_history),
+          (params, body, newtypes, params_contain_gadt, fun_alloc_mode,
+           ret_sort),
           exp_type)
       in
       let newtype = newtype_var, layout in
       with_explanation ty_fun.explanation (fun () ->
           unify_exp_types loc env exp_type (instance ty_expected));
       { function_ = exp_type, params, body;
-        params_contain_gadt; split_history;
-        newtypes = newtype :: newtypes;
+        params_contain_gadt; newtypes = newtype :: newtypes;
+        fun_alloc_mode; ret_sort;
       }
   | { pparam_desc = Pparam_val (arg_label, default_arg, pat); pparam_loc }
       :: rest
@@ -6460,13 +6400,14 @@ and type_function
       && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
                                Unsupported_extension Polymorphic_parameters));
-      let env, split_function_ty_result =
-        Split_function_ty.split_function_ty env expected_mode ty_expected loc
-          ~param_index ~arg_label ~in_function ~has_poly ~mode_annots
-      in
-      let { filtered_arrow = { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode };
+      let env,
+          { filtered_arrow =
+              { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort };
             ty_arg_mono; expected_pat_mode; expected_inner_mode; curry;
-          } : Split_function_ty.t = split_function_ty_result
+            alloc_mode;
+          } =
+        split_function_ty env expected_mode ty_expected loc
+          ~param_index ~arg_label ~in_function ~has_poly ~mode_annots
       in
       (* [ty_arg_internal_mono] is the type of the parameter viewed internally
          to the function. This is different than [ty_arg_mono] exactly for
@@ -6508,7 +6449,30 @@ and type_function
             in
             ty_default_arg, Some (default_arg, arg_label, default_arg_sort)
       in
-      let (pat, params, body, newtypes, params_contain_gadt, inner_split_history)
+      let open struct
+        (* The result of checking the "rest" of the function (the param suffix
+           plus the body).
+        *)
+        type typed_suffix =
+          { pat : pattern;
+            (* The eventual body. *)
+            body : Typedtree.function_body;
+            (* All params, excluding [pat]. *)
+            param_suffix : Typedtree.function_param list;
+            (* The newtypes that appear prior to [param_suffix] and after
+               [param]. *)
+            newtypes :
+              (string loc * Jane_asttypes.jkind_annotation option) list;
+            (* Whether any param ([pat] + [param_suffix]) contains a GADT. *)
+            params_contain_gadt : bool;
+            (* The sort of the body. [None] if the body is not a function. *)
+            innermost_ret_sort : Jkind.sort option;
+          }
+      end
+      in
+      let { pat; param_suffix; body; newtypes; params_contain_gadt;
+            innermost_ret_sort;
+          }
         , partial =
         (* Check everything else in the scope of the parameter. *)
         map_half_typed_cases Value env expected_pat_mode
@@ -6519,10 +6483,10 @@ and type_function
           ~type_body:begin
             fun () pat ~ext_env ~ty_expected ~ty_infer:_
               ~contains_gadt:param_contains_gadt ->
-              let { function_ = _, params, body;
+              let { function_ = _, param_suffix, body;
                     newtypes;
                     params_contain_gadt = suffix_contains_gadt;
-                    split_history = inner_split_history;
+                    fun_alloc_mode = _; ret_sort = innermost_ret_sort;
                   }
                 =
                 type_function ext_env expected_inner_mode ty_expected
@@ -6530,17 +6494,14 @@ and type_function
                   ~in_function ~param_index:(param_index+1)
               in
               let params_contain_gadt = param_contains_gadt || suffix_contains_gadt in
-              (pat, params, body, newtypes, params_contain_gadt, inner_split_history)
+              { pat; param_suffix; body; newtypes; params_contain_gadt;
+                innermost_ret_sort }
           end
         |> function
           (* The result must be a singleton because we passed a singleton
              list above. *)
         | [ result ], partial -> result, partial
         | ([] | _ :: _ :: _), _ -> assert false
-      in
-      let split_history =
-        Split_function_ty.append_to_history
-          split_function_ty_result inner_split_history
       in
       let exp_type =
         instance
@@ -6588,11 +6549,15 @@ and type_function
           fp_loc = pparam_loc;
         }
       in
-      { function_ = exp_type, param :: params, body;
-        newtypes = []; params_contain_gadt; split_history;
+      let ret_sort =
+        Some (Option.value innermost_ret_sort ~default:ret_sort)
+      in
+      { function_ = exp_type, param :: param_suffix, body;
+        newtypes = []; params_contain_gadt; ret_sort;
+        fun_alloc_mode = Some alloc_mode;
       }
   | [] ->
-    let exp_type, body, split_history =
+    let exp_type, body, fun_alloc_mode_opt, ret_sort_opt =
       match body with
       | Pfunction_body body ->
           let body =
@@ -6611,13 +6576,13 @@ and type_function
                     exp_type;
                 }
           in
-          body.exp_type, Tfunction_body body, Split_function_ty.empty_history
+          body.exp_type, Tfunction_body body, None, None
       | Pfunction_cases (cases, _, attributes) ->
           let type_cases_expect env expected_mode ty_expected =
             type_function_cases_expect
               env expected_mode ty_expected loc cases attributes ~in_function
           in
-          let (body, split_history, exp_type), exp_extra =
+          let (body, fun_alloc_mode, ret_sort, exp_type), exp_extra =
             match body_constraint with
             | None -> type_cases_expect env expected_mode ty_expected, None
             | Some constraint_ ->
@@ -6635,33 +6600,34 @@ and type_function
               let function_cases_constraint_arg =
                 { is_self = (fun _ -> false);
                   type_with_constraint = (fun env expected_mode ty ->
-                    let cases, split_history, _ =
+                    let cases, fun_alloc_mode, ret_sort, _ =
                       type_cases_expect env expected_mode ty
                     in
-                    cases, split_history);
+                    cases, fun_alloc_mode, ret_sort);
                   type_without_constraint = (fun env expected_mode ->
-                    let cases, split_history, ty_fun =
+                    let cases, fun_alloc_mode, ret_sort, ty_fun =
                       (* The analogy to [type_exp] for expressions. *)
                       type_cases_expect env expected_mode
                         (newvar (Jkind.any ~why:Dummy_jkind))
                     in
-                    (cases, split_history), ty_fun);
+                    (cases, fun_alloc_mode, ret_sort), ty_fun);
                 }
               in
-              let (body, split_history), exp_type, exp_extra =
+              let (body, fun_alloc_mode, ret_sort), exp_type, exp_extra =
                 type_constraint_expect function_cases_constraint_arg
                   env expected_mode loc constraint_ ty_expected ~loc_arg:loc
               in
-              (body, split_history, exp_type), Some exp_extra
+              (body, fun_alloc_mode, ret_sort, exp_type), Some exp_extra
           in
           let body =
             match exp_extra with
             | None -> body
             | Some _ as fc_exp_extra -> { body with fc_exp_extra }
           in
-          exp_type, Tfunction_cases body, split_history
+          exp_type, Tfunction_cases body, Some fun_alloc_mode, Some ret_sort
      in
-     { function_ = exp_type, [], body; newtypes = []; split_history;
+     { function_ = exp_type, [], body; newtypes = [];
+       fun_alloc_mode = fun_alloc_mode_opt; ret_sort = ret_sort_opt;
      (* [false] is fine because this return value is only meant to indicate
         whether [params] (here, the empty list) contains any GADT, not whether
         the body is a [Tfunction_cases] whose patterns include a GADT.
@@ -7801,14 +7767,15 @@ and type_function_cases_expect
     env expected_mode ty_expected loc cases attrs ~in_function =
   Builtin_attributes.warning_scope attrs begin fun () ->
     let env, split_function_ty_result =
-      Split_function_ty.split_function_ty
+      split_function_ty
         env expected_mode ty_expected loc ~arg_label:Nolabel
         ~in_function ~has_poly:false ~mode_annots:mode_annots_none
         ~param_index:in_function.param_indexes.final_val_param
     in
-    let { filtered_arrow = { ty_arg; ty_ret; arg_mode; ret_mode; arg_sort };
-          ty_arg_mono; expected_pat_mode; expected_inner_mode;
-        } : Split_function_ty.t = split_function_ty_result
+    let { filtered_arrow =
+            { ty_arg; ty_ret; arg_mode; ret_mode; arg_sort; ret_sort };
+          ty_arg_mono; expected_pat_mode; expected_inner_mode; alloc_mode;
+        } = split_function_ty_result
     in
     let cases, partial =
       type_cases Value env
@@ -7834,7 +7801,7 @@ and type_function_cases_expect
         fc_arg_sort = arg_sort;
       }
     in
-    body, Split_function_ty.singleton_history split_function_ty_result, ty_fun
+    body, alloc_mode, ret_sort, ty_fun
   end
 
 (** Typecheck the body of a newtype. The "body" of a newtype may be:
@@ -8378,10 +8345,22 @@ and type_n_ary_function
       }
     in
     let { function_ = exp_type, params, body;
-          newtypes; params_contain_gadt; split_history;
+          newtypes; params_contain_gadt; ret_sort; fun_alloc_mode
         } =
       type_function env expected_mode ty_expected params constraint_ body
         ~in_function ~param_index:0
+    in
+    let fun_alloc_mode, ret_sort =
+      match fun_alloc_mode, ret_sort with
+      | Some x, Some y -> x, y
+      | None, _ ->
+          Misc.fatal_error
+            "[fun_alloc_mode] can't be None -- that indicates a function with \
+             no parameters."
+      | _, None ->
+          Misc.fatal_error
+            "[ret_sort] can't be None -- that indicates a function with \
+             no parameters."
     in
     (* Require that the n-ary function is known to have at least n arrows
         in the type. This prevents GADT equations introduced by the parameters
@@ -8434,15 +8413,11 @@ and type_n_ary_function
           in
           raise (Error (loc, env, err))
     end;
-    let param_history =
-      Split_function_ty.assert_nonempty_history split_history
-    in
     re
       { exp_desc =
           Texp_function
-            { params; body; region = region_locked;
-              alloc_mode = param_history.first_param.alloc_mode;
-              ret_sort = param_history.final_param.filtered_arrow.ret_sort;
+            { params; body; region = region_locked; ret_sort;
+              alloc_mode = fun_alloc_mode;
             };
         exp_loc = loc;
         exp_extra =
