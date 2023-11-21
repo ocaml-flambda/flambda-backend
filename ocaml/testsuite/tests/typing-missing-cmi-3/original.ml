@@ -6,3 +6,5 @@ let r = { x = () }
 
 type s = S
 let s = S
+
+type u = int
