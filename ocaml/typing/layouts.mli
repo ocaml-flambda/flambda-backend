@@ -155,6 +155,7 @@ module Layout : sig
     | Univar of string
     | Type_variable of string
     | Type_wildcard of Location.t
+    | With_error_message of string * annotation_context
 
    type value_creation_reason =
     | Class_let_binding

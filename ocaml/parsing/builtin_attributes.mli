@@ -204,3 +204,10 @@ val has_once : Parsetree.attributes -> (bool, unit) result
 val layout : legacy_immediate:bool -> Parsetree.attributes ->
   (Jane_asttypes.layout_annotation option,
    Jane_asttypes.layout_annotation) result
+
+(** Finds the first "error_message" attribute, marks it as used, and returns its
+    string payload. Returns [None] if no such attribute is present.
+
+    There should be at most one "error_message" attribute, additional ones are sliently
+    ignored. **)
+val error_message_attr : Parsetree.attributes -> string option
