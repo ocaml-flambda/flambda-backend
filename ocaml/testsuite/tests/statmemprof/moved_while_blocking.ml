@@ -1,9 +1,9 @@
 (* TEST
 * runtime4
-* hassysthreads
+** hassysthreads
 include systhreads
-** bytecode
-** native
+*** bytecode
+*** native
 *)
 
 let t2_begin = Atomic.make false
